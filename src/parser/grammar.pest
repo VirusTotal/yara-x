@@ -177,7 +177,6 @@ single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
 // Comments are either block or single-line.
 COMMENT = { block_comment | single_line_comment }
 
-// Whitespaces are silent, they don't appear in the parse tree.
 WHITESPACE = { " " | "\t" | "\n" | "\r" }
 
 // A YARA source file is a sequence of import statements and rule declarations.
@@ -322,9 +321,9 @@ string_def = {
   )
 }
 
-// Not all types of strings accept these modifiers, hex strings for example
+// Not all types of strings accept these modifiers, for example hex strings
 // only accept the `private` modifier. This not enforced by the grammar, but
-// it's enforced later during the construction o
+// it's enforced later during the construction of the AST.
 string_mods = {(
   k_ASCII                                                             |
   k_WIDE                                                              |

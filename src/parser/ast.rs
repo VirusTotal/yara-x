@@ -410,7 +410,7 @@ impl HexJump {
     /// Coalesce this jump with another one.
     ///
     /// This is useful when two or more consecutive jumps appear in a hex
-    /// string. In such cases the jumps can be coalesched together into a
+    /// string. In such cases the jumps can be coalesced together into a
     /// single one. For example:
     ///
     ///  `[1-2][3-4]` becomes `[4-6]`
@@ -601,7 +601,6 @@ fn create_binary_expr<'src>(
             rhs,
             ExprKind::Integer | ExprKind::Float
         ),
-        // TODO: check for division by 0.
         GrammarRule::DIV => new_expression!(
             Expr::Div,
             lhs,
@@ -2224,7 +2223,7 @@ fn float_lit_from_cst<'src>(
 }
 
 /// From a CST node corresponding to the grammar rule `string_lit`, returns
-/// the `Box<[u8]>` representing the literal. Literal strings in YARA can
+/// a `BString` representing the literal. Literal strings in YARA can
 /// contain arbitrary sequences of bytes, including zeroes, so it can't be
 /// represented by a Rust string slice, which requires valid UTF-8.
 fn string_lit_from_cst<'src>(

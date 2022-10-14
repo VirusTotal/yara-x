@@ -98,7 +98,7 @@ impl Error {
         }
     }
 
-    /// Given a parser rule returns a more appropriate string that will be used
+    /// Given a grammar rule returns a more appropriate string that will be used
     /// in error messages.
     pub fn printable_string(rule: &GrammarRule) -> &str {
         match rule {
