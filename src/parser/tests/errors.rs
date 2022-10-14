@@ -791,7 +791,7 @@ rule test {
    │
  4 │     $a = "foo" xor(2-1)
    ·                    ┬  
-   ·                    ╰── lower bound (2) is greater than lower bound (1)
+   ·                    ╰── lower bound (2) is greater than upper bound (1)
 ───╯
 "#,
         ),

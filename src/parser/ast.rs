@@ -1164,7 +1164,7 @@ fn string_mods_from_cst<'src>(
                                 &ctx.src,
                                 lower_bound_span,
                                 format!(
-                                    "lower bound ({}) is greater than lower bound ({})",
+                                    "lower bound ({}) is greater than upper bound ({})",
                                     lower_bound, upper_bound),
                             ));
                         }
