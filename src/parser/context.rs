@@ -1,6 +1,5 @@
 use crate::parser::Ident;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
 
 use super::ErrorBuilder;
 

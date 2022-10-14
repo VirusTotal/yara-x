@@ -1,4 +1,4 @@
-use ansi_term::Color::{Blue, Green, Red};
+use ansi_term::Color::{Blue, Red};
 use anyhow::{Context, Result};
 use clap::{arg, command, crate_authors, value_parser, ArgMatches, Command};
 use globset::GlobBuilder;

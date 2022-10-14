@@ -400,14 +400,6 @@ pub(crate) mod actions {
     use crate::formatter::processor::{ActionFn, Context};
     use crate::formatter::tokens::{Token, TokenStream};
 
-    /// Action that does nothing.
-    pub(crate) fn nop<'a, I>(ctx: &mut Context<'a, I>)
-    where
-        I: TokenStream<'a>,
-    {
-        // Intentionally empty
-    }
-
     /// Action that removes the next token from the input without producing
     /// any output.
     pub(crate) fn drop<'a, I>(ctx: &mut Context<'a, I>)

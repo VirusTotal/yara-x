@@ -22,36 +22,6 @@ fn no_rules() {
 }
 
 #[test]
-fn nop_and_copy() {
-    // The nop operation does nothing, and the copy that follows should
-    // produce an output that is equal to the input.
-    let input_tokens: Vec<Token> =
-        tokenize(r#"rule test { condition: true }"#).collect();
-
-    let processor = Processor::new(input_tokens.clone().into_iter())
-        .add_rule(|_| true, actions::nop)
-        .add_rule(|_| true, actions::copy);
-
-    let output_tokens: Vec<Token> = processor.collect();
-
-    assert_eq!(input_tokens, output_tokens);
-}
-
-#[test]
-fn nop_and_drop() {
-    // The nop operation does nothing, and the drop that follows should
-    // produce no output at all.
-    let processor =
-        Processor::new(tokenize(r#"rule test { condition: true }"#))
-            .add_rule(|_| true, actions::nop)
-            .add_rule(|_| true, actions::drop);
-
-    let output_tokens: Vec<Token> = processor.collect();
-
-    assert!(output_tokens.is_empty());
-}
-
-#[test]
 fn copy() {
     // Make sure that a processor with a single rule where the condition is
     // always true and the action is actions::copy returns an output that is

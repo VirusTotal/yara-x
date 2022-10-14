@@ -1,9 +1,7 @@
 use crate::formatter;
-use crate::formatter::tokens::Token::*;
-use crate::formatter::tokens::{Token, TokenStream, Tokens};
+use crate::formatter::tokens::{TokenStream, Tokens};
 use crate::formatter::Formatter;
 use crate::parser::Parser;
-use crate::parser::*;
 use pretty_assertions::assert_eq;
 use std::io::Cursor;
 use std::path::PathBuf;
