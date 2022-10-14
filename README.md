@@ -88,29 +88,3 @@ But this is not valid...
 ```yara
 1 of (some_rule*)
 ```
-
-
-### `<quantifier> of <tuple> at <expr>` is now accepted.
-
-The `<quantifier> of <tuple>` statement in YARA 4.x can be followed by 
-`in <range>` when `<tuple>` is a tuple of string identifiers. For example, this
-is valid...
-
-```yara
-all of ($a, $b, $d) in (0..10)
-```
-
-But this wasn't...
-
-```yara
-any of ($a, $b, $d) in at 100
-```
-
-Given that `$a in <range>` and `$a at <expr>` are both valid, it feels
-unintuitive that any of `any of ($a, $b, $d) in <range>` exists and 
-`any of ($a, $b, $d) at <expr>` does not.
-
-However, this expression only makes sense when used with `any` (`1`) or `none` 
-(`0`) as quantifiers. The expression `all of ($a, $b, $c)` doesn't make sense 
-unless `$a`, `$b` and `$c` can match all at the same offset, which is uncommon.
-This should raise a warning.
