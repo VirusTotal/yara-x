@@ -1,0 +1,146 @@
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" contains "ssi"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ contains (value: true)
+                ├─ "mississippi"
+                └─ "ssi"
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" contains "SSI"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ contains (value: false)
+                ├─ "mississippi"
+                └─ "SSI"
+
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" icontains "SSI"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ icontains (value: true)
+                ├─ "mississippi"
+                └─ "SSI"
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" startswith "miss"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ startswith (value: true)
+                ├─ "mississippi"
+                └─ "miss"
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" startswith "Miss"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ startswith (value: false)
+                ├─ "mississippi"
+                └─ "Miss"
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" istartswith "Miss"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ istartswith (value: true)
+                ├─ "mississippi"
+                └─ "Miss"
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" endswith "ippi"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ endswith (value: true)
+                ├─ "mississippi"
+                └─ "ippi"
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" endswith "iPPI"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ endswith (value: false)
+                ├─ "mississippi"
+                └─ "iPPI"
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "mississippi" iendswith "iPPI"
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ iendswith (value: true)
+                ├─ "mississippi"
+                └─ "iPPI"
+
+###############################################################################

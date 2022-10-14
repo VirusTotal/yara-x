@@ -1,0 +1,242 @@
+###############################################################################
+
+- rule: |
+    private global rule test {
+      condition:
+        true or /*comment*/ false and not $a
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ private global rule test
+          └─ condition
+             └─ or (value: unknown)
+                ├─ true
+                └─ and (value: unknown)
+                   ├─ false
+                   └─ not (value: unknown)
+                      └─ $a
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        (true or false) and not false
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ and (value: true)
+                ├─ or (value: true)
+                │  ├─ true
+                │  └─ false
+                └─ not (value: true)
+                   └─ false
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        $a in (0..100)
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ $a in (<start>, <end>)
+                ├─ <start>
+                │  └─ 0
+                └─ <end>
+                   └─ 100
+
+###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = "foo"
+      condition:
+        $a at 100 + 200
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          ├─ strings
+          │  └─ $a = "foo" 
+          └─ condition
+             └─ $a at <expr>
+                └─ <expr>
+                   └─ add (value: 300)
+                      ├─ 100
+                      └─ 200
+
+###############################################################################
+
+- rule: |    
+    rule test {
+      strings:
+        $a = "foo"
+      condition:
+        #a in (100+100..400) == 2
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          ├─ strings
+          │  └─ $a = "foo" 
+          └─ condition
+             └─ eq (value: unknown)
+                ├─ #a in <range>
+                │  └─ <range>
+                │     ├─ add (value: 200)
+                │     │  ├─ 100
+                │     │  └─ 100
+                │     └─ 400
+                └─ 2
+
+###############################################################################
+
+- rule: |    
+    rule test {
+      strings:
+        $a = "foo"
+      condition:
+        @a[2] == 0x1000
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          ├─ strings
+          │  └─ $a = "foo" 
+          └─ condition
+             └─ eq (value: unknown)
+                ├─ @a[<index>]
+                │  └─ <index>
+                │     └─ 2
+                └─ 0x1000
+
+###############################################################################
+
+- rule: |    
+    rule test {
+      condition:
+        entrypoint == 1000 + 2000
+    }
+  ast: | 
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ eq (value: unknown)
+                ├─ entrypoint
+                └─ add (value: 3000)
+                   ├─ 1000
+                   └─ 2000
+
+###############################################################################
+
+- rule: |    
+    rule test {
+      condition:
+        2 > 1 and 1.0 < 3 and 4 <= 4.0 and 5 > 4.9 and 5 >= 5.0 
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ and (value: true)
+                ├─ and (value: true)
+                │  ├─ and (value: true)
+                │  │  ├─ and (value: true)
+                │  │  │  ├─ gt (value: true)
+                │  │  │  │  ├─ 2
+                │  │  │  │  └─ 1
+                │  │  │  └─ lt (value: true)
+                │  │  │     ├─ 1.0
+                │  │  │     └─ 3
+                │  │  └─ le (value: true)
+                │  │     ├─ 4
+                │  │     └─ 4.0
+                │  └─ gt (value: true)
+                │     ├─ 5
+                │     └─ 4.9
+                └─ ge (value: true)
+                   ├─ 5
+                   └─ 5.0
+
+###############################################################################
+
+- rule: |    
+    rule test {
+      condition:
+        foo.bar[0].baz == foo.bar.baz()
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ eq (value: unknown)
+                ├─ <struct>.<field>
+                │  ├─ <struct>
+                │  │  └─ <expr>[<index>]
+                │  │     ├─ <expr>
+                │  │     │  └─ <struct>.<field>
+                │  │     │     ├─ <struct>
+                │  │     │     │  └─ foo
+                │  │     │     └─ <field>
+                │  │     │        └─ bar
+                │  │     └─ <index>
+                │  │        └─ 0
+                │  └─ <field>
+                │     └─ baz
+                └─ <callable>()
+                   └─ <callable>
+                      └─ <struct>.<field>
+                         ├─ <struct>
+                         │  └─ <struct>.<field>
+                         │     ├─ <struct>
+                         │     │  └─ foo
+                         │     └─ <field>
+                         │        └─ bar
+                         └─ <field>
+                            └─ baz
+
+###############################################################################
+
+- rule: |    
+    rule test {
+      condition:
+        foo.bar(1,2).baz
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ <struct>.<field>
+                ├─ <struct>
+                │  └─ <callable>(<arg0>, <arg1>)
+                │     ├─ <callable>
+                │     │  └─ <struct>.<field>
+                │     │     ├─ <struct>
+                │     │     │  └─ foo
+                │     │     └─ <field>
+                │     │        └─ bar
+                │     ├─ <arg0>
+                │     │  └─ 1
+                │     └─ <arg1>
+                │        └─ 2
+                └─ <field>
+                   └─ baz
+
+###############################################################################

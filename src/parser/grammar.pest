@@ -1,0 +1,484 @@
+// Special characters.
+ASTERISK        = { "*" }
+COLON           = { ":" }
+COMMA           = { "," }
+DOT             = { "." }
+DOT_DOT         = { ".." }
+EQUAL           = { "=" }
+LBRACE          = { "{" }
+RBRACE          = { "}" }
+LBRACKET        = { "[" }
+RBRACKET        = { "]" }
+LPAREN          = { "(" }
+RPAREN          = { ")" }
+DOUBLE_QUOTES   = { "\"" }
+MINUS           = { "-" }
+HYPHEN          = { "-" }
+PERCENT         = { "%" }
+PIPE            = { "|" }
+TILDE           = { "~" }
+
+// Arithmetic operators.
+ADD             = { "+" }
+SUB             = { "-" }
+MUL             = { "*" }
+DIV             = { "\\" }
+MOD             = { "%" }
+
+// Bitwise operators.
+SHL             = { "<<" }
+SHR             = { ">>" }
+BITWISE_AND     = { "&" }
+BITWISE_OR      = { "|" }
+BITWISE_XOR     = { "^" }
+BITWISE_NOT     = { "~" }
+
+// Comparison operators.
+EQ              = { "==" }
+NEQ             = { "!=" }
+LT              = { "<" }
+LE              = { "<=" }
+GT              = { ">" }
+GE              = { ">=" }
+
+// Keywords. Keep in alphabetical order. All keywords start with the prefix
+// k_ in order to avoid collisions with Pest built-in rules like ASCII and ANY.
+k_ALL             = { "all" }
+k_AND             = { "and" }
+k_ANY             = { "any" }
+k_ASCII           = { "ascii" }
+k_AT              = { "at" }
+k_BASE64          = { "base64" }
+k_BASE64WIDE      = { "base64wide" }
+k_CONDITION       = { "condition" }
+k_CONTAINS        = { "contains" }
+k_DEFINED         = { "defined" }
+k_ENDSWITH        = { "endswith" }
+k_ENTRYPOINT      = { "entrypoint" }
+k_FALSE           = { "false" }
+k_FILESIZE        = { "filesize" }
+k_FOR             = { "for" }
+k_FULLWORD        = { "fullword" }
+k_GLOBAL          = { "global" }
+k_ICONTAINS       = { "icontains" }
+k_IENDSWITH       = { "iendswith" }
+k_IEQUALS         = { "iequals" }
+k_IMPORT          = { "import" }
+k_IN              = { "in" }
+k_ISTARTSWITH     = { "istartswith" }
+k_MATCHES         = { "matches"}
+k_META            = { "meta" }
+k_NOCASE          = { "nocase" }
+k_NONE            = { "none" }
+k_NOT             = { "not" }
+k_OF              = { "of" }
+k_OR              = { "or" }
+k_PRIVATE         = { "private" }
+k_RULE            = { "rule" }
+k_STARTSWITH      = { "startswith" }
+k_STRINGS         = { "strings" }
+k_THEM            = { "them" }
+k_TRUE            = { "true" }
+k_WIDE            = { "wide"}
+k_XOR             = { "xor" }
+
+// All the keywords declared above must be included in this rule too.
+// Keep in alphabetical order.
+keyword = {(
+  k_ALL             |
+  k_AND             |
+  k_ANY             |
+  k_ASCII           |
+  k_AT              |
+  k_BASE64          |
+  k_BASE64WIDE      |
+  k_CONDITION       |
+  k_CONTAINS        |
+  k_DEFINED         |
+  k_ENDSWITH        |
+  k_ENTRYPOINT      |
+  k_FALSE           |
+  k_FILESIZE        |
+  k_FOR             |
+  k_FULLWORD        |
+  k_GLOBAL          |
+  k_ICONTAINS       |
+  k_IENDSWITH       |
+  k_IEQUALS         |
+  k_IMPORT          |
+  k_IN              |
+  k_ISTARTSWITH     |
+  k_MATCHES         |
+  k_META            |
+  k_NOCASE          |
+  k_NONE            |
+  k_NOT             |
+  k_OF              |
+  k_OR              |
+  k_PRIVATE         |
+  k_RULE            |
+  k_STARTSWITH      |
+  k_STRINGS         |
+  k_THEM            |
+  k_TRUE            |
+  k_WIDE            |
+  k_XOR
+)}
+
+arithmetic_op = _{
+  ADD               |
+  SUB               |
+  MUL               |
+  DIV               |
+  MOD
+}
+
+bitwise_op = _{
+  SHR               |
+  SHL               |
+  BITWISE_AND       |
+  BITWISE_OR        |
+  BITWISE_XOR
+}
+
+comparison_op = _{
+  EQ                |
+  NEQ               |
+  LE                |
+  LT                |
+  GE                |
+  GT
+}
+
+string_op = _{
+  k_CONTAINS        |
+  k_ICONTAINS       |
+  k_STARTSWITH      |
+  k_ISTARTSWITH     |
+  k_ENDSWITH        |
+  k_IENDSWITH       |
+  k_IEQUALS         |
+  k_MATCHES
+}
+
+
+// Block comments...
+/* Like this one */
+block_comment = _{
+  "/*" ~
+      (block_comment | !"*/" ~ ANY)* ~
+   "*/"
+}
+
+// Single-line comments...
+// Like this one
+single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
+
+// Comments are either block or single-line.
+COMMENT = { block_comment | single_line_comment }
+
+// Whitespaces are silent, they don't appear in the parse tree.
+WHITESPACE = { " " | "\t" | "\n" | "\r" }
+
+// A YARA source file is a sequence of import statements and rule declarations.
+// This is the grammar's root rule.
+source_file = {
+  SOI ~  // Start of input
+  (
+    import_stmt |
+    rule_decl
+  )* ~
+  EOI    // End of input
+}
+
+import_stmt = { k_IMPORT ~ string_lit }
+
+rule_decl = {
+	rule_mods? ~ k_RULE ~ ident ~ rule_tags? ~
+	LBRACE ~
+	    meta_defs? ~
+	    string_defs?  ~
+      k_CONDITION ~ COLON ~
+         boolean_expr ~
+  RBRACE
+}
+
+// Characters accepted in identifiers are letters from A to Z, digits, and
+// the underscore character (_).
+ident_chars = { ASCII_ALPHANUMERIC | "_"}
+
+// Identifiers follow the naming convention of many programming languages:
+// they can contain any alphanumeric character and the underscore character (_),
+// but the first character cannot be a digit. Identifiers are limited to 128
+// characters.
+// TODO: Enforce identifier length limit during the creation of the
+// AST.
+ident = @{
+   // !(keyword ~ !ident_chars) makes sure that keywords are not used as
+   // identifiers. It rejects any identifier that starts with a keyword,
+   // provided that the character following the keyword can't be part of
+   // the identifier. This is important, because we want to accept identifiers
+   // like "true_", or "imported", which start with a keyword.
+   !(keyword ~ !ident_chars) ~ (ASCII_ALPHA | "_") ~ ident_chars*
+}
+
+// String identifier (i.e: $a, $b, $foo, $bar).
+string_ident = @{
+  "$" ~ ident_chars*
+}
+
+// String identifier pattern (i.e: $a, $a*, $*).
+string_ident_pattern = @{
+  "$" ~ ident_chars* ~ ASTERISK?
+}
+
+// String count (i.e: #a, #b, #foo, #bar).
+string_count = @{
+  "#" ~ ident_chars*
+}
+
+// String offset (i.e: @a, @b, @foo, @bar).
+string_offset = @{
+  "@" ~ ident_chars*
+}
+
+// String length (i.e: !a, !b, !foo, !bar).
+string_length = @{
+  "!" ~ ident_chars*
+}
+
+// String literal (i.e: "", "foo", "bar").
+string_lit = @{
+  DOUBLE_QUOTES ~ (
+     // The escape sequence \\ has precedence, if not, \\" would be interpreted
+     // as a backslash \, followed by the escape sequence \"
+     "\\\\" |
+     // Allow \" inside the double quotes.
+     "\\\"" |
+     // Allow any characters except double quotes and newlines.
+     !(DOUBLE_QUOTES | NEWLINE ) ~ ANY
+   )* ~ DOUBLE_QUOTES
+}
+
+integer_lit = @{
+   "0x" ~ ASCII_HEX_DIGIT+ |
+   "0o" ~ ASCII_OCT_DIGIT+ |
+   "-"? ~ ASCII_DIGIT+ ~ ("KB" | "MB")?
+}
+
+float_lit = @{
+   "-"? ~ ASCII_DIGIT+ ~ DOT ~ ASCII_DIGIT+
+}
+
+regexp = @{
+  "/" ~
+  (
+      // Anything except backslashes, slashes and newlines.
+      (!("\\" | "/" | NEWLINE) ~ ANY)  |
+
+      // Escape sequences.
+      "\\" ~ ANY
+  )+ ~
+  "/" ~ "i"? ~ "s"?
+}
+
+// The original YARA accepts repeated rule modifiers like "private private",
+// but here we consider it an error. This makes the language stricter, but
+// rules with duplicate modifiers should be very rare. Modifiers are accepted
+// in arbitrary order, as in the original YARA.
+rule_mods = {
+  (k_PRIVATE ~ k_GLOBAL | k_GLOBAL ~ k_PRIVATE | k_GLOBAL | k_PRIVATE)
+}
+
+rule_tags = {
+  COLON ~ ident+
+}
+
+meta_defs = {
+  k_META ~ COLON ~ meta_def+
+}
+
+meta_def = {
+  ident ~ EQUAL ~
+  (
+      k_TRUE                |
+      k_FALSE               |
+      float_lit             |
+      integer_lit           |
+      string_lit
+  )
+}
+
+string_defs = {
+  k_STRINGS ~ COLON ~ string_def+
+}
+
+string_def = {
+  string_ident ~ EQUAL ~
+  (
+    string_lit ~ string_mods? |
+    regexp ~ string_mods? |
+    hex_string ~ string_mods?
+  )
+}
+
+// Not all types of strings accept these modifiers, hex strings for example
+// only accept the `private` modifier. This not enforced by the grammar, but
+// it's enforced later during the construction o
+string_mods = {(
+  k_ASCII                                                             |
+  k_WIDE                                                              |
+  k_NOCASE                                                            |
+  k_PRIVATE                                                           |
+  k_FULLWORD                                                          |
+  k_BASE64WIDE ~ (LPAREN ~ string_lit ~ RPAREN)?                      |
+  k_BASE64 ~ (LPAREN ~ string_lit ~ RPAREN)?                          |
+  k_XOR ~ (
+    LPAREN ~
+      (integer_lit ~ HYPHEN ~ integer_lit | integer_lit) ~
+    RPAREN)?
+  )+
+}
+
+// !RBRACE after LBRACE is not actually required, but helps producing a more
+// meaningful error message for empty hex strings (i.e: {}).
+hex_string = {
+  LBRACE ~ !RBRACE ~ hex_pattern ~ RBRACE
+}
+
+// Hex strings must start and finish with a byte or alternative. Jumps are not
+// allowed at the beginning or end of the string.
+hex_pattern = {
+  (hex_byte | hex_alternative) ~ (hex_jump* ~ (hex_byte | hex_alternative))*
+}
+
+hex_byte = @{
+  TILDE? ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT             |
+  TILDE? ~ ASCII_HEX_DIGIT ~ "?"                         |
+  TILDE? ~ "?" ~ ASCII_HEX_DIGIT                         |
+
+  // ~?? is not actually valid, but it is accepted by the grammar and rejected
+  // later on, during the creation of the AST. This is in order to keep the
+  // grammar simple and provide a more meaningful error message when ~?? is
+  // used.
+  TILDE? ~ "?" ~ "?"                                     |
+
+  // A single-digit byte is not valid, but it is accepted by the grammar and
+  // rejected later on, during the creation of the AST. This allows more
+  // meaningful error messages in the case an odd number of hex digits. For
+  // example, this error is not very clear, as it doesn't talk about the
+  // real issue:
+  //
+  //   $a = {EB3D8212C3A}
+  //                   │
+  //                   ╰─ expected byte, closing brace `}`, opening bracket ...
+  //
+  // This is more descriptive:
+  //
+  //   $a = {EB3D8212C3A}
+  //                   │
+  //                   ╰─ odd number of hex digits
+  //
+  // For that reason, the grammar accepts a single digit here..
+  TILDE? ~ ASCII_HEX_DIGIT
+}
+
+hex_alternative = {
+  LPAREN ~ hex_pattern ~ (PIPE ~ hex_pattern)* ~ RPAREN
+}
+
+hex_jump = {
+  LBRACKET ~ integer_lit? ~ HYPHEN ~ integer_lit? ~ RBRACKET |
+  LBRACKET ~ integer_lit ~ RBRACKET
+}
+
+boolean_expr = {
+  boolean_term ~ ((k_AND | k_OR) ~ boolean_term)*
+}
+
+boolean_term = {
+  string_ident ~ (k_AT ~ expr | k_IN ~ range)?         |
+  k_TRUE                                               |
+  k_FALSE                                              |
+  k_NOT ~ boolean_term                                 |
+  for_expr                                             |
+  of_expr                                              |
+  expr ~ ((comparison_op | string_op) ~ expr)*         |
+  LPAREN ~ boolean_expr ~ RPAREN
+}
+
+expr = {
+  term ~ ((arithmetic_op | bitwise_op | DOT ) ~ term)*
+}
+
+term = {
+  indexing_expr                                        |
+  func_call_expr                                       |
+  primary_expr
+}
+
+indexing_expr = {
+  primary_expr ~ LBRACKET ~ expr ~ RBRACKET
+}
+
+func_call_expr = {
+  primary_expr ~ LPAREN ~ expr? ~ (COMMA ~ expr)* ~ RPAREN
+}
+
+primary_expr = {
+  float_lit                                            |
+  integer_lit                                          |
+  string_lit                                           |
+  string_count ~ (k_IN ~ range)?                       |
+  string_offset ~ (LBRACKET ~ expr ~ RBRACKET)?        |
+  string_length ~ (LBRACKET ~ expr ~ RBRACKET)?        |
+  regexp                                               |
+  k_FILESIZE                                           |
+  k_ENTRYPOINT                                         |
+  MINUS ~ term                                         |
+  BITWISE_NOT ~ term                                   |
+  LPAREN ~ expr ~ RPAREN                               |
+  ident ~ (DOT ~ ident)*
+}
+
+of_expr = {
+  // "of" expression that accepts a tuple of string identifiers.
+  quantifier ~ k_OF ~ (k_THEM | string_ident_tuple) ~ (k_AT ~ expr | k_IN ~ range)? |
+  // "of" expression that accepts a tuple of boolean expressions.
+  quantifier ~ k_OF ~ boolean_expr_tuple ~ !(k_AT | k_IN)
+}
+
+for_expr = {
+  (
+    k_FOR ~ quantifier ~ k_OF ~ (k_THEM | string_ident_tuple)   |
+    k_FOR ~ quantifier ~ ident ~ (COMMA ~ ident)* ~ k_IN ~ iterable
+  ) ~
+  COLON ~
+  LPAREN ~
+    boolean_expr ~
+  RPAREN
+}
+
+iterable = {
+  range | expr_tuple |  ident ~ (DOT ~ ident)*
+}
+
+quantifier = {
+  k_ALL | k_NONE | k_ANY | expr ~ PERCENT?
+}
+
+range = {
+  LPAREN ~ expr ~ DOT_DOT ~ expr ~ RPAREN
+}
+
+expr_tuple = {
+  LPAREN ~ expr ~ (COMMA ~ expr)* ~ RPAREN
+}
+
+boolean_expr_tuple = {
+  LPAREN ~ boolean_expr ~ (COMMA ~ boolean_expr)* ~ RPAREN
+}
+
+string_ident_tuple = {
+  LPAREN ~ string_ident_pattern ~ (COMMA ~ string_ident_pattern)* ~ RPAREN
+}

@@ -1,0 +1,120 @@
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        1 + 2.5 * -2 * -1.0 == 10.0 \ 2 + -(-1)
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ eq (value: true)
+                ├─ add (value: 6.0)
+                │  ├─ 1
+                │  └─ mul (value: 5.0)
+                │     ├─ mul (value: -5.0)
+                │     │  ├─ 2.5
+                │     │  └─ -2
+                │     └─ -1.0
+                └─ add (value: 6.0)
+                   ├─ div (value: 5.0)
+                   │  ├─ 10.0
+                   │  └─ 2
+                   └─ minus (value: 1)
+                      └─ -1
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        (1 + 2.5) * -2 * -1.0 == 10.0 \ (2 + -(-1))
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ eq (value: false)
+                ├─ mul (value: 7.0)
+                │  ├─ mul (value: -7.0)
+                │  │  ├─ add (value: 3.5)
+                │  │  │  ├─ 1
+                │  │  │  └─ 2.5
+                │  │  └─ -2
+                │  └─ -1.0
+                └─ div (value: 3.3)
+                   ├─ 10.0
+                   └─ add (value: 3)
+                      ├─ 2
+                      └─ minus (value: 1)
+                         └─ -1
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        5 \ 2 == 8 % 3
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ eq (value: true)
+                ├─ div (value: 2)
+                │  ├─ 5
+                │  └─ 2
+                └─ mod (value: 2)
+                   ├─ 8
+                   └─ 3
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        // The result of integer division and modulo where divisor is zero is
+        // undefined, therefore their value at compile time will be unkown.
+        10 \ 0 == 10 % 0
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ eq (value: unknown)
+                ├─ div (value: unknown)
+                │  ├─ 10
+                │  └─ 0
+                └─ mod (value: unknown)
+                   ├─ 10
+                   └─ 0
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        // Floating-point division and modulo where divisor is zero. Unlike the
+        // integer case, the result of such operation is defined and their values
+        // at compile time can be computed.
+        5.0 \ 0 == 10 % 0.0
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ eq (value: false)
+                ├─ div (value: inf)
+                │  ├─ 5.0
+                │  └─ 0
+                └─ mod (value: NaN)
+                   ├─ 10
+                   └─ 0.0
+
+###############################################################################

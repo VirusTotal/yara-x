@@ -1,0 +1,55 @@
+###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = "foo" ascii wide xor
+      condition:
+        $a
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          ├─ strings
+          │  └─ $a = "foo" ascii wide xor
+          └─ condition
+             └─ $a
+
+###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = "foo" ascii xor(3)
+      condition:
+        $a
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          ├─ strings
+          │  └─ $a = "foo" ascii xor(3)
+          └─ condition
+             └─ $a
+
+###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = "foo" ascii xor(0-128)
+      condition:
+        $a
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          ├─ strings
+          │  └─ $a = "foo" ascii xor(0-128)
+          └─ condition
+             └─ $a
+
+###############################################################################

@@ -1,0 +1,120 @@
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        for all of ($a, $b*) : ( $ )
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ for <quantifier> of <items> : ( <condition> )
+                ├─ <quantifier>
+                │  └─ all
+                ├─ <items>
+                │  └─ $a
+                │     $b*
+                └─ <condition>
+                   └─ $
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        for 10% of them : ( $ )
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ for <quantifier> of <items> : ( <condition> )
+                ├─ <quantifier>
+                │  └─ percentage
+                │     └─ 10
+                ├─ <items>
+                │  └─ them
+                └─ <condition>
+                   └─ $
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        for any i in (1..10) : ( 
+          // Comment inside `for`
+          true 
+        )
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ for <quantifier> <vars> in (<start>..<end>) : ( <condition> )
+                ├─ <quantifier>
+                │  └─ any
+                ├─ <vars>
+                │  └─ i
+                ├─ <start>
+                │  └─ 1
+                ├─ <end>
+                │  └─ 10
+                └─ <condition>
+                   └─ true
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        for any key,value in some_dic : ( true )
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ for <quantifier> <vars> in <identifier> : ( <condition> )
+                ├─ <quantifier>
+                │  └─ any
+                ├─ <vars>
+                │  └─ key
+                │     value
+                ├─ <identifier>
+                │  └─ some_dic
+                └─ <condition>
+                   └─ true
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        for any v in (1,2,3) : ( true )
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ for <quantifier> <vars> in (<expr0>, <expr1>, <expr2>) : ( <condition> )
+                ├─ <quantifier>
+                │  └─ any
+                ├─ <vars>
+                │  └─ v
+                ├─ <expr0>
+                │  └─ 1
+                ├─ <expr1>
+                │  └─ 2
+                ├─ <expr2>
+                │  └─ 3
+                └─ <condition>
+                   └─ true
+
+###############################################################################

@@ -1,0 +1,206 @@
+###############################################################################
+
+- unformatted: |
+    rule test{condition:true}
+  formatted: |
+    rule test {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test {condition:
+    true}
+  formatted: |
+    rule test {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test {
+    condition:
+    true
+    
+    }
+  formatted: |
+    rule test {
+      condition:
+        true
+    
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test1 {condition:true} rule test2 {condition:true}
+  formatted: |
+    rule test1 {
+      condition:
+        true
+    }
+    
+    rule test2 {
+      condition:
+        true
+    }
+
+
+###############################################################################
+
+- unformatted: |
+    import "test1" import "test2" rule test1 {condition:true} rule test2 {condition:true}
+  formatted: |
+    import "test1"
+    import "test2"
+    
+    rule test1 {
+      condition:
+        true
+    }
+    
+    rule test2 {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    import "test1" 
+    import "test2" 
+    rule test1 {condition:true} 
+    rule test2 {condition:true}
+  formatted: |
+    import "test1"
+    import "test2"
+    
+    rule test1 {
+      condition:
+        true
+    }
+    
+    rule test2 {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    import "test" /* Comment */ rule test1 {condition:true} /* Comment */ rule test2 {condition:true}
+  formatted: |
+    import "test"
+    /* Comment */
+    rule test1 {
+      condition:
+        true
+    }
+    /* Comment */
+    rule test2 {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    import "test" // Comment
+    rule test {
+    strings: $a = "foo"
+    condition:true}
+  formatted: |
+    import "test"// Comment
+    rule test {
+      strings:
+        $a = "foo"
+      condition:
+        true
+    }
+    
+
+###############################################################################
+
+- unformatted: |
+    global
+    private
+    rule test {
+      condition:
+        true
+    }
+  formatted: |
+    global private rule test {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test : 
+      tag1 
+      tag2 
+    {
+      condition:
+        true
+    }
+  formatted: |
+    rule test : tag1 tag2 {
+      condition:
+        true
+    }
+
+###############################################################################
+
+
+- unformatted: |
+    import "test" // Comment
+    // Comment
+    rule test {
+      condition:true
+    }
+    // Comment
+    rule test2 {
+      condition: true
+    }
+  formatted: |
+    import "test"// Comment
+    
+    // Comment
+    rule test {
+      condition:
+        true
+    }
+    
+    // Comment
+    rule test2 {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test {
+      strings:
+        $short = "foo"
+        $longer = "bar"
+        $very_long = "baz"
+      condition:
+        true
+    }
+  formatted: |
+    rule test {
+      strings:
+        $short     = "foo"
+        $longer    = "bar"
+        $very_long = "baz"
+      condition:
+        true
+    }
+
+###############################################################################

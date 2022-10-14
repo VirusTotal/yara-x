@@ -1,0 +1,91 @@
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        2 >> 1 == 1 and 1 << 2 == 4
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ and (value: true)
+                ├─ eq (value: true)
+                │  ├─ shr (value: 1)
+                │  │  ├─ 2
+                │  │  └─ 1
+                │  └─ 1
+                └─ eq (value: true)
+                   ├─ shl (value: 4)
+                   │  ├─ 1
+                   │  └─ 2
+                   └─ 4
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        -1 << 1 == -2 and -1 >> 1 == -1
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ and (value: true)
+                ├─ eq (value: true)
+                │  ├─ shl (value: -2)
+                │  │  ├─ -1
+                │  │  └─ 1
+                │  └─ -2
+                └─ eq (value: true)
+                   ├─ shr (value: -1)
+                   │  ├─ -1
+                   │  └─ 1
+                   └─ -1
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        // Shift operations where the right operand is larger the number of
+        // bits in the left operand. The semantics of this in YARA is that
+        // the result is 0.
+        1 >> 65 == 0 and 
+        1 << 65 == 0 and 
+        1 >> 0x1FFFFFFFF == 0 and 
+        1 >> 0x1FFFFFFFF == 0 
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ and (value: true)
+                ├─ and (value: true)
+                │  ├─ and (value: true)
+                │  │  ├─ eq (value: true)
+                │  │  │  ├─ shr (value: 0)
+                │  │  │  │  ├─ 1
+                │  │  │  │  └─ 65
+                │  │  │  └─ 0
+                │  │  └─ eq (value: true)
+                │  │     ├─ shl (value: 0)
+                │  │     │  ├─ 1
+                │  │     │  └─ 65
+                │  │     └─ 0
+                │  └─ eq (value: true)
+                │     ├─ shr (value: 0)
+                │     │  ├─ 1
+                │     │  └─ 0x1FFFFFFFF
+                │     └─ 0
+                └─ eq (value: true)
+                   ├─ shr (value: 0)
+                   │  ├─ 1
+                   │  └─ 0x1FFFFFFFF
+                   └─ 0
+
+###############################################################################
