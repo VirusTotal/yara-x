@@ -176,7 +176,7 @@ rule test : foo bar baz {
  ├─ EQUAL "="
  ├─ hex_string
  │  ├─ LBRACE "{"
- │  ├─ hex_pattern
+ │  ├─ hex_tokens
  │  │  ├─ hex_byte "00"
  │  │  └─ hex_byte "11"
  │  └─ RBRACE "}"
@@ -192,7 +192,7 @@ rule test : foo bar baz {
             r#"
  hex_string
  ├─ LBRACE "{"
- ├─ hex_pattern
+ ├─ hex_tokens
  │  └─ hex_byte "00"
  └─ RBRACE "}"
 "#,
@@ -205,7 +205,7 @@ rule test : foo bar baz {
             r#"
  hex_string
  ├─ LBRACE "{"
- ├─ hex_pattern
+ ├─ hex_tokens
  │  ├─ hex_byte "00"
  │  └─ hex_byte "01"
  └─ RBRACE "}"
@@ -219,7 +219,7 @@ rule test : foo bar baz {
             r#"
  hex_string
  ├─ LBRACE "{"
- ├─ hex_pattern
+ ├─ hex_tokens
  │  ├─ hex_byte "00"
  │  ├─ hex_jump
  │  │  ├─ LBRACKET "["
@@ -256,14 +256,14 @@ rule test : foo bar baz {
             r#"
  hex_string
  ├─ LBRACE "{"
- ├─ hex_pattern
+ ├─ hex_tokens
  │  └─ hex_alternative
  │     ├─ LPAREN "("
- │     ├─ hex_pattern
+ │     ├─ hex_tokens
  │     │  ├─ hex_byte "00"
  │     │  └─ hex_byte "01"
  │     ├─ PIPE "|"
- │     ├─ hex_pattern
+ │     ├─ hex_tokens
  │     │  ├─ hex_byte "00"
  │     │  └─ hex_byte "01"
  │     └─ RPAREN ")"
@@ -278,22 +278,22 @@ rule test : foo bar baz {
             r#"
  hex_string
  ├─ LBRACE "{"
- ├─ hex_pattern
+ ├─ hex_tokens
  │  └─ hex_alternative
  │     ├─ LPAREN "("
- │     ├─ hex_pattern
+ │     ├─ hex_tokens
  │     │  ├─ hex_byte "00"
  │     │  └─ hex_byte "01"
  │     ├─ PIPE "|"
- │     ├─ hex_pattern
+ │     ├─ hex_tokens
  │     │  ├─ hex_byte "00"
  │     │  ├─ hex_byte "01"
  │     │  └─ hex_alternative
  │     │     ├─ LPAREN "("
- │     │     ├─ hex_pattern
+ │     │     ├─ hex_tokens
  │     │     │  └─ hex_byte "02"
  │     │     ├─ PIPE "|"
- │     │     ├─ hex_pattern
+ │     │     ├─ hex_tokens
  │     │     │  └─ hex_byte "03"
  │     │     └─ RPAREN ")"
  │     └─ RPAREN ")"
@@ -308,7 +308,7 @@ rule test : foo bar baz {
             r#"
  hex_string
  ├─ LBRACE "{"
- ├─ hex_pattern
+ ├─ hex_tokens
  │  ├─ hex_byte "??"
  │  ├─ hex_byte "?0"
  │  └─ hex_byte "0?"
@@ -323,7 +323,7 @@ rule test : foo bar baz {
             r#"
  hex_string
  ├─ LBRACE "{"
- ├─ hex_pattern
+ ├─ hex_tokens
  │  ├─ hex_byte "~00"
  │  ├─ hex_byte "~?0"
  │  └─ hex_byte "~0?"
@@ -338,7 +338,7 @@ rule test : foo bar baz {
             r#"
  hex_string
  ├─ LBRACE "{"
- ├─ hex_pattern
+ ├─ hex_tokens
  │  ├─ hex_byte "00"
  │  ├─ hex_jump
  │  │  ├─ LBRACKET "["

@@ -282,7 +282,7 @@ impl Error {
             | GrammarRule::term => "expression",
 
             GrammarRule::hex_byte => "byte",
-            GrammarRule::hex_pattern => "bytes",
+            GrammarRule::hex_tokens => "bytes",
             GrammarRule::ident => "identifier",
             GrammarRule::integer_lit => "number",
             GrammarRule::float_lit => "number",

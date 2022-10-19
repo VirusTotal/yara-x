@@ -339,13 +339,13 @@ pub struct TextString<'src> {
 pub struct HexString<'src> {
     span: Span,
     identifier: Ident<'src>,
-    pattern: HexPattern,
+    pattern: HexTokens,
     modifiers: Option<HashMap<&'src str, StringModifier>>,
 }
 
 /// A sequence of tokens that conform a hex string.
 #[derive(Debug)]
-pub struct HexPattern {
+pub struct HexTokens {
     tokens: Vec<HexToken>,
 }
 
@@ -376,7 +376,7 @@ pub struct HexByte {
 /// Alternatives are hex patterns separated by `|`.
 #[derive(Debug)]
 pub struct HexAlternative {
-    alternatives: Vec<HexPattern>,
+    alternatives: Vec<HexTokens>,
 }
 
 /// An hex jump.
@@ -527,7 +527,7 @@ impl<'src> String<'src> {
     }
 }
 
-impl HexPattern {
+impl HexTokens {
     fn ascii_tree(&self) -> ascii_tree::Tree {
         let nodes = self
             .tokens
@@ -2387,12 +2387,12 @@ fn string_lit_from_cst<'src>(
 /// the [`HexPattern`] representing it.
 fn hex_pattern_from_cst<'src>(
     ctx: &mut Context<'src>,
-    hex_pattern: CSTNode<'src>,
-) -> Result<HexPattern, Error> {
-    expect!(hex_pattern, GrammarRule::hex_pattern);
+    hex_tokens: CSTNode<'src>,
+) -> Result<HexTokens, Error> {
+    expect!(hex_tokens, GrammarRule::hex_tokens);
 
-    let mut children = hex_pattern.into_inner().peekable();
-    let mut pattern = HexPattern { tokens: vec![] };
+    let mut children = hex_tokens.into_inner().peekable();
+    let mut pattern = HexTokens { tokens: vec![] };
 
     while let Some(node) = children.next() {
         let token = match node.as_rule() {
@@ -2569,7 +2569,7 @@ fn hex_alternative_from_cst<'src>(
 
     for node in children {
         match node.as_rule() {
-            GrammarRule::hex_pattern => {
+            GrammarRule::hex_tokens => {
                 hex_alt.alternatives.push(hex_pattern_from_cst(ctx, node)?);
             }
             GrammarRule::PIPE | GrammarRule::RPAREN => {}

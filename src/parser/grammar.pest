@@ -342,12 +342,12 @@ string_mods = {(
 // !RBRACE after LBRACE is not actually required, but helps producing a more
 // meaningful error message for empty hex strings (i.e: {}).
 hex_string = {
-  LBRACE ~ !RBRACE ~ hex_pattern ~ RBRACE
+  LBRACE ~ !RBRACE ~ hex_tokens ~ RBRACE
 }
 
 // Hex strings must start and finish with a byte or alternative. Jumps are not
 // allowed at the beginning or end of the string.
-hex_pattern = {
+hex_tokens = {
   (hex_byte | hex_alternative) ~ (hex_jump* ~ (hex_byte | hex_alternative))*
 }
 
@@ -383,7 +383,7 @@ hex_byte = @{
 }
 
 hex_alternative = {
-  LPAREN ~ hex_pattern ~ (PIPE ~ hex_pattern)* ~ RPAREN
+  LPAREN ~ hex_tokens ~ (PIPE ~ hex_tokens)* ~ RPAREN
 }
 
 hex_jump = {
