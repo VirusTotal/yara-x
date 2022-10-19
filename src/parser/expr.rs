@@ -181,6 +181,16 @@ impl<'a> Display for ExprValue<'a> {
     }
 }
 
+impl<'a> ExprValue<'a> {
+    pub fn as_integer(&self) -> i64 {
+        if let Self::Integer(i) = self {
+            return *i;
+        } else {
+            panic!("{:?}", self);
+        }
+    }
+}
+
 /// All the different kinds of expressions that can be found in YARA.
 ///
 /// For example, the kind for expression `2+2` is `Integer`, for `2.0 / 2` is
@@ -358,13 +368,37 @@ pub struct StringMatch<'src> {
     pub anchor: Option<MatchAnchor<'src>>,
 }
 
-/// In expressions like `$a at 0` or `$b in (0.100)`, this struct represents
+/// In expressions like `$a at 0` or `$b in (0..10)`, this struct represents
 /// the anchor, which is the part of the expression that follows the identifier
 /// (e.g. `at <expr>`, `in <range>`).
-#[derive(Debug)]
+#[derive(Debug, HasSpan)]
 pub enum MatchAnchor<'src> {
-    At(Expr<'src>),
-    In((Expr<'src>, Expr<'src>)),
+    At(Box<At<'src>>),
+    In(Box<In<'src>>),
+}
+
+/// In expressions like `$a at 0`, this structs represents the anchor
+/// (e.g. `at <expr>`).
+#[derive(Debug, HasSpan)]
+pub struct At<'src> {
+    pub(crate) span: Span,
+    pub expr: Expr<'src>,
+}
+
+/// A pair of values conforming a range (e.g. `(0..10)`).
+#[derive(Debug, HasSpan)]
+pub struct Range<'src> {
+    pub(crate) span: Span,
+    pub lower_bound: Expr<'src>,
+    pub upper_bound: Expr<'src>,
+}
+
+/// In expressions like `$a in (0..10)`, this structs represents the anchor
+/// e.g. `in <range>`).
+#[derive(Debug, HasSpan)]
+pub struct In<'src> {
+    pub(crate) span: Span,
+    pub range: Range<'src>,
 }
 
 /// An identifier (e.g. `some_ident`).
@@ -390,7 +424,7 @@ impl<'src> From<CSTNode<'src>> for Ident<'src> {
 pub struct IdentWithRange<'src> {
     pub(crate) span: Span,
     pub name: &'src str,
-    pub range: Option<(Expr<'src>, Expr<'src>)>,
+    pub range: Option<Range<'src>>,
 }
 
 /// An expression where an identifier can be accompanied by an index
@@ -518,7 +552,7 @@ pub enum Quantifier<'src> {
 /// Possible iterable expressions that can use in a [`ForIn`].
 #[derive(Debug)]
 pub enum Iterable<'src> {
-    Range((Expr<'src>, Expr<'src>)),
+    Range(Range<'src>),
     ExprTuple(Vec<Expr<'src>>),
     Ident(Box<Ident<'src>>),
 }
@@ -876,14 +910,14 @@ impl<'src> Expr<'src> {
             Self::StringMatch(s) => {
                 if let Some(anchor) = &s.anchor {
                     match anchor {
-                        MatchAnchor::At(expr) => Node(
+                        MatchAnchor::At(anchor_at) => Node(
                             format!("{} at <expr>", s.identifier.name),
                             vec![Node(
                                 "<expr>".to_string(),
-                                vec![expr.ascii_tree()],
+                                vec![anchor_at.expr.ascii_tree()],
                             )],
                         ),
-                        MatchAnchor::In((start, end)) => Node(
+                        MatchAnchor::In(anchor_in) => Node(
                             format!(
                                 "{} in (<start>, <end>)",
                                 s.identifier.name
@@ -891,11 +925,17 @@ impl<'src> Expr<'src> {
                             vec![
                                 Node(
                                     "<start>".to_string(),
-                                    vec![start.ascii_tree()],
+                                    vec![anchor_in
+                                        .range
+                                        .lower_bound
+                                        .ascii_tree()],
                                 ),
                                 Node(
                                     "<end>".to_string(),
-                                    vec![end.ascii_tree()],
+                                    vec![anchor_in
+                                        .range
+                                        .upper_bound
+                                        .ascii_tree()],
                                 ),
                             ],
                         ),
@@ -910,7 +950,10 @@ impl<'src> Expr<'src> {
                         format!("{} in <range>", s.name),
                         vec![Node(
                             "<range>".to_string(),
-                            vec![range.0.ascii_tree(), range.1.ascii_tree()],
+                            vec![
+                                range.lower_bound.ascii_tree(),
+                                range.upper_bound.ascii_tree(),
+                            ],
                         )],
                     )
                 } else {
@@ -994,21 +1037,21 @@ impl<'src> Expr<'src> {
 
                 let node_title = if let Some(anchor) = &of.anchor {
                     match anchor {
-                        MatchAnchor::At(expr) => {
+                        MatchAnchor::At(anchor_at) => {
                             children.push(Node(
                                 "<expr>".to_string(),
-                                vec![expr.ascii_tree()],
+                                vec![anchor_at.expr.ascii_tree()],
                             ));
                             "<quantifier> of <items> at <expr>".to_string()
                         }
-                        MatchAnchor::In((start, end)) => {
+                        MatchAnchor::In(anchor_in) => {
                             children.push(Node(
                                 "<start>".to_string(),
-                                vec![start.ascii_tree()],
+                                vec![anchor_in.range.lower_bound.ascii_tree()],
                             ));
                             children.push(Node(
                                 "<end>".to_string(),
-                                vec![end.ascii_tree()],
+                                vec![anchor_in.range.upper_bound.ascii_tree()],
                             ));
                             "<quantifier> of <items> in (<start>..<end>)"
                                 .to_string()
@@ -1055,14 +1098,14 @@ impl<'src> Expr<'src> {
                 ];
 
                 let node_title = match &f.iterable {
-                    Iterable::Range((start, end)) => {
+                    Iterable::Range(range) => {
                         children.push(Node(
                             "<start>".to_string(),
-                            vec![start.ascii_tree()],
+                            vec![range.lower_bound.ascii_tree()],
                         ));
                         children.push(Node(
                             "<end>".to_string(),
-                            vec![end.ascii_tree()],
+                            vec![range.upper_bound.ascii_tree()],
                         ));
                         "for <quantifier> <vars> in (<start>..<end>) : ( <condition> )".to_string()
                     }

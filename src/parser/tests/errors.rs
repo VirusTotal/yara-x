@@ -8,7 +8,7 @@ fn syntax_errors() {
         (
             line!(),
             r#"rule test : tag1 tag1 { condition: true }"#,
-            r#"error: duplicate tag `tag1` for rule `test`
+            r#"error: duplicate tag `tag1`
    ╭─[line:1:18]
    │
  1 │ rule test : tag1 tag1 { condition: true }
@@ -525,7 +525,7 @@ rule test {
 }
 
 "#,
-            r#"error: wrong use of `$` placeholder
+            r#"error: syntax error
    ╭─[line:6:6]
    │
  6 │      $
@@ -542,7 +542,7 @@ rule test {
    condition: 99999999999999999999
 }
 "#,
-            r#"error: invalid integer `99999999999999999999`
+            r#"error: invalid integer
    ╭─[line:3:15]
    │
  3 │    condition: 99999999999999999999
@@ -559,7 +559,7 @@ rule test {
   condition: -99999999999999999999
 }
 "#,
-            r#"error: invalid integer `-99999999999999999999`
+            r#"error: invalid integer
    ╭─[line:3:14]
    │
  3 │   condition: -99999999999999999999
@@ -579,7 +579,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid integer `65536`
+            r#"error: invalid integer
    ╭─[line:4:18]
    │
  4 │     $a = { 11 [0-65536] 22 }
@@ -599,7 +599,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid integer `-1`
+            r#"error: invalid integer
    ╭─[line:4:16]
    │
  4 │     $a = { 11 [-1-65535] 22 }
@@ -619,7 +619,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid hex jump in `$a`
+            r#"error: invalid hex string `$a`
    ╭─[line:4:15]
    │
  4 │     $a = { 11 [2-1] 22 }
@@ -639,7 +639,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid hex jump in `$a`
+            r#"error: invalid hex string `$a`
    ╭─[line:4:15]
    │
  4 │     $a = { 11 [1-2][40-38] 22 }
@@ -746,7 +746,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid integer `256`
+            r#"error: invalid integer
    ╭─[line:4:20]
    │
  4 │     $a = "foo" xor(256)
@@ -806,7 +806,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid modifier combination: `xor` `nocase`
+            r#"error: invalid string modifier combination: `xor` `nocase`
    ╭─[line:4:16]
    │
  4 │     $a = "foo" xor nocase
@@ -815,7 +815,7 @@ rule test {
    ·                       │    
    ·                       ╰──── `nocase` modifier used here
    · 
-   · Note: These two modifiers can't be used together
+   · Note: these two modifiers can't be used together
 ───╯
 "#,
         ),
@@ -830,7 +830,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid modifier combination: `base64wide` `nocase`
+            r#"error: invalid string modifier combination: `base64wide` `nocase`
    ╭─[line:4:29]
    │
  4 │     $a = "foo" nocase ascii base64wide
@@ -839,7 +839,7 @@ rule test {
    ·                                  │      
    ·                                  ╰────── `base64wide` modifier used here
    · 
-   · Note: These two modifiers can't be used together
+   · Note: these two modifiers can't be used together
 ───╯
 "#,
         ),

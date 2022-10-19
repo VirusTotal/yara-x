@@ -1,4 +1,3 @@
-use ariadne::Color;
 use ascii_tree::Tree::*;
 use bitmask::bitmask;
 use bstr::BString;
@@ -14,10 +13,10 @@ use std::{fmt, str, string};
 use yara_derive::*;
 
 use crate::parser::span::HasSpan;
-use crate::parser::GrammarRule;
-use crate::parser::{CSTNode, Context, Error, Span, CST};
+use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, CST};
 
 pub use crate::parser::expr::*;
+use crate::parser::warnings::Warning;
 
 /// Ensures that the kind of `expr` is in a list of allowed ones.
 ///
@@ -133,6 +132,8 @@ bitmask! {
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
     pub namespaces: HashMap<&'src str, Namespace<'src>>,
+    /// Warnings generated while building this AST.
+    pub warnings: Vec<Warning>,
 }
 
 impl<'src> Debug for AST<'src> {
@@ -148,27 +149,6 @@ impl<'src> AST<'src> {
             "root".to_string(),
             self.namespaces.iter().map(|(_, ns)| ns.ascii_tree()).collect(),
         )
-    }
-}
-
-impl<'src> AST<'src> {
-    pub(crate) fn from_cst(
-        ctx: &mut Context<'src>,
-        cst: CST<'src>,
-    ) -> Result<Self, Error> {
-        // Ignore comments and whitespaces, they won't be visible while
-        // traversing the CST as we don't need them for building the AST.
-        let cst = cst.comments(false).whitespaces(false);
-        let root = cst.into_iter().next().unwrap();
-        // The root of the CST must be the grammar rule `source_file`.
-        expect!(root, GrammarRule::source_file);
-
-        let namespaces = HashMap::from([(
-            "default",
-            Namespace::from_cst(ctx, root.into_inner())?,
-        )]);
-
-        Ok(Self { namespaces })
     }
 }
 
@@ -203,11 +183,11 @@ impl<'src> Namespace<'src> {
                     if let Some(existing_rule) =
                         rules.get(new_rule.identifier.name)
                     {
-                        return Err(ctx.error_builder.duplicate_identifier(
-                            &ctx.src,
-                            "rule",
-                            &existing_rule.identifier,
-                            &new_rule.identifier,
+                        return Err(Error::duplicate_rule(
+                            ctx,
+                            new_rule.identifier.name.to_string(),
+                            new_rule.identifier.span,
+                            existing_rule.identifier.span,
                         ));
                     }
                     rules.insert(new_rule.identifier.name, new_rule);
@@ -416,16 +396,27 @@ impl HexJump {
     ///  `[1-2][3-4]` becomes `[4-6]`
     ///  `[0-2][5-]` becomes `[5-]`
     ///
-    fn coalesce(&mut self, jump: HexJump) {
-        match (self.start, jump.start) {
+    fn coalesce(&mut self, other: HexJump) {
+        match (self.start, other.start) {
             (Some(s1), Some(s2)) => self.start = Some(s1 + s2),
             (Some(s1), None) => self.start = Some(s1),
             (None, Some(s2)) => self.start = Some(s2),
             (None, None) => self.start = None,
         }
-        match (self.end, jump.end) {
+        match (self.end, other.end) {
             (Some(e1), Some(e2)) => self.end = Some(e1 + e2),
             (_, _) => self.end = None,
+        }
+    }
+}
+
+impl Display for HexJump {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match (self.start, self.end) {
+            (Some(start), Some(end)) => write!(f, "[{}-{}]", start, end),
+            (Some(start), None) => write!(f, "[{}-]", start),
+            (None, Some(end)) => write!(f, "[-{}]", end),
+            (None, None) => write!(f, "[-]"),
         }
     }
 }
@@ -734,7 +725,7 @@ fn check_string_modifiers<'src>(
 
     for (name, modifier) in modifiers.iter() {
         if !ACCEPTED_MODIFIERS[name].contains(&rule_type) {
-            let msg = match rule_type {
+            let error_detail = match rule_type {
                 GrammarRule::hex_string => {
                     "this modifier can't be applied to a hex string"
                 }
@@ -743,11 +734,11 @@ fn check_string_modifiers<'src>(
                 }
                 _ => unreachable!(),
             };
-            return Err(ctx.error_builder.simple_error(
-                &ctx.src,
+
+            return Err(Error::invalid_modifier(
+                ctx,
+                error_detail.to_string(),
                 modifier.span(),
-                "invalid string modifier",
-                msg,
             ));
         }
     }
@@ -768,23 +759,13 @@ fn check_string_modifiers<'src>(
         if modifier1.is_some() && modifier2.is_some() {
             let modifier1 = modifier1.unwrap();
             let modifier2 = modifier2.unwrap();
-            return Err(ctx.error_builder.create_report(
-                &ctx.src,
+            return Err(Error::invalid_modifier_combination(
+                ctx,
+                name1.to_string(),
+                name2.to_string(),
                 modifier1.span(),
-                format!("invalid modifier combination: `{name1}` `{name2}`"),
-                vec![
-                    (
-                        modifier1.span(),
-                        format!("`{name1}` modifier used here"),
-                        Color::Red.style().bold(),
-                    ),
-                    (
-                        modifier2.span(),
-                        format!("`{name2}` modifier used here"),
-                        Color::Red.style().bold(),
-                    ),
-                ],
-                Some("These two modifiers can't be used together"),
+                modifier2.span(),
+                Some("these two modifiers can't be used together".to_string()),
             ));
         }
     }
@@ -854,13 +835,9 @@ fn rule_from_cst<'src>(
 
         for ident in idents {
             if !tags.insert(ident.as_str()) {
-                return Err(ctx.error_builder.duplicate_tag(
-                    &ctx.src,
-                    format!(
-                        "duplicate tag `{}` for rule `{}`",
-                        ident.as_str(),
-                        identifier.name
-                    ),
+                return Err(Error::duplicate_tag(
+                    ctx,
+                    ident.as_str().to_string(),
                     Span {
                         start: ident.as_span().start(),
                         end: ident.as_span().end(),
@@ -889,7 +866,8 @@ fn rule_from_cst<'src>(
         None
     };
 
-    // Process the `strings` section, if any.
+    // Process the `strings` section if any. `ctx.declared_strings` and
+    // `ctx.unused_strings` will be populated with the declared strings.
     let strings = if let GrammarRule::string_defs = node.as_rule() {
         let strings = strings_from_cst(ctx, node)?;
         node = children.next().unwrap();
@@ -910,16 +888,22 @@ fn rule_from_cst<'src>(
     let condition = boolean_expr_from_cst(ctx, node)?;
     node = children.next().unwrap();
 
-    // Any identifier left in ctx.string_identifiers is not being
+    // Any identifier left in ctx.unused_strings is not being
     // used in the condition.
-    if let Some((_, ident)) = ctx.string_identifiers.drain().next() {
-        return Err(ctx.error_builder.simple_error(
-            &ctx.src,
+    let unused_string = ctx.unused_strings.drain().next();
+
+    if let Some(ident) = unused_string {
+        let ident = ctx.declared_strings.get(ident).unwrap();
+        return Err(Error::unused_string(
+            ctx,
+            ident.name.to_string(),
             ident.span,
-            format!("unused string `{}`", ident.name),
-            "this was not used in the condition",
         ));
     }
+
+    // Clear `declared_strings` so that the next call to `rule_from_cst`
+    // finds it empty.
+    ctx.declared_strings.clear();
 
     // The closing brace should come next.
     expect!(node, GrammarRule::RBRACE);
@@ -956,23 +940,27 @@ fn strings_from_cst<'src>(
         // only if the identifier is not `$`.
         if new_string_ident.name != "$" {
             if let Some(existing_string_ident) =
-                ctx.string_identifiers.get(&new_string_ident.name[1..])
+                ctx.declared_strings.get(&new_string_ident.name[1..])
             {
-                return Err(ctx.error_builder.duplicate_identifier(
-                    &ctx.src,
-                    "string",
-                    existing_string_ident,
-                    &new_string_ident,
+                return Err(Error::duplicate_string(
+                    ctx,
+                    new_string_ident.name.to_string(),
+                    new_string_ident.span,
+                    existing_string_ident.span,
                 ));
             }
         }
 
-        // Store the string identifiers that are declared. These identifiers
-        // will be removed from this map as they are used in the condition.
-        // Any identifier left in the map when the condition has been fully
-        // parsed is an unused identifier. Notice that identifiers are stored
+        // String identifiers are also stored in `unused_string`, they will
+        // be removed from the the set when they are used in the condition.
+        // Any identifier left in the set when the condition has been fully
+        // parsed is an unused string. Notice that identifiers are stored
         // without the `$` prefix.
-        ctx.string_identifiers
+        ctx.unused_strings.insert(&new_string_ident.name[1..]);
+
+        // Store the identifiers for each string declared in the rule.
+        // They are stored without the `$` prefix.
+        ctx.declared_strings
             .insert(&new_string_ident.name[1..], new_string_ident);
 
         strings.push(new_string);
@@ -1159,12 +1147,12 @@ fn string_mods_from_cst<'src>(
                         };
 
                         if lower_bound > upper_bound {
-                            return Err(ctx.error_builder.invalid_range(
-                                &ctx.src,
+                            return Err(Error::invalid_range(
+                               ctx,
+                               format!(
+                                   "lower bound ({}) is greater than upper bound ({})",
+                                   lower_bound, upper_bound),
                                 lower_bound_span,
-                                format!(
-                                    "lower bound ({}) is greater than upper bound ({})",
-                                    lower_bound, upper_bound),
                             ));
                         }
                     }
@@ -1205,9 +1193,7 @@ fn string_mods_from_cst<'src>(
 
         let span = modifier.span();
         if let Some(_) = modifiers.insert(node.as_str(), modifier) {
-            return Err(ctx
-                .error_builder
-                .duplicate_string_modifier(&ctx.src, span));
+            return Err(Error::duplicate_modifier(ctx, span));
         }
     }
 
@@ -1416,15 +1402,14 @@ fn boolean_term_from_cst<'src>(
             // considered used when the `them` keyword is used, or when the
             // pattern `$*` appears in a string identifiers tuple.
             if ident_name != "$" {
-                ctx.string_identifiers.remove(&ident_name[1..]);
+                ctx.unused_strings.remove(&ident_name[1..]);
             }
             // `$` used outside a `for .. of` statement, that's invalid.
             else if !ctx.inside_for_of {
-                return Err(ctx.error_builder.simple_error(
-                    &ctx.src,
+                return Err(Error::syntax_error(
+                    ctx,
+                    "this `$` is outside of the condition of a `for .. of` statement".to_string(),
                     ident.as_span().into(),
-                    "wrong use of `$` placeholder",
-                    "this `$` is outside of the condition of a `for .. of` statement",
                 ));
             }
 
@@ -1623,18 +1608,16 @@ fn primary_expr_from_cst<'src>(
             // Example: #a in (0..10)
             let range = if let Some(node) = children.next() {
                 expect!(node, GrammarRule::k_IN);
-                let (lower_bound, upper_bound) =
-                    range_from_cst(ctx, children.next().unwrap())?;
-                Some((lower_bound, upper_bound))
+                Some(range_from_cst(ctx, children.next().unwrap())?)
             } else {
                 None
             };
 
             let ident_name = node.as_span().as_str();
 
-            // Remove from ctx.string_identifiers, indicating that the
+            // Remove from ctx.unused_strings, indicating that the
             // identifier has been used.
-            ctx.string_identifiers.remove(&ident_name[1..]);
+            ctx.unused_strings.remove(&ident_name[1..]);
 
             Expr::StringCount(Box::new(IdentWithRange {
                 span: term_span.into(),
@@ -1666,9 +1649,9 @@ fn primary_expr_from_cst<'src>(
 
             let ident_name = node.as_span().as_str();
 
-            // Remove from ctx.string_identifiers, indicating that the
+            // Remove from ctx.unused_strings, indicating that the
             // identifier has been used.
-            ctx.string_identifiers.remove(&ident_name[1..]);
+            ctx.unused_strings.remove(&ident_name[1..]);
 
             expr_type(Box::new(IdentWithIndex {
                 span: term_span.into(),
@@ -1751,9 +1734,10 @@ fn func_call_expr_from_cst<'src>(
 fn range_from_cst<'src>(
     ctx: &mut Context<'src>,
     range: CSTNode<'src>,
-) -> Result<(Expr<'src>, Expr<'src>), Error> {
+) -> Result<Range<'src>, Error> {
     expect!(range, GrammarRule::range);
 
+    let range_span = range.as_span();
     let mut children = range.into_inner();
 
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
@@ -1777,20 +1761,20 @@ fn range_from_cst<'src>(
         (lower_bound.value(), upper_bound.value())
     {
         if lower < 0 || upper < 0 {
-            return Err(ctx.error_builder.invalid_range(
-                &ctx.src,
+            return Err(Error::invalid_range(
+                ctx,
+                "range bound can not be negative".to_string(),
                 (if lower < 0 { lower_bound } else { upper_bound }).span(),
-                "range bound can not be negative",
             ));
         }
 
         if lower > upper {
-            return Err(ctx.error_builder.invalid_range(
-                &ctx.src,
-                lower_bound.span(),
+            return Err(Error::invalid_range(
+                ctx,
                 format!(
                     "lower bound ({lower}) is greater than upper bound ({lower})"
                 ),
+                lower_bound.span(),
             ));
         };
     }
@@ -1798,7 +1782,7 @@ fn range_from_cst<'src>(
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
-    Ok((lower_bound, upper_bound))
+    Ok(Range { span: range_span.into(), lower_bound, upper_bound })
 }
 
 /// From a CST node corresponding to the grammar rule `of_expr`, returns
@@ -1820,7 +1804,8 @@ fn of_expr_from_cst<'src>(
 
     let items = match node.as_rule() {
         GrammarRule::k_THEM => {
-            ctx.string_identifiers.clear();
+            // `them` was used in the condition, all the strings are used.
+            ctx.unused_strings.clear();
             OfItems::StringSet(StringSet::Them)
         }
         GrammarRule::string_ident_tuple => OfItems::StringSet(StringSet::Set(
@@ -1833,6 +1818,68 @@ fn of_expr_from_cst<'src>(
     };
 
     let anchor = anchor_from_cst(ctx, &mut children)?;
+
+    /*
+    // Compute the number of items
+    let items_count = match items {
+        // `x of them`: the number of items is the number of declared strings
+        // because `them` refers to all of them.
+        OfItems::StringSet(StringSet::Them) => ctx.declared_strings.len(),
+        // `x of ($a*, $b)`: the number of items is the number of declared
+        // strings that match the patterns in the tuple.
+        OfItems::StringSet(StringSet::Set(ref set)) => todo!(),
+        // `x of (<boolean expr>, <boolean expr>, ...)`: the number of items is
+        // the number of expressions in the tuple.
+        OfItems::BoolExprTuple(ref tuple) => tuple.len(),
+    };
+
+    // TODO: error if quantifier is larger than the number of strings in items.
+    // example:  3 of ($a, $b).
+
+
+
+    // The anchor `at <expr>` is being used with a quantifier that is not `any`
+    // or `none`, but this usually doesn't make sense. For example consider the
+    // expression...
+    //
+    //   all of ($a, $b) at 0
+    //
+    // This means that both $a and $b must match at offset 0, which won't happen
+    // unless $a and $b are overlapping patterns. In the other hand, these
+    // expressions make perfect sense...
+    //
+    //  none of ($a, $b) at 0
+    //  any of ($a, $b) at 0
+    //
+    // Raise a warning in those cases that are probably an error.
+    //
+    if matches!(anchor, Some(MatchAnchor::At(_))) {
+        let raise_warning = match quantifier {
+            // `all of <items> at <expr>`: the warning is raised only if there
+            // are more than one item. `all of ($a) at 0` doesn't raise a
+            // warning.
+            Quantifier::All { .. } => items_count > 1,
+            // `<expr> of <items> at <expr>: the warning is raised if
+            Quantifier::Expr(ref expr) | Quantifier::Percentage(ref expr) => {
+                match expr.value() {
+                    Some(ExprValue::Integer(i)) => i > 0,
+                    Some(ExprValue::Float(f)) => f > 0.0,
+                    _ => false,
+                }
+            }
+            Quantifier::None { .. } | Quantifier::Any { .. } => false,
+        };
+
+        if raise_warning {
+            let warning = Warning::potentially_wrong_expression(
+                ctx,
+                quantifier.span(),
+                anchor.as_ref().unwrap().span(),
+            );
+            ctx.warnings.push(warning);
+        }
+    }
+    */
 
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
@@ -1942,12 +1989,19 @@ fn anchor_from_cst<'src>(
                 let expr = expr_from_cst(ctx, iter.next().unwrap())?;
                 // TODO
                 // check_non_negative_integer!(ctx, expr)?;
-                Some(MatchAnchor::At(expr))
+
+                // The span of `at <expr>` is the span of `at` combined with
+                // the span of `<expr>`.
+                let span = Span::from(node.as_span()).combine(&expr.span());
+                Some(MatchAnchor::At(Box::new(At { span, expr })))
             }
-            GrammarRule::k_IN => Some(MatchAnchor::In(range_from_cst(
-                ctx,
-                iter.next().unwrap(),
-            )?)),
+            GrammarRule::k_IN => {
+                let range = range_from_cst(ctx, iter.next().unwrap())?;
+                // The span of `in <range>` is the span of `in` combined with
+                // the span of `<range>`.
+                let span = Span::from(node.as_span()).combine(&range.span());
+                Some(MatchAnchor::In(Box::new(In { span, range })))
+            }
             rule => unreachable!("{:?}", rule),
         }
     } else {
@@ -1979,6 +2033,7 @@ fn quantifier_from_cst<'src>(
             // percent `%` symbol.
             if let Some(node) = children.next() {
                 expect!(node, GrammarRule::PERCENT);
+                // TODO: error if expr < 0 or expr > 100
                 Quantifier::Percentage(expr)
             } else {
                 Quantifier::Expr(expr)
@@ -2019,12 +2074,12 @@ fn string_ident_tuple_from_cst<'src>(
                 let pattern = &node.as_str()[1..];
 
                 if let Some(prefix) = pattern.strip_suffix('*') {
-                    // If the pattern has a wildcard, removes all identifiers
+                    // If the pattern has a wildcard, remove all identifiers
                     // that starts with the prefix before the wildcard.
-                    ctx.string_identifiers
-                        .retain(|ident, _| !ident.starts_with(prefix));
+                    ctx.unused_strings
+                        .retain(|ident| !ident.starts_with(prefix));
                 } else {
-                    ctx.string_identifiers.remove(pattern);
+                    ctx.unused_strings.remove(pattern);
                 }
 
                 result.push(StringSetItem {
@@ -2150,7 +2205,7 @@ where
 {
     expect!(integer_lit, GrammarRule::integer_lit);
 
-    let span = integer_lit.as_span().into();
+    let span = integer_lit.as_span();
     let mut literal = integer_lit.as_str();
     let mut multiplier = 1;
 
@@ -2173,15 +2228,14 @@ where
     };
 
     let mut build_error = || {
-        ctx.error_builder.simple_error(
-            &ctx.src,
-            span,
-            format!("invalid integer `{}`", literal),
+        Error::invalid_integer(
+            ctx,
             format!(
                 "this number is out of the valid range: [{}, {}]",
                 T::min_value(),
                 T::max_value()
             ),
+            span.into(),
         )
     };
 
@@ -2212,14 +2266,9 @@ fn float_lit_from_cst<'src>(
     let literal = float_lit.as_str();
     let span = float_lit.as_span().into();
 
-    literal.parse::<f32>().map_err(|err| {
-        ctx.error_builder.simple_error(
-            &ctx.src,
-            span,
-            format!("invalid float `{}`", literal),
-            err,
-        )
-    })
+    literal
+        .parse::<f32>()
+        .map_err(|err| Error::invalid_float(ctx, err.to_string(), span))
 }
 
 /// From a CST node corresponding to the grammar rule `string_lit`, returns
@@ -2259,14 +2308,13 @@ fn string_lit_from_cst<'src>(
                 // No more bytes following the backslash, this is an invalid
                 // escape sequence.
                 if next_byte.is_none() {
-                    return Err(ctx.error_builder.simple_error(
-                        &ctx.src,
+                    return Err(Error::invalid_escape_sequence(
+                        ctx,
+                        r"missing escape sequence after `\`".to_string(),
                         Span {
                             start: literal_start + backslash_pos,
                             end: literal_start + backslash_pos + 1,
                         },
-                        "invalid escape sequence",
-                        r"missing escape sequence after `\`",
                     ));
                 }
 
@@ -2287,46 +2335,43 @@ fn string_lit_from_cst<'src>(
                             {
                                 result.push(hex_value);
                             } else {
-                                return Err(ctx.error_builder.invalid_escape_sequence(
-                                    &ctx.src,
-                                    Span {
-                                        start: literal_start + start,
-                                        end: literal_start + end + 1,
-                                    },
+                                return Err(Error::invalid_escape_sequence(
+                                    ctx,
                                     format!(
                                         r"invalid hex value `{}` after `\x`",
                                         &literal[start..=end]
                                     ),
+                                    Span {
+                                        start: literal_start + start,
+                                        end: literal_start + end + 1,
+                                    },
                                 ));
                             }
                         }
                         _ => {
-                            return Err(ctx
-                                .error_builder
-                                .invalid_escape_sequence(
-                                    &ctx.src,
-                                    Span {
-                                        start: literal_start + backslash_pos,
-                                        end: literal_start + backslash_pos + 2,
-                                    },
-                                    r"expecting two hex digits after `\x`",
-                                ));
-                        }
-                    },
-                    _ => {
-                        return Err(ctx
-                            .error_builder
-                            .invalid_escape_sequence(
-                                &ctx.src,
+                            return Err(Error::invalid_escape_sequence(
+                                ctx,
+                                r"expecting two hex digits after `\x`"
+                                    .to_string(),
                                 Span {
                                     start: literal_start + backslash_pos,
                                     end: literal_start + backslash_pos + 2,
                                 },
-                                format!(
-                                    "invalid escape sequence `{}`",
-                                    &literal[backslash_pos..backslash_pos + 2]
-                                ),
                             ));
+                        }
+                    },
+                    _ => {
+                        return Err(Error::invalid_escape_sequence(
+                            ctx,
+                            format!(
+                                "invalid escape sequence `{}`",
+                                &literal[backslash_pos..backslash_pos + 2]
+                            ),
+                            Span {
+                                start: literal_start + backslash_pos,
+                                end: literal_start + backslash_pos + 2,
+                            },
+                        ));
                     }
                 }
             }
@@ -2373,10 +2418,6 @@ fn hex_pattern_from_cst<'src>(
                     value |= (high_nibble.to_digit(16).unwrap() << 4) as u8;
                 }
 
-                // The low nibble is missing when the there are an odd number
-                // nibbles in a byte sequence (e.g. { 000 }). The grammar
-                // allows this case, even if invalid, precisely for detecting
-                // it and providing a meaningful error message.
                 if let Some(low_nibble) = nibbles.next() {
                     // Low nibble is `?`, then it should be masked out.
                     if low_nibble == '?' {
@@ -2385,33 +2426,27 @@ fn hex_pattern_from_cst<'src>(
                         value |= low_nibble.to_digit(16).unwrap() as u8;
                     }
                 } else {
-                    return Err(ctx.error_builder.simple_error(
-                        &ctx.src,
+                    // The low nibble is missing when there is an odd number of
+                    // nibbles in a byte sequence (e.g. { 000 }). The grammar
+                    // allows this case, even if invalid, precisely for detecting
+                    // it here and providing a meaningful error message.
+                    return Err(Error::invalid_hex_string(
+                        ctx,
+                        ctx.current_string_ident(),
+                        "uneven number of nibbles".to_string(),
                         node.as_span().into(),
-                        format!(
-                            "invalid hex string `{}`",
-                            ctx.current_string_identifier
-                                .as_ref()
-                                .unwrap()
-                                .name
-                        ),
-                        "uneven number of nibbles",
+                        None,
                     ));
                 }
 
                 // ~?? is not allowed.
                 if negated && mask == 0x00 {
-                    return Err(ctx.error_builder.simple_error(
-                        &ctx.src,
+                    return Err(Error::invalid_hex_string(
+                        ctx,
+                        ctx.current_string_ident(),
+                        "negation of `??` is not allowed".to_string(),
                         node.as_span().into(),
-                        format!(
-                            "invalid hex string `{}`",
-                            ctx.current_string_identifier
-                                .as_ref()
-                                .unwrap()
-                                .name
-                        ),
-                        "negation of `??` is not allowed",
+                        None,
                     ));
                 }
 
@@ -2426,39 +2461,47 @@ fn hex_pattern_from_cst<'src>(
             GrammarRule::hex_jump => {
                 let mut jump_span: Span = node.as_span().into();
                 let mut jump = hex_jump_from_cst(ctx, node)?;
-                let mut note = None;
+                let mut consecutive_jumps = false;
 
                 // If there are two consecutive jumps they will be coalesced
                 // together. For example: [1-2][2-3] is converted into [3-5].
-                // TODO: raise a warning
-                if let Some(node) = children.peek() {
-                    if node.as_rule() == GrammarRule::hex_jump {
-                        let span = node.as_span();
-                        jump.coalesce(hex_jump_from_cst(
-                            ctx,
-                            children.next().unwrap(),
-                        )?);
-                        jump_span = jump_span.combine(&span.into());
-                        note = Some(
-                            "consecutive jumps were coalesced into a single one".to_string());
+                while let Some(node) = children.peek() {
+                    if node.as_rule() != GrammarRule::hex_jump {
+                        break;
                     }
+                    let span = node.as_span();
+                    jump.coalesce(hex_jump_from_cst(
+                        ctx,
+                        children.next().unwrap(),
+                    )?);
+                    jump_span = jump_span.combine(&span.into());
+                    consecutive_jumps = true;
+                }
+
+                if consecutive_jumps {
+                    let warning = Warning::consecutive_jumps(
+                        ctx,
+                        ctx.current_string_ident(),
+                        format!("{}", jump),
+                        jump_span,
+                    );
+                    ctx.warnings.push(warning);
                 }
 
                 if let (Some(start), Some(end)) = (jump.start, jump.end) {
                     if start > end {
-                        return Err(ctx.error_builder.simple_error_with_note(
-                            &ctx.src,
-                            jump_span,
+                        return Err(Error::invalid_hex_string(
+                            ctx,
+                            ctx.current_string_ident(),
                             format!(
-                                "invalid hex jump in `{}`", 
-                                ctx.current_string_identifier
-                                    .as_ref()
-                                    .unwrap()
-                                    .name),
-                            format!(
-                                "lower bound ({}) is greater than upper bound ({})", 
+                                "lower bound ({}) is greater than upper bound ({})",
                                 start, end),
-                            note,
+                            jump_span,
+                            if consecutive_jumps {
+                                Some("consecutive jumps were coalesced into a single one".to_string())
+                            } else {
+                                None
+                            },
                         ));
                     }
                 }

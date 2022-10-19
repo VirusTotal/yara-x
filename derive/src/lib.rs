@@ -1,7 +1,8 @@
-extern crate proc_macro;
-use proc_macro2::TokenStream;
-use quote::quote;
+use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
+
+mod error;
+mod span;
 
 /// The HasSpan derive macro implements the [`HasSpan`] trait for structs and
 /// enums.
@@ -50,55 +51,99 @@ use syn::{parse_macro_input, DeriveInput};
 /// ```
 ///
 #[proc_macro_derive(HasSpan)]
-pub fn span_macro_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn span_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    impl_span_macro(input)
+    span::impl_span_macro(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
 
-fn impl_span_macro(input: DeriveInput) -> syn::Result<TokenStream> {
-    let name = &input.ident;
-    let data = &input.data;
-
-    let span_impl = match data {
-        syn::Data::Struct(_) => syn::Result::Ok(quote! { self.span }),
-        syn::Data::Enum(data_enum) => {
-            let mut variants = vec![];
-
-            for pair in data_enum.variants.pairs() {
-                let ident = &pair.value().ident;
-                match &pair.value().fields {
-                    syn::Fields::Named(_) => variants.push(quote!(Self::#ident{span, ..} => *span)),
-                    syn::Fields::Unnamed(_) => variants.push(quote!(Self::#ident(x) => x.span())),
-                    syn::Fields::Unit => {
-                        return Err(syn::Error::new_spanned(
-                            &pair,
-                            format!(
-                                "can't derive the `HasSpan` trait for unitary variant `{ident}`"
-                            ),
-                        ))
-                    }
-                }
-            }
-
-            syn::Result::Ok(quote! {
-                match self {
-                    #(#variants),*
-                }
-            })
-        }
-        _ => panic!("HasSpan derive macro can be used only with structs and enums"),
-    }?;
-
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    syn::Result::Ok(quote! {
-        #[automatically_derived]
-        impl #impl_generics HasSpan for #name #ty_generics #where_clause {
-            fn span(&self) -> Span {
-                #span_impl
-            }
-        }
-    })
+/// The Error derive macro generates boilerplate code for YARA error types.
+///
+/// This macro can be applied only to enums with struct-like variants. It
+/// won't work if the enum contains unit-like or tuple-like variants. Each
+/// variant in the enum must have a `detailed_report` field of [`String`]
+/// type. This field will contain fully detailed error message, like
+/// this one...
+///
+/// ```text
+/// error: duplicate tag `tag1`
+///    ╭─[line:1:18]
+///    │
+///  1 │ rule test : tag1 tag1 { condition: true }
+///    ·                  ──┬─  
+///    ·                    ╰─── duplicate tag
+/// ───╯
+/// ```
+///
+/// The rest of the fields vary from variant to variant. But they usually
+/// contain information that is used for rendering the detailed report.
+///
+/// Each variant in the enum must be tagged with `#[error(...)]` or
+/// `#[warning(...)]` where the arguments inside the parenthesis are directly
+/// passed to [`format!`] for building the error/warning title. For example...
+///
+/// ```
+/// #[derive(Error)]
+/// pub enum Error {
+///    #[error("duplicate tag `{tag}`")]
+///    #[label("duplicate tag", tag_span)]
+///    DuplicateTag {
+///      detailed_report: String,
+///      tag: String,
+///      tag_span: Span,
+///    },
+/// }
+/// ```
+///
+/// Notice how the placeholder {tag} is used for building an error title that
+/// takes the name of the tag from the `tag` field in the structure. So, if
+/// the value for the `tag` field is `foo`, the error title will be
+/// "duplicate rule `foo`"
+///
+/// In addition to `#[error(...)]` or `#[warning(...)]`, each variant must
+/// also have at least one label, defined with `#[label(...)]`. The arguments
+/// passed to `#[label(...)]` are also passed to [`format!`] for creating a
+/// label, except for the last one, which should be the name of a field of
+/// type [`Span`] in the structure. The label will associated to the code
+/// span indicated by that field.
+///
+/// In the example above we use `#[label("duplicate tag", tag_span)]` for
+/// creating a label with the text "duplicate tag" asociated to the span
+/// indicated in `tag_span`. You can specify more than one label if
+/// necessary.
+///
+/// For changing the style of a label you can use the `style="<style>" as
+/// an optional last argument. For example:
+///
+/// `#[label("duplicate tag", tag_span, style="note")]`
+///
+/// Valid styles are: "error", "warning" and "note", the default one is
+/// "error" for labels accompanied by `#[error(...)]` and "warning" for
+/// those accompanied by `#[warning(...)]`.
+///
+/// Also, for each variant a new function for creating instances of that
+/// variant is automatically generated. The functions have a name similar to
+/// the variant, but using snake-case instead of camel-case. For example, for
+/// variant `DuplicateTag` the function would be named `duplicate_tag`.
+///
+/// Each function receives as many arguments as fields in the corresponding
+/// structure, with the same names and types. Except for the `detailed_report`
+/// field, which won't appear in the function arguments. Also, the first
+/// argument is always `ctx: &mut Context`.
+///
+/// So, the function for the `DuplicateTag` example above will be...
+///
+/// ```
+/// duplicate_tag(
+///     ctx: &mut Context,
+///     tag: String,
+///     tag_span: Span) -> Error
+/// ```
+#[proc_macro_derive(Error, attributes(error, warning, label, note))]
+pub fn error_macro_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    error::impl_error_macro(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }

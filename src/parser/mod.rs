@@ -58,14 +58,16 @@ for child in root.into_inner() {
  */
 
 use pest::Parser as PestParser;
+use std::collections::HashMap;
 use std::string;
 
 use crate::parser::context::*;
+use crate::parser::report::ReportBuilder;
 
 #[doc(inline)]
 pub use crate::parser::ast::*;
 pub use crate::parser::cst::*;
-pub use crate::parser::error::*;
+pub use crate::parser::errors::*;
 pub use crate::parser::expr::*;
 pub use crate::parser::span::*;
 
@@ -74,9 +76,11 @@ pub use crate::parser::grammar::Rule as GrammarRule;
 mod ast;
 mod context;
 mod cst;
-mod error;
+mod errors;
 mod expr;
+mod report;
 mod span;
+mod warnings;
 
 #[cfg(test)]
 mod tests;
@@ -103,13 +107,27 @@ impl Parser {
         src: &'src str,
         origin: Option<string::String>,
     ) -> Result<AST<'src>, Error> {
-        let mut ctx =
-            Context::new(SourceCode { text: src, origin: origin.clone() });
+        // Create the CST but ignore comments and whitespaces. They won't
+        // be visible while traversing the CST as we don't need them for
+        // building the AST.
+        let cst = self
+            .build_cst(src, origin.clone())?
+            .comments(false)
+            .whitespaces(false);
 
-        AST::from_cst(
-            ctx.colorize_errors(self.colorize_errors),
-            self.build_cst(src, origin)?,
-        )
+        // The root of the CST must be the grammar rule `source_file`.
+        let root = cst.into_iter().next().unwrap();
+        assert_eq!(GrammarRule::source_file, root.as_rule());
+
+        let mut ctx = Context::new(SourceCode { text: src, origin });
+        ctx.colorize_errors(self.colorize_errors);
+
+        let namespaces = HashMap::from([(
+            "default",
+            Namespace::from_cst(&mut ctx, root.into_inner())?,
+        )]);
+
+        Ok(AST { namespaces, warnings: ctx.warnings })
     }
 
     /// Build the Concrete Syntax Tree (CST) for a YARA source.
@@ -135,11 +153,9 @@ impl Parser {
         origin: Option<string::String>,
     ) -> Result<CST<'src>, Error> {
         let src = SourceCode { text: src, origin };
-        let mut error_builder = ErrorBuilder::new();
+        let mut error_builder = ReportBuilder::new();
 
-        error_builder
-            .colorize_errors(self.colorize_errors)
-            .register_source(&src);
+        error_builder.with_colors(self.colorize_errors).register_source(&src);
 
         Ok(CST {
             comments: false,

@@ -23,8 +23,14 @@ pub fn check_file(
         src.as_str(),
         Some(path.as_os_str().to_str().unwrap().to_string()),
     ) {
-        Ok(_) => {
-            println!("[{}] {}", Green.paint("ok"), path.display())
+        Ok(ast) => {
+            if ast.warnings.is_empty() {
+                println!("[{}] {}", Green.paint("ok"), path.display());
+            } else {
+                for warning in ast.warnings {
+                    println!("\n{}", warning);
+                }
+            }
         }
         Err(err) => {
             println!("\n{}", err)
