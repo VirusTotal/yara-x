@@ -339,7 +339,7 @@ pub struct TextString<'src> {
 pub struct HexString<'src> {
     span: Span,
     identifier: Ident<'src>,
-    pattern: HexTokens,
+    tokens: HexTokens,
     modifiers: Option<HashMap<&'src str, StringModifier>>,
 }
 
@@ -520,7 +520,7 @@ impl<'src> String<'src> {
             }
             String::Hex(h) => Node(
                 h.identifier.name.to_string(),
-                vec![h.pattern.ascii_tree()],
+                vec![h.tokens.ascii_tree()],
             ),
             String::Regexp(r) => Leaf(vec![r.identifier.name.to_string()]),
         }
@@ -1024,7 +1024,7 @@ fn string_from_cst<'src>(
             String::Hex(Box::new(HexString {
                 span: span.into(),
                 identifier,
-                pattern,
+                tokens: pattern,
                 modifiers,
             }))
         }
