@@ -210,7 +210,7 @@ pub struct Rule<'src> {
     identifier: Ident<'src>,
     tags: Option<HashSet<&'src str>>,
     meta: Option<Vec<Meta<'src>>>,
-    strings: Option<Vec<String<'src>>>,
+    patterns: Option<Vec<Pattern<'src>>>,
     condition: Expr<'src>,
 }
 
@@ -241,30 +241,29 @@ impl<'src> Display for MetaValue<'src> {
     }
 }
 
-/// Each of the string types that can appear in a YARA rule.
+/// Types of patterns (a.k.a strings) that can appear in a YARA rule.
 ///
-/// There are three types of them, text strings, hex strings and regular
-/// expressions.
+/// Possible types are: text patterns, hex patterns and regular expressions.
 #[derive(Debug)]
-pub enum String<'src> {
-    Text(Box<TextString<'src>>),
-    Hex(Box<HexString<'src>>),
+pub enum Pattern<'src> {
+    Text(Box<TextPattern<'src>>),
+    Hex(Box<HexPattern<'src>>),
     Regexp(Box<Regexp<'src>>),
 }
 
-impl<'src> String<'src> {
+impl<'src> Pattern<'src> {
     pub fn identifier(&self) -> &Ident<'src> {
         match self {
-            String::Text(t) => &t.identifier,
-            String::Regexp(r) => &r.identifier,
-            String::Hex(h) => &h.identifier,
+            Pattern::Text(p) => &p.identifier,
+            Pattern::Regexp(p) => &p.identifier,
+            Pattern::Hex(p) => &p.identifier,
         }
     }
 }
 
-/// A string modifier.
+/// A pattern (a.k.a string) modifier.
 #[derive(Debug, HasSpan)]
-pub enum StringModifier {
+pub enum PatternModifier {
     Ascii { span: Span },
     Wide { span: Span },
     Nocase { span: Span },
@@ -275,39 +274,39 @@ pub enum StringModifier {
     Xor { span: Span, start: u8, end: u8 },
 }
 
-impl Display for StringModifier {
+impl Display for PatternModifier {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            StringModifier::Ascii { .. } => {
+            PatternModifier::Ascii { .. } => {
                 write!(f, "ascii")
             }
-            StringModifier::Wide { .. } => {
+            PatternModifier::Wide { .. } => {
                 write!(f, "wide")
             }
-            StringModifier::Nocase { .. } => {
+            PatternModifier::Nocase { .. } => {
                 write!(f, "nocase")
             }
-            StringModifier::Private { .. } => {
+            PatternModifier::Private { .. } => {
                 write!(f, "private")
             }
-            StringModifier::Fullword { .. } => {
+            PatternModifier::Fullword { .. } => {
                 write!(f, "fullword")
             }
-            StringModifier::Base64 { alphabet, .. } => {
+            PatternModifier::Base64 { alphabet, .. } => {
                 if let Some(alphabet) = alphabet {
                     write!(f, "base64({})", alphabet)
                 } else {
                     write!(f, "base64")
                 }
             }
-            StringModifier::Base64Wide { alphabet, .. } => {
+            PatternModifier::Base64Wide { alphabet, .. } => {
                 if let Some(alphabet) = alphabet {
                     write!(f, "base64wide({})", alphabet)
                 } else {
                     write!(f, "base64wide")
                 }
             }
-            StringModifier::Xor { start, end, .. } => {
+            PatternModifier::Xor { start, end, .. } => {
                 if *start == 0 && *end == 255 {
                     write!(f, "xor")
                 } else if *start == *end {
@@ -320,36 +319,35 @@ impl Display for StringModifier {
     }
 }
 
-/// A text string in a YARA rule.
+/// A text pattern (a.k.a text string) in a YARA rule.
 ///
-/// The value is stored as a [`BString`] instead of a [`String`] because
-/// text strings in YARA can contain arbitrary bytes, including zeroes,
-/// while [`String`] requires valid UTF-8. [`BString`] in the other hand
-/// does not enforce valid UTF-8.
+/// The value is stored in a [`BString`] because text patterns in YARA can
+/// contain arbitrary bytes, including zeroes. This means that they can't
+/// be stored in a [`String`], which require valid UTF-8 content.
 #[derive(Debug, HasSpan)]
-pub struct TextString<'src> {
+pub struct TextPattern<'src> {
     span: Span,
     identifier: Ident<'src>,
     value: BString,
-    modifiers: Option<HashMap<&'src str, StringModifier>>,
+    modifiers: Option<HashMap<&'src str, PatternModifier>>,
 }
 
-/// A hex string in a YARA rule.
+/// A hex pattern (a.k.a hex string) in a YARA rule.
 #[derive(Debug, HasSpan)]
-pub struct HexString<'src> {
+pub struct HexPattern<'src> {
     span: Span,
     identifier: Ident<'src>,
     tokens: HexTokens,
-    modifiers: Option<HashMap<&'src str, StringModifier>>,
+    modifiers: Option<HashMap<&'src str, PatternModifier>>,
 }
 
-/// A sequence of tokens that conform a hex string.
+/// A sequence of tokens that conform a hex pattern (a.k.a hex string).
 #[derive(Debug)]
 pub struct HexTokens {
     tokens: Vec<HexToken>,
 }
 
-/// Each of the types of tokens in a hex string.
+/// Each of the types of tokens in a hex pattern (a.k.a hex string).
 ///
 /// A token can be a single byte, a negated byte (e.g. `~XX`), an
 /// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
@@ -361,25 +359,24 @@ pub enum HexToken {
     Jump(Box<HexJump>),
 }
 
-/// A single byte in an hex string.
+/// A single byte in a hex pattern (a.k.a hex string).
 ///
-/// The byte is accompanied by a mask, which will be 0xFF for
-/// non-masked bytes.
+/// The byte is accompanied by a mask which will be 0xFF for non-masked bytes.
 #[derive(Debug)]
 pub struct HexByte {
     value: u8,
     mask: u8,
 }
 
-/// An alternative in a hex string.
+/// An alternative in a hex pattern (a.k.a hex string).
 ///
-/// Alternatives are hex patterns separated by `|`.
+/// Alternatives are sequences of hex tokens separated by `|`.
 #[derive(Debug)]
 pub struct HexAlternative {
     alternatives: Vec<HexTokens>,
 }
 
-/// An hex jump.
+/// A jump in a hex pattern (a.k.a hex string).
 #[derive(Debug)]
 pub struct HexJump {
     start: Option<u16>,
@@ -390,7 +387,7 @@ impl HexJump {
     /// Coalesce this jump with another one.
     ///
     /// This is useful when two or more consecutive jumps appear in a hex
-    /// string. In such cases the jumps can be coalesced together into a
+    /// pattern. In such cases the jumps can be coalesced together into a
     /// single one. For example:
     ///
     ///  `[1-2][3-4]` becomes `[4-6]`
@@ -421,12 +418,13 @@ impl Display for HexJump {
     }
 }
 
+/// A regular expression in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct Regexp<'src> {
     span: Span,
     identifier: Ident<'src>,
     regexp: &'src str,
-    modifiers: Option<HashMap<&'src str, StringModifier>>,
+    modifiers: Option<HashMap<&'src str, PatternModifier>>,
 }
 
 impl<'src> Namespace<'src> {
@@ -456,10 +454,10 @@ impl<'src> Rule<'src> {
             ))
         }
 
-        if let Some(strings) = &self.strings {
+        if let Some(patterns) = &self.patterns {
             rule_children.push(Node(
                 "strings".to_owned(),
-                strings.iter().map(|s| s.ascii_tree()).collect(),
+                patterns.iter().map(|s| s.ascii_tree()).collect(),
             ))
         }
 
@@ -493,17 +491,17 @@ impl<'src> Rule<'src> {
     }
 }
 
-impl<'src> String<'src> {
+impl<'src> Pattern<'src> {
     fn ascii_tree(&self) -> ascii_tree::Tree {
         match self {
-            String::Text(s) => {
+            Pattern::Text(s) => {
                 let modifiers = if let Some(modifiers) = &s.modifiers {
-                    // The string has modifiers let's generate a textual
+                    // The pattern has modifiers, let's generate a textual
                     // representation of them.
                     let mut m = modifiers
                         .values()
                         .map(|s| s.to_string())
-                        .collect::<Vec<string::String>>();
+                        .collect::<Vec<String>>();
                     // .values() doesn't guarantee a stable order, so we need
                     // to explicitly sort the vector in order to have a
                     // predictable result.
@@ -518,11 +516,11 @@ impl<'src> String<'src> {
                     s.identifier.name, s.value, modifiers
                 )])
             }
-            String::Hex(h) => Node(
+            Pattern::Hex(h) => Node(
                 h.identifier.name.to_string(),
                 vec![h.tokens.ascii_tree()],
             ),
-            String::Regexp(r) => Leaf(vec![r.identifier.name.to_string()]),
+            Pattern::Regexp(r) => Leaf(vec![r.identifier.name.to_string()]),
         }
     }
 }
@@ -685,9 +683,9 @@ fn create_binary_expr<'src>(
 }
 
 lazy_static! {
-    // Map that indicates which modifiers are accepted by each type of strings.
-    // For example, `private` modifiers is accepted by text strings, hex strings
-    // and regexps, while `base64` is only accepted by text strings.
+    // Map that indicates which modifiers are accepted by each type of patterns.
+    // For example, `private` modifiers is accepted by text patterns, hex patterns
+    // and regexps, while `base64` is only accepted by text patterns.
     static ref ACCEPTED_MODIFIERS: HashMap<&'static str, Vec<GrammarRule>> =
         HashMap::from([
             (
@@ -695,7 +693,7 @@ lazy_static! {
                 vec![
                     GrammarRule::string_lit,
                     GrammarRule::regexp,
-                    GrammarRule::hex_string,
+                    GrammarRule::hex_pattern,
                 ],
             ),
             ("ascii", vec![GrammarRule::string_lit, GrammarRule::regexp]),
@@ -708,14 +706,14 @@ lazy_static! {
         ]);
 }
 
-/// Check if the set of modifiers of a string are valid.
+/// Check if the set of modifiers for a pattern are valid.
 ///
-/// Certain string modifiers can't be used in conjunction, and this function
+/// Certain modifiers can't be used in conjunction, and this function
 /// returns an error in those cases.
-fn check_string_modifiers<'src>(
+fn check_pattern_modifiers<'src>(
     ctx: &mut Context<'src>,
     rule_type: GrammarRule,
-    modifiers: &HashMap<&'src str, StringModifier>,
+    modifiers: &HashMap<&'src str, PatternModifier>,
 ) -> Result<(), Error> {
     let xor = modifiers.get("xor");
     let nocase = modifiers.get("nocase");
@@ -726,8 +724,8 @@ fn check_string_modifiers<'src>(
     for (name, modifier) in modifiers.iter() {
         if !ACCEPTED_MODIFIERS[name].contains(&rule_type) {
             let error_detail = match rule_type {
-                GrammarRule::hex_string => {
-                    "this modifier can't be applied to a hex string"
+                GrammarRule::hex_pattern => {
+                    "this modifier can't be applied to a hex pattern"
                 }
                 GrammarRule::regexp => {
                     "this modifier can't be applied to a regexp"
@@ -866,12 +864,13 @@ fn rule_from_cst<'src>(
         None
     };
 
-    // Process the `strings` section if any. `ctx.declared_strings` and
-    // `ctx.unused_strings` will be populated with the declared strings.
-    let strings = if let GrammarRule::string_defs = node.as_rule() {
-        let strings = strings_from_cst(ctx, node)?;
+    // Process the `strings` (a.k.a `patterns) section if any.
+    // `ctx.declared_patterns` and `ctx.unused_patterns` will be populated
+    // with the declared patterns.
+    let patterns = if let GrammarRule::pattern_defs = node.as_rule() {
+        let patterns = patterns_from_cst(ctx, node)?;
         node = children.next().unwrap();
-        Some(strings)
+        Some(patterns)
     } else {
         None
     };
@@ -888,22 +887,22 @@ fn rule_from_cst<'src>(
     let condition = boolean_expr_from_cst(ctx, node)?;
     node = children.next().unwrap();
 
-    // Any identifier left in ctx.unused_strings is not being
+    // Any identifier left in ctx.unused_pattern is not being
     // used in the condition.
-    let unused_string = ctx.unused_strings.drain().next();
+    let unsed_pattern = ctx.unused_patterns.drain().next();
 
-    if let Some(ident) = unused_string {
-        let ident = ctx.declared_strings.get(ident).unwrap();
-        return Err(Error::unused_string(
+    if let Some(ident) = unsed_pattern {
+        let ident = ctx.declared_patterns.get(ident).unwrap();
+        return Err(Error::unused_pattern(
             ctx,
             ident.name.to_string(),
             ident.span,
         ));
     }
 
-    // Clear `declared_strings` so that the next call to `rule_from_cst`
+    // Clear `declared_patterns` so that the next call to `rule_from_cst`
     // finds it empty.
-    ctx.declared_strings.clear();
+    ctx.declared_patterns.clear();
 
     // The closing brace should come next.
     expect!(node, GrammarRule::RBRACE);
@@ -911,117 +910,116 @@ fn rule_from_cst<'src>(
     // Nothing more after the closing brace.
     assert!(children.next().is_none());
 
-    Ok(Rule { flags, identifier, tags, meta, strings, condition })
+    Ok(Rule { flags, identifier, tags, meta, patterns, condition })
 }
 
-/// Given a CST node corresponding to the grammar rule` string_defs`, returns
+/// Given a CST node corresponding to the grammar rule` pattern_defs`, returns
 /// a vector of [`String`] structs describing the defined strings.
-fn strings_from_cst<'src>(
+fn patterns_from_cst<'src>(
     ctx: &mut Context<'src>,
-    string_defs: CSTNode<'src>,
-) -> Result<Vec<String<'src>>, Error> {
-    expect!(string_defs, GrammarRule::string_defs);
+    pattern_defs: CSTNode<'src>,
+) -> Result<Vec<Pattern<'src>>, Error> {
+    expect!(pattern_defs, GrammarRule::pattern_defs);
 
-    let mut children = string_defs.into_inner();
+    let mut children = pattern_defs.into_inner();
 
     // The first two children are the `strings` keyword and the colon (`:`).
     expect!(children.next().unwrap(), GrammarRule::k_STRINGS);
     expect!(children.next().unwrap(), GrammarRule::COLON);
 
-    let mut strings: Vec<String> = vec![];
+    let mut patterns: Vec<Pattern> = vec![];
 
-    // All the remaining children are `string_def`.
-    for string_def in children {
-        expect!(string_def, GrammarRule::string_def);
-        let new_string = string_from_cst(ctx, string_def)?;
-        let new_string_ident = new_string.identifier().clone();
+    // All the remaining children are `pattern_def`.
+    for pattern_def in children {
+        expect!(pattern_def, GrammarRule::pattern_def);
+        let new_pattern = pattern_from_cst(ctx, pattern_def)?;
+        let new_pattern_ident = new_pattern.identifier().clone();
 
-        // Check if another string with the same identifier already exists, but
+        // Check if another pattern with the same identifier already exists, but
         // only if the identifier is not `$`.
-        if new_string_ident.name != "$" {
-            if let Some(existing_string_ident) =
-                ctx.declared_strings.get(&new_string_ident.name[1..])
+        if new_pattern_ident.name != "$" {
+            if let Some(existing_pattern_ident) =
+                ctx.declared_patterns.get(&new_pattern_ident.name[1..])
             {
-                return Err(Error::duplicate_string(
+                return Err(Error::duplicate_pattern(
                     ctx,
-                    new_string_ident.name.to_string(),
-                    new_string_ident.span,
-                    existing_string_ident.span,
+                    new_pattern_ident.name.to_string(),
+                    new_pattern_ident.span,
+                    existing_pattern_ident.span,
                 ));
             }
         }
 
-        // String identifiers are also stored in `unused_string`, they will
+        // String identifiers are also stored in `unused_patterns`, they will
         // be removed from the the set when they are used in the condition.
         // Any identifier left in the set when the condition has been fully
-        // parsed is an unused string. Notice that identifiers are stored
+        // parsed is an unused pattern. Notice that identifiers are stored
         // without the `$` prefix.
-        ctx.unused_strings.insert(&new_string_ident.name[1..]);
+        ctx.unused_patterns.insert(&new_pattern_ident.name[1..]);
 
-        // Store the identifiers for each string declared in the rule.
+        // Store the identifiers for each pattern declared in the rule.
         // They are stored without the `$` prefix.
-        ctx.declared_strings
-            .insert(&new_string_ident.name[1..], new_string_ident);
+        ctx.declared_patterns
+            .insert(&new_pattern_ident.name[1..], new_pattern_ident);
 
-        strings.push(new_string);
+        patterns.push(new_pattern);
     }
 
-    Ok(strings)
+    Ok(patterns)
 }
 
-/// Given a CST node corresponding to the grammar rule` string_def`, returns
-/// a [`String`] struct describing the defined string.
-fn string_from_cst<'src>(
+/// Given a CST node corresponding to the grammar rule `pattern_def`, returns
+/// a [`String`] struct describing the defined pattern.
+fn pattern_from_cst<'src>(
     ctx: &mut Context<'src>,
-    string_def: CSTNode<'src>,
-) -> Result<String<'src>, Error> {
-    expect!(string_def, GrammarRule::string_def);
+    pattern_def: CSTNode<'src>,
+) -> Result<Pattern<'src>, Error> {
+    expect!(pattern_def, GrammarRule::pattern_def);
 
-    let mut children = string_def.into_inner();
+    let mut children = pattern_def.into_inner();
 
-    // The first child of the `string_def` rule is the string identifier,
-    // let's store it in ctx.current_string_identifier.
-    ctx.current_string_identifier =
-        Some(Ident::from(children.next().unwrap()));
+    // The first child of the `pattern_def` rule is the pattern identifier,
+    // let's store it in ctx.current_pattern.
+    ctx.current_pattern = Some(Ident::from(children.next().unwrap()));
 
     // The identifier must be followed by the equal sign.
     expect!(children.next().unwrap(), GrammarRule::EQUAL);
 
     let node = children.next().unwrap();
 
-    // The remaining children are the actual string definition, which
-    // vary depending on the type of string.
-    let string = match node.as_rule() {
-        GrammarRule::hex_string => {
+    // The remaining children are the actual pattern definition, which
+    // vary depending on the type of pattern.
+    let pattern = match node.as_rule() {
+        GrammarRule::hex_pattern => {
             let span = node.as_span();
-            let mut hex_string = node.into_inner();
+            let mut hex_pattern = node.into_inner();
 
             // Hex strings start with a left brace `{`.
-            expect!(hex_string.next().unwrap(), GrammarRule::LBRACE);
+            expect!(hex_pattern.next().unwrap(), GrammarRule::LBRACE);
 
             // Parse the content in-between the braces. While this is done
-            // the identifier is stored in ctx.current_string_identifier.
+            // the identifier is stored in ctx.current_pattern.
             let pattern =
-                hex_pattern_from_cst(ctx, hex_string.next().unwrap())?;
+                hex_pattern_from_cst(ctx, hex_pattern.next().unwrap())?;
 
-            // Take the identifier and set ctx.current_string_identifier
+            // Take the identifier and set ctx.current_pattern
             // to None.
-            let identifier = ctx.current_string_identifier.take().unwrap();
+            let identifier = ctx.current_pattern.take().unwrap();
 
             // Check for the closing brace `}`.
-            expect!(hex_string.next().unwrap(), GrammarRule::RBRACE);
+            expect!(hex_pattern.next().unwrap(), GrammarRule::RBRACE);
 
             let modifiers = if let Some(modifiers) = children.next() {
-                Some(string_mods_from_cst(
+                Some(pattern_mods_from_cst(
                     ctx,
-                    GrammarRule::hex_string,
+                    GrammarRule::hex_pattern,
                     modifiers,
                 )?)
             } else {
                 None
             };
 
-            String::Hex(Box::new(HexString {
+            Pattern::Hex(Box::new(HexPattern {
                 span: span.into(),
                 identifier,
                 tokens: pattern,
@@ -1032,7 +1030,7 @@ fn string_from_cst<'src>(
             let span = node.as_span().into();
             let value = string_lit_from_cst(ctx, node)?;
             let modifiers = if let Some(modifiers) = children.next() {
-                Some(string_mods_from_cst(
+                Some(pattern_mods_from_cst(
                     ctx,
                     GrammarRule::string_lit,
                     modifiers,
@@ -1040,11 +1038,11 @@ fn string_from_cst<'src>(
             } else {
                 None
             };
-            // Take the identifier and set ctx.current_string_identifier
+            // Take the identifier and set ctx.current_pattern
             // to None.
-            let identifier = ctx.current_string_identifier.take().unwrap();
+            let identifier = ctx.current_pattern.take().unwrap();
 
-            String::Text(Box::new(TextString {
+            Pattern::Text(Box::new(TextPattern {
                 identifier,
                 value,
                 span,
@@ -1053,7 +1051,7 @@ fn string_from_cst<'src>(
         }
         GrammarRule::regexp => {
             let modifiers = if let Some(modifiers) = children.next() {
-                Some(string_mods_from_cst(
+                Some(pattern_mods_from_cst(
                     ctx,
                     GrammarRule::regexp,
                     modifiers,
@@ -1061,11 +1059,11 @@ fn string_from_cst<'src>(
             } else {
                 None
             };
-            // Take the identifier and set ctx.current_string_identifier
+            // Take the identifier and set ctx.current_pattern
             // to None.
-            let identifier = ctx.current_string_identifier.take().unwrap();
+            let identifier = ctx.current_pattern.take().unwrap();
 
-            String::Regexp(Box::new(Regexp {
+            Pattern::Regexp(Box::new(Regexp {
                 identifier,
                 modifiers,
                 span: node.as_span().into(),
@@ -1075,37 +1073,37 @@ fn string_from_cst<'src>(
         rule => unreachable!("{:?}", rule),
     };
 
-    Ok(string)
+    Ok(pattern)
 }
 
-/// Given a CST node corresponding to the grammar rule `string_mods`, returns
+/// Given a CST node corresponding to the grammar rule `pattern_mods`, returns
 /// a hash set of [`StringModifier`] structs describing the modifiers.
-fn string_mods_from_cst<'src>(
+fn pattern_mods_from_cst<'src>(
     ctx: &mut Context<'src>,
     rule_type: GrammarRule,
-    string_mods: CSTNode<'src>,
-) -> Result<HashMap<&'src str, StringModifier>, Error> {
-    expect!(string_mods, GrammarRule::string_mods);
+    pattern_mods: CSTNode<'src>,
+) -> Result<HashMap<&'src str, PatternModifier>, Error> {
+    expect!(pattern_mods, GrammarRule::pattern_mods);
 
-    let mut children = string_mods.into_inner().peekable();
+    let mut children = pattern_mods.into_inner().peekable();
     let mut modifiers = HashMap::new();
 
     while let Some(node) = children.next() {
         let modifier = match node.as_rule() {
             GrammarRule::k_ASCII => {
-                StringModifier::Ascii { span: node.as_span().into() }
+                PatternModifier::Ascii { span: node.as_span().into() }
             }
             GrammarRule::k_WIDE => {
-                StringModifier::Wide { span: node.as_span().into() }
+                PatternModifier::Wide { span: node.as_span().into() }
             }
             GrammarRule::k_PRIVATE => {
-                StringModifier::Private { span: node.as_span().into() }
+                PatternModifier::Private { span: node.as_span().into() }
             }
             GrammarRule::k_FULLWORD => {
-                StringModifier::Fullword { span: node.as_span().into() }
+                PatternModifier::Fullword { span: node.as_span().into() }
             }
             GrammarRule::k_NOCASE => {
-                StringModifier::Nocase { span: node.as_span().into() }
+                PatternModifier::Nocase { span: node.as_span().into() }
             }
             GrammarRule::k_XOR => {
                 let mut lower_bound = 0;
@@ -1158,7 +1156,7 @@ fn string_mods_from_cst<'src>(
                     }
                 }
 
-                StringModifier::Xor {
+                PatternModifier::Xor {
                     span: node.as_span().into(),
                     end: upper_bound,
                     start: lower_bound,
@@ -1177,11 +1175,11 @@ fn string_mods_from_cst<'src>(
                     }
                 }
                 match rule {
-                    GrammarRule::k_BASE64 => StringModifier::Base64 {
+                    GrammarRule::k_BASE64 => PatternModifier::Base64 {
                         span: node.as_span().into(),
                         alphabet,
                     },
-                    GrammarRule::k_BASE64WIDE => StringModifier::Base64Wide {
+                    GrammarRule::k_BASE64WIDE => PatternModifier::Base64Wide {
                         span: node.as_span().into(),
                         alphabet,
                     },
@@ -1197,8 +1195,8 @@ fn string_mods_from_cst<'src>(
         }
     }
 
-    // Check for invalid combinations of string modifiers.
-    check_string_modifiers(ctx, rule_type, &modifiers)?;
+    // Check for invalid combinations of modifiers.
+    check_pattern_modifiers(ctx, rule_type, &modifiers)?;
 
     Ok(modifiers)
 }
@@ -1392,17 +1390,17 @@ fn boolean_term_from_cst<'src>(
 
             expr
         }
-        GrammarRule::string_ident => {
+        GrammarRule::pattern_ident => {
             let ident = children.next().unwrap();
             let ident_name = ident.as_str();
             let anchor = anchor_from_cst(ctx, children)?;
 
             // The use of `$` in the condition doesn't mean that all anonymous
-            // string identifiers are used. Anonymous string identifiers are
+            // pattern identifiers are used. Anonymous pattern identifiers are
             // considered used when the `them` keyword is used, or when the
-            // pattern `$*` appears in a string identifiers tuple.
+            // pattern `$*` appears in a pattern identifiers tuple.
             if ident_name != "$" {
-                ctx.unused_strings.remove(&ident_name[1..]);
+                ctx.unused_patterns.remove(&ident_name[1..]);
             }
             // `$` used outside a `for .. of` statement, that's invalid.
             else if !ctx.inside_for_of {
@@ -1413,7 +1411,7 @@ fn boolean_term_from_cst<'src>(
                 ));
             }
 
-            Expr::StringMatch(Box::new(StringMatch {
+            Expr::StringMatch(Box::new(PatternMatch {
                 // TODO: this is not the best way of computing the span for
                 // StringMatch, as this covers the space that can follow, like
                 // in:
@@ -1603,8 +1601,8 @@ fn primary_expr_from_cst<'src>(
             literal: node.as_span().as_str(),
             value: integer_lit_from_cst(ctx, node)?,
         })),
-        GrammarRule::string_count => {
-            // Is there some range after the string count?
+        GrammarRule::pattern_count => {
+            // Is there some range after the pattern count?
             // Example: #a in (0..10)
             let range = if let Some(node) = children.next() {
                 expect!(node, GrammarRule::k_IN);
@@ -1615,9 +1613,9 @@ fn primary_expr_from_cst<'src>(
 
             let ident_name = node.as_span().as_str();
 
-            // Remove from ctx.unused_strings, indicating that the
+            // Remove from ctx.unused_patterns, indicating that the
             // identifier has been used.
-            ctx.unused_strings.remove(&ident_name[1..]);
+            ctx.unused_patterns.remove(&ident_name[1..]);
 
             Expr::StringCount(Box::new(IdentWithRange {
                 span: term_span.into(),
@@ -1625,10 +1623,10 @@ fn primary_expr_from_cst<'src>(
                 range,
             }))
         }
-        // String lengths (`!a`) and string offsets (`@a`) can both be used
+        // Pattern lengths (`!a`) and pattern offsets (`@a`) can both be used
         // with indexes like in `!a[1]` and  `@a[1]`, so let's handle them
         // together.
-        rule @ (GrammarRule::string_length | GrammarRule::string_offset) => {
+        rule @ (GrammarRule::pattern_length | GrammarRule::pattern_offset) => {
             // The index is optional, if the next child exists it should be
             // the left bracket, if not, there's no indexing at all.
             let index = if let Some(bracket) = children.next() {
@@ -1642,16 +1640,16 @@ fn primary_expr_from_cst<'src>(
                 None
             };
             let expr_type = match rule {
-                GrammarRule::string_length => Expr::StringLength,
-                GrammarRule::string_offset => Expr::StringOffset,
+                GrammarRule::pattern_length => Expr::StringLength,
+                GrammarRule::pattern_offset => Expr::StringOffset,
                 _ => unreachable!(),
             };
 
             let ident_name = node.as_span().as_str();
 
-            // Remove from ctx.unused_strings, indicating that the
+            // Remove from ctx.unused_patterns, indicating that the
             // identifier has been used.
-            ctx.unused_strings.remove(&ident_name[1..]);
+            ctx.unused_patterns.remove(&ident_name[1..]);
 
             expr_type(Box::new(IdentWithIndex {
                 span: term_span.into(),
@@ -1804,13 +1802,13 @@ fn of_expr_from_cst<'src>(
 
     let items = match node.as_rule() {
         GrammarRule::k_THEM => {
-            // `them` was used in the condition, all the strings are used.
-            ctx.unused_strings.clear();
-            OfItems::StringSet(StringSet::Them)
+            // `them` was used in the condition, all the patterns are used.
+            ctx.unused_patterns.clear();
+            OfItems::PatternSet(PatternSet::Them)
         }
-        GrammarRule::string_ident_tuple => OfItems::StringSet(StringSet::Set(
-            string_ident_tuple_from_cst(ctx, node)?,
-        )),
+        GrammarRule::pattern_ident_tuple => OfItems::PatternSet(
+            PatternSet::Set(pattern_ident_tuple(ctx, node)?),
+        ),
         GrammarRule::boolean_expr_tuple => {
             OfItems::BoolExprTuple(boolean_expr_tuple_from_cst(ctx, node)?)
         }
@@ -1822,18 +1820,18 @@ fn of_expr_from_cst<'src>(
     /*
     // Compute the number of items
     let items_count = match items {
-        // `x of them`: the number of items is the number of declared strings
+        // `x of them`: the number of items is the number of declared patterns
         // because `them` refers to all of them.
-        OfItems::StringSet(StringSet::Them) => ctx.declared_strings.len(),
+        OfItems::PatternSet(PatternSet::Them) => ctx.declared_patterns.len(),
         // `x of ($a*, $b)`: the number of items is the number of declared
-        // strings that match the patterns in the tuple.
-        OfItems::StringSet(StringSet::Set(ref set)) => todo!(),
+        // patterns that match the patterns in the tuple.
+        OfItems::PatternSet(PatternSet::Set(ref set)) => todo!(),
         // `x of (<boolean expr>, <boolean expr>, ...)`: the number of items is
         // the number of expressions in the tuple.
         OfItems::BoolExprTuple(ref tuple) => tuple.len(),
     };
 
-    // TODO: error if quantifier is larger than the number of strings in items.
+    // TODO: error if quantifier is larger than the number of patterns in items.
     // example:  3 of ($a, $b).
 
 
@@ -1904,20 +1902,20 @@ fn for_expr_from_cst<'src>(
     // ...and then follows the quantifier.
     let quantifier = quantifier_from_cst(ctx, children.next().unwrap())?;
 
-    let mut string_set = None;
+    let mut pattern_set = None;
     let mut iterator = None;
     let mut variables = vec![];
 
     if let GrammarRule::k_OF = children.peek().unwrap().as_rule() {
         // Consume the `of` keyword.
         children.next().unwrap();
-        // After the `of` keyword follows `them` or a tuple of string
+        // After the `of` keyword follows `them` or a tuple of pattern
         // identifiers.
         let node = children.next().unwrap();
-        string_set = Some(match node.as_rule() {
-            GrammarRule::k_THEM => StringSet::Them,
-            GrammarRule::string_ident_tuple => {
-                StringSet::Set(string_ident_tuple_from_cst(ctx, node)?)
+        pattern_set = Some(match node.as_rule() {
+            GrammarRule::k_THEM => PatternSet::Them,
+            GrammarRule::pattern_ident_tuple => {
+                PatternSet::Set(pattern_ident_tuple(ctx, node)?)
             }
             rule => unreachable!("{:?}", rule),
         });
@@ -1957,11 +1955,11 @@ fn for_expr_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::RPAREN);
 
-    let expr = if let Some(string_set) = string_set {
+    let expr = if let Some(pattern_set) = pattern_set {
         Expr::ForOf(Box::new(ForOf {
             span: span.into(),
             quantifier,
-            string_set,
+            pattern_set,
             condition,
         }))
     } else if let Some(iterator) = iterator {
@@ -2048,15 +2046,15 @@ fn quantifier_from_cst<'src>(
     Ok(quantifier)
 }
 
-/// From a CST node corresponding to the grammar rule `string_ident_tuple`, returns
-/// a vector of [`StringSetItem`].
-fn string_ident_tuple_from_cst<'src>(
+/// From a CST node corresponding to the grammar rule `pattern_ident_tuple`, returns
+/// a vector of [`PatternSetItem`].
+fn pattern_ident_tuple<'src>(
     ctx: &mut Context<'src>,
-    string_ident_tuple: CSTNode<'src>,
-) -> Result<Vec<StringSetItem<'src>>, Error> {
-    expect!(string_ident_tuple, GrammarRule::string_ident_tuple);
+    pattern_ident_tuple: CSTNode<'src>,
+) -> Result<Vec<PatternSetItem<'src>>, Error> {
+    expect!(pattern_ident_tuple, GrammarRule::pattern_ident_tuple);
 
-    let mut children = string_ident_tuple.into_inner();
+    let mut children = pattern_ident_tuple.into_inner();
 
     // The tuple should start with an opening parenthesis.
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
@@ -2066,23 +2064,23 @@ fn string_ident_tuple_from_cst<'src>(
     // For all CST nodes after the opening parenthesis...
     for node in children.by_ref() {
         match node.as_rule() {
-            // ... if the node is string_ident_pattern
-            GrammarRule::string_ident_pattern => {
-                // The pattern can be simply a string identifier, like `$a`
-                // or a string identifier ending in a wildcard, like `$a*`.
+            // ... if the node is pattern_ident_wildcarded
+            GrammarRule::pattern_ident_wildcarded => {
+                // The pattern can be simply a pattern identifier, like `$a`
+                // or a pattern identifier ending in a wildcard, like `$a*`.
                 // Notice however that the `$` is ignored.
                 let pattern = &node.as_str()[1..];
 
                 if let Some(prefix) = pattern.strip_suffix('*') {
                     // If the pattern has a wildcard, remove all identifiers
                     // that starts with the prefix before the wildcard.
-                    ctx.unused_strings
+                    ctx.unused_patterns
                         .retain(|ident| !ident.starts_with(prefix));
                 } else {
-                    ctx.unused_strings.remove(pattern);
+                    ctx.unused_patterns.remove(pattern);
                 }
 
-                result.push(StringSetItem {
+                result.push(PatternSetItem {
                     span: node.as_span().into(),
                     identifier: node.as_str(),
                 });
@@ -2118,7 +2116,7 @@ fn boolean_expr_tuple_from_cst<'src>(
     // For all CST nodes after the opening parenthesis...
     for node in children.by_ref() {
         match node.as_rule() {
-            // ... if the node is string_ident_pattern
+            // ... if the node is boolean_expr
             GrammarRule::boolean_expr => {
                 result.push(boolean_expr_from_cst(ctx, node)?);
             }
@@ -2153,7 +2151,7 @@ fn expr_tuple_from_cst<'src>(
     // For all CST nodes after the opening parenthesis...
     for node in children.by_ref() {
         match node.as_rule() {
-            // ... if the node is string_ident_pattern
+            // ... if the node is an expression.
             GrammarRule::expr => {
                 result.push(expr_from_cst(ctx, node)?);
             }
@@ -2383,7 +2381,7 @@ fn string_lit_from_cst<'src>(
     Ok(result)
 }
 
-/// From a CST node corresponding to the grammar rule `hex_string`, returns
+/// From a CST node corresponding to the grammar rule `hex_pattern`, returns
 /// the [`HexPattern`] representing it.
 fn hex_pattern_from_cst<'src>(
     ctx: &mut Context<'src>,
@@ -2430,9 +2428,9 @@ fn hex_pattern_from_cst<'src>(
                     // nibbles in a byte sequence (e.g. { 000 }). The grammar
                     // allows this case, even if invalid, precisely for detecting
                     // it here and providing a meaningful error message.
-                    return Err(Error::invalid_hex_string(
+                    return Err(Error::invalid_hex_pattern(
                         ctx,
-                        ctx.current_string_ident(),
+                        ctx.current_pattern_ident(),
                         "uneven number of nibbles".to_string(),
                         node.as_span().into(),
                         None,
@@ -2441,9 +2439,9 @@ fn hex_pattern_from_cst<'src>(
 
                 // ~?? is not allowed.
                 if negated && mask == 0x00 {
-                    return Err(Error::invalid_hex_string(
+                    return Err(Error::invalid_hex_pattern(
                         ctx,
-                        ctx.current_string_ident(),
+                        ctx.current_pattern_ident(),
                         "negation of `??` is not allowed".to_string(),
                         node.as_span().into(),
                         None,
@@ -2481,7 +2479,7 @@ fn hex_pattern_from_cst<'src>(
                 if consecutive_jumps {
                     let warning = Warning::consecutive_jumps(
                         ctx,
-                        ctx.current_string_ident(),
+                        ctx.current_pattern_ident(),
                         format!("{}", jump),
                         jump_span,
                     );
@@ -2490,9 +2488,9 @@ fn hex_pattern_from_cst<'src>(
 
                 if let (Some(start), Some(end)) = (jump.start, jump.end) {
                     if start > end {
-                        return Err(Error::invalid_hex_string(
+                        return Err(Error::invalid_hex_pattern(
                             ctx,
-                            ctx.current_string_ident(),
+                            ctx.current_pattern_ident(),
                             format!(
                                 "lower bound ({}) is greater than upper bound ({})",
                                 start, end),

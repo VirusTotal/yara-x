@@ -130,7 +130,7 @@ fn syntax_errors() {
    │
  1 │ rule test { strings: condition: true }
    ·                      │ 
-   ·                      ╰─ expected string identifier
+   ·                      ╰─ expected pattern identifier
 ───╯
 "#,
         ),
@@ -301,7 +301,7 @@ strings:
   $a = { 00 ~?? 11 }
 condition: true
 }"#,
-            r#"error: invalid hex string `$a`
+            r#"error: invalid hex pattern `$a`
    ╭─[line:4:13]
    │
  4 │   $a = { 00 ~?? 11 }
@@ -338,7 +338,7 @@ strings:
 condition: 
   $a
 }"#,
-            r#"error: invalid hex string `$a`
+            r#"error: invalid hex pattern `$a`
    ╭─[line:4:16]
    │
  4 │   $a = { 01 02 0 }
@@ -436,7 +436,7 @@ rule test {
 }
 
 "#,
-            r#"error: duplicate string `$a`
+            r#"error: duplicate pattern `$a`
    ╭─[line:5:6]
    │
  4 │      $a = "foo"
@@ -461,7 +461,7 @@ rule test {
 }
 
 "#,
-            r#"error: unused string `$b`
+            r#"error: unused pattern `$b`
    ╭─[line:5:6]
    │
  5 │      $b = "bar"
@@ -482,7 +482,7 @@ rule test {
 }
 
 "#,
-            r#"error: unused string `$`
+            r#"error: unused pattern `$`
    ╭─[line:4:6]
    │
  4 │      $ = "foo"
@@ -504,7 +504,7 @@ rule test {
 }
 
 "#,
-            r#"error: unused string `$`
+            r#"error: unused pattern `$`
    ╭─[line:5:6]
    │
  5 │      $  = "bar"
@@ -619,7 +619,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid hex string `$a`
+            r#"error: invalid hex pattern `$a`
    ╭─[line:4:15]
    │
  4 │     $a = { 11 [2-1] 22 }
@@ -639,7 +639,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid hex string `$a`
+            r#"error: invalid hex pattern `$a`
    ╭─[line:4:15]
    │
  4 │     $a = { 11 [1-2][40-38] 22 }
@@ -766,7 +766,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: duplicate string modifier
+            r#"error: duplicate pattern modifier
    ╭─[line:4:23]
    │
  4 │     $a = "foo" xor(0) xor(1-2)
@@ -806,7 +806,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid string modifier combination: `xor` `nocase`
+            r#"error: invalid modifier combination: `xor` `nocase`
    ╭─[line:4:16]
    │
  4 │     $a = "foo" xor nocase
@@ -830,7 +830,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid string modifier combination: `base64wide` `nocase`
+            r#"error: invalid modifier combination: `base64wide` `nocase`
    ╭─[line:4:29]
    │
  4 │     $a = "foo" nocase ascii base64wide
@@ -854,12 +854,12 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid string modifier
+            r#"error: invalid pattern modifier
    ╭─[line:4:20]
    │
  4 │     $a = { 01 02 } nocase
    ·                    ───┬──  
-   ·                       ╰──── this modifier can't be applied to a hex string
+   ·                       ╰──── this modifier can't be applied to a hex pattern
 ───╯
 "#,
         ),

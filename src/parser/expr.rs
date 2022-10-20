@@ -246,7 +246,7 @@ pub enum Expr<'src> {
     Ident(Box<Ident<'src>>),
 
     /// String match expression (e.g. `$a`, `$a at 0`, `$a in (0..10)`)
-    StringMatch(Box<StringMatch<'src>>),
+    StringMatch(Box<PatternMatch<'src>>),
 
     /// String count expression (e.g. `#a`, `#a in (0..10)`)
     StringCount(Box<IdentWithRange<'src>>),
@@ -360,9 +360,9 @@ pub enum Expr<'src> {
     ForIn(Box<ForIn<'src>>),
 }
 
-/// A string match expression (e.g. `$a`, `$b at 0`, `$c in (0..10)`).
+/// A pattern match expression (e.g. `$a`, `$b at 0`, `$c in (0..10)`).
 #[derive(Debug, HasSpan)]
-pub struct StringMatch<'src> {
+pub struct PatternMatch<'src> {
     pub(crate) span: Span,
     pub identifier: Ident<'src>,
     pub anchor: Option<MatchAnchor<'src>>,
@@ -511,7 +511,7 @@ pub struct Of<'src> {
 pub struct ForOf<'src> {
     pub(crate) span: Span,
     pub quantifier: Quantifier<'src>,
-    pub string_set: StringSet<'src>,
+    pub pattern_set: PatternSet<'src>,
     pub condition: Expr<'src>,
 }
 
@@ -527,7 +527,7 @@ pub struct ForIn<'src> {
 
 #[derive(Debug)]
 pub enum OfItems<'src> {
-    StringSet(StringSet<'src>),
+    PatternSet(PatternSet<'src>),
     BoolExprTuple(Vec<Expr<'src>>),
 }
 
@@ -571,21 +571,25 @@ impl<'src> Quantifier<'src> {
     }
 }
 
-/// Either a set of string identifiers (possibly with wildcards), or the
-/// special set `them`, which includes all the strings declared in the rule.
+/// Either a set of pattern identifiers (possibly with wildcards), or the
+/// special set `them`, which includes all the patterns declared in the rule.
 #[derive(Debug)]
-pub enum StringSet<'src> {
+pub enum PatternSet<'src> {
     Them,
-    Set(Vec<StringSetItem<'src>>),
+    Set(Vec<PatternSetItem<'src>>),
 }
 
+/// Each individual item in a set of patterns.
+///
+/// In the pattern set `($a, $b*)`, `$a` and `$b*` are represented by a
+/// [`PatternSetItem`].
 #[derive(Debug, HasSpan)]
-pub struct StringSetItem<'src> {
+pub struct PatternSetItem<'src> {
     pub(crate) span: Span,
     pub identifier: &'src str,
 }
 
-impl<'src> StringSet<'src> {
+impl<'src> PatternSet<'src> {
     pub fn ascii_tree(&self) -> ascii_tree::Tree {
         match self {
             Self::Them => Leaf(vec!["them".to_string()]),
@@ -1017,8 +1021,8 @@ impl<'src> Expr<'src> {
             }
             Self::Of(of) => {
                 let set_ascii_tree = match &of.items {
-                    OfItems::StringSet(set) => Node(
-                        "<items: string_set>".to_string(),
+                    OfItems::PatternSet(set) => Node(
+                        "<items: pattern_set>".to_string(),
                         vec![set.ascii_tree()],
                     ),
                     OfItems::BoolExprTuple(set) => Node(
@@ -1072,7 +1076,7 @@ impl<'src> Expr<'src> {
                     ),
                     Node(
                         "<items>".to_string(),
-                        vec![for_of.string_set.ascii_tree()],
+                        vec![for_of.pattern_set.ascii_tree()],
                     ),
                     Node(
                         "<condition>".to_string(),

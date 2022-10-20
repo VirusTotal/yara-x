@@ -264,11 +264,11 @@ impl Formatter {
                 },
                 processor::actions::newline,
             )
-            // Add newline in front of string identifiers in the "strings"
+            // Add newline in front of pattern identifiers in the "strings"
             // section.
             .add_rule(
                 |ctx| {
-                    ctx.in_rule(GrammarRule::string_def)
+                    ctx.in_rule(GrammarRule::pattern_def)
                         && ctx.token(1).is(*IDENTIFIER)
                         && !ctx.token(-1).is(*NEWLINE)
                 },
@@ -376,16 +376,16 @@ impl Formatter {
             // Increase indentation after "strings:"
             .add_rule(
                 |ctx| {
-                    ctx.in_rule(GrammarRule::string_defs)
+                    ctx.in_rule(GrammarRule::pattern_defs)
                         && ctx.token(-1).eq(&Punctuation(":"))
                 },
                 processor::actions::insert(Indentation(1)),
             )
-            // Decrease indentation after string definitions.
+            // Decrease indentation after pattern definitions.
             .add_rule(
                 |ctx| {
-                    ctx.in_rule(GrammarRule::string_defs)
-                        && ctx.token(1).eq(&End(GrammarRule::string_defs))
+                    ctx.in_rule(GrammarRule::pattern_defs)
+                        && ctx.token(1).eq(&End(GrammarRule::pattern_defs))
                         && ctx.token(-1).neq(&Indentation(-1))
                 },
                 processor::actions::insert(Indentation(-1)),
@@ -435,7 +435,7 @@ impl Formatter {
             )
     }
 
-    /// Aligns the equals signs in string definitions. For example, for this
+    /// Aligns the equals signs in pattern definitions. For example, for this
     /// input..
     ///
     /// rule foo {
@@ -459,7 +459,7 @@ impl Formatter {
     /// }
     ///
     /// The input must must contain at least one newline character after each
-    /// string definition.
+    /// pattern definition.
     fn align<'a, I>(input: I) -> impl TokenStream<'a> + 'a
     where
         I: TokenStream<'a> + 'a,
@@ -467,19 +467,19 @@ impl Formatter {
         // First insert the alignment markers at the appropriate places...
         let input_with_markers = processor::Processor::new(input)
             .add_rule(
-                |ctx| ctx.token(-1).eq(&Begin(GrammarRule::string_defs)),
+                |ctx| ctx.token(-1).eq(&Begin(GrammarRule::pattern_defs)),
                 processor::actions::insert(AlignmentBlockBegin),
             )
             .add_rule(
                 |ctx| {
-                    ctx.token(1).eq(&End(GrammarRule::string_defs))
+                    ctx.token(1).eq(&End(GrammarRule::pattern_defs))
                         && ctx.token(-1).neq(&AlignmentBlockEnd)
                 },
                 processor::actions::insert(AlignmentBlockEnd),
             )
             .add_rule(
                 |ctx| {
-                    ctx.in_rule(GrammarRule::string_def)
+                    ctx.in_rule(GrammarRule::pattern_def)
                         && ctx.token(1).eq(&Punctuation("="))
                         && ctx.token(-1).neq(&AlignmentMarker)
                 },

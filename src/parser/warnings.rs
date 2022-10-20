@@ -5,11 +5,11 @@ use yara_derive::Error;
 #[rustfmt::skip]
 #[derive(Error)]
 pub enum Warning {
-    #[warning("consecutive jumps in hex string `{string_ident}`")]
+    #[warning("consecutive jumps in hex pattern `{pattern_ident}`")]
     #[label("these consecutive jumps will be treated as {coalesced_jump}", jumps_span)]
     ConsecutiveJumps {
         detailed_report: String,
-        string_ident: String,
+        pattern_ident: String,
         coalesced_jump: String,
         jumps_span: Span,
     },

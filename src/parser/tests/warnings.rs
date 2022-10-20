@@ -14,7 +14,7 @@ rule test {
   condition: 
     $a 
 }"#,
-            r#"warning: consecutive jumps in hex string `$a`
+            r#"warning: consecutive jumps in hex pattern `$a`
    ╭─[line:4:15]
    │
  4 │     $a = { 01 [1-2][3-4][1-3] 02 }

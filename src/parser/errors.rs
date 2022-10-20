@@ -58,24 +58,24 @@ pub enum Error {
         existing_rule_name_span: Span,
     },
     
-    #[error("duplicate string `{string_ident}`")]
+    #[error("duplicate pattern `{pattern_ident}`")]
     #[label(
-        "duplicate declaration of `{string_ident}`", 
-        new_string_span
+        "duplicate declaration of `{pattern_ident}`", 
+        new_pattern_span
     )]
     #[label(
-        "`{string_ident}` declared here for the first time", 
-        existing_string_span,
+        "`{pattern_ident}` declared here for the first time", 
+        existing_pattern_span,
         style="note"
     )]
-    DuplicateString {
+    DuplicatePattern {
         detailed_report: String,
-        string_ident: String,
-        new_string_span: Span,
-        existing_string_span: Span,
+        pattern_ident: String,
+        new_pattern_span: Span,
+        existing_pattern_span: Span,
     },
 
-    #[error("invalid string modifier")]
+    #[error("invalid pattern modifier")]
     #[label("{error_msg}", error_span)]
     InvalidModifier {
         detailed_report: String,
@@ -83,7 +83,7 @@ pub enum Error {
         error_span: Span,
     },
 
-    #[error("duplicate string modifier")]
+    #[error("duplicate pattern modifier")]
     #[label("duplicate modifier", modifier_span)]
     DuplicateModifier {
         detailed_report: String,
@@ -91,7 +91,7 @@ pub enum Error {
     },
 
     #[error(
-        "invalid string modifier combination: `{modifier1}` `{modifier2}`", 
+        "invalid modifier combination: `{modifier1}` `{modifier2}`", 
     )]
     #[label("`{modifier1}` modifier used here", modifier1_span)]
     #[label("`{modifier2}` modifier used here", modifier2_span)]
@@ -105,20 +105,20 @@ pub enum Error {
         note: Option<String>,
     },
 
-    #[error("unused string `{string_ident}`")]
-    #[label("this was not used in the condition", string_ident_span)]
-    UnusedString {
+    #[error("unused pattern `{pattern_ident}`")]
+    #[label("this was not used in the condition", pattern_ident_span)]
+    UnusedPattern {
         detailed_report: String, 
-        string_ident: String, 
-        string_ident_span: Span,
+        pattern_ident: String, 
+        pattern_ident_span: Span,
     },
 
-    #[error("invalid hex string `{string_ident}`")]
+    #[error("invalid hex pattern `{pattern_ident}`")]
     #[label("{error_msg}", error_span)]
     #[note(note)]
-    InvalidHexString {
+    InvalidHexPattern {
         detailed_report: String,
-        string_ident: String,
+        pattern_ident: String,
         error_msg: String,
         error_span: Span,
         note: Option<String>,
@@ -288,10 +288,10 @@ impl Error {
             GrammarRule::float_lit => "number",
             GrammarRule::rule_decl => "rule declaration",
             GrammarRule::source_file => "YARA rules",
-            GrammarRule::string_ident => "string identifier",
+            GrammarRule::pattern_ident => "pattern identifier",
             GrammarRule::string_lit => "string literal",
             GrammarRule::regexp => "regular expression",
-            GrammarRule::string_mods => "string modifiers",
+            GrammarRule::pattern_mods => "pattern modifiers",
 
             GrammarRule::PERCENT => "percent `%`",
             GrammarRule::MINUS => "`-`",

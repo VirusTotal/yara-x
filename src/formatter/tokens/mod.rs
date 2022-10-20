@@ -153,7 +153,7 @@ pub(crate) enum Token<'a> {
     //
     //  { BlockBegin  XX XX XX XX XX XX ... XX XX XX XX XX XX  BlockEnd }
     //
-    // This indicates the hex string must be formatted either like this... (if it fits in a line)
+    // This indicates the hex pattern must be formatted either like this... (if it fits in a line)
     //
     //  { XX XX XX XX XX XX ... XX XX XX XX XX XX }
     //
@@ -170,7 +170,7 @@ pub(crate) enum Token<'a> {
     // AlignmentBlockBegin/AlignmentBlockEnd indicates the starting/ending
     // point of alignment block. Within an alignment block all occurrences of
     // AlignmentMarker are forced to be in the same column by inserting spaces
-    // before it if required. Alignment blocks are used for aligning string
+    // before it if required. Alignment blocks are used for aligning pattern
     // declarations like this...
     //
     //  $short_identifier       = " ... "
@@ -345,7 +345,7 @@ impl<'a> Token<'a> {
             | GrammarRule::PIPE
             | GrammarRule::TILDE => Token::Punctuation(span.as_str()),
             // Identifiers.
-            GrammarRule::ident | GrammarRule::string_ident => {
+            GrammarRule::ident | GrammarRule::pattern_ident => {
                 Token::Identifier(span.as_str())
             }
             // Literals.

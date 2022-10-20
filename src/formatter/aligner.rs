@@ -29,7 +29,7 @@ use std::collections::VecDeque;
 /// token stream is passed to [`Aligner`].
 ///
 /// Notice that [`Aligner`] requires that the input stream already contains  
-/// at least one newline token after each string declaration.
+/// at least one newline token after each pattern declaration.
 ///
 pub(crate) struct Aligner<'a, T>
 where

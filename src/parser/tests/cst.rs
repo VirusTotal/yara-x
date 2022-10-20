@@ -104,14 +104,14 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::string_def,
+            GrammarRule::pattern_def,
             r#"$a = "foo" ascii wide fullword nocase xor base64 base64wide"#,
             r#"
- string_def
- ├─ string_ident "$a"
+ pattern_def
+ ├─ pattern_ident "$a"
  ├─ EQUAL "="
  ├─ string_lit ""foo""
- └─ string_mods
+ └─ pattern_mods
     ├─ k_ASCII "ascii"
     ├─ k_WIDE "wide"
     ├─ k_FULLWORD "fullword"
@@ -124,14 +124,14 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::string_def,
+            GrammarRule::pattern_def,
             r#"$a = "foo" xor(32) base64("foo") base64wide("bar")"#,
             r#"
- string_def
- ├─ string_ident "$a"
+ pattern_def
+ ├─ pattern_ident "$a"
  ├─ EQUAL "="
  ├─ string_lit ""foo""
- └─ string_mods
+ └─ pattern_mods
     ├─ k_XOR "xor"
     ├─ LPAREN "("
     ├─ integer_lit "32"
@@ -149,14 +149,14 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::string_def,
+            GrammarRule::pattern_def,
             r#"$a = "foo" xor(20-32)"#,
             r#"
- string_def
- ├─ string_ident "$a"
+ pattern_def
+ ├─ pattern_ident "$a"
  ├─ EQUAL "="
  ├─ string_lit ""foo""
- └─ string_mods
+ └─ pattern_mods
     ├─ k_XOR "xor"
     ├─ LPAREN "("
     ├─ integer_lit "20"
@@ -168,29 +168,29 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::string_def,
+            GrammarRule::pattern_def,
             r#"$a = { 00 11 } private"#,
             r#"
- string_def
- ├─ string_ident "$a"
+ pattern_def
+ ├─ pattern_ident "$a"
  ├─ EQUAL "="
- ├─ hex_string
+ ├─ hex_pattern
  │  ├─ LBRACE "{"
  │  ├─ hex_tokens
  │  │  ├─ hex_byte "00"
  │  │  └─ hex_byte "11"
  │  └─ RBRACE "}"
- └─ string_mods
+ └─ pattern_mods
     └─ k_PRIVATE "private"
 "#,
         ),
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::hex_string,
+            GrammarRule::hex_pattern,
             r#"{ 00 }"#,
             r#"
- hex_string
+ hex_pattern
  ├─ LBRACE "{"
  ├─ hex_tokens
  │  └─ hex_byte "00"
@@ -200,10 +200,10 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::hex_string,
+            GrammarRule::hex_pattern,
             r#"{ 00 01 }"#,
             r#"
- hex_string
+ hex_pattern
  ├─ LBRACE "{"
  ├─ hex_tokens
  │  ├─ hex_byte "00"
@@ -214,10 +214,10 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::hex_string,
+            GrammarRule::hex_pattern,
             r#"{ 00 [1] 01 [1-2] 02 [10-] 03 [20-] 04 }"#,
             r#"
- hex_string
+ hex_pattern
  ├─ LBRACE "{"
  ├─ hex_tokens
  │  ├─ hex_byte "00"
@@ -251,10 +251,10 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::hex_string,
+            GrammarRule::hex_pattern,
             r#"{ (00 01 | 00 01) }"#,
             r#"
- hex_string
+ hex_pattern
  ├─ LBRACE "{"
  ├─ hex_tokens
  │  └─ hex_alternative
@@ -273,10 +273,10 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::hex_string,
+            GrammarRule::hex_pattern,
             r#"{ (00 01 | 00 01 (02 | 03)) }"#,
             r#"
- hex_string
+ hex_pattern
  ├─ LBRACE "{"
  ├─ hex_tokens
  │  └─ hex_alternative
@@ -303,10 +303,10 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::hex_string,
+            GrammarRule::hex_pattern,
             r#"{ ?? ?0 0? }"#,
             r#"
- hex_string
+ hex_pattern
  ├─ LBRACE "{"
  ├─ hex_tokens
  │  ├─ hex_byte "??"
@@ -318,10 +318,10 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::hex_string,
+            GrammarRule::hex_pattern,
             r#"{ ~00 ~?0 ~0? }"#,
             r#"
- hex_string
+ hex_pattern
  ├─ LBRACE "{"
  ├─ hex_tokens
  │  ├─ hex_byte "~00"
@@ -333,10 +333,10 @@ rule test : foo bar baz {
         ////////////////////////////////////////////////////////////
         (
             line!(),
-            GrammarRule::hex_string,
+            GrammarRule::hex_pattern,
             r#"{ 00 [1-2] [3-4] 01 }"#,
             r#"
- hex_string
+ hex_pattern
  ├─ LBRACE "{"
  ├─ hex_tokens
  │  ├─ hex_byte "00"
@@ -683,7 +683,7 @@ rule test : foo bar baz {
             r#"
  boolean_expr
  └─ boolean_term
-    ├─ string_ident "$a"
+    ├─ pattern_ident "$a"
     ├─ k_AT "at"
     └─ expr
        ├─ term
@@ -747,9 +747,9 @@ rule test : foo bar baz {
  │        └─ primary_expr
  │           └─ integer_lit "2"
  ├─ k_OF "of"
- └─ string_ident_tuple
+ └─ pattern_ident_tuple
     ├─ LPAREN "("
-    ├─ string_ident_pattern "$a"
+    ├─ pattern_ident_wildcarded "$a"
     └─ RPAREN ")"
 "#,
         ),
@@ -763,11 +763,11 @@ rule test : foo bar baz {
  ├─ quantifier
  │  └─ k_NONE "none"
  ├─ k_OF "of"
- └─ string_ident_tuple
+ └─ pattern_ident_tuple
     ├─ LPAREN "("
-    ├─ string_ident_pattern "$a"
+    ├─ pattern_ident_wildcarded "$a"
     ├─ COMMA ","
-    ├─ string_ident_pattern "$b"
+    ├─ pattern_ident_wildcarded "$b"
     └─ RPAREN ")"
 "#,
         ),
@@ -785,7 +785,7 @@ rule test : foo bar baz {
     ├─ LPAREN "("
     ├─ boolean_expr
     │  └─ boolean_term
-    │     └─ string_ident "$a"
+    │     └─ pattern_ident "$a"
     ├─ COMMA ","
     ├─ boolean_expr
     │  └─ boolean_term
@@ -816,11 +816,11 @@ rule test : foo bar baz {
  ├─ quantifier
  │  └─ k_ANY "any"
  ├─ k_OF "of"
- ├─ string_ident_tuple
+ ├─ pattern_ident_tuple
  │  ├─ LPAREN "("
- │  ├─ string_ident_pattern "$a"
+ │  ├─ pattern_ident_wildcarded "$a"
  │  ├─ COMMA ","
- │  ├─ string_ident_pattern "$b"
+ │  ├─ pattern_ident_wildcarded "$b"
  │  └─ RPAREN ")"
  ├─ k_IN "in"
  └─ range
@@ -932,7 +932,7 @@ rule test : foo bar baz {
             r##"
  term
  └─ primary_expr
-    ├─ string_count "#a"
+    ├─ pattern_count "#a"
     ├─ k_IN "in"
     └─ range
        ├─ LPAREN "("

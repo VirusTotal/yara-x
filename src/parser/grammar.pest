@@ -196,7 +196,7 @@ rule_decl = {
 	rule_mods? ~ k_RULE ~ ident ~ rule_tags? ~
 	LBRACE ~
 	    meta_defs? ~
-	    string_defs?  ~
+	    pattern_defs?  ~
       k_CONDITION ~ COLON ~
          boolean_expr ~
   RBRACE
@@ -221,28 +221,28 @@ ident = @{
    !(keyword ~ !ident_chars) ~ (ASCII_ALPHA | "_") ~ ident_chars*
 }
 
-// String identifier (i.e: $a, $b, $foo, $bar).
-string_ident = @{
+// Pattern identifier (i.e: $a, $b, $foo, $bar).
+pattern_ident = @{
   "$" ~ ident_chars*
 }
 
-// String identifier pattern (i.e: $a, $a*, $*).
-string_ident_pattern = @{
+// Pattern identifier with optional wildcards. (i.e: $a, $a*, $*).
+pattern_ident_wildcarded = @{
   "$" ~ ident_chars* ~ ASTERISK?
 }
 
-// String count (i.e: #a, #b, #foo, #bar).
-string_count = @{
+// Pattern count (i.e: #a, #b, #foo, #bar).
+pattern_count = @{
   "#" ~ ident_chars*
 }
 
-// String offset (i.e: @a, @b, @foo, @bar).
-string_offset = @{
+// Pattern offset (i.e: @a, @b, @foo, @bar).
+pattern_offset = @{
   "@" ~ ident_chars*
 }
 
-// String length (i.e: !a, !b, !foo, !bar).
-string_length = @{
+// Pattern length (i.e: !a, !b, !foo, !bar).
+pattern_length = @{
   "!" ~ ident_chars*
 }
 
@@ -308,23 +308,23 @@ meta_def = {
   )
 }
 
-string_defs = {
-  k_STRINGS ~ COLON ~ string_def+
+pattern_defs = {
+  k_STRINGS ~ COLON ~ pattern_def+
 }
 
-string_def = {
-  string_ident ~ EQUAL ~
+pattern_def = {
+  pattern_ident ~ EQUAL ~
   (
-    string_lit ~ string_mods? |
-    regexp ~ string_mods? |
-    hex_string ~ string_mods?
+    string_lit ~ pattern_mods? |
+    regexp ~ pattern_mods? |
+    hex_pattern ~ pattern_mods?
   )
 }
 
-// Not all types of strings accept these modifiers, for example hex strings
+// Not all types of patterns accept these modifiers, for example hex patterns
 // only accept the `private` modifier. This not enforced by the grammar, but
 // it's enforced later during the construction of the AST.
-string_mods = {(
+pattern_mods = {(
   k_ASCII                                                             |
   k_WIDE                                                              |
   k_NOCASE                                                            |
@@ -340,13 +340,13 @@ string_mods = {(
 }
 
 // !RBRACE after LBRACE is not actually required, but helps producing a more
-// meaningful error message for empty hex strings (i.e: {}).
-hex_string = {
+// meaningful error message for empty hex pattern (i.e: {}).
+hex_pattern = {
   LBRACE ~ !RBRACE ~ hex_tokens ~ RBRACE
 }
 
-// Hex strings must start and finish with a byte or alternative. Jumps are not
-// allowed at the beginning or end of the string.
+// Hex patterns must start and finish with a byte or alternative. Jumps are not
+// allowed at the beginning or end of the pattern.
 hex_tokens = {
   (hex_byte | hex_alternative) ~ (hex_jump* ~ (hex_byte | hex_alternative))*
 }
@@ -396,7 +396,7 @@ boolean_expr = {
 }
 
 boolean_term = {
-  string_ident ~ (k_AT ~ expr | k_IN ~ range)?         |
+  pattern_ident ~ (k_AT ~ expr | k_IN ~ range)?         |
   k_TRUE                                               |
   k_FALSE                                              |
   k_NOT ~ boolean_term                                 |
@@ -428,9 +428,9 @@ primary_expr = {
   float_lit                                            |
   integer_lit                                          |
   string_lit                                           |
-  string_count ~ (k_IN ~ range)?                       |
-  string_offset ~ (LBRACKET ~ expr ~ RBRACKET)?        |
-  string_length ~ (LBRACKET ~ expr ~ RBRACKET)?        |
+  pattern_count ~ (k_IN ~ range)?                       |
+  pattern_offset ~ (LBRACKET ~ expr ~ RBRACKET)?        |
+  pattern_length ~ (LBRACKET ~ expr ~ RBRACKET)?        |
   regexp                                               |
   k_FILESIZE                                           |
   k_ENTRYPOINT                                         |
@@ -442,14 +442,14 @@ primary_expr = {
 
 of_expr = {
   // "of" expression that accepts a tuple of string identifiers.
-  quantifier ~ k_OF ~ (k_THEM | string_ident_tuple) ~ (k_AT ~ expr | k_IN ~ range)? |
+  quantifier ~ k_OF ~ (k_THEM | pattern_ident_tuple) ~ (k_AT ~ expr | k_IN ~ range)? |
   // "of" expression that accepts a tuple of boolean expressions.
   quantifier ~ k_OF ~ boolean_expr_tuple ~ !(k_AT | k_IN)
 }
 
 for_expr = {
   (
-    k_FOR ~ quantifier ~ k_OF ~ (k_THEM | string_ident_tuple)   |
+    k_FOR ~ quantifier ~ k_OF ~ (k_THEM | pattern_ident_tuple)   |
     k_FOR ~ quantifier ~ ident ~ (COMMA ~ ident)* ~ k_IN ~ iterable
   ) ~
   COLON ~
@@ -478,6 +478,6 @@ boolean_expr_tuple = {
   LPAREN ~ boolean_expr ~ (COMMA ~ boolean_expr)* ~ RPAREN
 }
 
-string_ident_tuple = {
-  LPAREN ~ string_ident_pattern ~ (COMMA ~ string_ident_pattern)* ~ RPAREN
+pattern_ident_tuple = {
+  LPAREN ~ pattern_ident_wildcarded ~ (COMMA ~ pattern_ident_wildcarded)* ~ RPAREN
 }

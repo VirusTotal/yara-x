@@ -19,14 +19,14 @@ pub(crate) struct Context<'src> {
     /// The source code being parsed.
     pub(crate) src: SourceCode<'src>,
 
-    /// Contains the string identifiers declared by the rule that is being
+    /// Contains the pattern identifiers declared by the rule that is being
     /// currently parsed. The map is filled during the processing of the
-    /// strings section of the rule. String identifiers are stored without
-    /// the `$` prefix.
-    pub(crate) declared_strings: HashMap<&'src str, Ident<'src>>,
+    /// patterns (a.k.a: strings) section of the rule. Identifiers are stored
+    /// without the `$` prefix.
+    pub(crate) declared_patterns: HashMap<&'src str, Ident<'src>>,
 
-    /// Similarly to `declared_strings` this is filled with the identifiers
-    /// of the strings declared by the current rule. However, during the
+    /// Similarly to `declared_patterns` this is filled with the identifiers
+    /// of the patterns declared by the current rule. However, during the
     /// parsing of the rule's condition, identifiers are removed from this
     /// set as they are used in the condition.
     ///
@@ -38,16 +38,14 @@ pub(crate) struct Context<'src> {
     ///
     /// After the whole condition is parsed, the remaining identifiers are
     /// the unused ones.
-    pub(crate) unused_strings: HashSet<&'src str>,
+    pub(crate) unused_patterns: HashSet<&'src str>,
 
-    // TODO: add HashSet named unused_strings and don't remove used
-    // identifiers  from declared_strings.
     /// Boolean that indicates if the parser is currently inside the expression
     /// of a `for .. of .. : (<expr>)` statement.
     pub(crate) inside_for_of: bool,
 
-    /// While parsing the string declarations, this holds the identifier
-    pub(crate) current_string_identifier: Option<Ident<'src>>,
+    /// While parsing a pattern declarations this holds its identifier.
+    pub(crate) current_pattern: Option<Ident<'src>>,
 
     /// Used for building error messages and warnings.
     pub(crate) report_builder: ReportBuilder,
@@ -64,9 +62,9 @@ impl<'src> Context<'src> {
         Self {
             src,
             inside_for_of: false,
-            declared_strings: HashMap::new(),
-            unused_strings: HashSet::new(),
-            current_string_identifier: None,
+            declared_patterns: HashMap::new(),
+            unused_patterns: HashSet::new(),
+            current_pattern: None,
             report_builder,
             warnings: vec![],
         }
@@ -77,12 +75,12 @@ impl<'src> Context<'src> {
         self
     }
 
-    /// Returns the identifier of the string that is currently being parsed.
+    /// Returns the identifier of the pattern that is currently being parsed.
     ///
     /// This function panics if called at some point where a string is not
-    /// being parsed, so it should be called only from `string_from_cst`
-    /// or any other function under `string_from_cst` in the call tree.
-    pub(crate) fn current_string_ident(&self) -> String {
-        self.current_string_identifier.as_ref().unwrap().name.to_string()
+    /// being parsed, so it should be called only from `pattern_from_cst`
+    /// or any other function under `pattern_from_cst` in the call tree.
+    pub(crate) fn current_pattern_ident(&self) -> String {
+        self.current_pattern.as_ref().unwrap().name.to_string()
     }
 }
