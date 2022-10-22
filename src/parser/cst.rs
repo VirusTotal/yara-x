@@ -121,7 +121,6 @@ impl<'src> Debug for CST<'src> {
 
 impl<'src> Iterator for CST<'src> {
     type Item = CSTNode<'src>;
-
     fn next(&mut self) -> Option<Self::Item> {
         self.pairs.next().map(|pair| CSTNode {
             pair,
@@ -159,26 +158,21 @@ impl<'src> CST<'src> {
     /// Returns an ASCII tree that represents the CST.
     pub fn ascii_tree(&mut self) -> Vec<ascii_tree::Tree> {
         let mut vec = Vec::new();
-
         for node in self.by_ref() {
             let node_content = node.as_str().trim();
             let grammar_rule = node.as_rule();
             if grammar_rule == GrammarRule::EOI {
                 continue;
             }
-
             let sub_tree = node.into_inner().ascii_tree();
-
             let node = if sub_tree.is_empty() {
                 let leaf = format!("{:?} \"{}\"", grammar_rule, node_content);
                 ascii_tree::Tree::Leaf(vec![leaf])
             } else {
                 ascii_tree::Tree::Node(format!("{:?}", grammar_rule), sub_tree)
             };
-
             vec.push(node);
         }
-
         vec
     }
 

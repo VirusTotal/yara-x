@@ -1,8 +1,9 @@
 use crate::parser::warnings::Warning;
 use crate::parser::Ident;
+use crate::SymbolTable;
 use std::collections::{HashMap, HashSet};
 
-use super::report::ReportBuilder;
+use crate::report::ReportBuilder;
 
 /// A structure that describes a YARA source code.
 #[derive(Debug)]
@@ -15,9 +16,14 @@ pub(crate) struct SourceCode<'src> {
 }
 
 /// A structure that holds information about the parsing process.
-pub(crate) struct Context<'src> {
+pub(crate) struct Context<'src, 'rb> {
     /// The source code being parsed.
     pub(crate) src: SourceCode<'src>,
+
+    /// Symbol table used during the parsing process.
+    ///
+    /// The symbol table holds information about type and value of variables.
+    pub(crate) sym_tbl: SymbolTable<'src>,
 
     /// Contains the pattern identifiers declared by the rule that is being
     /// currently parsed. The map is filled during the processing of the
@@ -48,19 +54,20 @@ pub(crate) struct Context<'src> {
     pub(crate) current_pattern: Option<Ident<'src>>,
 
     /// Used for building error messages and warnings.
-    pub(crate) report_builder: ReportBuilder,
+    pub(crate) report_builder: &'rb ReportBuilder,
 
     /// Warnings generated during the parsing process.
     pub(crate) warnings: Vec<Warning>,
 }
 
-impl<'src> Context<'src> {
-    pub(crate) fn new(src: SourceCode<'src>) -> Self {
-        let mut report_builder = ReportBuilder::new();
-        report_builder.register_source(&src);
-
+impl<'src, 'rb> Context<'src, 'rb> {
+    pub(crate) fn new(
+        src: SourceCode<'src>,
+        report_builder: &'rb ReportBuilder,
+    ) -> Self {
         Self {
             src,
+            sym_tbl: SymbolTable::new(),
             inside_for_of: false,
             declared_patterns: HashMap::new(),
             unused_patterns: HashSet::new(),
@@ -68,11 +75,6 @@ impl<'src> Context<'src> {
             report_builder,
             warnings: vec![],
         }
-    }
-
-    pub(crate) fn colorize_errors(&mut self, b: bool) -> &mut Self {
-        self.report_builder.with_colors(b);
-        self
     }
 
     /// Returns the identifier of the pattern that is currently being parsed.

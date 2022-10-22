@@ -23,7 +23,7 @@ use yara_derive::Error;
 /// pieces is useful for applications that can't rely on text-based reports.
 /// 
 #[rustfmt::skip]
-#[derive(Error)]
+#[derive(Error, Debug)]
 pub enum Error {
     #[error("syntax error")]
     #[label("{error_msg}", error_span)]
@@ -155,6 +155,26 @@ pub enum Error {
         error_msg: String,
         error_span: Span,
     },
+    
+    #[error("wrong type")]
+    #[label("expression should be {expected_types}, but is `{actual_type}`", expression_span)]
+    WrongType {
+        detailed_report: String,
+        expected_types: String,
+        actual_type: String,
+        expression_span: Span,
+    },
+
+    #[error("mismatching operator types")]
+    #[label("this expression is `{type1}`", type1_span)]
+    #[label("this expression is `{type2}`", type2_span)]
+    MismatchingTypes {     
+        detailed_report: String,
+        type1: String,
+        type2: String,
+        type1_span: Span,
+        type2_span: Span,
+    }
 }
 
 impl Error {
@@ -177,51 +197,63 @@ impl Error {
         // get comments nor spaces in the parse tree. We want those rules in
         // the parse tree, but we don't want them in error messages. This is
         // probably an area of improvement for Pest.
-        let expected: Vec<&GrammarRule> = expected
+        let expected: Vec<&str> = expected
             .iter()
-            .filter(|&&r| {
-                r != GrammarRule::COMMENT && r != GrammarRule::WHITESPACE
+            .filter(|&&rule| {
+                rule != GrammarRule::COMMENT && rule != GrammarRule::WHITESPACE
             })
+            .map(|rule| f(rule))
             .collect();
 
-        let unexpected: Vec<&GrammarRule> = unexpected
+        let unexpected: Vec<&str> = unexpected
             .iter()
-            .filter(|&&r| {
-                r != GrammarRule::COMMENT && r != GrammarRule::WHITESPACE
+            .filter(|&&rule| {
+                rule != GrammarRule::COMMENT && rule != GrammarRule::WHITESPACE
             })
+            .map(|rule| f(rule))
             .collect();
 
         match (unexpected.is_empty(), expected.is_empty()) {
             (false, false) => format!(
                 "unexpected {}; expected {}",
-                Self::enumerate_grammar_rules(&unexpected, &mut f),
-                Self::enumerate_grammar_rules(&expected, &mut f)
+                Self::join_with_or(&unexpected, false),
+                Self::join_with_or(&expected, false)
             ),
             (false, true) => {
                 format!(
                     "unexpected {}",
-                    Self::enumerate_grammar_rules(&unexpected, &mut f)
+                    Self::join_with_or(&unexpected, false)
                 )
             }
             (true, false) => {
-                format!(
-                    "expected {}",
-                    Self::enumerate_grammar_rules(&expected, &mut f)
-                )
+                format!("expected {}", Self::join_with_or(&expected, false))
             }
             (true, true) => "unknown parsing error".to_owned(),
         }
     }
 
-    pub fn enumerate_grammar_rules<F>(
-        rules: &[&GrammarRule],
-        f: &mut F,
-    ) -> String
-    where
-        F: FnMut(&GrammarRule) -> &str,
-    {
-        // All grammar rules in `rules` are mapped using `f`.
-        let mut strings = rules.iter().map(|rule| f(rule)).collect::<Vec<_>>();
+    /// Utility function that receives an array of strings and joins them
+    /// together separated by commas and with "or" before the last one.
+    /// For example, if input is `["s1", "s2", "s3"]` the result is:
+    ///
+    /// ```text
+    /// str1, str2 or str3
+    /// ```
+    ///
+    /// If `quotes` is true, the strings are enclosed in back tilts, like this:
+    ///
+    /// ```text
+    /// `str1`, `str2` or `str3`
+    /// ```
+    ///
+    pub fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
+        let mut strings: _ = if quotes {
+            s.iter()
+                .map(|s| format!("`{}`", s.to_string()))
+                .collect::<Vec<String>>()
+        } else {
+            s.iter().map(|s| s.to_string()).collect::<Vec<String>>()
+        };
 
         // Sort alphabetically.
         strings.sort();

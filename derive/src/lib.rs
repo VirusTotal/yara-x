@@ -127,16 +127,18 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 /// the variant, but using snake-case instead of camel-case. For example, for
 /// variant `DuplicateTag` the function would be named `duplicate_tag`.
 ///
-/// Each function receives as many arguments as fields in the corresponding
-/// structure, with the same names and types. Except for the `detailed_report`
-/// field, which won't appear in the function arguments. Also, the first
-/// argument is always `ctx: &mut Context`.
+/// Each function receives as arguments the fields declared in the
+/// corresponding structure, with the same names and types. Except for the
+/// `detailed_report` field, which won't appear in the function arguments.
+/// Also, the first two arguments for the function are always
+/// `&ReportBuilder`, and `&SourceCode`.
 ///
 /// So, the function for the `DuplicateTag` example above will be...
 ///
 /// ```
 /// duplicate_tag(
-///     ctx: &mut Context,
+///     report_builder: &ReportBuilder,
+///     src: &SourceCode,
 ///     tag: String,
 ///     tag_span: Span) -> Error
 /// ```

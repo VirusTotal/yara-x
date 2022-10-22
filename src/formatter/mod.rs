@@ -32,7 +32,7 @@ use tokens::TokenStream;
 #[cfg(test)]
 mod tests;
 
-/// Represents the errors that can be returned by [`Formatter::format`].
+/// Represents the errors returned by [`Formatter::format`].
 #[derive(Error, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum Error {
@@ -46,7 +46,7 @@ pub enum Error {
 
     /// Represents a failure while parsing the input.
     #[error("Parse error")]
-    ParseError(parser::Error),
+    ParseError(#[from] parser::Error),
 }
 
 /// Formats YARA source code automatically.
@@ -83,9 +83,7 @@ impl Formatter {
         // corresponding span (i.e: starting and ending position) within the
         // source code. The kind of parsing rules found at the top level are:
         // comments, import statements, and rule declaration.
-        let cst = parser
-            .build_cst(buf.as_str(), Option::None)
-            .map_err(Error::ParseError)?;
+        let cst = parser.build_cst(buf.as_str(), Option::None)?;
 
         let cst = cst.comments(true).whitespaces(true);
 

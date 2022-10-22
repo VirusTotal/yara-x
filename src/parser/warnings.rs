@@ -3,7 +3,7 @@ use yara_derive::Error;
 
 /// An warning raised while parsing YARA rules.
 #[rustfmt::skip]
-#[derive(Error)]
+#[derive(Error, Debug)]
 pub enum Warning {
     #[warning("consecutive jumps in hex pattern `{pattern_ident}`")]
     #[label("these consecutive jumps will be treated as {coalesced_jump}", jumps_span)]

@@ -31,8 +31,9 @@ pub(crate) fn impl_error_macro(
         input.generics.split_for_impl();
 
     syn::Result::Ok(quote! {
-        use crate::parser::report::ReportType;
-        use crate::parser::Context;
+        use crate::report::ReportType;
+        use crate::report::ReportBuilder;
+        use crate::parser::SourceCode;
         use yansi::Color;
         use std::fmt::{Debug, Display, Formatter};
 
@@ -49,13 +50,6 @@ pub(crate) fn impl_error_macro(
                          write!(f, "{}", detailed_report)
                     }
                 }
-            }
-        }
-
-        #[automatically_derived]
-        impl #impl_generics Debug for #name #ty_generics #where_clause {
-            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", *self)
             }
         }
 
@@ -181,10 +175,10 @@ fn gen_build_func(
             };
 
             Ok(quote!(
-                pub(crate) fn #fn_ident(ctx: &mut Context,  #args) -> Self {
-                    let detailed_report = ctx.report_builder.create_report(
+                pub(crate) fn #fn_ident(report_builder: &ReportBuilder, src: &SourceCode, #args) -> Self {
+                    let detailed_report = report_builder.create_report(
                         #report_type,
-                        &ctx.src,
+                        src,
                         #main_label_span,
                         format!(#attr_args),
                         vec![

@@ -1,13 +1,15 @@
-use super::GrammarRule;
-use crate::parser::context::SourceCode;
-use crate::parser::{Error, Span};
 use ariadne::{Color, Label, ReportKind, Source};
 use pest::error::ErrorVariant::{CustomError, ParsingError};
 use pest::error::InputLocation;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::ops::Range;
 use yansi::Style;
+
+use crate::parser::GrammarRule;
+use crate::parser::SourceCode;
+use crate::parser::{Error, Span};
 
 /// Types of reports created by [`ReportBuilder`].
 pub(crate) enum ReportType {
@@ -18,13 +20,21 @@ pub(crate) enum ReportType {
 /// Build error and warning reports.
 pub(crate) struct ReportBuilder {
     with_colors: bool,
-    cache: HashMap<String, ariadne::Source>,
+    // RefCell allows getting a mutable reference to the cache, even if have
+    // an immutable reference to the report builder.
+    cache: RefCell<Cache>,
 }
 
-/// ReportBuilder implements the [`ariadne::Cache`] trait.
-impl ariadne::Cache<String> for ReportBuilder {
+struct Cache {
+    data: CacheMap,
+}
+
+struct CacheMap(HashMap<String, ariadne::Source>);
+
+/// &CacheMap implements the [`ariadne::Cache`] trait.
+impl ariadne::Cache<String> for &CacheMap {
     fn fetch(&mut self, id: &String) -> Result<&Source, Box<dyn Debug + '_>> {
-        self.cache
+        self.0
             .get(id)
             .ok_or(Box::new(format!("Failed to fetch source `{}`", id)) as _)
     }
@@ -37,10 +47,14 @@ impl ariadne::Cache<String> for ReportBuilder {
 impl ReportBuilder {
     /// Creates a new instance of [`ReportBuilder`].
     pub(crate) fn new() -> Self {
-        Self { with_colors: false, cache: HashMap::new() }
+        Self {
+            with_colors: false,
+            cache: RefCell::new(Cache { data: CacheMap(HashMap::new()) }),
+        }
     }
 
-    /// Indicates whether the reports should have colors. By default this is `false`.
+    /// Indicates whether the reports should have colors. By default this is
+    /// `false`.
     pub(crate) fn with_colors(&mut self, b: bool) -> &mut Self {
         self.with_colors = b;
         self
@@ -49,16 +63,24 @@ impl ReportBuilder {
     /// Registers a source code with the report builder.
     ///
     /// Before calling [`ReportBuilder::create_report`] with some [`SourceCode`]
-    /// the source code must be registered by calling this function.
-    pub(crate) fn register_source(&mut self, src: &SourceCode) -> &mut Self {
-        let origin = src.origin.clone().unwrap_or_else(|| "line".to_string());
-        self.cache.insert(origin, ariadne::Source::from(src.text));
+    /// the source code must be registered by calling this function. If
+    /// [`SourceCode`] was already registered this is a no-op.
+    pub(crate) fn register_source(&self, src: &SourceCode) -> &Self {
+        let key = src.origin.as_deref().unwrap_or("line");
+        {
+            let map = &mut self.cache.borrow_mut().data.0;
+            // ariadne::Source::from(...) is an expensive operation, so it's
+            // done only it the SourceCode is not already in the cache.
+            if map.get(key).is_none() {
+                map.insert(key.to_string(), ariadne::Source::from(src.text));
+            }
+        }
         self
     }
 
     /// Creates a new error or warning report.
     pub(crate) fn create_report(
-        &mut self,
+        &self,
         report_type: ReportType,
         src: &SourceCode,
         span: Span,
@@ -112,7 +134,7 @@ impl ReportBuilder {
         let report = report_builder.finish();
         let mut buffer = Vec::<u8>::new();
 
-        report.write(self, &mut buffer).unwrap();
+        report.write(&self.cache.borrow_mut().data, &mut buffer).unwrap();
 
         String::from_utf8(buffer).unwrap()
     }

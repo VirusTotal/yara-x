@@ -1,3 +1,4 @@
+use crate::ascii_tree::namespace_ascii_tree;
 use ascii_tree::Tree::*;
 use bitmask::bitmask;
 use bstr::BString;
@@ -9,45 +10,15 @@ use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Iterator;
-use std::{fmt, str, string};
+use std::{fmt, str};
 use yara_derive::*;
 
 use crate::parser::span::HasSpan;
 use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, CST};
+use crate::{SymbolTable, Value};
 
 pub use crate::parser::expr::*;
 use crate::parser::warnings::Warning;
-
-/// Ensures that the kind of `expr` is in a list of allowed ones.
-///
-/// `expr` must be some identifier of type [`Expr`], and the last argument is
-/// a sequence of one or more values of `ExprKind` separated by pipes.
-///
-/// If `expr` is of any of the kinds in the list, `Ok(())` is returned, if not,
-/// an error is returned.
-///
-/// # Examples
-///
-/// ```ignore
-/// check_kind!(ctx, expr, ExprKind::Bool);
-/// check_kind!(ctx, expr, ExprKind::Integer|ExprKind::Float);
-/// ```
-macro_rules! check_kind {
-    ($ctx:ident, $expr:ident, $( $pattern:path )|+) => {
-        {
-            if matches!($expr.kind(), $( $pattern )|+) {
-                Ok(())
-            } else {
-                Err(Error::wrong_type(
-                    $ctx.src,
-                    &[$( $pattern ),+],
-                    $expr.kind(),
-                    $expr.span(),
-                ))
-            }
-        }
-    };
-  }
 
 /// Ensures that `expr` does not have a negative value.
 ///
@@ -145,9 +116,13 @@ impl<'src> Debug for AST<'src> {
 impl<'src> AST<'src> {
     /// Returns a printable ASCII tree representing the AST.
     pub fn ascii_tree(&self) -> ascii_tree::Tree {
+        let sym_tbl = SymbolTable::new();
         Node(
             "root".to_string(),
-            self.namespaces.iter().map(|(_, ns)| ns.ascii_tree()).collect(),
+            self.namespaces
+                .iter()
+                .map(|(_, ns)| namespace_ascii_tree(&ns, &sym_tbl))
+                .collect(),
         )
     }
 }
@@ -164,7 +139,7 @@ pub struct Namespace<'src> {
 impl<'src> Namespace<'src> {
     /// Creates a namespace from a CST.
     pub(crate) fn from_cst(
-        ctx: &mut Context<'src>,
+        ctx: &mut Context<'src, '_>,
         cst: CST<'src>,
     ) -> Result<Self, Error> {
         let mut rules: HashMap<&str, Rule> = HashMap::new();
@@ -184,7 +159,8 @@ impl<'src> Namespace<'src> {
                         rules.get(new_rule.identifier.name)
                     {
                         return Err(Error::duplicate_rule(
-                            ctx,
+                            ctx.report_builder,
+                            &ctx.src,
                             new_rule.identifier.name.to_string(),
                             new_rule.identifier.span,
                             existing_rule.identifier.span,
@@ -206,19 +182,19 @@ impl<'src> Namespace<'src> {
 /// A YARA rule.
 #[derive(Debug)]
 pub struct Rule<'src> {
-    flags: RuleFlags,
-    identifier: Ident<'src>,
-    tags: Option<HashSet<&'src str>>,
-    meta: Option<Vec<Meta<'src>>>,
-    patterns: Option<Vec<Pattern<'src>>>,
-    condition: Expr<'src>,
+    pub flags: RuleFlags,
+    pub identifier: Ident<'src>,
+    pub tags: Option<HashSet<&'src str>>,
+    pub meta: Option<Vec<Meta<'src>>>,
+    pub patterns: Option<Vec<Pattern<'src>>>,
+    pub condition: Expr<'src>,
 }
 
 /// A metadata entry in a YARA rule.
 #[derive(Debug)]
 pub struct Meta<'src> {
-    identifier: Ident<'src>,
-    value: MetaValue<'src>,
+    pub identifier: Ident<'src>,
+    pub value: MetaValue<'src>,
 }
 
 /// Each of the possible values that can have a metadata entry.
@@ -326,25 +302,25 @@ impl Display for PatternModifier {
 /// be stored in a [`String`], which require valid UTF-8 content.
 #[derive(Debug, HasSpan)]
 pub struct TextPattern<'src> {
-    span: Span,
-    identifier: Ident<'src>,
-    value: BString,
-    modifiers: Option<HashMap<&'src str, PatternModifier>>,
+    pub(crate) span: Span,
+    pub identifier: Ident<'src>,
+    pub value: BString,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
 }
 
 /// A hex pattern (a.k.a hex string) in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct HexPattern<'src> {
-    span: Span,
-    identifier: Ident<'src>,
-    tokens: HexTokens,
-    modifiers: Option<HashMap<&'src str, PatternModifier>>,
+    pub(crate) span: Span,
+    pub identifier: Ident<'src>,
+    pub tokens: HexTokens,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a hex string).
 #[derive(Debug)]
 pub struct HexTokens {
-    tokens: Vec<HexToken>,
+    pub tokens: Vec<HexToken>,
 }
 
 /// Each of the types of tokens in a hex pattern (a.k.a hex string).
@@ -364,8 +340,8 @@ pub enum HexToken {
 /// The byte is accompanied by a mask which will be 0xFF for non-masked bytes.
 #[derive(Debug)]
 pub struct HexByte {
-    value: u8,
-    mask: u8,
+    pub value: u8,
+    pub mask: u8,
 }
 
 /// An alternative in a hex pattern (a.k.a hex string).
@@ -373,14 +349,14 @@ pub struct HexByte {
 /// Alternatives are sequences of hex tokens separated by `|`.
 #[derive(Debug)]
 pub struct HexAlternative {
-    alternatives: Vec<HexTokens>,
+    pub alternatives: Vec<HexTokens>,
 }
 
 /// A jump in a hex pattern (a.k.a hex string).
 #[derive(Debug)]
 pub struct HexJump {
-    start: Option<u16>,
-    end: Option<u16>,
+    pub start: Option<u16>,
+    pub end: Option<u16>,
 }
 
 impl HexJump {
@@ -393,7 +369,7 @@ impl HexJump {
     ///  `[1-2][3-4]` becomes `[4-6]`
     ///  `[0-2][5-]` becomes `[5-]`
     ///
-    fn coalesce(&mut self, other: HexJump) {
+    pub(crate) fn coalesce(&mut self, other: HexJump) {
         match (self.start, other.start) {
             (Some(s1), Some(s2)) => self.start = Some(s1 + s2),
             (Some(s1), None) => self.start = Some(s1),
@@ -421,141 +397,10 @@ impl Display for HexJump {
 /// A regular expression in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct Regexp<'src> {
-    span: Span,
-    identifier: Ident<'src>,
-    regexp: &'src str,
-    modifiers: Option<HashMap<&'src str, PatternModifier>>,
-}
-
-impl<'src> Namespace<'src> {
-    pub fn ascii_tree(&self) -> ascii_tree::Tree {
-        Node(
-            "namespace".to_string(),
-            self.rules.iter().map(|(_, rule)| rule.ascii_tree()).collect(),
-        )
-    }
-}
-
-impl<'src> Rule<'src> {
-    fn ascii_tree(&self) -> ascii_tree::Tree {
-        let mut rule_children = vec![];
-
-        if let Some(meta) = &self.meta {
-            rule_children.push(Node(
-                "meta".to_owned(),
-                meta.iter()
-                    .map(|m| {
-                        Leaf(vec![format!(
-                            "{} = {}",
-                            m.identifier.name, m.value
-                        )])
-                    })
-                    .collect(),
-            ))
-        }
-
-        if let Some(patterns) = &self.patterns {
-            rule_children.push(Node(
-                "strings".to_owned(),
-                patterns.iter().map(|s| s.ascii_tree()).collect(),
-            ))
-        }
-
-        rule_children.push(Node(
-            "condition".to_owned(),
-            vec![self.condition.ascii_tree()],
-        ));
-
-        let mut modifiers = vec![];
-
-        if self.flags.contains(RuleFlag::Private) {
-            modifiers.push("private");
-        }
-
-        if self.flags.contains(RuleFlag::Global) {
-            modifiers.push("global");
-        }
-
-        Node(
-            if modifiers.is_empty() {
-                format!("rule {}", self.identifier.name)
-            } else {
-                format!(
-                    "{} rule {}",
-                    modifiers.join(" "),
-                    self.identifier.name
-                )
-            },
-            rule_children,
-        )
-    }
-}
-
-impl<'src> Pattern<'src> {
-    fn ascii_tree(&self) -> ascii_tree::Tree {
-        match self {
-            Pattern::Text(s) => {
-                let modifiers = if let Some(modifiers) = &s.modifiers {
-                    // The pattern has modifiers, let's generate a textual
-                    // representation of them.
-                    let mut m = modifiers
-                        .values()
-                        .map(|s| s.to_string())
-                        .collect::<Vec<String>>();
-                    // .values() doesn't guarantee a stable order, so we need
-                    // to explicitly sort the vector in order to have a
-                    // predictable result.
-                    m.sort();
-                    m.join(" ")
-                } else {
-                    "".to_string()
-                };
-
-                Leaf(vec![format!(
-                    "{} = \"{}\" {}",
-                    s.identifier.name, s.value, modifiers
-                )])
-            }
-            Pattern::Hex(h) => Node(
-                h.identifier.name.to_string(),
-                vec![h.tokens.ascii_tree()],
-            ),
-            Pattern::Regexp(r) => Leaf(vec![r.identifier.name.to_string()]),
-        }
-    }
-}
-
-impl HexTokens {
-    fn ascii_tree(&self) -> ascii_tree::Tree {
-        let nodes = self
-            .tokens
-            .iter()
-            .map(|t| match t {
-                HexToken::Byte(b) => Leaf(vec![format!(
-                    "{:#04X} mask: {:#04X}",
-                    b.value, b.mask
-                )]),
-                HexToken::NotByte(b) => Leaf(vec![format!(
-                    "~ {:#04X} mask: {:#04X}",
-                    b.value, b.mask
-                )]),
-                HexToken::Alternative(a) => Node(
-                    "alt".to_string(),
-                    a.alternatives
-                        .iter()
-                        .map(|alt| alt.ascii_tree())
-                        .collect(),
-                ),
-                HexToken::Jump(j) => Leaf(vec![format!(
-                    "[{}-{}]",
-                    j.start.map_or("".to_string(), |v| v.to_string()),
-                    j.end.map_or("".to_string(), |v| v.to_string())
-                )]),
-            })
-            .collect();
-
-        Node("hex".to_string(), nodes)
-    }
+    pub(crate) span: Span,
+    pub identifier: Ident<'src>,
+    pub regexp: &'src str,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
 }
 
 fn create_binary_expr<'src>(
@@ -711,7 +556,7 @@ lazy_static! {
 /// Certain modifiers can't be used in conjunction, and this function
 /// returns an error in those cases.
 fn check_pattern_modifiers<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     rule_type: GrammarRule,
     modifiers: &HashMap<&'src str, PatternModifier>,
 ) -> Result<(), Error> {
@@ -734,7 +579,8 @@ fn check_pattern_modifiers<'src>(
             };
 
             return Err(Error::invalid_modifier(
-                ctx,
+                ctx.report_builder,
+                &ctx.src,
                 error_detail.to_string(),
                 modifier.span(),
             ));
@@ -758,7 +604,8 @@ fn check_pattern_modifiers<'src>(
             let modifier1 = modifier1.unwrap();
             let modifier2 = modifier2.unwrap();
             return Err(Error::invalid_modifier_combination(
-                ctx,
+                ctx.report_builder,
+                &ctx.src,
                 name1.to_string(),
                 name2.to_string(),
                 modifier1.span(),
@@ -774,7 +621,7 @@ fn check_pattern_modifiers<'src>(
 /// Given a CST node corresponding to the grammar rule` rule_decl`, returns a
 /// [`Rule`] structure describing the rule.
 fn rule_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     rule_decl: CSTNode<'src>,
 ) -> Result<Rule<'src>, Error> {
     expect!(rule_decl, GrammarRule::rule_decl);
@@ -834,7 +681,8 @@ fn rule_from_cst<'src>(
         for ident in idents {
             if !tags.insert(ident.as_str()) {
                 return Err(Error::duplicate_tag(
-                    ctx,
+                    ctx.report_builder,
+                    &ctx.src,
                     ident.as_str().to_string(),
                     Span {
                         start: ident.as_span().start(),
@@ -894,7 +742,8 @@ fn rule_from_cst<'src>(
     if let Some(ident) = unsed_pattern {
         let ident = ctx.declared_patterns.get(ident).unwrap();
         return Err(Error::unused_pattern(
-            ctx,
+            ctx.report_builder,
+            &ctx.src,
             ident.name.to_string(),
             ident.span,
         ));
@@ -916,7 +765,7 @@ fn rule_from_cst<'src>(
 /// Given a CST node corresponding to the grammar rule` pattern_defs`, returns
 /// a vector of [`String`] structs describing the defined strings.
 fn patterns_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     pattern_defs: CSTNode<'src>,
 ) -> Result<Vec<Pattern<'src>>, Error> {
     expect!(pattern_defs, GrammarRule::pattern_defs);
@@ -942,7 +791,8 @@ fn patterns_from_cst<'src>(
                 ctx.declared_patterns.get(&new_pattern_ident.name[1..])
             {
                 return Err(Error::duplicate_pattern(
-                    ctx,
+                    ctx.report_builder,
+                    &ctx.src,
                     new_pattern_ident.name.to_string(),
                     new_pattern_ident.span,
                     existing_pattern_ident.span,
@@ -971,7 +821,7 @@ fn patterns_from_cst<'src>(
 /// Given a CST node corresponding to the grammar rule `pattern_def`, returns
 /// a [`String`] struct describing the defined pattern.
 fn pattern_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     pattern_def: CSTNode<'src>,
 ) -> Result<Pattern<'src>, Error> {
     expect!(pattern_def, GrammarRule::pattern_def);
@@ -1079,7 +929,7 @@ fn pattern_from_cst<'src>(
 /// Given a CST node corresponding to the grammar rule `pattern_mods`, returns
 /// a hash set of [`StringModifier`] structs describing the modifiers.
 fn pattern_mods_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     rule_type: GrammarRule,
     pattern_mods: CSTNode<'src>,
 ) -> Result<HashMap<&'src str, PatternModifier>, Error> {
@@ -1146,7 +996,8 @@ fn pattern_mods_from_cst<'src>(
 
                         if lower_bound > upper_bound {
                             return Err(Error::invalid_range(
-                               ctx,
+                               ctx.report_builder,
+                               &ctx.src,
                                format!(
                                    "lower bound ({}) is greater than upper bound ({})",
                                    lower_bound, upper_bound),
@@ -1191,7 +1042,11 @@ fn pattern_mods_from_cst<'src>(
 
         let span = modifier.span();
         if let Some(_) = modifiers.insert(node.as_str(), modifier) {
-            return Err(Error::duplicate_modifier(ctx, span));
+            return Err(Error::duplicate_modifier(
+                ctx.report_builder,
+                &ctx.src,
+                span,
+            ));
         }
     }
 
@@ -1204,7 +1059,7 @@ fn pattern_mods_from_cst<'src>(
 /// Given a CST node corresponding to the grammar rule` meta_defs`, returns
 /// a vector of [`Meta`] structs describing the defined metadata.
 fn meta_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     meta_defs: CSTNode<'src>,
 ) -> Result<Vec<Meta<'src>>, Error> {
     expect!(meta_defs, GrammarRule::meta_defs);
@@ -1317,7 +1172,7 @@ lazy_static! {
 /// From a CST node corresponding to the grammar rule `boolean_expr`, returns
 /// an [`Expr`] describing the boolean expression.
 fn boolean_expr_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     boolean_expr: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     expect!(boolean_expr, GrammarRule::boolean_expr);
@@ -1345,7 +1200,7 @@ fn boolean_expr_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `boolean_term`, returns
 /// an [`Expr`] describing the boolean term.
 fn boolean_term_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     boolean_term: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     expect!(boolean_term, GrammarRule::boolean_term);
@@ -1405,15 +1260,16 @@ fn boolean_term_from_cst<'src>(
             // `$` used outside a `for .. of` statement, that's invalid.
             else if !ctx.inside_for_of {
                 return Err(Error::syntax_error(
-                    ctx,
+                    ctx.report_builder,
+                    &ctx.src,
                     "this `$` is outside of the condition of a `for .. of` statement".to_string(),
                     ident.as_span().into(),
                 ));
             }
 
-            Expr::StringMatch(Box::new(PatternMatch {
+            Expr::PatternMatch(Box::new(PatternMatch {
                 // TODO: this is not the best way of computing the span for
-                // StringMatch, as this covers the space that can follow, like
+                // PatternMatch, as this covers the space that can follow, like
                 // in:
                 //   $a in (0..100)
                 //   ^^^^^^^^^^^^^^^
@@ -1465,7 +1321,7 @@ fn boolean_term_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `expr`, returns an
 /// [`Expr`] describing the expression.
 fn expr_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     expr: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     expect!(expr, GrammarRule::expr);
@@ -1495,7 +1351,7 @@ fn expr_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `term` , returns
 /// an [`Expr`] describing the term.
 fn term_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     term: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     expect!(term, GrammarRule::term);
@@ -1519,7 +1375,7 @@ fn term_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `primary_expr` , returns
 /// an [`Expr`] describing the expression.
 fn primary_expr_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     primary_expr: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     // The CST node passed to this function must correspond to a primary
@@ -1617,7 +1473,7 @@ fn primary_expr_from_cst<'src>(
             // identifier has been used.
             ctx.unused_patterns.remove(&ident_name[1..]);
 
-            Expr::StringCount(Box::new(IdentWithRange {
+            Expr::PatternCount(Box::new(IdentWithRange {
                 span: term_span.into(),
                 name: ident_name,
                 range,
@@ -1640,8 +1496,8 @@ fn primary_expr_from_cst<'src>(
                 None
             };
             let expr_type = match rule {
-                GrammarRule::pattern_length => Expr::StringLength,
-                GrammarRule::pattern_offset => Expr::StringOffset,
+                GrammarRule::pattern_length => Expr::PatternLength,
+                GrammarRule::pattern_offset => Expr::PatternOffset,
                 _ => unreachable!(),
             };
 
@@ -1666,7 +1522,7 @@ fn primary_expr_from_cst<'src>(
 }
 
 fn indexing_expr_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     indexing_expr: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     expect!(indexing_expr, GrammarRule::indexing_expr);
@@ -1690,7 +1546,7 @@ fn indexing_expr_from_cst<'src>(
 }
 
 fn func_call_expr_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     func_call_expr: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     expect!(func_call_expr, GrammarRule::func_call_expr);
@@ -1730,7 +1586,7 @@ fn func_call_expr_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `range`, returns a tuple
 /// ([`Expr`], [`Expr`]) with the lower and upper bounds of the range.
 fn range_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     range: CSTNode<'src>,
 ) -> Result<Range<'src>, Error> {
     expect!(range, GrammarRule::range);
@@ -1755,12 +1611,13 @@ fn range_from_cst<'src>(
 
     // The the upper bound, if known at compile time, should be larger the
     // lower bound, and both should be positive.
-    if let (Some(ExprValue::Integer(lower)), Some(ExprValue::Integer(upper))) =
-        (lower_bound.value(), upper_bound.value())
+    if let (Some(Value::Integer(lower)), Some(Value::Integer(upper))) =
+        (lower_bound.value(&ctx.sym_tbl), upper_bound.value(&ctx.sym_tbl))
     {
         if lower < 0 || upper < 0 {
             return Err(Error::invalid_range(
-                ctx,
+                ctx.report_builder,
+                &ctx.src,
                 "range bound can not be negative".to_string(),
                 (if lower < 0 { lower_bound } else { upper_bound }).span(),
             ));
@@ -1768,7 +1625,8 @@ fn range_from_cst<'src>(
 
         if lower > upper {
             return Err(Error::invalid_range(
-                ctx,
+                ctx.report_builder,
+                &ctx.src,
                 format!(
                     "lower bound ({lower}) is greater than upper bound ({lower})"
                 ),
@@ -1786,7 +1644,7 @@ fn range_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `of_expr`, returns
 /// an [`Expr`] describing the `of` statement.
 fn of_expr_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     of_expr: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     expect!(of_expr, GrammarRule::of_expr);
@@ -1888,7 +1746,7 @@ fn of_expr_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `for_expr`, returns
 /// an [`Expr`] describing the `for` statement.
 fn for_expr_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     for_expr: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
     expect!(for_expr, GrammarRule::for_expr);
@@ -1978,7 +1836,7 @@ fn for_expr_from_cst<'src>(
 }
 
 fn anchor_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     mut iter: impl Iterator<Item = CSTNode<'src>>,
 ) -> Result<Option<MatchAnchor<'src>>, Error> {
     let anchor = if let Some(node) = iter.next() {
@@ -2011,7 +1869,7 @@ fn anchor_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `quantifier`, returns
 /// a [`Quantifier`].
 fn quantifier_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     quantifier: CSTNode<'src>,
 ) -> Result<Quantifier<'src>, Error> {
     expect!(quantifier, GrammarRule::quantifier);
@@ -2049,7 +1907,7 @@ fn quantifier_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `pattern_ident_tuple`, returns
 /// a vector of [`PatternSetItem`].
 fn pattern_ident_tuple<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     pattern_ident_tuple: CSTNode<'src>,
 ) -> Result<Vec<PatternSetItem<'src>>, Error> {
     expect!(pattern_ident_tuple, GrammarRule::pattern_ident_tuple);
@@ -2101,7 +1959,7 @@ fn pattern_ident_tuple<'src>(
 /// From a CST node corresponding to the grammar rule `boolean_expr_tuple`, returns
 /// a vector of [`Expr`].
 fn boolean_expr_tuple_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     boolean_expr_tuple: CSTNode<'src>,
 ) -> Result<Vec<Expr<'src>>, Error> {
     expect!(boolean_expr_tuple, GrammarRule::boolean_expr_tuple);
@@ -2136,7 +1994,7 @@ fn boolean_expr_tuple_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `expr_tuple`, returns
 /// a vector of [`Expr`].
 fn expr_tuple_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     expr_tuple: CSTNode<'src>,
 ) -> Result<Vec<Expr<'src>>, Error> {
     expect!(expr_tuple, GrammarRule::expr_tuple);
@@ -2171,7 +2029,7 @@ fn expr_tuple_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `iterable`, returns
 /// a [`Iterable`].
 fn iterator_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     iterator: CSTNode<'src>,
 ) -> Result<Iterable<'src>, Error> {
     expect!(iterator, GrammarRule::iterable);
@@ -2195,7 +2053,7 @@ fn iterator_from_cst<'src>(
 /// the the corresponding integer. This a generic function that can be used
 /// for obtaining any type of integer, like u8, i64, etc.
 fn integer_lit_from_cst<'src, T>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     integer_lit: CSTNode<'src>,
 ) -> Result<T, Error>
 where
@@ -2227,7 +2085,8 @@ where
 
     let mut build_error = || {
         Error::invalid_integer(
-            ctx,
+            ctx.report_builder,
+            &ctx.src,
             format!(
                 "this number is out of the valid range: [{}, {}]",
                 T::min_value(),
@@ -2256,7 +2115,7 @@ where
 /// From a CST node corresponding to the grammar rule `float_lit`, returns
 /// the `f32` representing the literal.
 fn float_lit_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     float_lit: CSTNode<'src>,
 ) -> Result<f32, Error> {
     expect!(float_lit, GrammarRule::float_lit);
@@ -2264,9 +2123,14 @@ fn float_lit_from_cst<'src>(
     let literal = float_lit.as_str();
     let span = float_lit.as_span().into();
 
-    literal
-        .parse::<f32>()
-        .map_err(|err| Error::invalid_float(ctx, err.to_string(), span))
+    literal.parse::<f32>().map_err(|err| {
+        Error::invalid_float(
+            ctx.report_builder,
+            &ctx.src,
+            err.to_string(),
+            span,
+        )
+    })
 }
 
 /// From a CST node corresponding to the grammar rule `string_lit`, returns
@@ -2274,7 +2138,7 @@ fn float_lit_from_cst<'src>(
 /// contain arbitrary sequences of bytes, including zeroes, so it can't be
 /// represented by a Rust string slice, which requires valid UTF-8.
 fn string_lit_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     string_lit: CSTNode<'src>,
 ) -> Result<BString, Error> {
     expect!(string_lit, GrammarRule::string_lit);
@@ -2307,7 +2171,8 @@ fn string_lit_from_cst<'src>(
                 // escape sequence.
                 if next_byte.is_none() {
                     return Err(Error::invalid_escape_sequence(
-                        ctx,
+                        ctx.report_builder,
+                        &ctx.src,
                         r"missing escape sequence after `\`".to_string(),
                         Span {
                             start: literal_start + backslash_pos,
@@ -2334,7 +2199,8 @@ fn string_lit_from_cst<'src>(
                                 result.push(hex_value);
                             } else {
                                 return Err(Error::invalid_escape_sequence(
-                                    ctx,
+                                    ctx.report_builder,
+                                    &ctx.src,
                                     format!(
                                         r"invalid hex value `{}` after `\x`",
                                         &literal[start..=end]
@@ -2348,7 +2214,8 @@ fn string_lit_from_cst<'src>(
                         }
                         _ => {
                             return Err(Error::invalid_escape_sequence(
-                                ctx,
+                                ctx.report_builder,
+                                &ctx.src,
                                 r"expecting two hex digits after `\x`"
                                     .to_string(),
                                 Span {
@@ -2360,7 +2227,8 @@ fn string_lit_from_cst<'src>(
                     },
                     _ => {
                         return Err(Error::invalid_escape_sequence(
-                            ctx,
+                            ctx.report_builder,
+                            &ctx.src,
                             format!(
                                 "invalid escape sequence `{}`",
                                 &literal[backslash_pos..backslash_pos + 2]
@@ -2384,7 +2252,7 @@ fn string_lit_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `hex_pattern`, returns
 /// the [`HexPattern`] representing it.
 fn hex_pattern_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     hex_tokens: CSTNode<'src>,
 ) -> Result<HexTokens, Error> {
     expect!(hex_tokens, GrammarRule::hex_tokens);
@@ -2429,7 +2297,8 @@ fn hex_pattern_from_cst<'src>(
                     // allows this case, even if invalid, precisely for detecting
                     // it here and providing a meaningful error message.
                     return Err(Error::invalid_hex_pattern(
-                        ctx,
+                        ctx.report_builder,
+                        &ctx.src,
                         ctx.current_pattern_ident(),
                         "uneven number of nibbles".to_string(),
                         node.as_span().into(),
@@ -2440,7 +2309,8 @@ fn hex_pattern_from_cst<'src>(
                 // ~?? is not allowed.
                 if negated && mask == 0x00 {
                     return Err(Error::invalid_hex_pattern(
-                        ctx,
+                        ctx.report_builder,
+                        &ctx.src,
                         ctx.current_pattern_ident(),
                         "negation of `??` is not allowed".to_string(),
                         node.as_span().into(),
@@ -2478,7 +2348,8 @@ fn hex_pattern_from_cst<'src>(
 
                 if consecutive_jumps {
                     let warning = Warning::consecutive_jumps(
-                        ctx,
+                        ctx.report_builder,
+                        &ctx.src,
                         ctx.current_pattern_ident(),
                         format!("{}", jump),
                         jump_span,
@@ -2489,7 +2360,8 @@ fn hex_pattern_from_cst<'src>(
                 if let (Some(start), Some(end)) = (jump.start, jump.end) {
                     if start > end {
                         return Err(Error::invalid_hex_pattern(
-                            ctx,
+                            ctx.report_builder,
+                            &ctx.src,
                             ctx.current_pattern_ident(),
                             format!(
                                 "lower bound ({}) is greater than upper bound ({})",
@@ -2518,7 +2390,7 @@ fn hex_pattern_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `hex_jump`, returns
 /// the [`HexPattern`] representing it.
 fn hex_jump_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     hex_jump: CSTNode<'src>,
 ) -> Result<HexJump, Error> {
     expect!(hex_jump, GrammarRule::hex_jump);
@@ -2554,7 +2426,7 @@ fn hex_jump_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `hex_alternative`, returns
 /// the [`HexAlternative`] representing it.
 fn hex_alternative_from_cst<'src>(
-    ctx: &mut Context<'src>,
+    ctx: &mut Context<'src, '_>,
     hex_alternative: CSTNode<'src>,
 ) -> Result<HexAlternative, Error> {
     expect!(hex_alternative, GrammarRule::hex_alternative);

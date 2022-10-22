@@ -2,23 +2,28 @@
 Abstract Syntax Tree (AST).
 
 A CST is a structured representation of the source code that retains all its
-details, including punctuation, comments, etc. Each node in the CST
+details, including punctuation, spacing, comments, etc. Each node in the CST
 corresponds to a [`GrammarRule`], a rule in YARA's grammar.
 
 The CST is appropriate for traversing the structure of the code as it appears
 in its original form. Typical uses of CSTs are code formatters, documentation
-generators, etc. One of the limitations of the CST is that it doesn't know
-about operator's associativity or precedence rules. As a result, certain
-expressions appear in the CST as they are in the source code, without any
+generators, source code analysis, etc. One of the limitations of the CST is
+that it doesn't know about operator's associativity or precedence rules.
+Expressions appear in the CST as they are in the source code, without any
 attempt from the parser to group them according to operator precedence
 rules.
 
 In the other hand, an AST is a simplified, more abstract representation
-of the code. The AST drops the syntactic details and focus on the semantics.
-Operator precedence rules are applied for getting an accurate representation
-of expressions. The AST is what you need in most cases.
+of the code. The AST drops comments, spacing and syntactic details and focus
+on the code semantics. When building an AST, operator precedence rules are
+applied, providing a more accurate representation of expressions.
+
+Deciding whether to use a CST or AST depends on the kind of problem you want
+to solve.
 
 # Examples
+
+Building a CST...
 
 ```
 use yara_x::parser::{Parser, GrammarRule};
@@ -50,9 +55,26 @@ for child in root.into_inner() {
         GrammarRule::EOI => {
             // end of input
         },
-        _ => {}
+        _ => unreachable!()
     }
 }
+```
+
+Building an AST...
+
+
+```
+use yara_x::parser::{Parser, GrammarRule};
+let rule = r#"
+ rule test {
+   condition:
+     true
+ }
+"#;
+
+let ast = Parser::new().build_ast(rule, None).unwrap();
+
+
 ```
 
  */
@@ -61,24 +83,22 @@ use pest::Parser as PestParser;
 use std::collections::HashMap;
 use std::string;
 
-use crate::parser::context::*;
-use crate::parser::report::ReportBuilder;
+pub(crate) use crate::parser::context::*;
+pub(crate) use crate::report::*;
 
 #[doc(inline)]
 pub use crate::parser::ast::*;
 pub use crate::parser::cst::*;
 pub use crate::parser::errors::*;
 pub use crate::parser::expr::*;
-pub use crate::parser::span::*;
-
 pub use crate::parser::grammar::Rule as GrammarRule;
+pub use crate::parser::span::*;
 
 mod ast;
 mod context;
 mod cst;
 mod errors;
 mod expr;
-mod report;
 mod span;
 mod warnings;
 
@@ -88,24 +108,30 @@ mod tests;
 /// Receives YARA source code and produces either a Concrete Syntax Tree (CST)
 /// or an Abstract Syntax Tree (AST).
 #[derive(Default)]
-pub struct Parser {
+pub struct Parser<'a> {
     colorize_errors: bool,
+    report_builder: Option<&'a ReportBuilder>,
 }
 
-impl Parser {
-    pub fn new() -> Parser {
-        Self { colorize_errors: false }
+impl<'a> Parser<'a> {
+    /// Creates a new YARA parser.
+    pub fn new() -> Self {
+        Self { colorize_errors: false, report_builder: None }
     }
 
+    /// Specifies whether the parser should produce colorful error messages.
+    ///
+    /// Colorized error messages contain ANSI escape sequences that make them
+    /// look nicer on compatible consoles. The default setting is `false`.
     pub fn colorize_errors(self, b: bool) -> Self {
-        Self { colorize_errors: b }
+        Self { colorize_errors: b, report_builder: self.report_builder }
     }
 
     /// Build the Abstract Syntax Tree (AST) for a YARA source.
     pub fn build_ast<'src>(
         &self,
         src: &'src str,
-        origin: Option<string::String>,
+        origin: Option<String>,
     ) -> Result<AST<'src>, Error> {
         // Create the CST but ignore comments and whitespaces. They won't
         // be visible while traversing the CST as we don't need them for
@@ -117,10 +143,28 @@ impl Parser {
 
         // The root of the CST must be the grammar rule `source_file`.
         let root = cst.into_iter().next().unwrap();
-        assert_eq!(GrammarRule::source_file, root.as_rule());
+        assert_eq!(root.as_rule(), GrammarRule::source_file);
 
-        let mut ctx = Context::new(SourceCode { text: src, origin });
-        ctx.colorize_errors(self.colorize_errors);
+        let src = SourceCode { text: src, origin };
+
+        // If self.report_builder is None, create my own.
+        let owned_report_builder = if self.report_builder.is_none() {
+            let mut r = ReportBuilder::new();
+            r.with_colors(self.colorize_errors);
+            r.register_source(&src);
+            Some(r)
+        } else {
+            None
+        };
+
+        // Use self.report_builder if not None, or my own report builder
+        // if otherwise
+        let report_builder =
+            self.report_builder.or(owned_report_builder.as_ref()).unwrap();
+
+        report_builder.register_source(&src);
+
+        let mut ctx = Context::new(src, report_builder);
 
         let namespaces = HashMap::from([(
             "default",
@@ -168,6 +212,19 @@ impl Parser {
                     .filter(|_| true),
             ),
         })
+    }
+
+    /// Sets the report builder used by the Parser.
+    ///
+    /// This is optional, if the report builder is not set the Parser will
+    /// create its own when necessary. However this allows sharing the same
+    /// report builder with other components, like [`Compiler`].
+    pub(crate) fn set_report_builder(
+        &mut self,
+        report_builder: &'a ReportBuilder,
+    ) -> &mut Self {
+        self.report_builder = Some(report_builder);
+        self
     }
 }
 
