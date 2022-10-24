@@ -66,6 +66,7 @@ impl<'a> Symbol<'a> {
 /// compilation, it would be `Integer(4)`.
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
+    Unknown,
     Bool(bool),
     Integer(i64),
     Float(f32),
@@ -79,14 +80,29 @@ impl<'a> Display for Value<'a> {
             Self::Integer(v) => write!(f, "{}", v),
             Self::Float(v) => write!(f, "{:.1}", v),
             Self::String(v) => write!(f, "{:?}", v),
+            Self::Unknown => write!(f, "unknown"),
         }
     }
 }
 
 impl<'a> Value<'a> {
+    /// Returns the value as an i64.
+    ///
+    /// Panics if the value is not Value::Integer.
     pub fn as_integer(&self) -> i64 {
         if let Self::Integer(i) = self {
             return *i;
+        } else {
+            panic!("{:?}", self);
+        }
+    }
+
+    /// Returns the value as a bool.
+    ///
+    /// Panics if the value is not Value::Bool.
+    pub fn as_bool(&self) -> bool {
+        if let Self::Bool(b) = self {
+            return *b;
         } else {
             panic!("{:?}", self);
         }
@@ -95,7 +111,7 @@ impl<'a> Value<'a> {
 
 pub struct Variable<'a> {
     value: Option<Value<'a>>,
-    ty: ValueType,
+    ty: Type,
 }
 
 /// All the different types of expressions that can be found in YARA.
@@ -103,20 +119,24 @@ pub struct Variable<'a> {
 /// For example, the kind for expression `2+2` is `Integer`, for `2.0 / 2` is
 /// `Float` and for `true or false` is `Bool`.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum ValueType {
+pub enum Type {
+    Unknown,
     Bool,
     Integer,
     Float,
     String,
+    Struct,
 }
 
-impl Display for ValueType {
+impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Unknown => write!(f, "unknown"),
             Self::Bool => write!(f, "boolean"),
             Self::Integer => write!(f, "integer"),
             Self::Float => write!(f, "float"),
             Self::String => write!(f, "string"),
+            Self::Struct => write!(f, "struct"),
         }
     }
 }

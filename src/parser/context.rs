@@ -1,6 +1,5 @@
 use crate::parser::warnings::Warning;
 use crate::parser::Ident;
-use crate::SymbolTable;
 use std::collections::{HashMap, HashSet};
 
 use crate::report::ReportBuilder;
@@ -19,11 +18,6 @@ pub(crate) struct SourceCode<'src> {
 pub(crate) struct Context<'src, 'rb> {
     /// The source code being parsed.
     pub(crate) src: SourceCode<'src>,
-
-    /// Symbol table used during the parsing process.
-    ///
-    /// The symbol table holds information about type and value of variables.
-    pub(crate) sym_tbl: SymbolTable<'src>,
 
     /// Contains the pattern identifiers declared by the rule that is being
     /// currently parsed. The map is filled during the processing of the
@@ -67,7 +61,6 @@ impl<'src, 'rb> Context<'src, 'rb> {
     ) -> Self {
         Self {
             src,
-            sym_tbl: SymbolTable::new(),
             inside_for_of: false,
             declared_patterns: HashMap::new(),
             unused_patterns: HashSet::new(),

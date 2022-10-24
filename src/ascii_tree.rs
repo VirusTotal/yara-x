@@ -1,5 +1,6 @@
 use crate::parser::*;
 use crate::SymbolTable;
+use crate::Value;
 use ascii_tree::Tree::{Leaf, Node};
 
 /// Returns a representation of the namespace as an ASCII tree.
@@ -72,10 +73,13 @@ pub fn expr_ascii_tree(
     expr: &Expr,
     sym_tbl: &SymbolTable,
 ) -> ascii_tree::Tree {
-    let value = if let Some(v) = expr.value(sym_tbl) {
-        format! {"{}", v}
-    } else {
-        "unknown".to_string()
+    let value = {
+        let (_, value) = expr.type_value();
+        if matches!(value, Value::Unknown) {
+            "".to_string()
+        } else {
+            format!(" (value: {})", value)
+        }
     };
     match expr {
         Expr::True { .. } => Leaf(vec!["true".to_string()]),
@@ -87,187 +91,187 @@ pub fn expr_ascii_tree(
         Expr::LiteralStr(lit) => Leaf(vec![lit.literal.to_string()]),
         Expr::Ident(ident) => Leaf(vec![ident.name.to_string()]),
         Expr::Not(expr) => Node(
-            format!("not (value: {})", value),
+            format!("not{}", value),
             vec![expr_ascii_tree(&expr.operand, sym_tbl)],
         ),
         Expr::And(expr) => Node(
-            format!("and (value: {})", value),
+            format!("and{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Or(expr) => Node(
-            format!("or (value: {})", value),
+            format!("or{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Minus(expr) => Node(
-            format!("minus (value: {})", value),
+            format!("minus{}", value),
             vec![expr_ascii_tree(&expr.operand, sym_tbl)],
         ),
         Expr::Add(expr) => Node(
-            format!("add (value: {})", value),
+            format!("add{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Sub(expr) => Node(
-            format!("sub (value: {})", value),
+            format!("sub{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Mul(expr) => Node(
-            format!("mul (value: {})", value),
+            format!("mul{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Div(expr) => Node(
-            format!("div (value: {})", value),
+            format!("div{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Shl(expr) => Node(
-            format!("shl (value: {})", value),
+            format!("shl{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Shr(expr) => Node(
-            format!("shr (value: {})", value),
+            format!("shr{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::BitwiseNot(expr) => Node(
-            format!("bitwise_not (value: {})", value),
+            format!("bitwise_not{}", value),
             vec![expr_ascii_tree(&expr.operand, sym_tbl)],
         ),
         Expr::BitwiseAnd(expr) => Node(
-            format!("bitwise_and (value: {})", value),
+            format!("bitwise_and{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::BitwiseOr(expr) => Node(
-            format!("bitwise_or (value: {})", value),
+            format!("bitwise_or{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::BitwiseXor(expr) => Node(
-            format!("bitwise_xor (value: {})", value),
+            format!("bitwise_xor{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Modulus(expr) => Node(
-            format!("mod (value: {})", value),
+            format!("mod{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Eq(expr) => Node(
-            format!("eq (value: {})", value),
+            format!("eq{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Neq(expr) => Node(
-            format!("neq (value: {})", value),
+            format!("neq{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Lt(expr) => Node(
-            format!("lt (value: {})", value),
+            format!("lt{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Le(expr) => Node(
-            format!("le (value: {})", value),
+            format!("le{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Gt(expr) => Node(
-            format!("gt (value: {})", value),
+            format!("gt{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Ge(expr) => Node(
-            format!("ge (value: {})", value),
+            format!("ge{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::Contains(expr) => Node(
-            format!("contains (value: {})", value),
+            format!("contains{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::IContains(expr) => Node(
-            format!("icontains (value: {})", value),
+            format!("icontains{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::StartsWith(expr) => Node(
-            format!("startswith (value: {})", value),
+            format!("startswith{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::IStartsWith(expr) => Node(
-            format!("istartswith (value: {})", value),
+            format!("istartswith{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::EndsWith(expr) => Node(
-            format!("endswith (value: {})", value),
+            format!("endswith{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::IEndsWith(expr) => Node(
-            format!("iendswith (value: {})", value),
+            format!("iendswith{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),
             ],
         ),
         Expr::IEquals(expr) => Node(
-            format!("iequals (value: {})", value),
+            format!("iequals{}", value),
             vec![
                 expr_ascii_tree(&expr.lhs, sym_tbl),
                 expr_ascii_tree(&expr.rhs, sym_tbl),

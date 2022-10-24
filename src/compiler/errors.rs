@@ -3,17 +3,18 @@ use crate::parser::Span;
 use thiserror::Error;
 use yara_derive::Error as CompileError;
 
-/// Represents the errors returned by [`Compiler::compile`].
+/// Errors returned by the compiler.
 #[derive(Error, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum Error {
-    #[error("parse error")]
+    #[error(transparent)]
     ParseError(#[from] parser::Error),
 
-    #[error("compile error")]
+    #[error(transparent)]
     CompileError(#[from] CompileError),
 }
 
+/// An error occurred during the compilation process.
 #[derive(CompileError, Debug)]
 pub enum CompileError {
     #[error("wrong type")]
@@ -38,4 +39,8 @@ pub enum CompileError {
         type1_span: Span,
         type2_span: Span,
     },
+
+    #[error("unexpected negative integer")]
+    #[label("this number should not be negative", span)]
+    UnexpectedNegativeNumber { detailed_report: String, span: Span },
 }

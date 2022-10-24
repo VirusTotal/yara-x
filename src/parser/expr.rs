@@ -1,160 +1,13 @@
 use crate::parser::span::*;
 use crate::parser::CSTNode;
-use crate::{SymbolTable, Value};
+use crate::{SymbolTable, Type, Value};
 use bstr::{BString, ByteSlice};
 use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
 use yara_derive::*;
 
-macro_rules! arithmetic_op {
-    ($sym_tbl:expr, $lhs:expr, $op:tt, $checked_op:ident, $rhs:expr) => {{
-        use Value::*;
-        // Get the values for lhs and rhs, which are of type `Expr`. If
-        // some of them are None, return None.
-        let lhs = $lhs.value($sym_tbl)?;
-        let rhs = $rhs.value($sym_tbl)?;
-        // This point is reached only if both sides of the operation have
-        // some value...
-        match (lhs, rhs) {
-            // ... check for different combinations of integer and float
-            // operands. The result is integer if both operand are
-            // integers and float if otherwise.
-            //
-            // In operations where the operands are integers we must use
-            // the checked variant of the operator (e.g. `checked_add`,
-            // `checked_div`, etc) in order to prevent panics due to division
-            // by zero or integer overflows.
-            //
-            // Floating-point operations won't cause panic in Rust.
-            (Integer(lhs), Integer(rhs)) => Some(Integer(lhs.$checked_op(rhs)?)),
-            (Integer(lhs), Float(rhs)) => Some(Float((lhs as f32) $op rhs)),
-            (Float(lhs), Integer(rhs)) => Some(Float(lhs $op (rhs as f32))),
-            (Float(lhs), Float(rhs)) => Some(Float(lhs $op rhs)),
-            // Operands should be either integer or float, return None
-            _ => None,
-        }
-    }};
-}
-
-macro_rules! boolean_op {
-    ($sym_tbl:expr, $lhs:expr, $operator:tt, $rhs:expr) => {{
-        use Value::*;
-        // Get the values for lhs and rhs, which are of type `Expr`. If
-        // some of them are None, return None.
-        let lhs = $lhs.value($sym_tbl)?;
-        let rhs = $rhs.value($sym_tbl)?;
-        // This point is reached only if both sides of the operation have
-        // some value.
-        match (lhs, rhs) {
-            // If both of values are booleans, return the result of the
-            // operation.
-            (Bool(lhs), Bool(rhs)) => Some(Bool(lhs $operator rhs)),
-            _ => None,
-       }
-   }};
-}
-
-macro_rules! shift_op {
-    ($sym_tbl:expr, $lhs:expr, $operator:ident, $rhs:expr) => {{
-        use Value::*;
-        // Get the values for lhs and rhs, which are of type `Expr`. If
-        // some of them are None, return None.
-        let lhs = $lhs.value($sym_tbl)?;
-        let rhs = $rhs.value($sym_tbl)?;
-        // This point is reached only if both sides of the operation have
-        // some value.
-        match (lhs, rhs) {
-            (Integer(lhs), Integer(rhs)) => {
-                let overflow: bool;
-                let mut result = 0;
-                // First convert `rhs` to u32, which is the type accepted
-                // by both overflowing_shr and overflowing_lhr. If the
-                // conversion fails, it's because its value is too large and
-                // does not fit in a u32, or because it's negative. In both
-                // cases the result of the shift operation is 0.
-                if let Ok(rhs) = rhs.try_into() {
-                    // Now that rhs is an u32 we can call overflowing_shr or
-                    // overflowing_lhr.
-                    (result, overflow) = lhs.$operator(rhs);
-                    // The semantics << and >> in YARA is that the right-side
-                    // operand can be larger than the number of bits in the
-                    // left-side, and in those cases the result is 0.
-                    if overflow {
-                        result = 0;
-                    }
-                }
-                Some(Integer(result))
-            }
-            // This point should not be reached, a shift operation is
-            // expected to have integer operands.
-            (l, r) => unreachable!("{:?}, {:?}", l, r),
-        }
-    }};
-}
-
-macro_rules! bitwise_op {
-    ($sym_tbl:expr, $lhs:expr, $operator:ident, $rhs:expr) => {{
-        use Value::*;
-        // Get the values for lhs and rhs, which are of type `Expr`. If
-        // some of them are None, return None.
-        let lhs = $lhs.value($sym_tbl)?;
-        let rhs = $rhs.value($sym_tbl)?;
-        // This point is reached only if both sides of the operation have
-        // some value.
-        match (lhs, rhs) {
-            (Integer(l), Integer(r)) => Some(Integer(l.$operator(r))),
-            (l, r) => unreachable!("{:?}, {:?}", l, r),
-        }
-    }};
-}
-
-macro_rules! comparison_op {
-    ($sym_tbl:expr, $lhs:expr, $operator:tt, $rhs:expr) => {{
-        use Value::*;
-        // Get the values for lhs and rhs, which are of type `Expr`. If
-        // some of them are None, return None.
-        let lhs = $lhs.value($sym_tbl)?;
-        let rhs = $rhs.value($sym_tbl)?;
-        // This point is reached only if both sides of the operation
-        // have some value.
-        match (lhs, rhs) {
-            (Integer(lhs), Integer(rhs)) => Some(Bool(lhs $operator rhs)),
-            (Float(lhs), Float(rhs)) => Some(Bool(lhs $operator rhs)),
-            (Float(lhs), Integer(rhs)) => Some(Bool(lhs $operator (rhs as f32))),
-            (Integer(lhs), Float(rhs)) => Some(Bool((lhs as f32) $operator rhs)),
-            (String(lhs), String(rhs)) => Some(Bool(lhs $operator rhs)),
-            _ => None,
-        }
-    }};
-}
-
-macro_rules! string_op {
-    ($sym_tbl:expr, $lhs:expr, $operator:ident, $rhs:expr, $case_insensitive:expr) => {{
-        use Value::*;
-        // Get the values for lhs and rhs, which are of type `Expr`. If
-        // some of them are None, return None.
-        let lhs = $lhs.value($sym_tbl)?;
-        let rhs = $rhs.value($sym_tbl)?;
-        // This point is reached only if both sides of the operation
-        // have some value.
-
-        match (lhs, rhs) {
-            (String(lhs), String(rhs)) => {
-                if $case_insensitive {
-                    let lhs = lhs.to_ascii_lowercase();
-                    let rhs = rhs.to_ascii_lowercase();
-                    Some(Bool(lhs.$operator(rhs)))
-                } else {
-                    Some(Bool(lhs.$operator(rhs)))
-                }
-            }
-            _ => None,
-        }
-    }};
-}
-
-/// An expression.
+/// An expression in the AST.
 #[derive(Debug, HasSpan)]
 pub enum Expr<'src> {
     True {
@@ -342,8 +195,10 @@ pub struct In<'src> {
 }
 
 /// An identifier (e.g. `some_ident`).
-#[derive(Debug, Clone, Hash, Eq, PartialEq, HasSpan)]
+#[derive(Debug, Clone, HasSpan)]
 pub struct Ident<'src> {
+    pub(crate) ty: Type,
+    pub(crate) value: Value<'src>,
     pub(crate) span: Span,
     pub name: &'src str,
 }
@@ -351,7 +206,12 @@ pub struct Ident<'src> {
 /// Creates an [`Ident`] directly from a [`CSTNode`].
 impl<'src> From<CSTNode<'src>> for Ident<'src> {
     fn from(node: CSTNode<'src>) -> Self {
-        Self { span: node.as_span().into(), name: node.as_str() }
+        Self {
+            ty: Type::Unknown,
+            value: Value::Unknown,
+            span: node.as_span().into(),
+            name: node.as_str(),
+        }
     }
 }
 
@@ -406,6 +266,8 @@ pub struct LiteralStr<'src> {
 /// An expression with a single operand.
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
+    pub(crate) ty: Type,
+    pub(crate) value: Value<'src>,
     pub(crate) span: Span,
     pub operand: Expr<'src>,
 }
@@ -413,6 +275,8 @@ pub struct UnaryExpr<'src> {
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
+    pub(crate) ty: Type,
+    pub(crate) value: Value<'src>,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
@@ -518,144 +382,78 @@ pub struct PatternSetItem<'src> {
 impl<'src> PatternSet<'src> {}
 
 impl<'src> Expr<'src> {
-    /// Returns the value of the expression if it can be determined at compile
-    /// time.
+    /// Returns the type and value of an expression if known.
     ///
-    /// When expressions are literals (e.g. `true`, `2`, `"abc"`), or
-    /// operations that depend only on literals (e.g `2+3`, `true or false`),
-    /// the value for the expression can be computed at compile time and will
-    /// be returned by this function. If the value can't be computed, the
-    /// result will be `None`.
-    pub fn value<'a>(&'a self, sym_tbl: &'a SymbolTable) -> Option<Value> {
+    /// The type and value of an expression may be known at parse time if it
+    /// depends on literals, for example the expression `2+2` is known to be
+    /// an integer and its value is `4`; `true or false or not true` is known
+    /// to be boolean with value `true`.
+    ///
+    /// In some other cases the type is known by the value is not, for example
+    /// in the expression `$a and $b`, the type is boolean, but the value is
+    /// unknown because it depends on whether the patterns are matched or not.
+    ///
+    /// When the expression contains identifiers, either external or provided
+    /// by some module, the type of the identifier is not known until compile
+    /// time, when all identifiers must be defined.
+    ///
+    pub fn type_value(&self) -> (Type, Value) {
         match self {
-            Self::True { .. } => Some(Value::Bool(true)),
-            Self::False { .. } => Some(Value::Bool(false)),
-            Self::LiteralInt(lit) => Some(Value::Integer(lit.value)),
-            Self::LiteralFlt(lit) => Some(Value::Float(lit.value)),
-            Self::LiteralStr(lit) => Some(Value::String(lit.value.as_bstr())),
+            Expr::True { .. } => (Type::Bool, Value::Bool(true)),
+            Expr::False { .. } => (Type::Bool, Value::Bool(false)),
 
-            Self::Ident(ident) => {
-                if let Some(sym) = sym_tbl.lookup(ident.name) {
-                    sym.value().cloned()
-                } else {
-                    None
-                }
+            Expr::Filesize { .. } | Expr::Entrypoint { .. } => {
+                (Type::Integer, Value::Unknown)
             }
 
-            // Expressions with values unknown at compile time.
-            Self::Filesize { .. }
-            | Self::Entrypoint { .. }
-            | Self::FnCall(_)
-            | Self::LookupIndex(_)
-            | Self::FieldAccess(_)
-            | Self::PatternMatch(_)
-            | Self::PatternCount(_)
-            | Self::PatternOffset(_)
-            | Self::PatternLength(_)
-            | Self::Of(_)
-            | Self::ForOf(_)
-            | Self::ForIn(_) => None,
-
-            // Arithmetic operations.
-            Self::Add(expr) => {
-                arithmetic_op!(sym_tbl, expr.lhs, +, checked_add, expr.rhs)
-            }
-            Self::Sub(expr) => {
-                arithmetic_op!(sym_tbl, expr.lhs, -, checked_sub, expr.rhs)
-            }
-            Self::Mul(expr) => {
-                arithmetic_op!(sym_tbl, expr.lhs, *, checked_mul, expr.rhs)
-            }
-            Self::Div(expr) => {
-                arithmetic_op!(sym_tbl, expr.lhs, /, checked_div, expr.rhs)
-            }
-            Self::Modulus(expr) => {
-                arithmetic_op!(sym_tbl, expr.lhs, %, checked_rem, expr.rhs)
-            }
-            Self::Minus(expr) => match expr.operand.value(sym_tbl) {
-                Some(Value::Integer(v)) => Some(Value::Integer(-v)),
-                Some(Value::Float(v)) => Some(Value::Float(-v)),
-                _ => None,
-            },
-
-            // Bitwise operations.
-            // TODO: check for non-negative operands in bitwise operations.
-            Self::Shl(expr) => {
-                shift_op!(sym_tbl, expr.lhs, overflowing_shl, expr.rhs)
-            }
-            Self::Shr(expr) => {
-                shift_op!(sym_tbl, expr.lhs, overflowing_shr, expr.rhs)
-            }
-            Self::BitwiseAnd(expr) => {
-                bitwise_op!(sym_tbl, expr.lhs, bitand, expr.rhs)
-            }
-            Self::BitwiseOr(expr) => {
-                bitwise_op!(sym_tbl, expr.lhs, bitor, expr.rhs)
-            }
-            Self::BitwiseXor(expr) => {
-                bitwise_op!(sym_tbl, expr.lhs, bitxor, expr.rhs)
-            }
-            Self::BitwiseNot(expr) => match expr.operand.value(sym_tbl) {
-                Some(Value::Integer(v)) => Some(Value::Integer(!v)),
-                _ => None,
-            },
-
-            // Boolean operations.
-            Self::And(expr) => {
-                boolean_op!(sym_tbl, expr.lhs, &&, expr.rhs)
-            }
-            Self::Or(expr) => {
-                boolean_op!(sym_tbl, expr.lhs, ||, expr.rhs)
-            }
-            Self::Not(expr) => {
-                if let Value::Bool(v) = expr.operand.value(sym_tbl)? {
-                    Some(Value::Bool(!v))
-                } else {
-                    None
-                }
+            Expr::LiteralInt(i) => (Type::Integer, Value::Integer(i.value)),
+            Expr::LiteralFlt(f) => (Type::Float, Value::Float(f.value)),
+            Expr::LiteralStr(s) => {
+                (Type::String, Value::String(s.value.as_bstr()))
             }
 
-            // Comparison operations.
-            Self::Eq(expr) => {
-                comparison_op!(sym_tbl, expr.lhs, ==, expr.rhs)
-            }
-            Self::Neq(expr) => {
-                comparison_op!(sym_tbl, expr.lhs, !=, expr.rhs)
-            }
-            Self::Lt(expr) => {
-                comparison_op!(sym_tbl, expr.lhs, <, expr.rhs)
-            }
-            Self::Le(expr) => {
-                comparison_op!(sym_tbl, expr.lhs, <=, expr.rhs)
-            }
-            Self::Gt(expr) => {
-                comparison_op!(sym_tbl, expr.lhs, >, expr.rhs)
-            }
-            Self::Ge(expr) => {
-                comparison_op!(sym_tbl, expr.lhs, >=, expr.rhs)
+            Expr::Ident(_)
+            | Expr::PatternMatch(_)
+            | Expr::LookupIndex(_)
+            | Expr::FieldAccess(_)
+            | Expr::FnCall(_)
+            | Expr::Of(_)
+            | Expr::ForOf(_)
+            | Expr::ForIn(_) => (Type::Bool, Value::Unknown),
+
+            Expr::PatternCount(_)
+            | Expr::PatternOffset(_)
+            | Expr::PatternLength(_) => (Type::Integer, Value::Unknown),
+
+            Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
+                (expr.ty.clone(), expr.value.clone())
             }
 
-            // String operations.
-            Self::Contains(expr) => {
-                string_op!(sym_tbl, expr.lhs, contains_str, expr.rhs, false)
-            }
-            Self::IContains(expr) => {
-                string_op!(sym_tbl, expr.lhs, contains_str, expr.rhs, true)
-            }
-            Self::StartsWith(expr) => {
-                string_op!(sym_tbl, expr.lhs, starts_with_str, expr.rhs, false)
-            }
-            Self::IStartsWith(expr) => {
-                string_op!(sym_tbl, expr.lhs, starts_with_str, expr.rhs, true)
-            }
-            Self::EndsWith(expr) => {
-                string_op!(sym_tbl, expr.lhs, ends_with_str, expr.rhs, false)
-            }
-            Self::IEndsWith(expr) => {
-                string_op!(sym_tbl, expr.lhs, ends_with_str, expr.rhs, true)
-            }
-
-            _ => unreachable!(),
+            Expr::And(expr)
+            | Expr::Or(expr)
+            | Expr::Eq(expr)
+            | Expr::Neq(expr)
+            | Expr::Lt(expr)
+            | Expr::Gt(expr)
+            | Expr::Le(expr)
+            | Expr::Ge(expr)
+            | Expr::Contains(expr)
+            | Expr::IContains(expr)
+            | Expr::StartsWith(expr)
+            | Expr::IStartsWith(expr)
+            | Expr::EndsWith(expr)
+            | Expr::IEndsWith(expr)
+            | Expr::IEquals(expr)
+            | Expr::Add(expr)
+            | Expr::Sub(expr)
+            | Expr::Mul(expr)
+            | Expr::Div(expr)
+            | Expr::Modulus(expr)
+            | Expr::Shl(expr)
+            | Expr::Shr(expr)
+            | Expr::BitwiseAnd(expr)
+            | Expr::BitwiseOr(expr)
+            | Expr::BitwiseXor(expr) => (expr.ty.clone(), expr.value.clone()),
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::ascii_tree::namespace_ascii_tree;
 use ascii_tree::Tree::*;
 use bitmask::bitmask;
-use bstr::BString;
+use bstr::{BString, ByteSlice};
 use lazy_static::lazy_static;
 use num::{Bounded, CheckedMul, FromPrimitive, Integer};
 use pest::iterators::Pair;
@@ -10,72 +10,20 @@ use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Iterator;
+use std::ops::BitAnd;
+use std::ops::BitOr;
+use std::ops::BitXor;
 use std::{fmt, str};
 use yara_derive::*;
 
 use crate::parser::span::HasSpan;
 use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, CST};
-use crate::{SymbolTable, Value};
+use crate::{SymbolTable, Type, Value};
 
 pub use crate::parser::expr::*;
 use crate::parser::warnings::Warning;
-
-/// Ensures that `expr` does not have a negative value.
-///
-/// `expr` must be some identifier of type [`Expr`]. If `expr` is not of kind
-/// [`ExprKind::Integer`] or its value is negative, an error is returned.
-///
-/// `Ok(())` is returned if otherwise.
-///
-/// # Example
-///
-/// ```ignore
-/// check_non_negative_integer!(ctx, expr);
-/// ```
-macro_rules! check_non_negative_integer {
-    ($ctx:ident, $expr:ident) => {{
-        check_kind!($ctx, $expr, ExprKind::Integer)?;
-        if let Some(ExprValue::Integer(value)) = $expr.value() {
-            if value < 0 {
-                return Err(Error::unexpected_negative(
-                    $ctx.src,
-                    $expr.span(),
-                ));
-            }
-        }
-        Ok(())
-    }};
-}
-
-/// Macro that creates a new binary expression after validating that both
-/// operands (`lhs` and `rhs`) have any of the specified expression kinds.
-///
-/// Both `lhs` and `rhs` must be of type [`Expr`], and the result is of type
-/// `Result<Expr>`.
-///
-/// # Examples
-///
-/// ```ignore
-/// new_expression!(
-///     ctx,
-///     Expr::Add,
-///     lhs,
-///     rhs,
-///     ExprKind::Integer | ExprKind::Float
-///  )
-/// ```
-macro_rules! new_expression {
-    ($op:expr, $lhs:ident, $rhs:ident, $( $pattern:path )|*) => {{
-        let lhs = $lhs;
-        let rhs = $rhs;
-
-        // TODO
-        // check_kind!($ctx, lhs, $( $pattern )|+)?;
-        // check_kind!($ctx, rhs, $( $pattern )|+)?;
-
-        Ok($op(Box::new(BinaryExpr { lhs, rhs })))
-    }};
-}
+use crate::parser::Expr::{BitwiseNot, FieldAccess, Minus, Not};
+use crate::Value::{Bool, Unknown};
 
 macro_rules! expect {
     ($next:expr, $parser_rule:expr) => {{
@@ -403,126 +351,368 @@ pub struct Regexp<'src> {
     pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
 }
 
+macro_rules! boolean_op {
+    ($lhs:ident, $op:tt, $rhs:ident) => {{
+        use crate::Type;
+        use crate::Value::*;
+        let value = match ($lhs, $rhs) {
+            (Bool(lhs), Bool(rhs)) => {
+                Bool(lhs $op rhs)
+            },
+            _ => Unknown,
+        };
+        (Type::Bool, value)
+    }};
+}
+pub(crate) use boolean_op;
+
+macro_rules! comparison_op {
+    ($lhs:ident, $op:tt, $rhs:ident) => {{
+        use crate::Type;
+        use crate::Value::*;
+        let value = match ($lhs, $rhs) {
+            (Integer(lhs), Integer(rhs)) => Bool(lhs $op rhs),
+            (Float(lhs), Float(rhs)) => Bool(lhs $op rhs),
+            (Float(lhs), Integer(rhs)) => Bool(lhs $op (rhs as f32)),
+            (Integer(lhs), Float(rhs)) => Bool((lhs as f32) $op rhs),
+            (String(lhs), String(rhs)) => Bool(lhs $op rhs),
+            _ => Unknown,
+        };
+        (Type::Bool, value)
+    }};
+}
+pub(crate) use comparison_op;
+
+macro_rules! shift_op {
+    ($lhs:ident, $op:tt, $rhs:ident) => {{
+        use crate::Type;
+        use crate::Value::*;
+        let value = match ($lhs, $rhs) {
+            (Integer(lhs), Integer(rhs)) => {
+                let overflow: bool;
+                let mut value = 0;
+                // First convert `rhs` to u32, which is the type accepted
+                // by both overflowing_shr and overflowing_lhr. If the
+                // conversion fails, it's because its value is too large and
+                // does not fit in a u32, or because it's negative. In both
+                // cases the result of the shift operation is 0.
+                if let Ok(rhs) = rhs.try_into() {
+                    // Now that rhs is an u32 we can call overflowing_shr or
+                    // overflowing_lhr.
+                    (value, overflow) = lhs.$op(rhs);
+                    // The semantics << and >> in YARA is that the right-side
+                    // operand can be larger than the number of bits in the
+                    // left-side, and in those cases the result is 0.
+                    if overflow {
+                        value = 0;
+                    }
+                }
+                Integer(value)
+            }
+            _ => Value::Unknown,
+        };
+        (Type::Integer, value)
+    }};
+}
+pub(crate) use shift_op;
+
+macro_rules! bitwise_op {
+    ($lhs:ident, $op:tt, $rhs:ident) => {{
+        use crate::Type;
+        use crate::Value::*;
+
+        let value = match ($lhs, $rhs) {
+            (Integer(lhs), Integer(rhs)) => Integer(lhs.$op(rhs)),
+            _ => Unknown,
+        };
+
+        (Type::Integer, value)
+    }};
+}
+pub(crate) use bitwise_op;
+
+macro_rules! arithmetic_op {
+    ($lhs:ident, $op:tt, $checked_op:ident, $rhs:ident) => {{
+        use crate::Type;
+        use crate::Value::*;
+        match ($lhs, $rhs) {
+            // ... check for different combinations of integer and float
+            // operands. The result is integer if both operand are
+            // integers and float if otherwise.
+            //
+            // In operations where the operands are integers we must use
+            // the checked variant of the operator (e.g. `checked_add`,
+            // `checked_div`, etc) in order to prevent panics due to division
+            // by zero or integer overflows.
+            //
+            // Floating-point operations won't cause panic in Rust.
+            (Integer(lhs), Integer(rhs)) => {
+                let value = if let Some(v) = lhs.$checked_op(rhs) {
+                    Integer(v)
+                } else {
+                    Unknown
+                };
+                (Type::Integer, value)
+            },
+            (Integer(lhs), Float(rhs)) => (Type::Float, Float((lhs as f32) $op rhs)),
+            (Float(lhs), Integer(rhs)) => (Type::Float, Float(lhs $op (rhs as f32))),
+            (Float(lhs), Float(rhs)) => (Type::Float, Float(lhs $op rhs)),
+            _ => (Type::Unknown, Unknown),
+        }
+    }};
+}
+pub(crate) use arithmetic_op;
+
+macro_rules! minus_op {
+    ($operand:ident) => {{
+        match $operand {
+            Value::Integer(i) => (Type::Integer, Value::Integer(-i)),
+            Value::Float(i) => (Type::Float, Value::Float(-i)),
+            _ => (Type::Unknown, Value::Unknown),
+        }
+    }};
+}
+pub(crate) use minus_op;
+
+macro_rules! boolean_not {
+    ($operand:ident) => {{
+        match $operand {
+            Value::Bool(b) => (Type::Bool, Value::Bool(!b)),
+            _ => (Type::Bool, Value::Unknown),
+        }
+    }};
+}
+pub(crate) use boolean_not;
+
+macro_rules! bitwise_not {
+    ($operand:ident) => {{
+        match $operand {
+            Value::Integer(i) => (Type::Integer, Value::Integer(!i)),
+            _ => (Type::Integer, Value::Unknown),
+        }
+    }};
+}
+pub(crate) use bitwise_not;
+
+macro_rules! string_op {
+    ($lhs:ident, $op:tt, $rhs:ident, $case_insensitive:expr) => {{
+        use crate::Type;
+        use crate::Value::*;
+        let value = match ($lhs, $rhs) {
+            (String(lhs), String(rhs)) => {
+                if $case_insensitive {
+                    let lhs = lhs.to_ascii_lowercase();
+                    let rhs = rhs.to_ascii_lowercase();
+                    Bool((&lhs).$op(&rhs))
+                } else {
+                    Bool((&lhs).$op(&rhs))
+                }
+            }
+            _ => Value::Unknown,
+        };
+        (Type::Bool, value)
+    }};
+}
+pub(crate) use string_op;
+
+macro_rules! new_boolean_expr {
+    ($variant:expr, $op:tt, $lhs:ident, $rhs:ident) => {{
+        let (_, lhs_value) = $lhs.type_value();
+        let (_, rhs_value) = $rhs.type_value();
+
+        let (ty, value) = boolean_op!(lhs_value, $op, rhs_value);
+
+        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+    }};
+}
+
+macro_rules! new_arithmetic_expr {
+    ($variant:expr, $op:tt, $checked_op:ident, $lhs:ident, $rhs:ident) => {{
+        let (_, lhs_value) = $lhs.type_value();
+        let (_, rhs_value) = $rhs.type_value();
+
+        let (ty, value) =
+            arithmetic_op!(lhs_value, $op, $checked_op, rhs_value);
+
+        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+    }};
+}
+
+macro_rules! new_bitwise_expr {
+    ($variant:expr,$op:ident, $lhs:ident, $rhs:ident) => {{
+        let (_, lhs_value) = $lhs.type_value();
+        let (_, rhs_value) = $rhs.type_value();
+
+        let (ty, value) = bitwise_op!(lhs_value, $op, rhs_value);
+
+        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+    }};
+}
+
+macro_rules! new_comparison_expr {
+    ($variant:expr,$op:tt, $lhs:ident, $rhs:ident) => {{
+        let (_, lhs_value) = $lhs.type_value();
+        let (_, rhs_value) = $rhs.type_value();
+
+        let (ty, value) = comparison_op!(lhs_value, $op, rhs_value);
+
+        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+    }};
+}
+
+macro_rules! new_shift_expr {
+    ($variant:expr,$op:tt, $lhs:ident, $rhs:ident) => {{
+        let (_, lhs_value) = $lhs.type_value();
+        let (_, rhs_value) = $rhs.type_value();
+
+        let (ty, value) = shift_op!(lhs_value, $op, rhs_value);
+
+        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+    }};
+}
+
+macro_rules! new_string_expr {
+    ($variant:expr,$op:ident, $lhs:ident, $rhs:ident, $case_insensitive:expr) => {{
+        let (_, lhs_value) = $lhs.type_value();
+        let (_, rhs_value) = $rhs.type_value();
+
+        let (ty, value) =
+            string_op!(lhs_value, $op, rhs_value, $case_insensitive);
+
+        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+    }};
+}
+
+fn create_unary_expr<'src>(
+    op: CSTNode<'src>,
+    operand: Expr<'src>,
+) -> Result<Expr<'src>, Error> {
+    let (_, op_value) = operand.type_value();
+    let span = Span::from(op.as_span());
+    span.combine(&operand.span());
+
+    let expr = match op.as_rule() {
+        GrammarRule::k_NOT => {
+            let (ty, value) = boolean_not!(op_value);
+            Not(Box::new(UnaryExpr { operand, ty, value, span }))
+        }
+        GrammarRule::BITWISE_NOT => {
+            let (ty, value) = bitwise_not!(op_value);
+            BitwiseNot(Box::new(UnaryExpr { operand, ty, value, span }))
+        }
+        GrammarRule::MINUS => {
+            let (ty, value) = minus_op!(op_value);
+            Minus(Box::new(UnaryExpr { operand, ty, value, span }))
+        }
+        rule => unreachable!("{:?}", rule),
+    };
+    Ok(expr)
+}
+
 fn create_binary_expr<'src>(
     lhs: Expr<'src>,
     op: GrammarRule,
     rhs: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
     match op {
+        GrammarRule::DOT => Ok(FieldAccess(Box::new(BinaryExpr {
+            ty: Type::Unknown,
+            value: Value::Unknown,
+            lhs,
+            rhs,
+        }))),
         // Boolean
         GrammarRule::k_OR => {
-            new_expression!(Expr::Or, lhs, rhs, ExprKind::Bool)
+            new_boolean_expr!(Expr::Or, ||, lhs, rhs)
         }
         GrammarRule::k_AND => {
-            new_expression!(Expr::And, lhs, rhs, ExprKind::Bool)
+            new_boolean_expr!(Expr::And, &&, lhs, rhs)
         }
         // Arithmetic
-        GrammarRule::ADD => new_expression!(
-            Expr::Add,
-            lhs,
-            rhs,
-            ExprKind::Integer | ExprKind::Float
-        ),
-        GrammarRule::SUB => new_expression!(
-            Expr::Sub,
-            lhs,
-            rhs,
-            ExprKind::Integer | ExprKind::Float
-        ),
-        GrammarRule::MUL => new_expression!(
-            Expr::Mul,
-            lhs,
-            rhs,
-            ExprKind::Integer | ExprKind::Float
-        ),
-        GrammarRule::DIV => new_expression!(
-            Expr::Div,
-            lhs,
-            rhs,
-            ExprKind::Integer | ExprKind::Float
-        ),
-        GrammarRule::MOD => new_expression!(
-            Expr::Modulus,
-            lhs,
-            rhs,
-            ExprKind::Integer | ExprKind::Float
-        ),
+        GrammarRule::ADD => {
+            new_arithmetic_expr!(Expr::Add, +, checked_add, lhs, rhs)
+        }
+        GrammarRule::SUB => {
+            new_arithmetic_expr!(Expr::Sub, -, checked_sub, lhs, rhs)
+        }
+        GrammarRule::MUL => {
+            new_arithmetic_expr!(Expr::Mul, *, checked_mul, lhs, rhs)
+        }
+        GrammarRule::DIV => {
+            new_arithmetic_expr!(Expr::Div, /, checked_div, lhs, rhs)
+        }
+        GrammarRule::MOD => {
+            new_arithmetic_expr!(Expr::Modulus, %, checked_rem, lhs, rhs)
+        }
         // Bitwise
         GrammarRule::SHL => {
-            // TODO
-            // check_non_negative_integer!(ctx, rhs)?;
-            new_expression!(Expr::Shl, lhs, rhs, ExprKind::Integer)
+            new_shift_expr!(Expr::Shl, overflowing_shl, lhs, rhs)
         }
         GrammarRule::SHR => {
-            // TODO
-            // check_non_negative_integer!(ctx, rhs)?;
-            new_expression!(Expr::Shr, lhs, rhs, ExprKind::Integer)
+            new_shift_expr!(Expr::Shr, overflowing_shr, lhs, rhs)
         }
         GrammarRule::BITWISE_AND => {
-            new_expression!(Expr::BitwiseAnd, lhs, rhs, ExprKind::Integer)
+            new_bitwise_expr!(Expr::BitwiseAnd, bitand, lhs, rhs)
         }
         GrammarRule::BITWISE_OR => {
-            new_expression!(Expr::BitwiseOr, lhs, rhs, ExprKind::Integer)
+            new_bitwise_expr!(Expr::BitwiseOr, bitor, lhs, rhs)
         }
         GrammarRule::BITWISE_XOR => {
-            new_expression!(Expr::BitwiseXor, lhs, rhs, ExprKind::Integer)
+            new_bitwise_expr!(Expr::BitwiseXor, bitxor, lhs, rhs)
         }
         // Comparison
-        GrammarRule::EQ => new_expression!(
-            Expr::Eq,
-            lhs,
-            rhs,
-            ExprKind::Float | ExprKind::Integer | ExprKind::String
-        ),
-        GrammarRule::NEQ => new_expression!(
-            Expr::Neq,
-            lhs,
-            rhs,
-            ExprKind::Float | ExprKind::Integer | ExprKind::String
-        ),
-        GrammarRule::LT => new_expression!(
-            Expr::Lt,
-            lhs,
-            rhs,
-            ExprKind::Float | ExprKind::Integer | ExprKind::String
-        ),
-        GrammarRule::LE => new_expression!(
-            Expr::Le,
-            lhs,
-            rhs,
-            ExprKind::Float | ExprKind::Integer | ExprKind::String
-        ),
-        GrammarRule::GT => new_expression!(
-            Expr::Gt,
-            lhs,
-            rhs,
-            ExprKind::Float | ExprKind::Integer | ExprKind::String
-        ),
-        GrammarRule::GE => new_expression!(
-            Expr::Ge,
-            lhs,
-            rhs,
-            ExprKind::Float | ExprKind::Integer | ExprKind::String
-        ),
-        GrammarRule::k_CONTAINS => {
-            new_expression!(Expr::Contains, lhs, rhs, ExprKind::String)
+        GrammarRule::EQ => {
+            new_comparison_expr!(Expr::Eq, ==, lhs, rhs)
         }
-        GrammarRule::k_ICONTAINS => {
-            new_expression!(Expr::IContains, lhs, rhs, ExprKind::String)
+        GrammarRule::NEQ => {
+            new_comparison_expr!(Expr::Neq, !=, lhs, rhs)
+        }
+        GrammarRule::LT => {
+            new_comparison_expr!(Expr::Lt, <, lhs, rhs)
+        }
+        GrammarRule::LE => {
+            new_comparison_expr!(Expr::Le, <=, lhs, rhs)
+        }
+        GrammarRule::GT => {
+            new_comparison_expr!(Expr::Gt, >, lhs, rhs)
+        }
+        GrammarRule::GE => {
+            new_comparison_expr!(Expr::Ge, >=, lhs, rhs)
         }
         GrammarRule::k_STARTSWITH => {
-            new_expression!(Expr::StartsWith, lhs, rhs, ExprKind::String)
+            new_string_expr!(
+                Expr::StartsWith,
+                starts_with_str,
+                lhs,
+                rhs,
+                false
+            )
         }
         GrammarRule::k_ISTARTSWITH => {
-            new_expression!(Expr::IStartsWith, lhs, rhs, ExprKind::String)
+            new_string_expr!(
+                Expr::IStartsWith,
+                starts_with_str,
+                lhs,
+                rhs,
+                true
+            )
         }
         GrammarRule::k_ENDSWITH => {
-            new_expression!(Expr::EndsWith, lhs, rhs, ExprKind::String)
+            new_string_expr!(Expr::EndsWith, ends_with_str, lhs, rhs, false)
         }
         GrammarRule::k_IENDSWITH => {
-            new_expression!(Expr::IEndsWith, lhs, rhs, ExprKind::String)
+            new_string_expr!(Expr::IEndsWith, ends_with_str, lhs, rhs, true)
         }
-        GrammarRule::DOT => new_expression!(Expr::FieldAccess, lhs, rhs,),
+        GrammarRule::k_CONTAINS => {
+            new_string_expr!(Expr::Contains, contains_str, lhs, rhs, false)
+        }
+        GrammarRule::k_ICONTAINS => {
+            new_string_expr!(Expr::IContains, contains_str, lhs, rhs, true)
+        }
+        GrammarRule::k_IEQUALS => {
+            new_string_expr!(Expr::IEquals, eq, lhs, rhs, true)
+        }
+
         rule => unreachable!("{:?}", rule),
     }
 }
@@ -1151,6 +1341,7 @@ lazy_static! {
             | Op::infix(GrammarRule::k_ISTARTSWITH, Assoc::Left)
             | Op::infix(GrammarRule::k_ENDSWITH, Assoc::Left)
             | Op::infix(GrammarRule::k_IENDSWITH, Assoc::Left)
+            | Op::infix(GrammarRule::k_IEQUALS, Assoc::Left)
             | Op::infix(GrammarRule::k_MATCHES, Assoc::Left))
         .op(Op::infix(GrammarRule::LT, Assoc::Left)
             | Op::infix(GrammarRule::LE, Assoc::Left)
@@ -1223,14 +1414,9 @@ fn boolean_term_from_cst<'src>(
 
             // The child after the `not` is the negated boolean term.
             let term = children.next().unwrap();
+            let expr = boolean_term_from_cst(ctx, term)?;
 
-            Expr::Not(Box::new(UnaryExpr {
-                span: Span {
-                    start: not.as_span().start(),
-                    end: term.as_span().end(),
-                },
-                operand: boolean_term_from_cst(ctx, term)?,
-            }))
+            create_unary_expr(not, expr)?
         }
         GrammarRule::LPAREN => {
             // Consume the opening parenthesis.
@@ -1276,6 +1462,8 @@ fn boolean_term_from_cst<'src>(
                 // The best way is using the anchor's span end.
                 span: boolean_term_span.into(),
                 identifier: Ident {
+                    ty: Type::Bool,
+                    value: Value::Unknown,
                     span: ident.as_span().into(),
                     name: ident_name,
                 },
@@ -1389,6 +1577,8 @@ fn primary_expr_from_cst<'src>(
     let expr = match node.as_rule() {
         GrammarRule::ident => {
             let mut expr = Expr::Ident(Box::new(Ident {
+                ty: Type::Unknown,
+                value: Value::Unknown,
                 span: node.as_span().into(),
                 name: node.as_str(),
             }));
@@ -1403,8 +1593,12 @@ fn primary_expr_from_cst<'src>(
                 let node = children.next().unwrap();
 
                 expr = Expr::FieldAccess(Box::new(BinaryExpr {
+                    ty: Type::Unknown,
+                    value: Value::Unknown,
                     lhs: expr,
                     rhs: Expr::Ident(Box::new(Ident {
+                        ty: Type::Unknown,
+                        value: Value::Unknown,
                         span: node.as_span().into(),
                         name: node.as_str(),
                     })),
@@ -1419,24 +1613,14 @@ fn primary_expr_from_cst<'src>(
         GrammarRule::k_ENTRYPOINT => {
             Expr::Entrypoint { span: node.as_span().into() }
         }
-        GrammarRule::MINUS => {
-            let operand = term_from_cst(ctx, children.next().unwrap())?;
-            // TODO
-            // check_kind!(ctx, operand, ExprKind::Integer | ExprKind::Float)?;
-            Expr::Minus(Box::new(UnaryExpr {
-                span: term_span.into(),
-                operand,
-            }))
-        }
-        GrammarRule::BITWISE_NOT => {
-            let operand = term_from_cst(ctx, children.next().unwrap())?;
-            // TODO
-            // check_non_negative_integer!(ctx, operand)?;
-            Expr::BitwiseNot(Box::new(UnaryExpr {
-                span: term_span.into(),
-                operand,
-            }))
-        }
+        GrammarRule::MINUS => create_unary_expr(
+            node,
+            term_from_cst(ctx, children.next().unwrap())?,
+        )?,
+        GrammarRule::BITWISE_NOT => create_unary_expr(
+            node,
+            term_from_cst(ctx, children.next().unwrap())?,
+        )?,
         GrammarRule::LPAREN => {
             let expr = expr_from_cst(ctx, children.next().unwrap())?;
             expect!(children.next().unwrap(), GrammarRule::RPAREN);
@@ -1604,37 +1788,6 @@ fn range_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::RPAREN);
 
-    // TODO
-    // Range bounds should be integers.
-    // check_kind!(ctx, lower_bound, ExprKind::Integer)?;
-    // check_kind!(ctx, upper_bound, ExprKind::Integer)?;
-
-    // The the upper bound, if known at compile time, should be larger the
-    // lower bound, and both should be positive.
-    if let (Some(Value::Integer(lower)), Some(Value::Integer(upper))) =
-        (lower_bound.value(&ctx.sym_tbl), upper_bound.value(&ctx.sym_tbl))
-    {
-        if lower < 0 || upper < 0 {
-            return Err(Error::invalid_range(
-                ctx.report_builder,
-                &ctx.src,
-                "range bound can not be negative".to_string(),
-                (if lower < 0 { lower_bound } else { upper_bound }).span(),
-            ));
-        }
-
-        if lower > upper {
-            return Err(Error::invalid_range(
-                ctx.report_builder,
-                &ctx.src,
-                format!(
-                    "lower bound ({lower}) is greater than upper bound ({lower})"
-                ),
-                lower_bound.span(),
-            ));
-        };
-    }
-
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
@@ -1675,6 +1828,7 @@ fn of_expr_from_cst<'src>(
 
     let anchor = anchor_from_cst(ctx, &mut children)?;
 
+    // TODO: move to semantic check.
     /*
     // Compute the number of items
     let items_count = match items {
@@ -1789,6 +1943,8 @@ fn for_expr_from_cst<'src>(
             match node.as_rule() {
                 GrammarRule::ident => {
                     variables.push(Ident {
+                        ty: Type::Unknown,
+                        value: Value::Unknown,
                         span: node.as_span().into(),
                         name: node.as_str(),
                     });
@@ -2041,6 +2197,8 @@ fn iterator_from_cst<'src>(
             Iterable::ExprTuple(expr_tuple_from_cst(ctx, node)?)
         }
         GrammarRule::ident => Iterable::Ident(Box::new(Ident {
+            ty: Type::Unknown,
+            value: Value::Unknown,
             span: node.as_span().into(),
             name: node.as_str(),
         })),

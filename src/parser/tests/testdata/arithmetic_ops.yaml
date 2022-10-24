@@ -86,11 +86,11 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq (value: unknown)
-                ├─ div (value: unknown)
+             └─ eq
+                ├─ div
                 │  ├─ 10
                 │  └─ 0
-                └─ mod (value: unknown)
+                └─ mod
                    ├─ 10
                    └─ 0
 
