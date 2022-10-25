@@ -17,6 +17,7 @@ mod report;
 /// which means that a symbol in a table can lead to another table that
 /// contains more symbols. This allows representing namespaces, or nested
 /// structures.
+#[derive(Debug)]
 pub struct SymbolTable<'a> {
     symbols: HashMap<&'a str, Symbol<'a>>,
 }
@@ -37,7 +38,7 @@ impl<'a> SymbolTable<'a> {
     /// If the symbol table didn't have the identifier, [`None`] is returned.
     /// If the symbol table did have the identifier, the symbol is updated with
     /// the new one, and the old symbol is returned.
-    fn insert<I>(
+    fn insert(
         &mut self,
         ident: &'a str,
         symbol: Symbol<'a>,
@@ -47,16 +48,17 @@ impl<'a> SymbolTable<'a> {
 }
 
 /// These are the different types of symbols that can be stored in a [`SymbolTable`].
+#[derive(Debug)]
 pub enum Symbol<'a> {
     Variable(Variable<'a>),
-    Table(SymbolTable<'a>),
+    Struct(SymbolTable<'a>),
 }
 
 impl<'a> Symbol<'a> {
     pub fn value(&self) -> Option<&Value> {
         match self {
-            Symbol::Variable(v) => v.value.as_ref(),
-            Symbol::Table(_) => None,
+            Symbol::Variable(v) => Some(&v.value),
+            Symbol::Struct(_) => None,
         }
     }
 }
@@ -71,6 +73,7 @@ pub enum Value<'a> {
     Integer(i64),
     Float(f32),
     String(&'a BStr),
+    Struct(&'a SymbolTable<'a>),
 }
 
 impl<'a> Display for Value<'a> {
@@ -80,6 +83,7 @@ impl<'a> Display for Value<'a> {
             Self::Integer(v) => write!(f, "{}", v),
             Self::Float(v) => write!(f, "{:.1}", v),
             Self::String(v) => write!(f, "{:?}", v),
+            Self::Struct(v) => write!(f, "struct"),
             Self::Unknown => write!(f, "unknown"),
         }
     }
@@ -107,11 +111,23 @@ impl<'a> Value<'a> {
             panic!("{:?}", self);
         }
     }
+
+    /// Returns the value as a struct.
+    ///
+    /// Panics if the value is not Value::Struct.
+    pub fn as_struct(&self) -> &'a SymbolTable<'a> {
+        if let Self::Struct(t) = self {
+            return *t;
+        } else {
+            panic!("{:?}", self);
+        }
+    }
 }
 
+#[derive(Debug)]
 pub struct Variable<'a> {
-    value: Option<Value<'a>>,
     ty: Type,
+    value: Value<'a>,
 }
 
 /// All the different types of expressions that can be found in YARA.
@@ -126,6 +142,7 @@ pub enum Type {
     Float,
     String,
     Struct,
+    Iterable(Box<Type>),
 }
 
 impl Display for Type {
@@ -137,6 +154,7 @@ impl Display for Type {
             Self::Float => write!(f, "float"),
             Self::String => write!(f, "string"),
             Self::Struct => write!(f, "struct"),
+            Self::Iterable(item_type) => write!(f, "iterable({})", item_type),
         }
     }
 }

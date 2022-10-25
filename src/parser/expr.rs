@@ -1,10 +1,7 @@
 use crate::parser::span::*;
 use crate::parser::CSTNode;
-use crate::{SymbolTable, Type, Value};
+use crate::{Type, Value};
 use bstr::{BString, ByteSlice};
-use std::ops::BitAnd;
-use std::ops::BitOr;
-use std::ops::BitXor;
 use yara_derive::*;
 
 /// An expression in the AST.
@@ -415,7 +412,6 @@ impl<'src> Expr<'src> {
             Expr::Ident(_)
             | Expr::PatternMatch(_)
             | Expr::LookupIndex(_)
-            | Expr::FieldAccess(_)
             | Expr::FnCall(_)
             | Expr::Of(_)
             | Expr::ForOf(_)
@@ -429,7 +425,8 @@ impl<'src> Expr<'src> {
                 (expr.ty.clone(), expr.value.clone())
             }
 
-            Expr::And(expr)
+            Expr::FieldAccess(expr)
+            | Expr::And(expr)
             | Expr::Or(expr)
             | Expr::Eq(expr)
             | Expr::Neq(expr)

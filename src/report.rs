@@ -20,7 +20,7 @@ pub(crate) enum ReportType {
 /// Build error and warning reports.
 pub(crate) struct ReportBuilder {
     with_colors: bool,
-    // RefCell allows getting a mutable reference to the cache, even if have
+    // RefCell allows getting a mutable reference to the cache, even if we have
     // an immutable reference to the report builder.
     cache: RefCell<Cache>,
 }

@@ -29,7 +29,7 @@ pub enum CompileError {
         expression_span: Span,
     },
 
-    #[error("mismatching operator types")]
+    #[error("mismatching types")]
     #[label("this expression is `{type1}`", type1_span)]
     #[label("this expression is `{type2}`", type2_span)]
     MismatchingTypes {
@@ -40,7 +40,16 @@ pub enum CompileError {
         type2_span: Span,
     },
 
-    #[error("unexpected negative integer")]
-    #[label("this number should not be negative", span)]
+    #[error("unexpected negative number")]
+    #[label("this number can not be negative", span)]
     UnexpectedNegativeNumber { detailed_report: String, span: Span },
+
+    #[error("number out of range")]
+    #[label("this number is out of the allowed range [{min}-{max}]", span)]
+    NumberOutOfRange {
+        detailed_report: String,
+        min: i64,
+        max: i64,
+        span: Span,
+    },
 }

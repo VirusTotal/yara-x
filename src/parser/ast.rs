@@ -23,7 +23,6 @@ use crate::{SymbolTable, Type, Value};
 pub use crate::parser::expr::*;
 use crate::parser::warnings::Warning;
 use crate::parser::Expr::{BitwiseNot, FieldAccess, Minus, Not};
-use crate::Value::{Bool, Unknown};
 
 macro_rules! expect {
     ($next:expr, $parser_rule:expr) => {{

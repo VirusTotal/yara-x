@@ -9,6 +9,23 @@ fn errors() {
             line!(),
             r#"
 rule test {
+  condition: 0
+}
+    "#,
+            r#"error: wrong type
+   ╭─[line:3:14]
+   │
+ 3 │   condition: 0
+   ·              ┬  
+   ·              ╰── expression should be `boolean`, but is `integer`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
   condition: not 2
 }
     "#,
@@ -63,7 +80,7 @@ rule test {
   condition: "foo" == 2
 }
     "#,
-            r#"error: mismatching operator types
+            r#"error: mismatching types
    ╭─[line:3:14]
    │
  3 │   condition: "foo" == 2
@@ -167,12 +184,12 @@ rule test {
   condition: 1 << -1 == 0
 }
 "#,
-            r#"error: unexpected negative integer
+            r#"error: unexpected negative number
    ╭─[line:3:19]
    │
  3 │   condition: 1 << -1 == 0
    ·                   ─┬  
-   ·                    ╰── this number should not be negative
+   ·                    ╰── this number can not be negative
 ───╯
 "#,
         ),
@@ -194,90 +211,253 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition: 
+    #a in (0.."10") == 0
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:6:15]
+   │
+ 6 │     #a in (0.."10") == 0
+   ·               ──┬─  
+   ·                 ╰─── expression should be `integer`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: $a at "1"
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:3:20]
+   │
+ 3 │   condition: $a at "1"
+   ·                    ─┬─  
+   ·                     ╰─── expression should be `integer`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: @a["1"] == 0x100
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:3:17]
+   │
+ 3 │   condition: @a["1"] == 0x100
+   ·                 ─┬─  
+   ·                  ╰─── expression should be `integer`, but is `string`
+───╯
+"#,
+        ),
+        /*
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+        rule test {
+          condition: @a[1]
+        }
+        "#,
+            r#""#,
+        ),
+        */
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: !a[1]
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:3:14]
+   │
+ 3 │   condition: !a[1]
+   ·              ──┬──  
+   ·                ╰──── expression should be `boolean`, but is `integer`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: !a[-1]
+}"#,
+            r#"error: number out of range
+   ╭─[line:3:17]
+   │
+ 3 │   condition: !a[-1]
+   ·                 ─┬  
+   ·                  ╰── this number is out of the allowed range [1-9223372036854775807]
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: #a in (0.."10")
+}
+        "#,
+            r#"error: wrong type
+   ╭─[line:3:24]
+   │
+ 3 │   condition: #a in (0.."10")
+   ·                        ──┬─  
+   ·                          ╰─── expression should be `integer`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition:
+    any of them in (1.0..10)
+}
+        "#,
+            r#"error: wrong type
+   ╭─[line:6:21]
+   │
+ 6 │     any of them in (1.0..10)
+   ·                     ─┬─  
+   ·                      ╰─── expression should be `integer`, but is `float`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition:
+    any of them at "10"
+}
+        "#,
+            r#"error: wrong type
+   ╭─[line:6:20]
+   │
+ 6 │     any of them at "10"
+   ·                    ──┬─  
+   ·                      ╰─── expression should be `integer`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition:
+    "1" of them
+}
+        "#,
+            r#"error: wrong type
+   ╭─[line:6:5]
+   │
+ 6 │     "1" of them
+   ·     ─┬─  
+   ·      ╰─── expression should be `integer`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition:
+    101% of them
+}
+        "#,
+            r#"error: number out of range
+   ╭─[line:6:5]
+   │
+ 6 │     101% of them
+   ·     ─┬─  
+   ·      ╰─── this number is out of the allowed range [0-100]
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    1 of (true, 2, false)
+}
+        "#,
+            r#"error: wrong type
+   ╭─[line:4:17]
+   │
+ 4 │     1 of (true, 2, false)
+   ·                 ┬  
+   ·                 ╰── expression should be `boolean`, but is `integer`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for 1 n in (1, 2, "3") : (
+      n == 2
+    )
+}
+        "#,
+            r#"error: mismatching types
+   ╭─[line:4:20]
+   │
+ 4 │     for 1 n in (1, 2, "3") : (
+   ·                    ┬  ─┬─  
+   ·                    ╰─────── this expression is `integer`
+   ·                        │   
+   ·                        ╰─── this expression is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
         /*(
                     line!(),
                     r#"
         rule test {
-          condition: $a at "1"
+          condition:
+            foo.bar == 1
         }
+                "#,
+                    r#"
         "#,
-                    r#"error: wrong expression type
-          |
-        3 |   condition: $a at "1"
-          |                    ^^^ expression should be `integer`, but is `string`
-          |"#,
-                ),
-
-                        ////////////////////////////////////////////////////////////
-                        (
-                            line!(),
-                            r#"
-                rule test {
-                  condition: @a["1"] == 0x100
-                }
-                "#,
-                            r#"error: wrong expression type
-                  |
-                3 |   condition: @a["1"] == 0x100
-                  |                 ^^^ expression should be `integer`, but is `string`
-                  |"#,
-                        ),
-                        ////////////////////////////////////////////////////////////
-                        (
-                            line!(),
-                            r#"
-                rule test {
-                  condition: @a[1]
-                }
-                "#,
-                            r#"error: wrong expression type
-                  |
-                3 |   condition: @a[1]
-                  |              ^^^^^ expression should be `boolean`, but is `integer`
-                  |"#,
-                        ),
-                        ////////////////////////////////////////////////////////////
-                        (
-                            line!(),
-                            r#"
-                rule test {
-                  condition: !a[1]
-                }
-                "#,
-                            r#"error: wrong expression type
-                  |
-                3 |   condition: !a[1]
-                  |              ^^^^^ expression should be `boolean`, but is `integer`
-                  |"#,
-                        ),
-                        ////////////////////////////////////////////////////////////
-                        (
-                            line!(),
-                            r#"
-                rule test {
-                  condition: !a[-1]
-                }
-                "#,
-                            r#"error: unexpected negative number
-                  |
-                3 |   condition: !a[-1]
-                  |                 ^^ expression should be a non-negative integer
-                  |"#,
-                        ),
-                        ////////////////////////////////////////////////////////////
-                        (
-                            line!(),
-                            r#"
-                rule test {
-                  condition: #a in (0.."10")
-                }
-                "#,
-                            r#"error: wrong expression type
-                  |
-                3 |   condition: #a in (0.."10")
-                  |                        ^^^^ expression should be `integer`, but is `string`
-                  |"#,
-                        ),*/
+                ),*/
     ];
 
     for t in tests {

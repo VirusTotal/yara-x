@@ -106,7 +106,7 @@ pub enum Error {
     },
 
     #[error("unused pattern `{pattern_ident}`")]
-    #[label("this was not used in the condition", pattern_ident_span)]
+    #[label("this pattern was not used in the condition", pattern_ident_span)]
     UnusedPattern {
         detailed_report: String, 
         pattern_ident: String, 

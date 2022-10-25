@@ -466,7 +466,7 @@ rule test {
    │
  5 │      $b = "bar"
    ·      ─┬  
-   ·       ╰── this was not used in the condition
+   ·       ╰── this pattern was not used in the condition
 ───╯
 "#,
         ),
@@ -487,7 +487,7 @@ rule test {
    │
  4 │      $ = "foo"
    ·      ┬  
-   ·      ╰── this was not used in the condition
+   ·      ╰── this pattern was not used in the condition
 ───╯
 "#,
         ),
@@ -509,7 +509,7 @@ rule test {
    │
  5 │      $  = "bar"
    ·      ┬  
-   ·      ╰── this was not used in the condition
+   ·      ╰── this pattern was not used in the condition
 ───╯
 "#,
         ),
