@@ -3,8 +3,9 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use bstr::{BStr, BString, ByteSlice};
+use bstr::ByteSlice;
 use std::cell::RefCell;
+use std::fmt;
 use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
@@ -18,7 +19,7 @@ use crate::parser::{
     Expr, HasSpan, Iterable, MatchAnchor, Parser, Quantifier, SourceCode,
 };
 use crate::report::ReportBuilder;
-use crate::{Symbol, SymbolTable, Type, Value, Variable};
+use crate::{Symbol, SymbolTable, Type, Value};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -55,6 +56,12 @@ pub struct Compiler<'a> {
     sym_tbl: SymbolTable<'a>,
 }
 
+impl<'a> fmt::Debug for Compiler<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Compiler")
+    }
+}
+
 impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
@@ -69,18 +76,15 @@ impl<'a> Compiler<'a> {
     ///
     /// Colorized error messages contain ANSI escape sequences that make them
     /// look nicer on compatible consoles. The default setting is `false`.
-    pub fn colorize_errors(self, b: bool) -> Self {
-        Self {
-            colorize_errors: b,
-            report_builder: self.report_builder,
-            sym_tbl: self.sym_tbl,
-        }
+    pub fn colorize_errors(&mut self, b: bool) -> &mut Self {
+        self.colorize_errors = b;
+        self
     }
 
     /// Adds a YARA source code to be compiled.
     ///
     /// This function can be called multiple times.
-    pub fn add(&'a mut self, src: &'a str) -> Result<(), Error> {
+    pub fn add(&'a mut self, src: &'a str) -> Result<&mut Self, Error> {
         let mut ast = Parser::new()
             .colorize_errors(self.colorize_errors)
             .set_report_builder(&self.report_builder)
@@ -103,7 +107,7 @@ impl<'a> Compiler<'a> {
             }
         }
 
-        Ok(())
+        Ok(self)
     }
 }
 
@@ -516,11 +520,9 @@ fn expr_semantic_check<'a>(
             let (_, value) =
                 check_expression!(ctx, Type::Struct, &mut expr.lhs)?;
 
-            let s = value.as_struct();
-
             // Replace the current symbol table with the one obtained from the
             // struct. The current table is saved and restored later.
-            let saved_sym_tbl = ctx.sym_tbl.replace(s);
+            let saved_sym_tbl = ctx.sym_tbl.replace(value.as_struct());
 
             // Now check the right hand expression. Notice that during call to
             // expr_semantic_check, the current symbol table is the one corresponding

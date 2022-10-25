@@ -718,7 +718,7 @@ fn create_binary_expr<'src>(
 
 lazy_static! {
     // Map that indicates which modifiers are accepted by each type of patterns.
-    // For example, `private` modifiers is accepted by text patterns, hex patterns
+    // For example, the `private` modifier is accepted by text patterns, hex patterns
     // and regexps, while `base64` is only accepted by text patterns.
     static ref ACCEPTED_MODIFIERS: HashMap<&'static str, Vec<GrammarRule>> =
         HashMap::from([
@@ -926,9 +926,9 @@ fn rule_from_cst<'src>(
 
     // Any identifier left in ctx.unused_pattern is not being
     // used in the condition.
-    let unsed_pattern = ctx.unused_patterns.drain().next();
+    let unused_pattern = ctx.unused_patterns.drain().next();
 
-    if let Some(ident) = unsed_pattern {
+    if let Some(ident) = unused_pattern {
         let ident = ctx.declared_patterns.get(ident).unwrap();
         return Err(Error::unused_pattern(
             ctx.report_builder,
@@ -1230,7 +1230,7 @@ fn pattern_mods_from_cst<'src>(
         };
 
         let span = modifier.span();
-        if let Some(_) = modifiers.insert(node.as_str(), modifier) {
+        if modifiers.insert(node.as_str(), modifier).is_some() {
             return Err(Error::duplicate_modifier(
                 ctx.report_builder,
                 &ctx.src,
@@ -1488,9 +1488,6 @@ fn boolean_term_from_cst<'src>(
                 )
                 .parse(children.map(|node| node.into_pair()))?;
 
-            // TODO
-            // Make sure that the expression returned is of boolean kind.
-            // check_kind!(ctx, expr, ExprKind::Bool)?;
             expr
         }
         GrammarRule::of_expr => {
@@ -1671,8 +1668,6 @@ fn primary_expr_from_cst<'src>(
             let index = if let Some(bracket) = children.next() {
                 expect!(bracket, GrammarRule::LBRACKET);
                 let expr = expr_from_cst(ctx, children.next().unwrap())?;
-                // TODO
-                // check_non_negative_integer!(ctx, expr)?;
                 expect!(children.next().unwrap(), GrammarRule::RBRACKET);
                 Some(expr)
             } else {
@@ -1998,9 +1993,6 @@ fn anchor_from_cst<'src>(
         match node.as_rule() {
             GrammarRule::k_AT => {
                 let expr = expr_from_cst(ctx, iter.next().unwrap())?;
-                // TODO
-                // check_non_negative_integer!(ctx, expr)?;
-
                 // The span of `at <expr>` is the span of `at` combined with
                 // the span of `<expr>`.
                 let span = Span::from(node.as_span()).combine(&expr.span());
@@ -2044,7 +2036,6 @@ fn quantifier_from_cst<'src>(
             // percent `%` symbol.
             if let Some(node) = children.next() {
                 expect!(node, GrammarRule::PERCENT);
-                // TODO: error if expr < 0 or expr > 100
                 Quantifier::Percentage(expr)
             } else {
                 Quantifier::Expr(expr)

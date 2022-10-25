@@ -123,8 +123,9 @@ impl<'a> Parser<'a> {
     ///
     /// Colorized error messages contain ANSI escape sequences that make them
     /// look nicer on compatible consoles. The default setting is `false`.
-    pub fn colorize_errors(self, b: bool) -> Self {
-        Self { colorize_errors: b, report_builder: self.report_builder }
+    pub fn colorize_errors(&mut self, b: bool) -> &mut Self {
+        self.colorize_errors = b;
+        self
     }
 
     /// Build the Abstract Syntax Tree (AST) for a YARA source.
@@ -218,7 +219,7 @@ impl<'a> Parser<'a> {
     ///
     /// This is optional, if the report builder is not set the Parser will
     /// create its own when necessary. However this allows sharing the same
-    /// report builder with other components, like [`Compiler`].
+    /// report builder with the [`Compiler`].
     pub(crate) fn set_report_builder(
         &mut self,
         report_builder: &'a ReportBuilder,
