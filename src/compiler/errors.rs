@@ -52,4 +52,12 @@ pub enum CompileError {
         max: i64,
         span: Span,
     },
+
+    #[error("unknown identifier `{identifier}`")]
+    #[label("this identifier has not been declared", span)]
+    UnknownIdentifier {
+        detailed_report: String,
+        identifier: String,
+        span: Span,
+    },
 }

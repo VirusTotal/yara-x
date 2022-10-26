@@ -430,6 +430,24 @@ rule test {
             r#"
 rule test {
   condition:
+    undeclared_ident
+}
+        "#,
+            r#"error: unknown identifier `undeclared_ident`
+   ╭─[line:4:5]
+   │
+ 4 │     undeclared_ident
+   ·     ────────┬───────  
+   ·             ╰───────── this identifier has not been declared
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
     for 1 n in (1, 2, "3") : (
       n == 2
     )
@@ -447,17 +465,18 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
-        /*(
-                    line!(),
-                    r#"
-        rule test {
-          condition:
-            foo.bar == 1
-        }
-                "#,
-                    r#"
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for any n in (1, 2, 3) : (
+      n == "3"
+    )
+}
         "#,
-                ),*/
+            r#""#,
+        ),
     ];
 
     for t in tests {

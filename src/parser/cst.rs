@@ -113,7 +113,7 @@ pub struct CST<'src> {
     pub(crate) pairs: Box<dyn PairsIterator<'src>>,
 }
 
-impl<'src> Debug for CST<'src> {
+impl Debug for CST<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }

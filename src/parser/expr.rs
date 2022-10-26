@@ -409,8 +409,7 @@ impl<'src> Expr<'src> {
                 (Type::String, Value::String(s.value.as_bstr()))
             }
 
-            Expr::Ident(_)
-            | Expr::PatternMatch(_)
+            Expr::PatternMatch(_)
             | Expr::LookupIndex(_)
             | Expr::FnCall(_)
             | Expr::Of(_)
@@ -424,6 +423,8 @@ impl<'src> Expr<'src> {
             Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
                 (expr.ty.clone(), expr.value.clone())
             }
+
+            Expr::Ident(ident) => (ident.ty.clone(), ident.value.clone()),
 
             Expr::FieldAccess(expr)
             | Expr::And(expr)

@@ -3,12 +3,13 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use bstr::ByteSlice;
+use bstr::{BStr, ByteSlice};
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::fmt;
-use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
+use std::ops::{BitAnd, DerefMut};
 
 use crate::parser::{
     arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
@@ -19,7 +20,7 @@ use crate::parser::{
     Expr, HasSpan, Iterable, MatchAnchor, Parser, Quantifier, SourceCode,
 };
 use crate::report::ReportBuilder;
-use crate::{Symbol, SymbolTable, Type, Value};
+use crate::{Symbol, SymbolTable, Type, Value, Variable};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -56,7 +57,7 @@ pub struct Compiler<'a> {
     sym_tbl: SymbolTable<'a>,
 }
 
-impl<'a> fmt::Debug for Compiler<'a> {
+impl fmt::Debug for Compiler<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Compiler")
     }
@@ -81,10 +82,28 @@ impl<'a> Compiler<'a> {
         self
     }
 
+    pub fn define(&mut self, ident: &'a str) -> &mut Self {
+        let sym = Symbol::Variable(Variable {
+            ty: Type::Integer,
+            value: Value::Integer(1),
+        });
+        self.sym_tbl.insert(ident, sym);
+        self
+    }
+
+    pub fn define_str(&mut self, ident: &'a str, s: &'a BStr) -> &mut Self {
+        let sym = Symbol::Variable(Variable {
+            ty: Type::String,
+            value: Value::String(s),
+        });
+        self.sym_tbl.insert(ident, sym);
+        self
+    }
+
     /// Adds a YARA source code to be compiled.
     ///
     /// This function can be called multiple times.
-    pub fn add(&'a mut self, src: &'a str) -> Result<&mut Self, Error> {
+    pub fn add(&mut self, src: &str) -> Result<&mut Self, Error> {
         let mut ast = Parser::new()
             .colorize_errors(self.colorize_errors)
             .set_report_builder(&self.report_builder)
@@ -92,18 +111,19 @@ impl<'a> Compiler<'a> {
 
         let src = SourceCode { text: src, origin: None };
 
-        let ctx = Context {
-            sym_tbl: RefCell::new(&self.sym_tbl),
+        let mut ctx = Context {
+            sym_tbl: &self.sym_tbl,
             report_builder: &self.report_builder,
             src: &src,
         };
 
         for ns in ast.namespaces.values_mut() {
+            let ctx_ref = &mut ctx;
             for rule in ns.rules.values_mut() {
                 // Check that the condition is boolean expression. This traverses
                 // the condition's AST recursively checking the semantic validity
                 // of all AST nodes.
-                check_expression!(&ctx, Type::Bool, &mut rule.condition)?;
+                check_expression!(ctx_ref, Type::Bool, &mut rule.condition)?;
             }
         }
 
@@ -115,6 +135,7 @@ macro_rules! check_operands {
     ($ctx:ident, $( $pattern:path )|+, $expr1:expr, $expr2:expr) => {{
         let span1 = $expr1.span();
         let span2 = $expr2.span();
+
         let (ty1, value1) = check_expression!($ctx, $( $pattern )|+, $expr1)?;
         let (ty2, value2) = check_expression!($ctx, $( $pattern )|+, $expr2)?;
 
@@ -296,6 +317,13 @@ macro_rules! check_string_op {
     }};
 }
 
+/// Structure that contains information about the current compilation process.
+struct Context<'a> {
+    sym_tbl: &'a SymbolTable<'a>,
+    report_builder: &'a ReportBuilder,
+    src: &'a SourceCode<'a>,
+}
+
 /// Makes sure that an expression is semantically valid.
 ///
 /// This functions traverses the AST and makes sure that the expression
@@ -322,7 +350,7 @@ macro_rules! check_string_op {
 /// information for all identifiers, so the AST can be updated with the
 /// missing information.
 fn expr_semantic_check<'a>(
-    ctx: &'a Context<'a>,
+    ctx: &mut Context<'a>,
     expr: &'a mut Expr<'a>,
 ) -> Result<(Type, Value<'a>), Error> {
     match expr {
@@ -494,8 +522,8 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Ident(ident) => {
-            let (ty, value) =
-                if let Some(sym) = ctx.sym_tbl.borrow().lookup(ident.name) {
+            (ident.ty, ident.value) =
+                if let Some(sym) = ctx.sym_tbl.lookup(ident.name) {
                     match sym {
                         Symbol::Struct(table) => {
                             (Type::Struct, Value::Struct(table))
@@ -505,11 +533,17 @@ fn expr_semantic_check<'a>(
                         }
                     }
                 } else {
-                    // identifier not found
-                    todo!()
+                    return Err(Error::CompileError(
+                        CompileError::unknown_identifier(
+                            ctx.report_builder,
+                            ctx.src,
+                            ident.name.to_string(),
+                            ident.span(),
+                        ),
+                    ));
                 };
 
-            Ok((ty, value))
+            Ok((ident.ty.clone(), ident.value.clone()))
         }
 
         Expr::LookupIndex(_) => {
@@ -520,22 +554,23 @@ fn expr_semantic_check<'a>(
             let (_, value) =
                 check_expression!(ctx, Type::Struct, &mut expr.lhs)?;
 
-            // Replace the current symbol table with the one obtained from the
-            // struct. The current table is saved and restored later.
-            let saved_sym_tbl = ctx.sym_tbl.replace(value.as_struct());
+            // Save the current symbol table
+            let saved_sym_tbl = ctx.sym_tbl;
 
-            // Now check the right hand expression. Notice that during call to
-            // expr_semantic_check, the current symbol table is the one corresponding
-            // to the struct.
+            // Set the symbol table obtained from the struct as the current one.
+            ctx.sym_tbl = value.as_struct();
+
+            // Now check the right hand expression. During the call to
+            // expr_semantic_check the current symbol table is the one
+            // corresponding to the struct.
             (expr.ty, expr.value) = expr_semantic_check(ctx, &mut expr.rhs)?;
 
-            // Restore the symbol table back.
-            ctx.sym_tbl.replace(saved_sym_tbl);
-
-            dbg!(&expr.value);
+            // Go back to the original symbol table.
+            ctx.sym_tbl = saved_sym_tbl;
 
             Ok((expr.ty.clone(), expr.value.clone()))
         }
+
         Expr::FnCall(_) => {
             todo!()
         }
@@ -570,6 +605,17 @@ fn expr_semantic_check<'a>(
         Expr::ForIn(for_in) => {
             quantifier_semantic_check(ctx, &mut for_in.quantifier)?;
             iterable_semantic_check(ctx, &mut for_in.iterable)?;
+
+            /*for variable in &for_in.variables {
+                ctx.sym_tbl.insert(
+                    variable.name,
+                    Symbol::Variable(Variable {
+                        ty: variable.ty.clone(),
+                        value: Value::Unknown,
+                    }),
+                );
+            }*/
+
             check_expression!(ctx, Type::Bool, &mut for_in.condition)?;
             Ok((Type::Bool, Value::Unknown))
         }
@@ -577,7 +623,7 @@ fn expr_semantic_check<'a>(
 }
 
 fn range_semantic_check<'a>(
-    ctx: &'a Context<'a>,
+    ctx: &mut Context<'a>,
     range: &'a mut Range<'a>,
 ) -> Result<(), Error> {
     check_expression!(ctx, Type::Integer, &mut range.lower_bound)?;
@@ -586,9 +632,9 @@ fn range_semantic_check<'a>(
 }
 
 fn quantifier_semantic_check<'a>(
-    ctx: &'a Context<'a>,
+    ctx: &mut Context<'a>,
     quantifier: &'a mut Quantifier<'a>,
-) -> Result<Type, Error> {
+) -> Result<(Type), Error> {
     match quantifier {
         Quantifier::Expr(expr) => {
             check_non_negative_integer!(ctx, expr)?;
@@ -603,13 +649,13 @@ fn quantifier_semantic_check<'a>(
 }
 
 fn iterable_semantic_check<'a>(
-    ctx: &'a Context<'a>,
+    ctx: &mut Context<'a>,
     iterable: &'a mut Iterable<'a>,
 ) -> Result<Type, Error> {
     match iterable {
         Iterable::Range(range) => {
             range_semantic_check(ctx, range)?;
-            Ok(Type::Iterable(Box::new(Type::Integer)))
+            Ok(Type::Integer)
         }
         Iterable::ExprTuple(tuple) => {
             let mut prev: Option<(Type, Span)> = None;
@@ -641,19 +687,10 @@ fn iterable_semantic_check<'a>(
 
             // Get the type of the last item in the tuple.
             let (ty, _) = prev.unwrap();
-
-            // If last item is of type X, the iterable's type is
-            // Iterable(X).
-            Ok(Type::Iterable(Box::new(ty)))
+            Ok(ty)
         }
         Iterable::Ident(_) => {
             todo!()
         }
     }
-}
-
-struct Context<'a> {
-    sym_tbl: RefCell<&'a SymbolTable<'a>>,
-    report_builder: &'a ReportBuilder,
-    src: &'a SourceCode<'a>,
 }

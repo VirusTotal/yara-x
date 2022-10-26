@@ -29,7 +29,7 @@ impl<'a> SymbolTable<'a> {
     }
 
     /// Looks up a symbol in the table.
-    fn lookup(&self, ident: &str) -> Option<&Symbol> {
+    fn lookup(&self, ident: &str) -> Option<&Symbol<'a>> {
         self.symbols.get(ident)
     }
 
@@ -74,6 +74,7 @@ pub enum Value<'a> {
     Float(f32),
     String(&'a BStr),
     Struct(&'a SymbolTable<'a>),
+    Array(Vec<Value<'a>>),
 }
 
 impl<'a> Display for Value<'a> {
@@ -83,8 +84,9 @@ impl<'a> Display for Value<'a> {
             Self::Integer(v) => write!(f, "{}", v),
             Self::Float(v) => write!(f, "{:.1}", v),
             Self::String(v) => write!(f, "{:?}", v),
-            Self::Struct(v) => write!(f, "struct"),
+            Self::Struct(_) => write!(f, "struct"),
             Self::Unknown => write!(f, "unknown"),
+            Self::Array(_) => write!(f, "array"),
         }
     }
 }
@@ -95,7 +97,7 @@ impl<'a> Value<'a> {
     /// Panics if the value is not Value::Integer.
     pub fn as_integer(&self) -> i64 {
         if let Self::Integer(i) = self {
-            return *i;
+            *i
         } else {
             panic!("{:?}", self);
         }
@@ -106,7 +108,7 @@ impl<'a> Value<'a> {
     /// Panics if the value is not Value::Bool.
     pub fn as_bool(&self) -> bool {
         if let Self::Bool(b) = self {
-            return *b;
+            *b
         } else {
             panic!("{:?}", self);
         }
@@ -117,7 +119,7 @@ impl<'a> Value<'a> {
     /// Panics if the value is not Value::Struct.
     pub fn as_struct(&self) -> &'a SymbolTable<'a> {
         if let Self::Struct(t) = self {
-            return *t;
+            *t
         } else {
             panic!("{:?}", self);
         }
@@ -142,7 +144,7 @@ pub enum Type {
     Float,
     String,
     Struct,
-    Iterable(Box<Type>),
+    Array(Box<Type>),
 }
 
 impl Display for Type {
@@ -154,7 +156,7 @@ impl Display for Type {
             Self::Float => write!(f, "float"),
             Self::String => write!(f, "string"),
             Self::Struct => write!(f, "struct"),
-            Self::Iterable(item_type) => write!(f, "iterable({})", item_type),
+            Self::Array(item_type) => write!(f, "array({})", item_type),
         }
     }
 }
