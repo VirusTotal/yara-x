@@ -17,8 +17,8 @@ use std::{fmt, str};
 use yara_derive::*;
 
 use crate::parser::span::HasSpan;
-use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, CST};
-use crate::{Struct, Type, Value};
+use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, Type, CST};
+use crate::{Struct, Value};
 
 pub use crate::parser::expr::*;
 use crate::parser::warnings::Warning;
@@ -352,42 +352,37 @@ pub struct Regexp<'src> {
 
 macro_rules! boolean_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::Type;
-        use crate::Value::*;
-        let value = match ($lhs, $rhs) {
-            (Bool(lhs), Bool(rhs)) => {
-                Bool(lhs $op rhs)
+        use crate::parser::TypeHint::*;
+        match ($lhs, $rhs) {
+            (Bool(Some(lhs)), Bool(Some(rhs))) => {
+                Bool(Some(lhs $op rhs))
             },
-            _ => Unknown,
-        };
-        (Type::Bool, value)
+            _ => UnknownType,
+        }
     }};
 }
 pub(crate) use boolean_op;
 
 macro_rules! comparison_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::Type;
-        use crate::Value::*;
-        let value = match ($lhs, $rhs) {
-            (Integer(lhs), Integer(rhs)) => Bool(lhs $op rhs),
-            (Float(lhs), Float(rhs)) => Bool(lhs $op rhs),
-            (Float(lhs), Integer(rhs)) => Bool(lhs $op (rhs as f32)),
-            (Integer(lhs), Float(rhs)) => Bool((lhs as f32) $op rhs),
-            (String(lhs), String(rhs)) => Bool(lhs $op rhs),
-            _ => Unknown,
-        };
-        (Type::Bool, value)
+        use crate::parser::TypeHint::*;
+        match ($lhs, $rhs) {
+            (Integer(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op rhs)),
+            (Float(Some(lhs)), Float(Some(rhs))) => Bool(Some(lhs $op rhs)),
+            (Float(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op (rhs as f32))),
+            (Integer(Some(lhs)), Float(Some(rhs))) => Bool(Some((lhs as f32) $op rhs)),
+            (String(Some(lhs)), String(Some(rhs))) => Bool(Some(lhs $op rhs)),
+            _ => UnknownType,
+        }
     }};
 }
 pub(crate) use comparison_op;
 
 macro_rules! shift_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::Type;
-        use crate::Value::*;
-        let value = match ($lhs, $rhs) {
-            (Integer(lhs), Integer(rhs)) => {
+        use crate::parser::TypeHint::*;
+        match ($lhs, $rhs) {
+            (Integer(Some(lhs)), Integer(Some(rhs))) => {
                 let overflow: bool;
                 let mut value = 0;
                 // First convert `rhs` to u32, which is the type accepted
@@ -406,34 +401,30 @@ macro_rules! shift_op {
                         value = 0;
                     }
                 }
-                Integer(value)
+                Integer(Some(value))
             }
-            _ => Value::Unknown,
-        };
-        (Type::Integer, value)
+            _ => UnknownType,
+        }
     }};
 }
 pub(crate) use shift_op;
 
 macro_rules! bitwise_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::Type;
-        use crate::Value::*;
-
-        let value = match ($lhs, $rhs) {
-            (Integer(lhs), Integer(rhs)) => Integer(lhs.$op(rhs)),
-            _ => Unknown,
-        };
-
-        (Type::Integer, value)
+        use crate::parser::TypeHint::*;
+        match ($lhs, $rhs) {
+            (Integer(Some(lhs)), Integer(Some(rhs))) => {
+                Integer(Some(lhs.$op(rhs)))
+            }
+            _ => UnknownType,
+        }
     }};
 }
 pub(crate) use bitwise_op;
 
 macro_rules! arithmetic_op {
     ($lhs:expr, $op:tt, $checked_op:ident, $rhs:expr) => {{
-        use crate::Type;
-        use crate::Value::*;
+        use crate::parser::TypeHint::*;
         match ($lhs, $rhs) {
             // ... check for different combinations of integer and float
             // operands. The result is integer if both operand are
@@ -445,18 +436,17 @@ macro_rules! arithmetic_op {
             // by zero or integer overflows.
             //
             // Floating-point operations won't cause panic in Rust.
-            (Integer(lhs), Integer(rhs)) => {
-                let value = if let Some(v) = lhs.$checked_op(rhs) {
-                    Integer(v)
+            (Integer(Some(lhs)), Integer(Some(rhs))) => {
+                if let Some(v) = lhs.$checked_op(rhs) {
+                    Integer(Some(v))
                 } else {
-                    Unknown
-                };
-                (Type::Integer, value)
+                    UnknownType
+                }
             },
-            (Integer(lhs), Float(rhs)) => (Type::Float, Float((lhs as f32) $op rhs)),
-            (Float(lhs), Integer(rhs)) => (Type::Float, Float(lhs $op (rhs as f32))),
-            (Float(lhs), Float(rhs)) => (Type::Float, Float(lhs $op rhs)),
-            _ => (Type::Unknown, Unknown),
+            (Integer(Some(lhs)), Float(Some(rhs))) => Float(Some((lhs as f32) $op rhs)),
+            (Float(Some(lhs)), Integer(Some(rhs))) => Float(Some(lhs $op (rhs as f32))),
+            (Float(Some(lhs)), Float(Some(rhs))) => Float(Some(lhs $op rhs)),
+            _ => UnknownType,
         }
     }};
 }
@@ -464,10 +454,11 @@ pub(crate) use arithmetic_op;
 
 macro_rules! minus_op {
     ($operand:expr) => {{
+        use crate::parser::TypeHint::*;
         match $operand {
-            Value::Integer(i) => (Type::Integer, Value::Integer(-i)),
-            Value::Float(i) => (Type::Float, Value::Float(-i)),
-            _ => (Type::Unknown, Value::Unknown),
+            Integer(Some(i)) => Integer(Some(-i)),
+            Float(Some(i)) => Float(Some(-i)),
+            _ => UnknownType,
         }
     }};
 }
@@ -475,9 +466,10 @@ pub(crate) use minus_op;
 
 macro_rules! boolean_not {
     ($operand:expr) => {{
+        use crate::parser::TypeHint::*;
         match $operand {
-            Value::Bool(b) => (Type::Bool, Value::Bool(!b)),
-            _ => (Type::Bool, Value::Unknown),
+            Bool(Some(b)) => Bool(Some(!b)),
+            _ => UnknownType,
         }
     }};
 }
@@ -485,9 +477,10 @@ pub(crate) use boolean_not;
 
 macro_rules! bitwise_not {
     ($operand:expr) => {{
+        use crate::parser::TypeHint::*;
         match $operand {
-            Value::Integer(i) => (Type::Integer, Value::Integer(!i)),
-            _ => (Type::Integer, Value::Unknown),
+            Integer(Some(i)) => Integer(Some(!i)),
+            _ => UnknownType,
         }
     }};
 }
@@ -495,90 +488,92 @@ pub(crate) use bitwise_not;
 
 macro_rules! string_op {
     ($lhs:expr, $op:tt, $rhs:expr, $case_insensitive:expr) => {{
-        use crate::Type;
-        use crate::Value::*;
-        let value = match ($lhs, $rhs) {
-            (String(lhs), String(rhs)) => {
+        use crate::parser::TypeHint::*;
+        match ($lhs, $rhs) {
+            (String(Some(lhs)), String(Some(rhs))) => {
                 if $case_insensitive {
                     let lhs = lhs.to_ascii_lowercase();
                     let rhs = rhs.to_ascii_lowercase();
-                    Bool((&lhs).$op(&rhs))
+                    Bool(Some((&lhs).$op(&rhs)))
                 } else {
-                    Bool((&lhs).$op(&rhs))
+                    Bool(Some((&lhs).$op(&rhs)))
                 }
             }
-            _ => Value::Unknown,
-        };
-        (Type::Bool, value)
+            _ => UnknownType,
+        }
     }};
 }
 pub(crate) use string_op;
 
 macro_rules! new_boolean_expr {
     ($variant:expr, $op:tt, $lhs:ident, $rhs:ident) => {{
-        let (_, lhs_value) = $lhs.type_value();
-        let (_, rhs_value) = $rhs.type_value();
-
-        let (ty, value) = boolean_op!(lhs_value, $op, rhs_value);
-
-        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+        let lhs = $lhs.type_hint();
+        let rhs = $rhs.type_hint();
+        Ok($variant(Box::new(BinaryExpr {
+            $lhs,
+            $rhs,
+            type_hint: boolean_op!(lhs, $op, rhs),
+        })))
     }};
 }
 
 macro_rules! new_arithmetic_expr {
     ($variant:expr, $op:tt, $checked_op:ident, $lhs:ident, $rhs:ident) => {{
-        let (_, lhs_value) = $lhs.type_value();
-        let (_, rhs_value) = $rhs.type_value();
-
-        let (ty, value) =
-            arithmetic_op!(lhs_value, $op, $checked_op, rhs_value);
-
-        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+        let lhs = $lhs.type_hint();
+        let rhs = $rhs.type_hint();
+        Ok($variant(Box::new(BinaryExpr {
+            $lhs,
+            $rhs,
+            type_hint: arithmetic_op!(lhs, $op, $checked_op, rhs),
+        })))
     }};
 }
 
 macro_rules! new_bitwise_expr {
     ($variant:expr,$op:ident, $lhs:ident, $rhs:ident) => {{
-        let (_, lhs_value) = $lhs.type_value();
-        let (_, rhs_value) = $rhs.type_value();
-
-        let (ty, value) = bitwise_op!(lhs_value, $op, rhs_value);
-
-        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+        let lhs = $lhs.type_hint();
+        let rhs = $rhs.type_hint();
+        Ok($variant(Box::new(BinaryExpr {
+            $lhs,
+            $rhs,
+            type_hint: bitwise_op!(lhs, $op, rhs),
+        })))
     }};
 }
 
 macro_rules! new_comparison_expr {
     ($variant:expr,$op:tt, $lhs:ident, $rhs:ident) => {{
-        let (_, lhs_value) = $lhs.type_value();
-        let (_, rhs_value) = $rhs.type_value();
-
-        let (ty, value) = comparison_op!(lhs_value, $op, rhs_value);
-
-        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+        let lhs = $lhs.type_hint();
+        let rhs = $rhs.type_hint();
+        Ok($variant(Box::new(BinaryExpr {
+            $lhs,
+            $rhs,
+            type_hint: comparison_op!(lhs, $op, rhs),
+        })))
     }};
 }
 
 macro_rules! new_shift_expr {
     ($variant:expr,$op:tt, $lhs:ident, $rhs:ident) => {{
-        let (_, lhs_value) = $lhs.type_value();
-        let (_, rhs_value) = $rhs.type_value();
-
-        let (ty, value) = shift_op!(lhs_value, $op, rhs_value);
-
-        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+        let lhs = $lhs.type_hint();
+        let rhs = $rhs.type_hint();
+        Ok($variant(Box::new(BinaryExpr {
+            $lhs,
+            $rhs,
+            type_hint: shift_op!(lhs, $op, rhs),
+        })))
     }};
 }
 
 macro_rules! new_string_expr {
     ($variant:expr,$op:ident, $lhs:ident, $rhs:ident, $case_insensitive:expr) => {{
-        let (_, lhs_value) = $lhs.type_value();
-        let (_, rhs_value) = $rhs.type_value();
-
-        let (ty, value) =
-            string_op!(lhs_value, $op, rhs_value, $case_insensitive);
-
-        Ok($variant(Box::new(BinaryExpr { $lhs, $rhs, ty, value })))
+        let lhs = $lhs.type_hint();
+        let rhs = $rhs.type_hint();
+        Ok($variant(Box::new(BinaryExpr {
+            $lhs,
+            $rhs,
+            type_hint: string_op!(lhs, $op, rhs, $case_insensitive),
+        })))
     }};
 }
 
@@ -586,23 +581,26 @@ fn create_unary_expr<'src>(
     op: CSTNode<'src>,
     operand: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
-    let (_, op_value) = operand.type_value();
+    let type_hint = operand.type_hint();
     let span = Span::from(op.as_span());
     span.combine(&operand.span());
 
     let expr = match op.as_rule() {
-        GrammarRule::k_NOT => {
-            let (ty, value) = boolean_not!(op_value);
-            Not(Box::new(UnaryExpr { operand, ty, value, span }))
-        }
-        GrammarRule::BITWISE_NOT => {
-            let (ty, value) = bitwise_not!(op_value);
-            BitwiseNot(Box::new(UnaryExpr { operand, ty, value, span }))
-        }
-        GrammarRule::MINUS => {
-            let (ty, value) = minus_op!(op_value);
-            Minus(Box::new(UnaryExpr { operand, ty, value, span }))
-        }
+        GrammarRule::k_NOT => Not(Box::new(UnaryExpr {
+            operand,
+            type_hint: boolean_not!(type_hint),
+            span,
+        })),
+        GrammarRule::BITWISE_NOT => BitwiseNot(Box::new(UnaryExpr {
+            operand,
+            type_hint: bitwise_not!(type_hint),
+            span,
+        })),
+        GrammarRule::MINUS => Minus(Box::new(UnaryExpr {
+            operand,
+            type_hint: minus_op!(type_hint),
+            span,
+        })),
         rule => unreachable!("{:?}", rule),
     };
     Ok(expr)
@@ -615,8 +613,7 @@ fn create_binary_expr<'src>(
 ) -> Result<Expr<'src>, Error> {
     match op {
         GrammarRule::DOT => Ok(FieldAccess(Box::new(BinaryExpr {
-            ty: Type::Unknown,
-            value: Value::Unknown,
+            type_hint: TypeHint::UnknownType,
             lhs,
             rhs,
         }))),
@@ -1461,8 +1458,7 @@ fn boolean_term_from_cst<'src>(
                 // The best way is using the anchor's span end.
                 span: boolean_term_span.into(),
                 identifier: Ident {
-                    ty: Type::Bool,
-                    value: Value::Unknown,
+                    type_hint: TypeHint::Bool(None),
                     span: ident.as_span().into(),
                     name: ident_name,
                 },
@@ -1573,8 +1569,7 @@ fn primary_expr_from_cst<'src>(
     let expr = match node.as_rule() {
         GrammarRule::ident => {
             let mut expr = Expr::Ident(Box::new(Ident {
-                ty: Type::Unknown,
-                value: Value::Unknown,
+                type_hint: TypeHint::UnknownType,
                 span: node.as_span().into(),
                 name: node.as_str(),
             }));
@@ -1589,12 +1584,10 @@ fn primary_expr_from_cst<'src>(
                 let node = children.next().unwrap();
 
                 expr = Expr::FieldAccess(Box::new(BinaryExpr {
-                    ty: Type::Unknown,
-                    value: Value::Unknown,
+                    type_hint: TypeHint::UnknownType,
                     lhs: expr,
                     rhs: Expr::Ident(Box::new(Ident {
-                        ty: Type::Unknown,
-                        value: Value::Unknown,
+                        type_hint: TypeHint::UnknownType,
                         span: node.as_span().into(),
                         name: node.as_str(),
                     })),
@@ -1937,8 +1930,7 @@ fn for_expr_from_cst<'src>(
             match node.as_rule() {
                 GrammarRule::ident => {
                     variables.push(Ident {
-                        ty: Type::Unknown,
-                        value: Value::Unknown,
+                        type_hint: TypeHint::UnknownType,
                         span: node.as_span().into(),
                         name: node.as_str(),
                     });
@@ -2187,8 +2179,7 @@ fn iterator_from_cst<'src>(
             Iterable::ExprTuple(expr_tuple_from_cst(ctx, node)?)
         }
         GrammarRule::ident => Iterable::Ident(Box::new(Ident {
-            ty: Type::Unknown,
-            value: Value::Unknown,
+            type_hint: TypeHint::UnknownType,
             span: node.as_span().into(),
             name: node.as_str(),
         })),

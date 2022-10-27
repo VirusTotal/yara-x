@@ -1,6 +1,6 @@
+use crate::parser::TypeHint;
 use crate::parser::*;
 use crate::Struct;
-use crate::Value;
 use ascii_tree::Tree::{Leaf, Node};
 
 /// Returns a representation of the namespace as an ASCII tree.
@@ -68,11 +68,11 @@ pub fn rule_ascii_tree(rule: &Rule, sym_tbl: &Struct) -> ascii_tree::Tree {
 /// Returns a representation of the expression as an ASCII tree.
 pub fn expr_ascii_tree(expr: &Expr, sym_tbl: &Struct) -> ascii_tree::Tree {
     let value = {
-        let (_, value) = expr.type_value();
-        if matches!(value, Value::Unknown) {
+        let type_hint = expr.type_hint();
+        if matches!(type_hint, TypeHint::UnknownType) {
             "".to_string()
         } else {
-            format!(" (value: {})", value)
+            format!(" : {}", type_hint)
         }
     };
     match expr {

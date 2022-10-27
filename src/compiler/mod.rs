@@ -9,16 +9,15 @@ use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
 
+use crate::parser::Error as ParserError;
 use crate::parser::{
     arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
-    comparison_op, minus_op, shift_op, string_op, OfItems, Span,
-};
-use crate::parser::{Error as ParserError, Range};
-use crate::parser::{
-    Expr, HasSpan, Iterable, MatchAnchor, Parser, Quantifier, SourceCode,
+    comparison_op, minus_op, shift_op, string_op, Expr, HasSpan, Iterable,
+    MatchAnchor, OfItems, Parser, Quantifier, Range, SourceCode, Span, Type,
+    TypeHint,
 };
 use crate::report::ReportBuilder;
-use crate::{Struct, Type, Value, Variable};
+use crate::{Struct, Value, Variable};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -33,17 +32,17 @@ macro_rules! check_expression {
         {
             use crate::compiler::errors::Error;
             let span = $expr.span();
-            let (ty, val) = expr_semantic_check($ctx, $expr)?;
-            if !matches!(ty, $( $pattern )|+) {
+            let type_hint = expr_semantic_check($ctx, $expr)?;
+            if !matches!(type_hint.ty(), $( $pattern )|+) {
                 return Err(Error::CompileError(CompileError::wrong_type(
                     $ctx.report_builder,
                     $ctx.src,
-                    ParserError::join_with_or(&[ $( $pattern.to_string() ),+ ], true),
-                    ty.to_string(),
+                    ParserError::join_with_or(&[ $( $pattern ),+ ], true),
+                    type_hint.ty().to_string(),
                     span,
                 )));
             }
-            Ok::<(Type, Value), Error>((ty, val))
+            Ok::<TypeHint, Error>(type_hint)
         }
     };
 }
@@ -135,45 +134,46 @@ macro_rules! check_operands {
         let span1 = $expr1.span();
         let span2 = $expr2.span();
 
-        let (ty1, value1) = check_expression!($ctx, $( $pattern )|+, $expr1)?;
-        let (ty2, value2) = check_expression!($ctx, $( $pattern )|+, $expr2)?;
+        let type_hint1 = check_expression!($ctx, $( $pattern )|+, $expr1)?;
+        let type_hint2 = check_expression!($ctx, $( $pattern )|+, $expr2)?;
 
         // Both types must be known.
-        assert!(!matches!(ty1, Type::Unknown));
-        assert!(!matches!(ty2, Type::Unknown));
+        assert!(!matches!(type_hint1, TypeHint::UnknownType));
+        assert!(!matches!(type_hint2, TypeHint::UnknownType));
 
-        let mismatching_types = match ty1 {
+        let mismatching_types = match type_hint1 {
             // Float and Integer are compatible types, operators can
             // have different operand types where one is Integer and
             // the other is Float.
-            Type::Integer | Type::Float => {
-                !matches!(ty2, Type::Integer | Type::Float)
+            TypeHint::Integer(_) | TypeHint::Float(_) => {
+                !matches!(type_hint1, TypeHint::Integer(_) | TypeHint::Float(_))
             }
             // In all other cases types must be equal to be considered
-            // compatible.
-            _ => ty1 != ty2,
+            // compatible. In this comparison the optional values in the
+            // hint are not taken into account.
+            _ => type_hint1.ty() != type_hint2.ty(),
         };
 
         if mismatching_types {
             return Err(Error::CompileError(CompileError::mismatching_types(
                 $ctx.report_builder,
                 $ctx.src,
-                ty1.to_string(),
-                ty2.to_string(),
+                type_hint1.ty().to_string(),
+                type_hint2.ty().to_string(),
                 span1,
                 span2,
             )));
         }
 
-        Ok::<_, Error>(((ty1, value1), (ty2, value2)))
+        Ok::<_, Error>((type_hint1, type_hint2))
     }};
 }
 
 macro_rules! check_non_negative_integer {
     ($ctx:ident, $expr:expr) => {{
         let span = $expr.span();
-        let (ty, value) = check_expression!($ctx, Type::Integer, $expr)?;
-        if let Value::Integer(value) = value {
+        let type_hint = check_expression!($ctx, Type::Integer, $expr)?;
+        if let TypeHint::Integer(Some(value)) = type_hint {
             if value < 0 {
                 return Err(Error::CompileError(
                     CompileError::unexpected_negative_number(
@@ -186,15 +186,15 @@ macro_rules! check_non_negative_integer {
         } else {
             unreachable!();
         };
-        Ok::<_, Error>((ty, value))
+        Ok::<_, Error>(type_hint)
     }};
 }
 
 macro_rules! check_integer_in_range {
     ($ctx:ident, $expr:expr, $min:expr, $max:expr) => {{
         let span = $expr.span();
-        let (ty, value) = check_expression!($ctx, Type::Integer, $expr)?;
-        if let Value::Integer(value) = value {
+        let type_hint = check_expression!($ctx, Type::Integer, $expr)?;
+        if let TypeHint::Integer(Some(value)) = type_hint {
             if !($min..=$max).contains(&value) {
                 return Err(Error::CompileError(
                     CompileError::number_out_of_range(
@@ -209,47 +209,47 @@ macro_rules! check_integer_in_range {
         } else {
             unreachable!();
         };
-        Ok::<_, Error>((ty, value))
+        Ok::<_, Error>(type_hint)
     }};
 }
 
 macro_rules! check_boolean_op {
     ($ctx:ident, $expr:expr, $op:tt) => {{
-        let ((_, lhs_value), (_, rhs_value)) =
+        let (lhs, rhs) =
             check_operands!($ctx, Type::Bool, &mut $expr.lhs, &mut $expr.rhs)?;
 
-        ($expr.ty, $expr.value) = boolean_op!(lhs_value, $op, rhs_value);
+        $expr.type_hint = boolean_op!(lhs, $op, rhs);
 
-        Ok(($expr.ty.clone(), $expr.value.clone()))
+        Ok($expr.type_hint.clone())
     }};
 }
 
 macro_rules! check_comparison_op {
     ($ctx:ident, $expr:expr, $op:tt) => {{
-        let ((_, lhs_value), (_, rhs_value)) = check_operands!(
+        let (lhs, rhs) = check_operands!(
             $ctx,
             Type::Integer | Type::Float | Type::String,
             &mut $expr.lhs,
             &mut $expr.rhs
         )?;
 
-        ($expr.ty, $expr.value) = comparison_op!(lhs_value, $op, rhs_value);
+        $expr.type_hint = comparison_op!(lhs, $op, rhs);
 
-        Ok(($expr.ty.clone(), $expr.value.clone()))
+        Ok($expr.type_hint.clone())
     }};
 }
 
 macro_rules! check_shift_op {
     ($ctx:ident, $expr:expr, $op:ident) => {{
         let span = $expr.rhs.span();
-        let ((_, lhs_value), (_, rhs_value)) = check_operands!(
+        let (lhs, rhs) = check_operands!(
             $ctx,
             Type::Integer,
             &mut $expr.lhs,
             &mut $expr.rhs
         )?;
 
-        if let Value::Integer(value) = rhs_value {
+        if let TypeHint::Integer(Some(value)) = rhs {
             if value < 0 {
                 return Err(Error::CompileError(
                     CompileError::unexpected_negative_number(
@@ -263,56 +263,54 @@ macro_rules! check_shift_op {
             unreachable!();
         };
 
-        ($expr.ty, $expr.value) = shift_op!(lhs_value, $op, rhs_value);
+        $expr.type_hint = shift_op!(lhs, $op, rhs);
 
-        Ok(($expr.ty.clone(), $expr.value.clone()))
+        Ok($expr.type_hint.clone())
     }};
 }
 
 macro_rules! check_bitwise_op {
     ($ctx:ident, $expr:expr, $op:ident) => {{
-        let ((_, lhs_value), (_, rhs_value)) = check_operands!(
+        let (lhs, rhs) = check_operands!(
             $ctx,
             Type::Integer,
             &mut $expr.lhs,
             &mut $expr.rhs
         )?;
 
-        ($expr.ty, $expr.value) = bitwise_op!(lhs_value, $op, rhs_value);
+        $expr.type_hint = bitwise_op!(lhs, $op, rhs);
 
-        Ok(($expr.ty.clone(), $expr.value.clone()))
+        Ok($expr.type_hint.clone())
     }};
 }
 
 macro_rules! check_arithmetic_op {
     ($ctx:ident, $expr:expr, $op:tt, $checked_op:ident) => {{
-        let ((_, lhs_value), (_, rhs_value)) = check_operands!(
+        let (lhs, rhs) = check_operands!(
             $ctx,
             Type::Integer | Type::Float,
             &mut $expr.lhs,
             &mut $expr.rhs
         )?;
 
-        ($expr.ty, $expr.value) =
-            arithmetic_op!(lhs_value, $op, $checked_op, rhs_value);
+        $expr.type_hint = arithmetic_op!(lhs, $op, $checked_op, rhs);
 
-        Ok(($expr.ty.clone(), $expr.value.clone()))
+        Ok($expr.type_hint.clone())
     }};
 }
 
 macro_rules! check_string_op {
     ($ctx:ident, $expr:expr, $op:ident, $case_insensitive:expr) => {{
-        let ((_, lhs_value), (_, rhs_value)) = check_operands!(
+        let (lhs, rhs) = check_operands!(
             $ctx,
             Type::String,
             &mut $expr.lhs,
             &mut $expr.rhs
         )?;
 
-        ($expr.ty, $expr.value) =
-            string_op!(lhs_value, $op, rhs_value, $case_insensitive);
+        $expr.type_hint = string_op!(lhs, $op, rhs, $case_insensitive);
 
-        Ok(($expr.ty.clone(), $expr.value.clone()))
+        Ok($expr.type_hint.clone())
     }};
 }
 
@@ -340,18 +338,17 @@ struct Context<'a> {
 ///   than lower bound.
 /// * All identifiers have been previously defined.
 ///
-/// It also updates type and value annotations for the expression and
-/// its sub-expressions in the AST. The AST returned by the parser may
-/// have type and value information for some expressions that depend only
-/// on literals, but that information is unknown for expressions that
-/// depend on external variables and identifiers defined by modules.
-/// However, at compile time we have a symbol table that contains type
-/// information for all identifiers, so the AST can be updated with the
-/// missing information.
+/// It also updates type hints for the expression and its sub-expressions
+/// in the AST. The AST returned by the parser may have type and value
+/// information for some expressions that depend only on literals, but that
+/// information is unknown for expressions that depend on external variables
+/// and identifiers defined by modules. However, at compile time we have a
+/// symbol table that contains type information for all identifiers, so the
+/// AST can be updated with the missing information.
 fn expr_semantic_check<'a>(
     ctx: &mut Context<'a>,
     expr: &'a mut Expr<'a>,
-) -> Result<(Type, Value<'a>), Error> {
+) -> Result<TypeHint, Error> {
     match expr {
         Expr::True { .. }
         | Expr::False { .. }
@@ -359,13 +356,13 @@ fn expr_semantic_check<'a>(
         | Expr::Entrypoint { .. }
         | Expr::LiteralFlt(_)
         | Expr::LiteralInt(_)
-        | Expr::LiteralStr(_) => Ok(expr.type_value()),
+        | Expr::LiteralStr(_) => Ok(expr.type_hint()),
 
         Expr::PatternCount(p) => {
             if let Some(ref mut range) = p.range {
                 range_semantic_check(ctx, range)?;
             }
-            Ok((Type::Integer, Value::Unknown))
+            Ok(TypeHint::Integer(None))
         }
 
         Expr::PatternOffset(p) | Expr::PatternLength(p) => {
@@ -374,7 +371,7 @@ fn expr_semantic_check<'a>(
             if let Some(ref mut index) = p.index {
                 check_integer_in_range!(ctx, index, 1, i64::MAX)?;
             }
-            Ok((Type::Integer, Value::Unknown))
+            Ok(TypeHint::Integer(None))
         }
 
         Expr::PatternMatch(p) => {
@@ -387,16 +384,16 @@ fn expr_semantic_check<'a>(
                 }
                 None => {}
             }
-            Ok((Type::Bool, Value::Unknown))
+            Ok(TypeHint::Bool(None))
         }
 
         Expr::Not(expr) => {
-            let (_, value) =
+            let type_hint =
                 check_expression!(ctx, Type::Bool, &mut expr.operand)?;
 
-            (expr.ty, expr.value) = boolean_not!(value);
+            expr.type_hint = boolean_not!(type_hint);
 
-            Ok((expr.ty.clone(), expr.value.clone()))
+            Ok(expr.type_hint.clone())
         }
 
         Expr::And(expr) => {
@@ -440,12 +437,12 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::BitwiseNot(expr) => {
-            let (_, value) =
+            let type_hint =
                 check_expression!(ctx, Type::Integer, &mut expr.operand)?;
 
-            (expr.ty, expr.value) = bitwise_not!(value);
+            expr.type_hint = bitwise_not!(type_hint);
 
-            Ok((expr.ty.clone(), expr.value.clone()))
+            Ok(expr.type_hint.clone())
         }
 
         Expr::BitwiseAnd(expr) => {
@@ -461,15 +458,15 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Minus(expr) => {
-            let (ty, value) = check_expression!(
+            let type_hint = check_expression!(
                 ctx,
                 Type::Integer | Type::Float,
                 &mut expr.operand
             )?;
 
-            (expr.ty, expr.value) = minus_op!(value);
+            expr.type_hint = minus_op!(type_hint);
 
-            Ok((expr.ty.clone(), expr.value.clone()))
+            Ok(expr.type_hint.clone())
         }
 
         Expr::Add(expr) => {
@@ -521,9 +518,9 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Ident(ident) => {
-            (ident.ty, ident.value) =
+            ident.type_hint =
                 if let Some(var) = ctx.sym_tbl.get_field(ident.name) {
-                    (var.ty.clone(), var.value.clone())
+                    todo!()
                 } else {
                     return Err(Error::CompileError(
                         CompileError::unknown_identifier(
@@ -535,7 +532,7 @@ fn expr_semantic_check<'a>(
                     ));
                 };
 
-            Ok((ident.ty.clone(), ident.value.clone()))
+            Ok(ident.type_hint.clone())
         }
 
         Expr::LookupIndex(_) => {
@@ -543,24 +540,24 @@ fn expr_semantic_check<'a>(
         }
         Expr::FieldAccess(expr) => {
             // The left side must be a struct.
-            let (_, value) =
+            let type_hint =
                 check_expression!(ctx, Type::Struct, &mut expr.lhs)?;
 
             // Save the current symbol table
-            let saved_sym_tbl = ctx.sym_tbl;
+            //let saved_sym_tbl = ctx.sym_tbl;
 
             // Set the symbol table obtained from the struct as the current one.
-            ctx.sym_tbl = value.as_struct();
+            //ctx.sym_tbl = value.as_struct();
 
             // Now check the right hand expression. During the call to
             // expr_semantic_check the current symbol table is the one
             // corresponding to the struct.
-            (expr.ty, expr.value) = expr_semantic_check(ctx, &mut expr.rhs)?;
+            expr.type_hint = expr_semantic_check(ctx, &mut expr.rhs)?;
 
             // Go back to the original symbol table.
-            ctx.sym_tbl = saved_sym_tbl;
+            //ctx.sym_tbl = saved_sym_tbl;
 
-            Ok((expr.ty.clone(), expr.value.clone()))
+            Ok(expr.type_hint.clone())
         }
 
         Expr::FnCall(_) => {
@@ -585,13 +582,13 @@ fn expr_semantic_check<'a>(
                 }
                 None => {}
             }
-            Ok((Type::Bool, Value::Unknown))
+            Ok(TypeHint::Bool(None))
         }
 
         Expr::ForOf(for_of) => {
             quantifier_semantic_check(ctx, &mut for_of.quantifier)?;
             check_expression!(ctx, Type::Bool, &mut for_of.condition)?;
-            Ok((Type::Bool, Value::Unknown))
+            Ok(TypeHint::Bool(None))
         }
 
         Expr::ForIn(for_in) => {
@@ -609,7 +606,7 @@ fn expr_semantic_check<'a>(
             }*/
 
             check_expression!(ctx, Type::Bool, &mut for_in.condition)?;
-            Ok((Type::Bool, Value::Unknown))
+            Ok(TypeHint::Bool(None))
         }
     }
 }
@@ -626,7 +623,7 @@ fn range_semantic_check<'a>(
 fn quantifier_semantic_check<'a>(
     ctx: &mut Context<'a>,
     quantifier: &'a mut Quantifier<'a>,
-) -> Result<Type, Error> {
+) -> Result<TypeHint, Error> {
     match quantifier {
         Quantifier::Expr(expr) => {
             check_non_negative_integer!(ctx, expr)?;
@@ -637,30 +634,32 @@ fn quantifier_semantic_check<'a>(
         }
         _ => {}
     };
-    Ok(Type::Integer)
+    Ok(TypeHint::Integer(None))
 }
 
 fn iterable_semantic_check<'a>(
     ctx: &mut Context<'a>,
     iterable: &'a mut Iterable<'a>,
-) -> Result<Type, Error> {
+) -> Result<TypeHint, Error> {
     match iterable {
         Iterable::Range(range) => {
             range_semantic_check(ctx, range)?;
-            Ok(Type::Integer)
+            Ok(TypeHint::Integer(None))
         }
         Iterable::ExprTuple(tuple) => {
-            let mut prev: Option<(Type, Span)> = None;
+            let mut prev: Option<(TypeHint, Span)> = None;
             // Make sure that all expressions in the tuple have the same
             // type and that type is acceptable.
             for expr in tuple.iter_mut() {
                 let span = expr.span();
-                let (ty, _) = check_expression!(
+                let type_hint = check_expression!(
                     ctx,
                     Type::Integer | Type::Float | Type::String | Type::Bool,
                     expr
                 )?;
-                if let Some((prev_ty, prev_span)) = prev {
+                if let Some((prev_type_hint, prev_span)) = prev {
+                    let prev_ty = prev_type_hint.ty();
+                    let ty = type_hint.ty();
                     if prev_ty != ty {
                         return Err(Error::CompileError(
                             CompileError::mismatching_types(
@@ -674,12 +673,12 @@ fn iterable_semantic_check<'a>(
                         ));
                     }
                 }
-                prev = Some((ty, span));
+                prev = Some((type_hint, span));
             }
 
             // Get the type of the last item in the tuple.
-            let (ty, _) = prev.unwrap();
-            Ok(ty)
+            let (type_hint, _) = prev.unwrap();
+            Ok(type_hint)
         }
         Iterable::Ident(_) => {
             todo!()

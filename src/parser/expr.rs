@@ -1,7 +1,8 @@
 use crate::parser::span::*;
 use crate::parser::CSTNode;
-use crate::{Type, Value};
-use bstr::{BString, ByteSlice};
+use crate::Value;
+use bstr::BString;
+use std::fmt::{Display, Formatter};
 use yara_derive::*;
 
 /// An expression in the AST.
@@ -194,8 +195,7 @@ pub struct In<'src> {
 /// An identifier (e.g. `some_ident`).
 #[derive(Debug, Clone, HasSpan)]
 pub struct Ident<'src> {
-    pub(crate) ty: Type,
-    pub(crate) value: Value<'src>,
+    pub(crate) type_hint: TypeHint,
     pub(crate) span: Span,
     pub name: &'src str,
 }
@@ -204,8 +204,7 @@ pub struct Ident<'src> {
 impl<'src> From<CSTNode<'src>> for Ident<'src> {
     fn from(node: CSTNode<'src>) -> Self {
         Self {
-            ty: Type::Unknown,
-            value: Value::Unknown,
+            type_hint: TypeHint::UnknownType,
             span: node.as_span().into(),
             name: node.as_str(),
         }
@@ -263,17 +262,15 @@ pub struct LiteralStr<'src> {
 /// An expression with a single operand.
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
-    pub(crate) ty: Type,
-    pub(crate) value: Value<'src>,
     pub(crate) span: Span,
+    pub(crate) type_hint: TypeHint,
     pub operand: Expr<'src>,
 }
 
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
-    pub(crate) ty: Type,
-    pub(crate) value: Value<'src>,
+    pub(crate) type_hint: TypeHint,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
@@ -376,55 +373,140 @@ pub struct PatternSetItem<'src> {
     pub identifier: &'src str,
 }
 
-impl<'src> PatternSet<'src> {}
+/// A type hint indicates the type, and possibly the value of some expression
+/// in the AST.
+///
+/// The parser is able to determine the type, and even the value of some
+/// expressions that depend only on literals. For example, expressions like
+/// `2`, `false`, or `"foobar"` are literals, and therefore their types and
+/// value are known at parse time. With more complex expressions like `2+2` or
+/// `false or not true` this is also possible, and the corresponding
+/// expressions will be annotated with `Integer(Some(4))` and
+/// `Bool(Some(false))`, respectively.
+///
+/// In other cases the type can be determined, but not the value. For example
+/// `$a or $b` is of type boolean but its value is not known at parse time,
+/// so it will be annotated with `Bool(None)`.
+///
+/// When the type is not known, the hint will be `UnknownType`.
+#[derive(Debug, Clone)]
+pub enum TypeHint {
+    UnknownType,
+    Bool(Option<bool>),
+    Integer(Option<i64>),
+    Float(Option<f32>),
+    String(Option<BString>),
+    Struct,
+}
+
+impl TypeHint {
+    /// Returns the type associated to a  [`TypeHint`]
+    ///
+    /// This is useful when we are interested only on the type and not the
+    /// value.
+    pub fn ty(&self) -> Type {
+        match &self {
+            TypeHint::UnknownType => Type::Unknown,
+            TypeHint::Bool(_) => Type::Bool,
+            TypeHint::Integer(_) => Type::Integer,
+            TypeHint::Float(_) => Type::Float,
+            TypeHint::String(_) => Type::String,
+            TypeHint::Struct => Type::Struct,
+        }
+    }
+}
+
+/// Types returned by [`TypeHint::ty`].
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Type {
+    Unknown,
+    Bool,
+    Integer,
+    Float,
+    String,
+    Struct,
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unknown => write!(f, "unknown"),
+            Self::Bool => write!(f, "boolean"),
+            Self::Integer => write!(f, "integer"),
+            Self::Float => write!(f, "float"),
+            Self::String => write!(f, "string"),
+            Self::Struct => write!(f, "struct"),
+        }
+    }
+}
+
+impl Display for TypeHint {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnknownType => write!(f, "unknown"),
+            Self::Bool(value) => {
+                if let Some(value) = value {
+                    write!(f, "boolean({})", value)
+                } else {
+                    write!(f, "boolean(unknown)")
+                }
+            }
+            Self::Integer(value) => {
+                if let Some(value) = value {
+                    write!(f, "integer({})", value)
+                } else {
+                    write!(f, "integer(unknown)")
+                }
+            }
+            Self::Float(value) => {
+                if let Some(value) = value {
+                    write!(f, "float({:.1})", value)
+                } else {
+                    write!(f, "float(unknown)")
+                }
+            }
+            Self::String(value) => {
+                if let Some(value) = value {
+                    write!(f, "string({})", value)
+                } else {
+                    write!(f, "string(unknown)")
+                }
+            }
+            Self::Struct => write!(f, "struct"),
+        }
+    }
+}
 
 impl<'src> Expr<'src> {
-    /// Returns the type and value of an expression if known.
-    ///
-    /// The type and value of an expression may be known at parse time if it
-    /// depends on literals, for example the expression `2+2` is known to be
-    /// an integer and its value is `4`; `true or false or not true` is known
-    /// to be boolean with value `true`.
-    ///
-    /// In some other cases the type is known by the value is not, for example
-    /// in the expression `$a and $b`, the type is boolean, but the value is
-    /// unknown because it depends on whether the patterns are matched or not.
-    ///
-    /// When the expression contains identifiers, either external or provided
-    /// by some module, the type of the identifier is not known until compile
-    /// time, when all identifiers must be defined.
-    ///
-    pub fn type_value(&self) -> (Type, Value) {
+    pub fn type_hint(&self) -> TypeHint {
         match self {
-            Expr::True { .. } => (Type::Bool, Value::Bool(true)),
-            Expr::False { .. } => (Type::Bool, Value::Bool(false)),
+            Expr::True { .. } => TypeHint::Bool(Some(true)),
+            Expr::False { .. } => TypeHint::Bool(Some(false)),
 
             Expr::Filesize { .. } | Expr::Entrypoint { .. } => {
-                (Type::Integer, Value::Unknown)
+                TypeHint::Integer(None)
             }
 
-            Expr::LiteralInt(i) => (Type::Integer, Value::Integer(i.value)),
-            Expr::LiteralFlt(f) => (Type::Float, Value::Float(f.value)),
-            Expr::LiteralStr(s) => {
-                (Type::String, Value::String(s.value.clone()))
-            }
+            Expr::LiteralInt(i) => TypeHint::Integer(Some(i.value)),
+            Expr::LiteralFlt(f) => TypeHint::Float(Some(f.value)),
+            Expr::LiteralStr(s) => TypeHint::String(Some(s.value.clone())),
 
             Expr::PatternMatch(_)
             | Expr::LookupIndex(_)
             | Expr::FnCall(_)
             | Expr::Of(_)
             | Expr::ForOf(_)
-            | Expr::ForIn(_) => (Type::Bool, Value::Unknown),
+            | Expr::ForIn(_) => TypeHint::Bool(None),
 
             Expr::PatternCount(_)
             | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => (Type::Integer, Value::Unknown),
+            | Expr::PatternLength(_) => TypeHint::Integer(None),
 
             Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
-                (expr.ty.clone(), expr.value.clone())
+                expr.type_hint.clone()
             }
 
-            Expr::Ident(ident) => (ident.ty.clone(), ident.value.clone()),
+            Expr::Ident(ident) => ident.type_hint.clone(),
 
             Expr::FieldAccess(expr)
             | Expr::And(expr)
@@ -451,7 +533,7 @@ impl<'src> Expr<'src> {
             | Expr::Shr(expr)
             | Expr::BitwiseAnd(expr)
             | Expr::BitwiseOr(expr)
-            | Expr::BitwiseXor(expr) => (expr.ty.clone(), expr.value.clone()),
+            | Expr::BitwiseXor(expr) => expr.type_hint.clone(),
         }
     }
 }

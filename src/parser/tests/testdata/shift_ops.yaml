@@ -10,14 +10,14 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and (value: true)
-                ├─ eq (value: true)
-                │  ├─ shr (value: 1)
+             └─ and : boolean(true)
+                ├─ eq : boolean(true)
+                │  ├─ shr : integer(1)
                 │  │  ├─ 2
                 │  │  └─ 1
                 │  └─ 1
-                └─ eq (value: true)
-                   ├─ shl (value: 4)
+                └─ eq : boolean(true)
+                   ├─ shl : integer(4)
                    │  ├─ 1
                    │  └─ 2
                    └─ 4
@@ -34,14 +34,14 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and (value: true)
-                ├─ eq (value: true)
-                │  ├─ shl (value: -2)
+             └─ and : boolean(true)
+                ├─ eq : boolean(true)
+                │  ├─ shl : integer(-2)
                 │  │  ├─ -1
                 │  │  └─ 1
                 │  └─ -2
-                └─ eq (value: true)
-                   ├─ shr (value: -1)
+                └─ eq : boolean(true)
+                   ├─ shr : integer(-1)
                    │  ├─ -1
                    │  └─ 1
                    └─ -1
@@ -64,26 +64,26 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and (value: true)
-                ├─ and (value: true)
-                │  ├─ and (value: true)
-                │  │  ├─ eq (value: true)
-                │  │  │  ├─ shr (value: 0)
+             └─ and : boolean(true)
+                ├─ and : boolean(true)
+                │  ├─ and : boolean(true)
+                │  │  ├─ eq : boolean(true)
+                │  │  │  ├─ shr : integer(0)
                 │  │  │  │  ├─ 1
                 │  │  │  │  └─ 65
                 │  │  │  └─ 0
-                │  │  └─ eq (value: true)
-                │  │     ├─ shl (value: 0)
+                │  │  └─ eq : boolean(true)
+                │  │     ├─ shl : integer(0)
                 │  │     │  ├─ 1
                 │  │     │  └─ 65
                 │  │     └─ 0
-                │  └─ eq (value: true)
-                │     ├─ shr (value: 0)
+                │  └─ eq : boolean(true)
+                │     ├─ shr : integer(0)
                 │     │  ├─ 1
                 │     │  └─ 0x1FFFFFFFF
                 │     └─ 0
-                └─ eq (value: true)
-                   ├─ shr (value: 0)
+                └─ eq : boolean(true)
+                   ├─ shr : integer(0)
                    │  ├─ 1
                    │  └─ 0x1FFFFFFFF
                    └─ 0

@@ -10,6 +10,8 @@ pub mod parser;
 mod ascii_tree;
 mod report;
 
+use parser::Type;
+
 /// Stores information about variables and constants defined or
 /// used in YARA rules.
 ///
@@ -116,71 +118,3 @@ pub struct Variable<'a> {
     ty: Type,
     value: Value<'a>,
 }
-
-/// All the different types of expressions that can be found in YARA.
-///
-/// For example, the kind for expression `2+2` is `Integer`, for `2.0 / 2` is
-/// `Float` and for `true or false` is `Bool`.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Type {
-    Unknown,
-    Bool,
-    Integer,
-    Float,
-    String,
-    Struct,
-    Array(Box<Type>),
-}
-
-impl Display for Type {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Unknown => write!(f, "unknown"),
-            Self::Bool => write!(f, "boolean"),
-            Self::Integer => write!(f, "integer"),
-            Self::Float => write!(f, "float"),
-            Self::String => write!(f, "string"),
-            Self::Struct => write!(f, "struct"),
-            Self::Array(item_type) => write!(f, "array({})", item_type),
-        }
-    }
-}
-
-pub struct StructID(usize);
-
-pub struct SymbolTable<'a> {
-    structs: Vec<Struct2<'a>>,
-}
-
-impl<'a> SymbolTable<'a> {
-    pub fn new() -> Self {
-        let root = Struct2::new();
-        Self { structs: vec![root] }
-    }
-
-    pub fn insert(&mut self, ident: &'a str, type_value: TypeValue) -> bool {
-        self.structs[0].insert(ident, type_value)
-    }
-}
-
-pub struct Struct2<'a> {
-    fields: HashMap<&'a str, TypeValue>,
-}
-
-impl<'a> Struct2<'a> {
-    pub fn new() -> Self {
-        Self { fields: HashMap::new() }
-    }
-
-    pub fn insert(&mut self, ident: &'a str, type_value: TypeValue) -> bool {
-        self.fields.insert(ident, type_value).is_none()
-    }
-}
-
-pub enum TypeValue {
-    Unknown,
-    Bool(Option<bool>),
-    Struct(StructID),
-}
-
-impl TypeValue {}

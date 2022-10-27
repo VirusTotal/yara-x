@@ -10,19 +10,19 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq (value: true)
-                ├─ add (value: 6.0)
+             └─ eq : boolean(true)
+                ├─ add : float(6.0)
                 │  ├─ 1
-                │  └─ mul (value: 5.0)
-                │     ├─ mul (value: -5.0)
+                │  └─ mul : float(5.0)
+                │     ├─ mul : float(-5.0)
                 │     │  ├─ 2.5
                 │     │  └─ -2
                 │     └─ -1.0
-                └─ add (value: 6.0)
-                   ├─ div (value: 5.0)
+                └─ add : float(6.0)
+                   ├─ div : float(5.0)
                    │  ├─ 10.0
                    │  └─ 2
-                   └─ minus (value: 1)
+                   └─ minus : integer(1)
                       └─ -1
 
 ###############################################################################
@@ -37,19 +37,19 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq (value: false)
-                ├─ mul (value: 7.0)
-                │  ├─ mul (value: -7.0)
-                │  │  ├─ add (value: 3.5)
+             └─ eq : boolean(false)
+                ├─ mul : float(7.0)
+                │  ├─ mul : float(-7.0)
+                │  │  ├─ add : float(3.5)
                 │  │  │  ├─ 1
                 │  │  │  └─ 2.5
                 │  │  └─ -2
                 │  └─ -1.0
-                └─ div (value: 3.3)
+                └─ div : float(3.3)
                    ├─ 10.0
-                   └─ add (value: 3)
+                   └─ add : integer(3)
                       ├─ 2
-                      └─ minus (value: 1)
+                      └─ minus : integer(1)
                          └─ -1
 
 ###############################################################################
@@ -64,11 +64,11 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq (value: true)
-                ├─ div (value: 2)
+             └─ eq : boolean(true)
+                ├─ div : integer(2)
                 │  ├─ 5
                 │  └─ 2
-                └─ mod (value: 2)
+                └─ mod : integer(2)
                    ├─ 8
                    └─ 3
 
@@ -109,11 +109,11 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq (value: false)
-                ├─ div (value: inf)
+             └─ eq : boolean(false)
+                ├─ div : float(inf)
                 │  ├─ 5.0
                 │  └─ 0
-                └─ mod (value: NaN)
+                └─ mod : float(NaN)
                    ├─ 10
                    └─ 0.0
 

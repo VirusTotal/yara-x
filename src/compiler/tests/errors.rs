@@ -465,18 +465,18 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
-        (
-            line!(),
-            r#"
-rule test {
-  condition:
-    for any n in (1, 2, 3) : (
-      n == "3"
-    )
-}
-        "#,
-            r#""#,
-        ),
+        /*(
+                    line!(),
+                    r#"
+        rule test {
+          condition:
+            for any n in (1, 2, 3) : (
+              n == "3"
+            )
+        }
+                "#,
+                    r#""#,
+                ),*/
     ];
 
     for t in tests {

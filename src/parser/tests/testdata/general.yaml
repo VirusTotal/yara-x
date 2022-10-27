@@ -29,11 +29,11 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and (value: true)
-                ├─ or (value: true)
+             └─ and : boolean(true)
+                ├─ or : boolean(true)
                 │  ├─ true
                 │  └─ false
-                └─ not (value: true)
+                └─ not : boolean(true)
                    └─ false
 
 ###############################################################################
@@ -72,7 +72,7 @@
           └─ condition
              └─ $a at <expr>
                 └─ <expr>
-                   └─ add (value: 300)
+                   └─ add : integer(300)
                       ├─ 100
                       └─ 200
 
@@ -95,7 +95,7 @@
              └─ eq
                 ├─ #a in <range>
                 │  └─ <range>
-                │     ├─ add (value: 200)
+                │     ├─ add : integer(200)
                 │     │  ├─ 100
                 │     │  └─ 100
                 │     └─ 400
@@ -137,7 +137,7 @@
           └─ condition
              └─ eq
                 ├─ entrypoint
-                └─ add (value: 3000)
+                └─ add : integer(3000)
                    ├─ 1000
                    └─ 2000
 
@@ -153,23 +153,23 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and (value: true)
-                ├─ and (value: true)
-                │  ├─ and (value: true)
-                │  │  ├─ and (value: true)
-                │  │  │  ├─ gt (value: true)
+             └─ and : boolean(true)
+                ├─ and : boolean(true)
+                │  ├─ and : boolean(true)
+                │  │  ├─ and : boolean(true)
+                │  │  │  ├─ gt : boolean(true)
                 │  │  │  │  ├─ 2
                 │  │  │  │  └─ 1
-                │  │  │  └─ lt (value: true)
+                │  │  │  └─ lt : boolean(true)
                 │  │  │     ├─ 1.0
                 │  │  │     └─ 3
-                │  │  └─ le (value: true)
+                │  │  └─ le : boolean(true)
                 │  │     ├─ 4
                 │  │     └─ 4.0
-                │  └─ gt (value: true)
+                │  └─ gt : boolean(true)
                 │     ├─ 5
                 │     └─ 4.9
-                └─ ge (value: true)
+                └─ ge : boolean(true)
                    ├─ 5
                    └─ 5.0
 
