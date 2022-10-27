@@ -373,16 +373,15 @@ pub struct PatternSetItem<'src> {
     pub identifier: &'src str,
 }
 
-/// A type hint indicates the type, and possibly the value of some expression
+/// A type hint indicates the type, and possibly the value, of some expression
 /// in the AST.
 ///
-/// The parser is able to determine the type, and even the value of some
-/// expressions that depend only on literals. For example, expressions like
-/// `2`, `false`, or `"foobar"` are literals, and therefore their types and
-/// value are known at parse time. With more complex expressions like `2+2` or
-/// `false or not true` this is also possible, and the corresponding
-/// expressions will be annotated with `Integer(Some(4))` and
-/// `Bool(Some(false))`, respectively.
+/// The parser is able to determine the type and value of expressions that
+/// depend only on literals. For example, expressions like `2`, `false`, or
+/// `"foobar"` are literals, and therefore their types and value are known at
+/// parse time. With more complex expressions like `2+2` or `false or not true`
+/// this is also possible, and the corresponding expressions will be annotated
+/// with hints `Integer(Some(4))` and `Bool(Some(false))`, respectively.
 ///
 /// In other cases the type can be determined, but not the value. For example
 /// `$a or $b` is of type boolean but its value is not known at parse time,
