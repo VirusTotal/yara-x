@@ -145,3 +145,42 @@ impl Display for Type {
         }
     }
 }
+
+pub struct StructID(usize);
+
+pub struct SymbolTable<'a> {
+    structs: Vec<Struct2<'a>>,
+}
+
+impl<'a> SymbolTable<'a> {
+    pub fn new() -> Self {
+        let root = Struct2::new();
+        Self { structs: vec![root] }
+    }
+
+    pub fn insert(&mut self, ident: &'a str, type_value: TypeValue) -> bool {
+        self.structs[0].insert(ident, type_value)
+    }
+}
+
+pub struct Struct2<'a> {
+    fields: HashMap<&'a str, TypeValue>,
+}
+
+impl<'a> Struct2<'a> {
+    pub fn new() -> Self {
+        Self { fields: HashMap::new() }
+    }
+
+    pub fn insert(&mut self, ident: &'a str, type_value: TypeValue) -> bool {
+        self.fields.insert(ident, type_value).is_none()
+    }
+}
+
+pub enum TypeValue {
+    Unknown,
+    Bool(Option<bool>),
+    Struct(StructID),
+}
+
+impl TypeValue {}

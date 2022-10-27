@@ -351,7 +351,7 @@ pub struct Regexp<'src> {
 }
 
 macro_rules! boolean_op {
-    ($lhs:ident, $op:tt, $rhs:ident) => {{
+    ($lhs:expr, $op:tt, $rhs:expr) => {{
         use crate::Type;
         use crate::Value::*;
         let value = match ($lhs, $rhs) {
@@ -366,7 +366,7 @@ macro_rules! boolean_op {
 pub(crate) use boolean_op;
 
 macro_rules! comparison_op {
-    ($lhs:ident, $op:tt, $rhs:ident) => {{
+    ($lhs:expr, $op:tt, $rhs:expr) => {{
         use crate::Type;
         use crate::Value::*;
         let value = match ($lhs, $rhs) {
@@ -383,7 +383,7 @@ macro_rules! comparison_op {
 pub(crate) use comparison_op;
 
 macro_rules! shift_op {
-    ($lhs:ident, $op:tt, $rhs:ident) => {{
+    ($lhs:expr, $op:tt, $rhs:expr) => {{
         use crate::Type;
         use crate::Value::*;
         let value = match ($lhs, $rhs) {
@@ -416,7 +416,7 @@ macro_rules! shift_op {
 pub(crate) use shift_op;
 
 macro_rules! bitwise_op {
-    ($lhs:ident, $op:tt, $rhs:ident) => {{
+    ($lhs:expr, $op:tt, $rhs:expr) => {{
         use crate::Type;
         use crate::Value::*;
 
@@ -431,7 +431,7 @@ macro_rules! bitwise_op {
 pub(crate) use bitwise_op;
 
 macro_rules! arithmetic_op {
-    ($lhs:ident, $op:tt, $checked_op:ident, $rhs:ident) => {{
+    ($lhs:expr, $op:tt, $checked_op:ident, $rhs:expr) => {{
         use crate::Type;
         use crate::Value::*;
         match ($lhs, $rhs) {
@@ -463,7 +463,7 @@ macro_rules! arithmetic_op {
 pub(crate) use arithmetic_op;
 
 macro_rules! minus_op {
-    ($operand:ident) => {{
+    ($operand:expr) => {{
         match $operand {
             Value::Integer(i) => (Type::Integer, Value::Integer(-i)),
             Value::Float(i) => (Type::Float, Value::Float(-i)),
@@ -474,7 +474,7 @@ macro_rules! minus_op {
 pub(crate) use minus_op;
 
 macro_rules! boolean_not {
-    ($operand:ident) => {{
+    ($operand:expr) => {{
         match $operand {
             Value::Bool(b) => (Type::Bool, Value::Bool(!b)),
             _ => (Type::Bool, Value::Unknown),
@@ -484,7 +484,7 @@ macro_rules! boolean_not {
 pub(crate) use boolean_not;
 
 macro_rules! bitwise_not {
-    ($operand:ident) => {{
+    ($operand:expr) => {{
         match $operand {
             Value::Integer(i) => (Type::Integer, Value::Integer(!i)),
             _ => (Type::Integer, Value::Unknown),
@@ -494,7 +494,7 @@ macro_rules! bitwise_not {
 pub(crate) use bitwise_not;
 
 macro_rules! string_op {
-    ($lhs:ident, $op:tt, $rhs:ident, $case_insensitive:expr) => {{
+    ($lhs:expr, $op:tt, $rhs:expr, $case_insensitive:expr) => {{
         use crate::Type;
         use crate::Value::*;
         let value = match ($lhs, $rhs) {

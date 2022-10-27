@@ -214,7 +214,7 @@ macro_rules! check_integer_in_range {
 }
 
 macro_rules! check_boolean_op {
-    ($ctx:ident, $expr:ident, $op:tt) => {{
+    ($ctx:ident, $expr:expr, $op:tt) => {{
         let ((_, lhs_value), (_, rhs_value)) =
             check_operands!($ctx, Type::Bool, &mut $expr.lhs, &mut $expr.rhs)?;
 
@@ -225,7 +225,7 @@ macro_rules! check_boolean_op {
 }
 
 macro_rules! check_comparison_op {
-    ($ctx:ident, $expr:ident, $op:tt) => {{
+    ($ctx:ident, $expr:expr, $op:tt) => {{
         let ((_, lhs_value), (_, rhs_value)) = check_operands!(
             $ctx,
             Type::Integer | Type::Float | Type::String,
@@ -240,7 +240,7 @@ macro_rules! check_comparison_op {
 }
 
 macro_rules! check_shift_op {
-    ($ctx:ident, $expr:ident, $op:ident) => {{
+    ($ctx:ident, $expr:expr, $op:ident) => {{
         let span = $expr.rhs.span();
         let ((_, lhs_value), (_, rhs_value)) = check_operands!(
             $ctx,
@@ -270,7 +270,7 @@ macro_rules! check_shift_op {
 }
 
 macro_rules! check_bitwise_op {
-    ($ctx:ident, $expr:ident, $op:ident) => {{
+    ($ctx:ident, $expr:expr, $op:ident) => {{
         let ((_, lhs_value), (_, rhs_value)) = check_operands!(
             $ctx,
             Type::Integer,
@@ -285,7 +285,7 @@ macro_rules! check_bitwise_op {
 }
 
 macro_rules! check_arithmetic_op {
-    ($ctx:ident, $expr:ident, $op:tt, $checked_op:ident) => {{
+    ($ctx:ident, $expr:expr, $op:tt, $checked_op:ident) => {{
         let ((_, lhs_value), (_, rhs_value)) = check_operands!(
             $ctx,
             Type::Integer | Type::Float,
@@ -301,7 +301,7 @@ macro_rules! check_arithmetic_op {
 }
 
 macro_rules! check_string_op {
-    ($ctx:ident, $expr:ident, $op:ident, $case_insensitive:expr) => {{
+    ($ctx:ident, $expr:expr, $op:ident, $case_insensitive:expr) => {{
         let ((_, lhs_value), (_, rhs_value)) = check_operands!(
             $ctx,
             Type::String,
