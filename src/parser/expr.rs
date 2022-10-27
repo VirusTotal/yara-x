@@ -243,12 +243,12 @@ pub struct LiteralInt<'src> {
     pub value: i64,
 }
 
-/// An float literal.
+/// A float literal.
 #[derive(Debug, HasSpan)]
 pub struct LiteralFlt<'src> {
     pub(crate) span: Span,
     pub literal: &'src str,
-    pub value: f32,
+    pub value: f64,
 }
 
 /// A string literal.
@@ -393,7 +393,7 @@ pub enum TypeHint {
     UnknownType,
     Bool(Option<bool>),
     Integer(Option<i64>),
-    Float(Option<f32>),
+    Float(Option<f64>),
     String(Option<BString>),
     Struct,
 }

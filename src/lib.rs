@@ -58,7 +58,7 @@ pub enum Value<'a> {
     Unknown,
     Bool(bool),
     Integer(i64),
-    Float(f32),
+    Float(f64),
     String(BString),
     Struct(&'a Struct<'a>),
     Array(Vec<Value<'a>>),

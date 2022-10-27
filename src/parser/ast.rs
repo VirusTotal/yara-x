@@ -149,7 +149,7 @@ pub struct Meta<'src> {
 pub enum MetaValue<'src> {
     Bool(bool),
     Integer(i64),
-    Float(f32),
+    Float(f64),
     String(&'src str),
 }
 
@@ -369,8 +369,8 @@ macro_rules! comparison_op {
         match ($lhs, $rhs) {
             (Integer(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op rhs)),
             (Float(Some(lhs)), Float(Some(rhs))) => Bool(Some(lhs $op rhs)),
-            (Float(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op (rhs as f32))),
-            (Integer(Some(lhs)), Float(Some(rhs))) => Bool(Some((lhs as f32) $op rhs)),
+            (Float(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op (rhs as f64))),
+            (Integer(Some(lhs)), Float(Some(rhs))) => Bool(Some((lhs as f64) $op rhs)),
             (String(Some(lhs)), String(Some(rhs))) => Bool(Some(lhs $op rhs)),
             _ => UnknownType,
         }
@@ -443,8 +443,8 @@ macro_rules! arithmetic_op {
                     UnknownType
                 }
             },
-            (Integer(Some(lhs)), Float(Some(rhs))) => Float(Some((lhs as f32) $op rhs)),
-            (Float(Some(lhs)), Integer(Some(rhs))) => Float(Some(lhs $op (rhs as f32))),
+            (Integer(Some(lhs)), Float(Some(rhs))) => Float(Some((lhs as f64) $op rhs)),
+            (Float(Some(lhs)), Integer(Some(rhs))) => Float(Some(lhs $op (rhs as f64))),
             (Float(Some(lhs)), Float(Some(rhs))) => Float(Some(lhs $op rhs)),
             _ => UnknownType,
         }
@@ -2252,17 +2252,17 @@ where
 }
 
 /// From a CST node corresponding to the grammar rule `float_lit`, returns
-/// the `f32` representing the literal.
+/// the `f64` representing the literal.
 fn float_lit_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     float_lit: CSTNode<'src>,
-) -> Result<f32, Error> {
+) -> Result<f64, Error> {
     expect!(float_lit, GrammarRule::float_lit);
 
     let literal = float_lit.as_str();
     let span = float_lit.as_span().into();
 
-    literal.parse::<f32>().map_err(|err| {
+    literal.parse::<f64>().map_err(|err| {
         Error::invalid_float(
             ctx.report_builder,
             &ctx.src,
