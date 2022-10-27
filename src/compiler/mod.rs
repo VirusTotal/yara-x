@@ -3,13 +3,11 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use bstr::{BStr, ByteSlice};
-use std::cell::RefCell;
-use std::collections::VecDeque;
+use bstr::ByteSlice;
 use std::fmt;
+use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
-use std::ops::{BitAnd, DerefMut};
 
 use crate::parser::{
     arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
@@ -20,7 +18,7 @@ use crate::parser::{
     Expr, HasSpan, Iterable, MatchAnchor, Parser, Quantifier, SourceCode,
 };
 use crate::report::ReportBuilder;
-use crate::{Symbol, SymbolTable, Type, Value, Variable};
+use crate::{Struct, Type, Value, Variable};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -54,7 +52,7 @@ macro_rules! check_expression {
 pub struct Compiler<'a> {
     colorize_errors: bool,
     report_builder: ReportBuilder,
-    sym_tbl: SymbolTable<'a>,
+    sym_tbl: Struct<'a>,
 }
 
 impl fmt::Debug for Compiler<'_> {
@@ -69,7 +67,7 @@ impl<'a> Compiler<'a> {
         Self {
             colorize_errors: false,
             report_builder: ReportBuilder::new(),
-            sym_tbl: SymbolTable::new(),
+            sym_tbl: Struct::new(),
         }
     }
 
@@ -83,22 +81,19 @@ impl<'a> Compiler<'a> {
     }
 
     pub fn define(&mut self, ident: &'a str) -> &mut Self {
-        let sym = Symbol::Variable(Variable {
-            ty: Type::Integer,
-            value: Value::Integer(1),
-        });
-        self.sym_tbl.insert(ident, sym);
+        let var = Variable { ty: Type::Integer, value: Value::Integer(1) };
+        self.sym_tbl.insert(ident, var);
         self
     }
 
-    pub fn define_str(&mut self, ident: &'a str, s: &'a BStr) -> &mut Self {
+    /*pub fn define_str(&mut self, ident: &'a str, s: &'a BStr) -> &mut Self {
         let sym = Symbol::Variable(Variable {
             ty: Type::String,
             value: Value::String(s),
         });
         self.sym_tbl.insert(ident, sym);
         self
-    }
+    }*/
 
     /// Adds a YARA source code to be compiled.
     ///
@@ -118,6 +113,10 @@ impl<'a> Compiler<'a> {
         };
 
         for ns in ast.namespaces.values_mut() {
+            for module_name in ns.imports.iter() {
+                // insert module_name in arena.
+            }
+
             let ctx_ref = &mut ctx;
             for rule in ns.rules.values_mut() {
                 // Check that the condition is boolean expression. This traverses
@@ -319,7 +318,7 @@ macro_rules! check_string_op {
 
 /// Structure that contains information about the current compilation process.
 struct Context<'a> {
-    sym_tbl: &'a SymbolTable<'a>,
+    sym_tbl: &'a Struct<'a>,
     report_builder: &'a ReportBuilder,
     src: &'a SourceCode<'a>,
 }
@@ -523,15 +522,8 @@ fn expr_semantic_check<'a>(
 
         Expr::Ident(ident) => {
             (ident.ty, ident.value) =
-                if let Some(sym) = ctx.sym_tbl.lookup(ident.name) {
-                    match sym {
-                        Symbol::Struct(table) => {
-                            (Type::Struct, Value::Struct(table))
-                        }
-                        Symbol::Variable(var) => {
-                            (var.ty.clone(), var.value.clone())
-                        }
-                    }
+                if let Some(var) = ctx.sym_tbl.get_field(ident.name) {
+                    (var.ty.clone(), var.value.clone())
                 } else {
                     return Err(Error::CompileError(
                         CompileError::unknown_identifier(
@@ -634,7 +626,7 @@ fn range_semantic_check<'a>(
 fn quantifier_semantic_check<'a>(
     ctx: &mut Context<'a>,
     quantifier: &'a mut Quantifier<'a>,
-) -> Result<(Type), Error> {
+) -> Result<Type, Error> {
     match quantifier {
         Quantifier::Expr(expr) => {
             check_non_negative_integer!(ctx, expr)?;

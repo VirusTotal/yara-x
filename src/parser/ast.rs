@@ -18,7 +18,7 @@ use yara_derive::*;
 
 use crate::parser::span::HasSpan;
 use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, CST};
-use crate::{SymbolTable, Type, Value};
+use crate::{Struct, Type, Value};
 
 pub use crate::parser::expr::*;
 use crate::parser::warnings::Warning;
@@ -63,7 +63,7 @@ impl<'src> Debug for AST<'src> {
 impl<'src> AST<'src> {
     /// Returns a printable ASCII tree representing the AST.
     pub fn ascii_tree(&self) -> ascii_tree::Tree {
-        let sym_tbl = SymbolTable::new();
+        let sym_tbl = Struct::new();
         Node(
             "root".to_string(),
             self.namespaces

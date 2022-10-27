@@ -406,7 +406,7 @@ impl<'src> Expr<'src> {
             Expr::LiteralInt(i) => (Type::Integer, Value::Integer(i.value)),
             Expr::LiteralFlt(f) => (Type::Float, Value::Float(f.value)),
             Expr::LiteralStr(s) => {
-                (Type::String, Value::String(s.value.as_bstr()))
+                (Type::String, Value::String(s.value.clone()))
             }
 
             Expr::PatternMatch(_)

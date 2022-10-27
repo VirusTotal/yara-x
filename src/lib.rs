@@ -1,6 +1,7 @@
-use bstr::BStr;
+use bstr::{BStr, BString};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::hash::Hash;
 
 pub mod compiler;
 pub mod formatter;
@@ -18,19 +19,19 @@ mod report;
 /// contains more symbols. This allows representing namespaces, or nested
 /// structures.
 #[derive(Debug)]
-pub struct SymbolTable<'a> {
-    symbols: HashMap<&'a str, Symbol<'a>>,
+pub struct Struct<'a> {
+    fields: HashMap<&'a str, Variable<'a>>,
 }
 
-impl<'a> SymbolTable<'a> {
+impl<'a> Struct<'a> {
     /// Creates a new symbol table.
     fn new() -> Self {
-        Self { symbols: HashMap::new() }
+        Self { fields: HashMap::new() }
     }
 
-    /// Looks up a symbol in the table.
-    fn lookup(&self, ident: &str) -> Option<&Symbol<'a>> {
-        self.symbols.get(ident)
+    /// Get a field from the structure.
+    fn get_field(&self, ident: &str) -> Option<&Variable<'a>> {
+        self.fields.get(ident)
     }
 
     /// Inserts an identifier into the symbol table.
@@ -41,25 +42,9 @@ impl<'a> SymbolTable<'a> {
     fn insert(
         &mut self,
         ident: &'a str,
-        symbol: Symbol<'a>,
-    ) -> Option<Symbol<'a>> {
-        self.symbols.insert(ident, symbol)
-    }
-}
-
-/// These are the different types of symbols that can be stored in a [`SymbolTable`].
-#[derive(Debug)]
-pub enum Symbol<'a> {
-    Variable(Variable<'a>),
-    Struct(SymbolTable<'a>),
-}
-
-impl<'a> Symbol<'a> {
-    pub fn value(&self) -> Option<&Value> {
-        match self {
-            Symbol::Variable(v) => Some(&v.value),
-            Symbol::Struct(_) => None,
-        }
+        field: Variable<'a>,
+    ) -> Option<Variable<'a>> {
+        self.fields.insert(ident, field)
     }
 }
 
@@ -72,8 +57,8 @@ pub enum Value<'a> {
     Bool(bool),
     Integer(i64),
     Float(f32),
-    String(&'a BStr),
-    Struct(&'a SymbolTable<'a>),
+    String(BString),
+    Struct(&'a Struct<'a>),
     Array(Vec<Value<'a>>),
 }
 
@@ -117,7 +102,7 @@ impl<'a> Value<'a> {
     /// Returns the value as a struct.
     ///
     /// Panics if the value is not Value::Struct.
-    pub fn as_struct(&self) -> &'a SymbolTable<'a> {
+    pub fn as_struct(&self) -> &'a Struct<'a> {
         if let Self::Struct(t) = self {
             *t
         } else {
