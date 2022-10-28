@@ -1,5 +1,6 @@
-use crate::parser::{GrammarRule, Parser};
 use pretty_assertions::assert_eq;
+
+use crate::parser::{GrammarRule, Parser};
 
 #[test]
 fn cst() {

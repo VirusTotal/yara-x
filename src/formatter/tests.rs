@@ -1,12 +1,14 @@
-use crate::formatter;
-use crate::formatter::tokens::{TokenStream, Tokens};
-use crate::formatter::Formatter;
-use crate::parser::Parser;
-use pretty_assertions::assert_eq;
+use std::{fs, str, string};
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::{fs, str, string};
+
+use pretty_assertions::assert_eq;
 use yaml_rust::{Yaml, YamlLoader};
+
+use crate::formatter;
+use crate::formatter::Formatter;
+use crate::formatter::tokens::{Tokens, TokenStream};
+use crate::parser::Parser;
 
 #[test]
 fn spacer() {

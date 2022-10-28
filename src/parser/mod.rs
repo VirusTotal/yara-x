@@ -79,12 +79,9 @@ let ast = Parser::new().build_ast(rule).unwrap();
 
  */
 
-use pest::Parser as PestParser;
 use std::collections::HashMap;
-use std::string;
 
-pub(crate) use crate::parser::context::*;
-pub(crate) use crate::report::*;
+use pest::Parser as PestParser;
 
 #[doc(inline)]
 pub use crate::parser::ast::*;
@@ -93,6 +90,9 @@ pub use crate::parser::errors::*;
 pub use crate::parser::expr::*;
 pub use crate::parser::grammar::Rule as GrammarRule;
 pub use crate::parser::span::*;
+
+pub(crate) use crate::parser::context::*;
+pub(crate) use crate::report::*;
 
 mod ast;
 mod context;

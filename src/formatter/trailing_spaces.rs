@@ -1,6 +1,7 @@
-use crate::formatter::tokens::categories::CONTROL;
-use crate::formatter::tokens::{Token, TokenStream};
 use std::collections::VecDeque;
+
+use crate::formatter::tokens::{Token, TokenStream};
+use crate::formatter::tokens::categories::CONTROL;
 
 pub(crate) struct TrailingSpacesRemover<'a, T>
 where

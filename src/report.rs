@@ -1,15 +1,16 @@
-use ariadne::{Color, Label, ReportKind, Source};
-use pest::error::ErrorVariant::{CustomError, ParsingError};
-use pest::error::InputLocation;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::ops::Range;
+
+use ariadne::{Color, Label, ReportKind, Source};
+use pest::error::ErrorVariant::{CustomError, ParsingError};
+use pest::error::InputLocation;
 use yansi::Style;
 
+use crate::parser::{Error, Span};
 use crate::parser::GrammarRule;
 use crate::parser::SourceCode;
-use crate::parser::{Error, Span};
 
 /// Types of reports created by [`ReportBuilder`].
 pub(crate) enum ReportType {

@@ -1,5 +1,6 @@
-use pest::iterators::Pair;
 use std::fmt::{Debug, Formatter};
+
+use pest::iterators::Pair;
 
 use crate::parser::GrammarRule;
 

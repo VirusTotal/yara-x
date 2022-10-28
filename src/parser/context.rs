@@ -1,7 +1,7 @@
-use crate::parser::warnings::Warning;
-use crate::parser::{Ident, SourceCode};
 use std::collections::{HashMap, HashSet};
 
+use crate::parser::{Ident, SourceCode};
+use crate::parser::warnings::Warning;
 use crate::report::ReportBuilder;
 
 /// A structure that holds information about the parsing process.

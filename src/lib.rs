@@ -1,7 +1,10 @@
-use bstr::{BStr, BString};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::Hash;
+
+use bstr::BString;
+
+use parser::Type;
 
 pub mod compiler;
 pub mod formatter;
@@ -9,8 +12,6 @@ pub mod parser;
 
 mod ascii_tree;
 mod report;
-
-use parser::Type;
 
 /// Stores information about variables and constants defined or
 /// used in YARA rules.

@@ -1,11 +1,3 @@
-use crate::ascii_tree::namespace_ascii_tree;
-use ascii_tree::Tree::*;
-use bitmask::bitmask;
-use bstr::{BString, ByteSlice};
-use lazy_static::lazy_static;
-use num::{Bounded, CheckedMul, FromPrimitive, Integer};
-use pest::iterators::Pair;
-use pest::pratt_parser::{Assoc, Op, PrattParser};
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
@@ -14,15 +6,24 @@ use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
 use std::{fmt, str};
+
+use ascii_tree::Tree::*;
+use bitmask::bitmask;
+use bstr::{BString, ByteSlice};
+use lazy_static::lazy_static;
+use num::{Bounded, CheckedMul, FromPrimitive, Integer};
+use pest::iterators::Pair;
+use pest::pratt_parser::{Assoc, Op, PrattParser};
+
 use yara_derive::*;
 
-use crate::parser::span::HasSpan;
-use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, Type, CST};
-use crate::{Struct, Value};
-
+use crate::ascii_tree::namespace_ascii_tree;
 pub use crate::parser::expr::*;
+use crate::parser::span::HasSpan;
 use crate::parser::warnings::Warning;
 use crate::parser::Expr::{BitwiseNot, FieldAccess, Minus, Not};
+use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, CST};
+use crate::Struct;
 
 macro_rules! expect {
     ($next:expr, $parser_rule:expr) => {{
@@ -361,7 +362,6 @@ macro_rules! boolean_op {
         }
     }};
 }
-pub(crate) use boolean_op;
 
 macro_rules! comparison_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
@@ -376,7 +376,6 @@ macro_rules! comparison_op {
         }
     }};
 }
-pub(crate) use comparison_op;
 
 macro_rules! shift_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
@@ -407,7 +406,6 @@ macro_rules! shift_op {
         }
     }};
 }
-pub(crate) use shift_op;
 
 macro_rules! bitwise_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
@@ -420,7 +418,6 @@ macro_rules! bitwise_op {
         }
     }};
 }
-pub(crate) use bitwise_op;
 
 macro_rules! arithmetic_op {
     ($lhs:expr, $op:tt, $checked_op:ident, $rhs:expr) => {{
@@ -451,7 +448,6 @@ macro_rules! arithmetic_op {
         }
     }};
 }
-pub(crate) use arithmetic_op;
 
 macro_rules! minus_op {
     ($operand:expr) => {{
@@ -465,7 +461,6 @@ macro_rules! minus_op {
         }
     }};
 }
-pub(crate) use minus_op;
 
 macro_rules! boolean_not {
     ($operand:expr) => {{
@@ -476,7 +471,6 @@ macro_rules! boolean_not {
         }
     }};
 }
-pub(crate) use boolean_not;
 
 macro_rules! bitwise_not {
     ($operand:expr) => {{
@@ -487,7 +481,6 @@ macro_rules! bitwise_not {
         }
     }};
 }
-pub(crate) use bitwise_not;
 
 macro_rules! string_op {
     ($lhs:expr, $op:tt, $rhs:expr, $case_insensitive:expr) => {{
@@ -506,6 +499,15 @@ macro_rules! string_op {
         }
     }};
 }
+
+pub(crate) use arithmetic_op;
+pub(crate) use bitwise_not;
+pub(crate) use bitwise_op;
+pub(crate) use boolean_not;
+pub(crate) use boolean_op;
+pub(crate) use comparison_op;
+pub(crate) use minus_op;
+pub(crate) use shift_op;
 pub(crate) use string_op;
 
 macro_rules! new_boolean_expr {

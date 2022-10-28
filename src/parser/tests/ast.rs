@@ -1,9 +1,11 @@
-use crate::parser::Parser;
-use pretty_assertions::assert_eq;
 use std::fmt::Write;
 use std::fs;
 use std::path::PathBuf;
+
+use pretty_assertions::assert_eq;
 use yaml_rust::{Yaml, YamlLoader};
+
+use crate::parser::Parser;
 
 #[test]
 fn ast() {

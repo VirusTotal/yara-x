@@ -1,9 +1,11 @@
-use anyhow::Context;
-use globset::GlobMatcher;
 use std::fs;
 use std::path::Path;
+
+use anyhow::Context;
+use globset::GlobMatcher;
 use walkdir::WalkDir;
 use yansi::Color::Green;
+
 use yara_x::parser::{Parser, SourceCode};
 
 pub fn check_file(

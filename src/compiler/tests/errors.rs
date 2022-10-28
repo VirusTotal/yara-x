@@ -1,5 +1,6 @@
-use crate::compiler::Compiler;
 use pretty_assertions::assert_eq;
+
+use crate::compiler::Compiler;
 
 #[test]
 fn errors() {

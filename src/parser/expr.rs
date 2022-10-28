@@ -1,9 +1,11 @@
-use crate::parser::span::*;
-use crate::parser::CSTNode;
-use crate::Value;
-use bstr::BString;
 use std::fmt::{Display, Formatter};
+
+use bstr::BString;
+
 use yara_derive::*;
+
+use crate::parser::CSTNode;
+use crate::parser::span::*;
 
 /// An expression in the AST.
 #[derive(Debug, HasSpan)]

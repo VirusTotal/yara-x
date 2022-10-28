@@ -12,8 +12,14 @@
 //! Formatter::new().format(input, output);
 //! ```
 use std::io;
+
 use thiserror::Error;
 
+use tokens::Token::*;
+use tokens::TokenStream;
+
+use crate::formatter::aligner::Aligner;
+use crate::formatter::tokens::categories::*;
 use crate::parser;
 use crate::parser::GrammarRule;
 use crate::parser::Parser;
@@ -23,11 +29,6 @@ mod comments;
 mod processor;
 mod tokens;
 mod trailing_spaces;
-
-use crate::formatter::aligner::Aligner;
-use crate::formatter::tokens::categories::*;
-use tokens::Token::*;
-use tokens::TokenStream;
 
 #[cfg(test)]
 mod tests;

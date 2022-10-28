@@ -1,6 +1,7 @@
-use crate::formatter::tokens::Token::*;
-use crate::formatter::tokens::{Token, TokenStream};
 use std::collections::VecDeque;
+
+use crate::formatter::tokens::{Token, TokenStream};
+use crate::formatter::tokens::Token::*;
 
 /// Makes sure that all occurrences of [`AlignmentMarker`] in a token stream
 /// are replaced with zero or more whitespaces in order to force all the

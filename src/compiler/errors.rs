@@ -1,7 +1,9 @@
+use thiserror::Error;
+
+use yara_derive::Error as CompileError;
+
 use crate::parser;
 use crate::parser::Span;
-use thiserror::Error;
-use yara_derive::Error as CompileError;
 
 /// Errors returned by the compiler.
 #[derive(Error, Debug)]

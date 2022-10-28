@@ -1,11 +1,13 @@
-use ansi_term::Color::{Blue, Red};
-use anyhow::{Context, Result};
-use clap::{arg, command, crate_authors, value_parser, ArgMatches, Command};
-use globset::GlobBuilder;
 use std::fs;
 use std::fs::metadata;
 use std::io::{stdin, stdout};
 use std::path::PathBuf;
+
+use ansi_term::Color::{Blue, Red};
+use anyhow::{Context, Result};
+use clap::{arg, ArgMatches, command, Command, crate_authors, value_parser};
+use globset::GlobBuilder;
+
 use yara_x::formatter;
 use yara_x::parser::{Parser, SourceCode};
 

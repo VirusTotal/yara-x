@@ -1,7 +1,8 @@
-use crate::parser::TypeHint;
-use crate::parser::*;
-use crate::Struct;
 use ascii_tree::Tree::{Leaf, Node};
+
+use crate::parser::*;
+use crate::parser::TypeHint;
+use crate::Struct;
 
 /// Returns a representation of the namespace as an ASCII tree.
 pub fn namespace_ascii_tree(

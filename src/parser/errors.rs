@@ -1,6 +1,8 @@
-use super::GrammarRule;
-use crate::parser::Span;
 use yara_derive::Error;
+
+use crate::parser::Span;
+
+use super::GrammarRule;
 
 /// An error occurred while parsing YARA rules.
 /// 

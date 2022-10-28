@@ -1,5 +1,6 @@
-use crate::formatter::tokens::{Token, TokenStream};
 use std::collections::VecDeque;
+
+use crate::formatter::tokens::{Token, TokenStream};
 
 pub(crate) struct CommentProcessor<'a, T>
 where
@@ -129,9 +130,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use crate::formatter::comments::CommentProcessor;
     use crate::formatter::tokens::Token;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn test1() {

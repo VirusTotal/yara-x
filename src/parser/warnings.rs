@@ -1,5 +1,6 @@
-use crate::parser::Span;
 use yara_derive::Error;
+
+use crate::parser::Span;
 
 /// An warning raised while parsing YARA rules.
 #[rustfmt::skip]

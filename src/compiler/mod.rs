@@ -3,24 +3,24 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use bstr::ByteSlice;
 use std::fmt;
 use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
 
-use crate::parser::Error as ParserError;
-use crate::parser::{
-    arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
-    comparison_op, minus_op, shift_op, string_op, Expr, HasSpan, Iterable,
-    MatchAnchor, OfItems, Parser, Quantifier, Range, SourceCode, Span, Type,
-    TypeHint,
-};
-use crate::report::ReportBuilder;
-use crate::{Struct, Value, Variable};
+use bstr::ByteSlice;
 
+use crate::{Struct, Value, Variable};
 #[doc(inline)]
 pub use crate::compiler::errors::*;
+use crate::parser::{
+    arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
+    comparison_op, Expr, HasSpan, Iterable, MatchAnchor, minus_op, OfItems,
+    Parser, Quantifier, Range, shift_op, SourceCode, Span, string_op, Type,
+    TypeHint,
+};
+use crate::parser::Error as ParserError;
+use crate::report::ReportBuilder;
 
 mod errors;
 

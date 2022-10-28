@@ -1,5 +1,6 @@
-use crate::parser::Parser;
 use pretty_assertions::assert_eq;
+
+use crate::parser::Parser;
 
 #[test]
 fn newlines_and_spaces() {

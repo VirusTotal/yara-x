@@ -1,7 +1,8 @@
-use crate::formatter::tokens::{categories, Token, TokenStream};
-use crate::parser;
 use std::collections::VecDeque;
 use std::iter::Peekable;
+
+use crate::formatter::tokens::{categories, Token, TokenStream};
+use crate::parser;
 
 // The line below could be uncommented and all occurrences of
 // Iterator<Item = Token<'a>> replaced with TokenIterator<'a>, which would

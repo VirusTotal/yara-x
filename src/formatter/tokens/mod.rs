@@ -1,6 +1,7 @@
-use crate::parser;
-use crate::parser::{GrammarRule, CST};
 use std::iter::Peekable;
+
+use crate::parser;
+use crate::parser::{CST, GrammarRule};
 
 #[cfg(test)]
 mod tests;
@@ -22,6 +23,7 @@ mod tests;
 pub(crate) mod categories {
     use bitmask::bitmask;
     use lazy_static::lazy_static;
+
     bitmask! {
         #[derive(Debug)]
         pub mask Category: u32 where flags BaseCategory  {
@@ -148,7 +150,7 @@ pub(crate) enum Token<'a> {
     Indentation(i16),
 
     // A block is a fragment of code that will be put in a new line and indented if the whole
-    // block doesn't fit in a single line. For BlockBegin/BlockEnd are used in hex strings like
+    // block doesn't fit in a single line. BlockBegin/BlockEnd are used in hex strings like
     // this...
     //
     //  { BlockBegin  XX XX XX XX XX XX ... XX XX XX XX XX XX  BlockEnd }
