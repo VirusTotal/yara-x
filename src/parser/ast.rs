@@ -791,9 +791,7 @@ fn check_pattern_modifiers<'src>(
     ];
 
     for (name1, modifier1, name2, modifier2) in invalid_combinations {
-        if modifier1.is_some() && modifier2.is_some() {
-            let modifier1 = modifier1.unwrap();
-            let modifier2 = modifier2.unwrap();
+        if let (Some(modifier1), Some(modifier2)) = (modifier1, modifier2) {
             return Err(Error::invalid_modifier_combination(
                 ctx.report_builder,
                 &ctx.src,
@@ -803,7 +801,7 @@ fn check_pattern_modifiers<'src>(
                 modifier2.span(),
                 Some("these two modifiers can't be used together".to_string()),
             ));
-        }
+        };
     }
 
     Ok(())
