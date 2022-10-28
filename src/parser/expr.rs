@@ -416,7 +416,7 @@ impl TypeHint {
 }
 
 /// Types returned by [`TypeHint::ty`].
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Type {
     Unknown,
     Bool,

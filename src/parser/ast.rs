@@ -357,7 +357,7 @@ macro_rules! boolean_op {
             (Bool(Some(lhs)), Bool(Some(rhs))) => {
                 Bool(Some(lhs $op rhs))
             },
-            _ => UnknownType,
+            _ => Bool(None),
         }
     }};
 }
@@ -372,7 +372,7 @@ macro_rules! comparison_op {
             (Float(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op (rhs as f64))),
             (Integer(Some(lhs)), Float(Some(rhs))) => Bool(Some((lhs as f64) $op rhs)),
             (String(Some(lhs)), String(Some(rhs))) => Bool(Some(lhs $op rhs)),
-            _ => UnknownType,
+            _ => Bool(None),
         }
     }};
 }
@@ -403,7 +403,7 @@ macro_rules! shift_op {
                 }
                 Integer(Some(value))
             }
-            _ => UnknownType,
+            _ => Integer(None),
         }
     }};
 }
@@ -416,7 +416,7 @@ macro_rules! bitwise_op {
             (Integer(Some(lhs)), Integer(Some(rhs))) => {
                 Integer(Some(lhs.$op(rhs)))
             }
-            _ => UnknownType,
+            _ => Integer(None),
         }
     }};
 }
@@ -446,7 +446,8 @@ macro_rules! arithmetic_op {
             (Integer(Some(lhs)), Float(Some(rhs))) => Float(Some((lhs as f64) $op rhs)),
             (Float(Some(lhs)), Integer(Some(rhs))) => Float(Some(lhs $op (rhs as f64))),
             (Float(Some(lhs)), Float(Some(rhs))) => Float(Some(lhs $op rhs)),
-            _ => UnknownType,
+            (Integer(_), Integer(_)) => Integer(None),
+            _ => Float(None),
         }
     }};
 }
@@ -457,7 +458,9 @@ macro_rules! minus_op {
         use crate::parser::TypeHint::*;
         match $operand {
             Integer(Some(i)) => Integer(Some(-i)),
+            Integer(None) => Integer(None),
             Float(Some(i)) => Float(Some(-i)),
+            Float(None) => Float(None),
             _ => UnknownType,
         }
     }};
@@ -469,7 +472,7 @@ macro_rules! boolean_not {
         use crate::parser::TypeHint::*;
         match $operand {
             Bool(Some(b)) => Bool(Some(!b)),
-            _ => UnknownType,
+            _ => Bool(None),
         }
     }};
 }
@@ -480,7 +483,7 @@ macro_rules! bitwise_not {
         use crate::parser::TypeHint::*;
         match $operand {
             Integer(Some(i)) => Integer(Some(!i)),
-            _ => UnknownType,
+            _ => Integer(None),
         }
     }};
 }
@@ -499,7 +502,7 @@ macro_rules! string_op {
                     Bool(Some((&lhs).$op(&rhs)))
                 }
             }
-            _ => UnknownType,
+            _ => String(None),
         }
     }};
 }

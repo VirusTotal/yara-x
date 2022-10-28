@@ -10,11 +10,11 @@
     └─ namespace
        └─ private global rule test
           └─ condition
-             └─ or
+             └─ or : boolean(unknown)
                 ├─ true
-                └─ and
+                └─ and : boolean(unknown)
                    ├─ false
-                   └─ not
+                   └─ not : boolean(unknown)
                       └─ $a
 
 ###############################################################################
@@ -92,7 +92,7 @@
           ├─ strings
           │  └─ $a = "foo" 
           └─ condition
-             └─ eq
+             └─ eq : boolean(unknown)
                 ├─ #a in <range>
                 │  └─ <range>
                 │     ├─ add : integer(200)
@@ -117,7 +117,7 @@
           ├─ strings
           │  └─ $a = "foo" 
           └─ condition
-             └─ eq
+             └─ eq : boolean(unknown)
                 ├─ @a[<index>]
                 │  └─ <index>
                 │     └─ 2
@@ -135,7 +135,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq
+             └─ eq : boolean(unknown)
                 ├─ entrypoint
                 └─ add : integer(3000)
                    ├─ 1000
@@ -185,7 +185,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq
+             └─ eq : boolean(unknown)
                 ├─ <struct>.<field>
                 │  ├─ <struct>
                 │  │  └─ <expr>[<index>]
