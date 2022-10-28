@@ -1,12 +1,12 @@
+use crate::parser::TypeHint;
 use crate::parser::*;
-use crate::SymbolTable;
-use crate::Value;
+use crate::Struct;
 use ascii_tree::Tree::{Leaf, Node};
 
 /// Returns a representation of the namespace as an ASCII tree.
 pub fn namespace_ascii_tree(
     namespace: &Namespace,
-    sym_tbl: &SymbolTable,
+    sym_tbl: &Struct,
 ) -> ascii_tree::Tree {
     Node(
         "namespace".to_string(),
@@ -19,10 +19,7 @@ pub fn namespace_ascii_tree(
 }
 
 /// Returns a representation of the rule as an ASCII tree.
-pub fn rule_ascii_tree(
-    rule: &Rule,
-    sym_tbl: &SymbolTable,
-) -> ascii_tree::Tree {
+pub fn rule_ascii_tree(rule: &Rule, sym_tbl: &Struct) -> ascii_tree::Tree {
     let mut rule_children = vec![];
 
     if let Some(meta) = &rule.meta {
@@ -69,16 +66,13 @@ pub fn rule_ascii_tree(
 }
 
 /// Returns a representation of the expression as an ASCII tree.
-pub fn expr_ascii_tree(
-    expr: &Expr,
-    sym_tbl: &SymbolTable,
-) -> ascii_tree::Tree {
+pub fn expr_ascii_tree(expr: &Expr, sym_tbl: &Struct) -> ascii_tree::Tree {
     let value = {
-        let (_, value) = expr.type_value();
-        if matches!(value, Value::Unknown) {
+        let type_hint = expr.type_hint();
+        if matches!(type_hint, TypeHint::UnknownType) {
             "".to_string()
         } else {
-            format!(" (value: {})", value)
+            format!(" : {}", type_hint)
         }
     };
     match expr {
@@ -539,7 +533,7 @@ pub fn expr_ascii_tree(
 
 fn quantifier_ascii_tree(
     quantifier: &Quantifier,
-    sym_tbl: &SymbolTable,
+    sym_tbl: &Struct,
 ) -> ascii_tree::Tree {
     match quantifier {
         Quantifier::None { .. } => Leaf(vec!["none".to_string()]),
@@ -564,7 +558,7 @@ fn pattern_set_ascii_tree(pattern_set: &PatternSet) -> ascii_tree::Tree {
 
 fn pattern_ascii_tree(
     pattern: &Pattern,
-    sym_tbl: &SymbolTable,
+    sym_tbl: &Struct,
 ) -> ascii_tree::Tree {
     match pattern {
         Pattern::Text(s) => {
@@ -599,7 +593,7 @@ fn pattern_ascii_tree(
 
 fn hex_tokens_ascii_tree(
     tokens: &HexTokens,
-    sym_tbl: &SymbolTable,
+    sym_tbl: &Struct,
 ) -> ascii_tree::Tree {
     let nodes = tokens
         .tokens

@@ -10,7 +10,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ contains (value: true)
+             └─ contains : boolean(true)
                 ├─ "mississippi"
                 └─ "ssi"
 
@@ -26,7 +26,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ contains (value: false)
+             └─ contains : boolean(false)
                 ├─ "mississippi"
                 └─ "SSI"
 
@@ -43,7 +43,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ icontains (value: true)
+             └─ icontains : boolean(true)
                 ├─ "mississippi"
                 └─ "SSI"
 
@@ -59,7 +59,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ startswith (value: true)
+             └─ startswith : boolean(true)
                 ├─ "mississippi"
                 └─ "miss"
 
@@ -75,7 +75,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ startswith (value: false)
+             └─ startswith : boolean(false)
                 ├─ "mississippi"
                 └─ "Miss"
 
@@ -91,7 +91,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ istartswith (value: true)
+             └─ istartswith : boolean(true)
                 ├─ "mississippi"
                 └─ "Miss"
 
@@ -107,7 +107,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ endswith (value: true)
+             └─ endswith : boolean(true)
                 ├─ "mississippi"
                 └─ "ippi"
 
@@ -123,7 +123,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ endswith (value: false)
+             └─ endswith : boolean(false)
                 ├─ "mississippi"
                 └─ "iPPI"
 
@@ -139,7 +139,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ iendswith (value: true)
+             └─ iendswith : boolean(true)
                 ├─ "mississippi"
                 └─ "iPPI"
 
@@ -155,7 +155,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ iequals (value: true)
+             └─ iequals : boolean(true)
                 ├─ "foo"
                 └─ "FOO"
 
