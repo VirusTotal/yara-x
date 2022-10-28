@@ -13,7 +13,7 @@ fn token_generation() {
             condition: true
         }"#;
 
-    let parse_tree = Parser::new().build_cst(rule, Option::None).unwrap();
+    let parse_tree = Parser::new().build_cst(rule).unwrap();
     let tokens: Vec<Token> = Tokens::new(parse_tree).collect();
 
     assert_eq!(

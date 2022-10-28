@@ -7,7 +7,7 @@ use std::fs::metadata;
 use std::io::{stdin, stdout};
 use std::path::PathBuf;
 use yara_x::formatter;
-use yara_x::parser::Parser;
+use yara_x::parser::{Parser, SourceCode};
 
 mod check;
 
@@ -134,13 +134,11 @@ fn cmd_ast(args: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
         format!("could not read file `{}`", file_path.display())
     })?;
 
-    let ast = Parser::new()
-        .colorize_errors(true)
-        .build_ast(
-            src.as_str(),
-            Some(file_path.as_os_str().to_str().unwrap().to_string()),
-        )
-        .map_err(|e| e)?;
+    let src = SourceCode::from(src.as_str())
+        .origin(file_path.as_os_str().to_str().unwrap());
+
+    let ast =
+        Parser::new().colorize_errors(true).build_ast(src).map_err(|e| e)?;
 
     let mut output = String::new();
     ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;

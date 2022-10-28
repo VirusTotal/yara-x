@@ -4,7 +4,7 @@ use pretty_assertions::assert_eq;
 #[test]
 fn newlines_and_spaces() {
     let cst = Parser::new()
-        .build_cst("rule\n\rtest\r\n{ condition:\ntrue\n }", None)
+        .build_cst("rule\n\rtest\r\n{ condition:\ntrue\n }")
         .unwrap()
         .whitespaces(true)
         .ascii_tree_string();
@@ -38,18 +38,12 @@ fn newlines_and_spaces() {
 fn identifiers() {
     // The following identifiers are ok, even if they are prefixed by a
     // keyword.
+    assert!(Parser::new().build_cst("rule true_ { condition: true }").is_ok());
     assert!(Parser::new()
-        .build_cst("rule true_ { condition: true }", None)
+        .build_cst("rule false_ { condition: false }")
         .is_ok());
-    assert!(Parser::new()
-        .build_cst("rule false_ { condition: false }", None)
-        .is_ok());
-    assert!(Parser::new()
-        .build_cst("rule rules { condition: true }", None)
-        .is_ok());
-    assert!(Parser::new()
-        .build_cst("rule _true { condition: true }", None)
-        .is_ok());
+    assert!(Parser::new().build_cst("rule rules { condition: true }").is_ok());
+    assert!(Parser::new().build_cst("rule _true { condition: true }").is_ok());
 }
 
 mod ast;

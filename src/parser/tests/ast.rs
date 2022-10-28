@@ -47,7 +47,7 @@ fn ast() {
                 )
                 .unwrap();
 
-                let ascii_tree = match Parser::new().build_ast(rule, None) {
+                let ascii_tree = match Parser::new().build_ast(rule) {
                     Ok(ast) => ast.ascii_tree(),
                     Err(err) => {
                         panic!("error while parsing rule:\n{:?}\n", err)

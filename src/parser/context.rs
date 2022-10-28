@@ -1,18 +1,8 @@
 use crate::parser::warnings::Warning;
-use crate::parser::Ident;
+use crate::parser::{Ident, SourceCode};
 use std::collections::{HashMap, HashSet};
 
 use crate::report::ReportBuilder;
-
-/// A structure that describes a YARA source code.
-#[derive(Debug)]
-pub(crate) struct SourceCode<'src> {
-    /// A reference to the code itself in text form.
-    pub text: &'src str,
-    /// An optional string that tells which is the origin of the code. Usually
-    /// a file path.
-    pub origin: Option<std::string::String>,
-}
 
 /// A structure that holds information about the parsing process.
 pub(crate) struct Context<'src, 'rb> {

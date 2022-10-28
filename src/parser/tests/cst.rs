@@ -979,7 +979,7 @@ rule test : foo bar baz {
     ];
 
     for t in tests {
-        let ascii_tree = match Parser::new().build_rule_cst(t.1, t.2, None) {
+        let ascii_tree = match Parser::new().build_rule_cst(t.1, t.2) {
             Ok(mut cst) => cst.ascii_tree_string(),
             Err(err) => {
                 panic!("error while parsing rule at line {}:\n{}\n", t.0, err)

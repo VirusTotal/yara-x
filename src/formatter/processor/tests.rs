@@ -6,7 +6,7 @@ use crate::parser::{GrammarRule, Parser};
 use pretty_assertions::assert_eq;
 
 fn tokenize(source: &str) -> tokens::Tokens {
-    tokens::Tokens::new(Parser::new().build_cst(source, Option::None).unwrap())
+    tokens::Tokens::new(Parser::new().build_cst(source).unwrap())
 }
 
 #[test]
@@ -115,9 +115,7 @@ fn swap() {
 fn drop_identifiers() {
     // Test a processor that drops only the tokens that are identifiers.
     let input_tokens = tokens::Tokens::new(
-        Parser::new()
-            .build_cst(r#"rule test { condition: true }"#, Option::None)
-            .unwrap(),
+        Parser::new().build_cst(r#"rule test { condition: true }"#).unwrap(),
     );
 
     let processor = Processor::new(input_tokens)

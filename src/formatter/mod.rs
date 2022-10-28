@@ -83,7 +83,7 @@ impl Formatter {
         // corresponding span (i.e: starting and ending position) within the
         // source code. The kind of parsing rules found at the top level are:
         // comments, import statements, and rule declaration.
-        let cst = parser.build_cst(buf.as_str(), Option::None)?;
+        let cst = parser.build_cst(buf.as_str())?;
 
         let cst = cst.comments(true).whitespaces(true);
 

@@ -833,7 +833,7 @@ rule test {
 
     for t in tests {
         assert_eq!(
-            Parser::new().build_ast(t.1, None)
+            Parser::new().build_ast(t.1)
                 .expect_err(&*format!(
                     "rule at line {} parsed without errors, but error was expected.\n\n",
                     t.0,

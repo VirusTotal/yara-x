@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 use walkdir::WalkDir;
 use yansi::Color::Green;
-use yara_x::parser::Parser;
+use yara_x::parser::{Parser, SourceCode};
 
 pub fn check_file(
     path: &Path,
@@ -19,10 +19,10 @@ pub fn check_file(
     let src = fs::read_to_string(path)
         .with_context(|| format!("can not read `{}`", path.display()))?;
 
-    match Parser::new().colorize_errors(true).build_ast(
-        src.as_str(),
-        Some(path.as_os_str().to_str().unwrap().to_string()),
-    ) {
+    let src = SourceCode::from(src.as_str())
+        .origin(path.as_os_str().to_str().unwrap());
+
+    match Parser::new().colorize_errors(true).build_ast(src) {
         Ok(ast) => {
             if ast.warnings.is_empty() {
                 println!("[{}] {}", Green.paint("ok"), path.display());

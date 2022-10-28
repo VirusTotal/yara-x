@@ -65,7 +65,7 @@ rule test {
     ];
 
     for t in tests {
-        let ast = Parser::new().build_ast(t.1, None).unwrap();
+        let ast = Parser::new().build_ast(t.1).unwrap();
         assert!(!ast.warnings.is_empty());
         assert_eq!(ast.warnings[0].to_string(), t.2, "test at line {}", t.0)
     }

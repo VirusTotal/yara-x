@@ -34,7 +34,7 @@ let rule = r#"
  }
 "#;
 
-let mut cst = Parser::new().build_cst(rule, None).unwrap();
+let mut cst = Parser::new().build_cst(rule).unwrap();
 
 // The CST is an iterator that returns nodes of type CSTNode. At the top level
 // the iterator returns a single node, corresponding to the grammar rule
@@ -72,7 +72,7 @@ let rule = r#"
  }
 "#;
 
-let ast = Parser::new().build_ast(rule, None).unwrap();
+let ast = Parser::new().build_ast(rule).unwrap();
 
 
 ```
@@ -105,6 +105,39 @@ mod warnings;
 #[cfg(test)]
 mod tests;
 
+/// A structure that describes a YARA source code.
+///
+/// This structure contains a `&str` that points to the code itself, and an optional
+/// `String` with information about the origin of the source code. The most common use
+/// for the `origin` field is indicating the path of the file from where the source
+/// code was obtained, but the string can be actually anything. This string, if provided,
+/// will appear in error messages.
+#[derive(Debug, Clone)]
+pub struct SourceCode<'src> {
+    /// A reference to the source code itself in text form.
+    pub text: &'src str,
+    /// An optional string that tells which is the origin of the code. Usually
+    /// a file path.
+    pub origin: Option<std::string::String>,
+}
+
+impl<'src> SourceCode<'src> {
+    /// Create a new SourceCode structure that can be passed later to [`Parser::build_ast`]
+    pub fn new(src: &'src str) -> Self {
+        Self { text: src, origin: None }
+    }
+
+    pub fn origin(self, origin: &str) -> Self {
+        Self { text: self.text, origin: Some(origin.to_owned()) }
+    }
+}
+
+impl<'src> From<&'src str> for SourceCode<'src> {
+    fn from(src: &'src str) -> Self {
+        Self { text: src, origin: None }
+    }
+}
+
 /// Receives YARA source code and produces either a Concrete Syntax Tree (CST)
 /// or an Abstract Syntax Tree (AST).
 #[derive(Default)]
@@ -128,25 +161,51 @@ impl<'a> Parser<'a> {
         self
     }
 
-    /// Build the Abstract Syntax Tree (AST) for a YARA source.
-    pub fn build_ast<'src>(
-        &self,
-        src: &'src str,
-        origin: Option<String>,
-    ) -> Result<AST<'src>, Error> {
+    /// Builds the Abstract Syntax Tree (AST) for some YARA source code.
+    ///
+    /// The `src` argument can either a `&str` pointing to the source code, or
+    /// a [`SourceCode`] structure. With a [`SourceCode`] structure you can
+    /// provide additional information about the source code, like the path
+    /// of the file from where the code was read.
+    ///
+    /// The AST returned by this function holds references to the original
+    /// source code. For example, identifiers in the AST point to those
+    /// identifiers in the source code. This avoids making copies of those
+    /// strings, but also implies that the memory backing the source code
+    /// can't be dropped until the AST is dropped.
+    ///
+    /// # Examples
+    ///
+    /// Passing the source code directly to `build_ast`:
+    ///
+    /// ```
+    /// use yara_x::parser::Parser;
+    /// let src = "rule example { condition: true }";
+    /// let ast = Parser::new().build_ast(src).unwrap();
+    /// ```
+    ///
+    /// Passing a [`SourceCode`] structure:
+    ///
+    /// ```
+    /// use yara_x::parser::{Parser, SourceCode};
+    /// let src = SourceCode::from("rule example { condition: true }").origin("some_rule.yar");
+    /// let ast = Parser::new().build_ast(src).unwrap();
+    /// ```
+    pub fn build_ast<'src, S>(&self, src: S) -> Result<AST<'src>, Error>
+    where
+        S: Into<SourceCode<'src>>,
+    {
+        let src = src.into();
+
         // Create the CST but ignore comments and whitespaces. They won't
         // be visible while traversing the CST as we don't need them for
         // building the AST.
-        let cst = self
-            .build_cst(src, origin.clone())?
-            .comments(false)
-            .whitespaces(false);
+        let cst =
+            self.build_cst(src.clone())?.comments(false).whitespaces(false);
 
         // The root of the CST must be the grammar rule `source_file`.
         let root = cst.into_iter().next().unwrap();
         assert_eq!(root.as_rule(), GrammarRule::source_file);
-
-        let src = SourceCode { text: src, origin };
 
         // If self.report_builder is None, create my own.
         let owned_report_builder = if self.report_builder.is_none() {
@@ -176,13 +235,39 @@ impl<'a> Parser<'a> {
     }
 
     /// Build the Concrete Syntax Tree (CST) for a YARA source.
+    ///
+    /// The `src` argument can either a `&str` pointing to the source code, or
+    /// a [`SourceCode`] structure. With a [`SourceCode`] structure you can
+    /// provide additional information about the source code, like the path
+    /// of the file from where the code was read.
+    ///
+    /// The CST returned by this function holds references to the original
+    /// source code. This implies that the memory backing the source code
+    /// can't be dropped until the CST is dropped.
+    ///
+    /// # Examples
+    ///
+    /// Passing the source code directly to `build_cst`:
+    ///
+    /// ```
+    /// use yara_x::parser::Parser;
+    /// let src = "rule example { condition: true }";
+    /// let cst = Parser::new().build_cst(src).unwrap();
+    /// ```
+    ///
+    /// Passing a [`SourceCode`] structure:
+    ///
+    /// ```
+    /// use yara_x::parser::{Parser, SourceCode};
+    /// let src = SourceCode::from("rule example { condition: true }").origin("some_rule.yar");
+    /// let cst = Parser::new().build_cst(src).unwrap();
+    /// ```
     #[inline(always)]
-    pub fn build_cst<'src>(
-        &self,
-        src: &'src str,
-        origin: Option<string::String>,
-    ) -> Result<CST<'src>, Error> {
-        self.build_rule_cst(GrammarRule::source_file, src, origin)
+    pub fn build_cst<'src, S>(&self, src: S) -> Result<CST<'src>, Error>
+    where
+        S: Into<SourceCode<'src>>,
+    {
+        self.build_rule_cst(GrammarRule::source_file, src)
     }
 
     /// Builds the CST for a specific grammar rule.
@@ -191,13 +276,17 @@ impl<'a> Parser<'a> {
     /// example if the rule is [`GrammarRule::boolean_expr`] the content of
     /// `src` must be something like `$a and $b`, passing a full YARA rule
     /// will fail because this grammar rule doesn't parse a full rule.
-    pub fn build_rule_cst<'src>(
+    ///
+    /// This API is for internal use only.
+    pub(crate) fn build_rule_cst<'src, S>(
         &self,
         rule: GrammarRule,
-        src: &'src str,
-        origin: Option<string::String>,
-    ) -> Result<CST<'src>, Error> {
-        let src = SourceCode { text: src, origin };
+        src: S,
+    ) -> Result<CST<'src>, Error>
+    where
+        S: Into<SourceCode<'src>>,
+    {
+        let src = src.into();
         let mut error_builder = ReportBuilder::new();
 
         error_builder.with_colors(self.colorize_errors).register_source(&src);
@@ -220,6 +309,8 @@ impl<'a> Parser<'a> {
     /// This is optional, if the report builder is not set the Parser will
     /// create its own when necessary. However this allows sharing the same
     /// report builder with the [`Compiler`].
+    ///
+    /// This API is for internal use only.
     pub(crate) fn set_report_builder(
         &mut self,
         report_builder: &'a ReportBuilder,

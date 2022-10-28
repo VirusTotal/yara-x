@@ -101,7 +101,7 @@ impl<'a> Compiler<'a> {
         let mut ast = Parser::new()
             .colorize_errors(self.colorize_errors)
             .set_report_builder(&self.report_builder)
-            .build_ast(src, None)?;
+            .build_ast(src)?;
 
         let src = SourceCode { text: src, origin: None };
 
