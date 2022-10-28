@@ -86,7 +86,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq
+             └─ eq : boolean(unknown)
                 ├─ div
                 │  ├─ 10
                 │  └─ 0

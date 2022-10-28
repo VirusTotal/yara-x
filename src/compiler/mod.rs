@@ -388,11 +388,11 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Not(expr) => {
-            let type_hint =
-                check_expression!(ctx, Type::Bool, &mut expr.operand)?;
-
-            expr.type_hint = boolean_not!(type_hint);
-
+            expr.type_hint = boolean_not!(check_expression!(
+                ctx,
+                Type::Bool,
+                &mut expr.operand
+            )?);
             Ok(expr.type_hint.clone())
         }
 
@@ -437,11 +437,11 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::BitwiseNot(expr) => {
-            let type_hint =
-                check_expression!(ctx, Type::Integer, &mut expr.operand)?;
-
-            expr.type_hint = bitwise_not!(type_hint);
-
+            expr.type_hint = bitwise_not!(check_expression!(
+                ctx,
+                Type::Integer,
+                &mut expr.operand
+            )?);
             Ok(expr.type_hint.clone())
         }
 
@@ -458,14 +458,11 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Minus(expr) => {
-            let type_hint = check_expression!(
+            expr.type_hint = minus_op!(check_expression!(
                 ctx,
                 Type::Integer | Type::Float,
                 &mut expr.operand
-            )?;
-
-            expr.type_hint = minus_op!(type_hint);
-
+            )?);
             Ok(expr.type_hint.clone())
         }
 
@@ -617,6 +614,7 @@ fn range_semantic_check<'a>(
 ) -> Result<(), Error> {
     check_expression!(ctx, Type::Integer, &mut range.lower_bound)?;
     check_expression!(ctx, Type::Integer, &mut range.upper_bound)?;
+    // TODO: ensure that upper bound is greater than lower bound.
     Ok(())
 }
 
