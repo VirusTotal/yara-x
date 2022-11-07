@@ -10,17 +10,17 @@ use std::ops::BitXor;
 
 use bstr::ByteSlice;
 
-use crate::{Struct, Value, Variable};
 #[doc(inline)]
 pub use crate::compiler::errors::*;
+use crate::parser::Error as ParserError;
 use crate::parser::{
     arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
-    comparison_op, Expr, HasSpan, Iterable, MatchAnchor, minus_op, OfItems,
-    Parser, Quantifier, Range, shift_op, SourceCode, Span, string_op, Type,
+    comparison_op, minus_op, shift_op, string_op, Expr, HasSpan, Iterable,
+    MatchAnchor, OfItems, Parser, Quantifier, Range, SourceCode, Span, Type,
     TypeHint,
 };
-use crate::parser::Error as ParserError;
 use crate::report::ReportBuilder;
+use crate::{Struct, Value, Variable};
 
 mod errors;
 
@@ -52,12 +52,6 @@ pub struct Compiler<'a> {
     colorize_errors: bool,
     report_builder: ReportBuilder,
     sym_tbl: Struct<'a>,
-}
-
-impl fmt::Debug for Compiler<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Compiler")
-    }
 }
 
 impl<'a> Compiler<'a> {
@@ -97,13 +91,16 @@ impl<'a> Compiler<'a> {
     /// Adds a YARA source code to be compiled.
     ///
     /// This function can be called multiple times.
-    pub fn add(&mut self, src: &str) -> Result<&mut Self, Error> {
+    pub fn add<'src, S>(&mut self, src: S) -> Result<&mut Self, Error>
+    where
+        S: Into<SourceCode<'src>>,
+    {
+        let src = src.into();
+
         let mut ast = Parser::new()
             .colorize_errors(self.colorize_errors)
             .set_report_builder(&self.report_builder)
-            .build_ast(src)?;
-
-        let src = SourceCode { text: src, origin: None };
+            .build_ast(src.clone())?;
 
         let mut ctx = Context {
             sym_tbl: &self.sym_tbl,
@@ -126,6 +123,18 @@ impl<'a> Compiler<'a> {
         }
 
         Ok(self)
+    }
+}
+
+impl fmt::Debug for Compiler<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Compiler")
+    }
+}
+
+impl Default for Compiler<'_> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

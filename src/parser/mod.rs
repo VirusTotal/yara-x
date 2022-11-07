@@ -218,7 +218,7 @@ impl<'a> Parser<'a> {
         };
 
         // Use self.report_builder if not None, or my own report builder
-        // if otherwise
+        // if otherwise.
         let report_builder =
             self.report_builder.or(owned_report_builder.as_ref()).unwrap();
 
