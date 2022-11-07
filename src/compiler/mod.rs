@@ -31,6 +31,7 @@ macro_rules! check_expression {
     ($ctx:expr, $( $pattern:path )|+, $expr:expr) => {
         {
             use crate::compiler::errors::Error;
+            #[allow(clippy::unnecessary_mut_passed)]
             let span = $expr.span();
             let type_hint = expr_semantic_check($ctx, $expr)?;
             if !matches!(type_hint.ty(), $( $pattern )|+) {
@@ -140,7 +141,9 @@ impl Default for Compiler<'_> {
 
 macro_rules! check_operands {
     ($ctx:ident, $( $pattern:path )|+, $expr1:expr, $expr2:expr) => {{
+        #[allow(clippy::unnecessary_mut_passed)]
         let span1 = $expr1.span();
+        #[allow(clippy::unnecessary_mut_passed)]
         let span2 = $expr2.span();
 
         let type_hint1 = check_expression!($ctx, $( $pattern )|+, $expr1)?;
@@ -180,6 +183,7 @@ macro_rules! check_operands {
 
 macro_rules! check_non_negative_integer {
     ($ctx:ident, $expr:expr) => {{
+        #[allow(clippy::unnecessary_mut_passed)]
         let span = $expr.span();
         let type_hint = check_expression!($ctx, Type::Integer, $expr)?;
         if let TypeHint::Integer(Some(value)) = type_hint {
@@ -201,6 +205,7 @@ macro_rules! check_non_negative_integer {
 
 macro_rules! check_integer_in_range {
     ($ctx:ident, $expr:expr, $min:expr, $max:expr) => {{
+        #[allow(clippy::unnecessary_mut_passed)]
         let span = $expr.span();
         let type_hint = check_expression!($ctx, Type::Integer, $expr)?;
         if let TypeHint::Integer(Some(value)) = type_hint {
