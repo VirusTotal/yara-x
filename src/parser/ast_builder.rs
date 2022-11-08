@@ -1,30 +1,22 @@
-use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display, Formatter};
 use std::iter::Iterator;
 use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
-use std::{fmt, str};
+use std::str;
 
-use ascii_tree::Tree::*;
-use bitmask::bitmask;
 use bstr::{BString, ByteSlice};
 use lazy_static::lazy_static;
 use num::{Bounded, CheckedMul, FromPrimitive, Integer};
 use pest::iterators::Pair;
 use pest::pratt_parser::{Assoc, Op, PrattParser};
 
-use yara_derive::*;
-
-use crate::ascii_tree::namespace_ascii_tree;
-pub use crate::parser::expr::*;
-use crate::parser::span::HasSpan;
+use crate::ast::span::HasSpan;
+use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
+use crate::ast::Namespace;
+use crate::ast::*;
 use crate::parser::warnings::Warning;
-use crate::parser::Expr::{BitwiseNot, FieldAccess, Minus, Not};
-use crate::parser::{CSTNode, Context, Error, GrammarRule, Span, CST};
-use crate::Struct;
+use crate::parser::{CSTNode, Context, Error, GrammarRule, CST};
 
 macro_rules! expect {
     ($next:expr, $parser_rule:expr) => {{
@@ -38,323 +30,9 @@ macro_rules! expect {
     }};
 }
 
-bitmask! {
-    /// A set of flags associated to a YARA rule.
-    #[derive(Debug)]
-    pub mask RuleFlags: u8 where
-    /// Each of the flags that a YARA rule can have.
-    flags RuleFlag {
-        Private = 0x01,
-        Global = 0x02,
-    }
-}
-
-/// Abstract Syntax Tree (AST) for YARA rules.
-pub struct AST<'src> {
-    pub namespaces: HashMap<&'src str, Namespace<'src>>,
-    /// Warnings generated while building this AST.
-    pub warnings: Vec<Warning>,
-}
-
-impl<'src> Debug for AST<'src> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        ascii_tree::write_tree(f, self.ascii_tree().borrow())
-    }
-}
-
-impl<'src> AST<'src> {
-    /// Returns a printable ASCII tree representing the AST.
-    pub fn ascii_tree(&self) -> ascii_tree::Tree {
-        let sym_tbl = Struct::new();
-        Node(
-            "root".to_string(),
-            self.namespaces
-                .iter()
-                .map(|(_, ns)| namespace_ascii_tree(&ns, &sym_tbl))
-                .collect(),
-        )
-    }
-}
-
-/// A namespace containing YARA rules.
-///
-/// Within each namespace rule identifiers are unique.
-#[derive(Debug)]
-pub struct Namespace<'src> {
-    pub rules: HashMap<&'src str, Rule<'src>>,
-    pub imports: HashSet<&'src str>,
-}
-
-impl<'src> Namespace<'src> {
-    /// Creates a namespace from a CST.
-    pub(crate) fn from_cst(
-        ctx: &mut Context<'src, '_>,
-        cst: CST<'src>,
-    ) -> Result<Self, Error> {
-        let mut rules: HashMap<&str, Rule> = HashMap::new();
-        let mut imports: HashSet<&str> = HashSet::new();
-        for node in cst {
-            match node.as_rule() {
-                GrammarRule::import_stmt => {
-                    let mut children = node.into_inner();
-                    expect!(children.next().unwrap(), GrammarRule::k_IMPORT);
-                    let ident = children.next().unwrap();
-                    imports.insert(ident.as_str());
-                }
-                GrammarRule::rule_decl => {
-                    let new_rule = rule_from_cst(ctx, node)?;
-                    // Check if another rule was already defined with the same name.
-                    if let Some(existing_rule) =
-                        rules.get(new_rule.identifier.name)
-                    {
-                        return Err(Error::duplicate_rule(
-                            ctx.report_builder,
-                            &ctx.src,
-                            new_rule.identifier.name.to_string(),
-                            new_rule.identifier.span,
-                            existing_rule.identifier.span,
-                        ));
-                    }
-                    rules.insert(new_rule.identifier.name, new_rule);
-                }
-                // The End Of Input (EOI) rule is ignored.
-                GrammarRule::EOI => {}
-                // Under `source_file` the grammar doesn't have any other types of
-                // rules. This should not be reached.
-                rule => unreachable!("unexpected grammar rule: `{:?}`", rule),
-            }
-        }
-        Ok(Self { rules, imports })
-    }
-}
-
-/// A YARA rule.
-#[derive(Debug)]
-pub struct Rule<'src> {
-    pub flags: RuleFlags,
-    pub identifier: Ident<'src>,
-    pub tags: Option<HashSet<&'src str>>,
-    pub meta: Option<Vec<Meta<'src>>>,
-    pub patterns: Option<Vec<Pattern<'src>>>,
-    pub condition: Expr<'src>,
-}
-
-/// A metadata entry in a YARA rule.
-#[derive(Debug)]
-pub struct Meta<'src> {
-    pub identifier: Ident<'src>,
-    pub value: MetaValue<'src>,
-}
-
-/// Each of the possible values that can have a metadata entry.
-#[derive(Debug)]
-pub enum MetaValue<'src> {
-    Bool(bool),
-    Integer(i64),
-    Float(f64),
-    String(&'src str),
-}
-
-impl<'src> Display for MetaValue<'src> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Bool(v) => write!(f, "{}", v),
-            Self::Integer(v) => write!(f, "{}", v),
-            Self::Float(v) => write!(f, "{:.1}", v),
-            Self::String(v) => write!(f, "{}", v),
-        }
-    }
-}
-
-/// Types of patterns (a.k.a strings) that can appear in a YARA rule.
-///
-/// Possible types are: text patterns, hex patterns and regular expressions.
-#[derive(Debug)]
-pub enum Pattern<'src> {
-    Text(Box<TextPattern<'src>>),
-    Hex(Box<HexPattern<'src>>),
-    Regexp(Box<Regexp<'src>>),
-}
-
-impl<'src> Pattern<'src> {
-    pub fn identifier(&self) -> &Ident<'src> {
-        match self {
-            Pattern::Text(p) => &p.identifier,
-            Pattern::Regexp(p) => &p.identifier,
-            Pattern::Hex(p) => &p.identifier,
-        }
-    }
-}
-
-/// A pattern (a.k.a string) modifier.
-#[derive(Debug, HasSpan)]
-pub enum PatternModifier {
-    Ascii { span: Span },
-    Wide { span: Span },
-    Nocase { span: Span },
-    Private { span: Span },
-    Fullword { span: Span },
-    Base64 { span: Span, alphabet: Option<BString> },
-    Base64Wide { span: Span, alphabet: Option<BString> },
-    Xor { span: Span, start: u8, end: u8 },
-}
-
-impl Display for PatternModifier {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            PatternModifier::Ascii { .. } => {
-                write!(f, "ascii")
-            }
-            PatternModifier::Wide { .. } => {
-                write!(f, "wide")
-            }
-            PatternModifier::Nocase { .. } => {
-                write!(f, "nocase")
-            }
-            PatternModifier::Private { .. } => {
-                write!(f, "private")
-            }
-            PatternModifier::Fullword { .. } => {
-                write!(f, "fullword")
-            }
-            PatternModifier::Base64 { alphabet, .. } => {
-                if let Some(alphabet) = alphabet {
-                    write!(f, "base64({})", alphabet)
-                } else {
-                    write!(f, "base64")
-                }
-            }
-            PatternModifier::Base64Wide { alphabet, .. } => {
-                if let Some(alphabet) = alphabet {
-                    write!(f, "base64wide({})", alphabet)
-                } else {
-                    write!(f, "base64wide")
-                }
-            }
-            PatternModifier::Xor { start, end, .. } => {
-                if *start == 0 && *end == 255 {
-                    write!(f, "xor")
-                } else if *start == *end {
-                    write!(f, "xor({})", start)
-                } else {
-                    write!(f, "xor({}-{})", start, end)
-                }
-            }
-        }
-    }
-}
-
-/// A text pattern (a.k.a text string) in a YARA rule.
-///
-/// The value is stored in a [`BString`] because text patterns in YARA can
-/// contain arbitrary bytes, including zeroes. This means that they can't
-/// be stored in a [`String`], which require valid UTF-8 content.
-#[derive(Debug, HasSpan)]
-pub struct TextPattern<'src> {
-    pub(crate) span: Span,
-    pub identifier: Ident<'src>,
-    pub value: BString,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
-}
-
-/// A hex pattern (a.k.a hex string) in a YARA rule.
-#[derive(Debug, HasSpan)]
-pub struct HexPattern<'src> {
-    pub(crate) span: Span,
-    pub identifier: Ident<'src>,
-    pub tokens: HexTokens,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
-}
-
-/// A sequence of tokens that conform a hex pattern (a.k.a hex string).
-#[derive(Debug)]
-pub struct HexTokens {
-    pub tokens: Vec<HexToken>,
-}
-
-/// Each of the types of tokens in a hex pattern (a.k.a hex string).
-///
-/// A token can be a single byte, a negated byte (e.g. `~XX`), an
-/// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
-#[derive(Debug)]
-pub enum HexToken {
-    Byte(Box<HexByte>),
-    NotByte(Box<HexByte>),
-    Alternative(Box<HexAlternative>),
-    Jump(Box<HexJump>),
-}
-
-/// A single byte in a hex pattern (a.k.a hex string).
-///
-/// The byte is accompanied by a mask which will be 0xFF for non-masked bytes.
-#[derive(Debug)]
-pub struct HexByte {
-    pub value: u8,
-    pub mask: u8,
-}
-
-/// An alternative in a hex pattern (a.k.a hex string).
-///
-/// Alternatives are sequences of hex tokens separated by `|`.
-#[derive(Debug)]
-pub struct HexAlternative {
-    pub alternatives: Vec<HexTokens>,
-}
-
-/// A jump in a hex pattern (a.k.a hex string).
-#[derive(Debug)]
-pub struct HexJump {
-    pub start: Option<u16>,
-    pub end: Option<u16>,
-}
-
-impl HexJump {
-    /// Coalesce this jump with another one.
-    ///
-    /// This is useful when two or more consecutive jumps appear in a hex
-    /// pattern. In such cases the jumps can be coalesced together into a
-    /// single one. For example:
-    ///
-    ///  `[1-2][3-4]` becomes `[4-6]`
-    ///  `[0-2][5-]` becomes `[5-]`
-    ///
-    pub(crate) fn coalesce(&mut self, other: HexJump) {
-        match (self.start, other.start) {
-            (Some(s1), Some(s2)) => self.start = Some(s1 + s2),
-            (Some(s1), None) => self.start = Some(s1),
-            (None, Some(s2)) => self.start = Some(s2),
-            (None, None) => self.start = None,
-        }
-        match (self.end, other.end) {
-            (Some(e1), Some(e2)) => self.end = Some(e1 + e2),
-            (_, _) => self.end = None,
-        }
-    }
-}
-
-impl Display for HexJump {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match (self.start, self.end) {
-            (Some(start), Some(end)) => write!(f, "[{}-{}]", start, end),
-            (Some(start), None) => write!(f, "[{}-]", start),
-            (None, Some(end)) => write!(f, "[-{}]", end),
-            (None, None) => write!(f, "[-]"),
-        }
-    }
-}
-
-/// A regular expression in a YARA rule.
-#[derive(Debug, HasSpan)]
-pub struct Regexp<'src> {
-    pub(crate) span: Span,
-    pub identifier: Ident<'src>,
-    pub regexp: &'src str,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
-}
-
 macro_rules! boolean_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match ($lhs, $rhs) {
             (Bool(Some(lhs)), Bool(Some(rhs))) => {
                 Bool(Some(lhs $op rhs))
@@ -366,7 +44,7 @@ macro_rules! boolean_op {
 
 macro_rules! comparison_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match ($lhs, $rhs) {
             (Integer(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op rhs)),
             (Float(Some(lhs)), Float(Some(rhs))) => Bool(Some(lhs $op rhs)),
@@ -380,7 +58,7 @@ macro_rules! comparison_op {
 
 macro_rules! shift_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match ($lhs, $rhs) {
             (Integer(Some(lhs)), Integer(Some(rhs))) => {
                 let overflow: bool;
@@ -410,7 +88,7 @@ macro_rules! shift_op {
 
 macro_rules! bitwise_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match ($lhs, $rhs) {
             (Integer(Some(lhs)), Integer(Some(rhs))) => {
                 Integer(Some(lhs.$op(rhs)))
@@ -422,7 +100,7 @@ macro_rules! bitwise_op {
 
 macro_rules! arithmetic_op {
     ($lhs:expr, $op:tt, $checked_op:ident, $rhs:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match ($lhs, $rhs) {
             // ... check for different combinations of integer and float
             // operands. The result is integer if both operand are
@@ -452,7 +130,7 @@ macro_rules! arithmetic_op {
 
 macro_rules! minus_op {
     ($operand:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match $operand {
             Integer(Some(i)) => Integer(Some(-i)),
             Integer(None) => Integer(None),
@@ -465,7 +143,7 @@ macro_rules! minus_op {
 
 macro_rules! boolean_not {
     ($operand:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match $operand {
             Bool(Some(b)) => Bool(Some(!b)),
             _ => Bool(None),
@@ -475,7 +153,7 @@ macro_rules! boolean_not {
 
 macro_rules! bitwise_not {
     ($operand:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match $operand {
             Integer(Some(i)) => Integer(Some(!i)),
             _ => Integer(None),
@@ -485,7 +163,7 @@ macro_rules! bitwise_not {
 
 macro_rules! string_op {
     ($lhs:expr, $op:tt, $rhs:expr, $case_insensitive:expr) => {{
-        use crate::parser::TypeHint::*;
+        use crate::ast::TypeHint::*;
         match ($lhs, $rhs) {
             (String(Some(lhs)), String(Some(rhs))) => {
                 if $case_insensitive {
@@ -802,6 +480,46 @@ fn check_pattern_modifiers<'src>(
     }
 
     Ok(())
+}
+
+pub(crate) fn namespace_from_cst<'src>(
+    ctx: &mut Context<'src, '_>,
+    cst: CST<'src>,
+) -> Result<Namespace<'src>, Error> {
+    let mut rules: HashMap<&str, Rule> = HashMap::new();
+    let mut imports: HashSet<&str> = HashSet::new();
+    for node in cst {
+        match node.as_rule() {
+            GrammarRule::import_stmt => {
+                let mut children = node.into_inner();
+                expect!(children.next().unwrap(), GrammarRule::k_IMPORT);
+                let ident = children.next().unwrap();
+                imports.insert(ident.as_str());
+            }
+            GrammarRule::rule_decl => {
+                let new_rule = rule_from_cst(ctx, node)?;
+                // Check if another rule was already defined with the same name.
+                if let Some(existing_rule) =
+                    rules.get(new_rule.identifier.name)
+                {
+                    return Err(Error::duplicate_rule(
+                        ctx.report_builder,
+                        &ctx.src,
+                        new_rule.identifier.name.to_string(),
+                        new_rule.identifier.span,
+                        existing_rule.identifier.span,
+                    ));
+                }
+                rules.insert(new_rule.identifier.name, new_rule);
+            }
+            // The End Of Input (EOI) rule is ignored.
+            GrammarRule::EOI => {}
+            // Under `source_file` the grammar doesn't have any other types of
+            // rules. This should not be reached.
+            rule => unreachable!("unexpected grammar rule: `{:?}`", rule),
+        }
+    }
+    Ok(Namespace { rules, imports })
 }
 
 /// Given a CST node corresponding to the grammar rule` rule_decl`, returns a

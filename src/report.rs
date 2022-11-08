@@ -8,7 +8,8 @@ use pest::error::ErrorVariant::{CustomError, ParsingError};
 use pest::error::InputLocation;
 use yansi::Style;
 
-use crate::parser::{Error, Span};
+use crate::ast::Span;
+use crate::parser::Error;
 use crate::parser::GrammarRule;
 use crate::parser::SourceCode;
 

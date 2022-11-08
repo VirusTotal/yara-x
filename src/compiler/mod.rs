@@ -9,15 +9,21 @@ use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
 
-use crate::parser::{
-    arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
-    comparison_op, minus_op, shift_op, string_op, Expr, HasSpan, Iterable,
-    MatchAnchor, Of, OfItems, Parser, Quantifier, Range, SourceCode, Span,
-    Type, TypeHint,
-};
-use crate::parser::{Error as ParserError, PatternSet, Rule};
+use crate::ast::span::HasSpan;
+use crate::ast::*;
+use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::{Struct, Value, Variable};
+
+use crate::parser::arithmetic_op;
+use crate::parser::bitwise_not;
+use crate::parser::bitwise_op;
+use crate::parser::boolean_not;
+use crate::parser::boolean_op;
+use crate::parser::comparison_op;
+use crate::parser::minus_op;
+use crate::parser::shift_op;
+use crate::parser::string_op;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -120,6 +126,15 @@ impl Default for Compiler<'_> {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Structure that contains information about the current compilation process.
+struct Context<'a> {
+    sym_tbl: &'a Struct<'a>,
+    report_builder: &'a ReportBuilder,
+    src: &'a SourceCode<'a>,
+    current_rule: &'a Rule<'a>,
+    warnings: &'a mut Vec<Warning>,
 }
 
 macro_rules! semcheck {
@@ -328,15 +343,6 @@ macro_rules! semcheck_string_op {
 
         Ok(type_hint)
     }};
-}
-
-/// Structure that contains information about the current compilation process.
-struct Context<'a> {
-    sym_tbl: &'a Struct<'a>,
-    report_builder: &'a ReportBuilder,
-    src: &'a SourceCode<'a>,
-    current_rule: &'a Rule<'a>,
-    warnings: &'a mut Vec<Warning>,
 }
 
 /// Makes sure that an expression is semantically valid.

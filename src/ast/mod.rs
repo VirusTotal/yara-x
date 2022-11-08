@@ -1,12 +1,295 @@
+/*! Types representing the Abstract Syntax Tree (AST) for YARA rules.*/
+pub mod span;
+
+use std::borrow::Borrow;
 use std::cell::RefCell;
-use std::fmt::{Display, Formatter};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
+use std::fmt::{Debug, Display, Formatter};
 
+use ascii_tree::Tree::Node;
+use bitmask::bitmask;
 use bstr::BString;
-
 use yara_derive::*;
 
-use crate::parser::span::*;
-use crate::parser::CSTNode;
+use crate::ascii_tree::namespace_ascii_tree;
+use crate::parser::{CSTNode, Warning};
+use crate::Struct;
+
+use crate::ast::span::HasSpan;
+
+pub use crate::ast::span::Span;
+
+/// Abstract Syntax Tree (AST) for YARA rules.
+pub struct AST<'src> {
+    pub namespaces: HashMap<&'src str, Namespace<'src>>,
+    /// Warnings generated while building this AST.
+    pub warnings: Vec<Warning>,
+}
+
+impl<'src> Debug for AST<'src> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        ascii_tree::write_tree(f, self.ascii_tree().borrow())
+    }
+}
+
+impl<'src> AST<'src> {
+    /// Returns a printable ASCII tree representing the AST.
+    pub fn ascii_tree(&self) -> ascii_tree::Tree {
+        let sym_tbl = Struct::new();
+        Node(
+            "root".to_string(),
+            self.namespaces
+                .iter()
+                .map(|(_, ns)| namespace_ascii_tree(&ns, &sym_tbl))
+                .collect(),
+        )
+    }
+}
+
+/// A namespace containing YARA rules.
+///
+/// Within each namespace rule identifiers are unique.
+#[derive(Debug)]
+pub struct Namespace<'src> {
+    pub rules: HashMap<&'src str, Rule<'src>>,
+    pub imports: HashSet<&'src str>,
+}
+
+bitmask! {
+    /// A set of flags associated to a YARA rule.
+    #[derive(Debug)]
+    pub mask RuleFlags: u8 where
+    /// Each of the flags that a YARA rule can have.
+    flags RuleFlag {
+        Private = 0x01,
+        Global = 0x02,
+    }
+}
+
+/// A YARA rule.
+#[derive(Debug)]
+pub struct Rule<'src> {
+    pub flags: RuleFlags,
+    pub identifier: Ident<'src>,
+    pub tags: Option<HashSet<&'src str>>,
+    pub meta: Option<Vec<Meta<'src>>>,
+    pub patterns: Option<Vec<Pattern<'src>>>,
+    pub condition: Expr<'src>,
+}
+
+/// A metadata entry in a YARA rule.
+#[derive(Debug)]
+pub struct Meta<'src> {
+    pub identifier: Ident<'src>,
+    pub value: MetaValue<'src>,
+}
+
+/// Each of the possible values that can have a metadata entry.
+#[derive(Debug)]
+pub enum MetaValue<'src> {
+    Bool(bool),
+    Integer(i64),
+    Float(f64),
+    String(&'src str),
+}
+
+impl<'src> Display for MetaValue<'src> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bool(v) => write!(f, "{}", v),
+            Self::Integer(v) => write!(f, "{}", v),
+            Self::Float(v) => write!(f, "{:.1}", v),
+            Self::String(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+/// Types of patterns (a.k.a strings) that can appear in a YARA rule.
+///
+/// Possible types are: text patterns, hex patterns and regular expressions.
+#[derive(Debug)]
+pub enum Pattern<'src> {
+    Text(Box<TextPattern<'src>>),
+    Hex(Box<HexPattern<'src>>),
+    Regexp(Box<Regexp<'src>>),
+}
+
+impl<'src> Pattern<'src> {
+    pub fn identifier(&self) -> &Ident<'src> {
+        match self {
+            Pattern::Text(p) => &p.identifier,
+            Pattern::Regexp(p) => &p.identifier,
+            Pattern::Hex(p) => &p.identifier,
+        }
+    }
+}
+
+/// A pattern (a.k.a string) modifier.
+#[derive(Debug, HasSpan)]
+pub enum PatternModifier {
+    Ascii { span: Span },
+    Wide { span: Span },
+    Nocase { span: Span },
+    Private { span: Span },
+    Fullword { span: Span },
+    Base64 { span: Span, alphabet: Option<BString> },
+    Base64Wide { span: Span, alphabet: Option<BString> },
+    Xor { span: Span, start: u8, end: u8 },
+}
+
+impl Display for PatternModifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            PatternModifier::Ascii { .. } => {
+                write!(f, "ascii")
+            }
+            PatternModifier::Wide { .. } => {
+                write!(f, "wide")
+            }
+            PatternModifier::Nocase { .. } => {
+                write!(f, "nocase")
+            }
+            PatternModifier::Private { .. } => {
+                write!(f, "private")
+            }
+            PatternModifier::Fullword { .. } => {
+                write!(f, "fullword")
+            }
+            PatternModifier::Base64 { alphabet, .. } => {
+                if let Some(alphabet) = alphabet {
+                    write!(f, "base64({})", alphabet)
+                } else {
+                    write!(f, "base64")
+                }
+            }
+            PatternModifier::Base64Wide { alphabet, .. } => {
+                if let Some(alphabet) = alphabet {
+                    write!(f, "base64wide({})", alphabet)
+                } else {
+                    write!(f, "base64wide")
+                }
+            }
+            PatternModifier::Xor { start, end, .. } => {
+                if *start == 0 && *end == 255 {
+                    write!(f, "xor")
+                } else if *start == *end {
+                    write!(f, "xor({})", start)
+                } else {
+                    write!(f, "xor({}-{})", start, end)
+                }
+            }
+        }
+    }
+}
+
+/// A text pattern (a.k.a text string) in a YARA rule.
+///
+/// The value is stored in a [`BString`] because text patterns in YARA can
+/// contain arbitrary bytes, including zeroes. This means that they can't
+/// be stored in a [`String`], which require valid UTF-8 content.
+#[derive(Debug, HasSpan)]
+pub struct TextPattern<'src> {
+    pub(crate) span: Span,
+    pub identifier: Ident<'src>,
+    pub value: BString,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
+}
+
+/// A hex pattern (a.k.a hex string) in a YARA rule.
+#[derive(Debug, HasSpan)]
+pub struct HexPattern<'src> {
+    pub(crate) span: Span,
+    pub identifier: Ident<'src>,
+    pub tokens: HexTokens,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
+}
+
+/// A sequence of tokens that conform a hex pattern (a.k.a hex string).
+#[derive(Debug)]
+pub struct HexTokens {
+    pub tokens: Vec<HexToken>,
+}
+
+/// Each of the types of tokens in a hex pattern (a.k.a hex string).
+///
+/// A token can be a single byte, a negated byte (e.g. `~XX`), an
+/// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
+#[derive(Debug)]
+pub enum HexToken {
+    Byte(Box<HexByte>),
+    NotByte(Box<HexByte>),
+    Alternative(Box<HexAlternative>),
+    Jump(Box<HexJump>),
+}
+
+/// A single byte in a hex pattern (a.k.a hex string).
+///
+/// The byte is accompanied by a mask which will be 0xFF for non-masked bytes.
+#[derive(Debug)]
+pub struct HexByte {
+    pub value: u8,
+    pub mask: u8,
+}
+
+/// An alternative in a hex pattern (a.k.a hex string).
+///
+/// Alternatives are sequences of hex tokens separated by `|`.
+#[derive(Debug)]
+pub struct HexAlternative {
+    pub alternatives: Vec<HexTokens>,
+}
+
+/// A jump in a hex pattern (a.k.a hex string).
+#[derive(Debug)]
+pub struct HexJump {
+    pub start: Option<u16>,
+    pub end: Option<u16>,
+}
+
+impl HexJump {
+    /// Coalesce this jump with another one.
+    ///
+    /// This is useful when two or more consecutive jumps appear in a hex
+    /// pattern. In such cases the jumps can be coalesced together into a
+    /// single one. For example:
+    ///
+    ///  `[1-2][3-4]` becomes `[4-6]`
+    ///  `[0-2][5-]` becomes `[5-]`
+    ///
+    pub(crate) fn coalesce(&mut self, other: HexJump) {
+        match (self.start, other.start) {
+            (Some(s1), Some(s2)) => self.start = Some(s1 + s2),
+            (Some(s1), None) => self.start = Some(s1),
+            (None, Some(s2)) => self.start = Some(s2),
+            (None, None) => self.start = None,
+        }
+        match (self.end, other.end) {
+            (Some(e1), Some(e2)) => self.end = Some(e1 + e2),
+            (_, _) => self.end = None,
+        }
+    }
+}
+
+impl Display for HexJump {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match (self.start, self.end) {
+            (Some(start), Some(end)) => write!(f, "[{}-{}]", start, end),
+            (Some(start), None) => write!(f, "[{}-]", start),
+            (None, Some(end)) => write!(f, "[-{}]", end),
+            (None, None) => write!(f, "[-]"),
+        }
+    }
+}
+
+/// A regular expression in a YARA rule.
+#[derive(Debug, HasSpan)]
+pub struct Regexp<'src> {
+    pub(crate) span: Span,
+    pub identifier: Ident<'src>,
+    pub regexp: &'src str,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
+}
 
 /// An expression in the AST.
 #[derive(Debug, HasSpan)]
@@ -388,6 +671,7 @@ pub struct ForIn<'src> {
     pub condition: Expr<'src>,
 }
 
+/// Items in a `of` expression.
 #[derive(Debug)]
 pub enum OfItems<'src> {
     PatternSet(PatternSet<'src>),

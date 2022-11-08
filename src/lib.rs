@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::hash::Hash;
 
+use crate::ast::Type;
 use bstr::BString;
 
-use parser::Type;
-
+pub mod ast;
 pub mod compiler;
 pub mod formatter;
 pub mod parser;

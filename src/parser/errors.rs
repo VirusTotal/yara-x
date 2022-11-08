@@ -1,6 +1,6 @@
 use yara_derive::Error;
 
-use crate::parser::Span;
+use crate::ast::Span;
 
 use super::GrammarRule;
 

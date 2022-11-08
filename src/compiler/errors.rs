@@ -2,8 +2,8 @@ use thiserror::Error;
 
 use yara_derive::Error as CompileError;
 
+use crate::ast::Span;
 use crate::parser;
-use crate::parser::Span;
 
 /// Errors returned by the compiler.
 #[derive(Error, Debug)]

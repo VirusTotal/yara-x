@@ -1,4 +1,4 @@
-use crate::parser::BinaryExpr;
+use crate::ast::BinaryExpr;
 
 pub trait HasSpan {
     /// Returns the starting and ending position of some AST node within the source code.

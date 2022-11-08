@@ -81,25 +81,23 @@ let ast = Parser::new().build_ast(rule).unwrap();
 
 use std::collections::HashMap;
 
+use crate::ast::AST;
 use pest::Parser as PestParser;
 
 #[doc(inline)]
-pub use crate::parser::ast::*;
 pub use crate::parser::cst::*;
 pub use crate::parser::errors::*;
-pub use crate::parser::expr::*;
 pub use crate::parser::grammar::Rule as GrammarRule;
-pub use crate::parser::span::*;
+pub use crate::parser::warnings::*;
 
+pub(crate) use crate::parser::ast_builder::*;
 pub(crate) use crate::parser::context::*;
 pub(crate) use crate::report::*;
 
-mod ast;
+mod ast_builder;
 mod context;
 mod cst;
 mod errors;
-mod expr;
-mod span;
 mod warnings;
 
 #[cfg(test)]
@@ -228,7 +226,7 @@ impl<'a> Parser<'a> {
 
         let namespaces = HashMap::from([(
             "default",
-            Namespace::from_cst(&mut ctx, root.into_inner())?,
+            namespace_from_cst(&mut ctx, root.into_inner())?,
         )]);
 
         Ok(AST { namespaces, warnings: ctx.warnings })

@@ -1,11 +1,10 @@
 use ascii_tree::Tree::{Leaf, Node};
 
-use crate::parser::*;
-use crate::parser::TypeHint;
+use crate::ast::*;
 use crate::Struct;
 
 /// Returns a representation of the namespace as an ASCII tree.
-pub fn namespace_ascii_tree(
+pub(crate) fn namespace_ascii_tree(
     namespace: &Namespace,
     sym_tbl: &Struct,
 ) -> ascii_tree::Tree {
@@ -20,7 +19,10 @@ pub fn namespace_ascii_tree(
 }
 
 /// Returns a representation of the rule as an ASCII tree.
-pub fn rule_ascii_tree(rule: &Rule, sym_tbl: &Struct) -> ascii_tree::Tree {
+pub(crate) fn rule_ascii_tree(
+    rule: &Rule,
+    sym_tbl: &Struct,
+) -> ascii_tree::Tree {
     let mut rule_children = vec![];
 
     if let Some(meta) = &rule.meta {
@@ -67,7 +69,10 @@ pub fn rule_ascii_tree(rule: &Rule, sym_tbl: &Struct) -> ascii_tree::Tree {
 }
 
 /// Returns a representation of the expression as an ASCII tree.
-pub fn expr_ascii_tree(expr: &Expr, sym_tbl: &Struct) -> ascii_tree::Tree {
+pub(crate) fn expr_ascii_tree(
+    expr: &Expr,
+    sym_tbl: &Struct,
+) -> ascii_tree::Tree {
     let value = {
         let type_hint = expr.type_hint();
         if matches!(type_hint, TypeHint::UnknownType) {
@@ -532,7 +537,7 @@ pub fn expr_ascii_tree(expr: &Expr, sym_tbl: &Struct) -> ascii_tree::Tree {
     }
 }
 
-fn quantifier_ascii_tree(
+pub(crate) fn quantifier_ascii_tree(
     quantifier: &Quantifier,
     sym_tbl: &Struct,
 ) -> ascii_tree::Tree {
@@ -548,7 +553,9 @@ fn quantifier_ascii_tree(
     }
 }
 
-fn pattern_set_ascii_tree(pattern_set: &PatternSet) -> ascii_tree::Tree {
+pub(crate) fn pattern_set_ascii_tree(
+    pattern_set: &PatternSet,
+) -> ascii_tree::Tree {
     match pattern_set {
         PatternSet::Them => Leaf(vec!["them".to_string()]),
         PatternSet::Set(set) => {
@@ -557,7 +564,7 @@ fn pattern_set_ascii_tree(pattern_set: &PatternSet) -> ascii_tree::Tree {
     }
 }
 
-fn pattern_ascii_tree(
+pub(crate) fn pattern_ascii_tree(
     pattern: &Pattern,
     sym_tbl: &Struct,
 ) -> ascii_tree::Tree {
@@ -592,7 +599,7 @@ fn pattern_ascii_tree(
     }
 }
 
-fn hex_tokens_ascii_tree(
+pub(crate) fn hex_tokens_ascii_tree(
     tokens: &HexTokens,
     sym_tbl: &Struct,
 ) -> ascii_tree::Tree {

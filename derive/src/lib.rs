@@ -7,7 +7,7 @@ mod span;
 /// The HasSpan derive macro implements the [`HasSpan`] trait for structs and
 /// enums.
 ///
-/// The struct must have a field named `span` of type [`Span`], and the macro
+/// The struct must have a field named `span` of type `Span`, and the macro
 /// will add to it a `span` method that returns the value from the field with
 /// the same name.
 ///
@@ -105,7 +105,7 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 /// also have at least one label, defined with `#[label(...)]`. The arguments
 /// passed to `#[label(...)]` are also passed to [`format!`] for creating a
 /// label, except for the last one, which should be the name of a field of
-/// type [`Span`] in the structure. The label will associated to the code
+/// type `Span` in the structure. The label will associated to the code
 /// span indicated by that field.
 ///
 /// In the example above we use `#[label("duplicate tag", tag_span)]` for
