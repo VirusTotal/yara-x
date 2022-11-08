@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Iterator;
@@ -514,11 +515,11 @@ macro_rules! new_boolean_expr {
     ($variant:expr, $op:tt, $lhs:ident, $rhs:ident) => {{
         let lhs = $lhs.type_hint();
         let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr {
+        Ok($variant(Box::new(BinaryExpr::with_type_hint(
             $lhs,
             $rhs,
-            type_hint: boolean_op!(lhs, $op, rhs),
-        })))
+            boolean_op!(lhs, $op, rhs),
+        ))))
     }};
 }
 
@@ -526,11 +527,11 @@ macro_rules! new_arithmetic_expr {
     ($variant:expr, $op:tt, $checked_op:ident, $lhs:ident, $rhs:ident) => {{
         let lhs = $lhs.type_hint();
         let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr {
+        Ok($variant(Box::new(BinaryExpr::with_type_hint(
             $lhs,
             $rhs,
-            type_hint: arithmetic_op!(lhs, $op, $checked_op, rhs),
-        })))
+            arithmetic_op!(lhs, $op, $checked_op, rhs),
+        ))))
     }};
 }
 
@@ -538,11 +539,11 @@ macro_rules! new_bitwise_expr {
     ($variant:expr,$op:ident, $lhs:ident, $rhs:ident) => {{
         let lhs = $lhs.type_hint();
         let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr {
+        Ok($variant(Box::new(BinaryExpr::with_type_hint(
             $lhs,
             $rhs,
-            type_hint: bitwise_op!(lhs, $op, rhs),
-        })))
+            bitwise_op!(lhs, $op, rhs),
+        ))))
     }};
 }
 
@@ -550,11 +551,11 @@ macro_rules! new_comparison_expr {
     ($variant:expr,$op:tt, $lhs:ident, $rhs:ident) => {{
         let lhs = $lhs.type_hint();
         let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr {
+        Ok($variant(Box::new(BinaryExpr::with_type_hint(
             $lhs,
             $rhs,
-            type_hint: comparison_op!(lhs, $op, rhs),
-        })))
+            comparison_op!(lhs, $op, rhs),
+        ))))
     }};
 }
 
@@ -562,11 +563,11 @@ macro_rules! new_shift_expr {
     ($variant:expr,$op:tt, $lhs:ident, $rhs:ident) => {{
         let lhs = $lhs.type_hint();
         let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr {
+        Ok($variant(Box::new(BinaryExpr::with_type_hint(
             $lhs,
             $rhs,
-            type_hint: shift_op!(lhs, $op, rhs),
-        })))
+            shift_op!(lhs, $op, rhs),
+        ))))
     }};
 }
 
@@ -574,11 +575,11 @@ macro_rules! new_string_expr {
     ($variant:expr,$op:ident, $lhs:ident, $rhs:ident, $case_insensitive:expr) => {{
         let lhs = $lhs.type_hint();
         let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr {
+        Ok($variant(Box::new(BinaryExpr::with_type_hint(
             $lhs,
             $rhs,
-            type_hint: string_op!(lhs, $op, rhs, $case_insensitive),
-        })))
+            string_op!(lhs, $op, rhs, $case_insensitive),
+        ))))
     }};
 }
 
@@ -591,21 +592,19 @@ fn create_unary_expr<'src>(
     span.combine(&operand.span());
 
     let expr = match op.as_rule() {
-        GrammarRule::k_NOT => Not(Box::new(UnaryExpr {
+        GrammarRule::BITWISE_NOT => BitwiseNot(Box::new(
+            UnaryExpr::with_type_hint(operand, span, bitwise_not!(type_hint)),
+        )),
+        GrammarRule::k_NOT => Not(Box::new(UnaryExpr::with_type_hint(
             operand,
-            type_hint: boolean_not!(type_hint),
             span,
-        })),
-        GrammarRule::BITWISE_NOT => BitwiseNot(Box::new(UnaryExpr {
+            boolean_not!(type_hint),
+        ))),
+        GrammarRule::MINUS => Minus(Box::new(UnaryExpr::with_type_hint(
             operand,
-            type_hint: bitwise_not!(type_hint),
             span,
-        })),
-        GrammarRule::MINUS => Minus(Box::new(UnaryExpr {
-            operand,
-            type_hint: minus_op!(type_hint),
-            span,
-        })),
+            minus_op!(type_hint),
+        ))),
         rule => unreachable!("{:?}", rule),
     };
     Ok(expr)
@@ -617,11 +616,9 @@ fn create_binary_expr<'src>(
     rhs: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
     match op {
-        GrammarRule::DOT => Ok(FieldAccess(Box::new(BinaryExpr {
-            type_hint: TypeHint::UnknownType,
-            lhs,
-            rhs,
-        }))),
+        GrammarRule::DOT => {
+            Ok(FieldAccess(Box::new(BinaryExpr::new(lhs, rhs))))
+        }
         // Boolean
         GrammarRule::k_OR => {
             new_boolean_expr!(Expr::Or, ||, lhs, rhs)
@@ -1460,11 +1457,11 @@ fn boolean_term_from_cst<'src>(
                 //   ^^^^^^^^^^^^^^^
                 // The best way is using the anchor's span end.
                 span: boolean_term_span.into(),
-                identifier: Ident {
-                    type_hint: TypeHint::Bool(None),
-                    span: ident.as_span().into(),
-                    name: ident_name,
-                },
+                identifier: Ident::with_type_hint(
+                    ident_name,
+                    ident.as_span().into(),
+                    TypeHint::Bool(None),
+                ),
                 anchor,
             }))
         }
@@ -1571,11 +1568,10 @@ fn primary_expr_from_cst<'src>(
 
     let expr = match node.as_rule() {
         GrammarRule::ident => {
-            let mut expr = Expr::Ident(Box::new(Ident {
-                type_hint: TypeHint::UnknownType,
-                span: node.as_span().into(),
-                name: node.as_str(),
-            }));
+            let mut expr = Expr::Ident(Box::new(Ident::new(
+                node.as_str(),
+                node.as_span().into(),
+            )));
 
             // The identifier can be followed by a field access operator,
             // (e.g. `foo.bar.baz`).
@@ -1586,15 +1582,13 @@ fn primary_expr_from_cst<'src>(
 
                 let node = children.next().unwrap();
 
-                expr = Expr::FieldAccess(Box::new(BinaryExpr {
-                    type_hint: TypeHint::UnknownType,
-                    lhs: expr,
-                    rhs: Expr::Ident(Box::new(Ident {
-                        type_hint: TypeHint::UnknownType,
-                        span: node.as_span().into(),
-                        name: node.as_str(),
-                    })),
-                }));
+                expr = Expr::FieldAccess(Box::new(BinaryExpr::new(
+                    expr,
+                    Expr::Ident(Box::new(Ident::new(
+                        node.as_str(),
+                        node.as_span().into(),
+                    ))),
+                )));
             }
 
             expr
@@ -1932,11 +1926,10 @@ fn for_expr_from_cst<'src>(
         for node in children.by_ref() {
             match node.as_rule() {
                 GrammarRule::ident => {
-                    variables.push(Ident {
-                        type_hint: TypeHint::UnknownType,
-                        span: node.as_span().into(),
-                        name: node.as_str(),
-                    });
+                    variables.push(Ident::new(
+                        node.as_str(),
+                        node.as_span().into(),
+                    ));
                 }
                 GrammarRule::COMMA => {}
                 GrammarRule::k_IN => {
@@ -2181,11 +2174,10 @@ fn iterator_from_cst<'src>(
         GrammarRule::expr_tuple => {
             Iterable::ExprTuple(expr_tuple_from_cst(ctx, node)?)
         }
-        GrammarRule::ident => Iterable::Ident(Box::new(Ident {
-            type_hint: TypeHint::UnknownType,
-            span: node.as_span().into(),
-            name: node.as_str(),
-        })),
+        GrammarRule::ident => Iterable::Ident(Box::new(Ident::new(
+            node.as_str(),
+            node.as_span().into(),
+        ))),
         rule => unreachable!("{:?}", rule),
     };
     Ok(expr)

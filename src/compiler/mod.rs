@@ -12,13 +12,13 @@ use bstr::ByteSlice;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::parser::Error as ParserError;
 use crate::parser::{
     arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
     comparison_op, minus_op, shift_op, string_op, Expr, HasSpan, Iterable,
     MatchAnchor, OfItems, Parser, Quantifier, Range, SourceCode, Span, Type,
     TypeHint,
 };
+use crate::parser::{Error as ParserError, PatternSet, Rule};
 use crate::report::ReportBuilder;
 use crate::{Struct, Value, Variable};
 
@@ -31,7 +31,6 @@ macro_rules! check_expression {
     ($ctx:expr, $( $pattern:path )|+, $expr:expr) => {
         {
             use crate::compiler::errors::Error;
-            #[allow(clippy::unnecessary_mut_passed)]
             let span = $expr.span();
             let type_hint = expr_semantic_check($ctx, $expr)?;
             if !matches!(type_hint.ty(), $( $pattern )|+) {
@@ -103,23 +102,22 @@ impl<'a> Compiler<'a> {
             .set_report_builder(&self.report_builder)
             .build_ast(src.clone())?;
 
-        let mut ctx = Context {
-            sym_tbl: &self.sym_tbl,
-            report_builder: &self.report_builder,
-            src: &src,
-        };
-
-        for ns in ast.namespaces.values_mut() {
+        for ns in ast.namespaces.values() {
             for module_name in ns.imports.iter() {
                 // insert module_name in arena.
             }
 
-            let ctx_ref = &mut ctx;
-            for rule in ns.rules.values_mut() {
+            for rule in ns.rules.values() {
+                let mut ctx = Context {
+                    sym_tbl: &self.sym_tbl,
+                    report_builder: &self.report_builder,
+                    src: &src,
+                    current_rule: rule,
+                };
                 // Check that the condition is boolean expression. This traverses
                 // the condition's AST recursively checking the semantic validity
                 // of all AST nodes.
-                check_expression!(ctx_ref, Type::Bool, &mut rule.condition)?;
+                check_expression!(&mut ctx, Type::Bool, &rule.condition)?;
             }
         }
 
@@ -141,9 +139,7 @@ impl Default for Compiler<'_> {
 
 macro_rules! check_operands {
     ($ctx:ident, $( $pattern:path )|+, $expr1:expr, $expr2:expr) => {{
-        #[allow(clippy::unnecessary_mut_passed)]
         let span1 = $expr1.span();
-        #[allow(clippy::unnecessary_mut_passed)]
         let span2 = $expr2.span();
 
         let type_hint1 = check_expression!($ctx, $( $pattern )|+, $expr1)?;
@@ -183,7 +179,6 @@ macro_rules! check_operands {
 
 macro_rules! check_non_negative_integer {
     ($ctx:ident, $expr:expr) => {{
-        #[allow(clippy::unnecessary_mut_passed)]
         let span = $expr.span();
         let type_hint = check_expression!($ctx, Type::Integer, $expr)?;
         if let TypeHint::Integer(Some(value)) = type_hint {
@@ -205,7 +200,6 @@ macro_rules! check_non_negative_integer {
 
 macro_rules! check_integer_in_range {
     ($ctx:ident, $expr:expr, $min:expr, $max:expr) => {{
-        #[allow(clippy::unnecessary_mut_passed)]
         let span = $expr.span();
         let type_hint = check_expression!($ctx, Type::Integer, $expr)?;
         if let TypeHint::Integer(Some(value)) = type_hint {
@@ -230,11 +224,13 @@ macro_rules! check_integer_in_range {
 macro_rules! check_boolean_op {
     ($ctx:ident, $expr:expr, $op:tt) => {{
         let (lhs, rhs) =
-            check_operands!($ctx, Type::Bool, &mut $expr.lhs, &mut $expr.rhs)?;
+            check_operands!($ctx, Type::Bool, &$expr.lhs, &$expr.rhs)?;
 
-        $expr.type_hint = boolean_op!(lhs, $op, rhs);
+        let type_hint = boolean_op!(lhs, $op, rhs);
 
-        Ok($expr.type_hint.clone())
+        $expr.set_type_hint(type_hint.clone());
+
+        Ok(type_hint)
     }};
 }
 
@@ -243,25 +239,23 @@ macro_rules! check_comparison_op {
         let (lhs, rhs) = check_operands!(
             $ctx,
             Type::Integer | Type::Float | Type::String,
-            &mut $expr.lhs,
-            &mut $expr.rhs
+            &$expr.lhs,
+            &$expr.rhs
         )?;
 
-        $expr.type_hint = comparison_op!(lhs, $op, rhs);
+        let type_hint = comparison_op!(lhs, $op, rhs);
 
-        Ok($expr.type_hint.clone())
+        $expr.set_type_hint(type_hint.clone());
+
+        Ok(type_hint)
     }};
 }
 
 macro_rules! check_shift_op {
     ($ctx:ident, $expr:expr, $op:ident) => {{
         let span = $expr.rhs.span();
-        let (lhs, rhs) = check_operands!(
-            $ctx,
-            Type::Integer,
-            &mut $expr.lhs,
-            &mut $expr.rhs
-        )?;
+        let (lhs, rhs) =
+            check_operands!($ctx, Type::Integer, &$expr.lhs, &$expr.rhs)?;
 
         if let TypeHint::Integer(Some(value)) = rhs {
             if value < 0 {
@@ -277,24 +271,24 @@ macro_rules! check_shift_op {
             unreachable!();
         };
 
-        $expr.type_hint = shift_op!(lhs, $op, rhs);
+        let type_hint = shift_op!(lhs, $op, rhs);
 
-        Ok($expr.type_hint.clone())
+        $expr.set_type_hint(type_hint.clone());
+
+        Ok(type_hint)
     }};
 }
 
 macro_rules! check_bitwise_op {
     ($ctx:ident, $expr:expr, $op:ident) => {{
-        let (lhs, rhs) = check_operands!(
-            $ctx,
-            Type::Integer,
-            &mut $expr.lhs,
-            &mut $expr.rhs
-        )?;
+        let (lhs, rhs) =
+            check_operands!($ctx, Type::Integer, &$expr.lhs, &$expr.rhs)?;
 
-        $expr.type_hint = bitwise_op!(lhs, $op, rhs);
+        let type_hint = bitwise_op!(lhs, $op, rhs);
 
-        Ok($expr.type_hint.clone())
+        $expr.set_type_hint(type_hint.clone());
+
+        Ok(type_hint)
     }};
 }
 
@@ -303,28 +297,28 @@ macro_rules! check_arithmetic_op {
         let (lhs, rhs) = check_operands!(
             $ctx,
             Type::Integer | Type::Float,
-            &mut $expr.lhs,
-            &mut $expr.rhs
+            &$expr.lhs,
+            &$expr.rhs
         )?;
 
-        $expr.type_hint = arithmetic_op!(lhs, $op, $checked_op, rhs);
+        let type_hint = arithmetic_op!(lhs, $op, $checked_op, rhs);
 
-        Ok($expr.type_hint.clone())
+        $expr.set_type_hint(type_hint.clone());
+
+        Ok(type_hint)
     }};
 }
 
 macro_rules! check_string_op {
     ($ctx:ident, $expr:expr, $op:ident, $case_insensitive:expr) => {{
-        let (lhs, rhs) = check_operands!(
-            $ctx,
-            Type::String,
-            &mut $expr.lhs,
-            &mut $expr.rhs
-        )?;
+        let (lhs, rhs) =
+            check_operands!($ctx, Type::String, &$expr.lhs, &$expr.rhs)?;
 
-        $expr.type_hint = string_op!(lhs, $op, rhs, $case_insensitive);
+        let type_hint = string_op!(lhs, $op, rhs, $case_insensitive);
 
-        Ok($expr.type_hint.clone())
+        $expr.set_type_hint(type_hint.clone());
+
+        Ok(type_hint)
     }};
 }
 
@@ -333,6 +327,7 @@ struct Context<'a> {
     sym_tbl: &'a Struct<'a>,
     report_builder: &'a ReportBuilder,
     src: &'a SourceCode<'a>,
+    current_rule: &'a Rule<'a>,
 }
 
 /// Makes sure that an expression is semantically valid.
@@ -361,7 +356,7 @@ struct Context<'a> {
 /// AST can be updated with the missing information.
 fn expr_semantic_check<'a>(
     ctx: &mut Context<'a>,
-    expr: &'a mut Expr<'a>,
+    expr: &'a Expr<'a>,
 ) -> Result<TypeHint, Error> {
     match expr {
         Expr::True { .. }
@@ -373,7 +368,7 @@ fn expr_semantic_check<'a>(
         | Expr::LiteralStr(_) => Ok(expr.type_hint()),
 
         Expr::PatternCount(p) => {
-            if let Some(ref mut range) = p.range {
+            if let Some(ref range) = p.range {
                 range_semantic_check(ctx, range)?;
             }
             Ok(TypeHint::Integer(None))
@@ -382,19 +377,19 @@ fn expr_semantic_check<'a>(
         Expr::PatternOffset(p) | Expr::PatternLength(p) => {
             // In expressions like @a[i] and !a[i] the index i must
             // be an integer >= 1.
-            if let Some(ref mut index) = p.index {
+            if let Some(ref index) = p.index {
                 check_integer_in_range!(ctx, index, 1, i64::MAX)?;
             }
             Ok(TypeHint::Integer(None))
         }
 
         Expr::PatternMatch(p) => {
-            match &mut p.anchor {
-                Some(MatchAnchor::In(ref mut anchor_in)) => {
-                    range_semantic_check(ctx, &mut anchor_in.range)?;
+            match &p.anchor {
+                Some(MatchAnchor::In(ref anchor_in)) => {
+                    range_semantic_check(ctx, &anchor_in.range)?;
                 }
                 Some(MatchAnchor::At(anchor_at)) => {
-                    check_non_negative_integer!(ctx, &mut anchor_at.expr)?;
+                    check_non_negative_integer!(ctx, &anchor_at.expr)?;
                 }
                 None => {}
             }
@@ -402,12 +397,13 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Not(expr) => {
-            expr.type_hint = boolean_not!(check_expression!(
+            let type_hint = boolean_not!(check_expression!(
                 ctx,
                 Type::Bool,
-                &mut expr.operand
+                &expr.operand
             )?);
-            Ok(expr.type_hint.clone())
+            expr.set_type_hint(type_hint.clone());
+            Ok(type_hint)
         }
 
         Expr::And(expr) => {
@@ -451,12 +447,15 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::BitwiseNot(expr) => {
-            expr.type_hint = bitwise_not!(check_expression!(
+            let type_hint = bitwise_not!(check_expression!(
                 ctx,
                 Type::Integer,
-                &mut expr.operand
+                &expr.operand
             )?);
-            Ok(expr.type_hint.clone())
+
+            expr.set_type_hint(type_hint.clone());
+
+            Ok(type_hint)
         }
 
         Expr::BitwiseAnd(expr) => {
@@ -472,12 +471,15 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Minus(expr) => {
-            expr.type_hint = minus_op!(check_expression!(
+            let type_hint = minus_op!(check_expression!(
                 ctx,
                 Type::Integer | Type::Float,
-                &mut expr.operand
+                &expr.operand
             )?);
-            Ok(expr.type_hint.clone())
+
+            expr.set_type_hint(type_hint.clone());
+
+            Ok(type_hint)
         }
 
         Expr::Add(expr) => {
@@ -529,7 +531,7 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Ident(ident) => {
-            ident.type_hint =
+            let type_hint: TypeHint =
                 if let Some(var) = ctx.sym_tbl.get_field(ident.name) {
                     todo!()
                 } else {
@@ -543,7 +545,9 @@ fn expr_semantic_check<'a>(
                     ));
                 };
 
-            Ok(ident.type_hint.clone())
+            ident.set_type_hint(type_hint.clone());
+
+            Ok(type_hint)
         }
 
         Expr::LookupIndex(_) => {
@@ -551,8 +555,7 @@ fn expr_semantic_check<'a>(
         }
         Expr::FieldAccess(expr) => {
             // The left side must be a struct.
-            let type_hint =
-                check_expression!(ctx, Type::Struct, &mut expr.lhs)?;
+            check_expression!(ctx, Type::Struct, &expr.lhs)?;
 
             // Save the current symbol table
             //let saved_sym_tbl = ctx.sym_tbl;
@@ -563,12 +566,14 @@ fn expr_semantic_check<'a>(
             // Now check the right hand expression. During the call to
             // expr_semantic_check the current symbol table is the one
             // corresponding to the struct.
-            expr.type_hint = expr_semantic_check(ctx, &mut expr.rhs)?;
+            let type_hint = expr_semantic_check(ctx, &expr.rhs)?;
+
+            expr.set_type_hint(type_hint.clone());
 
             // Go back to the original symbol table.
             //ctx.sym_tbl = saved_sym_tbl;
 
-            Ok(expr.type_hint.clone())
+            Ok(type_hint)
         }
 
         Expr::FnCall(_) => {
@@ -576,35 +581,36 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Of(of) => {
-            quantifier_semantic_check(ctx, &mut of.quantifier)?;
+            quantifier_semantic_check(ctx, &of.quantifier)?;
 
-            if let OfItems::BoolExprTuple(exprs) = &mut of.items {
-                for expr in exprs.iter_mut() {
+            if let OfItems::BoolExprTuple(exprs) = &of.items {
+                for expr in exprs.iter() {
                     check_expression!(ctx, Type::Bool, expr)?;
                 }
             }
 
-            match &mut of.anchor {
+            match &of.anchor {
                 Some(MatchAnchor::In(anchor_in)) => {
-                    range_semantic_check(ctx, &mut anchor_in.range)?;
+                    range_semantic_check(ctx, &anchor_in.range)?;
                 }
                 Some(MatchAnchor::At(anchor_at)) => {
-                    check_non_negative_integer!(ctx, &mut anchor_at.expr)?;
+                    check_non_negative_integer!(ctx, &anchor_at.expr)?;
                 }
                 None => {}
             }
+
             Ok(TypeHint::Bool(None))
         }
 
         Expr::ForOf(for_of) => {
-            quantifier_semantic_check(ctx, &mut for_of.quantifier)?;
-            check_expression!(ctx, Type::Bool, &mut for_of.condition)?;
+            quantifier_semantic_check(ctx, &for_of.quantifier)?;
+            check_expression!(ctx, Type::Bool, &for_of.condition)?;
             Ok(TypeHint::Bool(None))
         }
 
         Expr::ForIn(for_in) => {
-            quantifier_semantic_check(ctx, &mut for_in.quantifier)?;
-            iterable_semantic_check(ctx, &mut for_in.iterable)?;
+            quantifier_semantic_check(ctx, &for_in.quantifier)?;
+            iterable_semantic_check(ctx, &for_in.iterable)?;
 
             /*for variable in &for_in.variables {
                 ctx.sym_tbl.insert(
@@ -616,7 +622,7 @@ fn expr_semantic_check<'a>(
                 );
             }*/
 
-            check_expression!(ctx, Type::Bool, &mut for_in.condition)?;
+            check_expression!(ctx, Type::Bool, &for_in.condition)?;
             Ok(TypeHint::Bool(None))
         }
     }
@@ -624,17 +630,17 @@ fn expr_semantic_check<'a>(
 
 fn range_semantic_check<'a>(
     ctx: &mut Context<'a>,
-    range: &'a mut Range<'a>,
+    range: &'a Range<'a>,
 ) -> Result<(), Error> {
-    check_expression!(ctx, Type::Integer, &mut range.lower_bound)?;
-    check_expression!(ctx, Type::Integer, &mut range.upper_bound)?;
+    check_expression!(ctx, Type::Integer, &range.lower_bound)?;
+    check_expression!(ctx, Type::Integer, &range.upper_bound)?;
     // TODO: ensure that upper bound is greater than lower bound.
     Ok(())
 }
 
 fn quantifier_semantic_check<'a>(
     ctx: &mut Context<'a>,
-    quantifier: &'a mut Quantifier<'a>,
+    quantifier: &'a Quantifier<'a>,
 ) -> Result<TypeHint, Error> {
     match quantifier {
         Quantifier::Expr(expr) => {
@@ -651,7 +657,7 @@ fn quantifier_semantic_check<'a>(
 
 fn iterable_semantic_check<'a>(
     ctx: &mut Context<'a>,
-    iterable: &'a mut Iterable<'a>,
+    iterable: &'a Iterable<'a>,
 ) -> Result<TypeHint, Error> {
     match iterable {
         Iterable::Range(range) => {
@@ -662,7 +668,7 @@ fn iterable_semantic_check<'a>(
             let mut prev: Option<(TypeHint, Span)> = None;
             // Make sure that all expressions in the tuple have the same
             // type and that type is acceptable.
-            for expr in tuple.iter_mut() {
+            for expr in tuple.iter() {
                 let span = expr.span();
                 let type_hint = check_expression!(
                     ctx,

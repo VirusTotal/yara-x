@@ -1,11 +1,12 @@
+use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 
 use bstr::BString;
 
 use yara_derive::*;
 
-use crate::parser::CSTNode;
 use crate::parser::span::*;
+use crate::parser::CSTNode;
 
 /// An expression in the AST.
 #[derive(Debug, HasSpan)]
@@ -197,16 +198,35 @@ pub struct In<'src> {
 /// An identifier (e.g. `some_ident`).
 #[derive(Debug, Clone, HasSpan)]
 pub struct Ident<'src> {
-    pub(crate) type_hint: TypeHint,
+    pub(crate) type_hint: RefCell<TypeHint>,
     pub(crate) span: Span,
     pub name: &'src str,
+}
+
+impl<'src> Ident<'src> {
+    pub(crate) fn new(name: &'src str, span: Span) -> Self {
+        Self { name, span, type_hint: RefCell::new(TypeHint::UnknownType) }
+    }
+
+    pub(crate) fn with_type_hint(
+        name: &'src str,
+        span: Span,
+        type_hint: TypeHint,
+    ) -> Self {
+        Self { name, span, type_hint: RefCell::new(type_hint) }
+    }
+
+    pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
+        self.type_hint.replace(type_hint);
+        self
+    }
 }
 
 /// Creates an [`Ident`] directly from a [`CSTNode`].
 impl<'src> From<CSTNode<'src>> for Ident<'src> {
     fn from(node: CSTNode<'src>) -> Self {
         Self {
-            type_hint: TypeHint::UnknownType,
+            type_hint: RefCell::new(TypeHint::UnknownType),
             span: node.as_span().into(),
             name: node.as_str(),
         }
@@ -265,18 +285,56 @@ pub struct LiteralStr<'src> {
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
     pub(crate) span: Span,
-    pub(crate) type_hint: TypeHint,
+    pub(crate) type_hint: RefCell<TypeHint>,
     pub operand: Expr<'src>,
+}
+
+impl<'src> UnaryExpr<'src> {
+    pub(crate) fn new(operand: Expr<'src>, span: Span) -> Self {
+        Self { span, operand, type_hint: RefCell::new(TypeHint::UnknownType) }
+    }
+
+    pub(crate) fn with_type_hint(
+        operand: Expr<'src>,
+        span: Span,
+        type_hint: TypeHint,
+    ) -> Self {
+        Self { span, operand, type_hint: RefCell::new(type_hint) }
+    }
+
+    pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
+        self.type_hint.replace(type_hint);
+        self
+    }
 }
 
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
-    pub(crate) type_hint: TypeHint,
+    pub(crate) type_hint: RefCell<TypeHint>,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
     pub rhs: Expr<'src>,
+}
+
+impl<'src> BinaryExpr<'src> {
+    pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
+        Self { lhs, rhs, type_hint: RefCell::new(TypeHint::UnknownType) }
+    }
+
+    pub(crate) fn with_type_hint(
+        lhs: Expr<'src>,
+        rhs: Expr<'src>,
+        type_hint: TypeHint,
+    ) -> Self {
+        Self { lhs, rhs, type_hint: RefCell::new(type_hint) }
+    }
+
+    pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
+        self.type_hint.replace(type_hint);
+        self
+    }
 }
 
 /// An expression representing a function call.
@@ -504,10 +562,10 @@ impl<'src> Expr<'src> {
             | Expr::PatternLength(_) => TypeHint::Integer(None),
 
             Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
-                expr.type_hint.clone()
+                expr.type_hint.borrow().clone()
             }
 
-            Expr::Ident(ident) => ident.type_hint.clone(),
+            Expr::Ident(ident) => ident.type_hint.borrow().clone(),
 
             Expr::FieldAccess(expr)
             | Expr::And(expr)
@@ -534,7 +592,7 @@ impl<'src> Expr<'src> {
             | Expr::Shr(expr)
             | Expr::BitwiseAnd(expr)
             | Expr::BitwiseOr(expr)
-            | Expr::BitwiseXor(expr) => expr.type_hint.clone(),
+            | Expr::BitwiseXor(expr) => expr.type_hint.borrow().clone(),
         }
     }
 }
