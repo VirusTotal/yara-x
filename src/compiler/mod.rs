@@ -3,55 +3,38 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
+use bstr::ByteSlice;
 use std::fmt;
 use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
 
-use bstr::ByteSlice;
-
-#[doc(inline)]
-pub use crate::compiler::errors::*;
 use crate::parser::{
     arithmetic_op, bitwise_not, bitwise_op, boolean_not, boolean_op,
     comparison_op, minus_op, shift_op, string_op, Expr, HasSpan, Iterable,
-    MatchAnchor, OfItems, Parser, Quantifier, Range, SourceCode, Span, Type,
-    TypeHint,
+    MatchAnchor, Of, OfItems, Parser, Quantifier, Range, SourceCode, Span,
+    Type, TypeHint,
 };
 use crate::parser::{Error as ParserError, PatternSet, Rule};
 use crate::report::ReportBuilder;
 use crate::{Struct, Value, Variable};
 
+#[doc(inline)]
+pub use crate::compiler::errors::*;
+pub use crate::compiler::warnings::*;
+
 mod errors;
+mod warnings;
 
 #[cfg(test)]
 mod tests;
-
-macro_rules! check_expression {
-    ($ctx:expr, $( $pattern:path )|+, $expr:expr) => {
-        {
-            use crate::compiler::errors::Error;
-            let span = $expr.span();
-            let type_hint = expr_semantic_check($ctx, $expr)?;
-            if !matches!(type_hint.ty(), $( $pattern )|+) {
-                return Err(Error::CompileError(CompileError::wrong_type(
-                    $ctx.report_builder,
-                    $ctx.src,
-                    ParserError::join_with_or(&[ $( $pattern ),+ ], true),
-                    type_hint.ty().to_string(),
-                    span,
-                )));
-            }
-            Ok::<TypeHint, Error>(type_hint)
-        }
-    };
-}
 
 /// A YARA compiler.
 pub struct Compiler<'a> {
     colorize_errors: bool,
     report_builder: ReportBuilder,
     sym_tbl: Struct<'a>,
+    warnings: Vec<Warning>,
 }
 
 impl<'a> Compiler<'a> {
@@ -61,6 +44,7 @@ impl<'a> Compiler<'a> {
             colorize_errors: false,
             report_builder: ReportBuilder::new(),
             sym_tbl: Struct::new(),
+            warnings: vec![],
         }
     }
 
@@ -91,7 +75,7 @@ impl<'a> Compiler<'a> {
     /// Adds a YARA source code to be compiled.
     ///
     /// This function can be called multiple times.
-    pub fn add<'src, S>(&mut self, src: S) -> Result<&mut Self, Error>
+    pub fn add_source<'src, S>(mut self, src: S) -> Result<Self, Error>
     where
         S: Into<SourceCode<'src>>,
     {
@@ -113,11 +97,12 @@ impl<'a> Compiler<'a> {
                     report_builder: &self.report_builder,
                     src: &src,
                     current_rule: rule,
+                    warnings: &mut self.warnings,
                 };
                 // Check that the condition is boolean expression. This traverses
                 // the condition's AST recursively checking the semantic validity
                 // of all AST nodes.
-                check_expression!(&mut ctx, Type::Bool, &rule.condition)?;
+                semcheck!(&mut ctx, Type::Bool, &rule.condition)?;
             }
         }
 
@@ -137,13 +122,36 @@ impl Default for Compiler<'_> {
     }
 }
 
-macro_rules! check_operands {
+macro_rules! semcheck {
+    ($ctx:expr, $( $pattern:path )|+, $expr:expr) => {
+        {
+            use crate::compiler::errors::Error;
+            let span = $expr.span();
+            let type_hint = semcheck_expr($ctx, $expr)?;
+            if !matches!(type_hint.ty(), $( $pattern )|+) {
+                return Err(Error::CompileError(CompileError::wrong_type(
+                    $ctx.report_builder,
+                    $ctx.src,
+                    ParserError::join_with_or(&[ $( $pattern ),+ ], true),
+                    type_hint.ty().to_string(),
+                    span,
+                )));
+            }
+            Ok::<TypeHint, Error>(type_hint)
+        }
+    };
+}
+
+use crate::compiler::warnings::Warning;
+pub(crate) use semcheck;
+
+macro_rules! semcheck_operands {
     ($ctx:ident, $( $pattern:path )|+, $expr1:expr, $expr2:expr) => {{
         let span1 = $expr1.span();
         let span2 = $expr2.span();
 
-        let type_hint1 = check_expression!($ctx, $( $pattern )|+, $expr1)?;
-        let type_hint2 = check_expression!($ctx, $( $pattern )|+, $expr2)?;
+        let type_hint1 = semcheck!($ctx, $( $pattern )|+, $expr1)?;
+        let type_hint2 = semcheck!($ctx, $( $pattern )|+, $expr2)?;
 
         // Both types must be known.
         assert!(!matches!(type_hint1, TypeHint::UnknownType));
@@ -180,7 +188,7 @@ macro_rules! check_operands {
 macro_rules! check_non_negative_integer {
     ($ctx:ident, $expr:expr) => {{
         let span = $expr.span();
-        let type_hint = check_expression!($ctx, Type::Integer, $expr)?;
+        let type_hint = semcheck!($ctx, Type::Integer, $expr)?;
         if let TypeHint::Integer(Some(value)) = type_hint {
             if value < 0 {
                 return Err(Error::CompileError(
@@ -201,7 +209,7 @@ macro_rules! check_non_negative_integer {
 macro_rules! check_integer_in_range {
     ($ctx:ident, $expr:expr, $min:expr, $max:expr) => {{
         let span = $expr.span();
-        let type_hint = check_expression!($ctx, Type::Integer, $expr)?;
+        let type_hint = semcheck!($ctx, Type::Integer, $expr)?;
         if let TypeHint::Integer(Some(value)) = type_hint {
             if !($min..=$max).contains(&value) {
                 return Err(Error::CompileError(
@@ -221,10 +229,10 @@ macro_rules! check_integer_in_range {
     }};
 }
 
-macro_rules! check_boolean_op {
+macro_rules! semcheck_boolean_op {
     ($ctx:ident, $expr:expr, $op:tt) => {{
         let (lhs, rhs) =
-            check_operands!($ctx, Type::Bool, &$expr.lhs, &$expr.rhs)?;
+            semcheck_operands!($ctx, Type::Bool, &$expr.lhs, &$expr.rhs)?;
 
         let type_hint = boolean_op!(lhs, $op, rhs);
 
@@ -234,9 +242,9 @@ macro_rules! check_boolean_op {
     }};
 }
 
-macro_rules! check_comparison_op {
+macro_rules! semcheck_comparison_op {
     ($ctx:ident, $expr:expr, $op:tt) => {{
-        let (lhs, rhs) = check_operands!(
+        let (lhs, rhs) = semcheck_operands!(
             $ctx,
             Type::Integer | Type::Float | Type::String,
             &$expr.lhs,
@@ -251,11 +259,11 @@ macro_rules! check_comparison_op {
     }};
 }
 
-macro_rules! check_shift_op {
+macro_rules! semcheck_shift_op {
     ($ctx:ident, $expr:expr, $op:ident) => {{
         let span = $expr.rhs.span();
         let (lhs, rhs) =
-            check_operands!($ctx, Type::Integer, &$expr.lhs, &$expr.rhs)?;
+            semcheck_operands!($ctx, Type::Integer, &$expr.lhs, &$expr.rhs)?;
 
         if let TypeHint::Integer(Some(value)) = rhs {
             if value < 0 {
@@ -279,10 +287,10 @@ macro_rules! check_shift_op {
     }};
 }
 
-macro_rules! check_bitwise_op {
+macro_rules! semcheck_bitwise_op {
     ($ctx:ident, $expr:expr, $op:ident) => {{
         let (lhs, rhs) =
-            check_operands!($ctx, Type::Integer, &$expr.lhs, &$expr.rhs)?;
+            semcheck_operands!($ctx, Type::Integer, &$expr.lhs, &$expr.rhs)?;
 
         let type_hint = bitwise_op!(lhs, $op, rhs);
 
@@ -292,9 +300,9 @@ macro_rules! check_bitwise_op {
     }};
 }
 
-macro_rules! check_arithmetic_op {
+macro_rules! semcheck_arithmetic_op {
     ($ctx:ident, $expr:expr, $op:tt, $checked_op:ident) => {{
-        let (lhs, rhs) = check_operands!(
+        let (lhs, rhs) = semcheck_operands!(
             $ctx,
             Type::Integer | Type::Float,
             &$expr.lhs,
@@ -309,10 +317,10 @@ macro_rules! check_arithmetic_op {
     }};
 }
 
-macro_rules! check_string_op {
+macro_rules! semcheck_string_op {
     ($ctx:ident, $expr:expr, $op:ident, $case_insensitive:expr) => {{
         let (lhs, rhs) =
-            check_operands!($ctx, Type::String, &$expr.lhs, &$expr.rhs)?;
+            semcheck_operands!($ctx, Type::String, &$expr.lhs, &$expr.rhs)?;
 
         let type_hint = string_op!(lhs, $op, rhs, $case_insensitive);
 
@@ -328,6 +336,7 @@ struct Context<'a> {
     report_builder: &'a ReportBuilder,
     src: &'a SourceCode<'a>,
     current_rule: &'a Rule<'a>,
+    warnings: &'a mut Vec<Warning>,
 }
 
 /// Makes sure that an expression is semantically valid.
@@ -354,7 +363,8 @@ struct Context<'a> {
 /// and identifiers defined by modules. However, at compile time we have a
 /// symbol table that contains type information for all identifiers, so the
 /// AST can be updated with the missing information.
-fn expr_semantic_check<'a>(
+//
+fn semcheck_expr<'a>(
     ctx: &mut Context<'a>,
     expr: &'a Expr<'a>,
 ) -> Result<TypeHint, Error> {
@@ -369,7 +379,7 @@ fn expr_semantic_check<'a>(
 
         Expr::PatternCount(p) => {
             if let Some(ref range) = p.range {
-                range_semantic_check(ctx, range)?;
+                semcheck_range(ctx, range)?;
             }
             Ok(TypeHint::Integer(None))
         }
@@ -386,7 +396,7 @@ fn expr_semantic_check<'a>(
         Expr::PatternMatch(p) => {
             match &p.anchor {
                 Some(MatchAnchor::In(ref anchor_in)) => {
-                    range_semantic_check(ctx, &anchor_in.range)?;
+                    semcheck_range(ctx, &anchor_in.range)?;
                 }
                 Some(MatchAnchor::At(anchor_at)) => {
                     check_non_negative_integer!(ctx, &anchor_at.expr)?;
@@ -397,61 +407,56 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Not(expr) => {
-            let type_hint = boolean_not!(check_expression!(
-                ctx,
-                Type::Bool,
-                &expr.operand
-            )?);
+            let type_hint =
+                boolean_not!(semcheck!(ctx, Type::Bool, &expr.operand)?);
+
             expr.set_type_hint(type_hint.clone());
             Ok(type_hint)
         }
 
         Expr::And(expr) => {
-            check_boolean_op!(ctx, expr, &&)
+            semcheck_boolean_op!(ctx, expr, &&)
         }
 
         Expr::Or(expr) => {
-            check_boolean_op!(ctx, expr, ||)
+            semcheck_boolean_op!(ctx, expr, ||)
         }
 
         Expr::Eq(expr) => {
-            check_comparison_op!(ctx, expr, ==)
+            semcheck_comparison_op!(ctx, expr, ==)
         }
 
         Expr::Neq(expr) => {
-            check_comparison_op!(ctx, expr, !=)
+            semcheck_comparison_op!(ctx, expr, !=)
         }
 
         Expr::Lt(expr) => {
-            check_comparison_op!(ctx, expr, <)
+            semcheck_comparison_op!(ctx, expr, <)
         }
 
         Expr::Le(expr) => {
-            check_comparison_op!(ctx, expr, <=)
+            semcheck_comparison_op!(ctx, expr, <=)
         }
 
         Expr::Gt(expr) => {
-            check_comparison_op!(ctx, expr, >)
+            semcheck_comparison_op!(ctx, expr, >)
         }
 
         Expr::Ge(expr) => {
-            check_comparison_op!(ctx, expr, >=)
+            semcheck_comparison_op!(ctx, expr, >=)
         }
 
         Expr::Shl(expr) => {
-            check_shift_op!(ctx, expr, overflowing_shl)
+            semcheck_shift_op!(ctx, expr, overflowing_shl)
         }
 
         Expr::Shr(expr) => {
-            check_shift_op!(ctx, expr, overflowing_shr)
+            semcheck_shift_op!(ctx, expr, overflowing_shr)
         }
 
         Expr::BitwiseNot(expr) => {
-            let type_hint = bitwise_not!(check_expression!(
-                ctx,
-                Type::Integer,
-                &expr.operand
-            )?);
+            let type_hint =
+                bitwise_not!(semcheck!(ctx, Type::Integer, &expr.operand)?);
 
             expr.set_type_hint(type_hint.clone());
 
@@ -459,19 +464,19 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::BitwiseAnd(expr) => {
-            check_bitwise_op!(ctx, expr, bitand)
+            semcheck_bitwise_op!(ctx, expr, bitand)
         }
 
         Expr::BitwiseOr(expr) => {
-            check_bitwise_op!(ctx, expr, bitor)
+            semcheck_bitwise_op!(ctx, expr, bitor)
         }
 
         Expr::BitwiseXor(expr) => {
-            check_bitwise_op!(ctx, expr, bitxor)
+            semcheck_bitwise_op!(ctx, expr, bitxor)
         }
 
         Expr::Minus(expr) => {
-            let type_hint = minus_op!(check_expression!(
+            let type_hint = minus_op!(semcheck!(
                 ctx,
                 Type::Integer | Type::Float,
                 &expr.operand
@@ -483,51 +488,51 @@ fn expr_semantic_check<'a>(
         }
 
         Expr::Add(expr) => {
-            check_arithmetic_op!(ctx, expr, +, checked_add)
+            semcheck_arithmetic_op!(ctx, expr, +, checked_add)
         }
 
         Expr::Sub(expr) => {
-            check_arithmetic_op!(ctx, expr, -, checked_sub)
+            semcheck_arithmetic_op!(ctx, expr, -, checked_sub)
         }
 
         Expr::Mul(expr) => {
-            check_arithmetic_op!(ctx, expr, *, checked_mul)
+            semcheck_arithmetic_op!(ctx, expr, *, checked_mul)
         }
 
         Expr::Div(expr) => {
-            check_arithmetic_op!(ctx, expr, /, checked_div)
+            semcheck_arithmetic_op!(ctx, expr, /, checked_div)
         }
 
         Expr::Modulus(expr) => {
-            check_arithmetic_op!(ctx, expr, %, checked_rem)
+            semcheck_arithmetic_op!(ctx, expr, %, checked_rem)
         }
 
         Expr::Contains(expr) => {
-            check_string_op!(ctx, expr, contains_str, false)
+            semcheck_string_op!(ctx, expr, contains_str, false)
         }
 
         Expr::IContains(expr) => {
-            check_string_op!(ctx, expr, contains_str, true)
+            semcheck_string_op!(ctx, expr, contains_str, true)
         }
 
         Expr::StartsWith(expr) => {
-            check_string_op!(ctx, expr, starts_with, false)
+            semcheck_string_op!(ctx, expr, starts_with, false)
         }
 
         Expr::IStartsWith(expr) => {
-            check_string_op!(ctx, expr, starts_with, true)
+            semcheck_string_op!(ctx, expr, starts_with, true)
         }
 
         Expr::EndsWith(expr) => {
-            check_string_op!(ctx, expr, ends_with, false)
+            semcheck_string_op!(ctx, expr, ends_with, false)
         }
 
         Expr::IEndsWith(expr) => {
-            check_string_op!(ctx, expr, ends_with, true)
+            semcheck_string_op!(ctx, expr, ends_with, true)
         }
 
         Expr::IEquals(expr) => {
-            check_string_op!(ctx, expr, eq, true)
+            semcheck_string_op!(ctx, expr, eq, true)
         }
 
         Expr::Ident(ident) => {
@@ -555,7 +560,7 @@ fn expr_semantic_check<'a>(
         }
         Expr::FieldAccess(expr) => {
             // The left side must be a struct.
-            check_expression!(ctx, Type::Struct, &expr.lhs)?;
+            semcheck!(ctx, Type::Struct, &expr.lhs)?;
 
             // Save the current symbol table
             //let saved_sym_tbl = ctx.sym_tbl;
@@ -566,7 +571,7 @@ fn expr_semantic_check<'a>(
             // Now check the right hand expression. During the call to
             // expr_semantic_check the current symbol table is the one
             // corresponding to the struct.
-            let type_hint = expr_semantic_check(ctx, &expr.rhs)?;
+            let type_hint = semcheck_expr(ctx, &expr.rhs)?;
 
             expr.set_type_hint(type_hint.clone());
 
@@ -580,37 +585,17 @@ fn expr_semantic_check<'a>(
             todo!()
         }
 
-        Expr::Of(of) => {
-            quantifier_semantic_check(ctx, &of.quantifier)?;
-
-            if let OfItems::BoolExprTuple(exprs) = &of.items {
-                for expr in exprs.iter() {
-                    check_expression!(ctx, Type::Bool, expr)?;
-                }
-            }
-
-            match &of.anchor {
-                Some(MatchAnchor::In(anchor_in)) => {
-                    range_semantic_check(ctx, &anchor_in.range)?;
-                }
-                Some(MatchAnchor::At(anchor_at)) => {
-                    check_non_negative_integer!(ctx, &anchor_at.expr)?;
-                }
-                None => {}
-            }
-
-            Ok(TypeHint::Bool(None))
-        }
+        Expr::Of(of) => semcheck_of(ctx, of),
 
         Expr::ForOf(for_of) => {
-            quantifier_semantic_check(ctx, &for_of.quantifier)?;
-            check_expression!(ctx, Type::Bool, &for_of.condition)?;
+            semcheck_quantifier(ctx, &for_of.quantifier)?;
+            semcheck!(ctx, Type::Bool, &for_of.condition)?;
             Ok(TypeHint::Bool(None))
         }
 
         Expr::ForIn(for_in) => {
-            quantifier_semantic_check(ctx, &for_in.quantifier)?;
-            iterable_semantic_check(ctx, &for_in.iterable)?;
+            semcheck_quantifier(ctx, &for_in.quantifier)?;
+            semcheck_iterable(ctx, &for_in.iterable)?;
 
             /*for variable in &for_in.variables {
                 ctx.sym_tbl.insert(
@@ -622,23 +607,23 @@ fn expr_semantic_check<'a>(
                 );
             }*/
 
-            check_expression!(ctx, Type::Bool, &for_in.condition)?;
+            semcheck!(ctx, Type::Bool, &for_in.condition)?;
             Ok(TypeHint::Bool(None))
         }
     }
 }
 
-fn range_semantic_check<'a>(
+fn semcheck_range<'a>(
     ctx: &mut Context<'a>,
     range: &'a Range<'a>,
 ) -> Result<(), Error> {
-    check_expression!(ctx, Type::Integer, &range.lower_bound)?;
-    check_expression!(ctx, Type::Integer, &range.upper_bound)?;
+    semcheck!(ctx, Type::Integer, &range.lower_bound)?;
+    semcheck!(ctx, Type::Integer, &range.upper_bound)?;
     // TODO: ensure that upper bound is greater than lower bound.
     Ok(())
 }
 
-fn quantifier_semantic_check<'a>(
+fn semcheck_quantifier<'a>(
     ctx: &mut Context<'a>,
     quantifier: &'a Quantifier<'a>,
 ) -> Result<TypeHint, Error> {
@@ -651,17 +636,148 @@ fn quantifier_semantic_check<'a>(
             check_integer_in_range!(ctx, expr, 0, 100)?;
         }
         _ => {}
-    };
+    }
+
     Ok(TypeHint::Integer(None))
 }
 
-fn iterable_semantic_check<'a>(
+fn semcheck_of<'a>(
+    ctx: &mut Context<'a>,
+    of: &'a Of<'a>,
+) -> Result<TypeHint, Error> {
+    semcheck_quantifier(ctx, &of.quantifier)?;
+
+    // `x of (<boolean expr>, <boolean expr>, ...)`: make sure that all
+    // expressions in the tuple are actually boolean.
+    if let OfItems::BoolExprTuple(tuple) = &of.items {
+        for expr in tuple.iter() {
+            semcheck!(ctx, Type::Bool, expr)?;
+        }
+    }
+
+    match &of.anchor {
+        Some(MatchAnchor::In(anchor_in)) => {
+            semcheck_range(ctx, &anchor_in.range)?;
+        }
+        Some(MatchAnchor::At(anchor_at)) => {
+            check_non_negative_integer!(ctx, &anchor_at.expr)?;
+        }
+        None => {}
+    }
+
+    // Compute the number of items in the `of` statement.
+    let items_count = match of.items {
+        // `x of them`: the number of items is the number of declared patterns
+        // because `them` refers to all of them.
+        OfItems::PatternSet(PatternSet::Them) => {
+            if let Some(patterns) = &ctx.current_rule.patterns {
+                patterns.len() as i64
+            } else {
+                0
+            }
+        }
+        // `x of ($a*, $b)`: the number of items is the number of declared
+        // pattern that match the items in the tuple.
+        OfItems::PatternSet(PatternSet::Set(ref set)) => {
+            if let Some(patterns) = &ctx.current_rule.patterns {
+                let mut matching_patterns = 0;
+                for pattern in patterns {
+                    if set
+                        .iter()
+                        .filter(|p| p.matches(pattern.identifier().as_str()))
+                        .count()
+                        > 0
+                    {
+                        matching_patterns += 1;
+                    }
+                }
+                matching_patterns
+            } else {
+                0
+            }
+        }
+        // `x of (<boolean expr>, <boolean expr>, ...)`: the number of items is
+        // the number of expressions in the tuple.
+        OfItems::BoolExprTuple(ref tuple) => tuple.len() as i64,
+    };
+
+    // If the quantifier expression is greater than the number of items,
+    // the `of` expression is always false.
+    if let Quantifier::Expr(expr) = &of.quantifier {
+        if let TypeHint::Integer(Some(i)) = expr.type_hint() {
+            if i > items_count {
+                ctx.warnings.push(Warning::invariant_boolean_expression(
+                    ctx.report_builder,
+                    ctx.src,
+                    false,
+                    of.span(),
+                    Some(format!(
+                        "the expression requires {} matching patterns out of {}",
+                        i, items_count
+                    )),
+                ));
+            }
+        }
+    }
+
+    // The anchor `at <expr>` is being used with a quantifier that is not `any`
+    // or `none`, but this usually doesn't make sense. For example consider the
+    // expression...
+    //
+    //   all of ($a, $b) at 0
+    //
+    // This means that both $a and $b must match at offset 0, which won't happen
+    // unless $a and $b are overlapping patterns. In the other hand, these
+    // expressions make perfect sense...
+    //
+    //  none of ($a, $b) at 0
+    //  any of ($a, $b) at 0
+    //
+    // Raise a warning in those cases that are probably wrong.
+    //
+    if matches!(of.anchor, Some(MatchAnchor::At(_))) {
+        let raise_warning = match of.quantifier {
+            // `all of <items> at <expr>`: the warning is raised only if there
+            // are more than one item. `all of ($a) at 0` doesn't raise a
+            // warning.
+            Quantifier::All { .. } => items_count > 1,
+            // `<expr> of <items> at <expr>: the warning is raised if <expr> is
+            // 2 or more.
+            Quantifier::Expr(ref expr) => match expr.type_hint() {
+                TypeHint::Integer(Some(i)) => i >= 2,
+                _ => false,
+            },
+            // `<expr>% of <items> at <expr>: the warning is raised if the
+            // <expr> percent of the items is 2 or more.
+            Quantifier::Percentage(ref expr) => match expr.type_hint() {
+                TypeHint::Integer(Some(percentage)) => {
+                    items_count as f64 * percentage as f64 / 100.0 >= 2.0
+                }
+                _ => false,
+            },
+            Quantifier::None { .. } | Quantifier::Any { .. } => false,
+        };
+
+        if raise_warning {
+            ctx.warnings.push(Warning::potentially_wrong_expression(
+                ctx.report_builder,
+                ctx.src,
+                of.quantifier.span(),
+                of.anchor.as_ref().unwrap().span(),
+            ));
+        }
+    }
+
+    Ok(TypeHint::Bool(None))
+}
+
+fn semcheck_iterable<'a>(
     ctx: &mut Context<'a>,
     iterable: &'a Iterable<'a>,
 ) -> Result<TypeHint, Error> {
     match iterable {
         Iterable::Range(range) => {
-            range_semantic_check(ctx, range)?;
+            semcheck_range(ctx, range)?;
             Ok(TypeHint::Integer(None))
         }
         Iterable::ExprTuple(tuple) => {
@@ -670,7 +786,7 @@ fn iterable_semantic_check<'a>(
             // type and that type is acceptable.
             for expr in tuple.iter() {
                 let span = expr.span();
-                let type_hint = check_expression!(
+                let type_hint = semcheck!(
                     ctx,
                     Type::Integer | Type::Float | Type::String | Type::Bool,
                     expr

@@ -281,7 +281,6 @@ impl Error {
             GrammarRule::k_OF => "`of`",
             GrammarRule::k_PRIVATE => "`private`",
             GrammarRule::k_RULE => "`rule`",
-
             GrammarRule::k_STRINGS => "`strings`",
             GrammarRule::k_THEM => "`them`",
             GrammarRule::k_TRUE => "`true`",
@@ -291,6 +290,7 @@ impl Error {
             GrammarRule::boolean_expr | GrammarRule::boolean_term => {
                 "boolean expression"
             }
+
             GrammarRule::expr
             | GrammarRule::primary_expr
             | GrammarRule::term => "expression",
@@ -306,10 +306,6 @@ impl Error {
             GrammarRule::string_lit => "string literal",
             GrammarRule::regexp => "regular expression",
             GrammarRule::pattern_mods => "pattern modifiers",
-
-            GrammarRule::PERCENT => "percent `%`",
-            GrammarRule::MINUS => "`-`",
-            GrammarRule::COLON => "colon `:`",
 
             GrammarRule::ADD
             | GrammarRule::k_AND
@@ -342,6 +338,9 @@ impl Error {
             GrammarRule::COMMA => "comma `,`",
             GrammarRule::DOT => "dot `.`",
             GrammarRule::EQUAL => "equal `=` ",
+            GrammarRule::PERCENT => "percent `%`",
+            GrammarRule::MINUS => "`-`",
+            GrammarRule::COLON => "colon `:`",
 
             GrammarRule::LPAREN => "opening parenthesis `(`",
             GrammarRule::RPAREN => "closing parenthesis `)`",

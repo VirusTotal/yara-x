@@ -14,13 +14,4 @@ pub enum Warning {
         coalesced_jump: String,
         jumps_span: Span,
     },
-
-    #[warning("potentially wrong expression")]
-    #[label("this implies that multiple patterns must match", quantifier_span)]
-    #[label("but all of them must match at the same offset", at_span)]
-    PotentiallyWrongExpression {
-        detailed_report: String,
-        quantifier_span: Span,
-        at_span: Span,
-    }
 }

@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 use crate::parser::Parser;
 
 #[test]
-fn syntax_errors() {
+fn warnings() {
     let tests = vec![
         ////////////////////////////////////////////////////////////
         (
@@ -24,45 +24,6 @@ rule test {
 ───╯
 "#,
         ),
-        /*
-                ////////////////////////////////////////////////////////////
-                (
-                    line!(),
-                    r#"
-        rule test {
-          strings:
-            $a = "foo"
-            $b = "bar"
-          condition:
-            all of them at 0
-        }"#,
-                    r#"warning: potentially wrong expression
-           ╭─[line:7:5]
-           │
-         7 │     all of them at 0
-           ·     ─┬─         ──┬─
-           ·      ╰──────────────── this implies that multiple patterns must match
-           ·                   │
-           ·                   ╰─── but all of them must match at the same offset
-        ───╯
-        "#,
-                ),
-                ////////////////////////////////////////////////////////////
-                (
-                    line!(),
-                    r#"
-        rule test {
-          strings:
-            $a = "foo"
-            $b = "bar"
-          condition:
-            all of ($*) at 0
-        }"#,
-                    r#"
-        "#,
-                ),
-
-                 */
     ];
 
     for t in tests {

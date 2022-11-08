@@ -482,7 +482,7 @@ rule test {
 
     for t in tests {
         assert_eq!(
-        Compiler::new().add(t.1)
+        Compiler::new().add_source(t.1)
             .expect_err(&*format!(
                 "rule at line {} compiled without errors, but error was expected.\n\n",
                 t.0,

@@ -220,6 +220,11 @@ impl<'src> Ident<'src> {
         self.type_hint.replace(type_hint);
         self
     }
+
+    /// Returns the identifier as a string.
+    pub fn as_str(&self) -> &'src str {
+        self.name
+    }
 }
 
 /// Creates an [`Ident`] directly from a [`CSTNode`].
@@ -431,6 +436,20 @@ pub enum PatternSet<'src> {
 pub struct PatternSetItem<'src> {
     pub(crate) span: Span,
     pub identifier: &'src str,
+}
+
+impl PatternSetItem<'_> {
+    /// Returns true if `ident` matches this [`PatternSetItem`].
+    ///
+    /// For example, identifiers `$a` and `$abc` both match the
+    /// [`PatternSetItem`] for `$a*`.
+    pub fn matches(&self, ident: &str) -> bool {
+        if let Some(prefix) = self.identifier.strip_suffix('*') {
+            ident.starts_with(prefix)
+        } else {
+            ident == self.identifier
+        }
+    }
 }
 
 /// A type hint indicates the type, and possibly the value, of some expression

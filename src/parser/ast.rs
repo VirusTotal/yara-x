@@ -1812,69 +1812,6 @@ fn of_expr_from_cst<'src>(
 
     let anchor = anchor_from_cst(ctx, &mut children)?;
 
-    // TODO: move to semantic check.
-    /*
-    // Compute the number of items
-    let items_count = match items {
-        // `x of them`: the number of items is the number of declared patterns
-        // because `them` refers to all of them.
-        OfItems::PatternSet(PatternSet::Them) => ctx.declared_patterns.len(),
-        // `x of ($a*, $b)`: the number of items is the number of declared
-        // patterns that match the patterns in the tuple.
-        OfItems::PatternSet(PatternSet::Set(ref set)) => todo!(),
-        // `x of (<boolean expr>, <boolean expr>, ...)`: the number of items is
-        // the number of expressions in the tuple.
-        OfItems::BoolExprTuple(ref tuple) => tuple.len(),
-    };
-
-    // TODO: error if quantifier is larger than the number of patterns in items.
-    // example:  3 of ($a, $b).
-
-
-
-    // The anchor `at <expr>` is being used with a quantifier that is not `any`
-    // or `none`, but this usually doesn't make sense. For example consider the
-    // expression...
-    //
-    //   all of ($a, $b) at 0
-    //
-    // This means that both $a and $b must match at offset 0, which won't happen
-    // unless $a and $b are overlapping patterns. In the other hand, these
-    // expressions make perfect sense...
-    //
-    //  none of ($a, $b) at 0
-    //  any of ($a, $b) at 0
-    //
-    // Raise a warning in those cases that are probably an error.
-    //
-    if matches!(anchor, Some(MatchAnchor::At(_))) {
-        let raise_warning = match quantifier {
-            // `all of <items> at <expr>`: the warning is raised only if there
-            // are more than one item. `all of ($a) at 0` doesn't raise a
-            // warning.
-            Quantifier::All { .. } => items_count > 1,
-            // `<expr> of <items> at <expr>: the warning is raised if
-            Quantifier::Expr(ref expr) | Quantifier::Percentage(ref expr) => {
-                match expr.value() {
-                    Some(ExprValue::Integer(i)) => i > 0,
-                    Some(ExprValue::Float(f)) => f > 0.0,
-                    _ => false,
-                }
-            }
-            Quantifier::None { .. } | Quantifier::Any { .. } => false,
-        };
-
-        if raise_warning {
-            let warning = Warning::potentially_wrong_expression(
-                ctx,
-                quantifier.span(),
-                anchor.as_ref().unwrap().span(),
-            );
-            ctx.warnings.push(warning);
-        }
-    }
-    */
-
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
@@ -2481,14 +2418,13 @@ fn hex_pattern_from_cst<'src>(
                 }
 
                 if consecutive_jumps {
-                    let warning = Warning::consecutive_jumps(
+                    ctx.warnings.push(Warning::consecutive_jumps(
                         ctx.report_builder,
                         &ctx.src,
                         ctx.current_pattern_ident(),
                         format!("{}", jump),
                         jump_span,
-                    );
-                    ctx.warnings.push(warning);
+                    ));
                 }
 
                 if let (Some(start), Some(end)) = (jump.start, jump.end) {
