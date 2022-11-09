@@ -9,7 +9,6 @@ use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
 
-use crate::ast::span::HasSpan;
 use crate::ast::*;
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;

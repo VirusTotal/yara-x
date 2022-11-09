@@ -1,5 +1,5 @@
 /*! Types representing the Abstract Syntax Tree (AST) for YARA rules.*/
-pub mod span;
+mod span;
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -17,9 +17,7 @@ use crate::parser::CSTNode;
 use crate::warnings::Warning;
 use crate::Struct;
 
-use crate::ast::span::HasSpan;
-
-pub use crate::ast::span::Span;
+pub use crate::ast::span::*;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {

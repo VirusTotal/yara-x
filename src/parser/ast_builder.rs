@@ -11,8 +11,8 @@ use num::{Bounded, CheckedMul, FromPrimitive, Integer};
 use pest::iterators::Pair;
 use pest::pratt_parser::{Assoc, Op, PrattParser};
 
-use crate::ast::span::HasSpan;
 use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
+use crate::ast::HasSpan;
 use crate::ast::Namespace;
 use crate::ast::*;
 use crate::parser::{CSTNode, Context, Error, GrammarRule, CST};
