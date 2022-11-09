@@ -4,9 +4,10 @@ use std::io::{stdin, stdout};
 use std::path::PathBuf;
 
 use ansi_term::Color::{Blue, Red};
-use anyhow::{Context, Result};
-use clap::{arg, ArgMatches, command, Command, crate_authors, value_parser};
+use anyhow::{anyhow, bail, Context, Result};
+use clap::{arg, command, crate_authors, value_parser, ArgMatches, Command};
 use globset::GlobBuilder;
+use yara_x::compiler::Error;
 
 use yara_x::formatter;
 use yara_x::parser::{Parser, SourceCode};
@@ -72,7 +73,7 @@ fn command(name: &str) -> Command {
     )
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> anyhow::Result<()> {
     let args = command!()
         .author(crate_authors!("\n")) // requires `cargo` feature
         .arg_required_else_help(true)
@@ -120,16 +121,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .get_matches();
 
-    match args.subcommand() {
+    let result = match args.subcommand() {
         Some(("ast", args)) => cmd_ast(args),
         Some(("check", args)) => cmd_check(args),
         Some(("fmt", args)) => cmd_format(args),
 
         _ => unreachable!(),
+    };
+
+    if let Err(err) = result {
+        println!("{}", err);
     }
+
+    Ok(())
 }
 
-fn cmd_ast(args: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
+fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
     let file_path = args.get_one::<PathBuf>("FILE").unwrap();
 
     let src = fs::read_to_string(file_path).with_context(|| {
@@ -139,8 +146,7 @@ fn cmd_ast(args: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
     let src = SourceCode::from(src.as_str())
         .origin(file_path.as_os_str().to_str().unwrap());
 
-    let ast =
-        Parser::new().colorize_errors(true).build_ast(src).map_err(|e| e)?;
+    let ast = Parser::new().colorize_errors(true).build_ast(src)?;
 
     let mut output = String::new();
     ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;
@@ -149,7 +155,7 @@ fn cmd_ast(args: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn cmd_check(args: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
+fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
     let path = args.get_one::<PathBuf>("PATH").unwrap();
     let max_depth = args.get_one::<u16>("max-depth").unwrap_or(&1);
 
@@ -202,7 +208,7 @@ fn cmd_check(args: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn cmd_format(args: &ArgMatches) -> Result<(), Box<dyn std::error::Error>> {
+fn cmd_format(args: &ArgMatches) -> anyhow::Result<()> {
     let files = args.get_many::<PathBuf>("FILE");
 
     let formatter = formatter::Formatter::new();
