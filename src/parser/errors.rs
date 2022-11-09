@@ -25,7 +25,7 @@ use super::GrammarRule;
 /// pieces is useful for applications that can't rely on text-based reports.
 /// 
 #[rustfmt::skip]
-#[derive(Error, Debug)]
+#[derive(Error)]
 pub enum Error {
     #[error("syntax error")]
     #[label("{error_msg}", error_span)]

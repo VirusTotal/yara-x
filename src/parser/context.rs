@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::Ident;
-use crate::parser::warnings::Warning;
 use crate::parser::SourceCode;
 use crate::report::ReportBuilder;
+use crate::warnings::Warning;
 
 /// A structure that holds information about the parsing process.
 pub(crate) struct Context<'src, 'rb> {

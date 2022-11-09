@@ -13,7 +13,8 @@ use bstr::BString;
 use yara_derive::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
-use crate::parser::{CSTNode, Warning};
+use crate::parser::CSTNode;
+use crate::warnings::Warning;
 use crate::Struct;
 
 use crate::ast::span::HasSpan;

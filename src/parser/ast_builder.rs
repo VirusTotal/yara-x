@@ -15,8 +15,8 @@ use crate::ast::span::HasSpan;
 use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
 use crate::ast::Namespace;
 use crate::ast::*;
-use crate::parser::warnings::Warning;
 use crate::parser::{CSTNode, Context, Error, GrammarRule, CST};
+use crate::warnings::Warning;
 
 macro_rules! expect {
     ($next:expr, $parser_rule:expr) => {{
@@ -490,12 +490,14 @@ pub(crate) fn namespace_from_cst<'src>(
     let mut imports: HashSet<&str> = HashSet::new();
     for node in cst {
         match node.as_rule() {
+            // Top level rules are either import statements...
             GrammarRule::import_stmt => {
                 let mut children = node.into_inner();
                 expect!(children.next().unwrap(), GrammarRule::k_IMPORT);
                 let ident = children.next().unwrap();
                 imports.insert(ident.as_str());
             }
+            // .. or rule declarations.
             GrammarRule::rule_decl => {
                 let new_rule = rule_from_cst(ctx, node)?;
                 // Check if another rule was already defined with the same name.
@@ -514,8 +516,8 @@ pub(crate) fn namespace_from_cst<'src>(
             }
             // The End Of Input (EOI) rule is ignored.
             GrammarRule::EOI => {}
-            // Under `source_file` the grammar doesn't have any other types of
-            // rules. This should not be reached.
+            // Under `source_file` the grammar doesn't have any other rule.
+            // This should not be reached.
             rule => unreachable!("unexpected grammar rule: `{:?}`", rule),
         }
     }

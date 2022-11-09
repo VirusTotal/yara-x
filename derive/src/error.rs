@@ -54,6 +54,17 @@ pub(crate) fn impl_error_macro(
         }
 
         #[automatically_derived]
+        impl #impl_generics Debug for #name #ty_generics #where_clause {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    #(Self::#variants { detailed_report, .. })|* => {
+                         write!(f, "{}", detailed_report)
+                    }
+                }
+            }
+        }
+
+        #[automatically_derived]
         impl #impl_generics std::error::Error for #name #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 None

@@ -17,7 +17,7 @@ pub enum Error {
 }
 
 /// An error occurred during the compilation process.
-#[derive(CompileError, Debug)]
+#[derive(CompileError)]
 pub enum CompileError {
     #[error("wrong type")]
     #[label(

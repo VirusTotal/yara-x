@@ -88,7 +88,6 @@ use pest::Parser as PestParser;
 pub use crate::parser::cst::*;
 pub use crate::parser::errors::*;
 pub use crate::parser::grammar::Rule as GrammarRule;
-pub use crate::parser::warnings::*;
 
 pub(crate) use crate::parser::ast_builder::*;
 pub(crate) use crate::parser::context::*;
@@ -98,7 +97,6 @@ mod ast_builder;
 mod context;
 mod cst;
 mod errors;
-mod warnings;
 
 #[cfg(test)]
 mod tests;
@@ -161,16 +159,17 @@ impl<'a> Parser<'a> {
 
     /// Builds the Abstract Syntax Tree (AST) for some YARA source code.
     ///
-    /// The `src` argument can either a `&str` pointing to the source code, or
-    /// a [`SourceCode`] structure. With a [`SourceCode`] structure you can
+    /// The `src` argument can be either a `&str` pointing to the source code,
+    /// or a [`SourceCode`] structure. With a [`SourceCode`] structure you can
     /// provide additional information about the source code, like the path
     /// of the file from where the code was read.
     ///
     /// The AST returned by this function holds references to the original
-    /// source code. For example, identifiers in the AST point to those
-    /// identifiers in the source code. This avoids making copies of those
-    /// strings, but also implies that the memory backing the source code
-    /// can't be dropped until the AST is dropped.
+    /// source code. For example, identifiers in the AST point to the
+    /// corresponding identifiers in the source code. This avoids making copies
+    /// of the strings representing the identifiers, but also implies that the
+    /// memory backing the source code can't be dropped until the AST is
+    /// dropped.
     ///
     /// # Examples
     ///
@@ -305,8 +304,8 @@ impl<'a> Parser<'a> {
     /// Sets the report builder used by the Parser.
     ///
     /// This is optional, if the report builder is not set the Parser will
-    /// create its own when necessary. However this allows sharing the same
-    /// report builder with the [`Compiler`].
+    /// create its own. However this allows sharing the same report builder
+    /// with the [`Compiler`].
     ///
     /// This API is for internal use only.
     pub(crate) fn set_report_builder(

@@ -50,4 +50,3 @@ fn identifiers() {
 mod ast;
 mod cst;
 mod errors;
-mod warnings;

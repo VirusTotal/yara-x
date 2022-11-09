@@ -9,6 +9,25 @@ fn warnings() {
         (
             line!(),
             r#"
+rule test { 
+  strings: 
+    $a = { 01 [1-2][3-4][1-3] 02 } 
+  condition: 
+    $a 
+}"#,
+            r#"warning: consecutive jumps in hex pattern `$a`
+   ╭─[line:4:15]
+   │
+ 4 │     $a = { 01 [1-2][3-4][1-3] 02 }
+   ·               ───────┬───────  
+   ·                      ╰───────── these consecutive jumps will be treated as [5-9]
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
 rule test {
   strings:
     $a = "foo"
@@ -120,7 +139,7 @@ rule test {
 
     for t in tests {
         let compiler = Compiler::new().add_source(t.1).unwrap();
-        assert!(!compiler.warnings.is_empty());
+        assert!(!compiler.warnings.is_empty(), "test at line {}", t.0);
         assert_eq!(
             compiler.warnings[0].to_string(),
             t.2,
