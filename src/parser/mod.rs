@@ -208,7 +208,6 @@ impl<'a> Parser<'a> {
         let owned_report_builder = if self.report_builder.is_none() {
             let mut r = ReportBuilder::new();
             r.with_colors(self.colorize_errors);
-            r.register_source(&src);
             Some(r)
         } else {
             None
@@ -305,7 +304,9 @@ impl<'a> Parser<'a> {
     ///
     /// This is optional, if the report builder is not set the Parser will
     /// create its own. However this allows sharing the same report builder
-    /// with the [`Compiler`].
+    /// with the [`Compiler`]. Setting a report builder overrides the color
+    /// setting specified with [`Compiler::colorize_errors`], the errors will
+    /// colorized depending on the settings of the report builder.
     ///
     /// This API is for internal use only.
     pub(crate) fn set_report_builder(

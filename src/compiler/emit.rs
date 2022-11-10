@@ -1,3 +1,4 @@
+use crate::ast::MatchAnchor;
 use crate::ast::{Expr, TypeHint};
 use crate::compiler::Context;
 use walrus::InstrSeqBuilder;
@@ -23,11 +24,11 @@ pub(super) fn emit_expr(
         Expr::Entrypoint { .. } => {
             // TODO
         }
-        Expr::LiteralInt(_) => {
-            // TODO
+        Expr::LiteralInt(lit) => {
+            instr.i64_const(lit.value);
         }
-        Expr::LiteralFlt(_) => {
-            // TODO
+        Expr::LiteralFlt(lit) => {
+            instr.f64_const(lit.value);
         }
         Expr::LiteralStr(_) => {
             // TODO
@@ -35,13 +36,26 @@ pub(super) fn emit_expr(
         Expr::Ident(_) => {
             // TODO
         }
-        Expr::PatternMatch(p) => {
-            for (ident_id, pattern_id) in &ctx.current_rule.patterns {
-                if ctx.resolve_ident(*ident_id) == p.identifier.as_str() {
-                    break;
+        Expr::PatternMatch(pattern) => {
+            let pattern_id =
+                ctx.get_pattern_from_current_rule(&pattern.identifier);
+            match &pattern.anchor {
+                Some(MatchAnchor::At(anchor_at)) => {
+                    instr.i32_const(pattern_id);
+                    emit_expr(ctx, instr, &anchor_at.expr);
+                    instr.call(ctx.builtin_fn.pattern_match_at);
+                }
+                Some(MatchAnchor::In(anchor_in)) => {
+                    instr.i32_const(pattern_id);
+                    emit_expr(ctx, instr, &anchor_in.range.lower_bound);
+                    emit_expr(ctx, instr, &anchor_in.range.upper_bound);
+                    instr.call(ctx.builtin_fn.pattern_match_in);
+                }
+                None => {
+                    instr.i32_const(pattern_id);
+                    instr.call(ctx.builtin_fn.pattern_match);
                 }
             }
-            // TODO
         }
         Expr::PatternCount(_) => {
             // TODO

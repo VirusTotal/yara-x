@@ -7,9 +7,8 @@ use std::fmt;
 use std::path::Path;
 use string_interner::symbol::SymbolU32;
 use string_interner::{DefaultBackend, StringInterner};
-use walrus::ir::{MemArg, StoreKind};
-use walrus::ValType::I32;
-use walrus::{FunctionBuilder, MemoryId, Module, ModuleConfig};
+use walrus::ValType::{I32, I64};
+use walrus::{FunctionBuilder, FunctionId, Module, ModuleConfig};
 
 use crate::ast::*;
 use crate::compiler::emit::emit_expr;
@@ -17,7 +16,7 @@ use crate::compiler::semcheck::semcheck;
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::warnings::Warning;
-use crate::{Struct, Value, Variable};
+use crate::Struct;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -35,7 +34,6 @@ pub struct Compiler<'a> {
     colorize_errors: bool,
     report_builder: ReportBuilder,
 
-    matches_mem_id: MemoryId,
     main_fn: FunctionBuilder,
 
     /// Pool that contains all the identifiers used in the rules. Each
@@ -46,7 +44,10 @@ pub struct Compiler<'a> {
     ident_pool: StringInterner<DefaultBackend<IdentID>>,
 
     /// The WebAssembly module containing the code for all rule conditions.
-    wasm_module: Module,
+    wasm_mod: Module,
+
+    /// Functions imported by the WebAssembly module.
+    builtin_fn: BuiltinFnTable,
 
     /// A vector with the all the rules that has been compiled. A [`RuleID`]
     /// is an index in this vector.
@@ -64,24 +65,12 @@ impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         let config = ModuleConfig::new();
-        let mut wasm_module = Module::with_config(config);
+        let mut wasm_mod = Module::with_config(config);
 
-        // Create the memory where the result of each rule will be stored.
-        let matches_mem_id =
-            wasm_module.memories.add_local(false, 100, Some(100));
-
-        // Export the memory so that it can be accessed from outside the wasm
-        // module.
-        wasm_module.exports.add("rule_matches", matches_mem_id);
-
-        let fn_type = wasm_module.types.add(&[I32], &[]);
-
-        wasm_module.add_import_func("foo.bar", "bar", fn_type);
-        wasm_module.add_import_func("foo.bar", "bar", fn_type);
-        let (fn_id, _) = wasm_module.add_import_func("foo", "bar", fn_type);
+        let builtin_fn = Self::init_wasm_mod(&mut wasm_mod);
 
         let main_fn =
-            walrus::FunctionBuilder::new(&mut wasm_module.types, &[], &[]);
+            walrus::FunctionBuilder::new(&mut wasm_mod.types, &[], &[]);
 
         Self {
             colorize_errors: false,
@@ -91,9 +80,9 @@ impl<'a> Compiler<'a> {
             sym_tbl: Struct::new(),
             report_builder: ReportBuilder::new(),
             ident_pool: StringInterner::default(),
-            wasm_module,
+            builtin_fn,
             main_fn,
-            matches_mem_id,
+            wasm_mod,
         }
     }
 
@@ -113,10 +102,11 @@ impl<'a> Compiler<'a> {
     where
         S: Into<SourceCode<'src>>,
     {
+        self.report_builder.with_colors(self.colorize_errors);
+
         let src = src.into();
 
         let mut ast = Parser::new()
-            .colorize_errors(self.colorize_errors)
             .set_report_builder(&self.report_builder)
             .build_ast(src.clone())?;
 
@@ -125,6 +115,7 @@ impl<'a> Compiler<'a> {
 
         let mut rule_idx = 0;
 
+        // TODO: make the iteration of namespaces and rule stable.
         for ns in ast.namespaces.values() {
             for module_name in ns.imports.iter() {
                 // insert module_name in arena.
@@ -165,6 +156,7 @@ impl<'a> Compiler<'a> {
                 let mut ctx = Context {
                     src: &src,
                     sym_tbl: &self.sym_tbl,
+                    builtin_fn: &self.builtin_fn,
                     ident_pool: &self.ident_pool,
                     report_builder: &self.report_builder,
                     current_rule: self.rules.last().unwrap(),
@@ -176,25 +168,18 @@ impl<'a> Compiler<'a> {
                 // of all AST nodes.
                 semcheck!(&mut ctx, Type::Bool, &rule.condition)?;
 
+                // TODO: add rule name to declared identifiers.
+
                 self.main_fn.func_body().block(None, |block| {
-                    // This is one of the arguments for the `i32.store8`
-                    // instruction below, which is the memory offset where
-                    // the value will be stored.
+                    // The RuleID is the first argument to `rule_match`.
                     block.i32_const(rule_id as i32);
 
-                    // The condition's result is the other argument for
-                    // `i32.store8`, which is the value being stored.
+                    // The condition's result is the second argument to
+                    // `rule_match`.
                     emit_expr(&ctx, block, &rule.condition);
 
-                    // Emit the `i32.store8` instruction. This instruction will
-                    // take the condition's result, convert it from i32 to i8
-                    // (this is safe because values are either 0 or 1) and store
-                    // it at offset `rule_id`.
-                    block.store(
-                        self.matches_mem_id,
-                        StoreKind::I32_8 { atomic: false },
-                        MemArg { align: 1, offset: 0 },
-                    );
+                    // Emit call instruction for calling `rule_match`.
+                    block.call(self.builtin_fn.rule_match);
                 });
             }
         }
@@ -203,12 +188,11 @@ impl<'a> Compiler<'a> {
     }
 
     pub fn build(mut self) -> Result<CompiledRules, Error> {
-        let main_fn = self.main_fn.finish(vec![], &mut self.wasm_module.funcs);
-
-        self.wasm_module.exports.add("main", main_fn);
+        let main_fn = self.main_fn.finish(vec![], &mut self.wasm_mod.funcs);
+        self.wasm_mod.exports.add("main", main_fn);
 
         Ok(CompiledRules {
-            wasm_module: self.wasm_module,
+            wasm_mod: self.wasm_mod,
             ident_pool: self.ident_pool,
             patterns: vec![],
             rules: vec![],
@@ -228,14 +212,70 @@ impl Default for Compiler<'_> {
     }
 }
 
+impl Compiler<'_> {
+    /// Initializes the WebAssembly module, creating all the required types and
+    /// functions.
+    fn init_wasm_mod(module: &mut Module) -> BuiltinFnTable {
+        let ty = module.types.add(&[I32, I32], &[]);
+        let (rule_match, _) =
+            module.add_import_func("internal", "rule_match", ty);
+
+        let ty = module.types.add(&[I32], &[I32]);
+        let (pattern_match, _) =
+            module.add_import_func("internal", "pattern_match", ty);
+
+        let ty = module.types.add(&[I32, I64], &[I32]);
+        let (pattern_match_at, _) =
+            module.add_import_func("internal", "pattern_match_at", ty);
+
+        let ty = module.types.add(&[I32, I64, I64], &[I32]);
+        let (pattern_match_in, _) =
+            module.add_import_func("internal", "pattern_match_in", ty);
+
+        BuiltinFnTable {
+            rule_match,
+            pattern_match,
+            pattern_match_at,
+            pattern_match_in,
+        }
+    }
+}
+
 /// ID associated to each identifier in the identifiers pool.
 type IdentID = SymbolU32;
 
 /// ID associated to each pattern.
-type PatternID = u32;
+type PatternID = i32;
 
 /// ID associated to each rule.
-type RuleID = u32;
+type RuleID = i32;
+
+/// Table with built-in functions used by the WebAssembly module.
+///
+/// The WebAssembly module generated for evaluating rule conditions needs to
+/// call back to YARA for multiple tasks. For example, it calls YARA for
+/// reporting rule matches, for asking if a pattern matches at a given offset,
+/// for executing functions like `uint32()`, etc.
+///
+/// This table contains the [`FunctionId`] for such functions, which are
+/// imported by the WebAssembly module and implemented by YARA.
+struct BuiltinFnTable {
+    /// Called for reporting whether a rule matches or not.
+    /// Signature: (rule_id: i32, match: i32) -> ()
+    rule_match: FunctionId,
+
+    /// Ask YARA whether a pattern matched or not.
+    /// Signature: (pattern_id: i32) -> (i32)
+    pattern_match: FunctionId,
+
+    /// Ask YARA whether a pattern matched at a specific offset.
+    /// Signature: (pattern_id: i32, offset: i64) -> (i32)
+    pattern_match_at: FunctionId,
+
+    /// Ask YARA whether a pattern matched within a range of offsets.
+    /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
+    pattern_match_in: FunctionId,
+}
 
 /// Structure that contains information and data structures required during the
 /// the current compilation process.
@@ -255,14 +295,33 @@ struct Context<'a> {
 
     /// Pool with identifiers used in the rules.
     ident_pool: &'a StringInterner<DefaultBackend<IdentID>>,
+
+    builtin_fn: &'a BuiltinFnTable,
 }
 
 impl<'a> Context<'a> {
     /// Given an [`IdentID`] returns the identifier as `&str`.
     ///
     /// Panics if no identifier has the provided [`IdentID`].
+    #[inline]
     fn resolve_ident(&self, ident_id: IdentID) -> &str {
         self.ident_pool.resolve(ident_id).unwrap()
+    }
+
+    /// Given a pattern identifier (e.g. `$a`) search for it in the current
+    /// rule and return its [`PatternID`]. Panics if the current rule does not
+    /// have the requested pattern.
+    fn get_pattern_from_current_rule(&self, ident: &Ident) -> PatternID {
+        for (ident_id, pattern_id) in &self.current_rule.patterns {
+            if self.resolve_ident(*ident_id) == ident.as_str() {
+                return *pattern_id;
+            }
+        }
+        panic!(
+            "rule `{}` does not have pattern `{}` ",
+            self.resolve_ident(self.current_rule.ident),
+            ident.as_str()
+        );
     }
 }
 
@@ -276,7 +335,7 @@ pub struct CompiledRules {
     ident_pool: StringInterner<DefaultBackend<IdentID>>,
 
     /// The WebAssembly module containing the code for all rule conditions.
-    wasm_module: Module,
+    wasm_mod: Module,
 
     /// Vector containing all the compiled rules. A [`RuleID`] is an index
     /// in this vector.
@@ -313,6 +372,6 @@ impl CompiledRules {
     where
         P: AsRef<Path>,
     {
-        Ok(self.wasm_module.emit_wasm_file(path)?)
+        Ok(self.wasm_mod.emit_wasm_file(path)?)
     }
 }
