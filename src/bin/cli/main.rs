@@ -7,7 +7,7 @@ use ansi_term::Color::{Blue, Red};
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{arg, command, crate_authors, value_parser, ArgMatches, Command};
 use globset::GlobBuilder;
-use yara_x::compiler::Error;
+use yara_x::compiler::{Compiler, Error};
 
 use yara_x::formatter;
 use yara_x::parser::{Parser, SourceCode};
@@ -88,6 +88,14 @@ fn main() -> anyhow::Result<()> {
                         .help("Path to YARA source file")
                         .value_parser(value_parser!(PathBuf)),
                 ),
+            command("wasm")
+                .about("Emits a .wasm file with the code generated for a YARA source file")
+                .arg(
+                    arg!(<FILE>)
+                        .help("Path to YARA source file")
+                        .value_parser(value_parser!(PathBuf)),
+                )
+            ,
             command("check")
                 .about("Check if YARA source files are syntactically correct")
                 .long_about(CHECK_LONG_HELP)
@@ -123,6 +131,7 @@ fn main() -> anyhow::Result<()> {
 
     let result = match args.subcommand() {
         Some(("ast", args)) => cmd_ast(args),
+        Some(("wasm", args)) => cmd_wasm(args),
         Some(("check", args)) => cmd_check(args),
         Some(("fmt", args)) => cmd_format(args),
 
@@ -152,6 +161,26 @@ fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
     ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;
 
     println!("{output}");
+    Ok(())
+}
+
+fn cmd_wasm(args: &ArgMatches) -> anyhow::Result<()> {
+    let mut file_path = args.get_one::<PathBuf>("FILE").unwrap().to_path_buf();
+
+    let src = fs::read_to_string(file_path.as_path()).with_context(|| {
+        format!("could not read file `{}`", file_path.display())
+    })?;
+
+    let src = SourceCode::from(src.as_str())
+        .origin(file_path.as_os_str().to_str().unwrap());
+
+    let mut compiled_rules =
+        Compiler::new().colorize_errors(true).add_source(src)?.build()?;
+
+    file_path.set_extension("wasm");
+
+    compiled_rules.emit_wasm_file(file_path.as_path())?;
+
     Ok(())
 }
 
