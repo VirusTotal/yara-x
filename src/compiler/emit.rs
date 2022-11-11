@@ -7,7 +7,7 @@ use walrus::ValType::I32;
 /// Emits the WebAssembly code for `expr` into the instruction sequence
 /// `instr`.
 pub(super) fn emit_expr(
-    ctx: &Context,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     expr: &Expr,
 ) {
@@ -43,17 +43,17 @@ pub(super) fn emit_expr(
                 Some(MatchAnchor::At(anchor_at)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_at.expr);
-                    instr.call(ctx.builtin_fn.is_pat_match_at);
+                    instr.call(ctx.wasm_imports.is_pat_match_at);
                 }
                 Some(MatchAnchor::In(anchor_in)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_in.range.lower_bound);
                     emit_expr(ctx, instr, &anchor_in.range.upper_bound);
-                    instr.call(ctx.builtin_fn.is_pat_match_in);
+                    instr.call(ctx.wasm_imports.is_pat_match_in);
                 }
                 None => {
                     instr.i32_const(pattern_id);
-                    instr.call(ctx.builtin_fn.is_pat_match);
+                    instr.call(ctx.wasm_imports.is_pat_match);
                 }
             }
         }

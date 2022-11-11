@@ -8,11 +8,13 @@ pub mod ast;
 pub mod compiler;
 pub mod formatter;
 pub mod parser;
+pub mod scanner;
 pub use warnings::*;
 
 mod ascii_tree;
 mod report;
 mod warnings;
+mod wasm;
 
 /// Stores information about variables and constants defined or
 /// used in YARA rules.
