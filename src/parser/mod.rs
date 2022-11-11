@@ -101,36 +101,53 @@ mod errors;
 #[cfg(test)]
 mod tests;
 
-/// A structure that describes a YARA source code.
+/// A structure that describes some YARA source code.
 ///
-/// This structure contains a `&str` that points to the code itself, and an optional
-/// `String` with information about the origin of the source code. The most common use
-/// for the `origin` field is indicating the path of the file from where the source
-/// code was obtained, but the string can be actually anything. This string, if provided,
-/// will appear in error messages.
+/// This structure contains a `&str` pointing to the code itself, and an
+/// optional `origin` that tells where the source code came from. The
+/// most common use for `origin` is indicating the path of the file from
+/// where the source code was obtained, but it can contain any arbitrary
+/// string. This string, if provided, will appear in error messages. For
+/// example, in this error message `origin` was set to `some_file.yar`:
+///
+/// ```text
+/// error: syntax error
+///    ╭─[some_file.yar:8:6]
+///    │
+///    ... more details
+/// ```
+///
+/// # Example
+///
+/// ```
+/// use yara_x::parser::SourceCode;
+/// let src = SourceCode::from("rule test { condition: true }").origin("some_file.yar");
+/// ```
+///
 #[derive(Debug, Clone)]
 pub struct SourceCode<'src> {
     /// A reference to the source code itself in text form.
-    pub text: &'src str,
+    pub code: &'src str,
     /// An optional string that tells which is the origin of the code. Usually
     /// a file path.
     pub origin: Option<std::string::String>,
 }
 
 impl<'src> SourceCode<'src> {
-    /// Create a new SourceCode structure that can be passed later to [`Parser::build_ast`]
-    pub fn new(src: &'src str) -> Self {
-        Self { text: src, origin: None }
-    }
-
+    /// Sets a string that describes the origin of the source code.
+    ///
+    /// This is usually the path of the file that contained the source code
+    /// but it can be an arbitrary string. The origin appears in error and
+    /// warning messages.
     pub fn origin(self, origin: &str) -> Self {
-        Self { text: self.text, origin: Some(origin.to_owned()) }
+        Self { code: self.code, origin: Some(origin.to_owned()) }
     }
 }
 
 impl<'src> From<&'src str> for SourceCode<'src> {
+    /// Creates a new [`SourceCode`] from a `&str`.
     fn from(src: &'src str) -> Self {
-        Self { text: src, origin: None }
+        Self { code: src, origin: None }
     }
 }
 
@@ -289,7 +306,7 @@ impl<'a> Parser<'a> {
             comments: false,
             whitespaces: false,
             pairs: Box::new(
-                grammar::ParserImpl::parse(rule, src.text)
+                grammar::ParserImpl::parse(rule, src.code)
                     .map_err(|pest_error| {
                         error_builder.convert_pest_error(&src, pest_error)
                     })?

@@ -74,7 +74,7 @@ impl ReportBuilder {
             // ariadne::Source::from(...) is an expensive operation, so it's
             // done only it the SourceCode is not already in the cache.
             if map.get(key).is_none() {
-                map.insert(key.to_string(), ariadne::Source::from(src.text));
+                map.insert(key.to_string(), ariadne::Source::from(src.code));
             }
         }
         self

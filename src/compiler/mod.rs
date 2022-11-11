@@ -38,7 +38,7 @@ pub struct Compiler<'a> {
     /// identifier appears only once, even if they are used by multiple
     /// rules. For example, the pool contains a single copy of the common
     /// identifier `$a`. Identifiers have an unique 32-bits ID that can
-    /// be used for retrieving it from the pool.
+    /// be used for retrieving them from the pool.
     ident_pool: StringInterner<DefaultBackend<IdentID>>,
 
     /// Builder for creating the WebAssembly module that contains the code
@@ -146,9 +146,9 @@ impl<'a> Compiler<'a> {
                     warnings: &mut self.warnings,
                 };
 
-                // Check that the condition is boolean expression. This traverses
-                // the condition's AST recursively checking the semantic validity
-                // of all AST nodes.
+                // Make sure that the condition is a boolean expression. This
+                // traverses the condition's AST recursively checking that
+                // all the condition is semantically valid.
                 semcheck!(&mut ctx, Type::Bool, &rule.condition)?;
 
                 // TODO: add rule name to declared identifiers.
@@ -157,8 +157,8 @@ impl<'a> Compiler<'a> {
                     // The RuleID is the first argument to `rule_match`.
                     block.i32_const(rule_id as i32);
 
-                    // The condition's result is the second argument to
-                    // `rule_match`.
+                    // The condition's result (0 or 1) is the second argument
+                    // to `rule_match`.
                     emit_expr(&mut ctx, block, &rule.condition);
 
                     // Emit call instruction for calling `rule_result`.
