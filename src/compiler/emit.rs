@@ -43,17 +43,17 @@ pub(super) fn emit_expr(
                 Some(MatchAnchor::At(anchor_at)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_at.expr);
-                    instr.call(ctx.builtin_fn.pattern_match_at);
+                    instr.call(ctx.builtin_fn.is_pat_match_at);
                 }
                 Some(MatchAnchor::In(anchor_in)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_in.range.lower_bound);
                     emit_expr(ctx, instr, &anchor_in.range.upper_bound);
-                    instr.call(ctx.builtin_fn.pattern_match_in);
+                    instr.call(ctx.builtin_fn.is_pat_match_in);
                 }
                 None => {
                     instr.i32_const(pattern_id);
-                    instr.call(ctx.builtin_fn.pattern_match);
+                    instr.call(ctx.builtin_fn.is_pat_match);
                 }
             }
         }

@@ -179,7 +179,7 @@ impl<'a> Compiler<'a> {
                     emit_expr(&ctx, block, &rule.condition);
 
                     // Emit call instruction for calling `rule_match`.
-                    block.call(self.builtin_fn.rule_match);
+                    block.call(self.builtin_fn.rule_result);
                 });
             }
         }
@@ -217,26 +217,26 @@ impl Compiler<'_> {
     /// functions.
     fn init_wasm_mod(module: &mut Module) -> BuiltinFnTable {
         let ty = module.types.add(&[I32, I32], &[]);
-        let (rule_match, _) =
-            module.add_import_func("internal", "rule_match", ty);
+        let (rule_result, _) =
+            module.add_import_func("internal", "rule_result", ty);
 
         let ty = module.types.add(&[I32], &[I32]);
-        let (pattern_match, _) =
-            module.add_import_func("internal", "pattern_match", ty);
+        let (is_pat_match, _) =
+            module.add_import_func("internal", "is_pat_match", ty);
 
         let ty = module.types.add(&[I32, I64], &[I32]);
-        let (pattern_match_at, _) =
-            module.add_import_func("internal", "pattern_match_at", ty);
+        let (is_pat_match_at, _) =
+            module.add_import_func("internal", "is_pat_match_at", ty);
 
         let ty = module.types.add(&[I32, I64, I64], &[I32]);
-        let (pattern_match_in, _) =
-            module.add_import_func("internal", "pattern_match_in", ty);
+        let (is_pat_match_in, _) =
+            module.add_import_func("internal", "is_pat_match_in", ty);
 
         BuiltinFnTable {
-            rule_match,
-            pattern_match,
-            pattern_match_at,
-            pattern_match_in,
+            rule_result,
+            is_pat_match,
+            is_pat_match_at,
+            is_pat_match_in,
         }
     }
 }
@@ -262,19 +262,19 @@ type RuleID = i32;
 struct BuiltinFnTable {
     /// Called for reporting whether a rule matches or not.
     /// Signature: (rule_id: i32, match: i32) -> ()
-    rule_match: FunctionId,
+    rule_result: FunctionId,
 
     /// Ask YARA whether a pattern matched or not.
     /// Signature: (pattern_id: i32) -> (i32)
-    pattern_match: FunctionId,
+    is_pat_match: FunctionId,
 
     /// Ask YARA whether a pattern matched at a specific offset.
     /// Signature: (pattern_id: i32, offset: i64) -> (i32)
-    pattern_match_at: FunctionId,
+    is_pat_match_at: FunctionId,
 
     /// Ask YARA whether a pattern matched within a range of offsets.
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
-    pattern_match_in: FunctionId,
+    is_pat_match_in: FunctionId,
 }
 
 /// Structure that contains information and data structures required during the
