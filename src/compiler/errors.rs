@@ -14,6 +14,9 @@ pub enum Error {
 
     #[error(transparent)]
     CompileError(#[from] CompileError),
+
+    #[error(transparent)]
+    EmitError(#[from] anyhow::Error),
 }
 
 /// An error occurred during the compilation process.

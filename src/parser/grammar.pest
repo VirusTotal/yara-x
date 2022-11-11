@@ -193,12 +193,12 @@ source_file = {
 import_stmt = { k_IMPORT ~ string_lit }
 
 rule_decl = {
-	rule_mods? ~ k_RULE ~ ident ~ rule_tags? ~
-	LBRACE ~
-	    meta_defs? ~
-	    pattern_defs?  ~
-      k_CONDITION ~ COLON ~
-         boolean_expr ~
+  rule_mods? ~ k_RULE ~ ident ~ rule_tags? ~
+  LBRACE ~
+    meta_defs? ~
+    pattern_defs?  ~
+    k_CONDITION ~ COLON ~
+      boolean_expr ~
   RBRACE
 }
 
@@ -213,12 +213,12 @@ ident_chars = { ASCII_ALPHANUMERIC | "_"}
 // TODO: Enforce identifier length limit during the creation of the
 // AST.
 ident = @{
-   // !(keyword ~ !ident_chars) makes sure that keywords are not used as
-   // identifiers. It rejects any identifier that starts with a keyword,
-   // provided that the character following the keyword can't be part of
-   // the identifier. This is important, because we want to accept identifiers
-   // like "true_", or "imported", which start with a keyword.
-   !(keyword ~ !ident_chars) ~ (ASCII_ALPHA | "_") ~ ident_chars*
+  // !(keyword ~ !ident_chars) makes sure that keywords are not used as
+  // identifiers. It rejects any identifier that starts with a keyword,
+  // provided that the character following the keyword can't be part of
+  // the identifier. This is important, because we want to accept identifiers
+  // like "true_", or "imported", which start with a keyword.
+  !(keyword ~ !ident_chars) ~ (ASCII_ALPHA | "_") ~ ident_chars*
 }
 
 // Pattern identifier (i.e: $a, $b, $foo, $bar).
@@ -249,24 +249,24 @@ pattern_length = @{
 // String literal (i.e: "", "foo", "bar").
 string_lit = @{
   DOUBLE_QUOTES ~ (
-     // The escape sequence \\ has precedence, if not, \\" would be interpreted
-     // as a backslash \, followed by the escape sequence \"
-     "\\\\" |
-     // Allow \" inside the double quotes.
-     "\\\"" |
-     // Allow any characters except double quotes and newlines.
-     !(DOUBLE_QUOTES | NEWLINE ) ~ ANY
+    // The escape sequence \\ has precedence, if not, \\" would be interpreted
+    // as a backslash \, followed by the escape sequence \"
+    "\\\\" |
+    // Allow \" inside the double quotes.
+    "\\\"" |
+    // Allow any characters except double quotes and newlines.
+    !(DOUBLE_QUOTES | NEWLINE ) ~ ANY
    )* ~ DOUBLE_QUOTES
 }
 
 integer_lit = @{
-   "0x" ~ ASCII_HEX_DIGIT+ |
-   "0o" ~ ASCII_OCT_DIGIT+ |
-   "-"? ~ ASCII_DIGIT+ ~ ("KB" | "MB")?
+  "0x" ~ ASCII_HEX_DIGIT+ |
+  "0o" ~ ASCII_OCT_DIGIT+ |
+  "-"? ~ ASCII_DIGIT+ ~ ("KB" | "MB")?
 }
 
 float_lit = @{
-   "-"? ~ ASCII_DIGIT+ ~ DOT ~ ASCII_DIGIT+
+  "-"? ~ ASCII_DIGIT+ ~ DOT ~ ASCII_DIGIT+
 }
 
 regexp = @{
@@ -300,11 +300,11 @@ meta_defs = {
 meta_def = {
   ident ~ EQUAL ~
   (
-      k_TRUE                |
-      k_FALSE               |
-      float_lit             |
-      integer_lit           |
-      string_lit
+    k_TRUE                |
+    k_FALSE               |
+    float_lit             |
+    integer_lit           |
+    string_lit
   )
 }
 
@@ -378,7 +378,7 @@ hex_byte = @{
   //                   │
   //                   ╰─ odd number of hex digits
   //
-  // For that reason, the grammar accepts a single digit here..
+  // For that reason the grammar accepts a single digit here..
   TILDE? ~ ASCII_HEX_DIGIT
 }
 
@@ -396,7 +396,7 @@ boolean_expr = {
 }
 
 boolean_term = {
-  pattern_ident ~ (k_AT ~ expr | k_IN ~ range)?         |
+  pattern_ident ~ (k_AT ~ expr | k_IN ~ range)?        |
   k_TRUE                                               |
   k_FALSE                                              |
   k_NOT ~ boolean_term                                 |
@@ -428,9 +428,9 @@ primary_expr = {
   float_lit                                            |
   integer_lit                                          |
   string_lit                                           |
-  pattern_count ~ (k_IN ~ range)?                       |
-  pattern_offset ~ (LBRACKET ~ expr ~ RBRACKET)?        |
-  pattern_length ~ (LBRACKET ~ expr ~ RBRACKET)?        |
+  pattern_count ~ (k_IN ~ range)?                      |
+  pattern_offset ~ (LBRACKET ~ expr ~ RBRACKET)?       |
+  pattern_length ~ (LBRACKET ~ expr ~ RBRACKET)?       |
   regexp                                               |
   k_FILESIZE                                           |
   k_ENTRYPOINT                                         |
