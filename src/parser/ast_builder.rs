@@ -486,7 +486,8 @@ pub(crate) fn namespace_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     cst: CST<'src>,
 ) -> Result<Namespace<'src>, Error> {
-    let mut rules: HashMap<&str, Rule> = HashMap::new();
+    let mut rules: Vec<Rule> = vec![];
+    let mut rules_index: HashMap<&str, usize> = HashMap::new();
     let mut imports: HashSet<&str> = HashSet::new();
     for node in cst {
         match node.as_rule() {
@@ -501,9 +502,10 @@ pub(crate) fn namespace_from_cst<'src>(
             GrammarRule::rule_decl => {
                 let new_rule = rule_from_cst(ctx, node)?;
                 // Check if another rule was already defined with the same name.
-                if let Some(existing_rule) =
-                    rules.get(new_rule.identifier.name)
+                if let Some(index) = rules_index.get(new_rule.identifier.name)
                 {
+                    let existing_rule = &rules[*index];
+
                     return Err(Error::duplicate_rule(
                         ctx.report_builder,
                         &ctx.src,
@@ -512,7 +514,8 @@ pub(crate) fn namespace_from_cst<'src>(
                         existing_rule.identifier.span,
                     ));
                 }
-                rules.insert(new_rule.identifier.name, new_rule);
+                rules_index.insert(new_rule.identifier.name, rules.len());
+                rules.push(new_rule);
             }
             // The End Of Input (EOI) rule is ignored.
             GrammarRule::EOI => {}

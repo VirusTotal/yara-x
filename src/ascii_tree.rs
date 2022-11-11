@@ -13,7 +13,7 @@ pub(crate) fn namespace_ascii_tree(
         namespace
             .rules
             .iter()
-            .map(|(_, rule)| rule_ascii_tree(rule, sym_tbl))
+            .map(|rule| rule_ascii_tree(rule, sym_tbl))
             .collect(),
     )
 }

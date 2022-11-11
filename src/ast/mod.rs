@@ -21,7 +21,7 @@ pub use crate::ast::span::*;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
-    pub namespaces: HashMap<&'src str, Namespace<'src>>,
+    pub namespaces: Vec<Namespace<'src>>,
     /// Warnings generated while building this AST.
     pub warnings: Vec<Warning>,
 }
@@ -40,7 +40,7 @@ impl<'src> AST<'src> {
             "root".to_string(),
             self.namespaces
                 .iter()
-                .map(|(_, ns)| namespace_ascii_tree(&ns, &sym_tbl))
+                .map(|ns| namespace_ascii_tree(&ns, &sym_tbl))
                 .collect(),
         )
     }
@@ -51,7 +51,7 @@ impl<'src> AST<'src> {
 /// Within each namespace rule identifiers are unique.
 #[derive(Debug)]
 pub struct Namespace<'src> {
-    pub rules: HashMap<&'src str, Rule<'src>>,
+    pub rules: Vec<Rule<'src>>,
     pub imports: HashSet<&'src str>,
 }
 
