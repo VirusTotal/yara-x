@@ -300,17 +300,11 @@ impl<'a> Parser<'a> {
 
         error_builder.with_colors(self.colorize_errors).register_source(&src);
 
-        Ok(CST {
-            comments: false,
-            whitespaces: false,
-            pairs: Box::new(
-                grammar::ParserImpl::parse(rule, src.code).map_err(
-                    |pest_error| {
-                        error_builder.convert_pest_error(&src, pest_error)
-                    },
-                )?,
-            ),
-        })
+        let pairs = grammar::ParserImpl::parse(rule, src.code).map_err(
+            |pest_error| error_builder.convert_pest_error(&src, pest_error),
+        )?;
+
+        Ok(CST { comments: false, whitespaces: false, pairs: Box::new(pairs) })
     }
 
     /// Sets the report builder used by the Parser.
