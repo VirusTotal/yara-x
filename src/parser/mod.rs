@@ -79,8 +79,6 @@ let ast = Parser::new().build_ast(rule).unwrap();
 
  */
 
-use std::collections::HashMap;
-
 use crate::ast::AST;
 use pest::Parser as PestParser;
 
@@ -306,11 +304,11 @@ impl<'a> Parser<'a> {
             comments: false,
             whitespaces: false,
             pairs: Box::new(
-                grammar::ParserImpl::parse(rule, src.code)
-                    .map_err(|pest_error| {
+                grammar::ParserImpl::parse(rule, src.code).map_err(
+                    |pest_error| {
                         error_builder.convert_pest_error(&src, pest_error)
-                    })?
-                    .filter(|_| true),
+                    },
+                )?,
             ),
         })
     }
