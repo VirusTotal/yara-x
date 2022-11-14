@@ -63,8 +63,8 @@ lazy_static! {
     /// the module is considered a data-only module.
     pub(crate) static ref BUILTIN_MODULES: HashMap<&'static str, Module<'static>> = {
         let mut modules = HashMap::new();
-        // The modules.rs file is automatically generated at compile time by
-        // build.rs. This is an example of how modules.rs looks like:
+        // The add_modules.rs file is automatically generated at compile time by
+        // build.rs. This is an example of how add_modules.rs looks like:
         //
         // {
         //  #[cfg(feature = "pe_module")]
@@ -76,7 +76,7 @@ lazy_static! {
         //
         // modules.rs will contain an `add_module!` statement for each
         // protobuf in src/modules/protos defining a YARA module.
-        include!(concat!(env!("OUT_DIR"), "/modules.rs"));
+        include!(concat!(env!("OUT_DIR"), "/add_modules.rs"));
 
         modules
     };
