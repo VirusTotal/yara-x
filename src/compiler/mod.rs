@@ -264,7 +264,7 @@ impl<'a> Context<'a> {
 
 /// A set of YARA rules in compiled form.
 ///
-/// This is the result from [`Compiler::build`].
+/// This is the result from [`Compiler::proto`].
 pub struct CompiledRules {
     /// Pool with identifiers used in the rules. Each identifier has its
     /// own [`IdentID`], which can be used for retrieving the identifier

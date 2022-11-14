@@ -12,6 +12,7 @@ pub mod scanner;
 pub use warnings::*;
 
 mod ascii_tree;
+mod modules;
 mod report;
 mod warnings;
 mod wasm;
