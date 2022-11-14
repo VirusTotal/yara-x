@@ -63,6 +63,7 @@ fn main() {
                     .unwrap()
                     .to_string(),
                 module_options.rust_module,
+                module_options.root_message,
             ));
         }
     }
@@ -97,6 +98,7 @@ fn main() {
         let name = m.0;
         let proto_mod = m.1;
         let rust_mod = m.2;
+        let root_message = m.3;
 
         if !rust_mod.is_empty() {
             write!(
@@ -121,7 +123,7 @@ pub mod {rust_mod};"#,
             add_modules_rs,
             r#"
 #[cfg(feature = "{name}_module")]
-add_module!(modules, "{name}", {proto_mod}, {main_fn});
+add_module!(modules, "{name}", {proto_mod}, {root_message}, {main_fn});
             "#,
         )
         .unwrap();

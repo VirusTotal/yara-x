@@ -3,7 +3,9 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
+use std::collections::HashMap;
 use std::fmt;
+use std::ops::Deref;
 use std::path::Path;
 use string_interner::symbol::SymbolU32;
 use string_interner::{DefaultBackend, StringInterner};
@@ -15,10 +17,11 @@ use crate::compiler::semcheck::semcheck;
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::warnings::Warning;
-use crate::{wasm, Struct};
+use crate::{modules, wasm, Struct};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
+use crate::symbol_table::{Symbol, SymbolTable};
 use crate::wasm::BuiltinFnTable;
 
 mod emit;
@@ -30,7 +33,7 @@ mod tests;
 
 /// A YARA compiler.
 pub struct Compiler<'a> {
-    sym_tbl: Struct<'a>,
+    sym_tbl: Box<dyn SymbolTable + 'a>,
     colorize_errors: bool,
     report_builder: ReportBuilder,
 
@@ -65,7 +68,7 @@ impl<'a> Compiler<'a> {
             warnings: vec![],
             rules: vec![],
             patterns: vec![],
-            sym_tbl: Struct::new(),
+            sym_tbl: Box::new(modules::BUILTIN_MODULES.deref()),
             report_builder: ReportBuilder::new(),
             ident_pool: StringInterner::default(),
             wasm_mod: wasm::ModuleBuilder::new(),
@@ -138,7 +141,8 @@ impl<'a> Compiler<'a> {
 
                 let mut ctx = Context {
                     src: &src,
-                    sym_tbl: &self.sym_tbl,
+                    root_sym_tbl: self.sym_tbl.as_ref(),
+                    struct_sym_tbl: None,
                     ident_pool: &self.ident_pool,
                     report_builder: &self.report_builder,
                     current_rule: self.rules.last().unwrap(),
@@ -219,7 +223,13 @@ type RuleID = i32;
 struct Context<'a> {
     report_builder: &'a ReportBuilder,
 
-    sym_tbl: &'a Struct<'a>,
+    /// Symbol table that contains top-level symbols, like module names,
+    /// and external variables.
+    root_sym_tbl: &'a (dyn SymbolTable + 'a),
+
+    /// Symbol table for the currently active structure. When this is None
+    /// symbols are looked up in `root_sym_tbl` instead.
+    struct_sym_tbl: Option<Box<dyn SymbolTable + 'a>>,
 
     wasm_imports: BuiltinFnTable,
 
@@ -243,6 +253,14 @@ impl<'a> Context<'a> {
     #[inline]
     fn resolve_ident(&self, ident_id: IdentID) -> &str {
         self.ident_pool.resolve(ident_id).unwrap()
+    }
+
+    fn lookup_symbol(&self, ident: &str) -> Option<Symbol> {
+        if let Some(s) = &self.struct_sym_tbl {
+            s.lookup(ident)
+        } else {
+            self.root_sym_tbl.lookup(ident)
+        }
     }
 
     /// Given a pattern identifier (e.g. `$a`) search for it in the current
