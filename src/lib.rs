@@ -14,6 +14,7 @@ pub use warnings::*;
 mod ascii_tree;
 mod modules;
 mod report;
+mod symbol_table;
 mod warnings;
 mod wasm;
 

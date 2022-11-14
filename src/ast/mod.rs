@@ -15,9 +15,10 @@ use yara_derive::*;
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
 use crate::warnings::Warning;
-use crate::Struct;
+use crate::{symbol_table, Struct};
 
 pub use crate::ast::span::*;
+use crate::symbol_table::Symbol;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -773,6 +774,17 @@ impl TypeHint {
             TypeHint::Float(_) => Type::Float,
             TypeHint::String(_) => Type::String,
             TypeHint::Struct => Type::Struct,
+        }
+    }
+}
+
+impl From<symbol_table::Symbol<'_>> for TypeHint {
+    fn from(symbol: Symbol) -> Self {
+        match symbol {
+            Symbol::Integer(i) => TypeHint::Integer(i),
+            Symbol::Float(f) => TypeHint::Float(f),
+            Symbol::String(s) => TypeHint::String(s.map(BString::from)),
+            Symbol::Struct(_) => TypeHint::Struct,
         }
     }
 }

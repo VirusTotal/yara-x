@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use protobuf::reflect::FileDescriptor;
+use protobuf::reflect::{FileDescriptor, MessageDescriptor};
 use std::collections::HashMap;
 
 pub mod protos {
@@ -12,28 +12,38 @@ include!("modules.rs");
 type MainFn = fn(u32) -> u32;
 
 /// Describes a YARA module.
-pub struct Module<'a> {
+pub struct Module {
     /// Pointer to the module's main function.
-    main_fn: Option<MainFn>,
-    /// A [`FileDescriptor`] for the protobuf that describes the module's
-    /// structure. This allows iterating the fields declared by the module
-    /// and obtaining their names and types.
-    descriptor: &'a FileDescriptor,
+    pub main_fn: Option<MainFn>,
+    /// A [`MessageDescriptor`] that describes the module's structure. This
+    /// corresponds to the the protobuf message declared in the "root_message"
+    /// for the YARA module. It allows iterating the fields declared by the
+    /// module and obtaining their names and types.
+    pub descriptor: MessageDescriptor,
 }
 
 /// Macro that adds a module to the `BUILTIN_MODULES` map.
 ///
 /// # Example
 ///
-/// include_module!(modules, "test", test, Some(test::main as MainFn));
+/// include_module!(modules, "test", test, Test, Some(test::main as MainFn));
 ///
 macro_rules! add_module {
-    ($modules_map:expr, $name:literal, $proto:ident, $main_fn:expr) => {{
+    ($modules_map:expr, $name:literal, $proto:ident, $root_message:ident, $main_fn:expr) => {{
+        use std::stringify;
         $modules_map.insert(
             $name,
             Module {
                 main_fn: $main_fn,
-                descriptor: protos::$proto::file_descriptor(),
+                descriptor: protos::$proto::file_descriptor()
+                    // message_by_full_name expects a dot (.) at the beginning
+                    // of the name.
+                    .message_by_full_name(stringify!(.$root_message))
+                    .expect(format!(
+                        "`root_message` option in protobuf `{}` is wrong, message `{}` is not defined",
+                        stringify!($proto),
+                        stringify!($root_message)
+                    ).as_str()),
             },
         );
     }};
@@ -61,7 +71,7 @@ lazy_static! {
     /// `rust_module` is the name of the Rust module where functions exported
     /// by the YARA module are defined. This field is optional, if not provided
     /// the module is considered a data-only module.
-    pub(crate) static ref BUILTIN_MODULES: HashMap<&'static str, Module<'static>> = {
+    pub(crate) static ref BUILTIN_MODULES: HashMap<&'static str, Module> = {
         let mut modules = HashMap::new();
         // The add_modules.rs file is automatically generated at compile time by
         // build.rs. This is an example of how add_modules.rs looks like:

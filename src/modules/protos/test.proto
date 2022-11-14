@@ -12,4 +12,9 @@ message Test {
   bool  bool_field = 2;
   int32 int32_field = 3;
   int64 int64_field = 4;
+  Submessage sub = 5;
+}
+
+message Submessage {
+  string string_field = 1;
 }

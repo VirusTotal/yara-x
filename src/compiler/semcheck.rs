@@ -38,6 +38,7 @@ macro_rules! semcheck {
     };
 }
 
+use crate::symbol_table::Symbol;
 pub(crate) use semcheck;
 
 macro_rules! semcheck_operands {
@@ -422,9 +423,23 @@ pub(super) fn semcheck_expr<'a>(
         }
 
         Expr::Ident(ident) => {
-            let type_hint: TypeHint =
-                if let Some(var) = ctx.sym_tbl.get_field(ident.name) {
-                    todo!()
+            let type_hint: TypeHint = {
+                let structure = ctx.struct_sym_tbl.take();
+
+                let symbol = if let Some(structure) = &structure {
+                    structure.lookup(ident.name)
+                } else {
+                    ctx.root_sym_tbl.lookup(ident.name)
+                };
+
+                if let Some(symbol) = symbol {
+                    if let Symbol::Struct(sym_tbl) = symbol {
+                        ctx.struct_sym_tbl = Some(sym_tbl);
+                        TypeHint::Struct
+                    } else {
+                        ctx.struct_sym_tbl = None;
+                        TypeHint::from(symbol)
+                    }
                 } else {
                     return Err(Error::CompileError(
                         CompileError::unknown_identifier(
@@ -434,7 +449,8 @@ pub(super) fn semcheck_expr<'a>(
                             ident.span(),
                         ),
                     ));
-                };
+                }
+            };
 
             ident.set_type_hint(type_hint.clone());
 
@@ -447,12 +463,6 @@ pub(super) fn semcheck_expr<'a>(
         Expr::FieldAccess(expr) => {
             // The left side must be a struct.
             semcheck!(ctx, Type::Struct, &expr.lhs)?;
-
-            // Save the current symbol table
-            //let saved_sym_tbl = ctx.sym_tbl;
-
-            // Set the symbol table obtained from the struct as the current one.
-            //ctx.sym_tbl = value.as_struct();
 
             // Now check the right hand expression. During the call to
             // expr_semantic_check the current symbol table is the one
