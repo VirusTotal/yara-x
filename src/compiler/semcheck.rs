@@ -251,9 +251,9 @@ macro_rules! semcheck_string_op {
 /// symbol table that contains type information for all identifiers, so the
 /// AST can be updated with information that was missing at parse time.
 ///
-pub(super) fn semcheck_expr<'a>(
-    ctx: &mut Context<'a>,
-    expr: &'a Expr<'a>,
+pub(super) fn semcheck_expr(
+    ctx: &mut Context,
+    expr: &Expr,
 ) -> Result<TypeHint, Error> {
     match expr {
         Expr::True { .. }
@@ -424,9 +424,9 @@ pub(super) fn semcheck_expr<'a>(
 
         Expr::Ident(ident) => {
             let type_hint: TypeHint = {
-                let structure = ctx.struct_sym_tbl.take();
+                let current_structure = ctx.struct_sym_tbl.take();
 
-                let symbol = if let Some(structure) = &structure {
+                let symbol = if let Some(structure) = &current_structure {
                     structure.lookup(ident.name)
                 } else {
                     ctx.root_sym_tbl.lookup(ident.name)
@@ -437,7 +437,6 @@ pub(super) fn semcheck_expr<'a>(
                         ctx.struct_sym_tbl = Some(sym_tbl);
                         TypeHint::Struct
                     } else {
-                        ctx.struct_sym_tbl = None;
                         TypeHint::from(symbol)
                     }
                 } else {
@@ -465,14 +464,11 @@ pub(super) fn semcheck_expr<'a>(
             semcheck!(ctx, Type::Struct, &expr.lhs)?;
 
             // Now check the right hand expression. During the call to
-            // expr_semantic_check the current symbol table is the one
-            // corresponding to the struct.
+            // semcheck_expr the current symbol table is the one corresponding
+            // to the struct.
             let type_hint = semcheck_expr(ctx, &expr.rhs)?;
 
             expr.set_type_hint(type_hint.clone());
-
-            // Go back to the original symbol table.
-            //ctx.sym_tbl = saved_sym_tbl;
 
             Ok(type_hint)
         }
@@ -509,19 +505,16 @@ pub(super) fn semcheck_expr<'a>(
     }
 }
 
-fn semcheck_range<'a>(
-    ctx: &mut Context<'a>,
-    range: &'a Range<'a>,
-) -> Result<(), Error> {
+fn semcheck_range(ctx: &mut Context, range: &Range) -> Result<(), Error> {
     semcheck!(ctx, Type::Integer, &range.lower_bound)?;
     semcheck!(ctx, Type::Integer, &range.upper_bound)?;
     // TODO: ensure that upper bound is greater than lower bound.
     Ok(())
 }
 
-fn semcheck_quantifier<'a>(
-    ctx: &mut Context<'a>,
-    quantifier: &'a Quantifier<'a>,
+fn semcheck_quantifier(
+    ctx: &mut Context,
+    quantifier: &Quantifier,
 ) -> Result<TypeHint, Error> {
     match quantifier {
         Quantifier::Expr(expr) => {
@@ -537,10 +530,7 @@ fn semcheck_quantifier<'a>(
     Ok(TypeHint::Integer(None))
 }
 
-fn semcheck_of<'a>(
-    ctx: &mut Context<'a>,
-    of: &'a Of<'a>,
-) -> Result<TypeHint, Error> {
+fn semcheck_of(ctx: &mut Context, of: &Of) -> Result<TypeHint, Error> {
     semcheck_quantifier(ctx, &of.quantifier)?;
 
     // `x of (<boolean expr>, <boolean expr>, ...)`: make sure that all
@@ -659,9 +649,9 @@ fn semcheck_of<'a>(
     Ok(TypeHint::Bool(None))
 }
 
-fn semcheck_iterable<'a>(
-    ctx: &mut Context<'a>,
-    iterable: &'a Iterable<'a>,
+fn semcheck_iterable(
+    ctx: &mut Context,
+    iterable: &Iterable,
 ) -> Result<TypeHint, Error> {
     match iterable {
         Iterable::Range(range) => {

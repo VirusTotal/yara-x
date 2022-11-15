@@ -32,8 +32,8 @@ mod semcheck;
 mod tests;
 
 /// A YARA compiler.
-pub struct Compiler<'a> {
-    sym_tbl: Box<dyn SymbolTable + 'a>,
+pub struct Compiler {
+    sym_tbl: Box<dyn SymbolTable>,
     colorize_errors: bool,
     report_builder: ReportBuilder,
 
@@ -60,7 +60,7 @@ pub struct Compiler<'a> {
     warnings: Vec<Warning>,
 }
 
-impl<'a> Compiler<'a> {
+impl Compiler {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         Self {
@@ -197,13 +197,13 @@ impl<'a> Compiler<'a> {
     }
 }
 
-impl fmt::Debug for Compiler<'_> {
+impl fmt::Debug for Compiler {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Compiler")
     }
 }
 
-impl Default for Compiler<'_> {
+impl Default for Compiler {
     fn default() -> Self {
         Self::new()
     }
@@ -253,14 +253,6 @@ impl<'a> Context<'a> {
     #[inline]
     fn resolve_ident(&self, ident_id: IdentID) -> &str {
         self.ident_pool.resolve(ident_id).unwrap()
-    }
-
-    fn lookup_symbol(&self, ident: &str) -> Option<Symbol> {
-        if let Some(s) = &self.struct_sym_tbl {
-            s.lookup(ident)
-        } else {
-            self.root_sym_tbl.lookup(ident)
-        }
     }
 
     /// Given a pattern identifier (e.g. `$a`) search for it in the current
