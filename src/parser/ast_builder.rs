@@ -1484,8 +1484,8 @@ fn func_call_expr_from_cst<'src>(
     Ok(Expr::FnCall(Box::new(FnCall { span: span.into(), callable, args })))
 }
 
-/// From a CST node corresponding to the grammar rule `range`, returns a tuple
-/// ([`Expr`], [`Expr`]) with the lower and upper bounds of the range.
+/// From a CST node corresponding to the grammar rule `range`, returns a
+/// [`Range`] with the lower and upper bounds of the range.
 fn range_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     range: CSTNode<'src>,
@@ -1854,7 +1854,7 @@ fn iterator_from_cst<'src>(
 }
 
 /// From a CST node corresponding to the grammar rule `integer_lit`, returns
-/// the the corresponding integer. This a generic function that can be used
+/// the the corresponding integer. This is a generic function that can be used
 /// for obtaining any type of integer, like u8, i64, etc.
 fn integer_lit_from_cst<'src, T>(
     ctx: &mut Context<'src, '_>,
