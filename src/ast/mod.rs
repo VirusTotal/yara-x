@@ -18,7 +18,7 @@ use crate::warnings::Warning;
 use crate::{symbol_table, Struct};
 
 pub use crate::ast::span::*;
-use crate::symbol_table::Symbol;
+use crate::symbol_table::TypeValue;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -53,7 +53,7 @@ impl<'src> AST<'src> {
 #[derive(Debug)]
 pub struct Namespace<'src> {
     pub rules: Vec<Rule<'src>>,
-    pub imports: HashSet<&'src str>,
+    pub imports: Vec<Import<'src>>,
 }
 
 bitmask! {
@@ -65,6 +65,13 @@ bitmask! {
         Private = 0x01,
         Global = 0x02,
     }
+}
+
+/// An import statement.
+#[derive(Debug, HasSpan)]
+pub struct Import<'src> {
+    pub(crate) span: Span,
+    pub module_name: &'src str,
 }
 
 /// A YARA rule.
@@ -778,13 +785,13 @@ impl TypeHint {
     }
 }
 
-impl From<symbol_table::Symbol<'_>> for TypeHint {
-    fn from(symbol: Symbol) -> Self {
+impl From<symbol_table::TypeValue> for TypeHint {
+    fn from(symbol: TypeValue) -> Self {
         match symbol {
-            Symbol::Integer(i) => TypeHint::Integer(i),
-            Symbol::Float(f) => TypeHint::Float(f),
-            Symbol::String(s) => TypeHint::String(s.map(BString::from)),
-            Symbol::Struct(_) => TypeHint::Struct,
+            TypeValue::Integer(i) => TypeHint::Integer(i),
+            TypeValue::Float(f) => TypeHint::Float(f),
+            TypeValue::String(s) => TypeHint::String(s),
+            TypeValue::Struct(_) => TypeHint::Struct,
         }
     }
 }
