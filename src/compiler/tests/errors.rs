@@ -448,12 +448,12 @@ rule test {
             line!(),
             r#"
 import "foo""#,
-            r#"error: unknown module `"foo"`
+            r#"error: unknown module `foo`
    ╭─[line:2:1]
    │
  2 │ import "foo"
    · ──────┬─────  
-   ·       ╰─────── module `"foo"` was not found exist
+   ·       ╰─────── module `foo` not found
 ───╯
 "#,
         ),

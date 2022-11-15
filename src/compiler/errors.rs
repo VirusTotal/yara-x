@@ -67,6 +67,6 @@ pub enum CompileError {
     },
 
     #[error("unknown module `{identifier}`")]
-    #[label("module `{identifier}` was not found exist", span)]
+    #[label("module `{identifier}` not found", span)]
     UnknownModule { detailed_report: String, identifier: String, span: Span },
 }

@@ -497,10 +497,14 @@ pub(crate) fn namespace_from_cst<'src>(
                 let span = node.as_span();
                 let mut children = node.into_inner();
                 expect!(children.next().unwrap(), GrammarRule::k_IMPORT);
-                let ident = children.next().unwrap();
                 imports.push(Import {
                     span: span.into(),
-                    module_name: ident.as_str(),
+                    module_name: string_lit_from_cst(
+                        ctx,
+                        children.next().unwrap(),
+                        false,
+                    )?
+                    .to_string(),
                 });
             }
             // .. or rule declarations.
@@ -792,7 +796,7 @@ fn pattern_from_cst<'src>(
         }
         GrammarRule::string_lit => {
             let span = node.as_span().into();
-            let value = string_lit_from_cst(ctx, node)?;
+            let value = string_lit_from_cst(ctx, node, true)?;
             let modifiers = if let Some(modifiers) = children.next() {
                 Some(pattern_mods_from_cst(
                     ctx,
@@ -935,6 +939,7 @@ fn pattern_mods_from_cst<'src>(
                         alphabet = Some(string_lit_from_cst(
                             ctx,
                             children.next().unwrap(),
+                            false,
                         )?);
                         expect!(children.next().unwrap(), GrammarRule::RPAREN);
                     }
@@ -1343,7 +1348,7 @@ fn primary_expr_from_cst<'src>(
         GrammarRule::string_lit => Expr::LiteralStr(Box::new(LiteralStr {
             span: node.as_span().into(),
             literal: node.as_span().as_str(),
-            value: string_lit_from_cst(ctx, node)?,
+            value: string_lit_from_cst(ctx, node, true)?,
         })),
         GrammarRule::float_lit => Expr::LiteralFlt(Box::new(LiteralFlt {
             span: node.as_span().into(),
@@ -1933,12 +1938,19 @@ fn float_lit_from_cst<'src>(
 }
 
 /// From a CST node corresponding to the grammar rule `string_lit`, returns
-/// a `BString` representing the literal. Literal strings in YARA can
-/// contain arbitrary sequences of bytes, including zeroes, so it can't be
-/// represented by a Rust string slice, which requires valid UTF-8.
+/// a [`BString`] representing the literal. `allow_escape_char` controls whether
+/// escaped characters are accepted or not.
+///
+/// As escape characters can introduce arbitrary bytes in the string, including
+/// zeroes, they can't be represented by a Rust string slice which requires
+/// valid UTF-8. For that reason this functions returns a BString.
+///
+/// When called with `allow_escaped_char: false`, the returned [`BString`] can
+/// be safely converted to [`String`].
 fn string_lit_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     string_lit: CSTNode<'src>,
+    allow_escape_char: bool,
 ) -> Result<BString, Error> {
     expect!(string_lit, GrammarRule::string_lit);
 
@@ -1963,6 +1975,10 @@ fn string_lit_from_cst<'src>(
         match b {
             // The backslash indicates an escape sequence.
             b'\\' => {
+                if !allow_escape_char {
+                    todo!()
+                }
+
                 // Consume the backslash and see what's next.
                 let next_byte = bytes.next();
 

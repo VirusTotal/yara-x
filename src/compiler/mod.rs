@@ -65,11 +65,6 @@ pub struct Compiler {
 impl Compiler {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
-        let mut sym_tbl = SymbolTable::new();
-        for (name, module) in modules::BUILTIN_MODULES.iter() {
-            sym_tbl.add(*name, TypeValue::Struct(Rc::new(module)));
-        }
-
         Self {
             colorize_errors: false,
             warnings: Vec::new(),
@@ -78,7 +73,7 @@ impl Compiler {
             report_builder: ReportBuilder::new(),
             ident_pool: StringInterner::default(),
             wasm_mod: wasm::ModuleBuilder::new(),
-            sym_tbl,
+            sym_tbl: SymbolTable::new(),
         }
     }
 
@@ -110,29 +105,10 @@ impl Compiler {
         self.warnings.append(&mut ast.warnings);
 
         for ns in ast.namespaces.iter() {
-            // Iterate over the list of imported modules.
-            for import in ns.imports.iter() {
-                // Does the imported module actually exist? ...
-                if let Some(module) =
-                    modules::BUILTIN_MODULES.get(import.module_name)
-                {
-                    // ... if yes, add the module to the symbol table.
-                    self.sym_tbl.add(
-                        import.module_name,
-                        TypeValue::Struct(Rc::new(module)),
-                    );
-                } else {
-                    // ... if no, that's an error.
-                    return Err(Error::CompileError(
-                        CompileError::unknown_module(
-                            &self.report_builder,
-                            &src,
-                            import.module_name.to_string(),
-                            import.span(),
-                        ),
-                    ));
-                }
-            }
+            // Process import statements. Checks that all imported modules
+            // actually exist, and raise warnings in case of duplicated
+            // imports.
+            self.process_imports(&src, &ns.imports)?;
 
             // Iterate over the list of declared rules.
             for rule in ns.rules.iter() {
@@ -222,6 +198,59 @@ impl Compiler {
             patterns: Vec::new(),
             rules: Vec::new(),
         })
+    }
+}
+
+impl Compiler {
+    fn process_imports(
+        &mut self,
+        src: &SourceCode,
+        imports: &[Import],
+    ) -> Result<(), Error> {
+        // Iterate over the list of imported modules.
+        for import in imports.iter() {
+            // Does the imported module actually exist? ...
+            if let Some(module) =
+                modules::BUILTIN_MODULES.get(import.module_name.as_str())
+            {
+                // ... if yes, add the module to the symbol table.
+                let already_imported = self.sym_tbl.insert(
+                    import.module_name.as_str(),
+                    TypeValue::Struct(Rc::new(module)),
+                );
+
+                // If the module had been previously imported, raise
+                // warning about the duplicate import.
+                if already_imported.is_some() {
+                    let first_import = imports
+                        .iter()
+                        .find(|imported_module| {
+                            import.module_name == imported_module.module_name
+                        })
+                        .unwrap();
+
+                    self.warnings.push(Warning::duplicate_import(
+                        &self.report_builder,
+                        src,
+                        import.module_name.to_string(),
+                        import.span,
+                        first_import.span(),
+                    ));
+                }
+            } else {
+                // ... if no, that's an error.
+                return Err(Error::CompileError(
+                    CompileError::unknown_module(
+                        &self.report_builder,
+                        src,
+                        import.module_name.to_string(),
+                        import.span(),
+                    ),
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
 
