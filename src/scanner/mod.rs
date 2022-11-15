@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn scan() {
         let rules = Compiler::new()
-            .add_source(r#"rule test {strings: $a = "foo" condition: $a and test.int64_field == 1 }"#)
+            .add_source(r#"rule test {strings: $a = "foo" condition: $a }"#)
             .unwrap()
             .build()
             .unwrap();

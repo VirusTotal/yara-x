@@ -11,10 +11,10 @@ pub enum Symbol<'a> {
     Integer(Option<i64>),
     Float(Option<f64>),
     String(Option<&'a BStr>),
-    Struct(Box<dyn SymbolTable + 'a>),
+    Struct(Box<dyn SymbolTable>),
 }
 
-impl SymbolTable for &HashMap<&str, Module> {
+impl SymbolTable for &'static HashMap<&str, Module> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         self.get(ident).map(|module| Symbol::Struct(Box::new(module)))
     }
