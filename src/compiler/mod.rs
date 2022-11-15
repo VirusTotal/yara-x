@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
+use std::rc::Rc;
 use string_interner::symbol::SymbolU32;
 use string_interner::{DefaultBackend, StringInterner};
 use walrus::Module;
@@ -21,7 +22,7 @@ use crate::{modules, wasm, Struct};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbol_table::{Symbol, SymbolTable};
+use crate::symbol_table::{SymbolLookup, SymbolTable, TypeValue};
 use crate::wasm::BuiltinFnTable;
 
 mod emit;
@@ -33,9 +34,10 @@ mod tests;
 
 /// A YARA compiler.
 pub struct Compiler {
-    sym_tbl: Box<dyn SymbolTable>,
     colorize_errors: bool,
+
     report_builder: ReportBuilder,
+    sym_tbl: SymbolTable,
 
     /// Pool that contains all the identifiers used in the rules. Each
     /// identifier appears only once, even if they are used by multiple
@@ -63,15 +65,20 @@ pub struct Compiler {
 impl Compiler {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
+        let mut sym_tbl = SymbolTable::new();
+        for (name, module) in modules::BUILTIN_MODULES.iter() {
+            sym_tbl.add(*name, TypeValue::Struct(Rc::new(module)));
+        }
+
         Self {
             colorize_errors: false,
-            warnings: vec![],
-            rules: vec![],
-            patterns: vec![],
-            sym_tbl: Box::new(modules::BUILTIN_MODULES.deref()),
+            warnings: Vec::new(),
+            rules: Vec::new(),
+            patterns: Vec::new(),
             report_builder: ReportBuilder::new(),
             ident_pool: StringInterner::default(),
             wasm_mod: wasm::ModuleBuilder::new(),
+            sym_tbl,
         }
     }
 
@@ -103,10 +110,31 @@ impl Compiler {
         self.warnings.append(&mut ast.warnings);
 
         for ns in ast.namespaces.iter() {
-            for module_name in ns.imports.iter() {
-                // insert module_name in arena.
+            // Iterate over the list of imported modules.
+            for import in ns.imports.iter() {
+                // Does the imported module actually exist? ...
+                if let Some(module) =
+                    modules::BUILTIN_MODULES.get(import.module_name)
+                {
+                    // ... if yes, add the module to the symbol table.
+                    self.sym_tbl.add(
+                        import.module_name,
+                        TypeValue::Struct(Rc::new(module)),
+                    );
+                } else {
+                    // ... if no, that's an error.
+                    return Err(Error::CompileError(
+                        CompileError::unknown_module(
+                            &self.report_builder,
+                            &src,
+                            import.module_name.to_string(),
+                            import.span(),
+                        ),
+                    ));
+                }
             }
 
+            // Iterate over the list of declared rules.
             for rule in ns.rules.iter() {
                 // Create array with pairs (IdentID, PatternID) that describe
                 // the patterns in a compiled rule.
@@ -127,7 +155,7 @@ impl Compiler {
                     }
                     pairs
                 } else {
-                    vec![]
+                    Vec::new()
                 };
 
                 let rule_id = self.rules.len() as RuleID;
@@ -141,8 +169,8 @@ impl Compiler {
 
                 let mut ctx = Context {
                     src: &src,
-                    root_sym_tbl: self.sym_tbl.as_ref(),
-                    struct_sym_tbl: None,
+                    root_sym_tbl: &self.sym_tbl,
+                    current_struct: None,
                     ident_pool: &self.ident_pool,
                     report_builder: &self.report_builder,
                     current_rule: self.rules.last().unwrap(),
@@ -191,8 +219,8 @@ impl Compiler {
             compiled_wasm_mod,
             wasm_mod,
             ident_pool: self.ident_pool,
-            patterns: vec![],
-            rules: vec![],
+            patterns: Vec::new(),
+            rules: Vec::new(),
         })
     }
 }
@@ -225,11 +253,11 @@ struct Context<'a> {
 
     /// Symbol table that contains top-level symbols, like module names,
     /// and external variables.
-    root_sym_tbl: &'a (dyn SymbolTable + 'a),
+    root_sym_tbl: &'a SymbolTable,
 
     /// Symbol table for the currently active structure. When this is None
     /// symbols are looked up in `root_sym_tbl` instead.
-    struct_sym_tbl: Option<Box<dyn SymbolTable + 'a>>,
+    current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
 
     wasm_imports: BuiltinFnTable,
 

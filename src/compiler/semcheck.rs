@@ -5,6 +5,7 @@ use std::ops::BitXor;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
+use crate::symbol_table::SymbolLookup;
 use crate::warnings::Warning;
 
 use crate::parser::arithmetic_op;
@@ -38,7 +39,7 @@ macro_rules! semcheck {
     };
 }
 
-use crate::symbol_table::Symbol;
+use crate::symbol_table::TypeValue;
 pub(crate) use semcheck;
 
 macro_rules! semcheck_operands {
@@ -424,17 +425,17 @@ pub(super) fn semcheck_expr(
 
         Expr::Ident(ident) => {
             let type_hint: TypeHint = {
-                let current_structure = ctx.struct_sym_tbl.take();
+                let current_struct = ctx.current_struct.take();
 
-                let symbol = if let Some(structure) = &current_structure {
+                let symbol = if let Some(structure) = &current_struct {
                     structure.lookup(ident.name)
                 } else {
                     ctx.root_sym_tbl.lookup(ident.name)
                 };
 
                 if let Some(symbol) = symbol {
-                    if let Symbol::Struct(sym_tbl) = symbol {
-                        ctx.struct_sym_tbl = Some(sym_tbl);
+                    if let TypeValue::Struct(sym_tbl) = symbol {
+                        ctx.current_struct = Some(sym_tbl);
                         TypeHint::Struct
                     } else {
                         TypeHint::from(symbol)

@@ -447,6 +447,20 @@ rule test {
         (
             line!(),
             r#"
+import "foo""#,
+            r#"error: unknown module `"foo"`
+   ╭─[line:2:1]
+   │
+ 2 │ import "foo"
+   · ──────┬─────  
+   ·       ╰─────── module `"foo"` was not found exist
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
 rule test {
   condition:
     for 1 n in (1, 2, "3") : (
