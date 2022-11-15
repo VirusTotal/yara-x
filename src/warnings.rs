@@ -33,4 +33,21 @@ pub enum Warning {
         span: Span,
         note: Option<String>,
     },
+    
+    #[warning("duplicate import statement")]
+    #[label(
+      "duplicate import",
+      new_import_span
+    )]
+    #[label(
+      "`{module_name}` imported here for the first time",
+      existing_import_span,
+      style="note"
+    )]
+    DuplicateImport {
+        detailed_report: String,
+        module_name: String,
+        new_import_span: Span,
+        existing_import_span: Span,
+    },
 }

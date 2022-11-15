@@ -53,7 +53,7 @@ impl<'src> AST<'src> {
 #[derive(Debug)]
 pub struct Namespace<'src> {
     pub rules: Vec<Rule<'src>>,
-    pub imports: Vec<Import<'src>>,
+    pub imports: Vec<Import>,
 }
 
 bitmask! {
@@ -69,9 +69,9 @@ bitmask! {
 
 /// An import statement.
 #[derive(Debug, HasSpan)]
-pub struct Import<'src> {
+pub struct Import {
     pub(crate) span: Span,
-    pub module_name: &'src str,
+    pub module_name: String,
 }
 
 /// A YARA rule.

@@ -80,11 +80,21 @@ pub struct SymbolTable {
 }
 
 impl SymbolTable {
+    /// Creates a new symbol table.
     pub fn new() -> Self {
         Self { map: HashMap::new() }
     }
 
-    pub fn add<I>(&mut self, ident: I, symbol: TypeValue) -> Option<TypeValue>
+    /// Inserts a new symbol into the symbol table.
+    ///
+    /// If the symbol was already in the table it gets updated and the old
+    /// value is returned. If the symbol was not in the table [`None`] is
+    /// returned.
+    pub fn insert<I>(
+        &mut self,
+        ident: I,
+        symbol: TypeValue,
+    ) -> Option<TypeValue>
     where
         I: Into<String>,
     {

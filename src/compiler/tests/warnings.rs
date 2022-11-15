@@ -135,6 +135,25 @@ rule test {
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+import "test"
+import "test"
+"#,
+            r#"warning: duplicate import statement
+   ╭─[line:3:1]
+   │
+ 2 │ import "test"
+   · ──────┬──────  
+   ·       ╰──────── `test` imported here for the first time
+ 3 │ import "test"
+   · ──────┬──────  
+   ·       ╰──────── duplicate import
+───╯
+"#,
+        ),
     ];
 
     for t in tests {
