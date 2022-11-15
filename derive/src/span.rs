@@ -10,7 +10,7 @@ pub(crate) fn impl_span_macro(input: DeriveInput) -> syn::Result<TokenStream> {
     let span_impl = match data {
         syn::Data::Struct(_) => syn::Result::Ok(quote! { self.span }),
         syn::Data::Enum(data_enum) => {
-            let mut variants = vec![];
+            let mut variants = Vec::new();
 
             for pair in data_enum.variants.pairs() {
                 let ident = &pair.value().ident;

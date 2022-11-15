@@ -23,7 +23,7 @@ pub(crate) fn rule_ascii_tree(
     rule: &Rule,
     sym_tbl: &Struct,
 ) -> ascii_tree::Tree {
-    let mut rule_children = vec![];
+    let mut rule_children = Vec::new();
 
     if let Some(meta) = &rule.meta {
         rule_children.push(Node(
@@ -48,7 +48,7 @@ pub(crate) fn rule_ascii_tree(
         vec![expr_ascii_tree(&rule.condition, sym_tbl)],
     ));
 
-    let mut modifiers = vec![];
+    let mut modifiers = Vec::new();
 
     if rule.flags.contains(RuleFlag::Private) {
         modifiers.push("private");

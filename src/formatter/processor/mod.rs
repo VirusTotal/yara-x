@@ -57,12 +57,12 @@ where
             context: Context {
                 input: input.peekable(),
                 output: VecDeque::new(),
-                stack: vec![],
+                stack: Vec::new(),
                 prev_tokens: VecDeque::new(),
                 next_tokens: VecDeque::new(),
                 passthrough: *categories::NONE,
             },
-            rules: vec![],
+            rules: Vec::new(),
         }
     }
 
