@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
-use crate::formatter::tokens::{Token, TokenStream};
 use crate::formatter::tokens::Token::*;
+use crate::formatter::tokens::{Token, TokenStream};
 
 /// Makes sure that all occurrences of [`AlignmentMarker`] in a token stream
 /// are replaced with zero or more whitespaces in order to force all the
@@ -68,7 +68,7 @@ where
         if matches!(next, AlignmentBlockBegin) {
             let mut column = 0;
             let mut newlines = 0;
-            let mut marker_columns = vec![];
+            let mut marker_columns = Vec::new();
             let mut block_tokens = VecDeque::new();
 
             for token in self.input.by_ref() {

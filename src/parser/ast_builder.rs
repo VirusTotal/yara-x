@@ -486,17 +486,22 @@ pub(crate) fn namespace_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     cst: CST<'src>,
 ) -> Result<Namespace<'src>, Error> {
-    let mut rules: Vec<Rule> = vec![];
+    let mut imports: Vec<Import> = Vec::new();
+    let mut rules: Vec<Rule> = Vec::new();
     let mut rules_index: HashMap<&str, usize> = HashMap::new();
-    let mut imports: HashSet<&str> = HashSet::new();
+
     for node in cst {
         match node.as_rule() {
             // Top level rules are either import statements...
             GrammarRule::import_stmt => {
+                let span = node.as_span();
                 let mut children = node.into_inner();
                 expect!(children.next().unwrap(), GrammarRule::k_IMPORT);
                 let ident = children.next().unwrap();
-                imports.insert(ident.as_str());
+                imports.push(Import {
+                    span: span.into(),
+                    module_name: ident.as_str(),
+                });
             }
             // .. or rule declarations.
             GrammarRule::rule_decl => {
@@ -685,7 +690,7 @@ fn patterns_from_cst<'src>(
     expect!(children.next().unwrap(), GrammarRule::k_STRINGS);
     expect!(children.next().unwrap(), GrammarRule::COLON);
 
-    let mut patterns: Vec<Pattern> = vec![];
+    let mut patterns: Vec<Pattern> = Vec::new();
 
     // All the remaining children are `pattern_def`.
     for pattern_def in children {
@@ -979,7 +984,7 @@ fn meta_from_cst<'src>(
     expect!(children.next().unwrap(), GrammarRule::k_META);
     expect!(children.next().unwrap(), GrammarRule::COLON);
 
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     // All the remaining children are `meta_def`.
     for meta_def in children {
@@ -1560,7 +1565,7 @@ fn for_expr_from_cst<'src>(
 
     let mut pattern_set = None;
     let mut iterator = None;
-    let mut variables = vec![];
+    let mut variables = Vec::new();
 
     if let GrammarRule::k_OF = children.peek().unwrap().as_rule() {
         // Consume the `of` keyword.
@@ -1711,7 +1716,7 @@ fn pattern_ident_tuple<'src>(
     // The tuple should start with an opening parenthesis.
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
 
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     // For all CST nodes after the opening parenthesis...
     for node in children.by_ref() {
@@ -1763,7 +1768,7 @@ fn boolean_expr_tuple_from_cst<'src>(
     // The tuple should start with an opening parenthesis.
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
 
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     // For all CST nodes after the opening parenthesis...
     for node in children.by_ref() {
@@ -1798,7 +1803,7 @@ fn expr_tuple_from_cst<'src>(
     // The tuple should start with an opening parenthesis.
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
 
-    let mut result = vec![];
+    let mut result = Vec::new();
 
     // For all CST nodes after the opening parenthesis...
     for node in children.by_ref() {
@@ -2052,7 +2057,7 @@ fn hex_pattern_from_cst<'src>(
     expect!(hex_tokens, GrammarRule::hex_tokens);
 
     let mut children = hex_tokens.into_inner().peekable();
-    let mut pattern = HexTokens { tokens: vec![] };
+    let mut pattern = HexTokens { tokens: Vec::new() };
 
     while let Some(node) = children.next() {
         let token = match node.as_rule() {
@@ -2228,7 +2233,7 @@ fn hex_alternative_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
 
-    let mut hex_alt = HexAlternative { alternatives: vec![] };
+    let mut hex_alt = HexAlternative { alternatives: Vec::new() };
 
     for node in children {
         match node.as_rule() {

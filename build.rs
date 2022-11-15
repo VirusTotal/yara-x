@@ -49,7 +49,7 @@ fn main() {
     //   rust_module: "test"
     // };
     //
-    let mut modules = vec![];
+    let mut modules = Vec::new();
     for proto_file in proto_parser.file_descriptor_set().unwrap().file {
         if let Some(module_options) =
             yara_module_options.get(&proto_file.options)

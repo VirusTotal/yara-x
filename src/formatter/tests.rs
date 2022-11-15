@@ -241,7 +241,7 @@ fn format() {
                     .as_str()
                     .unwrap();
 
-                let mut output = Cursor::new(vec![]);
+                let mut output = Cursor::new(Vec::new());
 
                 formatter::Formatter::new()
                     .format(unformatted.as_bytes(), &mut output)

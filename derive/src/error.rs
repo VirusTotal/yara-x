@@ -78,8 +78,8 @@ fn impl_enum_error_macro(
 ) -> syn::Result<(Vec<&Ident>, Vec<TokenStream>)> {
     // Generate a proto function for each variant in the enum thas is labelled
     // with #[error(...)] or #[warning(...)].
-    let mut funcs = vec![];
-    let mut variants = vec![];
+    let mut funcs = Vec::new();
+    let mut variants = Vec::new();
     // For each variant in the enum...
     for variant in &data_enum.variants {
         // ...look for #[error(...)] or #[warning(...)] attributes.
@@ -273,7 +273,7 @@ fn get_labels(
     report_type: &str,
     variant: &Variant,
 ) -> syn::Result<Vec<(Ident, TokenStream)>> {
-    let mut labels = vec![];
+    let mut labels = Vec::new();
 
     // Iterate over the attributes of this variant, looking for #[label(...)]
     for attr in &variant.attrs {

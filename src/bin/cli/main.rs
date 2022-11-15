@@ -192,7 +192,7 @@ fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
         .with_context(|| format!("can not access `{}`", path.display()))?;
 
     let result = if metadata.is_dir() {
-        let mut patterns = vec![];
+        let mut patterns = Vec::new();
         if let Some(filters) = args.get_many::<String>("filter") {
             for f in filters {
                 patterns.push(

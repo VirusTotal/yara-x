@@ -57,7 +57,7 @@ impl<'src, 'rb> Context<'src, 'rb> {
             unused_patterns: HashSet::new(),
             current_pattern: None,
             report_builder,
-            warnings: vec![],
+            warnings: Vec::new(),
         }
     }
 

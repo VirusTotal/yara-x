@@ -83,7 +83,7 @@ impl ModuleBuilder {
 
     /// Builds the module and consumes the builder.
     pub fn build(mut self) -> walrus::Module {
-        let main_fn = self.main_fn.finish(vec![], &mut self.module.funcs);
+        let main_fn = self.main_fn.finish(Vec::new(), &mut self.module.funcs);
         self.module.exports.add("main", main_fn);
         self.module
     }
