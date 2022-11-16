@@ -9,6 +9,14 @@ license = "MIT"
 
 [features]
 default = ["test_module"]
+
+# Controls whether compile-time optimizations are applied or not.
+# If this feature is enabled, expressions like `2+2+2` and
+# `true or false`, whose value can be determined at compile time,
+# will be reduced to its final value, instead of producing code
+# that actually computes the expression.
+compile-time-optimization = []
+
 test_module = []
 
 [[bin]]

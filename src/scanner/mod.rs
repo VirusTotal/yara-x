@@ -57,7 +57,7 @@ rule test {
   strings: 
     $a = "foo" 
   condition:
-    $a and test.int32_field == 1 
+    $a
 }"#,
             )
             .unwrap()

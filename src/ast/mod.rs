@@ -494,6 +494,16 @@ pub struct Ident<'src> {
 }
 
 impl<'src> Ident<'src> {
+    /// Returns the identifier as a string.
+    pub fn as_str(&self) -> &'src str {
+        self.name
+    }
+
+    /// Returns the [`TypeHint`] associated to the identifier.
+    pub fn type_hint(&self) -> TypeHint {
+        self.type_hint.borrow().clone()
+    }
+
     pub(crate) fn new(name: &'src str, span: Span) -> Self {
         Self { name, span, type_hint: RefCell::new(TypeHint::UnknownType) }
     }
@@ -509,11 +519,6 @@ impl<'src> Ident<'src> {
     pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
         self.type_hint.replace(type_hint);
         self
-    }
-
-    /// Returns the identifier as a string.
-    pub fn as_str(&self) -> &'src str {
-        self.name
     }
 }
 

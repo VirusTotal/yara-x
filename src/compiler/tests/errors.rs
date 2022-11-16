@@ -131,13 +131,13 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: 1 + "1"
+  condition: 1 + "1" == 2
 }
            "#,
             r#"error: wrong type
    ╭─[line:3:18]
    │
- 3 │   condition: 1 + "1"
+ 3 │   condition: 1 + "1" == 2
    ·                  ─┬─  
    ·                   ╰─── expression should be `float` or `integer`, but is `string`
 ───╯
@@ -148,13 +148,30 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: 1 + -"1"
+  condition: 2.0 % 1 == 1
+}
+           "#,
+            r#"error: wrong type
+   ╭─[line:3:14]
+   │
+ 3 │   condition: 2.0 % 1 == 1
+   ·              ─┬─  
+   ·               ╰─── expression should be `integer`, but is `float`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: 1 + -"1" == 0
 }
            "#,
             r#"error: wrong type
    ╭─[line:3:19]
    │
- 3 │   condition: 1 + -"1"
+ 3 │   condition: 1 + -"1" == 0
    ·                   ─┬─  
    ·                    ╰─── expression should be `float` or `integer`, but is `string`
 ───╯

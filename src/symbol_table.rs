@@ -1,6 +1,9 @@
 use crate::modules::Module;
 use bstr::BString;
-use protobuf::reflect::{MessageDescriptor, RuntimeFieldType, RuntimeType};
+use protobuf::reflect::{
+    EnumDescriptor, EnumValueDescriptor, MessageDescriptor, RuntimeFieldType,
+    RuntimeType,
+};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -64,14 +67,19 @@ impl SymbolLookup for MessageDescriptor {
                 RuntimeType::VecU8 => {
                     todo!()
                 }
-                RuntimeType::Enum(_) => {
-                    todo!()
-                }
+                RuntimeType::Enum(e) => Some(TypeValue::Struct(Rc::new(e))),
                 RuntimeType::Message(m) => Some(TypeValue::Struct(Rc::new(m))),
             },
             RuntimeFieldType::Repeated(item_ty) => todo!(),
             RuntimeFieldType::Map(key_ty, val_ty) => todo!(),
         }
+    }
+}
+
+impl SymbolLookup for EnumDescriptor {
+    fn lookup(&self, ident: &str) -> Option<TypeValue> {
+        let descriptor = self.value_by_name(ident)?;
+        Some(TypeValue::Integer(Some(descriptor.value() as i64)))
     }
 }
 

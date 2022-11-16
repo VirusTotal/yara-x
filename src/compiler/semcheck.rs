@@ -198,10 +198,10 @@ macro_rules! semcheck_bitwise_op {
 }
 
 macro_rules! semcheck_arithmetic_op {
-    ($ctx:ident, $expr:expr, $op:tt, $checked_op:ident) => {{
+    ($ctx:ident, $expr:expr, $op:tt, $( $pattern:path )|+, $checked_op:ident) => {{
         let (lhs, rhs) = semcheck_operands!(
             $ctx,
-            Type::Integer | Type::Float,
+            $( $pattern )|+,
             &$expr.lhs,
             &$expr.rhs
         )?;
@@ -376,23 +376,23 @@ pub(super) fn semcheck_expr(
         }
 
         Expr::Add(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, +, checked_add)
+            semcheck_arithmetic_op!(ctx, expr, +, Type::Integer | Type::Float, checked_add)
         }
 
         Expr::Sub(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, -, checked_sub)
+            semcheck_arithmetic_op!(ctx, expr, -, Type::Integer | Type::Float,  checked_sub)
         }
 
         Expr::Mul(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, *, checked_mul)
+            semcheck_arithmetic_op!(ctx, expr, *, Type::Integer | Type::Float, checked_mul)
         }
 
         Expr::Div(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, /, checked_div)
+            semcheck_arithmetic_op!(ctx, expr, /, Type::Integer | Type::Float, checked_div)
         }
 
         Expr::Modulus(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, %, checked_rem)
+            semcheck_arithmetic_op!(ctx, expr, %, Type::Integer, checked_rem)
         }
 
         Expr::Contains(expr) => {

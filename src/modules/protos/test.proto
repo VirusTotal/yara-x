@@ -7,12 +7,18 @@ option (yara.module_options) = {
   rust_module: "test"
 };
 
+enum Enum {
+  ENUM_ITEM_0 = 0;
+  ENUM_ITEM_1 = 1;
+}
+
 message Test {
-  string string_field = 1;
-  bool  bool_field = 2;
-  int32 int32_field = 3;
-  int64 int64_field = 4;
-  Submessage sub = 5;
+  string      string_field = 1;
+  bool        bool_field = 2;
+  int32       int32_field = 3;
+  int64       int64_field = 4;
+  Enum        enum = 5;
+  Submessage  sub = 6;
 }
 
 message Submessage {
