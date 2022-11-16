@@ -12,7 +12,6 @@ use pest::iterators::Pair;
 use pest::pratt_parser::{Assoc, Op, PrattParser};
 
 use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
-use crate::ast::HasSpan;
 use crate::ast::Namespace;
 use crate::ast::*;
 use crate::parser::{CSTNode, Context, Error, GrammarRule, CST};
@@ -497,15 +496,28 @@ pub(crate) fn namespace_from_cst<'src>(
                 let span = node.as_span();
                 let mut children = node.into_inner();
                 expect!(children.next().unwrap(), GrammarRule::k_IMPORT);
-                imports.push(Import {
-                    span: span.into(),
-                    module_name: string_lit_from_cst(
-                        ctx,
-                        children.next().unwrap(),
-                        false,
-                    )?
-                    .to_string(),
-                });
+
+                let module_name =
+                    string_lit_from_cst(ctx, children.next().unwrap(), false)?
+                        .to_string();
+
+                let already_imported = imports
+                    .iter()
+                    .find(|import| import.module_name == module_name);
+
+                // If the module had been previously imported, raise
+                // warning about the duplicate import.
+                if let Some(already_imported) = already_imported {
+                    ctx.warnings.push(Warning::duplicate_import(
+                        ctx.report_builder,
+                        &ctx.src,
+                        module_name.to_string(),
+                        span.into(),
+                        already_imported.span(),
+                    ));
+                }
+
+                imports.push(Import { span: span.into(), module_name });
             }
             // .. or rule declarations.
             GrammarRule::rule_decl => {

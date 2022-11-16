@@ -214,29 +214,10 @@ impl Compiler {
                 modules::BUILTIN_MODULES.get(import.module_name.as_str())
             {
                 // ... if yes, add the module to the symbol table.
-                let already_imported = self.sym_tbl.insert(
+                self.sym_tbl.insert(
                     import.module_name.as_str(),
                     TypeValue::Struct(Rc::new(module)),
                 );
-
-                // If the module had been previously imported, raise
-                // warning about the duplicate import.
-                if already_imported.is_some() {
-                    let first_import = imports
-                        .iter()
-                        .find(|imported_module| {
-                            import.module_name == imported_module.module_name
-                        })
-                        .unwrap();
-
-                    self.warnings.push(Warning::duplicate_import(
-                        &self.report_builder,
-                        src,
-                        import.module_name.to_string(),
-                        import.span,
-                        first_import.span(),
-                    ));
-                }
             } else {
                 // ... if no, that's an error.
                 return Err(Error::CompileError(
