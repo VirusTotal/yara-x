@@ -10,6 +10,8 @@ use std::path::Path;
 use std::rc::Rc;
 use string_interner::symbol::SymbolU32;
 use string_interner::{DefaultBackend, StringInterner};
+use walrus::ir::Instr::Unop;
+use walrus::ir::UnaryOp;
 use walrus::Module;
 
 use crate::ast::*;
@@ -162,15 +164,22 @@ impl Compiler {
                 // TODO: add rule name to declared identifiers.
 
                 self.wasm_mod.main_fn().block(None, |block| {
-                    // The RuleID is the first argument to `rule_match`.
+                    let block_id = block.id();
+
+                    // The RuleID is the argument to `rule_match`.
                     block.i32_const(rule_id as i32);
 
-                    // The condition's result (0 or 1) is the second argument
-                    // to `rule_match`.
+                    // Emit the code for the condition, which leave the
+                    // condition's result in the stack.
                     emit_expr(&mut ctx, block, &rule.condition);
 
-                    // Emit call instruction for calling `rule_result`.
-                    block.call(ctx.wasm_imports.rule_result);
+                    // If the condition's result is 0, jump out of the block
+                    // and don't call the `rule_result` function.
+                    block.unop(UnaryOp::I32Eqz);
+                    block.br_if(block_id);
+
+                    // Emit call instruction for calling `rule_match`.
+                    block.call(ctx.wasm_imports.rule_match);
                 });
             }
         }
@@ -196,7 +205,7 @@ impl Compiler {
             wasm_mod,
             ident_pool: self.ident_pool,
             patterns: Vec::new(),
-            rules: Vec::new(),
+            rules: self.rules,
         })
     }
 }
@@ -251,10 +260,10 @@ impl Default for Compiler {
 type IdentID = SymbolU32;
 
 /// ID associated to each pattern.
-type PatternID = i32;
+pub(crate) type PatternID = i32;
 
 /// ID associated to each rule.
-type RuleID = i32;
+pub(crate) type RuleID = i32;
 
 /// Structure that contains information and data structures required during the
 /// the current compilation process.
@@ -362,6 +371,11 @@ impl CompiledRules {
         P: AsRef<Path>,
     {
         Ok(self.wasm_mod.emit_wasm_file(path)?)
+    }
+
+    /// Returns the number of rules included in this instance of [`CompiledRules`].
+    pub fn num_rules(&self) -> usize {
+        self.rules.len()
     }
 
     pub(crate) fn compiled_wasm_mod(&self) -> &wasmtime::Module {

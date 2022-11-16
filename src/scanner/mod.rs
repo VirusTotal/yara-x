@@ -4,7 +4,9 @@
 
 use crate::compiler::CompiledRules;
 use crate::wasm;
-use wasmtime::Store;
+use bitvec::prelude::*;
+use bitvec::vec::BitVec;
+use wasmtime::{AsContextMut, Store};
 
 /// Scans data with already compiled YARA rules.
 pub struct Scanner<'a> {
@@ -16,7 +18,12 @@ pub struct Scanner<'a> {
 impl<'a> Scanner<'a> {
     /// Creates a new scanner.
     pub fn new(rules: &'a CompiledRules) -> Self {
-        let mut wasm_store = Store::new(&crate::wasm::ENGINE, ScanContext {});
+        let mut wasm_store = Store::new(
+            &crate::wasm::ENGINE,
+            ScanContext {
+                rule_matches: BitVec::with_capacity(rules.num_rules()),
+            },
+        );
 
         let wasm_instance = wasm::LINKER
             .instantiate(&mut wasm_store, rules.compiled_wasm_mod())
@@ -25,13 +32,16 @@ impl<'a> Scanner<'a> {
         Self { rules, wasm_store, wasm_instance }
     }
 
-    /// Scans a data.
+    /// Scans a data buffer.
     pub fn scan(&mut self, data: &[u8]) {
         // Get the main function that executes all rule conditions.
         let main_fn = self
             .wasm_instance
             .get_typed_func::<(), (), _>(&mut self.wasm_store, "main")
             .unwrap();
+
+        // Set all bits in the `rules_matches` bit vector to false.
+        self.wasm_store.as_context_mut().data_mut().rule_matches.fill(false);
 
         // Invoke the main function.
         main_fn.call(&mut self.wasm_store, ()).unwrap();
@@ -40,7 +50,11 @@ impl<'a> Scanner<'a> {
 
 /// Structure that holds information a about the current scan.
 #[derive(Debug)]
-pub(crate) struct ScanContext {}
+pub(crate) struct ScanContext {
+    /// Vector of bits where bit N is set to 1 if the rule with RuleID = N
+    /// matched.
+    pub(crate) rule_matches: BitVec,
+}
 
 #[cfg(test)]
 mod tests {

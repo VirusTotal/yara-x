@@ -9,10 +9,10 @@ For each instance of [`CompiledRules`] the compiler creates a WebAssembly
 module. This module exports a function called `main`, which contains the code
 that evaluates the conditions of all the compiled rules. The `main` function
 is invoked at scan time, and for each rule the WebAssembly module calls
-back to YARA (via the `rule_result` function) and reports if the rule matched
+YARA back (via the `rule_result` function) and reports if the rule matched
 or not.
 
-The WebAssembly module also calls back to YARA in many other cases, for example
+The WebAssembly module also calls YARA in many other cases, for example
 when it needs to invoke YARA built-in functions like `uint8(...)`, when it
 needs to get the value for the `filesize` keyword, etc.
 
@@ -20,10 +20,12 @@ This module implements the logic for building these WebAssembly modules, and
 the functions exposed to them by YARA's WebAssembly runtime.
  */
 
+use crate::compiler::{PatternID, RuleID};
 use lazy_static::lazy_static;
+use std::borrow::BorrowMut;
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
-use wasmtime::{Caller, Config, Engine, Linker};
+use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
 use crate::scanner::ScanContext;
 
@@ -40,9 +42,9 @@ impl ModuleBuilder {
         let config = walrus::ModuleConfig::new();
         let mut module = walrus::Module::with_config(config);
 
-        let ty = module.types.add(&[I32, I32], &[]);
-        let (rule_result, _) =
-            module.add_import_func("internal", "rule_result", ty);
+        let ty = module.types.add(&[I32], &[]);
+        let (rule_match, _) =
+            module.add_import_func("internal", "rule_match", ty);
 
         let ty = module.types.add(&[I32], &[I32]);
         let (is_pat_match, _) =
@@ -57,7 +59,7 @@ impl ModuleBuilder {
             module.add_import_func("internal", "is_pat_match_in", ty);
 
         let fn_table = BuiltinFnTable {
-            rule_result,
+            rule_match,
             is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
@@ -100,9 +102,9 @@ impl ModuleBuilder {
 /// imported by the WebAssembly module and implemented by YARA.
 #[derive(Clone)]
 pub(crate) struct BuiltinFnTable {
-    /// Called for reporting whether a rule matches or not.
-    /// Signature: (rule_id: i32, match: i32) -> ()
-    pub rule_result: walrus::FunctionId,
+    /// Called when a rule matches.
+    /// Signature: (rule_id: i32) -> ()
+    pub rule_match: walrus::FunctionId,
 
     /// Ask YARA whether a pattern matched or not.
     /// Signature: (pattern_id: i32) -> (i32)
@@ -122,7 +124,7 @@ lazy_static! {
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
     pub(crate) static ref LINKER: Linker<ScanContext> = {
         let mut linker = Linker::<ScanContext>::new(&ENGINE);
-        linker.func_wrap("internal", "rule_result", rule_result).unwrap();
+        linker.func_wrap("internal", "rule_match", rule_match).unwrap();
         linker.func_wrap("internal", "is_pat_match", is_pat_match).unwrap();
         linker
             .func_wrap("internal", "is_pat_match_at", is_pat_match_at)
@@ -134,20 +136,24 @@ lazy_static! {
     };
 }
 
-/// Invoked from WebAssembly to notify whether a rule matches or not.
-fn rule_result(
-    caller: Caller<'_, ScanContext>,
-    rule_id: i32,
-    is_matching: i32,
-) {
-    // TODO
+/// Invoked from WebAssembly to notify when a rule matches.
+fn rule_match(mut caller: Caller<'_, ScanContext>, rule_id: RuleID) {
+    // The RuleID-th bit in the `rule_matches` bit vector is set to 1.
+    caller
+        .as_context_mut()
+        .data_mut()
+        .rule_matches
+        .set(rule_id as usize, true);
 }
 
 /// Invoked from WebAssembly to ask whether a pattern matches or not.
 ///
 /// Returns 1 if the pattern identified by `pattern_id` matches, or 0 if
 /// otherwise.
-fn is_pat_match(caller: Caller<'_, ScanContext>, pattern_id: i32) -> i32 {
+fn is_pat_match(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternID,
+) -> i32 {
     // TODO
     0
 }
@@ -159,7 +165,7 @@ fn is_pat_match(caller: Caller<'_, ScanContext>, pattern_id: i32) -> i32 {
 /// or 0 if otherwise.
 fn is_pat_match_at(
     caller: Caller<'_, ScanContext>,
-    pattern_id: i32,
+    pattern_id: PatternID,
     offset: i64,
 ) -> i32 {
     // TODO
@@ -173,7 +179,7 @@ fn is_pat_match_at(
 /// in the range [`lower_bound`, `upper_bound`].
 fn is_pat_match_in(
     caller: Caller<'_, ScanContext>,
-    pattern_id: i32,
+    pattern_id: PatternID,
     lower_bound: i64,
     upper_bound: i64,
 ) -> i32 {
