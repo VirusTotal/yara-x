@@ -166,9 +166,6 @@ impl Compiler {
                 self.wasm_mod.main_fn().block(None, |block| {
                     let block_id = block.id();
 
-                    // The RuleID is the argument to `rule_match`.
-                    block.i32_const(rule_id as i32);
-
                     // Emit the code for the condition, which leave the
                     // condition's result in the stack.
                     emit_expr(&mut ctx, block, &rule.condition);
@@ -177,6 +174,9 @@ impl Compiler {
                     // and don't call the `rule_result` function.
                     block.unop(UnaryOp::I32Eqz);
                     block.br_if(block_id);
+
+                    // The RuleID is the argument to `rule_match`.
+                    block.i32_const(rule_id as i32);
 
                     // Emit call instruction for calling `rule_match`.
                     block.call(ctx.wasm_imports.rule_match);
