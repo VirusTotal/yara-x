@@ -4,7 +4,6 @@ YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
 use std::fmt;
-use std::ops::Deref;
 use std::path::Path;
 use std::rc::Rc;
 use string_interner::symbol::SymbolU32;
@@ -18,7 +17,7 @@ use crate::compiler::semcheck::semcheck;
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::warnings::Warning;
-use crate::{modules, scanner, wasm};
+use crate::{modules, wasm};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -362,12 +361,6 @@ impl CompiledRules {
     pub fn rules(&self) -> &[CompiledRule] {
         self.rules.as_slice()
     }
-
-    /*
-    pub fn scan(&self, data: &[u8]) -> ScanResults {
-        let mut scanner = scanner::Scanner::new(self);
-        scanner.scan(data)
-    }*/
 
     #[inline]
     pub(crate) fn compiled_wasm_mod(&self) -> &wasmtime::Module {

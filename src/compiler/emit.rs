@@ -70,7 +70,7 @@ macro_rules! emit_operands {
         // If the left operand is integer, but the right one is float,
         // convert the left operand to float.
         if lhs_type == Type::Integer && rhs_type == Type::Float {
-            $instr.unop(UnaryOp::F32ConvertSI64);
+            $instr.unop(UnaryOp::F64ConvertSI64);
             lhs_type = Type::Float;
         }
 
@@ -79,7 +79,7 @@ macro_rules! emit_operands {
         // If the right operand is integer, but the left one is float,
         // convert the right operand to float.
         if lhs_type == Type::Float && rhs_type == Type::Integer {
-            $instr.unop(UnaryOp::F32ConvertSI64);
+            $instr.unop(UnaryOp::F64ConvertSI64);
             rhs_type = Type::Float;
         }
 
