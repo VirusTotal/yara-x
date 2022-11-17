@@ -1891,6 +1891,11 @@ where
         multiplier = 1024 * 1024;
     }
 
+    if let Some(without_sign) = literal.strip_prefix('-') {
+        literal = without_sign;
+        multiplier = -multiplier;
+    }
+
     let value = if literal.starts_with("0x") {
         T::from_str_radix(literal.strip_prefix("0x").unwrap(), 16)
     } else if literal.starts_with("0o") {

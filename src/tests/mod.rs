@@ -44,9 +44,8 @@ fn arithmetic_expressions() {
     condition_true!("2 * -2 == -4");
     condition_true!("-4 * 2 == -8");
     condition_true!("-4 * -4 == 16");
-    //condition_true!("-0x01 == -1");
-    condition_true!("0o10 == 8");
+    condition_true!("-0x01 == -1");
+    condition_true!("-0o10 == -8");
     condition_true!("0o100 == 64");
     condition_true!("0o755 == 493");
-    assert_eq!(-0x01, -1);
 }

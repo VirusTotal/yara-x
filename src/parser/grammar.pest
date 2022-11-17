@@ -260,8 +260,8 @@ string_lit = @{
 }
 
 integer_lit = @{
-  "0x" ~ ASCII_HEX_DIGIT+ |
-  "0o" ~ ASCII_OCT_DIGIT+ |
+  "-"? ~ "0x" ~ ASCII_HEX_DIGIT+ |
+  "-"? ~ "0o" ~ ASCII_OCT_DIGIT+ |
   "-"? ~ ASCII_DIGIT+ ~ ("KB" | "MB")?
 }
 
