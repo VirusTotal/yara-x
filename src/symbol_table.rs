@@ -1,8 +1,7 @@
 use crate::modules::Module;
 use bstr::BString;
 use protobuf::reflect::{
-    EnumDescriptor, EnumValueDescriptor, MessageDescriptor, RuntimeFieldType,
-    RuntimeType,
+    EnumDescriptor, MessageDescriptor, RuntimeFieldType, RuntimeType,
 };
 use std::collections::HashMap;
 use std::rc::Rc;

@@ -3,14 +3,12 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use std::collections::HashMap;
 use std::fmt;
 use std::ops::Deref;
 use std::path::Path;
 use std::rc::Rc;
 use string_interner::symbol::SymbolU32;
 use string_interner::{DefaultBackend, StringInterner};
-use walrus::ir::Instr::Unop;
 use walrus::ir::UnaryOp;
 use walrus::Module;
 
@@ -20,7 +18,7 @@ use crate::compiler::semcheck::semcheck;
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::warnings::Warning;
-use crate::{modules, wasm, Struct};
+use crate::{modules, scanner, wasm};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -164,8 +162,6 @@ impl Compiler {
                 // TODO: add rule name to declared identifiers.
 
                 self.wasm_mod.main_fn().block(None, |block| {
-                    let block_id = block.id();
-
                     // Emit the code for the condition, which leave the
                     // condition's result in the stack.
                     emit_expr(&mut ctx, block, &rule.condition);
@@ -173,7 +169,7 @@ impl Compiler {
                     // If the condition's result is 0, jump out of the block
                     // and don't call the `rule_result` function.
                     block.unop(UnaryOp::I32Eqz);
-                    block.br_if(block_id);
+                    block.br_if(block.id());
 
                     // The RuleID is the argument to `rule_match`.
                     block.i32_const(rule_id as i32);
@@ -257,7 +253,7 @@ impl Default for Compiler {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-type IdentID = SymbolU32;
+pub(crate) type IdentID = SymbolU32;
 
 /// ID associated to each pattern.
 pub(crate) type PatternID = i32;
@@ -346,18 +342,6 @@ pub struct CompiledRules {
     patterns: Vec<Pattern>,
 }
 
-/// A compiled rule.
-struct CompiledRule {
-    /// The ID of the rule identifier in the identifiers pool.
-    ident: IdentID,
-
-    /// Vector with all the patterns defined by this rule.
-    patterns: Vec<(IdentID, PatternID)>,
-}
-
-/// A pattern in the compiled rules.
-struct Pattern {}
-
 impl CompiledRules {
     /// Emits a `.wasm` file with the WebAssembly module generated for the
     /// rules.
@@ -373,12 +357,32 @@ impl CompiledRules {
         Ok(self.wasm_mod.emit_wasm_file(path)?)
     }
 
-    /// Returns the number of rules included in this instance of [`CompiledRules`].
-    pub fn num_rules(&self) -> usize {
-        self.rules.len()
+    /// Returns an slice with all the compiled rules.
+    #[inline]
+    pub fn rules(&self) -> &[CompiledRule] {
+        self.rules.as_slice()
     }
 
+    /*
+    pub fn scan(&self, data: &[u8]) -> ScanResults {
+        let mut scanner = scanner::Scanner::new(self);
+        scanner.scan(data)
+    }*/
+
+    #[inline]
     pub(crate) fn compiled_wasm_mod(&self) -> &wasmtime::Module {
         &self.compiled_wasm_mod
     }
 }
+
+/// A compiled rule.
+pub struct CompiledRule {
+    /// The ID of the rule identifier in the identifiers pool.
+    pub(crate) ident: IdentID,
+
+    /// Vector with all the patterns defined by this rule.
+    patterns: Vec<(IdentID, PatternID)>,
+}
+
+/// A pattern in the compiled rules.
+struct Pattern {}

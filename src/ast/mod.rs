@@ -14,8 +14,8 @@ use yara_derive::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
+use crate::symbol_table;
 use crate::warnings::Warning;
-use crate::{symbol_table, Struct};
 
 pub use crate::ast::span::*;
 use crate::symbol_table::TypeValue;
@@ -36,12 +36,11 @@ impl<'src> Debug for AST<'src> {
 impl<'src> AST<'src> {
     /// Returns a printable ASCII tree representing the AST.
     pub fn ascii_tree(&self) -> ascii_tree::Tree {
-        let sym_tbl = Struct::new();
         Node(
             "root".to_string(),
             self.namespaces
                 .iter()
-                .map(|ns| namespace_ascii_tree(&ns, &sym_tbl))
+                .map(|ns| namespace_ascii_tree(&ns))
                 .collect(),
         )
     }

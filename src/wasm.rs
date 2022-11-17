@@ -22,7 +22,6 @@ the functions exposed to them by YARA's WebAssembly runtime.
 
 use crate::compiler::{PatternID, RuleID};
 use lazy_static::lazy_static;
-use std::borrow::BorrowMut;
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
 use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
@@ -122,7 +121,7 @@ pub(crate) struct BuiltinFnTable {
 lazy_static! {
     pub(crate) static ref CONFIG: Config = Config::default();
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
-    pub(crate) static ref LINKER: Linker<ScanContext> = {
+    pub(crate) static ref LINKER: Linker<ScanContext<'static>> = {
         let mut linker = Linker::<ScanContext>::new(&ENGINE);
         linker.func_wrap("internal", "rule_match", rule_match).unwrap();
         linker.func_wrap("internal", "is_pat_match", is_pat_match).unwrap();
@@ -137,13 +136,13 @@ lazy_static! {
 }
 
 /// Invoked from WebAssembly to notify when a rule matches.
-fn rule_match(mut caller: Caller<'_, ScanContext>, rule_id: RuleID) {
+fn rule_match(mut caller: Caller<'_, ScanContext<'_>>, rule_id: RuleID) {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
     // The RuleID-th bit in the `rule_matches` bit vector is set to 1.
-    caller
-        .as_context_mut()
-        .data_mut()
-        .rule_matches
-        .set(rule_id as usize, true);
+    scan_ctx.rule_matches.set(rule_id as usize, true);
+    scan_ctx.num_rules_matching += 1;
 }
 
 /// Invoked from WebAssembly to ask whether a pattern matches or not.
