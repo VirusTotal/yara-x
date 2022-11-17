@@ -22,7 +22,7 @@ use crate::{modules, wasm};
 #[doc(inline)]
 pub use crate::compiler::errors::*;
 use crate::symbol_table::{SymbolLookup, SymbolTable, TypeValue};
-use crate::wasm::BuiltinFnTable;
+use crate::wasm::WasmSymbols;
 
 mod emit;
 mod errors;
@@ -149,7 +149,7 @@ impl Compiler {
                     ident_pool: &self.ident_pool,
                     report_builder: &self.report_builder,
                     current_rule: self.rules.last().unwrap(),
-                    wasm_imports: self.wasm_mod.imports(),
+                    wasm_symbols: self.wasm_mod.wasm_symbols(),
                     warnings: &mut self.warnings,
                 };
 
@@ -174,7 +174,7 @@ impl Compiler {
                     block.i32_const(rule_id as i32);
 
                     // Emit call instruction for calling `rule_match`.
-                    block.call(ctx.wasm_imports.rule_match);
+                    block.call(ctx.wasm_symbols.rule_match);
                 });
             }
         }
@@ -273,7 +273,7 @@ struct Context<'a> {
     /// symbols are looked up in `root_sym_tbl` instead.
     current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
 
-    wasm_imports: BuiltinFnTable,
+    wasm_symbols: WasmSymbols,
 
     /// Source code that is being compiled.
     src: &'a SourceCode<'a>,

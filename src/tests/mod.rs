@@ -19,7 +19,7 @@ macro_rules! condition_true {
 }
 
 #[test]
-fn arithmetic_expressions() {
+fn arithmetic_operations() {
     condition_true!("1 == 1");
     condition_true!("1 + 1 == 2");
     condition_true!("2 * 2 == 4");
@@ -48,4 +48,23 @@ fn arithmetic_expressions() {
     condition_true!("-0o10 == -8");
     condition_true!("0o100 == 64");
     condition_true!("0o755 == 493");
+}
+
+#[test]
+fn bitwise_operations() {
+    condition_true!("0x55 | 0xAA == 0xFF");
+    condition_true!("0x55555555 | 0xAAAAAAAA == 0xFFFFFFFF");
+    condition_true!("0x55555555 | 0xAAAAAAAA == 0xFFFFFFFF");
+    condition_true!("~0xAA ^ 0x5A & 0xFF == (~0xAA) ^ (0x5A & 0xFF)");
+    condition_true!("~0xAA ^ 0x5A & 0xFF != 0x0F");
+    condition_true!("~0x55 & 0xFF == 0xAA");
+    condition_true!("1 << 0 == 1");
+    condition_true!("1 >> 0 == 1");
+    condition_true!("1 << 3 == 8");
+    condition_true!("8 >> 2 == 2");
+    condition_true!("1 << 64 == 0");
+    condition_true!("1 >> 64 == 0");
+    condition_true!("1 << 65 == 0");
+    condition_true!("1 >> 65 == 0");
+    condition_true!("1 | 3 ^ 3 != (1 | 3) ^ 3");
 }

@@ -4,7 +4,7 @@ use crate::compiler::Context;
 use crate::Type;
 use walrus::ir::{BinaryOp, UnaryOp};
 use walrus::InstrSeqBuilder;
-use walrus::ValType::I32;
+use walrus::ValType::{I32, I64};
 
 /// This macro emits a constant if the type hint indicates that the expression
 /// has a constant value (e.i: the value is known at compile time), if not,
@@ -121,6 +121,48 @@ macro_rules! emit_comparison_op {
     }};
 }
 
+macro_rules! emit_shift_op {
+    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt) => {{
+        emit_const_or_code!($instr, $expr.type_hint(), {
+            match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
+                (Type::Integer, Type::Integer) => {
+                    // When the left operand is >= 64, shift operations don't
+                    // behave in the same way in WebAssembly and YARA. In YARA,
+                    // 1 << 64 == 0, but in WebAssembly 1 << 64 == 1.
+                    // In general, X << Y behaves as X << (Y mod 64) in
+                    // WebAssembly, while in YARA the result is always 0 for
+                    // every Y >= 64. The sames applies for X >> Y.
+                    //
+                    // For that reason shift operations require some additional
+                    // code. The code for shift-left goes like this:
+                    //
+                    //  eval lhs
+                    //  eval rhs
+                    //  move rhs to tmp while leaving it in the stack (local_tee)
+                    //  push result form shift operation
+                    //  push 0
+                    //  push rhs (from tmp)
+                    //  push 64
+                    //  is rhs less than 64?
+                    //  if true                               ┐
+                    //     push result form shift operation   │  select
+                    //  else                                  │
+                    //     push 0                             ┘
+                    //
+                    $instr.local_tee($ctx.wasm_symbols.i64_tmp);
+                    $instr.binop(BinaryOp::$int_op);
+                    $instr.i64_const(0);
+                    $instr.local_get($ctx.wasm_symbols.i64_tmp);
+                    $instr.i64_const(64);
+                    $instr.binop(BinaryOp::I64LtS);
+                    $instr.select(Some(I64));
+                }
+                _ => unreachable!(),
+            };
+        });
+    }};
+}
+
 macro_rules! emit_bitwise_op {
     ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt) => {{
         emit_const_or_code!($instr, $expr.type_hint(), {
@@ -173,17 +215,17 @@ pub(super) fn emit_expr(
                 Some(MatchAnchor::At(anchor_at)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_at.expr);
-                    instr.call(ctx.wasm_imports.is_pat_match_at);
+                    instr.call(ctx.wasm_symbols.is_pat_match_at);
                 }
                 Some(MatchAnchor::In(anchor_in)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_in.range.lower_bound);
                     emit_expr(ctx, instr, &anchor_in.range.upper_bound);
-                    instr.call(ctx.wasm_imports.is_pat_match_in);
+                    instr.call(ctx.wasm_symbols.is_pat_match_in);
                 }
                 None => {
                     instr.i32_const(pattern_id);
-                    instr.call(ctx.wasm_imports.is_pat_match);
+                    instr.call(ctx.wasm_symbols.is_pat_match);
                 }
             }
         }
@@ -323,10 +365,10 @@ pub(super) fn emit_expr(
             emit_arithmetic_op!(ctx, instr, expr, operands, I64DivS, F64Div);
         }
         Expr::Shl(operands) => {
-            emit_bitwise_op!(ctx, instr, expr, operands, I64Shl);
+            emit_shift_op!(ctx, instr, expr, operands, I64Shl);
         }
         Expr::Shr(operands) => {
-            emit_bitwise_op!(ctx, instr, expr, operands, I64ShrS);
+            emit_shift_op!(ctx, instr, expr, operands, I64ShrS);
         }
         Expr::BitwiseAnd(operands) => {
             emit_bitwise_op!(ctx, instr, expr, operands, I64And);

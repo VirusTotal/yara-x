@@ -31,7 +31,7 @@ use crate::scanner::ScanContext;
 /// Builds the WebAssembly module for a set of compiled rules.
 pub(crate) struct ModuleBuilder {
     module: walrus::Module,
-    fn_table: BuiltinFnTable,
+    wasm_symbols: WasmSymbols,
     main_fn: walrus::FunctionBuilder,
 }
 
@@ -57,17 +57,18 @@ impl ModuleBuilder {
         let (is_pat_match_in, _) =
             module.add_import_func("internal", "is_pat_match_in", ty);
 
-        let fn_table = BuiltinFnTable {
+        let wasm_symbols = WasmSymbols {
             rule_match,
             is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
+            i64_tmp: module.locals.add(I64),
         };
 
         let main_fn =
             walrus::FunctionBuilder::new(&mut module.types, &[], &[]);
 
-        Self { module, fn_table, main_fn }
+        Self { module, wasm_symbols, main_fn }
     }
 
     /// Returns a [`InstrSeqBuilder`] for the module's main function.
@@ -77,9 +78,9 @@ impl ModuleBuilder {
         self.main_fn.func_body()
     }
 
-    /// Returns the functions imported by the module.
-    pub fn imports(&self) -> BuiltinFnTable {
-        self.fn_table.clone()
+    /// Returns the symbols imported by the module.
+    pub fn wasm_symbols(&self) -> WasmSymbols {
+        self.wasm_symbols.clone()
     }
 
     /// Builds the module and consumes the builder.
@@ -90,7 +91,7 @@ impl ModuleBuilder {
     }
 }
 
-/// Table with built-in functions imported by the WebAssembly module.
+/// Table with functions and variables used by the WebAssembly module.
 ///
 /// The WebAssembly module generated for evaluating rule conditions needs to
 /// call back to YARA for multiple tasks. For example, it calls YARA for
@@ -98,9 +99,10 @@ impl ModuleBuilder {
 /// for executing functions like `uint32()`, etc.
 ///
 /// This table contains the [`FunctionId`] for such functions, which are
-/// imported by the WebAssembly module and implemented by YARA.
+/// imported by the WebAssembly module and implemented by YARA. It also
+/// contains the definition of some variables used by the module.
 #[derive(Clone)]
-pub(crate) struct BuiltinFnTable {
+pub(crate) struct WasmSymbols {
     /// Called when a rule matches.
     /// Signature: (rule_id: i32) -> ()
     pub rule_match: walrus::FunctionId,
@@ -116,6 +118,9 @@ pub(crate) struct BuiltinFnTable {
     /// Ask YARA whether a pattern matched within a range of offsets.
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
     pub is_pat_match_in: walrus::FunctionId,
+
+    /// A temp variable.
+    pub i64_tmp: walrus::LocalId,
 }
 
 lazy_static! {
