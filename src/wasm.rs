@@ -20,7 +20,7 @@ This module implements the logic for building these WebAssembly modules, and
 the functions exposed to them by YARA's WebAssembly runtime.
  */
 
-use crate::compiler::{PatternID, RuleID};
+use crate::compiler::{PatternId, RuleId};
 use lazy_static::lazy_static;
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
@@ -148,7 +148,7 @@ lazy_static! {
 }
 
 /// Invoked from WebAssembly to notify when a rule matches.
-fn rule_match(mut caller: Caller<'_, ScanContext<'_>>, rule_id: RuleID) {
+fn rule_match(mut caller: Caller<'_, ScanContext<'_>>, rule_id: RuleId) {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
 
@@ -163,7 +163,7 @@ fn rule_match(mut caller: Caller<'_, ScanContext<'_>>, rule_id: RuleID) {
 /// otherwise.
 fn is_pat_match(
     caller: Caller<'_, ScanContext>,
-    pattern_id: PatternID,
+    pattern_id: PatternId,
 ) -> i32 {
     // TODO
     0
@@ -176,7 +176,7 @@ fn is_pat_match(
 /// or 0 if otherwise.
 fn is_pat_match_at(
     caller: Caller<'_, ScanContext>,
-    pattern_id: PatternID,
+    pattern_id: PatternId,
     offset: i64,
 ) -> i32 {
     // TODO
@@ -190,7 +190,7 @@ fn is_pat_match_at(
 /// in the range [`lower_bound`, `upper_bound`].
 fn is_pat_match_in(
     caller: Caller<'_, ScanContext>,
-    pattern_id: PatternID,
+    pattern_id: PatternId,
     lower_bound: i64,
     upper_bound: i64,
 ) -> i32 {

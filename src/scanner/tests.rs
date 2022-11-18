@@ -1,4 +1,4 @@
-use crate::compiler::{Compiler, IdentID};
+use crate::compiler::{Compiler, IdentId};
 use crate::scanner::Scanner;
 use string_interner::Symbol;
 
@@ -52,13 +52,13 @@ rule rule_4 { condition: false }
 
     assert_eq!(
         iter.next().unwrap().ident,
-        IdentID::try_from_usize(0).unwrap()
+        IdentId::try_from_usize(0).unwrap()
     );
 
     let mut iter = results.iter_non_matches();
 
     assert_eq!(
         iter.next().unwrap().ident,
-        IdentID::try_from_usize(1).unwrap()
+        IdentId::try_from_usize(1).unwrap()
     );
 }

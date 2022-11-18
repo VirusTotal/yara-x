@@ -45,7 +45,7 @@ pub struct Compiler {
     /// rules. For example, the pool contains a single copy of the common
     /// identifier `$a`. Identifiers have an unique 32-bits ID that can
     /// be used for retrieving them from the pool.
-    ident_pool: StringInterner<DefaultBackend<IdentID>>,
+    ident_pool: StringInterner<DefaultBackend<IdentId>>,
 
     /// Builder for creating the WebAssembly module that contains the code
     /// for all rule conditions.
@@ -124,7 +124,7 @@ impl Compiler {
 
                         // The PatternID is the index of the pattern in
                         // `self.patterns`.
-                        let pattern_id = self.patterns.len() as PatternID;
+                        let pattern_id = self.patterns.len() as PatternId;
 
                         self.patterns.push(Pattern {});
 
@@ -135,7 +135,7 @@ impl Compiler {
                     Vec::new()
                 };
 
-                let rule_id = self.rules.len() as RuleID;
+                let rule_id = self.rules.len() as RuleId;
 
                 self.rules.push(CompiledRule {
                     ident: self
@@ -288,13 +288,13 @@ impl Default for Compiler {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-pub(crate) type IdentID = SymbolU32;
+pub(crate) type IdentId = SymbolU32;
 
 /// ID associated to each pattern.
-pub(crate) type PatternID = i32;
+pub(crate) type PatternId = i32;
 
 /// ID associated to each rule.
-pub(crate) type RuleID = i32;
+pub(crate) type RuleId = i32;
 
 /// Structure that contains information and data structures required during the
 /// the current compilation process.
@@ -321,7 +321,7 @@ struct Context<'a> {
     warnings: &'a mut Vec<Warning>,
 
     /// Pool with identifiers used in the rules.
-    ident_pool: &'a StringInterner<DefaultBackend<IdentID>>,
+    ident_pool: &'a StringInterner<DefaultBackend<IdentId>>,
 
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<InstrSeqId>,
@@ -333,14 +333,14 @@ impl<'a> Context<'a> {
     ///
     /// Panics if no identifier has the provided [`IdentID`].
     #[inline]
-    fn resolve_ident(&self, ident_id: IdentID) -> &str {
+    fn resolve_ident(&self, ident_id: IdentId) -> &str {
         self.ident_pool.resolve(ident_id).unwrap()
     }
 
     /// Given a pattern identifier (e.g. `$a`) search for it in the current
     /// rule and return its [`PatternID`]. Panics if the current rule does not
     /// have the requested pattern.
-    fn get_pattern_from_current_rule(&self, ident: &Ident) -> PatternID {
+    fn get_pattern_from_current_rule(&self, ident: &Ident) -> PatternId {
         for (ident_id, pattern_id) in &self.current_rule.patterns {
             if self.resolve_ident(*ident_id) == ident.as_str() {
                 return *pattern_id;
@@ -361,7 +361,7 @@ pub struct CompiledRules {
     /// Pool with identifiers used in the rules. Each identifier has its
     /// own [`IdentID`], which can be used for retrieving the identifier
     /// from the pool as a `&str`.
-    ident_pool: StringInterner<DefaultBackend<IdentID>>,
+    ident_pool: StringInterner<DefaultBackend<IdentId>>,
 
     /// WebAssembly module containing the code for all rule conditions.
     wasm_mod: Module,
@@ -397,10 +397,10 @@ impl CompiledRules {
 /// A compiled rule.
 pub struct CompiledRule {
     /// The ID of the rule identifier in the identifiers pool.
-    pub(crate) ident: IdentID,
+    pub(crate) ident: IdentId,
 
     /// Vector with all the patterns defined by this rule.
-    patterns: Vec<(IdentID, PatternID)>,
+    patterns: Vec<(IdentId, PatternId)>,
 }
 
 /// A pattern in the compiled rules.
