@@ -1993,7 +1993,11 @@ fn string_lit_from_cst<'src>(
             // The backslash indicates an escape sequence.
             b'\\' => {
                 if !allow_escape_char {
-                    todo!()
+                    return Err(Error::unexpected_escape_sequence(
+                        ctx.report_builder,
+                        &ctx.src,
+                        string_lit.as_span().into(),
+                    ));
                 }
 
                 // Consume the backslash and see what's next.

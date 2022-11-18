@@ -835,8 +835,35 @@ rule test {
             line!(),
             r#"
 import "foo\x00"
+        "#,
+            r#"error: unexpected escape sequence
+   ╭─[line:2:8]
+   │
+ 2 │ import "foo\x00"
+   ·        ────┬────  
+   ·            ╰────── escape sequences are not allowed in this string
+───╯
 "#,
-            r#""#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings: 
+    $a = "foo" base64("foo\x00")
+  condition:
+    $a
+}
+        "#,
+            r#"error: unexpected escape sequence
+   ╭─[line:4:23]
+   │
+ 4 │     $a = "foo" base64("foo\x00")
+   ·                       ────┬────  
+   ·                           ╰────── escape sequences are not allowed in this string
+───╯
+"#,
         ),
     ];
 

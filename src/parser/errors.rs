@@ -157,6 +157,13 @@ pub enum Error {
         error_msg: String,
         error_span: Span,
     },
+
+    #[error("unexpected escape sequence")]
+    #[label("escape sequences are not allowed in this string", error_span)]
+    UnexpectedEscapeSequence {
+        detailed_report: String,
+        error_span: Span,
+    },
 }
 
 impl Error {
