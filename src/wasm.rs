@@ -197,3 +197,7 @@ fn is_pat_match_in(
     // TODO
     0
 }
+
+fn test_undef(caller: Caller<'_, ScanContext>) -> (i64, i32) {
+    (1, 0)
+}

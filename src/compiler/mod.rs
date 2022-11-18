@@ -10,8 +10,8 @@ use std::rc::Rc;
 use string_interner::symbol::SymbolU32;
 use string_interner::{DefaultBackend, StringInterner};
 use walrus::ir::{InstrSeqId, UnaryOp};
-use walrus::Module;
 use walrus::ValType::I32;
+use walrus::{Module, ValType};
 
 use crate::ast::*;
 use crate::compiler::emit::{emit_expr, try_except};
@@ -324,7 +324,7 @@ struct Context<'a> {
     ident_pool: &'a StringInterner<DefaultBackend<IdentId>>,
 
     /// Stack of installed exception handlers for catching undefined values.
-    exception_handler_stack: Vec<InstrSeqId>,
+    exception_handler_stack: Vec<(ValType, InstrSeqId)>,
     raise_emitted: bool,
 }
 
