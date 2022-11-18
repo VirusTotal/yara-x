@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use protobuf::reflect::{FileDescriptor, MessageDescriptor};
+use protobuf::reflect::MessageDescriptor;
 use std::collections::HashMap;
 
 pub mod protos {

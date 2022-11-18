@@ -2,11 +2,10 @@ use crate::ast::MatchAnchor;
 use crate::ast::{Expr, TypeHint};
 use crate::compiler::Context;
 use crate::Type;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use walrus::ir::{BinaryOp, UnaryOp};
+use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
-use walrus::{InstrSeqBuilder, ValType};
 
 /// This macro emits a constant if the type hint indicates that the expression
 /// has a constant value (e.i: the value is known at compile time), if not,
@@ -615,20 +614,21 @@ pub(super) fn call(
     fn_id: walrus::FunctionId,
 ) {
     // The result from this call is a tuple (value, is_undef), where
-    // `is_undef` is 1 of the result is undefined. If not, `is_undef` is
-    // zero and the value contains the actual result.
+    // `is_undef` is 1 if the result is undefined. If not, `is_undef` is
+    // zero and `value` contains the actual result.
     instr.call(fn_id);
 
-    // At this point is_undef is at the top of the stack, lets check if
+    // At this point `is_undef` is at the top of the stack, lets check if
     // it is zero. This remove `is_undef` from the stack, leaving `value`
     // at the top.
     instr.if_else(
         None,
         |then_| {
-            // Non zero, the result is undefined, so let's raise an exception.
+            // `is_undef` is non-zero, the result is undefined, let's raise
+            // an exception.
             raise(ctx, then_);
         },
-        |else_| {
+        |_| {
             // Intentionally empty. An `if` method would be handy, but it
             // does not exists. This however emits WebAssembly code without
             // the `else` branch.
