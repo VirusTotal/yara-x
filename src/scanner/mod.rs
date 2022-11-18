@@ -2,10 +2,11 @@
 
 */
 
-use crate::compiler::{CompiledRule, CompiledRules};
+use crate::compiler::{CompiledRule, CompiledRules, RuleId};
 use crate::wasm;
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
+use std::slice::Iter;
 use wasmtime::{Store, TypedFunc};
 
 #[cfg(test)]
@@ -26,8 +27,8 @@ impl<'r, 'd> Scanner<'r, 'd> {
             &crate::wasm::ENGINE,
             ScanContext {
                 scanned_data: None,
-                num_rules_matching: 0,
-                rule_matches: BitVec::repeat(
+                rules_matching: Vec::new(),
+                rules_matching_bitmap: BitVec::repeat(
                     false,
                     compiled_rules.rules().len(),
                 ),
@@ -49,8 +50,8 @@ impl<'r, 'd> Scanner<'r, 'd> {
     pub fn scan(&'r mut self, data: &'d [u8]) -> ScanResults<'r, 'd> {
         let ctx = self.wasm_store.data_mut();
 
-        ctx.rule_matches.fill(false);
-        ctx.num_rules_matching = 0;
+        ctx.rules_matching_bitmap.fill(false);
+        ctx.rules_matching.clear();
         ctx.scanned_data = Some(data);
 
         // Invoke the main function.
@@ -72,7 +73,7 @@ impl<'r, 'd> ScanResults<'r, 'd> {
 
     /// Returns the number of rules that matched.
     pub fn matching_rules(&self) -> usize {
-        self.scanner.wasm_store.data().num_rules_matching
+        self.scanner.wasm_store.data().rules_matching.len()
     }
 
     pub fn iter(&self) -> IterMatches<'r, 'd> {
@@ -86,14 +87,14 @@ impl<'r, 'd> ScanResults<'r, 'd> {
 
 pub struct IterMatches<'r, 'd> {
     scanner: &'r Scanner<'r, 'd>,
-    iterator: bitvec::slice::IterOnes<'r, usize, Lsb0>,
+    iterator: Iter<'r, RuleId>,
 }
 
 impl<'r, 'd> IterMatches<'r, 'd> {
     fn new(scanner: &'r Scanner<'r, 'd>) -> Self {
         Self {
             scanner,
-            iterator: scanner.wasm_store.data().rule_matches.iter_ones(),
+            iterator: scanner.wasm_store.data().rules_matching.iter(),
         }
     }
 }
@@ -102,8 +103,8 @@ impl<'r, 'd> Iterator for IterMatches<'r, 'd> {
     type Item = &'r CompiledRule;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let rule_id = self.iterator.next()?;
-        Some(&self.scanner.compiled_rules.rules()[rule_id])
+        let rule_id = *self.iterator.next()?;
+        Some(&self.scanner.compiled_rules.rules()[rule_id as usize])
     }
 }
 
@@ -116,7 +117,11 @@ impl<'r, 'd> IterNonMatches<'r, 'd> {
     fn new(scanner: &'r Scanner<'r, 'd>) -> Self {
         Self {
             scanner,
-            iterator: scanner.wasm_store.data().rule_matches.iter_zeros(),
+            iterator: scanner
+                .wasm_store
+                .data()
+                .rules_matching_bitmap
+                .iter_zeros(),
         }
     }
 }
@@ -134,10 +139,12 @@ impl<'r, 'd> Iterator for IterNonMatches<'r, 'd> {
 #[derive(Debug)]
 pub(crate) struct ScanContext<'d> {
     /// Vector of bits where bit N is set to 1 if the rule with RuleID = N
-    /// matched.
-    pub(crate) rule_matches: BitVec,
-    /// Number of rules that matched.
-    pub(crate) num_rules_matching: usize,
+    /// matched. This is used for determining whether a rule has matched
+    /// or not without having to iterate the `rules_matching` vector, and
+    /// also for iterating over the non-matching rules in an efficient way.
+    pub(crate) rules_matching_bitmap: BitVec,
+    /// Vector containing the IDs of the rules that matched.
+    pub(crate) rules_matching: Vec<RuleId>,
     /// Data being scanned.
     pub(crate) scanned_data: Option<&'d [u8]>,
 }

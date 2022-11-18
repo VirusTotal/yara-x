@@ -153,8 +153,8 @@ fn rule_match(mut caller: Caller<'_, ScanContext<'_>>, rule_id: RuleId) {
     let scan_ctx = store_ctx.data_mut();
 
     // The RuleID-th bit in the `rule_matches` bit vector is set to 1.
-    scan_ctx.rule_matches.set(rule_id as usize, true);
-    scan_ctx.num_rules_matching += 1;
+    scan_ctx.rules_matching_bitmap.set(rule_id as usize, true);
+    scan_ctx.rules_matching.push(rule_id);
 }
 
 /// Invoked from WebAssembly to ask whether a pattern matches or not.
