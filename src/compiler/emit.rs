@@ -340,7 +340,12 @@ pub(super) fn emit_expr(
             emit_const_or_code!(instr, expr.type_hint(), {
                 match emit_operands!(ctx, instr, operands.lhs, operands.rhs) {
                     (Type::Integer, Type::Integer) => {
-                        instr.binop(BinaryOp::I64RemS)
+                        // Make sure that the divisor is not zero, if that's
+                        // the case the result is undefined.
+                        if_non_zero(ctx, instr, |instr| {
+                            // Both operands are integer, the operation is integer.
+                            instr.binop(BinaryOp::I64RemS);
+                        });
                     }
                     _ => unreachable!(),
                 };
@@ -365,7 +370,23 @@ pub(super) fn emit_expr(
             emit_arithmetic_op!(ctx, instr, expr, operands, I64Mul, F64Mul);
         }
         Expr::Div(operands) => {
-            emit_arithmetic_op!(ctx, instr, expr, operands, I64DivS, F64Div);
+            emit_const_or_code!(instr, expr.type_hint(), {
+                match emit_operands!(ctx, instr, operands.lhs, operands.rhs) {
+                    (Type::Integer, Type::Integer) => {
+                        // Make sure that the divisor is not zero, if that's
+                        // the case the result is undefined.
+                        if_non_zero(ctx, instr, |instr| {
+                            // Both operands are integer, the operation is integer.
+                            instr.binop(BinaryOp::I64DivS);
+                        });
+                    }
+                    (Type::Float, Type::Float) => {
+                        // Both operands are float, the operation is float.
+                        instr.binop(BinaryOp::F64Div);
+                    }
+                    _ => unreachable!(),
+                };
+            });
         }
         Expr::Shl(operands) => {
             emit_shift_op!(ctx, instr, expr, operands, I64Shl);
@@ -634,4 +655,32 @@ pub(super) fn call(
             // the `else` branch.
         },
     );
+}
+
+// Emits code that checks if the top of the stack is non-zero and executes
+// `expr` in that case. If it is zero raises an exception that signals that
+// the result is undefined.
+pub(super) fn if_non_zero(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    expr: impl FnOnce(&mut InstrSeqBuilder),
+) {
+    // Save the right operand in tmp variable, but leave a copy
+    // in the stack.
+    instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
+    // Is the right operand zero?
+    instr.unop(UnaryOp::I64Eqz);
+    instr.if_else(
+        I64,
+        |then| {
+            // Is zero, raise exception
+            raise(ctx, then);
+        },
+        |else_| {
+            // Non-zero, put back the operand in the stack.
+            else_.local_get(ctx.borrow().wasm_symbols.i64_tmp);
+        },
+    );
+
+    expr(instr);
 }
