@@ -3,16 +3,18 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
+use std::cell::RefCell;
 use std::fmt;
 use std::path::Path;
 use std::rc::Rc;
 use string_interner::symbol::SymbolU32;
 use string_interner::{DefaultBackend, StringInterner};
-use walrus::ir::UnaryOp;
+use walrus::ir::{InstrSeqId, UnaryOp};
 use walrus::Module;
+use walrus::ValType::I32;
 
 use crate::ast::*;
-use crate::compiler::emit::emit_expr;
+use crate::compiler::emit::{emit_expr, try_except};
 use crate::compiler::semcheck::semcheck;
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
@@ -151,6 +153,8 @@ impl Compiler {
                     current_rule: self.rules.last().unwrap(),
                     wasm_symbols: self.wasm_mod.wasm_symbols(),
                     warnings: &mut self.warnings,
+                    exception_handler_stack: Vec::new(),
+                    raise_emitted: false,
                 };
 
                 // Make sure that the condition is a boolean expression. This
@@ -160,10 +164,26 @@ impl Compiler {
 
                 // TODO: add rule name to declared identifiers.
 
+                let ctx = RefCell::new(ctx);
+
                 self.wasm_mod.main_fn().block(None, |block| {
-                    // Emit the code for the condition, which leave the
-                    // condition's result in the stack.
-                    emit_expr(&mut ctx, block, &rule.condition);
+                    try_except(
+                        &ctx,
+                        block,
+                        I32,
+                        |try_| {
+                            // Emit the code for the condition, which leaves
+                            // the condition's result at the top of the stack.
+                            emit_expr(&ctx, try_, &rule.condition);
+                        },
+                        |except_| {
+                            // This gets executed if some expression was
+                            // undefined while evaluating the condition. It
+                            // It means that the result from the condition
+                            // will be false in such cases.
+                            except_.i32_const(0);
+                        },
+                    );
 
                     // If the condition's result is 0, jump out of the block
                     // and don't call the `rule_result` function.
@@ -174,7 +194,7 @@ impl Compiler {
                     block.i32_const(rule_id as i32);
 
                     // Emit call instruction for calling `rule_match`.
-                    block.call(ctx.wasm_symbols.rule_match);
+                    block.call(ctx.borrow().wasm_symbols.rule_match);
                 });
             }
         }
@@ -202,6 +222,22 @@ impl Compiler {
             patterns: Vec::new(),
             rules: self.rules,
         })
+    }
+
+    /// Emits a `.wasm` file with the WebAssembly module generated for the
+    /// rules.
+    ///
+    /// When YARA rules are compiled their conditions are translated to
+    /// WebAssembly. This function emits the WebAssembly module that contains
+    /// the code produced for these rules. The module can be inspected or
+    /// disassembled with third-party [tooling](https://github.com/WebAssembly/wabt).
+    pub fn emit_wasm_file<P>(self, path: P) -> Result<(), Error>
+    where
+        P: AsRef<Path>,
+    {
+        // Finish building the WebAssembly module.
+        let mut wasm_mod = self.wasm_mod.build();
+        Ok(wasm_mod.emit_wasm_file(path)?)
     }
 }
 
@@ -286,6 +322,10 @@ struct Context<'a> {
 
     /// Pool with identifiers used in the rules.
     ident_pool: &'a StringInterner<DefaultBackend<IdentID>>,
+
+    /// Stack of installed exception handlers for catching undefined values.
+    exception_handler_stack: Vec<InstrSeqId>,
+    raise_emitted: bool,
 }
 
 impl<'a> Context<'a> {
@@ -342,20 +382,6 @@ pub struct CompiledRules {
 }
 
 impl CompiledRules {
-    /// Emits a `.wasm` file with the WebAssembly module generated for the
-    /// rules.
-    ///
-    /// When YARA rules are compiled their conditions are translated to
-    /// WebAssembly. This function emits the WebAssembly module that contains
-    /// the code produced for these rules. The module can be inspected or
-    /// disassembled with third-party [tooling](https://github.com/WebAssembly/wabt).
-    pub fn emit_wasm_file<P>(&mut self, path: P) -> Result<(), Error>
-    where
-        P: AsRef<Path>,
-    {
-        Ok(self.wasm_mod.emit_wasm_file(path)?)
-    }
-
     /// Returns an slice with all the compiled rules.
     #[inline]
     pub fn rules(&self) -> &[CompiledRule] {

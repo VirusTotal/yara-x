@@ -63,6 +63,8 @@ impl ModuleBuilder {
             is_pat_match_at,
             is_pat_match_in,
             i64_tmp: module.locals.add(I64),
+            i32_tmp: module.locals.add(I32),
+            exception_flag: module.locals.add(I32),
         };
 
         let main_fn =
@@ -119,8 +121,13 @@ pub(crate) struct WasmSymbols {
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
     pub is_pat_match_in: walrus::FunctionId,
 
-    /// A temp variable.
+    /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
+    pub i32_tmp: walrus::LocalId,
+
+    /// Set to 1 when an exception is raised. This is used by the exception
+    /// handling logic.
+    pub exception_flag: walrus::LocalId,
 }
 
 lazy_static! {

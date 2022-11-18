@@ -174,12 +174,12 @@ fn cmd_wasm(args: &ArgMatches) -> anyhow::Result<()> {
     let src = SourceCode::from(src.as_str())
         .origin(file_path.as_os_str().to_str().unwrap());
 
-    let mut compiled_rules =
-        Compiler::new().colorize_errors(true).add_source(src)?.build()?;
-
     file_path.set_extension("wasm");
 
-    compiled_rules.emit_wasm_file(file_path.as_path())?;
+    Compiler::new()
+        .colorize_errors(true)
+        .add_source(src)?
+        .emit_wasm_file(file_path.as_path())?;
 
     Ok(())
 }
