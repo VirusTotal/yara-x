@@ -7,7 +7,6 @@ fn scan() {
     let rules = Compiler::new()
         .add_source(
             r#"
-import "test-proto3"
 rule test {
   strings: 
     $a = "foo" 

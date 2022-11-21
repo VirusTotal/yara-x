@@ -2,7 +2,7 @@ syntax = "proto3";
 import "yara.proto";
 
 option (yara.module_options) = {
-  name : "test-proto3"
+  name : "test_proto3"
   root_message: "Test"
 };
 
