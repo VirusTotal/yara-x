@@ -21,21 +21,6 @@ so far. These differences are not set in stone yet and may change in the future.
 The expression `@a[-1]` is valid in YARA 4.x, but its value is always
 `undefined`. In YARA-X this is an error.
 
-### Integers and strings are not promoted automatically to booleans
-
-This rule is valid in YARA 4.x because the integer expression `2` is promoted
-to `true`.
-
-```yara
-rule type_promotion_example {
-  condition:
-    2
-}
-```
-
-This however can lead to subtle errors due to the unintended use of integers 
-or strings as booleans.
-
 ### Duplicate rule modifiers are not accepted
 
 In YARA 4.x rules can have any number of `global` or `private`, for example the

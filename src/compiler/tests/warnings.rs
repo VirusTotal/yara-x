@@ -154,11 +154,148 @@ import "test_proto2"
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: 0
+}
+    "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:14]
+   │
+ 3 │   condition: 0
+   ·              ┬  
+   ·              ╰── this expression is `integer` but is being used as `bool`
+   · 
+   · Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: 2 and 3
+}
+    "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:14]
+   │
+ 3 │   condition: 2 and 3
+   ·              ┬  
+   ·              ╰── this expression is `integer` but is being used as `bool`
+   · 
+   · Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: "foo" or "bar"
+}
+    "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:14]
+   │
+ 3 │   condition: "foo" or "bar"
+   ·              ──┬──  
+   ·                ╰──── this expression is `string` but is being used as `bool`
+   · 
+   · Note: non-empty strings are considered `true`, while the empty string ("") is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: true or "false"
+}
+        "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:22]
+   │
+ 3 │   condition: true or "false"
+   ·                      ───┬───  
+   ·                         ╰───── this expression is `string` but is being used as `bool`
+   · 
+   · Note: non-empty strings are considered `true`, while the empty string ("") is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: not 2
+}
+    "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:18]
+   │
+ 3 │   condition: not 2
+   ·                  ┬  
+   ·                  ╰── this expression is `integer` but is being used as `bool`
+   · 
+   · Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: not 2+2
+}
+        "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:18]
+   │
+ 3 │   condition: not 2+2
+   ·                  ─┬─  
+   ·                   ╰─── this expression is `integer` but is being used as `bool`
+   · 
+   · Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: !a[1]
+}
+"#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:14]
+   │
+ 3 │   condition: !a[1]
+   ·              ──┬──  
+   ·                ╰──── this expression is `integer` but is being used as `bool`
+   · 
+   · Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
     ];
 
     for t in tests {
         let compiler = Compiler::new().add_source(t.1).unwrap();
-        assert!(!compiler.warnings.is_empty(), "test at line {}", t.0);
+        assert!(
+            !compiler.warnings.is_empty(),
+            "test at line {} didn't produce warnings",
+            t.0
+        );
         assert_eq!(
             compiler.warnings[0].to_string(),
             t.2,

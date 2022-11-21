@@ -29,10 +29,26 @@ macro_rules! expect {
     }};
 }
 
+macro_rules! cast_to_bool {
+    ($expr:expr) => {{
+        let type_hint = $expr;
+        match type_hint {
+            TypeHint::Integer(i) => TypeHint::Bool(i.map(|i| i != 0)),
+            TypeHint::Float(f) => TypeHint::Bool(f.map(|f| f != 0.0)),
+            TypeHint::String(s) => TypeHint::Bool(s.map(|s| s.len() > 0)),
+            _ => type_hint,
+        }
+    }};
+}
+
 macro_rules! boolean_op {
     ($lhs:expr, $op:tt, $rhs:expr) => {{
         use crate::ast::TypeHint::*;
-        match ($lhs, $rhs) {
+
+        let lhs = cast_to_bool!($lhs);
+        let rhs = cast_to_bool!($rhs);
+
+        match (lhs, rhs) {
             (Bool(Some(lhs)), Bool(Some(rhs))) => {
                 Bool(Some(lhs $op rhs))
             },
@@ -143,7 +159,7 @@ macro_rules! minus_op {
 macro_rules! boolean_not {
     ($operand:expr) => {{
         use crate::ast::TypeHint::*;
-        match $operand {
+        match cast_to_bool!($operand) {
             Bool(Some(b)) => Bool(Some(!b)),
             _ => Bool(None),
         }
@@ -183,6 +199,7 @@ pub(crate) use bitwise_not;
 pub(crate) use bitwise_op;
 pub(crate) use boolean_not;
 pub(crate) use boolean_op;
+pub(crate) use cast_to_bool;
 pub(crate) use comparison_op;
 pub(crate) use minus_op;
 pub(crate) use shift_op;

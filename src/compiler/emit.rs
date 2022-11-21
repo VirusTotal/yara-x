@@ -260,7 +260,7 @@ pub(super) fn emit_expr(
                 //     1
                 //   }
                 //
-                emit_expr(ctx, instr, &operand.operand);
+                emit_bool_expr(ctx, instr, &operand.operand);
                 instr.if_else(
                     I32,
                     |then| {
@@ -282,11 +282,11 @@ pub(super) fn emit_expr(
                 //     false
                 //   }
                 //
-                emit_expr(ctx, instr, &operands.lhs);
+                emit_bool_expr(ctx, instr, &operands.lhs);
                 instr.if_else(
                     I32,
                     |then| {
-                        emit_expr(ctx, then, &operands.rhs);
+                        emit_bool_expr(ctx, then, &operands.rhs);
                     },
                     |else_| {
                         else_.i32_const(0);
@@ -304,14 +304,14 @@ pub(super) fn emit_expr(
                 //     rhs
                 //   }
                 //
-                emit_expr(ctx, instr, &operands.lhs);
+                emit_bool_expr(ctx, instr, &operands.lhs);
                 instr.if_else(
                     I32,
                     |then| {
                         then.i32_const(1);
                     },
                     |else_| {
-                        emit_expr(ctx, else_, &operands.rhs);
+                        emit_bool_expr(ctx, else_, &operands.rhs);
                     },
                 );
             });
@@ -454,6 +454,37 @@ pub(super) fn emit_expr(
     }
 }
 
+/// Emits the WebAssembly code for boolean expression `expr`.
+///
+/// If `expr` doesn't return a boolean, it casts the result of `expr` to
+/// boolean.
+pub(super) fn emit_bool_expr(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    expr: &Expr,
+) {
+    emit_expr(ctx, instr, expr);
+
+    match expr.type_hint().ty() {
+        Type::Bool => {
+            // `expr` already returned a bool, nothing more to do.
+        }
+        Type::Integer => {
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64Ne);
+        }
+        Type::Float => {
+            instr.f64_const(0.0);
+            instr.binop(BinaryOp::F64Ne);
+        }
+        Type::String => {
+            // TODO
+            // todo!();
+        }
+        ty => unreachable!("type `{}` can't be casted to boolean", ty),
+    }
+}
+
 /// Emits code for catching exceptions caused by undefined values.
 ///
 /// This function emits WebAssembly code that behaves similarly to an exception
@@ -577,8 +608,8 @@ pub(super) fn raise(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     // because the end of the block was reached or, as in this case,
     // because a `br` instruction jumped out the block. For example:
     //
-    // ;; outter block retuns an i32
-    // (block $outter (result i32)
+    // ;; outer block returns an i32
+    // (block $outer (result i32)
     //
     //   ;; inner block returns an i64
     //   (block $inner (result i64)
@@ -587,8 +618,8 @@ pub(super) fn raise(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     //                       ;; for jumping out of the block.
     //      i32.const 0xBAD  ;; put an i32 in the stack, even if $inner block
     //                       ;; returns an i64 ...
-    //      br $outter       ;; ... because this jumps to the end of $outter
-    //                       ;; block, and $outter returns an i32.
+    //      br $outter       ;; ... because this jumps to the end of $outer
+    //                       ;; block, and $outer returns an i32.
     //    )
     //
     //    ;; the instructions below would be executed in normal conditions
@@ -598,12 +629,12 @@ pub(super) fn raise(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     //    i64.eq          ;; compare the with the result from $inner block
     //
     //    ;; the result from `eq` is an i32 at the top of the stack, that
-    //    ;; will be the result of $outter in normal conditions, but instead
+    //    ;; will be the result of $outer in normal conditions, but instead
     // .  ;; it will return 0xBAD.
     //  )
     //
     // Notice how we need to put an i32 in the stack before executing
-    // `br $outter`, because that is going to be the result for the $outter
+    // `br $outer`, because that is going to be the result for the $outer
     // block.
     //
     match innermost_handler.0 {

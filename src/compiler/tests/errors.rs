@@ -10,74 +10,6 @@ fn errors() {
             line!(),
             r#"
 rule test {
-  condition: 0
-}
-    "#,
-            r#"error: wrong type
-   ╭─[line:3:14]
-   │
- 3 │   condition: 0
-   ·              ┬  
-   ·              ╰── expression should be `boolean`, but is `integer`
-───╯
-"#,
-        ),
-        ////////////////////////////////////////////////////////////
-        (
-            line!(),
-            r#"
-rule test {
-  condition: not 2
-}
-    "#,
-            r#"error: wrong type
-   ╭─[line:3:18]
-   │
- 3 │   condition: not 2
-   ·                  ┬  
-   ·                  ╰── expression should be `boolean`, but is `integer`
-───╯
-"#,
-        ),
-        ////////////////////////////////////////////////////////////
-        (
-            line!(),
-            r#"
-rule test {
-  condition: 2 and 3
-}
-    "#,
-            r#"error: wrong type
-   ╭─[line:3:14]
-   │
- 3 │   condition: 2 and 3
-   ·              ┬  
-   ·              ╰── expression should be `boolean`, but is `integer`
-───╯
-"#,
-        ),
-        ////////////////////////////////////////////////////////////
-        (
-            line!(),
-            r#"
-rule test {
-  condition: "foo" or "bar"
-}
-    "#,
-            r#"error: wrong type
-   ╭─[line:3:14]
-   │
- 3 │   condition: "foo" or "bar"
-   ·              ──┬──  
-   ·                ╰──── expression should be `boolean`, but is `string`
-───╯
-"#,
-        ),
-        ////////////////////////////////////////////////////////////
-        (
-            line!(),
-            r#"
-rule test {
   condition: "foo" == 2
 }
     "#,
@@ -89,40 +21,6 @@ rule test {
    ·                ╰───────── this expression is `string`
    ·                       │  
    ·                       ╰── this expression is `integer`
-───╯
-"#,
-        ),
-        ////////////////////////////////////////////////////////////
-        (
-            line!(),
-            r#"
-rule test {
-  condition: not 2+2
-}
-        "#,
-            r#"error: wrong type
-   ╭─[line:3:18]
-   │
- 3 │   condition: not 2+2
-   ·                  ─┬─  
-   ·                   ╰─── expression should be `boolean`, but is `integer`
-───╯
-"#,
-        ),
-        ////////////////////////////////////////////////////////////
-        (
-            line!(),
-            r#"
-rule test {
-  condition: true or "false"
-}
-        "#,
-            r#"error: wrong type
-   ╭─[line:3:22]
-   │
- 3 │   condition: true or "false"
-   ·                      ───┬───  
-   ·                         ╰───── expression should be `boolean`, but is `string`
 ───╯
 "#,
         ),
@@ -294,23 +192,6 @@ rule test {
             r#""#,
         ),
         */
-        ////////////////////////////////////////////////////////////
-        (
-            line!(),
-            r#"
-rule test {
-  condition: !a[1]
-}
-"#,
-            r#"error: wrong type
-   ╭─[line:3:14]
-   │
- 3 │   condition: !a[1]
-   ·              ──┬──  
-   ·                ╰──── expression should be `boolean`, but is `integer`
-───╯
-"#,
-        ),
         ////////////////////////////////////////////////////////////
         (
             line!(),

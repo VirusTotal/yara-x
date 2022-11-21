@@ -6,6 +6,7 @@ use std::ops::BitXor;
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
 use crate::symbol_table::SymbolLookup;
+use crate::symbol_table::TypeValue;
 use crate::warnings::Warning;
 
 use crate::parser::arithmetic_op;
@@ -13,23 +14,24 @@ use crate::parser::bitwise_not;
 use crate::parser::bitwise_op;
 use crate::parser::boolean_not;
 use crate::parser::boolean_op;
+use crate::parser::cast_to_bool;
 use crate::parser::comparison_op;
 use crate::parser::minus_op;
 use crate::parser::shift_op;
 use crate::parser::string_op;
 
 macro_rules! semcheck {
-    ($ctx:expr, $( $pattern:path )|+, $expr:expr) => {
+    ($ctx:expr, $( $accepted_types:path )|+, $expr:expr) => {
         {
             use crate::compiler::errors::Error;
             use crate::compiler::semcheck::semcheck_expr;
             let span = $expr.span();
             let type_hint = semcheck_expr($ctx, $expr)?;
-            if !matches!(type_hint.ty(), $( $pattern )|+) {
+            if !matches!(type_hint.ty(), $( $accepted_types )|+) {
                 return Err(Error::CompileError(CompileError::wrong_type(
                     $ctx.report_builder,
                     $ctx.src,
-                    ParserError::join_with_or(&[ $( $pattern ),+ ], true),
+                    ParserError::join_with_or(&[ $( $accepted_types ),+ ], true),
                     type_hint.ty().to_string(),
                     span,
                 )));
@@ -39,35 +41,35 @@ macro_rules! semcheck {
     };
 }
 
-use crate::symbol_table::TypeValue;
 pub(crate) use semcheck;
 
 macro_rules! semcheck_operands {
-    ($ctx:ident, $( $pattern:path )|+, $expr1:expr, $expr2:expr) => {{
+    ($ctx:ident, $expr1:expr, $expr2:expr, $( $accepted_types:path )|+, $compatible_types:expr) => {{
         let span1 = $expr1.span();
         let span2 = $expr2.span();
 
-        let type_hint1 = semcheck!($ctx, $( $pattern )|+, $expr1)?;
-        let type_hint2 = semcheck!($ctx, $( $pattern )|+, $expr2)?;
+        let type_hint1 = semcheck!($ctx, $( $accepted_types )|+, $expr1)?;
+        let type_hint2 = semcheck!($ctx, $( $accepted_types )|+, $expr2)?;
 
         // Both types must be known.
         assert!(!matches!(type_hint1, TypeHint::UnknownType));
         assert!(!matches!(type_hint2, TypeHint::UnknownType));
 
-        let mismatching_types = match type_hint1 {
-            // Float and Integer are compatible types, operators can
-            // have different operand types where one is Integer and
-            // the other is Float.
-            TypeHint::Integer(_) | TypeHint::Float(_) => {
-                !matches!(type_hint1, TypeHint::Integer(_) | TypeHint::Float(_))
-            }
-            // In all other cases types must be equal to be considered
-            // compatible. In this comparison the optional values in the
-            // hint are not taken into account.
-            _ => type_hint1.ty() != type_hint2.ty(),
+        let ty1 = type_hint1.ty();
+        let ty2 = type_hint2.ty();
+
+        let types_are_compatible = {
+            // If the types are the same, they are compatible.
+            (ty1 == ty2) ||
+            (
+                // If both types are in the list of compatible types,
+                // they are compatible too.
+                $compatible_types.iter().any(|&ty: &Type| ty == ty1)
+                && $compatible_types.iter().any(|&ty: &Type| ty == ty2)
+            )
         };
 
-        if mismatching_types {
+        if !types_are_compatible {
             return Err(Error::CompileError(CompileError::mismatching_types(
                 $ctx.report_builder,
                 $ctx.src,
@@ -128,8 +130,20 @@ macro_rules! check_integer_in_range {
 
 macro_rules! semcheck_boolean_op {
     ($ctx:ident, $expr:expr, $op:tt) => {{
-        let (lhs, rhs) =
-            semcheck_operands!($ctx, Type::Bool, &$expr.lhs, &$expr.rhs)?;
+        warning_if_not_boolean($ctx, &$expr.lhs);
+        warning_if_not_boolean($ctx, &$expr.rhs);
+
+        let (lhs, rhs) = semcheck_operands!(
+            $ctx,
+            &$expr.lhs,
+            &$expr.rhs,
+            // Boolean operations accept integer, float and string operands.
+            // If operands are not boolean they are casted to boolean.
+            Type::Bool | Type::Integer | Type::Float | Type::String,
+            // All operands types can mixed in a boolean operation, as they
+            // are casted to boolean.
+            &[Type::Bool, Type::Integer, Type::Float, Type::String]
+        )?;
 
         let type_hint = boolean_op!(lhs, $op, rhs);
 
@@ -143,9 +157,13 @@ macro_rules! semcheck_comparison_op {
     ($ctx:ident, $expr:expr, $op:tt) => {{
         let (lhs, rhs) = semcheck_operands!(
             $ctx,
-            Type::Integer | Type::Float | Type::String,
             &$expr.lhs,
-            &$expr.rhs
+            &$expr.rhs,
+            // Integers, floats and strings can be compared.
+            Type::Integer | Type::Float | Type::String,
+            // Integers can be compared with floats, but string can be
+            // compared only with another string.
+            &[Type::Integer, Type::Float]
         )?;
 
         let type_hint = comparison_op!(lhs, $op, rhs);
@@ -159,8 +177,13 @@ macro_rules! semcheck_comparison_op {
 macro_rules! semcheck_shift_op {
     ($ctx:ident, $expr:expr, $op:ident) => {{
         let span = $expr.rhs.span();
-        let (lhs, rhs) =
-            semcheck_operands!($ctx, Type::Integer, &$expr.lhs, &$expr.rhs)?;
+        let (lhs, rhs) = semcheck_operands!(
+            $ctx,
+            &$expr.lhs,
+            &$expr.rhs,
+            Type::Integer,
+            &[]
+        )?;
 
         if let TypeHint::Integer(Some(value)) = rhs {
             if value < 0 {
@@ -186,8 +209,13 @@ macro_rules! semcheck_shift_op {
 
 macro_rules! semcheck_bitwise_op {
     ($ctx:ident, $expr:expr, $op:ident) => {{
-        let (lhs, rhs) =
-            semcheck_operands!($ctx, Type::Integer, &$expr.lhs, &$expr.rhs)?;
+        let (lhs, rhs) = semcheck_operands!(
+            $ctx,
+            &$expr.lhs,
+            &$expr.rhs,
+            Type::Integer,
+            &[]
+        )?;
 
         let type_hint = bitwise_op!(lhs, $op, rhs);
 
@@ -198,12 +226,13 @@ macro_rules! semcheck_bitwise_op {
 }
 
 macro_rules! semcheck_arithmetic_op {
-    ($ctx:ident, $expr:expr, $op:tt, $( $pattern:path )|+, $checked_op:ident) => {{
+    ($ctx:ident, $expr:expr, $op:tt, $( $accepted_types:path )|+, $checked_op:ident) => {{
         let (lhs, rhs) = semcheck_operands!(
             $ctx,
-            $( $pattern )|+,
             &$expr.lhs,
-            &$expr.rhs
+            &$expr.rhs,
+            $( $accepted_types )|+,
+            &[Type::Integer, Type::Float]
         )?;
 
         let type_hint = arithmetic_op!(lhs, $op, $checked_op, rhs);
@@ -216,8 +245,13 @@ macro_rules! semcheck_arithmetic_op {
 
 macro_rules! semcheck_string_op {
     ($ctx:ident, $expr:expr, $op:ident, $case_insensitive:expr) => {{
-        let (lhs, rhs) =
-            semcheck_operands!($ctx, Type::String, &$expr.lhs, &$expr.rhs)?;
+        let (lhs, rhs) = semcheck_operands!(
+            $ctx,
+            &$expr.lhs,
+            &$expr.rhs,
+            Type::String,
+            &[]
+        )?;
 
         let type_hint = string_op!(lhs, $op, rhs, $case_insensitive);
 
@@ -295,8 +329,13 @@ pub(super) fn semcheck_expr(
         }
 
         Expr::Not(expr) => {
-            let type_hint =
-                boolean_not!(semcheck!(ctx, Type::Bool, &expr.operand)?);
+            warning_if_not_boolean(ctx, &expr.operand);
+
+            let type_hint = boolean_not!(semcheck!(
+                ctx,
+                Type::Bool | Type::Integer | Type::Float | Type::String,
+                &expr.operand
+            )?);
 
             expr.set_type_hint(type_hint.clone());
             Ok(type_hint)
@@ -696,5 +735,37 @@ fn semcheck_iterable(
         Iterable::Ident(_) => {
             todo!()
         }
+    }
+}
+
+/// If `expr` is not of type boolean, it raises a warning indicating that the
+/// expression is being casted to a boolean.
+pub(super) fn warning_if_not_boolean(ctx: &mut Context, expr: &Expr) {
+    let ty = expr.type_hint().ty();
+
+    let note = match ty {
+        Type::Integer => Some(
+            "non-zero integers are considered `true`, while zero is `false`"
+                .to_string(),
+        ),
+        Type::Float => Some(
+            "non-zero floats are considered `true`, while zero is `false`"
+                .to_string(),
+        ),
+        Type::String => Some(
+             r#"non-empty strings are considered `true`, while the empty string ("") is `false`"#
+                .to_string(),
+        ),
+        _ => None,
+    };
+
+    if !matches!(ty, Type::Bool) {
+        ctx.warnings.push(Warning::non_boolean_as_boolean(
+            ctx.report_builder,
+            ctx.src,
+            ty,
+            expr.span(),
+            note,
+        ));
     }
 }

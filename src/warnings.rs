@@ -1,6 +1,7 @@
 use yara_derive::Error;
 
 use crate::ast::Span;
+use crate::Type;
 
 /// An warning raised while parsing or compiling YARA rules.
 #[rustfmt::skip]
@@ -30,6 +31,16 @@ pub enum Warning {
     InvariantBooleanExpression {
         detailed_report: String,
         value: bool,
+        span: Span,
+        note: Option<String>,
+    },
+
+    #[warning("non-boolean expression used as boolean")]
+    #[label("this expression is `{expression_type}` but is being used as `bool`", span)]
+    #[note(note)]
+    NonBooleanAsBoolean {
+        detailed_report: String,
+        expression_type: Type,
         span: Span,
         note: Option<String>,
     },

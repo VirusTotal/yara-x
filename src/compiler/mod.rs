@@ -14,8 +14,8 @@ use walrus::ValType::I32;
 use walrus::{Module, ValType};
 
 use crate::ast::*;
-use crate::compiler::emit::{emit_expr, try_except};
-use crate::compiler::semcheck::semcheck;
+use crate::compiler::emit::{emit_bool_expr, emit_expr, try_except};
+use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::warnings::Warning;
@@ -157,10 +157,19 @@ impl Compiler {
                     raise_emitted: false,
                 };
 
-                // Make sure that the condition is a boolean expression. This
-                // traverses the condition's AST recursively checking that
-                // all the condition is semantically valid.
-                semcheck!(&mut ctx, Type::Bool, &rule.condition)?;
+                // Verify that the rule's condition is semantically valid. This
+                // traverses the condition's AST recursively. The condition can
+                // be an expression returning a bool, integer, float or string.
+                // Integer, float and string result are casted to boolean.
+                semcheck!(
+                    &mut ctx,
+                    Type::Bool | Type::Integer | Type::Float | Type::String,
+                    &rule.condition
+                )?;
+
+                // However, if the condition's result is not a boolean and must
+                // be casted, raise a warning about it.
+                warning_if_not_boolean(&mut ctx, &rule.condition);
 
                 // TODO: add rule name to declared identifiers.
 
@@ -174,7 +183,7 @@ impl Compiler {
                         |try_| {
                             // Emit the code for the condition, which leaves
                             // the condition's result at the top of the stack.
-                            emit_expr(&ctx, try_, &rule.condition);
+                            emit_bool_expr(&ctx, try_, &rule.condition);
                         },
                         |except_| {
                             // This gets executed if some expression was

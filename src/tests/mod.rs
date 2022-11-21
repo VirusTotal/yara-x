@@ -18,6 +18,23 @@ macro_rules! condition_true {
     }};
 }
 
+macro_rules! condition_false {
+    ($condition:literal) => {{
+        let src = format!("rule t {{condition: {} }}", $condition);
+        let rules = crate::compiler::Compiler::new()
+            .add_source(src.as_str())
+            .unwrap()
+            .build()
+            .unwrap();
+        assert_eq!(
+            crate::scanner::Scanner::new(&rules).scan(&[]).matching_rules(),
+            0,
+            "`{}` should be false, but it is true",
+            $condition
+        );
+    }};
+}
+
 #[test]
 fn arithmetic_operations() {
     condition_true!("1 == 1");
@@ -67,4 +84,22 @@ fn bitwise_operations() {
     condition_true!("1 << 65 == 0");
     condition_true!("1 >> 65 == 0");
     condition_true!("1 | 3 ^ 3 != (1 | 3) ^ 3");
+}
+
+#[test]
+fn boolean_casting() {
+    condition_true!("1");
+    condition_false!("0");
+    condition_true!("1 and true");
+    condition_false!("0 and true");
+    condition_true!("1.0 and true");
+    condition_false!("0.0 and true");
+    condition_true!("1 or false");
+    condition_false!("0 or false");
+    condition_true!("1.0 or false");
+    condition_false!("0.0 or false");
+    condition_true!("not 0");
+    condition_false!("not 1");
+    condition_true!("not 0.0");
+    condition_false!("not 1.0");
 }
