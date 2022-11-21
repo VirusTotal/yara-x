@@ -55,7 +55,7 @@ fn main() {
             yara_module_options.get(&proto_file.options)
         {
             modules.push((
-                module_options.name,
+                module_options.name.unwrap(),
                 proto_file
                     .name
                     .unwrap()
@@ -63,7 +63,7 @@ fn main() {
                     .unwrap()
                     .to_string(),
                 module_options.rust_module,
-                module_options.root_message,
+                module_options.root_message.unwrap(),
             ));
         }
     }
@@ -100,11 +100,11 @@ fn main() {
         let rust_mod = m.2;
         let root_message = m.3;
 
-        if !rust_mod.is_empty() {
+        if let Some(rust_mod) = &rust_mod {
             write!(
                 modules_rs,
                 r#"
-#[cfg(feature = "{name}_module")]
+#[cfg(feature = "{name}-module")]
 pub mod {rust_mod};"#,
             )
             .unwrap();
@@ -113,7 +113,7 @@ pub mod {rust_mod};"#,
         // If the YARA module has an associated Rust module, this module must
         // have a function named "main". If the YARA module doesn't have an
         // associated YARA module, the main function is set to None.
-        let main_fn = if !rust_mod.is_empty() {
+        let main_fn = if let Some(rust_mod) = &rust_mod {
             format!("Some({}::main as MainFn)", rust_mod)
         } else {
             "None".to_string()
@@ -122,7 +122,7 @@ pub mod {rust_mod};"#,
         write!(
             add_modules_rs,
             r#"
-#[cfg(feature = "{name}_module")]
+#[cfg(feature = "{name}-module")]
 add_module!(modules, "{name}", {proto_mod}, {root_message}, {main_fn});
             "#,
         )

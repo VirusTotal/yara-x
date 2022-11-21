@@ -2,9 +2,8 @@ syntax = "proto3";
 import "yara.proto";
 
 option (yara.module_options) = {
-  name : "test"
+  name : "test-proto3"
   root_message: "Test"
-  rust_module: "test"
 };
 
 enum Enum {

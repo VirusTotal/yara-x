@@ -8,8 +8,6 @@ readme = "README.md"
 license = "MIT"
 
 [features]
-default = ["test_module"]
-
 # Controls whether compile-time optimizations are applied or not.
 # If this feature is enabled, expressions like `2+2+2` and
 # `true or false`, whose value can be determined at compile time,
@@ -17,7 +15,15 @@ default = ["test_module"]
 # that actually computes the expression.
 compile-time-optimization = []
 
-test_module = []
+# Features for enabling/disabling test modules.
+test-proto2-module = []
+test-proto3-module = []
+
+# Features that are enabled by default.
+default = [
+    "test-proto2-module",
+    "test-proto3-module"
+]
 
 [[bin]]
 name = "yr"
