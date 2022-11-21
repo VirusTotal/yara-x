@@ -8,9 +8,8 @@ embedded in YARA.
 For each instance of [`CompiledRules`] the compiler creates a WebAssembly
 module. This module exports a function called `main`, which contains the code
 that evaluates the conditions of all the compiled rules. The `main` function
-is invoked at scan time, and for each rule the WebAssembly module calls
-YARA back (via the `rule_result` function) and reports if the rule matched
-or not.
+is invoked at scan time, and for each matching rule the WebAssembly module
+calls YARA back (via the `rule_match` function) and reports the match.
 
 The WebAssembly module also calls YARA in many other cases, for example
 when it needs to invoke YARA built-in functions like `uint8(...)`, when it

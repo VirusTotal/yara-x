@@ -177,8 +177,7 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
-/// Emits the WebAssembly code for `expr` into the instruction sequence
-/// `instr`
+/// Emits WebAssembly code for `expr` into the instruction sequence `instr`.
 pub(super) fn emit_expr(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
@@ -454,10 +453,15 @@ pub(super) fn emit_expr(
     }
 }
 
-/// Emits the WebAssembly code for boolean expression `expr`.
+/// Emits WebAssembly code for boolean expression `expr` into the instruction
+/// sequence `instr`. If `expr` doesn't return a boolean its result is casted
+/// to a boolean as follows:
 ///
-/// If `expr` doesn't return a boolean, it casts the result of `expr` to
-/// boolean.
+/// * Integer and float values are converted to `true` if they are non-zero,
+///   `false` if they are zero.
+/// * String values are `true` if they are non-empty, or `false` if they are
+///   empty (e.g: "").
+///
 pub(super) fn emit_bool_expr(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
@@ -500,7 +504,7 @@ pub(super) fn emit_bool_expr(
 /// it was interrupted by [`raise`].
 ///
 /// As in the usual exception handling mechanism, [`try_except`] can be nested,
-/// and such cases the exception will be captured by the innermost handler.
+/// and in such cases the exception will be captured by the innermost handler.
 ///
 /// # Example
 ///
@@ -618,7 +622,7 @@ pub(super) fn raise(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     //                       ;; for jumping out of the block.
     //      i32.const 0xBAD  ;; put an i32 in the stack, even if $inner block
     //                       ;; returns an i64 ...
-    //      br $outter       ;; ... because this jumps to the end of $outer
+    //      br $outer        ;; ... because this jumps to the end of $outer
     //                       ;; block, and $outer returns an i32.
     //    )
     //
