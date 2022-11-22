@@ -7,8 +7,6 @@ use std::cell::RefCell;
 use std::fmt;
 use std::path::Path;
 use std::rc::Rc;
-use string_interner::symbol::SymbolU32;
-use string_interner::{DefaultBackend, StringInterner};
 use walrus::ir::{InstrSeqId, UnaryOp};
 use walrus::ValType::I32;
 use walrus::{Module, ValType};
@@ -18,6 +16,7 @@ use crate::compiler::emit::{emit_bool_expr, emit_expr, try_except};
 use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
+use crate::string_pool::{StringID, StringPool};
 use crate::warnings::Warning;
 use crate::{modules, wasm};
 
@@ -45,7 +44,7 @@ pub struct Compiler {
     /// rules. For example, the pool contains a single copy of the common
     /// identifier `$a`. Identifiers have an unique 32-bits ID that can
     /// be used for retrieving them from the pool.
-    ident_pool: StringInterner<DefaultBackend<IdentId>>,
+    ident_pool: StringPool,
 
     /// Builder for creating the WebAssembly module that contains the code
     /// for all rule conditions.
@@ -72,7 +71,7 @@ impl Compiler {
             rules: Vec::new(),
             patterns: Vec::new(),
             report_builder: ReportBuilder::new(),
-            ident_pool: StringInterner::default(),
+            ident_pool: StringPool::new(),
             wasm_mod: wasm::ModuleBuilder::new(),
             sym_tbl: SymbolTable::new(),
         }
@@ -297,7 +296,7 @@ impl Default for Compiler {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-pub(crate) type IdentId = SymbolU32;
+pub(crate) type IdentId = StringID;
 
 /// ID associated to each pattern.
 pub(crate) type PatternId = i32;
@@ -332,7 +331,7 @@ struct Context<'a> {
     warnings: &'a mut Vec<Warning>,
 
     /// Pool with identifiers used in the rules.
-    ident_pool: &'a StringInterner<DefaultBackend<IdentId>>,
+    ident_pool: &'a StringPool,
 
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
@@ -347,7 +346,7 @@ impl<'a> Context<'a> {
     /// Panics if no identifier has the provided [`IdentID`].
     #[inline]
     fn resolve_ident(&self, ident_id: IdentId) -> &str {
-        self.ident_pool.resolve(ident_id).unwrap()
+        self.ident_pool.get(ident_id).unwrap()
     }
 
     /// Given a pattern identifier (e.g. `$a`) search for it in the current
@@ -374,7 +373,7 @@ pub struct CompiledRules {
     /// Pool with identifiers used in the rules. Each identifier has its
     /// own [`IdentID`], which can be used for retrieving the identifier
     /// from the pool as a `&str`.
-    ident_pool: StringInterner<DefaultBackend<IdentId>>,
+    ident_pool: StringPool,
 
     /// WebAssembly module containing the code for all rule conditions.
     wasm_mod: Module,

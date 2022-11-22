@@ -1,6 +1,5 @@
 use crate::compiler::{Compiler, IdentId};
 use crate::scanner::Scanner;
-use string_interner::Symbol;
 
 #[test]
 fn scan() {
@@ -49,15 +48,9 @@ rule rule_4 { condition: false }
 
     let mut iter = results.iter();
 
-    assert_eq!(
-        iter.next().unwrap().ident,
-        IdentId::try_from_usize(0).unwrap()
-    );
+    assert_eq!(iter.next().unwrap().ident.id(), 0);
 
     let mut iter = results.iter_non_matches();
 
-    assert_eq!(
-        iter.next().unwrap().ident,
-        IdentId::try_from_usize(1).unwrap()
-    );
+    assert_eq!(iter.next().unwrap().ident.id(), 1);
 }

@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::Display;
 
 use crate::ast::Type;
-use bstr::BString;
 
 pub mod ast;
 pub mod compiler;
@@ -14,6 +12,7 @@ pub use warnings::*;
 mod ascii_tree;
 mod modules;
 mod report;
+mod string_pool;
 mod symbol_table;
 mod warnings;
 mod wasm;
