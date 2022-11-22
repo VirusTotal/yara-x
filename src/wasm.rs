@@ -21,11 +21,14 @@ the functions exposed to them by YARA's WebAssembly runtime.
 
 use crate::compiler::{PatternId, RuleId};
 use lazy_static::lazy_static;
+use std::ops::Add;
 use walrus::InstrSeqBuilder;
-use walrus::ValType::{I32, I64};
-use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
+use walrus::ValType::{Externref, I32, I64};
+use wasmtime::ExternRef;
+use wasmtime::{AsContextMut, Caller, Config, Engine, Linker, ValType};
 
 use crate::scanner::ScanContext;
+use crate::string_pool::StringId;
 
 /// Builds the WebAssembly module for a set of compiled rules.
 pub(crate) struct ModuleBuilder {
@@ -56,13 +59,31 @@ impl ModuleBuilder {
         let (is_pat_match_in, _) =
             module.add_import_func("internal", "is_pat_match_in", ty);
 
+        let ty = module.types.add(&[I32], &[Externref]);
+        let (lit_lookup, _) =
+            module.add_import_func("internal", "lit_lookup", ty);
+
+        let ty = module.types.add(&[], &[Externref]);
+        let (test, _) = module.add_import_func("internal", "test", ty);
+
+        let ty = module.types.add(&[Externref], &[Externref]);
+        let (concat, _) = module.add_import_func("internal", "concat", ty);
+
+        let ty = module.types.add(&[Externref], &[]);
+        let (dbg, _) = module.add_import_func("internal", "dbg", ty);
+
         let wasm_symbols = WasmSymbols {
             rule_match,
             is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
+            lit_lookup,
+            test,
+            concat,
+            dbg,
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
+            ref_tmp: module.locals.add(Externref),
             exception_flag: module.locals.add(I32),
         };
 
@@ -120,9 +141,16 @@ pub(crate) struct WasmSymbols {
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
     pub is_pat_match_in: walrus::FunctionId,
 
+    pub lit_lookup: walrus::FunctionId,
+
+    pub test: walrus::FunctionId,
+    pub concat: walrus::FunctionId,
+    pub dbg: walrus::FunctionId,
+
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
+    pub ref_tmp: walrus::LocalId,
 
     /// Set to 1 when an exception is raised. This is used by the exception
     /// handling logic.
@@ -142,12 +170,20 @@ lazy_static! {
         linker
             .func_wrap("internal", "is_pat_match_in", is_pat_match_in)
             .unwrap();
+
+        linker.func_wrap("internal", "test", test).unwrap();
+        linker.func_wrap("internal", "concat", concat).unwrap();
+        linker.func_wrap("internal", "dbg", dbg).unwrap();
+
         linker
     };
 }
 
 /// Invoked from WebAssembly to notify when a rule matches.
-fn rule_match(mut caller: Caller<'_, ScanContext<'_>>, rule_id: RuleId) {
+pub(crate) fn rule_match(
+    mut caller: Caller<'_, ScanContext>,
+    rule_id: RuleId,
+) {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
 
@@ -160,7 +196,7 @@ fn rule_match(mut caller: Caller<'_, ScanContext<'_>>, rule_id: RuleId) {
 ///
 /// Returns 1 if the pattern identified by `pattern_id` matches, or 0 if
 /// otherwise.
-fn is_pat_match(
+pub(crate) fn is_pat_match(
     caller: Caller<'_, ScanContext>,
     pattern_id: PatternId,
 ) -> i32 {
@@ -173,7 +209,7 @@ fn is_pat_match(
 ///
 /// Returns 1 if the pattern identified by `pattern_id` matches at `offset`,
 /// or 0 if otherwise.
-fn is_pat_match_at(
+pub(crate) fn is_pat_match_at(
     caller: Caller<'_, ScanContext>,
     pattern_id: PatternId,
     offset: i64,
@@ -187,7 +223,7 @@ fn is_pat_match_at(
 ///
 /// Returns 1 if the pattern identified by `pattern_id` matches at some offset
 /// in the range [`lower_bound`, `upper_bound`].
-fn is_pat_match_in(
+pub(crate) fn is_pat_match_in(
     caller: Caller<'_, ScanContext>,
     pattern_id: PatternId,
     lower_bound: i64,
@@ -197,6 +233,42 @@ fn is_pat_match_in(
     0
 }
 
-fn test_undef(caller: Caller<'_, ScanContext>) -> (i64, i32) {
-    (1, 0)
+pub(crate) fn lit_lookup(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: StringId,
+) -> Option<ExternRef> {
+    None
+}
+
+pub(crate) fn dbg(
+    caller: Caller<'_, ScanContext>,
+    extern_ref: Option<ExternRef>,
+) {
+    let ext_ref = extern_ref.unwrap();
+    let s = ext_ref.data().downcast_ref::<String>().unwrap();
+    dbg!(s);
+}
+
+pub(crate) enum Str {
+    String(String),
+}
+
+pub(crate) fn test(caller: Caller<'_, ScanContext>) -> Option<ExternRef> {
+    Some(ExternRef::new(Str::String("foo".to_string())))
+}
+
+pub(crate) fn concat(
+    caller: Caller<'_, ScanContext>,
+    extern_ref: Option<ExternRef>,
+) -> Option<ExternRef> {
+    let ext_ref = extern_ref.unwrap();
+    let s = ext_ref.data().downcast_ref::<Str>().unwrap();
+
+    if let Str::String(s) = s {
+        let s = String::from(s);
+        let s1 = s.add("bar");
+        return Some(ExternRef::new(s1));
+    }
+
+    None
 }

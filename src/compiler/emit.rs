@@ -2,6 +2,7 @@ use crate::ast::MatchAnchor;
 use crate::ast::{Expr, TypeHint};
 use crate::compiler::Context;
 use crate::Type;
+use bstr::ByteSlice;
 use std::cell::RefCell;
 use walrus::ir::{BinaryOp, UnaryOp};
 use walrus::InstrSeqBuilder;
@@ -111,10 +112,14 @@ macro_rules! emit_comparison_op {
         emit_const_or_code!($instr, $expr.type_hint(), {
             match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
                 (Type::Integer, Type::Integer) => {
-                    $instr.binop(BinaryOp::$int_op)
+                    $instr.binop(BinaryOp::$int_op);
                 }
                 (Type::Float, Type::Float) => {
-                    $instr.binop(BinaryOp::$float_op)
+                    $instr.binop(BinaryOp::$float_op);
+                }
+                (Type::String, Type::String) => {
+                    // TODO
+                    $instr.i32_const(0);
                 }
                 _ => unreachable!(),
             };
@@ -202,11 +207,37 @@ pub(super) fn emit_expr(
         Expr::LiteralFlt(lit) => {
             instr.f64_const(lit.value);
         }
-        Expr::LiteralStr(_) => {
-            // TODO
+        Expr::LiteralStr(lit) => {
+            let string_id =
+                ctx.borrow_mut().lit_pool.get_or_intern(lit.value.as_bstr());
         }
         Expr::Ident(ident) => {
-            emit_const_or_code!(instr, ident.type_hint(), {});
+            let type_hint = ident.type_hint();
+            emit_const_or_code!(instr, type_hint, {
+                match type_hint {
+                    TypeHint::Bool(_) => {
+                        todo!();
+                    }
+                    TypeHint::Integer(_) => {
+                        todo!();
+                    }
+                    TypeHint::Float(_) => {
+                        todo!();
+                    }
+                    TypeHint::String(_) => {
+                        todo!();
+                    }
+                    TypeHint::Struct => {
+                        todo!();
+                    }
+                    _ => {
+                        // At this point the type of the identifier should be
+                        // known, as the type hint should be updated during
+                        // the semantic check.
+                        unreachable!();
+                    }
+                }
+            });
         }
         Expr::PatternMatch(pattern) => {
             let pattern_id = ctx
@@ -244,7 +275,7 @@ pub(super) fn emit_expr(
             // TODO
         }
         Expr::FieldAccess(_) => {
-            // TODO
+            todo!();
         }
         Expr::FnCall(_) => {
             // TODO

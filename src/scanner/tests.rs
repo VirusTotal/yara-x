@@ -7,17 +7,17 @@ fn scan() {
         .add_source(
             r#"
 rule test {
-  strings: 
-    $a = "foo" 
   condition:
-    $a
+    "foo" == "bar"
 }"#,
         )
         .unwrap()
         .build()
         .unwrap();
 
-    let scanner = Scanner::new(&rules).scan(&[]);
+    let mut scanner = Scanner::new(&rules);
+    let data = [];
+    let res = scanner.scan(&data);
 
     //assert!(false);
 }
@@ -38,11 +38,8 @@ rule rule_4 { condition: false }
         .unwrap();
 
     let mut scanner = Scanner::new(&rules);
-
-    let results = {
-        let data = &[];
-        scanner.scan(data)
-    };
+    let data = &[];
+    let results = scanner.scan(data);
 
     assert_eq!(results.matching_rules(), 2);
 

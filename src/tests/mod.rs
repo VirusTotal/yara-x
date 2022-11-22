@@ -9,8 +9,9 @@ macro_rules! condition_true {
             .unwrap()
             .build()
             .unwrap();
+        let mut scanner = crate::scanner::Scanner::new(&rules);
         assert_eq!(
-            crate::scanner::Scanner::new(&rules).scan(&[]).matching_rules(),
+            scanner.scan(&[]).matching_rules(),
             1,
             "`{}` should be true, but it is false",
             $condition
@@ -26,8 +27,9 @@ macro_rules! condition_false {
             .unwrap()
             .build()
             .unwrap();
+        let mut scanner = crate::scanner::Scanner::new(&rules);
         assert_eq!(
-            crate::scanner::Scanner::new(&rules).scan(&[]).matching_rules(),
+            scanner.scan(&[]).matching_rules(),
             0,
             "`{}` should be false, but it is true",
             $condition
@@ -102,4 +104,26 @@ fn boolean_casting() {
     condition_false!("not 1");
     condition_true!("not 0.0");
     condition_false!("not 1.0");
+}
+
+#[test]
+#[cfg(feature = "test_proto2-module")]
+fn test_proto2_module() {
+    let rules = crate::compiler::Compiler::new()
+        .add_source(
+            r#"
+        import "test_proto2"
+        
+        //rule test {
+        //  condition:
+        //    test_proto2.enum.ENUM_ITEM_1 == 1 
+        //}
+        "#,
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+    assert_eq!(scanner.scan(&[]).matching_rules(), 0);
 }
