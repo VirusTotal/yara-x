@@ -318,6 +318,8 @@ struct Context<'a> {
     /// symbols are looked up in `root_sym_tbl` instead.
     current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
 
+    /// Table with all the symbols (functions, variables) used by WebAssembly
+    /// code.
     wasm_symbols: WasmSymbols,
 
     /// Source code that is being compiled.
@@ -334,6 +336,8 @@ struct Context<'a> {
 
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
+
+    /// True if [`emit::raise`] has been used.
     raise_emitted: bool,
 }
 
