@@ -1,4 +1,4 @@
-use crate::compiler::{Compiler, IdentId};
+use crate::compiler::Compiler;
 use crate::scanner::Scanner;
 
 #[test]
@@ -15,9 +15,7 @@ rule test {
         .build()
         .unwrap();
 
-    let mut scanner = Scanner::new(&rules);
-    let data = [];
-    let res = scanner.scan(&data);
+    let scanner = Scanner::new(&rules).scan(&[]);
 
     //assert!(false);
 }
@@ -38,8 +36,7 @@ rule rule_4 { condition: false }
         .unwrap();
 
     let mut scanner = Scanner::new(&rules);
-    let data = &[];
-    let results = scanner.scan(data);
+    let results = scanner.scan(&[]);
 
     assert_eq!(results.matching_rules(), 2);
 

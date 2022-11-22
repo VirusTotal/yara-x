@@ -7,6 +7,7 @@ use crate::string_pool::BStringPool;
 use crate::wasm;
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
+use std::ptr::null;
 use std::slice::Iter;
 use wasmtime::{Store, TypedFunc};
 
@@ -15,7 +16,6 @@ mod tests;
 
 /// Scans data with already compiled YARA rules.
 pub struct Scanner<'r> {
-    compiled_rules: &'r CompiledRules,
     wasm_store: wasmtime::Store<ScanContext<'r>>,
     wasm_instance: wasmtime::Instance,
     wasm_main_fn: TypedFunc<(), ()>,
@@ -27,8 +27,9 @@ impl<'r> Scanner<'r> {
         let mut wasm_store = Store::new(
             &crate::wasm::ENGINE,
             ScanContext {
-                //scanned_data: None,
-                compiled_rules: compiled_rules,
+                compiled_rules,
+                scanned_data: null(),
+                scanned_data_len: 0,
                 rules_matching: Vec::new(),
                 rules_matching_bitmap: BitVec::repeat(
                     false,
@@ -45,7 +46,7 @@ impl<'r> Scanner<'r> {
             .get_typed_func::<(), (), _>(&mut wasm_store, "main")
             .unwrap();
 
-        Self { compiled_rules, wasm_store, wasm_instance, wasm_main_fn }
+        Self { wasm_store, wasm_instance, wasm_main_fn }
     }
 
     /// Scans a data buffer.
@@ -54,10 +55,18 @@ impl<'r> Scanner<'r> {
 
         ctx.rules_matching_bitmap.fill(false);
         ctx.rules_matching.clear();
-        //ctx.scanned_data = Some(data);
+        ctx.scanned_data = data.as_ptr();
+        ctx.scanned_data_len = data.len();
 
         // Invoke the main function.
         self.wasm_main_fn.call(&mut self.wasm_store, ()).unwrap();
+
+        let ctx = self.wasm_store.data_mut();
+
+        // Set pointer to data back to nil. This means that accessing
+        // `scanned_data` can't be read from within `ScanResults`.
+        ctx.scanned_data = null();
+        ctx.scanned_data_len = 0;
 
         ScanResults::new(self.wasm_store.data())
     }
@@ -128,7 +137,7 @@ impl<'r> Iterator for IterNonMatches<'r> {
 }
 
 /// Structure that holds information a about the current scan.
-pub(crate) struct ScanContext<'a> {
+pub(crate) struct ScanContext<'r> {
     /// Vector of bits where bit N is set to 1 if the rule with RuleID = N
     /// matched. This is used for determining whether a rule has matched
     /// or not without having to iterate the `rules_matching` vector, and
@@ -137,6 +146,9 @@ pub(crate) struct ScanContext<'a> {
     /// Vector containing the IDs of the rules that matched.
     pub(crate) rules_matching: Vec<RuleId>,
     /// Data being scanned.
-    //pub(crate) scanned_data: Option<&'d [u8]>,
-    pub(crate) compiled_rules: &'a CompiledRules,
+    pub(crate) scanned_data: *const u8,
+    /// Length of data being scanned.
+    pub(crate) scanned_data_len: usize,
+    /// Compiled rules for this scan.
+    pub(crate) compiled_rules: &'r CompiledRules,
 }
