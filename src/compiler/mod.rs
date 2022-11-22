@@ -16,7 +16,7 @@ use crate::compiler::emit::{emit_bool_expr, emit_expr, try_except};
 use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
-use crate::string_pool::{StringID, StringPool};
+use crate::string_pool::{BStringPool, StringId, StringPool};
 use crate::warnings::Warning;
 use crate::{modules, wasm};
 
@@ -46,6 +46,11 @@ pub struct Compiler {
     /// be used for retrieving them from the pool.
     ident_pool: StringPool,
 
+    /// Similar to `ident_pool` but for string literals found in the source
+    /// code. As literal strings in YARA can contain arbitrary bytes, we
+    /// must a pool capable of storing [`bstr::BString`] instead of [`String`].
+    lit_pool: BStringPool,
+
     /// Builder for creating the WebAssembly module that contains the code
     /// for all rule conditions.
     wasm_mod: wasm::ModuleBuilder,
@@ -72,6 +77,7 @@ impl Compiler {
             patterns: Vec::new(),
             report_builder: ReportBuilder::new(),
             ident_pool: StringPool::new(),
+            lit_pool: BStringPool::new(),
             wasm_mod: wasm::ModuleBuilder::new(),
             sym_tbl: SymbolTable::new(),
         }
@@ -148,6 +154,7 @@ impl Compiler {
                     root_sym_tbl: &self.sym_tbl,
                     current_struct: None,
                     ident_pool: &self.ident_pool,
+                    lit_pool: &mut self.lit_pool,
                     report_builder: &self.report_builder,
                     current_rule: self.rules.last().unwrap(),
                     wasm_symbols: self.wasm_mod.wasm_symbols(),
@@ -227,6 +234,7 @@ impl Compiler {
             compiled_wasm_mod,
             wasm_mod,
             ident_pool: self.ident_pool,
+            lit_pool: self.lit_pool,
             patterns: Vec::new(),
             rules: self.rules,
         })
@@ -296,7 +304,7 @@ impl Default for Compiler {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-pub(crate) type IdentId = StringID;
+pub(crate) type IdentId = StringId;
 
 /// ID associated to each pattern.
 pub(crate) type PatternId = i32;
@@ -332,6 +340,9 @@ struct Context<'a> {
 
     /// Pool with identifiers used in the rules.
     ident_pool: &'a StringPool,
+
+    /// Pool with literal strings used in the rules.
+    lit_pool: &'a mut BStringPool,
 
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
@@ -371,9 +382,14 @@ impl<'a> Context<'a> {
 /// This is the result from [`Compiler::proto`].
 pub struct CompiledRules {
     /// Pool with identifiers used in the rules. Each identifier has its
-    /// own [`IdentID`], which can be used for retrieving the identifier
+    /// own [`IdentId`], which can be used for retrieving the identifier
     /// from the pool as a `&str`.
     ident_pool: StringPool,
+
+    /// Pool with literal strings used in the rules. Each literal has its
+    /// own [`StringId`], which can be used for retrieving the literal
+    /// string as `&BStr`.
+    lit_pool: BStringPool,
 
     /// WebAssembly module containing the code for all rule conditions.
     wasm_mod: Module,
@@ -382,13 +398,13 @@ pub struct CompiledRules {
     /// platform.
     compiled_wasm_mod: wasmtime::Module,
 
-    /// Vector containing all the compiled rules. A [`RuleID`] is an index
+    /// Vector containing all the compiled rules. A [`RuleId`] is an index
     /// in this vector.
     rules: Vec<CompiledRule>,
 
     /// Vector with all the patterns used in the rules. This vector has not
     /// duplicated items, if two different rules use the "MZ" pattern, it
-    /// appears in this list once. A [`PatternID`] is an index in this
+    /// appears in this list once. A [`PatternId`] is an index in this
     /// vector.
     patterns: Vec<Pattern>,
 }
@@ -398,6 +414,11 @@ impl CompiledRules {
     #[inline]
     pub fn rules(&self) -> &[CompiledRule] {
         self.rules.as_slice()
+    }
+
+    #[inline]
+    pub(crate) fn lit_pool(&self) -> &BStringPool {
+        &self.lit_pool
     }
 
     #[inline]

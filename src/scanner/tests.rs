@@ -1,4 +1,4 @@
-use crate::compiler::{Compiler, IdentId};
+use crate::compiler::Compiler;
 use crate::scanner::Scanner;
 
 #[test]
@@ -7,10 +7,8 @@ fn scan() {
         .add_source(
             r#"
 rule test {
-  strings: 
-    $a = "foo" 
   condition:
-    $a
+    "foo" == "bar"
 }"#,
         )
         .unwrap()
@@ -38,11 +36,7 @@ rule rule_4 { condition: false }
         .unwrap();
 
     let mut scanner = Scanner::new(&rules);
-
-    let results = {
-        let data = &[];
-        scanner.scan(data)
-    };
+    let results = scanner.scan(&[]);
 
     assert_eq!(results.matching_rules(), 2);
 

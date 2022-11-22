@@ -103,3 +103,25 @@ fn boolean_casting() {
     condition_true!("not 0.0");
     condition_false!("not 1.0");
 }
+
+#[test]
+#[cfg(feature = "test_proto2-module")]
+fn test_proto2_module() {
+    let rules = crate::compiler::Compiler::new()
+        .add_source(
+            r#"
+        import "test_proto2"
+        
+        //rule test {
+        //  condition:
+        //    test_proto2.enum.ENUM_ITEM_1 == 1 
+        //}
+        "#,
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+    assert_eq!(scanner.scan(&[]).matching_rules(), 0);
+}
