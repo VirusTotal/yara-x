@@ -12,6 +12,12 @@ impl StringId {
     }
 }
 
+impl From<i64> for StringId {
+    fn from(v: i64) -> Self {
+        Self(v as u32)
+    }
+}
+
 /// StringPool is a data structure for interning strings.
 ///
 /// For each interned string it returns a [`StringID`] that can be used

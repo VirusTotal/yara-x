@@ -20,6 +20,7 @@ the functions exposed to them by YARA's WebAssembly runtime.
  */
 
 use crate::compiler::{PatternId, RuleId};
+use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
 use std::ops::Add;
 use walrus::InstrSeqBuilder;
@@ -59,28 +60,75 @@ impl ModuleBuilder {
         let (is_pat_match_in, _) =
             module.add_import_func("internal", "is_pat_match_in", ty);
 
-        let ty = module.types.add(&[I32], &[Externref]);
-        let (lit_lookup, _) =
-            module.add_import_func("internal", "lit_lookup", ty);
+        let ty = module.types.add(&[I64], &[Externref]);
+        let (literal_to_ref, _) =
+            module.add_import_func("internal", "literal_to_ref", ty);
 
-        let ty = module.types.add(&[], &[Externref]);
-        let (test, _) = module.add_import_func("internal", "test", ty);
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_eq, _) = module.add_import_func("internal", "str_eq", ty);
 
-        let ty = module.types.add(&[Externref], &[Externref]);
-        let (concat, _) = module.add_import_func("internal", "concat", ty);
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_neq, _) = module.add_import_func("internal", "str_neq", ty);
 
-        let ty = module.types.add(&[Externref], &[]);
-        let (dbg, _) = module.add_import_func("internal", "dbg", ty);
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_gt, _) = module.add_import_func("internal", "str_gt", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_lt, _) = module.add_import_func("internal", "str_lt", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_ge, _) = module.add_import_func("internal", "str_ge", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_le, _) = module.add_import_func("internal", "str_le", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_contains, _) =
+            module.add_import_func("internal", "str_contains", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_startswith, _) =
+            module.add_import_func("internal", "str_startswith", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_endswith, _) =
+            module.add_import_func("internal", "str_endswith", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_icontains, _) =
+            module.add_import_func("internal", "str_icontains", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_istartswith, _) =
+            module.add_import_func("internal", "str_istartswith", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_iendswith, _) =
+            module.add_import_func("internal", "str_iendswith", ty);
+
+        let ty = module.types.add(&[Externref, Externref], &[I32]);
+        let (str_iequals, _) =
+            module.add_import_func("internal", "str_iequals", ty);
 
         let wasm_symbols = WasmSymbols {
             rule_match,
             is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
-            lit_lookup,
-            test,
-            concat,
-            dbg,
+            literal_to_ref,
+            str_eq,
+            str_neq,
+            str_lt,
+            str_gt,
+            str_le,
+            str_ge,
+            str_contains,
+            str_startswith,
+            str_endswith,
+            str_icontains,
+            str_istartswith,
+            str_iendswith,
+            str_iequals,
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
             ref_tmp: module.locals.add(Externref),
@@ -113,6 +161,153 @@ impl ModuleBuilder {
     }
 }
 
+/// String types handled by YARA's WebAssembly runtime.
+///
+/// At runtime, when the the WebAssembly code generated for rule conditions is
+/// being executed, text strings can adopt multiple forms. The difference
+/// between them resides in the place in which the string's data is stored.
+///
+/// For example, literal strings appearing in the source code are stored in
+/// a string pool created at compile time, these strings are identified by the
+/// [`StringId`] returned by the pool. Instead of making copies of those
+/// literal strings, the runtime passes the [`StringId`] around when referring
+/// to them.
+///
+/// Similarly, functions exported by YARA modules can return strings that
+/// appear verbatim in the data being scanned. Instead of making a copy, the
+/// runtime passes around only the offset within the data where the string
+/// starts and its length.
+///
+/// In some other cases a function may need to return a string that doesn't
+/// appear neither in the scanned data nor as a literal in the source code,
+/// in such cases the runtime needs to allocate memory for storing the
+/// string.
+pub(crate) enum RuntimeString {
+    /// A literal string appearing in the source code. The string is identified
+    /// by its [`StringId`] within the literal strings pool.
+    Literal(StringId),
+    /// A string represented found in the scanned data, represented by the
+    /// offset within the data and its length.
+    Slice { offset: usize, length: usize },
+    /// A string owned by the runtime.
+    Owned(BString),
+}
+
+impl RuntimeString {
+    /// Returns this string as a &[`BStr`].
+    fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
+        match self {
+            RuntimeString::Literal(id) => {
+                ctx.compiled_rules.lit_pool().get(*id).unwrap()
+            }
+            RuntimeString::Slice { offset, length } => {
+                let slice = unsafe {
+                    std::slice::from_raw_parts::<u8>(
+                        ctx.scanned_data,
+                        ctx.scanned_data_len,
+                    )
+                };
+                BStr::new(&slice[*offset..*offset + *length])
+            }
+            RuntimeString::Owned(s) => s.as_bstr(),
+        }
+    }
+
+    #[inline]
+    fn eq(&self, other: &Self, ctx: &ScanContext) -> bool {
+        self.as_bstr(ctx).eq(other.as_bstr(ctx))
+    }
+
+    #[inline]
+    fn ne(&self, other: &Self, ctx: &ScanContext) -> bool {
+        self.as_bstr(ctx).ne(other.as_bstr(ctx))
+    }
+
+    #[inline]
+    fn lt(&self, other: &Self, ctx: &ScanContext) -> bool {
+        self.as_bstr(ctx).lt(other.as_bstr(ctx))
+    }
+
+    #[inline]
+    fn gt(&self, other: &Self, ctx: &ScanContext) -> bool {
+        self.as_bstr(ctx).gt(other.as_bstr(ctx))
+    }
+
+    #[inline]
+    fn le(&self, other: &Self, ctx: &ScanContext) -> bool {
+        self.as_bstr(ctx).le(other.as_bstr(ctx))
+    }
+
+    #[inline]
+    fn ge(&self, other: &Self, ctx: &ScanContext) -> bool {
+        self.as_bstr(ctx).ge(other.as_bstr(ctx))
+    }
+
+    #[inline]
+    fn contains(
+        &self,
+        other: &Self,
+        ctx: &ScanContext,
+        case_insensitive: bool,
+    ) -> bool {
+        if case_insensitive {
+            let this = self.as_bstr(ctx).to_lowercase();
+            let other = other.as_bstr(ctx).to_lowercase();
+            this.contains_str(other)
+        } else {
+            self.as_bstr(ctx).contains_str(other.as_bstr(ctx))
+        }
+    }
+
+    #[inline]
+    fn starts_with(
+        &self,
+        other: &Self,
+        ctx: &ScanContext,
+        case_insensitive: bool,
+    ) -> bool {
+        if case_insensitive {
+            let this = self.as_bstr(ctx).to_lowercase();
+            let other = other.as_bstr(ctx).to_lowercase();
+            this.starts_with_str(other)
+        } else {
+            self.as_bstr(ctx).starts_with_str(other.as_bstr(ctx))
+        }
+    }
+
+    #[inline]
+    fn ends_with(
+        &self,
+        other: &Self,
+        ctx: &ScanContext,
+        case_insensitive: bool,
+    ) -> bool {
+        if case_insensitive {
+            let this = self.as_bstr(ctx).to_lowercase();
+            let other = other.as_bstr(ctx).to_lowercase();
+            this.ends_with_str(other)
+        } else {
+            self.as_bstr(ctx).ends_with_str(other.as_bstr(ctx))
+        }
+    }
+
+    #[inline]
+    fn equals(
+        &self,
+        other: &Self,
+        ctx: &ScanContext,
+        case_insensitive: bool,
+    ) -> bool {
+        if case_insensitive {
+            let this = self.as_bstr(ctx).to_lowercase();
+            let other = other.as_bstr(ctx).to_lowercase();
+            this.eq(&other)
+        } else {
+            self.as_bstr(ctx).eq(other.as_bstr(ctx))
+        }
+    }
+}
+
 /// Table with functions and variables used by the WebAssembly module.
 ///
 /// The WebAssembly module generated for evaluating rule conditions needs to
@@ -141,11 +336,29 @@ pub(crate) struct WasmSymbols {
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
     pub is_pat_match_in: walrus::FunctionId,
 
-    pub lit_lookup: walrus::FunctionId,
+    /// Creates a [`ExternRef`] from a [`StringId`] that identifies a string
+    /// in the literals pool.
+    /// Signature: (string_id: i64) -> (Externref)
+    pub literal_to_ref: walrus::FunctionId,
 
-    pub test: walrus::FunctionId,
-    pub concat: walrus::FunctionId,
-    pub dbg: walrus::FunctionId,
+    /// String comparison functions.
+    /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
+    pub str_eq: walrus::FunctionId,
+    pub str_neq: walrus::FunctionId,
+    pub str_lt: walrus::FunctionId,
+    pub str_gt: walrus::FunctionId,
+    pub str_le: walrus::FunctionId,
+    pub str_ge: walrus::FunctionId,
+
+    /// String operation functions.
+    /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
+    pub str_contains: walrus::FunctionId,
+    pub str_startswith: walrus::FunctionId,
+    pub str_endswith: walrus::FunctionId,
+    pub str_icontains: walrus::FunctionId,
+    pub str_istartswith: walrus::FunctionId,
+    pub str_iendswith: walrus::FunctionId,
+    pub str_iequals: walrus::FunctionId,
 
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
@@ -162,8 +375,33 @@ lazy_static! {
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
     pub(crate) static ref LINKER: Linker<ScanContext<'static>> = {
         let mut linker = Linker::<ScanContext>::new(&ENGINE);
+
+        linker.func_wrap("internal", "str_eq", str_eq).unwrap();
+        linker.func_wrap("internal", "str_neq", str_neq).unwrap();
+        linker.func_wrap("internal", "str_lt", str_lt).unwrap();
+        linker.func_wrap("internal", "str_gt", str_gt).unwrap();
+        linker.func_wrap("internal", "str_le", str_le).unwrap();
+        linker.func_wrap("internal", "str_ge", str_ge).unwrap();
+
+        linker.func_wrap("internal", "str_contains", str_contains).unwrap();
+        linker
+            .func_wrap("internal", "str_startswith", str_startswith)
+            .unwrap();
+
+        linker.func_wrap("internal", "str_endswith", str_endswith).unwrap();
+
+        linker.func_wrap("internal", "str_icontains", str_icontains).unwrap();
+        linker
+            .func_wrap("internal", "str_istartswith", str_istartswith)
+            .unwrap();
+
+        linker.func_wrap("internal", "str_iequals", str_iequals).unwrap();
+
+        linker.func_wrap("internal", "str_iendswith", str_iendswith).unwrap();
+
         linker.func_wrap("internal", "rule_match", rule_match).unwrap();
         linker.func_wrap("internal", "is_pat_match", is_pat_match).unwrap();
+
         linker
             .func_wrap("internal", "is_pat_match_at", is_pat_match_at)
             .unwrap();
@@ -171,9 +409,9 @@ lazy_static! {
             .func_wrap("internal", "is_pat_match_in", is_pat_match_in)
             .unwrap();
 
-        linker.func_wrap("internal", "test", test).unwrap();
-        linker.func_wrap("internal", "concat", concat).unwrap();
-        linker.func_wrap("internal", "dbg", dbg).unwrap();
+        linker
+            .func_wrap("internal", "literal_to_ref", literal_to_ref)
+            .unwrap();
 
         linker
     };
@@ -233,42 +471,66 @@ pub(crate) fn is_pat_match_in(
     0
 }
 
-pub(crate) fn lit_lookup(
+/// Creates a new [`RuntimeString`] for a literal string, and wraps it in a
+/// [`ExternRef`].
+pub(crate) fn literal_to_ref(
     caller: Caller<'_, ScanContext>,
-    pattern_id: StringId,
+    string_id: i64,
 ) -> Option<ExternRef> {
-    None
+    Some(ExternRef::new(RuntimeString::Literal(string_id.into())))
 }
 
-pub(crate) fn dbg(
-    caller: Caller<'_, ScanContext>,
-    extern_ref: Option<ExternRef>,
-) {
-    let ext_ref = extern_ref.unwrap();
-    let s = ext_ref.data().downcast_ref::<String>().unwrap();
-    dbg!(s);
+/// Generates string comparison functions.
+macro_rules! str_cmp_fn {
+    ($name:ident, $op:tt) => {
+        pub(crate) fn $name(
+            caller: Caller<'_, ScanContext>,
+            lhs: Option<ExternRef>,
+            rhs: Option<ExternRef>,
+        ) -> i32 {
+            let lhs_ref = lhs.unwrap();
+            let rhs_ref = rhs.unwrap();
+            let lhs_str =
+                lhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
+            let rhs_str =
+                rhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
+
+            lhs_str.$op(rhs_str, caller.data()) as i32
+        }
+    };
 }
 
-pub(crate) enum Str {
-    String(String),
+str_cmp_fn!(str_eq, eq);
+str_cmp_fn!(str_neq, ne);
+str_cmp_fn!(str_lt, lt);
+str_cmp_fn!(str_gt, gt);
+str_cmp_fn!(str_le, le);
+str_cmp_fn!(str_ge, ge);
+
+/// Generates string operation functions.
+macro_rules! str_op_fn {
+    ($name:ident, $op:tt, $case_insensitive:literal) => {
+        pub(crate) fn $name(
+            caller: Caller<'_, ScanContext>,
+            lhs: Option<ExternRef>,
+            rhs: Option<ExternRef>,
+        ) -> i32 {
+            let lhs_ref = lhs.unwrap();
+            let rhs_ref = rhs.unwrap();
+            let lhs_str =
+                lhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
+            let rhs_str =
+                rhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
+
+            lhs_str.$op(rhs_str, caller.data(), $case_insensitive) as i32
+        }
+    };
 }
 
-pub(crate) fn test(caller: Caller<'_, ScanContext>) -> Option<ExternRef> {
-    Some(ExternRef::new(Str::String("foo".to_string())))
-}
-
-pub(crate) fn concat(
-    caller: Caller<'_, ScanContext>,
-    extern_ref: Option<ExternRef>,
-) -> Option<ExternRef> {
-    let ext_ref = extern_ref.unwrap();
-    let s = ext_ref.data().downcast_ref::<Str>().unwrap();
-
-    if let Str::String(s) = s {
-        let s = String::from(s);
-        let s1 = s.add("bar");
-        return Some(ExternRef::new(s1));
-    }
-
-    None
-}
+str_op_fn!(str_contains, contains, false);
+str_op_fn!(str_startswith, starts_with, false);
+str_op_fn!(str_endswith, ends_with, false);
+str_op_fn!(str_icontains, contains, true);
+str_op_fn!(str_istartswith, starts_with, true);
+str_op_fn!(str_iendswith, ends_with, true);
+str_op_fn!(str_iequals, equals, true);

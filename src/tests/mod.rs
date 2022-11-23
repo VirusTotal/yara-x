@@ -87,6 +87,36 @@ fn bitwise_operations() {
 }
 
 #[test]
+fn string_operations() {
+    condition_true!(r#""foo" == "foo""#);
+    condition_true!(r#""foo" != "bar""#);
+    condition_true!(r#""aab" > "aaa""#);
+    condition_true!(r#""aab" >= "aaa""#);
+    condition_true!(r#""aaa" >= "aaa""#);
+    condition_true!(r#""aaa" < "aab""#);
+    condition_true!(r#""aaa" <= "aab""#);
+    condition_true!(r#""aaa" <= "aaa""#);
+
+    condition_true!(r#""foo" contains "foo""#);
+    condition_true!(r#""foo" contains "oo""#);
+    condition_true!(r#""foo" startswith "fo""#);
+    condition_true!(r#""foo" endswith "oo""#);
+
+    condition_true!(r#""foo" icontains "FOO""#);
+    condition_true!(r#""foo" icontains "OO""#);
+    condition_true!(r#""foo" istartswith "Fo""#);
+    condition_true!(r#""foo" iendswith "OO""#);
+
+    condition_false!(r#""foo" contains "OO""#);
+    condition_false!(r#""foo" startswith "Fo""#);
+    condition_false!(r#""foo" endswith "OO""#);
+
+    condition_true!(r#""foo" iequals "FOO""#);
+    condition_true!(r#""foo" iequals "FoO""#);
+    condition_false!(r#""foo" iequals "bar""#);
+}
+
+#[test]
 fn boolean_casting() {
     condition_true!("1");
     condition_false!("0");

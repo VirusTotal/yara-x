@@ -95,11 +95,11 @@ macro_rules! emit_arithmetic_op {
             match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
                 (Type::Integer, Type::Integer) => {
                     // Both operands are integer, the operation is integer.
-                    $instr.binop(BinaryOp::$int_op)
+                    $instr.binop(BinaryOp::$int_op);
                 }
                 (Type::Float, Type::Float) => {
                     // Both operands are float, the operation is float.
-                    $instr.binop(BinaryOp::$float_op)
+                    $instr.binop(BinaryOp::$float_op);
                 }
                 _ => unreachable!(),
             };
@@ -108,7 +108,7 @@ macro_rules! emit_arithmetic_op {
 }
 
 macro_rules! emit_comparison_op {
-    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt, $float_op:tt) => {{
+    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt, $float_op:tt, $str_op:tt) => {{
         emit_const_or_code!($instr, $expr.type_hint(), {
             match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
                 (Type::Integer, Type::Integer) => {
@@ -118,8 +118,7 @@ macro_rules! emit_comparison_op {
                     $instr.binop(BinaryOp::$float_op);
                 }
                 (Type::String, Type::String) => {
-                    // TODO
-                    $instr.i32_const(0);
+                    $instr.call($ctx.borrow().wasm_symbols.$str_op);
                 }
                 _ => unreachable!(),
             };
@@ -208,8 +207,14 @@ pub(super) fn emit_expr(
             instr.f64_const(lit.value);
         }
         Expr::LiteralStr(lit) => {
+            // Put the literal string in the pool, or get its ID if it was
+            // already there.
             let string_id =
                 ctx.borrow_mut().lit_pool.get_or_intern(lit.value.as_bstr());
+
+            // Invoke the function that converts the ID into an externref.
+            instr.i64_const(string_id.id() as i64);
+            instr.call(ctx.borrow().wasm_symbols.literal_to_ref);
         }
         Expr::Ident(ident) => {
             let type_hint = ident.type_hint();
@@ -434,43 +439,76 @@ pub(super) fn emit_expr(
             emit_bitwise_op!(ctx, instr, expr, operands, I64Xor);
         }
         Expr::Eq(operands) => {
-            emit_comparison_op!(ctx, instr, expr, operands, I64Eq, F64Eq);
+            emit_comparison_op!(
+                ctx, instr, expr, operands, I64Eq, F64Eq, str_eq
+            );
         }
         Expr::Neq(operands) => {
-            emit_comparison_op!(ctx, instr, expr, operands, I64Ne, F64Ne);
+            emit_comparison_op!(
+                ctx, instr, expr, operands, I64Ne, F64Ne, str_neq
+            );
         }
         Expr::Lt(operands) => {
-            emit_comparison_op!(ctx, instr, expr, operands, I64LtS, F64Lt);
+            emit_comparison_op!(
+                ctx, instr, expr, operands, I64LtS, F64Lt, str_lt
+            );
         }
         Expr::Gt(operands) => {
-            emit_comparison_op!(ctx, instr, expr, operands, I64GtS, F64Gt);
+            emit_comparison_op!(
+                ctx, instr, expr, operands, I64GtS, F64Gt, str_gt
+            );
         }
         Expr::Le(operands) => {
-            emit_comparison_op!(ctx, instr, expr, operands, I64LeS, F64Le);
+            emit_comparison_op!(
+                ctx, instr, expr, operands, I64LeS, F64Le, str_le
+            );
         }
         Expr::Ge(operands) => {
-            emit_comparison_op!(ctx, instr, expr, operands, I64GeS, F64Ge);
+            emit_comparison_op!(
+                ctx, instr, expr, operands, I64GeS, F64Ge, str_ge
+            );
         }
-        Expr::Contains(_) => {
-            // TODO
+        Expr::Contains(operands) => {
+            emit_const_or_code!(instr, expr.type_hint(), {
+                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
+                instr.call(ctx.borrow().wasm_symbols.str_contains);
+            });
         }
-        Expr::IContains(_) => {
-            // TODO
+        Expr::IContains(operands) => {
+            emit_const_or_code!(instr, expr.type_hint(), {
+                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
+                instr.call(ctx.borrow().wasm_symbols.str_icontains);
+            });
         }
-        Expr::StartsWith(_) => {
-            // TODO
+        Expr::StartsWith(operands) => {
+            emit_const_or_code!(instr, expr.type_hint(), {
+                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
+                instr.call(ctx.borrow().wasm_symbols.str_startswith);
+            });
         }
-        Expr::IStartsWith(_) => {
-            // TODO
+        Expr::IStartsWith(operands) => {
+            emit_const_or_code!(instr, expr.type_hint(), {
+                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
+                instr.call(ctx.borrow().wasm_symbols.str_istartswith);
+            });
         }
-        Expr::EndsWith(_) => {
-            // TODO
+        Expr::EndsWith(operands) => {
+            emit_const_or_code!(instr, expr.type_hint(), {
+                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
+                instr.call(ctx.borrow().wasm_symbols.str_endswith);
+            });
         }
-        Expr::IEndsWith(_) => {
-            // TODO
+        Expr::IEndsWith(operands) => {
+            emit_const_or_code!(instr, expr.type_hint(), {
+                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
+                instr.call(ctx.borrow().wasm_symbols.str_iendswith);
+            });
         }
-        Expr::IEquals(_) => {
-            // TODO
+        Expr::IEquals(operands) => {
+            emit_const_or_code!(instr, expr.type_hint(), {
+                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
+                instr.call(ctx.borrow().wasm_symbols.str_iequals);
+            });
         }
         Expr::Of(_) => {
             // TODO
