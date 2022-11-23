@@ -792,6 +792,7 @@ impl TypeHint {
 impl From<symbol_table::TypeValue> for TypeHint {
     fn from(symbol: TypeValue) -> Self {
         match symbol {
+            TypeValue::Bool(b) => TypeHint::Bool(b),
             TypeValue::Integer(i) => TypeHint::Integer(i),
             TypeValue::Float(f) => TypeHint::Float(f),
             TypeValue::String(s) => TypeHint::String(s),
