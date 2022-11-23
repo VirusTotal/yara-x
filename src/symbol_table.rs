@@ -148,7 +148,9 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                     .to_str()
                     .map(|v| TypeValue::String(Some(BString::from(v)))),
                 RuntimeType::Enum(e) => Some(TypeValue::Struct(Rc::new(e))),
-                RuntimeType::Message(m) => Some(TypeValue::Struct(Rc::new(m))),
+                RuntimeType::Message(_) => Some(TypeValue::Struct(Rc::new(
+                    field_descriptor.get_message(self.as_ref()).clone_box(),
+                ))),
             },
             RuntimeFieldType::Repeated(_) => {
                 todo!()
@@ -205,8 +207,8 @@ mod tests {
     use crate::symbol_table::{SymbolLookup, TypeValue};
     use bstr::BString;
     use pretty_assertions::assert_eq;
-    use protobuf::Message;
     use protobuf::MessageFull;
+    use protobuf::{Message, MessageField};
 
     #[test]
     #[cfg(feature = "test_proto2-module")]
@@ -216,6 +218,11 @@ mod tests {
         proto.int32_field = Some(32);
         proto.int64_field = Some(64);
         proto.string_field = Some("foo".to_string());
+
+        let mut sub = modules::protos::test_proto2::Submessage::new();
+        sub.string_field = Some("bar".to_string());
+
+        proto.sub = MessageField::some(sub);
 
         let mut buf = Vec::new();
         proto.write_to_vec(&mut buf).unwrap();
@@ -242,6 +249,11 @@ mod tests {
         assert_eq!(
             message_dyn.lookup("enum").lookup("ENUM_ITEM_1"),
             Some(TypeValue::Integer(Some(1)))
+        );
+
+        assert_eq!(
+            message_dyn.lookup("sub").lookup("string_field"),
+            Some(TypeValue::String(Some(BString::from("bar"))))
         );
     }
 }
