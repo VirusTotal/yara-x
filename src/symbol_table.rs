@@ -4,7 +4,6 @@ use protobuf::reflect::{
     EnumDescriptor, MessageDescriptor, RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
-use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;

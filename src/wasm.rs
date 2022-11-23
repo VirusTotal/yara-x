@@ -22,11 +22,10 @@ the functions exposed to them by YARA's WebAssembly runtime.
 use crate::compiler::{PatternId, RuleId};
 use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
-use std::ops::Add;
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{Externref, I32, I64};
 use wasmtime::ExternRef;
-use wasmtime::{AsContextMut, Caller, Config, Engine, Linker, ValType};
+use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
 use crate::scanner::ScanContext;
 use crate::string_pool::StringId;

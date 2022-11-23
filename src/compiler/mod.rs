@@ -12,7 +12,7 @@ use walrus::ValType::I32;
 use walrus::{Module, ValType};
 
 use crate::ast::*;
-use crate::compiler::emit::{emit_bool_expr, emit_expr, try_except};
+use crate::compiler::emit::{emit_bool_expr, try_except};
 use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
