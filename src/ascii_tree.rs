@@ -139,8 +139,8 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
             format!("eq{}", value),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
-        Expr::Neq(expr) => Node(
-            format!("neq{}", value),
+        Expr::Ne(expr) => Node(
+            format!("ne{}", value),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Lt(expr) => Node(

@@ -353,7 +353,7 @@ pub(super) fn semcheck_expr(
             semcheck_comparison_op!(ctx, expr, ==)
         }
 
-        Expr::Neq(expr) => {
+        Expr::Ne(expr) => {
             semcheck_comparison_op!(ctx, expr, !=)
         }
 

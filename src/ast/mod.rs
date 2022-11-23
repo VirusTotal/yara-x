@@ -398,7 +398,7 @@ pub enum Expr<'src> {
     Eq(Box<BinaryExpr<'src>>),
 
     /// Not equal (`!=`) expression.
-    Neq(Box<BinaryExpr<'src>>),
+    Ne(Box<BinaryExpr<'src>>),
 
     /// Less than (`<`) expression.
     Lt(Box<BinaryExpr<'src>>),
@@ -896,7 +896,7 @@ impl<'src> Expr<'src> {
             | Expr::And(expr)
             | Expr::Or(expr)
             | Expr::Eq(expr)
-            | Expr::Neq(expr)
+            | Expr::Ne(expr)
             | Expr::Lt(expr)
             | Expr::Gt(expr)
             | Expr::Le(expr)

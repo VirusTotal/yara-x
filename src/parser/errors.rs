@@ -327,7 +327,7 @@ impl Error {
             | GrammarRule::BITWISE_OR
             | GrammarRule::BITWISE_XOR
             | GrammarRule::EQ
-            | GrammarRule::NEQ
+            | GrammarRule::NE
             | GrammarRule::GE
             | GrammarRule::GT
             | GrammarRule::LE

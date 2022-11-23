@@ -356,8 +356,8 @@ fn create_binary_expr<'src>(
         GrammarRule::EQ => {
             new_comparison_expr!(Expr::Eq, ==, lhs, rhs)
         }
-        GrammarRule::NEQ => {
-            new_comparison_expr!(Expr::Neq, !=, lhs, rhs)
+        GrammarRule::NE => {
+            new_comparison_expr!(Expr::Ne, !=, lhs, rhs)
         }
         GrammarRule::LT => {
             new_comparison_expr!(Expr::Lt, <, lhs, rhs)
@@ -1092,7 +1092,7 @@ lazy_static! {
         .op(Op::infix(GrammarRule::k_OR, Assoc::Left))
         .op(Op::infix(GrammarRule::k_AND, Assoc::Left))
         .op(Op::infix(GrammarRule::EQ, Assoc::Left)
-            | Op::infix(GrammarRule::NEQ, Assoc::Left)
+            | Op::infix(GrammarRule::NE, Assoc::Left)
             | Op::infix(GrammarRule::k_CONTAINS, Assoc::Left)
             | Op::infix(GrammarRule::k_ICONTAINS, Assoc::Left)
             | Op::infix(GrammarRule::k_STARTSWITH, Assoc::Left)

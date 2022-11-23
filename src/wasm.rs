@@ -68,7 +68,7 @@ impl ModuleBuilder {
         let (str_eq, _) = module.add_import_func("internal", "str_eq", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_neq, _) = module.add_import_func("internal", "str_neq", ty);
+        let (str_ne, _) = module.add_import_func("internal", "str_ne", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
         let (str_gt, _) = module.add_import_func("internal", "str_gt", ty);
@@ -117,7 +117,7 @@ impl ModuleBuilder {
             is_pat_match_in,
             literal_to_ref,
             str_eq,
-            str_neq,
+            str_ne,
             str_lt,
             str_gt,
             str_le,
@@ -344,7 +344,7 @@ pub(crate) struct WasmSymbols {
     /// String comparison functions.
     /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
     pub str_eq: walrus::FunctionId,
-    pub str_neq: walrus::FunctionId,
+    pub str_ne: walrus::FunctionId,
     pub str_lt: walrus::FunctionId,
     pub str_gt: walrus::FunctionId,
     pub str_le: walrus::FunctionId,
@@ -377,7 +377,7 @@ lazy_static! {
         let mut linker = Linker::<ScanContext>::new(&ENGINE);
 
         linker.func_wrap("internal", "str_eq", str_eq).unwrap();
-        linker.func_wrap("internal", "str_neq", str_neq).unwrap();
+        linker.func_wrap("internal", "str_ne", str_ne).unwrap();
         linker.func_wrap("internal", "str_lt", str_lt).unwrap();
         linker.func_wrap("internal", "str_gt", str_gt).unwrap();
         linker.func_wrap("internal", "str_le", str_le).unwrap();
@@ -501,7 +501,7 @@ macro_rules! str_cmp_fn {
 }
 
 str_cmp_fn!(str_eq, eq);
-str_cmp_fn!(str_neq, ne);
+str_cmp_fn!(str_ne, ne);
 str_cmp_fn!(str_lt, lt);
 str_cmp_fn!(str_gt, gt);
 str_cmp_fn!(str_le, le);

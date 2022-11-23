@@ -35,7 +35,7 @@ BITWISE_NOT     = { "~" }
 
 // Comparison operators.
 EQ              = { "==" }
-NEQ             = { "!=" }
+NE              = { "!=" }
 LT              = { "<" }
 LE              = { "<=" }
 GT              = { ">" }
@@ -143,7 +143,7 @@ bitwise_op = _{
 
 comparison_op = _{
   EQ                |
-  NEQ               |
+  NE               |
   LE                |
   LT                |
   GE                |

@@ -443,9 +443,9 @@ pub(super) fn emit_expr(
                 ctx, instr, expr, operands, I64Eq, F64Eq, str_eq
             );
         }
-        Expr::Neq(operands) => {
+        Expr::Ne(operands) => {
             emit_comparison_op!(
-                ctx, instr, expr, operands, I64Ne, F64Ne, str_neq
+                ctx, instr, expr, operands, I64Ne, F64Ne, str_ne
             );
         }
         Expr::Lt(operands) => {
