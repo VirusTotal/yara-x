@@ -63,6 +63,10 @@ pub struct Compiler {
     /// is an index in this vector.
     patterns: Vec<Pattern>,
 
+    /// Vector with the names of all the imported modules. The vector contains
+    /// the [`IdentId`] corresponding to the module's identifier.
+    imported_modules: Vec<IdentId>,
+
     /// Warnings generated while compiling the rules.
     warnings: Vec<Warning>,
 }
@@ -75,6 +79,7 @@ impl Compiler {
             warnings: Vec::new(),
             rules: Vec::new(),
             patterns: Vec::new(),
+            imported_modules: Vec::new(),
             report_builder: ReportBuilder::new(),
             ident_pool: StringPool::new(),
             lit_pool: BStringPool::new(),
@@ -235,6 +240,7 @@ impl Compiler {
             wasm_mod,
             ident_pool: self.ident_pool,
             lit_pool: self.lit_pool,
+            imported_modules: self.imported_modules,
             patterns: Vec::new(),
             rules: self.rules,
         })
@@ -269,7 +275,12 @@ impl Compiler {
             if let Some(module) =
                 modules::BUILTIN_MODULES.get(import.module_name.as_str())
             {
-                // ... if yes, add the module to the symbol table.
+                // ... if yes, add the module to the list of imported modules
+                // and the symbol table.
+                self.imported_modules.push(
+                    self.ident_pool.get_or_intern(import.module_name.as_str()),
+                );
+
                 self.sym_tbl.insert(
                     import.module_name.as_str(),
                     TypeValue::Struct(Rc::new(module)),
@@ -397,6 +408,10 @@ pub struct CompiledRules {
     /// WebAssembly module already compiled into native code for the current
     /// platform.
     compiled_wasm_mod: wasmtime::Module,
+
+    /// Vector with the names of all the imported modules. The vector contains
+    /// the [`IdentId`] corresponding to the module's identifier.
+    imported_modules: Vec<IdentId>,
 
     /// Vector containing all the compiled rules. A [`RuleId`] is an index
     /// in this vector.
