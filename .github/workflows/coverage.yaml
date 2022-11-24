@@ -4,14 +4,25 @@ name: Code coverage with grcov
 
 jobs:
   grcov:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os:
-        - ubuntu-latest
+        cargo-test-args:
+        - "--features test_proto2-module"
+        - "--features compile-time-optimization test_proto2-module"
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout sources
+      uses: actions/checkout@v3
+
+    - name: Setup cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Install toolchain
       uses: actions-rs/toolchain@v1
@@ -24,7 +35,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all --features compile-time-optimization test_proto2-module
+        args: ${{ matrix.cargo-test-args }}
       env:
         CARGO_INCREMENTAL: 0
         RUSTFLAGS: |
