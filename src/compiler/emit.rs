@@ -196,7 +196,7 @@ pub(super) fn emit_expr(
             instr.i32_const(0);
         }
         Expr::Filesize { .. } => {
-            // TODO
+            instr.call(ctx.borrow().wasm_symbols.filesize);
         }
         Expr::Entrypoint { .. } => {
             // TODO

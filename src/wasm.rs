@@ -43,70 +43,71 @@ impl ModuleBuilder {
         let mut module = walrus::Module::with_config(config);
 
         let ty = module.types.add(&[I32], &[]);
-        let (rule_match, _) =
-            module.add_import_func("internal", "rule_match", ty);
+        let (rule_match, _) = module.add_import_func("yr", "rule_match", ty);
 
         let ty = module.types.add(&[I32], &[I32]);
         let (is_pat_match, _) =
-            module.add_import_func("internal", "is_pat_match", ty);
+            module.add_import_func("yr", "is_pat_match", ty);
 
         let ty = module.types.add(&[I32, I64], &[I32]);
         let (is_pat_match_at, _) =
-            module.add_import_func("internal", "is_pat_match_at", ty);
+            module.add_import_func("yr", "is_pat_match_at", ty);
 
         let ty = module.types.add(&[I32, I64, I64], &[I32]);
         let (is_pat_match_in, _) =
-            module.add_import_func("internal", "is_pat_match_in", ty);
+            module.add_import_func("yr", "is_pat_match_in", ty);
 
         let ty = module.types.add(&[I64], &[Externref]);
         let (literal_to_ref, _) =
-            module.add_import_func("internal", "literal_to_ref", ty);
+            module.add_import_func("yr", "literal_to_ref", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_eq, _) = module.add_import_func("internal", "str_eq", ty);
+        let (str_eq, _) = module.add_import_func("yr", "str_eq", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_ne, _) = module.add_import_func("internal", "str_ne", ty);
+        let (str_ne, _) = module.add_import_func("yr", "str_ne", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_gt, _) = module.add_import_func("internal", "str_gt", ty);
+        let (str_gt, _) = module.add_import_func("yr", "str_gt", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_lt, _) = module.add_import_func("internal", "str_lt", ty);
+        let (str_lt, _) = module.add_import_func("yr", "str_lt", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_ge, _) = module.add_import_func("internal", "str_ge", ty);
+        let (str_ge, _) = module.add_import_func("yr", "str_ge", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_le, _) = module.add_import_func("internal", "str_le", ty);
+        let (str_le, _) = module.add_import_func("yr", "str_le", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
         let (str_contains, _) =
-            module.add_import_func("internal", "str_contains", ty);
+            module.add_import_func("yr", "str_contains", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
         let (str_startswith, _) =
-            module.add_import_func("internal", "str_startswith", ty);
+            module.add_import_func("yr", "str_startswith", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
         let (str_endswith, _) =
-            module.add_import_func("internal", "str_endswith", ty);
+            module.add_import_func("yr", "str_endswith", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
         let (str_icontains, _) =
-            module.add_import_func("internal", "str_icontains", ty);
+            module.add_import_func("yr", "str_icontains", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
         let (str_istartswith, _) =
-            module.add_import_func("internal", "str_istartswith", ty);
+            module.add_import_func("yr", "str_istartswith", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
         let (str_iendswith, _) =
-            module.add_import_func("internal", "str_iendswith", ty);
+            module.add_import_func("yr", "str_iendswith", ty);
 
         let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_iequals, _) =
-            module.add_import_func("internal", "str_iequals", ty);
+        let (str_iequals, _) = module.add_import_func("yr", "str_iequals", ty);
+
+        let ty = module.types.add(&[], &[I64]);
+        let (filesize, _) = module.add_import_func("yr", "filesize", ty);
 
         let wasm_symbols = WasmSymbols {
             rule_match,
@@ -127,6 +128,7 @@ impl ModuleBuilder {
             str_istartswith,
             str_iendswith,
             str_iequals,
+            filesize,
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
             ref_tmp: module.locals.add(Externref),
@@ -318,6 +320,10 @@ impl RuntimeString {
 /// contains the definition of some variables used by the module.
 #[derive(Clone)]
 pub(crate) struct WasmSymbols {
+    /// Ask YARA for the size of the data being scanned.
+    /// Signature: () -> (i64)     
+    pub filesize: walrus::FunctionId,
+
     /// Called when a rule matches.
     /// Signature: (rule_id: i32) -> ()
     pub rule_match: walrus::FunctionId,
@@ -374,45 +380,33 @@ lazy_static! {
     pub(crate) static ref LINKER: Linker<ScanContext<'static>> = {
         let mut linker = Linker::<ScanContext>::new(&ENGINE);
 
-        linker.func_wrap("internal", "str_eq", str_eq).unwrap();
-        linker.func_wrap("internal", "str_ne", str_ne).unwrap();
-        linker.func_wrap("internal", "str_lt", str_lt).unwrap();
-        linker.func_wrap("internal", "str_gt", str_gt).unwrap();
-        linker.func_wrap("internal", "str_le", str_le).unwrap();
-        linker.func_wrap("internal", "str_ge", str_ge).unwrap();
-
-        linker.func_wrap("internal", "str_contains", str_contains).unwrap();
-        linker
-            .func_wrap("internal", "str_startswith", str_startswith)
-            .unwrap();
-
-        linker.func_wrap("internal", "str_endswith", str_endswith).unwrap();
-
-        linker.func_wrap("internal", "str_icontains", str_icontains).unwrap();
-        linker
-            .func_wrap("internal", "str_istartswith", str_istartswith)
-            .unwrap();
-
-        linker.func_wrap("internal", "str_iequals", str_iequals).unwrap();
-
-        linker.func_wrap("internal", "str_iendswith", str_iendswith).unwrap();
-
-        linker.func_wrap("internal", "rule_match", rule_match).unwrap();
-        linker.func_wrap("internal", "is_pat_match", is_pat_match).unwrap();
-
-        linker
-            .func_wrap("internal", "is_pat_match_at", is_pat_match_at)
-            .unwrap();
-        linker
-            .func_wrap("internal", "is_pat_match_in", is_pat_match_in)
-            .unwrap();
-
-        linker
-            .func_wrap("internal", "literal_to_ref", literal_to_ref)
-            .unwrap();
+        linker.func_wrap("yr", "str_eq", str_eq).unwrap();
+        linker.func_wrap("yr", "str_ne", str_ne).unwrap();
+        linker.func_wrap("yr", "str_lt", str_lt).unwrap();
+        linker.func_wrap("yr", "str_gt", str_gt).unwrap();
+        linker.func_wrap("yr", "str_le", str_le).unwrap();
+        linker.func_wrap("yr", "str_ge", str_ge).unwrap();
+        linker.func_wrap("yr", "str_contains", str_contains).unwrap();
+        linker.func_wrap("yr", "str_startswith", str_startswith).unwrap();
+        linker.func_wrap("yr", "str_endswith", str_endswith).unwrap();
+        linker.func_wrap("yr", "str_icontains", str_icontains).unwrap();
+        linker.func_wrap("yr", "str_istartswith", str_istartswith).unwrap();
+        linker.func_wrap("yr", "str_iequals", str_iequals).unwrap();
+        linker.func_wrap("yr", "str_iendswith", str_iendswith).unwrap();
+        linker.func_wrap("yr", "rule_match", rule_match).unwrap();
+        linker.func_wrap("yr", "is_pat_match", is_pat_match).unwrap();
+        linker.func_wrap("yr", "is_pat_match_at", is_pat_match_at).unwrap();
+        linker.func_wrap("yr", "is_pat_match_in", is_pat_match_in).unwrap();
+        linker.func_wrap("yr", "literal_to_ref", literal_to_ref).unwrap();
+        linker.func_wrap("yr", "filesize", filesize).unwrap();
 
         linker
     };
+}
+
+/// Invoked from WebAssembly to ask for the size of the data being scanned.
+pub(crate) fn filesize(caller: Caller<'_, ScanContext>) -> i64 {
+    caller.data().scanned_data_len as i64
 }
 
 /// Invoked from WebAssembly to notify when a rule matches.

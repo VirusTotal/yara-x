@@ -135,6 +135,31 @@ fn boolean_casting() {
 }
 
 #[test]
+fn filesize() {
+    let rules = crate::compiler::Compiler::new()
+        .add_source(
+            r#"        
+        rule filesize_0 {
+          condition:
+            filesize == 0 
+        }
+        rule filesize_1 {
+          condition:
+            filesize == 1 
+        }
+        "#,
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(&[]).matching_rules(), 1);
+    assert_eq!(scanner.scan(&[1]).matching_rules(), 1);
+}
+
+#[test]
 #[cfg(feature = "test_proto2-module")]
 fn test_proto2_module() {
     let rules = crate::compiler::Compiler::new()
