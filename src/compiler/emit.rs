@@ -21,7 +21,7 @@ use walrus::ValType::{I32, I64};
 ///
 /// This how we emit the code for the `add` operation:
 ///
-/// ```
+/// ```text
 ///emit_const_or_code!(instr, expr.type_hint(), {
 ///    emit_expr(ctx, instr, &operands.lhs);
 ///    emit_expr(ctx, instr, &operands.rhs);
@@ -583,7 +583,7 @@ pub(super) fn emit_bool_expr(
 ///
 /// # Example
 ///
-/// ```
+/// ```text
 /// use walrus::ValType::I32;
 /// try_except(
 ///    ctx,
