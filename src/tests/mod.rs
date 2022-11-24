@@ -132,6 +132,8 @@ fn boolean_operations() {
 #[test]
 fn boolean_casting() {
     condition_true!("1");
+    condition_true!("0.5");
+    condition_false!("0.0");
     condition_false!("0");
     condition_true!("1 and true");
     condition_false!("0 and true");
