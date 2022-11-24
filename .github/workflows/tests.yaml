@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        config:
+        cargo-test-args:
         - "--no-default-features"
         - "--features compile-time-optimization"
     steps:
@@ -33,6 +33,7 @@ jobs:
     - name: Run cargo test
       uses: actions-rs/cargo@v1
       with:
-        command: test ${{ matrix.config }}
+        command: test
+        args: ${{ matrix.cargo-test-args }}
       env:
         RUSTFLAGS: -Awarnings  # Allow all warnings
