@@ -7,7 +7,6 @@ use crate::symbol_table::{SymbolLookup, SymbolTable, TypeValue};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
-use std::any::Any;
 use std::ptr::null;
 use std::rc::Rc;
 use std::slice::Iter;

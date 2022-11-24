@@ -1,24 +1,5 @@
-use crate::compiler::{Compiler, LiteralId};
+use crate::compiler::Compiler;
 use crate::scanner::Scanner;
-
-#[test]
-fn scan() {
-    let rules = Compiler::new()
-        .add_source(
-            r#"
-rule test {
-  condition:
-    "foo" == "bar"
-}"#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
-
-    let scanner = Scanner::new(&rules).scan(&[]);
-
-    //assert!(false);
-}
 
 #[test]
 fn iterators() {

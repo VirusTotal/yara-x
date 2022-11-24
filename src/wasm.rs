@@ -427,8 +427,8 @@ pub(crate) fn rule_match(
 /// Returns 1 if the pattern identified by `pattern_id` matches, or 0 if
 /// otherwise.
 pub(crate) fn is_pat_match(
-    caller: Caller<'_, ScanContext>,
-    pattern_id: PatternId,
+    _caller: Caller<'_, ScanContext>,
+    _pattern_id: PatternId,
 ) -> i32 {
     // TODO
     0
@@ -440,9 +440,9 @@ pub(crate) fn is_pat_match(
 /// Returns 1 if the pattern identified by `pattern_id` matches at `offset`,
 /// or 0 if otherwise.
 pub(crate) fn is_pat_match_at(
-    caller: Caller<'_, ScanContext>,
-    pattern_id: PatternId,
-    offset: i64,
+    _caller: Caller<'_, ScanContext>,
+    _pattern_id: PatternId,
+    _offset: i64,
 ) -> i32 {
     // TODO
     0
@@ -454,10 +454,10 @@ pub(crate) fn is_pat_match_at(
 /// Returns 1 if the pattern identified by `pattern_id` matches at some offset
 /// in the range [`lower_bound`, `upper_bound`].
 pub(crate) fn is_pat_match_in(
-    caller: Caller<'_, ScanContext>,
-    pattern_id: PatternId,
-    lower_bound: i64,
-    upper_bound: i64,
+    _caller: Caller<'_, ScanContext>,
+    _pattern_id: PatternId,
+    _lower_bound: i64,
+    _upper_bound: i64,
 ) -> i32 {
     // TODO
     0
@@ -466,7 +466,7 @@ pub(crate) fn is_pat_match_in(
 /// Creates a new [`RuntimeString`] for a literal string, and wraps it in a
 /// [`ExternRef`].
 pub(crate) fn literal_to_ref(
-    caller: Caller<'_, ScanContext>,
+    _caller: Caller<'_, ScanContext>,
     literal_id: i64,
 ) -> Option<ExternRef> {
     Some(ExternRef::new(RuntimeString::Literal(LiteralId::from(
@@ -481,7 +481,7 @@ pub(crate) fn lookup_ident(
     let store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data();
 
-    let ident = scan_ctx
+    let _ident = scan_ctx
         .compiled_rules
         .ident_pool()
         .get(IdentId::from(ident_id as u32))

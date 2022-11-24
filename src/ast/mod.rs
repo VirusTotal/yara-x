@@ -589,10 +589,6 @@ pub struct UnaryExpr<'src> {
 }
 
 impl<'src> UnaryExpr<'src> {
-    pub(crate) fn new(operand: Expr<'src>, span: Span) -> Self {
-        Self { span, operand, type_hint: RefCell::new(TypeHint::UnknownType) }
-    }
-
     pub(crate) fn with_type_hint(
         operand: Expr<'src>,
         span: Span,

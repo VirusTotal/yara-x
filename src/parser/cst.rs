@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 
 use pest::iterators::Pair;
 
@@ -112,12 +112,6 @@ pub struct CST<'src> {
     pub(crate) comments: bool,
     pub(crate) whitespaces: bool,
     pub(crate) pairs: Box<dyn PairsIterator<'src>>,
-}
-
-impl Debug for CST<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
 }
 
 impl<'src> Iterator for CST<'src> {

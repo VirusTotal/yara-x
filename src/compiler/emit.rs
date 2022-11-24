@@ -1,7 +1,6 @@
+use crate::ast::MatchAnchor;
 use crate::ast::{Expr, TypeHint};
-use crate::ast::{Ident, MatchAnchor};
 use crate::compiler::Context;
-use crate::symbol_table::SymbolLookup;
 use crate::Type;
 use bstr::ByteSlice;
 use std::cell::RefCell;

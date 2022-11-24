@@ -1,5 +1,4 @@
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
 use syn::{parse_macro_input, DeriveInput, ItemFn};
 
 mod error;
@@ -171,7 +170,7 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn module_main(attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemFn);
     module_main::impl_module_main_macro(input)
         .unwrap_or_else(syn::Error::into_compile_error)

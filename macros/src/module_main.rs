@@ -1,13 +1,8 @@
 extern crate proc_macro;
 
-use convert_case::{Case, Casing};
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens, TokenStreamExt};
-use syn::punctuated::Punctuated;
-use syn::{
-    Attribute, DataEnum, DeriveInput, Ident, ItemFn, Lit, Meta, NestedMeta,
-    Token, Variant,
-};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens};
+use syn::ItemFn;
 
 pub(crate) fn impl_module_main_macro(
     input: ItemFn,

@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::ast::Type;
 
 pub mod ast;

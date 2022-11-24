@@ -20,3 +20,5 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
+      env:
+        RUSTFLAGS: -Awarnings  # Allow all warnings

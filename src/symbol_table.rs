@@ -126,8 +126,8 @@ impl SymbolLookup for MessageDescriptor {
                         Some(TypeValue::Struct(Rc::new(m)))
                     }
                 },
-                RuntimeFieldType::Repeated(item_ty) => todo!(),
-                RuntimeFieldType::Map(key_ty, val_ty) => todo!(),
+                RuntimeFieldType::Repeated(_) => todo!(),
+                RuntimeFieldType::Map(_, _) => todo!(),
             }
         } else {
             // If the message doesn't have a field with the requested name,

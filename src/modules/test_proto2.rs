@@ -1,4 +1,3 @@
-use crate::modules::protos::test_proto2::ProgrammingLanguage;
 use crate::modules::protos::test_proto2::ProgrammingLanguages;
 
 use crate::scanner::ScanContext;
@@ -10,7 +9,7 @@ pub(crate) fn sum(a: i64, b: i64) -> i64 {
 }
 
 #[module_main]
-fn main(ctx: &ScanContext) -> ProgrammingLanguages {
+fn main(_ctx: &ScanContext) -> ProgrammingLanguages {
     let data = ProgrammingLanguages::new();
     data
 }
