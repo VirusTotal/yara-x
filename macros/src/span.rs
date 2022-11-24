@@ -21,7 +21,7 @@ pub(crate) fn impl_span_macro(input: DeriveInput) -> syn::Result<TokenStream> {
                         return Err(syn::Error::new_spanned(
                             &pair,
                             format!(
-                                "can't derive the `HasSpan` trait for unitary variant `{ident}`"
+                                "can't macros the `HasSpan` trait for unitary variant `{ident}`"
                             ),
                         ))
                     }
@@ -35,7 +35,7 @@ pub(crate) fn impl_span_macro(input: DeriveInput) -> syn::Result<TokenStream> {
             })
         }
         _ => panic!(
-            "HasSpan derive macro can be used only with structs and enums"
+            "HasSpan macros macro can be used only with structs and enums"
         ),
     }?;
 

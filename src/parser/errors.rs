@@ -1,4 +1,4 @@
-use yara_derive::Error;
+use yara_macros::Error;
 
 use crate::ast::Span;
 

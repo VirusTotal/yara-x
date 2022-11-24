@@ -19,7 +19,7 @@ This module implements the logic for building these WebAssembly modules, and
 the functions exposed to them by YARA's WebAssembly runtime.
  */
 
-use crate::compiler::{PatternId, RuleId};
+use crate::compiler::{IdentId, PatternId, RuleId};
 use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
 use walrus::InstrSeqBuilder;
@@ -477,6 +477,20 @@ pub(crate) fn literal_to_ref(
     string_id: i64,
 ) -> Option<ExternRef> {
     Some(ExternRef::new(RuntimeString::Literal(string_id.into())))
+}
+
+pub(crate) fn lookup_ident(
+    mut caller: Caller<'_, ScanContext>,
+    ident_id: i64,
+) {
+    let store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data();
+
+    let ident = scan_ctx
+        .compiled_rules
+        .lit_pool()
+        .get(IdentId::from(ident_id))
+        .unwrap();
 }
 
 /// Generates string comparison functions.

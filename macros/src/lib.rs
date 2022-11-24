@@ -1,10 +1,12 @@
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use quote::{quote, ToTokens};
+use syn::{parse_macro_input, DeriveInput, ItemFn};
 
 mod error;
+mod module_main;
 mod span;
 
-/// The HasSpan derive macro implements the [`HasSpan`] trait for structs and
+/// The `HasSpan` derive macro implements the [`HasSpan`] trait for structs and
 /// enums.
 ///
 /// The struct must have a field named `span` of type `Span`, and the macro
@@ -21,7 +23,7 @@ mod span;
 /// structure.
 ///
 /// ```
-/// #[derive(Debug, HasSpan)]
+/// #[macros(Debug, HasSpan)]
 /// pub struct LiteralStr<'src> {
 ///     pub(crate) span: Span,
 ///     pub value: &'src str,
@@ -33,7 +35,7 @@ mod span;
 /// implements the [`HasSpan`] trait.
 ///
 /// ```
-/// #[derive(Debug, HasSpan)]
+/// #[macros(Debug, HasSpan)]
 /// pub enum Expr<'src> {
 ///     // Ok. The struct has a `span` field of type `Span`.
 ///     True {
@@ -58,7 +60,7 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// The Error derive macro generates boilerplate code for YARA error types.
+/// The `Error` derive macro generates boilerplate code for YARA error types.
 ///
 /// This macro can be applied only to enums with struct-like variants. It
 /// won't work if the enum contains unit-like or tuple-like variants. Each
@@ -84,7 +86,7 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 /// passed to [`format!`] for building the error/warning title. For example...
 ///
 /// ```
-/// #[derive(Error)]
+/// #[macros(Error)]
 /// pub enum Error {
 ///    #[error("duplicate tag `{tag}`")]
 ///    #[label("duplicate tag", tag_span)]
@@ -146,6 +148,32 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 pub fn error_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     error::impl_error_macro(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// The `module_main` macro is used for indicating which is the main function
+/// in a YARA module.
+///
+/// The main function in a YARA module must receive a single argument of
+/// type `&ScanContext`, and must return the protobuf structure that corresponds
+/// to the module. The function can have any name, as long as it is marked with
+/// `#[module_main]`, but it's a good practice to name it `main`.
+///
+/// # Example
+///
+/// ```
+/// #[module_main]
+/// fn main(ctx: &ScanContext) -> SomeProto {   
+///     let some_proto = SomeProto::new();
+///     // ... fill some_proto with data ...
+///     some_proto
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn module_main(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemFn);
+    module_main::impl_module_main_macro(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

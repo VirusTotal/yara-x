@@ -1,5 +1,7 @@
+use crate::scanner::ScanContext;
 use lazy_static::lazy_static;
 use protobuf::reflect::MessageDescriptor;
+use protobuf::MessageDyn;
 use std::collections::HashMap;
 
 pub mod protos {
@@ -9,10 +11,10 @@ pub mod protos {
 include!("modules.rs");
 
 /// Type of module's main function.
-type MainFn = fn(u32) -> u32;
+type MainFn = fn(&ScanContext) -> Box<dyn MessageDyn>;
 
 /// Describes a YARA module.
-pub struct Module {
+pub(crate) struct Module {
     /// Pointer to the module's main function.
     pub main_fn: Option<MainFn>,
     /// A [`MessageDescriptor`] that describes the module's structure. This

@@ -1,8 +1,16 @@
+use crate::modules::protos::test_proto2::ProgrammingLanguage;
+use crate::modules::protos::test_proto2::ProgrammingLanguages;
+
+use crate::scanner::ScanContext;
+use yara_macros::module_main;
+
 //#[member_of(Submessage)]
-pub fn sum(a: i64, b: i64) -> i64 {
+pub(crate) fn sum(a: i64, b: i64) -> i64 {
     a + b
 }
 
-pub fn main(foo: u32) -> u32 {
-    0
+#[module_main]
+fn main(ctx: &ScanContext) -> ProgrammingLanguages {
+    let data = ProgrammingLanguages::new();
+    data
 }

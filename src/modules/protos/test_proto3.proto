@@ -1,25 +1,71 @@
+//
+// Test module using proto3 syntax.
+//
+// This module is used in test cases, and also serves as an example of how to
+// define a YARA module using a protocol buffer.
+//
+
+// There are two versions of protobuf, "proto2" and "proto3". If this is omitted
+// the default is "proto2".
 syntax = "proto3";
+
+// This import is required for defining a YARA module, it contains definitions
+// that are common to all modules.
 import "yara.proto";
 
+// This option section is also required, it gives YARA information about
+// the module being defined.
 option (yara.module_options) = {
+  // The module's name. This is the string used in `import` statements in YARA
+  // rules (e.g. import "test_proto3"). This field is required.
   name : "test_proto3"
-  root_message: "Test"
+
+  // The protobuf message that defines the top-level structure of the module.
+  // A .proto file can contain multiple message definitions, usually organized
+  // in a hierarchical structure in which one message has fields that are other
+  // messages. YARA needs to know which of those message definitions describes
+  // the top-level structure for the module. In this case the root message is
+  // "ProgrammingLanguages" which indicates that the "test_proto3" module will
+  // have the fields defined in the "ProgrammingLanguages" message.
+  root_message: "ProgrammingLanguages"
 };
 
-enum Enum {
-  ENUM_ITEM_0 = 0;
-  ENUM_ITEM_1 = 1;
+/// Top-level structure for this module.
+///
+/// In a YARA rule, after importing the module with `import "test_proto3"`, you
+/// can access the fields in this structure, as in the following examples:
+///
+///  test_proto2.python.creator == "Guido Van Rossum"
+///  test_proto2.c.creation_year == 1972
+//
+/// In proto3 you don't need to specify if fields are optional or required as
+//  you must do in proto2. In proto3 all fields are optional. However, fields
+//  for which you don't set a value explicitly are considered to have the
+//  default value for the type. Numeric values default to 0, and string values
+//  default to an empty string. These fields are never undefined to YARA, they
+//  always have some value, either their default values or the value explicitly
+//  set while filling the structure.
+message ProgrammingLanguages {
+  enum TypeChecking {
+    STATIC = 0;
+    DYNAMIC = 1;
+  }
+  ProgrammingLanguage c = 1;
+  ProgrammingLanguage python = 2;
+  ProgrammingLanguage rust = 3;
+  ProgrammingLanguage haskell = 4;
 }
 
-message Test {
-  string      string_field = 1;
-  bool        bool_field = 2;
-  int32       int32_field = 3;
-  int64       int64_field = 4;
-  Enum        enum = 5;
-  Submessage  sub = 6;
+message ProgrammingLanguage {
+  string                               name = 1;
+  string                               creator = 2;
+  int32                                creation_year = 3;
+  bool                                 functional = 4;
+  ProgrammingLanguages.TypeChecking    type_checking = 5;
 }
 
-message Submessage {
-  string string_field = 1;
+message Person {
+  string   name = 1;
+  int32    birth_year = 2;
 }
+

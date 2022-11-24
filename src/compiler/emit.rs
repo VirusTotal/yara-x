@@ -1,6 +1,7 @@
 use crate::ast::MatchAnchor;
 use crate::ast::{Expr, TypeHint};
 use crate::compiler::Context;
+use crate::symbol_table::SymbolLookup;
 use crate::Type;
 use bstr::ByteSlice;
 use std::cell::RefCell;
@@ -233,7 +234,12 @@ pub(super) fn emit_expr(
                         todo!();
                     }
                     TypeHint::Struct => {
-                        todo!();
+                        let ident_id = ctx
+                            .borrow_mut()
+                            .ident_pool
+                            .get_or_intern(ident.as_str());
+
+                        instr.i64_const(ident_id.id() as i64);
                     }
                     _ => {
                         // At this point the type of the identifier should be

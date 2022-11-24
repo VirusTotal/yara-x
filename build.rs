@@ -81,7 +81,7 @@ fn main() {
     // defines a YARA module. Each entry looks like:
     //
     //  #[cfg(feature = "foo_module")]
-    //  add_module!(modules, "foo", foo, Some(foo::main as MainFn));
+    //  add_module!(modules, "foo", foo, Some(foo::__main__ as MainFn));
     //
     let mut add_modules_rs =
         File::create(Path::new(&out_dir).join("add_modules.rs")).unwrap();
@@ -114,7 +114,7 @@ pub mod {rust_mod};"#,
         // have a function named "main". If the YARA module doesn't have an
         // associated YARA module, the main function is set to None.
         let main_fn = if let Some(rust_mod) = &rust_mod {
-            format!("Some({}::main as MainFn)", rust_mod)
+            format!("Some({}::__main__ as MainFn)", rust_mod)
         } else {
             "None".to_string()
         };

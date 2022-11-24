@@ -20,7 +20,7 @@ pub(crate) fn impl_error_macro(
         syn::Data::Struct(_) | syn::Data::Union(_) => {
             return Err(syn::Error::new(
                 name.span(),
-                "derive macro Error can be used with only with enum types"
+                "macros macro Error can be used with only with enum types"
                     .to_string(),
             ))
         }

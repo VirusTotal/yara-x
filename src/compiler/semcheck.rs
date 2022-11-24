@@ -469,12 +469,12 @@ pub(super) fn semcheck_expr(
                 let symbol = if let Some(structure) = &current_struct {
                     structure.lookup(ident.name)
                 } else {
-                    ctx.root_sym_tbl.lookup(ident.name)
+                    ctx.symbol_table.lookup(ident.name)
                 };
 
                 if let Some(symbol) = symbol {
-                    if let TypeValue::Struct(sym_tbl) = symbol {
-                        ctx.current_struct = Some(sym_tbl);
+                    if let TypeValue::Struct(symbol_table) = symbol {
+                        ctx.current_struct = Some(symbol_table);
                         TypeHint::Struct
                     } else {
                         TypeHint::from(symbol)
@@ -529,15 +529,7 @@ pub(super) fn semcheck_expr(
             semcheck_quantifier(ctx, &for_in.quantifier)?;
             semcheck_iterable(ctx, &for_in.iterable)?;
 
-            /*for variable in &for_in.variables {
-                ctx.sym_tbl.insert(
-                    variable.name,
-                    Symbol::Variable(Variable {
-                        ty: variable.ty.clone(),
-                        value: Value::Unknown,
-                    }),
-                );
-            }*/
+            // TODO: add loop variables to symbol table.
 
             semcheck!(ctx, Type::Bool, &for_in.condition)?;
             Ok(TypeHint::Bool(None))

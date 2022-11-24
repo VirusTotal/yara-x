@@ -37,29 +37,30 @@ pub struct Compiler {
     colorize_errors: bool,
 
     report_builder: ReportBuilder,
-    sym_tbl: SymbolTable,
+    symbol_table: SymbolTable,
 
     /// Pool that contains all the identifiers used in the rules. Each
     /// identifier appears only once, even if they are used by multiple
     /// rules. For example, the pool contains a single copy of the common
-    /// identifier `$a`. Identifiers have an unique 32-bits ID that can
-    /// be used for retrieving them from the pool.
+    /// identifier `$a`. Identifiers have an unique 32-bits IDs ([`IdentId`])
+    /// that can be used for retrieving them from the pool.
     ident_pool: StringPool,
 
     /// Similar to `ident_pool` but for string literals found in the source
-    /// code. As literal strings in YARA can contain arbitrary bytes, we
-    /// must a pool capable of storing [`bstr::BString`] instead of [`String`].
+    /// code. As literal strings in YARA can contain arbitrary bytes, a pool
+    /// pool capable of storing [`bstr::BString`] must be used, the [`String`]
+    /// type only accepts valid UTF-8.
     lit_pool: BStringPool,
 
     /// Builder for creating the WebAssembly module that contains the code
     /// for all rule conditions.
     wasm_mod: wasm::ModuleBuilder,
 
-    /// A vector with the all the rules that has been compiled. A [`RuleID`]
-    /// is an index in this vector.
+    /// A vector with all the rules that has been compiled. A [`RuleId`] is
+    /// an index in this vector.
     rules: Vec<CompiledRule>,
 
-    /// A vector with all the patterns from all the rules. A [`PatternID`]
+    /// A vector with all the patterns from all the rules. A [`PatternId`]
     /// is an index in this vector.
     patterns: Vec<Pattern>,
 
@@ -84,7 +85,7 @@ impl Compiler {
             ident_pool: StringPool::new(),
             lit_pool: BStringPool::new(),
             wasm_mod: wasm::ModuleBuilder::new(),
-            sym_tbl: SymbolTable::new(),
+            symbol_table: SymbolTable::new(),
         }
     }
 
@@ -156,9 +157,9 @@ impl Compiler {
 
                 let mut ctx = Context {
                     src: &src,
-                    root_sym_tbl: &self.sym_tbl,
+                    symbol_table: &self.symbol_table,
                     current_struct: None,
-                    ident_pool: &self.ident_pool,
+                    ident_pool: &mut self.ident_pool,
                     lit_pool: &mut self.lit_pool,
                     report_builder: &self.report_builder,
                     current_rule: self.rules.last().unwrap(),
@@ -222,6 +223,10 @@ impl Compiler {
         Ok(self)
     }
 
+    /// Builds the source code previously added to the compiler.
+    ///
+    /// This function consumes the compiler and returns an instance of
+    /// [`CompiledRules`].
     pub fn build(self) -> Result<CompiledRules, Error> {
         // Finish building the WebAssembly module.
         let mut wasm_mod = self.wasm_mod.build();
@@ -281,7 +286,7 @@ impl Compiler {
                     self.ident_pool.get_or_intern(import.module_name.as_str()),
                 );
 
-                self.sym_tbl.insert(
+                self.symbol_table.insert(
                     import.module_name.as_str(),
                     TypeValue::Struct(Rc::new(module)),
                 );
@@ -330,10 +335,10 @@ struct Context<'a> {
 
     /// Symbol table that contains top-level symbols, like module names,
     /// and external variables.
-    root_sym_tbl: &'a SymbolTable,
+    symbol_table: &'a SymbolTable,
 
     /// Symbol table for the currently active structure. When this is None
-    /// symbols are looked up in `root_sym_tbl` instead.
+    /// symbols are looked up in `symbol_table` instead.
     current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
@@ -350,7 +355,7 @@ struct Context<'a> {
     warnings: &'a mut Vec<Warning>,
 
     /// Pool with identifiers used in the rules.
-    ident_pool: &'a StringPool,
+    ident_pool: &'a mut StringPool,
 
     /// Pool with literal strings used in the rules.
     lit_pool: &'a mut BStringPool,
@@ -425,10 +430,19 @@ pub struct CompiledRules {
 }
 
 impl CompiledRules {
-    /// Returns an slice with all the compiled rules.
+    /// Returns an slice with the individual rules that were compiled.
     #[inline]
     pub fn rules(&self) -> &[CompiledRule] {
         self.rules.as_slice()
+    }
+
+    /// An iterator that yields the name of the modules imported by the
+    /// rules.
+    pub fn imported_modules(&self) -> ImportedModules {
+        ImportedModules {
+            iter: self.imported_modules.iter(),
+            ident_pool: &self.ident_pool,
+        }
     }
 
     #[inline]
@@ -442,7 +456,21 @@ impl CompiledRules {
     }
 }
 
-/// A compiled rule.
+/// Iterator that returns the modules imported by the rules.
+pub struct ImportedModules<'a> {
+    iter: std::slice::Iter<'a, IdentId>,
+    ident_pool: &'a StringPool,
+}
+
+impl<'a> Iterator for ImportedModules<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(|id| self.ident_pool.get(*id).unwrap())
+    }
+}
+
+/// Each of the individual rules included in [`CompiledRules`].
 pub struct CompiledRule {
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident: IdentId,

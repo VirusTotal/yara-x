@@ -10,7 +10,7 @@ use std::fmt::{Debug, Display, Formatter};
 use ascii_tree::Tree::Node;
 use bitmask::bitmask;
 use bstr::BString;
-use yara_derive::*;
+use yara_macros::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;

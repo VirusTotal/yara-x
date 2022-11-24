@@ -1,6 +1,5 @@
 use thiserror::Error;
-
-use yara_derive::Error as CompileError;
+use yara_macros::Error as CompileError;
 
 use crate::ast::Span;
 use crate::parser;

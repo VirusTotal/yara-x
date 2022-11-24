@@ -1,10 +1,10 @@
 [package]
-name = "yara-x-derive"
+name = "yara-x-macros"
 edition = "2021"
 version = "0.1.0"
 
 [lib]
-name = "yara_derive"
+name = "yara_macros"
 proc-macro = true
 
 [dependencies]

@@ -1947,11 +1947,11 @@ dependencies = [
  "yaml-rust",
  "yansi",
  "yara-proto",
- "yara-x-derive",
+ "yara-x-macros",
 ]
 
 [[package]]
-name = "yara-x-derive"
+name = "yara-x-macros"
 version = "0.1.0"
 dependencies = [
  "convert_case",

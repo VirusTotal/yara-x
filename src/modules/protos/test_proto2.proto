@@ -1,26 +1,89 @@
+//
+// Test module using proto2 syntax.
+//
+// This module is used in test cases, and also serves as an example of how to
+// define a YARA module using a protocol buffer.
+//
+
+// There are two versions of protobuf, "proto2" and "proto3". If this is omitted
+// the default is "proto2", but it's recommendable to make it explicit.
 syntax = "proto2";
+
+// This import is required for defining a YARA module, it contains definitions
+// that are common to all modules.
 import "yara.proto";
 
+// This option section is also required, it gives YARA information about
+// the module being defined.
 option (yara.module_options) = {
+  // The module's name. This is the string used in `import` statements in YARA
+  // rules (e.g. import "test_proto2"). This field is required.
   name : "test_proto2"
-  root_message: "Test"
+
+  // The protobuf message that defines the top-level structure of the module.
+  // A .proto file can contain multiple message definitions, usually organized
+  // in a hierarchical structure in which one message has fields that are other
+  // messages. YARA needs to know which of those message definitions describes
+  // the top-level structure for the module. In this case the root message is
+  // "ProgrammingLanguages" which indicates that the "test_proto2" module will
+  // have the fields defined in the "ProgrammingLanguages" message.
+  root_message: "ProgrammingLanguages"
+
+  // The name of the Rust module that contains the code for this module. A
+  // module with this name must exists under src/modules. In this case the
+  // module name is "test_proto2", we can create a module with that name in
+  // two ways: by creating a file "test_proto2.rs" under src/modules, or by
+  // creating a "test_proto2" directory under src/modules and putting a
+  // "mod.rs" file inside of it.
+  //
+  // Notice however that this is optional, as YARA modules can consists only
+  // in the data structure defined by this proto file, and don't need to have
+  // any associated code.
   rust_module: "test_proto2"
 };
 
-enum Enum {
-  ENUM_ITEM_0 = 0;
-  ENUM_ITEM_1 = 1;
+/// Top-level structure for this module.
+///
+/// In a YARA rule, after importing the module with `import "test_proto2"`, you
+/// can access the fields in this structure, as in the following examples:
+///
+///  test_proto2.python.creator == "Guido Van Rossum"
+///  test_proto2.c.creation_year == 1972
+///
+/// Notice that proto2 fields must be either optional or required. Optional
+/// fields don't need to be explicitly set to some value, they can remain
+/// empty. If a field is empty it will appear to YARA as undefined. In the
+/// other hand, required fields must be explicitly set to some value before
+/// the structure is passed to YARA.
+///
+/// In proto3 you don't need to specify if fields are optional or required, they
+/// are always optional, and therefore you don't need to set their value
+/// explicitly. However, fields for which you don't set a value explicitly
+/// are considered to have the default value for the type. Numeric values
+/// default to 0, and string values default to an empty string. These fields
+/// are never undefined to YARA, they always have some value, either their
+/// default values or the value explicitly set while filling the structure.
+message ProgrammingLanguages {
+  enum TypeChecking {
+    STATIC = 0;
+    DYNAMIC = 1;
+  }
+  optional ProgrammingLanguage c = 1;
+  optional ProgrammingLanguage python = 2;
+  optional ProgrammingLanguage rust = 3;
+  optional ProgrammingLanguage haskell = 4;
 }
 
-message Test {
-  optional string      string_field = 1;
-  optional bool        bool_field = 2;
-  optional int32       int32_field = 3;
-  optional int64       int64_field = 4;
-  optional Enum        enum = 5;
-  optional Submessage  sub = 6;
+message ProgrammingLanguage {
+  required string                               name = 1;
+  optional string                               creator = 2;
+  optional int32                                creation_year = 3;
+  optional bool                                 functional = 4;
+  optional ProgrammingLanguages.TypeChecking    type_checking = 5;
 }
 
-message Submessage {
-  optional string string_field = 1;
+message Person {
+  optional string   name = 1;
+  optional int32    birth_year = 2;
 }
+
