@@ -35,7 +35,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: ${{ matrix.cargo-test-args }}
+        args: --all ${{ matrix.cargo-test-args }}
       env:
         CARGO_INCREMENTAL: 0
         RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests"
