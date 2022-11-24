@@ -16,7 +16,7 @@ use crate::compiler::emit::{emit_bool_expr, try_except};
 use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{Error as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
-use crate::string_pool::{BStringPool, StringId, StringPool};
+use crate::string_pool::{BStringPool, StringPool};
 use crate::warnings::Warning;
 use crate::{modules, wasm};
 
@@ -44,13 +44,13 @@ pub struct Compiler {
     /// rules. For example, the pool contains a single copy of the common
     /// identifier `$a`. Identifiers have an unique 32-bits IDs ([`IdentId`])
     /// that can be used for retrieving them from the pool.
-    ident_pool: StringPool,
+    ident_pool: StringPool<IdentId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
     /// pool capable of storing [`bstr::BString`] must be used, the [`String`]
     /// type only accepts valid UTF-8.
-    lit_pool: BStringPool,
+    lit_pool: BStringPool<LiteralId>,
 
     /// Builder for creating the WebAssembly module that contains the code
     /// for all rule conditions.
@@ -320,7 +320,36 @@ impl Default for Compiler {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-pub(crate) type IdentId = StringId;
+#[derive(Copy, Clone)]
+pub(crate) struct IdentId(u32);
+
+impl From<u32> for IdentId {
+    fn from(v: u32) -> Self {
+        Self(v)
+    }
+}
+
+impl From<IdentId> for u32 {
+    fn from(v: IdentId) -> Self {
+        v.0
+    }
+}
+
+/// ID associated to each literal string in the literals pool.
+#[derive(Copy, Clone)]
+pub(crate) struct LiteralId(u32);
+
+impl From<u32> for LiteralId {
+    fn from(v: u32) -> Self {
+        Self(v)
+    }
+}
+
+impl From<LiteralId> for u32 {
+    fn from(v: LiteralId) -> Self {
+        v.0
+    }
+}
 
 /// ID associated to each pattern.
 pub(crate) type PatternId = i32;
@@ -355,10 +384,10 @@ struct Context<'a> {
     warnings: &'a mut Vec<Warning>,
 
     /// Pool with identifiers used in the rules.
-    ident_pool: &'a mut StringPool,
+    ident_pool: &'a mut StringPool<IdentId>,
 
     /// Pool with literal strings used in the rules.
-    lit_pool: &'a mut BStringPool,
+    lit_pool: &'a mut BStringPool<LiteralId>,
 
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
@@ -400,12 +429,12 @@ pub struct CompiledRules {
     /// Pool with identifiers used in the rules. Each identifier has its
     /// own [`IdentId`], which can be used for retrieving the identifier
     /// from the pool as a `&str`.
-    ident_pool: StringPool,
+    ident_pool: StringPool<IdentId>,
 
     /// Pool with literal strings used in the rules. Each literal has its
-    /// own [`StringId`], which can be used for retrieving the literal
+    /// own [`LiteralId`], which can be used for retrieving the literal
     /// string as `&BStr`.
-    lit_pool: BStringPool,
+    lit_pool: BStringPool<LiteralId>,
 
     /// WebAssembly module containing the code for all rule conditions.
     wasm_mod: Module,
@@ -446,8 +475,13 @@ impl CompiledRules {
     }
 
     #[inline]
-    pub(crate) fn lit_pool(&self) -> &BStringPool {
+    pub(crate) fn lit_pool(&self) -> &BStringPool<LiteralId> {
         &self.lit_pool
+    }
+
+    #[inline]
+    pub(crate) fn ident_pool(&self) -> &StringPool<IdentId> {
+        &self.ident_pool
     }
 
     #[inline]
@@ -459,7 +493,7 @@ impl CompiledRules {
 /// Iterator that returns the modules imported by the rules.
 pub struct ImportedModules<'a> {
     iter: std::slice::Iter<'a, IdentId>,
-    ident_pool: &'a StringPool,
+    ident_pool: &'a StringPool<IdentId>,
 }
 
 impl<'a> Iterator for ImportedModules<'a> {

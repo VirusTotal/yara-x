@@ -1,5 +1,5 @@
-use crate::ast::MatchAnchor;
 use crate::ast::{Expr, TypeHint};
+use crate::ast::{Ident, MatchAnchor};
 use crate::compiler::Context;
 use crate::symbol_table::SymbolLookup;
 use crate::Type;
@@ -210,11 +210,11 @@ pub(super) fn emit_expr(
         Expr::LiteralStr(lit) => {
             // Put the literal string in the pool, or get its ID if it was
             // already there.
-            let string_id =
+            let literal_id =
                 ctx.borrow_mut().lit_pool.get_or_intern(lit.value.as_bstr());
 
             // Invoke the function that converts the ID into an externref.
-            instr.i64_const(string_id.id() as i64);
+            instr.i64_const(Into::<u32>::into(literal_id) as i64);
             instr.call(ctx.borrow().wasm_symbols.literal_to_ref);
         }
         Expr::Ident(ident) => {
@@ -239,7 +239,7 @@ pub(super) fn emit_expr(
                             .ident_pool
                             .get_or_intern(ident.as_str());
 
-                        instr.i64_const(ident_id.id() as i64);
+                        instr.i64_const(Into::<u32>::into(ident_id) as i64);
                     }
                     _ => {
                         // At this point the type of the identifier should be

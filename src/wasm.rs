@@ -19,7 +19,6 @@ This module implements the logic for building these WebAssembly modules, and
 the functions exposed to them by YARA's WebAssembly runtime.
  */
 
-use crate::compiler::{IdentId, PatternId, RuleId};
 use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
 use walrus::InstrSeqBuilder;
@@ -27,8 +26,8 @@ use walrus::ValType::{Externref, I32, I64};
 use wasmtime::ExternRef;
 use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
+use crate::compiler::{IdentId, LiteralId, PatternId, RuleId};
 use crate::scanner::ScanContext;
-use crate::string_pool::StringId;
 
 /// Builds the WebAssembly module for a set of compiled rules.
 pub(crate) struct ModuleBuilder {
@@ -168,8 +167,8 @@ impl ModuleBuilder {
 ///
 /// For example, literal strings appearing in the source code are stored in
 /// a string pool created at compile time, these strings are identified by the
-/// [`StringId`] returned by the pool. Instead of making copies of those
-/// literal strings, the runtime passes the [`StringId`] around when referring
+/// [`LiteralId`] returned by the pool. Instead of making copies of those
+/// literal strings, the runtime passes the [`LiteralId`] around when referring
 /// to them.
 ///
 /// Similarly, functions exported by YARA modules can return strings that
@@ -183,8 +182,8 @@ impl ModuleBuilder {
 /// string.
 pub(crate) enum RuntimeString {
     /// A literal string appearing in the source code. The string is identified
-    /// by its [`StringId`] within the literal strings pool.
-    Literal(StringId),
+    /// by its [`LiteralId`] within the literal strings pool.
+    Literal(LiteralId),
     /// A string represented found in the scanned data, represented by the
     /// offset within the data and its length.
     Slice { offset: usize, length: usize },
@@ -335,7 +334,7 @@ pub(crate) struct WasmSymbols {
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
     pub is_pat_match_in: walrus::FunctionId,
 
-    /// Creates a [`ExternRef`] from a [`StringId`] that identifies a string
+    /// Creates a [`ExternRef`] from a [`LiteralId`] that identifies a string
     /// in the literals pool.
     /// Signature: (string_id: i64) -> (Externref)
     pub literal_to_ref: walrus::FunctionId,
@@ -474,9 +473,11 @@ pub(crate) fn is_pat_match_in(
 /// [`ExternRef`].
 pub(crate) fn literal_to_ref(
     caller: Caller<'_, ScanContext>,
-    string_id: i64,
+    literal_id: i64,
 ) -> Option<ExternRef> {
-    Some(ExternRef::new(RuntimeString::Literal(string_id.into())))
+    Some(ExternRef::new(RuntimeString::Literal(LiteralId::from(
+        literal_id as u32,
+    ))))
 }
 
 pub(crate) fn lookup_ident(
@@ -488,8 +489,8 @@ pub(crate) fn lookup_ident(
 
     let ident = scan_ctx
         .compiled_rules
-        .lit_pool()
-        .get(IdentId::from(ident_id))
+        .ident_pool()
+        .get(IdentId::from(ident_id as u32))
         .unwrap();
 }
 
