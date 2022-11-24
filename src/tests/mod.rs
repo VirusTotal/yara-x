@@ -117,6 +117,19 @@ fn string_operations() {
 }
 
 #[test]
+fn boolean_operations() {
+    condition_true!("true");
+    condition_false!("false");
+    condition_true!("true and true");
+    condition_false!("true and false");
+    condition_true!("false or true");
+    condition_true!("not false");
+    condition_false!("not true");
+    condition_true!("true or (false and false)");
+    condition_false!("not (true or true)");
+}
+
+#[test]
 fn boolean_casting() {
     condition_true!("1");
     condition_false!("0");
