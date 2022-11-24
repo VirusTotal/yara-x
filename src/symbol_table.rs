@@ -8,10 +8,13 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
+/// Trait implemented by types that allow looking up for an identifier.
 pub trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<TypeValue>;
 }
 
+/// The type and possibly the value associated to a YARA expression or
+/// identifier.
 #[derive(Clone)]
 pub enum TypeValue {
     Integer(Option<i64>),
@@ -45,12 +48,38 @@ impl PartialEq for TypeValue {
     }
 }
 
+/// A hash map the contains [`Module`] instances implements [`SymbolLookup`].
+///
+/// The identifier in this case is a module name. If a module with the given
+/// identifier exists in the map, a `TypeValue::Struct` wrapping a &[`Module`]
+/// is returned.
 impl SymbolLookup for &'static HashMap<&str, Module> {
     fn lookup(&self, ident: &str) -> Option<TypeValue> {
         self.get(ident).map(|module| TypeValue::Struct(Rc::new(module)))
     }
 }
 
+/// &[`Module`] also implements [`SymbolLookup`].
+impl SymbolLookup for &Module {
+    fn lookup(&self, ident: &str) -> Option<TypeValue> {
+        self.descriptor.lookup(ident)
+    }
+}
+
+/// Implements [`SymbolLookup`] for `Option<TypeValue>` so that lookup
+/// operations can be chained.
+///
+/// For example you can do:
+///
+/// ```text
+/// symbol_table.lookup("foo").lookup("bar")
+/// ```
+///
+/// If the field `foo` is a structure, this will return the [`TypeValue`]
+/// for the field `bar` within that structure.
+///
+/// This can be done because the `Option<TypeValue>` returned by the
+/// first call to `lookup` also have a `lookup` method.
 impl SymbolLookup for Option<TypeValue> {
     fn lookup(&self, ident: &str) -> Option<TypeValue> {
         if let Some(TypeValue::Struct(s)) = self {
@@ -61,12 +90,16 @@ impl SymbolLookup for Option<TypeValue> {
     }
 }
 
-impl SymbolLookup for &Module {
-    fn lookup(&self, ident: &str) -> Option<TypeValue> {
-        self.descriptor.lookup(ident)
-    }
-}
-
+/// Implements [`SymbolLookup`] for [`MessageDescriptor`].
+///
+/// A [`MessageDescriptor`] describes the structure of a protobuf message. By
+/// implementing the [`SymbolLookup`] trait, a protobuf message descriptor
+/// can be wrapped in a [`TypeValue::Struct`] and added to a symbol table.
+///
+/// When symbols are looked up in a protobuf message descriptor only the type
+/// will be returned. Values will be [`None`] in all cases, as the descriptor
+/// is not an instance of the protobuf message, only a description of it.
+/// Therefore it doesn't have associated data.
 impl SymbolLookup for MessageDescriptor {
     fn lookup(&self, ident: &str) -> Option<TypeValue> {
         // TODO: take into account that the name passed to field_by_name
@@ -106,6 +139,7 @@ impl SymbolLookup for MessageDescriptor {
     }
 }
 
+/// [`EnumDescriptor`] also implements [`SymbolLookup`].
 impl SymbolLookup for EnumDescriptor {
     fn lookup(&self, ident: &str) -> Option<TypeValue> {
         let descriptor = self.value_by_name(ident)?;
@@ -113,6 +147,22 @@ impl SymbolLookup for EnumDescriptor {
     }
 }
 
+/// Implements [`SymbolLookup`] for [`Box<dyn MessageDyn>`].
+///
+/// A [`Box<dyn MessageDyn>`] represents an arbitrary protobuf message
+/// containing structured data. By implementing the [`SymbolLookup`] trait
+/// for this type arbitrary protobuf messages can be wrapped in a
+/// [`TypeValue::Struct`] and added to a symbol table.
+///
+/// When symbols are looked up in a protobuf message the returned
+/// [`TypeValue`] will contain the value of the corresponding field in the
+/// message. Notice however that in proto2 optional fields can be
+/// empty, and in those cases the value in the returned [`TypeValue`]
+/// will be `None`. In proto3 empty values don't exist, if a field is
+/// not explicitly assigned a value, it will have the default value
+/// for its type (i.e: zero for numeric types, empty strings for string
+/// types, etc)
+///
 impl SymbolLookup for Box<dyn MessageDyn> {
     fn lookup(&self, ident: &str) -> Option<TypeValue> {
         let message_descriptor = self.descriptor_dyn();
@@ -180,6 +230,19 @@ impl SymbolLookup for Box<dyn MessageDyn> {
     }
 }
 
+/// A symbol table is a structure used for resolving symbols during the
+/// compilation process.
+///
+/// A symbol table is basically a map, where keys are identifiers and
+/// values are [`TypeValue`] instances that contain information about the
+/// type and possibly the current value for that identifier. [`SymbolTable`]
+/// implements the [`SymbolLookup`] trait, so symbols are found in the
+/// table by using the [`SymbolLookup::lookup`] method.
+///
+/// When the identifier represents a nested structure, the returned
+/// [`TypeValue`] will be the [`TypeValue::Struct`] variant, which will
+/// encapsulate another object that also implements the [`SymbolLookup`]
+/// trait, possibly another [`SymbolTable`].
 pub struct SymbolTable {
     map: HashMap<String, TypeValue>,
 }

@@ -360,6 +360,7 @@ pub(crate) type RuleId = i32;
 /// Structure that contains information and data structures required during the
 /// the current compilation process.
 struct Context<'a> {
+    /// Builder for creating error and warning reports.
     report_builder: &'a ReportBuilder,
 
     /// Symbol table that contains top-level symbols, like module names,

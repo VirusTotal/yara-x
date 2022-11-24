@@ -5,9 +5,9 @@ use std::marker::PhantomData;
 
 /// StringPool is a data structure for interning strings.
 ///
-/// For each interned string it returns an ID of type `T`, that can be used
-/// retrieving the string again. A single copy of each string is stored
-/// in a [`StringPool`].
+/// For each interned string the pool returns an ID of type `T`, that can be
+/// used for retrieving the string again. A single copy of each string is
+/// stored in the pool.
 ///
 /// The type `T` must be convertible from and into `u32`.
 pub struct StringPool<T>
@@ -30,14 +30,14 @@ where
         }
     }
 
-    /// Returns the ID corresponding to `s`. Interns the string if not already
-    /// interned.
+    /// Returns the ID corresponding to the string `s`. Interns the string
+    /// if not already interned.
     #[inline]
     pub fn get_or_intern(&mut self, s: &str) -> T {
         T::from(self.pool.intern(s.to_string()).unwrap().id())
     }
 
-    /// Returns the string corresponding to a given ID if it was previously
+    /// Returns the string corresponding to a given `id` if it was previously
     /// interned. If not returns [`None`].
     #[inline]
     pub fn get(&self, id: T) -> Option<&str> {
