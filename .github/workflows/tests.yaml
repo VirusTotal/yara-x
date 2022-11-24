@@ -8,8 +8,8 @@ jobs:
     strategy:
       matrix:
         cargo-test-args:
-        - "--no-default-features"
-        - "--features compile-time-optimization"
+        - "--features test_proto2-module"
+        - "--features compile-time-optimization test_proto2-module"
     steps:
     - name: Checkout sources
       uses: actions/checkout@v3
