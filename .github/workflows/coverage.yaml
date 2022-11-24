@@ -29,7 +29,7 @@ jobs:
         args: --all
       env:
         CARGO_INCREMENTAL: 0
-        RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+        RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests"
 
     # Note that `actions-rs/grcov` Action can install `grcov` too,
     # but can't use faster installation methods yet.
