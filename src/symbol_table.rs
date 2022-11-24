@@ -284,17 +284,19 @@ impl SymbolLookup for &SymbolTable {
 
 #[cfg(test)]
 mod tests {
-    use crate::modules::protos::test_proto2;
-    use crate::modules::protos::test_proto2::programming_languages::TypeChecking;
     use crate::symbol_table::{SymbolLookup, TypeValue};
     use bstr::BString;
     use pretty_assertions::assert_eq;
-    use protobuf::{Enum, Message, MessageField, MessageFull};
 
     #[test]
     #[cfg(feature = "test_proto2-module")]
     fn message_lookup() {
-        let languages = test_proto2::ProgrammingLanguages::descriptor();
+        use protobuf::{Enum, MessageFull};
+
+        use crate::modules::protos::test_proto2::programming_languages::TypeChecking;
+        use crate::modules::protos::test_proto2::ProgrammingLanguages;
+
+        let languages = ProgrammingLanguages::descriptor();
 
         assert_eq!(
             languages.lookup("c").lookup("creation_year"),
@@ -322,9 +324,14 @@ mod tests {
     #[test]
     #[cfg(feature = "test_proto2-module")]
     fn message_dyn_lookup() {
-        let mut languages = test_proto2::ProgrammingLanguages::new();
+        use protobuf::{Enum, Message, MessageField, MessageFull};
 
-        let mut c_lang = test_proto2::ProgrammingLanguage::new();
+        use crate::modules::protos::test_proto2::programming_languages::TypeChecking;
+        use crate::modules::protos::test_proto2::ProgrammingLanguage;
+        use crate::modules::protos::test_proto2::ProgrammingLanguages;
+
+        let mut languages = ProgrammingLanguages::new();
+        let mut c_lang = ProgrammingLanguage::new();
 
         c_lang.set_name("C".to_string());
         c_lang.set_creation_year(1972);
@@ -335,7 +342,7 @@ mod tests {
         let mut buf = Vec::new();
         languages.write_to_vec(&mut buf).unwrap();
 
-        let message_dyn = test_proto2::ProgrammingLanguages::descriptor()
+        let message_dyn = ProgrammingLanguages::descriptor()
             .parse_from_bytes(buf.as_slice())
             .unwrap();
 
