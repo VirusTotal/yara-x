@@ -318,11 +318,11 @@ mod tests {
         use protobuf::{Enum, Message, MessageField, MessageFull};
 
         use crate::modules::protos::test_proto2::test::Enumeration;
-        use crate::modules::protos::test_proto2::Nested;
+        use crate::modules::protos::test_proto2::NestedProto2;
         use crate::modules::protos::test_proto2::Test;
 
         let mut test = Test::new();
-        let mut nested = Nested::new();
+        let mut nested = NestedProto2::new();
 
         test.set_int32_zero(0);
         test.set_int64_zero(0);

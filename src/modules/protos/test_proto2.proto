@@ -135,11 +135,11 @@ message Test {
     ITEM_1 = 1;
   }
 
-  optional Enumeration  enumeration = 100;
-  optional Nested       nested = 101;
+  optional Enumeration   enumeration = 100;
+  optional NestedProto2  nested = 101;
 }
 
-message Nested {
+message NestedProto2 {
   optional int32      int32_zero = 1;
   optional int64      int64_zero = 2;
 }
