@@ -293,31 +293,22 @@ mod tests {
     fn message_lookup() {
         use protobuf::{Enum, MessageFull};
 
-        use crate::modules::protos::test_proto2::programming_languages::TypeChecking;
-        use crate::modules::protos::test_proto2::ProgrammingLanguages;
+        use crate::modules::protos::test_proto2::test::Enumeration;
+        use crate::modules::protos::test_proto2::Test;
 
-        let languages = ProgrammingLanguages::descriptor();
+        let test = Test::descriptor();
+
+        assert_eq!(test.lookup("int32_zero"), Some(TypeValue::Integer(None)));
+        assert_eq!(test.lookup("string_foo"), Some(TypeValue::String(None)));
 
         assert_eq!(
-            languages.lookup("c").lookup("creation_year"),
+            test.lookup("nested").lookup("int32_zero"),
             Some(TypeValue::Integer(None))
         );
 
         assert_eq!(
-            languages.lookup("c").lookup("name"),
-            Some(TypeValue::String(None))
-        );
-
-        assert_eq!(
-            languages.lookup("c").lookup("type_checking"),
-            Some(TypeValue::Integer(None))
-        );
-
-        assert_eq!(
-            languages.lookup("TypeChecking").lookup("DYNAMIC"),
-            Some(TypeValue::Integer(Some(
-                TypeChecking::DYNAMIC.value() as i64
-            )))
+            test.lookup("Enumeration").lookup("ITEM_1"),
+            Some(TypeValue::Integer(Some(Enumeration::ITEM_1.value() as i64)))
         );
     }
 
@@ -326,48 +317,76 @@ mod tests {
     fn message_dyn_lookup() {
         use protobuf::{Enum, Message, MessageField, MessageFull};
 
-        use crate::modules::protos::test_proto2::programming_languages::TypeChecking;
-        use crate::modules::protos::test_proto2::ProgrammingLanguage;
-        use crate::modules::protos::test_proto2::ProgrammingLanguages;
+        use crate::modules::protos::test_proto2::test::Enumeration;
+        use crate::modules::protos::test_proto2::Nested;
+        use crate::modules::protos::test_proto2::Test;
 
-        let mut languages = ProgrammingLanguages::new();
-        let mut c_lang = ProgrammingLanguage::new();
+        let mut test = Test::new();
+        let mut nested = Nested::new();
 
-        c_lang.set_name("C".to_string());
-        c_lang.set_creation_year(1972);
-        c_lang.set_type_checking(TypeChecking::STATIC);
+        test.set_int32_zero(0);
+        test.set_int64_zero(0);
+        test.set_sint32_zero(0);
+        test.set_sint64_zero(0);
+        test.set_uint32_zero(0);
+        test.set_uint64_zero(0);
+        test.set_fixed32_zero(0);
+        test.set_fixed64_zero(0);
+        test.set_sfixed32_zero(0);
+        test.set_sfixed64_zero(0);
+        test.set_float_zero(0.0);
 
-        languages.c = MessageField::some(c_lang);
+        test.set_int32_one(1);
+        test.set_int64_one(1);
+        test.set_sint32_one(1);
+        test.set_sint64_one(1);
+        test.set_uint32_one(1);
+        test.set_uint64_one(1);
+        test.set_fixed32_one(1);
+        test.set_fixed64_one(1);
+        test.set_sfixed32_one(1);
+        test.set_sfixed64_one(1);
+        test.set_float_one(1.0);
+
+        test.set_string_foo("foo".to_string());
+        test.set_string_bar("bar".to_string());
+
+        test.set_bytes_foo("foo".as_bytes().to_vec());
+        test.set_bytes_bar("bar".as_bytes().to_vec());
+
+        nested.set_int32_zero(0);
+
+        test.nested = MessageField::some(nested);
 
         let mut buf = Vec::new();
-        languages.write_to_vec(&mut buf).unwrap();
+        test.write_to_vec(&mut buf).unwrap();
 
-        let message_dyn = ProgrammingLanguages::descriptor()
-            .parse_from_bytes(buf.as_slice())
-            .unwrap();
+        let message_dyn =
+            Test::descriptor().parse_from_bytes(buf.as_slice()).unwrap();
 
         assert_eq!(
-            message_dyn.lookup("c").lookup("creation_year"),
-            Some(TypeValue::Integer(Some(1972)))
+            message_dyn.lookup("int32_zero"),
+            Some(TypeValue::Integer(Some(0)))
         );
 
         assert_eq!(
-            message_dyn.lookup("c").lookup("name"),
-            Some(TypeValue::String(Some(BString::from("C"))))
+            message_dyn.lookup("int32_one"),
+            Some(TypeValue::Integer(Some(1)))
         );
 
         assert_eq!(
-            message_dyn.lookup("c").lookup("type_checking"),
-            Some(TypeValue::Integer(
-                Some(TypeChecking::STATIC.value() as i64)
-            ))
+            message_dyn.lookup("string_foo"),
+            Some(TypeValue::String(Some(BString::from("foo"))))
         );
 
         assert_eq!(
-            message_dyn.lookup("TypeChecking").lookup("DYNAMIC"),
-            Some(TypeValue::Integer(Some(
-                TypeChecking::DYNAMIC.value() as i64
-            )))
+            message_dyn.lookup("nested").lookup("int32_zero"),
+            Some(TypeValue::Integer(Some(0)))
+        );
+
+        assert_eq!(
+            message_dyn.lookup("Enumeration").lookup("ITEM_1"),
+            Some(TypeValue::Integer(Some(Enumeration::ITEM_1.value() as i64)))
         );
     }
 }

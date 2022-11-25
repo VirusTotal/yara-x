@@ -25,9 +25,9 @@ option (yara.module_options) = {
   // in a hierarchical structure in which one message has fields that are other
   // messages. YARA needs to know which of those message definitions describes
   // the top-level structure for the module. In this case the root message is
-  // "ProgrammingLanguages" which indicates that the "test_proto2" module will
-  // have the fields defined in the "ProgrammingLanguages" message.
-  root_message: "ProgrammingLanguages"
+  // "Test" which indicates that the "test_proto2" module will have the fields
+  // defined in the "Test" message.
+  root_message: "Test"
 
   // The name of the Rust module that contains the code for this module. A
   // module with this name must exists under src/modules. In this case the
@@ -47,8 +47,8 @@ option (yara.module_options) = {
 /// In a YARA rule, after importing the module with `import "test_proto2"`, you
 /// can access the fields in this structure, as in the following examples:
 ///
-///  test_proto2.python.creator == "Guido Van Rossum"
-///  test_proto2.c.creation_year == 1972
+///  test_proto2.int32_zero == 0
+///  test_proto2.string_foo == "foo"
 ///
 /// Notice that proto2 fields must be either optional or required. Optional
 /// fields don't need to be explicitly set to some value, they can remain
@@ -63,27 +63,83 @@ option (yara.module_options) = {
 /// default to 0, and string values default to an empty string. These fields
 /// are never undefined to YARA, they always have some value, either their
 /// default values or the value explicitly set while filling the structure.
-message ProgrammingLanguages {
-  enum TypeChecking {
-    STATIC = 0;
-    DYNAMIC = 1;
+message Test {
+  
+  // Numeric values initialized to 0 by the module.
+  
+  required int32      int32_zero = 1;
+  required int64      int64_zero = 2;
+
+  required sint32     sint32_zero = 3;
+  required sint64     sint64_zero = 4;
+
+  required uint32     uint32_zero = 5;
+  required uint64     uint64_zero = 6;
+
+  required fixed32    fixed32_zero = 7;
+  required fixed64    fixed64_zero = 8;
+
+  required sfixed32   sfixed32_zero = 9;
+  required sfixed64   sfixed64_zero = 10;
+
+  required float      float_zero = 11;
+
+  // Numeric values initialized to 1 by the module.
+
+  required int32      int32_one = 21;
+  required int64      int64_one = 22;
+
+  required sint32     sint32_one = 23;
+  required sint64     sint64_one = 24;
+
+  required uint32     uint32_one = 25;
+  required uint64     uint64_one = 26;
+
+  required fixed32    fixed32_one = 27;
+  required fixed64    fixed64_one = 28;
+
+  required sfixed32   sfixed32_one = 29;
+  required sfixed64   sfixed64_one = 30;
+
+  required float      float_one = 31;
+
+  // Numeric values initialized to 1 by the module.
+
+  optional int32      int32_undef = 41;
+  optional int64      int64_undef = 42;
+
+  optional sint32     sint32_undef  = 43;
+  optional sint64     sint64_undef  = 44;
+
+  optional uint32     uint32_undef  = 45;
+  optional uint64     uint64_undef  = 46;
+
+  optional fixed32    fixed32_undef  = 47;
+  optional fixed64    fixed64_undef  = 48;
+
+  optional sfixed32   sfixed32_undef  = 49;
+  optional sfixed64   sfixed64_undef  = 50;
+
+  optional float      float_undef  = 51;
+
+  required string     string_foo = 61;
+  required string     string_bar = 62;
+  optional string     string_undef = 63;
+
+  required bytes      bytes_foo = 64;
+  required bytes      bytes_bar = 65;
+  optional bytes      bytes_undef = 66;
+
+  enum Enumeration {
+    ITEM_0 = 0;
+    ITEM_1 = 1;
   }
-  optional ProgrammingLanguage c = 1;
-  optional ProgrammingLanguage python = 2;
-  optional ProgrammingLanguage rust = 3;
-  optional ProgrammingLanguage haskell = 4;
+
+  optional Enumeration  enumeration = 100;
+  optional Nested       nested = 101;
 }
 
-message ProgrammingLanguage {
-  required string                               name = 1;
-  optional string                               creator = 2;
-  optional int32                                creation_year = 3;
-  optional bool                                 functional = 4;
-  optional ProgrammingLanguages.TypeChecking    type_checking = 5;
+message Nested {
+  optional int32      int32_zero = 1;
+  optional int64      int64_zero = 2;
 }
-
-message Person {
-  optional string   name = 1;
-  optional int32    birth_year = 2;
-}
-

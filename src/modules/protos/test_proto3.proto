@@ -27,7 +27,7 @@ option (yara.module_options) = {
   // the top-level structure for the module. In this case the root message is
   // "ProgrammingLanguages" which indicates that the "test_proto3" module will
   // have the fields defined in the "ProgrammingLanguages" message.
-  root_message: "ProgrammingLanguages"
+  root_message: "Test"
 };
 
 /// Top-level structure for this module.
@@ -35,8 +35,8 @@ option (yara.module_options) = {
 /// In a YARA rule, after importing the module with `import "test_proto3"`, you
 /// can access the fields in this structure, as in the following examples:
 ///
-///  test_proto2.python.creator == "Guido Van Rossum"
-///  test_proto2.c.creation_year == 1972
+///  test_proto2.int32_zero == 0
+///  test_proto2.string_foo == "foo"
 //
 /// In proto3 you don't need to specify if fields are optional or required as
 //  you must do in proto2. In proto3 all fields are optional. However, fields
@@ -45,27 +45,83 @@ option (yara.module_options) = {
 //  default to an empty string. These fields are never undefined to YARA, they
 //  always have some value, either their default values or the value explicitly
 //  set while filling the structure.
-message ProgrammingLanguages {
-  enum TypeChecking {
-    STATIC = 0;
-    DYNAMIC = 1;
+message Test {
+
+  // Numeric values initialized to 0 by the module.
+
+  int32      int32_zero = 1;
+  int64      int64_zero = 2;
+
+  sint32     sint32_zero = 3;
+  sint64     sint64_zero = 4;
+
+  uint32     uint32_zero = 5;
+  uint64     uint64_zero = 6;
+
+  fixed32    fixed32_zero = 7;
+  fixed64    fixed64_zero = 8;
+
+  sfixed32   sfixed32_zero = 9;
+  sfixed64   sfixed64_zero = 10;
+
+  float      float_zero = 11;
+
+  // Numeric values initialized to 1 by the module.
+
+  int32      int32_one = 21;
+  int64      int64_one = 22;
+
+  sint32     sint32_one = 23;
+  sint64     sint64_one = 24;
+
+  uint32     uint32_one = 25;
+  uint64     uint64_one = 26;
+
+  fixed32    fixed32_one = 27;
+  fixed64    fixed64_one = 28;
+
+  sfixed32   sfixed32_one = 29;
+  sfixed64   sfixed64_one = 30;
+
+  float      float_one = 31;
+
+  // Numeric values initialized to 1 by the module.
+
+  int32      int32_undef = 41;
+  int64      int64_undef = 42;
+
+  sint32     sint32_undef  = 43;
+  sint64     sint64_undef  = 44;
+
+  uint32     uint32_undef  = 45;
+  uint64     uint64_undef  = 46;
+
+  fixed32    fixed32_undef  = 47;
+  fixed64    fixed64_undef  = 48;
+
+  sfixed32   sfixed32_undef  = 49;
+  sfixed64   sfixed64_undef  = 50;
+
+  float      float_undef  = 51;
+
+  string     string_foo = 61;
+  string     string_bar = 62;
+  string     string_undef = 63;
+
+  bytes      bytes_foo = 64;
+  bytes      bytes_bar = 65;
+  bytes      bytes_undef = 66;
+
+  enum Enumeration {
+    ITEM_0 = 0;
+    ITEM_1 = 1;
   }
-  ProgrammingLanguage c = 1;
-  ProgrammingLanguage python = 2;
-  ProgrammingLanguage rust = 3;
-  ProgrammingLanguage haskell = 4;
+
+  Enumeration  enumeration = 100;
+  Nested       nested = 101;
 }
 
-message ProgrammingLanguage {
-  string                               name = 1;
-  string                               creator = 2;
-  int32                                creation_year = 3;
-  bool                                 functional = 4;
-  ProgrammingLanguages.TypeChecking    type_checking = 5;
+message Nested {
+  int32      int32_zero = 1;
+  int64      int64_zero = 2;
 }
-
-message Person {
-  string   name = 1;
-  int32    birth_year = 2;
-}
-

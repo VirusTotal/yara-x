@@ -89,6 +89,9 @@ fn bitwise_operations() {
 #[test]
 fn string_operations() {
     condition_true!(r#""foo" == "foo""#);
+    condition_true!(r#""foo\nbar" == "foo\nbar""#);
+    condition_true!(r#""foo\x00bar" == "foo\x00bar""#);
+
     condition_true!(r#""foo" != "bar""#);
     condition_true!(r#""aab" > "aaa""#);
     condition_true!(r#""aab" >= "aaa""#);
@@ -98,6 +101,7 @@ fn string_operations() {
     condition_true!(r#""aaa" <= "aaa""#);
 
     condition_true!(r#""foo" contains "foo""#);
+    condition_true!(r#""foo\x00" contains "\x00""#);
     condition_true!(r#""foo" contains "oo""#);
     condition_true!(r#""foo" startswith "fo""#);
     condition_true!(r#""foo" endswith "oo""#);
