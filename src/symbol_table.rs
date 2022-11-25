@@ -1,10 +1,12 @@
+use crate::ast;
+use crate::ast::TypeHint;
 use crate::modules::Module;
 use bstr::BString;
 use protobuf::reflect::{
     EnumDescriptor, MessageDescriptor, RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 
@@ -22,6 +24,18 @@ pub enum TypeValue {
     Bool(Option<bool>),
     String(Option<BString>),
     Struct(Rc<dyn SymbolLookup>),
+}
+
+impl From<&ast::TypeHint> for TypeValue {
+    fn from(type_hint: &TypeHint) -> Self {
+        match type_hint {
+            TypeHint::Bool(b) => Self::Bool(*b),
+            TypeHint::Integer(i) => Self::Integer(*i),
+            TypeHint::Float(f) => Self::Float(*f),
+            TypeHint::String(s) => Self::String(s.clone()),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl Debug for TypeValue {
@@ -276,9 +290,64 @@ impl Default for SymbolTable {
     }
 }
 
+impl SymbolLookup for SymbolTable {
+    fn lookup(&self, ident: &str) -> Option<TypeValue> {
+        self.map.get(ident).cloned()
+    }
+}
+
 impl SymbolLookup for &SymbolTable {
     fn lookup(&self, ident: &str) -> Option<TypeValue> {
         self.map.get(ident).cloned()
+    }
+}
+
+/// A set of stacked symbol tables.
+///
+/// As the name suggests, this type represents a set of symbol tables stacked
+/// one on top of each other. The `lookup` operation is performed first on the
+/// symbol table at the top of the stack, and if the symbol is not found, it
+/// keeps calling the `lookup` function on the next symbol table until the
+/// symbol is found, or the bottom of the stack is reached.
+///
+/// If the symbol table at the top of the stack contains an identifier "foo",
+/// it hides any other identifier "foo" that may exists on a symbol table
+/// that is deeper in the stack.
+///
+pub struct StackedSymbolTable {
+    stack: VecDeque<Rc<dyn SymbolLookup>>,
+}
+
+impl StackedSymbolTable {
+    /// Creates a new [`StackedSymbolTable`].
+    pub fn new() -> Self {
+        Self { stack: VecDeque::new() }
+    }
+
+    /// Pushes a new symbol table to the stack.
+    pub fn push(&mut self, symbol_table: Rc<dyn SymbolLookup>) {
+        self.stack.push_back(symbol_table)
+    }
+
+    /// Pop a symbol table from the stack.
+    pub fn pop(&mut self) -> Option<Rc<dyn SymbolLookup>> {
+        self.stack.pop_back()
+    }
+}
+
+impl SymbolLookup for StackedSymbolTable {
+    fn lookup(&self, ident: &str) -> Option<TypeValue> {
+        // Look for the identifier starting at the top of the stack, and
+        // going down the stack until it's found or the bottom of the
+        // stack is reached.
+        for t in self.stack.iter().rev() {
+            let symbol = t.lookup(ident);
+            if symbol.is_some() {
+                return symbol;
+            }
+        }
+        // The symbol was not found in any of the symbol tables..
+        None
     }
 }
 

@@ -378,24 +378,76 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
-        /*(
-                    line!(),
-                    r#"
-        rule test {
-          condition:
-            for any n in (1, 2, 3) : (
-              n == "3"
-            )
-        }
-                "#,
-                    r#""#,
-                ),*/
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for any n in (1, 2, 3) : (
+      n == "3"
+    )
+}
+"#,
+            r#"error: mismatching types
+   ╭─[line:5:7]
+   │
+ 5 │       n == "3"
+   ·       ┬    ─┬─  
+   ·       ╰───────── this expression is `integer`
+   ·             │   
+   ·             ╰─── this expression is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for any n in (1, 2, 3) : (
+      x == "3"
+    )
+}
+"#,
+            r#"error: unknown identifier `x`
+   ╭─[line:5:7]
+   │
+ 5 │       x == "3"
+   ·       ┬  
+   ·       ╰── this identifier has not been declared
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for any x in (1, 2, 3) : (
+      for any y in (1, 2, 3) : (
+         y == 1
+      )
+      and y == 1
+    )
+}
+"#,
+            r#"error: unknown identifier `y`
+   ╭─[line:8:11]
+   │
+ 8 │       and y == 1
+   ·           ┬  
+   ·           ╰── this identifier has not been declared
+───╯
+"#,
+        ),
     ];
 
     for t in tests {
         assert_eq!(
         Compiler::new().add_source(t.1)
-            .expect_err(&*format!(
+            .expect_err(&format!(
                 "rule at line {} compiled without errors, but error was expected.\n\n",
                 t.0,
             ))

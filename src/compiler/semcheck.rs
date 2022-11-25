@@ -2,11 +2,12 @@ use bstr::ByteSlice;
 use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
+use std::rc::Rc;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
-use crate::symbol_table::SymbolLookup;
 use crate::symbol_table::TypeValue;
+use crate::symbol_table::{SymbolLookup, SymbolTable};
 use crate::warnings::Warning;
 
 use crate::parser::arithmetic_op;
@@ -527,11 +528,21 @@ pub(super) fn semcheck_expr(
 
         Expr::ForIn(for_in) => {
             semcheck_quantifier(ctx, &for_in.quantifier)?;
-            semcheck_iterable(ctx, &for_in.iterable)?;
+            let type_hint = semcheck_iterable(ctx, &for_in.iterable)?;
+            let mut loop_vars = SymbolTable::new();
 
-            // TODO: add loop variables to symbol table.
+            for var in &for_in.variables {
+                loop_vars.insert(var.as_str(), TypeValue::from(&type_hint));
+            }
+
+            // Put the loop variables into scope.
+            ctx.symbol_table.push(Rc::new(loop_vars));
 
             semcheck!(ctx, Type::Bool, &for_in.condition)?;
+
+            // Leaving the condition's scope. Remove loop variables.
+            ctx.symbol_table.pop();
+
             Ok(TypeHint::Bool(None))
         }
     }

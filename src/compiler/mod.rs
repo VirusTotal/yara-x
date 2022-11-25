@@ -22,7 +22,9 @@ use crate::{modules, wasm};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbol_table::{SymbolLookup, SymbolTable, TypeValue};
+use crate::symbol_table::{
+    StackedSymbolTable, SymbolLookup, SymbolTable, TypeValue,
+};
 use crate::wasm::WasmSymbols;
 
 mod emit;
@@ -37,7 +39,7 @@ pub struct Compiler {
     colorize_errors: bool,
 
     report_builder: ReportBuilder,
-    symbol_table: SymbolTable,
+    symbol_table: StackedSymbolTable,
 
     /// Pool that contains all the identifiers used in the rules. Each
     /// identifier appears only once, even if they are used by multiple
@@ -85,7 +87,7 @@ impl Compiler {
             ident_pool: StringPool::new(),
             lit_pool: BStringPool::new(),
             wasm_mod: wasm::ModuleBuilder::new(),
-            symbol_table: SymbolTable::new(),
+            symbol_table: StackedSymbolTable::new(),
         }
     }
 
@@ -157,8 +159,8 @@ impl Compiler {
 
                 let mut ctx = Context {
                     src: &src,
-                    symbol_table: &self.symbol_table,
                     current_struct: None,
+                    symbol_table: &mut self.symbol_table,
                     ident_pool: &mut self.ident_pool,
                     lit_pool: &mut self.lit_pool,
                     report_builder: &self.report_builder,
@@ -274,6 +276,8 @@ impl Compiler {
         src: &SourceCode,
         imports: &[Import],
     ) -> Result<(), Error> {
+        let mut symbol_table = SymbolTable::new();
+
         // Iterate over the list of imported modules.
         for import in imports.iter() {
             // Does the imported module actually exist? ...
@@ -286,7 +290,7 @@ impl Compiler {
                     self.ident_pool.get_or_intern(import.module_name.as_str()),
                 );
 
-                self.symbol_table.insert(
+                symbol_table.insert(
                     import.module_name.as_str(),
                     TypeValue::Struct(Rc::new(module)),
                 );
@@ -302,6 +306,8 @@ impl Compiler {
                 ));
             }
         }
+
+        self.symbol_table.push(Rc::new(symbol_table));
 
         Ok(())
     }
@@ -363,9 +369,9 @@ struct Context<'a> {
     /// Builder for creating error and warning reports.
     report_builder: &'a ReportBuilder,
 
-    /// Symbol table that contains top-level symbols, like module names,
-    /// and external variables.
-    symbol_table: &'a SymbolTable,
+    /// Symbol table that contains the currently defined identifiers, modules,
+    /// functions, etc
+    symbol_table: &'a mut StackedSymbolTable,
 
     /// Symbol table for the currently active structure. When this is None
     /// symbols are looked up in `symbol_table` instead.
