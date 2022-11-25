@@ -3,7 +3,7 @@
 - rule: |
     rule test {
       strings:
-        $a = "foo" ascii wide xor
+        $a = "foo" ascii wide xor private fullword
       condition:
         $a
     }
@@ -12,11 +12,30 @@
     └─ namespace
        └─ rule test
           ├─ strings
-          │  └─ $a = "foo" ascii wide xor
+          │  └─ $a = "foo" ascii fullword private wide xor
           └─ condition
              └─ $a
 
 ###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = "foo" base64 base64wide
+      condition:
+        $a
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          ├─ strings
+          │  └─ $a = "foo" base64 base64wide
+          └─ condition
+             └─ $a
+
+###############################################################################
+
 
 - rule: |
     rule test {
