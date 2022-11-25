@@ -132,7 +132,6 @@ impl ModuleBuilder {
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
             ref_tmp: module.locals.add(Externref),
-            exception_flag: module.locals.add(I32),
         };
 
         let main_fn =
@@ -368,10 +367,6 @@ pub(crate) struct WasmSymbols {
     pub i64_tmp: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
     pub ref_tmp: walrus::LocalId,
-
-    /// Set to 1 when an exception is raised. This is used by the exception
-    /// handling logic.
-    pub exception_flag: walrus::LocalId,
 }
 
 lazy_static! {

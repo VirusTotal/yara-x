@@ -8,11 +8,10 @@ use std::fmt;
 use std::path::Path;
 use std::rc::Rc;
 use walrus::ir::{InstrSeqId, UnaryOp};
-use walrus::ValType::I32;
 use walrus::{Module, ValType};
 
 use crate::ast::*;
-use crate::compiler::emit::{emit_bool_expr, try_except};
+use crate::compiler::emit::{catch_undef, emit_bool_expr};
 use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
@@ -168,7 +167,6 @@ impl Compiler {
                     wasm_symbols: self.wasm_mod.wasm_symbols(),
                     warnings: &mut self.warnings,
                     exception_handler_stack: Vec::new(),
-                    raise_emitted: false,
                 };
 
                 // Verify that the rule's condition is semantically valid. This
@@ -190,23 +188,9 @@ impl Compiler {
                 let ctx = RefCell::new(ctx);
 
                 self.wasm_mod.main_fn().block(None, |block| {
-                    try_except(
-                        &ctx,
-                        block,
-                        I32,
-                        |try_| {
-                            // Emit the code for the condition, which leaves
-                            // the condition's result at the top of the stack.
-                            emit_bool_expr(&ctx, try_, &rule.condition);
-                        },
-                        |except_| {
-                            // This gets executed if some expression was
-                            // undefined while evaluating the condition. It
-                            // It means that the result from the condition
-                            // will be false in such cases.
-                            except_.i32_const(0);
-                        },
-                    );
+                    catch_undef(&ctx, block, |instr| {
+                        emit_bool_expr(&ctx, instr, &rule.condition);
+                    });
 
                     // If the condition's result is 0, jump out of the block
                     // and don't call the `rule_result` function.
@@ -398,9 +382,6 @@ struct Context<'a> {
 
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
-
-    /// True if [`emit::raise`] has been used.
-    raise_emitted: bool,
 }
 
 impl<'a> Context<'a> {
