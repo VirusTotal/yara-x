@@ -9,9 +9,9 @@ use pest::error::InputLocation;
 use yansi::Style;
 
 use crate::ast::Span;
-use crate::parser::Error;
 use crate::parser::GrammarRule;
 use crate::parser::SourceCode;
+use crate::parser::{Error, ErrorInfo};
 
 /// Types of reports created by [`ReportBuilder`].
 pub(crate) enum ReportType {
@@ -157,10 +157,10 @@ impl ReportBuilder {
         let error_msg = match &pest_error.variant {
             CustomError { message } => message.to_owned(),
             ParsingError { positives, negatives } => {
-                Error::syntax_error_message(
+                ErrorInfo::syntax_error_message(
                     positives,
                     negatives,
-                    Error::printable_string,
+                    ErrorInfo::printable_string,
                 )
             }
         };
@@ -174,7 +174,11 @@ impl ReportBuilder {
             None,
         );
 
-        Error::SyntaxError { detailed_report, error_msg, error_span }
+        Error::new(ErrorInfo::SyntaxError {
+            detailed_report,
+            error_msg,
+            error_span,
+        })
     }
 
     fn color(&self, c: Color) -> Color {

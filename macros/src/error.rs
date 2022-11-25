@@ -35,7 +35,6 @@ pub(crate) fn impl_error_macro(
         use crate::report::ReportBuilder;
         use crate::parser::SourceCode;
         use yansi::Color;
-        use std::fmt::{Debug, Display, Formatter};
 
         #[automatically_derived]
         impl #impl_generics #name #ty_generics #where_clause {

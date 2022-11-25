@@ -15,7 +15,7 @@ use pest::pratt_parser::{Assoc, Op, PrattParser};
 use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
 use crate::ast::Namespace;
 use crate::ast::*;
-use crate::parser::{CSTNode, Context, Error, GrammarRule, CST};
+use crate::parser::{CSTNode, Context, Error, ErrorInfo, GrammarRule, CST};
 use crate::warnings::Warning;
 
 macro_rules! expect {
@@ -461,12 +461,12 @@ fn check_pattern_modifiers<'src>(
                 _ => unreachable!(),
             };
 
-            return Err(Error::invalid_modifier(
+            return Err(Error::new(ErrorInfo::invalid_modifier(
                 ctx.report_builder,
                 &ctx.src,
                 error_detail.to_string(),
                 modifier.span(),
-            ));
+            )));
         }
     }
 
@@ -484,7 +484,7 @@ fn check_pattern_modifiers<'src>(
 
     for (name1, modifier1, name2, modifier2) in invalid_combinations {
         if let (Some(modifier1), Some(modifier2)) = (modifier1, modifier2) {
-            return Err(Error::invalid_modifier_combination(
+            return Err(Error::new(ErrorInfo::invalid_modifier_combination(
                 ctx.report_builder,
                 &ctx.src,
                 name1.to_string(),
@@ -492,7 +492,7 @@ fn check_pattern_modifiers<'src>(
                 modifier1.span(),
                 modifier2.span(),
                 Some("these two modifiers can't be used together".to_string()),
-            ));
+            )));
         };
     }
 
@@ -545,13 +545,13 @@ pub(crate) fn namespace_from_cst<'src>(
                 {
                     let existing_rule = &rules[*index];
 
-                    return Err(Error::duplicate_rule(
+                    return Err(Error::new(ErrorInfo::duplicate_rule(
                         ctx.report_builder,
                         &ctx.src,
                         new_rule.identifier.name.to_string(),
                         new_rule.identifier.span,
                         existing_rule.identifier.span,
-                    ));
+                    )));
                 }
                 rules_index.insert(new_rule.identifier.name, rules.len());
                 rules.push(new_rule);
@@ -628,7 +628,7 @@ fn rule_from_cst<'src>(
 
         for ident in idents {
             if !tags.insert(ident.as_str()) {
-                return Err(Error::duplicate_tag(
+                return Err(Error::new(ErrorInfo::duplicate_tag(
                     ctx.report_builder,
                     &ctx.src,
                     ident.as_str().to_string(),
@@ -636,7 +636,7 @@ fn rule_from_cst<'src>(
                         start: ident.as_span().start(),
                         end: ident.as_span().end(),
                     },
-                ));
+                )));
             }
         }
 
@@ -689,12 +689,12 @@ fn rule_from_cst<'src>(
 
     if let Some(ident) = unused_pattern {
         let ident = ctx.declared_patterns.get(ident).unwrap();
-        return Err(Error::unused_pattern(
+        return Err(Error::new(ErrorInfo::unused_pattern(
             ctx.report_builder,
             &ctx.src,
             ident.name.to_string(),
             ident.span,
-        ));
+        )));
     }
 
     // Clear `declared_patterns` so that the next call to `rule_from_cst`
@@ -738,13 +738,13 @@ fn patterns_from_cst<'src>(
             if let Some(existing_pattern_ident) =
                 ctx.declared_patterns.get(&new_pattern_ident.name[1..])
             {
-                return Err(Error::duplicate_pattern(
+                return Err(Error::new(ErrorInfo::duplicate_pattern(
                     ctx.report_builder,
                     &ctx.src,
                     new_pattern_ident.name.to_string(),
                     new_pattern_ident.span,
                     existing_pattern_ident.span,
-                ));
+                )));
             }
         }
 
@@ -943,14 +943,14 @@ fn pattern_mods_from_cst<'src>(
                         };
 
                         if lower_bound > upper_bound {
-                            return Err(Error::invalid_range(
+                            return Err(Error::new(ErrorInfo::invalid_range(
                                ctx.report_builder,
                                &ctx.src,
                                format!(
                                    "lower bound ({}) is greater than upper bound ({})",
                                    lower_bound, upper_bound),
                                 lower_bound_span,
-                            ));
+                            )));
                         }
                     }
                 }
@@ -991,11 +991,11 @@ fn pattern_mods_from_cst<'src>(
 
         let span = modifier.span();
         if modifiers.insert(node.as_str(), modifier).is_some() {
-            return Err(Error::duplicate_modifier(
+            return Err(Error::new(ErrorInfo::duplicate_modifier(
                 ctx.report_builder,
                 &ctx.src,
                 span,
-            ));
+            )));
         }
     }
 
@@ -1204,12 +1204,12 @@ fn boolean_term_from_cst<'src>(
             }
             // `$` used outside a `for .. of` statement, that's invalid.
             else if !ctx.inside_for_of {
-                return Err(Error::syntax_error(
+                return Err(Error::new(ErrorInfo::syntax_error(
                     ctx.report_builder,
                     &ctx.src,
                     "this `$` is outside of the condition of a `for .. of` statement".to_string(),
                     ident.as_span().into(),
-                ));
+                )));
             }
 
             Expr::PatternMatch(Box::new(PatternMatch {
@@ -1923,7 +1923,7 @@ where
     };
 
     let mut build_error = || {
-        Error::invalid_integer(
+        Error::new(ErrorInfo::invalid_integer(
             ctx.report_builder,
             &ctx.src,
             format!(
@@ -1932,7 +1932,7 @@ where
                 T::max_value()
             ),
             span.into(),
-        )
+        ))
     };
 
     // Report errors that occur while parsing the literal. Some errors
@@ -1963,12 +1963,12 @@ fn float_lit_from_cst<'src>(
     let span = float_lit.as_span().into();
 
     literal.parse::<f64>().map_err(|err| {
-        Error::invalid_float(
+        Error::new(ErrorInfo::invalid_float(
             ctx.report_builder,
             &ctx.src,
             err.to_string(),
             span,
-        )
+        ))
     })
 }
 
@@ -2011,11 +2011,11 @@ fn string_lit_from_cst<'src>(
     if literal.find('\\').is_none() {
         return Ok(Cow::from(BStr::new(literal)));
     } else if !allow_escape_char {
-        return Err(Error::unexpected_escape_sequence(
+        return Err(Error::new(ErrorInfo::unexpected_escape_sequence(
             ctx.report_builder,
             &ctx.src,
             string_lit.as_span().into(),
-        ));
+        )));
     }
 
     // The point in the source code where the literal starts, skipping the
@@ -2039,14 +2039,16 @@ fn string_lit_from_cst<'src>(
                 // No more bytes following the backslash, this is an invalid
                 // escape sequence.
                 if next_byte.is_none() {
-                    return Err(Error::invalid_escape_sequence(
-                        ctx.report_builder,
-                        &ctx.src,
-                        r"missing escape sequence after `\`".to_string(),
-                        Span {
-                            start: literal_start + backslash_pos,
-                            end: literal_start + backslash_pos + 1,
-                        },
+                    return Err(Error::new(
+                        ErrorInfo::invalid_escape_sequence(
+                            ctx.report_builder,
+                            &ctx.src,
+                            r"missing escape sequence after `\`".to_string(),
+                            Span {
+                                start: literal_start + backslash_pos,
+                                end: literal_start + backslash_pos + 1,
+                            },
+                        ),
                     ));
                 }
 
@@ -2067,45 +2069,51 @@ fn string_lit_from_cst<'src>(
                             {
                                 result.push(hex_value);
                             } else {
-                                return Err(Error::invalid_escape_sequence(
-                                    ctx.report_builder,
-                                    &ctx.src,
-                                    format!(
-                                        r"invalid hex value `{}` after `\x`",
-                                        &literal[start..=end]
+                                return Err(Error::new(
+                                    ErrorInfo::invalid_escape_sequence(
+                                        ctx.report_builder,
+                                        &ctx.src,
+                                        format!(
+                                            r"invalid hex value `{}` after `\x`",
+                                            &literal[start..=end]
+                                        ),
+                                        Span {
+                                            start: literal_start + start,
+                                            end: literal_start + end + 1,
+                                        },
                                     ),
-                                    Span {
-                                        start: literal_start + start,
-                                        end: literal_start + end + 1,
-                                    },
                                 ));
                             }
                         }
                         _ => {
-                            return Err(Error::invalid_escape_sequence(
-                                ctx.report_builder,
-                                &ctx.src,
-                                r"expecting two hex digits after `\x`"
-                                    .to_string(),
-                                Span {
-                                    start: literal_start + backslash_pos,
-                                    end: literal_start + backslash_pos + 2,
-                                },
+                            return Err(Error::new(
+                                ErrorInfo::invalid_escape_sequence(
+                                    ctx.report_builder,
+                                    &ctx.src,
+                                    r"expecting two hex digits after `\x`"
+                                        .to_string(),
+                                    Span {
+                                        start: literal_start + backslash_pos,
+                                        end: literal_start + backslash_pos + 2,
+                                    },
+                                ),
                             ));
                         }
                     },
                     _ => {
-                        return Err(Error::invalid_escape_sequence(
-                            ctx.report_builder,
-                            &ctx.src,
-                            format!(
-                                "invalid escape sequence `{}`",
-                                &literal[backslash_pos..backslash_pos + 2]
+                        return Err(Error::new(
+                            ErrorInfo::invalid_escape_sequence(
+                                ctx.report_builder,
+                                &ctx.src,
+                                format!(
+                                    "invalid escape sequence `{}`",
+                                    &literal[backslash_pos..backslash_pos + 2]
+                                ),
+                                Span {
+                                    start: literal_start + backslash_pos,
+                                    end: literal_start + backslash_pos + 2,
+                                },
                             ),
-                            Span {
-                                start: literal_start + backslash_pos,
-                                end: literal_start + backslash_pos + 2,
-                            },
                         ));
                     }
                 }
@@ -2165,26 +2173,26 @@ fn hex_pattern_from_cst<'src>(
                     // nibbles in a byte sequence (e.g. { 000 }). The grammar
                     // allows this case, even if invalid, precisely for detecting
                     // it here and providing a meaningful error message.
-                    return Err(Error::invalid_hex_pattern(
+                    return Err(Error::new(ErrorInfo::invalid_hex_pattern(
                         ctx.report_builder,
                         &ctx.src,
                         ctx.current_pattern_ident(),
                         "uneven number of nibbles".to_string(),
                         node.as_span().into(),
                         None,
-                    ));
+                    )));
                 }
 
                 // ~?? is not allowed.
                 if negated && mask == 0x00 {
-                    return Err(Error::invalid_hex_pattern(
+                    return Err(Error::new(ErrorInfo::invalid_hex_pattern(
                         ctx.report_builder,
                         &ctx.src,
                         ctx.current_pattern_ident(),
                         "negation of `??` is not allowed".to_string(),
                         node.as_span().into(),
                         None,
-                    ));
+                    )));
                 }
 
                 let token =
@@ -2227,7 +2235,7 @@ fn hex_pattern_from_cst<'src>(
 
                 if let (Some(start), Some(end)) = (jump.start, jump.end) {
                     if start > end {
-                        return Err(Error::invalid_hex_pattern(
+                        return Err(Error::new(ErrorInfo::invalid_hex_pattern(
                             ctx.report_builder,
                             &ctx.src,
                             ctx.current_pattern_ident(),
@@ -2240,7 +2248,7 @@ fn hex_pattern_from_cst<'src>(
                             } else {
                                 None
                             },
-                        ));
+                        )));
                     }
                 }
 

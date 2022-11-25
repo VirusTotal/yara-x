@@ -237,8 +237,8 @@ impl<'a> Parser<'a> {
 
         let mut ctx = Context::new(src, report_builder);
 
-        let namespaces =
-            vec![namespace_from_cst(&mut ctx, root.into_inner())?];
+        let namespace = namespace_from_cst(&mut ctx, root.into_inner())?;
+        let namespaces = vec![namespace];
 
         Ok(AST { namespaces, warnings: ctx.warnings })
     }

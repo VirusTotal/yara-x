@@ -14,7 +14,7 @@ use walrus::{Module, ValType};
 use crate::ast::*;
 use crate::compiler::emit::{emit_bool_expr, try_except};
 use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
-use crate::parser::{Error as ParserError, Parser, SourceCode};
+use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::warnings::Warning;

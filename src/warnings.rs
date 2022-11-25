@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Display, Formatter};
 use yara_macros::Error;
 
 use crate::ast::Span;

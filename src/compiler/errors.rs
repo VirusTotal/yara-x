@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display, Formatter};
+
 use thiserror::Error;
 use yara_macros::Error as CompileError;
 

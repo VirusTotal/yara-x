@@ -1,32 +1,62 @@
-use yara_macros::Error;
+use std::fmt::{Debug, Display, Formatter};
+use yara_macros::Error as Err;
 
 use crate::ast::Span;
 
 use super::GrammarRule;
 
 /// An error occurred while parsing YARA rules.
-/// 
-/// Each error variant has a `detailed_report` field, which contains a detailed
-/// text-mode error report like this one ...
-/// 
-/// ```text
-/// error: duplicate tag `tag1`
-///    ╭─[line:1:18]
-///    │
-///  1 │ rule test : tag1 tag1 { condition: true }
-///    ·                  ──┬─  
-///    ·                    ╰─── duplicate tag
-/// ───╯
-/// ```
-/// 
-/// Each variant also contains additional pieces of information that are 
+///
+/// Each variant also contains additional pieces of information that are
 /// relevant for that specific error. This information is usually contained
-/// inside the detailed report itself, but having access to the individual 
+/// inside the detailed report itself, but having access to the individual
 /// pieces is useful for applications that can't rely on text-based reports.
-/// 
+pub struct Error(Box<ErrorInfo>);
+
+impl Error {
+    pub(crate) fn new(info: ErrorInfo) -> Self {
+        Self(Box::new(info))
+    }
+
+    /// Returns a string with a detailed text-mode report like this one ...
+    ///
+    /// ```text
+    /// error: duplicate tag `tag1`
+    ///    ╭─[line:1:18]
+    ///    │
+    ///  1 │ rule test : tag1 tag1 { condition: true }
+    ///    ·                  ──┬─  
+    ///    ·                    ╰─── duplicate tag
+    /// ───╯
+    /// ```
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Returns additional information about the error.
+    pub fn info(&self) -> &ErrorInfo {
+        self.0.as_ref()
+    }
+}
+
+impl Debug for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for Error {}
+
+/// Additional information about an error occurred during parsing.
 #[rustfmt::skip]
-#[derive(Error)]
-pub enum Error {
+#[derive(Err)]
+pub enum ErrorInfo {
     #[error("syntax error")]
     #[label("{error_msg}", error_span)]
     SyntaxError { 
@@ -166,8 +196,57 @@ pub enum Error {
     },
 }
 
-impl Error {
-    pub fn syntax_error_message<F>(
+impl ErrorInfo {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::SyntaxError { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::DuplicateTag { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::DuplicateRule { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::DuplicatePattern { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidModifier { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::DuplicateModifier { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidModifierCombination { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::UnusedPattern { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidHexPattern { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidRange { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidInteger { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidFloat { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidEscapeSequence { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::UnexpectedEscapeSequence { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+        }
+    }
+}
+
+impl ErrorInfo {
+    pub(crate) fn syntax_error_message<F>(
         expected: &[GrammarRule],
         unexpected: &[GrammarRule],
         mut f: F,
@@ -235,7 +314,7 @@ impl Error {
     /// `str1`, `str2` or `str3`
     /// ```
     ///
-    pub fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
+    pub(crate) fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
         let mut strings: _ = if quotes {
             s.iter()
                 .map(|s| format!("`{}`", s.to_string()))
@@ -265,7 +344,7 @@ impl Error {
 
     /// Given a grammar rule returns a more appropriate string that will be used
     /// in error messages.
-    pub fn printable_string(rule: &GrammarRule) -> &str {
+    pub(crate) fn printable_string(rule: &GrammarRule) -> &str {
         match rule {
             // Keywords
             GrammarRule::k_ALL => "`all`",
