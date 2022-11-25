@@ -1,7 +1,7 @@
 /*! Types representing the Abstract Syntax Tree (AST) for YARA rules.*/
 mod span;
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -9,7 +9,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 use ascii_tree::Tree::Node;
 use bitmask::bitmask;
-use bstr::BString;
+use bstr::{BStr, BString};
 use yara_macros::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
@@ -133,18 +133,18 @@ impl<'src> Pattern<'src> {
 
 /// A pattern (a.k.a string) modifier.
 #[derive(Debug, HasSpan)]
-pub enum PatternModifier {
+pub enum PatternModifier<'src> {
     Ascii { span: Span },
     Wide { span: Span },
     Nocase { span: Span },
     Private { span: Span },
     Fullword { span: Span },
-    Base64 { span: Span, alphabet: Option<BString> },
-    Base64Wide { span: Span, alphabet: Option<BString> },
+    Base64 { span: Span, alphabet: Option<Cow<'src, BStr>> },
+    Base64Wide { span: Span, alphabet: Option<Cow<'src, BStr>> },
     Xor { span: Span, start: u8, end: u8 },
 }
 
-impl Display for PatternModifier {
+impl Display for PatternModifier<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             PatternModifier::Ascii { .. } => {
@@ -189,6 +189,9 @@ impl Display for PatternModifier {
     }
 }
 
+/// Value of a literal string.
+pub type LStr<'src> = Cow<'src, BStr>;
+
 /// A text pattern (a.k.a text string) in a YARA rule.
 ///
 /// The value is stored in a [`BString`] because text patterns in YARA can
@@ -198,8 +201,8 @@ impl Display for PatternModifier {
 pub struct TextPattern<'src> {
     pub(crate) span: Span,
     pub identifier: Ident<'src>,
-    pub value: BString,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
+    pub value: LStr<'src>,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
 }
 
 /// A hex pattern (a.k.a hex string) in a YARA rule.
@@ -208,7 +211,7 @@ pub struct HexPattern<'src> {
     pub(crate) span: Span,
     pub identifier: Ident<'src>,
     pub tokens: HexTokens,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a hex string).
@@ -294,7 +297,7 @@ pub struct Regexp<'src> {
     pub(crate) span: Span,
     pub identifier: Ident<'src>,
     pub regexp: &'src str,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier>>,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
 }
 
 /// An expression in the AST.
@@ -576,8 +579,10 @@ pub struct LiteralFlt<'src> {
 #[derive(Debug, HasSpan)]
 pub struct LiteralStr<'src> {
     pub(crate) span: Span,
-    pub literal: &'src str,
-    pub value: BString,
+    /// The literal string exactly as it appears in the source code.
+    pub original: &'src str,
+    /// The actual value of the string literal, after unescaping any escaped characters.
+    pub value: LStr<'src>,
 }
 
 /// An expression with a single operand.
@@ -870,7 +875,9 @@ impl<'src> Expr<'src> {
 
             Expr::LiteralInt(i) => TypeHint::Integer(Some(i.value)),
             Expr::LiteralFlt(f) => TypeHint::Float(Some(f.value)),
-            Expr::LiteralStr(s) => TypeHint::String(Some(s.value.clone())),
+            Expr::LiteralStr(s) => {
+                TypeHint::String(Some(s.value.as_ref().to_owned()))
+            }
 
             Expr::PatternMatch(_)
             | Expr::LookupIndex(_)

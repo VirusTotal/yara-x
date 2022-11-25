@@ -74,7 +74,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
         Expr::Filesize { .. } => Leaf(vec!["filesize".to_string()]),
         Expr::LiteralInt(lit) => Leaf(vec![lit.literal.to_string()]),
         Expr::LiteralFlt(lit) => Leaf(vec![lit.literal.to_string()]),
-        Expr::LiteralStr(lit) => Leaf(vec![lit.literal.to_string()]),
+        Expr::LiteralStr(lit) => Leaf(vec![lit.original.to_string()]),
         Expr::Ident(ident) => Leaf(vec![ident.name.to_string()]),
         Expr::Not(expr) => {
             Node(format!("not{}", value), vec![expr_ascii_tree(&expr.operand)])

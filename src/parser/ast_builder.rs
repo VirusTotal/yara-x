@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
 use std::ops::BitAnd;
@@ -5,7 +6,7 @@ use std::ops::BitOr;
 use std::ops::BitXor;
 use std::str;
 
-use bstr::{BString, ByteSlice};
+use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
 use num::{Bounded, CheckedMul, FromPrimitive, Integer};
 use pest::iterators::Pair;
@@ -879,7 +880,7 @@ fn pattern_mods_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     rule_type: GrammarRule,
     pattern_mods: CSTNode<'src>,
-) -> Result<HashMap<&'src str, PatternModifier>, Error> {
+) -> Result<HashMap<&'src str, PatternModifier<'src>>, Error> {
     expect!(pattern_mods, GrammarRule::pattern_mods);
 
     let mut children = pattern_mods.into_inner().peekable();
@@ -1376,7 +1377,7 @@ fn primary_expr_from_cst<'src>(
         }
         GrammarRule::string_lit => Expr::LiteralStr(Box::new(LiteralStr {
             span: node.as_span().into(),
-            literal: node.as_span().as_str(),
+            original: node.as_span().as_str(),
             value: string_lit_from_cst(ctx, node, true)?,
         })),
         GrammarRule::float_lit => Expr::LiteralFlt(Box::new(LiteralFlt {
@@ -1972,20 +1973,26 @@ fn float_lit_from_cst<'src>(
 }
 
 /// From a CST node corresponding to the grammar rule `string_lit`, returns
-/// a [`BString`] representing the literal. `allow_escape_char` controls whether
+/// a string representing the literal. `allow_escape_char` controls whether
 /// escaped characters are accepted or not.
 ///
-/// As escape characters can introduce arbitrary bytes in the string, including
-/// zeroes, they can't be represented by a Rust string slice which requires
-/// valid UTF-8. For that reason this functions returns a BString.
+/// This function returns a [`Literal<'src>`]. If the string literal doesn't
+/// contain escaped characters, the literal is exactly as it appears in the source
+/// code and we can return a reference to the code in the form of a &[`BStr`].
+/// However, when the literal string contains escaped characters they must be
+/// unescaped, and hence, this function returns a [`BString`] instead.
 ///
-/// When called with `allow_escaped_char: false`, the returned [`BString`] can
-/// be safely converted to [`String`].
+/// As escape characters can introduce arbitrary bytes in the string, including
+/// zeroes, they can't be represented by a Rust [`String`] or &[`str`] which requires
+/// valid UTF-8. For that reason we use [`BString`] and &[`BStr`] instead.
+///
+/// When called with `allow_escaped_char: false`, the returned string can be
+/// safely converted to [`String`] or &[`str`].
 fn string_lit_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     string_lit: CSTNode<'src>,
     allow_escape_char: bool,
-) -> Result<BString, Error> {
+) -> Result<LStr<'src>, Error> {
     expect!(string_lit, GrammarRule::string_lit);
 
     let literal = string_lit.as_str();
@@ -1997,26 +2004,35 @@ fn string_lit_from_cst<'src>(
     // From now on ignore the quotes.
     let literal = &literal[1..literal.len() - 1];
 
+    // If the literal does not contain a backslash it can't contain escaped
+    // characters, the literal is exactly as it appears in the source code.
+    // Therefore we can return a reference to it in the form of a &BStr,
+    // allocating a new BString is not necessary.
+    if literal.find('\\').is_none() {
+        return Ok(Cow::from(BStr::new(literal)));
+    } else if !allow_escape_char {
+        return Err(Error::unexpected_escape_sequence(
+            ctx.report_builder,
+            &ctx.src,
+            string_lit.as_span().into(),
+        ));
+    }
+
     // The point in the source code where the literal starts, skipping the
     // opening double quote.
     let literal_start = string_lit.as_span().start() + 1;
 
+    // TODO: with some unsafe code we could use the position of the backslash
+    // returned by find for copying the chunk of literal that doesn't contain
+    // any backslashes directly into the resulting BString, instead of iterating
+    // the literal again from the very beginning.
     let mut bytes = literal.bytes().enumerate();
-
     let mut result = BString::new(Vec::with_capacity(literal.len()));
 
     while let Some((backslash_pos, b)) = bytes.next() {
         match b {
             // The backslash indicates an escape sequence.
             b'\\' => {
-                if !allow_escape_char {
-                    return Err(Error::unexpected_escape_sequence(
-                        ctx.report_builder,
-                        &ctx.src,
-                        string_lit.as_span().into(),
-                    ));
-                }
-
                 // Consume the backslash and see what's next.
                 let next_byte = bytes.next();
 
@@ -2099,7 +2115,7 @@ fn string_lit_from_cst<'src>(
         }
     }
 
-    Ok(result)
+    Ok(Cow::Owned(result))
 }
 
 /// From a CST node corresponding to the grammar rule `hex_pattern`, returns

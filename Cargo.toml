@@ -37,7 +37,7 @@ ariadne = "0.1.5"
 ascii_tree = "0.1.1"
 bitmask = "0.5.0"
 bitvec = "1.0.1"
-bstr = "1.0.1"
+bstr = { version= "1.0.1", features=["alloc"] }
 clap = { version = "3.2.20", features=["cargo"] }
 globset = "0.4.9"
 intaglio = "1.7.0"
