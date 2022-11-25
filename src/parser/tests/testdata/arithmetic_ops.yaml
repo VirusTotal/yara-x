@@ -84,7 +84,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq : boolean(false)
+             └─ ne : boolean(false)
                 ├─ sub : integer(3)
                 │  ├─ 5
                 │  └─ 2
