@@ -4,16 +4,7 @@ name: Code coverage with grcov
 
 jobs:
   grcov:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-        - ubuntu-latest
-        - macOS-latest
-        cargo-test-args:
-        - "--features=test_proto2-module,test_proto3-module --no-default-features"
-        - "--features=compile-time-optimization,test_proto2-module,test_proto3-module --no-default-features"
-
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
       uses: actions/checkout@v3
@@ -29,7 +20,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all ${{ matrix.cargo-test-args }}
+        args: --all --features=compile-time-optimization,test_proto2-module,test_proto3-module --no-default-features
       env:
         CARGO_INCREMENTAL: 0
         RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests"
