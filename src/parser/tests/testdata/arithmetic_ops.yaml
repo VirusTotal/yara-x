@@ -77,6 +77,26 @@
 - rule: |
     rule test {
       condition:
+        5 - 2 != 6 - 3
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ eq : boolean(false)
+                ├─ sub : integer(3)
+                │  ├─ 5
+                │  └─ 2
+                └─ sub : integer(3)
+                   ├─ 6
+                   └─ 3
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
         // The result of integer division and modulo where divisor is zero is
         // undefined, therefore their value at compile time will be unkown.
         10 \ 0 == 10 % 0
