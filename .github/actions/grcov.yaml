@@ -5,4 +5,5 @@ filter: covered
 output-type: lcov
 output-path: ./lcov.info
 ignore:
-  - "./target"
+  - "/home/runner/work/yara-x/yara-x/target/*"
+  - "/home/runner/.cargo/registry/*"
