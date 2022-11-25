@@ -151,6 +151,8 @@ fn boolean_casting() {
     condition_false!("not 1");
     condition_true!("not 0.0");
     condition_false!("not 1.0");
+    condition_true!(r#""foo""#);
+    condition_false!(r#""""#);
 }
 
 #[test]

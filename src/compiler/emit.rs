@@ -582,8 +582,9 @@ pub(super) fn emit_bool_expr(
             instr.binop(BinaryOp::F64Ne);
         }
         Type::String => {
-            // TODO
-            // todo!();
+            instr.call(ctx.borrow().wasm_symbols.str_len);
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64Ne);
         }
         ty => unreachable!("type `{}` can't be casted to boolean", ty),
     }

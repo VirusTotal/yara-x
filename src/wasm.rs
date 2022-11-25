@@ -106,6 +106,9 @@ impl ModuleBuilder {
         let ty = module.types.add(&[Externref, Externref], &[I32]);
         let (str_iequals, _) = module.add_import_func("yr", "str_iequals", ty);
 
+        let ty = module.types.add(&[Externref], &[I64]);
+        let (str_len, _) = module.add_import_func("yr", "str_len", ty);
+
         let ty = module.types.add(&[], &[I64]);
         let (filesize, _) = module.add_import_func("yr", "filesize", ty);
 
@@ -128,6 +131,7 @@ impl ModuleBuilder {
             str_istartswith,
             str_iendswith,
             str_iequals,
+            str_len,
             filesize,
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
@@ -210,6 +214,11 @@ impl RuntimeString {
             }
             RuntimeString::Owned(s) => s.as_bstr(),
         }
+    }
+
+    #[inline]
+    fn len(&self, ctx: &ScanContext) -> usize {
+        self.as_bstr(ctx).len()
     }
 
     #[inline]
@@ -362,6 +371,7 @@ pub(crate) struct WasmSymbols {
     pub str_istartswith: walrus::FunctionId,
     pub str_iendswith: walrus::FunctionId,
     pub str_iequals: walrus::FunctionId,
+    pub str_len: walrus::FunctionId,
 
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
@@ -388,6 +398,7 @@ lazy_static! {
         linker.func_wrap("yr", "str_istartswith", str_istartswith).unwrap();
         linker.func_wrap("yr", "str_iequals", str_iequals).unwrap();
         linker.func_wrap("yr", "str_iendswith", str_iendswith).unwrap();
+        linker.func_wrap("yr", "str_len", str_len).unwrap();
         linker.func_wrap("yr", "rule_match", rule_match).unwrap();
         linker.func_wrap("yr", "is_pat_match", is_pat_match).unwrap();
         linker.func_wrap("yr", "is_pat_match_at", is_pat_match_at).unwrap();
@@ -537,3 +548,13 @@ str_op_fn!(str_icontains, contains, true);
 str_op_fn!(str_istartswith, starts_with, true);
 str_op_fn!(str_iendswith, ends_with, true);
 str_op_fn!(str_iequals, equals, true);
+
+pub(crate) fn str_len(
+    caller: Caller<'_, ScanContext>,
+    string: Option<ExternRef>,
+) -> i64 {
+    let string_ref = string.unwrap();
+    let string = string_ref.data().downcast_ref::<RuntimeString>().unwrap();
+
+    string.len(caller.data()) as i64
+}
