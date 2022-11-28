@@ -156,6 +156,46 @@ fn boolean_casting() {
 }
 
 #[test]
+fn for_in() {
+    condition_true!("for all i in (0..0) : ( true )");
+    condition_false!("for all i in (0..0) : ( false )");
+    condition_false!("for none i in (0..0) : ( true )");
+    condition_true!("for none i in (0..0) : ( false )");
+    condition_true!("for none i in (0..10) : ( false )");
+    condition_false!("for none i in (0..10) : ( true )");
+    condition_true!("for all i in (0..10) : ( true )");
+    condition_false!("for all i in (0..10) : ( false )");
+    condition_true!("for any i in (0..10) : ( i == 5 )");
+    condition_false!("for none i in (0..10) : ( i == 5 )");
+    condition_true!("for all i in (0..10) : ( i <= 10 )");
+    condition_true!("for none i in (0..10) : ( i > 10 )");
+    condition_true!("for all i in (3..5) : ( i >= 3 and i <= 5 )");
+    condition_true!(
+        "for all i in (0..10) : (
+            for all j in (i..10) : (
+                 j >= i
+            )
+        )"
+    );
+
+    condition_true!("for 1 i in (0..10) : ( i == 0 )");
+    condition_true!("for 11 i in (0..10) : ( i == i )");
+    condition_true!("for 1 i in (0..10) : ( i <= 1 )");
+    condition_true!("for 2 i in (0..10) : ( i <= 1 )");
+    condition_true!("for 50% i in (0..10) : ( i < 6 )");
+    condition_false!("for 50% i in (0..10) : ( i >= 6 )");
+    condition_true!("for 10% i in (0..9) : ( i == 0 )");
+    condition_false!("for 11% i in (0..9) : ( i == 0 )");
+
+    // If the range's lower bound is greater than the upper bound
+    // the `for` loop is always false.
+    condition_false!("for all i in (5..2) : ( true )");
+    condition_false!("for all i in (5..2) : ( false )");
+    condition_false!("for none i in (5..2) : ( true )");
+    condition_false!("for none i in (5..2) : ( false )");
+}
+
+#[test]
 fn filesize() {
     let rules = crate::compiler::Compiler::new()
         .add_source(

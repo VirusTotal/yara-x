@@ -14,11 +14,11 @@ use yara_macros::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
-use crate::symbol_table;
+use crate::symbols;
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
-use crate::symbol_table::TypeValue;
+use crate::symbols::TypeValue;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -790,13 +790,16 @@ impl TypeHint {
     }
 }
 
-impl From<symbol_table::TypeValue> for TypeHint {
-    fn from(symbol: TypeValue) -> Self {
-        match symbol {
-            TypeValue::Bool(b) => TypeHint::Bool(b),
-            TypeValue::Integer(i) => TypeHint::Integer(i),
-            TypeValue::Float(f) => TypeHint::Float(f),
-            TypeValue::String(s) => TypeHint::String(s),
+impl<T> From<T> for TypeHint
+where
+    T: AsRef<symbols::TypeValue>,
+{
+    fn from(symbol: T) -> Self {
+        match symbol.as_ref() {
+            TypeValue::Bool(b) => TypeHint::Bool(b.to_owned()),
+            TypeValue::Integer(i) => TypeHint::Integer(i.to_owned()),
+            TypeValue::Float(f) => TypeHint::Float(f.to_owned()),
+            TypeValue::String(s) => TypeHint::String(s.to_owned()),
             TypeValue::Struct(_) => TypeHint::Struct,
         }
     }

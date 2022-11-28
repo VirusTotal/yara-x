@@ -6,8 +6,8 @@ use std::rc::Rc;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
-use crate::symbol_table::TypeValue;
-use crate::symbol_table::{SymbolLookup, SymbolTable};
+use crate::symbols::TypeValue;
+use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::warnings::Warning;
 
 use crate::parser::arithmetic_op;
@@ -474,11 +474,12 @@ pub(super) fn semcheck_expr(
                 };
 
                 if let Some(symbol) = symbol {
-                    if let TypeValue::Struct(symbol_table) = symbol {
-                        ctx.current_struct = Some(symbol_table);
+                    let type_value = symbol.type_value();
+                    if let TypeValue::Struct(symbol_table) = type_value {
+                        ctx.current_struct = Some(symbol_table.clone());
                         TypeHint::Struct
                     } else {
-                        TypeHint::from(symbol)
+                        TypeHint::from(type_value)
                     }
                 } else {
                     return Err(Error::CompileError(
@@ -531,8 +532,13 @@ pub(super) fn semcheck_expr(
             let type_hint = semcheck_iterable(ctx, &for_in.iterable)?;
             let mut loop_vars = SymbolTable::new();
 
+            // TODO: raise warning when the loop identifier (e.g: "i") hides
+            // an existing identifier with the same name.
             for var in &for_in.variables {
-                loop_vars.insert(var.as_str(), TypeValue::from(&type_hint));
+                loop_vars.insert(
+                    var.as_str(),
+                    Symbol::new(TypeValue::from(&type_hint)),
+                );
             }
 
             // Put the loop variables into scope.

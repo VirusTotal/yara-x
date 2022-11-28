@@ -865,6 +865,46 @@ rule test {
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for all x,y in (0..10) : ( true )
+}
+        "#,
+            r#"error: assignment mismatch
+   ╭─[line:4:13]
+   │
+ 4 │     for all x,y in (0..10) : ( true )
+   ·             ─┬─    ───┬───  
+   ·              ╰────────────── this expects 2 value(s)
+   ·                       │     
+   ·                       ╰───── this produces 1 value(s)
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for all x,y in (1, 2, 3) : ( true )
+}
+"#,
+            r#"error: assignment mismatch
+   ╭─[line:4:13]
+   │
+ 4 │     for all x,y in (1, 2, 3) : ( true )
+   ·             ─┬─     ───┬───  
+   ·              ╰─────────────── this expects 2 value(s)
+   ·                        │     
+   ·                        ╰───── this produces 1 value(s)
+───╯
+"#,
+        ),
     ];
 
     for t in tests {

@@ -11,7 +11,7 @@ mod ascii_tree;
 mod modules;
 mod report;
 mod string_pool;
-mod symbol_table;
+mod symbols;
 mod warnings;
 mod wasm;
 

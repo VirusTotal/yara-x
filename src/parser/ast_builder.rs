@@ -1639,7 +1639,51 @@ fn for_expr_from_cst<'src>(
             }
         }
         // The iterator must follow after the identifiers.
-        iterator = Some(iterator_from_cst(ctx, children.next().unwrap())?);
+        let it = iterator_from_cst(ctx, children.next().unwrap())?;
+
+        // Verify that the items returned by the iterator matches the number of
+        // defined variables.
+        match it {
+            Iterable::Range(ref range) => {
+                if variables.len() > 1 {
+                    let span = variables.first().unwrap().span();
+                    let span = span.combine(&variables.last().unwrap().span());
+                    return Err(Error::new(ErrorInfo::assignment_mismatch(
+                        ctx.report_builder,
+                        &ctx.src,
+                        variables.len() as u8,
+                        1,
+                        range.span(),
+                        span,
+                    )));
+                }
+            }
+            Iterable::ExprTuple(ref tuple) => {
+                if variables.len() > 1 {
+                    let variables_span = variables.first().unwrap().span();
+                    let variables_span = variables_span
+                        .combine(&variables.last().unwrap().span());
+
+                    let tuple_span = tuple.first().unwrap().span();
+                    let tuple_span =
+                        tuple_span.combine(&tuple.last().unwrap().span());
+
+                    return Err(Error::new(ErrorInfo::assignment_mismatch(
+                        ctx.report_builder,
+                        &ctx.src,
+                        variables.len() as u8,
+                        1,
+                        tuple_span,
+                        variables_span,
+                    )));
+                }
+            }
+            Iterable::Ident(_) => {
+                todo!()
+            }
+        };
+
+        iterator = Some(it);
     }
 
     expect!(children.next().unwrap(), GrammarRule::COLON);
@@ -1718,8 +1762,8 @@ fn quantifier_from_cst<'src>(
         GrammarRule::k_NONE => {
             Quantifier::None { span: node.as_span().into() }
         }
-        GrammarRule::expr => {
-            let expr = expr_from_cst(ctx, node)?;
+        GrammarRule::primary_expr => {
+            let expr = primary_expr_from_cst(ctx, node)?;
             // If there's some node after the expression it should be the
             // percent `%` symbol.
             if let Some(node) = children.next() {
