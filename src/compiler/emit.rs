@@ -1,10 +1,14 @@
-use crate::ast::MatchAnchor;
-use crate::ast::{Expr, TypeHint};
+use crate::ast::{
+    Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range, TypeHint,
+};
 use crate::compiler::Context;
+use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable, TypeValue};
 use crate::Type;
 use bstr::ByteSlice;
 use std::cell::RefCell;
-use walrus::ir::{BinaryOp, UnaryOp};
+use std::mem::size_of;
+use std::rc::Rc;
+use walrus::ir::{BinaryOp, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
 
@@ -224,7 +228,19 @@ pub(super) fn emit_expr(
                         todo!();
                     }
                     TypeHint::Integer(_) => {
-                        todo!();
+                        let symbol = ctx
+                            .borrow()
+                            .symbol_table
+                            .lookup(ident.as_str())
+                            .unwrap();
+
+                        match symbol.location() {
+                            &Location::Memory(offset) => {
+                                instr.i32_const(offset);
+                                emit_load(ctx, instr);
+                            }
+                            _ => unreachable!(),
+                        }
                     }
                     TypeHint::Float(_) => {
                         todo!();
@@ -547,10 +563,314 @@ pub(super) fn emit_expr(
         Expr::ForOf(_) => {
             // TODO
         }
-        Expr::ForIn(_) => {
-            // TODO
-        }
+        Expr::ForIn(for_in) => match &for_in.iterable {
+            Iterable::Range(range) => {
+                emit_for_in_range(ctx, instr, for_in, range);
+            }
+            Iterable::ExprTuple(_) => {}
+            Iterable::Ident(_) => {}
+        },
     }
+}
+
+macro_rules! emit_for_in_range_common {
+    ($ctx:expr, $instr:ident, $lower_bound:ident, $upper_bound:ident, $loop_start:ident) => {{
+        // Offset where lower_bound will be stored
+        $instr.i32_const($lower_bound);
+        // Offset from where lower_bound will be loaded
+        $instr.i32_const($lower_bound);
+        // Load lower_bound from memory.
+        emit_load($ctx, $instr);
+        // Increment it
+        $instr.i64_const(1);
+        $instr.binop(BinaryOp::I64Add);
+        // Store it back to memory.
+        emit_store($ctx, $instr);
+
+        // Compare lower_bound to upper_bound.
+        $instr.i32_const($lower_bound);
+        emit_load($ctx, $instr);
+        $instr.i32_const($upper_bound);
+        emit_load($ctx, $instr);
+        $instr.binop(BinaryOp::I64LeS);
+
+        // If lower_bound <= upper_bound, keep looping.
+        $instr.br_if($loop_start);
+    }};
+}
+
+pub(super) fn emit_for_in_range(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    for_in: &ForIn,
+    range: &Range,
+) {
+    let lower_bound = ctx.borrow_mut().new_var();
+
+    // A `for` loop in a range has exactly one variable.
+    assert_eq!(for_in.variables.len(), 1);
+
+    let mut loop_vars = SymbolTable::new();
+    loop_vars.insert(
+        for_in.variables.first().unwrap().as_str(),
+        Symbol::new(TypeValue::Integer(None))
+            .set_location(Location::Memory(lower_bound)),
+    );
+
+    // Put the loop variables into scope.
+    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+
+    // Push memory offset where lower_bound will be stored.
+    instr.i32_const(lower_bound);
+    // Push value of lower_bound.
+    emit_expr(ctx, instr, &range.lower_bound);
+    // Store lower_bound in memory.
+    emit_store(ctx, instr);
+
+    let upper_bound = ctx.borrow_mut().new_var();
+
+    // Push memory offset where upper_bound will be stored.
+    instr.i32_const(upper_bound);
+    // Push value of upper_bound.
+    emit_expr(ctx, instr, &range.upper_bound);
+    // Store upper_bound in memory.
+    emit_store(ctx, instr);
+
+    let (quantifier, counter) = match &for_in.quantifier {
+        Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+            let quantifier = ctx.borrow_mut().new_var();
+            let counter = ctx.borrow_mut().new_var();
+
+            // Push memory offset where quantifier will be stored.
+            instr.i32_const(quantifier);
+
+            if matches!(&for_in.quantifier, Quantifier::Percentage(_)) {
+                // Compute (upper_bound - lower_bound + 1) * quantifier / 100;
+
+                // upper_bound - lower_bound
+                instr.i32_const(upper_bound);
+                emit_load(ctx, instr);
+                instr.i32_const(lower_bound);
+                emit_load(ctx, instr);
+                instr.binop(BinaryOp::I64Sub);
+
+                // + 1
+                instr.i64_const(1);
+                instr.binop(BinaryOp::I64Add);
+
+                // * quantifier
+                instr.unop(UnaryOp::F64ConvertSI64);
+                emit_expr(ctx, instr, expr);
+                instr.unop(UnaryOp::F64ConvertSI64);
+                instr.binop(BinaryOp::F64Mul);
+
+                // / 100
+                instr.f64_const(100.0);
+                instr.binop(BinaryOp::F64Div);
+
+                instr.unop(UnaryOp::F64Ceil);
+                instr.unop(UnaryOp::I64TruncSF64);
+            } else {
+                // Push value of quantifier.
+                emit_expr(ctx, instr, expr);
+            }
+
+            // Store quantifier in memory.
+            emit_store(ctx, instr);
+
+            // Push memory offset where counter will be stored.
+            instr.i32_const(counter);
+            // Initialize counter to 0.
+            instr.i64_const(0);
+            // Store counter in memory.
+            emit_store(ctx, instr);
+
+            (quantifier, counter)
+        }
+        _ => (0, 0),
+    };
+
+    instr.block(I32, |block| {
+        let loop_end = block.id();
+        block.loop_(I32, |block| {
+            let loop_start = block.id();
+
+            block.i32_const(lower_bound);
+            emit_load(ctx, block);
+            block.i32_const(upper_bound);
+            emit_load(ctx, block);
+
+            // If lower_bound is greater than upper_bound the `for` loop
+            // always return false.
+            block.binop(BinaryOp::I64GtS);
+            block.if_else(
+                None,
+                |then_| {
+                    then_.i32_const(0);
+                    then_.br(loop_end);
+                },
+                |_| {},
+            );
+
+            emit_expr(ctx, block, &for_in.condition);
+            // At the top of the stack we have the i32 with the result from
+            // the loop condition. Decide what to do depending on the
+            // quantifier.
+            match &for_in.quantifier {
+                Quantifier::None { .. } => {
+                    block.if_else(
+                        I32,
+                        |then_| {
+                            // If the condition returned true, break the loop with
+                            // result false.
+                            then_.i32_const(0);
+                            then_.br(loop_end);
+                        },
+                        |else_| {
+                            emit_for_in_range_common!(
+                                ctx,
+                                else_,
+                                lower_bound,
+                                upper_bound,
+                                loop_start
+                            );
+                            // If this point is reached is because all the
+                            // the range was iterated without the condition
+                            // returning true, this means that the whole "for"
+                            // statement is true.
+                            else_.i32_const(1);
+                            else_.br(loop_end);
+                        },
+                    );
+                }
+                Quantifier::All { .. } => {
+                    block.if_else(
+                        I32,
+                        |then_| {
+                            emit_for_in_range_common!(
+                                ctx,
+                                then_,
+                                lower_bound,
+                                upper_bound,
+                                loop_start
+                            );
+                            // If this point is reached is because all the
+                            // the range was iterated without the condition
+                            // returning false, this means that the whole "for"
+                            // statement is true.
+                            then_.i32_const(1);
+                            then_.br(loop_end);
+                        },
+                        |else_| {
+                            // If the condition returned false, break the loop with
+                            // result false.
+                            else_.i32_const(0);
+                            else_.br(loop_end);
+                        },
+                    );
+                }
+                Quantifier::Any { .. } => {
+                    block.if_else(
+                        I32,
+                        |then_| {
+                            // If the condition returned true, break the loop with
+                            // result true.
+                            then_.i32_const(1);
+                            then_.br(loop_end);
+                        },
+                        |else_| {
+                            emit_for_in_range_common!(
+                                ctx,
+                                else_,
+                                lower_bound,
+                                upper_bound,
+                                loop_start
+                            );
+                            // If this point is reached is because all the
+                            // the range was iterated without the condition
+                            // returning true, this means that the whole "for"
+                            // statement is false.
+                            else_.i32_const(0);
+                            else_.br(loop_end);
+                        },
+                    );
+                }
+                Quantifier::Percentage(_) | Quantifier::Expr(_) => {
+                    block.if_else(
+                        None,
+                        |then_| {
+                            // If the condition was true increment counter.
+
+                            // Offset where the counter will be stored.
+                            then_.i32_const(counter);
+                            // Offset from where the counter will be loaded
+                            then_.i32_const(counter);
+                            // Load counter
+                            emit_load(ctx, then_);
+                            // Increment the counter by 1.
+                            then_.i64_const(1);
+                            then_.binop(BinaryOp::I64Add);
+                            // Store counter in memory.
+                            emit_store(ctx, then_);
+
+                            // Compare counter to quantifier.
+                            then_.i32_const(counter);
+                            emit_load(ctx, then_);
+                            then_.i32_const(quantifier);
+                            emit_load(ctx, then_);
+                            then_.binop(BinaryOp::I64Eq);
+
+                            // If the counter is equal to the quantifier
+                            // break the loop with result true
+                            then_.if_else(
+                                None,
+                                |then_| {
+                                    then_.i32_const(1);
+                                    then_.br(loop_end);
+                                },
+                                |_| {},
+                            );
+                        },
+                        |_| {},
+                    );
+
+                    emit_for_in_range_common!(
+                        ctx,
+                        block,
+                        lower_bound,
+                        upper_bound,
+                        loop_start
+                    );
+
+                    // If this point is reached we have iterated over the whole
+                    // range without `counter` reaching `quantifier`. The `for`
+                    // loop must return false.
+                    block.i32_const(0);
+                }
+            }
+        });
+    });
+
+    ctx.borrow_mut().symbol_table.pop();
+    ctx.borrow_mut().free_vars(lower_bound);
+}
+
+#[inline]
+pub(super) fn emit_store(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
+    instr.store(
+        ctx.borrow().wasm_symbols.main_memory,
+        StoreKind::I64 { atomic: false },
+        MemArg { align: size_of::<i64>() as u32, offset: 0 },
+    );
+}
+
+#[inline]
+pub(super) fn emit_load(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
+    instr.load(
+        ctx.borrow().wasm_symbols.main_memory,
+        LoadKind::I64 { atomic: false },
+        MemArg { align: size_of::<i64>() as u32, offset: 0 },
+    );
 }
 
 /// Emits WebAssembly code for boolean expression `expr` into the instruction

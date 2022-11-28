@@ -463,7 +463,7 @@ iterable = {
 }
 
 quantifier = {
-  k_ALL | k_NONE | k_ANY | expr ~ PERCENT?
+  k_ALL | k_NONE | k_ANY | primary_expr ~ PERCENT?
 }
 
 range = {

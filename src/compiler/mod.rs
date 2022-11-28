@@ -4,9 +4,9 @@ YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
 use std::cell::RefCell;
-use std::fmt;
 use std::path::Path;
 use std::rc::Rc;
+use std::{fmt, mem};
 use walrus::ir::{InstrSeqId, UnaryOp};
 use walrus::{Module, ValType};
 
@@ -21,8 +21,8 @@ use crate::{modules, wasm};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbol_table::{
-    StackedSymbolTable, SymbolLookup, SymbolTable, TypeValue,
+use crate::symbols::{
+    StackedSymbolTable, Symbol, SymbolLookup, SymbolTable, TypeValue,
 };
 use crate::wasm::WasmSymbols;
 
@@ -167,6 +167,7 @@ impl Compiler {
                     wasm_symbols: self.wasm_mod.wasm_symbols(),
                     warnings: &mut self.warnings,
                     exception_handler_stack: Vec::new(),
+                    stack_top: 0,
                 };
 
                 // Verify that the rule's condition is semantically valid. This
@@ -198,11 +199,14 @@ impl Compiler {
                     block.br_if(block.id());
 
                     // The RuleID is the argument to `rule_match`.
-                    block.i32_const(rule_id as i32);
+                    block.i32_const(rule_id);
 
                     // Emit call instruction for calling `rule_match`.
                     block.call(ctx.borrow().wasm_symbols.rule_match);
                 });
+
+                // After emitting the whole condition, the stack should be empty.
+                assert_eq!(ctx.borrow().stack_top, 0);
             }
         }
 
@@ -276,7 +280,7 @@ impl Compiler {
 
                 symbol_table.insert(
                     import.module_name.as_str(),
-                    TypeValue::Struct(Rc::new(module)),
+                    Symbol::new(TypeValue::Struct(Rc::new(module))),
                 );
             } else {
                 // ... if no, that's an error.
@@ -382,6 +386,18 @@ struct Context<'a> {
 
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
+
+    /// YARA uses a WebAssembly module memory (maybe I should say *the* module
+    /// memory, because at this moment a single memory is supported) for
+    /// storing loop variables in a stack. This shouldn't be confused with the
+    /// WebAssembly runtime stack, where the instructions take their arguments
+    /// from and pushes their results back, this is a different stack that
+    /// allows having nested loops.
+    ///
+    /// This value stores the memory offset for the stack's top, it starts with
+    /// 0 and grows in increments of 8 bytes, the size of an i64. Memory
+    /// offsets from 0 to stack_top are occupied with loop variables.
+    stack_top: i32,
 }
 
 impl<'a> Context<'a> {
@@ -391,6 +407,35 @@ impl<'a> Context<'a> {
     #[inline]
     fn resolve_ident(&self, ident_id: IdentId) -> &str {
         self.ident_pool.get(ident_id).unwrap()
+    }
+
+    /// Allocates space for a new variable in the stack, and returns the
+    /// memory offset where the new variable resides.
+    ///
+    /// Do not confuse this stack with the WebAssembly runtime stack, this
+    /// stack is stored in the module's memory.
+    #[inline]
+    fn new_var(&mut self) -> i32 {
+        let top = self.stack_top;
+        self.stack_top += mem::size_of::<i64>() as i32;
+        top
+    }
+
+    /// Frees stack space previously allocated with [`Context::new_var`]. This
+    /// function restores the stop of the stack to the value provided in the
+    /// argument, effectively releasing all the stack space after that offset.
+    /// for example:
+    ///
+    /// ```text
+    /// let var1 = ctx.new_var()
+    /// let var2 = ctx.new_var()
+    /// let var3 = ctx.new_var()
+    /// // Frees both var2 and var3, because var3 was allocated after var2
+    /// ctx.free_vars(var2)  
+    /// ```
+    #[inline]
+    fn free_vars(&mut self, top: i32) {
+        self.stack_top = top;
     }
 
     /// Given a pattern identifier (e.g. `$a`) search for it in the current

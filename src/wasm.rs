@@ -133,6 +133,7 @@ impl ModuleBuilder {
             str_iequals,
             str_len,
             filesize,
+            main_memory: module.memories.add_local(false, 1024, None),
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
             ref_tmp: module.locals.add(Externref),
@@ -328,6 +329,8 @@ impl RuntimeString {
 /// contains the definition of some variables used by the module.
 #[derive(Clone)]
 pub(crate) struct WasmSymbols {
+    pub main_memory: walrus::MemoryId,
+
     /// Ask YARA for the size of the data being scanned.
     /// Signature: () -> (i64)     
     pub filesize: walrus::FunctionId,
