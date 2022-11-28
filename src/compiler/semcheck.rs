@@ -530,6 +530,15 @@ pub(super) fn semcheck_expr(
         Expr::ForIn(for_in) => {
             semcheck_quantifier(ctx, &for_in.quantifier)?;
             let type_hint = semcheck_iterable(ctx, &for_in.iterable)?;
+
+            match &for_in.iterable {
+                Iterable::Ident(_) => {
+                    // TODO: check that identifier is of the correct type and the
+                    // number of variables is the correct one.
+                }
+                _ => {}
+            }
+
             let mut loop_vars = SymbolTable::new();
 
             // TODO: raise warning when the loop identifier (e.g: "i") hides

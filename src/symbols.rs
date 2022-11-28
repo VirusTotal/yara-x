@@ -37,6 +37,15 @@ impl Symbol {
     }
 
     #[inline]
+    pub fn mem_location(&self) -> Option<i32> {
+        if let Location::Memory(location) = self.location {
+            Some(location)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
     pub fn type_value(&self) -> &TypeValue {
         &self.type_value
     }

@@ -1678,9 +1678,7 @@ fn for_expr_from_cst<'src>(
                     )));
                 }
             }
-            Iterable::Ident(_) => {
-                todo!()
-            }
+            _ => {}
         };
 
         iterator = Some(it);

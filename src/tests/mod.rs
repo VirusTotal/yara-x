@@ -228,10 +228,11 @@ fn test_proto2_module() {
             r#"
         import "test_proto2"
         
-        //rule test {
-        //  condition:
-        //    test_proto2.enum.ENUM_ITEM_1 == 1 
-        //}
+        rule test {
+          condition:
+            test_proto2.int32_zero == 0 and 
+            test_proto2.int32_one == 1 
+        }
         "#,
         )
         .unwrap()
@@ -239,5 +240,5 @@ fn test_proto2_module() {
         .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
-    assert_eq!(scanner.scan(&[]).matching_rules(), 0);
+    assert_eq!(scanner.scan(&[]).matching_rules(), 1);
 }

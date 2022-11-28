@@ -199,6 +199,6 @@ pub(crate) struct ScanContext<'r> {
     /// and external variables.
     pub(crate) symbol_table: SymbolTable,
     /// Symbol table for the currently active structure. When this is None
-    /// symbols are looked up in `root_sym_tbl` instead.
+    /// symbols are looked up in `symbol_table` instead.
     pub(crate) current_struct: Option<Rc<dyn SymbolLookup + 'r>>,
 }

@@ -1,7 +1,7 @@
 use crate::ast::{
     Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range, TypeHint,
 };
-use crate::compiler::Context;
+use crate::compiler::{Context, IdentId};
 use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable, TypeValue};
 use crate::Type;
 use bstr::ByteSlice;
@@ -221,40 +221,90 @@ pub(super) fn emit_expr(
             instr.call(ctx.borrow().wasm_symbols.literal_to_ref);
         }
         Expr::Ident(ident) => {
+            let current_struct = ctx.borrow_mut().current_struct.take();
             let type_hint = ident.type_hint();
+
             emit_const_or_code!(instr, type_hint, {
                 match type_hint {
-                    TypeHint::Bool(_) => {
-                        todo!();
-                    }
                     TypeHint::Integer(_) => {
-                        let symbol = ctx
-                            .borrow()
-                            .symbol_table
-                            .lookup(ident.as_str())
-                            .unwrap();
+                        let symbol = if let Some(structure) = &current_struct {
+                            structure.lookup(ident.name)
+                        } else {
+                            ctx.borrow().symbol_table.lookup(ident.name)
+                        };
 
-                        match symbol.location() {
-                            &Location::Memory(offset) => {
-                                instr.i32_const(offset);
-                                emit_load(ctx, instr);
-                            }
-                            _ => unreachable!(),
+                        let symbol = symbol.unwrap();
+
+                        if let Some(mem_location) = symbol.mem_location() {
+                            instr.i32_const(mem_location);
+                            emit_load(ctx, instr);
+                        } else {
+                            let ident_id = ctx
+                                .borrow_mut()
+                                .ident_pool
+                                .get_or_intern(ident.as_str());
+
+                            emit_lookup_integer(ctx, instr, ident_id);
                         }
+
+                        instr.call(
+                            ctx.borrow().wasm_symbols.clear_current_struct,
+                        );
                     }
                     TypeHint::Float(_) => {
-                        todo!();
-                    }
-                    TypeHint::String(_) => {
-                        todo!();
-                    }
-                    TypeHint::Struct => {
                         let ident_id = ctx
                             .borrow_mut()
                             .ident_pool
                             .get_or_intern(ident.as_str());
 
-                        instr.i64_const(Into::<u32>::into(ident_id) as i64);
+                        emit_lookup_float(ctx, instr, ident_id);
+
+                        instr.call(
+                            ctx.borrow().wasm_symbols.clear_current_struct,
+                        );
+                    }
+                    TypeHint::Bool(_) => {
+                        let ident_id = ctx
+                            .borrow_mut()
+                            .ident_pool
+                            .get_or_intern(ident.as_str());
+
+                        emit_lookup_bool(ctx, instr, ident_id);
+
+                        instr.call(
+                            ctx.borrow().wasm_symbols.clear_current_struct,
+                        );
+                    }
+                    TypeHint::String(_) => {
+                        instr.call(
+                            ctx.borrow().wasm_symbols.clear_current_struct,
+                        );
+                        todo!();
+                    }
+                    TypeHint::Struct => {
+                        let symbol = if let Some(structure) = &current_struct {
+                            structure.lookup(ident.name)
+                        } else {
+                            ctx.borrow().symbol_table.lookup(ident.name)
+                        };
+
+                        let symbol = symbol.unwrap();
+
+                        if let TypeValue::Struct(symbol_table) =
+                            symbol.type_value()
+                        {
+                            ctx.borrow_mut().current_struct =
+                                Some(symbol_table.clone());
+                        } else {
+                            unreachable!()
+                        }
+
+                        let ident_id = ctx
+                            .borrow_mut()
+                            .ident_pool
+                            .get_or_intern(ident.as_str());
+
+                        emit_lookup_struct(ctx, instr, ident_id);
                     }
                     _ => {
                         // At this point the type of the identifier should be
@@ -300,8 +350,11 @@ pub(super) fn emit_expr(
         Expr::LookupIndex(_) => {
             // TODO
         }
-        Expr::FieldAccess(_) => {
-            todo!();
+        Expr::FieldAccess(operands) => {
+            emit_const_or_code!(instr, expr.type_hint(), {
+                emit_expr(ctx, instr, &operands.lhs);
+                emit_expr(ctx, instr, &operands.rhs);
+            })
         }
         Expr::FnCall(_) => {
             // TODO
@@ -1021,17 +1074,17 @@ pub(super) fn throw_undef(
 /// Calls a function that may return an undefined value.
 ///
 /// Some functions in YARA can return undefined values, for example the
-/// built-in function `uint8(offset)` returns an undefined result when
-/// `offset` is outside the data boundaries. The same occurs with many
-/// function implemented by YARA modules.
+/// built-in function `uint8(offset)` returns an undefined result when `offset`
+/// is outside the data boundaries. The same occurs with many function
+/// implemented by YARA modules.
 ///
-/// These functions return actually a tuple (value, is_undef), where
-/// is_undef is an i32 that will be for valid values and 1 for undefined
-/// values. When is_undef is 1 the value is ignored.
+/// These functions return actually a tuple `(value, is_undef)`, where
+/// `is_undef` is an `i32` that will be `0` for valid values and `1` for
+/// undefined values. When `is_undef` is `1` the value is ignored.
 ///
 /// This emits code that calls the specified function and checks if its
 /// result is undefined. In such cases raises an exception.
-pub(super) fn call(
+pub(super) fn emit_call_and_handle_undef(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     fn_id: walrus::FunctionId,
@@ -1057,6 +1110,63 @@ pub(super) fn call(
             // the `else` branch.
         },
     );
+}
+
+#[inline]
+pub(super) fn emit_lookup_integer(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    ident_id: IdentId,
+) {
+    instr.i64_const(Into::<u32>::into(ident_id) as i64);
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.borrow().wasm_symbols.lookup_integer,
+    );
+}
+
+#[inline]
+pub(super) fn emit_lookup_float(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    ident_id: IdentId,
+) {
+    instr.i64_const(Into::<u32>::into(ident_id) as i64);
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.borrow().wasm_symbols.lookup_float,
+    );
+}
+
+#[inline]
+pub(super) fn emit_lookup_bool(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    ident_id: IdentId,
+) {
+    instr.i64_const(Into::<u32>::into(ident_id) as i64);
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.borrow().wasm_symbols.lookup_bool,
+    );
+}
+
+#[inline]
+pub(super) fn emit_lookup_struct(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    ident_id: IdentId,
+) {
+    instr.i64_const(Into::<u32>::into(ident_id) as i64);
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.borrow().wasm_symbols.lookup_struct,
+    );
+    instr.drop(); // TODO: dropping the i64 returned, fix this.
 }
 
 // Emits code that checks if the top of the stack is non-zero and executes
