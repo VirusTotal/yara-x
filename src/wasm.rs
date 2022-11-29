@@ -461,6 +461,38 @@ lazy_static! {
     };
 }
 
+type MaybeUndef<T> = (T, i32);
+
+trait Empty<T> {
+    fn empty() -> T;
+}
+
+impl Empty<i64> for i64 {
+    fn empty() -> i64 {
+        0
+    }
+}
+
+impl Empty<i32> for i32 {
+    fn empty() -> i32 {
+        0
+    }
+}
+
+impl Empty<f64> for f64 {
+    fn empty() -> f64 {
+        0.0
+    }
+}
+
+fn defined<T>(value: T) -> MaybeUndef<T> {
+    (value, 0)
+}
+
+fn undefined<T: Empty<T>>() -> MaybeUndef<T> {
+    (T::empty(), 1)
+}
+
 /// Invoked from WebAssembly to ask for the size of the data being scanned.
 pub(crate) fn filesize(caller: Caller<'_, ScanContext>) -> i64 {
     caller.data().scanned_data_len as i64
@@ -560,38 +592,6 @@ macro_rules! lookup_ident_fn {
             }
         }
     };
-}
-
-type MaybeUndef<T> = (T, i32);
-
-trait Empty<T> {
-    fn empty() -> T;
-}
-
-impl Empty<i64> for i64 {
-    fn empty() -> i64 {
-        0
-    }
-}
-
-impl Empty<i32> for i32 {
-    fn empty() -> i32 {
-        0
-    }
-}
-
-impl Empty<f64> for f64 {
-    fn empty() -> f64 {
-        0.0
-    }
-}
-
-fn defined<T>(value: T) -> MaybeUndef<T> {
-    (value, 0)
-}
-
-fn undefined<T: Empty<T>>() -> MaybeUndef<T> {
-    (T::empty(), 1)
 }
 
 lookup_ident_fn!(lookup_integer, i64, TypeValue::Integer);
