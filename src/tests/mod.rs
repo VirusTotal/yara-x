@@ -228,11 +228,27 @@ fn test_proto2_module() {
             r#"
         import "test_proto2"
         
-        rule test {
+        rule test_1 {
           condition:
-            test_proto2.int32_zero == 0 and 
-            test_proto2.int32_one == 1 
+            test_proto2.int64_zero == 0 and 
+            test_proto2.int64_one == 1 and
+            test_proto2.int64_one + test_proto2.int64_zero == 1 and
+            test_proto2.int64_one + test_proto2.int64_one == 2 and
+            test_proto2.int64_one * test_proto2.int64_one == 1 and
+            test_proto2.int64_one - test_proto2.int64_one == 0
         }
+        
+        rule test_2 {
+          condition:
+            test_proto2.int64_undef == 0 or true
+        }
+        
+        rule test_3 {
+          condition:
+            not (test_proto2.int64_undef == 0 and true)
+        }
+        
+
         "#,
         )
         .unwrap()
@@ -240,5 +256,5 @@ fn test_proto2_module() {
         .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
-    assert_eq!(scanner.scan(&[]).matching_rules(), 1);
+    assert_eq!(scanner.scan(&[]).matching_rules(), 3);
 }

@@ -1008,6 +1008,8 @@ pub(super) fn catch_undef(
         expr(block);
     });
 
+    instr.call(ctx.borrow().wasm_symbols.clear_current_struct);
+
     // Pop exception handler from the stack.
     ctx.borrow_mut().exception_handler_stack.pop();
 }
@@ -1170,26 +1172,26 @@ pub(super) fn emit_lookup_struct(
 }
 
 // Emits code that checks if the top of the stack is non-zero and executes
-// `expr` in that case. If it is zero raises an exception that signals that
+// `expr` in that case. If it is zero throws an exception that signals that
 // the result is undefined.
 pub(super) fn if_non_zero(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     expr: impl FnOnce(&mut InstrSeqBuilder),
 ) {
-    // Save the right operand in tmp variable, but leave a copy
-    // in the stack.
+    // Save the top of the stack into temp variable, but leave a copy in the
+    // stack.
     instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
-    // Is the right operand zero?
+    // Is top of the stack zero?
     instr.unop(UnaryOp::I64Eqz);
     instr.if_else(
         I64,
         |then| {
-            // Is zero, raise exception
+            // Is zero, throw exception
             throw_undef(ctx, then);
         },
         |else_| {
-            // Non-zero, put back the operand in the stack.
+            // Non-zero, put back the value into the stack.
             else_.local_get(ctx.borrow().wasm_symbols.i64_tmp);
         },
     );

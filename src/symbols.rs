@@ -88,7 +88,7 @@ impl From<&ast::TypeHint> for TypeValue {
 
 impl AsRef<TypeValue> for TypeValue {
     fn as_ref(&self) -> &TypeValue {
-        &self
+        self
     }
 }
 
@@ -275,45 +275,91 @@ impl SymbolLookup for Box<dyn MessageDyn> {
         if let Some(field) = message_descriptor.field_by_name(ident) {
             match field.runtime_field_type() {
                 RuntimeFieldType::Singular(ty) => match ty {
-                    RuntimeType::I32 => field
-                        .get_singular(self.as_ref())?
-                        .to_i32()
-                        .map(|v| Symbol::new(TypeValue::from(v as i64))),
-                    RuntimeType::I64 => field
-                        .get_singular(self.as_ref())?
-                        .to_i64()
-                        .map(|v| Symbol::new(TypeValue::from(v))),
-                    RuntimeType::U32 => field
-                        .get_singular(self.as_ref())?
-                        .to_u32()
-                        .map(|v| Symbol::new(TypeValue::from(v as i64))),
+                    RuntimeType::I32 => {
+                        let type_value = if let Some(value) =
+                            field.get_singular(self.as_ref())
+                        {
+                            TypeValue::from(value.to_i32().unwrap() as i64)
+                        } else {
+                            TypeValue::Integer(None)
+                        };
+                        Some(Symbol::new(type_value))
+                    }
+                    RuntimeType::I64 => {
+                        let type_value = if let Some(value) =
+                            field.get_singular(self.as_ref())
+                        {
+                            TypeValue::from(value.to_i64().unwrap())
+                        } else {
+                            TypeValue::Integer(None)
+                        };
+                        Some(Symbol::new(type_value))
+                    }
+                    RuntimeType::U32 => {
+                        let type_value = if let Some(value) =
+                            field.get_singular(self.as_ref())
+                        {
+                            TypeValue::from(value.to_u32().unwrap() as i64)
+                        } else {
+                            TypeValue::Integer(None)
+                        };
+                        Some(Symbol::new(type_value))
+                    }
                     RuntimeType::U64 => {
                         todo!()
                     }
-                    RuntimeType::F32 => field
-                        .get_singular(self.as_ref())?
-                        .to_f32()
-                        .map(|v| Symbol::new(TypeValue::from(v as f64))),
-                    RuntimeType::F64 => field
-                        .get_singular(self.as_ref())?
-                        .to_f64()
-                        .map(|v| Symbol::new(TypeValue::from(v))),
-                    RuntimeType::Bool => field
-                        .get_singular(self.as_ref())?
-                        .to_bool()
-                        .map(|v| Symbol::new(TypeValue::from(v))),
-                    RuntimeType::String => field
-                        .get_singular(self.as_ref())?
-                        .to_str()
-                        .map(|v| Symbol::new(TypeValue::from(v))),
-                    RuntimeType::VecU8 => field
-                        .get_singular(self.as_ref())?
-                        .to_str()
-                        .map(|v| Symbol::new(TypeValue::from(v))),
-                    RuntimeType::Enum(_) => field
-                        .get_singular(self.as_ref())?
-                        .to_enum_value()
-                        .map(|v| Symbol::new(TypeValue::from(v as i64))),
+                    RuntimeType::F32 => {
+                        let type_value = if let Some(value) =
+                            field.get_singular(self.as_ref())
+                        {
+                            TypeValue::from(value.to_f32().unwrap() as f64)
+                        } else {
+                            TypeValue::Float(None)
+                        };
+                        Some(Symbol::new(type_value))
+                    }
+                    RuntimeType::F64 => {
+                        let type_value = if let Some(value) =
+                            field.get_singular(self.as_ref())
+                        {
+                            TypeValue::from(value.to_f64().unwrap())
+                        } else {
+                            TypeValue::Float(None)
+                        };
+                        Some(Symbol::new(type_value))
+                    }
+                    RuntimeType::Bool => {
+                        let type_value = if let Some(value) =
+                            field.get_singular(self.as_ref())
+                        {
+                            TypeValue::from(value.to_bool().unwrap())
+                        } else {
+                            TypeValue::Bool(None)
+                        };
+                        Some(Symbol::new(type_value))
+                    }
+                    RuntimeType::String | RuntimeType::VecU8 => {
+                        let type_value = if let Some(value) =
+                            field.get_singular(self.as_ref())
+                        {
+                            TypeValue::from(value.to_str().unwrap())
+                        } else {
+                            TypeValue::String(None)
+                        };
+                        Some(Symbol::new(type_value))
+                    }
+                    RuntimeType::Enum(_) => {
+                        let type_value = if let Some(value) =
+                            field.get_singular(self.as_ref())
+                        {
+                            TypeValue::from(
+                                value.to_enum_value().unwrap() as i64
+                            )
+                        } else {
+                            TypeValue::Integer(None)
+                        };
+                        Some(Symbol::new(type_value))
+                    }
                     RuntimeType::Message(_) => {
                         Some(Symbol::new(TypeValue::Struct(Rc::new(
                             field.get_message(self.as_ref()).clone_box(),
