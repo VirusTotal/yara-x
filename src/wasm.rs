@@ -128,7 +128,7 @@ impl ModuleBuilder {
         let ty = module.types.add(&[Externref, I64], &[I32, I32]);
         let (lookup_bool, _) = module.add_import_func("yr", "lookup_bool", ty);
 
-        let ty = module.types.add(&[Externref, I64], &[I64, I32]);
+        let ty = module.types.add(&[Externref, I64], &[Externref]);
         let (lookup_string, _) =
             module.add_import_func("yr", "lookup_string", ty);
 
@@ -600,7 +600,7 @@ pub(crate) fn lookup_string(
     caller: Caller<'_, ScanContext>,
     symbol_table: Option<ExternRef>,
     ident_id: i64,
-) -> MaybeUndef<i64> {
+) -> Option<ExternRef> {
     let symbol_table = symbol_table.unwrap();
     let symbol_table = symbol_table
         .data()
@@ -616,7 +616,13 @@ pub(crate) fn lookup_string(
 
     let symbol = symbol_table.lookup(ident).unwrap();
 
-    todo!()
+    match symbol.type_value() {
+        TypeValue::String(Some(s)) => {
+            Some(ExternRef::new(RuntimeString::Owned(s.clone())))
+        }
+        TypeValue::String(None) => None,
+        _ => unreachable!(),
+    }
 }
 
 pub(crate) fn lookup_struct(

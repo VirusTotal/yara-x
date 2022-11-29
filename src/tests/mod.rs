@@ -235,20 +235,22 @@ fn test_proto2_module() {
             test_proto2.int64_one + test_proto2.int64_zero == 1 and
             test_proto2.int64_one + test_proto2.int64_one == 2 and
             test_proto2.int64_one * test_proto2.int64_one == 1 and
-            test_proto2.int64_one - test_proto2.int64_one == 0
+            test_proto2.int64_one - test_proto2.int64_one == 0 and 
+            //test_proto2.string_foo == "foo" and 
+            test_proto2.string_foo contains "oo" 
         }
         
         rule test_2 {
           condition:
+            // Make sure that undef or true is true.
             test_proto2.int64_undef == 0 or true
         }
         
         rule test_3 {
           condition:
+            // Make sure that undef and true is false
             not (test_proto2.int64_undef == 0 and true)
         }
-        
-
         "#,
         )
         .unwrap()
