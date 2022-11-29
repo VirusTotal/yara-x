@@ -7,7 +7,8 @@ use crate::Type;
 use bstr::ByteSlice;
 use std::cell::RefCell;
 use std::mem::size_of;
-use std::rc::Rc;
+use std::sync::Arc;
+
 use walrus::ir::{BinaryOp, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
@@ -221,96 +222,81 @@ pub(super) fn emit_expr(
             instr.call(ctx.borrow().wasm_symbols.literal_to_ref);
         }
         Expr::Ident(ident) => {
-            let current_struct = ctx.borrow_mut().current_struct.take();
             let type_hint = ident.type_hint();
 
             emit_const_or_code!(instr, type_hint, {
-                match type_hint {
-                    TypeHint::Integer(_) => {
-                        let symbol = if let Some(structure) = &current_struct {
-                            structure.lookup(ident.name)
-                        } else {
-                            ctx.borrow().symbol_table.lookup(ident.name)
-                        };
+                let current_struct = ctx.borrow_mut().current_struct.take();
 
-                        let symbol = symbol.unwrap();
+                // Search for the symbol in the current structure, if any, or
+                // in the global symbol table, current_struct is None.
+                let symbol = if let Some(structure) = &current_struct {
+                    structure.lookup(ident.name).unwrap()
+                } else {
+                    ctx.borrow().symbol_table.lookup(ident.name).unwrap()
+                };
 
-                        if let Some(mem_location) = symbol.mem_location() {
-                            instr.i32_const(mem_location);
-                            emit_load(ctx, instr);
-                        } else {
-                            let ident_id = ctx
-                                .borrow_mut()
-                                .ident_pool
-                                .get_or_intern(ident.as_str());
+                if let Some(mem_location) = symbol.mem_location() {
+                    // The symbol is known to be at some memory location, emit
+                    // code for loading its value from memory and put it into
+                    // the stack.
+                    instr.i32_const(mem_location);
+                    emit_load(ctx, instr);
+                } else {
+                    // Emit code for asking YARA about the symbol's value.
 
+                    // Search for the identifier in the pool. Add it to the
+                    // pool if not already present.
+                    let ident_id = ctx
+                        .borrow_mut()
+                        .ident_pool
+                        .get_or_intern(ident.as_str());
+
+                    // If there's no current structure, take the externref that
+                    // points to the global symbol table and push it into the
+                    // stack. If a current structure exists, an externref
+                    // pointing to the structure's symbol table is already
+                    // present in the stack.
+                    if current_struct.is_none() {
+                        instr.global_get(
+                            ctx.borrow().wasm_symbols.symbol_table,
+                        );
+                    }
+
+                    // Emit code for looking up the identifier in the global
+                    // symbol table, or in the current structure's symbol table,
+                    // whatever is at the top stack at this point.
+                    match type_hint {
+                        TypeHint::Integer(_) => {
                             emit_lookup_integer(ctx, instr, ident_id);
                         }
-
-                        instr.call(
-                            ctx.borrow().wasm_symbols.clear_current_struct,
-                        );
-                    }
-                    TypeHint::Float(_) => {
-                        let ident_id = ctx
-                            .borrow_mut()
-                            .ident_pool
-                            .get_or_intern(ident.as_str());
-
-                        emit_lookup_float(ctx, instr, ident_id);
-
-                        instr.call(
-                            ctx.borrow().wasm_symbols.clear_current_struct,
-                        );
-                    }
-                    TypeHint::Bool(_) => {
-                        let ident_id = ctx
-                            .borrow_mut()
-                            .ident_pool
-                            .get_or_intern(ident.as_str());
-
-                        emit_lookup_bool(ctx, instr, ident_id);
-
-                        instr.call(
-                            ctx.borrow().wasm_symbols.clear_current_struct,
-                        );
-                    }
-                    TypeHint::String(_) => {
-                        instr.call(
-                            ctx.borrow().wasm_symbols.clear_current_struct,
-                        );
-                        todo!();
-                    }
-                    TypeHint::Struct => {
-                        let symbol = if let Some(structure) = &current_struct {
-                            structure.lookup(ident.name)
-                        } else {
-                            ctx.borrow().symbol_table.lookup(ident.name)
-                        };
-
-                        let symbol = symbol.unwrap();
-
-                        if let TypeValue::Struct(symbol_table) =
-                            symbol.type_value()
-                        {
-                            ctx.borrow_mut().current_struct =
-                                Some(symbol_table.clone());
-                        } else {
-                            unreachable!()
+                        TypeHint::Float(_) => {
+                            emit_lookup_float(ctx, instr, ident_id);
                         }
+                        TypeHint::Bool(_) => {
+                            emit_lookup_bool(ctx, instr, ident_id);
+                        }
+                        TypeHint::String(_) => {
+                            todo!();
+                        }
+                        TypeHint::Struct => {
+                            emit_lookup_struct(ctx, instr, ident_id);
 
-                        let ident_id = ctx
-                            .borrow_mut()
-                            .ident_pool
-                            .get_or_intern(ident.as_str());
-
-                        emit_lookup_struct(ctx, instr, ident_id);
-                    }
-                    _ => {
-                        // At this point the type of the identifier should be
-                        // known, as the type hint should be updated during
-                        // the semantic check.
-                        unreachable!();
+                            // The identifier represents a structure, save the
+                            // symbol table for this structure in the
+                            // current_struct variable.
+                            if let TypeValue::Struct(symbol_table) =
+                                symbol.type_value()
+                            {
+                                ctx.borrow_mut().current_struct =
+                                    Some(symbol_table.clone());
+                            }
+                        }
+                        _ => {
+                            // At this point the type of the identifier should be
+                            // known, as the type hint should be updated during
+                            // the semantic check.
+                            unreachable!();
+                        }
                     }
                 }
             });
@@ -671,7 +657,7 @@ pub(super) fn emit_for_in_range(
     );
 
     // Put the loop variables into scope.
-    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+    ctx.borrow_mut().symbol_table.push(Arc::new(loop_vars));
 
     // Push memory offset where lower_bound will be stored.
     instr.i32_const(lower_bound);
@@ -1008,8 +994,6 @@ pub(super) fn catch_undef(
         expr(block);
     });
 
-    instr.call(ctx.borrow().wasm_symbols.clear_current_struct);
-
     // Pop exception handler from the stack.
     ctx.borrow_mut().exception_handler_stack.pop();
 }
@@ -1163,12 +1147,7 @@ pub(super) fn emit_lookup_struct(
     ident_id: IdentId,
 ) {
     instr.i64_const(Into::<u32>::into(ident_id) as i64);
-    emit_call_and_handle_undef(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_struct,
-    );
-    instr.drop(); // TODO: dropping the i64 returned, fix this.
+    instr.call(ctx.borrow().wasm_symbols.lookup_struct);
 }
 
 // Emits code that checks if the top of the stack is non-zero and executes

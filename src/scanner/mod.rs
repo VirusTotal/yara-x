@@ -8,9 +8,11 @@ use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
 use std::ptr::null;
-use std::rc::Rc;
 use std::slice::Iter;
-use wasmtime::{Store, TypedFunc};
+use std::sync::{Arc, RwLock};
+use wasmtime::{
+    ExternRef, Global, GlobalType, Mutability, Store, TypedFunc, Val, ValType,
+};
 
 #[cfg(test)]
 mod tests;
@@ -24,12 +26,13 @@ pub struct Scanner<'r> {
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(compiled_rules: &'r CompiledRules) -> Self {
+        let symbol_table = Arc::new(RwLock::new(SymbolTable::new()));
+
         let mut wasm_store = Store::new(
             &crate::wasm::ENGINE,
             ScanContext {
                 compiled_rules,
-                symbol_table: SymbolTable::new(),
-                current_struct: None,
+                symbol_table: symbol_table.clone(),
                 scanned_data: null(),
                 scanned_data_len: 0,
                 rules_matching: Vec::new(),
@@ -40,10 +43,34 @@ impl<'r> Scanner<'r> {
             },
         );
 
-        let wasm_instance = wasm::LINKER
+        let mut linker = wasm::LINKER.clone();
+
+        // Create an externref that wraps a shared reference to the symbol
+        // table.
+        let symbol_table_externref = ExternRef::new(
+            symbol_table as Arc<dyn SymbolLookup + Send + Sync>,
+        );
+
+        // Create a wasm global variable that stores the externref with the
+        // symbol table.
+        let symbol_table_global = Global::new(
+            &mut wasm_store,
+            GlobalType::new(ValType::ExternRef, Mutability::Const),
+            Val::ExternRef(Some(symbol_table_externref)),
+        )
+        .unwrap();
+
+        // Associate the global variable with the name "symbol_table".
+        linker.define("yr", "symbol_table", symbol_table_global).unwrap();
+
+        // Instantiate the module. This takes the wasm code provided by the
+        // `compiled_wasm_mod` and links its imported functions with the
+        // implementations that YARA provides (see wasm.rs).
+        let wasm_instance = linker
             .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
             .unwrap();
 
+        // Obtain a reference to the "main" function exported by the module.
         let wasm_main_fn = wasm_instance
             .get_typed_func::<(), (), _>(&mut wasm_store, "main")
             .unwrap();
@@ -96,19 +123,23 @@ impl<'r> Scanner<'r> {
             // structure implements the SymbolLookup trait, which is used
             // by the runtime for obtaining the values of individual fields
             // in the data structure, as they are used in the rule conditions.
-            self.wasm_store.data_mut().symbol_table.insert(
+            self.wasm_store.data_mut().symbol_table.write().unwrap().insert(
                 module_name,
-                Symbol::new(TypeValue::Struct(Rc::new(module_output))),
+                Symbol::new(TypeValue::Struct(Arc::new(module_output))),
             );
         }
 
         // Invoke the main function.
         self.wasm_main_fn.call(&mut self.wasm_store, ()).unwrap();
 
+        // Run the wasm store's garbage collector and force the release of
+        // unused externrefs that may be retaining data in memory.
+        self.wasm_store.gc();
+
         let ctx = self.wasm_store.data_mut();
 
         // Set pointer to data back to nil. This means that accessing
-        // `scanned_data` can't be read from within `ScanResults`.
+        // `scanned_data` from within `ScanResults` is not possible.
         ctx.scanned_data = null();
         ctx.scanned_data_len = 0;
 
@@ -195,10 +226,7 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) scanned_data_len: usize,
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r CompiledRules,
-    /// Symbol table that contains top-level symbols, like module names,
+    /// Symbol table that contains top-level symbols, like module names
     /// and external variables.
-    pub(crate) symbol_table: SymbolTable,
-    /// Symbol table for the currently active structure. When this is None
-    /// symbols are looked up in `symbol_table` instead.
-    pub(crate) current_struct: Option<Rc<dyn SymbolLookup + 'r>>,
+    pub(crate) symbol_table: Arc<RwLock<SymbolTable>>,
 }
