@@ -190,7 +190,7 @@ macro_rules! string_op {
                     Bool(Some((&lhs).$op(&rhs)))
                 }
             }
-            _ => String(None),
+            _ => Bool(None),
         }
     }};
 }
