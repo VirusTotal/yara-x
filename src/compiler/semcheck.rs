@@ -2,7 +2,7 @@ use bstr::ByteSlice;
 use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
@@ -551,7 +551,7 @@ pub(super) fn semcheck_expr(
             }
 
             // Put the loop variables into scope.
-            ctx.symbol_table.push(Rc::new(loop_vars));
+            ctx.symbol_table.push(Arc::new(loop_vars));
 
             semcheck!(ctx, Type::Bool, &for_in.condition)?;
 

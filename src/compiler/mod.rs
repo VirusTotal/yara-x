@@ -5,7 +5,7 @@ module implements the YARA compiler.
 */
 use std::cell::RefCell;
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::{fmt, mem};
 use walrus::ir::{InstrSeqId, UnaryOp};
 use walrus::{Module, ValType};
@@ -280,7 +280,7 @@ impl Compiler {
 
                 symbol_table.insert(
                     import.module_name.as_str(),
-                    Symbol::new(TypeValue::Struct(Rc::new(module))),
+                    Symbol::new(TypeValue::Struct(Arc::new(module))),
                 );
             } else {
                 // ... if no, that's an error.
@@ -295,7 +295,7 @@ impl Compiler {
             }
         }
 
-        self.symbol_table.push(Rc::new(symbol_table));
+        self.symbol_table.push(Arc::new(symbol_table));
 
         Ok(())
     }
@@ -363,7 +363,7 @@ struct Context<'a> {
 
     /// Symbol table for the currently active structure. When this is None
     /// symbols are looked up in `symbol_table` instead.
-    current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
+    current_struct: Option<Arc<dyn SymbolLookup + 'a>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
     /// code.

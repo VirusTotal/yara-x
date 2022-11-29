@@ -21,6 +21,7 @@ the functions exposed to them by YARA's WebAssembly runtime.
 
 use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
+use std::sync::Arc;
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{Externref, F64, I32, I64};
 use wasmtime::ExternRef;
@@ -116,28 +117,27 @@ impl ModuleBuilder {
         let (str_len, _) = module.add_import_func("yr", "str_len", ty);
 
         // Lookup functions
-        let ty = module.types.add(&[I64], &[I64, I32]);
+        let ty = module.types.add(&[Externref, I64], &[I64, I32]);
         let (lookup_integer, _) =
             module.add_import_func("yr", "lookup_integer", ty);
 
-        let ty = module.types.add(&[I64], &[F64, I32]);
+        let ty = module.types.add(&[Externref, I64], &[F64, I32]);
         let (lookup_float, _) =
             module.add_import_func("yr", "lookup_float", ty);
 
-        let ty = module.types.add(&[I64], &[I32, I32]);
+        let ty = module.types.add(&[Externref, I64], &[I32, I32]);
         let (lookup_bool, _) = module.add_import_func("yr", "lookup_bool", ty);
 
-        let ty = module.types.add(&[I64], &[I64, I32]);
+        let ty = module.types.add(&[Externref, I64], &[I64, I32]);
         let (lookup_string, _) =
             module.add_import_func("yr", "lookup_string", ty);
 
-        let ty = module.types.add(&[I64], &[I64, I32]);
+        let ty = module.types.add(&[Externref, I64], &[Externref]);
         let (lookup_struct, _) =
             module.add_import_func("yr", "lookup_struct", ty);
 
-        let ty = module.types.add(&[], &[]);
-        let (clear_current_struct, _) =
-            module.add_import_func("yr", "clear_current_struct", ty);
+        let (symbol_table, _) =
+            module.add_import_global("yr", "symbol_table", Externref, false);
 
         let wasm_symbols = WasmSymbols {
             rule_match,
@@ -150,7 +150,6 @@ impl ModuleBuilder {
             lookup_bool,
             lookup_string,
             lookup_struct,
-            clear_current_struct,
             str_eq,
             str_ne,
             str_lt,
@@ -166,6 +165,7 @@ impl ModuleBuilder {
             str_iequals,
             str_len,
             filesize,
+            symbol_table,
             main_memory: module.memories.add_local(false, 1024, None),
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
@@ -394,7 +394,6 @@ pub(crate) struct WasmSymbols {
     pub lookup_bool: walrus::FunctionId,
     pub lookup_string: walrus::FunctionId,
     pub lookup_struct: walrus::FunctionId,
-    pub clear_current_struct: walrus::FunctionId,
 
     /// String comparison functions.
     /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
@@ -420,6 +419,8 @@ pub(crate) struct WasmSymbols {
     pub i64_tmp: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
     pub ref_tmp: walrus::LocalId,
+
+    pub symbol_table: walrus::GlobalId,
 }
 
 lazy_static! {
@@ -453,9 +454,6 @@ lazy_static! {
         linker.func_wrap("yr", "lookup_bool", lookup_bool).unwrap();
         linker.func_wrap("yr", "lookup_string", lookup_string).unwrap();
         linker.func_wrap("yr", "lookup_struct", lookup_struct).unwrap();
-        linker
-            .func_wrap("yr", "clear_current_struct", clear_current_struct)
-            .unwrap();
 
         linker
     };
@@ -567,25 +565,25 @@ macro_rules! lookup_ident_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
+            symbol_table: Option<ExternRef>,
             ident_id: i64,
         ) -> ($return_type, i32) {
-            let scan_ctx = caller.data();
+            let symbol_table = symbol_table.unwrap();
+            let symbol_table = symbol_table
+                .data()
+                .downcast_ref::<Arc<dyn SymbolLookup + Send + Sync>>()
+                .unwrap();
 
-            let ident = scan_ctx
+            let ident = caller
+                .data()
                 .compiled_rules
                 .ident_pool()
                 .get(IdentId::from(ident_id as u32))
                 .unwrap();
 
-            let current_struct = &scan_ctx.current_struct;
+            let symbol = symbol_table.lookup(ident).unwrap();
 
-            let symbol = if let Some(structure) = current_struct {
-                structure.lookup(ident)
-            } else {
-                scan_ctx.symbol_table.lookup(ident)
-            };
-
-            match symbol.unwrap().type_value() {
+            match symbol.type_value() {
                 $type(Some(v)) => defined(*v as $return_type),
                 $type(None) => undefined(),
                 _ => unreachable!(),
@@ -600,62 +598,53 @@ lookup_ident_fn!(lookup_bool, i32, TypeValue::Bool);
 
 pub(crate) fn lookup_string(
     caller: Caller<'_, ScanContext>,
+    symbol_table: Option<ExternRef>,
     ident_id: i64,
 ) -> MaybeUndef<i64> {
-    let scan_ctx = caller.data();
+    let symbol_table = symbol_table.unwrap();
+    let symbol_table = symbol_table
+        .data()
+        .downcast_ref::<Arc<dyn SymbolLookup + Send + Sync>>()
+        .unwrap();
 
-    let ident = scan_ctx
+    let ident = caller
+        .data()
         .compiled_rules
         .ident_pool()
         .get(IdentId::from(ident_id as u32))
         .unwrap();
 
-    let current_struct = &scan_ctx.current_struct;
+    let symbol = symbol_table.lookup(ident).unwrap();
 
-    let symbol = if let Some(structure) = current_struct {
-        structure.lookup(ident)
-    } else {
-        scan_ctx.symbol_table.lookup(ident)
-    };
-
-    defined(0)
-}
-
-pub(crate) fn clear_current_struct(mut caller: Caller<'_, ScanContext>) {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-    scan_ctx.current_struct = None;
+    todo!()
 }
 
 pub(crate) fn lookup_struct(
-    mut caller: Caller<'_, ScanContext>,
+    caller: Caller<'_, ScanContext>,
+    symbol_table: Option<ExternRef>,
     ident_id: i64,
-) -> (i64, i32) {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
+) -> Option<ExternRef> {
+    let symbol_table = symbol_table.unwrap();
+    let symbol_table = symbol_table
+        .data()
+        .downcast_ref::<Arc<dyn SymbolLookup + Send + Sync>>()
+        .unwrap();
 
-    let ident = scan_ctx
+    let ident = caller
+        .data()
         .compiled_rules
         .ident_pool()
         .get(IdentId::from(ident_id as u32))
         .unwrap();
 
-    let current_struct = &scan_ctx.current_struct;
+    let symbol = symbol_table.lookup(ident).unwrap();
 
-    let symbol = if let Some(structure) = current_struct {
-        structure.lookup(ident)
-    } else {
-        scan_ctx.symbol_table.lookup(ident)
-    };
-
-    match symbol.unwrap().type_value() {
+    match symbol.type_value() {
         TypeValue::Struct(symbol_table) => {
-            scan_ctx.current_struct = Some(symbol_table.clone());
+            Some(ExternRef::new(symbol_table.clone()))
         }
         _ => unreachable!(),
     }
-
-    defined(0)
 }
 
 macro_rules! str_cmp_fn {

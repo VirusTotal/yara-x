@@ -8,7 +8,7 @@ use protobuf::reflect::{
 use protobuf::MessageDyn;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::{Debug, Formatter};
-use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
 /// Trait implemented by types that allow looking up for an identifier.
 pub trait SymbolLookup {
@@ -71,7 +71,7 @@ pub enum TypeValue {
     Float(Option<f64>),
     Bool(Option<bool>),
     String(Option<BString>),
-    Struct(Rc<dyn SymbolLookup>),
+    Struct(Arc<dyn SymbolLookup + Send + Sync>),
 }
 
 impl From<&ast::TypeHint> for TypeValue {
@@ -153,7 +153,8 @@ impl PartialEq for TypeValue {
 /// is returned.
 impl SymbolLookup for &'static HashMap<&str, Module> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        self.get(ident).map(|module| TypeValue::Struct(Rc::new(module)).into())
+        self.get(ident)
+            .map(|module| TypeValue::Struct(Arc::new(module)).into())
     }
 }
 
@@ -229,7 +230,7 @@ impl SymbolLookup for MessageDescriptor {
                         Some(TypeValue::Integer(None).into())
                     }
                     RuntimeType::Message(m) => {
-                        Some(TypeValue::Struct(Rc::new(m)).into())
+                        Some(TypeValue::Struct(Arc::new(m)).into())
                     }
                 },
                 RuntimeFieldType::Repeated(_) => todo!(),
@@ -239,7 +240,7 @@ impl SymbolLookup for MessageDescriptor {
             // If the message doesn't have a field with the requested name,
             // let's look if there's a nested enum that has that name.
             self.nested_enums().find(|e| e.name() == ident).map(
-                |nested_enum| TypeValue::Struct(Rc::new(nested_enum)).into(),
+                |nested_enum| TypeValue::Struct(Arc::new(nested_enum)).into(),
             )
         }
     }
@@ -361,7 +362,7 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                         Some(Symbol::new(type_value))
                     }
                     RuntimeType::Message(_) => {
-                        Some(Symbol::new(TypeValue::Struct(Rc::new(
+                        Some(Symbol::new(TypeValue::Struct(Arc::new(
                             field.get_message(self.as_ref()).clone_box(),
                         ))))
                     }
@@ -378,7 +379,7 @@ impl SymbolLookup for Box<dyn MessageDyn> {
             // let's look if there's a nested enum that has that name.
             message_descriptor.nested_enums().find(|e| e.name() == ident).map(
                 |nested_enum| {
-                    Symbol::new(TypeValue::Struct(Rc::new(nested_enum)))
+                    Symbol::new(TypeValue::Struct(Arc::new(nested_enum)))
                 },
             )
         }
@@ -439,6 +440,12 @@ impl SymbolLookup for &SymbolTable {
     }
 }
 
+impl SymbolLookup for RwLock<SymbolTable> {
+    fn lookup(&self, ident: &str) -> Option<Symbol> {
+        self.read().unwrap().lookup(ident)
+    }
+}
+
 /// A set of stacked symbol tables.
 ///
 /// As the name suggests, this type represents a set of symbol tables stacked
@@ -452,7 +459,7 @@ impl SymbolLookup for &SymbolTable {
 /// that is deeper in the stack.
 ///
 pub struct StackedSymbolTable {
-    stack: VecDeque<Rc<dyn SymbolLookup>>,
+    stack: VecDeque<Arc<dyn SymbolLookup>>,
 }
 
 impl StackedSymbolTable {
@@ -462,12 +469,12 @@ impl StackedSymbolTable {
     }
 
     /// Pushes a new symbol table to the stack.
-    pub fn push(&mut self, symbol_table: Rc<dyn SymbolLookup>) {
+    pub fn push(&mut self, symbol_table: Arc<dyn SymbolLookup>) {
         self.stack.push_back(symbol_table)
     }
 
     /// Pop a symbol table from the stack.
-    pub fn pop(&mut self) -> Option<Rc<dyn SymbolLookup>> {
+    pub fn pop(&mut self) -> Option<Arc<dyn SymbolLookup>> {
         self.stack.pop_back()
     }
 }
