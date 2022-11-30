@@ -411,11 +411,16 @@ impl<'a> Context<'a> {
     /// memory offset where the new variable resides.
     ///
     /// Do not confuse this stack with the WebAssembly runtime stack, this
-    /// stack is stored in the module's memory.
+    /// stack is stored in the module's memory. This function panics if the
+    /// stacks grows beyond the module's memory size.
     #[inline]
     fn new_var(&mut self) -> i32 {
         let top = self.stack_top;
         self.stack_top += mem::size_of::<i64>() as i32;
+        if self.stack_top > (ModuleBuilder::MODULE_MEMORY_SIZE * 65536) as i32
+        {
+            panic!("variables stack grew larger than module's memory size");
+        }
         top
     }
 

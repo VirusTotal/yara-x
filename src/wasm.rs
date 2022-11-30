@@ -40,6 +40,9 @@ pub(crate) struct ModuleBuilder {
 }
 
 impl ModuleBuilder {
+    /// Module's memory size in pages. Page size is 64KB.
+    pub(crate) const MODULE_MEMORY_SIZE: u32 = 1;
+
     /// Creates a new module builder.
     pub fn new() -> Self {
         let config = walrus::ModuleConfig::new();
@@ -167,7 +170,11 @@ impl ModuleBuilder {
             str_len,
             filesize,
             symbol_table,
-            main_memory: module.memories.add_local(false, 1024, None),
+            main_memory: module.memories.add_local(
+                false,
+                Self::MODULE_MEMORY_SIZE,
+                None,
+            ),
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
             ref_tmp: module.locals.add(Externref),
