@@ -129,102 +129,169 @@ macro_rules! check_integer_in_range {
     }};
 }
 
-macro_rules! semcheck_boolean_op {
-    ($ctx:ident, $expr:expr, $op:tt) => {{
-        warning_if_not_boolean($ctx, &$expr.lhs);
-        warning_if_not_boolean($ctx, &$expr.rhs);
+macro_rules! gen_semcheck_boolean_op {
+    ($name:ident, $op:tt) => {
+        fn $name(
+            ctx: &mut Context,
+            expr: &Box<BinaryExpr>,
+        ) -> Result<TypeHint, Error> {
+            warning_if_not_boolean(ctx, &expr.lhs);
+            warning_if_not_boolean(ctx, &expr.rhs);
 
-        let (lhs, rhs) = semcheck_operands!(
-            $ctx,
-            &$expr.lhs,
-            &$expr.rhs,
-            // Boolean operations accept integer, float and string operands.
-            // If operands are not boolean they are casted to boolean.
-            Type::Bool | Type::Integer | Type::Float | Type::String,
-            // All operands types can mixed in a boolean operation, as they
-            // are casted to boolean.
-            &[Type::Bool, Type::Integer, Type::Float, Type::String]
-        )?;
+            let (lhs, rhs) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                // Boolean operations accept integer, float and string operands.
+                // If operands are not boolean they are casted to boolean.
+                Type::Bool | Type::Integer | Type::Float | Type::String,
+                // All operands types can mixed in a boolean operation, as they
+                // are casted to boolean.
+                &[Type::Bool, Type::Integer, Type::Float, Type::String]
+            )?;
 
-        let type_hint = boolean_op!(lhs, $op, rhs);
+            let type_hint = boolean_op!(lhs, $op, rhs);
 
-        $expr.set_type_hint(type_hint.clone());
+            expr.set_type_hint(type_hint.clone());
 
-        Ok(type_hint)
-    }};
+            Ok(type_hint)
+        }
+    };
 }
 
-macro_rules! semcheck_comparison_op {
-    ($ctx:ident, $expr:expr, $op:tt) => {{
-        let (lhs, rhs) = semcheck_operands!(
-            $ctx,
-            &$expr.lhs,
-            &$expr.rhs,
-            // Integers, floats and strings can be compared.
-            Type::Integer | Type::Float | Type::String,
-            // Integers can be compared with floats, but string can be
-            // compared only with another string.
-            &[Type::Integer, Type::Float]
-        )?;
+gen_semcheck_boolean_op!(semcheck_boolean_and, &&);
+gen_semcheck_boolean_op!(semcheck_boolean_or, ||);
 
-        let type_hint = comparison_op!(lhs, $op, rhs);
+macro_rules! gen_semcheck_comparison_op {
+    ($name:ident, $op:tt) => {
+        fn $name(
+            ctx: &mut Context,
+            expr: &Box<BinaryExpr>,
+        ) -> Result<TypeHint, Error> {
+            let (lhs, rhs) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                // Integers, floats and strings can be compared.
+                Type::Integer | Type::Float | Type::String,
+                // Integers can be compared with floats, but string can be
+                // compared only with another string.
+                &[Type::Integer, Type::Float]
+            )?;
 
-        $expr.set_type_hint(type_hint.clone());
+            let type_hint = comparison_op!(lhs, $op, rhs);
 
-        Ok(type_hint)
-    }};
+            expr.set_type_hint(type_hint.clone());
+
+            Ok(type_hint)
+        }
+    };
 }
 
-macro_rules! semcheck_shift_op {
-    ($ctx:ident, $expr:expr, $op:ident) => {{
-        let span = $expr.rhs.span();
-        let (lhs, rhs) = semcheck_operands!(
-            $ctx,
-            &$expr.lhs,
-            &$expr.rhs,
-            Type::Integer,
-            &[]
-        )?;
+gen_semcheck_comparison_op!(semcheck_comparison_eq, ==);
+gen_semcheck_comparison_op!(semcheck_comparison_ne, !=);
+gen_semcheck_comparison_op!(semcheck_comparison_gt, >);
+gen_semcheck_comparison_op!(semcheck_comparison_lt, <);
+gen_semcheck_comparison_op!(semcheck_comparison_ge, >=);
+gen_semcheck_comparison_op!(semcheck_comparison_le, <=);
 
-        if let TypeHint::Integer(Some(value)) = rhs {
-            if value < 0 {
-                return Err(Error::CompileError(
-                    CompileError::unexpected_negative_number(
-                        $ctx.report_builder,
-                        $ctx.src,
-                        span,
-                    ),
-                ));
-            }
-        } else {
-            unreachable!();
-        };
+macro_rules! gen_semcheck_shift_op {
+    ($name:ident, $op:tt) => {
+        fn $name(
+            ctx: &mut Context,
+            expr: &Box<BinaryExpr>,
+        ) -> Result<TypeHint, Error> {
+            let span = expr.rhs.span();
 
-        let type_hint = shift_op!(lhs, $op, rhs);
+            let (lhs, rhs) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                Type::Integer,
+                &[]
+            )?;
 
-        $expr.set_type_hint(type_hint.clone());
+            if let TypeHint::Integer(Some(value)) = rhs {
+                if value < 0 {
+                    return Err(Error::CompileError(
+                        CompileError::unexpected_negative_number(
+                            ctx.report_builder,
+                            ctx.src,
+                            span,
+                        ),
+                    ));
+                }
+            } else {
+                unreachable!();
+            };
 
-        Ok(type_hint)
-    }};
+            let type_hint = shift_op!(lhs, $op, rhs);
+
+            expr.set_type_hint(type_hint.clone());
+
+            Ok(type_hint)
+        }
+    };
 }
 
-macro_rules! semcheck_bitwise_op {
-    ($ctx:ident, $expr:expr, $op:ident) => {{
-        let (lhs, rhs) = semcheck_operands!(
-            $ctx,
-            &$expr.lhs,
-            &$expr.rhs,
-            Type::Integer,
-            &[]
-        )?;
+gen_semcheck_shift_op!(semcheck_shl, overflowing_shl);
+gen_semcheck_shift_op!(semcheck_shr, overflowing_shr);
 
-        let type_hint = bitwise_op!(lhs, $op, rhs);
+macro_rules! gen_semcheck_bitwise_op {
+    ($name:ident, $op:ident) => {
+        fn $name(
+            ctx: &mut Context,
+            expr: &Box<BinaryExpr>,
+        ) -> Result<TypeHint, Error> {
+            let (lhs, rhs) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                Type::Integer,
+                &[]
+            )?;
 
-        $expr.set_type_hint(type_hint.clone());
+            let type_hint = bitwise_op!(lhs, $op, rhs);
 
-        Ok(type_hint)
-    }};
+            expr.set_type_hint(type_hint.clone());
+
+            Ok(type_hint)
+        }
+    };
 }
+
+gen_semcheck_bitwise_op!(semcheck_bitwise_and, bitand);
+gen_semcheck_bitwise_op!(semcheck_bitwise_or, bitor);
+gen_semcheck_bitwise_op!(semcheck_bitwise_xor, bitxor);
+
+macro_rules! gen_semcheck_string_op {
+    ($name:ident, $op:ident) => {
+        fn $name(
+            ctx: &mut Context,
+            expr: &Box<BinaryExpr>,
+            case_insensitive: bool,
+        ) -> Result<TypeHint, Error> {
+            let (lhs, rhs) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                Type::String,
+                &[]
+            )?;
+
+            let type_hint = string_op!(lhs, $op, rhs, case_insensitive);
+
+            expr.set_type_hint(type_hint.clone());
+
+            Ok(type_hint)
+        }
+    };
+}
+
+gen_semcheck_string_op!(semcheck_string_contains, contains_str);
+gen_semcheck_string_op!(semcheck_string_startswith, starts_with);
+gen_semcheck_string_op!(semcheck_string_endswith, ends_with);
+gen_semcheck_string_op!(semcheck_string_equals, eq);
 
 macro_rules! semcheck_arithmetic_op {
     ($ctx:ident, $expr:expr, $op:tt, $( $accepted_types:path )|+, $checked_op:ident) => {{
@@ -244,23 +311,34 @@ macro_rules! semcheck_arithmetic_op {
     }};
 }
 
-macro_rules! semcheck_string_op {
-    ($ctx:ident, $expr:expr, $op:ident, $case_insensitive:expr) => {{
-        let (lhs, rhs) = semcheck_operands!(
-            $ctx,
-            &$expr.lhs,
-            &$expr.rhs,
-            Type::String,
-            &[]
-        )?;
+macro_rules! gen_semcheck_arithmetic_op {
+    ($name:ident, $op:tt, $checked_op:ident, $( $accepted_types:path )|+) => {
+        fn $name(
+            ctx: &mut Context,
+            expr: &Box<BinaryExpr>,
+        ) -> Result<TypeHint, Error> {
+            let (lhs, rhs) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                $( $accepted_types )|+,
+                &[Type::Integer, Type::Float]
+            )?;
 
-        let type_hint = string_op!(lhs, $op, rhs, $case_insensitive);
+            let type_hint = arithmetic_op!(lhs, $op, $checked_op, rhs);
 
-        $expr.set_type_hint(type_hint.clone());
+            expr.set_type_hint(type_hint.clone());
 
-        Ok(type_hint)
-    }};
+            Ok(type_hint)
+        }
+    };
 }
+
+gen_semcheck_arithmetic_op!(semcheck_arithmetic_add, +, checked_add, Type::Integer | Type::Float);
+gen_semcheck_arithmetic_op!(semcheck_arithmetic_sub, -, checked_sub, Type::Integer | Type::Float);
+gen_semcheck_arithmetic_op!(semcheck_arithmetic_mul, *, checked_mul, Type::Integer | Type::Float);
+gen_semcheck_arithmetic_op!(semcheck_arithmetic_div, /, checked_div, Type::Integer | Type::Float);
+gen_semcheck_arithmetic_op!(semcheck_arithmetic_mod, %, checked_rem, Type::Integer);
 
 /// Makes sure that an expression is semantically valid.
 ///
@@ -342,45 +420,18 @@ pub(super) fn semcheck_expr(
             Ok(type_hint)
         }
 
-        Expr::And(expr) => {
-            semcheck_boolean_op!(ctx, expr, &&)
-        }
+        Expr::And(expr) => semcheck_boolean_and(ctx, expr),
+        Expr::Or(expr) => semcheck_boolean_or(ctx, expr),
 
-        Expr::Or(expr) => {
-            semcheck_boolean_op!(ctx, expr, ||)
-        }
+        Expr::Eq(expr) => semcheck_comparison_eq(ctx, expr),
+        Expr::Ne(expr) => semcheck_comparison_ne(ctx, expr),
+        Expr::Lt(expr) => semcheck_comparison_lt(ctx, expr),
+        Expr::Le(expr) => semcheck_comparison_le(ctx, expr),
+        Expr::Gt(expr) => semcheck_comparison_gt(ctx, expr),
+        Expr::Ge(expr) => semcheck_comparison_ge(ctx, expr),
 
-        Expr::Eq(expr) => {
-            semcheck_comparison_op!(ctx, expr, ==)
-        }
-
-        Expr::Ne(expr) => {
-            semcheck_comparison_op!(ctx, expr, !=)
-        }
-
-        Expr::Lt(expr) => {
-            semcheck_comparison_op!(ctx, expr, <)
-        }
-
-        Expr::Le(expr) => {
-            semcheck_comparison_op!(ctx, expr, <=)
-        }
-
-        Expr::Gt(expr) => {
-            semcheck_comparison_op!(ctx, expr, >)
-        }
-
-        Expr::Ge(expr) => {
-            semcheck_comparison_op!(ctx, expr, >=)
-        }
-
-        Expr::Shl(expr) => {
-            semcheck_shift_op!(ctx, expr, overflowing_shl)
-        }
-
-        Expr::Shr(expr) => {
-            semcheck_shift_op!(ctx, expr, overflowing_shr)
-        }
+        Expr::Shl(expr) => semcheck_shl(ctx, expr),
+        Expr::Shr(expr) => semcheck_shr(ctx, expr),
 
         Expr::BitwiseNot(expr) => {
             let type_hint =
@@ -391,17 +442,9 @@ pub(super) fn semcheck_expr(
             Ok(type_hint)
         }
 
-        Expr::BitwiseAnd(expr) => {
-            semcheck_bitwise_op!(ctx, expr, bitand)
-        }
-
-        Expr::BitwiseOr(expr) => {
-            semcheck_bitwise_op!(ctx, expr, bitor)
-        }
-
-        Expr::BitwiseXor(expr) => {
-            semcheck_bitwise_op!(ctx, expr, bitxor)
-        }
+        Expr::BitwiseAnd(expr) => semcheck_bitwise_and(ctx, expr),
+        Expr::BitwiseOr(expr) => semcheck_bitwise_or(ctx, expr),
+        Expr::BitwiseXor(expr) => semcheck_bitwise_xor(ctx, expr),
 
         Expr::Minus(expr) => {
             let type_hint = minus_op!(semcheck!(
@@ -415,53 +458,19 @@ pub(super) fn semcheck_expr(
             Ok(type_hint)
         }
 
-        Expr::Add(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, +, Type::Integer | Type::Float, checked_add)
-        }
+        Expr::Add(expr) => semcheck_arithmetic_add(ctx, expr),
+        Expr::Sub(expr) => semcheck_arithmetic_sub(ctx, expr),
+        Expr::Mul(expr) => semcheck_arithmetic_mul(ctx, expr),
+        Expr::Div(expr) => semcheck_arithmetic_div(ctx, expr),
+        Expr::Modulus(expr) => semcheck_arithmetic_mod(ctx, expr),
 
-        Expr::Sub(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, -, Type::Integer | Type::Float,  checked_sub)
-        }
-
-        Expr::Mul(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, *, Type::Integer | Type::Float, checked_mul)
-        }
-
-        Expr::Div(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, /, Type::Integer | Type::Float, checked_div)
-        }
-
-        Expr::Modulus(expr) => {
-            semcheck_arithmetic_op!(ctx, expr, %, Type::Integer, checked_rem)
-        }
-
-        Expr::Contains(expr) => {
-            semcheck_string_op!(ctx, expr, contains_str, false)
-        }
-
-        Expr::IContains(expr) => {
-            semcheck_string_op!(ctx, expr, contains_str, true)
-        }
-
-        Expr::StartsWith(expr) => {
-            semcheck_string_op!(ctx, expr, starts_with, false)
-        }
-
-        Expr::IStartsWith(expr) => {
-            semcheck_string_op!(ctx, expr, starts_with, true)
-        }
-
-        Expr::EndsWith(expr) => {
-            semcheck_string_op!(ctx, expr, ends_with, false)
-        }
-
-        Expr::IEndsWith(expr) => {
-            semcheck_string_op!(ctx, expr, ends_with, true)
-        }
-
-        Expr::IEquals(expr) => {
-            semcheck_string_op!(ctx, expr, eq, true)
-        }
+        Expr::Contains(expr) => semcheck_string_contains(ctx, expr, false),
+        Expr::IContains(expr) => semcheck_string_contains(ctx, expr, true),
+        Expr::StartsWith(expr) => semcheck_string_startswith(ctx, expr, false),
+        Expr::IStartsWith(expr) => semcheck_string_startswith(ctx, expr, true),
+        Expr::EndsWith(expr) => semcheck_string_endswith(ctx, expr, false),
+        Expr::IEndsWith(expr) => semcheck_string_endswith(ctx, expr, true),
+        Expr::IEquals(expr) => semcheck_string_equals(ctx, expr, true),
 
         Expr::Ident(ident) => {
             let type_hint: TypeHint = {
