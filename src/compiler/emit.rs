@@ -1,17 +1,18 @@
-use crate::ast::{
-    Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range, TypeHint,
-};
-use crate::compiler::{Context, IdentId};
-use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable, TypeValue};
-use crate::Type;
-use bstr::ByteSlice;
 use std::cell::RefCell;
 use std::mem::size_of;
 use std::sync::Arc;
 
+use bstr::ByteSlice;
 use walrus::ir::{BinaryOp, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
+
+use crate::ast::{
+    Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range, TypeHint,
+};
+use crate::compiler::{Context, IdentId};
+use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
+use crate::types::{Type, Value};
 
 /// This macro emits a constant if the type hint indicates that the expression
 /// has a constant value (e.i: the value is known at compile time), if not,
@@ -291,8 +292,8 @@ pub(super) fn emit_expr(
                             // The identifier represents a structure, save the
                             // symbol table for this structure in the
                             // current_struct variable.
-                            if let TypeValue::Struct(symbol_table) =
-                                symbol.type_value()
+                            if let Some(Value::Struct(symbol_table)) =
+                                symbol.value()
                             {
                                 ctx.borrow_mut().current_struct =
                                     Some(symbol_table.clone());
@@ -659,7 +660,7 @@ pub(super) fn emit_for_in_range(
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(
         for_in.variables.first().unwrap().as_str(),
-        Symbol::new(TypeValue::Integer(None))
+        Symbol::new(Type::Integer.into())
             .set_location(Location::Memory(lower_bound)),
     );
 

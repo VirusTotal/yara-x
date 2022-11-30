@@ -3,7 +3,8 @@
 */
 
 use crate::compiler::{CompiledRule, CompiledRules, RuleId};
-use crate::symbols::{Symbol, SymbolLookup, SymbolTable, TypeValue};
+use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::types::{TypeValue, Value};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
@@ -125,7 +126,7 @@ impl<'r> Scanner<'r> {
             // in the data structure, as they are used in the rule conditions.
             self.wasm_store.data_mut().symbol_table.write().unwrap().insert(
                 module_name,
-                Symbol::new(TypeValue::Struct(Arc::new(module_output))),
+                Symbol::new(Value::Struct(Arc::new(module_output)).into()),
             );
         }
 

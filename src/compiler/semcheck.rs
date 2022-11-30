@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
-use crate::symbols::TypeValue;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::types::{Type, TypeValue, Value};
 use crate::warnings::Warning;
 
 use crate::parser::arithmetic_op;
@@ -483,12 +483,12 @@ pub(super) fn semcheck_expr(
                 };
 
                 if let Some(symbol) = symbol {
-                    let type_value = symbol.type_value();
-                    if let TypeValue::Struct(symbol_table) = type_value {
+                    let value = symbol.value();
+                    if let Some(Value::Struct(symbol_table)) = value {
                         ctx.current_struct = Some(symbol_table.clone());
                         TypeHint::Struct
                     } else {
-                        TypeHint::from(type_value)
+                        TypeHint::from(symbol.type_value())
                     }
                 } else {
                     return Err(Error::CompileError(

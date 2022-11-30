@@ -29,7 +29,8 @@ use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
 use crate::compiler::{IdentId, LiteralId, PatternId, RuleId};
 use crate::scanner::ScanContext;
-use crate::symbols::{SymbolLookup, TypeValue};
+use crate::symbols::SymbolLookup;
+use crate::types::Value;
 
 /// Builds the WebAssembly module for a set of compiled rules.
 pub(crate) struct ModuleBuilder {
@@ -583,18 +584,18 @@ macro_rules! lookup_ident_fn {
 
             let symbol = symbol_table.lookup(ident).unwrap();
 
-            match symbol.type_value() {
-                $type(Some(v)) => defined(*v as $return_type),
-                $type(None) => undefined(),
-                _ => unreachable!(),
+            if let Some($type(value)) = symbol.value() {
+                defined(*value as $return_type)
+            } else {
+                undefined()
             }
         }
     };
 }
 
-lookup_ident_fn!(lookup_integer, i64, TypeValue::Integer);
-lookup_ident_fn!(lookup_float, f64, TypeValue::Float);
-lookup_ident_fn!(lookup_bool, i32, TypeValue::Bool);
+lookup_ident_fn!(lookup_integer, i64, Value::Integer);
+lookup_ident_fn!(lookup_float, f64, Value::Float);
+lookup_ident_fn!(lookup_bool, i32, Value::Bool);
 
 pub(crate) fn lookup_string(
     caller: Caller<'_, ScanContext>,
@@ -616,12 +617,10 @@ pub(crate) fn lookup_string(
 
     let symbol = symbol_table.lookup(ident).unwrap();
 
-    match symbol.type_value() {
-        TypeValue::String(Some(s)) => {
-            Some(ExternRef::new(RuntimeString::Owned(s.clone())))
-        }
-        TypeValue::String(None) => None,
-        _ => unreachable!(),
+    if let Some(Value::String(s)) = symbol.value() {
+        Some(ExternRef::new(RuntimeString::Owned(s.clone())))
+    } else {
+        None
     }
 }
 
@@ -645,11 +644,10 @@ pub(crate) fn lookup_struct(
 
     let symbol = symbol_table.lookup(ident).unwrap();
 
-    match symbol.type_value() {
-        TypeValue::Struct(symbol_table) => {
-            Some(ExternRef::new(symbol_table.clone()))
-        }
-        _ => unreachable!(),
+    if let Some(Value::Struct(symbol_table)) = symbol.value() {
+        Some(ExternRef::new(symbol_table.clone()))
+    } else {
+        None
     }
 }
 

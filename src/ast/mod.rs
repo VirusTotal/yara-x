@@ -14,11 +14,10 @@ use yara_macros::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
-use crate::symbols;
+use crate::types::{Type, TypeValue, Value};
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
-use crate::symbols::TypeValue;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -792,28 +791,28 @@ impl TypeHint {
 
 impl<T> From<T> for TypeHint
 where
-    T: AsRef<symbols::TypeValue>,
+    T: AsRef<TypeValue>,
 {
-    fn from(symbol: T) -> Self {
-        match symbol.as_ref() {
-            TypeValue::Bool(b) => TypeHint::Bool(b.to_owned()),
-            TypeValue::Integer(i) => TypeHint::Integer(i.to_owned()),
-            TypeValue::Float(f) => TypeHint::Float(f.to_owned()),
-            TypeValue::String(s) => TypeHint::String(s.to_owned()),
-            TypeValue::Struct(_) => TypeHint::Struct,
+    fn from(type_value: T) -> Self {
+        let type_value = type_value.as_ref();
+        match type_value.value() {
+            Some(Value::Bool(v)) => return TypeHint::Bool(Some(*v)),
+            Some(Value::Integer(v)) => return TypeHint::Integer(Some(*v)),
+            Some(Value::Float(v)) => return TypeHint::Float(Some(*v)),
+            Some(Value::String(v)) => {
+                return TypeHint::String(Some(v.to_owned()))
+            }
+            _ => {}
+        }
+        match type_value.ty() {
+            Type::Unknown => TypeHint::UnknownType,
+            Type::Integer => TypeHint::Integer(None),
+            Type::Float => TypeHint::Float(None),
+            Type::Bool => TypeHint::Bool(None),
+            Type::String => TypeHint::String(None),
+            Type::Struct => TypeHint::Struct,
         }
     }
-}
-
-/// Types returned by [`TypeHint::ty`].
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Type {
-    Unknown,
-    Bool,
-    Integer,
-    Float,
-    String,
-    Struct,
 }
 
 impl Display for Type {

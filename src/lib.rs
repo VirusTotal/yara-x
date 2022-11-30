@@ -1,5 +1,3 @@
-use crate::ast::Type;
-
 pub mod ast;
 pub mod compiler;
 pub mod formatter;
@@ -12,6 +10,7 @@ mod modules;
 mod report;
 mod string_pool;
 mod symbols;
+mod types;
 mod warnings;
 mod wasm;
 

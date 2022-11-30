@@ -1,14 +1,15 @@
-use crate::ast;
-use crate::ast::TypeHint;
-use crate::modules::Module;
+use std::collections::{HashMap, VecDeque};
+use std::fmt::{Debug, Formatter};
+use std::sync::{Arc, RwLock};
+
 use bstr::BString;
 use protobuf::reflect::{
     EnumDescriptor, MessageDescriptor, RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
-use std::collections::{HashMap, VecDeque};
-use std::fmt::{Debug, Formatter};
-use std::sync::{Arc, RwLock};
+
+use crate::modules::Module;
+use crate::types::{Type, TypeValue, Value};
 
 /// Trait implemented by types that allow looking up for an identifier.
 pub trait SymbolLookup {
@@ -49,11 +50,33 @@ impl Symbol {
     pub fn type_value(&self) -> &TypeValue {
         &self.type_value
     }
+
+    #[inline]
+    pub fn value(&self) -> Option<&Value> {
+        self.type_value.value()
+    }
+
+    #[inline]
+    pub fn ty(&self) -> Type {
+        self.type_value.ty()
+    }
 }
 
 impl From<TypeValue> for Symbol {
     fn from(type_value: TypeValue) -> Self {
         Self::new(type_value)
+    }
+}
+
+impl From<Type> for Symbol {
+    fn from(ty: Type) -> Self {
+        Self::new(ty.into())
+    }
+}
+
+impl From<Value> for Symbol {
+    fn from(value: Value) -> Self {
+        Self::new(value.into())
     }
 }
 
@@ -63,89 +86,6 @@ pub enum Location {
     Memory(i32),
 }
 
-/// The type and possibly the value associated to a YARA expression or
-/// identifier.
-#[derive(Clone)]
-pub enum TypeValue {
-    Integer(Option<i64>),
-    Float(Option<f64>),
-    Bool(Option<bool>),
-    String(Option<BString>),
-    Struct(Arc<dyn SymbolLookup + Send + Sync>),
-}
-
-impl From<&ast::TypeHint> for TypeValue {
-    fn from(type_hint: &TypeHint) -> Self {
-        match type_hint {
-            TypeHint::Bool(b) => Self::Bool(*b),
-            TypeHint::Integer(i) => Self::Integer(*i),
-            TypeHint::Float(f) => Self::Float(*f),
-            TypeHint::String(s) => Self::String(s.clone()),
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl AsRef<TypeValue> for TypeValue {
-    fn as_ref(&self) -> &TypeValue {
-        self
-    }
-}
-
-impl From<i64> for TypeValue {
-    fn from(value: i64) -> Self {
-        TypeValue::Integer(Some(value))
-    }
-}
-
-impl From<f64> for TypeValue {
-    fn from(value: f64) -> Self {
-        TypeValue::Float(Some(value))
-    }
-}
-
-impl From<bool> for TypeValue {
-    fn from(value: bool) -> Self {
-        TypeValue::Bool(Some(value))
-    }
-}
-
-impl From<BString> for TypeValue {
-    fn from(value: BString) -> Self {
-        TypeValue::String(Some(value))
-    }
-}
-
-impl From<&str> for TypeValue {
-    fn from(value: &str) -> Self {
-        TypeValue::String(Some(BString::from(value)))
-    }
-}
-
-impl Debug for TypeValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Bool(v) => write!(f, "Bool({:?})", v),
-            Self::Integer(v) => write!(f, "Integer({:?})", v),
-            Self::Float(v) => write!(f, "Float({:?})", v),
-            Self::String(v) => write!(f, "String({:?})", v),
-            Self::Struct(_) => write!(f, "Struct"),
-        }
-    }
-}
-
-impl PartialEq for TypeValue {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Bool(this), Self::Bool(other)) => this == other,
-            (Self::Integer(this), Self::Integer(other)) => this == other,
-            (Self::Float(this), Self::Float(other)) => this == other,
-            (Self::String(this), Self::String(other)) => this == other,
-            _ => false,
-        }
-    }
-}
-
 /// A hash map the contains [`Module`] instances implements [`SymbolLookup`].
 ///
 /// The identifier in this case is a module name. If a module with the given
@@ -153,8 +93,7 @@ impl PartialEq for TypeValue {
 /// is returned.
 impl SymbolLookup for &'static HashMap<&str, Module> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        self.get(ident)
-            .map(|module| TypeValue::Struct(Arc::new(module)).into())
+        self.get(ident).map(|module| Value::Struct(Arc::new(module)).into())
     }
 }
 
@@ -182,7 +121,7 @@ impl SymbolLookup for &Module {
 impl SymbolLookup for Option<Symbol> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         if let Some(symbol) = self {
-            if let TypeValue::Struct(s) = &symbol.type_value {
+            if let Some(Value::Struct(s)) = &symbol.value() {
                 s.lookup(ident)
             } else {
                 None
@@ -213,24 +152,20 @@ impl SymbolLookup for MessageDescriptor {
         if let Some(field) = self.field_by_name(ident) {
             match field.runtime_field_type() {
                 RuntimeFieldType::Singular(ty) => match ty {
-                    RuntimeType::I32 => Some(TypeValue::Integer(None).into()),
-                    RuntimeType::I64 => Some(TypeValue::Integer(None).into()),
-                    RuntimeType::U32 => Some(TypeValue::Integer(None).into()),
+                    RuntimeType::I32 => Some(Type::Integer.into()),
+                    RuntimeType::I64 => Some(Type::Integer.into()),
+                    RuntimeType::U32 => Some(Type::Integer.into()),
                     RuntimeType::U64 => {
                         todo!()
                     }
-                    RuntimeType::F32 => Some(TypeValue::Float(None).into()),
-                    RuntimeType::F64 => Some(TypeValue::Float(None).into()),
-                    RuntimeType::Bool => Some(TypeValue::Bool(None).into()),
-                    RuntimeType::String => {
-                        Some(TypeValue::String(None).into())
-                    }
-                    RuntimeType::VecU8 => Some(TypeValue::String(None).into()),
-                    RuntimeType::Enum(_) => {
-                        Some(TypeValue::Integer(None).into())
-                    }
+                    RuntimeType::F32 => Some(Type::Float.into()),
+                    RuntimeType::F64 => Some(Type::Float.into()),
+                    RuntimeType::Bool => Some(Type::Bool.into()),
+                    RuntimeType::String => Some(Type::String.into()),
+                    RuntimeType::VecU8 => Some(Type::String.into()),
+                    RuntimeType::Enum(_) => Some(Type::Integer.into()),
                     RuntimeType::Message(m) => {
-                        Some(TypeValue::Struct(Arc::new(m)).into())
+                        Some(Value::Struct(Arc::new(m)).into())
                     }
                 },
                 RuntimeFieldType::Repeated(_) => todo!(),
@@ -239,9 +174,9 @@ impl SymbolLookup for MessageDescriptor {
         } else {
             // If the message doesn't have a field with the requested name,
             // let's look if there's a nested enum that has that name.
-            self.nested_enums().find(|e| e.name() == ident).map(
-                |nested_enum| TypeValue::Struct(Arc::new(nested_enum)).into(),
-            )
+            self.nested_enums()
+                .find(|e| e.name() == ident)
+                .map(|nested_enum| Value::Struct(Arc::new(nested_enum)).into())
         }
     }
 }
@@ -250,7 +185,7 @@ impl SymbolLookup for MessageDescriptor {
 impl SymbolLookup for EnumDescriptor {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let descriptor = self.value_by_name(ident)?;
-        Some(TypeValue::Integer(Some(descriptor.value() as i64)).into())
+        Some(Value::Integer(descriptor.value() as i64).into())
     }
 }
 
@@ -282,90 +217,77 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                         {
                             TypeValue::from(value.to_i32().unwrap() as i64)
                         } else {
-                            TypeValue::Integer(None)
+                            TypeValue::from(None::<i64>)
                         };
                         Some(Symbol::new(type_value))
                     }
                     RuntimeType::I64 => {
-                        let type_value = if let Some(value) =
-                            field.get_singular(self.as_ref())
-                        {
-                            TypeValue::from(value.to_i64().unwrap())
-                        } else {
-                            TypeValue::Integer(None)
-                        };
+                        let type_value = TypeValue::from(
+                            field
+                                .get_singular(self.as_ref())
+                                .and_then(|f| f.to_i64()),
+                        );
                         Some(Symbol::new(type_value))
                     }
                     RuntimeType::U32 => {
-                        let type_value = if let Some(value) =
-                            field.get_singular(self.as_ref())
-                        {
-                            TypeValue::from(value.to_u32().unwrap() as i64)
-                        } else {
-                            TypeValue::Integer(None)
-                        };
+                        let type_value = TypeValue::from(
+                            field
+                                .get_singular(self.as_ref())
+                                .and_then(|f| f.to_u32()),
+                        );
                         Some(Symbol::new(type_value))
                     }
                     RuntimeType::U64 => {
                         todo!()
                     }
                     RuntimeType::F32 => {
-                        let type_value = if let Some(value) =
-                            field.get_singular(self.as_ref())
-                        {
-                            TypeValue::from(value.to_f32().unwrap() as f64)
-                        } else {
-                            TypeValue::Float(None)
-                        };
+                        let type_value = TypeValue::from(
+                            field
+                                .get_singular(self.as_ref())
+                                .and_then(|f| f.to_f32()),
+                        );
                         Some(Symbol::new(type_value))
                     }
                     RuntimeType::F64 => {
-                        let type_value = if let Some(value) =
-                            field.get_singular(self.as_ref())
-                        {
-                            TypeValue::from(value.to_f64().unwrap())
-                        } else {
-                            TypeValue::Float(None)
-                        };
+                        let type_value = TypeValue::from(
+                            field
+                                .get_singular(self.as_ref())
+                                .and_then(|f| f.to_f64()),
+                        );
                         Some(Symbol::new(type_value))
                     }
                     RuntimeType::Bool => {
-                        let type_value = if let Some(value) =
-                            field.get_singular(self.as_ref())
-                        {
-                            TypeValue::from(value.to_bool().unwrap())
-                        } else {
-                            TypeValue::Bool(None)
-                        };
+                        let type_value = TypeValue::from(
+                            field
+                                .get_singular(self.as_ref())
+                                .and_then(|f| f.to_bool()),
+                        );
                         Some(Symbol::new(type_value))
                     }
                     RuntimeType::String | RuntimeType::VecU8 => {
                         let type_value = if let Some(value) =
                             field.get_singular(self.as_ref())
                         {
-                            TypeValue::from(value.to_str().unwrap())
+                            TypeValue::from(value.to_str())
                         } else {
-                            TypeValue::String(None)
+                            TypeValue::from(None::<BString>)
                         };
                         Some(Symbol::new(type_value))
                     }
                     RuntimeType::Enum(_) => {
-                        let type_value = if let Some(value) =
-                            field.get_singular(self.as_ref())
-                        {
-                            TypeValue::from(
-                                value.to_enum_value().unwrap() as i64
-                            )
-                        } else {
-                            TypeValue::Integer(None)
-                        };
+                        let type_value = TypeValue::from(
+                            field
+                                .get_singular(self.as_ref())
+                                .and_then(|f| f.to_enum_value()),
+                        );
                         Some(Symbol::new(type_value))
                     }
-                    RuntimeType::Message(_) => {
-                        Some(Symbol::new(TypeValue::Struct(Arc::new(
+                    RuntimeType::Message(_) => Some(Symbol::new(
+                        Value::Struct(Arc::new(
                             field.get_message(self.as_ref()).clone_box(),
-                        ))))
-                    }
+                        ))
+                        .into(),
+                    )),
                 },
                 RuntimeFieldType::Repeated(_) => {
                     todo!()
@@ -379,7 +301,7 @@ impl SymbolLookup for Box<dyn MessageDyn> {
             // let's look if there's a nested enum that has that name.
             message_descriptor.nested_enums().find(|e| e.name() == ident).map(
                 |nested_enum| {
-                    Symbol::new(TypeValue::Struct(Arc::new(nested_enum)))
+                    Symbol::new(Value::Struct(Arc::new(nested_enum)).into())
                 },
             )
         }
@@ -497,7 +419,8 @@ impl SymbolLookup for StackedSymbolTable {
 
 #[cfg(test)]
 mod tests {
-    use crate::symbols::{SymbolLookup, TypeValue};
+    use crate::symbols::SymbolLookup;
+    use crate::types::{Type, Value};
     use bstr::BString;
     use pretty_assertions::assert_eq;
 
@@ -511,24 +434,21 @@ mod tests {
 
         let test = Test::descriptor();
 
+        assert_eq!(test.lookup("int32_zero").unwrap().ty(), Type::Integer);
+        assert_eq!(test.lookup("string_foo").unwrap().ty(), Type::String);
+
         assert_eq!(
-            test.lookup("int32_zero").unwrap().type_value(),
-            &TypeValue::Integer(None)
+            test.lookup("nested").lookup("int32_zero").unwrap().ty(),
+            Type::Integer
         );
 
         assert_eq!(
-            test.lookup("string_foo").unwrap().type_value(),
-            &TypeValue::String(None)
-        );
-
-        assert_eq!(
-            test.lookup("nested").lookup("int32_zero").unwrap().type_value(),
-            &TypeValue::Integer(None)
-        );
-
-        assert_eq!(
-            test.lookup("Enumeration").lookup("ITEM_1").unwrap().type_value(),
-            &TypeValue::Integer(Some(Enumeration::ITEM_1.value() as i64))
+            test.lookup("Enumeration")
+                .lookup("ITEM_1")
+                .unwrap()
+                .value()
+                .unwrap(),
+            &Value::Integer(Enumeration::ITEM_1.value() as i64)
         );
     }
 
@@ -585,27 +505,23 @@ mod tests {
             Test::descriptor().parse_from_bytes(buf.as_slice()).unwrap();
 
         assert_eq!(
-            message_dyn.lookup("int32_zero").unwrap().type_value(),
-            &TypeValue::Integer(Some(0))
+            message_dyn.lookup("int32_zero").unwrap().value(),
+            Some(&Value::Integer(0))
         );
 
         assert_eq!(
-            message_dyn.lookup("int32_one").unwrap().type_value(),
-            &TypeValue::Integer(Some(1))
+            message_dyn.lookup("int32_one").unwrap().value(),
+            Some(&Value::Integer(1))
         );
 
         assert_eq!(
-            message_dyn.lookup("string_foo").unwrap().type_value(),
-            &TypeValue::String(Some(BString::from("foo")))
+            message_dyn.lookup("string_foo").unwrap().value(),
+            Some(&Value::String(BString::from("foo")))
         );
 
         assert_eq!(
-            message_dyn
-                .lookup("nested")
-                .lookup("int32_zero")
-                .unwrap()
-                .type_value(),
-            &TypeValue::Integer(Some(0))
+            message_dyn.lookup("nested").lookup("int32_zero").unwrap().value(),
+            Some(&Value::Integer(0))
         );
 
         assert_eq!(
@@ -613,8 +529,9 @@ mod tests {
                 .lookup("Enumeration")
                 .lookup("ITEM_1")
                 .unwrap()
-                .type_value(),
-            &TypeValue::Integer(Some(Enumeration::ITEM_1.value() as i64))
+                .value()
+                .unwrap(),
+            &Value::Integer(Enumeration::ITEM_1.value() as i64)
         );
     }
 }

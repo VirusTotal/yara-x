@@ -16,15 +16,13 @@ use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
+use crate::types::{Type, Value};
 use crate::warnings::Warning;
-use crate::{modules, wasm};
+use crate::wasm::{ModuleBuilder, WasmSymbols};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbols::{
-    StackedSymbolTable, Symbol, SymbolLookup, SymbolTable, TypeValue,
-};
-use crate::wasm::WasmSymbols;
+use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
 
 mod emit;
 mod errors;
@@ -55,7 +53,7 @@ pub struct Compiler {
 
     /// Builder for creating the WebAssembly module that contains the code
     /// for all rule conditions.
-    wasm_mod: wasm::ModuleBuilder,
+    wasm_mod: ModuleBuilder,
 
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
@@ -85,7 +83,7 @@ impl Compiler {
             report_builder: ReportBuilder::new(),
             ident_pool: StringPool::new(),
             lit_pool: BStringPool::new(),
-            wasm_mod: wasm::ModuleBuilder::new(),
+            wasm_mod: ModuleBuilder::new(),
             symbol_table: StackedSymbolTable::new(),
         }
     }
@@ -269,8 +267,8 @@ impl Compiler {
         // Iterate over the list of imported modules.
         for import in imports.iter() {
             // Does the imported module actually exist? ...
-            if let Some(module) =
-                modules::BUILTIN_MODULES.get(import.module_name.as_str())
+            if let Some(module) = crate::modules::BUILTIN_MODULES
+                .get(import.module_name.as_str())
             {
                 // ... if yes, add the module to the list of imported modules
                 // and the symbol table.
@@ -280,7 +278,7 @@ impl Compiler {
 
                 symbol_table.insert(
                     import.module_name.as_str(),
-                    Symbol::new(TypeValue::Struct(Arc::new(module))),
+                    Symbol::new(Value::Struct(Arc::new(module)).into()),
                 );
             } else {
                 // ... if no, that's an error.

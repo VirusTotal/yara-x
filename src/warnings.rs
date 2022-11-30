@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 use yara_macros::Error;
 
 use crate::ast::Span;
-use crate::Type;
+use crate::types::Type;
 
 /// An warning raised while parsing or compiling YARA rules.
 #[rustfmt::skip]
