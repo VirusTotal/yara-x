@@ -7,7 +7,7 @@ use std::sync::Arc;
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
-use crate::types::{Type, TypeValue, Value};
+use crate::types::{Type, Value};
 use crate::warnings::Warning;
 
 use crate::parser::arithmetic_op;
@@ -494,7 +494,6 @@ pub(super) fn semcheck_expr(
                 semcheck_expr(ctx, &expr.primary)?.ty()
             {
                 semcheck!(ctx, Type::Integer, &expr.index)?;
-
                 let type_hint = TypeHint::new(array_item_type.into(), None);
                 expr.set_type_hint(type_hint.clone());
                 Ok(type_hint)

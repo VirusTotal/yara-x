@@ -4,7 +4,7 @@
 
 use crate::compiler::{CompiledRule, CompiledRules, RuleId};
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
-use crate::types::{Type, TypeValue, Value};
+use crate::types::{Type, Value};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;

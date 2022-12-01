@@ -16,7 +16,7 @@ use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
-use crate::types::{Type, TypeValue, Value};
+use crate::types::{Type, Value};
 use crate::warnings::Warning;
 use crate::wasm::{ModuleBuilder, WasmSymbols};
 

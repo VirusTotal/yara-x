@@ -14,7 +14,7 @@ use yara_macros::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
-use crate::types::{ArrayItemType, Type, TypeValue, Value};
+use crate::types::{ArrayItemType, Type, Value};
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
@@ -825,33 +825,6 @@ impl TypeHint {
             TypeHint::String(_) => Type::String,
             TypeHint::Struct => Type::Struct,
             TypeHint::Array => Type::Array(ArrayItemType::Unknown),
-        }
-    }
-}
-
-impl<T> From<T> for TypeHint
-where
-    T: AsRef<TypeValue>,
-{
-    fn from(type_value: T) -> Self {
-        let type_value = type_value.as_ref();
-        match type_value.value() {
-            Some(Value::Bool(v)) => return TypeHint::Bool(Some(*v)),
-            Some(Value::Integer(v)) => return TypeHint::Integer(Some(*v)),
-            Some(Value::Float(v)) => return TypeHint::Float(Some(*v)),
-            Some(Value::String(v)) => {
-                return TypeHint::String(Some(v.to_owned()))
-            }
-            _ => {}
-        }
-        match type_value.ty() {
-            Type::Unknown => TypeHint::UnknownType,
-            Type::Integer => TypeHint::Integer(None),
-            Type::Float => TypeHint::Float(None),
-            Type::Bool => TypeHint::Bool(None),
-            Type::String => TypeHint::String(None),
-            Type::Struct => TypeHint::Struct,
-            Type::Array(_) => TypeHint::Array,
         }
     }
 }

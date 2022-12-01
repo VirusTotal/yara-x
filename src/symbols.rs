@@ -8,7 +8,7 @@ use protobuf::reflect::{
 use protobuf::MessageDyn;
 
 use crate::modules::Module;
-use crate::types::{Type, TypeValue, Value};
+use crate::types::{Type, Value};
 
 /// Trait implemented by types that allow looking up for an identifier.
 pub trait SymbolLookup {
@@ -71,12 +71,6 @@ impl Symbol {
     }
 }
 
-impl From<TypeValue> for Symbol {
-    fn from(type_value: TypeValue) -> Self {
-        Self::new(type_value.ty(), type_value.value().cloned())
-    }
-}
-
 impl From<Type> for Symbol {
     fn from(ty: Type) -> Self {
         Self::new(ty, None)
@@ -92,8 +86,8 @@ pub enum Location {
 /// A hash map the contains [`Module`] instances implements [`SymbolLookup`].
 ///
 /// The identifier in this case is a module name. If a module with the given
-/// identifier exists in the map, a `TypeValue::Struct` wrapping a &[`Module`]
-/// is returned.
+/// identifier exists in the map, a [`Symbol`] of type [`Type::Struct`] that
+/// wraps a &[`Module`] is returned.
 impl SymbolLookup for &'static HashMap<&str, Module> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         self.get(ident).map(|module| Symbol::new_struct(Arc::new(module)))
@@ -139,7 +133,8 @@ impl SymbolLookup for Option<Symbol> {
 ///
 /// A [`MessageDescriptor`] describes the structure of a protobuf message. By
 /// implementing the [`SymbolLookup`] trait, a protobuf message descriptor
-/// can be wrapped in a [`TypeValue::Struct`] and added to a symbol table.
+/// can be wrapped in a [`Symbol`] of type [`Type::Struct`] and added to a
+/// symbol table.
 ///
 /// When symbols are looked up in a protobuf message descriptor only the type
 /// will be returned. Values will be [`None`] in all cases, as the descriptor
@@ -212,7 +207,7 @@ fn runtime_type_to_symbol(rt: RuntimeType) -> Symbol {
         RuntimeType::F32 | RuntimeType::F64 => Type::Float.into(),
         RuntimeType::Bool => Type::Bool.into(),
         RuntimeType::String | RuntimeType::VecU8 => Type::String.into(),
-        RuntimeType::Message(m) => TypeValue::new_struct(Arc::new(m)).into(),
+        RuntimeType::Message(m) => Symbol::new_struct(Arc::new(m)),
     }
 }
 
@@ -220,7 +215,10 @@ fn runtime_type_to_symbol(rt: RuntimeType) -> Symbol {
 impl SymbolLookup for EnumDescriptor {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let descriptor = self.value_by_name(ident)?;
-        Some(TypeValue::new_integer(descriptor.value() as i64).into())
+        Some(Symbol::new(
+            Type::Integer,
+            Some(Value::Integer(descriptor.value() as i64)),
+        ))
     }
 }
 
@@ -228,17 +226,17 @@ impl SymbolLookup for EnumDescriptor {
 ///
 /// A [`Box<dyn MessageDyn>`] represents an arbitrary protobuf message
 /// containing structured data. By implementing the [`SymbolLookup`] trait
-/// for this type arbitrary protobuf messages can be wrapped in a
-/// [`TypeValue::Struct`] and added to a symbol table.
+/// for this type arbitrary protobuf messages can be wrapped in a [`Symbol`]
+/// of type [`Type::Struct`] and added to a symbol table.
 ///
-/// When symbols are looked up in a protobuf message the returned
-/// [`TypeValue`] will contain the value of the corresponding field in the
-/// message. Notice however that in proto2 optional fields can be
-/// empty, and in those cases the value in the returned [`TypeValue`]
-/// will be `None`. In proto3 empty values don't exist, if a field is
-/// not explicitly assigned a value, it will have the default value
-/// for its type (i.e: zero for numeric types, empty strings for string
-/// types, etc)
+/// When symbols are looked up in a protobuf message, the returned [`Symbol`]
+/// will have the value of the corresponding field in the message. Notice
+/// however that in proto2 optional fields can be empty, and in those cases
+/// the symbol's value will be [`None`].
+///
+/// In proto3 empty values don't exist, if a field isn't explicitly assigned
+/// a value, it will have the default value for its type (i.e: zero for numeric
+/// types, empty strings for string types, etc)
 ///
 impl SymbolLookup for Box<dyn MessageDyn> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
@@ -291,6 +289,13 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             .map(Value::from);
                         Some(Symbol::new(Type::Bool, value))
                     }
+                    RuntimeType::Enum(_) => {
+                        let value = field
+                            .get_singular(self.as_ref())
+                            .and_then(|v| v.to_enum_value())
+                            .map(Value::from);
+                        Some(Symbol::new(Type::Integer, value))
+                    }
                     RuntimeType::String | RuntimeType::VecU8 => {
                         let value = if let Some(v) =
                             field.get_singular(self.as_ref())
@@ -300,13 +305,6 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             None
                         };
                         Some(Symbol::new(Type::String, value))
-                    }
-                    RuntimeType::Enum(_) => {
-                        let value = field
-                            .get_singular(self.as_ref())
-                            .and_then(|v| v.to_enum_value())
-                            .map(Value::from);
-                        Some(Symbol::new(Type::Integer, value))
                     }
                     RuntimeType::Message(_) => Some(Symbol::new_struct(
                         Arc::new(field.get_message(self.as_ref()).clone_box()),
@@ -335,15 +333,15 @@ impl SymbolLookup for Box<dyn MessageDyn> {
 /// compilation process.
 ///
 /// A symbol table is basically a map, where keys are identifiers and
-/// values are [`TypeValue`] instances that contain information about the
+/// values are [`Symbol`] instances that contain information about the
 /// type and possibly the current value for that identifier. [`SymbolTable`]
 /// implements the [`SymbolLookup`] trait, so symbols are found in the
 /// table by using the [`SymbolLookup::lookup`] method.
 ///
 /// When the identifier represents a nested structure, the returned
-/// [`TypeValue`] will be the [`TypeValue::Struct`] variant, which will
-/// encapsulate another object that also implements the [`SymbolLookup`]
-/// trait, possibly another [`SymbolTable`].
+/// [`Symbol`] will be of type [`Type::Struct`], which encapsulates another
+/// object that also implements the [`SymbolLookup`] trait, possibly another
+/// [`SymbolTable`].
 pub struct SymbolTable {
     map: HashMap<String, Symbol>,
 }
