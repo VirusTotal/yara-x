@@ -660,7 +660,7 @@ pub(super) fn emit_for_in_range(
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(
         for_in.variables.first().unwrap().as_str(),
-        Symbol::new(Type::Integer.into())
+        Symbol::new(Type::Integer, None)
             .set_location(Location::Memory(lower_bound)),
     );
 

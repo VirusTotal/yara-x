@@ -14,7 +14,7 @@ use yara_macros::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
-use crate::types::{Type, TypeValue, Value};
+use crate::types::{ArrayItemType, Type, TypeValue, Value};
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
@@ -647,9 +647,26 @@ pub struct FnCall<'src> {
 /// An index lookup operation
 #[derive(Debug, HasSpan)]
 pub struct LookupIndex<'src> {
+    pub(crate) type_hint: RefCell<TypeHint>,
     pub(crate) span: Span,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
+}
+
+impl<'src> LookupIndex<'src> {
+    pub(crate) fn with_type_hint(
+        primary: Expr<'src>,
+        index: Expr<'src>,
+        span: Span,
+        type_hint: TypeHint,
+    ) -> Self {
+        Self { primary, index, span, type_hint: RefCell::new(type_hint) }
+    }
+
+    pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
+        self.type_hint.replace(type_hint);
+        self
+    }
 }
 
 /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
@@ -774,6 +791,27 @@ pub enum TypeHint {
 }
 
 impl TypeHint {
+    pub(crate) fn new(ty: Type, value: Option<Value>) -> Self {
+        match value {
+            Some(Value::Bool(v)) => return TypeHint::Bool(Some(v)),
+            Some(Value::Integer(v)) => return TypeHint::Integer(Some(v)),
+            Some(Value::Float(v)) => return TypeHint::Float(Some(v)),
+            Some(Value::String(v)) => {
+                return TypeHint::String(Some(v.to_owned()))
+            }
+            _ => {}
+        }
+        match ty {
+            Type::Unknown => TypeHint::UnknownType,
+            Type::Integer => TypeHint::Integer(None),
+            Type::Float => TypeHint::Float(None),
+            Type::Bool => TypeHint::Bool(None),
+            Type::String => TypeHint::String(None),
+            Type::Struct => TypeHint::Struct,
+            Type::Array(_) => TypeHint::Array,
+        }
+    }
+
     /// Returns the type associated to a  [`TypeHint`]
     ///
     /// This is useful when we are interested only on the type and not the
@@ -786,7 +824,7 @@ impl TypeHint {
             TypeHint::Float(_) => Type::Float,
             TypeHint::String(_) => Type::String,
             TypeHint::Struct => Type::Struct,
-            TypeHint::Array => Type::Array(mem::discriminant(&Type::Unknown)),
+            TypeHint::Array => Type::Array(ArrayItemType::Unknown),
         }
     }
 }
@@ -887,7 +925,6 @@ impl<'src> Expr<'src> {
             }
 
             Expr::PatternMatch(_)
-            | Expr::LookupIndex(_)
             | Expr::FnCall(_)
             | Expr::Of(_)
             | Expr::ForOf(_)
@@ -901,6 +938,7 @@ impl<'src> Expr<'src> {
                 expr.type_hint.borrow().clone()
             }
 
+            Expr::LookupIndex(expr) => expr.type_hint.borrow().clone(),
             Expr::Ident(ident) => ident.type_hint.borrow().clone(),
 
             Expr::FieldAccess(expr)

@@ -5,10 +5,9 @@ use std::mem::Discriminant;
 use std::sync::Arc;
 
 use bstr::BString;
-use lazy_static::lazy_static;
 
 use crate::ast::TypeHint;
-use crate::symbols::SymbolLookup;
+use crate::symbols::{SymbolIndex, SymbolLookup};
 
 /// Type of a YARA expression or identifier.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -19,47 +18,17 @@ pub enum Type {
     Bool,
     String,
     Struct,
-    // The Array variant contains the discriminant corresponding to the
-    // type of each item in the array. This implies that we can't have
-    // an array of arrays. Doing so would require an Array variant where
-    // the discriminant is the one corresponding to the Array variant
-    // itself, creating self-referencing structure where the type of the
-    // innermost array can't be expressed.
-    Array(Discriminant<Type>),
+    Array(ArrayItemType),
 }
 
-lazy_static! {
-    // TYPE_DISCRIMINANTS is a map where keys are type discriminants
-    // (i.e: Discriminant<Type>), and values are the corresponding Type.
-    //
-    // This map allows a quick translation from Array(Discriminant<Type>),
-    // to the type corresponding to the items in the array. For this reason
-    // the map doesn't include entries for Type::Array or Type::Unknown, as
-    // arrays of arrays, and arrays of unknown type are not allowed.
-    pub(crate) static ref TYPE_DISCRIMINANTS: HashMap<Discriminant<Type>, Type> = {
-        HashMap::from([
-            (mem::discriminant(&Type::Integer), Type::Integer),
-            (mem::discriminant(&Type::Float), Type::Float),
-            (mem::discriminant(&Type::Bool), Type::Bool),
-            (mem::discriminant(&Type::String), Type::String),
-            (mem::discriminant(&Type::Struct), Type::Struct),
-        ])
-    };
-}
-
-impl Type {
-    /// Returns the type of the items in an array.
-    ///
-    /// If this function is called for a [`Type::Array`] variant the result is
-    /// the type of the array items. When called with any other [`Type`] variant
-    /// the result is [`None`].
-    fn array_items_ty(&self) -> Option<Type> {
-        if let Type::Array(discriminant) = self {
-            TYPE_DISCRIMINANTS.get(discriminant).cloned()
-        } else {
-            None
-        }
-    }
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum ArrayItemType {
+    Unknown,
+    Integer,
+    Float,
+    Bool,
+    String,
+    Struct,
 }
 
 /// Value of a YARA expression or identifier.
@@ -70,7 +39,7 @@ pub enum Value {
     Bool(bool),
     String(BString),
     Struct(Arc<dyn SymbolLookup + Send + Sync>),
-    Array(Vec<Value>),
+    Array(Arc<dyn SymbolIndex + Send + Sync>),
 }
 
 /// Compares two YARA values.
@@ -108,6 +77,33 @@ impl Debug for Value {
     }
 }
 
+impl From<ArrayItemType> for Type {
+    fn from(array_item_ty: ArrayItemType) -> Self {
+        match array_item_ty {
+            ArrayItemType::Unknown => Self::Unknown,
+            ArrayItemType::Integer => Self::Integer,
+            ArrayItemType::Float => Self::Float,
+            ArrayItemType::Bool => Self::Bool,
+            ArrayItemType::String => Self::String,
+            ArrayItemType::Struct => Self::Struct,
+        }
+    }
+}
+
+impl From<Type> for ArrayItemType {
+    fn from(ty: Type) -> Self {
+        match ty {
+            Type::Unknown => Self::Unknown,
+            Type::Integer => Self::Integer,
+            Type::Float => Self::Float,
+            Type::Bool => Self::Bool,
+            Type::String => Self::String,
+            Type::Struct => Self::Struct,
+            Type::Array(_) => panic!("array of arrays are not supported"),
+        }
+    }
+}
+
 impl From<Value> for i64 {
     fn from(value: Value) -> Self {
         if let Value::Integer(value) = value {
@@ -135,6 +131,48 @@ impl From<Value> for bool {
         } else {
             panic!("can not convert into bool")
         }
+    }
+}
+
+impl From<i64> for Value {
+    fn from(value: i64) -> Self {
+        Self::Integer(value)
+    }
+}
+
+impl From<i32> for Value {
+    fn from(value: i32) -> Self {
+        Self::Integer(value as i64)
+    }
+}
+
+impl From<u32> for Value {
+    fn from(value: u32) -> Self {
+        Self::Integer(value as i64)
+    }
+}
+
+impl From<f64> for Value {
+    fn from(value: f64) -> Self {
+        Self::Float(value)
+    }
+}
+
+impl From<f32> for Value {
+    fn from(value: f32) -> Self {
+        Self::Float(value as f64)
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        Self::String(BString::from(value))
     }
 }
 

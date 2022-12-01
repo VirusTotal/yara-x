@@ -470,7 +470,7 @@ pub(super) fn semcheck_expr(
                         ctx.current_struct = Some(symbol_table.clone());
                         TypeHint::Struct
                     } else {
-                        TypeHint::from(symbol.type_value())
+                        TypeHint::new(symbol.ty(), value.cloned())
                     }
                 } else {
                     return Err(Error::CompileError(
@@ -489,8 +489,18 @@ pub(super) fn semcheck_expr(
             Ok(type_hint)
         }
 
-        Expr::LookupIndex(_) => {
-            todo!()
+        Expr::LookupIndex(expr) => {
+            if let Type::Array(array_item_type) =
+                semcheck_expr(ctx, &expr.primary)?.ty()
+            {
+                semcheck!(ctx, Type::Integer, &expr.index)?;
+
+                let type_hint = TypeHint::new(array_item_type.into(), None);
+                expr.set_type_hint(type_hint.clone());
+                Ok(type_hint)
+            } else {
+                todo!()
+            }
         }
         Expr::FieldAccess(expr) => {
             // The left side must be a struct.
@@ -535,10 +545,8 @@ pub(super) fn semcheck_expr(
             // TODO: raise warning when the loop identifier (e.g: "i") hides
             // an existing identifier with the same name.
             for var in &for_in.variables {
-                loop_vars.insert(
-                    var.as_str(),
-                    Symbol::new(TypeValue::from(&type_hint)),
-                );
+                loop_vars
+                    .insert(var.as_str(), Symbol::new(type_hint.ty(), None));
             }
 
             // Put the loop variables into scope.

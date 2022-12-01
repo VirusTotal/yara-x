@@ -278,7 +278,7 @@ impl Compiler {
 
                 symbol_table.insert(
                     import.module_name.as_str(),
-                    Symbol::new(TypeValue::new_struct(Arc::new(module))),
+                    Symbol::new_struct(Arc::new(module)),
                 );
             } else {
                 // ... if no, that's an error.

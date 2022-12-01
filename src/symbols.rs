@@ -1,9 +1,9 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
-use bstr::BString;
 use protobuf::reflect::{
-    EnumDescriptor, MessageDescriptor, RuntimeFieldType, RuntimeType,
+    EnumDescriptor, FieldDescriptor, MessageDescriptor, RuntimeFieldType,
+    RuntimeType,
 };
 use protobuf::MessageDyn;
 
@@ -15,15 +15,30 @@ pub trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
+pub trait SymbolIndex {
+    fn index(&self, index: usize) -> Option<Symbol>;
+}
+
 #[derive(Clone)]
 pub struct Symbol {
-    type_value: TypeValue,
+    ty: Type,
+    value: Option<Value>,
     location: Location,
 }
 
 impl Symbol {
-    pub fn new(type_value: TypeValue) -> Self {
-        Self { type_value, location: Location::None }
+    pub fn new(ty: Type, value: Option<Value>) -> Self {
+        Self { ty, value, location: Location::None }
+    }
+
+    pub fn new_struct(
+        symbol_table: Arc<dyn SymbolLookup + Send + Sync>,
+    ) -> Self {
+        Self {
+            ty: Type::Struct,
+            value: Some(Value::Struct(symbol_table)),
+            location: Location::None,
+        }
     }
 
     pub fn set_location(mut self, location: Location) -> Self {
@@ -46,30 +61,25 @@ impl Symbol {
     }
 
     #[inline]
-    pub fn type_value(&self) -> &TypeValue {
-        &self.type_value
-    }
-
-    #[inline]
     pub fn value(&self) -> Option<&Value> {
-        self.type_value.value()
+        self.value.as_ref()
     }
 
     #[inline]
     pub fn ty(&self) -> Type {
-        self.type_value.ty()
+        self.ty
     }
 }
 
 impl From<TypeValue> for Symbol {
     fn from(type_value: TypeValue) -> Self {
-        Self::new(type_value)
+        Self::new(type_value.ty(), type_value.value().cloned())
     }
 }
 
 impl From<Type> for Symbol {
     fn from(ty: Type) -> Self {
-        Self::new(ty.into())
+        Self::new(ty, None)
     }
 }
 
@@ -86,8 +96,7 @@ pub enum Location {
 /// is returned.
 impl SymbolLookup for &'static HashMap<&str, Module> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        self.get(ident)
-            .map(|module| TypeValue::new_struct(Arc::new(module)).into())
+        self.get(ident).map(|module| Symbol::new_struct(Arc::new(module)))
     }
 }
 
@@ -149,7 +158,11 @@ impl SymbolLookup for MessageDescriptor {
                     Some(runtime_type_to_symbol(ty))
                 }
                 RuntimeFieldType::Repeated(ty) => {
-                    todo!()
+                    let item_ty = runtime_type_to_type(ty);
+                    Some(Symbol::new(
+                        Type::Array(item_ty.into()),
+                        Some(Value::Array(Arc::new(field))),
+                    ))
                 }
                 RuntimeFieldType::Map(_, _) => {
                     todo!()
@@ -158,12 +171,32 @@ impl SymbolLookup for MessageDescriptor {
         } else {
             // If the message doesn't have a field with the requested name,
             // let's look if there's a nested enum that has that name.
-            self.nested_enums().find(|e| e.name() == ident).map(
-                |nested_enum| {
-                    TypeValue::new_struct(Arc::new(nested_enum)).into()
-                },
-            )
+            self.nested_enums()
+                .find(|e| e.name() == ident)
+                .map(|nested_enum| Symbol::new_struct(Arc::new(nested_enum)))
         }
+    }
+}
+
+impl SymbolIndex for FieldDescriptor {
+    fn index(&self, _index: usize) -> Option<Symbol> {
+        None
+    }
+}
+
+fn runtime_type_to_type(rt: RuntimeType) -> Type {
+    match rt {
+        RuntimeType::U64 => {
+            todo!()
+        }
+        RuntimeType::I32
+        | RuntimeType::I64
+        | RuntimeType::U32
+        | RuntimeType::Enum(_) => Type::Integer,
+        RuntimeType::F32 | RuntimeType::F64 => Type::Float,
+        RuntimeType::Bool => Type::Bool,
+        RuntimeType::String | RuntimeType::VecU8 => Type::String,
+        RuntimeType::Message(_) => Type::Struct,
     }
 }
 
@@ -214,83 +247,73 @@ impl SymbolLookup for Box<dyn MessageDyn> {
             match field.runtime_field_type() {
                 RuntimeFieldType::Singular(ty) => match ty {
                     RuntimeType::I32 => {
-                        let type_value = if let Some(value) =
-                            field.get_singular(self.as_ref())
-                        {
-                            TypeValue::from(value.to_i32().unwrap() as i64)
-                        } else {
-                            TypeValue::from(None::<i64>)
-                        };
-                        Some(Symbol::new(type_value))
+                        let value = field
+                            .get_singular(self.as_ref())
+                            .and_then(|v| v.to_i32())
+                            .map(Value::from);
+                        Some(Symbol::new(Type::Integer, value))
                     }
                     RuntimeType::I64 => {
-                        let type_value = TypeValue::from(
-                            field
-                                .get_singular(self.as_ref())
-                                .and_then(|f| f.to_i64()),
-                        );
-                        Some(Symbol::new(type_value))
+                        let value = field
+                            .get_singular(self.as_ref())
+                            .and_then(|v| v.to_i64())
+                            .map(Value::from);
+                        Some(Symbol::new(Type::Integer, value))
                     }
                     RuntimeType::U32 => {
-                        let type_value = TypeValue::from(
-                            field
-                                .get_singular(self.as_ref())
-                                .and_then(|f| f.to_u32()),
-                        );
-                        Some(Symbol::new(type_value))
+                        let value = field
+                            .get_singular(self.as_ref())
+                            .and_then(|v| v.to_u32())
+                            .map(Value::from);
+                        Some(Symbol::new(Type::Integer, value))
                     }
                     RuntimeType::U64 => {
                         todo!()
                     }
                     RuntimeType::F32 => {
-                        let type_value = TypeValue::from(
-                            field
-                                .get_singular(self.as_ref())
-                                .and_then(|f| f.to_f32()),
-                        );
-                        Some(Symbol::new(type_value))
+                        let value = field
+                            .get_singular(self.as_ref())
+                            .and_then(|v| v.to_f32())
+                            .map(Value::from);
+                        Some(Symbol::new(Type::Float, value))
                     }
                     RuntimeType::F64 => {
-                        let type_value = TypeValue::from(
-                            field
-                                .get_singular(self.as_ref())
-                                .and_then(|f| f.to_f64()),
-                        );
-                        Some(Symbol::new(type_value))
+                        let value = field
+                            .get_singular(self.as_ref())
+                            .and_then(|v| v.to_f64())
+                            .map(Value::from);
+                        Some(Symbol::new(Type::Float, value))
                     }
                     RuntimeType::Bool => {
-                        let type_value = TypeValue::from(
-                            field
-                                .get_singular(self.as_ref())
-                                .and_then(|f| f.to_bool()),
-                        );
-                        Some(Symbol::new(type_value))
+                        let value = field
+                            .get_singular(self.as_ref())
+                            .and_then(|v| v.to_bool())
+                            .map(Value::from);
+                        Some(Symbol::new(Type::Bool, value))
                     }
                     RuntimeType::String | RuntimeType::VecU8 => {
-                        let type_value = if let Some(value) =
+                        let value = if let Some(v) =
                             field.get_singular(self.as_ref())
                         {
-                            TypeValue::from(value.to_str())
+                            v.to_str().map(Value::from)
                         } else {
-                            TypeValue::from(None::<BString>)
+                            None
                         };
-                        Some(Symbol::new(type_value))
+                        Some(Symbol::new(Type::String, value))
                     }
                     RuntimeType::Enum(_) => {
-                        let type_value = TypeValue::from(
-                            field
-                                .get_singular(self.as_ref())
-                                .and_then(|f| f.to_enum_value()),
-                        );
-                        Some(Symbol::new(type_value))
+                        let value = field
+                            .get_singular(self.as_ref())
+                            .and_then(|v| v.to_enum_value())
+                            .map(Value::from);
+                        Some(Symbol::new(Type::Integer, value))
                     }
-                    RuntimeType::Message(_) => {
-                        Some(Symbol::new(TypeValue::new_struct(Arc::new(
-                            field.get_message(self.as_ref()).clone_box(),
-                        ))))
-                    }
+                    RuntimeType::Message(_) => Some(Symbol::new_struct(
+                        Arc::new(field.get_message(self.as_ref()).clone_box()),
+                    )),
                 },
-                RuntimeFieldType::Repeated(_) => {
+                RuntimeFieldType::Repeated(ty) => {
+                    //let x = field.get_repeated()
                     todo!()
                 }
                 RuntimeFieldType::Map(_, _) => {
@@ -300,11 +323,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
         } else {
             // If the message doesn't have a field with the requested name,
             // let's look if there's a nested enum that has that name.
-            message_descriptor.nested_enums().find(|e| e.name() == ident).map(
-                |nested_enum| {
-                    Symbol::new(TypeValue::new_struct(Arc::new(nested_enum)))
-                },
-            )
+            message_descriptor
+                .nested_enums()
+                .find(|e| e.name() == ident)
+                .map(|nested_enum| Symbol::new_struct(Arc::new(nested_enum)))
         }
     }
 }

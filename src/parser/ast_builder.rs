@@ -1469,11 +1469,12 @@ fn indexing_expr_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::RBRACKET);
 
-    Ok(Expr::LookupIndex(Box::new(LookupIndex {
-        span: span.into(),
+    Ok(Expr::LookupIndex(Box::new(LookupIndex::with_type_hint(
         primary,
         index,
-    })))
+        span.into(),
+        TypeHint::Array,
+    ))))
 }
 
 fn func_call_expr_from_cst<'src>(
