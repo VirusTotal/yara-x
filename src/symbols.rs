@@ -73,12 +73,6 @@ impl From<Type> for Symbol {
     }
 }
 
-impl From<Value> for Symbol {
-    fn from(value: Value) -> Self {
-        Self::new(value.into())
-    }
-}
-
 #[derive(Clone)]
 pub enum Location {
     None,
@@ -92,7 +86,8 @@ pub enum Location {
 /// is returned.
 impl SymbolLookup for &'static HashMap<&str, Module> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        self.get(ident).map(|module| Value::Struct(Arc::new(module)).into())
+        self.get(ident)
+            .map(|module| TypeValue::new_struct(Arc::new(module)).into())
     }
 }
 
@@ -150,33 +145,41 @@ impl SymbolLookup for MessageDescriptor {
 
         if let Some(field) = self.field_by_name(ident) {
             match field.runtime_field_type() {
-                RuntimeFieldType::Singular(ty) => match ty {
-                    RuntimeType::I32 => Some(Type::Integer.into()),
-                    RuntimeType::I64 => Some(Type::Integer.into()),
-                    RuntimeType::U32 => Some(Type::Integer.into()),
-                    RuntimeType::U64 => {
-                        todo!()
-                    }
-                    RuntimeType::F32 => Some(Type::Float.into()),
-                    RuntimeType::F64 => Some(Type::Float.into()),
-                    RuntimeType::Bool => Some(Type::Bool.into()),
-                    RuntimeType::String => Some(Type::String.into()),
-                    RuntimeType::VecU8 => Some(Type::String.into()),
-                    RuntimeType::Enum(_) => Some(Type::Integer.into()),
-                    RuntimeType::Message(m) => {
-                        Some(Value::Struct(Arc::new(m)).into())
-                    }
-                },
-                RuntimeFieldType::Repeated(_) => todo!(),
-                RuntimeFieldType::Map(_, _) => todo!(),
+                RuntimeFieldType::Singular(ty) => {
+                    Some(runtime_type_to_symbol(ty))
+                }
+                RuntimeFieldType::Repeated(ty) => {
+                    todo!()
+                }
+                RuntimeFieldType::Map(_, _) => {
+                    todo!()
+                }
             }
         } else {
             // If the message doesn't have a field with the requested name,
             // let's look if there's a nested enum that has that name.
-            self.nested_enums()
-                .find(|e| e.name() == ident)
-                .map(|nested_enum| Value::Struct(Arc::new(nested_enum)).into())
+            self.nested_enums().find(|e| e.name() == ident).map(
+                |nested_enum| {
+                    TypeValue::new_struct(Arc::new(nested_enum)).into()
+                },
+            )
         }
+    }
+}
+
+fn runtime_type_to_symbol(rt: RuntimeType) -> Symbol {
+    match rt {
+        RuntimeType::U64 => {
+            todo!()
+        }
+        RuntimeType::I32
+        | RuntimeType::I64
+        | RuntimeType::U32
+        | RuntimeType::Enum(_) => Type::Integer.into(),
+        RuntimeType::F32 | RuntimeType::F64 => Type::Float.into(),
+        RuntimeType::Bool => Type::Bool.into(),
+        RuntimeType::String | RuntimeType::VecU8 => Type::String.into(),
+        RuntimeType::Message(m) => TypeValue::new_struct(Arc::new(m)).into(),
     }
 }
 
@@ -184,7 +187,7 @@ impl SymbolLookup for MessageDescriptor {
 impl SymbolLookup for EnumDescriptor {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let descriptor = self.value_by_name(ident)?;
-        Some(Value::Integer(descriptor.value() as i64).into())
+        Some(TypeValue::new_integer(descriptor.value() as i64).into())
     }
 }
 
@@ -281,12 +284,11 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                         );
                         Some(Symbol::new(type_value))
                     }
-                    RuntimeType::Message(_) => Some(Symbol::new(
-                        Value::Struct(Arc::new(
+                    RuntimeType::Message(_) => {
+                        Some(Symbol::new(TypeValue::new_struct(Arc::new(
                             field.get_message(self.as_ref()).clone_box(),
-                        ))
-                        .into(),
-                    )),
+                        ))))
+                    }
                 },
                 RuntimeFieldType::Repeated(_) => {
                     todo!()
@@ -300,7 +302,7 @@ impl SymbolLookup for Box<dyn MessageDyn> {
             // let's look if there's a nested enum that has that name.
             message_descriptor.nested_enums().find(|e| e.name() == ident).map(
                 |nested_enum| {
-                    Symbol::new(Value::Struct(Arc::new(nested_enum)).into())
+                    Symbol::new(TypeValue::new_struct(Arc::new(nested_enum)))
                 },
             )
         }

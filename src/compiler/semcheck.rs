@@ -293,24 +293,6 @@ gen_semcheck_string_op!(semcheck_string_startswith, starts_with);
 gen_semcheck_string_op!(semcheck_string_endswith, ends_with);
 gen_semcheck_string_op!(semcheck_string_equals, eq);
 
-macro_rules! semcheck_arithmetic_op {
-    ($ctx:ident, $expr:expr, $op:tt, $( $accepted_types:path )|+, $checked_op:ident) => {{
-        let (lhs, rhs) = semcheck_operands!(
-            $ctx,
-            &$expr.lhs,
-            &$expr.rhs,
-            $( $accepted_types )|+,
-            &[Type::Integer, Type::Float]
-        )?;
-
-        let type_hint = arithmetic_op!(lhs, $op, $checked_op, rhs);
-
-        $expr.set_type_hint(type_hint.clone());
-
-        Ok(type_hint)
-    }};
-}
-
 macro_rules! gen_semcheck_arithmetic_op {
     ($name:ident, $op:tt, $checked_op:ident, $( $accepted_types:path )|+) => {
         fn $name(

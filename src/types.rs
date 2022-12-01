@@ -1,7 +1,11 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
+use std::mem;
+use std::mem::Discriminant;
 use std::sync::Arc;
 
 use bstr::BString;
+use lazy_static::lazy_static;
 
 use crate::ast::TypeHint;
 use crate::symbols::SymbolLookup;
@@ -15,6 +19,47 @@ pub enum Type {
     Bool,
     String,
     Struct,
+    // The Array variant contains the discriminant corresponding to the
+    // type of each item in the array. This implies that we can't have
+    // an array of arrays. Doing so would require an Array variant where
+    // the discriminant is the one corresponding to the Array variant
+    // itself, creating self-referencing structure where the type of the
+    // innermost array can't be expressed.
+    Array(Discriminant<Type>),
+}
+
+lazy_static! {
+    // TYPE_DISCRIMINANTS is a map where keys are type discriminants
+    // (i.e: Discriminant<Type>), and values are the corresponding Type.
+    //
+    // This map allows a quick translation from Array(Discriminant<Type>),
+    // to the type corresponding to the items in the array. For this reason
+    // the map doesn't include entries for Type::Array or Type::Unknown, as
+    // arrays of arrays, and arrays of unknown type are not allowed.
+    pub(crate) static ref TYPE_DISCRIMINANTS: HashMap<Discriminant<Type>, Type> = {
+        HashMap::from([
+            (mem::discriminant(&Type::Integer), Type::Integer),
+            (mem::discriminant(&Type::Float), Type::Float),
+            (mem::discriminant(&Type::Bool), Type::Bool),
+            (mem::discriminant(&Type::String), Type::String),
+            (mem::discriminant(&Type::Struct), Type::Struct),
+        ])
+    };
+}
+
+impl Type {
+    /// Returns the type of the items in an array.
+    ///
+    /// If this function is called for a [`Type::Array`] variant the result is
+    /// the type of the array items. When called with any other [`Type`] variant
+    /// the result is [`None`].
+    fn array_items_ty(&self) -> Option<Type> {
+        if let Type::Array(discriminant) = self {
+            TYPE_DISCRIMINANTS.get(discriminant).cloned()
+        } else {
+            None
+        }
+    }
 }
 
 /// Value of a YARA expression or identifier.
@@ -25,12 +70,13 @@ pub enum Value {
     Bool(bool),
     String(BString),
     Struct(Arc<dyn SymbolLookup + Send + Sync>),
+    Array(Vec<Value>),
 }
 
 /// Compares two YARA values.
 ///
 /// They are equal if they have the same type and value. Comparing
-/// two structures causes a panic.
+/// two structures or arrays causes a panic.
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -40,6 +86,9 @@ impl PartialEq for Value {
             (Self::String(this), Self::String(other)) => this == other,
             (Self::Struct(_), Self::Struct(_)) => {
                 panic!("can't compare two structures")
+            }
+            (Self::Array(_), Self::Array(_)) => {
+                panic!("can't compare two arrays")
             }
             _ => false,
         }
@@ -54,6 +103,7 @@ impl Debug for Value {
             Self::Float(v) => write!(f, "Float({:?})", v),
             Self::String(v) => write!(f, "String({:?})", v),
             Self::Struct(_) => write!(f, "Struct"),
+            Self::Array(_) => write!(f, "Array"),
         }
     }
 }
@@ -99,17 +149,15 @@ impl TypeValue {
     pub fn value(&self) -> Option<&Value> {
         self.1.as_ref()
     }
-}
 
-impl From<Value> for TypeValue {
-    fn from(value: Value) -> Self {
-        match value {
-            Value::Integer(_) => TypeValue(Type::Integer, Some(value)),
-            Value::Float(_) => TypeValue(Type::Float, Some(value)),
-            Value::Bool(_) => TypeValue(Type::Bool, Some(value)),
-            Value::String(_) => TypeValue(Type::String, Some(value)),
-            Value::Struct(_) => TypeValue(Type::Struct, Some(value)),
-        }
+    pub fn new_integer(i: i64) -> Self {
+        Self(Type::Integer, Some(Value::Integer(i)))
+    }
+
+    pub fn new_struct(
+        symbol_table: Arc<dyn SymbolLookup + Send + Sync>,
+    ) -> Self {
+        Self(Type::Struct, Some(Value::Struct(symbol_table)))
     }
 }
 
@@ -143,6 +191,7 @@ impl From<Type> for TypeValue {
             Type::Bool => Self(Type::Bool, None),
             Type::String => Self(Type::String, None),
             Type::Struct => Self(Type::Struct, None),
+            Type::Array(_) => todo!(),
         }
     }
 }

@@ -4,8 +4,8 @@ mod span;
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
+use std::{fmt, mem};
 
 use ascii_tree::Tree::Node;
 use bitmask::bitmask;
@@ -770,6 +770,7 @@ pub enum TypeHint {
     Float(Option<f64>),
     String(Option<BString>),
     Struct,
+    Array,
 }
 
 impl TypeHint {
@@ -785,6 +786,7 @@ impl TypeHint {
             TypeHint::Float(_) => Type::Float,
             TypeHint::String(_) => Type::String,
             TypeHint::Struct => Type::Struct,
+            TypeHint::Array => Type::Array(mem::discriminant(&Type::Unknown)),
         }
     }
 }
@@ -811,6 +813,7 @@ where
             Type::Bool => TypeHint::Bool(None),
             Type::String => TypeHint::String(None),
             Type::Struct => TypeHint::Struct,
+            Type::Array(_) => TypeHint::Array,
         }
     }
 }
@@ -824,6 +827,7 @@ impl Display for Type {
             Self::Float => write!(f, "float"),
             Self::String => write!(f, "string"),
             Self::Struct => write!(f, "struct"),
+            Self::Array(_) => write!(f, "array"),
         }
     }
 }
@@ -861,6 +865,7 @@ impl Display for TypeHint {
                 }
             }
             Self::Struct => write!(f, "struct"),
+            Self::Array => write!(f, "array"),
         }
     }
 }

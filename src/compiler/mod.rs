@@ -16,7 +16,7 @@ use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
-use crate::types::{Type, Value};
+use crate::types::{Type, TypeValue, Value};
 use crate::warnings::Warning;
 use crate::wasm::{ModuleBuilder, WasmSymbols};
 
@@ -278,7 +278,7 @@ impl Compiler {
 
                 symbol_table.insert(
                     import.module_name.as_str(),
-                    Symbol::new(Value::Struct(Arc::new(module)).into()),
+                    Symbol::new(TypeValue::new_struct(Arc::new(module))),
                 );
             } else {
                 // ... if no, that's an error.
