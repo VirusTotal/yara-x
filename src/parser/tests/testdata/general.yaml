@@ -240,3 +240,47 @@
                    └─ baz
 
 ###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        foo[0]
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ <expr>[<index>]
+                ├─ <expr>
+                │  └─ foo
+                └─ <index>
+                   └─ 0
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        foo.bar[0].baz
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ <struct>.<field>
+                ├─ <struct>
+                │  └─ <expr>[<index>]
+                │     ├─ <expr>
+                │     │  └─ <struct>.<field>
+                │     │     ├─ <struct>
+                │     │     │  └─ foo
+                │     │     └─ <field>
+                │     │        └─ bar
+                │     └─ <index>
+                │        └─ 0
+                └─ <field>
+                   └─ baz
+
+###############################################################################
