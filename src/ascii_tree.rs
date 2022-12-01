@@ -6,7 +6,7 @@ use crate::ast::*;
 pub(crate) fn namespace_ascii_tree(namespace: &Namespace) -> ascii_tree::Tree {
     Node(
         "namespace".to_string(),
-        namespace.rules.iter().map(|rule| rule_ascii_tree(rule)).collect(),
+        namespace.rules.iter().map(rule_ascii_tree).collect(),
     )
 }
 
@@ -28,7 +28,7 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> ascii_tree::Tree {
     if let Some(patterns) = &rule.patterns {
         rule_children.push(Node(
             "strings".to_owned(),
-            patterns.iter().map(|p| pattern_ascii_tree(&p)).collect(),
+            patterns.iter().map(|p| pattern_ascii_tree(p)).collect(),
         ))
     }
 
@@ -241,7 +241,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
                     format!("{}[<index>]", s.name),
                     vec![Node(
                         "<index>".to_string(),
-                        vec![expr_ascii_tree(&index)],
+                        vec![expr_ascii_tree(index)],
                     )],
                 )
             } else {
@@ -285,7 +285,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
             )];
 
             for (label, arg) in labelled_args.into_iter() {
-                children.push(Node(label, vec![expr_ascii_tree(&arg)]))
+                children.push(Node(label, vec![expr_ascii_tree(arg)]))
             }
 
             Node(format!("<callable>({})", comma_sep_labels), children)
@@ -298,7 +298,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
                 ),
                 OfItems::BoolExprTuple(set) => Node(
                     "<items: boolean_expr_set>".to_string(),
-                    set.iter().map(|x| expr_ascii_tree(&x)).collect(),
+                    set.iter().map(expr_ascii_tree).collect(),
                 ),
             };
 
@@ -402,7 +402,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
                         .join(", ");
 
                     for (label, arg) in labelled_args.into_iter() {
-                        children.push(Node(label, vec![expr_ascii_tree(&arg)]))
+                        children.push(Node(label, vec![expr_ascii_tree(arg)]))
                     }
 
                     format!("for <quantifier> <vars> in ({comma_sep_labels}) : ( <condition> )")
@@ -435,9 +435,9 @@ pub(crate) fn quantifier_ascii_tree(
         Quantifier::All { .. } => Leaf(vec!["all".to_string()]),
         Quantifier::Any { .. } => Leaf(vec!["any".to_string()]),
         Quantifier::Percentage(expr) => {
-            Node("percentage".to_string(), vec![expr_ascii_tree(&expr)])
+            Node("percentage".to_string(), vec![expr_ascii_tree(expr)])
         }
-        Quantifier::Expr(expr) => expr_ascii_tree(&expr),
+        Quantifier::Expr(expr) => expr_ascii_tree(expr),
     }
 }
 
@@ -497,10 +497,7 @@ pub(crate) fn hex_tokens_ascii_tree(tokens: &HexTokens) -> ascii_tree::Tree {
             }
             HexToken::Alternative(a) => Node(
                 "alt".to_string(),
-                a.alternatives
-                    .iter()
-                    .map(|alt| hex_tokens_ascii_tree(&alt))
-                    .collect(),
+                a.alternatives.iter().map(hex_tokens_ascii_tree).collect(),
             ),
             HexToken::Jump(j) => Leaf(vec![format!(
                 "[{}-{}]",
