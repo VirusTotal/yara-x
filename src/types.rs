@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
@@ -239,6 +239,39 @@ impl Value {
     gen_comparison_op!(ge, >=);
     gen_comparison_op!(le, <=);
     gen_comparison_op!(eq, ==);
+    gen_comparison_op!(ne, !=);
+
+    pub fn not(&self) -> Value {
+        let value = cast_to_bool!(self);
+        Value::Bool(value)
+    }
+
+    pub fn bitwise_not(&self) -> Value {
+        match self {
+            Value::Integer(value) => Value::Integer(!*value),
+            _ => panic!("unsupported `bitwise_not` operation for {:?}", self,),
+        }
+    }
+
+    pub fn minus(&self) -> Value {
+        match self {
+            Value::Integer(value) => Value::Integer(-*value),
+            Value::Float(value) => Value::Float(-*value),
+            _ => panic!("unsupported `bitwise_not` operation for {:?}", self,),
+        }
+    }
+
+    pub fn ty(&self) -> Type {
+        match self {
+            Value::Unknown => Type::Unknown,
+            Value::Integer(_) => Type::Integer,
+            Value::Float(_) => Type::Float,
+            Value::Bool(_) => Type::Bool,
+            Value::String(_) => Type::String,
+            Value::Struct(_) => Type::Struct,
+            Value::Array(_) => todo!(),
+        }
+    }
 }
 
 pub(crate) struct TypeValue(pub Type, pub Option<Value>);
@@ -278,6 +311,20 @@ impl Debug for Value {
             Self::String(v) => write!(f, "String({:?})", v),
             Self::Struct(_) => write!(f, "Struct"),
             Self::Array(_) => write!(f, "Array"),
+        }
+    }
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Unknown => write!(f, "unknown"),
+            Type::Integer => write!(f, "integer"),
+            Type::Float => write!(f, "float"),
+            Type::Bool => write!(f, "bool"),
+            Type::String => write!(f, "string"),
+            Type::Struct => write!(f, "struct"),
+            Type::Array(_) => write!(f, "array"),
         }
     }
 }

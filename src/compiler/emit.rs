@@ -8,7 +8,7 @@ use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
 
 use crate::ast::{
-    Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range, TypeHint,
+    Expr, ForIn, Iterable, Literal, MatchAnchor, Quantifier, Range, TypeHint,
 };
 use crate::compiler::{Context, IdentId};
 use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
@@ -27,7 +27,7 @@ use crate::types::{Type, Value};
 /// This how we emit the code for the `add` operation:
 ///
 /// ```text
-///emit_const_or_code!(ctx, instr, expr.type_hint(), {
+///emit_const_or_code!(ctx, instr, expr.value(), {
 ///    emit_expr(ctx, instr, &operands.lhs);
 ///    emit_expr(ctx, instr, &operands.rhs);
 ///    instr.binop(BinaryOp::I64Add);
@@ -42,23 +42,23 @@ use crate::types::{Type, Value};
 /// instruction that sums the results from both operands.
 ///
 macro_rules! emit_const_or_code {
-    ($ctx:ident, $instr:ident, $type_hint:expr, $code:block) => {{
+    ($ctx:ident, $instr:ident, $value:expr, $code:block) => {{
         if cfg!(feature = "compile-time-optimization") {
-            match $type_hint {
-                TypeHint::Bool(Some(b)) => {
-                    $instr.i32_const(b as i32);
+            match $value {
+                Value::Bool(value) => {
+                    $instr.i32_const((*value) as i32);
                 }
-                TypeHint::Integer(Some(i)) => {
-                    $instr.i64_const(i);
+                Value::Integer(value) => {
+                    $instr.i64_const(*value);
                 }
-                TypeHint::Float(Some(f)) => {
-                    $instr.f64_const(f);
+                Value::Float(value) => {
+                    $instr.f64_const(*value);
                 }
-                TypeHint::String(Some(s)) => {
+                Value::String(value) => {
                     // Put the literal string in the pool, or get its ID if it was
                     // already there.
                     let literal_id =
-                        $ctx.borrow_mut().lit_pool.get_or_intern(s.as_bstr());
+                        $ctx.borrow_mut().lit_pool.get_or_intern(value.as_bstr());
 
                     // Invoke the function that converts the ID into an externref.
                     $instr.i64_const(Into::<u32>::into(literal_id) as i64);
@@ -77,8 +77,8 @@ macro_rules! emit_const_or_code {
 /// is a float.
 macro_rules! emit_operands {
     ($ctx:ident, $instr:ident, $lhs:expr, $rhs:expr) => {{
-        let mut lhs_type = $lhs.type_hint().ty();
-        let mut rhs_type = $rhs.type_hint().ty();
+        let mut lhs_type = $lhs.ty();
+        let mut rhs_type = $rhs.ty();
 
         emit_expr($ctx, $instr, &$lhs);
 
@@ -104,7 +104,7 @@ macro_rules! emit_operands {
 
 macro_rules! emit_arithmetic_op {
     ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt, $float_op:tt) => {{
-        emit_const_or_code!($ctx, $instr, $expr.type_hint(), {
+        emit_const_or_code!($ctx, $instr, $expr.value(), {
             match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
                 (Type::Integer, Type::Integer) => {
                     // Both operands are integer, the operation is integer.
@@ -122,7 +122,7 @@ macro_rules! emit_arithmetic_op {
 
 macro_rules! emit_comparison_op {
     ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt, $float_op:tt, $str_op:tt) => {{
-        emit_const_or_code!($ctx, $instr, $expr.type_hint(), {
+        emit_const_or_code!($ctx, $instr, $expr.value(), {
             match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
                 (Type::Integer, Type::Integer) => {
                     $instr.binop(BinaryOp::$int_op);
@@ -141,7 +141,7 @@ macro_rules! emit_comparison_op {
 
 macro_rules! emit_shift_op {
     ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt) => {{
-        emit_const_or_code!($ctx, $instr, $expr.type_hint(), {
+        emit_const_or_code!($ctx, $instr, $expr.value(), {
             match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
                 (Type::Integer, Type::Integer) => {
                     // When the left operand is >= 64, shift operations don't
@@ -183,7 +183,7 @@ macro_rules! emit_shift_op {
 
 macro_rules! emit_bitwise_op {
     ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt) => {{
-        emit_const_or_code!($ctx, $instr, $expr.type_hint(), {
+        emit_const_or_code!($ctx, $instr, $expr.value(), {
             match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
                 (Type::Integer, Type::Integer) => {
                     $instr.binop(BinaryOp::$int_op)
@@ -213,26 +213,30 @@ pub(super) fn emit_expr(
         Expr::Entrypoint { .. } => {
             todo!()
         }
-        Expr::LiteralInt(lit) => {
-            instr.i64_const(lit.value);
-        }
-        Expr::LiteralFlt(lit) => {
-            instr.f64_const(lit.value);
-        }
-        Expr::LiteralStr(lit) => {
-            // Put the literal string in the pool, or get its ID if it was
-            // already there.
-            let literal_id =
-                ctx.borrow_mut().lit_pool.get_or_intern(lit.value.as_bstr());
+        Expr::Literal(lit) => match lit.value {
+            Value::Integer(value) => {
+                instr.i64_const(value);
+            }
+            Value::Float(value) => {
+                instr.f64_const(value);
+            }
+            Value::Bool(value) => {
+                instr.i32_const(value as i32);
+            }
+            Value::String(value) => {
+                // Put the literal string in the pool, or get its ID if it was
+                // already there.
+                let literal_id =
+                    ctx.borrow_mut().lit_pool.get_or_intern(value.as_bstr());
 
-            // Invoke the function that converts the ID into an externref.
-            instr.i64_const(Into::<u32>::into(literal_id) as i64);
-            instr.call(ctx.borrow().wasm_symbols.literal_to_ref);
-        }
+                // Invoke the function that converts the ID into an externref.
+                instr.i64_const(Into::<u32>::into(literal_id) as i64);
+                instr.call(ctx.borrow().wasm_symbols.literal_to_ref);
+            }
+            _ => unreachable!(),
+        },
         Expr::Ident(ident) => {
-            let type_hint = ident.type_hint();
-
-            emit_const_or_code!(ctx, instr, type_hint, {
+            emit_const_or_code!(ctx, instr, ident.value(), {
                 let current_struct = ctx.borrow_mut().current_struct.take();
 
                 // Search for the symbol in the current structure, if any, or
@@ -273,27 +277,26 @@ pub(super) fn emit_expr(
                     // Emit code for looking up the identifier in the global
                     // symbol table, or in the current structure's symbol table,
                     // whatever is at the top stack at this point.
-                    match type_hint {
-                        TypeHint::Integer(_) => {
+                    match ident.ty() {
+                        Type::Integer => {
                             emit_lookup_integer(ctx, instr, ident_id);
                         }
-                        TypeHint::Float(_) => {
+                        Type::Float => {
                             emit_lookup_float(ctx, instr, ident_id);
                         }
-                        TypeHint::Bool(_) => {
+                        Type::Bool => {
                             emit_lookup_bool(ctx, instr, ident_id);
                         }
-                        TypeHint::String(_) => {
+                        Type::String => {
                             emit_lookup_string(ctx, instr, ident_id);
                         }
-                        TypeHint::Struct => {
+                        Type::Struct => {
                             emit_lookup_struct(ctx, instr, ident_id);
 
                             // The identifier represents a structure, save the
                             // symbol table for this structure in the
                             // current_struct variable.
-                            if let Some(Value::Struct(symbol_table)) =
-                                symbol.value()
+                            if let Value::Struct(symbol_table) = symbol.value()
                             {
                                 ctx.borrow_mut().current_struct =
                                     Some(symbol_table.clone());
@@ -345,7 +348,7 @@ pub(super) fn emit_expr(
             // TODO
         }
         Expr::FieldAccess(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_expr(ctx, instr, &operands.lhs);
                 emit_expr(ctx, instr, &operands.rhs);
             })
@@ -354,7 +357,7 @@ pub(super) fn emit_expr(
             // TODO
         }
         Expr::Not(operand) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 // The NOT expression is emitted as:
                 //
                 //   if (evaluate_operand()) {
@@ -376,7 +379,7 @@ pub(super) fn emit_expr(
             })
         }
         Expr::And(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 // The AND expression is emitted as:
                 //
                 //   try {
@@ -413,7 +416,7 @@ pub(super) fn emit_expr(
             });
         }
         Expr::Or(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 // The OR expression is emitted as:
                 //
                 //   try {
@@ -446,8 +449,8 @@ pub(super) fn emit_expr(
             });
         }
         Expr::Minus(operand) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
-                match operand.operand.type_hint().ty() {
+            emit_const_or_code!(ctx, instr, expr.value(), {
+                match operand.operand.ty() {
                     Type::Float => {
                         emit_expr(ctx, instr, &operand.operand);
                         instr.unop(UnaryOp::F64Neg);
@@ -466,7 +469,7 @@ pub(super) fn emit_expr(
         Expr::Modulus(operands) => {
             // emit_arithmetic_op! macro is not used for modulus because this
             // operation doesn't accept float operands.
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 match emit_operands!(ctx, instr, operands.lhs, operands.rhs) {
                     (Type::Integer, Type::Integer) => {
                         // Make sure that the divisor is not zero, if that's
@@ -481,7 +484,7 @@ pub(super) fn emit_expr(
             });
         }
         Expr::BitwiseNot(operand) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_expr(ctx, instr, &operand.operand);
                 // WebAssembly does not have an instruction for bitwise not,
                 // it is implemented as i64.xor(x, -1)
@@ -499,7 +502,7 @@ pub(super) fn emit_expr(
             emit_arithmetic_op!(ctx, instr, expr, operands, I64Mul, F64Mul);
         }
         Expr::Div(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 match emit_operands!(ctx, instr, operands.lhs, operands.rhs) {
                     (Type::Integer, Type::Integer) => {
                         // Make sure that the divisor is not zero, if that's
@@ -563,43 +566,43 @@ pub(super) fn emit_expr(
             );
         }
         Expr::Contains(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
                 instr.call(ctx.borrow().wasm_symbols.str_contains);
             });
         }
         Expr::IContains(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
                 instr.call(ctx.borrow().wasm_symbols.str_icontains);
             });
         }
         Expr::StartsWith(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
                 instr.call(ctx.borrow().wasm_symbols.str_startswith);
             });
         }
         Expr::IStartsWith(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
                 instr.call(ctx.borrow().wasm_symbols.str_istartswith);
             });
         }
         Expr::EndsWith(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
                 instr.call(ctx.borrow().wasm_symbols.str_endswith);
             });
         }
         Expr::IEndsWith(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
                 instr.call(ctx.borrow().wasm_symbols.str_iendswith);
             });
         }
         Expr::IEquals(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_hint(), {
+            emit_const_or_code!(ctx, instr, expr.value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
                 instr.call(ctx.borrow().wasm_symbols.str_iequals);
             });
@@ -660,7 +663,7 @@ pub(super) fn emit_for_in_range(
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(
         for_in.variables.first().unwrap().as_str(),
-        Symbol::new(Type::Integer, None::<Value>)
+        Symbol::new(Type::Integer, Value::Unknown)
             .set_location(Location::Memory(lower_bound)),
     );
 
@@ -936,7 +939,7 @@ pub(super) fn emit_bool_expr(
 ) {
     emit_expr(ctx, instr, expr);
 
-    match expr.type_hint().ty() {
+    match expr.ty() {
         Type::Bool => {
             // `expr` already returned a bool, nothing more to do.
         }
@@ -953,7 +956,7 @@ pub(super) fn emit_bool_expr(
             instr.i64_const(0);
             instr.binop(BinaryOp::I64Ne);
         }
-        ty => unreachable!("type `{}` can't be casted to boolean", ty),
+        ty => unreachable!("type `{:?}` can't be casted to boolean", ty),
     }
 }
 

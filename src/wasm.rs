@@ -591,7 +591,7 @@ macro_rules! lookup_ident_fn {
 
             let symbol = symbol_table.lookup(ident).unwrap();
 
-            if let Some($type(value)) = symbol.value() {
+            if let $type(value) = symbol.value() {
                 defined(*value as $return_type)
             } else {
                 undefined()
@@ -624,7 +624,7 @@ pub(crate) fn lookup_string(
 
     let symbol = symbol_table.lookup(ident).unwrap();
 
-    if let Some(Value::String(s)) = symbol.value() {
+    if let Value::String(s) = symbol.value() {
         Some(ExternRef::new(RuntimeString::Owned(s.clone())))
     } else {
         None
@@ -651,7 +651,7 @@ pub(crate) fn lookup_struct(
 
     let symbol = symbol_table.lookup(ident).unwrap();
 
-    if let Some(Value::Struct(symbol_table)) = symbol.value() {
+    if let Value::Struct(symbol_table) = symbol.value() {
         Some(ExternRef::new(symbol_table.clone()))
     } else {
         None

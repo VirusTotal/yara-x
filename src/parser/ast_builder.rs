@@ -1,9 +1,6 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
-use std::ops::BitAnd;
-use std::ops::BitOr;
-use std::ops::BitXor;
 use std::str;
 
 use bstr::{BStr, BString, ByteSlice};
@@ -16,6 +13,7 @@ use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
 use crate::ast::Namespace;
 use crate::ast::*;
 use crate::parser::{CSTNode, Context, Error, ErrorInfo, GrammarRule, CST};
+use crate::types::{ArrayItemType, Type, Value};
 use crate::warnings::Warning;
 
 macro_rules! expect {
@@ -30,250 +28,26 @@ macro_rules! expect {
     }};
 }
 
-macro_rules! cast_to_bool {
-    ($expr:expr) => {{
-        let type_hint = $expr;
-        match type_hint {
-            TypeHint::Integer(i) => TypeHint::Bool(i.map(|i| i != 0)),
-            TypeHint::Float(f) => TypeHint::Bool(f.map(|f| f != 0.0)),
-            TypeHint::String(s) => TypeHint::Bool(s.map(|s| s.len() > 0)),
-            _ => type_hint,
-        }
-    }};
-}
-
-macro_rules! boolean_op {
-    ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::ast::TypeHint::*;
-
-        let lhs = cast_to_bool!($lhs);
-        let rhs = cast_to_bool!($rhs);
-
-        match (lhs, rhs) {
-            (Bool(Some(lhs)), Bool(Some(rhs))) => {
-                Bool(Some(lhs $op rhs))
-            },
-            _ => Bool(None),
-        }
-    }};
-}
-
-macro_rules! comparison_op {
-    ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::ast::TypeHint::*;
-        match ($lhs, $rhs) {
-            (Integer(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op rhs)),
-            (Float(Some(lhs)), Float(Some(rhs))) => Bool(Some(lhs $op rhs)),
-            (Float(Some(lhs)), Integer(Some(rhs))) => Bool(Some(lhs $op (rhs as f64))),
-            (Integer(Some(lhs)), Float(Some(rhs))) => Bool(Some((lhs as f64) $op rhs)),
-            (String(Some(lhs)), String(Some(rhs))) => Bool(Some(lhs $op rhs)),
-            _ => Bool(None),
-        }
-    }};
-}
-
-macro_rules! shift_op {
-    ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::ast::TypeHint::*;
-        match ($lhs, $rhs) {
-            (Integer(Some(lhs)), Integer(Some(rhs))) => {
-                let overflow: bool;
-                let mut value = 0;
-                // First convert `rhs` to u32, which is the type accepted
-                // by both overflowing_shr and overflowing_lhr. If the
-                // conversion fails, it's because its value is too large and
-                // does not fit in a u32, or because it's negative. In both
-                // cases the result of the shift operation is 0.
-                if let Ok(rhs) = rhs.try_into() {
-                    // Now that rhs is an u32 we can call overflowing_shr or
-                    // overflowing_lhr.
-                    (value, overflow) = lhs.$op(rhs);
-                    // The semantics << and >> in YARA is that the right-side
-                    // operand can be larger than the number of bits in the
-                    // left-side, and in those cases the result is 0.
-                    if overflow {
-                        value = 0;
-                    }
-                }
-                Integer(Some(value))
-            }
-            _ => Integer(None),
-        }
-    }};
-}
-
-macro_rules! bitwise_op {
-    ($lhs:expr, $op:tt, $rhs:expr) => {{
-        use crate::ast::TypeHint::*;
-        match ($lhs, $rhs) {
-            (Integer(Some(lhs)), Integer(Some(rhs))) => {
-                Integer(Some(lhs.$op(rhs)))
-            }
-            _ => Integer(None),
-        }
-    }};
-}
-
-macro_rules! arithmetic_op {
-    ($lhs:expr, $op:tt, $checked_op:ident, $rhs:expr) => {{
-        use crate::ast::TypeHint::*;
-        match ($lhs, $rhs) {
-            // ... check for different combinations of integer and float
-            // operands. The result is integer if both operand are
-            // integers and float if otherwise.
-            //
-            // In operations where the operands are integers we must use
-            // the checked variant of the operator (e.g. `checked_add`,
-            // `checked_div`, etc) in order to prevent panics due to division
-            // by zero or integer overflows.
-            //
-            // Floating-point operations won't cause panic in Rust.
-            (Integer(Some(lhs)), Integer(Some(rhs))) => {
-                if let Some(v) = lhs.$checked_op(rhs) {
-                    Integer(Some(v))
-                } else {
-                    UnknownType
-                }
-            },
-            (Integer(Some(lhs)), Float(Some(rhs))) => Float(Some((lhs as f64) $op rhs)),
-            (Float(Some(lhs)), Integer(Some(rhs))) => Float(Some(lhs $op (rhs as f64))),
-            (Float(Some(lhs)), Float(Some(rhs))) => Float(Some(lhs $op rhs)),
-            (Integer(_), Integer(_)) => Integer(None),
-            _ => Float(None),
-        }
-    }};
-}
-
-macro_rules! minus_op {
-    ($operand:expr) => {{
-        use crate::ast::TypeHint::*;
-        match $operand {
-            Integer(Some(i)) => Integer(Some(-i)),
-            Integer(None) => Integer(None),
-            Float(Some(i)) => Float(Some(-i)),
-            Float(None) => Float(None),
-            _ => UnknownType,
-        }
-    }};
-}
-
-macro_rules! boolean_not {
-    ($operand:expr) => {{
-        use crate::ast::TypeHint::*;
-        match cast_to_bool!($operand) {
-            Bool(Some(b)) => Bool(Some(!b)),
-            _ => Bool(None),
-        }
-    }};
-}
-
-macro_rules! bitwise_not {
-    ($operand:expr) => {{
-        use crate::ast::TypeHint::*;
-        match $operand {
-            Integer(Some(i)) => Integer(Some(!i)),
-            _ => Integer(None),
-        }
-    }};
-}
-
-macro_rules! string_op {
-    ($lhs:expr, $op:tt, $rhs:expr, $case_insensitive:expr) => {{
-        use crate::ast::TypeHint::*;
-        match ($lhs, $rhs) {
-            (String(Some(lhs)), String(Some(rhs))) => {
-                if $case_insensitive {
-                    let lhs = lhs.to_ascii_lowercase();
-                    let rhs = rhs.to_ascii_lowercase();
-                    Bool(Some((&lhs).$op(&rhs)))
-                } else {
-                    Bool(Some((&lhs).$op(&rhs)))
-                }
-            }
-            _ => Bool(None),
-        }
-    }};
-}
-
-pub(crate) use arithmetic_op;
-pub(crate) use bitwise_not;
-pub(crate) use bitwise_op;
-pub(crate) use boolean_not;
-pub(crate) use boolean_op;
-pub(crate) use cast_to_bool;
-pub(crate) use comparison_op;
-pub(crate) use minus_op;
-pub(crate) use shift_op;
-pub(crate) use string_op;
-
-macro_rules! new_boolean_expr {
+macro_rules! new_binary_expr {
     ($variant:expr, $op:tt, $lhs:ident, $rhs:ident) => {{
-        let lhs = $lhs.type_hint();
-        let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr::with_type_hint(
+        let lhs = $lhs.value();
+        let rhs = $rhs.value();
+        Ok($variant(Box::new(BinaryExpr::with_value(
             $lhs,
             $rhs,
-            boolean_op!(lhs, $op, rhs),
-        ))))
-    }};
-}
-
-macro_rules! new_arithmetic_expr {
-    ($variant:expr, $op:tt, $checked_op:ident, $lhs:ident, $rhs:ident) => {{
-        let lhs = $lhs.type_hint();
-        let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr::with_type_hint(
-            $lhs,
-            $rhs,
-            arithmetic_op!(lhs, $op, $checked_op, rhs),
-        ))))
-    }};
-}
-
-macro_rules! new_bitwise_expr {
-    ($variant:expr,$op:ident, $lhs:ident, $rhs:ident) => {{
-        let lhs = $lhs.type_hint();
-        let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr::with_type_hint(
-            $lhs,
-            $rhs,
-            bitwise_op!(lhs, $op, rhs),
-        ))))
-    }};
-}
-
-macro_rules! new_comparison_expr {
-    ($variant:expr,$op:tt, $lhs:ident, $rhs:ident) => {{
-        let lhs = $lhs.type_hint();
-        let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr::with_type_hint(
-            $lhs,
-            $rhs,
-            comparison_op!(lhs, $op, rhs),
-        ))))
-    }};
-}
-
-macro_rules! new_shift_expr {
-    ($variant:expr,$op:tt, $lhs:ident, $rhs:ident) => {{
-        let lhs = $lhs.type_hint();
-        let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr::with_type_hint(
-            $lhs,
-            $rhs,
-            shift_op!(lhs, $op, rhs),
+            lhs.$op(rhs),
         ))))
     }};
 }
 
 macro_rules! new_string_expr {
     ($variant:expr,$op:ident, $lhs:ident, $rhs:ident, $case_insensitive:expr) => {{
-        let lhs = $lhs.type_hint();
-        let rhs = $rhs.type_hint();
-        Ok($variant(Box::new(BinaryExpr::with_type_hint(
+        let lhs = $lhs.value();
+        let rhs = $rhs.value();
+        Ok($variant(Box::new(BinaryExpr::with_value(
             $lhs,
             $rhs,
-            string_op!(lhs, $op, rhs, $case_insensitive),
+            lhs.$op(rhs, $case_insensitive),
         ))))
     }};
 }
@@ -282,23 +56,26 @@ fn create_unary_expr<'src>(
     op: CSTNode<'src>,
     operand: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
-    let type_hint = operand.type_hint();
     let span = Span::from(op.as_span());
     span.combine(&operand.span());
 
     let expr = match op.as_rule() {
-        GrammarRule::BITWISE_NOT => BitwiseNot(Box::new(
-            UnaryExpr::with_type_hint(operand, span, bitwise_not!(type_hint)),
-        )),
-        GrammarRule::k_NOT => Not(Box::new(UnaryExpr::with_type_hint(
+        GrammarRule::BITWISE_NOT => {
+            BitwiseNot(Box::new(UnaryExpr::with_value(
+                operand,
+                span,
+                operand.value().bitwise_not(),
+            )))
+        }
+        GrammarRule::k_NOT => Not(Box::new(UnaryExpr::with_value(
             operand,
             span,
-            boolean_not!(type_hint),
+            operand.value().not(),
         ))),
-        GrammarRule::MINUS => Minus(Box::new(UnaryExpr::with_type_hint(
+        GrammarRule::MINUS => Minus(Box::new(UnaryExpr::with_value(
             operand,
             span,
-            minus_op!(type_hint),
+            operand.value().minus(),
         ))),
         rule => unreachable!("{:?}", rule),
     };
@@ -316,61 +93,61 @@ fn create_binary_expr<'src>(
         }
         // Boolean
         GrammarRule::k_OR => {
-            new_boolean_expr!(Expr::Or, ||, lhs, rhs)
+            new_binary_expr!(Expr::Or, or, lhs, rhs)
         }
         GrammarRule::k_AND => {
-            new_boolean_expr!(Expr::And, &&, lhs, rhs)
+            new_binary_expr!(Expr::And, and, lhs, rhs)
         }
         // Arithmetic
         GrammarRule::ADD => {
-            new_arithmetic_expr!(Expr::Add, +, checked_add, lhs, rhs)
+            new_binary_expr!(Expr::Add, add, lhs, rhs)
         }
         GrammarRule::SUB => {
-            new_arithmetic_expr!(Expr::Sub, -, checked_sub, lhs, rhs)
+            new_binary_expr!(Expr::Sub, sub, lhs, rhs)
         }
         GrammarRule::MUL => {
-            new_arithmetic_expr!(Expr::Mul, *, checked_mul, lhs, rhs)
+            new_binary_expr!(Expr::Mul, mul, lhs, rhs)
         }
         GrammarRule::DIV => {
-            new_arithmetic_expr!(Expr::Div, /, checked_div, lhs, rhs)
+            new_binary_expr!(Expr::Div, div, lhs, rhs)
         }
         GrammarRule::MOD => {
-            new_arithmetic_expr!(Expr::Modulus, %, checked_rem, lhs, rhs)
+            new_binary_expr!(Expr::Modulus, rem, lhs, rhs)
         }
         // Bitwise
         GrammarRule::SHL => {
-            new_shift_expr!(Expr::Shl, overflowing_shl, lhs, rhs)
+            new_binary_expr!(Expr::Shl, shl, lhs, rhs)
         }
         GrammarRule::SHR => {
-            new_shift_expr!(Expr::Shr, overflowing_shr, lhs, rhs)
+            new_binary_expr!(Expr::Shr, shr, lhs, rhs)
         }
         GrammarRule::BITWISE_AND => {
-            new_bitwise_expr!(Expr::BitwiseAnd, bitand, lhs, rhs)
+            new_binary_expr!(Expr::BitwiseAnd, bitwise_and, lhs, rhs)
         }
         GrammarRule::BITWISE_OR => {
-            new_bitwise_expr!(Expr::BitwiseOr, bitor, lhs, rhs)
+            new_binary_expr!(Expr::BitwiseOr, bitwise_or, lhs, rhs)
         }
         GrammarRule::BITWISE_XOR => {
-            new_bitwise_expr!(Expr::BitwiseXor, bitxor, lhs, rhs)
+            new_binary_expr!(Expr::BitwiseXor, bitwise_xor, lhs, rhs)
         }
         // Comparison
         GrammarRule::EQ => {
-            new_comparison_expr!(Expr::Eq, ==, lhs, rhs)
+            new_binary_expr!(Expr::Eq, eq, lhs, rhs)
         }
         GrammarRule::NE => {
-            new_comparison_expr!(Expr::Ne, !=, lhs, rhs)
+            new_binary_expr!(Expr::Ne, ne, lhs, rhs)
         }
         GrammarRule::LT => {
-            new_comparison_expr!(Expr::Lt, <, lhs, rhs)
+            new_binary_expr!(Expr::Lt, lt, lhs, rhs)
         }
         GrammarRule::LE => {
-            new_comparison_expr!(Expr::Le, <=, lhs, rhs)
+            new_binary_expr!(Expr::Le, le, lhs, rhs)
         }
         GrammarRule::GT => {
-            new_comparison_expr!(Expr::Gt, >, lhs, rhs)
+            new_binary_expr!(Expr::Gt, gt, lhs, rhs)
         }
         GrammarRule::GE => {
-            new_comparison_expr!(Expr::Ge, >=, lhs, rhs)
+            new_binary_expr!(Expr::Ge, ge, lhs, rhs)
         }
         GrammarRule::k_STARTSWITH => {
             new_string_expr!(
@@ -403,7 +180,7 @@ fn create_binary_expr<'src>(
             new_string_expr!(Expr::IContains, contains_str, lhs, rhs, true)
         }
         GrammarRule::k_IEQUALS => {
-            new_string_expr!(Expr::IEquals, eq, lhs, rhs, true)
+            new_string_expr!(Expr::IEquals, equals_str, lhs, rhs, true)
         }
 
         rule => unreachable!("{:?}", rule),
@@ -1220,10 +997,10 @@ fn boolean_term_from_cst<'src>(
                 //   ^^^^^^^^^^^^^^^
                 // The best way is using the anchor's span end.
                 span: boolean_term_span.into(),
-                identifier: Ident::with_type_hint(
+                identifier: Ident::with_type(
                     ident_name,
                     ident.as_span().into(),
-                    TypeHint::Bool(None),
+                    Type::Bool,
                 ),
                 anchor,
             }))
@@ -1375,20 +1152,26 @@ fn primary_expr_from_cst<'src>(
             expect!(children.next().unwrap(), GrammarRule::RPAREN);
             expr
         }
-        GrammarRule::string_lit => Expr::LiteralStr(Box::new(LiteralStr {
-            span: node.as_span().into(),
-            original: node.as_span().as_str(),
-            value: string_lit_from_cst(ctx, node, true)?,
-        })),
-        GrammarRule::float_lit => Expr::LiteralFlt(Box::new(LiteralFlt {
+        GrammarRule::string_lit => Expr::Literal(Box::new(Literal {
             span: node.as_span().into(),
             literal: node.as_span().as_str(),
-            value: float_lit_from_cst(ctx, node)?,
+            ty: Type::String,
+            // TODO: allow Cow in Values?
+            value: Value::String(BString::from(
+                string_lit_from_cst(ctx, node, true)?.as_bstr(),
+            )),
         })),
-        GrammarRule::integer_lit => Expr::LiteralInt(Box::new(LiteralInt {
+        GrammarRule::float_lit => Expr::Literal(Box::new(Literal {
             span: node.as_span().into(),
             literal: node.as_span().as_str(),
-            value: integer_lit_from_cst(ctx, node)?,
+            ty: Type::Float,
+            value: Value::Float(float_lit_from_cst(ctx, node)?),
+        })),
+        GrammarRule::integer_lit => Expr::Literal(Box::new(Literal {
+            span: node.as_span().into(),
+            literal: node.as_span().as_str(),
+            ty: Type::Integer,
+            value: Value::Integer(integer_lit_from_cst(ctx, node)?),
         })),
         GrammarRule::pattern_count => {
             // Is there some range after the pattern count?
@@ -1469,11 +1252,11 @@ fn indexing_expr_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::RBRACKET);
 
-    Ok(Expr::LookupIndex(Box::new(LookupIndex::with_type_hint(
+    Ok(Expr::LookupIndex(Box::new(LookupIndex::with_type(
         primary,
         index,
         span.into(),
-        TypeHint::Array,
+        Type::Array(ArrayItemType::Unknown),
     ))))
 }
 

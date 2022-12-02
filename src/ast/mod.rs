@@ -2,10 +2,12 @@
 mod span;
 
 use std::borrow::{Borrow, Cow};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
-use std::{fmt, mem};
+use std::ops::Deref;
+use std::pin::Pin;
 
 use ascii_tree::Tree::Node;
 use bitmask::bitmask;
@@ -318,14 +320,8 @@ pub enum Expr<'src> {
         span: Span,
     },
 
-    /// Integer literal (e.g. `1`, `-1`, `10KB`, `0xFFFF`, `0b1000`)
-    LiteralInt(Box<LiteralInt<'src>>),
-
-    /// Float literal (e.g. `1.0`, `-1.0`)
-    LiteralFlt(Box<LiteralFlt<'src>>),
-
-    /// String literal (e.g. `"abcd"`).
-    LiteralStr(Box<LiteralStr<'src>>),
+    /// A literal, (e.g: `1`, `2.0`, `"abcd"`)
+    Literal(Box<Literal<'src>>),
 
     /// Identifier (e.g. `some_identifier`).
     Ident(Box<Ident<'src>>),
@@ -489,36 +485,53 @@ pub struct In<'src> {
 /// An identifier (e.g. `some_ident`).
 #[derive(Debug, Clone, HasSpan)]
 pub struct Ident<'src> {
-    pub(crate) type_hint: RefCell<TypeHint>,
+    pub(crate) ty: RefCell<Type>,
+    pub(crate) value: RefCell<Value>,
     pub(crate) span: Span,
     pub name: &'src str,
 }
 
 impl<'src> Ident<'src> {
+    pub(crate) fn new(name: &'src str, span: Span) -> Self {
+        Self {
+            name,
+            span,
+            ty: RefCell::new(Type::Unknown),
+            value: RefCell::new(Value::Unknown),
+        }
+    }
+
+    pub(crate) fn with_type(name: &'src str, span: Span, ty: Type) -> Self {
+        Self {
+            name,
+            span,
+            ty: RefCell::new(ty),
+            value: RefCell::new(Value::Unknown),
+        }
+    }
+
     /// Returns the identifier as a string.
     pub fn as_str(&self) -> &'src str {
         self.name
     }
 
-    /// Returns the [`TypeHint`] associated to the identifier.
-    pub fn type_hint(&self) -> TypeHint {
-        self.type_hint.borrow().clone()
+    /// Returns the identifier's [`Type`].
+    pub fn ty(&self) -> Type {
+        self.ty.borrow().clone()
     }
 
-    pub(crate) fn new(name: &'src str, span: Span) -> Self {
-        Self { name, span, type_hint: RefCell::new(TypeHint::UnknownType) }
+    /// Returns the identifier's [`Value`].
+    pub fn value(&self) -> &Value {
+        self.value.borrow().deref()
     }
 
-    pub(crate) fn with_type_hint(
-        name: &'src str,
-        span: Span,
-        type_hint: TypeHint,
-    ) -> Self {
-        Self { name, span, type_hint: RefCell::new(type_hint) }
+    pub(crate) fn set_type(&self, ty: Type) -> &Self {
+        self.ty.replace(ty);
+        self
     }
 
-    pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
-        self.type_hint.replace(type_hint);
+    pub(crate) fn set_value(&self, value: Value) -> &Self {
+        self.value.replace(value);
         self
     }
 }
@@ -527,7 +540,8 @@ impl<'src> Ident<'src> {
 impl<'src> From<CSTNode<'src>> for Ident<'src> {
     fn from(node: CSTNode<'src>) -> Self {
         Self {
-            type_hint: RefCell::new(TypeHint::UnknownType),
+            ty: RefCell::new(Type::Unknown),
+            value: RefCell::new(Value::Unknown),
             span: node.as_span().into(),
             name: node.as_str(),
         }
@@ -556,6 +570,15 @@ pub struct IdentWithIndex<'src> {
     pub(crate) span: Span,
     pub name: &'src str,
     pub index: Option<Expr<'src>>,
+}
+
+/// An literal.
+#[derive(Debug, HasSpan)]
+pub struct Literal<'src> {
+    pub(crate) span: Span,
+    pub literal: &'src str,
+    pub ty: Type,
+    pub value: Value,
 }
 
 /// An integer literal.
@@ -588,21 +611,55 @@ pub struct LiteralStr<'src> {
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
     pub(crate) span: Span,
-    pub(crate) type_hint: RefCell<TypeHint>,
+    pub(crate) ty: RefCell<Type>,
+    pub(crate) value: RefCell<Value>,
     pub operand: Expr<'src>,
 }
 
 impl<'src> UnaryExpr<'src> {
-    pub(crate) fn with_type_hint(
+    pub(crate) fn with_type(
         operand: Expr<'src>,
         span: Span,
-        type_hint: TypeHint,
+        ty: Type,
     ) -> Self {
-        Self { span, operand, type_hint: RefCell::new(type_hint) }
+        Self {
+            span,
+            operand,
+            ty: RefCell::new(ty),
+            value: RefCell::new(Value::Unknown),
+        }
     }
 
-    pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
-        self.type_hint.replace(type_hint);
+    pub(crate) fn with_value(
+        operand: Expr<'src>,
+        span: Span,
+        value: Value,
+    ) -> Self {
+        Self {
+            span,
+            operand,
+            ty: RefCell::new(value.ty()),
+            value: RefCell::new(value),
+        }
+    }
+
+    /// Returns the expression's [`Type`].
+    pub fn ty(&self) -> Type {
+        self.ty.borrow().clone()
+    }
+
+    /// Returns the expression's [`Value`].
+    pub fn value(&self) -> &Value {
+        self.value.borrow().deref()
+    }
+
+    pub(crate) fn set_type(&self, ty: Type) -> &Self {
+        self.ty.replace(ty);
+        self
+    }
+
+    pub(crate) fn set_value(&self, value: Value) -> &Self {
+        self.value.replace(value);
         self
     }
 }
@@ -610,7 +667,8 @@ impl<'src> UnaryExpr<'src> {
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
-    pub(crate) type_hint: RefCell<TypeHint>,
+    pub(crate) ty: RefCell<Type>,
+    pub(crate) value: RefCell<Value>,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
@@ -619,19 +677,55 @@ pub struct BinaryExpr<'src> {
 
 impl<'src> BinaryExpr<'src> {
     pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
-        Self { lhs, rhs, type_hint: RefCell::new(TypeHint::UnknownType) }
+        Self {
+            lhs,
+            rhs,
+            ty: RefCell::new(Type::Unknown),
+            value: RefCell::new(Value::Unknown),
+        }
     }
 
-    pub(crate) fn with_type_hint(
+    pub(crate) fn with_type(
         lhs: Expr<'src>,
         rhs: Expr<'src>,
-        type_hint: TypeHint,
+        ty: Type,
     ) -> Self {
-        Self { lhs, rhs, type_hint: RefCell::new(type_hint) }
+        Self {
+            lhs,
+            rhs,
+            ty: RefCell::new(ty),
+            value: RefCell::new(Value::Unknown),
+        }
     }
 
-    pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
-        self.type_hint.replace(type_hint);
+    pub(crate) fn with_value(
+        lhs: Expr<'src>,
+        rhs: Expr<'src>,
+        value: Value,
+    ) -> Self {
+        Self {
+            lhs,
+            rhs,
+            ty: RefCell::new(value.ty()),
+            value: RefCell::new(value),
+        }
+    }
+
+    pub fn ty(&self) -> Type {
+        self.ty.borrow().clone()
+    }
+
+    pub fn value(&self) -> &Value {
+        self.value.borrow().deref()
+    }
+
+    pub(crate) fn set_type(&self, ty: Type) -> &Self {
+        self.ty.replace(ty);
+        self
+    }
+
+    pub(crate) fn set_value(&self, value: Value) -> &Self {
+        self.value.replace(value);
         self
     }
 }
@@ -647,24 +741,44 @@ pub struct FnCall<'src> {
 /// An index lookup operation
 #[derive(Debug, HasSpan)]
 pub struct LookupIndex<'src> {
-    pub(crate) type_hint: RefCell<TypeHint>,
+    pub(crate) ty: RefCell<Type>,
+    pub(crate) value: RefCell<Value>,
     pub(crate) span: Span,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
 }
 
 impl<'src> LookupIndex<'src> {
-    pub(crate) fn with_type_hint(
+    pub(crate) fn with_type(
         primary: Expr<'src>,
         index: Expr<'src>,
         span: Span,
-        type_hint: TypeHint,
+        ty: Type,
     ) -> Self {
-        Self { primary, index, span, type_hint: RefCell::new(type_hint) }
+        Self {
+            primary,
+            index,
+            span,
+            ty: RefCell::new(ty),
+            value: RefCell::new(Value::Unknown),
+        }
     }
 
-    pub(crate) fn set_type_hint(&self, type_hint: TypeHint) -> &Self {
-        self.type_hint.replace(type_hint);
+    pub fn ty(&self) -> Type {
+        self.ty.borrow().clone()
+    }
+
+    pub fn value(&self) -> &Value {
+        self.value.borrow().deref()
+    }
+
+    pub(crate) fn set_type(&self, ty: Type) -> &Self {
+        self.ty.replace(ty);
+        self
+    }
+
+    pub(crate) fn set_value(&self, value: Value) -> &Self {
+        self.value.replace(value);
         self
     }
 }
@@ -829,90 +943,35 @@ impl TypeHint {
     }
 }
 
-impl Display for Type {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Unknown => write!(f, "unknown"),
-            Self::Bool => write!(f, "boolean"),
-            Self::Integer => write!(f, "integer"),
-            Self::Float => write!(f, "float"),
-            Self::String => write!(f, "string"),
-            Self::Struct => write!(f, "struct"),
-            Self::Array(_) => write!(f, "array"),
-        }
-    }
-}
-
-impl Display for TypeHint {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::UnknownType => write!(f, "unknown"),
-            Self::Bool(value) => {
-                if let Some(value) = value {
-                    write!(f, "boolean({})", value)
-                } else {
-                    write!(f, "boolean(unknown)")
-                }
-            }
-            Self::Integer(value) => {
-                if let Some(value) = value {
-                    write!(f, "integer({})", value)
-                } else {
-                    write!(f, "integer(unknown)")
-                }
-            }
-            Self::Float(value) => {
-                if let Some(value) = value {
-                    write!(f, "float({:.1})", value)
-                } else {
-                    write!(f, "float(unknown)")
-                }
-            }
-            Self::String(value) => {
-                if let Some(value) = value {
-                    write!(f, "string({})", value)
-                } else {
-                    write!(f, "string(unknown)")
-                }
-            }
-            Self::Struct => write!(f, "struct"),
-            Self::Array => write!(f, "array"),
-        }
-    }
-}
+const UNKNOWN: Value = Value::Unknown;
+const TRUE: Value = Value::Bool(true);
+const FALSE: Value = Value::Bool(false);
 
 impl<'src> Expr<'src> {
-    pub fn type_hint(&self) -> TypeHint {
+    pub fn ty(&self) -> Type {
         match self {
-            Expr::True { .. } => TypeHint::Bool(Some(true)),
-            Expr::False { .. } => TypeHint::Bool(Some(false)),
-
-            Expr::Filesize { .. } | Expr::Entrypoint { .. } => {
-                TypeHint::Integer(None)
-            }
-
-            Expr::LiteralInt(i) => TypeHint::Integer(Some(i.value)),
-            Expr::LiteralFlt(f) => TypeHint::Float(Some(f.value)),
-            Expr::LiteralStr(s) => {
-                TypeHint::String(Some(s.value.as_ref().to_owned()))
-            }
-
-            Expr::PatternMatch(_)
+            Expr::True { .. }
+            | Expr::False { .. }
+            | Expr::PatternMatch(_)
             | Expr::FnCall(_)
             | Expr::Of(_)
             | Expr::ForOf(_)
-            | Expr::ForIn(_) => TypeHint::Bool(None),
+            | Expr::ForIn(_) => Type::Bool,
 
-            Expr::PatternCount(_)
+            Expr::Filesize { .. }
+            | Expr::Entrypoint { .. }
+            | Expr::PatternCount(_)
             | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => TypeHint::Integer(None),
+            | Expr::PatternLength(_) => Type::Integer,
+
+            Expr::Literal(l) => l.ty,
 
             Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
-                expr.type_hint.borrow().clone()
+                expr.ty()
             }
 
-            Expr::LookupIndex(expr) => expr.type_hint.borrow().clone(),
-            Expr::Ident(ident) => ident.type_hint.borrow().clone(),
+            Expr::LookupIndex(expr) => expr.ty(),
+            Expr::Ident(ident) => ident.ty(),
 
             Expr::FieldAccess(expr)
             | Expr::And(expr)
@@ -939,7 +998,61 @@ impl<'src> Expr<'src> {
             | Expr::Shr(expr)
             | Expr::BitwiseAnd(expr)
             | Expr::BitwiseOr(expr)
-            | Expr::BitwiseXor(expr) => expr.type_hint.borrow().clone(),
+            | Expr::BitwiseXor(expr) => expr.ty(),
+        }
+    }
+
+    pub fn value(&self) -> &Value {
+        match self {
+            Expr::True { .. } => &TRUE,
+            Expr::False { .. } => &FALSE,
+
+            Expr::PatternMatch(_)
+            | Expr::FnCall(_)
+            | Expr::Of(_)
+            | Expr::ForOf(_)
+            | Expr::ForIn(_)
+            | Expr::Filesize { .. }
+            | Expr::Entrypoint { .. }
+            | Expr::PatternCount(_)
+            | Expr::PatternOffset(_)
+            | Expr::PatternLength(_) => &UNKNOWN,
+
+            Expr::Literal(l) => &l.value,
+
+            Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
+                expr.value()
+            }
+
+            Expr::LookupIndex(expr) => expr.value(),
+            Expr::Ident(ident) => ident.value(),
+
+            Expr::FieldAccess(expr)
+            | Expr::And(expr)
+            | Expr::Or(expr)
+            | Expr::Eq(expr)
+            | Expr::Ne(expr)
+            | Expr::Lt(expr)
+            | Expr::Gt(expr)
+            | Expr::Le(expr)
+            | Expr::Ge(expr)
+            | Expr::Contains(expr)
+            | Expr::IContains(expr)
+            | Expr::StartsWith(expr)
+            | Expr::IStartsWith(expr)
+            | Expr::EndsWith(expr)
+            | Expr::IEndsWith(expr)
+            | Expr::IEquals(expr)
+            | Expr::Add(expr)
+            | Expr::Sub(expr)
+            | Expr::Mul(expr)
+            | Expr::Div(expr)
+            | Expr::Modulus(expr)
+            | Expr::Shl(expr)
+            | Expr::Shr(expr)
+            | Expr::BitwiseAnd(expr)
+            | Expr::BitwiseOr(expr)
+            | Expr::BitwiseXor(expr) => expr.value(),
         }
     }
 }

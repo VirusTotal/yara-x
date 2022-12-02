@@ -1,6 +1,7 @@
 use ascii_tree::Tree::{Leaf, Node};
 
 use crate::ast::*;
+use crate::types::Value;
 
 /// Returns a representation of the namespace as an ASCII tree.
 pub(crate) fn namespace_ascii_tree(namespace: &Namespace) -> ascii_tree::Tree {
@@ -60,11 +61,11 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> ascii_tree::Tree {
 /// Returns a representation of the expression as an ASCII tree.
 pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
     let value = {
-        let type_hint = expr.type_hint();
-        if matches!(type_hint, TypeHint::UnknownType) {
+        let value = expr.value();
+        if matches!(value, Value::Unknown) {
             "".to_string()
         } else {
-            format!(" : {}", type_hint)
+            format!(" : {:?}", value)
         }
     };
     match expr {
@@ -72,9 +73,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
         Expr::False { .. } => Leaf(vec!["false".to_string()]),
         Expr::Entrypoint { .. } => Leaf(vec!["entrypoint".to_string()]),
         Expr::Filesize { .. } => Leaf(vec!["filesize".to_string()]),
-        Expr::LiteralInt(lit) => Leaf(vec![lit.literal.to_string()]),
-        Expr::LiteralFlt(lit) => Leaf(vec![lit.literal.to_string()]),
-        Expr::LiteralStr(lit) => Leaf(vec![lit.original.to_string()]),
+        Expr::Literal(lit) => Leaf(vec![lit.literal.to_string()]),
         Expr::Ident(ident) => Leaf(vec![ident.name.to_string()]),
         Expr::Not(expr) => {
             Node(format!("not{}", value), vec![expr_ascii_tree(&expr.operand)])

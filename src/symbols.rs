@@ -22,12 +22,12 @@ pub trait SymbolIndex {
 #[derive(Clone)]
 pub struct Symbol {
     ty: Type,
-    value: Option<Value>,
+    value: Value,
     location: Location,
 }
 
 impl Symbol {
-    pub fn new(ty: Type, value: Option<Value>) -> Self {
+    pub fn new(ty: Type, value: Value) -> Self {
         Self { ty, value, location: Location::None }
     }
 
@@ -36,7 +36,7 @@ impl Symbol {
     ) -> Self {
         Self {
             ty: Type::Struct,
-            value: Some(Value::Struct(symbol_table)),
+            value: Value::Struct(symbol_table),
             location: Location::None,
         }
     }
@@ -61,8 +61,8 @@ impl Symbol {
     }
 
     #[inline]
-    pub fn value(&self) -> Option<&Value> {
-        self.value.as_ref()
+    pub fn value(&self) -> &Value {
+        &self.value
     }
 
     #[inline]
@@ -73,7 +73,7 @@ impl Symbol {
 
 impl From<Type> for Symbol {
     fn from(ty: Type) -> Self {
-        Self::new(ty, None)
+        Self::new(ty, Value::Unknown)
     }
 }
 
@@ -118,7 +118,7 @@ impl SymbolLookup for &Module {
 impl SymbolLookup for Option<Symbol> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         if let Some(symbol) = self {
-            if let Some(Value::Struct(s)) = &symbol.value() {
+            if let Value::Struct(s) = symbol.value() {
                 s.lookup(ident)
             } else {
                 None
@@ -156,7 +156,7 @@ impl SymbolLookup for MessageDescriptor {
                     let item_ty = runtime_type_to_type(ty);
                     Some(Symbol::new(
                         Type::Array(item_ty.into()),
-                        Some(Value::Array(Arc::new(field))),
+                        Value::Array(Arc::new(field)),
                     ))
                 }
                 RuntimeFieldType::Map(_, _) => {
@@ -217,7 +217,7 @@ impl SymbolLookup for EnumDescriptor {
         let descriptor = self.value_by_name(ident)?;
         Some(Symbol::new(
             Type::Integer,
-            Some(Value::Integer(descriptor.value() as i64)),
+            Value::Integer(descriptor.value() as i64),
         ))
     }
 }
@@ -248,21 +248,24 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                         let value = field
                             .get_singular(self.as_ref())
                             .and_then(|v| v.to_i32())
-                            .map(Value::from);
+                            .map(Value::from)
+                            .unwrap_or(Value::Unknown);
                         Some(Symbol::new(Type::Integer, value))
                     }
                     RuntimeType::I64 => {
                         let value = field
                             .get_singular(self.as_ref())
                             .and_then(|v| v.to_i64())
-                            .map(Value::from);
+                            .map(Value::from)
+                            .unwrap_or(Value::Unknown);
                         Some(Symbol::new(Type::Integer, value))
                     }
                     RuntimeType::U32 => {
                         let value = field
                             .get_singular(self.as_ref())
                             .and_then(|v| v.to_u32())
-                            .map(Value::from);
+                            .map(Value::from)
+                            .unwrap_or(Value::Unknown);
                         Some(Symbol::new(Type::Integer, value))
                     }
                     RuntimeType::U64 => {
@@ -272,37 +275,43 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                         let value = field
                             .get_singular(self.as_ref())
                             .and_then(|v| v.to_f32())
-                            .map(Value::from);
+                            .map(Value::from)
+                            .unwrap_or(Value::Unknown);
                         Some(Symbol::new(Type::Float, value))
                     }
                     RuntimeType::F64 => {
                         let value = field
                             .get_singular(self.as_ref())
                             .and_then(|v| v.to_f64())
-                            .map(Value::from);
+                            .map(Value::from)
+                            .unwrap_or(Value::Unknown);
                         Some(Symbol::new(Type::Float, value))
                     }
                     RuntimeType::Bool => {
                         let value = field
                             .get_singular(self.as_ref())
                             .and_then(|v| v.to_bool())
-                            .map(Value::from);
+                            .map(Value::from)
+                            .unwrap_or(Value::Unknown);
                         Some(Symbol::new(Type::Bool, value))
                     }
                     RuntimeType::Enum(_) => {
                         let value = field
                             .get_singular(self.as_ref())
                             .and_then(|v| v.to_enum_value())
-                            .map(Value::from);
+                            .map(Value::from)
+                            .unwrap_or(Value::Unknown);
                         Some(Symbol::new(Type::Integer, value))
                     }
                     RuntimeType::String | RuntimeType::VecU8 => {
                         let value = if let Some(v) =
                             field.get_singular(self.as_ref())
                         {
-                            v.to_str().map(Value::from)
+                            v.to_str()
+                                .map(Value::from)
+                                .unwrap_or(Value::Unknown)
                         } else {
-                            None
+                            Value::Unknown
                         };
                         Some(Symbol::new(Type::String, value))
                     }
