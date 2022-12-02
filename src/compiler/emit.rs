@@ -8,7 +8,7 @@ use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
 
 use crate::ast::{
-    Expr, ForIn, Iterable, Literal, MatchAnchor, Quantifier, Range, TypeHint,
+    Expr, ForIn, Iterable, Literal, MatchAnchor, Quantifier, Range,
 };
 use crate::compiler::{Context, IdentId};
 use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
