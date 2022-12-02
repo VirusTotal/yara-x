@@ -1746,7 +1746,7 @@ where
         T::from_str_radix(literal, 10)
     };
 
-    let mut build_error = || {
+    let build_error = || {
         Error::new(ErrorInfo::invalid_integer(
             ctx.report_builder,
             &ctx.src,
@@ -1767,10 +1767,10 @@ where
     let value = value.map_err(|_| build_error())?;
 
     // The multiplier may not fit in type T.
-    let multiplier = T::from_i32(multiplier).ok_or_else(&mut build_error)?;
+    let multiplier = T::from_i32(multiplier).ok_or_else(build_error)?;
 
     // The value after applying the multiplier may not fit in type T.
-    let value = value.checked_mul(&multiplier).ok_or_else(&mut build_error)?;
+    let value = value.checked_mul(&multiplier).ok_or_else(build_error)?;
 
     Ok(value)
 }
