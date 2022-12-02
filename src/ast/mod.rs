@@ -520,12 +520,13 @@ impl<'src> Ident<'src> {
         self.name
     }
 
+    /// Returns the identifier's type.
     pub fn ty(&self) -> Type {
         self.type_value.borrow().ty()
     }
 
     pub fn value(&self) -> ValueRef {
-        ValueRef::RefCell(Ref::map(self.type_value.borrow(), |v| &v.1))
+        ValueRef::from_refcell(Ref::map(self.type_value.borrow(), |v| &v.1))
     }
 
     pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
@@ -579,39 +580,16 @@ pub struct IdentWithIndex<'src> {
     pub index: Option<Expr<'src>>,
 }
 
-/// An literal.
+/// A literal value of any type (e.g: `1`, `2.0`, `"abcd"`, `true`).
 #[derive(Debug, HasSpan)]
 pub struct Literal<'src> {
     pub(crate) span: Span,
+    /// The literal value as it appears in the source code.
     pub literal: &'src str,
+    /// Type of the literal.
     pub ty: Type,
+    /// The literal's value.
     pub value: Value,
-}
-
-/// An integer literal.
-#[derive(Debug, HasSpan)]
-pub struct LiteralInt<'src> {
-    pub(crate) span: Span,
-    pub literal: &'src str,
-    pub value: i64,
-}
-
-/// A float literal.
-#[derive(Debug, HasSpan)]
-pub struct LiteralFlt<'src> {
-    pub(crate) span: Span,
-    pub literal: &'src str,
-    pub value: f64,
-}
-
-/// A string literal.
-#[derive(Debug, HasSpan)]
-pub struct LiteralStr<'src> {
-    pub(crate) span: Span,
-    /// The literal string exactly as it appears in the source code.
-    pub original: &'src str,
-    /// The actual value of the string literal, after unescaping any escaped characters.
-    pub value: LStr<'src>,
 }
 
 /// An expression with a single operand.
@@ -636,12 +614,13 @@ impl<'src> UnaryExpr<'src> {
         }
     }
 
+    /// Returns the expression's type
     pub fn ty(&self) -> Type {
         self.type_value.borrow().ty()
     }
 
     pub fn value(&self) -> ValueRef {
-        ValueRef::RefCell(Ref::map(self.type_value.borrow(), |v| &v.1))
+        ValueRef::from_refcell(Ref::map(self.type_value.borrow(), |v| &v.1))
     }
 
     pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
@@ -677,12 +656,13 @@ impl<'src> BinaryExpr<'src> {
         Self { lhs, rhs, type_value: RefCell::new(TypeValue::new(ty, value)) }
     }
 
+    /// Returns the expression's type
     pub fn ty(&self) -> Type {
         self.type_value.borrow().ty()
     }
 
     pub fn value(&self) -> ValueRef {
-        ValueRef::RefCell(Ref::map(self.type_value.borrow(), |v| &v.1))
+        ValueRef::from_refcell(Ref::map(self.type_value.borrow(), |v| &v.1))
     }
 
     pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
@@ -730,12 +710,13 @@ impl<'src> LookupIndex<'src> {
         }
     }
 
+    /// Returns the expression's type
     pub fn ty(&self) -> Type {
         self.type_value.borrow().ty()
     }
 
     pub fn value(&self) -> ValueRef {
-        ValueRef::RefCell(Ref::map(self.type_value.borrow(), |v| &v.1))
+        ValueRef::from_refcell(Ref::map(self.type_value.borrow(), |v| &v.1))
     }
 
     pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
@@ -932,9 +913,9 @@ impl<'src> Expr<'src> {
             Expr::LookupIndex(expr) => expr.value(),
             Expr::Ident(ident) => ident.value(),
 
-            Expr::Literal(l) => ValueRef::Ref(&l.value),
-            Expr::True { .. } => ValueRef::Ref(&TRUE),
-            Expr::False { .. } => ValueRef::Ref(&FALSE),
+            Expr::Literal(l) => ValueRef::from_ref(&l.value),
+            Expr::True { .. } => ValueRef::from_ref(&TRUE),
+            Expr::False { .. } => ValueRef::from_ref(&FALSE),
 
             Expr::PatternMatch(_)
             | Expr::FnCall(_)
@@ -945,7 +926,7 @@ impl<'src> Expr<'src> {
             | Expr::Entrypoint { .. }
             | Expr::PatternCount(_)
             | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => ValueRef::Ref(&UNKNOWN),
+            | Expr::PatternLength(_) => ValueRef::from_ref(&UNKNOWN),
 
             Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
                 expr.value()

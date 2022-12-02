@@ -47,18 +47,32 @@ pub(crate) const UNKNOWN: Value = Value::Unknown;
 pub(crate) const TRUE: Value = Value::Bool(true);
 pub(crate) const FALSE: Value = Value::Bool(false);
 
-pub enum ValueRef<'a> {
+enum ValueRefKind<'a> {
     RefCell(Ref<'a, Value>),
     Ref(&'a Value),
+}
+
+pub struct ValueRef<'a> {
+    reference: ValueRefKind<'a>,
+}
+
+impl<'a> ValueRef<'a> {
+    pub(crate) fn from_refcell(r: Ref<'a, Value>) -> Self {
+        Self { reference: ValueRefKind::RefCell(r) }
+    }
+
+    pub(crate) fn from_ref(r: &'a Value) -> Self {
+        Self { reference: ValueRefKind::Ref(r) }
+    }
 }
 
 impl<'a> Deref for ValueRef<'a> {
     type Target = Value;
 
     fn deref(&self) -> &Self::Target {
-        match self {
-            ValueRef::RefCell(r) => r.deref(),
-            ValueRef::Ref(r) => r,
+        match &self.reference {
+            ValueRefKind::RefCell(r) => r.deref(),
+            ValueRefKind::Ref(r) => r,
         }
     }
 }
@@ -259,7 +273,7 @@ impl Value {
     gen_comparison_op!(eq, ==);
     gen_comparison_op!(ne, !=);
 
-    pub fn not(&self) -> Value {
+    pub(crate) fn not(&self) -> Value {
         if let Value::Unknown = self {
             Value::Unknown
         } else {
@@ -267,14 +281,14 @@ impl Value {
         }
     }
 
-    pub fn bitwise_not(&self) -> Value {
+    pub(crate) fn bitwise_not(&self) -> Value {
         match self {
             Value::Integer(value) => Value::Integer(!*value),
             _ => Value::Unknown,
         }
     }
 
-    pub fn minus(&self) -> Value {
+    pub(crate) fn minus(&self) -> Value {
         match self {
             Value::Integer(value) => Value::Integer(-*value),
             Value::Float(value) => Value::Float(-*value),
@@ -282,7 +296,7 @@ impl Value {
         }
     }
 
-    pub fn ty(&self) -> Type {
+    pub(crate) fn ty(&self) -> Type {
         match self {
             Value::Unknown => Type::Unknown,
             Value::Integer(_) => Type::Integer,
@@ -296,7 +310,7 @@ impl Value {
 }
 
 impl Type {
-    pub fn boolean_op(&self, rhs: Type) -> Self {
+    pub(crate) fn boolean_op(&self, rhs: Type) -> Self {
         match (self, rhs) {
             (Type::Array(_), _) => Type::Unknown,
             (_, Type::Array(_)) => Type::Unknown,
@@ -306,7 +320,7 @@ impl Type {
         }
     }
 
-    pub fn arithmetic_op(&self, rhs: Type) -> Self {
+    pub(crate) fn arithmetic_op(&self, rhs: Type) -> Self {
         match (self, rhs) {
             (Type::Integer, Type::Integer) => Type::Integer,
             (Type::Float, Type::Integer) => Type::Float,
@@ -316,21 +330,21 @@ impl Type {
         }
     }
 
-    pub fn integer_op(&self, rhs: Type) -> Self {
+    pub(crate) fn integer_op(&self, rhs: Type) -> Self {
         match (self, rhs) {
             (Type::Integer, Type::Integer) => Type::Integer,
             _ => Type::Unknown,
         }
     }
 
-    pub fn string_op(&self, rhs: Type) -> Self {
+    pub(crate) fn string_op(&self, rhs: Type) -> Self {
         match (self, rhs) {
             (Type::String, Type::String) => Type::Bool,
             _ => Type::Unknown,
         }
     }
 
-    pub fn comparison_op(&self, rhs: Type) -> Self {
+    pub(crate) fn comparison_op(&self, rhs: Type) -> Self {
         match (self, rhs) {
             (Type::Integer, Type::Integer) => Type::Bool,
             (Type::Float, Type::Integer) => Type::Bool,

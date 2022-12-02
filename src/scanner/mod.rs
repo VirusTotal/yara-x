@@ -214,7 +214,7 @@ impl<'r> Iterator for IterNonMatches<'r> {
 
 /// Structure that holds information a about the current scan.
 pub(crate) struct ScanContext<'r> {
-    /// Vector of bits where bit N is set to 1 if the rule with RuleID = N
+    /// Vector of bits where bit N is set to 1 if the rule with RuleId = N
     /// matched. This is used for determining whether a rule has matched
     /// or not without having to iterate the `rules_matching` vector, and
     /// also for iterating over the non-matching rules in an efficient way.
