@@ -133,7 +133,7 @@ macro_rules! gen_semcheck_boolean_op {
             )?;
 
             let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(&expr.rhs.value());
+            let value = expr.lhs.value().$op(expr.rhs.value());
 
             expr.set_type_and_value(ty, value);
             Ok(expr.ty())
@@ -162,7 +162,7 @@ macro_rules! gen_semcheck_comparison_op {
             )?;
 
             let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(&expr.rhs.value());
+            let value = expr.lhs.value().$op(expr.rhs.value());
 
             expr.set_type_and_value(ty, value);
             Ok(expr.ty())
@@ -208,7 +208,7 @@ macro_rules! gen_semcheck_shift_op {
             };
 
             let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(&expr.rhs.value());
+            let value = expr.lhs.value().$op(expr.rhs.value());
 
             expr.set_type_and_value(ty, value);
             Ok(expr.ty())
@@ -234,7 +234,7 @@ macro_rules! gen_semcheck_bitwise_op {
             )?;
 
             let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(&expr.rhs.value());
+            let value = expr.lhs.value().$op(expr.rhs.value());
 
             expr.set_type_and_value(ty, value);
             Ok(expr.ty())
@@ -263,7 +263,7 @@ macro_rules! gen_semcheck_string_op {
 
             let ty = lhs_ty.$op(rhs_ty);
             let value =
-                expr.lhs.value().$op(&expr.rhs.value(), case_insensitive);
+                expr.lhs.value().$op(expr.rhs.value(), case_insensitive);
 
             expr.set_type_and_value(ty, value);
             Ok(expr.ty())
@@ -291,7 +291,7 @@ macro_rules! gen_semcheck_arithmetic_op {
             )?;
 
            let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(&expr.rhs.value());
+            let value = expr.lhs.value().$op(expr.rhs.value());
 
             expr.set_type_and_value(ty, value);
             Ok(expr.ty())
