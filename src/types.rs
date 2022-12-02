@@ -1,7 +1,8 @@
+use std::cell::Ref;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
+use std::ops::{BitAnd, Deref};
 use std::sync::Arc;
 
 use bstr::{BString, ByteSlice};
@@ -9,7 +10,7 @@ use bstr::{BString, ByteSlice};
 use crate::symbols::{SymbolIndex, SymbolLookup};
 
 /// Type of a YARA expression or identifier.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Type {
     Unknown,
     Integer,
@@ -20,7 +21,7 @@ pub enum Type {
     Array(ArrayItemType),
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum ArrayItemType {
     Unknown,
     Integer,
@@ -40,6 +41,26 @@ pub enum Value {
     String(BString),
     Struct(Arc<dyn SymbolLookup + Send + Sync>),
     Array(Arc<dyn SymbolIndex + Send + Sync>),
+}
+
+pub(crate) const UNKNOWN: Value = Value::Unknown;
+pub(crate) const TRUE: Value = Value::Bool(true);
+pub(crate) const FALSE: Value = Value::Bool(false);
+
+pub enum ValueRef<'a> {
+    RefCell(Ref<'a, Value>),
+    Ref(&'a Value),
+}
+
+impl<'a> Deref for ValueRef<'a> {
+    type Target = Value;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ValueRef::RefCell(r) => r.deref(),
+            ValueRef::Ref(r) => r,
+        }
+    }
 }
 
 macro_rules! cast_to_bool {
@@ -96,10 +117,7 @@ macro_rules! gen_arithmetic_op {
                 (Self::Float(lhs), Self::Float(rhs)) => {
                     Self::Float(lhs $op rhs)
                 }
-                _ => panic!(
-                    "unsupported `{}` operation for {:?} and {:?}",
-                    stringify!($name), self, rhs
-                ),
+                _ => Self::Unknown,
             }
         }
     };
@@ -113,12 +131,7 @@ macro_rules! gen_bitwise_op {
                 (Self::Integer(lhs), Self::Integer(rhs)) => {
                     Self::Integer(lhs.$op(rhs))
                 }
-                _ => panic!(
-                    "unsupported `{}` operation for {:?} and {:?}",
-                    stringify!($name),
-                    self,
-                    rhs
-                ),
+                _ => Self::Unknown,
             }
         }
     };
@@ -151,12 +164,7 @@ macro_rules! gen_shift_op {
 
                     Self::Integer(value)
                 }
-                _ => panic!(
-                    "unsupported `{}` operation for {:?} and {:?}",
-                    stringify!($name),
-                    self,
-                    rhs
-                ),
+                _ => Self::Unknown,
             }
         }
     };
@@ -180,12 +188,7 @@ macro_rules! gen_string_op {
                         Value::Bool((&lhs).$op(&rhs))
                     }
                 }
-                _ => panic!(
-                    "unsupported `{}` operation for {:?} and {:?}",
-                    stringify!($name),
-                    self,
-                    rhs
-                ),
+                _ => Self::Unknown,
             }
         }
     };
@@ -201,12 +204,7 @@ macro_rules! gen_comparison_op {
                 (Self::Float(lhs), Self::Integer(rhs)) => Value::Bool(*lhs $op (*rhs as f64)),
                 (Self::Float(lhs), Self::Float(rhs)) => Value::Bool(lhs $op rhs),
                 (Self::String(lhs), Self::String(rhs)) => Value::Bool(lhs $op rhs),
-                _ => panic!(
-                    "unsupported `{}` operation for {:?} and {:?}",
-                    stringify!($name),
-                    self,
-                    rhs
-                ),
+                _ => Self::Unknown,
             }
         }
     };
@@ -242,14 +240,17 @@ impl Value {
     gen_comparison_op!(ne, !=);
 
     pub fn not(&self) -> Value {
-        let value = cast_to_bool!(self);
-        Value::Bool(value)
+        if let Value::Unknown = self {
+            Value::Unknown
+        } else {
+            Value::Bool(!cast_to_bool!(self))
+        }
     }
 
     pub fn bitwise_not(&self) -> Value {
         match self {
             Value::Integer(value) => Value::Integer(!*value),
-            _ => panic!("unsupported `bitwise_not` operation for {:?}", self,),
+            _ => Value::Unknown,
         }
     }
 
@@ -257,7 +258,7 @@ impl Value {
         match self {
             Value::Integer(value) => Value::Integer(-*value),
             Value::Float(value) => Value::Float(-*value),
-            _ => panic!("unsupported `bitwise_not` operation for {:?}", self,),
+            _ => Value::Unknown,
         }
     }
 
@@ -274,7 +275,163 @@ impl Value {
     }
 }
 
-pub(crate) struct TypeValue(pub Type, pub Option<Value>);
+impl Type {
+    pub fn boolean_op(&self, rhs: Type) -> Self {
+        match (self, rhs) {
+            (Type::Array(_), _) => Type::Unknown,
+            (_, Type::Array(_)) => Type::Unknown,
+            (Type::Struct, _) => Type::Unknown,
+            (_, Type::Struct) => Type::Unknown,
+            _ => Type::Bool,
+        }
+    }
+
+    pub fn arithmetic_op(&self, rhs: Type) -> Self {
+        match (self, rhs) {
+            (Type::Integer, Type::Integer) => Type::Integer,
+            (Type::Float, Type::Integer) => Type::Float,
+            (Type::Integer, Type::Float) => Type::Float,
+            (Type::Float, Type::Float) => Type::Float,
+            _ => Type::Unknown,
+        }
+    }
+
+    pub fn integer_op(&self, rhs: Type) -> Self {
+        match (self, rhs) {
+            (Type::Integer, Type::Integer) => Type::Integer,
+            _ => Type::Unknown,
+        }
+    }
+
+    pub fn string_op(&self, rhs: Type) -> Self {
+        match (self, rhs) {
+            (Type::String, Type::String) => Type::Bool,
+            _ => Type::Unknown,
+        }
+    }
+
+    pub fn comparison_op(&self, rhs: Type) -> Self {
+        match (self, rhs) {
+            (Type::Integer, Type::Integer) => Type::Bool,
+            (Type::Float, Type::Integer) => Type::Bool,
+            (Type::Integer, Type::Float) => Type::Bool,
+            (Type::Float, Type::Float) => Type::Bool,
+            (Type::String, Type::String) => Type::Bool,
+            (Type::Bool, Type::Bool) => Type::Bool,
+            _ => Type::Unknown,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn and(&self, rhs: Type) -> Self {
+        self.boolean_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn or(&self, rhs: Type) -> Self {
+        self.boolean_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn add(&self, rhs: Type) -> Self {
+        self.arithmetic_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn sub(&self, rhs: Type) -> Self {
+        self.arithmetic_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn mul(&self, rhs: Type) -> Self {
+        self.arithmetic_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn div(&self, rhs: Type) -> Self {
+        self.arithmetic_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn rem(&self, rhs: Type) -> Self {
+        self.arithmetic_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn shl(&self, rhs: Type) -> Self {
+        self.integer_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn shr(&self, rhs: Type) -> Self {
+        self.integer_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn bitwise_and(&self, rhs: Type) -> Self {
+        self.integer_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn bitwise_or(&self, rhs: Type) -> Self {
+        self.integer_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn bitwise_xor(&self, rhs: Type) -> Self {
+        self.integer_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn contains_str(&self, rhs: Type) -> Self {
+        self.string_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn starts_with_str(&self, rhs: Type) -> Self {
+        self.string_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn ends_with_str(&self, rhs: Type) -> Self {
+        self.string_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn equals_str(&self, rhs: Type) -> Self {
+        self.string_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn gt(&self, rhs: Type) -> Self {
+        self.comparison_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn lt(&self, rhs: Type) -> Self {
+        self.comparison_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn ge(&self, rhs: Type) -> Self {
+        self.comparison_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn le(&self, rhs: Type) -> Self {
+        self.comparison_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn eq(&self, rhs: Type) -> Self {
+        self.comparison_op(rhs)
+    }
+
+    #[inline]
+    pub(crate) fn ne(&self, rhs: Type) -> Self {
+        self.comparison_op(rhs)
+    }
+}
 
 /// Compares two YARA values.
 ///
@@ -301,27 +458,39 @@ impl PartialEq for Value {
     }
 }
 
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 impl Debug for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unknown => write!(f, "Unknown"),
-            Self::Bool(v) => write!(f, "Bool({:?})", v),
-            Self::Integer(v) => write!(f, "Integer({:?})", v),
-            Self::Float(v) => write!(f, "Float({:?})", v),
-            Self::String(v) => write!(f, "String({:?})", v),
-            Self::Struct(_) => write!(f, "Struct"),
-            Self::Array(_) => write!(f, "Array"),
+            Self::Unknown => write!(f, "unknown"),
+            Self::Bool(v) => write!(f, "boolean({:?})", v),
+            Self::Integer(v) => write!(f, "integer({:?})", v),
+            Self::Float(v) => write!(f, "float({:?})", v),
+            Self::String(v) => write!(f, "string({:?})", v),
+            Self::Struct(_) => write!(f, "struct"),
+            Self::Array(_) => write!(f, "array"),
         }
     }
 }
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Debug for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Unknown => write!(f, "unknown"),
             Type::Integer => write!(f, "integer"),
             Type::Float => write!(f, "float"),
-            Type::Bool => write!(f, "bool"),
+            Type::Bool => write!(f, "boolean"),
             Type::String => write!(f, "string"),
             Type::Struct => write!(f, "struct"),
             Type::Array(_) => write!(f, "array"),

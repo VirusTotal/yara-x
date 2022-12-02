@@ -2,21 +2,21 @@
 mod span;
 
 use std::borrow::{Borrow, Cow};
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Deref;
-use std::pin::Pin;
 
 use ascii_tree::Tree::Node;
 use bitmask::bitmask;
-use bstr::{BStr, BString};
+use bstr::BStr;
 use yara_macros::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
-use crate::types::{ArrayItemType, Type, Value};
+use crate::types::ValueRef;
+use crate::types::{Type, Value};
+use crate::types::{FALSE, TRUE, UNKNOWN};
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
@@ -517,21 +517,29 @@ impl<'src> Ident<'src> {
 
     /// Returns the identifier's [`Type`].
     pub fn ty(&self) -> Type {
-        self.ty.borrow().clone()
+        *self.ty.borrow()
     }
 
     /// Returns the identifier's [`Value`].
-    pub fn value(&self) -> &Value {
-        self.value.borrow().deref()
+    pub fn value(&self) -> ValueRef {
+        ValueRef::RefCell(self.value.borrow())
     }
 
-    pub(crate) fn set_type(&self, ty: Type) -> &Self {
-        self.ty.replace(ty);
-        self
-    }
-
-    pub(crate) fn set_value(&self, value: Value) -> &Self {
+    pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
+        if !matches!(value, Value::Unknown) {
+            // If the value is known, its type must match the given type.
+            if value.ty() != ty {
+                panic!("mistmatching type `{:?}` and value `{:?}", ty, value);
+            }
+        }
         self.value.replace(value);
+        let old_ty = self.ty.replace(ty);
+        if old_ty != Type::Unknown && old_ty != ty {
+            panic!(
+                "setting type `{:?}` to expression that was previously `{:?}",
+                ty, old_ty
+            );
+        }
         self
     }
 }
@@ -617,49 +625,45 @@ pub struct UnaryExpr<'src> {
 }
 
 impl<'src> UnaryExpr<'src> {
-    pub(crate) fn with_type(
+    pub(crate) fn new(
         operand: Expr<'src>,
         span: Span,
         ty: Type,
-    ) -> Self {
-        Self {
-            span,
-            operand,
-            ty: RefCell::new(ty),
-            value: RefCell::new(Value::Unknown),
-        }
-    }
-
-    pub(crate) fn with_value(
-        operand: Expr<'src>,
-        span: Span,
         value: Value,
     ) -> Self {
         Self {
             span,
             operand,
-            ty: RefCell::new(value.ty()),
+            ty: RefCell::new(ty),
             value: RefCell::new(value),
         }
     }
 
     /// Returns the expression's [`Type`].
     pub fn ty(&self) -> Type {
-        self.ty.borrow().clone()
+        *self.ty.borrow()
     }
 
     /// Returns the expression's [`Value`].
-    pub fn value(&self) -> &Value {
-        self.value.borrow().deref()
+    pub fn value(&self) -> ValueRef {
+        ValueRef::RefCell(self.value.borrow())
     }
 
-    pub(crate) fn set_type(&self, ty: Type) -> &Self {
-        self.ty.replace(ty);
-        self
-    }
-
-    pub(crate) fn set_value(&self, value: Value) -> &Self {
+    pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
+        if !matches!(value, Value::Unknown) {
+            // If the value is known, its type must match the given type.
+            if value.ty() != ty {
+                panic!("mistmatching type `{:?}` and value `{:?}", ty, value);
+            }
+        }
         self.value.replace(value);
+        let old_ty = self.ty.replace(ty);
+        if old_ty != Type::Unknown && old_ty != ty {
+            panic!(
+                "setting type `{:?}` to expression that was previously `{:?}",
+                ty, old_ty
+            );
+        }
         self
     }
 }
@@ -676,56 +680,38 @@ pub struct BinaryExpr<'src> {
 }
 
 impl<'src> BinaryExpr<'src> {
-    pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
-        Self {
-            lhs,
-            rhs,
-            ty: RefCell::new(Type::Unknown),
-            value: RefCell::new(Value::Unknown),
-        }
-    }
-
-    pub(crate) fn with_type(
+    pub(crate) fn new(
         lhs: Expr<'src>,
         rhs: Expr<'src>,
         ty: Type,
-    ) -> Self {
-        Self {
-            lhs,
-            rhs,
-            ty: RefCell::new(ty),
-            value: RefCell::new(Value::Unknown),
-        }
-    }
-
-    pub(crate) fn with_value(
-        lhs: Expr<'src>,
-        rhs: Expr<'src>,
         value: Value,
     ) -> Self {
-        Self {
-            lhs,
-            rhs,
-            ty: RefCell::new(value.ty()),
-            value: RefCell::new(value),
-        }
+        Self { lhs, rhs, ty: RefCell::new(ty), value: RefCell::new(value) }
     }
 
     pub fn ty(&self) -> Type {
-        self.ty.borrow().clone()
+        *self.ty.borrow()
     }
 
-    pub fn value(&self) -> &Value {
-        self.value.borrow().deref()
+    pub fn value(&self) -> ValueRef {
+        ValueRef::RefCell(self.value.borrow())
     }
 
-    pub(crate) fn set_type(&self, ty: Type) -> &Self {
-        self.ty.replace(ty);
-        self
-    }
-
-    pub(crate) fn set_value(&self, value: Value) -> &Self {
+    pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
+        if !matches!(value, Value::Unknown) {
+            // If the value is known, its type must match the given type.
+            if value.ty() != ty {
+                panic!("mistmatching type `{:?}` and value `{:?}", ty, value);
+            }
+        }
         self.value.replace(value);
+        let old_ty = self.ty.replace(ty);
+        if old_ty != Type::Unknown && old_ty != ty {
+            panic!(
+                "setting type `{:?}` to expression that was previously `{:?}",
+                ty, old_ty
+            );
+        }
         self
     }
 }
@@ -765,20 +751,28 @@ impl<'src> LookupIndex<'src> {
     }
 
     pub fn ty(&self) -> Type {
-        self.ty.borrow().clone()
+        *self.ty.borrow()
     }
 
-    pub fn value(&self) -> &Value {
-        self.value.borrow().deref()
+    pub fn value(&self) -> ValueRef {
+        ValueRef::RefCell(self.value.borrow())
     }
 
-    pub(crate) fn set_type(&self, ty: Type) -> &Self {
-        self.ty.replace(ty);
-        self
-    }
-
-    pub(crate) fn set_value(&self, value: Value) -> &Self {
+    pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
+        if !matches!(value, Value::Unknown) {
+            // If the value is known, its type must match the given type.
+            if value.ty() != ty {
+                panic!("mistmatching type `{:?}` and value `{:?}", ty, value);
+            }
+        }
         self.value.replace(value);
+        let old_ty = self.ty.replace(ty);
+        if old_ty != Type::Unknown && old_ty != ty {
+            panic!(
+                "setting type `{:?}` to expression that was previously `{:?}",
+                ty, old_ty
+            );
+        }
         self
     }
 }
@@ -878,10 +872,6 @@ impl PatternSetItem<'_> {
     }
 }
 
-const UNKNOWN: Value = Value::Unknown;
-const TRUE: Value = Value::Bool(true);
-const FALSE: Value = Value::Bool(false);
-
 impl<'src> Expr<'src> {
     pub fn ty(&self) -> Type {
         match self {
@@ -937,10 +927,10 @@ impl<'src> Expr<'src> {
         }
     }
 
-    pub fn value(&self) -> &Value {
+    pub fn value(&self) -> ValueRef {
         match self {
-            Expr::True { .. } => &TRUE,
-            Expr::False { .. } => &FALSE,
+            Expr::True { .. } => ValueRef::Ref(&TRUE),
+            Expr::False { .. } => ValueRef::Ref(&FALSE),
 
             Expr::PatternMatch(_)
             | Expr::FnCall(_)
@@ -951,9 +941,9 @@ impl<'src> Expr<'src> {
             | Expr::Entrypoint { .. }
             | Expr::PatternCount(_)
             | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => &UNKNOWN,
+            | Expr::PatternLength(_) => ValueRef::Ref(&UNKNOWN),
 
-            Expr::Literal(l) => &l.value,
+            Expr::Literal(l) => ValueRef::Ref(&l.value),
 
             Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
                 expr.value()

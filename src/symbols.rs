@@ -473,12 +473,8 @@ mod tests {
         );
 
         assert_eq!(
-            test.lookup("Enumeration")
-                .lookup("ITEM_1")
-                .unwrap()
-                .value()
-                .unwrap(),
-            &Value::Integer(Enumeration::ITEM_1.value() as i64)
+            *test.lookup("Enumeration").lookup("ITEM_1").unwrap().value(),
+            Value::Integer(Enumeration::ITEM_1.value() as i64)
         );
     }
 
@@ -535,33 +531,36 @@ mod tests {
             Test::descriptor().parse_from_bytes(buf.as_slice()).unwrap();
 
         assert_eq!(
-            message_dyn.lookup("int32_zero").unwrap().value(),
-            Some(&Value::Integer(0))
+            *message_dyn.lookup("int32_zero").unwrap().value(),
+            Value::Integer(0)
         );
 
         assert_eq!(
-            message_dyn.lookup("int32_one").unwrap().value(),
-            Some(&Value::Integer(1))
+            *message_dyn.lookup("int32_one").unwrap().value(),
+            Value::Integer(1)
         );
 
         assert_eq!(
-            message_dyn.lookup("string_foo").unwrap().value(),
-            Some(&Value::String(BString::from("foo")))
+            *message_dyn.lookup("string_foo").unwrap().value(),
+            Value::String(BString::from("foo"))
         );
 
         assert_eq!(
-            message_dyn.lookup("nested").lookup("int32_zero").unwrap().value(),
-            Some(&Value::Integer(0))
+            *message_dyn
+                .lookup("nested")
+                .lookup("int32_zero")
+                .unwrap()
+                .value(),
+            Value::Integer(0)
         );
 
         assert_eq!(
-            message_dyn
+            *message_dyn
                 .lookup("Enumeration")
                 .lookup("ITEM_1")
                 .unwrap()
-                .value()
-                .unwrap(),
-            &Value::Integer(Enumeration::ITEM_1.value() as i64)
+                .value(),
+            Value::Integer(Enumeration::ITEM_1.value() as i64)
         );
     }
 }

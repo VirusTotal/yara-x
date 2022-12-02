@@ -175,12 +175,12 @@ impl Compiler {
                 semcheck!(
                     &mut ctx,
                     Type::Bool | Type::Integer | Type::Float | Type::String,
-                    &mut rule.condition
+                    &rule.condition
                 )?;
 
                 // However, if the condition's result is not a boolean and must
                 // be casted, raise a warning about it.
-                warning_if_not_boolean(&mut ctx, &mut rule.condition);
+                warning_if_not_boolean(&mut ctx, &rule.condition);
 
                 // TODO: add rule name to declared identifiers.
 

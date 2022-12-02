@@ -185,7 +185,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq : boolean(unknown)
+             └─ eq : unknown(unknown)
                 ├─ <struct>.<field>
                 │  ├─ <struct>
                 │  │  └─ <expr>[<index>]

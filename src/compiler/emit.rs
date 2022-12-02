@@ -7,12 +7,10 @@ use walrus::ir::{BinaryOp, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
 
-use crate::ast::{
-    Expr, ForIn, Iterable, Literal, MatchAnchor, Quantifier, Range,
-};
+use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
 use crate::compiler::{Context, IdentId};
 use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
-use crate::types::{Type, Value};
+use crate::types::{Type, Value, ValueRef};
 
 /// This macro emits a constant if the type hint indicates that the expression
 /// has a constant value (e.i: the value is known at compile time), if not,
@@ -42,9 +40,9 @@ use crate::types::{Type, Value};
 /// instruction that sums the results from both operands.
 ///
 macro_rules! emit_const_or_code {
-    ($ctx:ident, $instr:ident, $value:expr, $code:block) => {{
+    ($ctx:ident, $instr:ident, $value_ref:expr, $code:block) => {{
         if cfg!(feature = "compile-time-optimization") {
-            match $value {
+            match &*$value_ref {
                 Value::Bool(value) => {
                     $instr.i32_const((*value) as i32);
                 }

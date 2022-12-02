@@ -61,9 +61,9 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> ascii_tree::Tree {
 /// Returns a representation of the expression as an ASCII tree.
 pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
     let value = {
-        let value = expr.value();
+        let value = &*expr.value();
         if matches!(value, Value::Unknown) {
-            "".to_string()
+            format!(" : {:?}(unknown)", expr.ty())
         } else {
             format!(" : {:?}", value)
         }

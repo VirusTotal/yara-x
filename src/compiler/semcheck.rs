@@ -39,7 +39,7 @@ macro_rules! semcheck_operands {
 
         // Both types must be known.
         assert!(!matches!(ty1, Type::Unknown));
-        assert!(!matches!(ty1,  Type::Unknown));
+        assert!(!matches!(ty2, Type::Unknown));
 
         let types_are_compatible = {
             // If the types are the same, they are compatible.
@@ -71,8 +71,8 @@ macro_rules! check_non_negative_integer {
     ($ctx:ident, $expr:expr) => {{
         let span = $expr.span();
         let ty = semcheck!($ctx, Type::Integer, $expr)?;
-        if let Value::Integer(value) = $expr.value() {
-            if *value < 0 {
+        if let Value::Integer(value) = *$expr.value() {
+            if value < 0 {
                 return Err(Error::CompileError(
                     CompileError::unexpected_negative_number(
                         $ctx.report_builder,
@@ -92,8 +92,8 @@ macro_rules! check_integer_in_range {
     ($ctx:ident, $expr:expr, $min:expr, $max:expr) => {{
         let span = $expr.span();
         let ty = semcheck!($ctx, Type::Integer, $expr)?;
-        if let Value::Integer(value) = $expr.value() {
-            if !($min..=$max).contains(value) {
+        if let Value::Integer(value) = *$expr.value() {
+            if !($min..=$max).contains(&value) {
                 return Err(Error::CompileError(
                     CompileError::number_out_of_range(
                         $ctx.report_builder,
@@ -120,7 +120,7 @@ macro_rules! gen_semcheck_boolean_op {
             warning_if_not_boolean(ctx, &expr.lhs);
             warning_if_not_boolean(ctx, &expr.rhs);
 
-            semcheck_operands!(
+            let (lhs_ty, rhs_ty) = semcheck_operands!(
                 ctx,
                 &expr.lhs,
                 &expr.rhs,
@@ -132,9 +132,12 @@ macro_rules! gen_semcheck_boolean_op {
                 &[Type::Bool, Type::Integer, Type::Float, Type::String]
             )?;
 
-            expr.set_value(expr.lhs.value().$op(expr.rhs.value()));
+            expr.set_type_and_value(
+                lhs_ty.$op(rhs_ty),
+                expr.lhs.value().$op(&expr.rhs.value()),
+            );
 
-            Ok(Type::Bool)
+            Ok(expr.ty())
         }
     };
 }
@@ -148,7 +151,7 @@ macro_rules! gen_semcheck_comparison_op {
             ctx: &mut Context,
             expr: &Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-            semcheck_operands!(
+            let (lhs_ty, rhs_ty) = semcheck_operands!(
                 ctx,
                 &expr.lhs,
                 &expr.rhs,
@@ -159,9 +162,12 @@ macro_rules! gen_semcheck_comparison_op {
                 &[Type::Integer, Type::Float]
             )?;
 
-            expr.set_value(expr.lhs.value().$op(expr.rhs.value()));
+            expr.set_type_and_value(
+                lhs_ty.$op(rhs_ty),
+                expr.lhs.value().$op(&expr.rhs.value()),
+            );
 
-            Ok(Type::Bool)
+            Ok(expr.ty())
         }
     };
 }
@@ -181,10 +187,16 @@ macro_rules! gen_semcheck_shift_op {
         ) -> Result<Type, Error> {
             let span = expr.rhs.span();
 
-            semcheck_operands!(ctx, &expr.lhs, &expr.rhs, Type::Integer, &[])?;
+            let (lhs_ty, rhs_ty) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                Type::Integer,
+                &[]
+            )?;
 
-            if let Value::Integer(value) = expr.rhs.value() {
-                if *value < 0 {
+            if let Value::Integer(value) = *expr.rhs.value() {
+                if value < 0 {
                     return Err(Error::CompileError(
                         CompileError::unexpected_negative_number(
                             ctx.report_builder,
@@ -197,9 +209,12 @@ macro_rules! gen_semcheck_shift_op {
                 unreachable!();
             };
 
-            expr.set_value(expr.lhs.value().$op(expr.rhs.value()));
+            expr.set_type_and_value(
+                lhs_ty.$op(rhs_ty),
+                expr.lhs.value().$op(&expr.rhs.value()),
+            );
 
-            Ok(Type::Integer)
+            Ok(expr.ty())
         }
     };
 }
@@ -213,9 +228,20 @@ macro_rules! gen_semcheck_bitwise_op {
             ctx: &mut Context,
             expr: &Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-            semcheck_operands!(ctx, &expr.lhs, &expr.rhs, Type::Integer, &[])?;
-            expr.set_value(expr.lhs.value().$op(expr.rhs.value()));
-            Ok(Type::Integer)
+            let (lhs_ty, rhs_ty) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                Type::Integer,
+                &[]
+            )?;
+
+            expr.set_type_and_value(
+                lhs_ty.$op(rhs_ty),
+                expr.lhs.value().$op(&expr.rhs.value()),
+            );
+
+            Ok(expr.ty())
         }
     };
 }
@@ -231,13 +257,20 @@ macro_rules! gen_semcheck_string_op {
             expr: &Box<BinaryExpr>,
             case_insensitive: bool,
         ) -> Result<Type, Error> {
-            semcheck_operands!(ctx, &expr.lhs, &expr.rhs, Type::String, &[])?;
+            let (lhs_ty, rhs_ty) = semcheck_operands!(
+                ctx,
+                &expr.lhs,
+                &expr.rhs,
+                Type::String,
+                &[]
+            )?;
 
-            expr.set_value(
-                expr.lhs.value().$op(expr.rhs.value(), case_insensitive),
+            expr.set_type_and_value(
+                lhs_ty.$op(rhs_ty),
+                expr.lhs.value().$op(&expr.rhs.value(), case_insensitive),
             );
 
-            Ok(Type::Bool)
+            Ok(expr.ty())
         }
     };
 }
@@ -253,7 +286,7 @@ macro_rules! gen_semcheck_arithmetic_op {
             ctx: &mut Context,
             expr: &Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-            semcheck_operands!(
+             let (lhs_ty, rhs_ty) =semcheck_operands!(
                 ctx,
                 & expr.lhs,
                 & expr.rhs,
@@ -261,7 +294,11 @@ macro_rules! gen_semcheck_arithmetic_op {
                 &[Type::Integer, Type::Float]
             )?;
 
-            expr.set_value(expr.lhs.value().$op(expr.rhs.value()));
+            expr.set_type_and_value(
+                lhs_ty.$op(rhs_ty),
+                expr.lhs.value().$op(&expr.rhs.value()),
+            );
+
             Ok(expr.ty())
         }
     };
@@ -359,12 +396,14 @@ pub(super) fn semcheck_expr(
 
         Expr::Not(expr) => {
             warning_if_not_boolean(ctx, &expr.operand);
+            // The `not` operator accepts integers, float and strings because
+            // those types can be casted to bool.
             semcheck!(
                 ctx,
                 Type::Bool | Type::Integer | Type::Float | Type::String,
                 &expr.operand
             )?;
-            expr.set_value(expr.operand.value().not());
+            expr.set_type_and_value(Type::Bool, expr.operand.value().not());
             Ok(Type::Bool)
         }
 
@@ -383,7 +422,10 @@ pub(super) fn semcheck_expr(
 
         Expr::BitwiseNot(expr) => {
             semcheck!(ctx, Type::Integer, &expr.operand)?;
-            expr.set_value(expr.operand.value().bitwise_not());
+            expr.set_type_and_value(
+                Type::Integer,
+                expr.operand.value().bitwise_not(),
+            );
             Ok(Type::Integer)
         }
 
@@ -392,9 +434,10 @@ pub(super) fn semcheck_expr(
         Expr::BitwiseXor(expr) => semcheck_bitwise_xor(ctx, expr),
 
         Expr::Minus(expr) => {
-            semcheck!(ctx, Type::Integer | Type::Float, &expr.operand)?;
-            expr.set_value(expr.operand.value().minus());
-            Ok(expr.ty())
+            let ty =
+                semcheck!(ctx, Type::Integer | Type::Float, &expr.operand)?;
+            expr.set_type_and_value(ty, expr.operand.value().minus());
+            Ok(ty)
         }
 
         Expr::Add(expr) => semcheck_arithmetic_add(ctx, expr),
@@ -442,8 +485,7 @@ pub(super) fn semcheck_expr(
                 }
             };
 
-            ident.set_type(ty);
-            ident.set_value(value);
+            ident.set_type_and_value(ty, value);
 
             Ok(ty)
         }
@@ -454,8 +496,13 @@ pub(super) fn semcheck_expr(
             {
                 // The index must be of type integer.
                 semcheck!(ctx, Type::Integer, &expr.index)?;
+
                 // The type of array[index] is the type of the array's items.
-                expr.set_type(array_item_type.into());
+                expr.set_type_and_value(
+                    array_item_type.into(),
+                    Value::Unknown,
+                );
+
                 Ok(expr.ty())
             } else {
                 todo!()
@@ -470,7 +517,8 @@ pub(super) fn semcheck_expr(
             // to the struct.
             let ty = semcheck_expr(ctx, &expr.rhs)?;
 
-            expr.set_type(ty);
+            expr.set_type_and_value(ty, expr.rhs.value().clone());
+
             Ok(ty)
         }
 
@@ -547,7 +595,6 @@ fn semcheck_quantifier(
 
 fn semcheck_of(ctx: &mut Context, of: &Of) -> Result<Type, Error> {
     semcheck_quantifier(ctx, &of.quantifier)?;
-
     // `x of (<boolean expr>, <boolean expr>, ...)`: make sure that all
     // expressions in the tuple are actually boolean.
     if let OfItems::BoolExprTuple(ref tuple) = &of.items {
@@ -597,8 +644,8 @@ fn semcheck_of(ctx: &mut Context, of: &Of) -> Result<Type, Error> {
     // If the quantifier expression is greater than the number of items,
     // the `of` expression is always false.
     if let Quantifier::Expr(expr) = &of.quantifier {
-        if let Value::Integer(value) = expr.value() {
-            if *value > items_count {
+        if let Value::Integer(value) = *expr.value() {
+            if value > items_count {
                 ctx.warnings.push(Warning::invariant_boolean_expression(
                     ctx.report_builder,
                     ctx.src,
@@ -606,7 +653,7 @@ fn semcheck_of(ctx: &mut Context, of: &Of) -> Result<Type, Error> {
                     of.span(),
                     Some(format!(
                         "the expression requires {} matching patterns out of {}",
-                        *value, items_count
+                        value, items_count
                     )),
                 ));
             }
@@ -636,15 +683,15 @@ fn semcheck_of(ctx: &mut Context, of: &Of) -> Result<Type, Error> {
             Quantifier::All { .. } => items_count > 1,
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
-            Quantifier::Expr(ref expr) => match expr.value() {
-                Value::Integer(value) => *value >= 2,
+            Quantifier::Expr(ref expr) => match *expr.value() {
+                Value::Integer(value) => value >= 2,
                 _ => false,
             },
             // `<expr>% of <items> at <expr>: the warning is raised if the
             // <expr> percent of the items is 2 or more.
-            Quantifier::Percentage(ref expr) => match expr.value() {
+            Quantifier::Percentage(ref expr) => match *expr.value() {
                 Value::Integer(percentage) => {
-                    items_count as f64 * (*percentage) as f64 / 100.0 >= 2.0
+                    items_count as f64 * (percentage) as f64 / 100.0 >= 2.0
                 }
                 _ => false,
             },

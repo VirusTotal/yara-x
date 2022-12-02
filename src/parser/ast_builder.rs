@@ -30,15 +30,17 @@ macro_rules! expect {
 
 macro_rules! new_binary_expr {
     ($variant:expr, $op:tt, $lhs:ident, $rhs:ident) => {{
-        let value = $lhs.value().$op($rhs.value());
-        Ok($variant(Box::new(BinaryExpr::with_value($lhs, $rhs, value))))
+        let ty = $lhs.ty().$op($rhs.ty());
+        let value = $lhs.value().$op(&$rhs.value());
+        Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs, ty, value))))
     }};
 }
 
 macro_rules! new_string_expr {
     ($variant:expr,$op:ident, $lhs:ident, $rhs:ident, $case_insensitive:expr) => {{
-        let value = $lhs.value().$op($rhs.value(), $case_insensitive);
-        Ok($variant(Box::new(BinaryExpr::with_value($lhs, $rhs, value))))
+        let ty = $lhs.ty().$op($rhs.ty());
+        let value = $lhs.value().$op(&$rhs.value(), $case_insensitive);
+        Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs, ty, value))))
     }};
 }
 
@@ -52,15 +54,21 @@ fn create_unary_expr<'src>(
     let expr = match op.as_rule() {
         GrammarRule::BITWISE_NOT => {
             let value = operand.value().bitwise_not();
-            BitwiseNot(Box::new(UnaryExpr::with_value(operand, span, value)))
+            BitwiseNot(Box::new(UnaryExpr::new(
+                operand,
+                span,
+                Type::Integer,
+                value,
+            )))
         }
         GrammarRule::k_NOT => {
             let value = operand.value().not();
-            Not(Box::new(UnaryExpr::with_value(operand, span, value)))
+            Not(Box::new(UnaryExpr::new(operand, span, Type::Bool, value)))
         }
         GrammarRule::MINUS => {
+            let ty = operand.ty();
             let value = operand.value().minus();
-            Minus(Box::new(UnaryExpr::with_value(operand, span, value)))
+            Minus(Box::new(UnaryExpr::new(operand, span, ty, value)))
         }
         rule => unreachable!("{:?}", rule),
     };
@@ -73,9 +81,12 @@ fn create_binary_expr<'src>(
     rhs: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
     match op {
-        GrammarRule::DOT => {
-            Ok(FieldAccess(Box::new(BinaryExpr::new(lhs, rhs))))
-        }
+        GrammarRule::DOT => Ok(FieldAccess(Box::new(BinaryExpr::new(
+            lhs,
+            rhs,
+            Type::Unknown,
+            Value::Unknown,
+        )))),
         // Boolean
         GrammarRule::k_OR => {
             new_binary_expr!(Expr::Or, or, lhs, rhs)
@@ -1113,6 +1124,8 @@ fn primary_expr_from_cst<'src>(
                         node.as_str(),
                         node.as_span().into(),
                     ))),
+                    Type::Unknown,
+                    Value::Unknown,
                 )));
             }
 
