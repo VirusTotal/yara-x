@@ -1155,10 +1155,9 @@ fn primary_expr_from_cst<'src>(
             span: node.as_span().into(),
             literal: node.as_span().as_str(),
             ty: Type::String,
-            // TODO: allow Cow in Values?
-            value: Value::String(BString::from(
-                string_lit_from_cst(ctx, node, true)?.as_bstr(),
-            )),
+            value: Value::String(
+                string_lit_from_cst(ctx, node, true)?.into_owned(),
+            ),
         })),
         GrammarRule::float_lit => Expr::Literal(Box::new(Literal {
             span: node.as_span().into(),
