@@ -63,6 +63,26 @@ impl<'a> Deref for ValueRef<'a> {
     }
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct TypeValue(pub(crate) Type, pub(crate) Value);
+
+impl TypeValue {
+    pub(crate) fn new(ty: Type, value: Value) -> Self {
+        if !matches!(value, Value::Unknown) {
+            // If the value is known, its type must match the given type.
+            if value.ty() != ty {
+                panic!("mismatching type `{:?}` and value `{:?}", ty, value);
+            }
+        }
+        Self(ty, value)
+    }
+
+    #[inline]
+    pub(crate) fn ty(&self) -> Type {
+        self.0
+    }
+}
+
 macro_rules! cast_to_bool {
     ($value:expr) => {{
         match $value {

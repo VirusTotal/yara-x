@@ -993,10 +993,11 @@ fn boolean_term_from_cst<'src>(
                 //   ^^^^^^^^^^^^^^^
                 // The best way is using the anchor's span end.
                 span: boolean_term_span.into(),
-                identifier: Ident::with_type(
+                identifier: Ident::with_type_and_value(
                     ident_name,
                     ident.as_span().into(),
                     Type::Bool,
+                    Value::Unknown,
                 ),
                 anchor,
             }))
@@ -1800,7 +1801,7 @@ fn float_lit_from_cst<'src>(
 /// a string representing the literal. `allow_escape_char` controls whether
 /// escaped characters are accepted or not.
 ///
-/// This function returns a [`Literal<'src>`]. If the string literal doesn't
+/// This function returns a [`LStr<'src>`]. If the string literal doesn't
 /// contain escaped characters, the literal is exactly as it appears in the source
 /// code and we can return a reference to the code in the form of a &[`BStr`].
 /// However, when the literal string contains escaped characters they must be
