@@ -30,25 +30,15 @@ macro_rules! expect {
 
 macro_rules! new_binary_expr {
     ($variant:expr, $op:tt, $lhs:ident, $rhs:ident) => {{
-        let lhs = $lhs.value();
-        let rhs = $rhs.value();
-        Ok($variant(Box::new(BinaryExpr::with_value(
-            $lhs,
-            $rhs,
-            lhs.$op(rhs),
-        ))))
+        let value = $lhs.value().$op($rhs.value());
+        Ok($variant(Box::new(BinaryExpr::with_value($lhs, $rhs, value))))
     }};
 }
 
 macro_rules! new_string_expr {
     ($variant:expr,$op:ident, $lhs:ident, $rhs:ident, $case_insensitive:expr) => {{
-        let lhs = $lhs.value();
-        let rhs = $rhs.value();
-        Ok($variant(Box::new(BinaryExpr::with_value(
-            $lhs,
-            $rhs,
-            lhs.$op(rhs, $case_insensitive),
-        ))))
+        let value = $lhs.value().$op($rhs.value(), $case_insensitive);
+        Ok($variant(Box::new(BinaryExpr::with_value($lhs, $rhs, value))))
     }};
 }
 
@@ -61,22 +51,17 @@ fn create_unary_expr<'src>(
 
     let expr = match op.as_rule() {
         GrammarRule::BITWISE_NOT => {
-            BitwiseNot(Box::new(UnaryExpr::with_value(
-                operand,
-                span,
-                operand.value().bitwise_not(),
-            )))
+            let value = operand.value().bitwise_not();
+            BitwiseNot(Box::new(UnaryExpr::with_value(operand, span, value)))
         }
-        GrammarRule::k_NOT => Not(Box::new(UnaryExpr::with_value(
-            operand,
-            span,
-            operand.value().not(),
-        ))),
-        GrammarRule::MINUS => Minus(Box::new(UnaryExpr::with_value(
-            operand,
-            span,
-            operand.value().minus(),
-        ))),
+        GrammarRule::k_NOT => {
+            let value = operand.value().not();
+            Not(Box::new(UnaryExpr::with_value(operand, span, value)))
+        }
+        GrammarRule::MINUS => {
+            let value = operand.value().minus();
+            Minus(Box::new(UnaryExpr::with_value(operand, span, value)))
+        }
         rule => unreachable!("{:?}", rule),
     };
     Ok(expr)

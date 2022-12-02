@@ -213,15 +213,15 @@ pub(super) fn emit_expr(
         Expr::Entrypoint { .. } => {
             todo!()
         }
-        Expr::Literal(lit) => match lit.value {
+        Expr::Literal(lit) => match &lit.value {
             Value::Integer(value) => {
-                instr.i64_const(value);
+                instr.i64_const(*value);
             }
             Value::Float(value) => {
-                instr.f64_const(value);
+                instr.f64_const(*value);
             }
             Value::Bool(value) => {
-                instr.i32_const(value as i32);
+                instr.i32_const((*value) as i32);
             }
             Value::String(value) => {
                 // Put the literal string in the pool, or get its ID if it was
