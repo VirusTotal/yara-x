@@ -175,7 +175,7 @@ impl Compiler {
                 semcheck!(
                     &mut ctx,
                     Type::Bool | Type::Integer | Type::Float | Type::String,
-                    &rule.condition
+                    &mut rule.condition
                 )?;
 
                 // However, if the condition's result is not a boolean and must
@@ -460,7 +460,7 @@ impl<'a> Context<'a> {
 
 /// A set of YARA rules in compiled form.
 ///
-/// This is the result from [`Compiler::proto`].
+/// This is the result from [`Compiler::build`].
 pub struct CompiledRules {
     /// Pool with identifiers used in the rules. Each identifier has its
     /// own [`IdentId`], which can be used for retrieving the identifier

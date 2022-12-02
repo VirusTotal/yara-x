@@ -47,36 +47,6 @@ pub(crate) const UNKNOWN: Value = Value::Unknown;
 pub(crate) const TRUE: Value = Value::Bool(true);
 pub(crate) const FALSE: Value = Value::Bool(false);
 
-enum ValueRefKind<'a> {
-    RefCell(Ref<'a, Value>),
-    Ref(&'a Value),
-}
-
-pub struct ValueRef<'a> {
-    reference: ValueRefKind<'a>,
-}
-
-impl<'a> ValueRef<'a> {
-    pub(crate) fn from_refcell(r: Ref<'a, Value>) -> Self {
-        Self { reference: ValueRefKind::RefCell(r) }
-    }
-
-    pub(crate) fn from_ref(r: &'a Value) -> Self {
-        Self { reference: ValueRefKind::Ref(r) }
-    }
-}
-
-impl<'a> Deref for ValueRef<'a> {
-    type Target = Value;
-
-    fn deref(&self) -> &Self::Target {
-        match &self.reference {
-            ValueRefKind::RefCell(r) => r.deref(),
-            ValueRefKind::Ref(r) => r,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct TypeValue(pub(crate) Type, pub(crate) Value);
 

@@ -2,7 +2,6 @@
 mod span;
 
 use std::borrow::{Borrow, Cow};
-use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
@@ -14,8 +13,7 @@ use yara_macros::*;
 
 use crate::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
-use crate::types::{Type, Value};
-use crate::types::{TypeValue, ValueRef};
+use crate::types::{Type, TypeValue, Value};
 use crate::types::{FALSE, TRUE, UNKNOWN};
 use crate::warnings::Warning;
 
@@ -485,7 +483,7 @@ pub struct In<'src> {
 /// An identifier (e.g. `some_ident`).
 #[derive(Debug, Clone, HasSpan)]
 pub struct Ident<'src> {
-    pub(crate) type_value: RefCell<TypeValue>,
+    pub(crate) type_value: TypeValue,
     pub(crate) span: Span,
     pub name: &'src str,
 }
@@ -495,10 +493,7 @@ impl<'src> Ident<'src> {
         Self {
             name,
             span,
-            type_value: RefCell::new(TypeValue::new(
-                Type::Unknown,
-                Value::Unknown,
-            )),
+            type_value: TypeValue::new(Type::Unknown, Value::Unknown),
         }
     }
 
@@ -508,11 +503,7 @@ impl<'src> Ident<'src> {
         ty: Type,
         value: Value,
     ) -> Self {
-        Self {
-            name,
-            span,
-            type_value: RefCell::new(TypeValue::new(ty, value)),
-        }
+        Self { name, span, type_value: TypeValue::new(ty, value) }
     }
 
     /// Returns the identifier as a string.
@@ -522,22 +513,25 @@ impl<'src> Ident<'src> {
 
     /// Returns the identifier's type.
     pub fn ty(&self) -> Type {
-        self.type_value.borrow().ty()
+        self.type_value.0
     }
 
-    pub fn value(&self) -> ValueRef {
-        ValueRef::from_refcell(Ref::map(self.type_value.borrow(), |v| &v.1))
+    pub fn value(&self) -> &Value {
+        &self.type_value.1
     }
 
-    pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
-        let old = self.type_value.replace(TypeValue::new(ty, value));
-        if old.ty() != Type::Unknown && old.ty() != ty {
+    pub(crate) fn set_type_and_value(
+        &mut self,
+        ty: Type,
+        value: Value,
+    ) -> &Self {
+        if self.type_value.0 != Type::Unknown && self.type_value.0 != ty {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
-                ty,
-                old.ty()
+                ty, self.type_value.0
             );
         }
+        self.type_value = TypeValue::new(ty, value);
         self
     }
 }
@@ -546,10 +540,7 @@ impl<'src> Ident<'src> {
 impl<'src> From<CSTNode<'src>> for Ident<'src> {
     fn from(node: CSTNode<'src>) -> Self {
         Self {
-            type_value: RefCell::new(TypeValue::new(
-                Type::Unknown,
-                Value::Unknown,
-            )),
+            type_value: TypeValue::new(Type::Unknown, Value::Unknown),
             span: node.as_span().into(),
             name: node.as_str(),
         }
@@ -596,7 +587,7 @@ pub struct Literal<'src> {
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
     pub(crate) span: Span,
-    pub(crate) type_value: RefCell<TypeValue>,
+    pub(crate) type_value: TypeValue,
     pub operand: Expr<'src>,
 }
 
@@ -607,31 +598,30 @@ impl<'src> UnaryExpr<'src> {
         ty: Type,
         value: Value,
     ) -> Self {
-        Self {
-            span,
-            operand,
-            type_value: RefCell::new(TypeValue::new(ty, value)),
-        }
+        Self { span, operand, type_value: TypeValue::new(ty, value) }
     }
 
     /// Returns the expression's type
     pub fn ty(&self) -> Type {
-        self.type_value.borrow().ty()
+        self.type_value.0
     }
 
-    pub fn value(&self) -> ValueRef {
-        ValueRef::from_refcell(Ref::map(self.type_value.borrow(), |v| &v.1))
+    pub fn value(&self) -> &Value {
+        &self.type_value.1
     }
 
-    pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
-        let old = self.type_value.replace(TypeValue::new(ty, value));
-        if old.ty() != Type::Unknown && old.ty() != ty {
+    pub(crate) fn set_type_and_value(
+        &mut self,
+        ty: Type,
+        value: Value,
+    ) -> &Self {
+        if self.type_value.0 != Type::Unknown && self.type_value.0 != ty {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
-                ty,
-                old.ty()
+                ty, self.type_value.0
             );
         }
+        self.type_value = TypeValue::new(ty, value);
         self
     }
 }
@@ -639,7 +629,7 @@ impl<'src> UnaryExpr<'src> {
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
-    pub(crate) type_value: RefCell<TypeValue>,
+    pub(crate) type_value: TypeValue,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
@@ -653,27 +643,30 @@ impl<'src> BinaryExpr<'src> {
         ty: Type,
         value: Value,
     ) -> Self {
-        Self { lhs, rhs, type_value: RefCell::new(TypeValue::new(ty, value)) }
+        Self { lhs, rhs, type_value: TypeValue::new(ty, value) }
     }
 
     /// Returns the expression's type
     pub fn ty(&self) -> Type {
-        self.type_value.borrow().ty()
+        self.type_value.0
     }
 
-    pub fn value(&self) -> ValueRef {
-        ValueRef::from_refcell(Ref::map(self.type_value.borrow(), |v| &v.1))
+    pub fn value(&self) -> &Value {
+        &self.type_value.1
     }
 
-    pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
-        let old = self.type_value.replace(TypeValue::new(ty, value));
-        if old.ty() != Type::Unknown && old.ty() != ty {
+    pub(crate) fn set_type_and_value(
+        &mut self,
+        ty: Type,
+        value: Value,
+    ) -> &Self {
+        if self.type_value.0 != Type::Unknown && self.type_value.0 != ty {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
-                ty,
-                old.ty()
+                ty, self.type_value.0
             );
         }
+        self.type_value = TypeValue::new(ty, value);
         self
     }
 }
@@ -689,7 +682,7 @@ pub struct FnCall<'src> {
 /// An index lookup operation
 #[derive(Debug, HasSpan)]
 pub struct LookupIndex<'src> {
-    pub(crate) type_value: RefCell<TypeValue>,
+    pub(crate) type_value: TypeValue,
     pub(crate) span: Span,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
@@ -706,28 +699,31 @@ impl<'src> LookupIndex<'src> {
             primary,
             index,
             span,
-            type_value: RefCell::new(TypeValue::new(ty, Value::Unknown)),
+            type_value: TypeValue::new(ty, Value::Unknown),
         }
     }
 
     /// Returns the expression's type
     pub fn ty(&self) -> Type {
-        self.type_value.borrow().ty()
+        self.type_value.0
     }
 
-    pub fn value(&self) -> ValueRef {
-        ValueRef::from_refcell(Ref::map(self.type_value.borrow(), |v| &v.1))
+    pub fn value(&self) -> &Value {
+        &self.type_value.1
     }
 
-    pub(crate) fn set_type_and_value(&self, ty: Type, value: Value) -> &Self {
-        let old = self.type_value.replace(TypeValue::new(ty, value));
-        if old.ty() != Type::Unknown && old.ty() != ty {
+    pub(crate) fn set_type_and_value(
+        &mut self,
+        ty: Type,
+        value: Value,
+    ) -> &Self {
+        if self.type_value.0 != Type::Unknown && self.type_value.0 != ty {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
-                ty,
-                old.ty()
+                ty, self.type_value.0
             );
         }
+        self.type_value = TypeValue::new(ty, value);
         self
     }
 }
@@ -881,7 +877,7 @@ impl<'src> Expr<'src> {
         }
     }
 
-    pub fn value(&self) -> ValueRef {
+    pub fn value(&self) -> &Value {
         match self {
             Expr::FieldAccess(expr)
             | Expr::And(expr)
@@ -913,9 +909,9 @@ impl<'src> Expr<'src> {
             Expr::LookupIndex(expr) => expr.value(),
             Expr::Ident(ident) => ident.value(),
 
-            Expr::Literal(l) => ValueRef::from_ref(&l.value),
-            Expr::True { .. } => ValueRef::from_ref(&TRUE),
-            Expr::False { .. } => ValueRef::from_ref(&FALSE),
+            Expr::Literal(l) => &l.value,
+            Expr::True { .. } => &TRUE,
+            Expr::False { .. } => &FALSE,
 
             Expr::PatternMatch(_)
             | Expr::FnCall(_)
@@ -926,7 +922,7 @@ impl<'src> Expr<'src> {
             | Expr::Entrypoint { .. }
             | Expr::PatternCount(_)
             | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => ValueRef::from_ref(&UNKNOWN),
+            | Expr::PatternLength(_) => &UNKNOWN,
 
             Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
                 expr.value()
