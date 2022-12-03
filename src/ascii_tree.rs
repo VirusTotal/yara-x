@@ -29,7 +29,7 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> ascii_tree::Tree {
     if let Some(patterns) = &rule.patterns {
         rule_children.push(Node(
             "strings".to_owned(),
-            patterns.iter().map(|p| pattern_ascii_tree(p)).collect(),
+            patterns.iter().map(pattern_ascii_tree).collect(),
         ))
     }
 
@@ -61,7 +61,7 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> ascii_tree::Tree {
 /// Returns a representation of the expression as an ASCII tree.
 pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
     let value = {
-        let value = &*expr.value();
+        let value = expr.value();
         if matches!(value, Value::Unknown) {
             format!(" : {:?}(unknown)", expr.ty())
         } else {
@@ -293,7 +293,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
             let set_ascii_tree = match &of.items {
                 OfItems::PatternSet(set) => Node(
                     "<items: pattern_set>".to_string(),
-                    vec![pattern_set_ascii_tree(&set)],
+                    vec![pattern_set_ascii_tree(set)],
                 ),
                 OfItems::BoolExprTuple(set) => Node(
                     "<items: boolean_expr_set>".to_string(),

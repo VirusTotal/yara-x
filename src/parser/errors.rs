@@ -25,7 +25,7 @@ impl Error {
     ///    ╭─[line:1:18]
     ///    │
     ///  1 │ rule test : tag1 tag1 { condition: true }
-    ///    ·                  ──┬─  
+    ///    ·                  ──┬─
     ///    ·                    ╰─── duplicate tag
     /// ───╯
     /// ```
@@ -59,10 +59,10 @@ impl std::error::Error for Error {}
 pub enum ErrorInfo {
     #[error("syntax error")]
     #[label("{error_msg}", error_span)]
-    SyntaxError { 
-        detailed_report: String, 
-        error_msg: String, 
-        error_span: Span 
+    SyntaxError {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span
     },
 
     #[error("duplicate tag `{tag}`")]
@@ -75,7 +75,7 @@ pub enum ErrorInfo {
 
     #[error("duplicate rule `{rule_ident}`")]
     #[label(
-        "duplicate declaration of `{rule_ident}`", 
+        "duplicate declaration of `{rule_ident}`",
         new_rule_name_span
     )]
     #[label(
@@ -89,14 +89,14 @@ pub enum ErrorInfo {
         new_rule_name_span: Span,
         existing_rule_name_span: Span,
     },
-    
+
     #[error("duplicate pattern `{pattern_ident}`")]
     #[label(
-        "duplicate declaration of `{pattern_ident}`", 
+        "duplicate declaration of `{pattern_ident}`",
         new_pattern_span
     )]
     #[label(
-        "`{pattern_ident}` declared here for the first time", 
+        "`{pattern_ident}` declared here for the first time",
         existing_pattern_span,
         style="note"
     )]
@@ -123,7 +123,7 @@ pub enum ErrorInfo {
     },
 
     #[error(
-        "invalid modifier combination: `{modifier1}` `{modifier2}`", 
+        "invalid modifier combination: `{modifier1}` `{modifier2}`",
     )]
     #[label("`{modifier1}` modifier used here", modifier1_span)]
     #[label("`{modifier2}` modifier used here", modifier2_span)]
@@ -140,8 +140,8 @@ pub enum ErrorInfo {
     #[error("unused pattern `{pattern_ident}`")]
     #[label("this pattern was not used in the condition", pattern_ident_span)]
     UnusedPattern {
-        detailed_report: String, 
-        pattern_ident: String, 
+        detailed_report: String,
+        pattern_ident: String,
         pattern_ident_span: Span,
     },
 
@@ -194,15 +194,15 @@ pub enum ErrorInfo {
         detailed_report: String,
         error_span: Span,
     },
-    
+
     #[error("assignment mismatch")]
     #[label("this expects {expected_values} value(s)", error_span)]
     #[label("this produces {actual_values} value(s)", iterable_span)]
     AssignmentMismatch {
-        detailed_report: String, 
-        expected_values: u8, 
-        actual_values: u8, 
-        iterable_span: Span, 
+        detailed_report: String,
+        expected_values: u8,
+        actual_values: u8,
+        iterable_span: Span,
         error_span: Span},
 
 }
@@ -284,7 +284,7 @@ impl ErrorInfo {
             .filter(|&&rule| {
                 rule != GrammarRule::COMMENT && rule != GrammarRule::WHITESPACE
             })
-            .map(|rule| f(rule))
+            .map(&mut f)
             .collect();
 
         let unexpected: Vec<&str> = unexpected
@@ -292,7 +292,7 @@ impl ErrorInfo {
             .filter(|&&rule| {
                 rule != GrammarRule::COMMENT && rule != GrammarRule::WHITESPACE
             })
-            .map(|rule| f(rule))
+            .map(&mut f)
             .collect();
 
         match (unexpected.is_empty(), expected.is_empty()) {

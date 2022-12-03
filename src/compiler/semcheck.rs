@@ -69,9 +69,10 @@ macro_rules! semcheck_operands {
 
 macro_rules! check_non_negative_integer {
     ($ctx:ident, $expr:expr) => {{
-        let span = (&*$expr).span();
         let ty = semcheck!($ctx, Type::Integer, $expr)?;
-        if let Value::Integer(value) = *$expr.value() {
+        let span = (&*$expr).span();
+        let value = (&*$expr).value();
+        if let Value::Integer(value) = *value {
             if value < 0 {
                 return Err(Error::CompileError(
                     CompileError::unexpected_negative_number(
@@ -90,9 +91,10 @@ macro_rules! check_non_negative_integer {
 
 macro_rules! check_integer_in_range {
     ($ctx:ident, $expr:expr, $min:expr, $max:expr) => {{
-        let span = (&*$expr).span();
         let ty = semcheck!($ctx, Type::Integer, $expr)?;
-        if let Value::Integer(value) = *$expr.value() {
+        let span = (&*$expr).span();
+        let value = (&*$expr).value();
+        if let Value::Integer(value) = *value {
             if !($min..=$max).contains(&value) {
                 return Err(Error::CompileError(
                     CompileError::number_out_of_range(
@@ -324,14 +326,6 @@ gen_semcheck_arithmetic_op!(
 );
 
 gen_semcheck_arithmetic_op!(semcheck_arithmetic_rem, rem, Type::Integer);
-
-pub(super) fn foo(ctx: &mut Context, expr: &mut Expr) -> Result<Type, Error> {
-    semcheck!(
-        ctx,
-        Type::Bool | Type::Integer | Type::Float | Type::String,
-        expr
-    )
-}
 
 /// Makes sure that an expression is semantically valid.
 ///

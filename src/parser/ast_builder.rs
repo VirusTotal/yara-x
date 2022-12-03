@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::iter::Iterator;
 use std::str;
 
-use bstr::{BStr, BString, ByteSlice};
+use bstr::{BStr, BString};
 use lazy_static::lazy_static;
 use num::{Bounded, CheckedMul, FromPrimitive, Integer};
 use pest::iterators::Pair;

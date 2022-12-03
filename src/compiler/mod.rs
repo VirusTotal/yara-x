@@ -16,7 +16,7 @@ use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
-use crate::types::{Type, Value};
+use crate::types::Type;
 use crate::warnings::Warning;
 use crate::wasm::{ModuleBuilder, WasmSymbols};
 
@@ -434,7 +434,7 @@ impl<'a> Context<'a> {
     /// let var2 = ctx.new_var()
     /// let var3 = ctx.new_var()
     /// // Frees both var2 and var3, because var3 was allocated after var2
-    /// ctx.free_vars(var2)  
+    /// ctx.free_vars(var2)
     /// ```
     #[inline]
     fn free_vars(&mut self, top: i32) {

@@ -37,10 +37,7 @@ impl<'src> AST<'src> {
     pub fn ascii_tree(&self) -> ascii_tree::Tree {
         Node(
             "root".to_string(),
-            self.namespaces
-                .iter()
-                .map(|ns| namespace_ascii_tree(&ns))
-                .collect(),
+            self.namespaces.iter().map(namespace_ascii_tree).collect(),
         )
     }
 }
