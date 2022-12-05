@@ -9,7 +9,9 @@ use walrus::ValType::{I32, I64};
 
 use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
 use crate::compiler::{Context, IdentId};
-use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
+use crate::symbols::{
+    Location, Symbol, SymbolLookup, SymbolTable, SymbolValue,
+};
 use crate::types::{Type, Value};
 
 /// This macro emits a constant if the type hint indicates that the expression
@@ -294,7 +296,8 @@ pub(super) fn emit_expr(
                             // The identifier represents a structure, save the
                             // symbol table for this structure in the
                             // current_struct variable.
-                            if let Value::Struct(symbol_table) = symbol.value()
+                            if let SymbolValue::Struct(symbol_table) =
+                                symbol.value()
                             {
                                 ctx.borrow_mut().current_struct =
                                     Some(symbol_table.clone());
@@ -661,7 +664,7 @@ pub(super) fn emit_for_in_range(
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(
         for_in.variables.first().unwrap().as_str(),
-        Symbol::new(Type::Integer, Value::Unknown)
+        Symbol::new(Type::Integer, SymbolValue::Value(Value::Unknown))
             .set_location(Location::Memory(lower_bound)),
     );
 

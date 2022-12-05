@@ -1,3 +1,5 @@
+use bstr::{BStr, ByteSlice};
+use pest::pratt_parser::Op;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 
@@ -20,14 +22,21 @@ pub trait SymbolIndex {
 }
 
 #[derive(Clone)]
+pub enum SymbolValue {
+    Value(Value),
+    Struct(Arc<dyn SymbolLookup + Send + Sync>),
+    Array(Arc<dyn SymbolIndex + Send + Sync>),
+}
+
+#[derive(Clone)]
 pub struct Symbol {
     ty: Type,
-    value: Value,
+    value: SymbolValue,
     location: Location,
 }
 
 impl Symbol {
-    pub fn new(ty: Type, value: Value) -> Self {
+    pub fn new(ty: Type, value: SymbolValue) -> Self {
         Self { ty, value, location: Location::None }
     }
 
@@ -36,7 +45,15 @@ impl Symbol {
     ) -> Self {
         Self {
             ty: Type::Struct,
-            value: Value::Struct(symbol_table),
+            value: SymbolValue::Struct(symbol_table),
+            location: Location::None,
+        }
+    }
+
+    pub fn new_integer(i: i64) -> Self {
+        Self {
+            ty: Type::Integer,
+            value: SymbolValue::Value(Value::Integer(i)),
             location: Location::None,
         }
     }
@@ -61,7 +78,7 @@ impl Symbol {
     }
 
     #[inline]
-    pub fn value(&self) -> &Value {
+    pub fn value(&self) -> &SymbolValue {
         &self.value
     }
 
@@ -69,11 +86,27 @@ impl Symbol {
     pub fn ty(&self) -> Type {
         self.ty
     }
+
+    fn as_integer(&self) -> Option<i64> {
+        if let SymbolValue::Value(Value::Integer(i)) = self.value {
+            Some(i)
+        } else {
+            None
+        }
+    }
+
+    fn as_bstr(&self) -> Option<&BStr> {
+        if let SymbolValue::Value(Value::String(s)) = &self.value {
+            Some(s.as_bstr())
+        } else {
+            None
+        }
+    }
 }
 
 impl From<Type> for Symbol {
     fn from(ty: Type) -> Self {
-        Self::new(ty, Value::Unknown)
+        Self::new(ty, SymbolValue::Value(Value::Unknown))
     }
 }
 
@@ -118,7 +151,7 @@ impl SymbolLookup for &Module {
 impl SymbolLookup for Option<Symbol> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         if let Some(symbol) = self {
-            if let Value::Struct(s) = symbol.value() {
+            if let SymbolValue::Struct(s) = symbol.value() {
                 s.lookup(ident)
             } else {
                 None
@@ -156,7 +189,7 @@ impl SymbolLookup for MessageDescriptor {
                     let item_ty = runtime_type_to_type(ty);
                     Some(Symbol::new(
                         Type::Array(item_ty.into()),
-                        Value::Array(Arc::new(field)),
+                        SymbolValue::Array(Arc::new(field)),
                     ))
                 }
                 RuntimeFieldType::Map(_, _) => {
@@ -215,10 +248,7 @@ fn runtime_type_to_symbol(rt: RuntimeType) -> Symbol {
 impl SymbolLookup for EnumDescriptor {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let descriptor = self.value_by_name(ident)?;
-        Some(Symbol::new(
-            Type::Integer,
-            Value::Integer(descriptor.value() as i64),
-        ))
+        Some(Symbol::new_integer(descriptor.value() as i64))
     }
 }
 
@@ -250,7 +280,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             .and_then(|v| v.to_i32())
                             .map(Value::from)
                             .unwrap_or(Value::Unknown);
-                        Some(Symbol::new(Type::Integer, value))
+                        Some(Symbol::new(
+                            Type::Integer,
+                            SymbolValue::Value(value),
+                        ))
                     }
                     RuntimeType::I64 => {
                         let value = field
@@ -258,7 +291,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             .and_then(|v| v.to_i64())
                             .map(Value::from)
                             .unwrap_or(Value::Unknown);
-                        Some(Symbol::new(Type::Integer, value))
+                        Some(Symbol::new(
+                            Type::Integer,
+                            SymbolValue::Value(value),
+                        ))
                     }
                     RuntimeType::U32 => {
                         let value = field
@@ -266,7 +302,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             .and_then(|v| v.to_u32())
                             .map(Value::from)
                             .unwrap_or(Value::Unknown);
-                        Some(Symbol::new(Type::Integer, value))
+                        Some(Symbol::new(
+                            Type::Integer,
+                            SymbolValue::Value(value),
+                        ))
                     }
                     RuntimeType::U64 => {
                         todo!()
@@ -277,7 +316,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             .and_then(|v| v.to_f32())
                             .map(Value::from)
                             .unwrap_or(Value::Unknown);
-                        Some(Symbol::new(Type::Float, value))
+                        Some(Symbol::new(
+                            Type::Float,
+                            SymbolValue::Value(value),
+                        ))
                     }
                     RuntimeType::F64 => {
                         let value = field
@@ -285,7 +327,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             .and_then(|v| v.to_f64())
                             .map(Value::from)
                             .unwrap_or(Value::Unknown);
-                        Some(Symbol::new(Type::Float, value))
+                        Some(Symbol::new(
+                            Type::Float,
+                            SymbolValue::Value(value),
+                        ))
                     }
                     RuntimeType::Bool => {
                         let value = field
@@ -293,7 +338,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             .and_then(|v| v.to_bool())
                             .map(Value::from)
                             .unwrap_or(Value::Unknown);
-                        Some(Symbol::new(Type::Bool, value))
+                        Some(Symbol::new(
+                            Type::Bool,
+                            SymbolValue::Value(value),
+                        ))
                     }
                     RuntimeType::Enum(_) => {
                         let value = field
@@ -301,7 +349,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                             .and_then(|v| v.to_enum_value())
                             .map(Value::from)
                             .unwrap_or(Value::Unknown);
-                        Some(Symbol::new(Type::Integer, value))
+                        Some(Symbol::new(
+                            Type::Integer,
+                            SymbolValue::Value(value),
+                        ))
                     }
                     RuntimeType::String | RuntimeType::VecU8 => {
                         let value = if let Some(v) =
@@ -313,7 +364,10 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                         } else {
                             Value::Unknown
                         };
-                        Some(Symbol::new(Type::String, value))
+                        Some(Symbol::new(
+                            Type::String,
+                            SymbolValue::Value(value),
+                        ))
                     }
                     RuntimeType::Message(_) => Some(Symbol::new_struct(
                         Arc::new(field.get_message(self.as_ref()).clone_box()),
@@ -449,9 +503,9 @@ impl SymbolLookup for StackedSymbolTable {
 
 #[cfg(test)]
 mod tests {
-    use crate::symbols::SymbolLookup;
+    use crate::symbols::{SymbolLookup, SymbolValue};
     use crate::types::{Type, Value};
-    use bstr::BString;
+    use bstr::{BStr, BString};
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -473,8 +527,8 @@ mod tests {
         );
 
         assert_eq!(
-            *test.lookup("Enumeration").lookup("ITEM_1").unwrap().value(),
-            Value::Integer(Enumeration::ITEM_1.value() as i64)
+            test.lookup("Enumeration").lookup("ITEM_1").unwrap().as_integer(),
+            Some(Enumeration::ITEM_1.value() as i64)
         );
     }
 
@@ -531,36 +585,36 @@ mod tests {
             Test::descriptor().parse_from_bytes(buf.as_slice()).unwrap();
 
         assert_eq!(
-            *message_dyn.lookup("int32_zero").unwrap().value(),
-            Value::Integer(0)
+            message_dyn.lookup("int32_zero").unwrap().as_integer(),
+            Some(0)
         );
 
         assert_eq!(
-            *message_dyn.lookup("int32_one").unwrap().value(),
-            Value::Integer(1)
+            message_dyn.lookup("int32_one").unwrap().as_integer(),
+            Some(1)
         );
 
         assert_eq!(
-            *message_dyn.lookup("string_foo").unwrap().value(),
-            Value::String(BString::from("foo"))
+            message_dyn.lookup("string_foo").unwrap().as_bstr(),
+            Some(BStr::new(b"foo"))
         );
 
         assert_eq!(
-            *message_dyn
+            message_dyn
                 .lookup("nested")
                 .lookup("int32_zero")
                 .unwrap()
-                .value(),
-            Value::Integer(0)
+                .as_integer(),
+            Some(0)
         );
 
         assert_eq!(
-            *message_dyn
+            message_dyn
                 .lookup("Enumeration")
                 .lookup("ITEM_1")
                 .unwrap()
-                .value(),
-            Value::Integer(Enumeration::ITEM_1.value() as i64)
+                .as_integer(),
+            Some(Enumeration::ITEM_1.value() as i64)
         );
     }
 }

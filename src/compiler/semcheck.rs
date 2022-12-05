@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
-use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::symbols::{Symbol, SymbolLookup, SymbolTable, SymbolValue};
 use crate::types::{Type, Value};
 use crate::warnings::Warning;
 
@@ -284,7 +284,7 @@ macro_rules! gen_semcheck_arithmetic_op {
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-             let (lhs_ty, rhs_ty) =semcheck_operands!(
+             let (lhs_ty, rhs_ty) = semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
@@ -292,7 +292,7 @@ macro_rules! gen_semcheck_arithmetic_op {
                 &[Type::Integer, Type::Float]
             )?;
 
-           let ty = lhs_ty.$op(rhs_ty);
+            let ty = lhs_ty.$op(rhs_ty);
             let value = expr.lhs.value().$op(expr.rhs.value());
 
             expr.set_type_and_value(ty, value);
@@ -465,13 +465,15 @@ pub(super) fn semcheck_expr(
                 };
 
                 if let Some(symbol) = symbol {
-                    let value = symbol.value();
-                    if let Value::Struct(symbol_table) = value {
-                        ctx.current_struct = Some(symbol_table.clone());
-                        (Type::Struct, Value::Struct(symbol_table.clone()))
-                    } else {
-                        // TODO: check this
-                        (symbol.ty(), symbol.value().clone())
+                    match symbol.value() {
+                        SymbolValue::Struct(symbol_table) => {
+                            ctx.current_struct = Some(symbol_table.clone());
+                            (Type::Struct, Value::Unknown)
+                        }
+                        SymbolValue::Value(value) => {
+                            (symbol.ty(), value.clone())
+                        }
+                        SymbolValue::Array(_) => todo!(),
                     }
                 } else {
                     return Err(Error::CompileError(
@@ -551,8 +553,10 @@ pub(super) fn semcheck_expr(
             // TODO: raise warning when the loop identifier (e.g: "i") hides
             // an existing identifier with the same name.
             for var in &for_in.variables {
-                loop_vars
-                    .insert(var.as_str(), Symbol::new(ty, Value::Unknown));
+                loop_vars.insert(
+                    var.as_str(),
+                    Symbol::new(ty, SymbolValue::Value(Value::Unknown)),
+                );
             }
 
             // Put the loop variables into scope.

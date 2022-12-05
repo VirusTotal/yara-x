@@ -39,8 +39,6 @@ pub enum Value {
     Float(f64),
     Bool(bool),
     String(BString),
-    Struct(Arc<dyn SymbolLookup + Send + Sync>),
-    Array(Arc<dyn SymbolIndex + Send + Sync>),
 }
 
 pub(crate) const UNKNOWN: Value = Value::Unknown;
@@ -84,11 +82,6 @@ macro_rules! gen_boolean_op {
         pub(crate) fn $name(&self, rhs: &Value) -> Value {
             match (self, rhs) {
                 (Self::Unknown, _) | (_, Self::Unknown)=> Self::Unknown,
-                (Self::Struct(_), _) | (_, Self::Struct(_)) => {
-                    panic!(
-                        "unsupported `{}` operation for {:?} and {:?}",
-                        stringify!($name), self, rhs)
-                }
                 _ => {
                     let lhs = cast_to_bool!(self);
                     let rhs = cast_to_bool!(rhs);
@@ -273,8 +266,6 @@ impl Value {
             Value::Float(_) => Type::Float,
             Value::Bool(_) => Type::Bool,
             Value::String(_) => Type::String,
-            Value::Struct(_) => Type::Struct,
-            Value::Array(_) => todo!(),
         }
     }
 }
@@ -451,12 +442,6 @@ impl PartialEq for Value {
             (Self::Integer(lhs), Self::Float(rhs)) => *lhs as f64 == *rhs,
             (Self::Float(lhs), Self::Integer(rhs)) => *lhs == *rhs as f64,
             (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
-            (Self::Struct(_), Self::Struct(_)) => {
-                panic!("can't compare two structures")
-            }
-            (Self::Array(_), Self::Array(_)) => {
-                panic!("can't compare two arrays")
-            }
             _ => false,
         }
     }
@@ -476,8 +461,6 @@ impl Debug for Value {
             Self::Integer(v) => write!(f, "integer({:?})", v),
             Self::Float(v) => write!(f, "float({:?})", v),
             Self::String(v) => write!(f, "string({:?})", v),
-            Self::Struct(_) => write!(f, "struct"),
-            Self::Array(_) => write!(f, "array"),
         }
     }
 }
