@@ -44,30 +44,10 @@ impl<'r> Scanner<'r> {
             },
         );
 
-        let mut linker = wasm::LINKER.clone();
-
-        // Create an externref that wraps a shared reference to the symbol
-        // table.
-        let symbol_table_externref = ExternRef::new(
-            symbol_table as Arc<dyn SymbolLookup + Send + Sync>,
-        );
-
-        // Create a wasm global variable that stores the externref with the
-        // symbol table.
-        let symbol_table_global = Global::new(
-            &mut wasm_store,
-            GlobalType::new(ValType::ExternRef, Mutability::Const),
-            Val::ExternRef(Some(symbol_table_externref)),
-        )
-        .unwrap();
-
-        // Associate the global variable with the name "symbol_table".
-        linker.define("yr", "symbol_table", symbol_table_global).unwrap();
-
         // Instantiate the module. This takes the wasm code provided by the
         // `compiled_wasm_mod` and links its imported functions with the
         // implementations that YARA provides (see wasm.rs).
-        let wasm_instance = linker
+        let wasm_instance = wasm::LINKER
             .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
             .unwrap();
 
