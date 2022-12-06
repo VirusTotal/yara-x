@@ -263,20 +263,16 @@ pub(super) fn emit_expr(
                         .ident_pool
                         .get_or_intern(ident.as_str());
 
-                    // If there's no current structure, take the externref that
-                    // points to the global symbol table and push it into the
-                    // stack. If a current structure exists, an externref
-                    // pointing to the structure's symbol table is already
-                    // present in the stack.
+                    // If there's no current structure, emit code that sets
+                    // the global symbol table as the current one.
                     if current_struct.is_none() {
-                        instr.global_get(
-                            ctx.borrow().wasm_symbols.symbol_table,
+                        instr.call(
+                            ctx.borrow().wasm_symbols.reset_symbol_table,
                         );
                     }
 
-                    // Emit code for looking up the identifier in the global
-                    // symbol table, or in the current structure's symbol table,
-                    // whatever is at the top stack at this point.
+                    // Emit code for looking up the identifier in the current
+                    // symbol table.
                     match ident.ty() {
                         Type::Integer => {
                             emit_lookup_integer(ctx, instr, ident_id);
@@ -292,7 +288,6 @@ pub(super) fn emit_expr(
                         }
                         Type::Struct => {
                             emit_lookup_struct(ctx, instr, ident_id);
-
                             // The identifier represents a structure, save the
                             // symbol table for this structure in the
                             // current_struct variable.

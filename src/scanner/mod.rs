@@ -32,6 +32,7 @@ impl<'r> Scanner<'r> {
             &crate::wasm::ENGINE,
             ScanContext {
                 compiled_rules,
+                current_symbol_table: None,
                 symbol_table: symbol_table.clone(),
                 scanned_data: null(),
                 scanned_data_len: 0,
@@ -228,5 +229,7 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) compiled_rules: &'r CompiledRules,
     /// Symbol table that contains top-level symbols, like module names
     /// and external variables.
-    pub(crate) symbol_table: Arc<RwLock<SymbolTable>>,
+    pub(crate) symbol_table: Arc<RwLock<SymbolTable>>, // TODO: RwLock may be removed, and Rc used instead of Arc.
+
+    pub(crate) current_symbol_table: Option<Arc<dyn SymbolLookup + 'r>>,
 }
