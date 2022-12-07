@@ -13,7 +13,7 @@ use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
 use crate::ast::Namespace;
 use crate::ast::*;
 use crate::parser::{CSTNode, Context, Error, ErrorInfo, GrammarRule, CST};
-use crate::types::{ArrayItemType, Type, Value};
+use crate::types::{Type, Value};
 use crate::warnings::Warning;
 
 macro_rules! expect {
@@ -1254,7 +1254,7 @@ fn indexing_expr_from_cst<'src>(
         primary,
         index,
         span.into(),
-        Type::Array(ArrayItemType::Unknown),
+        Type::Array,
     ))))
 }
 

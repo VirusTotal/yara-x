@@ -7,9 +7,10 @@ use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
+use std::cell::RefCell;
 use std::ptr::null;
+use std::rc::Rc;
 use std::slice::Iter;
-use std::sync::{Arc, RwLock};
 use wasmtime::{
     ExternRef, Global, GlobalType, Mutability, Store, TypedFunc, Val, ValType,
 };
@@ -26,7 +27,7 @@ pub struct Scanner<'r> {
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(compiled_rules: &'r CompiledRules) -> Self {
-        let symbol_table = Arc::new(RwLock::new(SymbolTable::new()));
+        let symbol_table = Rc::new(RefCell::new(SymbolTable::new()));
 
         let mut wasm_store = Store::new(
             &crate::wasm::ENGINE,
@@ -104,9 +105,9 @@ impl<'r> Scanner<'r> {
             // structure implements the SymbolLookup trait, which is used
             // by the runtime for obtaining the values of individual fields
             // in the data structure, as they are used in the rule conditions.
-            self.wasm_store.data_mut().symbol_table.write().unwrap().insert(
+            self.wasm_store.data_mut().symbol_table.borrow_mut().insert(
                 module_name,
-                Symbol::new_struct(Arc::new(module_output)),
+                Symbol::new_struct(Rc::new(module_output)),
             );
         }
 
@@ -209,6 +210,6 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) compiled_rules: &'r CompiledRules,
     /// Symbol table that contains top-level symbols, like module names
     /// and external variables.
-    pub(crate) symbol_table: Arc<RwLock<SymbolTable<'r>>>, // TODO: RwLock may be removed, and Rc used instead of Arc.
-    pub(crate) current_symbol_table: Option<Arc<dyn SymbolLookup<'r> + 'r>>,
+    pub(crate) symbol_table: Rc<RefCell<SymbolTable<'r>>>,
+    pub(crate) current_symbol_table: Option<Rc<dyn SymbolLookup<'r> + 'r>>,
 }

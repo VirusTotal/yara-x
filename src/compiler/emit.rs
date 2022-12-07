@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::mem::size_of;
-use std::sync::Arc;
+use std::rc::Rc;
 
 use bstr::ByteSlice;
 use walrus::ir::{BinaryOp, LoadKind, MemArg, StoreKind, UnaryOp};
@@ -664,7 +664,7 @@ pub(super) fn emit_for_in_range(
     );
 
     // Put the loop variables into scope.
-    ctx.borrow_mut().symbol_table.push(Arc::new(loop_vars));
+    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
 
     // Push memory offset where lower_bound will be stored.
     instr.i32_const(lower_bound);

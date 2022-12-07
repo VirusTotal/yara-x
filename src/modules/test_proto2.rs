@@ -1,3 +1,4 @@
+use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::Test;
 
 use crate::scanner::ScanContext;
@@ -41,6 +42,14 @@ fn main(_ctx: &ScanContext) -> Test {
 
     test.set_bytes_foo("foo".as_bytes().to_vec());
     test.set_bytes_bar("bar".as_bytes().to_vec());
+
+    let mut nested = NestedProto2::new();
+    nested.set_nested_int32_zero(0);
+    nested.set_nested_int64_zero(0);
+    nested.set_nested_int32_one(1);
+    nested.set_nested_int64_one(1);
+
+    test.nested = Some(nested).into();
 
     test
 }

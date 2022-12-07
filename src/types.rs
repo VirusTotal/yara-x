@@ -18,17 +18,7 @@ pub enum Type {
     Bool,
     String,
     Struct,
-    Array(ArrayItemType),
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum ArrayItemType {
-    Unknown,
-    Integer,
-    Float,
-    Bool,
-    String,
-    Struct,
+    Array,
 }
 
 /// Value of a YARA expression or identifier.
@@ -273,8 +263,8 @@ impl Value {
 impl Type {
     pub(crate) fn boolean_op(&self, rhs: Type) -> Self {
         match (self, rhs) {
-            (Type::Array(_), _) => Type::Unknown,
-            (_, Type::Array(_)) => Type::Unknown,
+            (Type::Array, _) => Type::Unknown,
+            (_, Type::Array) => Type::Unknown,
             (Type::Struct, _) => Type::Unknown,
             (_, Type::Struct) => Type::Unknown,
             _ => Type::Bool,
@@ -480,34 +470,7 @@ impl Debug for Type {
             Type::Bool => write!(f, "boolean"),
             Type::String => write!(f, "string"),
             Type::Struct => write!(f, "struct"),
-            Type::Array(_) => write!(f, "array"),
-        }
-    }
-}
-
-impl From<ArrayItemType> for Type {
-    fn from(array_item_ty: ArrayItemType) -> Self {
-        match array_item_ty {
-            ArrayItemType::Unknown => Self::Unknown,
-            ArrayItemType::Integer => Self::Integer,
-            ArrayItemType::Float => Self::Float,
-            ArrayItemType::Bool => Self::Bool,
-            ArrayItemType::String => Self::String,
-            ArrayItemType::Struct => Self::Struct,
-        }
-    }
-}
-
-impl From<Type> for ArrayItemType {
-    fn from(ty: Type) -> Self {
-        match ty {
-            Type::Unknown => Self::Unknown,
-            Type::Integer => Self::Integer,
-            Type::Float => Self::Float,
-            Type::Bool => Self::Bool,
-            Type::String => Self::String,
-            Type::Struct => Self::Struct,
-            Type::Array(_) => panic!("array of arrays are not supported"),
+            Type::Array => write!(f, "array"),
         }
     }
 }

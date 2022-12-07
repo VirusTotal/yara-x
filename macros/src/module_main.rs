@@ -10,9 +10,10 @@ pub(crate) fn impl_module_main_macro(
     let fn_name = &input.sig.ident;
 
     let main_stub = quote! {
-        use protobuf::MessageDyn;
-        pub(crate) fn __main__(ctx: &ScanContext) -> Box<dyn MessageDyn> {
-            Box::new(#fn_name(ctx))
+        use crate::symbols::ProtoMessage;
+        use std::rc::Rc;
+        pub(crate) fn __main__(ctx: &ScanContext) -> ProtoMessage {
+            ProtoMessage::new(Rc::new(#fn_name(ctx)))
         }
     };
 

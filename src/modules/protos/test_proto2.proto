@@ -140,6 +140,8 @@ message Test {
 }
 
 message NestedProto2 {
-  optional int32      int32_zero = 1;
-  optional int64      int64_zero = 2;
+  optional int32      nested_int32_zero = 1;
+  optional int64      nested_int64_zero = 2;
+  optional int32      nested_int32_one = 3;
+  optional int64      nested_int64_one = 4;
 }

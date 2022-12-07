@@ -1,4 +1,5 @@
 use crate::scanner::ScanContext;
+use crate::symbols::ProtoMessage;
 use lazy_static::lazy_static;
 use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
@@ -11,7 +12,7 @@ pub mod protos {
 include!("modules.rs");
 
 /// Type of module's main function.
-type MainFn = fn(&ScanContext) -> Box<dyn MessageDyn>;
+type MainFn = fn(&ScanContext) -> ProtoMessage;
 
 /// Describes a YARA module.
 pub(crate) struct Module {

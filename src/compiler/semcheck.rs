@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::rc::Rc;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
@@ -493,17 +493,19 @@ pub(super) fn semcheck_expr(
         }
 
         Expr::LookupIndex(expr) => {
-            if let Type::Array(array_item_type) =
-                semcheck_expr(ctx, &mut expr.primary)?
-            {
+            semcheck_expr(ctx, &mut expr.primary)?;
+
+            if let Type::Array = semcheck_expr(ctx, &mut expr.primary)? {
                 // The index must be of type integer.
                 semcheck!(ctx, Type::Integer, &mut expr.index)?;
 
                 // The type of array[index] is the type of the array's items.
-                expr.set_type_and_value(
-                    array_item_type.into(),
-                    Value::Unknown,
-                );
+                //
+                todo!();
+                //expr.set_type_and_value(
+                //    array_item_type.into(),
+                //    Value::Unknown,
+                //);
 
                 Ok(expr.ty())
             } else {
@@ -560,7 +562,7 @@ pub(super) fn semcheck_expr(
             }
 
             // Put the loop variables into scope.
-            ctx.symbol_table.push(Arc::new(loop_vars));
+            ctx.symbol_table.push(Rc::new(loop_vars));
 
             semcheck!(ctx, Type::Bool, &mut for_in.condition)?;
 
