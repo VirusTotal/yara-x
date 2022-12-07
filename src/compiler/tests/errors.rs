@@ -442,6 +442,26 @@ rule test {
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
+    test_proto2.int64_zero[0]
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:5:5]
+   │
+ 5 │     test_proto2.int64_zero[0]
+   ·     ───────────┬──────────  
+   ·                ╰──────────── expression should be `array`, but is `integer`
+───╯
+"#,
+        ),
     ];
 
     for t in tests {

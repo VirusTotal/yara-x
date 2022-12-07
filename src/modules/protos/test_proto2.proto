@@ -137,6 +137,9 @@ message Test {
 
   optional Enumeration   enumeration = 100;
   optional NestedProto2  nested = 101;
+
+  repeated int64      array_int64 = 102;
+  repeated bool       array_bool  = 103;
 }
 
 message NestedProto2 {

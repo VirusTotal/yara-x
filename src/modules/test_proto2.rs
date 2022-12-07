@@ -43,6 +43,12 @@ fn main(_ctx: &ScanContext) -> Test {
     test.set_bytes_foo("foo".as_bytes().to_vec());
     test.set_bytes_bar("bar".as_bytes().to_vec());
 
+    test.array_int64.push(10);
+    test.array_int64.push(20);
+
+    test.array_bool.push(false);
+    test.array_bool.push(true);
+
     let mut nested = NestedProto2::new();
     nested.set_nested_int32_zero(0);
     nested.set_nested_int64_zero(0);

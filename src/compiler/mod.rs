@@ -16,13 +16,14 @@ use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
-use crate::types::Type;
 use crate::warnings::Warning;
 use crate::wasm::{ModuleBuilder, WasmSymbols};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
+use crate::symbols::{
+    StackedSymbolTable, Symbol, SymbolIndex, SymbolLookup, SymbolTable,
+};
 
 mod emit;
 mod errors;
@@ -155,7 +156,8 @@ impl<'a> Compiler<'a> {
 
                 let mut ctx = Context {
                     src: &src,
-                    current_struct: None,
+                    struct_symbol_table: None,
+                    array: None,
                     symbol_table: &mut self.symbol_table,
                     ident_pool: &mut self.ident_pool,
                     lit_pool: &mut self.lit_pool,
@@ -360,7 +362,9 @@ struct Context<'a, 'sym> {
 
     /// Symbol table for the currently active structure. When this is None
     /// symbols are looked up in `symbol_table` instead.
-    current_struct: Option<Rc<dyn SymbolLookup<'sym> + 'a>>,
+    struct_symbol_table: Option<Rc<dyn SymbolLookup<'sym> + 'a>>,
+
+    array: Option<Rc<dyn SymbolIndex<'sym> + 'a>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
     /// code.

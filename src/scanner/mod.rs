@@ -3,7 +3,7 @@
 */
 
 use crate::compiler::{CompiledRule, CompiledRules, RuleId};
-use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::symbols::{Symbol, SymbolIndex, SymbolLookup, SymbolTable};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
@@ -33,6 +33,7 @@ impl<'r> Scanner<'r> {
             &crate::wasm::ENGINE,
             ScanContext {
                 compiled_rules,
+                array: None,
                 struct_symbol_table: None,
                 symbol_table: symbol_table.clone(),
                 scanned_data: null(),
@@ -216,6 +217,8 @@ pub(crate) struct ScanContext<'r> {
     /// Symbol table for the currently active structure, if any. When this
     /// set it overrides `symbol_table`.
     pub(crate) struct_symbol_table: Option<Rc<dyn SymbolLookup<'r> + 'r>>,
+    /// Currently active array.
+    pub(crate) array: Option<Rc<dyn SymbolIndex<'r> + 'r>>,
 }
 
 impl<'r> ScanContext<'r> {

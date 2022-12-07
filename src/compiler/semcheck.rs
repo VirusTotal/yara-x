@@ -9,6 +9,7 @@ use crate::warnings::Warning;
 macro_rules! semcheck {
     ($ctx:expr, $( $accepted_types:path )|+, $expr:expr) => {
         {
+            use crate::types::Type;
             use crate::compiler::errors::Error;
             use crate::compiler::semcheck::semcheck_expr;
             let span = (&*$expr).span();
@@ -456,7 +457,7 @@ pub(super) fn semcheck_expr(
 
         Expr::Ident(ident) => {
             let (ty, value): (Type, Value) = {
-                let current_struct = ctx.current_struct.take();
+                let current_struct = ctx.struct_symbol_table.take();
 
                 let symbol = if let Some(structure) = &current_struct {
                     structure.lookup(ident.name)
@@ -466,14 +467,18 @@ pub(super) fn semcheck_expr(
 
                 if let Some(symbol) = symbol {
                     match symbol.value() {
-                        SymbolValue::Struct(symbol_table) => {
-                            ctx.current_struct = Some(symbol_table.clone());
-                            (Type::Struct, Value::Unknown)
-                        }
                         SymbolValue::Value(value) => {
                             (symbol.ty(), value.clone())
                         }
-                        SymbolValue::Array(_) => todo!(),
+                        SymbolValue::Struct(symbol_table) => {
+                            ctx.struct_symbol_table =
+                                Some(symbol_table.clone());
+                            (Type::Struct, Value::Unknown)
+                        }
+                        SymbolValue::Array(array) => {
+                            ctx.array = Some(array.clone());
+                            (Type::Array, Value::Unknown)
+                        }
                     }
                 } else {
                     return Err(Error::CompileError(
@@ -499,17 +504,22 @@ pub(super) fn semcheck_expr(
                 // The index must be of type integer.
                 semcheck!(ctx, Type::Integer, &mut expr.index)?;
 
-                // The type of array[index] is the type of the array's items.
-                //
-                todo!();
-                //expr.set_type_and_value(
-                //    array_item_type.into(),
-                //    Value::Unknown,
-                //);
+                let array = ctx.array.take().unwrap();
+                let item_type = array.item_type();
+
+                // The type of the LookupIndex expression (i.e: array[index])
+                // is the type of the array's items.
+                expr.set_type_and_value(item_type, Value::Unknown);
 
                 Ok(expr.ty())
             } else {
-                todo!()
+                Err(Error::CompileError(CompileError::wrong_type(
+                    ctx.report_builder,
+                    ctx.src,
+                    format!("`{}`", Type::Array),
+                    expr.primary.ty().to_string(),
+                    expr.primary.span(),
+                )))
             }
         }
         Expr::FieldAccess(expr) => {

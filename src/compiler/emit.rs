@@ -237,12 +237,16 @@ pub(super) fn emit_expr(
         },
         Expr::Ident(ident) => {
             emit_const_or_code!(ctx, instr, ident.value(), {
-                let current_struct = ctx.borrow_mut().current_struct.take();
+                let struct_symbol_table =
+                    ctx.borrow_mut().struct_symbol_table.take();
 
-                // Search for the symbol in the current structure, if any, or
-                // in the global symbol table, current_struct is None.
-                let symbol = if let Some(ref structure) = current_struct {
-                    structure.lookup(ident.name).unwrap()
+                // Search for the identifier in the current structure, if any,
+                // or in the global symbol table if `struct_symbol_table` is
+                // None.
+                let symbol = if let Some(ref struct_symbol_table) =
+                    struct_symbol_table
+                {
+                    struct_symbol_table.lookup(ident.name).unwrap()
                 } else {
                     ctx.borrow().symbol_table.lookup(ident.name).unwrap()
                 };
@@ -280,14 +284,25 @@ pub(super) fn emit_expr(
                         }
                         Type::Struct => {
                             emit_lookup_struct(ctx, instr, ident_id);
-                            // The identifier represents a structure, save the
-                            // symbol table for this structure in the
-                            // current_struct variable.
+                            // The identifier represents a structure, save
+                            // the symbol table for this structure in the
+                            // struct_symbol_table variable.
                             if let SymbolValue::Struct(symbol_table) =
                                 symbol.value()
                             {
-                                ctx.borrow_mut().current_struct =
+                                ctx.borrow_mut().struct_symbol_table =
                                     Some(symbol_table.clone());
+                            } else {
+                                unreachable!()
+                            }
+                        }
+                        Type::Array => {
+                            emit_lookup_array(ctx, instr, ident_id);
+
+                            if let SymbolValue::Array(array) = symbol.value() {
+                                ctx.borrow_mut().array = Some(array.clone())
+                            } else {
+                                unreachable!()
                             }
                         }
                         _ => {
@@ -332,8 +347,20 @@ pub(super) fn emit_expr(
         Expr::PatternLength(_) => {
             // TODO
         }
-        Expr::LookupIndex(_) => {
-            // TODO
+        Expr::LookupIndex(operands) => {
+            emit_const_or_code!(ctx, instr, expr.value(), {
+                // Emit the code for the index expression. Leaves the index
+                // in the stack.
+                emit_expr(ctx, instr, &operands.index);
+                // Emit code for the expression that is being indexed.
+                emit_expr(ctx, instr, &operands.primary);
+
+                emit_call_and_handle_undef(
+                    ctx,
+                    instr,
+                    ctx.borrow().wasm_symbols.integer_array_indexing,
+                );
+            })
         }
         Expr::FieldAccess(operands) => {
             emit_const_or_code!(ctx, instr, expr.value(), {
@@ -1157,6 +1184,16 @@ pub(super) fn emit_lookup_struct(
 ) {
     instr.i64_const(Into::<u32>::into(ident_id) as i64);
     instr.call(ctx.borrow().wasm_symbols.lookup_struct);
+}
+
+#[inline]
+pub(super) fn emit_lookup_array(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    ident_id: IdentId,
+) {
+    instr.i64_const(Into::<u32>::into(ident_id) as i64);
+    instr.call(ctx.borrow().wasm_symbols.lookup_array);
 }
 
 // Emits code that checks if the top of the stack is non-zero and executes

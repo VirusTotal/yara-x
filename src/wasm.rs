@@ -28,7 +28,7 @@ use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
 use crate::compiler::{IdentId, LiteralId, PatternId, RuleId};
 use crate::scanner::ScanContext;
-use crate::symbols::SymbolValue;
+use crate::symbols::{Symbol, SymbolValue};
 use crate::types::Value;
 
 /// Builds the WebAssembly module for a set of compiled rules.
@@ -139,6 +139,14 @@ impl ModuleBuilder {
         let (lookup_struct, _) =
             module.add_import_func("yr", "lookup_struct", ty);
 
+        let ty = module.types.add(&[I64], &[]);
+        let (lookup_array, _) =
+            module.add_import_func("yr", "lookup_array", ty);
+
+        let ty = module.types.add(&[I64], &[I64, I32]);
+        let (integer_array_indexing, _) =
+            module.add_import_func("yr", "integer_array_indexing", ty);
+
         let wasm_symbols = WasmSymbols {
             rule_match,
             is_pat_match,
@@ -150,6 +158,8 @@ impl ModuleBuilder {
             lookup_bool,
             lookup_string,
             lookup_struct,
+            lookup_array,
+            integer_array_indexing,
             str_eq,
             str_ne,
             str_lt,
@@ -397,6 +407,9 @@ pub(crate) struct WasmSymbols {
     pub lookup_bool: walrus::FunctionId,
     pub lookup_string: walrus::FunctionId,
     pub lookup_struct: walrus::FunctionId,
+    pub lookup_array: walrus::FunctionId,
+
+    pub integer_array_indexing: walrus::FunctionId,
 
     /// String comparison functions.
     /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
@@ -458,6 +471,10 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     linker.func_wrap("yr", "lookup_bool", lookup_bool).unwrap();
     linker.func_wrap("yr", "lookup_string", lookup_string).unwrap();
     linker.func_wrap("yr", "lookup_struct", lookup_struct).unwrap();
+    linker.func_wrap("yr", "lookup_array", lookup_array).unwrap();
+    linker
+        .func_wrap("yr", "integer_array_indexing", integer_array_indexing)
+        .unwrap();
 
     linker
 }
@@ -624,6 +641,30 @@ pub(crate) fn lookup_struct(
         };
 }
 
+pub(crate) fn lookup_array(
+    mut caller: Caller<'_, ScanContext>,
+    ident_id: i64,
+) {
+    let ident = caller
+        .data()
+        .compiled_rules
+        .ident_pool()
+        .get(IdentId::from(ident_id as u32))
+        .unwrap();
+
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+    let symbol = scan_ctx.lookup(ident);
+
+    scan_ctx.array = if let SymbolValue::Array(array) = symbol.value() {
+        Some(array.to_owned())
+    } else {
+        // This should not happen, the symbol with the given identifier
+        // must exist and be an array.
+        unreachable!()
+    };
+}
+
 /// Macro that generates functions similar to [`lookup_struct`] and
 /// [`lookup_string`] but for integers, floats and booleans.
 macro_rules! lookup_ident_fn {
@@ -631,7 +672,7 @@ macro_rules! lookup_ident_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             ident_id: i64,
-        ) -> ($return_type, i32) {
+        ) -> MaybeUndef<$return_type> {
             let mut store_ctx = caller.as_context_mut();
             let scan_ctx = store_ctx.data_mut();
 
@@ -717,4 +758,23 @@ pub(crate) fn str_len(
     let string = string_ref.data().downcast_ref::<RuntimeString>().unwrap();
 
     string.len(caller.data()) as i64
+}
+
+pub(crate) fn integer_array_indexing(
+    mut caller: Caller<'_, ScanContext>,
+    index: i64,
+) -> MaybeUndef<i64> {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+    let array = scan_ctx.array.take().unwrap();
+
+    if let Some(symbol) = array.index(index as usize) {
+        match symbol.value() {
+            SymbolValue::Value(Value::Integer(value)) => defined(*value),
+            SymbolValue::Value(Value::Unknown) => undefined(),
+            _ => unreachable!(),
+        }
+    } else {
+        undefined()
+    }
 }

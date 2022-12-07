@@ -169,71 +169,35 @@ impl<'a> SymbolIndex<'a> for ProtoRepeatedField {
         let item =
             self.field_descriptor.get_repeated(self.msg.as_ref()).get(index);
 
-        match self.field_descriptor.runtime_field_type() {
-            RuntimeFieldType::Singular(ty) => match ty {
-                RuntimeType::I32 => {}
-                RuntimeType::I64 => {}
-                RuntimeType::U32 => {}
-                RuntimeType::U64 => {}
-                RuntimeType::F32 => {}
-                RuntimeType::F64 => {}
-                RuntimeType::Bool => {}
-                RuntimeType::String => {}
-                RuntimeType::VecU8 => {}
-                RuntimeType::Enum(_) => {}
-                RuntimeType::Message(_) => {
-                    return Some(Symbol::new_struct(Rc::new(ProtoMessage {
-                        msg: item.to_message().unwrap().clone_box().into(),
-                    })))
-                }
-            },
-            RuntimeFieldType::Repeated(_) => {}
-            RuntimeFieldType::Map(_, _) => {}
-        }
-
-        todo!()
-    }
-
-    fn item_type(&self) -> Type {
-        match self.field_descriptor.runtime_field_type() {
-            RuntimeFieldType::Singular(ty) => match ty {
-                RuntimeType::I32 => Type::Integer,
-                RuntimeType::I64 => Type::Integer,
-                RuntimeType::U32 => Type::Integer,
-                RuntimeType::U64 => Type::Integer,
-                RuntimeType::F32 => Type::Float,
-                RuntimeType::F64 => Type::Float,
-                RuntimeType::Bool => Type::Bool,
-                RuntimeType::String => Type::String,
-                RuntimeType::VecU8 => Type::String,
-                RuntimeType::Enum(_) => Type::Integer,
-                RuntimeType::Message(_) => Type::Struct,
-            },
-            RuntimeFieldType::Repeated(_) => {
-                todo!()
+        match item.get_type() {
+            RuntimeType::I32 => {
+                let value =
+                    item.to_i32().map(Value::from).unwrap_or(Value::Unknown);
+                Some(Symbol::new(Type::Integer, SymbolValue::Value(value)))
             }
-            RuntimeFieldType::Map(_, _) => {
-                todo!()
+            RuntimeType::I64 => {
+                let value =
+                    item.to_i64().map(Value::from).unwrap_or(Value::Unknown);
+                Some(Symbol::new(Type::Integer, SymbolValue::Value(value)))
+            }
+            RuntimeType::U32 => todo!(),
+            RuntimeType::U64 => todo!(),
+            RuntimeType::F32 => todo!(),
+            RuntimeType::F64 => todo!(),
+            RuntimeType::Bool => todo!(),
+            RuntimeType::String => todo!(),
+            RuntimeType::VecU8 => todo!(),
+            RuntimeType::Enum(_) => todo!(),
+            RuntimeType::Message(_) => {
+                return Some(Symbol::new_struct(Rc::new(ProtoMessage {
+                    msg: item.to_message().unwrap().clone_box().into(),
+                })))
             }
         }
     }
-}
-
-/// [`EnumDescriptor`] also implements [`SymbolLookup`].
-impl<'a> SymbolLookup<'a> for EnumDescriptor {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
-        let descriptor = self.value_by_name(ident)?;
-        Some(Symbol::new_integer(descriptor.value() as i64))
-    }
-}
-
-impl<'a> SymbolIndex<'a> for FieldDescriptor {
-    fn index(&self, _index: usize) -> Option<Symbol<'a>> {
-        None
-    }
 
     fn item_type(&self) -> Type {
-        todo!()
+        self.field_descriptor.item_type()
     }
 }
 
@@ -277,19 +241,35 @@ impl<'a> SymbolLookup<'a> for MessageDescriptor {
     }
 }
 
-fn runtime_type_to_type(rt: RuntimeType) -> Type {
-    match rt {
-        RuntimeType::U64 => {
-            todo!()
+/// [`EnumDescriptor`] also implements [`SymbolLookup`].
+impl<'a> SymbolLookup<'a> for EnumDescriptor {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
+        let descriptor = self.value_by_name(ident)?;
+        Some(Symbol::new_integer(descriptor.value() as i64))
+    }
+}
+
+impl<'a> SymbolIndex<'a> for FieldDescriptor {
+    fn index(&self, _index: usize) -> Option<Symbol<'a>> {
+        None
+    }
+    fn item_type(&self) -> Type {
+        match self.runtime_field_type() {
+            RuntimeFieldType::Repeated(ty) => match ty {
+                RuntimeType::I32 => Type::Integer,
+                RuntimeType::I64 => Type::Integer,
+                RuntimeType::U32 => Type::Integer,
+                RuntimeType::U64 => Type::Integer,
+                RuntimeType::F32 => Type::Float,
+                RuntimeType::F64 => Type::Float,
+                RuntimeType::Bool => Type::Bool,
+                RuntimeType::String => Type::String,
+                RuntimeType::VecU8 => Type::String,
+                RuntimeType::Enum(_) => Type::Integer,
+                RuntimeType::Message(_) => Type::Struct,
+            },
+            _ => unreachable!(),
         }
-        RuntimeType::I32
-        | RuntimeType::I64
-        | RuntimeType::U32
-        | RuntimeType::Enum(_) => Type::Integer,
-        RuntimeType::F32 | RuntimeType::F64 => Type::Float,
-        RuntimeType::Bool => Type::Bool,
-        RuntimeType::String | RuntimeType::VecU8 => Type::String,
-        RuntimeType::Message(_) => Type::Struct,
     }
 }
 

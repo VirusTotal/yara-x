@@ -1254,7 +1254,8 @@ fn indexing_expr_from_cst<'src>(
         primary,
         index,
         span.into(),
-        Type::Array,
+        // The type of the items in the array is not known yet.
+        Type::Unknown,
     ))))
 }
 
