@@ -33,7 +33,7 @@ impl<'r> Scanner<'r> {
             &crate::wasm::ENGINE,
             ScanContext {
                 compiled_rules,
-                current_symbol_table: None,
+                struct_symbol_table: None,
                 symbol_table: symbol_table.clone(),
                 scanned_data: null(),
                 scanned_data_len: 0,
@@ -48,7 +48,7 @@ impl<'r> Scanner<'r> {
         // Instantiate the module. This takes the wasm code provided by the
         // `compiled_wasm_mod` and links its imported functions with the
         // implementations that YARA provides (see wasm.rs).
-        let wasm_instance = wasm::linker()
+        let wasm_instance = wasm::new_linker()
             .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
             .unwrap();
 
@@ -209,7 +209,29 @@ pub(crate) struct ScanContext<'r> {
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r CompiledRules,
     /// Symbol table that contains top-level symbols, like module names
-    /// and external variables.
+    /// and external variables. Symbols are normally looked up in this
+    /// table, except if `struct_symbol_table` is set to some structure's
+    /// symbol table.
     pub(crate) symbol_table: Rc<RefCell<SymbolTable<'r>>>,
-    pub(crate) current_symbol_table: Option<Rc<dyn SymbolLookup<'r> + 'r>>,
+    /// Symbol table for the currently active structure, if any. When this
+    /// set it overrides `symbol_table`.
+    pub(crate) struct_symbol_table: Option<Rc<dyn SymbolLookup<'r> + 'r>>,
+}
+
+impl<'r> ScanContext<'r> {
+    /// Looks for an identifier in the current symbol table, and sets
+    /// `struct_symbol_table` to [`None`].
+    ///
+    /// The current symbol table is usually the main one, which is stored in
+    /// `symbol_table`, except when `struct_symbol_table` holds the symbol table
+    /// corresponding to some structure. In that case the structure's symbol
+    /// table overrides the main symbol table, and therefore the identifier is
+    /// looked up in the structure.
+    pub(crate) fn lookup(&mut self, ident: &str) -> Symbol<'r> {
+        if let Some(symbol_table) = self.struct_symbol_table.take() {
+            symbol_table.lookup(ident).unwrap()
+        } else {
+            self.symbol_table.lookup(ident).unwrap()
+        }
+    }
 }

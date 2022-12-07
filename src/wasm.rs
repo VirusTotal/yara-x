@@ -21,7 +21,6 @@ the functions exposed to them by YARA's WebAssembly runtime.
 
 use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
-use std::sync::Arc;
 use walrus::InstrSeqBuilder;
 use walrus::ValType::{Externref, F64, I32, I64};
 use wasmtime::ExternRef;
@@ -29,7 +28,7 @@ use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
 use crate::compiler::{IdentId, LiteralId, PatternId, RuleId};
 use crate::scanner::ScanContext;
-use crate::symbols::{SymbolLookup, SymbolValue};
+use crate::symbols::SymbolValue;
 use crate::types::Value;
 
 /// Builds the WebAssembly module for a set of compiled rules.
@@ -140,10 +139,6 @@ impl ModuleBuilder {
         let (lookup_struct, _) =
             module.add_import_func("yr", "lookup_struct", ty);
 
-        let ty = module.types.add(&[], &[]);
-        let (reset_symbol_table, _) =
-            module.add_import_func("yr", "reset_symbol_table", ty);
-
         let wasm_symbols = WasmSymbols {
             rule_match,
             is_pat_match,
@@ -155,7 +150,6 @@ impl ModuleBuilder {
             lookup_bool,
             lookup_string,
             lookup_struct,
-            reset_symbol_table,
             str_eq,
             str_ne,
             str_lt,
@@ -404,8 +398,6 @@ pub(crate) struct WasmSymbols {
     pub lookup_string: walrus::FunctionId,
     pub lookup_struct: walrus::FunctionId,
 
-    pub reset_symbol_table: walrus::FunctionId,
-
     /// String comparison functions.
     /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
     pub str_eq: walrus::FunctionId,
@@ -435,43 +427,10 @@ pub(crate) struct WasmSymbols {
 lazy_static! {
     pub(crate) static ref CONFIG: Config = Config::default();
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
-    pub(crate) static ref LINKER: Linker<ScanContext<'static>> = {
-        let mut linker = Linker::<ScanContext>::new(&ENGINE);
-
-        linker.func_wrap("yr", "filesize", filesize).unwrap();
-        linker.func_wrap("yr", "str_eq", str_eq).unwrap();
-        linker.func_wrap("yr", "str_ne", str_ne).unwrap();
-        linker.func_wrap("yr", "str_lt", str_lt).unwrap();
-        linker.func_wrap("yr", "str_gt", str_gt).unwrap();
-        linker.func_wrap("yr", "str_le", str_le).unwrap();
-        linker.func_wrap("yr", "str_ge", str_ge).unwrap();
-        linker.func_wrap("yr", "str_contains", str_contains).unwrap();
-        linker.func_wrap("yr", "str_startswith", str_startswith).unwrap();
-        linker.func_wrap("yr", "str_endswith", str_endswith).unwrap();
-        linker.func_wrap("yr", "str_icontains", str_icontains).unwrap();
-        linker.func_wrap("yr", "str_istartswith", str_istartswith).unwrap();
-        linker.func_wrap("yr", "str_iequals", str_iequals).unwrap();
-        linker.func_wrap("yr", "str_iendswith", str_iendswith).unwrap();
-        linker.func_wrap("yr", "str_len", str_len).unwrap();
-        linker.func_wrap("yr", "rule_match", rule_match).unwrap();
-        linker.func_wrap("yr", "is_pat_match", is_pat_match).unwrap();
-        linker.func_wrap("yr", "is_pat_match_at", is_pat_match_at).unwrap();
-        linker.func_wrap("yr", "is_pat_match_in", is_pat_match_in).unwrap();
-        linker.func_wrap("yr", "literal_to_ref", literal_to_ref).unwrap();
-        linker.func_wrap("yr", "lookup_integer", lookup_integer).unwrap();
-        linker.func_wrap("yr", "lookup_float", lookup_float).unwrap();
-        linker.func_wrap("yr", "lookup_bool", lookup_bool).unwrap();
-        linker.func_wrap("yr", "lookup_string", lookup_string).unwrap();
-        linker.func_wrap("yr", "lookup_struct", lookup_struct).unwrap();
-        linker
-            .func_wrap("yr", "reset_symbol_table", reset_symbol_table)
-            .unwrap();
-
-        linker
-    };
+    pub(crate) static ref LINKER: Linker<ScanContext<'static>> = new_linker();
 }
 
-pub(crate) fn linker<'r>() -> Linker<ScanContext<'r>> {
+pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
 
     linker.func_wrap("yr", "filesize", filesize).unwrap();
@@ -499,7 +458,6 @@ pub(crate) fn linker<'r>() -> Linker<ScanContext<'r>> {
     linker.func_wrap("yr", "lookup_bool", lookup_bool).unwrap();
     linker.func_wrap("yr", "lookup_string", lookup_string).unwrap();
     linker.func_wrap("yr", "lookup_struct", lookup_struct).unwrap();
-    linker.func_wrap("yr", "reset_symbol_table", reset_symbol_table).unwrap();
 
     linker
 }
@@ -606,13 +564,76 @@ pub(crate) fn literal_to_ref(
     ))))
 }
 
+/// Given the IdentId corresponding to some identifier of type
+/// [`crate::Type::String`], looks up for the identifier in the current symbol
+/// table, creates an externref for the string, and pushes it in the wasm
+/// stack. If the identifier is not found, it pushes a null externref instead.
+pub(crate) fn lookup_string(
+    mut caller: Caller<'_, ScanContext>,
+    ident_id: i64,
+) -> Option<ExternRef> {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    let ident = scan_ctx
+        .compiled_rules
+        .ident_pool()
+        .get(IdentId::from(ident_id as u32))
+        .unwrap();
+
+    let symbol = scan_ctx.lookup(ident);
+
+    match symbol.value() {
+        SymbolValue::Value(Value::String(s)) => {
+            Some(ExternRef::new(RuntimeString::Owned(s.clone())))
+        }
+        SymbolValue::Value(Value::Unknown) => None,
+        _ => unreachable!(),
+    }
+}
+
+/// Given the IdentId corresponding to some identifier of type
+/// [`crate::Type::String`], looks up for the identifier in the current symbol
+/// table and sets the structure's symbol table in
+/// [`ScanContext::struct_symbol_table`], so that any subsequent call
+/// to `lookup_xxx` will use the structure's symbol table instead of the main
+/// one.
+pub(crate) fn lookup_struct(
+    mut caller: Caller<'_, ScanContext>,
+    ident_id: i64,
+) {
+    // Search for the identifier in the pool
+    let ident = caller
+        .data()
+        .compiled_rules
+        .ident_pool()
+        .get(IdentId::from(ident_id as u32))
+        .unwrap();
+
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+    let symbol = scan_ctx.lookup(ident);
+
+    scan_ctx.struct_symbol_table =
+        if let SymbolValue::Struct(symbol_table) = symbol.value() {
+            Some(symbol_table.to_owned())
+        } else {
+            // This should not happen, the symbol with the given identifier
+            // must exist and be a struct.
+            unreachable!()
+        };
+}
+
+/// Macro that generates functions similar to [`lookup_struct`] and
+/// [`lookup_string`] but for integers, floats and booleans.
 macro_rules! lookup_ident_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            mut caller: Caller<'_, ScanContext>,
             ident_id: i64,
         ) -> ($return_type, i32) {
-            let scan_ctx = caller.data();
+            let mut store_ctx = caller.as_context_mut();
+            let scan_ctx = store_ctx.data_mut();
 
             let ident = scan_ctx
                 .compiled_rules
@@ -620,12 +641,7 @@ macro_rules! lookup_ident_fn {
                 .get(IdentId::from(ident_id as u32))
                 .unwrap();
 
-            let symbol = scan_ctx
-                .current_symbol_table
-                .as_ref()
-                .unwrap()
-                .lookup(ident)
-                .unwrap();
+            let symbol = scan_ctx.lookup(ident);
 
             if let SymbolValue::Value($type(value)) = symbol.value() {
                 defined(*value as $return_type)
@@ -639,55 +655,6 @@ macro_rules! lookup_ident_fn {
 lookup_ident_fn!(lookup_integer, i64, Value::Integer);
 lookup_ident_fn!(lookup_float, f64, Value::Float);
 lookup_ident_fn!(lookup_bool, i32, Value::Bool);
-
-pub(crate) fn lookup_string(
-    caller: Caller<'_, ScanContext>,
-    ident_id: i64,
-) -> Option<ExternRef> {
-    let scan_ctx = caller.data();
-
-    let ident = scan_ctx
-        .compiled_rules
-        .ident_pool()
-        .get(IdentId::from(ident_id as u32))
-        .unwrap();
-
-    let symbol =
-        scan_ctx.current_symbol_table.as_ref().unwrap().lookup(ident).unwrap();
-
-    if let SymbolValue::Value(Value::String(s)) = symbol.value() {
-        Some(ExternRef::new(RuntimeString::Owned(s.clone())))
-    } else {
-        None
-    }
-}
-
-pub(crate) fn reset_symbol_table(mut caller: Caller<'_, ScanContext>) {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-    scan_ctx.current_symbol_table = Some(scan_ctx.symbol_table.clone());
-}
-
-pub(crate) fn lookup_struct(
-    mut caller: Caller<'_, ScanContext>,
-    ident_id: i64,
-) {
-    let ident = caller
-        .data()
-        .compiled_rules
-        .ident_pool()
-        .get(IdentId::from(ident_id as u32))
-        .unwrap();
-
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-    let x = scan_ctx.current_symbol_table.take().unwrap();
-    let symbol = x.lookup(ident).unwrap();
-
-    if let SymbolValue::Struct(symbol_table) = symbol.value() {
-        scan_ctx.current_symbol_table = Some(symbol_table.to_owned());
-    }
-}
 
 macro_rules! str_cmp_fn {
     ($name:ident, $op:tt) => {

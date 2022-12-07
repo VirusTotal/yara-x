@@ -263,14 +263,6 @@ pub(super) fn emit_expr(
                         .ident_pool
                         .get_or_intern(ident.as_str());
 
-                    // If there's no current structure, emit code that sets
-                    // the global symbol table as the current one.
-                    if current_struct.is_none() {
-                        instr.call(
-                            ctx.borrow().wasm_symbols.reset_symbol_table,
-                        );
-                    }
-
                     // Emit code for looking up the identifier in the current
                     // symbol table.
                     match ident.ty() {
