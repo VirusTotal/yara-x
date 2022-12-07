@@ -47,7 +47,7 @@ impl<'r> Scanner<'r> {
         // Instantiate the module. This takes the wasm code provided by the
         // `compiled_wasm_mod` and links its imported functions with the
         // implementations that YARA provides (see wasm.rs).
-        let wasm_instance = wasm::LINKER
+        let wasm_instance = wasm::linker()
             .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
             .unwrap();
 
@@ -60,7 +60,7 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans a data buffer.
-    pub fn scan(&mut self, data: &[u8]) -> ScanResults {
+    pub fn scan<'s>(&'s mut self, data: &[u8]) -> ScanResults<'s, 'r> {
         let ctx = self.wasm_store.data_mut();
 
         ctx.rules_matching_bitmap.fill(false);
@@ -129,12 +129,12 @@ impl<'r> Scanner<'r> {
 }
 
 /// Results of a scan operation.
-pub struct ScanResults<'a> {
-    ctx: &'a ScanContext<'a>,
+pub struct ScanResults<'s, 'r> {
+    ctx: &'s ScanContext<'r>,
 }
 
-impl<'r> ScanResults<'r> {
-    fn new(ctx: &'r ScanContext<'r>) -> Self {
+impl<'s, 'r> ScanResults<'s, 'r> {
+    fn new(ctx: &'s ScanContext<'r>) -> Self {
         Self { ctx }
     }
 
@@ -143,27 +143,27 @@ impl<'r> ScanResults<'r> {
         self.ctx.rules_matching.len()
     }
 
-    pub fn iter(&self) -> IterMatches<'r> {
+    pub fn iter(&self) -> IterMatches<'s, 'r> {
         IterMatches::new(self.ctx)
     }
 
-    pub fn iter_non_matches(&self) -> IterNonMatches<'r> {
+    pub fn iter_non_matches(&self) -> IterNonMatches<'s, 'r> {
         IterNonMatches::new(self.ctx)
     }
 }
 
-pub struct IterMatches<'r> {
-    ctx: &'r ScanContext<'r>,
-    iterator: Iter<'r, RuleId>,
+pub struct IterMatches<'s, 'r> {
+    ctx: &'s ScanContext<'r>,
+    iterator: Iter<'s, RuleId>,
 }
 
-impl<'r> IterMatches<'r> {
-    fn new(ctx: &'r ScanContext<'r>) -> Self {
+impl<'s, 'r> IterMatches<'s, 'r> {
+    fn new(ctx: &'s ScanContext<'r>) -> Self {
         Self { ctx, iterator: ctx.rules_matching.iter() }
     }
 }
 
-impl<'r> Iterator for IterMatches<'r> {
+impl<'s, 'r> Iterator for IterMatches<'s, 'r> {
     type Item = &'r CompiledRule;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -172,18 +172,18 @@ impl<'r> Iterator for IterMatches<'r> {
     }
 }
 
-pub struct IterNonMatches<'r> {
-    ctx: &'r ScanContext<'r>,
-    iterator: bitvec::slice::IterZeros<'r, usize, Lsb0>,
+pub struct IterNonMatches<'s, 'r> {
+    ctx: &'s ScanContext<'r>,
+    iterator: bitvec::slice::IterZeros<'s, usize, Lsb0>,
 }
 
-impl<'r> IterNonMatches<'r> {
-    fn new(ctx: &'r ScanContext<'r>) -> Self {
+impl<'s, 'r> IterNonMatches<'s, 'r> {
+    fn new(ctx: &'s ScanContext<'r>) -> Self {
         Self { ctx, iterator: ctx.rules_matching_bitmap.iter_zeros() }
     }
 }
 
-impl<'r> Iterator for IterNonMatches<'r> {
+impl<'s, 'r> Iterator for IterNonMatches<'s, 'r> {
     type Item = &'r CompiledRule;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -209,7 +209,6 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) compiled_rules: &'r CompiledRules,
     /// Symbol table that contains top-level symbols, like module names
     /// and external variables.
-    pub(crate) symbol_table: Arc<RwLock<SymbolTable>>, // TODO: RwLock may be removed, and Rc used instead of Arc.
-
-    pub(crate) current_symbol_table: Option<Arc<dyn SymbolLookup + 'r>>,
+    pub(crate) symbol_table: Arc<RwLock<SymbolTable<'r>>>, // TODO: RwLock may be removed, and Rc used instead of Arc.
+    pub(crate) current_symbol_table: Option<Arc<dyn SymbolLookup<'r> + 'r>>,
 }

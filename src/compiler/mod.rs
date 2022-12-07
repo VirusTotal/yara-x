@@ -32,12 +32,11 @@ mod semcheck;
 mod tests;
 
 /// A YARA compiler.
-pub struct Compiler {
+pub struct Compiler<'a> {
     colorize_errors: bool,
 
     report_builder: ReportBuilder,
-    symbol_table: StackedSymbolTable,
-
+    symbol_table: StackedSymbolTable<'a>,
     /// Pool that contains all the identifiers used in the rules. Each
     /// identifier appears only once, even if they are used by multiple
     /// rules. For example, the pool contains a single copy of the common
@@ -71,7 +70,7 @@ pub struct Compiler {
     warnings: Vec<Warning>,
 }
 
-impl Compiler {
+impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
         Self {
@@ -256,7 +255,7 @@ impl Compiler {
     }
 }
 
-impl Compiler {
+impl<'a> Compiler<'a> {
     fn process_imports(
         &mut self,
         src: &SourceCode,
@@ -299,13 +298,13 @@ impl Compiler {
     }
 }
 
-impl fmt::Debug for Compiler {
+impl fmt::Debug for Compiler<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Compiler")
     }
 }
 
-impl Default for Compiler {
+impl Default for Compiler<'_> {
     fn default() -> Self {
         Self::new()
     }
@@ -351,17 +350,17 @@ pub(crate) type RuleId = i32;
 
 /// Structure that contains information and data structures required during the
 /// the current compilation process.
-struct Context<'a> {
+struct Context<'a, 'sym> {
     /// Builder for creating error and warning reports.
     report_builder: &'a ReportBuilder,
 
     /// Symbol table that contains the currently defined identifiers, modules,
     /// functions, etc
-    symbol_table: &'a mut StackedSymbolTable,
+    symbol_table: &'a mut StackedSymbolTable<'sym>,
 
     /// Symbol table for the currently active structure. When this is None
     /// symbols are looked up in `symbol_table` instead.
-    current_struct: Option<Arc<dyn SymbolLookup + 'a>>,
+    current_struct: Option<Arc<dyn SymbolLookup<'sym> + 'a>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
     /// code.
@@ -398,7 +397,7 @@ struct Context<'a> {
     stack_top: i32,
 }
 
-impl<'a> Context<'a> {
+impl<'a, 'sym> Context<'a, 'sym> {
     /// Given an [`IdentID`] returns the identifier as `&str`.
     ///
     /// Panics if no identifier has the provided [`IdentID`].

@@ -471,6 +471,39 @@ lazy_static! {
     };
 }
 
+pub(crate) fn linker<'r>() -> Linker<ScanContext<'r>> {
+    let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
+
+    linker.func_wrap("yr", "filesize", filesize).unwrap();
+    linker.func_wrap("yr", "str_eq", str_eq).unwrap();
+    linker.func_wrap("yr", "str_ne", str_ne).unwrap();
+    linker.func_wrap("yr", "str_lt", str_lt).unwrap();
+    linker.func_wrap("yr", "str_gt", str_gt).unwrap();
+    linker.func_wrap("yr", "str_le", str_le).unwrap();
+    linker.func_wrap("yr", "str_ge", str_ge).unwrap();
+    linker.func_wrap("yr", "str_contains", str_contains).unwrap();
+    linker.func_wrap("yr", "str_startswith", str_startswith).unwrap();
+    linker.func_wrap("yr", "str_endswith", str_endswith).unwrap();
+    linker.func_wrap("yr", "str_icontains", str_icontains).unwrap();
+    linker.func_wrap("yr", "str_istartswith", str_istartswith).unwrap();
+    linker.func_wrap("yr", "str_iequals", str_iequals).unwrap();
+    linker.func_wrap("yr", "str_iendswith", str_iendswith).unwrap();
+    linker.func_wrap("yr", "str_len", str_len).unwrap();
+    linker.func_wrap("yr", "rule_match", rule_match).unwrap();
+    linker.func_wrap("yr", "is_pat_match", is_pat_match).unwrap();
+    linker.func_wrap("yr", "is_pat_match_at", is_pat_match_at).unwrap();
+    linker.func_wrap("yr", "is_pat_match_in", is_pat_match_in).unwrap();
+    linker.func_wrap("yr", "literal_to_ref", literal_to_ref).unwrap();
+    linker.func_wrap("yr", "lookup_integer", lookup_integer).unwrap();
+    linker.func_wrap("yr", "lookup_float", lookup_float).unwrap();
+    linker.func_wrap("yr", "lookup_bool", lookup_bool).unwrap();
+    linker.func_wrap("yr", "lookup_string", lookup_string).unwrap();
+    linker.func_wrap("yr", "lookup_struct", lookup_struct).unwrap();
+    linker.func_wrap("yr", "reset_symbol_table", reset_symbol_table).unwrap();
+
+    linker
+}
+
 type MaybeUndef<T> = (T, i32);
 
 trait Empty<T> {
@@ -639,20 +672,20 @@ pub(crate) fn lookup_struct(
     mut caller: Caller<'_, ScanContext>,
     ident_id: i64,
 ) {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-
-    let ident = scan_ctx
+    let ident = caller
+        .data()
         .compiled_rules
         .ident_pool()
         .get(IdentId::from(ident_id as u32))
         .unwrap();
 
-    let symbol =
-        scan_ctx.current_symbol_table.as_ref().unwrap().lookup(ident).unwrap();
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+    let x = scan_ctx.current_symbol_table.take().unwrap();
+    let symbol = x.lookup(ident).unwrap();
 
     if let SymbolValue::Struct(symbol_table) = symbol.value() {
-        scan_ctx.current_symbol_table = Some(symbol_table.clone());
+        scan_ctx.current_symbol_table = Some(symbol_table.to_owned());
     }
 }
 

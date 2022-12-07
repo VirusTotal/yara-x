@@ -241,7 +241,7 @@ pub(super) fn emit_expr(
 
                 // Search for the symbol in the current structure, if any, or
                 // in the global symbol table, current_struct is None.
-                let symbol = if let Some(structure) = &current_struct {
+                let symbol = if let Some(ref structure) = current_struct {
                     structure.lookup(ident.name).unwrap()
                 } else {
                     ctx.borrow().symbol_table.lookup(ident.name).unwrap()

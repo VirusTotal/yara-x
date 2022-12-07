@@ -1,11 +1,11 @@
 use bstr::{BStr, ByteSlice};
-use pest::pratt_parser::Op;
 use std::collections::{HashMap, VecDeque};
+use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 use protobuf::reflect::{
-    EnumDescriptor, FieldDescriptor, MessageDescriptor, RuntimeFieldType,
-    RuntimeType,
+    EnumDescriptor, FieldDescriptor, MessageDescriptor, MessageRef,
+    RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
 
@@ -13,35 +13,35 @@ use crate::modules::Module;
 use crate::types::{Type, Value};
 
 /// Trait implemented by types that allow looking up for an identifier.
-pub trait SymbolLookup {
-    fn lookup(&self, ident: &str) -> Option<Symbol>;
+pub trait SymbolLookup<'a> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>>;
 }
 
-pub trait SymbolIndex {
-    fn index(&self, index: usize) -> Option<Symbol>;
+pub trait SymbolIndex<'a> {
+    fn index(&self, index: usize) -> Option<Symbol<'a>>;
 }
 
 #[derive(Clone)]
-pub enum SymbolValue {
+pub enum SymbolValue<'a> {
     Value(Value),
-    Struct(Arc<dyn SymbolLookup + Send + Sync>),
-    Array(Arc<dyn SymbolIndex + Send + Sync>),
+    Struct(Arc<dyn SymbolLookup<'a> + Send + Sync + 'a>),
+    Array(Arc<dyn SymbolIndex<'a> + Send + Sync + 'a>),
 }
 
 #[derive(Clone)]
-pub struct Symbol {
+pub struct Symbol<'a> {
     ty: Type,
-    value: SymbolValue,
+    value: SymbolValue<'a>,
     location: Location,
 }
 
-impl Symbol {
-    pub fn new(ty: Type, value: SymbolValue) -> Self {
+impl<'a> Symbol<'a> {
+    pub fn new(ty: Type, value: SymbolValue<'a>) -> Self {
         Self { ty, value, location: Location::None }
     }
 
     pub fn new_struct(
-        symbol_table: Arc<dyn SymbolLookup + Send + Sync>,
+        symbol_table: Arc<dyn SymbolLookup<'a> + Send + Sync + 'a>,
     ) -> Self {
         Self {
             ty: Type::Struct,
@@ -78,7 +78,7 @@ impl Symbol {
     }
 
     #[inline]
-    pub fn value(&self) -> &SymbolValue {
+    pub fn value(&self) -> &SymbolValue<'a> {
         &self.value
     }
 
@@ -104,7 +104,7 @@ impl Symbol {
     }
 }
 
-impl From<Type> for Symbol {
+impl From<Type> for Symbol<'_> {
     fn from(ty: Type) -> Self {
         Self::new(ty, SymbolValue::Value(Value::Unknown))
     }
@@ -121,15 +121,15 @@ pub enum Location {
 /// The identifier in this case is a module name. If a module with the given
 /// identifier exists in the map, a [`Symbol`] of type [`Type::Struct`] that
 /// wraps a &[`Module`] is returned.
-impl SymbolLookup for &'static HashMap<&str, Module> {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for &'a HashMap<&'a str, Module> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         self.get(ident).map(|module| Symbol::new_struct(Arc::new(module)))
     }
 }
 
 /// &[`Module`] also implements [`SymbolLookup`].
-impl SymbolLookup for &Module {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for &Module {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         self.descriptor.lookup(ident)
     }
 }
@@ -148,8 +148,8 @@ impl SymbolLookup for &Module {
 ///
 /// This can be done because the `Option<Symbol>` returned by the
 /// first call to `lookup` also have a `lookup` method.
-impl SymbolLookup for Option<Symbol> {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for Option<Symbol<'a>> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         if let Some(symbol) = self {
             if let SymbolValue::Struct(s) = symbol.value() {
                 s.lookup(ident)
@@ -173,8 +173,8 @@ impl SymbolLookup for Option<Symbol> {
 /// will be returned. Values will be [`None`] in all cases, as the descriptor
 /// is not an instance of the protobuf message, only a description of it.
 /// Therefore it doesn't have associated data.
-impl SymbolLookup for MessageDescriptor {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for MessageDescriptor {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         // TODO: take into account that the name passed to field_by_name
         // is the actual field name in the proto, but not the field name
         // from the YARA module's perspective, which can be changed with
@@ -206,8 +206,8 @@ impl SymbolLookup for MessageDescriptor {
     }
 }
 
-impl SymbolIndex for FieldDescriptor {
-    fn index(&self, _index: usize) -> Option<Symbol> {
+impl<'a> SymbolIndex<'a> for FieldDescriptor {
+    fn index(&self, _index: usize) -> Option<Symbol<'a>> {
         None
     }
 }
@@ -228,7 +228,7 @@ fn runtime_type_to_type(rt: RuntimeType) -> Type {
     }
 }
 
-fn runtime_type_to_symbol(rt: RuntimeType) -> Symbol {
+fn runtime_type_to_symbol<'a>(rt: RuntimeType) -> Symbol<'a> {
     match rt {
         RuntimeType::U64 => {
             todo!()
@@ -245,10 +245,16 @@ fn runtime_type_to_symbol(rt: RuntimeType) -> Symbol {
 }
 
 /// [`EnumDescriptor`] also implements [`SymbolLookup`].
-impl SymbolLookup for EnumDescriptor {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for EnumDescriptor {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         let descriptor = self.value_by_name(ident)?;
         Some(Symbol::new_integer(descriptor.value() as i64))
+    }
+}
+
+impl<'a> SymbolLookup<'a> for MessageRef<'a> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
+        todo!()
     }
 }
 
@@ -268,8 +274,8 @@ impl SymbolLookup for EnumDescriptor {
 /// a value, it will have the default value for its type (i.e: zero for numeric
 /// types, empty strings for string types, etc)
 ///
-impl SymbolLookup for Box<dyn MessageDyn> {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for Box<dyn MessageDyn> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         let message_descriptor = self.descriptor_dyn();
         if let Some(field) = message_descriptor.field_by_name(ident) {
             match field.runtime_field_type() {
@@ -370,7 +376,7 @@ impl SymbolLookup for Box<dyn MessageDyn> {
                         ))
                     }
                     RuntimeType::Message(_) => Some(Symbol::new_struct(
-                        Arc::new(field.get_message(self.as_ref()).clone_box()),
+                        Arc::new(field.get_message(self.as_ref())),
                     )),
                 },
                 RuntimeFieldType::Repeated(ty) => {
@@ -405,11 +411,11 @@ impl SymbolLookup for Box<dyn MessageDyn> {
 /// [`Symbol`] will be of type [`Type::Struct`], which encapsulates another
 /// object that also implements the [`SymbolLookup`] trait, possibly another
 /// [`SymbolTable`].
-pub struct SymbolTable {
-    map: HashMap<String, Symbol>,
+pub struct SymbolTable<'a> {
+    map: HashMap<String, Symbol<'a>>,
 }
 
-impl SymbolTable {
+impl<'a> SymbolTable<'a> {
     /// Creates a new symbol table.
     pub fn new() -> Self {
         Self { map: HashMap::new() }
@@ -420,7 +426,11 @@ impl SymbolTable {
     /// If the symbol was already in the table it gets updated and the old
     /// value is returned. If the symbol was not in the table [`None`] is
     /// returned.
-    pub fn insert<I>(&mut self, ident: I, symbol: Symbol) -> Option<Symbol>
+    pub fn insert<I>(
+        &mut self,
+        ident: I,
+        symbol: Symbol<'a>,
+    ) -> Option<Symbol<'a>>
     where
         I: Into<String>,
     {
@@ -428,26 +438,26 @@ impl SymbolTable {
     }
 }
 
-impl Default for SymbolTable {
+impl Default for SymbolTable<'_> {
     fn default() -> Self {
         SymbolTable::new()
     }
 }
 
-impl SymbolLookup for SymbolTable {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for SymbolTable<'a> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         self.map.get(ident).cloned()
     }
 }
 
-impl SymbolLookup for &SymbolTable {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for &SymbolTable<'a> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         self.map.get(ident).cloned()
     }
 }
 
-impl SymbolLookup for RwLock<SymbolTable> {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for RwLock<SymbolTable<'a>> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         self.read().unwrap().lookup(ident)
     }
 }
@@ -464,29 +474,29 @@ impl SymbolLookup for RwLock<SymbolTable> {
 /// it hides any other identifier "foo" that may exists on a symbol table
 /// that is deeper in the stack.
 ///
-pub struct StackedSymbolTable {
-    stack: VecDeque<Arc<dyn SymbolLookup>>,
+pub struct StackedSymbolTable<'a> {
+    stack: VecDeque<Arc<dyn SymbolLookup<'a> + 'a>>,
 }
 
-impl StackedSymbolTable {
+impl<'a> StackedSymbolTable<'a> {
     /// Creates a new [`StackedSymbolTable`].
     pub fn new() -> Self {
         Self { stack: VecDeque::new() }
     }
 
     /// Pushes a new symbol table to the stack.
-    pub fn push(&mut self, symbol_table: Arc<dyn SymbolLookup>) {
+    pub fn push(&mut self, symbol_table: Arc<dyn SymbolLookup<'a> + 'a>) {
         self.stack.push_back(symbol_table)
     }
 
     /// Pop a symbol table from the stack.
-    pub fn pop(&mut self) -> Option<Arc<dyn SymbolLookup>> {
+    pub fn pop(&mut self) -> Option<Arc<dyn SymbolLookup<'a> + 'a>> {
         self.stack.pop_back()
     }
 }
 
-impl SymbolLookup for StackedSymbolTable {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
+impl<'a> SymbolLookup<'a> for StackedSymbolTable<'a> {
+    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         // Look for the identifier starting at the top of the stack, and
         // going down the stack until it's found or the bottom of the
         // stack is reached.
