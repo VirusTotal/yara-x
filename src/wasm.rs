@@ -631,7 +631,7 @@ pub(crate) fn lookup_struct(
     let scan_ctx = store_ctx.data_mut();
     let symbol = scan_ctx.lookup(ident);
 
-    scan_ctx.struct_symbol_table =
+    scan_ctx.current_struct =
         if let SymbolValue::Struct(symbol_table) = symbol.value() {
             Some(symbol_table.to_owned())
         } else {
@@ -656,7 +656,8 @@ pub(crate) fn lookup_array(
     let scan_ctx = store_ctx.data_mut();
     let symbol = scan_ctx.lookup(ident);
 
-    scan_ctx.array = if let SymbolValue::Array(array) = symbol.value() {
+    scan_ctx.current_array = if let SymbolValue::Array(array) = symbol.value()
+    {
         Some(array.to_owned())
     } else {
         // This should not happen, the symbol with the given identifier
@@ -766,7 +767,7 @@ pub(crate) fn integer_array_indexing(
 ) -> MaybeUndef<i64> {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
-    let array = scan_ctx.array.take().unwrap();
+    let array = scan_ctx.current_array.take().unwrap();
 
     if let Some(symbol) = array.index(index as usize) {
         match symbol.value() {

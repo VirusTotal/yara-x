@@ -33,8 +33,8 @@ impl<'r> Scanner<'r> {
             &crate::wasm::ENGINE,
             ScanContext {
                 compiled_rules,
-                array: None,
-                struct_symbol_table: None,
+                current_array: None,
+                current_struct: None,
                 symbol_table: symbol_table.clone(),
                 scanned_data: null(),
                 scanned_data_len: 0,
@@ -216,9 +216,9 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) symbol_table: Rc<RefCell<SymbolTable<'r>>>,
     /// Symbol table for the currently active structure, if any. When this
     /// set it overrides `symbol_table`.
-    pub(crate) struct_symbol_table: Option<Rc<dyn SymbolLookup<'r> + 'r>>,
+    pub(crate) current_struct: Option<Rc<dyn SymbolLookup<'r> + 'r>>,
     /// Currently active array.
-    pub(crate) array: Option<Rc<dyn SymbolIndex<'r> + 'r>>,
+    pub(crate) current_array: Option<Rc<dyn SymbolIndex<'r> + 'r>>,
 }
 
 impl<'r> ScanContext<'r> {
@@ -231,7 +231,7 @@ impl<'r> ScanContext<'r> {
     /// table overrides the main symbol table, and therefore the identifier is
     /// looked up in the structure.
     pub(crate) fn lookup(&mut self, ident: &str) -> Symbol<'r> {
-        if let Some(symbol_table) = self.struct_symbol_table.take() {
+        if let Some(symbol_table) = self.current_struct.take() {
             symbol_table.lookup(ident).unwrap()
         } else {
             self.symbol_table.lookup(ident).unwrap()

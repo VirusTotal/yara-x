@@ -238,7 +238,7 @@ pub(super) fn emit_expr(
         Expr::Ident(ident) => {
             emit_const_or_code!(ctx, instr, ident.value(), {
                 let struct_symbol_table =
-                    ctx.borrow_mut().struct_symbol_table.take();
+                    ctx.borrow_mut().current_struct.take();
 
                 // Search for the identifier in the current structure, if any,
                 // or in the global symbol table if `struct_symbol_table` is
@@ -290,7 +290,7 @@ pub(super) fn emit_expr(
                             if let SymbolValue::Struct(symbol_table) =
                                 symbol.value()
                             {
-                                ctx.borrow_mut().struct_symbol_table =
+                                ctx.borrow_mut().current_struct =
                                     Some(symbol_table.clone());
                             } else {
                                 unreachable!()
@@ -300,7 +300,8 @@ pub(super) fn emit_expr(
                             emit_lookup_array(ctx, instr, ident_id);
 
                             if let SymbolValue::Array(array) = symbol.value() {
-                                ctx.borrow_mut().array = Some(array.clone())
+                                ctx.borrow_mut().current_array =
+                                    Some(array.clone())
                             } else {
                                 unreachable!()
                             }
@@ -347,12 +348,21 @@ pub(super) fn emit_expr(
         Expr::PatternLength(_) => {
             // TODO
         }
-        Expr::LookupIndex(operands) => {
+        Expr::Lookup(operands) => {
             emit_const_or_code!(ctx, instr, expr.value(), {
-                // Emit the code for the index expression. Leaves the index
-                // in the stack.
+                // Emit the code for the index expression, which leaves the
+                // index in the stack.
                 emit_expr(ctx, instr, &operands.index);
-                // Emit code for the expression that is being indexed.
+                // Emit code for the value (array or dictionary) that is being
+                // indexed. This will set the value of `current_array` or
+                // `current_dict` in the scan context.
+                //
+                // Notice that the index expression must be evaluated first
+                // because it may contain another indexing operation that will
+                // change the value of `current_array` or `current_dict`. If
+                // the primary expression is evaluated first, the value left
+                // in `current_array/current_dict` will be overwritten by the
+                // index expression.
                 emit_expr(ctx, instr, &operands.primary);
 
                 emit_call_and_handle_undef(

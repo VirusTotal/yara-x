@@ -247,7 +247,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
                 Leaf(vec![s.name.to_string()])
             }
         }
-        Expr::LookupIndex(l) => Node(
+        Expr::Lookup(l) => Node(
             "<expr>[<index>]".to_string(),
             vec![
                 Node("<expr>".to_string(), vec![expr_ascii_tree(&l.primary)]),

@@ -1250,7 +1250,7 @@ fn indexing_expr_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::RBRACKET);
 
-    Ok(Expr::LookupIndex(Box::new(LookupIndex::with_type(
+    Ok(Expr::Lookup(Box::new(Lookup::with_type(
         primary,
         index,
         span.into(),

@@ -457,7 +457,7 @@ pub(super) fn semcheck_expr(
 
         Expr::Ident(ident) => {
             let (ty, value): (Type, Value) = {
-                let current_struct = ctx.struct_symbol_table.take();
+                let current_struct = ctx.current_struct.take();
 
                 let symbol = if let Some(structure) = &current_struct {
                     structure.lookup(ident.name)
@@ -471,12 +471,11 @@ pub(super) fn semcheck_expr(
                             (symbol.ty(), value.clone())
                         }
                         SymbolValue::Struct(symbol_table) => {
-                            ctx.struct_symbol_table =
-                                Some(symbol_table.clone());
+                            ctx.current_struct = Some(symbol_table.clone());
                             (Type::Struct, Value::Unknown)
                         }
                         SymbolValue::Array(array) => {
-                            ctx.array = Some(array.clone());
+                            ctx.current_array = Some(array.clone());
                             (Type::Array, Value::Unknown)
                         }
                     }
@@ -497,7 +496,7 @@ pub(super) fn semcheck_expr(
             Ok(ty)
         }
 
-        Expr::LookupIndex(expr) => {
+        Expr::Lookup(expr) => {
             semcheck_expr(ctx, &mut expr.primary)?;
 
             if let Type::Array = semcheck_expr(ctx, &mut expr.primary)? {

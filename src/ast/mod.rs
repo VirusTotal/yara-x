@@ -333,8 +333,8 @@ pub enum Expr<'src> {
     /// Pattern length expression (e.g. `!a`, `!a[1]`)
     PatternLength(Box<IdentWithIndex<'src>>),
 
-    /// Array or dictionary indexing expression (e.g. `array[1]`, `dict["key"]`)
-    LookupIndex(Box<LookupIndex<'src>>),
+    /// Array or dictionary lookup expression (e.g. `array[1]`, `dict["key"]`)
+    Lookup(Box<Lookup<'src>>),
 
     /// A field lookup expression (e.g. `foo.bar`)
     FieldAccess(Box<BinaryExpr<'src>>),
@@ -676,16 +676,16 @@ pub struct FnCall<'src> {
     pub args: Vec<Expr<'src>>,
 }
 
-/// An index lookup operation
+/// A lookup operation in an array or dictionary.
 #[derive(Debug, HasSpan)]
-pub struct LookupIndex<'src> {
+pub struct Lookup<'src> {
     pub(crate) type_value: TypeValue,
     pub(crate) span: Span,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
 }
 
-impl<'src> LookupIndex<'src> {
+impl<'src> Lookup<'src> {
     pub(crate) fn with_type(
         primary: Expr<'src>,
         index: Expr<'src>,
@@ -850,7 +850,7 @@ impl<'src> Expr<'src> {
             | Expr::BitwiseOr(expr)
             | Expr::BitwiseXor(expr) => expr.ty(),
 
-            Expr::LookupIndex(expr) => expr.ty(),
+            Expr::Lookup(expr) => expr.ty(),
             Expr::Ident(ident) => ident.ty(),
             Expr::Literal(l) => l.ty,
 
@@ -903,7 +903,7 @@ impl<'src> Expr<'src> {
             | Expr::BitwiseOr(expr)
             | Expr::BitwiseXor(expr) => expr.value(),
 
-            Expr::LookupIndex(expr) => expr.value(),
+            Expr::Lookup(expr) => expr.value(),
             Expr::Ident(ident) => ident.value(),
 
             Expr::Literal(l) => &l.value,

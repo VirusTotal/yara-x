@@ -156,8 +156,8 @@ impl<'a> Compiler<'a> {
 
                 let mut ctx = Context {
                     src: &src,
-                    struct_symbol_table: None,
-                    array: None,
+                    current_struct: None,
+                    current_array: None,
                     symbol_table: &mut self.symbol_table,
                     ident_pool: &mut self.ident_pool,
                     lit_pool: &mut self.lit_pool,
@@ -360,11 +360,13 @@ struct Context<'a, 'sym> {
     /// functions, etc
     symbol_table: &'a mut StackedSymbolTable<'sym>,
 
-    /// Symbol table for the currently active structure. When this is None
-    /// symbols are looked up in `symbol_table` instead.
-    struct_symbol_table: Option<Rc<dyn SymbolLookup<'sym> + 'a>>,
+    /// Symbol table for the currently active structure. When this contains
+    /// some value, symbols are looked up in this table and the main symbol
+    /// table (i.e: `symbol_table`) is ignored.
+    current_struct: Option<Rc<dyn SymbolLookup<'sym> + 'a>>,
 
-    array: Option<Rc<dyn SymbolIndex<'sym> + 'a>>,
+    /// Contains the currently active array, if any.
+    current_array: Option<Rc<dyn SymbolIndex<'sym> + 'a>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
     /// code.
