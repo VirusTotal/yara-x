@@ -147,4 +147,6 @@ message NestedProto2 {
   optional int64      nested_int64_zero = 2;
   optional int32      nested_int32_one = 3;
   optional int64      nested_int64_one = 4;
+  repeated int64      array_int64 = 5;
+
 }

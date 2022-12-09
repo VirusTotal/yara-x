@@ -55,6 +55,10 @@ fn main(_ctx: &ScanContext) -> Test {
     nested.set_nested_int32_one(1);
     nested.set_nested_int64_one(1);
 
+    for i in 0..100000 {
+        nested.array_int64.push(i);
+    }
+
     test.nested = Some(nested).into();
 
     test

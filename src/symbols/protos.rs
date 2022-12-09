@@ -35,7 +35,110 @@ impl<'a> SymbolLookup<'a> for ProtoMessage {
             match field.runtime_field_type() {
                 RuntimeFieldType::Singular(ty) => {
                     let value = field.get_singular(self.msg.as_ref());
-                    to_symbol(ty, value)
+                    match ty {
+                        RuntimeType::I32 => {
+                            let value = value
+                                .and_then(|v| v.to_i32())
+                                .map(Value::from)
+                                .unwrap_or(Value::Unknown);
+                            Some(Symbol::new(
+                                Type::Integer,
+                                SymbolValue::Value(value),
+                            ))
+                        }
+                        RuntimeType::I64 => {
+                            let value = value
+                                .and_then(|v| v.to_i64())
+                                .map(Value::from)
+                                .unwrap_or(Value::Unknown);
+                            Some(Symbol::new(
+                                Type::Integer,
+                                SymbolValue::Value(value),
+                            ))
+                        }
+                        RuntimeType::U32 => {
+                            let value = value
+                                .and_then(|v| v.to_u32())
+                                .map(Value::from)
+                                .unwrap_or(Value::Unknown);
+                            Some(Symbol::new(
+                                Type::Integer,
+                                SymbolValue::Value(value),
+                            ))
+                        }
+                        RuntimeType::U64 => todo!(),
+                        RuntimeType::F32 => {
+                            let value = value
+                                .and_then(|v| v.to_f32())
+                                .map(Value::from)
+                                .unwrap_or(Value::Unknown);
+                            Some(Symbol::new(
+                                Type::Float,
+                                SymbolValue::Value(value),
+                            ))
+                        }
+                        RuntimeType::F64 => {
+                            let value = value
+                                .and_then(|v| v.to_f64())
+                                .map(Value::from)
+                                .unwrap_or(Value::Unknown);
+                            Some(Symbol::new(
+                                Type::Float,
+                                SymbolValue::Value(value),
+                            ))
+                        }
+                        RuntimeType::Bool => {
+                            let value = value
+                                .and_then(|v| v.to_bool())
+                                .map(Value::from)
+                                .unwrap_or(Value::Unknown);
+                            Some(Symbol::new(
+                                Type::Float,
+                                SymbolValue::Value(value),
+                            ))
+                        }
+                        RuntimeType::Enum(_) => {
+                            let value = value
+                                .and_then(|v| v.to_enum_value())
+                                .map(Value::from)
+                                .unwrap_or(Value::Unknown);
+                            Some(Symbol::new(
+                                Type::String,
+                                SymbolValue::Value(value),
+                            ))
+                        }
+                        RuntimeType::String | RuntimeType::VecU8 => {
+                            let value = if let Some(value_ref) = value {
+                                value_ref
+                                    .to_str()
+                                    .map(Value::from)
+                                    .unwrap_or(Value::Unknown)
+                            } else {
+                                Value::Unknown
+                            };
+                            Some(Symbol::new(
+                                Type::String,
+                                SymbolValue::Value(value),
+                            ))
+                        }
+                        RuntimeType::Message(message_descriptor) => {
+                            if let Some(value_ref) = value {
+                                Some(Symbol::new_struct(Rc::new(
+                                    ProtoMessage {
+                                        msg: value_ref
+                                            .to_message()
+                                            .unwrap()
+                                            .clone_box()
+                                            .into(),
+                                    },
+                                )))
+                            } else {
+                                Some(Symbol::new_struct(Rc::new(
+                                    message_descriptor,
+                                )))
+                            }
+                        }
+                    }
                 }
                 RuntimeFieldType::Repeated(_) => {
                     Some(Symbol::new_array(Rc::new(ProtoRepeatedField {

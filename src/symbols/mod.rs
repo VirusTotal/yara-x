@@ -282,11 +282,10 @@ impl<'a> SymbolLookup<'a> for StackedSymbolTable<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::symbols::{ProtoMessage, SymbolLookup, SymbolValue};
-    use crate::types::{Type, Value};
-    use bstr::{BStr, BString};
+    use crate::symbols::{ProtoMessage, SymbolLookup};
+    use crate::types::Type;
+    use bstr::BStr;
     use pretty_assertions::assert_eq;
-    use std::sync::Arc;
 
     #[test]
     #[cfg(feature = "test_proto2-module")]
