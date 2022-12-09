@@ -250,10 +250,12 @@ fn test_proto2_module() {
             test_proto2.string_bar istartswith "BAR" and
             test_proto2.string_bar iequals "BAR" and
             
-            test_proto2.array_int64[0] == 10 and
-            test_proto2.array_int64[1] == 20
-
+            test_proto2.array_int64[0] == 1 and
+            test_proto2.array_int64[1] == 10 and
+            test_proto2.array_int64[2] == 100 and
+            test_proto2.array_int64[test_proto2.array_int64[0]] == 10
         }
+        
         rule test_2 {
           condition:
             // Make sure that undef or true is true.

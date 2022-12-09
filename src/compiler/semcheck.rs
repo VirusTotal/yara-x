@@ -497,14 +497,15 @@ pub(super) fn semcheck_expr(
         }
 
         Expr::Lookup(expr) => {
-            semcheck_expr(ctx, &mut expr.primary)?;
-
             if let Type::Array = semcheck_expr(ctx, &mut expr.primary)? {
-                // The index must be of type integer.
-                semcheck!(ctx, Type::Integer, &mut expr.index)?;
-
-                let array = ctx.array.take().unwrap();
+                let array = ctx.current_array.take().unwrap();
                 let item_type = array.item_type();
+
+                // Check that index is an integer. Notice that this must be
+                // done *after* retrieving the current array from `ctx`. This
+                // is because the index expression may also contain an index
+                // lookup expression that modifies `ctx.current_array`.
+                semcheck!(ctx, Type::Integer, &mut expr.index)?;
 
                 // The type of the LookupIndex expression (i.e: array[index])
                 // is the type of the array's items.
