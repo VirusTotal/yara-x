@@ -19,6 +19,8 @@ This module implements the logic for building these WebAssembly modules, and
 the functions exposed to them by YARA's WebAssembly runtime.
  */
 
+use std::stringify;
+
 use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
 use walrus::InstrSeqBuilder;
@@ -38,6 +40,24 @@ pub(crate) struct ModuleBuilder {
     main_fn: walrus::FunctionBuilder,
 }
 
+/// Helper macro tha adds imports to a module.
+///
+/// # Example
+///
+/// This add an import for a function named `my_function`, that receives an
+/// `i64` and returns an `Externref`.
+///
+/// ```ignore
+/// import!(module, my_function, [I64], [Externref]);
+/// ```
+macro_rules! import {
+    ($module:ident, $fn_name:ident, [$( $arg:ident ),*], [$( $result:ident ),*] ) => {
+        let ty = $module.types.add(&[$( $arg ),*], &[$( $result ),*]);
+        let ($fn_name, _) =
+            $module.add_import_func("yr", stringify!($fn_name), ty);
+    };
+}
+
 impl ModuleBuilder {
     /// Module's memory size in pages. Page size is 64KB.
     pub(crate) const MODULE_MEMORY_SIZE: u32 = 1;
@@ -47,105 +67,39 @@ impl ModuleBuilder {
         let config = walrus::ModuleConfig::new();
         let mut module = walrus::Module::with_config(config);
 
-        let ty = module.types.add(&[], &[I64]);
-        let (filesize, _) = module.add_import_func("yr", "filesize", ty);
+        import!(module, filesize, [], [I64]);
+        import!(module, rule_match, [I32], []);
+        import!(module, is_pat_match, [I32], [I32]);
+        import!(module, is_pat_match_at, [I32, I64], [I32]);
+        import!(module, is_pat_match_in, [I32, I64, I64], [I32]);
+        import!(module, literal_to_ref, [I64], [Externref]);
 
-        let ty = module.types.add(&[I32], &[]);
-        let (rule_match, _) = module.add_import_func("yr", "rule_match", ty);
+        import!(module, str_eq, [Externref, Externref], [I32]);
+        import!(module, str_ne, [Externref, Externref], [I32]);
+        import!(module, str_gt, [Externref, Externref], [I32]);
+        import!(module, str_lt, [Externref, Externref], [I32]);
+        import!(module, str_ge, [Externref, Externref], [I32]);
+        import!(module, str_le, [Externref, Externref], [I32]);
 
-        let ty = module.types.add(&[I32], &[I32]);
-        let (is_pat_match, _) =
-            module.add_import_func("yr", "is_pat_match", ty);
+        import!(module, str_contains, [Externref, Externref], [I32]);
+        import!(module, str_icontains, [Externref, Externref], [I32]);
+        import!(module, str_startswith, [Externref, Externref], [I32]);
+        import!(module, str_endswith, [Externref, Externref], [I32]);
+        import!(module, str_istartswith, [Externref, Externref], [I32]);
+        import!(module, str_iendswith, [Externref, Externref], [I32]);
+        import!(module, str_iequals, [Externref, Externref], [I32]);
+        import!(module, str_len, [Externref], [I64]);
 
-        let ty = module.types.add(&[I32, I64], &[I32]);
-        let (is_pat_match_at, _) =
-            module.add_import_func("yr", "is_pat_match_at", ty);
+        import!(module, symbol_lookup_integer, [I64], [I64, I32]);
+        import!(module, symbol_lookup_float, [I64], [F64, I32]);
+        import!(module, symbol_lookup_bool, [I64], [I32, I32]);
+        import!(module, symbol_lookup_string, [I64], [Externref]);
+        import!(module, symbol_lookup_array, [I64], []);
+        import!(module, symbol_lookup_struct, [I64], []);
+        import!(module, symbol_lookup_map, [I64], []);
 
-        let ty = module.types.add(&[I32, I64, I64], &[I32]);
-        let (is_pat_match_in, _) =
-            module.add_import_func("yr", "is_pat_match_in", ty);
-
-        let ty = module.types.add(&[I64], &[Externref]);
-        let (literal_to_ref, _) =
-            module.add_import_func("yr", "literal_to_ref", ty);
-
-        // String comparison
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_eq, _) = module.add_import_func("yr", "str_eq", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_ne, _) = module.add_import_func("yr", "str_ne", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_gt, _) = module.add_import_func("yr", "str_gt", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_lt, _) = module.add_import_func("yr", "str_lt", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_ge, _) = module.add_import_func("yr", "str_ge", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_le, _) = module.add_import_func("yr", "str_le", ty);
-
-        // String operations
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_contains, _) =
-            module.add_import_func("yr", "str_contains", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_startswith, _) =
-            module.add_import_func("yr", "str_startswith", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_endswith, _) =
-            module.add_import_func("yr", "str_endswith", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_icontains, _) =
-            module.add_import_func("yr", "str_icontains", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_istartswith, _) =
-            module.add_import_func("yr", "str_istartswith", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_iendswith, _) =
-            module.add_import_func("yr", "str_iendswith", ty);
-
-        let ty = module.types.add(&[Externref, Externref], &[I32]);
-        let (str_iequals, _) = module.add_import_func("yr", "str_iequals", ty);
-
-        let ty = module.types.add(&[Externref], &[I64]);
-        let (str_len, _) = module.add_import_func("yr", "str_len", ty);
-
-        // Lookup functions
-        let ty = module.types.add(&[I64], &[I64, I32]);
-        let (lookup_integer, _) =
-            module.add_import_func("yr", "lookup_integer", ty);
-
-        let ty = module.types.add(&[I64], &[F64, I32]);
-        let (lookup_float, _) =
-            module.add_import_func("yr", "lookup_float", ty);
-
-        let ty = module.types.add(&[I64], &[I32, I32]);
-        let (lookup_bool, _) = module.add_import_func("yr", "lookup_bool", ty);
-
-        let ty = module.types.add(&[I64], &[Externref]);
-        let (lookup_string, _) =
-            module.add_import_func("yr", "lookup_string", ty);
-
-        let ty = module.types.add(&[I64], &[]);
-        let (lookup_struct, _) =
-            module.add_import_func("yr", "lookup_struct", ty);
-
-        let ty = module.types.add(&[I64], &[]);
-        let (lookup_array, _) =
-            module.add_import_func("yr", "lookup_array", ty);
-
-        let ty = module.types.add(&[I64], &[I64, I32]);
-        let (integer_array_indexing, _) =
-            module.add_import_func("yr", "integer_array_indexing", ty);
+        import!(module, array_lookup_integer, [I64], [I64, I32]);
+        import!(module, map_lookup_integer, [Externref], [I64, I32]);
 
         let wasm_symbols = WasmSymbols {
             rule_match,
@@ -153,13 +107,15 @@ impl ModuleBuilder {
             is_pat_match_at,
             is_pat_match_in,
             literal_to_ref,
-            lookup_integer,
-            lookup_float,
-            lookup_bool,
-            lookup_string,
-            lookup_struct,
-            lookup_array,
-            integer_array_indexing,
+            symbol_lookup_integer,
+            symbol_lookup_float,
+            symbol_lookup_bool,
+            symbol_lookup_string,
+            symbol_lookup_struct,
+            symbol_lookup_array,
+            symbol_lookup_map,
+            array_lookup_integer,
+            map_lookup_integer,
             str_eq,
             str_ne,
             str_lt,
@@ -378,7 +334,7 @@ pub(crate) struct WasmSymbols {
     pub main_memory: walrus::MemoryId,
 
     /// Ask YARA for the size of the data being scanned.
-    /// Signature: () -> (i64)     
+    /// Signature: () -> (i64)
     pub filesize: walrus::FunctionId,
 
     /// Called when a rule matches.
@@ -402,14 +358,21 @@ pub(crate) struct WasmSymbols {
     /// Signature: (string_id: i64) -> (Externref)
     pub literal_to_ref: walrus::FunctionId,
 
-    pub lookup_integer: walrus::FunctionId,
-    pub lookup_float: walrus::FunctionId,
-    pub lookup_bool: walrus::FunctionId,
-    pub lookup_string: walrus::FunctionId,
-    pub lookup_struct: walrus::FunctionId,
-    pub lookup_array: walrus::FunctionId,
+    /// Functions that given an `IdentId`, search for the identifier in the
+    /// current symbol table and return its value. In the case of structs,
+    /// arrays and maps the value is not returned, but is stored in
+    /// ScanContext::current_struct, ScanContext::current_array and
+    /// ScanContext::current_map, respectively.
+    pub symbol_lookup_integer: walrus::FunctionId,
+    pub symbol_lookup_float: walrus::FunctionId,
+    pub symbol_lookup_bool: walrus::FunctionId,
+    pub symbol_lookup_string: walrus::FunctionId,
+    pub symbol_lookup_struct: walrus::FunctionId,
+    pub symbol_lookup_array: walrus::FunctionId,
+    pub symbol_lookup_map: walrus::FunctionId,
 
-    pub integer_array_indexing: walrus::FunctionId,
+    pub array_lookup_integer: walrus::FunctionId,
+    pub map_lookup_integer: walrus::FunctionId,
 
     /// String comparison functions.
     /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
@@ -438,43 +401,53 @@ pub(crate) struct WasmSymbols {
 }
 
 lazy_static! {
-    pub(crate) static ref CONFIG: Config = Config::default();
+    pub(crate) static ref CONFIG: Config = {
+        let mut config = Config::default();
+        config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+        config
+    };
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
     pub(crate) static ref LINKER: Linker<ScanContext<'static>> = new_linker();
+}
+
+macro_rules! add_function {
+    ($linker:ident, $name:ident) => {
+        $linker.func_wrap("yr", stringify!($name), $name).unwrap();
+    };
 }
 
 pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
 
-    linker.func_wrap("yr", "filesize", filesize).unwrap();
-    linker.func_wrap("yr", "str_eq", str_eq).unwrap();
-    linker.func_wrap("yr", "str_ne", str_ne).unwrap();
-    linker.func_wrap("yr", "str_lt", str_lt).unwrap();
-    linker.func_wrap("yr", "str_gt", str_gt).unwrap();
-    linker.func_wrap("yr", "str_le", str_le).unwrap();
-    linker.func_wrap("yr", "str_ge", str_ge).unwrap();
-    linker.func_wrap("yr", "str_contains", str_contains).unwrap();
-    linker.func_wrap("yr", "str_startswith", str_startswith).unwrap();
-    linker.func_wrap("yr", "str_endswith", str_endswith).unwrap();
-    linker.func_wrap("yr", "str_icontains", str_icontains).unwrap();
-    linker.func_wrap("yr", "str_istartswith", str_istartswith).unwrap();
-    linker.func_wrap("yr", "str_iequals", str_iequals).unwrap();
-    linker.func_wrap("yr", "str_iendswith", str_iendswith).unwrap();
-    linker.func_wrap("yr", "str_len", str_len).unwrap();
-    linker.func_wrap("yr", "rule_match", rule_match).unwrap();
-    linker.func_wrap("yr", "is_pat_match", is_pat_match).unwrap();
-    linker.func_wrap("yr", "is_pat_match_at", is_pat_match_at).unwrap();
-    linker.func_wrap("yr", "is_pat_match_in", is_pat_match_in).unwrap();
-    linker.func_wrap("yr", "literal_to_ref", literal_to_ref).unwrap();
-    linker.func_wrap("yr", "lookup_integer", lookup_integer).unwrap();
-    linker.func_wrap("yr", "lookup_float", lookup_float).unwrap();
-    linker.func_wrap("yr", "lookup_bool", lookup_bool).unwrap();
-    linker.func_wrap("yr", "lookup_string", lookup_string).unwrap();
-    linker.func_wrap("yr", "lookup_struct", lookup_struct).unwrap();
-    linker.func_wrap("yr", "lookup_array", lookup_array).unwrap();
-    linker
-        .func_wrap("yr", "integer_array_indexing", integer_array_indexing)
-        .unwrap();
+    add_function!(linker, filesize);
+    add_function!(linker, str_eq);
+    add_function!(linker, str_ne);
+    add_function!(linker, str_lt);
+    add_function!(linker, str_gt);
+    add_function!(linker, str_le);
+    add_function!(linker, str_ge);
+    add_function!(linker, str_contains);
+    add_function!(linker, str_startswith);
+    add_function!(linker, str_endswith);
+    add_function!(linker, str_icontains);
+    add_function!(linker, str_istartswith);
+    add_function!(linker, str_iequals);
+    add_function!(linker, str_iendswith);
+    add_function!(linker, str_len);
+    add_function!(linker, rule_match);
+    add_function!(linker, is_pat_match);
+    add_function!(linker, is_pat_match_at);
+    add_function!(linker, is_pat_match_in);
+    add_function!(linker, literal_to_ref);
+    add_function!(linker, symbol_lookup_integer);
+    add_function!(linker, symbol_lookup_float);
+    add_function!(linker, symbol_lookup_string);
+    add_function!(linker, symbol_lookup_bool);
+    add_function!(linker, symbol_lookup_struct);
+    add_function!(linker, symbol_lookup_array);
+    add_function!(linker, symbol_lookup_map);
+    add_function!(linker, array_lookup_integer);
+    add_function!(linker, map_lookup_integer);
 
     linker
 }
@@ -581,11 +554,11 @@ pub(crate) fn literal_to_ref(
     ))))
 }
 
-/// Given the IdentId corresponding to some identifier of type
-/// [`crate::Type::String`], looks up for the identifier in the current symbol
-/// table, creates an externref for the string, and pushes it in the wasm
-/// stack. If the identifier is not found, it pushes a null externref instead.
-pub(crate) fn lookup_string(
+/// Given the IdentId for some identifier of type [`crate::Type::String`],
+/// looks for the identifier in the current symbol table, creates an externref
+/// for the string, and pushes the externref in the wasm stack. If the
+/// identifier is not found, it pushes a null externref instead.
+pub(crate) fn symbol_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     ident_id: i64,
 ) -> Option<ExternRef> {
@@ -609,13 +582,12 @@ pub(crate) fn lookup_string(
     }
 }
 
-/// Given the IdentId corresponding to some identifier of type
-/// [`crate::Type::String`], looks up for the identifier in the current symbol
-/// table and sets the structure's symbol table in
-/// [`ScanContext::struct_symbol_table`], so that any subsequent call
-/// to `lookup_xxx` will use the structure's symbol table instead of the main
-/// one.
-pub(crate) fn lookup_struct(
+/// Given the IdentId for some identifier of type [`crate::Type::Struct`],
+/// looks for the identifier in the current symbol and stores a reference
+/// to the structure in [`ScanContext::current_struct`]. The next call to
+/// `lookup_xxx` will use the structure's symbol table instead of the main
+/// symbol table.
+pub(crate) fn symbol_lookup_struct(
     mut caller: Caller<'_, ScanContext>,
     ident_id: i64,
 ) {
@@ -641,7 +613,10 @@ pub(crate) fn lookup_struct(
         };
 }
 
-pub(crate) fn lookup_array(
+/// Given the IdentId for some identifier of type [`crate::Type::Array`],
+/// looks for the identifier in the current symbol and stores a reference
+/// to the array in [`ScanContext::current_struct`].
+pub(crate) fn symbol_lookup_array(
     mut caller: Caller<'_, ScanContext>,
     ident_id: i64,
 ) {
@@ -666,9 +641,36 @@ pub(crate) fn lookup_array(
     };
 }
 
+/// Given the IdentId for some identifier of type [`crate::Type::Map`],
+/// looks for the identifier in the current symbol and stores a reference
+/// to the array in [`ScanContext::current_map`].
+pub(crate) fn symbol_lookup_map(
+    mut caller: Caller<'_, ScanContext>,
+    ident_id: i64,
+) {
+    let ident = caller
+        .data()
+        .compiled_rules
+        .ident_pool()
+        .get(IdentId::from(ident_id as u32))
+        .unwrap();
+
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+    let symbol = scan_ctx.lookup(ident);
+
+    scan_ctx.current_map = if let SymbolValue::Map(map) = symbol.value() {
+        Some(map.to_owned())
+    } else {
+        // This should not happen, the symbol with the given identifier
+        // must exist and be a map.
+        unreachable!()
+    };
+}
+
 /// Macro that generates functions similar to [`lookup_struct`] and
 /// [`lookup_string`] but for integers, floats and booleans.
-macro_rules! lookup_ident_fn {
+macro_rules! symbol_lookup_ident_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
@@ -694,9 +696,9 @@ macro_rules! lookup_ident_fn {
     };
 }
 
-lookup_ident_fn!(lookup_integer, i64, Value::Integer);
-lookup_ident_fn!(lookup_float, f64, Value::Float);
-lookup_ident_fn!(lookup_bool, i32, Value::Bool);
+symbol_lookup_ident_fn!(symbol_lookup_integer, i64, Value::Integer);
+symbol_lookup_ident_fn!(symbol_lookup_float, f64, Value::Float);
+symbol_lookup_ident_fn!(symbol_lookup_bool, i32, Value::Bool);
 
 macro_rules! str_cmp_fn {
     ($name:ident, $op:tt) => {
@@ -761,15 +763,39 @@ pub(crate) fn str_len(
     string.len(caller.data()) as i64
 }
 
-pub(crate) fn integer_array_indexing(
+pub(crate) fn array_lookup_integer(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
 ) -> MaybeUndef<i64> {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
-    let array = scan_ctx.current_array.take().unwrap();
 
+    let array = scan_ctx.current_array.take().unwrap();
     if let Some(symbol) = array.index(index as usize) {
+        match symbol.value() {
+            SymbolValue::Value(Value::Integer(value)) => defined(*value),
+            SymbolValue::Value(Value::Unknown) => undefined(),
+            _ => unreachable!(),
+        }
+    } else {
+        undefined()
+    }
+}
+
+pub(crate) fn map_lookup_integer(
+    mut caller: Caller<'_, ScanContext>,
+    key: Option<ExternRef>,
+) -> MaybeUndef<i64> {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    let map = scan_ctx.current_map.take().unwrap();
+    let k = key.unwrap();
+
+    let r = k.data().downcast_ref::<RuntimeString>().unwrap();
+    let a = r.as_bstr(scan_ctx);
+
+    if let Some(symbol) = map.index(a.to_owned()) {
         match symbol.value() {
             SymbolValue::Value(Value::Integer(value)) => defined(*value),
             SymbolValue::Value(Value::Unknown) => undefined(),

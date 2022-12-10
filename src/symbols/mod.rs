@@ -1,4 +1,6 @@
+use bstr::BString;
 use bstr::{BStr, ByteSlice};
+use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
@@ -15,16 +17,18 @@ pub trait SymbolLookup<'a> {
     fn lookup(&self, ident: &str) -> Option<Symbol<'a>>;
 }
 
-pub trait SymbolIndex<'a> {
-    fn index(&self, index: usize) -> Option<Symbol<'a>>;
+pub trait SymbolIndex<'a, I> {
+    fn index(&self, index: I) -> Option<Symbol<'a>>;
     fn item_type(&self) -> Type;
+    fn item_value(&self) -> SymbolValue<'a>;
 }
 
 #[derive(Clone)]
 pub enum SymbolValue<'a> {
     Value(Value),
     Struct(Rc<dyn SymbolLookup<'a> + 'a>),
-    Array(Rc<dyn SymbolIndex<'a> + 'a>),
+    Array(Rc<dyn SymbolIndex<'a, usize> + 'a>),
+    Map(Rc<dyn SymbolIndex<'a, BString> + 'a>),
 }
 
 #[derive(Clone)]
@@ -47,10 +51,18 @@ impl<'a> Symbol<'a> {
         }
     }
 
-    pub fn new_array(array: Rc<dyn SymbolIndex<'a> + 'a>) -> Self {
+    pub fn new_array(array: Rc<dyn SymbolIndex<'a, usize> + 'a>) -> Self {
         Self {
             ty: Type::Array,
             value: SymbolValue::Array(array),
+            location: Location::None,
+        }
+    }
+
+    pub fn new_map(map: Rc<dyn SymbolIndex<'a, BString> + 'a>) -> Self {
+        Self {
+            ty: Type::Array,
+            value: SymbolValue::Map(map),
             location: Location::None,
         }
     }
@@ -126,7 +138,7 @@ pub enum Location {
 /// The identifier in this case is a module name. If a module with the given
 /// identifier exists in the map, a [`Symbol`] of type [`Type::Struct`] that
 /// wraps a &[`Module`] is returned.
-impl<'a> SymbolLookup<'a> for &'a HashMap<&'a str, Module> {
+impl<'a> SymbolLookup<'a> for &'a FxHashMap<&'a str, Module> {
     fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
         self.get(ident).map(|module| Symbol::new_struct(Rc::new(module)))
     }

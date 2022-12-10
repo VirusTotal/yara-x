@@ -51,16 +51,22 @@ fn main(_ctx: &ScanContext) -> Test {
     test.array_bool.push(true);
 
     let mut nested = NestedProto2::new();
+
     nested.set_nested_int32_zero(0);
     nested.set_nested_int64_zero(0);
     nested.set_nested_int32_one(1);
     nested.set_nested_int64_one(1);
 
-    for i in 0..100000 {
-        nested.array_int64.push(i);
-    }
-
     test.nested = Some(nested).into();
+
+    let mut nested = NestedProto2::new();
+
+    nested.set_nested_int32_zero(0);
+    nested.set_nested_int64_zero(0);
+    nested.set_nested_int32_one(1);
+    nested.set_nested_int64_one(1);
+
+    test.map_string_int64.insert("foo".to_string(), 1);
 
     test
 }

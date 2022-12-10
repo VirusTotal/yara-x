@@ -462,6 +462,46 @@ rule test {
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
+    test_proto2.array_int64["foo"]
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:5:29]
+   │
+ 5 │     test_proto2.array_int64["foo"]
+   ·                             ──┬──  
+   ·                               ╰──── expression should be `integer`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
+    test_proto2.map_string_int64[0]
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:5:34]
+   │
+ 5 │     test_proto2.map_string_int64[0]
+   ·                                  ┬  
+   ·                                  ╰── expression should be `string`, but is `integer`
+───╯
+"#,
+        ),
     ];
 
     for t in tests {

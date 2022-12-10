@@ -478,6 +478,10 @@ pub(super) fn semcheck_expr(
                             ctx.current_array = Some(array.clone());
                             (Type::Array, Value::Unknown)
                         }
+                        SymbolValue::Map(map) => {
+                            ctx.current_map = Some(map.clone());
+                            (Type::Map, Value::Unknown)
+                        }
                     }
                 } else {
                     return Err(Error::CompileError(
@@ -497,29 +501,50 @@ pub(super) fn semcheck_expr(
         }
 
         Expr::Lookup(expr) => {
-            if let Type::Array = semcheck_expr(ctx, &mut expr.primary)? {
-                let array = ctx.current_array.take().unwrap();
-                let item_type = array.item_type();
+            match semcheck_expr(ctx, &mut expr.primary)? {
+                Type::Array => {
+                    let array = ctx.current_array.take().unwrap();
+                    let item_type = array.item_type();
 
-                // Check that index is an integer. Notice that this must be
-                // done *after* retrieving the current array from `ctx`. This
-                // is because the index expression may also contain an index
-                // lookup expression that modifies `ctx.current_array`.
-                semcheck!(ctx, Type::Integer, &mut expr.index)?;
+                    // Check that index is an integer. Notice that this must be
+                    // done *after* retrieving the current array from `ctx`. This
+                    // is because the index expression may also contain an index
+                    // lookup expression that modifies `ctx.current_array`.
+                    semcheck!(ctx, Type::Integer, &mut expr.index)?;
 
-                // The type of the LookupIndex expression (i.e: array[index])
-                // is the type of the array's items.
-                expr.set_type_and_value(item_type, Value::Unknown);
+                    if let SymbolValue::Struct(s) = array.item_value() {
+                        ctx.current_struct = Some(s);
+                    }
 
-                Ok(expr.ty())
-            } else {
-                Err(Error::CompileError(CompileError::wrong_type(
+                    // The type of the Lookup expression (i.e: array[index])
+                    // is the type of the array's items.
+                    expr.set_type_and_value(item_type, Value::Unknown);
+
+                    Ok(expr.ty())
+                }
+                Type::Map => {
+                    let map = ctx.current_map.take().unwrap();
+                    let item_type = map.item_type();
+
+                    semcheck!(ctx, Type::String, &mut expr.index)?;
+
+                    if let SymbolValue::Struct(s) = map.item_value() {
+                        ctx.current_struct = Some(s);
+                    }
+
+                    // The type of the Lookup expression (i.e: array[index])
+                    // is the type of the map's items.
+                    expr.set_type_and_value(item_type, Value::Unknown);
+
+                    Ok(expr.ty())
+                }
+                _ => Err(Error::CompileError(CompileError::wrong_type(
                     ctx.report_builder,
                     ctx.src,
                     format!("`{}`", Type::Array),
                     expr.primary.ty().to_string(),
                     expr.primary.span(),
-                )))
+                ))),
             }
         }
         Expr::FieldAccess(expr) => {

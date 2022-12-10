@@ -7,6 +7,7 @@ use crate::symbols::{Symbol, SymbolIndex, SymbolLookup, SymbolTable};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
+use bstr::BString;
 use std::cell::RefCell;
 use std::ptr::null;
 use std::rc::Rc;
@@ -35,6 +36,7 @@ impl<'r> Scanner<'r> {
                 compiled_rules,
                 current_array: None,
                 current_struct: None,
+                current_map: None,
                 symbol_table: symbol_table.clone(),
                 scanned_data: null(),
                 scanned_data_len: 0,
@@ -218,7 +220,9 @@ pub(crate) struct ScanContext<'r> {
     /// set it overrides `symbol_table`.
     pub(crate) current_struct: Option<Rc<dyn SymbolLookup<'r> + 'r>>,
     /// Currently active array.
-    pub(crate) current_array: Option<Rc<dyn SymbolIndex<'r> + 'r>>,
+    pub(crate) current_array: Option<Rc<dyn SymbolIndex<'r, usize> + 'r>>,
+    /// Currently active map.
+    pub(crate) current_map: Option<Rc<dyn SymbolIndex<'r, BString> + 'r>>,
 }
 
 impl<'r> ScanContext<'r> {

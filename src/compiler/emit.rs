@@ -13,6 +13,7 @@ use crate::symbols::{
     Location, Symbol, SymbolLookup, SymbolTable, SymbolValue,
 };
 use crate::types::{Type, Value};
+use crate::wasm;
 
 /// This macro emits a constant if the type hint indicates that the expression
 /// has a constant value (e.i: the value is known at compile time), if not,
@@ -271,22 +272,22 @@ pub(super) fn emit_expr(
                     // symbol table.
                     match ident.ty() {
                         Type::Integer => {
-                            emit_lookup_integer(ctx, instr, ident_id);
+                            emit_symbol_lookup_integer(ctx, instr, ident_id);
                         }
                         Type::Float => {
-                            emit_lookup_float(ctx, instr, ident_id);
+                            emit_symbol_lookup_float(ctx, instr, ident_id);
                         }
                         Type::Bool => {
-                            emit_lookup_bool(ctx, instr, ident_id);
+                            emit_symbol_lookup_bool(ctx, instr, ident_id);
                         }
                         Type::String => {
-                            emit_lookup_string(ctx, instr, ident_id);
+                            emit_symbol_lookup_string(ctx, instr, ident_id);
                         }
                         Type::Struct => {
-                            emit_lookup_struct(ctx, instr, ident_id);
+                            emit_symbol_lookup_struct(ctx, instr, ident_id);
                             // The identifier represents a structure, save
                             // the symbol table for this structure in the
-                            // struct_symbol_table variable.
+                            // context's current_struct field.
                             if let SymbolValue::Struct(symbol_table) =
                                 symbol.value()
                             {
@@ -297,11 +298,21 @@ pub(super) fn emit_expr(
                             }
                         }
                         Type::Array => {
-                            emit_lookup_array(ctx, instr, ident_id);
+                            emit_symbol_lookup_array(ctx, instr, ident_id);
 
                             if let SymbolValue::Array(array) = symbol.value() {
                                 ctx.borrow_mut().current_array =
                                     Some(array.clone())
+                            } else {
+                                unreachable!()
+                            }
+                        }
+                        Type::Map => {
+                            emit_symbol_lookup_map(ctx, instr, ident_id);
+
+                            if let SymbolValue::Map(map) = symbol.value() {
+                                ctx.borrow_mut().current_map =
+                                    Some(map.clone())
                             } else {
                                 unreachable!()
                             }
@@ -355,21 +366,36 @@ pub(super) fn emit_expr(
                 emit_expr(ctx, instr, &operands.index);
                 // Emit code for the value (array or dictionary) that is being
                 // indexed. This will set the value of `current_array` or
-                // `current_dict` in the scan context.
+                // `current_map` in the scan context, but doesn't leave anything
+                // in the stack.
                 //
                 // Notice that the index expression must be evaluated first
                 // because it may contain another indexing operation that will
-                // change the value of `current_array` or `current_dict`. If
+                // change the value of `current_array` or `current_map`. If
                 // the primary expression is evaluated first, the value left
                 // in `current_array/current_dict` will be overwritten by the
                 // index expression.
                 emit_expr(ctx, instr, &operands.primary);
 
-                emit_call_and_handle_undef(
-                    ctx,
-                    instr,
-                    ctx.borrow().wasm_symbols.integer_array_indexing,
-                );
+                // Put a value in the stack indicating the type of object that
+                // is being indexed (ie: array or map). The
+                match operands.primary.ty() {
+                    Type::Array => {
+                        emit_call_and_handle_undef(
+                            ctx,
+                            instr,
+                            ctx.borrow().wasm_symbols.array_lookup_integer,
+                        );
+                    }
+                    Type::Map => {
+                        emit_call_and_handle_undef(
+                            ctx,
+                            instr,
+                            ctx.borrow().wasm_symbols.map_lookup_integer,
+                        );
+                    }
+                    _ => unreachable!(),
+                };
             })
         }
         Expr::FieldAccess(operands) => {
@@ -1135,7 +1161,7 @@ pub(super) fn emit_call_and_handle_undef(
 }
 
 #[inline]
-pub(super) fn emit_lookup_integer(
+pub(super) fn emit_symbol_lookup_integer(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     ident_id: IdentId,
@@ -1144,12 +1170,12 @@ pub(super) fn emit_lookup_integer(
     emit_call_and_handle_undef(
         ctx,
         instr,
-        ctx.borrow().wasm_symbols.lookup_integer,
+        ctx.borrow().wasm_symbols.symbol_lookup_integer,
     );
 }
 
 #[inline]
-pub(super) fn emit_lookup_float(
+pub(super) fn emit_symbol_lookup_float(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     ident_id: IdentId,
@@ -1158,12 +1184,12 @@ pub(super) fn emit_lookup_float(
     emit_call_and_handle_undef(
         ctx,
         instr,
-        ctx.borrow().wasm_symbols.lookup_float,
+        ctx.borrow().wasm_symbols.symbol_lookup_float,
     );
 }
 
 #[inline]
-pub(super) fn emit_lookup_bool(
+pub(super) fn emit_symbol_lookup_bool(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     ident_id: IdentId,
@@ -1172,38 +1198,48 @@ pub(super) fn emit_lookup_bool(
     emit_call_and_handle_undef(
         ctx,
         instr,
-        ctx.borrow().wasm_symbols.lookup_bool,
+        ctx.borrow().wasm_symbols.symbol_lookup_bool,
     );
 }
 
 #[inline]
-pub(super) fn emit_lookup_string(
+pub(super) fn emit_symbol_lookup_string(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     ident_id: IdentId,
 ) {
     instr.i64_const(Into::<u32>::into(ident_id) as i64);
-    instr.call(ctx.borrow().wasm_symbols.lookup_string);
+    instr.call(ctx.borrow().wasm_symbols.symbol_lookup_string);
 }
 
 #[inline]
-pub(super) fn emit_lookup_struct(
+pub(super) fn emit_symbol_lookup_struct(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     ident_id: IdentId,
 ) {
     instr.i64_const(Into::<u32>::into(ident_id) as i64);
-    instr.call(ctx.borrow().wasm_symbols.lookup_struct);
+    instr.call(ctx.borrow().wasm_symbols.symbol_lookup_struct);
 }
 
 #[inline]
-pub(super) fn emit_lookup_array(
+pub(super) fn emit_symbol_lookup_array(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     ident_id: IdentId,
 ) {
     instr.i64_const(Into::<u32>::into(ident_id) as i64);
-    instr.call(ctx.borrow().wasm_symbols.lookup_array);
+    instr.call(ctx.borrow().wasm_symbols.symbol_lookup_array);
+}
+
+#[inline]
+pub(super) fn emit_symbol_lookup_map(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    ident_id: IdentId,
+) {
+    instr.i64_const(Into::<u32>::into(ident_id) as i64);
+    instr.call(ctx.borrow().wasm_symbols.symbol_lookup_map);
 }
 
 // Emits code that checks if the top of the stack is non-zero and executes

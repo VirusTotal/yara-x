@@ -63,9 +63,11 @@ impl<'src, 'rb> Context<'src, 'rb> {
 
     /// Returns the identifier of the pattern that is currently being parsed.
     ///
-    /// This function panics if called at some point where a string is not
-    /// being parsed, so it should be called only from `pattern_from_cst`
-    /// or any other function under `pattern_from_cst` in the call tree.
+    /// # Panics
+    ///
+    /// Panics if called at some point where a string is not being parsed,
+    /// so it should be called only from `pattern_from_cst` or any other
+    /// function under `pattern_from_cst` in the call tree.
     pub(crate) fn current_pattern_ident(&self) -> String {
         self.current_pattern.as_ref().unwrap().name.to_string()
     }

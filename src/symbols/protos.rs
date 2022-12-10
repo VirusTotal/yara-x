@@ -103,14 +103,21 @@ pub struct ProtoRepeatedField<'a> {
     field_descriptor: FieldDescriptor,
 }
 
-impl<'a> SymbolIndex<'a> for ProtoRepeatedField<'a> {
+impl<'a> SymbolIndex<'a, usize> for ProtoRepeatedField<'a> {
     fn index(&self, index: usize) -> Option<Symbol<'a>> {
-        let item = self.field_descriptor.get_repeated(self.message).get(index);
+        let field = self.field_descriptor.get_repeated(self.message);
+        let item = field.get(index);
         symbol_from_type_value(item.get_type(), Some(item))
     }
 
     fn item_type(&self) -> Type {
-        self.field_descriptor.item_type()
+        <FieldDescriptor as SymbolIndex<'_, usize>>::item_type(
+            &self.field_descriptor,
+        )
+    }
+
+    fn item_value(&self) -> SymbolValue<'a> {
+        todo!();
     }
 }
 
@@ -145,7 +152,12 @@ fn lookup_impl<'a>(
                 Some(symbol)
             }
             RuntimeFieldType::Map(_, _) => {
-                todo!()
+                let symbol = if let Some(message) = message {
+                    todo!()
+                } else {
+                    Symbol::new_map(Rc::new(field_descriptor))
+                };
+                Some(symbol)
             }
         }
     } else {
@@ -234,25 +246,50 @@ fn symbol_from_type_value(
     }
 }
 
-impl<'a> SymbolIndex<'a> for FieldDescriptor {
-    fn index(&self, _index: usize) -> Option<Symbol<'a>> {
+impl<'a, T> SymbolIndex<'a, T> for FieldDescriptor {
+    fn index(&self, _index: T) -> Option<Symbol<'a>> {
         None
     }
     fn item_type(&self) -> Type {
         match self.runtime_field_type() {
-            RuntimeFieldType::Repeated(ty) => match ty {
-                RuntimeType::I32 => Type::Integer,
-                RuntimeType::I64 => Type::Integer,
-                RuntimeType::U32 => Type::Integer,
-                RuntimeType::U64 => Type::Integer,
-                RuntimeType::F32 => Type::Float,
-                RuntimeType::F64 => Type::Float,
-                RuntimeType::Bool => Type::Bool,
-                RuntimeType::String => Type::String,
-                RuntimeType::VecU8 => Type::String,
-                RuntimeType::Enum(_) => Type::Integer,
-                RuntimeType::Message(_) => Type::Struct,
-            },
+            RuntimeFieldType::Repeated(ty) | RuntimeFieldType::Map(_, ty) => {
+                match ty {
+                    RuntimeType::I32 => Type::Integer,
+                    RuntimeType::I64 => Type::Integer,
+                    RuntimeType::U32 => Type::Integer,
+                    RuntimeType::U64 => Type::Integer,
+                    RuntimeType::F32 => Type::Float,
+                    RuntimeType::F64 => Type::Float,
+                    RuntimeType::Bool => Type::Bool,
+                    RuntimeType::String => Type::String,
+                    RuntimeType::VecU8 => Type::String,
+                    RuntimeType::Enum(_) => Type::Integer,
+                    RuntimeType::Message(_) => Type::Struct,
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn item_value(&self) -> SymbolValue<'a> {
+        match self.runtime_field_type() {
+            RuntimeFieldType::Repeated(ty) | RuntimeFieldType::Map(_, ty) => {
+                match ty {
+                    RuntimeType::I32 => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::I64 => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::U32 => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::U64 => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::F32 => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::F64 => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::Bool => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::String => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::VecU8 => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::Enum(_) => SymbolValue::Value(Value::Unknown),
+                    RuntimeType::Message(message_descriptor) => {
+                        SymbolValue::Struct(Rc::new(message_descriptor))
+                    }
+                }
+            }
             _ => unreachable!(),
         }
     }

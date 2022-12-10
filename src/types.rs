@@ -1,13 +1,9 @@
-use std::cell::Ref;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
-use std::ops::{BitAnd, Deref};
-use std::sync::Arc;
 
 use bstr::{BString, ByteSlice};
-
-use crate::symbols::{SymbolIndex, SymbolLookup};
 
 /// Type of a YARA expression or identifier.
 #[derive(Clone, Copy, PartialEq)]
@@ -19,6 +15,7 @@ pub enum Type {
     String,
     Struct,
     Array,
+    Map,
 }
 
 /// Value of a YARA expression or identifier.
@@ -471,6 +468,7 @@ impl Debug for Type {
             Type::String => write!(f, "string"),
             Type::Struct => write!(f, "struct"),
             Type::Array => write!(f, "array"),
+            Type::Map => write!(f, "map"),
         }
     }
 }

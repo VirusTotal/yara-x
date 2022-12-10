@@ -226,19 +226,19 @@ fn test_proto2_module() {
     let rules = crate::compiler::Compiler::new()
         .add_source(
             r#"
-        import "test_proto2"        
+        import "test_proto2"
         rule test_1 {
           condition:
-            test_proto2.int64_zero == 0 and 
+            test_proto2.int64_zero == 0 and
             test_proto2.int64_one == 1 and
             test_proto2.int64_one + test_proto2.int64_zero == 1 and
             test_proto2.int64_one + test_proto2.int64_one == 2 and
             test_proto2.int64_one * test_proto2.int64_one == 1 and
-            test_proto2.int64_one - test_proto2.int64_one == 0 and 
-           
+            test_proto2.int64_one - test_proto2.int64_one == 0 and
+
             test_proto2.nested.nested_int64_zero == 0 and
             test_proto2.nested.nested_int64_one == 1 and
-           
+
             test_proto2.string_foo != test_proto2.string_bar and
             test_proto2.string_foo == "foo" and
             test_proto2.string_bar == "bar" and
@@ -249,13 +249,13 @@ fn test_proto2_module() {
             test_proto2.string_bar iendswith "AR" and
             test_proto2.string_bar istartswith "BAR" and
             test_proto2.string_bar iequals "BAR" and
-            
+
             test_proto2.array_int64[0] == 1 and
             test_proto2.array_int64[1] == 10 and
             test_proto2.array_int64[2] == 100 and
             test_proto2.array_int64[test_proto2.array_int64[0]] == 10
         }
-        
+
         rule test_2 {
           condition:
             // Make sure that undef or true is true.
