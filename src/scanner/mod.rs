@@ -8,7 +8,10 @@ use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
 use bstr::BString;
+use memmap::MmapOptions;
 use std::cell::RefCell;
+use std::fs::File;
+use std::path::Path;
 use std::ptr::null;
 use std::rc::Rc;
 use std::slice::Iter;
@@ -61,6 +64,16 @@ impl<'r> Scanner<'r> {
             .unwrap();
 
         Self { wasm_store, wasm_main_fn }
+    }
+
+    /// Scans a file.
+    pub fn scan_file<'s, P: AsRef<Path>>(
+        &'s mut self,
+        path: P,
+    ) -> std::io::Result<ScanResults<'s, 'r>> {
+        let file = File::open(path)?;
+        let mmap = unsafe { MmapOptions::new().map(&file)? };
+        Ok(self.scan(&mmap[..]))
     }
 
     /// Scans a data buffer.

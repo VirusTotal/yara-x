@@ -11,6 +11,7 @@ use yara_x::compiler::Compiler;
 
 use yara_x::formatter;
 use yara_x::parser::{Parser, SourceCode};
+use yara_x::scanner::Scanner;
 
 mod check;
 
@@ -79,6 +80,20 @@ fn main() -> anyhow::Result<()> {
         .arg_required_else_help(true)
         .help_template(APP_HELP_TEMPLATE)
         .subcommands(vec![
+            command("scan")
+                .about(
+                    "Scans a file with some YARA",
+                )
+                .arg(
+                    arg!(<RULES_FILE>)
+                        .help("Path to YARA source file")
+                        .value_parser(value_parser!(PathBuf)),
+
+                ).arg(
+                    arg!(<FILE>)
+                        .help("Path to the file that will be scanned")
+                        .value_parser(value_parser!(PathBuf))
+                ),
             command("ast")
                 .about(
                     "Print Abstract Syntax Tree (AST) for a YARA source file",
@@ -129,18 +144,40 @@ fn main() -> anyhow::Result<()> {
         ])
         .get_matches();
 
+
     let result = match args.subcommand() {
         Some(("ast", args)) => cmd_ast(args),
         Some(("wasm", args)) => cmd_wasm(args),
         Some(("check", args)) => cmd_check(args),
         Some(("fmt", args)) => cmd_format(args),
-
+        Some(("scan", args)) => cmd_scan(args),
         _ => unreachable!(),
     };
 
     if let Err(err) = result {
         println!("{}", err);
     }
+
+    Ok(())
+}
+
+fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
+    let rules_path = args.get_one::<PathBuf>("RULES_FILE").unwrap();
+    let file_path = args.get_one::<PathBuf>("FILE").unwrap();
+
+    let src = fs::read_to_string(rules_path).with_context(|| {
+        format!("could not read file `{}`", rules_path.display())
+    })?;
+
+    let src = SourceCode::from(src.as_str())
+        .origin(file_path.as_os_str().to_str().unwrap());
+
+    let rules =
+        Compiler::new().colorize_errors(true).add_source(src)?.build()?;
+
+    let mut scanner = Scanner::new(&rules);
+
+    scanner.scan_file(file_path)?;
 
     Ok(())
 }
