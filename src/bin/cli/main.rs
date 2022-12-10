@@ -144,6 +144,9 @@ fn main() -> anyhow::Result<()> {
         ])
         .get_matches();
 
+    #[cfg(feature = "profiling")]
+    let guard =
+        pprof::ProfilerGuardBuilder::default().frequency(1000).build()?;
 
     let result = match args.subcommand() {
         Some(("ast", args)) => cmd_ast(args),
@@ -157,6 +160,13 @@ fn main() -> anyhow::Result<()> {
     if let Err(err) = result {
         println!("{}", err);
     }
+
+    #[cfg(feature = "profiling")]
+    if let Ok(report) = guard.report().build() {
+        let file = std::fs::File::create("flamegraph.svg")?;
+        report.flamegraph(file)?;
+        println!("profiling information written to flamegraph.svg");
+    };
 
     Ok(())
 }

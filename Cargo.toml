@@ -19,6 +19,10 @@ compile-time-optimization = []
 test_proto2-module = []
 test_proto3-module = []
 
+# When this feature is enabled the CLI program saves CPU profiling
+# information into a flamegraph.svg file when run.
+profiling = ["pprof"]
+
 # Features that are enabled by default.
 default = [
     "compile-time-optimization",
@@ -49,6 +53,7 @@ memmap = "0.7.0"
 pest = { version ="2.4.0", features=["fast-line-col"] }
 pest_derive = "2.3.0"
 protobuf = "3.2.0"
+pprof = { version = "0.11", features = ["flamegraph"], optional=true }
 thiserror = "1.0.34"
 walkdir = "2.3.2"
 walrus = "0.19.0"
@@ -71,3 +76,6 @@ criterion = "0.3"
 [[bench]]
 name = "yara-x-benchmark"
 harness = false
+
+[profile.release]
+debug = 1
