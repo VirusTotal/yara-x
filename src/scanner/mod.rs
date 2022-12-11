@@ -26,6 +26,7 @@ mod tests;
 pub struct Scanner<'r> {
     wasm_store: wasmtime::Store<ScanContext<'r>>,
     wasm_main_fn: TypedFunc<(), ()>,
+    filesize: wasmtime::Global,
 }
 
 impl<'r> Scanner<'r> {
@@ -51,10 +52,20 @@ impl<'r> Scanner<'r> {
             },
         );
 
+        // Global variable that will hold the value for `filesize``
+        let filesize = Global::new(
+            &mut wasm_store,
+            GlobalType::new(ValType::I64, Mutability::Var),
+            Val::I64(0),
+        )
+        .unwrap();
+
         // Instantiate the module. This takes the wasm code provided by the
         // `compiled_wasm_mod` function and links its imported functions with
         // the implementations that YARA provides (see wasm.rs).
         let wasm_instance = wasm::new_linker()
+            .define("yr", "filesize", filesize)
+            .unwrap()
             .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
             .unwrap();
 
@@ -63,7 +74,7 @@ impl<'r> Scanner<'r> {
             .get_typed_func::<(), (), _>(&mut wasm_store, "main")
             .unwrap();
 
-        Self { wasm_store, wasm_main_fn }
+        Self { wasm_store, wasm_main_fn, filesize }
     }
 
     /// Scans a file.
@@ -78,6 +89,11 @@ impl<'r> Scanner<'r> {
 
     /// Scans a data buffer.
     pub fn scan<'s>(&'s mut self, data: &[u8]) -> ScanResults<'s, 'r> {
+        // Set the global variable `filesize` to the size of the scanned data.
+        self.filesize
+            .set(&mut self.wasm_store, Val::I64(data.len() as i64))
+            .unwrap();
+
         let ctx = self.wasm_store.data_mut();
 
         ctx.rules_matching_bitmap.fill(false);
@@ -223,7 +239,7 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) compiled_rules: &'r CompiledRules,
     /// Symbol table that contains top-level symbols, like module names
     /// and external variables. Symbols are normally looked up in this
-    /// table, except if `struct_symbol_table` is set to some structure's
+    /// table, except if `current_struct` is set to some structure's
     /// symbol table.
     pub(crate) symbol_table: Rc<RefCell<SymbolTable<'r>>>,
     /// Symbol table for the currently active structure, if any. When this
@@ -237,10 +253,10 @@ pub(crate) struct ScanContext<'r> {
 
 impl<'r> ScanContext<'r> {
     /// Looks for an identifier in the current symbol table, and sets
-    /// `struct_symbol_table` to [`None`].
+    /// `current_struct` to [`None`].
     ///
     /// The current symbol table is usually the main one, which is stored in
-    /// `symbol_table`, except when `struct_symbol_table` holds the symbol table
+    /// `symbol_table`, except when `current_struct` holds the symbol table
     /// corresponding to some structure. In that case the structure's symbol
     /// table overrides the main symbol table, and therefore the identifier is
     /// looked up in the structure.

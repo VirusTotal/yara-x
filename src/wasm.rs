@@ -58,6 +58,13 @@ macro_rules! import {
     };
 }
 
+macro_rules! global {
+    ($module:ident, $name:ident, $ty:ident ) => {
+        let ($name, _) =
+            $module.add_import_global("yr", stringify!($name), $ty, true);
+    };
+}
+
 impl ModuleBuilder {
     /// Module's memory size in pages. Page size is 64KB.
     pub(crate) const MODULE_MEMORY_SIZE: u32 = 1;
@@ -67,7 +74,8 @@ impl ModuleBuilder {
         let config = walrus::ModuleConfig::new();
         let mut module = walrus::Module::with_config(config);
 
-        import!(module, filesize, [], [I64]);
+        global!(module, filesize, I64);
+
         import!(module, rule_match, [I32], []);
         import!(module, is_pat_match, [I32], [I32]);
         import!(module, is_pat_match_at, [I32, I64], [I32]);
@@ -334,8 +342,7 @@ pub(crate) struct WasmSymbols {
     pub main_memory: walrus::MemoryId,
 
     /// Ask YARA for the size of the data being scanned.
-    /// Signature: () -> (i64)
-    pub filesize: walrus::FunctionId,
+    pub filesize: walrus::GlobalId,
 
     /// Called when a rule matches.
     /// Signature: (rule_id: i32) -> ()
@@ -482,11 +489,6 @@ fn defined<T>(value: T) -> MaybeUndef<T> {
 
 fn undefined<T: Empty<T>>() -> MaybeUndef<T> {
     (T::empty(), 1)
-}
-
-/// Invoked from WebAssembly to ask for the size of the data being scanned.
-pub(crate) fn filesize(caller: Caller<'_, ScanContext>) -> i64 {
-    caller.data().scanned_data_len as i64
 }
 
 /// Invoked from WebAssembly to notify when a rule matches.
