@@ -52,8 +52,8 @@ impl<'r> Scanner<'r> {
         );
 
         // Instantiate the module. This takes the wasm code provided by the
-        // `compiled_wasm_mod` and links its imported functions with the
-        // implementations that YARA provides (see wasm.rs).
+        // `compiled_wasm_mod` function and links its imported functions with
+        // the implementations that YARA provides (see wasm.rs).
         let wasm_instance = wasm::new_linker()
             .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
             .unwrap();
@@ -85,10 +85,7 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = data.as_ptr();
         ctx.scanned_data_len = data.len();
 
-        let imported_modules =
-            self.wasm_store.data().compiled_rules.imported_modules();
-
-        for module_name in imported_modules {
+        for module_name in ctx.compiled_rules.imported_modules() {
             // Lookup the module in the list of built-in modules.
             let module = modules::BUILTIN_MODULES.get(module_name).unwrap();
 
@@ -97,7 +94,7 @@ impl<'r> Scanner<'r> {
             // the data is specified by the .proto file associated to the
             // module.
             let module_output = if let Some(main_fn) = module.main_fn {
-                main_fn(self.wasm_store.data())
+                main_fn(ctx)
             } else {
                 // Implement the case in which the module doesn't have a main
                 // function and the serialized data should be provided by the
@@ -121,7 +118,7 @@ impl<'r> Scanner<'r> {
             // structure implements the SymbolLookup trait, which is used
             // by the runtime for obtaining the values of individual fields
             // in the data structure, as they are used in the rule conditions.
-            self.wasm_store.data_mut().symbol_table.borrow_mut().insert(
+            ctx.symbol_table.borrow_mut().insert(
                 module_name,
                 Symbol::new_struct(Rc::new(module_output)),
             );
