@@ -341,7 +341,7 @@ impl RuntimeString {
 pub(crate) struct WasmSymbols {
     pub main_memory: walrus::MemoryId,
 
-    /// Ask YARA for the size of the data being scanned.
+    /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
 
     /// Called when a rule matches.
@@ -426,7 +426,6 @@ macro_rules! add_function {
 pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
 
-    add_function!(linker, filesize);
     add_function!(linker, str_eq);
     add_function!(linker, str_ne);
     add_function!(linker, str_lt);

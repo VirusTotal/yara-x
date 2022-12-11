@@ -13,7 +13,6 @@ use crate::symbols::{
     Location, Symbol, SymbolLookup, SymbolTable, SymbolValue,
 };
 use crate::types::{Type, Value};
-use crate::wasm;
 
 /// This macro emits a constant if the type hint indicates that the expression
 /// has a constant value (e.i: the value is known at compile time), if not,
