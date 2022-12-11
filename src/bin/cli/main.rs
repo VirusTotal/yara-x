@@ -5,7 +5,9 @@ use std::path::PathBuf;
 
 use ansi_term::Color::{Blue, Red};
 use anyhow::Context;
-use clap::{arg, command, crate_authors, value_parser, ArgMatches, Command};
+use clap::{
+    arg, command, crate_authors, value_parser, ArgAction, ArgMatches, Command,
+};
 use globset::GlobBuilder;
 use yara_x::compiler::Compiler;
 
@@ -63,7 +65,7 @@ The absense of this options is equivalent to using this:
 
 "#;
 
-fn command(name: &str) -> Command {
+fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
         r#"{about-with-newline}
 {usage-heading}
@@ -133,12 +135,12 @@ fn main() -> anyhow::Result<()> {
                         .help("Check files that match the given pattern only")
                         .long_help(FILTER_LONG_HELP)
                         .required(false)
-                        .multiple_occurrences(true),
+                        .action(ArgAction::Append)
                 ),
             command("fmt").about("Format YARA source files").arg(
                 arg!([FILE])
                     .help("Path to YARA source files")
-                    .multiple_values(true)
+                    .action(ArgAction::Append)
                     .value_parser(value_parser!(PathBuf)),
             ),
         ])
