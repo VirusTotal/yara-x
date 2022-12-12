@@ -1,7 +1,9 @@
-use ascii_tree::Tree::{Leaf, Node};
+/*! Functions that returns an ASCII representation of YARA Abstract Syntax Trees (ASTs).*/
 
+use ::ascii_tree::Tree::{Leaf, Node};
+
+use crate::ast::types::Value;
 use crate::ast::*;
-use crate::types::Value;
 
 /// Returns a representation of the namespace as an ASCII tree.
 pub(crate) fn namespace_ascii_tree(namespace: &Namespace) -> ascii_tree::Tree {

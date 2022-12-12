@@ -8,11 +8,11 @@ use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
 
 use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
+use crate::ast::{Type, Value};
 use crate::compiler::{Context, IdentId};
 use crate::symbols::{
     Location, Symbol, SymbolLookup, SymbolTable, SymbolValue,
 };
-use crate::types::{Type, Value};
 
 /// This macro emits a constant if the type hint indicates that the expression
 /// has a constant value (e.i: the value is known at compile time), if not,

@@ -9,8 +9,8 @@ mod protos;
 
 pub use protos::*;
 
+use crate::ast::{Type, Value};
 use crate::modules::Module;
-use crate::types::{Type, Value};
 
 /// Trait implemented by types that allow looking up for an identifier.
 pub trait SymbolLookup<'a> {
@@ -294,8 +294,8 @@ impl<'a> SymbolLookup<'a> for StackedSymbolTable<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::Type;
     use crate::symbols::{ProtoMessage, SymbolLookup};
-    use crate::types::Type;
     use bstr::BStr;
     use pretty_assertions::assert_eq;
 

@@ -1,9 +1,11 @@
-use crate::scanner::ScanContext;
-use crate::symbols::ProtoMessage;
+use std::collections::HashMap;
+use std::ops::Deref;
+
 use lazy_static::lazy_static;
 use protobuf::reflect::MessageDescriptor;
-use protobuf::MessageDyn;
-use std::collections::HashMap;
+
+use crate::scanner::ScanContext;
+use crate::symbols::ProtoMessage;
 
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));

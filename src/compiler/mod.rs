@@ -3,7 +3,6 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use bstr::BStr;
 use bstr::BString;
 use std::cell::RefCell;
 use std::path::Path;
@@ -19,7 +18,8 @@ use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::warnings::Warning;
-use crate::wasm::{ModuleBuilder, WasmSymbols};
+use crate::wasm::builder::ModuleBuilder;
+use crate::wasm::WasmSymbols;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;

@@ -3,13 +3,12 @@ use std::rc::Rc;
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable, SymbolValue};
-use crate::types::{Type, Value};
 use crate::warnings::Warning;
 
 macro_rules! semcheck {
     ($ctx:expr, $( $accepted_types:path )|+, $expr:expr) => {
         {
-            use crate::types::Type;
+            use crate::ast::Type;
             use crate::compiler::errors::Error;
             use crate::compiler::semcheck::semcheck_expr;
             let span = (&*$expr).span();

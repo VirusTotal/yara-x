@@ -10,10 +10,8 @@ use pest::iterators::Pair;
 use pest::pratt_parser::{Assoc, Op, PrattParser};
 
 use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
-use crate::ast::Namespace;
 use crate::ast::*;
 use crate::parser::{CSTNode, Context, Error, ErrorInfo, GrammarRule, CST};
-use crate::types::{Type, Value};
 use crate::warnings::Warning;
 
 macro_rules! expect {

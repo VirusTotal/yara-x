@@ -23,168 +23,97 @@ use std::stringify;
 
 use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
-use walrus::InstrSeqBuilder;
-use walrus::ValType::{Externref, F64, I32, I64};
 use wasmtime::ExternRef;
 use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
+use crate::ast::Value;
 use crate::compiler::{IdentId, LiteralId, PatternId, RuleId};
 use crate::scanner::ScanContext;
-use crate::symbols::{Symbol, SymbolValue};
-use crate::types::Value;
+use crate::symbols::SymbolValue;
 
-/// Builds the WebAssembly module for a set of compiled rules.
-pub(crate) struct ModuleBuilder {
-    module: walrus::Module,
-    wasm_symbols: WasmSymbols,
-    main_fn: walrus::FunctionBuilder,
-}
+pub(crate) mod builder;
 
-/// Helper macro tha adds imports to a module.
+/// Table with functions and variables used by the WebAssembly module.
 ///
-/// # Example
+/// The WebAssembly module generated for evaluating rule conditions needs to
+/// call back to YARA for multiple tasks. For example, it calls YARA for
+/// reporting rule matches, for asking if a pattern matches at a given offset,
+/// for executing functions like `uint32()`, etc.
 ///
-/// This add an import for a function named `my_function`, that receives an
-/// `i64` and returns an `Externref`.
-///
-/// ```ignore
-/// import!(module, my_function, [I64], [Externref]);
-/// ```
-macro_rules! import {
-    ($module:ident, $fn_name:ident, [$( $arg:ident ),*], [$( $result:ident ),*] ) => {
-        let ty = $module.types.add(&[$( $arg ),*], &[$( $result ),*]);
-        let ($fn_name, _) =
-            $module.add_import_func("yr", stringify!($fn_name), ty);
-    };
-}
+/// This table contains the [`FunctionId`] for such functions, which are
+/// imported by the WebAssembly module and implemented by YARA. It also
+/// contains the definition of some variables used by the module.
+#[derive(Clone)]
+pub(crate) struct WasmSymbols {
+    pub vars_stack: walrus::MemoryId,
 
-macro_rules! global {
-    ($module:ident, $name:ident, $ty:ident ) => {
-        let ($name, _) =
-            $module.add_import_global("yr", stringify!($name), $ty, true);
-    };
-}
+    pub rules_matching_bitmap: walrus::MemoryId,
+    pub patterns_matching_bitmap: walrus::MemoryId,
 
-macro_rules! memory {
-    ($module:ident, $name:ident ) => {
-        let ($name, _) =
-            $module.add_import_memory("yr", stringify!($name), true, 1, None);
-    };
-}
+    /// Global variable that contains the value for `filesize`.
+    pub filesize: walrus::GlobalId,
 
-impl ModuleBuilder {
-    /// Module's memory size in pages. Page size is 64KB.
-    pub(crate) const MODULE_MEMORY_SIZE: u32 = 1;
+    /// Called when a rule matches.
+    /// Signature: (rule_id: i32) -> ()
+    pub rule_match: walrus::FunctionId,
 
-    /// Creates a new module builder.
-    pub fn new() -> Self {
-        let config = walrus::ModuleConfig::new();
-        let mut module = walrus::Module::with_config(config);
+    /// Ask YARA whether a pattern matched or not.
+    /// Signature: (pattern_id: i32) -> (i32)
+    pub is_pat_match: walrus::FunctionId,
 
-        memory!(module, rules_matching_bitmap);
-        memory!(module, patterns_matching_bitmap);
+    /// Ask YARA whether a pattern matched at a specific offset.
+    /// Signature: (pattern_id: i32, offset: i64) -> (i32)
+    pub is_pat_match_at: walrus::FunctionId,
 
-        global!(module, filesize, I64);
+    /// Ask YARA whether a pattern matched within a range of offsets.
+    /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
+    pub is_pat_match_in: walrus::FunctionId,
 
-        import!(module, rule_match, [I32], []);
-        import!(module, is_pat_match, [I32], [I32]);
-        import!(module, is_pat_match_at, [I32, I64], [I32]);
-        import!(module, is_pat_match_in, [I32, I64, I64], [I32]);
-        import!(module, literal_to_ref, [I64], [Externref]);
+    /// Creates a [`ExternRef`] from a [`LiteralId`] that identifies a string
+    /// in the literals pool.
+    /// Signature: (string_id: i64) -> (Externref)
+    pub literal_to_ref: walrus::FunctionId,
 
-        import!(module, str_eq, [Externref, Externref], [I32]);
-        import!(module, str_ne, [Externref, Externref], [I32]);
-        import!(module, str_gt, [Externref, Externref], [I32]);
-        import!(module, str_lt, [Externref, Externref], [I32]);
-        import!(module, str_ge, [Externref, Externref], [I32]);
-        import!(module, str_le, [Externref, Externref], [I32]);
+    /// Functions that given an `IdentId`, search for the identifier in the
+    /// current symbol table and return its value. In the case of structs,
+    /// arrays and maps the value is not returned, but is stored in
+    /// ScanContext::current_struct, ScanContext::current_array and
+    /// ScanContext::current_map, respectively.
+    pub symbol_lookup_integer: walrus::FunctionId,
+    pub symbol_lookup_float: walrus::FunctionId,
+    pub symbol_lookup_bool: walrus::FunctionId,
+    pub symbol_lookup_string: walrus::FunctionId,
+    pub symbol_lookup_struct: walrus::FunctionId,
+    pub symbol_lookup_array: walrus::FunctionId,
+    pub symbol_lookup_map: walrus::FunctionId,
 
-        import!(module, str_contains, [Externref, Externref], [I32]);
-        import!(module, str_icontains, [Externref, Externref], [I32]);
-        import!(module, str_startswith, [Externref, Externref], [I32]);
-        import!(module, str_endswith, [Externref, Externref], [I32]);
-        import!(module, str_istartswith, [Externref, Externref], [I32]);
-        import!(module, str_iendswith, [Externref, Externref], [I32]);
-        import!(module, str_iequals, [Externref, Externref], [I32]);
-        import!(module, str_len, [Externref], [I64]);
+    pub array_lookup_integer: walrus::FunctionId,
+    pub map_lookup_integer: walrus::FunctionId,
 
-        import!(module, symbol_lookup_integer, [I64], [I64, I32]);
-        import!(module, symbol_lookup_float, [I64], [F64, I32]);
-        import!(module, symbol_lookup_bool, [I64], [I32, I32]);
-        import!(module, symbol_lookup_string, [I64], [Externref]);
-        import!(module, symbol_lookup_array, [I64], []);
-        import!(module, symbol_lookup_struct, [I64], []);
-        import!(module, symbol_lookup_map, [I64], []);
+    /// String comparison functions.
+    /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
+    pub str_eq: walrus::FunctionId,
+    pub str_ne: walrus::FunctionId,
+    pub str_lt: walrus::FunctionId,
+    pub str_gt: walrus::FunctionId,
+    pub str_le: walrus::FunctionId,
+    pub str_ge: walrus::FunctionId,
 
-        import!(module, array_lookup_integer, [I64], [I64, I32]);
-        import!(module, map_lookup_integer, [Externref], [I64, I32]);
+    /// String operation functions.
+    /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
+    pub str_contains: walrus::FunctionId,
+    pub str_startswith: walrus::FunctionId,
+    pub str_endswith: walrus::FunctionId,
+    pub str_icontains: walrus::FunctionId,
+    pub str_istartswith: walrus::FunctionId,
+    pub str_iendswith: walrus::FunctionId,
+    pub str_iequals: walrus::FunctionId,
+    pub str_len: walrus::FunctionId,
 
-        let wasm_symbols = WasmSymbols {
-            rules_matching_bitmap,
-            patterns_matching_bitmap,
-            rule_match,
-            is_pat_match,
-            is_pat_match_at,
-            is_pat_match_in,
-            literal_to_ref,
-            symbol_lookup_integer,
-            symbol_lookup_float,
-            symbol_lookup_bool,
-            symbol_lookup_string,
-            symbol_lookup_struct,
-            symbol_lookup_array,
-            symbol_lookup_map,
-            array_lookup_integer,
-            map_lookup_integer,
-            str_eq,
-            str_ne,
-            str_lt,
-            str_gt,
-            str_le,
-            str_ge,
-            str_contains,
-            str_startswith,
-            str_endswith,
-            str_icontains,
-            str_istartswith,
-            str_iendswith,
-            str_iequals,
-            str_len,
-            filesize,
-            vars_stack: module.memories.add_local(
-                false,                          // not shared with host.
-                Self::MODULE_MEMORY_SIZE,       // initial size 64KB
-                Some(Self::MODULE_MEMORY_SIZE), // maximum size 64KB
-            ),
-            i64_tmp: module.locals.add(I64),
-            i32_tmp: module.locals.add(I32),
-            ref_tmp: module.locals.add(Externref),
-        };
-
-        let main_fn =
-            walrus::FunctionBuilder::new(&mut module.types, &[], &[]);
-
-        Self { module, wasm_symbols, main_fn }
-    }
-
-    /// Returns a [`InstrSeqBuilder`] for the module's main function.
-    ///
-    /// This allows adding code to the module's `main` function.
-    pub fn main_fn(&mut self) -> InstrSeqBuilder {
-        self.main_fn.func_body()
-    }
-
-    /// Returns the symbols imported by the module.
-    pub fn wasm_symbols(&self) -> WasmSymbols {
-        self.wasm_symbols.clone()
-    }
-
-    /// Builds the module and consumes the builder.
-    pub fn build(mut self) -> walrus::Module {
-        let main_fn = self.main_fn.finish(Vec::new(), &mut self.module.funcs);
-        self.module.exports.add("main", main_fn);
-        self.module
-    }
+    /// Local variables used for temporary storage.
+    pub i64_tmp: walrus::LocalId,
+    pub i32_tmp: walrus::LocalId,
+    pub ref_tmp: walrus::LocalId,
 }
 
 /// String types handled by YARA's WebAssembly runtime.
@@ -337,89 +266,6 @@ impl RuntimeString {
             self.as_bstr(ctx).eq(other.as_bstr(ctx))
         }
     }
-}
-
-/// Table with functions and variables used by the WebAssembly module.
-///
-/// The WebAssembly module generated for evaluating rule conditions needs to
-/// call back to YARA for multiple tasks. For example, it calls YARA for
-/// reporting rule matches, for asking if a pattern matches at a given offset,
-/// for executing functions like `uint32()`, etc.
-///
-/// This table contains the [`FunctionId`] for such functions, which are
-/// imported by the WebAssembly module and implemented by YARA. It also
-/// contains the definition of some variables used by the module.
-#[derive(Clone)]
-pub(crate) struct WasmSymbols {
-    pub vars_stack: walrus::MemoryId,
-
-    pub rules_matching_bitmap: walrus::MemoryId,
-    pub patterns_matching_bitmap: walrus::MemoryId,
-
-    /// Global variable that contains the value for `filesize`.
-    pub filesize: walrus::GlobalId,
-
-    /// Called when a rule matches.
-    /// Signature: (rule_id: i32) -> ()
-    pub rule_match: walrus::FunctionId,
-
-    /// Ask YARA whether a pattern matched or not.
-    /// Signature: (pattern_id: i32) -> (i32)
-    pub is_pat_match: walrus::FunctionId,
-
-    /// Ask YARA whether a pattern matched at a specific offset.
-    /// Signature: (pattern_id: i32, offset: i64) -> (i32)
-    pub is_pat_match_at: walrus::FunctionId,
-
-    /// Ask YARA whether a pattern matched within a range of offsets.
-    /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
-    pub is_pat_match_in: walrus::FunctionId,
-
-    /// Creates a [`ExternRef`] from a [`LiteralId`] that identifies a string
-    /// in the literals pool.
-    /// Signature: (string_id: i64) -> (Externref)
-    pub literal_to_ref: walrus::FunctionId,
-
-    /// Functions that given an `IdentId`, search for the identifier in the
-    /// current symbol table and return its value. In the case of structs,
-    /// arrays and maps the value is not returned, but is stored in
-    /// ScanContext::current_struct, ScanContext::current_array and
-    /// ScanContext::current_map, respectively.
-    pub symbol_lookup_integer: walrus::FunctionId,
-    pub symbol_lookup_float: walrus::FunctionId,
-    pub symbol_lookup_bool: walrus::FunctionId,
-    pub symbol_lookup_string: walrus::FunctionId,
-    pub symbol_lookup_struct: walrus::FunctionId,
-    pub symbol_lookup_array: walrus::FunctionId,
-    pub symbol_lookup_map: walrus::FunctionId,
-
-    pub array_lookup_integer: walrus::FunctionId,
-    pub map_lookup_integer: walrus::FunctionId,
-
-    /// String comparison functions.
-    /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
-    pub str_eq: walrus::FunctionId,
-    pub str_ne: walrus::FunctionId,
-    pub str_lt: walrus::FunctionId,
-    pub str_gt: walrus::FunctionId,
-    pub str_le: walrus::FunctionId,
-    pub str_ge: walrus::FunctionId,
-
-    /// String operation functions.
-    /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
-    pub str_contains: walrus::FunctionId,
-    pub str_startswith: walrus::FunctionId,
-    pub str_endswith: walrus::FunctionId,
-    pub str_icontains: walrus::FunctionId,
-    pub str_istartswith: walrus::FunctionId,
-    pub str_iendswith: walrus::FunctionId,
-    pub str_iequals: walrus::FunctionId,
-    pub str_len: walrus::FunctionId,
-
-    /// Local variables used for temporary storage.
-    pub i64_tmp: walrus::LocalId,
-    pub i32_tmp: walrus::LocalId,
-    pub ref_tmp: walrus::LocalId,
 }
 
 lazy_static! {

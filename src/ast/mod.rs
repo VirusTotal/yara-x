@@ -1,23 +1,25 @@
 /*! Types representing the Abstract Syntax Tree (AST) for YARA rules.*/
+mod ascii_tree;
 mod span;
+mod types;
 
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 
-use ascii_tree::Tree::Node;
+use ::ascii_tree::Tree;
+use ::ascii_tree::Tree::Node;
 use bitmask::bitmask;
 use bstr::BStr;
 use yara_macros::*;
 
-use crate::ascii_tree::namespace_ascii_tree;
+use crate::ast::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
-use crate::types::{Type, TypeValue, Value};
-use crate::types::{FALSE, TRUE, UNKNOWN};
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
+pub use crate::ast::types::*;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -28,13 +30,13 @@ pub struct AST<'src> {
 
 impl<'src> Debug for AST<'src> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        ascii_tree::write_tree(f, self.ascii_tree().borrow())
+        ::ascii_tree::write_tree(f, self.ascii_tree().borrow())
     }
 }
 
 impl<'src> AST<'src> {
     /// Returns a printable ASCII tree representing the AST.
-    pub fn ascii_tree(&self) -> ascii_tree::Tree {
+    pub fn ascii_tree(&self) -> Tree {
         Node(
             "root".to_string(),
             self.namespaces.iter().map(namespace_ascii_tree).collect(),
