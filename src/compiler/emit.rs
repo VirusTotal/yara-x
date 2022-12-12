@@ -958,7 +958,7 @@ pub(super) fn emit_for_in_range(
 #[inline]
 pub(super) fn emit_store(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     instr.store(
-        ctx.borrow().wasm_symbols.main_memory,
+        ctx.borrow().wasm_symbols.vars_stack,
         StoreKind::I64 { atomic: false },
         MemArg { align: size_of::<i64>() as u32, offset: 0 },
     );
@@ -967,7 +967,7 @@ pub(super) fn emit_store(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
 #[inline]
 pub(super) fn emit_load(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     instr.load(
-        ctx.borrow().wasm_symbols.main_memory,
+        ctx.borrow().wasm_symbols.vars_stack,
         LoadKind::I64 { atomic: false },
         MemArg { align: size_of::<i64>() as u32, offset: 0 },
     );

@@ -65,6 +65,13 @@ macro_rules! global {
     };
 }
 
+macro_rules! memory {
+    ($module:ident, $name:ident ) => {
+        let ($name, _) =
+            $module.add_import_memory("yr", stringify!($name), true, 1, None);
+    };
+}
+
 impl ModuleBuilder {
     /// Module's memory size in pages. Page size is 64KB.
     pub(crate) const MODULE_MEMORY_SIZE: u32 = 1;
@@ -73,6 +80,9 @@ impl ModuleBuilder {
     pub fn new() -> Self {
         let config = walrus::ModuleConfig::new();
         let mut module = walrus::Module::with_config(config);
+
+        memory!(module, rules_matching_bitmap);
+        memory!(module, patterns_matching_bitmap);
 
         global!(module, filesize, I64);
 
@@ -110,6 +120,8 @@ impl ModuleBuilder {
         import!(module, map_lookup_integer, [Externref], [I64, I32]);
 
         let wasm_symbols = WasmSymbols {
+            rules_matching_bitmap,
+            patterns_matching_bitmap,
             rule_match,
             is_pat_match,
             is_pat_match_at,
@@ -139,10 +151,10 @@ impl ModuleBuilder {
             str_iequals,
             str_len,
             filesize,
-            main_memory: module.memories.add_local(
-                false,
-                Self::MODULE_MEMORY_SIZE,
-                None,
+            vars_stack: module.memories.add_local(
+                false,                          // not shared with host.
+                Self::MODULE_MEMORY_SIZE,       // initial size 64KB
+                Some(Self::MODULE_MEMORY_SIZE), // maximum size 64KB
             ),
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
@@ -339,7 +351,10 @@ impl RuntimeString {
 /// contains the definition of some variables used by the module.
 #[derive(Clone)]
 pub(crate) struct WasmSymbols {
-    pub main_memory: walrus::MemoryId,
+    pub vars_stack: walrus::MemoryId,
+
+    pub rules_matching_bitmap: walrus::MemoryId,
+    pub patterns_matching_bitmap: walrus::MemoryId,
 
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
@@ -411,6 +426,8 @@ lazy_static! {
     pub(crate) static ref CONFIG: Config = {
         let mut config = Config::default();
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+        // Allow using multiple independent memories in wasm modules.
+        config.wasm_multi_memory(true);
         config
     };
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();

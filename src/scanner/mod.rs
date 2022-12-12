@@ -16,7 +16,8 @@ use std::ptr::null;
 use std::rc::Rc;
 use std::slice::Iter;
 use wasmtime::{
-    ExternRef, Global, GlobalType, Mutability, Store, TypedFunc, Val, ValType,
+    ExternRef, Global, GlobalType, Memory, MemoryType, Mutability, Store,
+    TypedFunc, Val, ValType,
 };
 
 #[cfg(test)]
@@ -27,6 +28,8 @@ pub struct Scanner<'r> {
     wasm_store: wasmtime::Store<ScanContext<'r>>,
     wasm_main_fn: TypedFunc<(), ()>,
     filesize: wasmtime::Global,
+    rules_matching_bitmap: wasmtime::Memory,
+    patterns_matching_bitmap: wasmtime::Memory,
 }
 
 impl<'r> Scanner<'r> {
@@ -60,11 +63,23 @@ impl<'r> Scanner<'r> {
         )
         .unwrap();
 
+        let rules_matching_bitmap =
+            wasmtime::Memory::new(&mut wasm_store, MemoryType::new(1, None))
+                .unwrap();
+
+        let patterns_matching_bitmap =
+            wasmtime::Memory::new(&mut wasm_store, MemoryType::new(1, None))
+                .unwrap();
+
         // Instantiate the module. This takes the wasm code provided by the
         // `compiled_wasm_mod` function and links its imported functions with
         // the implementations that YARA provides (see wasm.rs).
         let wasm_instance = wasm::new_linker()
             .define("yr", "filesize", filesize)
+            .unwrap()
+            .define("yr", "rules_matching_bitmap", rules_matching_bitmap)
+            .unwrap()
+            .define("yr", "patterns_matching_bitmap", patterns_matching_bitmap)
             .unwrap()
             .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
             .unwrap();
@@ -74,7 +89,13 @@ impl<'r> Scanner<'r> {
             .get_typed_func::<(), (), _>(&mut wasm_store, "main")
             .unwrap();
 
-        Self { wasm_store, wasm_main_fn, filesize }
+        Self {
+            wasm_store,
+            wasm_main_fn,
+            filesize,
+            rules_matching_bitmap,
+            patterns_matching_bitmap,
+        }
     }
 
     /// Scans a file.
