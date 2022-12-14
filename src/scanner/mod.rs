@@ -152,8 +152,24 @@ impl<'r> Scanner<'r> {
                 module_output.descriptor_dyn().full_name(),
             );
 
-            let module_struct =
-                RuntimeStruct::from_proto_msg(module_output, false);
+            // When compile-time optimizations are enabled we don't need to
+            // generate structure fields for enums. This is because during the
+            // optimization process symbols like MyEnum.ENUM_ITEM are resolved
+            // to their constant values at compile time. In other words, the
+            // compiler determines that MyEnum.ENUM_ITEM is equal to some value
+            // X, and uses that value in the generated code.
+            //
+            // However, without optimizations, enums are treated as any other
+            // field in a struct, and its value is determined at scan time.
+            // For that reason these fields must be generated for enums when
+            // optimizations are disabled.
+            let generate_fields_for_enum =
+                !cfg!(feature = "compile-time-optimization");
+
+            let module_struct = RuntimeStruct::from_proto_msg(
+                module_output,
+                generate_fields_for_enum,
+            );
 
             // The data structure obtained from the module is added to the
             // symbol table (data from previous scans is replaced). This
