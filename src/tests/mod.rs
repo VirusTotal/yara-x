@@ -3,7 +3,15 @@ use pretty_assertions::assert_eq;
 
 macro_rules! condition_true {
     ($condition:literal) => {{
-        let src = format!("rule t {{condition: {} }}", $condition);
+        let src = if cfg!(feature = "test_proto2-module") {
+            format!(
+                r#"import "test_proto2" rule t {{condition: {} }}"#,
+                $condition
+            )
+        } else {
+            format!("rule t {{condition: {} }}", $condition)
+        };
+
         let rules = crate::compiler::Compiler::new()
             .add_source(src.as_str())
             .unwrap()
@@ -20,7 +28,15 @@ macro_rules! condition_true {
 
 macro_rules! condition_false {
     ($condition:literal) => {{
-        let src = format!("rule t {{condition: {} }}", $condition);
+        let src = if cfg!(feature = "test_proto2-module") {
+            format!(
+                r#"import "test_proto2" rule t {{condition: {} }}"#,
+                $condition
+            )
+        } else {
+            format!("rule t {{condition: {} }}", $condition)
+        };
+
         let rules = crate::compiler::Compiler::new()
             .add_source(src.as_str())
             .unwrap()
@@ -223,56 +239,63 @@ fn filesize() {
 #[test]
 #[cfg(feature = "test_proto2-module")]
 fn test_proto2_module() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
-        import "test_proto2"
-        rule test_1 {
-          condition:
-            test_proto2.int64_zero == 0 and
-            test_proto2.int64_one == 1 and
-            test_proto2.int64_one + test_proto2.int64_zero == 1 and
-            test_proto2.int64_one + test_proto2.int64_one == 2 and
-            test_proto2.int64_one * test_proto2.int64_one == 1 and
-            test_proto2.int64_one - test_proto2.int64_one == 0 and
+    condition_true!(r#"test_proto2.int64_zero == 0"#);
+    condition_true!(r#"test_proto2.int64_one == 1"#);
+    condition_true!(r#"test_proto2.int64_one + test_proto2.int64_zero == 1"#);
+    condition_true!(r#"test_proto2.int64_one + test_proto2.int64_one == 2"#);
+    condition_true!(r#"test_proto2.int64_one * test_proto2.int64_one == 1"#);
+    condition_true!(r#"test_proto2.int64_one - test_proto2.int64_one == 0"#);
 
-            test_proto2.nested.nested_int64_zero == 0 and
-            test_proto2.nested.nested_int64_one == 1 and
+    condition_true!(r#"test_proto2.nested.nested_int64_zero == 0"#);
+    condition_true!(r#"test_proto2.nested.nested_int64_one == 1"#);
 
-            test_proto2.string_foo != test_proto2.string_bar and
-            test_proto2.string_foo == "foo" and
-            test_proto2.string_bar == "bar" and
-            test_proto2.string_foo contains "oo" and
-            test_proto2.string_foo endswith "oo" and
-            test_proto2.string_foo startswith "foo" and
-            test_proto2.string_bar icontains "AR" and
-            test_proto2.string_bar iendswith "AR" and
-            test_proto2.string_bar istartswith "BAR" and
-            test_proto2.string_bar iequals "BAR" and
+    condition_true!(r#"test_proto2.string_foo != test_proto2.string_bar"#);
+    condition_true!(r#"test_proto2.string_foo == "foo""#);
+    condition_true!(r#"test_proto2.string_bar == "bar""#);
+    condition_true!(r#"test_proto2.string_foo contains "oo""#);
+    condition_true!(r#"test_proto2.string_foo endswith "oo""#);
+    condition_true!(r#"test_proto2.string_foo startswith "foo""#);
+    condition_true!(r#"test_proto2.string_bar icontains "AR""#);
+    condition_true!(r#"test_proto2.string_bar iendswith "AR""#);
+    condition_true!(r#"test_proto2.string_bar istartswith "BAR""#);
+    condition_true!(r#"test_proto2.string_bar iequals "BAR""#);
 
-            test_proto2.array_int64[0] == 1 and
-            test_proto2.array_int64[1] == 10 and
-            test_proto2.array_int64[2] == 100 and
-            test_proto2.array_int64[test_proto2.array_int64[0]] == 10
-        }
+    condition_true!(r#"test_proto2.array_int64[0] == 1"#);
+    condition_true!(r#"test_proto2.array_int64[1] == 10"#);
+    condition_true!(r#"test_proto2.array_int64[2] == 100"#);
 
-        rule test_2 {
-          condition:
-            // Make sure that undef or true is true.
-            test_proto2.int64_undef == 0 or true
-        }
+    // array_int64[3] is undefined, so both conditions are false.
+    condition_false!(r#"test_proto2.array_int64[3] == 0"#);
+    condition_false!(r#"test_proto2.array_int64[3] != 0"#);
 
-        rule test_3 {
-          condition:
-            // Make sure that undef and true is false
-            not (test_proto2.int64_undef == 0 and true)
-        }
-        "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    condition_true!(r#"test_proto2.array_string[0] == "foo""#);
+    condition_true!(r#"test_proto2.array_string[1] == "bar""#);
+    condition_true!(r#"test_proto2.array_string[2] == "baz""#);
 
-    let mut scanner = crate::scanner::Scanner::new(&rules);
-    assert_eq!(scanner.scan(&[]).matching_rules(), 3);
+    // array_string[3] is undefined, so both conditions are false.
+    condition_false!(r#"test_proto2.array_string[3] == """#);
+    condition_false!(r#"test_proto2.array_string[3] != """#);
+
+    condition_true!(r#"test_proto2.Enumeration.ITEM_0 == 0"#);
+    condition_true!(r#"test_proto2.Enumeration.ITEM_1 == 1"#);
+    condition_true!(r#"test_proto2.map_string_int64["one"] == 1"#);
+
+    condition_true!(
+        r#"test_proto2.map_string_struct["foo"].nested_int64_one == 1"#
+    );
+
+    // test_proto2.map_string_struct["bar"] is undefined.
+    condition_false!(
+        r#"test_proto2.map_string_struct["bar"].nested_int64_one == 1"#
+    );
+
+    condition_true!(
+        r#"test_proto2.array_int64[test_proto2.array_int64[0]] == 10"#
+    );
+
+    // Make sure that undef or true is true.
+    condition_true!(r#"test_proto2.int64_undef == 0 or true"#);
+
+    // Make sure that undef and true is false
+    condition_true!(r#"not (test_proto2.int64_undef == 0 and true)"#);
 }

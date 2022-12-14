@@ -56,13 +56,13 @@ option (yara.module_options) = {
 /// other hand, required fields must be explicitly set to some value before
 /// the structure is passed to YARA.
 ///
-/// In proto3 you don't need to specify if fields are optional or required, they
-/// are always optional, and therefore you don't need to set their value
-/// explicitly. However, fields for which you don't set a value explicitly
-/// are considered to have the default value for the type. Numeric values
-/// default to 0, and string values default to an empty string. These fields
-/// are never undefined to YARA, they always have some value, either their
-/// default values or the value explicitly set while filling the structure.
+/// In proto3 you don't need to specify if fields are optional or required,
+//  they are always optional and you don't need to set their values explicitly.
+//  However, fields for which you don't set a value explicitly are considered
+//  to have the default value for the type. Numeric values default to 0, and
+//  string values default to an empty string. These fields are never undefined
+//  to YARA, they always have some value, either their default values or the
+//  value explicitly set while filling the structure.
 message Test {
   
   // Numeric values initialized to 0 by the module.
@@ -141,10 +141,13 @@ message Test {
   optional NestedProto2       nested = 101;
 
   repeated int64              array_int64 = 102;
-  repeated bool               array_bool  = 103;
+  repeated float              array_float = 103;
+  repeated bool               array_bool = 104;
+  repeated string             array_string = 106;
+  repeated NestedProto2       array_struct = 105;
 
-  map<string, NestedProto2>   map_string_struct = 104;
-  map<string, int64>          map_string_int64 = 105;
+  map<string, NestedProto2>   map_string_struct = 200;
+  map<string, int64>          map_string_int64 = 201;
 
 }
 

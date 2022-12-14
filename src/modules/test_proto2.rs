@@ -47,8 +47,16 @@ fn main(_ctx: &ScanContext) -> Test {
     test.array_int64.push(10);
     test.array_int64.push(100);
 
+    test.array_float.push(1.0);
+    test.array_float.push(10.0);
+    test.array_float.push(100.0);
+
     test.array_bool.push(false);
     test.array_bool.push(true);
+
+    test.array_string.push("foo".to_string());
+    test.array_string.push("bar".to_string());
+    test.array_string.push("baz".to_string());
 
     let mut nested = NestedProto2::new();
 
@@ -66,7 +74,8 @@ fn main(_ctx: &ScanContext) -> Test {
     nested.set_nested_int32_one(1);
     nested.set_nested_int64_one(1);
 
-    test.map_string_int64.insert("foo".to_string(), 1);
+    test.map_string_struct.insert("foo".to_string(), nested);
+    test.map_string_int64.insert("one".to_string(), 1);
 
     test
 }

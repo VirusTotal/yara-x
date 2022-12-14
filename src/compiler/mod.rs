@@ -26,6 +26,7 @@ pub use crate::compiler::errors::*;
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolIndex, SymbolLookup, SymbolTable,
 };
+use crate::types::{RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeValue};
 
 mod emit;
 mod errors;
@@ -269,7 +270,9 @@ impl<'a> Compiler<'a> {
         src: &SourceCode,
         imports: &[Import],
     ) -> Result<(), Error> {
-        let mut symbol_table = SymbolTable::new();
+        // Structure where each field has the name of some imported module and
+        // its value the module's root structure.
+        let mut modules_struct = RuntimeStruct::new();
 
         // Iterate over the list of imported modules.
         for import in imports.iter() {
@@ -283,9 +286,15 @@ impl<'a> Compiler<'a> {
                     self.ident_pool.get_or_intern(import.module_name.as_str()),
                 );
 
-                symbol_table.insert(
+                let root_struct = RuntimeStruct::from_proto_descriptor_and_msg(
+                    &module.root_struct_descriptor,
+                    None,
+                    true,
+                );
+
+                modules_struct.insert(
                     import.module_name.as_str(),
-                    Symbol::new_struct(Rc::new(module)),
+                    RuntimeValue::Struct(Rc::new(root_struct)),
                 );
             } else {
                 // ... if no, that's an error.
@@ -300,7 +309,7 @@ impl<'a> Compiler<'a> {
             }
         }
 
-        self.symbol_table.push(Rc::new(symbol_table));
+        self.symbol_table.push(Rc::new(modules_struct));
 
         Ok(())
     }
@@ -369,13 +378,13 @@ struct Context<'a, 'sym> {
     /// Symbol table for the currently active structure. When this contains
     /// some value, symbols are looked up in this table and the main symbol
     /// table (i.e: `symbol_table`) is ignored.
-    current_struct: Option<Rc<dyn SymbolLookup<'sym> + 'a>>,
+    current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
 
     /// Contains the currently active array, if any.
-    current_array: Option<Rc<dyn SymbolIndex<'sym, usize> + 'a>>,
+    current_array: Option<Rc<RuntimeArray>>,
 
     /// Contains the currently active map, if any.
-    current_map: Option<Rc<dyn SymbolIndex<'sym, BString> + 'a>>,
+    current_map: Option<Rc<RuntimeMap>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
     /// code.

@@ -1,8 +1,9 @@
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
-use crate::symbols::{Symbol, SymbolLookup, SymbolTable, SymbolValue};
+use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::warnings::Warning;
 
 macro_rules! semcheck {
@@ -27,6 +28,7 @@ macro_rules! semcheck {
     };
 }
 
+use crate::types::{RuntimeArray, RuntimeMap, RuntimeValue};
 pub(crate) use semcheck;
 
 macro_rules! semcheck_operands {
@@ -466,21 +468,19 @@ pub(super) fn semcheck_expr(
 
                 if let Some(symbol) = symbol {
                     match symbol.value() {
-                        SymbolValue::Value(value) => {
-                            (symbol.ty(), value.clone())
-                        }
-                        SymbolValue::Struct(symbol_table) => {
-                            ctx.current_struct = Some(symbol_table.clone());
+                        RuntimeValue::Struct(s) => {
+                            ctx.current_struct = Some(s.clone());
                             (Type::Struct, Value::Unknown)
                         }
-                        SymbolValue::Array(array) => {
-                            ctx.current_array = Some(array.clone());
+                        RuntimeValue::Array(a) => {
+                            ctx.current_array = Some(a.clone());
                             (Type::Array, Value::Unknown)
                         }
-                        SymbolValue::Map(map) => {
-                            ctx.current_map = Some(map.clone());
+                        RuntimeValue::Map(m) => {
+                            ctx.current_map = Some(m.clone());
                             (Type::Map, Value::Unknown)
                         }
+                        value => (symbol.ty(), Value::from(value)),
                     }
                 } else {
                     return Err(Error::CompileError(
@@ -511,8 +511,8 @@ pub(super) fn semcheck_expr(
                     // lookup expression that modifies `ctx.current_array`.
                     semcheck!(ctx, Type::Integer, &mut expr.index)?;
 
-                    if let SymbolValue::Struct(s) = array.item_value() {
-                        ctx.current_struct = Some(s);
+                    if let RuntimeArray::Struct(s) = array.borrow() {
+                        ctx.current_struct = Some(s.first().unwrap().clone());
                     }
 
                     // The type of the Lookup expression (i.e: array[index])
@@ -523,24 +523,53 @@ pub(super) fn semcheck_expr(
                 }
                 Type::Map => {
                     let map = ctx.current_map.take().unwrap();
-                    let item_type = map.item_type();
 
-                    semcheck!(ctx, Type::String, &mut expr.index)?;
+                    // The deputy value is a value that acts as representative
+                    // of the values stored in the map. This value only contains
+                    // type information, not actual data. For example, if the
+                    // value is an integer it will be RuntimeValue::Integer(None),
+                    // if it is an struct, it will contain all the fields in the
+                    let (key_ty, deputy_value) = match map.borrow() {
+                        RuntimeMap::IntegerKeys {
+                            deputy: Some(value),
+                            ..
+                        } => (Type::Integer, value),
+                        RuntimeMap::StringKeys {
+                            deputy: Some(value), ..
+                        } => (Type::String, value),
+                        _ => unreachable!(),
+                    };
 
-                    if let SymbolValue::Struct(s) = map.item_value() {
-                        ctx.current_struct = Some(s);
+                    let ty = semcheck_expr(ctx, &mut expr.index)?;
+
+                    // The type of the key/index expression should correspond
+                    // with the type of the map's keys.
+                    if key_ty != ty {
+                        return Err(Error::CompileError(
+                            CompileError::wrong_type(
+                                ctx.report_builder,
+                                ctx.src,
+                                format!("`{}`", key_ty),
+                                ty.to_string(),
+                                expr.index.span(),
+                            ),
+                        ));
                     }
 
-                    // The type of the Lookup expression (i.e: array[index])
-                    // is the type of the map's items.
-                    expr.set_type_and_value(item_type, Value::Unknown);
+                    if let RuntimeValue::Struct(s) = deputy_value {
+                        ctx.current_struct = Some(s.clone());
+                    }
+
+                    // The type of the Lookup expression (i.e: map[key])
+                    // is the type of the map's values.
+                    expr.set_type_and_value(deputy_value.ty(), Value::Unknown);
 
                     Ok(expr.ty())
                 }
                 _ => Err(Error::CompileError(CompileError::wrong_type(
                     ctx.report_builder,
                     ctx.src,
-                    format!("`{}`", Type::Array),
+                    format!("`{}` or `{}`", Type::Array, Type::Map),
                     expr.primary.ty().to_string(),
                     expr.primary.span(),
                 ))),
@@ -591,7 +620,7 @@ pub(super) fn semcheck_expr(
             for var in &for_in.variables {
                 loop_vars.insert(
                     var.as_str(),
-                    Symbol::new(ty, SymbolValue::Value(Value::Unknown)),
+                    Symbol::new(ty, RuntimeValue::from(ty)),
                 );
             }
 

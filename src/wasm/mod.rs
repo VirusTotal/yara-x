@@ -19,6 +19,7 @@ This module implements the logic for building these WebAssembly modules, and
 the functions exposed to them by YARA's WebAssembly runtime.
  */
 
+use std::borrow::{Borrow, BorrowMut};
 use std::stringify;
 
 use bstr::{BStr, BString, ByteSlice};
@@ -26,10 +27,9 @@ use lazy_static::lazy_static;
 use wasmtime::ExternRef;
 use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
-use crate::ast::Value;
-use crate::compiler::{IdentId, LiteralId, PatternId, RuleId};
+use crate::compiler::{LiteralId, PatternId, RuleId};
 use crate::scanner::ScanContext;
-use crate::symbols::SymbolValue;
+use crate::types::{RuntimeMap, RuntimeValue};
 
 pub(crate) mod builder;
 
@@ -79,16 +79,30 @@ pub(crate) struct WasmSymbols {
     /// arrays and maps the value is not returned, but is stored in
     /// ScanContext::current_struct, ScanContext::current_array and
     /// ScanContext::current_map, respectively.
-    pub symbol_lookup_integer: walrus::FunctionId,
-    pub symbol_lookup_float: walrus::FunctionId,
-    pub symbol_lookup_bool: walrus::FunctionId,
-    pub symbol_lookup_string: walrus::FunctionId,
-    pub symbol_lookup_struct: walrus::FunctionId,
-    pub symbol_lookup_array: walrus::FunctionId,
-    pub symbol_lookup_map: walrus::FunctionId,
+    pub lookup_integer: walrus::FunctionId,
+    pub lookup_float: walrus::FunctionId,
+    pub lookup_bool: walrus::FunctionId,
+    pub lookup_string: walrus::FunctionId,
+    pub lookup_struct: walrus::FunctionId,
+    pub lookup_array: walrus::FunctionId,
+    pub lookup_map: walrus::FunctionId,
 
     pub array_lookup_integer: walrus::FunctionId,
-    pub map_lookup_integer: walrus::FunctionId,
+    pub array_lookup_float: walrus::FunctionId,
+    pub array_lookup_bool: walrus::FunctionId,
+    pub array_lookup_string: walrus::FunctionId,
+    pub array_lookup_struct: walrus::FunctionId,
+
+    pub map_lookup_integer_integer: walrus::FunctionId,
+    pub map_lookup_string_integer: walrus::FunctionId,
+    pub map_lookup_integer_float: walrus::FunctionId,
+    pub map_lookup_string_float: walrus::FunctionId,
+    pub map_lookup_integer_bool: walrus::FunctionId,
+    pub map_lookup_string_bool: walrus::FunctionId,
+    pub map_lookup_integer_string: walrus::FunctionId,
+    pub map_lookup_string_string: walrus::FunctionId,
+    pub map_lookup_integer_struct: walrus::FunctionId,
+    pub map_lookup_string_struct: walrus::FunctionId,
 
     /// String comparison functions.
     /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
@@ -308,15 +322,28 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, is_pat_match_at);
     add_function!(linker, is_pat_match_in);
     add_function!(linker, literal_to_ref);
-    add_function!(linker, symbol_lookup_integer);
-    add_function!(linker, symbol_lookup_float);
-    add_function!(linker, symbol_lookup_string);
-    add_function!(linker, symbol_lookup_bool);
-    add_function!(linker, symbol_lookup_struct);
-    add_function!(linker, symbol_lookup_array);
-    add_function!(linker, symbol_lookup_map);
+    add_function!(linker, lookup_integer);
+    add_function!(linker, lookup_float);
+    add_function!(linker, lookup_string);
+    add_function!(linker, lookup_bool);
+    add_function!(linker, lookup_struct);
+    add_function!(linker, lookup_array);
+    add_function!(linker, lookup_map);
     add_function!(linker, array_lookup_integer);
-    add_function!(linker, map_lookup_integer);
+    add_function!(linker, array_lookup_float);
+    add_function!(linker, array_lookup_bool);
+    add_function!(linker, array_lookup_string);
+    add_function!(linker, array_lookup_struct);
+    add_function!(linker, map_lookup_integer_integer);
+    add_function!(linker, map_lookup_string_integer);
+    add_function!(linker, map_lookup_integer_float);
+    add_function!(linker, map_lookup_string_float);
+    add_function!(linker, map_lookup_integer_bool);
+    add_function!(linker, map_lookup_string_bool);
+    add_function!(linker, map_lookup_integer_string);
+    add_function!(linker, map_lookup_string_string);
+    add_function!(linker, map_lookup_integer_struct);
+    add_function!(linker, map_lookup_string_struct);
 
     linker
 }
@@ -361,7 +388,7 @@ pub(crate) fn rule_match(
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
 
-    // The RuleID-th bit in the `rule_matches` bit vector is set to 1.
+    // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
     scan_ctx.rules_matching_bitmap.set(rule_id as usize, true);
     scan_ctx.rules_matching.push(rule_id);
 }
@@ -418,140 +445,82 @@ pub(crate) fn literal_to_ref(
     ))))
 }
 
-/// Given the IdentId for some identifier of type [`crate::Type::String`],
-/// looks for the identifier in the current symbol table, creates an externref
+/// Given the field index for some field of type [`crate::Type::String`],
+/// looks for the field in the current structure, creates an externref
 /// for the string, and pushes the externref in the wasm stack. If the
-/// identifier is not found, it pushes a null externref instead.
-pub(crate) fn symbol_lookup_string(
+/// field is not found, it pushes a null externref instead.
+pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
-    ident_id: i64,
+    field_index: i32,
 ) -> Option<ExternRef> {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
+    let value = scan_ctx.value_by_field_index(field_index);
 
-    let ident = scan_ctx
-        .compiled_rules
-        .ident_pool()
-        .get(IdentId::from(ident_id as u32))
-        .unwrap();
-
-    let symbol = scan_ctx.lookup(ident);
-
-    match symbol.value() {
-        SymbolValue::Value(Value::String(s)) => {
-            Some(ExternRef::new(RuntimeString::Owned(s.clone())))
+    match value {
+        RuntimeValue::String(Some(value)) => {
+            Some(ExternRef::new(RuntimeString::Owned(value)))
         }
-        SymbolValue::Value(Value::Unknown) => None,
+        RuntimeValue::String(None) => None,
         _ => unreachable!(),
     }
 }
 
-/// Given the IdentId for some identifier of type [`crate::Type::Struct`],
-/// looks for the identifier in the current symbol and stores a reference
-/// to the structure in [`ScanContext::current_struct`]. The next call to
-/// `lookup_xxx` will use the structure's symbol table instead of the main
-/// symbol table.
-pub(crate) fn symbol_lookup_struct(
-    mut caller: Caller<'_, ScanContext>,
-    ident_id: i64,
-) {
-    // Search for the identifier in the pool
-    let ident = caller
-        .data()
-        .compiled_rules
-        .ident_pool()
-        .get(IdentId::from(ident_id as u32))
-        .unwrap();
-
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-    let symbol = scan_ctx.lookup(ident);
-
-    scan_ctx.current_struct =
-        if let SymbolValue::Struct(symbol_table) = symbol.value() {
-            Some(symbol_table.to_owned())
-        } else {
-            // This should not happen, the symbol with the given identifier
-            // must exist and be a struct.
-            unreachable!()
-        };
-}
-
-/// Given the IdentId for some identifier of type [`crate::Type::Array`],
-/// looks for the identifier in the current symbol and stores a reference
-/// to the array in [`ScanContext::current_struct`].
-pub(crate) fn symbol_lookup_array(
-    mut caller: Caller<'_, ScanContext>,
-    ident_id: i64,
-) {
-    let ident = caller
-        .data()
-        .compiled_rules
-        .ident_pool()
-        .get(IdentId::from(ident_id as u32))
-        .unwrap();
-
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-    let symbol = scan_ctx.lookup(ident);
-
-    scan_ctx.current_array = if let SymbolValue::Array(array) = symbol.value()
-    {
-        Some(array.to_owned())
-    } else {
-        // This should not happen, the symbol with the given identifier
-        // must exist and be an array.
-        unreachable!()
+macro_rules! gen_lookup_fn_1 {
+    ($name:ident, $field:ident, $type:path) => {
+        pub(crate) fn $name(
+            mut caller: Caller<'_, ScanContext>,
+            field_index: i32,
+        ) {
+            let mut store_ctx = caller.as_context_mut();
+            let scan_ctx = store_ctx.data_mut();
+            let value = scan_ctx.value_by_field_index(field_index);
+            scan_ctx.$field =
+                if let $type(s) = value { Some(s) } else { unreachable!() };
+        }
     };
 }
 
-/// Given the IdentId for some identifier of type [`crate::Type::Map`],
-/// looks for the identifier in the current symbol and stores a reference
-/// to the array in [`ScanContext::current_map`].
-pub(crate) fn symbol_lookup_map(
-    mut caller: Caller<'_, ScanContext>,
-    ident_id: i64,
-) {
-    let ident = caller
-        .data()
-        .compiled_rules
-        .ident_pool()
-        .get(IdentId::from(ident_id as u32))
-        .unwrap();
+gen_lookup_fn_1!(lookup_struct, current_struct, RuntimeValue::Struct);
+gen_lookup_fn_1!(lookup_array, current_array, RuntimeValue::Array);
+gen_lookup_fn_1!(lookup_map, current_map, RuntimeValue::Map);
 
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-    let symbol = scan_ctx.lookup(ident);
-
-    scan_ctx.current_map = if let SymbolValue::Map(map) = symbol.value() {
-        Some(map.to_owned())
-    } else {
-        // This should not happen, the symbol with the given identifier
-        // must exist and be a map.
-        unreachable!()
-    };
-}
-
-/// Macro that generates functions similar to [`lookup_struct`] and
-/// [`lookup_string`] but for integers, floats and booleans.
-macro_rules! symbol_lookup_ident_fn {
+macro_rules! gen_lookup_fn_2 {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
-            ident_id: i64,
+            field_index: i32,
+        ) -> MaybeUndef<$return_type> {
+            let mut store_ctx = caller.as_context_mut();
+            let scan_ctx = store_ctx.data_mut();
+            if let $type(Some(value)) =
+                scan_ctx.value_by_field_index(field_index)
+            {
+                defined(value as $return_type)
+            } else {
+                undefined()
+            }
+        }
+    };
+}
+
+gen_lookup_fn_2!(lookup_integer, i64, RuntimeValue::Integer);
+gen_lookup_fn_2!(lookup_float, f64, RuntimeValue::Float);
+gen_lookup_fn_2!(lookup_bool, i32, RuntimeValue::Bool);
+
+macro_rules! gen_array_lookup_fn {
+    ($name:ident, $fn:ident, $return_type:ty) => {
+        pub(crate) fn $name(
+            mut caller: Caller<'_, ScanContext>,
+            index: i64,
         ) -> MaybeUndef<$return_type> {
             let mut store_ctx = caller.as_context_mut();
             let scan_ctx = store_ctx.data_mut();
 
-            let ident = scan_ctx
-                .compiled_rules
-                .ident_pool()
-                .get(IdentId::from(ident_id as u32))
-                .unwrap();
+            let array = scan_ctx.current_array.take().unwrap();
+            let array = array.$fn();
 
-            let symbol = scan_ctx.lookup(ident);
-
-            if let SymbolValue::Value($type(value)) = symbol.value() {
+            if let Some(value) = array.get(index as usize) {
                 defined(*value as $return_type)
             } else {
                 undefined()
@@ -560,11 +529,200 @@ macro_rules! symbol_lookup_ident_fn {
     };
 }
 
-symbol_lookup_ident_fn!(symbol_lookup_integer, i64, Value::Integer);
-symbol_lookup_ident_fn!(symbol_lookup_float, f64, Value::Float);
-symbol_lookup_ident_fn!(symbol_lookup_bool, i32, Value::Bool);
+gen_array_lookup_fn!(array_lookup_integer, as_integer_array, i64);
+gen_array_lookup_fn!(array_lookup_float, as_float_array, f64);
+gen_array_lookup_fn!(array_lookup_bool, as_bool_array, i32);
 
-macro_rules! str_cmp_fn {
+pub(crate) fn array_lookup_string(
+    mut caller: Caller<'_, ScanContext>,
+    index: i64,
+) -> Option<ExternRef> {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    let array = scan_ctx.current_array.take().unwrap();
+    let array = array.as_string_array();
+
+    array
+        .get(index as usize)
+        .map(|value| ExternRef::new(RuntimeString::Owned(value.clone())))
+}
+
+pub(crate) fn array_lookup_struct(
+    mut caller: Caller<'_, ScanContext>,
+    index: i64,
+) -> i32 {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    let array = scan_ctx.current_array.take().unwrap();
+    let array = array.as_struct_array();
+
+    if let Some(value) = array.get(index as usize) {
+        scan_ctx.current_struct = Some(value.clone());
+        1
+    } else {
+        0
+    }
+}
+
+macro_rules! gen_map_string_key_lookup_fn {
+    ($name:ident, $return_type:ty, $type:path) => {
+        pub(crate) fn $name(
+            mut caller: Caller<'_, ScanContext>,
+            key: Option<ExternRef>,
+        ) -> MaybeUndef<$return_type> {
+            let mut store_ctx = caller.as_context_mut();
+            let scan_ctx = store_ctx.data_mut();
+
+            let map = scan_ctx.current_map.take().unwrap();
+            let key = key.unwrap();
+            let key_string =
+                key.data().downcast_ref::<RuntimeString>().unwrap();
+            let key_bstr = key_string.as_bstr(scan_ctx);
+
+            let value = match map.borrow() {
+                RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
+                _ => unreachable!(),
+            };
+
+            if let Some($type(value)) = value {
+                if let Some(value) = value {
+                    defined(*value as $return_type)
+                } else {
+                    undefined()
+                }
+            } else {
+                unreachable!()
+            }
+        }
+    };
+}
+
+macro_rules! gen_map_integer_key_lookup_fn {
+    ($name:ident, $return_type:ty, $type:path) => {
+        pub(crate) fn $name(
+            mut caller: Caller<'_, ScanContext>,
+            key: i64,
+        ) -> MaybeUndef<$return_type> {
+            let mut store_ctx = caller.as_context_mut();
+            let scan_ctx = store_ctx.data_mut();
+
+            let map = scan_ctx.current_map.take().unwrap();
+            let value = match map.borrow() {
+                RuntimeMap::IntegerKeys { map, .. } => map.get(&key),
+                _ => unreachable!(),
+            };
+
+            if let Some($type(value)) = value {
+                if let Some(value) = value {
+                    defined(*value as $return_type)
+                } else {
+                    undefined()
+                }
+            } else {
+                unreachable!()
+            }
+        }
+    };
+}
+
+gen_map_string_key_lookup_fn!(
+    map_lookup_string_integer,
+    i64,
+    RuntimeValue::Integer
+);
+
+gen_map_integer_key_lookup_fn!(
+    map_lookup_integer_integer,
+    i64,
+    RuntimeValue::Integer
+);
+
+gen_map_string_key_lookup_fn!(
+    map_lookup_string_float,
+    f64,
+    RuntimeValue::Float
+);
+
+gen_map_integer_key_lookup_fn!(
+    map_lookup_integer_float,
+    f64,
+    RuntimeValue::Float
+);
+
+gen_map_string_key_lookup_fn!(map_lookup_string_bool, i32, RuntimeValue::Bool);
+
+gen_map_integer_key_lookup_fn!(
+    map_lookup_integer_bool,
+    i32,
+    RuntimeValue::Bool
+);
+
+pub(crate) fn map_lookup_integer_string(
+    mut caller: Caller<'_, ScanContext>,
+    key: i64,
+) -> Option<ExternRef> {
+    todo!()
+}
+
+pub(crate) fn map_lookup_string_string(
+    mut caller: Caller<'_, ScanContext>,
+    key: Option<ExternRef>,
+) -> Option<ExternRef> {
+    todo!()
+}
+
+pub(crate) fn map_lookup_integer_struct(
+    mut caller: Caller<'_, ScanContext>,
+    key: i64,
+) -> i32 {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    let map = scan_ctx.current_map.take().unwrap();
+    let value = match map.borrow() {
+        RuntimeMap::IntegerKeys { map, .. } => map.get(&key),
+        _ => unreachable!(),
+    };
+
+    if let Some(value) = value {
+        todo!()
+    }
+
+    todo!()
+}
+
+pub(crate) fn map_lookup_string_struct(
+    mut caller: Caller<'_, ScanContext>,
+    key: Option<ExternRef>,
+) -> i32 {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    let map = scan_ctx.current_map.take().unwrap();
+    let key = key.unwrap();
+    let key_string = key.data().downcast_ref::<RuntimeString>().unwrap();
+    let key_bstr = key_string.as_bstr(scan_ctx);
+
+    let value = match map.borrow() {
+        RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
+        _ => unreachable!(),
+    };
+
+    if let Some(value) = value {
+        if let RuntimeValue::Struct(s) = value {
+            scan_ctx.borrow_mut().current_struct = Some(s.clone());
+            0 // result is defined
+        } else {
+            unreachable!()
+        }
+    } else {
+        1 // undefined result
+    }
+}
+
+macro_rules! gen_str_cmp_fn {
     ($name:ident, $op:tt) => {
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
@@ -573,8 +731,10 @@ macro_rules! str_cmp_fn {
         ) -> i32 {
             let lhs_ref = lhs.unwrap();
             let rhs_ref = rhs.unwrap();
+
             let lhs_str =
                 lhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
+
             let rhs_str =
                 rhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
 
@@ -583,14 +743,14 @@ macro_rules! str_cmp_fn {
     };
 }
 
-str_cmp_fn!(str_eq, eq);
-str_cmp_fn!(str_ne, ne);
-str_cmp_fn!(str_lt, lt);
-str_cmp_fn!(str_gt, gt);
-str_cmp_fn!(str_le, le);
-str_cmp_fn!(str_ge, ge);
+gen_str_cmp_fn!(str_eq, eq);
+gen_str_cmp_fn!(str_ne, ne);
+gen_str_cmp_fn!(str_lt, lt);
+gen_str_cmp_fn!(str_gt, gt);
+gen_str_cmp_fn!(str_le, le);
+gen_str_cmp_fn!(str_ge, ge);
 
-macro_rules! str_op_fn {
+macro_rules! gen_str_op_fn {
     ($name:ident, $op:tt, $case_insensitive:literal) => {
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
@@ -609,13 +769,13 @@ macro_rules! str_op_fn {
     };
 }
 
-str_op_fn!(str_contains, contains, false);
-str_op_fn!(str_startswith, starts_with, false);
-str_op_fn!(str_endswith, ends_with, false);
-str_op_fn!(str_icontains, contains, true);
-str_op_fn!(str_istartswith, starts_with, true);
-str_op_fn!(str_iendswith, ends_with, true);
-str_op_fn!(str_iequals, equals, true);
+gen_str_op_fn!(str_contains, contains, false);
+gen_str_op_fn!(str_startswith, starts_with, false);
+gen_str_op_fn!(str_endswith, ends_with, false);
+gen_str_op_fn!(str_icontains, contains, true);
+gen_str_op_fn!(str_istartswith, starts_with, true);
+gen_str_op_fn!(str_iendswith, ends_with, true);
+gen_str_op_fn!(str_iequals, equals, true);
 
 pub(crate) fn str_len(
     caller: Caller<'_, ScanContext>,
@@ -625,47 +785,4 @@ pub(crate) fn str_len(
     let string = string_ref.data().downcast_ref::<RuntimeString>().unwrap();
 
     string.len(caller.data()) as i64
-}
-
-pub(crate) fn array_lookup_integer(
-    mut caller: Caller<'_, ScanContext>,
-    index: i64,
-) -> MaybeUndef<i64> {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-
-    let array = scan_ctx.current_array.take().unwrap();
-    if let Some(symbol) = array.index(index as usize) {
-        match symbol.value() {
-            SymbolValue::Value(Value::Integer(value)) => defined(*value),
-            SymbolValue::Value(Value::Unknown) => undefined(),
-            _ => unreachable!(),
-        }
-    } else {
-        undefined()
-    }
-}
-
-pub(crate) fn map_lookup_integer(
-    mut caller: Caller<'_, ScanContext>,
-    key: Option<ExternRef>,
-) -> MaybeUndef<i64> {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-
-    let map = scan_ctx.current_map.take().unwrap();
-    let k = key.unwrap();
-
-    let r = k.data().downcast_ref::<RuntimeString>().unwrap();
-    let a = r.as_bstr(scan_ctx);
-
-    if let Some(symbol) = map.index(a.to_owned()) {
-        match symbol.value() {
-            SymbolValue::Value(Value::Integer(value)) => defined(*value),
-            SymbolValue::Value(Value::Unknown) => undefined(),
-            _ => unreachable!(),
-        }
-    } else {
-        undefined()
-    }
 }

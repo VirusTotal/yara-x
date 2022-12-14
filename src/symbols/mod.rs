@@ -1,101 +1,58 @@
 use bstr::BString;
 use bstr::{BStr, ByteSlice};
-use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
-mod protos;
-
-pub use protos::*;
-
-use crate::ast::{Type, Value};
-use crate::modules::Module;
+use crate::ast::Type;
+use crate::types::RuntimeValue;
 
 /// Trait implemented by types that allow looking up for an identifier.
-pub trait SymbolLookup<'a> {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>>;
+pub trait SymbolLookup {
+    fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
-pub trait SymbolIndex<'a, I> {
-    fn index(&self, index: I) -> Option<Symbol<'a>>;
+pub trait SymbolIndex<I> {
+    fn index(&self, index: I) -> Option<Symbol>;
     fn item_type(&self) -> Type;
-    fn item_value(&self) -> SymbolValue<'a>;
+    fn item_value(&self) -> RuntimeValue;
 }
 
 #[derive(Clone)]
-pub enum SymbolValue<'a> {
-    Value(Value),
-    Struct(Rc<dyn SymbolLookup<'a> + 'a>),
-    Array(Rc<dyn SymbolIndex<'a, usize> + 'a>),
-    Map(Rc<dyn SymbolIndex<'a, BString> + 'a>),
-}
-
-#[derive(Clone)]
-pub struct Symbol<'a> {
+pub struct Symbol {
     ty: Type,
-    value: SymbolValue<'a>,
-    location: Location,
+    value: RuntimeValue,
+    mem_offset: Option<i32>,
+    field_index: Option<i32>,
 }
 
-impl<'a> Symbol<'a> {
-    pub fn new(ty: Type, value: SymbolValue<'a>) -> Self {
-        Self { ty, value, location: Location::None }
+impl Symbol {
+    pub fn new(ty: Type, value: RuntimeValue) -> Self {
+        Self { ty, value, mem_offset: None, field_index: None }
     }
 
-    pub fn new_struct(symbol_table: Rc<dyn SymbolLookup<'a> + 'a>) -> Self {
-        Self {
-            ty: Type::Struct,
-            value: SymbolValue::Struct(symbol_table),
-            location: Location::None,
-        }
-    }
-
-    pub fn new_array(array: Rc<dyn SymbolIndex<'a, usize> + 'a>) -> Self {
-        Self {
-            ty: Type::Array,
-            value: SymbolValue::Array(array),
-            location: Location::None,
-        }
-    }
-
-    pub fn new_map(map: Rc<dyn SymbolIndex<'a, BString> + 'a>) -> Self {
-        Self {
-            ty: Type::Array,
-            value: SymbolValue::Map(map),
-            location: Location::None,
-        }
-    }
-
-    pub fn new_integer(i: i64) -> Self {
-        Self {
-            ty: Type::Integer,
-            value: SymbolValue::Value(Value::Integer(i)),
-            location: Location::None,
-        }
-    }
-
-    pub fn set_location(mut self, location: Location) -> Self {
-        self.location = location;
+    pub fn set_mem_offset(&mut self, offset: i32) -> &Self {
+        self.mem_offset = Some(offset);
         self
     }
 
     #[inline]
-    pub fn location(&self) -> &Location {
-        &self.location
+    pub fn mem_offset(&self) -> Option<i32> {
+        self.mem_offset
+    }
+
+    pub fn set_field_index(&mut self, index: i32) -> &Self {
+        self.field_index = Some(index);
+        self
     }
 
     #[inline]
-    pub fn mem_location(&self) -> Option<i32> {
-        if let Location::Memory(location) = self.location {
-            Some(location)
-        } else {
-            None
-        }
+    pub fn field_index(&self) -> Option<i32> {
+        self.field_index
     }
 
     #[inline]
-    pub fn value(&self) -> &SymbolValue<'a> {
+    pub fn value(&self) -> &RuntimeValue {
         &self.value
     }
 
@@ -105,49 +62,19 @@ impl<'a> Symbol<'a> {
     }
 
     fn as_integer(&self) -> Option<i64> {
-        if let SymbolValue::Value(Value::Integer(i)) = self.value {
-            Some(i)
+        if let RuntimeValue::Integer(value) = self.value {
+            value
         } else {
             None
         }
     }
 
     fn as_bstr(&self) -> Option<&BStr> {
-        if let SymbolValue::Value(Value::String(s)) = &self.value {
+        if let RuntimeValue::String(Some(s)) = &self.value {
             Some(s.as_bstr())
         } else {
             None
         }
-    }
-}
-
-impl From<Type> for Symbol<'_> {
-    fn from(ty: Type) -> Self {
-        Self::new(ty, SymbolValue::Value(Value::Unknown))
-    }
-}
-
-#[derive(Clone)]
-pub enum Location {
-    None,
-    Memory(i32),
-}
-
-/// A hash map the contains [`Module`] instances implements [`SymbolLookup`].
-///
-/// The identifier in this case is a module name. If a module with the given
-/// identifier exists in the map, a [`Symbol`] of type [`Type::Struct`] that
-/// wraps a &[`Module`] is returned.
-impl<'a> SymbolLookup<'a> for &'a FxHashMap<&'a str, Module> {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
-        self.get(ident).map(|module| Symbol::new_struct(Rc::new(module)))
-    }
-}
-
-/// &[`Module`] also implements [`SymbolLookup`].
-impl<'a> SymbolLookup<'a> for &Module {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
-        self.descriptor.lookup(ident)
     }
 }
 
@@ -165,10 +92,10 @@ impl<'a> SymbolLookup<'a> for &Module {
 ///
 /// This can be done because the `Option<Symbol>` returned by the
 /// first call to `lookup` also have a `lookup` method.
-impl<'a> SymbolLookup<'a> for Option<Symbol<'a>> {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
+impl SymbolLookup for Option<Symbol> {
+    fn lookup(&self, ident: &str) -> Option<Symbol> {
         if let Some(symbol) = self {
-            if let SymbolValue::Struct(s) = symbol.value() {
+            if let RuntimeValue::Struct(s) = symbol.value() {
                 s.lookup(ident)
             } else {
                 None
@@ -192,11 +119,11 @@ impl<'a> SymbolLookup<'a> for Option<Symbol<'a>> {
 /// [`Symbol`] will be of type [`Type::Struct`], which encapsulates another
 /// object that also implements the [`SymbolLookup`] trait, possibly another
 /// [`SymbolTable`].
-pub struct SymbolTable<'a> {
-    map: HashMap<String, Symbol<'a>>,
+pub struct SymbolTable {
+    map: HashMap<String, Symbol>,
 }
 
-impl<'a> SymbolTable<'a> {
+impl SymbolTable {
     /// Creates a new symbol table.
     pub fn new() -> Self {
         Self { map: HashMap::new() }
@@ -207,11 +134,7 @@ impl<'a> SymbolTable<'a> {
     /// If the symbol was already in the table it gets updated and the old
     /// value is returned. If the symbol was not in the table [`None`] is
     /// returned.
-    pub fn insert<I>(
-        &mut self,
-        ident: I,
-        symbol: Symbol<'a>,
-    ) -> Option<Symbol<'a>>
+    pub fn insert<I>(&mut self, ident: I, symbol: Symbol) -> Option<Symbol>
     where
         I: Into<String>,
     {
@@ -219,26 +142,26 @@ impl<'a> SymbolTable<'a> {
     }
 }
 
-impl Default for SymbolTable<'_> {
+impl Default for SymbolTable {
     fn default() -> Self {
         SymbolTable::new()
     }
 }
 
-impl<'a> SymbolLookup<'a> for SymbolTable<'a> {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
+impl SymbolLookup for SymbolTable {
+    fn lookup(&self, ident: &str) -> Option<Symbol> {
         self.map.get(ident).cloned()
     }
 }
 
-impl<'a> SymbolLookup<'a> for &SymbolTable<'a> {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
+impl SymbolLookup for &SymbolTable {
+    fn lookup(&self, ident: &str) -> Option<Symbol> {
         self.map.get(ident).cloned()
     }
 }
 
-impl<'a> SymbolLookup<'a> for RefCell<SymbolTable<'a>> {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
+impl SymbolLookup for RefCell<SymbolTable> {
+    fn lookup(&self, ident: &str) -> Option<Symbol> {
         self.borrow().map.get(ident).cloned()
     }
 }
@@ -256,7 +179,7 @@ impl<'a> SymbolLookup<'a> for RefCell<SymbolTable<'a>> {
 /// that is deeper in the stack.
 ///
 pub struct StackedSymbolTable<'a> {
-    stack: VecDeque<Rc<dyn SymbolLookup<'a> + 'a>>,
+    stack: VecDeque<Rc<dyn SymbolLookup + 'a>>,
 }
 
 impl<'a> StackedSymbolTable<'a> {
@@ -266,18 +189,18 @@ impl<'a> StackedSymbolTable<'a> {
     }
 
     /// Pushes a new symbol table to the stack.
-    pub fn push(&mut self, symbol_table: Rc<dyn SymbolLookup<'a> + 'a>) {
+    pub fn push(&mut self, symbol_table: Rc<dyn SymbolLookup + 'a>) {
         self.stack.push_back(symbol_table)
     }
 
     /// Pop a symbol table from the stack.
-    pub fn pop(&mut self) -> Option<Rc<dyn SymbolLookup<'a> + 'a>> {
+    pub fn pop(&mut self) -> Option<Rc<dyn SymbolLookup + 'a>> {
         self.stack.pop_back()
     }
 }
 
-impl<'a> SymbolLookup<'a> for StackedSymbolTable<'a> {
-    fn lookup(&self, ident: &str) -> Option<Symbol<'a>> {
+impl<'a> SymbolLookup for StackedSymbolTable<'a> {
+    fn lookup(&self, ident: &str) -> Option<Symbol> {
         // Look for the identifier starting at the top of the stack, and
         // going down the stack until it's found or the bottom of the
         // stack is reached.
@@ -295,7 +218,8 @@ impl<'a> SymbolLookup<'a> for StackedSymbolTable<'a> {
 #[cfg(test)]
 mod tests {
     use crate::ast::Type;
-    use crate::symbols::{ProtoMessage, SymbolLookup};
+    use crate::symbols::SymbolLookup;
+    use crate::types::RuntimeStruct;
     use bstr::BStr;
     use pretty_assertions::assert_eq;
 
@@ -307,7 +231,11 @@ mod tests {
         use crate::modules::protos::test_proto2::test::Enumeration;
         use crate::modules::protos::test_proto2::Test;
 
-        let test = Test::descriptor();
+        let test = RuntimeStruct::from_proto_descriptor_and_msg(
+            &Test::descriptor(),
+            None,
+            true,
+        );
 
         assert_eq!(test.lookup("int32_zero").unwrap().ty(), Type::Integer);
         assert_eq!(test.lookup("string_foo").unwrap().ty(), Type::String);
@@ -372,33 +300,31 @@ mod tests {
         let mut buf = Vec::new();
         test.write_to_vec(&mut buf).unwrap();
 
-        let message_dyn =
-            Test::descriptor().parse_from_bytes(buf.as_slice()).unwrap();
-
-        let message_dyn = ProtoMessage::new(
-            Test::descriptor()
-                .parse_from_bytes(buf.as_slice())
-                .unwrap()
-                .into(),
+        let descriptor = Test::descriptor();
+        let message = descriptor.parse_from_bytes(buf.as_slice()).unwrap();
+        let structure = RuntimeStruct::from_proto_descriptor_and_msg(
+            &descriptor,
+            Some(message.as_ref()),
+            true,
         );
 
         assert_eq!(
-            message_dyn.lookup("int32_zero").unwrap().as_integer(),
+            structure.lookup("int32_zero").unwrap().as_integer(),
             Some(0)
         );
 
         assert_eq!(
-            message_dyn.lookup("int32_one").unwrap().as_integer(),
+            structure.lookup("int32_one").unwrap().as_integer(),
             Some(1)
         );
 
         assert_eq!(
-            message_dyn.lookup("string_foo").unwrap().as_bstr(),
+            structure.lookup("string_foo").unwrap().as_bstr(),
             Some(BStr::new(b"foo"))
         );
 
         assert_eq!(
-            message_dyn
+            structure
                 .lookup("nested")
                 .lookup("nested_int32_zero")
                 .unwrap()
@@ -407,7 +333,7 @@ mod tests {
         );
 
         assert_eq!(
-            message_dyn
+            structure
                 .lookup("Enumeration")
                 .lookup("ITEM_1")
                 .unwrap()

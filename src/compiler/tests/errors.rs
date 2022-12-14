@@ -458,7 +458,7 @@ rule test {
    │
  5 │     test_proto2.int64_zero[0]
    ·     ───────────┬──────────  
-   ·                ╰──────────── expression should be `array`, but is `integer`
+   ·                ╰──────────── expression should be `array` or `map`, but is `integer`
 ───╯
 "#,
         ),

@@ -2,8 +2,12 @@
 
 */
 
+use crate::ast::Type;
 use crate::compiler::{CompiledRule, CompiledRules, RuleId};
 use crate::symbols::{Symbol, SymbolIndex, SymbolLookup, SymbolTable};
+use crate::types::{
+    RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeStructField, RuntimeValue,
+};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
@@ -35,8 +39,6 @@ pub struct Scanner<'r> {
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(compiled_rules: &'r CompiledRules) -> Self {
-        let symbol_table = Rc::new(RefCell::new(SymbolTable::new()));
-
         let mut wasm_store = Store::new(
             &crate::wasm::ENGINE,
             ScanContext {
@@ -44,7 +46,7 @@ impl<'r> Scanner<'r> {
                 current_array: None,
                 current_struct: None,
                 current_map: None,
-                symbol_table: symbol_table.clone(),
+                root_struct: RuntimeStruct::new(),
                 scanned_data: null(),
                 scanned_data_len: 0,
                 rules_matching: Vec::new(),
@@ -143,21 +145,24 @@ impl<'r> Scanner<'r> {
             // expected type.
             debug_assert_eq!(
                 module_output.descriptor_dyn().full_name(),
-                module.descriptor.full_name(),
+                module.root_struct_descriptor.full_name(),
                 "main function of module `{}` must return `{}`, but returned `{}`",
                 module_name,
-                module.descriptor.full_name(),
+                module.root_struct_descriptor.full_name(),
                 module_output.descriptor_dyn().full_name(),
             );
+
+            let module_struct =
+                RuntimeStruct::from_proto_msg(module_output, false);
 
             // The data structure obtained from the module is added to the
             // symbol table (data from previous scans is replaced). This
             // structure implements the SymbolLookup trait, which is used
             // by the runtime for obtaining the values of individual fields
             // in the data structure, as they are used in the rule conditions.
-            ctx.symbol_table.borrow_mut().insert(
+            ctx.root_struct.insert(
                 module_name,
-                Symbol::new_struct(Rc::new(module_output)),
+                RuntimeValue::Struct(Rc::new(module_struct)),
             );
         }
 
@@ -166,7 +171,7 @@ impl<'r> Scanner<'r> {
 
         // Run the wasm store's garbage collector and force the release of
         // unused externrefs that may be retaining data in memory.
-        self.wasm_store.gc();
+        //self.wasm_store.gc();
 
         let ctx = self.wasm_store.data_mut();
 
@@ -258,34 +263,30 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) scanned_data_len: usize,
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r CompiledRules,
-    /// Symbol table that contains top-level symbols, like module names
+    /// Structure that contains top-level symbols, like module names
     /// and external variables. Symbols are normally looked up in this
-    /// table, except if `current_struct` is set to some structure's
-    /// symbol table.
-    pub(crate) symbol_table: Rc<RefCell<SymbolTable<'r>>>,
+    /// table, except if `current_struct` is set to some other structure.
+    pub(crate) root_struct: RuntimeStruct,
     /// Symbol table for the currently active structure, if any. When this
     /// set it overrides `symbol_table`.
-    pub(crate) current_struct: Option<Rc<dyn SymbolLookup<'r> + 'r>>,
+    pub(crate) current_struct: Option<Rc<RuntimeStruct>>,
     /// Currently active array.
-    pub(crate) current_array: Option<Rc<dyn SymbolIndex<'r, usize> + 'r>>,
+    pub(crate) current_array: Option<Rc<RuntimeArray>>,
     /// Currently active map.
-    pub(crate) current_map: Option<Rc<dyn SymbolIndex<'r, BString> + 'r>>,
+    pub(crate) current_map: Option<Rc<RuntimeMap>>,
 }
 
 impl<'r> ScanContext<'r> {
-    /// Looks for an identifier in the current symbol table, and sets
-    /// `current_struct` to [`None`].
-    ///
-    /// The current symbol table is usually the main one, which is stored in
-    /// `symbol_table`, except when `current_struct` holds the symbol table
-    /// corresponding to some structure. In that case the structure's symbol
-    /// table overrides the main symbol table, and therefore the identifier is
-    /// looked up in the structure.
-    pub(crate) fn lookup(&mut self, ident: &str) -> Symbol<'r> {
-        if let Some(symbol_table) = self.current_struct.take() {
-            symbol_table.lookup(ident).unwrap()
+    /// Looks for a field by index, and sets `current_struct` to [`None`].
+    pub(crate) fn value_by_field_index(&mut self, index: i32) -> RuntimeValue {
+        if let Some(s) = self.current_struct.take() {
+            s.field_by_index(index as usize).unwrap().value.clone()
         } else {
-            self.symbol_table.lookup(ident).unwrap()
+            self.root_struct
+                .field_by_index(index as usize)
+                .unwrap()
+                .value
+                .clone()
         }
     }
 }

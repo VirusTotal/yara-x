@@ -8,12 +8,12 @@ use protobuf::reflect::{
 };
 use protobuf::MessageDyn;
 
-use crate::ast::Type;
-use crate::ast::Value;
 use crate::symbols::Symbol;
 use crate::symbols::SymbolIndex;
 use crate::symbols::SymbolLookup;
 use crate::symbols::SymbolValue;
+use crate::types::Type;
+use crate::types::Value;
 
 pub struct ProtoMessage {
     msg: Rc<dyn MessageDyn>,

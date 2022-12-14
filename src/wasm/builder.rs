@@ -25,6 +25,16 @@ macro_rules! import {
         let ($fn_name, _) =
             $module.add_import_func("yr", stringify!($fn_name), ty);
     };
+    ($module:ident, $fn_name:ident, [$( $arg:ident ),*], maybe_undef()) => {
+        let ty = $module.types.add(&[$( $arg ),*], &[I32]);
+        let ($fn_name, _) =
+            $module.add_import_func("yr", stringify!($fn_name), ty);
+    };
+    ($module:ident, $fn_name:ident, [$( $arg:ident ),*], maybe_undef($ty:ident)) => {
+        let ty = $module.types.add(&[$( $arg ),*], &[$ty, I32]);
+        let ($fn_name, _) =
+            $module.add_import_func("yr", stringify!($fn_name), ty);
+    };
 }
 
 macro_rules! global {
@@ -74,19 +84,44 @@ impl ModuleBuilder {
         import!(module, str_endswith, [Externref, Externref], [I32]);
         import!(module, str_istartswith, [Externref, Externref], [I32]);
         import!(module, str_iendswith, [Externref, Externref], [I32]);
+
         import!(module, str_iequals, [Externref, Externref], [I32]);
         import!(module, str_len, [Externref], [I64]);
 
-        import!(module, symbol_lookup_integer, [I64], [I64, I32]);
-        import!(module, symbol_lookup_float, [I64], [F64, I32]);
-        import!(module, symbol_lookup_bool, [I64], [I32, I32]);
-        import!(module, symbol_lookup_string, [I64], [Externref]);
-        import!(module, symbol_lookup_array, [I64], []);
-        import!(module, symbol_lookup_struct, [I64], []);
-        import!(module, symbol_lookup_map, [I64], []);
+        import!(module, lookup_integer, [I32], maybe_undef(I64));
+        import!(module, lookup_float, [I32], maybe_undef(F64));
+        import!(module, lookup_bool, [I32], maybe_undef(I32));
+        import!(module, lookup_string, [I32], [Externref]);
+        import!(module, lookup_array, [I32], []);
+        import!(module, lookup_struct, [I32], []);
+        import!(module, lookup_map, [I32], []);
 
-        import!(module, array_lookup_integer, [I64], [I64, I32]);
-        import!(module, map_lookup_integer, [Externref], [I64, I32]);
+        import!(module, array_lookup_integer, [I64], maybe_undef(I64));
+        import!(module, array_lookup_float, [I64], maybe_undef(F64));
+        import!(module, array_lookup_bool, [I64], maybe_undef(I32));
+        import!(module, array_lookup_string, [I64], [Externref]);
+        import!(module, array_lookup_struct, [I64], maybe_undef());
+
+        import!(module, map_lookup_integer_integer, [I64], maybe_undef(I64));
+        import!(
+            module,
+            map_lookup_string_integer,
+            [Externref],
+            maybe_undef(I64)
+        );
+        import!(module, map_lookup_integer_float, [I64], maybe_undef(F64));
+        import!(
+            module,
+            map_lookup_string_float,
+            [Externref],
+            maybe_undef(F64)
+        );
+        import!(module, map_lookup_integer_bool, [I64], maybe_undef(I32));
+        import!(module, map_lookup_string_bool, [Externref], maybe_undef(I32));
+        import!(module, map_lookup_integer_string, [I64], [Externref]);
+        import!(module, map_lookup_string_string, [Externref], [Externref]);
+        import!(module, map_lookup_integer_struct, [I64], maybe_undef());
+        import!(module, map_lookup_string_struct, [Externref], maybe_undef());
 
         let wasm_symbols = WasmSymbols {
             rules_matching_bitmap,
@@ -96,15 +131,28 @@ impl ModuleBuilder {
             is_pat_match_at,
             is_pat_match_in,
             literal_to_ref,
-            symbol_lookup_integer,
-            symbol_lookup_float,
-            symbol_lookup_bool,
-            symbol_lookup_string,
-            symbol_lookup_struct,
-            symbol_lookup_array,
-            symbol_lookup_map,
+            lookup_integer,
+            lookup_float,
+            lookup_bool,
+            lookup_string,
+            lookup_struct,
+            lookup_array,
+            lookup_map,
             array_lookup_integer,
-            map_lookup_integer,
+            array_lookup_float,
+            array_lookup_bool,
+            array_lookup_string,
+            array_lookup_struct,
+            map_lookup_integer_integer,
+            map_lookup_string_integer,
+            map_lookup_integer_float,
+            map_lookup_string_float,
+            map_lookup_integer_bool,
+            map_lookup_string_bool,
+            map_lookup_integer_string,
+            map_lookup_string_string,
+            map_lookup_integer_struct,
+            map_lookup_string_struct,
             str_eq,
             str_ne,
             str_lt,

@@ -3,6 +3,7 @@ use std::ops::BitAnd;
 use std::ops::BitOr;
 use std::ops::BitXor;
 
+use crate::types::RuntimeValue;
 use bstr::{BString, ByteSlice};
 use protobuf::reflect::{RuntimeFieldType, RuntimeType};
 
@@ -566,6 +567,42 @@ impl From<bool> for Value {
 impl From<&str> for Value {
     fn from(value: &str) -> Self {
         Self::String(BString::from(value))
+    }
+}
+
+impl From<&RuntimeValue> for Value {
+    fn from(value: &RuntimeValue) -> Self {
+        match value {
+            RuntimeValue::Integer(v) => {
+                if let Some(v) = v {
+                    Value::Integer(*v)
+                } else {
+                    Value::Unknown
+                }
+            }
+            RuntimeValue::Float(v) => {
+                if let Some(v) = v {
+                    Value::Float(*v)
+                } else {
+                    Value::Unknown
+                }
+            }
+            RuntimeValue::Bool(v) => {
+                if let Some(v) = v {
+                    Value::Bool(*v)
+                } else {
+                    Value::Unknown
+                }
+            }
+            RuntimeValue::String(v) => {
+                if let Some(v) = v {
+                    Value::String(v.clone())
+                } else {
+                    Value::Unknown
+                }
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
