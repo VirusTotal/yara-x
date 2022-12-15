@@ -187,9 +187,6 @@ impl Display for PatternModifier<'_> {
     }
 }
 
-/// Value of a literal string.
-pub type LStr<'src> = Cow<'src, BStr>;
-
 /// A text pattern (a.k.a text string) in a YARA rule.
 ///
 /// The value is stored in a [`BString`] because text patterns in YARA can
@@ -199,7 +196,7 @@ pub type LStr<'src> = Cow<'src, BStr>;
 pub struct TextPattern<'src> {
     pub(crate) span: Span,
     pub identifier: Ident<'src>,
-    pub value: LStr<'src>,
+    pub value: Cow<'src, BStr>,
     pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
 }
 

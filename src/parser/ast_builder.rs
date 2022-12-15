@@ -1799,7 +1799,7 @@ fn float_lit_from_cst<'src>(
 /// a string representing the literal. `allow_escape_char` controls whether
 /// escaped characters are accepted or not.
 ///
-/// This function returns a [`LStr<'src>`]. If the string literal doesn't
+/// This function returns a [`Cow<'src, BStr>`]. If the string literal doesn't
 /// contain escaped characters, the literal is exactly as it appears in the source
 /// code and we can return a reference to the code in the form of a &[`BStr`].
 /// However, when the literal string contains escaped characters they must be
@@ -1815,7 +1815,7 @@ fn string_lit_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     string_lit: CSTNode<'src>,
     allow_escape_char: bool,
-) -> Result<LStr<'src>, Error> {
+) -> Result<Cow<'src, BStr>, Error> {
     expect!(string_lit, GrammarRule::string_lit);
 
     let literal = string_lit.as_str();

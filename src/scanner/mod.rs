@@ -187,7 +187,8 @@ impl<'r> Scanner<'r> {
 
         // Run the wasm store's garbage collector and force the release of
         // unused externrefs that may be retaining data in memory.
-        //self.wasm_store.gc();
+        // TODO: remove this?
+        self.wasm_store.gc();
 
         let ctx = self.wasm_store.data_mut();
 
