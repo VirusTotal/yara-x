@@ -1,7 +1,17 @@
 use bstr::BStr;
 use bstr::ByteSlice;
 use intaglio::Symbol;
+use rustc_hash::FxHasher;
+use std::hash::BuildHasherDefault;
 use std::marker::PhantomData;
+
+/// Hash builder that replaces the default hashing algorithm used by string
+/// pools (the same one used by [`std::collections::HashMap`]) with a faster
+/// one [`rustc_hash::FxHasher`].
+///
+/// For more information see:
+/// https://nnethercote.github.io/perf-book/hashing.html
+type HashBuilder = BuildHasherDefault<FxHasher>;
 
 /// StringPool is a data structure for interning strings.
 ///
@@ -14,7 +24,7 @@ pub struct StringPool<T>
 where
     T: From<u32> + Into<u32>,
 {
-    pool: intaglio::SymbolTable,
+    pool: intaglio::SymbolTable<HashBuilder>,
     phantom: PhantomData<T>,
 }
 
@@ -25,7 +35,7 @@ where
     /// Creates a new [`StringPool`].
     pub fn new() -> Self {
         Self {
-            pool: intaglio::SymbolTable::new(),
+            pool: intaglio::SymbolTable::with_hasher(HashBuilder::default()),
             phantom: Default::default(),
         }
     }
@@ -49,7 +59,7 @@ pub struct BStringPool<T>
 where
     T: From<u32> + Into<u32>,
 {
-    pool: intaglio::bytes::SymbolTable,
+    pool: intaglio::bytes::SymbolTable<HashBuilder>,
     phantom: PhantomData<T>,
 }
 
@@ -60,7 +70,9 @@ where
     /// Creates a new [`BStringPool`].
     pub fn new() -> Self {
         Self {
-            pool: intaglio::bytes::SymbolTable::new(),
+            pool: intaglio::bytes::SymbolTable::with_hasher(
+                HashBuilder::default(),
+            ),
             phantom: Default::default(),
         }
     }

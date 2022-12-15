@@ -23,9 +23,7 @@ use crate::wasm::WasmSymbols;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbols::{
-    StackedSymbolTable, Symbol, SymbolIndex, SymbolLookup, SymbolTable,
-};
+use crate::symbols::{StackedSymbolTable, SymbolIndex, SymbolLookup};
 use crate::types::{RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeValue};
 
 mod emit;
@@ -328,7 +326,7 @@ impl Default for Compiler<'_> {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub(crate) struct IdentId(u32);
 
 impl From<u32> for IdentId {
@@ -344,7 +342,7 @@ impl From<IdentId> for u32 {
 }
 
 /// ID associated to each literal string in the literals pool.
-#[derive(Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub(crate) struct LiteralId(u32);
 
 impl From<u32> for LiteralId {
@@ -356,6 +354,12 @@ impl From<u32> for LiteralId {
 impl From<LiteralId> for u32 {
     fn from(v: LiteralId) -> Self {
         v.0
+    }
+}
+
+impl From<LiteralId> for u64 {
+    fn from(v: LiteralId) -> Self {
+        v.0 as u64
     }
 }
 

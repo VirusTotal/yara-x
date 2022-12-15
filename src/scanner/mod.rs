@@ -4,24 +4,20 @@
 
 use crate::ast::Type;
 use crate::compiler::{CompiledRule, CompiledRules, RuleId};
-use crate::symbols::{Symbol, SymbolIndex, SymbolLookup, SymbolTable};
-use crate::types::{
-    RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeStructField, RuntimeValue,
-};
+use crate::string_pool::BStringPool;
+use crate::symbols::{SymbolIndex, SymbolLookup};
+use crate::types::{RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeValue};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
-use bstr::BString;
 use memmap::MmapOptions;
-use std::cell::RefCell;
 use std::fs::File;
 use std::path::Path;
 use std::ptr::null;
 use std::rc::Rc;
 use std::slice::Iter;
 use wasmtime::{
-    ExternRef, Global, GlobalType, Memory, MemoryType, Mutability, Store,
-    TypedFunc, Val, ValType,
+    Global, GlobalType, MemoryType, Mutability, Store, TypedFunc, Val, ValType,
 };
 
 #[cfg(test)]
@@ -43,6 +39,7 @@ impl<'r> Scanner<'r> {
             &crate::wasm::ENGINE,
             ScanContext {
                 compiled_rules,
+                string_pool: BStringPool::new(),
                 current_array: None,
                 current_struct: None,
                 current_map: None,
@@ -123,6 +120,9 @@ impl<'r> Scanner<'r> {
         ctx.rules_matching.clear();
         ctx.scanned_data = data.as_ptr();
         ctx.scanned_data_len = data.len();
+
+        // TODO: this should be done only if the string pool is too large.
+        ctx.string_pool = BStringPool::new();
 
         for module_name in ctx.compiled_rules.imported_modules() {
             // Lookup the module in the list of built-in modules.
@@ -265,6 +265,8 @@ impl<'s, 'r> Iterator for IterNonMatches<'s, 'r> {
     }
 }
 
+pub(crate) type RuntimeStringId = u32;
+
 /// Structure that holds information a about the current scan.
 pub(crate) struct ScanContext<'r> {
     /// Vector of bits where bit N is set to 1 if the rule with RuleId = N
@@ -291,6 +293,9 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) current_array: Option<Rc<RuntimeArray>>,
     /// Currently active map.
     pub(crate) current_map: Option<Rc<RuntimeMap>>,
+    /// String pool where the strings produced at runtime are stored. This
+    /// for example stores the strings returned by YARA modules.
+    pub(crate) string_pool: BStringPool<RuntimeStringId>,
 }
 
 impl<'r> ScanContext<'r> {

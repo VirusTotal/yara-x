@@ -22,13 +22,12 @@ the functions exposed to them by YARA's WebAssembly runtime.
 use std::borrow::{Borrow, BorrowMut};
 use std::stringify;
 
-use bstr::{BStr, BString, ByteSlice};
+use bstr::{BStr, ByteSlice};
 use lazy_static::lazy_static;
-use wasmtime::ExternRef;
 use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
 use crate::compiler::{LiteralId, PatternId, RuleId};
-use crate::scanner::ScanContext;
+use crate::scanner::{RuntimeStringId, ScanContext};
 use crate::types::{RuntimeMap, RuntimeValue};
 
 pub(crate) mod builder;
@@ -69,11 +68,6 @@ pub(crate) struct WasmSymbols {
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
     pub is_pat_match_in: walrus::FunctionId,
 
-    /// Creates a [`ExternRef`] from a [`LiteralId`] that identifies a string
-    /// in the literals pool.
-    /// Signature: (string_id: i64) -> (Externref)
-    pub literal_to_ref: walrus::FunctionId,
-
     /// Functions that given an `IdentId`, search for the identifier in the
     /// current symbol table and return its value. In the case of structs,
     /// arrays and maps the value is not returned, but is stored in
@@ -105,7 +99,7 @@ pub(crate) struct WasmSymbols {
     pub map_lookup_string_struct: walrus::FunctionId,
 
     /// String comparison functions.
-    /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
+    /// Signature: (lhs_0: i64, lhs_1: i64, rhs_0: i64, rhs_1: i64) -> (i32)
     pub str_eq: walrus::FunctionId,
     pub str_ne: walrus::FunctionId,
     pub str_lt: walrus::FunctionId,
@@ -114,7 +108,7 @@ pub(crate) struct WasmSymbols {
     pub str_ge: walrus::FunctionId,
 
     /// String operation functions.
-    /// Signature: (lhs: Externref, rhs: Externref) -> (i32)
+    /// Signature: (lhs_0: i64, lhs_1: i64, rhs_0: i64, rhs_1: i64) -> (i32)
     pub str_contains: walrus::FunctionId,
     pub str_startswith: walrus::FunctionId,
     pub str_endswith: walrus::FunctionId,
@@ -127,7 +121,6 @@ pub(crate) struct WasmSymbols {
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
-    pub ref_tmp: walrus::LocalId,
 }
 
 /// String types handled by YARA's WebAssembly runtime.
@@ -145,27 +138,62 @@ pub(crate) struct WasmSymbols {
 /// Similarly, functions exported by YARA modules can return strings that
 /// appear verbatim in the data being scanned. Instead of making a copy, the
 /// runtime passes around only the offset within the data where the string
-/// starts and its length.
+/// starts, and its length.
 ///
 /// In some other cases a function may need to return a string that doesn't
 /// appear neither in the scanned data nor as a literal in the source code,
-/// in such cases the runtime needs to allocate memory for storing the
-/// string.
+/// in such cases the runtime stores the string a pool maintained by
+/// [`ScanContext`], and passes around only the ID that allows locating the
+/// string in that pool.
+#[derive(Debug, PartialEq)]
 pub(crate) enum RuntimeString {
+    /// An undefined string.
+    Undef,
     /// A literal string appearing in the source code. The string is identified
     /// by its [`LiteralId`] within the literal strings pool.
     Literal(LiteralId),
     /// A string represented found in the scanned data, represented by the
     /// offset within the data and its length.
     Slice { offset: usize, length: usize },
-    /// A string owned by the runtime.
-    Owned(BString),
+    /// A string owned by the runtime. The string is identified by its
+    /// [`RuntimeStringId`] within the string pool stored in [`ScanContext`].
+    Owned(RuntimeStringId),
 }
+
+/// Represents a [`RuntimeString`] as a tuple that can be passed from
+/// WebAssembly code to host code and vice-versa.
+///
+/// The types that we can pass to (and receive from) WebAssembly functions are
+/// only primitive types (i64, i32, f64 and f32). In order to be able to pass
+/// a [`RuntimeString`] to and from WebAssembly, it must be represented as a
+/// tuple of primitive types.
+///
+/// This tuple is composed of two `u64` values, containing all the information
+/// required for uniquely identifying the string. The format in which the
+/// information goes as follows:
+///
+/// * `RuntimeString:Undef`  -> `(X, 0)`
+///    A zero in the second value is enough for representing an undefined string,
+///    `X` can be anything
+///
+/// * `RuntimeString:Literal`  -> `(LiteralId, 1)`
+///
+/// * `RuntimeString:Owned`  -> `(RuntimeStringId, 2)`
+///
+/// * `RuntimeString:Owned`  -> `(Offset, Len << 32 | 3)`
+///   The offset within the scanned data is stored in the first value, and the
+///   length of the string in the higher 32-bits of the second value. The lower
+///   32-bits have the value 3.
+///
+pub(crate) type RuntimeStringWasm = (u64, u64);
 
 impl RuntimeString {
     /// Returns this string as a &[`BStr`].
     fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
         match self {
+            RuntimeString::Undef => {
+                panic!("as_bstr() called for RuntimeString::Undef")
+            }
             RuntimeString::Literal(id) => {
                 ctx.compiled_rules.lit_pool().get(*id).unwrap()
             }
@@ -178,7 +206,46 @@ impl RuntimeString {
                 };
                 BStr::new(&slice[*offset..*offset + *length])
             }
-            RuntimeString::Owned(s) => s.as_bstr(),
+            RuntimeString::Owned(id) => ctx.string_pool.get(*id).unwrap(),
+        }
+    }
+
+    /// Returns this string as a tuple of primitive types suitable to be
+    /// passed to WebAssembly.
+    pub(crate) fn as_wasm(&self) -> RuntimeStringWasm {
+        match self {
+            // Undefined strings are represented as (0, 0)
+            RuntimeString::Undef => (0, 0),
+            // Literal strings are represented as (1, LiteralId)
+            RuntimeString::Literal(id) => (u64::from(*id), 1),
+            // Owned strings are represented as (2, RuntimeStringId)
+            RuntimeString::Owned(id) => (*id as u64, 2),
+            // Slices are represented as (length << 32 | 1, offset). This
+            // implies that slice length is limited to 4GB, as it must fit
+            // in the upper 32-bits of the first item in the tuple.
+            RuntimeString::Slice { offset, length } => {
+                if *length <= u32::MAX as usize {
+                    (*offset as u64, (*length << 32 | 3) as u64)
+                } else {
+                    panic!(
+                        "runtime-string slices can't be larger than {}",
+                        u32::MAX
+                    )
+                }
+            }
+        }
+    }
+
+    /// Creates a [`RuntimeString`] from a [`RuntimeStringTuple`].
+    pub(crate) fn from_wasm(tuple: RuntimeStringWasm) -> Self {
+        match tuple.1 & 0xff {
+            1 => Self::Literal(LiteralId::from(tuple.0 as u32)),
+            2 => Self::Owned(tuple.0 as u32),
+            3 => Self::Slice {
+                offset: tuple.0 as usize,
+                length: (tuple.1 >> 32) as usize,
+            },
+            _ => unreachable!(),
         }
     }
 
@@ -321,7 +388,6 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, is_pat_match);
     add_function!(linker, is_pat_match_at);
     add_function!(linker, is_pat_match_in);
-    add_function!(linker, literal_to_ref);
     add_function!(linker, lookup_integer);
     add_function!(linker, lookup_float);
     add_function!(linker, lookup_string);
@@ -434,36 +500,25 @@ pub(crate) fn is_pat_match_in(
     0
 }
 
-/// Creates a new [`RuntimeString`] for a literal string, and wraps it in a
-/// [`ExternRef`].
-pub(crate) fn literal_to_ref(
-    _caller: Caller<'_, ScanContext>,
-    literal_id: i64,
-) -> Option<ExternRef> {
-    Some(ExternRef::new(RuntimeString::Literal(LiteralId::from(
-        literal_id as u32,
-    ))))
-}
-
 /// Given the field index for some field of type [`crate::Type::String`],
-/// looks for the field in the current structure, creates an externref
-/// for the string, and pushes the externref in the wasm stack. If the
-/// field is not found, it pushes a null externref instead.
+/// looks for the field in the current structure, and returns its value.
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
     field_index: i32,
-) -> Option<ExternRef> {
+) -> RuntimeStringWasm {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
     let value = scan_ctx.value_by_field_index(field_index);
 
-    match value {
-        RuntimeValue::String(Some(value)) => {
-            Some(ExternRef::new(RuntimeString::Owned(value)))
-        }
-        RuntimeValue::String(None) => None,
+    let string = match value {
+        RuntimeValue::String(Some(value)) => RuntimeString::Owned(
+            scan_ctx.string_pool.get_or_intern(value.as_bstr()),
+        ),
+        RuntimeValue::String(None) => RuntimeString::Undef,
         _ => unreachable!(),
-    }
+    };
+
+    string.as_wasm()
 }
 
 macro_rules! gen_lookup_fn_1 {
@@ -536,16 +591,22 @@ gen_array_lookup_fn!(array_lookup_bool, as_bool_array, i32);
 pub(crate) fn array_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
-) -> Option<ExternRef> {
+) -> RuntimeStringWasm {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
 
     let array = scan_ctx.current_array.take().unwrap();
     let array = array.as_string_array();
+    let string = array.get(index as usize);
 
-    array
-        .get(index as usize)
-        .map(|value| ExternRef::new(RuntimeString::Owned(value.clone())))
+    if let Some(string) = string {
+        RuntimeString::Owned(
+            scan_ctx.string_pool.get_or_intern(string.as_bstr()),
+        )
+        .as_wasm()
+    } else {
+        RuntimeString::Undef.as_wasm()
+    }
 }
 
 pub(crate) fn array_lookup_struct(
@@ -570,16 +631,15 @@ macro_rules! gen_map_string_key_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
-            key: Option<ExternRef>,
+            key_0: u64,
+            key_1: u64,
         ) -> MaybeUndef<$return_type> {
             let mut store_ctx = caller.as_context_mut();
             let scan_ctx = store_ctx.data_mut();
 
             let map = scan_ctx.current_map.take().unwrap();
-            let key = key.unwrap();
-            let key_string =
-                key.data().downcast_ref::<RuntimeString>().unwrap();
-            let key_bstr = key_string.as_bstr(scan_ctx);
+            let key = RuntimeString::from_wasm((key_0, key_1));
+            let key_bstr = key.as_bstr(scan_ctx);
 
             let value = match map.borrow() {
                 RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
@@ -662,14 +722,15 @@ gen_map_integer_key_lookup_fn!(
 pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
-) -> Option<ExternRef> {
+) -> RuntimeStringWasm {
     todo!()
 }
 
 pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
-    key: Option<ExternRef>,
-) -> Option<ExternRef> {
+    key_0: u64,
+    key_1: u64,
+) -> RuntimeStringWasm {
     todo!()
 }
 
@@ -695,15 +756,15 @@ pub(crate) fn map_lookup_integer_struct(
 
 pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
-    key: Option<ExternRef>,
+    key_0: u64,
+    key_1: u64,
 ) -> i32 {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
 
     let map = scan_ctx.current_map.take().unwrap();
-    let key = key.unwrap();
-    let key_string = key.data().downcast_ref::<RuntimeString>().unwrap();
-    let key_bstr = key_string.as_bstr(scan_ctx);
+    let key = RuntimeString::from_wasm((key_0, key_1));
+    let key_bstr = key.as_bstr(scan_ctx);
 
     let value = match map.borrow() {
         RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
@@ -726,19 +787,15 @@ macro_rules! gen_str_cmp_fn {
     ($name:ident, $op:tt) => {
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
-            lhs: Option<ExternRef>,
-            rhs: Option<ExternRef>,
+            lhs_0: u64,
+            lhs_1: u64,
+            rhs_0: u64,
+            rhs_1: u64,
         ) -> i32 {
-            let lhs_ref = lhs.unwrap();
-            let rhs_ref = rhs.unwrap();
+            let lhs_str = RuntimeString::from_wasm((lhs_0, lhs_1));
+            let rhs_str = RuntimeString::from_wasm((rhs_0, rhs_1));
 
-            let lhs_str =
-                lhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
-
-            let rhs_str =
-                rhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
-
-            lhs_str.$op(rhs_str, caller.data()) as i32
+            lhs_str.$op(&rhs_str, caller.data()) as i32
         }
     };
 }
@@ -754,17 +811,15 @@ macro_rules! gen_str_op_fn {
     ($name:ident, $op:tt, $case_insensitive:literal) => {
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
-            lhs: Option<ExternRef>,
-            rhs: Option<ExternRef>,
+            lhs_0: u64,
+            lhs_1: u64,
+            rhs_0: u64,
+            rhs_1: u64,
         ) -> i32 {
-            let lhs_ref = lhs.unwrap();
-            let rhs_ref = rhs.unwrap();
-            let lhs_str =
-                lhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
-            let rhs_str =
-                rhs_ref.data().downcast_ref::<RuntimeString>().unwrap();
+            let lhs_str = RuntimeString::from_wasm((lhs_0, lhs_1));
+            let rhs_str = RuntimeString::from_wasm((rhs_0, rhs_1));
 
-            lhs_str.$op(rhs_str, caller.data(), $case_insensitive) as i32
+            lhs_str.$op(&rhs_str, caller.data(), $case_insensitive) as i32
         }
     };
 }
@@ -779,10 +834,35 @@ gen_str_op_fn!(str_iequals, equals, true);
 
 pub(crate) fn str_len(
     caller: Caller<'_, ScanContext>,
-    string: Option<ExternRef>,
+    str_0: u64,
+    str_1: u64,
 ) -> i64 {
-    let string_ref = string.unwrap();
-    let string = string_ref.data().downcast_ref::<RuntimeString>().unwrap();
-
+    let string = RuntimeString::from_wasm((str_0, str_1));
     string.len(caller.data()) as i64
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::compiler::LiteralId;
+    use crate::wasm::RuntimeString;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn runtime_string_wasm_conversion() {
+        let s = RuntimeString::Literal(LiteralId::from(1));
+        assert_eq!(s, RuntimeString::from_wasm(s.as_wasm()));
+
+        let s = RuntimeString::Slice { length: 100, offset: 0x1000000 };
+        assert_eq!(s, RuntimeString::from_wasm(s.as_wasm()));
+    }
+
+    #[test]
+    #[should_panic]
+    fn runtime_string_wasm_max_size() {
+        let s = RuntimeString::Slice {
+            length: u32::MAX as usize + 1,
+            offset: 0x1000000,
+        };
+        assert_eq!(s, RuntimeString::from_wasm(s.as_wasm()));
+    }
 }

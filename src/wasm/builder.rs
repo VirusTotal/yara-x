@@ -1,4 +1,4 @@
-use walrus::ValType::{Externref, F64, I32, I64};
+use walrus::ValType::{F64, I32, I64};
 
 use super::WasmSymbols;
 
@@ -69,29 +69,30 @@ impl ModuleBuilder {
         import!(module, is_pat_match, [I32], [I32]);
         import!(module, is_pat_match_at, [I32, I64], [I32]);
         import!(module, is_pat_match_in, [I32, I64, I64], [I32]);
-        import!(module, literal_to_ref, [I64], [Externref]);
 
-        import!(module, str_eq, [Externref, Externref], [I32]);
-        import!(module, str_ne, [Externref, Externref], [I32]);
-        import!(module, str_gt, [Externref, Externref], [I32]);
-        import!(module, str_lt, [Externref, Externref], [I32]);
-        import!(module, str_ge, [Externref, Externref], [I32]);
-        import!(module, str_le, [Externref, Externref], [I32]);
+        // These functions receive 4 arguments as each operand is a string
+        // represented by two I64. See RuntimeStringWasm for details.
+        import!(module, str_eq, [I64, I64, I64, I64], [I32]);
+        import!(module, str_ne, [I64, I64, I64, I64], [I32]);
+        import!(module, str_gt, [I64, I64, I64, I64], [I32]);
+        import!(module, str_lt, [I64, I64, I64, I64], [I32]);
+        import!(module, str_ge, [I64, I64, I64, I64], [I32]);
+        import!(module, str_le, [I64, I64, I64, I64], [I32]);
 
-        import!(module, str_contains, [Externref, Externref], [I32]);
-        import!(module, str_icontains, [Externref, Externref], [I32]);
-        import!(module, str_startswith, [Externref, Externref], [I32]);
-        import!(module, str_endswith, [Externref, Externref], [I32]);
-        import!(module, str_istartswith, [Externref, Externref], [I32]);
-        import!(module, str_iendswith, [Externref, Externref], [I32]);
+        import!(module, str_contains, [I64, I64, I64, I64], [I32]);
+        import!(module, str_icontains, [I64, I64, I64, I64], [I32]);
+        import!(module, str_startswith, [I64, I64, I64, I64], [I32]);
+        import!(module, str_endswith, [I64, I64, I64, I64], [I32]);
+        import!(module, str_istartswith, [I64, I64, I64, I64], [I32]);
+        import!(module, str_iendswith, [I64, I64, I64, I64], [I32]);
 
-        import!(module, str_iequals, [Externref, Externref], [I32]);
-        import!(module, str_len, [Externref], [I64]);
+        import!(module, str_iequals, [I64, I64, I64, I64], [I32]);
+        import!(module, str_len, [I64, I64], [I64]);
 
         import!(module, lookup_integer, [I32], maybe_undef(I64));
         import!(module, lookup_float, [I32], maybe_undef(F64));
         import!(module, lookup_bool, [I32], maybe_undef(I32));
-        import!(module, lookup_string, [I32], [Externref]);
+        import!(module, lookup_string, [I32], [I64, I64]);
         import!(module, lookup_array, [I32], []);
         import!(module, lookup_struct, [I32], []);
         import!(module, lookup_map, [I32], []);
@@ -99,29 +100,24 @@ impl ModuleBuilder {
         import!(module, array_lookup_integer, [I64], maybe_undef(I64));
         import!(module, array_lookup_float, [I64], maybe_undef(F64));
         import!(module, array_lookup_bool, [I64], maybe_undef(I32));
-        import!(module, array_lookup_string, [I64], [Externref]);
+        import!(module, array_lookup_string, [I64], [I64, I64]);
         import!(module, array_lookup_struct, [I64], maybe_undef());
 
         import!(module, map_lookup_integer_integer, [I64], maybe_undef(I64));
         import!(
             module,
             map_lookup_string_integer,
-            [Externref],
+            [I64, I64],
             maybe_undef(I64)
         );
         import!(module, map_lookup_integer_float, [I64], maybe_undef(F64));
-        import!(
-            module,
-            map_lookup_string_float,
-            [Externref],
-            maybe_undef(F64)
-        );
+        import!(module, map_lookup_string_float, [I64, I64], maybe_undef(F64));
         import!(module, map_lookup_integer_bool, [I64], maybe_undef(I32));
-        import!(module, map_lookup_string_bool, [Externref], maybe_undef(I32));
-        import!(module, map_lookup_integer_string, [I64], [Externref]);
-        import!(module, map_lookup_string_string, [Externref], [Externref]);
+        import!(module, map_lookup_string_bool, [I64, I64], maybe_undef(I32));
+        import!(module, map_lookup_integer_string, [I64], [I64, I64]);
+        import!(module, map_lookup_string_string, [I64, I64], [I64, I64]);
         import!(module, map_lookup_integer_struct, [I64], maybe_undef());
-        import!(module, map_lookup_string_struct, [Externref], maybe_undef());
+        import!(module, map_lookup_string_struct, [I64, I64], maybe_undef());
 
         let wasm_symbols = WasmSymbols {
             rules_matching_bitmap,
@@ -130,7 +126,6 @@ impl ModuleBuilder {
             is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
-            literal_to_ref,
             lookup_integer,
             lookup_float,
             lookup_bool,
@@ -175,7 +170,6 @@ impl ModuleBuilder {
             ),
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
-            ref_tmp: module.locals.add(Externref),
         };
 
         let main_fn =

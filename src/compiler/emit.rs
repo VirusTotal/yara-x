@@ -5,13 +5,14 @@ use std::rc::Rc;
 use bstr::ByteSlice;
 use walrus::ir::{BinaryOp, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::InstrSeqBuilder;
-use walrus::ValType::{Externref, I32, I64};
+use walrus::ValType::{I32, I64};
 
 use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
 use crate::ast::{Type, Value};
 use crate::compiler::Context;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::{RuntimeArray, RuntimeMap, RuntimeValue};
+use crate::wasm::{RuntimeString, RuntimeStringWasm};
 
 /// This macro emits a constant if the type hint indicates that the expression
 /// has a constant value (e.i: the value is known at compile time), if not,
@@ -59,9 +60,7 @@ macro_rules! emit_const_or_code {
                     let literal_id =
                         $ctx.borrow_mut().lit_pool.get_or_intern(value.as_bstr());
 
-                    // Invoke the function that converts the ID into an externref.
-                    $instr.i64_const(Into::<u32>::into(literal_id) as i64);
-                    $instr.call($ctx.borrow().wasm_symbols.literal_to_ref);
+                    push_string($instr, RuntimeString::Literal(literal_id).as_wasm());
                 }
                 _ => $code,
             }
@@ -228,9 +227,10 @@ pub(super) fn emit_expr(
                 let literal_id =
                     ctx.borrow_mut().lit_pool.get_or_intern(value.as_bstr());
 
-                // Invoke the function that converts the ID into an externref.
-                instr.i64_const(Into::<u32>::into(literal_id) as i64);
-                instr.call(ctx.borrow().wasm_symbols.literal_to_ref);
+                push_string(
+                    instr,
+                    RuntimeString::Literal(literal_id).as_wasm(),
+                );
             }
             _ => unreachable!(),
         },
@@ -724,7 +724,7 @@ fn emit_array_lookup(
             );
         }
         Type::String => {
-            emit_call_and_handle_null_ref(
+            emit_call_and_handle_undef_str(
                 ctx,
                 instr,
                 ctx.borrow().wasm_symbols.array_lookup_string,
@@ -774,7 +774,7 @@ fn emit_map_integer_key_lookup(
             );
         }
         Type::String => {
-            emit_call_and_handle_null_ref(
+            emit_call_and_handle_undef_str(
                 ctx,
                 instr,
                 ctx.borrow().wasm_symbols.map_lookup_integer_string,
@@ -824,7 +824,7 @@ fn emit_map_string_key_lookup(
             );
         }
         Type::String => {
-            emit_call_and_handle_null_ref(
+            emit_call_and_handle_undef_str(
                 ctx,
                 instr,
                 ctx.borrow().wasm_symbols.map_lookup_string_string,
@@ -1171,6 +1171,210 @@ pub(super) fn emit_bool_expr(
     }
 }
 
+/// Calls a function that may return an undefined value.
+///
+/// Some functions in YARA can return undefined values, for example the
+/// built-in function `uint8(offset)` returns an undefined result when `offset`
+/// is outside the data boundaries. The same occurs with many function
+/// implemented by YARA modules.
+///
+/// These functions return actually a tuple `(value, is_undef)`, where
+/// `is_undef` is an `i32` that will be `0` for valid values and `1` for
+/// undefined values. When `is_undef` is `1` the value is ignored.
+///
+/// This emits code that calls the specified function, checks if its result
+/// is undefined, and throws an exception if that's the case (see:
+/// [`throw_undef`])
+pub(super) fn emit_call_and_handle_undef(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    fn_id: walrus::FunctionId,
+) {
+    // The result from this call is a tuple (value, is_undef), where
+    // `is_undef` is 1 if the result is undefined. If not, `is_undef` is
+    // zero and `value` contains the actual result.
+    instr.call(fn_id);
+
+    // At this point `is_undef` is at the top of the stack, lets check if
+    // it is zero. This remove `is_undef` from the stack, leaving `value`
+    // at the top.
+    instr.if_else(
+        None,
+        |then_| {
+            // `is_undef` is non-zero, the result is undefined, let's raise
+            // an exception.
+            throw_undef(ctx, then_);
+        },
+        |_| {
+            // Intentionally empty. An `if` method would be handy, but it
+            // does not exists. This however emits WebAssembly code without
+            // the `else` branch.
+        },
+    );
+}
+
+/// Calls a function that may return an undefined string.
+///
+/// This function is similar to [`emit_call_and_handle_undef`], but strings
+/// are represented differently from other values and therefore they require
+/// a different treatment.
+///
+/// Strings in general are represented by a tuple `(i64, i64)` (see
+/// [`RuntimeStringWasm`] for more details), and they are undefined when the
+/// second item in the tuple is zero.
+pub(super) fn emit_call_and_handle_undef_str(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    fn_id: walrus::FunctionId,
+) {
+    // Call the function that returns a string. The string is represented
+    // by a tuple (i64, i64), and is undefined when the second item is zero.
+    // Tuple items are pushed in the stack from left to right, so the the
+    // second item is the one at the top of the stack.
+    instr.call(fn_id);
+
+    // Store the value at the top of the stack in a temp variable, but
+    // leave it in the stack.
+    instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
+
+    // Is the value zero?
+    instr.unop(UnaryOp::I64Eqz);
+    instr.if_else(
+        I64,
+        |then_| {
+            // It's zero, throw exception.
+            throw_undef(ctx, then_);
+        },
+        |else_| {
+            // It's non-zero, return the value to the top of the stack.
+            else_.local_get(ctx.borrow().wasm_symbols.i64_tmp);
+        },
+    );
+}
+
+#[inline]
+pub(super) fn emit_lookup_integer(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    field_index: i32,
+) {
+    instr.i32_const(field_index);
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.borrow().wasm_symbols.lookup_integer,
+    );
+}
+
+#[inline]
+pub(super) fn emit_lookup_float(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    field_index: i32,
+) {
+    instr.i32_const(field_index);
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.borrow().wasm_symbols.lookup_float,
+    );
+}
+
+#[inline]
+pub(super) fn emit_lookup_bool(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    field_index: i32,
+) {
+    instr.i32_const(field_index);
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.borrow().wasm_symbols.lookup_bool,
+    );
+}
+
+#[inline]
+pub(super) fn emit_lookup_string(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    field_index: i32,
+) {
+    instr.i32_const(field_index);
+    emit_call_and_handle_undef_str(
+        ctx,
+        instr,
+        ctx.borrow().wasm_symbols.lookup_string,
+    );
+}
+
+#[inline]
+pub(super) fn emit_lookup_struct(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    field_index: i32,
+) {
+    instr.i32_const(field_index);
+    instr.call(ctx.borrow().wasm_symbols.lookup_struct);
+}
+
+#[inline]
+pub(super) fn emit_lookup_array(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    field_index: i32,
+) {
+    instr.i32_const(field_index);
+    instr.call(ctx.borrow().wasm_symbols.lookup_array);
+}
+
+#[inline]
+pub(super) fn emit_lookup_map(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    field_index: i32,
+) {
+    instr.i32_const(field_index);
+    instr.call(ctx.borrow().wasm_symbols.lookup_map);
+}
+
+/// Emits code that checks if the top of the stack is non-zero and executes
+/// `expr` in that case. If it is zero throws an exception that signals that
+/// the result is undefined.
+pub(super) fn if_non_zero(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    expr: impl FnOnce(&mut InstrSeqBuilder),
+) {
+    // Save the top of the stack into temp variable, but leave a copy in the
+    // stack.
+    instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
+    // Is top of the stack zero?
+    instr.unop(UnaryOp::I64Eqz);
+    instr.if_else(
+        I64,
+        |then| {
+            // Is zero, throw exception
+            throw_undef(ctx, then);
+        },
+        |else_| {
+            // Non-zero, put back the value into the stack.
+            else_.local_get(ctx.borrow().wasm_symbols.i64_tmp);
+        },
+    );
+
+    expr(instr);
+}
+
+#[inline]
+pub(super) fn push_string(
+    instr: &mut InstrSeqBuilder,
+    string: RuntimeStringWasm,
+) {
+    instr.i64_const(string.0 as i64);
+    instr.i64_const(string.1 as i64);
+}
+
 /// Emits code for catching exceptions caused by undefined values.
 ///
 /// This function emits WebAssembly code that behaves similarly to an exception
@@ -1277,187 +1481,4 @@ pub(super) fn throw_undef(
 
     // Jump to the exception handler.
     instr.br(innermost_handler.1);
-}
-
-/// Calls a function that may return an undefined value.
-///
-/// Some functions in YARA can return undefined values, for example the
-/// built-in function `uint8(offset)` returns an undefined result when `offset`
-/// is outside the data boundaries. The same occurs with many function
-/// implemented by YARA modules.
-///
-/// These functions return actually a tuple `(value, is_undef)`, where
-/// `is_undef` is an `i32` that will be `0` for valid values and `1` for
-/// undefined values. When `is_undef` is `1` the value is ignored.
-///
-/// This emits code that calls the specified function and checks if its
-/// result is undefined. In such cases raises an exception.
-pub(super) fn emit_call_and_handle_undef(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    fn_id: walrus::FunctionId,
-) {
-    // The result from this call is a tuple (value, is_undef), where
-    // `is_undef` is 1 if the result is undefined. If not, `is_undef` is
-    // zero and `value` contains the actual result.
-    instr.call(fn_id);
-
-    // At this point `is_undef` is at the top of the stack, lets check if
-    // it is zero. This remove `is_undef` from the stack, leaving `value`
-    // at the top.
-    instr.if_else(
-        None,
-        |then_| {
-            // `is_undef` is non-zero, the result is undefined, let's raise
-            // an exception.
-            throw_undef(ctx, then_);
-        },
-        |_| {
-            // Intentionally empty. An `if` method would be handy, but it
-            // does not exists. This however emits WebAssembly code without
-            // the `else` branch.
-        },
-    );
-}
-
-/// Calls a function that may return a null externref.
-///
-/// This emits code that calls the specified function and checks if its
-/// result is a null reference. In such cases throws and undef exception.
-pub(super) fn emit_call_and_handle_null_ref(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    fn_id: walrus::FunctionId,
-) {
-    instr.call(fn_id);
-    // Save the reference returned by the function for later use.
-    instr.local_tee(ctx.borrow().wasm_symbols.ref_tmp);
-    // Is the reference null? This removes the reference from the top of the
-    // stack.
-    instr.ref_is_null();
-    instr.if_else(
-        Externref,
-        |then_| {
-            // The reference is null, throw the exception.
-            throw_undef(ctx, then_);
-        },
-        |else_| {
-            // The reference is non-null, push it in the stack.
-            else_.local_get(ctx.borrow().wasm_symbols.ref_tmp);
-        },
-    );
-}
-
-#[inline]
-pub(super) fn emit_lookup_integer(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    emit_call_and_handle_undef(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_integer,
-    );
-}
-
-#[inline]
-pub(super) fn emit_lookup_float(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    emit_call_and_handle_undef(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_float,
-    );
-}
-
-#[inline]
-pub(super) fn emit_lookup_bool(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    emit_call_and_handle_undef(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_bool,
-    );
-}
-
-#[inline]
-pub(super) fn emit_lookup_string(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    emit_call_and_handle_null_ref(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_string,
-    );
-}
-
-#[inline]
-pub(super) fn emit_lookup_struct(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    instr.call(ctx.borrow().wasm_symbols.lookup_struct);
-}
-
-#[inline]
-pub(super) fn emit_lookup_array(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    instr.call(ctx.borrow().wasm_symbols.lookup_array);
-}
-
-#[inline]
-pub(super) fn emit_lookup_map(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    instr.call(ctx.borrow().wasm_symbols.lookup_map);
-}
-
-// Emits code that checks if the top of the stack is non-zero and executes
-// `expr` in that case. If it is zero throws an exception that signals that
-// the result is undefined.
-pub(super) fn if_non_zero(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    expr: impl FnOnce(&mut InstrSeqBuilder),
-) {
-    // Save the top of the stack into temp variable, but leave a copy in the
-    // stack.
-    instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
-    // Is top of the stack zero?
-    instr.unop(UnaryOp::I64Eqz);
-    instr.if_else(
-        I64,
-        |then| {
-            // Is zero, throw exception
-            throw_undef(ctx, then);
-        },
-        |else_| {
-            // Non-zero, put back the value into the stack.
-            else_.local_get(ctx.borrow().wasm_symbols.i64_tmp);
-        },
-    );
-
-    expr(instr);
 }
