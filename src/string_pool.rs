@@ -44,7 +44,11 @@ where
     /// if not already interned.
     #[inline]
     pub fn get_or_intern(&mut self, s: &str) -> T {
-        T::from(self.pool.intern(s.to_string()).unwrap().id())
+        if let Some(s) = self.pool.check_interned(s) {
+            T::from(s.id())
+        } else {
+            T::from(self.pool.intern(s.to_string()).unwrap().id())
+        }
     }
 
     /// Returns the string corresponding to a given `id` if it was previously
@@ -82,7 +86,11 @@ where
     #[inline]
     pub fn get_or_intern(&mut self, s: &BStr) -> T {
         let bytes = s.as_bytes();
-        T::from(self.pool.intern(bytes.to_vec()).unwrap().id())
+        if let Some(s) = self.pool.check_interned(bytes) {
+            T::from(s.id())
+        } else {
+            T::from(self.pool.intern(bytes.to_vec()).unwrap().id())
+        }
     }
 
     /// Returns the string corresponding to a given ID if it was previously
