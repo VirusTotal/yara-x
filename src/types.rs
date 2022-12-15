@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::ast::Type;
 use crate::symbols::{Symbol, SymbolLookup};
-use bstr::{BStr, BString};
+use bstr::BString;
 use protobuf::reflect::{
     MessageDescriptor, ReflectMapRef, ReflectRepeatedRef, ReflectValueRef,
     RuntimeFieldType, RuntimeType,
@@ -350,18 +350,18 @@ impl RuntimeStruct {
         enum_as_fields: bool,
     ) -> RuntimeValue {
         match ty {
-            RuntimeType::I32 => RuntimeValue::Integer(
-                value.map(|value| Self::value_as_i64(value)),
-            ),
-            RuntimeType::I64 => RuntimeValue::Integer(
-                value.map(|value| Self::value_as_i64(value)),
-            ),
-            RuntimeType::U32 => RuntimeValue::Integer(
-                value.map(|value| Self::value_as_i64(value)),
-            ),
-            RuntimeType::U64 => RuntimeValue::Integer(
-                value.map(|value| Self::value_as_i64(value)),
-            ),
+            RuntimeType::I32 => {
+                RuntimeValue::Integer(value.map(Self::value_as_i64))
+            }
+            RuntimeType::I64 => {
+                RuntimeValue::Integer(value.map(Self::value_as_i64))
+            }
+            RuntimeType::U32 => {
+                RuntimeValue::Integer(value.map(Self::value_as_i64))
+            }
+            RuntimeType::U64 => {
+                RuntimeValue::Integer(value.map(Self::value_as_i64))
+            }
             RuntimeType::F32 => RuntimeValue::Float(
                 value.map(|value| value.to_f32().unwrap() as f64),
             ),
