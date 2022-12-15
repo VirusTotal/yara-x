@@ -77,9 +77,7 @@ pub(crate) struct WasmSymbols {
     pub lookup_float: walrus::FunctionId,
     pub lookup_bool: walrus::FunctionId,
     pub lookup_string: walrus::FunctionId,
-    pub lookup_struct: walrus::FunctionId,
-    pub lookup_array: walrus::FunctionId,
-    pub lookup_map: walrus::FunctionId,
+    pub lookup: walrus::FunctionId,
 
     pub array_lookup_integer: walrus::FunctionId,
     pub array_lookup_float: walrus::FunctionId,
@@ -392,9 +390,7 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, lookup_float);
     add_function!(linker, lookup_string);
     add_function!(linker, lookup_bool);
-    add_function!(linker, lookup_struct);
-    add_function!(linker, lookup_array);
-    add_function!(linker, lookup_map);
+    add_function!(linker, lookup);
     add_function!(linker, array_lookup_integer);
     add_function!(linker, array_lookup_float);
     add_function!(linker, array_lookup_bool);
@@ -500,8 +496,24 @@ pub(crate) fn is_pat_match_in(
     0
 }
 
-/// Given the field index for some field of type [`crate::Type::String`],
-/// looks for the field in the current structure, and returns its value.
+/// Given the field index for some field of type struct, array or map,
+/// looks for the field in the current structure, updates `current_struct`,
+/// `current_array` or `current_map`, respectively.
+pub(crate) fn lookup(mut caller: Caller<'_, ScanContext>, field_index: i32) {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    match scan_ctx.value_by_field_index(field_index) {
+        RuntimeValue::Struct(s) => scan_ctx.current_struct = Some(s),
+        RuntimeValue::Array(a) => scan_ctx.current_array = Some(a),
+        RuntimeValue::Map(m) => scan_ctx.current_map = Some(m),
+        _ => unreachable!(),
+    }
+}
+
+/// Given the field index for some field of type string, looks for the field
+/// in the current structure and returns its value as a [`RuntimeStringWasm`]
+/// tuple.
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
     field_index: i32,
@@ -521,26 +533,7 @@ pub(crate) fn lookup_string(
     string.as_wasm()
 }
 
-macro_rules! gen_lookup_fn_1 {
-    ($name:ident, $field:ident, $type:path) => {
-        pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
-            field_index: i32,
-        ) {
-            let mut store_ctx = caller.as_context_mut();
-            let scan_ctx = store_ctx.data_mut();
-            let value = scan_ctx.value_by_field_index(field_index);
-            scan_ctx.$field =
-                if let $type(s) = value { Some(s) } else { unreachable!() };
-        }
-    };
-}
-
-gen_lookup_fn_1!(lookup_struct, current_struct, RuntimeValue::Struct);
-gen_lookup_fn_1!(lookup_array, current_array, RuntimeValue::Array);
-gen_lookup_fn_1!(lookup_map, current_map, RuntimeValue::Map);
-
-macro_rules! gen_lookup_fn_2 {
+macro_rules! gen_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
@@ -559,9 +552,9 @@ macro_rules! gen_lookup_fn_2 {
     };
 }
 
-gen_lookup_fn_2!(lookup_integer, i64, RuntimeValue::Integer);
-gen_lookup_fn_2!(lookup_float, f64, RuntimeValue::Float);
-gen_lookup_fn_2!(lookup_bool, i32, RuntimeValue::Bool);
+gen_lookup_fn!(lookup_integer, i64, RuntimeValue::Integer);
+gen_lookup_fn!(lookup_float, f64, RuntimeValue::Float);
+gen_lookup_fn!(lookup_bool, i32, RuntimeValue::Bool);
 
 macro_rules! gen_array_lookup_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {

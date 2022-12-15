@@ -271,7 +271,10 @@ pub(super) fn emit_expr(
                             emit_lookup_string(ctx, instr, index);
                         }
                         Type::Struct => {
-                            emit_lookup_struct(ctx, instr, index);
+                            instr.i32_const(index);
+                            instr.call(ctx.borrow().wasm_symbols.lookup);
+
+                            //emit_lookup_struct(ctx, instr, index);
                             // If the identifier refers to some struct, store
                             // it in `current_struct`.
                             if let RuntimeValue::Struct(structure) =
@@ -284,7 +287,10 @@ pub(super) fn emit_expr(
                             }
                         }
                         Type::Array => {
-                            emit_lookup_array(ctx, instr, index);
+                            instr.i32_const(index);
+                            instr.call(ctx.borrow().wasm_symbols.lookup);
+
+                            //emit_lookup_array(ctx, instr, index);
                             // If the identifier refers to some array, store
                             // it in `current_array`.
                             if let RuntimeValue::Array(array) = symbol.value()
@@ -296,7 +302,10 @@ pub(super) fn emit_expr(
                             }
                         }
                         Type::Map => {
-                            emit_lookup_map(ctx, instr, index);
+                            instr.i32_const(index);
+                            instr.call(ctx.borrow().wasm_symbols.lookup);
+
+                            //emit_lookup_map(ctx, instr, index);
                             // If the identifier refers to some map, store
                             // it in `current_map`.
                             if let RuntimeValue::Map(map) = symbol.value() {
@@ -1306,36 +1315,6 @@ pub(super) fn emit_lookup_string(
         instr,
         ctx.borrow().wasm_symbols.lookup_string,
     );
-}
-
-#[inline]
-pub(super) fn emit_lookup_struct(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    instr.call(ctx.borrow().wasm_symbols.lookup_struct);
-}
-
-#[inline]
-pub(super) fn emit_lookup_array(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    instr.call(ctx.borrow().wasm_symbols.lookup_array);
-}
-
-#[inline]
-pub(super) fn emit_lookup_map(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    field_index: i32,
-) {
-    instr.i32_const(field_index);
-    instr.call(ctx.borrow().wasm_symbols.lookup_map);
 }
 
 /// Emits code that checks if the top of the stack is non-zero and executes

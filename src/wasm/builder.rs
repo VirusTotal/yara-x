@@ -93,9 +93,7 @@ impl ModuleBuilder {
         import!(module, lookup_float, [I32], maybe_undef(F64));
         import!(module, lookup_bool, [I32], maybe_undef(I32));
         import!(module, lookup_string, [I32], [I64, I64]);
-        import!(module, lookup_array, [I32], []);
-        import!(module, lookup_struct, [I32], []);
-        import!(module, lookup_map, [I32], []);
+        import!(module, lookup, [I32], []);
 
         import!(module, array_lookup_integer, [I64], maybe_undef(I64));
         import!(module, array_lookup_float, [I64], maybe_undef(F64));
@@ -130,9 +128,7 @@ impl ModuleBuilder {
             lookup_float,
             lookup_bool,
             lookup_string,
-            lookup_struct,
-            lookup_array,
-            lookup_map,
+            lookup,
             array_lookup_integer,
             array_lookup_float,
             array_lookup_bool,
