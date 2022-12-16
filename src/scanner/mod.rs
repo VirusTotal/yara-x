@@ -185,11 +185,6 @@ impl<'r> Scanner<'r> {
         // Invoke the main function.
         self.wasm_main_fn.call(&mut self.wasm_store, ()).unwrap();
 
-        // Run the wasm store's garbage collector and force the release of
-        // unused externrefs that may be retaining data in memory.
-        // TODO: remove this?
-        self.wasm_store.gc();
-
         let ctx = self.wasm_store.data_mut();
 
         // Set pointer to data back to nil. This means that accessing
