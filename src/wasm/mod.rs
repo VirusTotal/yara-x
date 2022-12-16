@@ -77,7 +77,9 @@ pub(crate) struct WasmSymbols {
     pub lookup_float: walrus::FunctionId,
     pub lookup_bool: walrus::FunctionId,
     pub lookup_string: walrus::FunctionId,
-    pub lookup: walrus::FunctionId,
+    pub lookup_1: walrus::FunctionId,
+    pub lookup_2: walrus::FunctionId,
+    pub lookup_3: walrus::FunctionId,
 
     pub array_lookup_integer: walrus::FunctionId,
     pub array_lookup_float: walrus::FunctionId,
@@ -390,7 +392,9 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, lookup_float);
     add_function!(linker, lookup_string);
     add_function!(linker, lookup_bool);
-    add_function!(linker, lookup);
+    add_function!(linker, lookup_1);
+    add_function!(linker, lookup_2);
+    add_function!(linker, lookup_3);
     add_function!(linker, array_lookup_integer);
     add_function!(linker, array_lookup_float);
     add_function!(linker, array_lookup_bool);
@@ -499,7 +503,7 @@ pub(crate) fn is_pat_match_in(
 /// Given the field index for some field of type struct, array or map,
 /// looks for the field in the current structure, updates `current_struct`,
 /// `current_array` or `current_map`, respectively.
-pub(crate) fn lookup(mut caller: Caller<'_, ScanContext>, field_index: i32) {
+pub(crate) fn lookup_1(mut caller: Caller<'_, ScanContext>, field_index: i32) {
     let mut store_ctx = caller.as_context_mut();
     let scan_ctx = store_ctx.data_mut();
 
@@ -507,6 +511,56 @@ pub(crate) fn lookup(mut caller: Caller<'_, ScanContext>, field_index: i32) {
         RuntimeValue::Struct(s) => scan_ctx.current_struct = Some(s),
         RuntimeValue::Array(a) => scan_ctx.current_array = Some(a),
         RuntimeValue::Map(m) => scan_ctx.current_map = Some(m),
+        _ => unreachable!(),
+    }
+}
+
+pub(crate) fn lookup_2(
+    mut caller: Caller<'_, ScanContext>,
+    field_index_0: i32,
+    field_index_1: i32,
+) {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    let structure = match scan_ctx.value_by_field_index(field_index_0) {
+        RuntimeValue::Struct(s) => s,
+        _ => unreachable!(),
+    };
+
+    match &structure.field_by_index(field_index_1 as usize).unwrap().value {
+        RuntimeValue::Struct(s) => scan_ctx.current_struct = Some(s.clone()),
+        RuntimeValue::Array(a) => scan_ctx.current_array = Some(a.clone()),
+        RuntimeValue::Map(m) => scan_ctx.current_map = Some(m.clone()),
+        _ => unreachable!(),
+    }
+}
+
+pub(crate) fn lookup_3(
+    mut caller: Caller<'_, ScanContext>,
+    field_index_0: i32,
+    field_index_1: i32,
+    field_index_2: i32,
+) {
+    let mut store_ctx = caller.as_context_mut();
+    let scan_ctx = store_ctx.data_mut();
+
+    let structure = match scan_ctx.value_by_field_index(field_index_0) {
+        RuntimeValue::Struct(s) => s,
+        _ => unreachable!(),
+    };
+
+    let structure =
+        match &structure.field_by_index(field_index_1 as usize).unwrap().value
+        {
+            RuntimeValue::Struct(s) => s,
+            _ => unreachable!(),
+        };
+
+    match &structure.field_by_index(field_index_2 as usize).unwrap().value {
+        RuntimeValue::Struct(s) => scan_ctx.current_struct = Some(s.clone()),
+        RuntimeValue::Array(a) => scan_ctx.current_array = Some(a.clone()),
+        RuntimeValue::Map(m) => scan_ctx.current_map = Some(m.clone()),
         _ => unreachable!(),
     }
 }

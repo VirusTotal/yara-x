@@ -5,6 +5,7 @@ module implements the YARA compiler.
 */
 use bstr::BString;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, mem};
@@ -171,6 +172,7 @@ impl<'a> Compiler<'a> {
                     warnings: &mut self.warnings,
                     exception_handler_stack: Vec::new(),
                     stack_top: 0,
+                    lookup_stack: VecDeque::new(),
                 };
 
                 // Verify that the rule's condition is semantically valid. This
@@ -423,6 +425,8 @@ struct Context<'a, 'sym> {
     /// 0 and grows in increments of 8 bytes (the size of an i64). Memory
     /// offsets from 0 to stack_top are occupied with loop variables.
     stack_top: i32,
+
+    lookup_stack: VecDeque<i32>,
 }
 
 impl<'a, 'sym> Context<'a, 'sym> {

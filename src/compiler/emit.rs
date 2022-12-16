@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::mem::size_of;
 use std::rc::Rc;
@@ -259,22 +260,22 @@ pub(super) fn emit_expr(
                     // symbol table.
                     match ident.ty() {
                         Type::Integer => {
+                            emit_lookup(ctx, instr);
                             emit_lookup_integer(ctx, instr, index);
                         }
                         Type::Float => {
+                            emit_lookup(ctx, instr);
                             emit_lookup_float(ctx, instr, index);
                         }
                         Type::Bool => {
+                            emit_lookup(ctx, instr);
                             emit_lookup_bool(ctx, instr, index);
                         }
                         Type::String => {
+                            emit_lookup(ctx, instr);
                             emit_lookup_string(ctx, instr, index);
                         }
                         Type::Struct => {
-                            instr.i32_const(index);
-                            instr.call(ctx.borrow().wasm_symbols.lookup);
-
-                            //emit_lookup_struct(ctx, instr, index);
                             // If the identifier refers to some struct, store
                             // it in `current_struct`.
                             if let RuntimeValue::Struct(structure) =
@@ -285,12 +286,10 @@ pub(super) fn emit_expr(
                             } else {
                                 unreachable!()
                             }
+
+                            ctx.borrow_mut().lookup_stack.push_back(index);
                         }
                         Type::Array => {
-                            instr.i32_const(index);
-                            instr.call(ctx.borrow().wasm_symbols.lookup);
-
-                            //emit_lookup_array(ctx, instr, index);
                             // If the identifier refers to some array, store
                             // it in `current_array`.
                             if let RuntimeValue::Array(array) = symbol.value()
@@ -300,12 +299,11 @@ pub(super) fn emit_expr(
                             } else {
                                 unreachable!()
                             }
+
+                            ctx.borrow_mut().lookup_stack.push_back(index);
+                            emit_lookup(ctx, instr);
                         }
                         Type::Map => {
-                            instr.i32_const(index);
-                            instr.call(ctx.borrow().wasm_symbols.lookup);
-
-                            //emit_lookup_map(ctx, instr, index);
                             // If the identifier refers to some map, store
                             // it in `current_map`.
                             if let RuntimeValue::Map(map) = symbol.value() {
@@ -314,6 +312,9 @@ pub(super) fn emit_expr(
                             } else {
                                 unreachable!()
                             }
+
+                            ctx.borrow_mut().lookup_stack.push_back(index);
+                            emit_lookup(ctx, instr);
                         }
                         _ => {
                             // This point should not be reached. The type of
@@ -1259,6 +1260,26 @@ pub(super) fn emit_call_and_handle_undef_str(
             else_.local_get(ctx.borrow().wasm_symbols.i64_tmp);
         },
     );
+}
+
+pub(super) fn emit_lookup(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+) {
+    while !ctx.borrow().lookup_stack.is_empty() {
+        let mut count = 0;
+        for field_index in ctx.borrow().lookup_stack.iter().take(3) {
+            instr.i32_const(*field_index);
+            count += 1;
+        }
+        match count {
+            1 => instr.call(ctx.borrow().wasm_symbols.lookup_1),
+            2 => instr.call(ctx.borrow().wasm_symbols.lookup_2),
+            3 => instr.call(ctx.borrow().wasm_symbols.lookup_3),
+            _ => unreachable!(),
+        };
+        ctx.borrow_mut().lookup_stack.drain(0..count);
+    }
 }
 
 #[inline]
