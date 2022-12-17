@@ -32,6 +32,16 @@ use crate::types::{RuntimeMap, RuntimeValue};
 
 pub(crate) mod builder;
 
+/// Offset in main memory where the space for loop variables start.
+pub(crate) const LOOP_VARS_START: i32 = 0;
+/// Offset in main memory where the space for loop variables end.
+pub(crate) const LOOP_VARS_END: i32 = LOOP_VARS_START + 1024;
+
+/// Offset in main memory where the space for lookup indexes start.
+pub(crate) const LOOKUP_INDEXES_START: i32 = LOOP_VARS_END;
+/// Offset in main memory where the space for lookup indexes end.
+pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
+
 /// Table with functions and variables used by the WebAssembly module.
 ///
 /// The WebAssembly module generated for evaluating rule conditions needs to
@@ -44,10 +54,10 @@ pub(crate) mod builder;
 /// contains the definition of some variables used by the module.
 #[derive(Clone)]
 pub(crate) struct WasmSymbols {
-    pub vars_stack: walrus::MemoryId,
+    // The WebAssembly module's main memory.
+    pub main_memory: walrus::MemoryId,
 
-    pub rules_matching_bitmap: walrus::MemoryId,
-    pub patterns_matching_bitmap: walrus::MemoryId,
+    pub lookup_stack_top: walrus::GlobalId,
 
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
@@ -77,9 +87,6 @@ pub(crate) struct WasmSymbols {
     pub lookup_float: walrus::FunctionId,
     pub lookup_bool: walrus::FunctionId,
     pub lookup_string: walrus::FunctionId,
-    pub lookup_1: walrus::FunctionId,
-    pub lookup_2: walrus::FunctionId,
-    pub lookup_3: walrus::FunctionId,
 
     pub array_lookup_integer: walrus::FunctionId,
     pub array_lookup_float: walrus::FunctionId,
@@ -118,10 +125,36 @@ pub(crate) struct WasmSymbols {
     pub str_iequals: walrus::FunctionId,
     pub str_len: walrus::FunctionId,
 
-    /// Local variables used for temporary storage.
+    /// Local variable used for temporary storage.
     pub i64_tmp: walrus::LocalId,
-    pub i32_tmp: walrus::LocalId,
 }
+
+/// Represents a [`RuntimeString`] as a tuple that can be passed from
+/// WebAssembly to host and vice-versa.
+///
+/// The types that we can pass to (and receive from) WebAssembly functions are
+/// only primitive types (i64, i32, f64 and f32). In order to be able to pass
+/// a [`RuntimeString`] to and from WebAssembly, it must be represented as a
+/// tuple of primitive types.
+///
+/// This tuple is composed of two `u64` values, containing all the information
+/// required for uniquely identifying the string. This is how the information
+/// is encoded:
+///
+/// * `RuntimeString:Undef`  -> `(X, 0)`
+///    A zero in the second value is enough for representing an undefined string,
+///    `X` can be an arbitrary value.
+///
+/// * `RuntimeString:Literal`  -> `(LiteralId, 1)`
+///
+/// * `RuntimeString:Owned`  -> `(RuntimeStringId, 2)`
+///
+/// * `RuntimeString:Owned`  -> `(Offset, Len << 32 | 3)`
+///   The offset within the scanned data is stored in the first value, and the
+///   length of the string in the higher 32-bits of the second value. The lower
+///   32-bits have the value 3.
+///
+pub(crate) type RuntimeStringWasm = (u64, u64);
 
 /// String types handled by YARA's WebAssembly runtime.
 ///
@@ -159,33 +192,6 @@ pub(crate) enum RuntimeString {
     /// [`RuntimeStringId`] within the string pool stored in [`ScanContext`].
     Owned(RuntimeStringId),
 }
-
-/// Represents a [`RuntimeString`] as a tuple that can be passed from
-/// WebAssembly code to host code and vice-versa.
-///
-/// The types that we can pass to (and receive from) WebAssembly functions are
-/// only primitive types (i64, i32, f64 and f32). In order to be able to pass
-/// a [`RuntimeString`] to and from WebAssembly, it must be represented as a
-/// tuple of primitive types.
-///
-/// This tuple is composed of two `u64` values, containing all the information
-/// required for uniquely identifying the string. The format in which the
-/// information goes as follows:
-///
-/// * `RuntimeString:Undef`  -> `(X, 0)`
-///    A zero in the second value is enough for representing an undefined string,
-///    `X` can be anything
-///
-/// * `RuntimeString:Literal`  -> `(LiteralId, 1)`
-///
-/// * `RuntimeString:Owned`  -> `(RuntimeStringId, 2)`
-///
-/// * `RuntimeString:Owned`  -> `(Offset, Len << 32 | 3)`
-///   The offset within the scanned data is stored in the first value, and the
-///   length of the string in the higher 32-bits of the second value. The lower
-///   32-bits have the value 3.
-///
-pub(crate) type RuntimeStringWasm = (u64, u64);
 
 impl RuntimeString {
     /// Returns this string as a &[`BStr`].
@@ -353,8 +359,6 @@ lazy_static! {
     pub(crate) static ref CONFIG: Config = {
         let mut config = Config::default();
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
-        // Allow using multiple independent memories in wasm modules.
-        config.wasm_multi_memory(true);
         config
     };
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
@@ -392,9 +396,6 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, lookup_float);
     add_function!(linker, lookup_string);
     add_function!(linker, lookup_bool);
-    add_function!(linker, lookup_1);
-    add_function!(linker, lookup_2);
-    add_function!(linker, lookup_3);
     add_function!(linker, array_lookup_integer);
     add_function!(linker, array_lookup_float);
     add_function!(linker, array_lookup_bool);
@@ -414,36 +415,31 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     linker
 }
 
-type MaybeUndef<T> = (T, i32);
-
-trait Empty<T> {
-    fn empty() -> T;
+macro_rules! possibly_undef {
+    ($ty:ty) => {
+        ($ty, i32)
+    };
+    () => {
+        i32
+    };
 }
 
-impl Empty<i64> for i64 {
-    fn empty() -> i64 {
+macro_rules! defined {
+    ($expr:expr) => {
+        ($expr, 0)
+    };
+    () => {
         0
-    }
+    };
 }
 
-impl Empty<i32> for i32 {
-    fn empty() -> i32 {
-        0
-    }
-}
-
-impl Empty<f64> for f64 {
-    fn empty() -> f64 {
-        0.0
-    }
-}
-
-fn defined<T>(value: T) -> MaybeUndef<T> {
-    (value, 0)
-}
-
-fn undefined<T: Empty<T>>() -> MaybeUndef<T> {
-    (T::empty(), 1)
+macro_rules! undefined {
+    (_) => {
+        (0.into(), 1)
+    };
+    () => {
+        1
+    };
 }
 
 /// Invoked from WebAssembly to notify when a rule matches.
@@ -500,69 +496,57 @@ pub(crate) fn is_pat_match_in(
     0
 }
 
-/// Given the field index for some field of type struct, array or map,
-/// looks for the field in the current structure, updates `current_struct`,
-/// `current_array` or `current_map`, respectively.
-pub(crate) fn lookup_1(mut caller: Caller<'_, ScanContext>, field_index: i32) {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
+macro_rules! gen_lookup_common {
+    ($caller:ident, $scan_ctx:ident, $value:ident, $code:block) => {{
+        let lookup_stack_top = $caller
+            .data()
+            .lookup_stack_top
+            .unwrap()
+            .get(&mut $caller.as_context_mut())
+            .i32()
+            .unwrap();
 
-    match scan_ctx.value_by_field_index(field_index) {
-        RuntimeValue::Struct(s) => scan_ctx.current_struct = Some(s),
-        RuntimeValue::Array(a) => scan_ctx.current_array = Some(a),
-        RuntimeValue::Map(m) => scan_ctx.current_map = Some(m),
-        _ => unreachable!(),
-    }
-}
+        let mut store_ctx = $caller.as_context_mut();
 
-pub(crate) fn lookup_2(
-    mut caller: Caller<'_, ScanContext>,
-    field_index_0: i32,
-    field_index_1: i32,
-) {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
+        let lookup_stack_ptr =
+            store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
 
-    let structure = match scan_ctx.value_by_field_index(field_index_0) {
-        RuntimeValue::Struct(s) => s,
-        _ => unreachable!(),
-    };
-
-    match &structure.field_by_index(field_index_1 as usize).unwrap().value {
-        RuntimeValue::Struct(s) => scan_ctx.current_struct = Some(s.clone()),
-        RuntimeValue::Array(a) => scan_ctx.current_array = Some(a.clone()),
-        RuntimeValue::Map(m) => scan_ctx.current_map = Some(m.clone()),
-        _ => unreachable!(),
-    }
-}
-
-pub(crate) fn lookup_3(
-    mut caller: Caller<'_, ScanContext>,
-    field_index_0: i32,
-    field_index_1: i32,
-    field_index_2: i32,
-) {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-
-    let structure = match scan_ctx.value_by_field_index(field_index_0) {
-        RuntimeValue::Struct(s) => s,
-        _ => unreachable!(),
-    };
-
-    let structure =
-        match &structure.field_by_index(field_index_1 as usize).unwrap().value
-        {
-            RuntimeValue::Struct(s) => s,
-            _ => unreachable!(),
+        let lookup_stack = unsafe {
+            std::slice::from_raw_parts::<i32>(
+                lookup_stack_ptr.offset(LOOKUP_INDEXES_START as isize)
+                    as *const i32,
+                lookup_stack_top as usize,
+            )
         };
 
-    match &structure.field_by_index(field_index_2 as usize).unwrap().value {
-        RuntimeValue::Struct(s) => scan_ctx.current_struct = Some(s.clone()),
-        RuntimeValue::Array(a) => scan_ctx.current_array = Some(a.clone()),
-        RuntimeValue::Map(m) => scan_ctx.current_map = Some(m.clone()),
-        _ => unreachable!(),
-    }
+        let $scan_ctx = store_ctx.data_mut();
+
+        let mut structure =
+            if let Some(ref current_structure) = $scan_ctx.current_struct {
+                &current_structure
+            } else {
+                &$scan_ctx.root_struct
+            };
+
+        let mut final_field = None;
+
+        for field_index in lookup_stack {
+            let field =
+                structure.field_by_index(*field_index as usize).unwrap();
+            final_field = Some(field);
+            if let RuntimeValue::Struct(s) = &field.value {
+                structure = &s
+            }
+        }
+
+        let $value = &final_field.unwrap().value;
+
+        let result = $code;
+
+        $scan_ctx.current_struct = None;
+
+        result
+    }};
 }
 
 /// Given the field index for some field of type string, looks for the field
@@ -570,19 +554,16 @@ pub(crate) fn lookup_3(
 /// tuple.
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
-    field_index: i32,
 ) -> RuntimeStringWasm {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
-    let value = scan_ctx.value_by_field_index(field_index);
-
-    let string = match value {
-        RuntimeValue::String(Some(value)) => RuntimeString::Owned(
-            scan_ctx.string_pool.get_or_intern(value.as_bstr()),
-        ),
-        RuntimeValue::String(None) => RuntimeString::Undef,
-        _ => unreachable!(),
-    };
+    let string = gen_lookup_common!(caller, scan_ctx, value, {
+        match value {
+            RuntimeValue::String(Some(value)) => RuntimeString::Owned(
+                scan_ctx.string_pool.get_or_intern(value.as_bstr()),
+            ),
+            RuntimeValue::String(None) => RuntimeString::Undef,
+            _ => unreachable!(),
+        }
+    });
 
     string.as_wasm()
 }
@@ -591,17 +572,14 @@ macro_rules! gen_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
-            field_index: i32,
-        ) -> MaybeUndef<$return_type> {
-            let mut store_ctx = caller.as_context_mut();
-            let scan_ctx = store_ctx.data_mut();
-            if let $type(Some(value)) =
-                scan_ctx.value_by_field_index(field_index)
-            {
-                defined(value as $return_type)
-            } else {
-                undefined()
-            }
+        ) -> possibly_undef!($return_type) {
+            gen_lookup_common!(caller, scan_ctx, value, {
+                if let $type(Some(value)) = value {
+                    defined!(*value as $return_type)
+                } else {
+                    undefined!(_)
+                }
+            })
         }
     };
 }
@@ -615,17 +593,20 @@ macro_rules! gen_array_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             index: i64,
-        ) -> MaybeUndef<$return_type> {
-            let mut store_ctx = caller.as_context_mut();
-            let scan_ctx = store_ctx.data_mut();
+        ) -> possibly_undef!($return_type) {
+            let array = gen_lookup_common!(caller, scan_ctx, value, {
+                match value {
+                    RuntimeValue::Array(array) => array.clone(),
+                    _ => unreachable!(),
+                }
+            });
 
-            let array = scan_ctx.current_array.take().unwrap();
             let array = array.$fn();
 
             if let Some(value) = array.get(index as usize) {
-                defined(*value as $return_type)
+                defined!(*value as $return_type)
             } else {
-                undefined()
+                undefined!(_)
             }
         }
     };
@@ -639,16 +620,19 @@ pub(crate) fn array_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
 ) -> RuntimeStringWasm {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
+    let array = gen_lookup_common!(caller, scan_ctx, value, {
+        match value {
+            RuntimeValue::Array(array) => array.clone(),
+            _ => unreachable!(),
+        }
+    });
 
-    let array = scan_ctx.current_array.take().unwrap();
     let array = array.as_string_array();
     let string = array.get(index as usize);
 
     if let Some(string) = string {
         RuntimeString::Owned(
-            scan_ctx.string_pool.get_or_intern(string.as_bstr()),
+            caller.data_mut().string_pool.get_or_intern(string.as_bstr()),
         )
         .as_wasm()
     } else {
@@ -659,18 +643,21 @@ pub(crate) fn array_lookup_string(
 pub(crate) fn array_lookup_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
-) -> i32 {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
+) -> possibly_undef!() {
+    let array = gen_lookup_common!(caller, scan_ctx, value, {
+        match value {
+            RuntimeValue::Array(array) => array.clone(),
+            _ => unreachable!(),
+        }
+    });
 
-    let array = scan_ctx.current_array.take().unwrap();
     let array = array.as_struct_array();
 
     if let Some(value) = array.get(index as usize) {
-        scan_ctx.current_struct = Some(value.clone());
-        1
+        caller.data_mut().current_struct = Some(value.clone());
+        defined!()
     } else {
-        0
+        undefined!()
     }
 }
 
@@ -680,13 +667,16 @@ macro_rules! gen_map_string_key_lookup_fn {
             mut caller: Caller<'_, ScanContext>,
             key_0: u64,
             key_1: u64,
-        ) -> MaybeUndef<$return_type> {
-            let mut store_ctx = caller.as_context_mut();
-            let scan_ctx = store_ctx.data_mut();
+        ) -> possibly_undef!($return_type) {
+            let map = gen_lookup_common!(caller, scan_ctx, value, {
+                match value {
+                    RuntimeValue::Map(map) => map.clone(),
+                    _ => unreachable!(),
+                }
+            });
 
-            let map = scan_ctx.current_map.take().unwrap();
             let key = RuntimeString::from_wasm((key_0, key_1));
-            let key_bstr = key.as_bstr(scan_ctx);
+            let key_bstr = key.as_bstr(caller.data());
 
             let value = match map.borrow() {
                 RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
@@ -695,9 +685,9 @@ macro_rules! gen_map_string_key_lookup_fn {
 
             if let Some($type(value)) = value {
                 if let Some(value) = value {
-                    defined(*value as $return_type)
+                    defined!(*value as $return_type)
                 } else {
-                    undefined()
+                    undefined!(_)
                 }
             } else {
                 unreachable!()
@@ -711,11 +701,14 @@ macro_rules! gen_map_integer_key_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             key: i64,
-        ) -> MaybeUndef<$return_type> {
-            let mut store_ctx = caller.as_context_mut();
-            let scan_ctx = store_ctx.data_mut();
+        ) -> possibly_undef!($return_type) {
+            let map = gen_lookup_common!(caller, scan_ctx, value, {
+                match value {
+                    RuntimeValue::Map(map) => map.clone(),
+                    _ => unreachable!(),
+                }
+            });
 
-            let map = scan_ctx.current_map.take().unwrap();
             let value = match map.borrow() {
                 RuntimeMap::IntegerKeys { map, .. } => map.get(&key),
                 _ => unreachable!(),
@@ -723,9 +716,9 @@ macro_rules! gen_map_integer_key_lookup_fn {
 
             if let Some($type(value)) = value {
                 if let Some(value) = value {
-                    defined(*value as $return_type)
+                    defined!(*value as $return_type)
                 } else {
-                    undefined()
+                    undefined!(_)
                 }
             } else {
                 unreachable!()
@@ -785,10 +778,13 @@ pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> i32 {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
+    let map = gen_lookup_common!(caller, scan_ctx, value, {
+        match value {
+            RuntimeValue::Map(map) => map.clone(),
+            _ => unreachable!(),
+        }
+    });
 
-    let map = scan_ctx.current_map.take().unwrap();
     let value = match map.borrow() {
         RuntimeMap::IntegerKeys { map, .. } => map.get(&key),
         _ => unreachable!(),
@@ -805,13 +801,16 @@ pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
     key_0: u64,
     key_1: u64,
-) -> i32 {
-    let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
+) -> possibly_undef!() {
+    let map = gen_lookup_common!(caller, scan_ctx, value, {
+        match value {
+            RuntimeValue::Map(map) => map.clone(),
+            _ => unreachable!(),
+        }
+    });
 
-    let map = scan_ctx.current_map.take().unwrap();
     let key = RuntimeString::from_wasm((key_0, key_1));
-    let key_bstr = key.as_bstr(scan_ctx);
+    let key_bstr = key.as_bstr(caller.data());
 
     let value = match map.borrow() {
         RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
@@ -820,13 +819,13 @@ pub(crate) fn map_lookup_string_struct(
 
     if let Some(value) = value {
         if let RuntimeValue::Struct(s) = value {
-            scan_ctx.borrow_mut().current_struct = Some(s.clone());
-            0 // result is defined
+            caller.data_mut().borrow_mut().current_struct = Some(s.clone());
+            defined!()
         } else {
             unreachable!()
         }
     } else {
-        1 // undefined result
+        undefined!()
     }
 }
 

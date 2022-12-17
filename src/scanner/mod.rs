@@ -2,15 +2,14 @@
 
 */
 
-use crate::ast::Type;
 use crate::compiler::{CompiledRule, CompiledRules, RuleId};
 use crate::string_pool::BStringPool;
-use crate::symbols::{SymbolIndex, SymbolLookup};
-use crate::types::{RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeValue};
+use crate::types::{RuntimeStruct, RuntimeValue};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use bitvec::vec::BitVec;
 use memmap::MmapOptions;
+
 use std::fs::File;
 use std::path::Path;
 use std::ptr::null;
@@ -28,8 +27,6 @@ pub struct Scanner<'r> {
     wasm_store: wasmtime::Store<ScanContext<'r>>,
     wasm_main_fn: TypedFunc<(), ()>,
     filesize: wasmtime::Global,
-    rules_matching_bitmap: wasmtime::Memory,
-    patterns_matching_bitmap: wasmtime::Memory,
 }
 
 impl<'r> Scanner<'r> {
@@ -40,9 +37,7 @@ impl<'r> Scanner<'r> {
             ScanContext {
                 compiled_rules,
                 string_pool: BStringPool::new(),
-                current_array: None,
                 current_struct: None,
-                current_map: None,
                 root_struct: RuntimeStruct::new(),
                 scanned_data: null(),
                 scanned_data_len: 0,
@@ -51,6 +46,8 @@ impl<'r> Scanner<'r> {
                     false,
                     compiled_rules.rules().len(),
                 ),
+                main_memory: None,
+                lookup_stack_top: None,
             },
         );
 
@@ -62,11 +59,14 @@ impl<'r> Scanner<'r> {
         )
         .unwrap();
 
-        let rules_matching_bitmap =
-            wasmtime::Memory::new(&mut wasm_store, MemoryType::new(1, None))
-                .unwrap();
+        let lookup_stack_top = Global::new(
+            &mut wasm_store,
+            GlobalType::new(ValType::I32, Mutability::Var),
+            Val::I32(0),
+        )
+        .unwrap();
 
-        let patterns_matching_bitmap =
+        let main_memory =
             wasmtime::Memory::new(&mut wasm_store, MemoryType::new(1, None))
                 .unwrap();
 
@@ -76,9 +76,9 @@ impl<'r> Scanner<'r> {
         let wasm_instance = wasm::new_linker()
             .define("yr", "filesize", filesize)
             .unwrap()
-            .define("yr", "rules_matching_bitmap", rules_matching_bitmap)
+            .define("yr", "lookup_stack_top", lookup_stack_top)
             .unwrap()
-            .define("yr", "patterns_matching_bitmap", patterns_matching_bitmap)
+            .define("yr", "main_memory", main_memory)
             .unwrap()
             .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
             .unwrap();
@@ -88,13 +88,10 @@ impl<'r> Scanner<'r> {
             .get_typed_func::<(), (), _>(&mut wasm_store, "main")
             .unwrap();
 
-        Self {
-            wasm_store,
-            wasm_main_fn,
-            filesize,
-            rules_matching_bitmap,
-            patterns_matching_bitmap,
-        }
+        wasm_store.data_mut().main_memory = Some(main_memory);
+        wasm_store.data_mut().lookup_stack_top = Some(lookup_stack_top);
+
+        Self { wasm_store, wasm_main_fn, filesize }
     }
 
     /// Scans a file.
@@ -284,26 +281,10 @@ pub(crate) struct ScanContext<'r> {
     /// Symbol table for the currently active structure, if any. When this
     /// set it overrides `symbol_table`.
     pub(crate) current_struct: Option<Rc<RuntimeStruct>>,
-    /// Currently active array.
-    pub(crate) current_array: Option<Rc<RuntimeArray>>,
-    /// Currently active map.
-    pub(crate) current_map: Option<Rc<RuntimeMap>>,
     /// String pool where the strings produced at runtime are stored. This
     /// for example stores the strings returned by YARA modules.
     pub(crate) string_pool: BStringPool<RuntimeStringId>,
-}
 
-impl<'r> ScanContext<'r> {
-    /// Looks for a field by index, and sets `current_struct` to [`None`].
-    pub(crate) fn value_by_field_index(&mut self, index: i32) -> RuntimeValue {
-        if let Some(s) = self.current_struct.take() {
-            s.field_by_index(index as usize).unwrap().value.clone()
-        } else {
-            self.root_struct
-                .field_by_index(index as usize)
-                .unwrap()
-                .value
-                .clone()
-        }
-    }
+    pub(crate) main_memory: Option<wasmtime::Memory>,
+    pub(crate) lookup_stack_top: Option<wasmtime::Global>,
 }

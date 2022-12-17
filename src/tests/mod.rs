@@ -276,6 +276,15 @@ fn test_proto2_module() {
     condition_false!(r#"test_proto2.array_string[3] == """#);
     condition_false!(r#"test_proto2.array_string[3] != """#);
 
+    condition_true!(r#"test_proto2.array_struct[0].nested_int64_one == 1"#);
+
+    condition_true!(
+        r#"test_proto2.array_struct[0].nested_array_int64[0] == 2"#
+    );
+    condition_true!(
+        r#"test_proto2.array_struct[0].nested_array_int64[1] == 20"#
+    );
+
     condition_true!(r#"test_proto2.Enumeration.ITEM_0 == 0"#);
     condition_true!(r#"test_proto2.Enumeration.ITEM_1 == 1"#);
     condition_true!(r#"test_proto2.map_string_int64["one"] == 1"#);

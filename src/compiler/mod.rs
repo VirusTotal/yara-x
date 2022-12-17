@@ -3,7 +3,6 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use bstr::BString;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::path::Path;
@@ -19,12 +18,13 @@ use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::warnings::Warning;
+use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
 use crate::wasm::WasmSymbols;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbols::{StackedSymbolTable, SymbolIndex, SymbolLookup};
+use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::{RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeValue};
 
 mod emit;
@@ -426,6 +426,7 @@ struct Context<'a, 'sym> {
     /// offsets from 0 to stack_top are occupied with loop variables.
     stack_top: i32,
 
+    //TODO: document
     lookup_stack: VecDeque<i32>,
 }
 
@@ -440,7 +441,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
         self.ident_pool.get(ident_id).unwrap()
     }
 
-    /// Allocates space for a new variable in the stack, and returns the
+    /// Allocates space for a new `i64` variable in the stack, and returns the
     /// memory offset where the new variable resides.
     ///
     /// Do not confuse this stack with the WebAssembly runtime stack, this
@@ -448,14 +449,14 @@ impl<'a, 'sym> Context<'a, 'sym> {
     ///
     /// # Panics
     ///
-    /// Panics if the stacks grows beyond the module's memory size.
+    /// Panics if the number of variables in the stack exceeds
+    /// [`Compiler::MAX_NESTED_LOOPS`]
     #[inline]
     fn new_var(&mut self) -> i32 {
         let top = self.stack_top;
         self.stack_top += mem::size_of::<i64>() as i32;
-        if self.stack_top > (ModuleBuilder::MODULE_MEMORY_SIZE * 65536) as i32
-        {
-            panic!("variables stack grew larger than module's memory size");
+        if self.stack_top > wasm::LOOP_VARS_END {
+            panic!("too many nested loops");
         }
         top
     }

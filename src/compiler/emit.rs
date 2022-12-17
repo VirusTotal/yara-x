@@ -1,4 +1,3 @@
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::mem::size_of;
 use std::rc::Rc;
@@ -13,6 +12,7 @@ use crate::ast::{Type, Value};
 use crate::compiler::Context;
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 use crate::types::{RuntimeArray, RuntimeMap, RuntimeValue};
+use crate::wasm;
 use crate::wasm::{RuntimeString, RuntimeStringWasm};
 
 /// This macro emits a constant if the type hint indicates that the expression
@@ -260,19 +260,15 @@ pub(super) fn emit_expr(
                     // symbol table.
                     match ident.ty() {
                         Type::Integer => {
-                            emit_lookup(ctx, instr);
                             emit_lookup_integer(ctx, instr, index);
                         }
                         Type::Float => {
-                            emit_lookup(ctx, instr);
                             emit_lookup_float(ctx, instr, index);
                         }
                         Type::Bool => {
-                            emit_lookup(ctx, instr);
                             emit_lookup_bool(ctx, instr, index);
                         }
                         Type::String => {
-                            emit_lookup(ctx, instr);
                             emit_lookup_string(ctx, instr, index);
                         }
                         Type::Struct => {
@@ -301,7 +297,6 @@ pub(super) fn emit_expr(
                             }
 
                             ctx.borrow_mut().lookup_stack.push_back(index);
-                            emit_lookup(ctx, instr);
                         }
                         Type::Map => {
                             // If the identifier refers to some map, store
@@ -314,7 +309,6 @@ pub(super) fn emit_expr(
                             }
 
                             ctx.borrow_mut().lookup_stack.push_back(index);
-                            emit_lookup(ctx, instr);
                         }
                         _ => {
                             // This point should not be reached. The type of
@@ -704,6 +698,9 @@ fn emit_array_lookup(
     if let RuntimeArray::Struct(array) = array {
         ctx.borrow_mut().current_struct = Some(array.first().unwrap().clone())
     }
+
+    emit_lookup_common(ctx, instr);
+
     match array.item_type() {
         Type::Integer => {
             emit_call_and_handle_undef(
@@ -754,6 +751,9 @@ fn emit_map_integer_key_lookup(
     if let RuntimeValue::Struct(s) = map_value {
         ctx.borrow_mut().current_struct = Some(s.clone())
     }
+
+    emit_lookup_common(ctx, instr);
+
     match map_value.ty() {
         Type::Integer => {
             emit_call_and_handle_undef(
@@ -803,6 +803,9 @@ fn emit_map_string_key_lookup(
     if let RuntimeValue::Struct(s) = map_value {
         ctx.borrow_mut().current_struct = Some(s.clone())
     }
+
+    emit_lookup_common(ctx, instr);
+
     // Generate the call depending on the type of the map values.
     match map_value.ty() {
         Type::Integer => {
@@ -1129,7 +1132,7 @@ pub(super) fn emit_for_in_range(
 #[inline]
 pub(super) fn emit_store(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     instr.store(
-        ctx.borrow().wasm_symbols.vars_stack,
+        ctx.borrow().wasm_symbols.main_memory,
         StoreKind::I64 { atomic: false },
         MemArg { align: size_of::<i64>() as u32, offset: 0 },
     );
@@ -1138,9 +1141,12 @@ pub(super) fn emit_store(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
 #[inline]
 pub(super) fn emit_load(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     instr.load(
-        ctx.borrow().wasm_symbols.vars_stack,
+        ctx.borrow().wasm_symbols.main_memory,
         LoadKind::I64 { atomic: false },
-        MemArg { align: size_of::<i64>() as u32, offset: 0 },
+        MemArg {
+            align: size_of::<i64>() as u32,
+            offset: wasm::LOOP_VARS_START as u32,
+        },
     );
 }
 
@@ -1262,23 +1268,32 @@ pub(super) fn emit_call_and_handle_undef_str(
     );
 }
 
-pub(super) fn emit_lookup(
+pub(super) fn emit_lookup_common(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
 ) {
-    while !ctx.borrow().lookup_stack.is_empty() {
-        let mut count = 0;
-        for field_index in ctx.borrow().lookup_stack.iter().take(3) {
-            instr.i32_const(*field_index);
-            count += 1;
-        }
-        match count {
-            1 => instr.call(ctx.borrow().wasm_symbols.lookup_1),
-            2 => instr.call(ctx.borrow().wasm_symbols.lookup_2),
-            3 => instr.call(ctx.borrow().wasm_symbols.lookup_3),
-            _ => unreachable!(),
-        };
-        ctx.borrow_mut().lookup_stack.drain(0..count);
+    let mut ctx_mut = ctx.borrow_mut();
+
+    instr.i32_const(ctx_mut.lookup_stack.len() as i32);
+    instr.global_set(ctx_mut.wasm_symbols.lookup_stack_top);
+
+    let main_memory = ctx_mut.wasm_symbols.main_memory;
+
+    for (i, field_index) in ctx_mut.lookup_stack.drain(0..).enumerate() {
+        let mem_offset = (i * size_of::<i32>()) as i32;
+        assert!(
+            wasm::LOOKUP_INDEXES_START + mem_offset < wasm::LOOKUP_INDEXES_END,
+        );
+        instr.i32_const(mem_offset);
+        instr.i32_const(field_index);
+        instr.store(
+            main_memory,
+            StoreKind::I32 { atomic: false },
+            MemArg {
+                align: size_of::<i32>() as u32,
+                offset: wasm::LOOKUP_INDEXES_START as u32,
+            },
+        );
     }
 }
 
@@ -1288,7 +1303,8 @@ pub(super) fn emit_lookup_integer(
     instr: &mut InstrSeqBuilder,
     field_index: i32,
 ) {
-    instr.i32_const(field_index);
+    ctx.borrow_mut().lookup_stack.push_back(field_index);
+    emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -1302,7 +1318,8 @@ pub(super) fn emit_lookup_float(
     instr: &mut InstrSeqBuilder,
     field_index: i32,
 ) {
-    instr.i32_const(field_index);
+    ctx.borrow_mut().lookup_stack.push_back(field_index);
+    emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -1316,7 +1333,8 @@ pub(super) fn emit_lookup_bool(
     instr: &mut InstrSeqBuilder,
     field_index: i32,
 ) {
-    instr.i32_const(field_index);
+    ctx.borrow_mut().lookup_stack.push_back(field_index);
+    emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -1330,7 +1348,8 @@ pub(super) fn emit_lookup_string(
     instr: &mut InstrSeqBuilder,
     field_index: i32,
 ) {
-    instr.i32_const(field_index);
+    ctx.borrow_mut().lookup_stack.push_back(field_index);
+    emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef_str(
         ctx,
         instr,

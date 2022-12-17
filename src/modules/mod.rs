@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
 use lazy_static::lazy_static;
 use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 
 use crate::scanner::ScanContext;
-use crate::types::RuntimeStruct;
 
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));

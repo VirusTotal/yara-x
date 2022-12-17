@@ -64,24 +64,24 @@ option (yara.module_options) = {
 //  to YARA, they always have some value, either their default values or the
 //  value explicitly set while filling the structure.
 message Test {
-  
+
   // Numeric values initialized to 0 by the module.
-  
+
   required int32              int32_zero = 1;
   required int64              int64_zero = 2;
-                             
+
   required sint32             sint32_zero = 3;
   required sint64             sint64_zero = 4;
-                             
+
   required uint32             uint32_zero = 5;
   required uint64             uint64_zero = 6;
-                             
+
   required fixed32            fixed32_zero = 7;
   required fixed64            fixed64_zero = 8;
-                             
+
   required sfixed32           sfixed32_zero = 9;
   required sfixed64           sfixed64_zero = 10;
-                             
+
   required float              float_zero = 11;
 
   // Numeric values initialized to 1 by the module.
@@ -119,7 +119,7 @@ message Test {
 
   optional sfixed32           sfixed32_undef  = 49;
   optional sfixed64           sfixed64_undef  = 50;
-                             
+
   optional float              float_undef  = 51;
 
   // String values.
@@ -127,7 +127,7 @@ message Test {
   required string             string_foo = 61;
   required string             string_bar = 62;
   optional string             string_undef = 63;
-                             
+
   required bytes              bytes_foo = 64;
   required bytes              bytes_bar = 65;
   optional bytes              bytes_undef = 66;
@@ -156,4 +156,5 @@ message NestedProto2 {
   optional int64              nested_int64_zero = 2;
   optional int32              nested_int32_one = 3;
   optional int64              nested_int64_one = 4;
+  repeated int64              nested_array_int64 = 5;
 }

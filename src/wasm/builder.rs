@@ -44,25 +44,13 @@ macro_rules! global {
     };
 }
 
-macro_rules! memory {
-    ($module:ident, $name:ident ) => {
-        let ($name, _) =
-            $module.add_import_memory("yr", stringify!($name), true, 1, None);
-    };
-}
-
 impl ModuleBuilder {
-    /// Module's memory size in pages. Page size is 64KB.
-    pub(crate) const MODULE_MEMORY_SIZE: u32 = 1;
-
     /// Creates a new module builder.
     pub fn new() -> Self {
         let config = walrus::ModuleConfig::new();
         let mut module = walrus::Module::with_config(config);
 
-        memory!(module, rules_matching_bitmap);
-        memory!(module, patterns_matching_bitmap);
-
+        global!(module, lookup_stack_top, I32);
         global!(module, filesize, I64);
 
         import!(module, rule_match, [I32], []);
@@ -89,13 +77,10 @@ impl ModuleBuilder {
         import!(module, str_iequals, [I64, I64, I64, I64], [I32]);
         import!(module, str_len, [I64, I64], [I64]);
 
-        import!(module, lookup_integer, [I32], maybe_undef(I64));
-        import!(module, lookup_float, [I32], maybe_undef(F64));
-        import!(module, lookup_bool, [I32], maybe_undef(I32));
-        import!(module, lookup_string, [I32], [I64, I64]);
-        import!(module, lookup_1, [I32], []);
-        import!(module, lookup_2, [I32, I32], []);
-        import!(module, lookup_3, [I32, I32, I32], []);
+        import!(module, lookup_integer, [], maybe_undef(I64));
+        import!(module, lookup_float, [], maybe_undef(F64));
+        import!(module, lookup_bool, [], maybe_undef(I32));
+        import!(module, lookup_string, [], [I64, I64]);
 
         import!(module, array_lookup_integer, [I64], maybe_undef(I64));
         import!(module, array_lookup_float, [I64], maybe_undef(F64));
@@ -119,20 +104,25 @@ impl ModuleBuilder {
         import!(module, map_lookup_integer_struct, [I64], maybe_undef());
         import!(module, map_lookup_string_struct, [I64, I64], maybe_undef());
 
+        let (main_memory, _) = module.add_import_memory(
+            "yr",
+            "main_memory",
+            false,
+            1, // initial size 64KB
+            None,
+        );
+
         let wasm_symbols = WasmSymbols {
-            rules_matching_bitmap,
-            patterns_matching_bitmap,
+            main_memory,
             rule_match,
             is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
+            lookup_stack_top,
             lookup_integer,
             lookup_float,
             lookup_bool,
             lookup_string,
-            lookup_1,
-            lookup_2,
-            lookup_3,
             array_lookup_integer,
             array_lookup_float,
             array_lookup_bool,
@@ -163,13 +153,7 @@ impl ModuleBuilder {
             str_iequals,
             str_len,
             filesize,
-            vars_stack: module.memories.add_local(
-                false,                          // not shared with host.
-                Self::MODULE_MEMORY_SIZE,       // initial size 64KB
-                Some(Self::MODULE_MEMORY_SIZE), // maximum size 64KB
-            ),
             i64_tmp: module.locals.add(I64),
-            i32_tmp: module.locals.add(I32),
         };
 
         let main_fn =

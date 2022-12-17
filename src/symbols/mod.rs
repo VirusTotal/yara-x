@@ -1,4 +1,3 @@
-use bstr::BString;
 use bstr::{BStr, ByteSlice};
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
