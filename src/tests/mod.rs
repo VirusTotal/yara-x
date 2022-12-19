@@ -307,4 +307,10 @@ fn test_proto2_module() {
 
     // Make sure that undef and true is false
     condition_true!(r#"not (test_proto2.int64_undef == 0 and true)"#);
+
+    condition_true!(r#"test_proto2.map_int64_string[100] == "one hundred""#);
+    condition_true!(r#"test_proto2.map_int64_int64[100] == 100"#);
+    condition_true!(
+        r#"test_proto2.map_int64_struct[100].nested_int64_one == 1"#
+    );
 }

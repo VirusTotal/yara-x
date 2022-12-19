@@ -94,6 +94,21 @@ fn main(_ctx: &ScanContext) -> Test {
 
     test.map_string_struct.insert("foo".to_string(), nested);
     test.map_string_int64.insert("one".to_string(), 1);
+    test.map_string_string.insert("foo".to_string(), "FOO".to_string());
+
+    let mut nested = NestedProto2::new();
+
+    nested.set_nested_int32_zero(0);
+    nested.set_nested_int64_zero(0);
+    nested.set_nested_int32_one(1);
+    nested.set_nested_int64_one(1);
+    nested.nested_array_int64.push(4);
+    nested.nested_array_int64.push(40);
+    nested.nested_array_int64.push(400);
+
+    test.map_int64_struct.insert(100, nested);
+    test.map_int64_int64.insert(100, 100);
+    test.map_int64_string.insert(100, "one hundred".to_string());
 
     test
 }

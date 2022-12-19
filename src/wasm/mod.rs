@@ -13,7 +13,7 @@ calls YARA back (via the `rule_match` function) and reports the match.
 
 The WebAssembly module also calls YARA in many other cases, for example
 when it needs to invoke YARA built-in functions like `uint8(...)`, when it
-needs to get the value for the `filesize` keyword, etc.
+needs to invoke a function exported by a YARA module, etc.
 
 This module implements the logic for building these WebAssembly modules, and
 the functions exposed to them by YARA's WebAssembly runtime.
@@ -32,14 +32,14 @@ use crate::types::{RuntimeMap, RuntimeValue};
 
 pub(crate) mod builder;
 
-/// Offset in main memory where the space for loop variables start.
+/// Offset in module's main memory where the space for loop variables start.
 pub(crate) const LOOP_VARS_START: i32 = 0;
-/// Offset in main memory where the space for loop variables end.
+/// Offset in module's main memory where the space for loop variables end.
 pub(crate) const LOOP_VARS_END: i32 = LOOP_VARS_START + 1024;
 
-/// Offset in main memory where the space for lookup indexes start.
+/// Offset in module's main memory where the space for lookup indexes start.
 pub(crate) const LOOKUP_INDEXES_START: i32 = LOOP_VARS_END;
-/// Offset in main memory where the space for lookup indexes end.
+/// Offset in module's main memory where the space for lookup indexes end.
 pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 
 /// Table with functions and variables used by the WebAssembly module.
@@ -54,7 +54,7 @@ pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 /// contains the definition of some variables used by the module.
 #[derive(Clone)]
 pub(crate) struct WasmSymbols {
-    // The WebAssembly module's main memory.
+    /// The WebAssembly module's main memory.
     pub main_memory: walrus::MemoryId,
 
     pub lookup_stack_top: walrus::GlobalId,
@@ -687,10 +687,10 @@ macro_rules! gen_map_string_key_lookup_fn {
                 if let Some(value) = value {
                     defined!(*value as $return_type)
                 } else {
-                    undefined!(_)
+                    unreachable!()
                 }
             } else {
-                unreachable!()
+                undefined!(_)
             }
         }
     };
@@ -718,10 +718,10 @@ macro_rules! gen_map_integer_key_lookup_fn {
                 if let Some(value) = value {
                     defined!(*value as $return_type)
                 } else {
-                    undefined!(_)
+                    unreachable!()
                 }
             } else {
-                unreachable!()
+                undefined!(_)
             }
         }
     };
@@ -763,7 +763,30 @@ pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> RuntimeStringWasm {
-    todo!()
+    let map = gen_lookup_common!(caller, scan_ctx, value, {
+        match value {
+            RuntimeValue::Map(map) => map.clone(),
+            _ => unreachable!(),
+        }
+    });
+
+    let value = match map.borrow() {
+        RuntimeMap::IntegerKeys { map, .. } => map.get(&key),
+        _ => unreachable!(),
+    };
+
+    let string = if let Some(value) = value {
+        RuntimeString::Owned(
+            caller
+                .data_mut()
+                .string_pool
+                .get_or_intern(value.as_bstr().unwrap()),
+        )
+    } else {
+        RuntimeString::Undef
+    };
+
+    string.as_wasm()
 }
 
 pub(crate) fn map_lookup_string_string(
@@ -771,13 +794,39 @@ pub(crate) fn map_lookup_string_string(
     key_0: u64,
     key_1: u64,
 ) -> RuntimeStringWasm {
-    todo!()
+    let map = gen_lookup_common!(caller, scan_ctx, value, {
+        match value {
+            RuntimeValue::Map(map) => map.clone(),
+            _ => unreachable!(),
+        }
+    });
+
+    let key = RuntimeString::from_wasm((key_0, key_1));
+    let key_bstr = key.as_bstr(caller.data());
+
+    let value = match map.borrow() {
+        RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
+        _ => unreachable!(),
+    };
+
+    let string = if let Some(value) = value {
+        RuntimeString::Owned(
+            caller
+                .data_mut()
+                .string_pool
+                .get_or_intern(value.as_bstr().unwrap()),
+        )
+    } else {
+        RuntimeString::Undef
+    };
+
+    string.as_wasm()
 }
 
 pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
-) -> i32 {
+) -> possibly_undef!() {
     let map = gen_lookup_common!(caller, scan_ctx, value, {
         match value {
             RuntimeValue::Map(map) => map.clone(),
@@ -791,10 +840,15 @@ pub(crate) fn map_lookup_integer_struct(
     };
 
     if let Some(value) = value {
-        todo!()
+        if let RuntimeValue::Struct(s) = value {
+            caller.data_mut().borrow_mut().current_struct = Some(s.clone());
+            defined!()
+        } else {
+            unreachable!()
+        }
+    } else {
+        undefined!()
     }
-
-    todo!()
 }
 
 pub(crate) fn map_lookup_string_struct(

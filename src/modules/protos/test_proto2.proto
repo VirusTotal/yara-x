@@ -148,7 +148,11 @@ message Test {
 
   map<string, NestedProto2>   map_string_struct = 200;
   map<string, int64>          map_string_int64 = 201;
+  map<string, string>         map_string_string = 202;
 
+  map<int64, NestedProto2>   map_int64_struct = 300;
+  map<int64, int64>          map_int64_int64 = 301;
+  map<int64, string>         map_int64_string = 302;
 }
 
 message NestedProto2 {

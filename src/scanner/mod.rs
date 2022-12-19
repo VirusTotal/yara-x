@@ -284,7 +284,7 @@ pub(crate) struct ScanContext<'r> {
     /// String pool where the strings produced at runtime are stored. This
     /// for example stores the strings returned by YARA modules.
     pub(crate) string_pool: BStringPool<RuntimeStringId>,
-
+    /// Module's main memory.
     pub(crate) main_memory: Option<wasmtime::Memory>,
     pub(crate) lookup_stack_top: Option<wasmtime::Global>,
 }

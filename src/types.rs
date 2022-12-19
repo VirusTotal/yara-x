@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::ast::Type;
 use crate::symbols::{Symbol, SymbolLookup};
-use bstr::BString;
+use bstr::{BStr, BString, ByteSlice};
 use protobuf::reflect::{
     MessageDescriptor, ReflectMapRef, ReflectRepeatedRef, ReflectValueRef,
     RuntimeFieldType, RuntimeType,
@@ -47,6 +47,14 @@ impl RuntimeValue {
             RuntimeValue::Struct(_) => Type::Struct,
             RuntimeValue::Array(_) => Type::Array,
             RuntimeValue::Map(_) => Type::Map,
+        }
+    }
+
+    pub fn as_bstr(&self) -> Option<&BStr> {
+        if let RuntimeValue::String(v) = self {
+            v.as_ref().map(|v| v.as_bstr())
+        } else {
+            panic!()
         }
     }
 }
