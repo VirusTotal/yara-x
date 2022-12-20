@@ -4,14 +4,16 @@ use std::rc::Rc;
 
 use bstr::{BStr, BString, ByteSlice};
 use protobuf::reflect::{
-    EnumDescriptor, MessageDescriptor, ReflectMapRef, ReflectRepeatedRef,
-    ReflectValueRef, RuntimeFieldType, RuntimeType,
+    EnumDescriptor, FieldDescriptor, MessageDescriptor, ReflectMapRef,
+    ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 
 use crate::ast::Type;
 use crate::symbols::{Symbol, SymbolLookup};
+
+use yara_proto::exts::field_options as yara_field_options;
 use yara_proto::exts::module_options as yara_module_options;
 
 /// Type and value of a structure field.
@@ -300,7 +302,8 @@ impl RuntimeStruct {
         for fd in msg_descriptor.fields() {
             let field_ty = fd.runtime_field_type();
             let number = fd.number() as u64;
-            let name = fd.name().to_owned();
+            let name = Self::field_name(&fd);
+
             let value = match field_ty {
                 RuntimeFieldType::Singular(ty) => {
                     if let Some(msg) = msg {
@@ -420,6 +423,32 @@ impl RuntimeStruct {
             module_options.root_message.unwrap() == msg_descriptor.name()
         } else {
             false
+        }
+    }
+
+    /// Given a [`FieldDescriptor`] returns the name that this field will
+    /// have in the corresponding [`RuntimeStruct`].
+    ///
+    /// By default, the name of the field in its [`RuntimeStruct`] will be
+    /// the same one that it has in the protobuf definition. However, the
+    /// name can be set to something different by using an annotation in
+    /// the .proto file, like this:
+    ///
+    /// ```text
+    /// int64 foo = 1 [(yara.field_options).name = "bar"];
+    /// ```
+    ///
+    /// Here the `foo` field will be named `bar` when the protobuf is converted
+    /// into a [`RuntimeStruct`].
+    fn field_name(field_descriptor: &FieldDescriptor) -> String {
+        if let Some(field_options) =
+            yara_field_options.get(&field_descriptor.proto().options)
+        {
+            field_options
+                .name
+                .unwrap_or_else(|| field_descriptor.name().to_owned())
+        } else {
+            field_descriptor.name().to_owned()
         }
     }
 

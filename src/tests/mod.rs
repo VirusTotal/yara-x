@@ -315,4 +315,9 @@ fn test_proto2_module() {
     condition_true!(
         r#"test_proto2.map_int64_struct[100].nested_int64_one == 1"#
     );
+
+    // Field defined as:
+    // required bool bool_proto = 400 [(yara.field_options).name = "bool_yara"];
+    // In YARA it should be named `bool_yara` instead of `bool_proto`.
+    condition_true!(r#"test_proto2.bool_yara"#);
 }

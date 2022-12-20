@@ -110,5 +110,7 @@ fn main(_ctx: &ScanContext) -> TestProto2 {
     test.map_int64_int64.insert(100, 100);
     test.map_int64_string.insert(100, "one hundred".to_string());
 
+    test.set_bool_proto(true);
+
     test
 }
