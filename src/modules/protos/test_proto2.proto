@@ -156,6 +156,9 @@ message TestProto2 {
 
   /// This field will be visible in YARA as `bool_yara` instead of `bool_proto`.
   optional bool bool_proto = 350 [(yara.field_options).name = "bool_yara"];
+
+  /// This field won't be visible to YARA.
+  optional bool ignored = 351 [(yara.field_options).ignore = true];
 }
 
 enum TopLevelEnumeration {

@@ -300,6 +300,12 @@ impl RuntimeStruct {
         let mut fields = Vec::new();
 
         for fd in msg_descriptor.fields() {
+            // The field should be ignored if it was annotated with:
+            // [(yara.field_options).ignore = true]
+            if Self::ignore_field(&fd) {
+                continue;
+            }
+
             let field_ty = fd.runtime_field_type();
             let number = fd.number() as u64;
             let name = Self::field_name(&fd);
@@ -449,6 +455,26 @@ impl RuntimeStruct {
                 .unwrap_or_else(|| field_descriptor.name().to_owned())
         } else {
             field_descriptor.name().to_owned()
+        }
+    }
+
+    /// Given a [`FieldDescriptor`] returns `true` if the field should be
+    /// ignored by YARA.
+    ///
+    /// Fields that should be ignored are those annotated in the protobuf
+    /// definition as follows:
+    ///
+    /// ```text
+    /// int64 foo = 1 [(yara.field_options).ignore = true];
+    /// ```
+    ///
+    fn ignore_field(field_descriptor: &FieldDescriptor) -> bool {
+        if let Some(field_options) =
+            yara_field_options.get(&field_descriptor.proto().options)
+        {
+            field_options.ignore.unwrap_or(false)
+        } else {
+            false
         }
     }
 

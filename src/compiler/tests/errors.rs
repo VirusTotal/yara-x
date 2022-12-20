@@ -502,6 +502,26 @@ rule test {
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
+    test_proto2.ignored
+}
+"#,
+            r#"error: unknown identifier `ignored`
+   ╭─[line:5:17]
+   │
+ 5 │     test_proto2.ignored
+   ·                 ───┬───  
+   ·                    ╰───── this identifier has not been declared
+───╯
+"#,
+        ),
     ];
 
     for t in tests {
