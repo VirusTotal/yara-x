@@ -1,5 +1,5 @@
 use crate::modules::protos::test_proto2::NestedProto2;
-use crate::modules::protos::test_proto2::Test;
+use crate::modules::protos::test_proto2::TestProto2;
 
 use crate::scanner::ScanContext;
 use yara_macros::module_main;
@@ -10,8 +10,8 @@ pub(crate) fn sum(a: i64, b: i64) -> i64 {
 }
 
 #[module_main]
-fn main(_ctx: &ScanContext) -> Test {
-    let mut test = Test::new();
+fn main(_ctx: &ScanContext) -> TestProto2 {
+    let mut test = TestProto2::new();
 
     test.set_int32_zero(0);
     test.set_int64_zero(0);

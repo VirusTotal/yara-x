@@ -25,9 +25,9 @@ option (yara.module_options) = {
   // in a hierarchical structure in which one message has fields that are other
   // messages. YARA needs to know which of those message definitions describes
   // the top-level structure for the module. In this case the root message is
-  // "Test" which indicates that the "test_proto2" module will have the fields
-  // defined in the "Test" message.
-  root_message: "Test"
+  // "TestProto2" which indicates that the "test_proto2" module will have the
+  // fields defined in the "TestProto2" message.
+  root_message: "TestProto2"
 
   // The name of the Rust module that contains the code for this module. A
   // module with this name must exists under src/modules. In this case the
@@ -63,7 +63,7 @@ option (yara.module_options) = {
 //  string values default to an empty string. These fields are never undefined
 //  to YARA, they always have some value, either their default values or the
 //  value explicitly set while filling the structure.
-message Test {
+message TestProto2 {
 
   // Numeric values initialized to 0 by the module.
 
@@ -138,13 +138,13 @@ message Test {
   }
 
   optional Enumeration        enumeration = 100;
-  optional NestedProto2       nested = 101;
+  optional NestedProto2       nested = 102;
 
-  repeated int64              array_int64 = 102;
-  repeated float              array_float = 103;
-  repeated bool               array_bool = 104;
-  repeated string             array_string = 106;
-  repeated NestedProto2       array_struct = 105;
+  repeated int64              array_int64 = 150;
+  repeated float              array_float = 151;
+  repeated bool               array_bool = 152;
+  repeated string             array_string = 153;
+  repeated NestedProto2       array_struct = 154;
 
   map<string, NestedProto2>   map_string_struct = 200;
   map<string, int64>          map_string_int64 = 201;
@@ -153,6 +153,11 @@ message Test {
   map<int64, NestedProto2>   map_int64_struct = 300;
   map<int64, int64>          map_int64_int64 = 301;
   map<int64, string>         map_int64_string = 302;
+}
+
+enum TopLevelEnumeration {
+  ITEM_0 = 0;
+  ITEM_1 = 1;
 }
 
 message NestedProto2 {

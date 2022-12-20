@@ -227,11 +227,11 @@ mod tests {
     fn message_lookup() {
         use protobuf::{Enum, MessageFull};
 
-        use crate::modules::protos::test_proto2::test::Enumeration;
-        use crate::modules::protos::test_proto2::Test;
+        use crate::modules::protos::test_proto2::test_proto2::Enumeration;
+        use crate::modules::protos::test_proto2::TestProto2;
 
         let test = RuntimeStruct::from_proto_descriptor_and_msg(
-            &Test::descriptor(),
+            &TestProto2::descriptor(),
             None,
             true,
         );
@@ -255,11 +255,11 @@ mod tests {
     fn message_dyn_lookup() {
         use protobuf::{Enum, Message, MessageField, MessageFull};
 
-        use crate::modules::protos::test_proto2::test::Enumeration;
+        use crate::modules::protos::test_proto2::test_proto2::Enumeration;
         use crate::modules::protos::test_proto2::NestedProto2;
-        use crate::modules::protos::test_proto2::Test;
+        use crate::modules::protos::test_proto2::TestProto2;
 
-        let mut test = Test::new();
+        let mut test = TestProto2::new();
         let mut nested = NestedProto2::new();
 
         test.set_int32_zero(0);
@@ -299,7 +299,7 @@ mod tests {
         let mut buf = Vec::new();
         test.write_to_vec(&mut buf).unwrap();
 
-        let descriptor = Test::descriptor();
+        let descriptor = TestProto2::descriptor();
         let message = descriptor.parse_from_bytes(buf.as_slice()).unwrap();
         let structure = RuntimeStruct::from_proto_descriptor_and_msg(
             &descriptor,

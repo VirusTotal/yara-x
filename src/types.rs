@@ -1,15 +1,18 @@
+use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::ast::Type;
-use crate::symbols::{Symbol, SymbolLookup};
 use bstr::{BStr, BString, ByteSlice};
 use protobuf::reflect::{
-    MessageDescriptor, ReflectMapRef, ReflectRepeatedRef, ReflectValueRef,
-    RuntimeFieldType, RuntimeType,
+    EnumDescriptor, MessageDescriptor, ReflectMapRef, ReflectRepeatedRef,
+    ReflectValueRef, RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
+
+use crate::ast::Type;
+use crate::symbols::{Symbol, SymbolLookup};
+use yara_proto::exts::module_options as yara_module_options;
 
 /// Type and value of a structure field.
 #[derive(Clone)]
@@ -166,6 +169,20 @@ impl RuntimeStructField {
     }
 }
 
+/// A dynamic structure with one or more fields.
+///
+/// These structures are used during the compilation of YARA rules and the
+/// evaluation of conditions. Fields can be of any of the primitive types like
+/// integers, floats or strings, or more complex types like maps, arrays and
+/// other structures.
+///
+/// There's usually a top-level struct that represents the global scope in
+/// YARA, where each field represents a variable or a YARA module. Each module
+/// is also represented by one of these structures.
+///
+/// The structures that represent a YARA module are created from the protobuf
+/// associated to that module. Functions [`RuntimeStruct::from_proto_msg`] and
+/// [`RuntimeStruct::from_proto_descriptor_and_msg`] are used for that purpose.
 pub struct RuntimeStruct {
     // Fields in this structure. The index of each field is the index that it
     // has in this vector. Fields are sorted by field number, which means that
@@ -241,11 +258,33 @@ impl RuntimeStruct {
     /// be [`None`].
     ///
     /// The `generate_fields_for_enums` controls whether the enums defined
-    /// by the proto will be included as fields in the structure. Enums
-    /// are required at compile time, so that the compiler can lookup the
+    /// by the proto will be included as fields in the structure. Enums are
+    /// required only at compile time, so that the compiler can lookup the
     /// enums by name and resolve their values, but at scan time enums are
     /// not necessary because their values are already embedded in the code.
     /// The scanner never asks for an enum by field index.
+    ///
+    /// Also notice that a .proto file can define enums at the top level,
+    /// outside of any message. Those enums will be handled as if they were
+    /// defined inside of the module's root message, in other words, if you
+    /// have this proto that defines a YARA module...
+    ///
+    /// ```text
+    /// message MyMessage {
+    ///   enum SomeEnum {
+    ///     FOO = 0;
+    ///     BAR = 1;
+    /// }
+    ///
+    /// enum SomeOtherEnum {
+    ///    BAZ = 0;
+    ///    QUX = 1;
+    /// }
+    /// ```
+    ///
+    /// If `MyMessage` is the root message for the module, both `SomeEnum`
+    /// and `SomeOtherEnum` will be included as fields of the [`RuntimeStruct`]
+    /// created for `MyMessage`.
     ///
     /// # Panics
     ///
@@ -320,7 +359,21 @@ impl RuntimeStruct {
             // Enums declared inside a message are treated as a nested structure
             // where each field is an enum item, and each field has a constant
             // value.
-            for enum_ in msg_descriptor.nested_enums() {
+            let enums = msg_descriptor.nested_enums();
+
+            // If the message is the module's root message, the enums that are
+            // declared in the file outside of any structures are also added as
+            // fields of this structure.
+            let enums: Box<dyn Iterator<Item = EnumDescriptor>> =
+                if Self::is_root_msg(msg_descriptor) {
+                    Box::new(
+                        enums.chain(msg_descriptor.file_descriptor().enums()),
+                    )
+                } else {
+                    Box::new(enums)
+                };
+
+            for enum_ in enums {
                 let mut enum_struct = RuntimeStruct::new();
 
                 for item in enum_.values() {
@@ -346,10 +399,28 @@ impl RuntimeStruct {
 
         for (index, field) in fields.iter_mut().enumerate() {
             field.index = index as i32;
-            field_index.insert(field.name.clone(), index);
+            if field_index.insert(field.name.clone(), index).is_some() {
+                panic!(
+                    "duplicate field name `{}` in `{}`",
+                    field.name,
+                    msg_descriptor.name()
+                )
+            }
         }
 
         Self { fields, field_index }
+    }
+
+    /// Returns true if the given message is the YARA module's root message.
+    fn is_root_msg(msg_descriptor: &MessageDescriptor) -> bool {
+        let file_descriptor = msg_descriptor.file_descriptor();
+        if let Some(module_options) =
+            yara_module_options.get(&file_descriptor.proto().options)
+        {
+            module_options.root_message.unwrap() == msg_descriptor.name()
+        } else {
+            false
+        }
     }
 
     fn new_value(
