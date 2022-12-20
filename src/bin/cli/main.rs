@@ -177,12 +177,11 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_FILE").unwrap();
     let file_path = args.get_one::<PathBuf>("FILE").unwrap();
 
-    let src = fs::read_to_string(rules_path).with_context(|| {
-        format!("could not read file `{}`", rules_path.display())
-    })?;
+    let src = fs::read(rules_path)
+        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
-    let src = SourceCode::from(src.as_str())
-        .origin(file_path.as_os_str().to_str().unwrap());
+    let src = SourceCode::from(src.as_slice())
+        .origin(rules_path.as_os_str().to_str().unwrap());
 
     let rules =
         Compiler::new().colorize_errors(true).add_source(src)?.build()?;
@@ -197,11 +196,10 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
 fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
     let file_path = args.get_one::<PathBuf>("FILE").unwrap();
 
-    let src = fs::read_to_string(file_path).with_context(|| {
-        format!("could not read file `{}`", file_path.display())
-    })?;
+    let src = fs::read(file_path)
+        .with_context(|| format!("can not read `{}`", file_path.display()))?;
 
-    let src = SourceCode::from(src.as_str())
+    let src = SourceCode::from(src.as_slice())
         .origin(file_path.as_os_str().to_str().unwrap());
 
     let ast = Parser::new().colorize_errors(true).build_ast(src)?;
@@ -216,11 +214,10 @@ fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
 fn cmd_wasm(args: &ArgMatches) -> anyhow::Result<()> {
     let mut file_path = args.get_one::<PathBuf>("FILE").unwrap().to_path_buf();
 
-    let src = fs::read_to_string(file_path.as_path()).with_context(|| {
-        format!("could not read file `{}`", file_path.display())
-    })?;
+    let src = fs::read(file_path.as_path())
+        .with_context(|| format!("can not read `{}`", file_path.display()))?;
 
-    let src = SourceCode::from(src.as_str())
+    let src = SourceCode::from(src.as_slice())
         .origin(file_path.as_os_str().to_str().unwrap());
 
     file_path.set_extension("wasm");

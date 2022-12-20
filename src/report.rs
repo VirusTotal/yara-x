@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
@@ -67,6 +68,9 @@ impl ReportBuilder {
     /// Before calling [`ReportBuilder::create_report`] with some [`SourceCode`]
     /// the source code must be registered by calling this function. If
     /// [`SourceCode`] was already registered this is a no-op.
+    ///
+    /// This function allows code that is not valid UTF-8, in such cases it
+    /// replaces the invalid characters with the UTF-8 replacement character.
     pub(crate) fn register_source(&self, src: &SourceCode) -> &Self {
         let key = src.origin.as_deref().unwrap_or("line");
         {
@@ -74,7 +78,12 @@ impl ReportBuilder {
             // ariadne::Source::from(...) is an expensive operation, so it's
             // done only it the SourceCode is not already in the cache.
             if map.get(key).is_none() {
-                map.insert(key.to_string(), ariadne::Source::from(src.code));
+                let s = if let Some(s) = src.valid {
+                    Cow::Borrowed(s)
+                } else {
+                    String::from_utf8_lossy(src.raw.as_ref())
+                };
+                map.insert(key.to_string(), ariadne::Source::from(s));
             }
         }
         self

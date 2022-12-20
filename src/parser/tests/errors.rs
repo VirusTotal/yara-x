@@ -3,6 +3,30 @@ use pretty_assertions::assert_eq;
 use crate::parser::Parser;
 
 #[test]
+fn utf8_errors() {
+    let mut src =
+        "rule test {condition: true}".to_string().as_bytes().to_vec();
+
+    // Insert invalid UTF-8 in the code.
+    src.insert(4, 0xff);
+
+    assert_eq!(
+        Parser::new()
+            .build_ast(src.as_slice())
+            .expect_err("expected error")
+            .to_string(),
+        "error: invalid UTF-8
+   ╭─[line:1:5]
+   │
+ 1 │ rule� test {condition: true}
+   ·     ┬  
+   ·     ╰── invalid UTF-8 character
+───╯
+"
+    );
+}
+
+#[test]
 fn syntax_errors() {
     let tests = vec![
         ////////////////////////////////////////////////////////////

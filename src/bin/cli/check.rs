@@ -18,10 +18,10 @@ pub fn check_file(
         }
     }
 
-    let src = fs::read_to_string(path)
+    let src = fs::read(path)
         .with_context(|| format!("can not read `{}`", path.display()))?;
 
-    let src = SourceCode::from(src.as_str())
+    let src = SourceCode::from(src.as_slice())
         .origin(path.as_os_str().to_str().unwrap());
 
     match Parser::new().colorize_errors(true).build_ast(src) {

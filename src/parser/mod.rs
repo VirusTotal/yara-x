@@ -79,7 +79,8 @@ let ast = Parser::new().build_ast(rule).unwrap();
 
  */
 
-use crate::ast::AST;
+use crate::ast::{Span, AST};
+use bstr::{BStr, ByteSlice};
 use pest::Parser as PestParser;
 
 #[doc(inline)]
@@ -124,11 +125,15 @@ mod tests;
 ///
 #[derive(Debug, Clone)]
 pub struct SourceCode<'src> {
-    /// A reference to the source code itself in text form.
-    pub code: &'src str,
+    /// A reference to the source code itself. This is a BStr because the
+    /// source code could contain non-UTF8 content.
+    pub(crate) raw: &'src BStr,
+    /// A reference to the source code after validating that it is valid
+    /// UTF-8.
+    pub(crate) valid: Option<&'src str>,
     /// An optional string that tells which is the origin of the code. Usually
     /// a file path.
-    pub origin: Option<std::string::String>,
+    pub(crate) origin: Option<std::string::String>,
 }
 
 impl<'src> SourceCode<'src> {
@@ -138,14 +143,39 @@ impl<'src> SourceCode<'src> {
     /// but it can be an arbitrary string. The origin appears in error and
     /// warning messages.
     pub fn origin(self, origin: &str) -> Self {
-        Self { code: self.code, origin: Some(origin.to_owned()) }
+        Self {
+            raw: self.raw,
+            valid: self.valid,
+            origin: Some(origin.to_owned()),
+        }
+    }
+
+    /// Make sure that the source code is valid UTF-8. If that's the case
+    /// sets the `valid` field, if not, returns an error.
+    fn validate_utf8(&mut self) -> Result<(), bstr::Utf8Error> {
+        if self.valid.is_none() {
+            self.valid = Some(self.raw.to_str()?);
+        }
+        Ok(())
     }
 }
 
 impl<'src> From<&'src str> for SourceCode<'src> {
     /// Creates a new [`SourceCode`] from a `&str`.
     fn from(src: &'src str) -> Self {
-        Self { code: src, origin: None }
+        // Because the input is a &str we know that the code is valid UTF-8,
+        // so the `valid` field can be set to the provided reference.
+        Self { raw: BStr::new(src), valid: Some(src), origin: None }
+    }
+}
+
+impl<'src> From<&'src [u8]> for SourceCode<'src> {
+    /// Creates a new [`SourceCode`] from a `&str`.
+    fn from(src: &'src [u8]) -> Self {
+        // Because the input is a &[u8], the code can contain invalid UTF-8,
+        // so the `valid` field is set to `None`. The `validate_utf8` function
+        // must be used for validating the source code.
+        Self { raw: BStr::new(src), valid: None, origin: None }
     }
 }
 
@@ -207,18 +237,6 @@ impl<'a> Parser<'a> {
     where
         S: Into<SourceCode<'src>>,
     {
-        let src = src.into();
-
-        // Create the CST but ignore comments and whitespaces. They won't
-        // be visible while traversing the CST as we don't need them for
-        // building the AST.
-        let cst =
-            self.build_cst(src.clone())?.comments(false).whitespaces(false);
-
-        // The root of the CST must be the grammar rule `source_file`.
-        let root = cst.into_iter().next().unwrap();
-        assert_eq!(root.as_rule(), GrammarRule::source_file);
-
         // If self.report_builder is None, create my own.
         let owned_report_builder = if self.report_builder.is_none() {
             let mut r = ReportBuilder::new();
@@ -233,7 +251,40 @@ impl<'a> Parser<'a> {
         let report_builder =
             self.report_builder.or(owned_report_builder.as_ref()).unwrap();
 
+        let mut src = src.into();
+
+        // Make sure that source code is valid UTF-8.
+        let utf8_validation = src.validate_utf8();
+
+        // Register the source code with the report builder, even if the code
+        // is not valid UTF-8, so that we can build the report that tells
+        // about the invalid UTF-8.
         report_builder.register_source(&src);
+
+        // If the code is not valid UTF-8 fail with an error.
+        if let Err(err) = utf8_validation {
+            let span_start = err.valid_up_to();
+            let span_end = if let Some(len) = err.error_len() {
+                span_start + len
+            } else {
+                span_start
+            };
+            return Err(Error::new(ErrorInfo::invalid_utf_8(
+                report_builder,
+                &src,
+                Span { start: span_start, end: span_end },
+            )));
+        }
+
+        // Create the CST but ignore comments and whitespaces. They won't
+        // be visible while traversing the CST as we don't need them for
+        // building the AST.
+        let cst =
+            self.build_cst(src.clone())?.comments(false).whitespaces(false);
+
+        // The root of the CST must be the grammar rule `source_file`.
+        let root = cst.into_iter().next().unwrap();
+        assert_eq!(root.as_rule(), GrammarRule::source_file);
 
         let mut ctx = Context::new(src, report_builder);
 
@@ -295,14 +346,36 @@ impl<'a> Parser<'a> {
     where
         S: Into<SourceCode<'src>>,
     {
-        let src = src.into();
-        let mut error_builder = ReportBuilder::new();
+        let mut report_builder = ReportBuilder::new();
+        let mut src = src.into();
 
-        error_builder.with_colors(self.colorize_errors).register_source(&src);
+        // Make sure that source code is valid UTF-8.
+        let utf8_validation = src.validate_utf8();
 
-        let pairs = grammar::ParserImpl::parse(rule, src.code).map_err(
-            |pest_error| error_builder.convert_pest_error(&src, pest_error),
-        )?;
+        // Register the source code with the report builder, even if the code
+        // is not valid UTF-8, so that we can build the report that tells
+        // about the invalid UTF-8.
+        report_builder.with_colors(self.colorize_errors).register_source(&src);
+
+        // If the code is not valid UTF-8 fail with an error.
+        if let Err(err) = utf8_validation {
+            let span_start = err.valid_up_to();
+            let span_end = if let Some(len) = err.error_len() {
+                span_start + len
+            } else {
+                span_start
+            };
+            return Err(Error::new(ErrorInfo::invalid_utf_8(
+                &report_builder,
+                &src,
+                Span { start: span_start, end: span_end },
+            )));
+        }
+
+        let pairs = grammar::ParserImpl::parse(rule, src.valid.unwrap())
+            .map_err(|pest_error| {
+                report_builder.convert_pest_error(&src, pest_error)
+            })?;
 
         Ok(CST { comments: false, whitespaces: false, pairs: Box::new(pairs) })
     }

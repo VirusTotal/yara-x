@@ -205,6 +205,11 @@ pub enum ErrorInfo {
         iterable_span: Span,
         error_span: Span},
 
+    #[error("invalid UTF-8")]
+    #[label("invalid UTF-8 character", error_span)]
+    InvalidUTF8 {
+        detailed_report: String,
+        error_span: Span},
 }
 
 impl ErrorInfo {
@@ -253,6 +258,9 @@ impl ErrorInfo {
                 detailed_report.as_str()
             }
             Self::AssignmentMismatch { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidUTF8 { detailed_report, .. } => {
                 detailed_report.as_str()
             }
         }
