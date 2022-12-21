@@ -52,6 +52,7 @@ impl ModuleBuilder {
 
         global!(module, lookup_stack_top, I32);
         global!(module, filesize, I64);
+        global!(module, matching_patterns_bitmap_base, I64);
 
         import!(module, rule_match, [I32], []);
         import!(module, is_pat_match, [I32], [I32]);
@@ -104,16 +105,12 @@ impl ModuleBuilder {
         import!(module, map_lookup_integer_struct, [I64], maybe_undef());
         import!(module, map_lookup_string_struct, [I64, I64], maybe_undef());
 
-        let (main_memory, _) = module.add_import_memory(
-            "yr",
-            "main_memory",
-            false,
-            1, // initial size 64KB
-            None,
-        );
+        let (main_memory, _) =
+            module.add_import_memory("yr", "main_memory", false, 1, None);
 
         let wasm_symbols = WasmSymbols {
             main_memory,
+            matching_patterns_bitmap_base,
             rule_match,
             is_pat_match,
             is_pat_match_at,

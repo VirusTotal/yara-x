@@ -17,8 +17,31 @@ needs to invoke a function exported by a YARA module, etc.
 
 This module implements the logic for building these WebAssembly modules, and
 the functions exposed to them by YARA's WebAssembly runtime.
+
+# Memory layout
+
+The memory of these WebAssembly modules is organized as follows.
+
+   ┌──────────────────────────┐ 0
+   │ Loop variables           │
+   ├──────────────────────────┤ 1024
+   │ Field lookup indexes     │
+   ├──────────────────────────┤ 2048
+   │ Matching rules bitmap    │
+   │                          │
+   :                          :
+   │                          │
+   ├──────────────────────────┤ (number of rules / 8) + 1
+   │ Matching patterns bitmap │
+   │                          │
+   :                          :
+   │                          │
+   └──────────────────────────┘
+
  */
 
+use bitvec::order::Lsb0;
+use bitvec::slice::BitSlice;
 use std::borrow::{Borrow, BorrowMut};
 use std::stringify;
 
@@ -42,6 +65,11 @@ pub(crate) const LOOKUP_INDEXES_START: i32 = LOOP_VARS_END;
 /// Offset in module's main memory where the space for lookup indexes end.
 pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 
+/// Offset in module's main memory where resides the bitmap that tells if a
+/// rule matches or not. This bitmap contains one bit per rule, if the N-th
+/// bit is set, it indicates that the rule with RuleId = N matched.
+pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
+
 /// Table with functions and variables used by the WebAssembly module.
 ///
 /// The WebAssembly module generated for evaluating rule conditions needs to
@@ -58,6 +86,11 @@ pub(crate) struct WasmSymbols {
     pub main_memory: walrus::MemoryId,
 
     pub lookup_stack_top: walrus::GlobalId,
+
+    /// Global variable that contains the offset within the module's main
+    /// memory where resides the bitmap that indicates if a pattern matches
+    /// or not.
+    pub matching_patterns_bitmap_base: walrus::GlobalId,
 
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
@@ -448,11 +481,18 @@ pub(crate) fn rule_match(
     rule_id: RuleId,
 ) {
     let mut store_ctx = caller.as_context_mut();
-    let scan_ctx = store_ctx.data_mut();
+
+    let main_mem =
+        store_ctx.data_mut().main_memory.unwrap().data_mut(store_ctx);
+
+    let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+        &mut main_mem[MATCHING_RULES_BITMAP_BASE as usize..],
+    );
 
     // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
-    scan_ctx.rules_matching_bitmap.set(rule_id as usize, true);
-    scan_ctx.rules_matching.push(rule_id);
+    bits.set(rule_id as usize, true);
+
+    caller.as_context_mut().data_mut().rules_matching.push(rule_id);
 }
 
 /// Invoked from WebAssembly to ask whether a pattern matches or not.

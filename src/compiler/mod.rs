@@ -242,7 +242,7 @@ impl<'a> Compiler<'a> {
             ident_pool: self.ident_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
-            patterns: Vec::new(),
+            patterns: self.patterns,
             rules: self.rules,
         })
     }
@@ -541,6 +541,12 @@ impl CompiledRules {
         self.rules.as_slice()
     }
 
+    /// Returns an slice with the individual patterns that were compiled.
+    #[inline]
+    pub fn patterns(&self) -> &[Pattern] {
+        self.patterns.as_slice()
+    }
+
     /// An iterator that yields the name of the modules imported by the
     /// rules.
     pub fn imported_modules(&self) -> ImportedModules {
@@ -590,4 +596,4 @@ pub struct CompiledRule {
 }
 
 /// A pattern in the compiled rules.
-struct Pattern {}
+pub struct Pattern {}

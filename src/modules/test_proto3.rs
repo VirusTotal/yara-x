@@ -1,7 +1,6 @@
 use crate::modules::protos::test_proto3::NestedProto3;
 use crate::modules::protos::test_proto3::TestProto3;
 
-use crate::modules::test_proto3;
 use crate::scanner::ScanContext;
 use yara_macros::module_main;
 

@@ -7,7 +7,6 @@ use crate::string_pool::BStringPool;
 use crate::types::{RuntimeStruct, RuntimeValue};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
-use bitvec::vec::BitVec;
 use memmap::MmapOptions;
 
 use std::fs::File;
@@ -42,16 +41,14 @@ impl<'r> Scanner<'r> {
                 scanned_data: null(),
                 scanned_data_len: 0,
                 rules_matching: Vec::new(),
-                rules_matching_bitmap: BitVec::repeat(
-                    false,
-                    compiled_rules.rules().len(),
-                ),
                 main_memory: None,
                 lookup_stack_top: None,
             },
         );
 
-        // Global variable that will hold the value for `filesize``
+        // Global variable that will hold the value for `filesize`. This is
+        // initialized to 0 because the file size is not known until some
+        // data is scanned.
         let filesize = Global::new(
             &mut wasm_store,
             GlobalType::new(ValType::I64, Mutability::Var),
@@ -66,15 +63,46 @@ impl<'r> Scanner<'r> {
         )
         .unwrap();
 
-        let main_memory =
-            wasmtime::Memory::new(&mut wasm_store, MemoryType::new(1, None))
-                .unwrap();
+        let num_rules = compiled_rules.rules().len() as u32;
+        let num_patterns = compiled_rules.patterns().len() as u32;
+
+        // Compute the base offset for the bitmap that contains matching
+        // information for patterns. This bitmap has 1 bit per pattern,
+        // the N-th bit is set if pattern with PatternId = N matched. The
+        // bitmap starts right after the bitmap that contains matching
+        // information for rules.
+        let matching_patterns_bitmap_base =
+            wasm::MATCHING_RULES_BITMAP_BASE as u32 + num_rules / 8 + 1;
+
+        // Compute the required memory size in 64KB pages.
+        let mem_size =
+            matching_patterns_bitmap_base + num_patterns / 8 % 65536 + 1;
+
+        let matching_patterns_bitmap_base = Global::new(
+            &mut wasm_store,
+            GlobalType::new(ValType::I64, Mutability::Var),
+            Val::I64(matching_patterns_bitmap_base as i64),
+        )
+        .unwrap();
+
+        // Create module's main memory.
+        let main_memory = wasmtime::Memory::new(
+            &mut wasm_store,
+            MemoryType::new(mem_size, None),
+        )
+        .unwrap();
 
         // Instantiate the module. This takes the wasm code provided by the
         // `compiled_wasm_mod` function and links its imported functions with
         // the implementations that YARA provides (see wasm.rs).
         let wasm_instance = wasm::new_linker()
             .define("yr", "filesize", filesize)
+            .unwrap()
+            .define(
+                "yr",
+                "matching_patterns_bitmap_base",
+                matching_patterns_bitmap_base,
+            )
             .unwrap()
             .define("yr", "lookup_stack_top", lookup_stack_top)
             .unwrap()
@@ -106,14 +134,33 @@ impl<'r> Scanner<'r> {
 
     /// Scans a data buffer.
     pub fn scan<'s>(&'s mut self, data: &[u8]) -> ScanResults<'s, 'r> {
+        // Get the number of rules.
+        let num_rules = self.wasm_store.data().compiled_rules.rules().len();
+
         // Set the global variable `filesize` to the size of the scanned data.
         self.filesize
             .set(&mut self.wasm_store, Val::I64(data.len() as i64))
             .unwrap();
 
+        let main_memory = self
+            .wasm_store
+            .data_mut()
+            .main_memory
+            .unwrap()
+            .data_mut(&mut self.wasm_store);
+
+        // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
+        // were the N-th bit indicates if the rule with ID = N matched or not.
+        let offset = wasm::MATCHING_RULES_BITMAP_BASE as usize;
+        let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
+            &mut main_memory[offset..offset + num_rules / 8 + 1],
+        );
+
+        // Set to zero all bits in the bitmap.
+        bitmap.fill(false);
+
         let ctx = self.wasm_store.data_mut();
 
-        ctx.rules_matching_bitmap.fill(false);
         ctx.rules_matching.clear();
         ctx.scanned_data = data.as_ptr();
         ctx.scanned_data_len = data.len();
@@ -189,42 +236,45 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = null();
         ctx.scanned_data_len = 0;
 
-        ScanResults::new(self.wasm_store.data())
+        ScanResults::new(self)
     }
 }
 
 /// Results of a scan operation.
 pub struct ScanResults<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
+    scanner: &'s Scanner<'r>,
 }
 
 impl<'s, 'r> ScanResults<'s, 'r> {
-    fn new(ctx: &'s ScanContext<'r>) -> Self {
-        Self { ctx }
+    fn new(scanner: &'s Scanner<'r>) -> Self {
+        Self { scanner }
     }
 
     /// Returns the number of rules that matched.
     pub fn matching_rules(&self) -> usize {
-        self.ctx.rules_matching.len()
+        self.scanner.wasm_store.data().rules_matching.len()
     }
 
     pub fn iter(&self) -> IterMatches<'s, 'r> {
-        IterMatches::new(self.ctx)
+        IterMatches::new(self.scanner)
     }
 
     pub fn iter_non_matches(&self) -> IterNonMatches<'s, 'r> {
-        IterNonMatches::new(self.ctx)
+        IterNonMatches::new(self.scanner)
     }
 }
 
 pub struct IterMatches<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
+    rules: &'r [CompiledRule],
     iterator: Iter<'s, RuleId>,
 }
 
 impl<'s, 'r> IterMatches<'s, 'r> {
-    fn new(ctx: &'s ScanContext<'r>) -> Self {
-        Self { ctx, iterator: ctx.rules_matching.iter() }
+    fn new(scanner: &'s Scanner<'r>) -> Self {
+        Self {
+            iterator: scanner.wasm_store.data().rules_matching.iter(),
+            rules: scanner.wasm_store.data().compiled_rules.rules(),
+        }
     }
 }
 
@@ -233,18 +283,30 @@ impl<'s, 'r> Iterator for IterMatches<'s, 'r> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let rule_id = *self.iterator.next()?;
-        Some(&self.ctx.compiled_rules.rules()[rule_id as usize])
+        Some(&self.rules[rule_id as usize])
     }
 }
 
 pub struct IterNonMatches<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
-    iterator: bitvec::slice::IterZeros<'s, usize, Lsb0>,
+    rules: &'r [CompiledRule],
+    iterator: bitvec::slice::IterZeros<'s, u8, Lsb0>,
 }
 
 impl<'s, 'r> IterNonMatches<'s, 'r> {
-    fn new(ctx: &'s ScanContext<'r>) -> Self {
-        Self { ctx, iterator: ctx.rules_matching_bitmap.iter_zeros() }
+    fn new(scanner: &'s Scanner<'r>) -> Self {
+        let main_memory = scanner
+            .wasm_store
+            .data()
+            .main_memory
+            .unwrap()
+            .data(&scanner.wasm_store);
+
+        let bits = BitSlice::<_, Lsb0>::from_slice(&main_memory[2048..]);
+
+        Self {
+            iterator: bits.iter_zeros(),
+            rules: scanner.wasm_store.data().compiled_rules.rules(),
+        }
     }
 }
 
@@ -253,7 +315,7 @@ impl<'s, 'r> Iterator for IterNonMatches<'s, 'r> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let rule_id = self.iterator.next()?;
-        Some(&self.ctx.compiled_rules.rules()[rule_id])
+        Some(&self.rules[rule_id])
     }
 }
 
@@ -261,11 +323,6 @@ pub(crate) type RuntimeStringId = u32;
 
 /// Structure that holds information a about the current scan.
 pub(crate) struct ScanContext<'r> {
-    /// Vector of bits where bit N is set to 1 if the rule with RuleId = N
-    /// matched. This is used for determining whether a rule has matched
-    /// or not without having to iterate the `rules_matching` vector, and
-    /// also for iterating over the non-matching rules in an efficient way.
-    pub(crate) rules_matching_bitmap: BitVec,
     /// Vector containing the IDs of the rules that matched.
     pub(crate) rules_matching: Vec<RuleId>,
     /// Data being scanned.
