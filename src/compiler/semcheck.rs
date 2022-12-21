@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::types::{RuntimeArray, RuntimeMap, RuntimeValue};
 use crate::warnings::Warning;
 
 macro_rules! semcheck {
@@ -28,7 +29,6 @@ macro_rules! semcheck {
     };
 }
 
-use crate::types::{RuntimeArray, RuntimeMap, RuntimeValue};
 pub(crate) use semcheck;
 
 macro_rules! semcheck_operands {
@@ -364,6 +364,8 @@ pub(super) fn semcheck_expr(
 
         Expr::Literal(lit) => Ok(lit.ty),
 
+        Expr::Ident(ident) => semcheck_ident(ctx, ident),
+
         Expr::PatternCount(p) => {
             if let Some(ref mut range) = p.range {
                 semcheck_range(ctx, range)?;
@@ -455,49 +457,6 @@ pub(super) fn semcheck_expr(
         Expr::EndsWith(expr) => semcheck_string_endswith(ctx, expr, false),
         Expr::IEndsWith(expr) => semcheck_string_endswith(ctx, expr, true),
         Expr::IEquals(expr) => semcheck_string_equals(ctx, expr, true),
-
-        Expr::Ident(ident) => {
-            let (ty, value): (Type, Value) = {
-                let current_struct = ctx.current_struct.take();
-
-                let symbol = if let Some(structure) = &current_struct {
-                    structure.lookup(ident.name)
-                } else {
-                    ctx.symbol_table.lookup(ident.name)
-                };
-
-                if let Some(symbol) = symbol {
-                    match symbol.value() {
-                        RuntimeValue::Struct(s) => {
-                            ctx.current_struct = Some(s.clone());
-                            (Type::Struct, Value::Unknown)
-                        }
-                        RuntimeValue::Array(a) => {
-                            ctx.current_array = Some(a.clone());
-                            (Type::Array, Value::Unknown)
-                        }
-                        RuntimeValue::Map(m) => {
-                            ctx.current_map = Some(m.clone());
-                            (Type::Map, Value::Unknown)
-                        }
-                        value => (symbol.ty(), Value::from(value)),
-                    }
-                } else {
-                    return Err(Error::CompileError(
-                        CompileError::unknown_identifier(
-                            ctx.report_builder,
-                            ctx.src,
-                            ident.name.to_string(),
-                            ident.span(),
-                        ),
-                    ));
-                }
-            };
-
-            ident.set_type_and_value(ty, value);
-
-            Ok(ty)
-        }
 
         Expr::Lookup(expr) => {
             match semcheck_expr(ctx, &mut expr.primary)? {
@@ -595,43 +554,11 @@ pub(super) fn semcheck_expr(
 
         Expr::Of(of) => semcheck_of(ctx, of),
 
+        Expr::ForIn(for_in) => semcheck_for_in(ctx, for_in),
+
         Expr::ForOf(for_of) => {
             semcheck_quantifier(ctx, &mut for_of.quantifier)?;
             semcheck!(ctx, Type::Bool, &mut for_of.condition)?;
-            Ok(Type::Bool)
-        }
-
-        Expr::ForIn(for_in) => {
-            semcheck_quantifier(ctx, &mut for_in.quantifier)?;
-            let ty = semcheck_iterable(ctx, &mut for_in.iterable)?;
-
-            match &for_in.iterable {
-                Iterable::Ident(_) => {
-                    // TODO: check that identifier is of the correct type and the
-                    // number of variables is the correct one.
-                }
-                _ => {}
-            }
-
-            let mut loop_vars = SymbolTable::new();
-
-            // TODO: raise warning when the loop identifier (e.g: "i") hides
-            // an existing identifier with the same name.
-            for var in &for_in.variables {
-                loop_vars.insert(
-                    var.as_str(),
-                    Symbol::new(ty, RuntimeValue::from(ty)),
-                );
-            }
-
-            // Put the loop variables into scope.
-            ctx.symbol_table.push(Rc::new(loop_vars));
-
-            semcheck!(ctx, Type::Bool, &mut for_in.condition)?;
-
-            // Leaving the condition's scope. Remove loop variables.
-            ctx.symbol_table.pop();
-
             Ok(Type::Bool)
         }
     }
@@ -780,6 +707,104 @@ fn semcheck_of(ctx: &mut Context, of: &mut Of) -> Result<Type, Error> {
     Ok(Type::Bool)
 }
 
+fn semcheck_ident(
+    ctx: &mut Context,
+    ident: &mut Ident,
+) -> Result<Type, Error> {
+    let (ty, value): (Type, Value) = {
+        let current_struct = ctx.current_struct.take();
+
+        let symbol = if let Some(structure) = &current_struct {
+            structure.lookup(ident.name)
+        } else {
+            ctx.symbol_table.lookup(ident.name)
+        };
+
+        if let Some(symbol) = symbol {
+            match symbol.value() {
+                RuntimeValue::Struct(s) => {
+                    ctx.current_struct = Some(s.clone());
+                    (Type::Struct, Value::Unknown)
+                }
+                RuntimeValue::Array(a) => {
+                    ctx.current_array = Some(a.clone());
+                    (Type::Array, Value::Unknown)
+                }
+                RuntimeValue::Map(m) => {
+                    ctx.current_map = Some(m.clone());
+                    (Type::Map, Value::Unknown)
+                }
+                value => (symbol.ty(), Value::from(value)),
+            }
+        } else {
+            return Err(Error::CompileError(
+                CompileError::unknown_identifier(
+                    ctx.report_builder,
+                    ctx.src,
+                    ident.name.to_string(),
+                    ident.span(),
+                ),
+            ));
+        }
+    };
+
+    ident.set_type_and_value(ty, value);
+
+    Ok(ty)
+}
+
+fn semcheck_for_in(
+    ctx: &mut Context,
+    for_in: &mut ForIn,
+) -> Result<Type, Error> {
+    semcheck_quantifier(ctx, &mut for_in.quantifier)?;
+    let ty = semcheck_iterable(ctx, &mut for_in.iterable)?;
+
+    let expected_vars = match &for_in.iterable {
+        Iterable::Range(_) => 1,
+        Iterable::ExprTuple(_) => 1,
+        Iterable::Expr(expr) => match expr.ty() {
+            Type::Array => 1,
+            Type::Map => 2,
+            _ => unreachable!(),
+        },
+    };
+
+    let variables = &for_in.variables;
+
+    if variables.len() != expected_vars {
+        let span = variables.first().unwrap().span();
+        let span = span.combine(&variables.last().unwrap().span());
+        return Err(Error::CompileError(CompileError::assignment_mismatch(
+            ctx.report_builder,
+            ctx.src,
+            variables.len() as u8,
+            expected_vars as u8,
+            for_in.iterable.span(),
+            span,
+        )));
+    }
+
+    let mut loop_vars = SymbolTable::new();
+
+    // TODO: raise warning when the loop identifier (e.g: "i") hides
+    // an existing identifier with the same name.
+    for var in &for_in.variables {
+        loop_vars
+            .insert(var.as_str(), Symbol::new(ty, RuntimeValue::from(ty)));
+    }
+
+    // Put the loop variables into scope.
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    semcheck!(ctx, Type::Bool, &mut for_in.condition)?;
+
+    // Leaving the condition's scope. Remove loop variables.
+    ctx.symbol_table.pop();
+
+    Ok(Type::Bool)
+}
+
 fn semcheck_iterable(
     ctx: &mut Context,
     iterable: &mut Iterable,
@@ -821,8 +846,18 @@ fn semcheck_iterable(
             let (ty, _) = prev.unwrap();
             Ok(ty)
         }
-        Iterable::Ident(_) => {
-            todo!()
+        Iterable::Expr(expr) => {
+            let ty = semcheck_expr(ctx, expr)?;
+            match ty {
+                Type::Array | Type::Map => Ok(ty),
+                _ => Err(Error::CompileError(CompileError::wrong_type(
+                    ctx.report_builder,
+                    ctx.src,
+                    "`iterable`".to_string(),
+                    expr.ty().to_string(),
+                    expr.span(),
+                ))),
+            }
         }
     }
 }

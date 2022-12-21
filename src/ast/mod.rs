@@ -479,7 +479,7 @@ pub struct In<'src> {
 /// An identifier (e.g. `some_ident`).
 #[derive(Debug, Clone, HasSpan)]
 pub struct Ident<'src> {
-    pub(crate) type_value: TypeValue,
+    type_value: TypeValue,
     pub(crate) span: Span,
     pub name: &'src str,
 }
@@ -582,8 +582,8 @@ pub struct Literal<'src> {
 /// An expression with a single operand.
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
+    type_value: TypeValue,
     pub(crate) span: Span,
-    pub(crate) type_value: TypeValue,
     pub operand: Expr<'src>,
 }
 
@@ -625,7 +625,7 @@ impl<'src> UnaryExpr<'src> {
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
-    pub(crate) type_value: TypeValue,
+    type_value: TypeValue,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
@@ -678,7 +678,7 @@ pub struct FnCall<'src> {
 /// A lookup operation in an array or dictionary.
 #[derive(Debug, HasSpan)]
 pub struct Lookup<'src> {
-    pub(crate) type_value: TypeValue,
+    type_value: TypeValue,
     pub(crate) span: Span,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
@@ -780,11 +780,11 @@ pub enum Quantifier<'src> {
 }
 
 /// Possible iterable expressions that can use in a [`ForIn`].
-#[derive(Debug)]
+#[derive(Debug, HasSpan)]
 pub enum Iterable<'src> {
     Range(Range<'src>),
     ExprTuple(Vec<Expr<'src>>),
-    Ident(Box<Ident<'src>>),
+    Expr(Expr<'src>),
 }
 
 /// Either a set of pattern identifiers (possibly with wildcards), or the

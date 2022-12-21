@@ -1420,49 +1420,7 @@ fn for_expr_from_cst<'src>(
             }
         }
         // The iterator must follow after the identifiers.
-        let it = iterator_from_cst(ctx, children.next().unwrap())?;
-
-        // Verify that the items returned by the iterator matches the number of
-        // defined variables.
-        match it {
-            Iterable::Range(ref range) => {
-                if variables.len() > 1 {
-                    let span = variables.first().unwrap().span();
-                    let span = span.combine(&variables.last().unwrap().span());
-                    return Err(Error::new(ErrorInfo::assignment_mismatch(
-                        ctx.report_builder,
-                        &ctx.src,
-                        variables.len() as u8,
-                        1,
-                        range.span(),
-                        span,
-                    )));
-                }
-            }
-            Iterable::ExprTuple(ref tuple) => {
-                if variables.len() > 1 {
-                    let variables_span = variables.first().unwrap().span();
-                    let variables_span = variables_span
-                        .combine(&variables.last().unwrap().span());
-
-                    let tuple_span = tuple.first().unwrap().span();
-                    let tuple_span =
-                        tuple_span.combine(&tuple.last().unwrap().span());
-
-                    return Err(Error::new(ErrorInfo::assignment_mismatch(
-                        ctx.report_builder,
-                        &ctx.src,
-                        variables.len() as u8,
-                        1,
-                        tuple_span,
-                        variables_span,
-                    )));
-                }
-            }
-            _ => {}
-        };
-
-        iterator = Some(it);
+        iterator = Some(iterator_from_cst(ctx, children.next().unwrap())?);
     }
 
     expect!(children.next().unwrap(), GrammarRule::COLON);
@@ -1694,13 +1652,10 @@ fn iterator_from_cst<'src>(
     let node = children.next().unwrap();
     let expr = match node.as_rule() {
         GrammarRule::range => Iterable::Range(range_from_cst(ctx, node)?),
+        GrammarRule::expr => Iterable::Expr(expr_from_cst(ctx, node)?),
         GrammarRule::expr_tuple => {
             Iterable::ExprTuple(expr_tuple_from_cst(ctx, node)?)
         }
-        GrammarRule::ident => Iterable::Ident(Box::new(Ident::new(
-            node.as_str(),
-            node.as_span().into(),
-        ))),
         rule => unreachable!("{:?}", rule),
     };
     Ok(expr)

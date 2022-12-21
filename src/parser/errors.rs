@@ -194,17 +194,7 @@ pub enum ErrorInfo {
         detailed_report: String,
         error_span: Span,
     },
-
-    #[error("assignment mismatch")]
-    #[label("this expects {expected_values} value(s)", error_span)]
-    #[label("this produces {actual_values} value(s)", iterable_span)]
-    AssignmentMismatch {
-        detailed_report: String,
-        expected_values: u8,
-        actual_values: u8,
-        iterable_span: Span,
-        error_span: Span},
-
+    
     #[error("invalid UTF-8")]
     #[label("invalid UTF-8 character", error_span)]
     InvalidUTF8 {
@@ -255,9 +245,6 @@ impl ErrorInfo {
                 detailed_report.as_str()
             }
             Self::UnexpectedEscapeSequence { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::AssignmentMismatch { detailed_report, .. } => {
                 detailed_report.as_str()
             }
             Self::InvalidUTF8 { detailed_report, .. } => {

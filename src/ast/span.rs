@@ -1,4 +1,4 @@
-use crate::ast::BinaryExpr;
+use crate::ast::{BinaryExpr, Expr};
 
 pub trait HasSpan {
     /// Returns the starting and ending position of some AST node within the source code.
@@ -36,5 +36,12 @@ impl From<pest::Span<'_>> for Span {
 impl<'src> HasSpan for BinaryExpr<'src> {
     fn span(&self) -> Span {
         self.lhs.span().combine(&self.rhs.span())
+    }
+}
+
+impl<'src> HasSpan for &Vec<Expr<'src>> {
+    fn span(&self) -> Span {
+        let span = self.first().unwrap().span();
+        span.combine(&self.last().unwrap().span())
     }
 }

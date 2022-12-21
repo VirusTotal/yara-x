@@ -459,7 +459,7 @@ for_expr = {
 }
 
 iterable = {
-  range | expr_tuple |  ident ~ (DOT ~ ident)*
+  range | expr_tuple |  expr
 }
 
 quantifier = {

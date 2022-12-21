@@ -405,6 +405,110 @@ rule test {
             r#"
 rule test {
   condition:
+    for all x,y in (0..10) : ( true )
+}
+        "#,
+            r#"error: assignment mismatch
+   ╭─[line:4:13]
+   │
+ 4 │     for all x,y in (0..10) : ( true )
+   ·             ─┬─    ───┬───  
+   ·              ╰────────────── this expects 2 value(s)
+   ·                       │     
+   ·                       ╰───── this produces 1 value(s)
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for all x,y in (1, 2, 3) : ( true )
+}
+"#,
+            r#"error: assignment mismatch
+   ╭─[line:4:13]
+   │
+ 4 │     for all x,y in (1, 2, 3) : ( true )
+   ·             ─┬─     ───┬───  
+   ·              ╰─────────────── this expects 2 value(s)
+   ·                        │     
+   ·                        ╰───── this produces 1 value(s)
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
+    for all x,y in test_proto2.array_int64 : ( true )
+}
+"#,
+            r#"error: assignment mismatch
+   ╭─[line:5:13]
+   │
+ 5 │     for all x,y in test_proto2.array_int64 : ( true )
+   ·             ─┬─    ───────────┬───────────  
+   ·              ╰────────────────────────────── this expects 2 value(s)
+   ·                               │             
+   ·                               ╰───────────── this produces 1 value(s)
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
+    for all x in test_proto2.map_string_int64 : ( true )
+}
+"#,
+            r#"error: assignment mismatch
+   ╭─[line:5:13]
+   │
+ 5 │     for all x in test_proto2.map_string_int64 : ( true )
+   ·             ┬    ──────────────┬─────────────  
+   ·             ╰────────────────────────────────── this expects 1 value(s)
+   ·                                │               
+   ·                                ╰─────────────── this produces 2 value(s)
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
+    for all x in test_proto2.int64_zero : ( true )
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:5:18]
+   │
+ 5 │     for all x in test_proto2.int64_zero : ( true )
+   ·                  ───────────┬──────────  
+   ·                             ╰──────────── expression should be `iterable`, but is `integer`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
     for any n in (1, 2, 3) : (
       x == "3"
     )

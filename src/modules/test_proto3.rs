@@ -4,11 +4,6 @@ use crate::modules::protos::test_proto3::TestProto3;
 use crate::scanner::ScanContext;
 use yara_macros::module_main;
 
-//#[member_of(Submessage)]
-pub(crate) fn sum(a: i64, b: i64) -> i64 {
-    a + b
-}
-
 #[module_main]
 fn main(_ctx: &ScanContext) -> TestProto3 {
     let mut test = TestProto3::new();

@@ -46,6 +46,17 @@ pub enum CompileError {
         type2_span: Span,
     },
 
+    #[error("assignment mismatch")]
+    #[label("this expects {expected_values} value(s)", error_span)]
+    #[label("this produces {actual_values} value(s)", iterable_span)]
+    AssignmentMismatch {
+        detailed_report: String,
+        expected_values: u8,
+        actual_values: u8,
+        iterable_span: Span,
+        error_span: Span,
+    },
+
     #[error("unexpected negative number")]
     #[label("this number can not be negative", span)]
     UnexpectedNegativeNumber { detailed_report: String, span: Span },

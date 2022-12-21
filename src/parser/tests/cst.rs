@@ -850,7 +850,10 @@ rule test : foo bar baz {
  ├─ ident "x"
  ├─ k_IN "in"
  ├─ iterable
- │  └─ ident "iter"
+ │  └─ expr
+ │     └─ term
+ │        └─ primary_expr
+ │           └─ ident "iter"
  ├─ COLON ":"
  ├─ LPAREN "("
  ├─ boolean_expr
@@ -874,7 +877,10 @@ rule test : foo bar baz {
  ├─ ident "v"
  ├─ k_IN "in"
  ├─ iterable
- │  └─ ident "iter"
+ │  └─ expr
+ │     └─ term
+ │        └─ primary_expr
+ │           └─ ident "iter"
  ├─ COLON ":"
  ├─ LPAREN "("
  ├─ boolean_expr

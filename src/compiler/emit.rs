@@ -683,8 +683,12 @@ pub(super) fn emit_expr(
             Iterable::Range(range) => {
                 emit_for_in_range(ctx, instr, for_in, range);
             }
-            Iterable::ExprTuple(_) => {}
-            Iterable::Ident(_) => {}
+            Iterable::ExprTuple(_) => {
+                // TODO
+            }
+            Iterable::Expr(_) => {
+                // TODO
+            }
         },
     }
 }

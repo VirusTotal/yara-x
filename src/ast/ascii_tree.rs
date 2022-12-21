@@ -408,12 +408,12 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
 
                     format!("for <quantifier> <vars> in ({comma_sep_labels}) : ( <condition> )")
                 }
-                Iterable::Ident(ident) => {
+                Iterable::Expr(expr) => {
                     children.push(Node(
-                        "<identifier>".to_string(),
-                        vec![Leaf(vec![ident.name.to_string()])],
+                        "<expr>".to_string(),
+                        vec![expr_ascii_tree(expr)],
                     ));
-                    "for <quantifier> <vars> in <identifier> : ( <condition> )"
+                    "for <quantifier> <vars> in <expr> : ( <condition> )"
                         .to_string()
                 }
             };
