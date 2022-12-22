@@ -13,6 +13,7 @@ mod report;
 mod string_pool;
 mod symbols;
 mod types;
+mod types2;
 mod warnings;
 mod wasm;
 
