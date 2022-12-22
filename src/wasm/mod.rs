@@ -1,42 +1,63 @@
-/*! WebAssembly runtime
+/*! WASM runtime
 
 During the compilation process the condition associated to each YARA rule is
-translated into WebAssembly code. This code is later compiled to native code
-and executed by [wasmtime](https://wasmtime.dev/), a WebAssembly runtime
-embedded in YARA.
+translated into WebAssembly (WASM) code. This code is later converted to native
+code and executed by [wasmtime](https://wasmtime.dev/), a WASM runtime embedded
+in YARA.
 
-For each instance of [`CompiledRules`] the compiler creates a WebAssembly
-module. This module exports a function called `main`, which contains the code
-that evaluates the conditions of all the compiled rules. The `main` function
-is invoked at scan time, and for each matching rule the WebAssembly module
-calls YARA back (via the `rule_match` function) and reports the match.
+For each instance of [`CompiledRules`] the compiler creates a WASM module.
+This WASM module works in close collaboration with YARA's Rust code for
+evaluating the rule's conditions. For example, the WASM module exports a
+function called `main`, which contains the code that evaluates the conditions
+of all the compiled rules. This WASM function is called by YARA at scan time,
+and the WASM code calls back the Rust [`rule_match`] function for notifying
+YARA about matching rules. The WASM module calls Rust functions in many other
+cases, for example when it needs to call YARA built-in functions like
+`uint8(...)`.
 
-The WebAssembly module also calls YARA in many other cases, for example
-when it needs to invoke YARA built-in functions like `uint8(...)`, when it
-needs to invoke a function exported by a YARA module, etc.
-
-This module implements the logic for building these WebAssembly modules, and
-the functions exposed to them by YARA's WebAssembly runtime.
+WASM and Rust code also share information via WASM global variables and by
+sharing memory. For example, the value for YARA's `filesize` keyword is
+stored in a WASM global variable that is initialized by Rust code, and read
+by WASM code when `filesize` is used in the condition.
 
 # Memory layout
 
 The memory of these WebAssembly modules is organized as follows.
 
-   ┌──────────────────────────┐ 0
-   │ Loop variables           │
-   ├──────────────────────────┤ 1024
-   │ Field lookup indexes     │
-   ├──────────────────────────┤ 2048
-   │ Matching rules bitmap    │
-   │                          │
-   :                          :
-   │                          │
-   ├──────────────────────────┤ (number of rules / 8) + 1
-   │ Matching patterns bitmap │
-   │                          │
-   :                          :
-   │                          │
-   └──────────────────────────┘
+```text
+  ┌──────────────────────────┐ 0
+  │ Loop variables           │
+  ├──────────────────────────┤ 1024
+  │ Field lookup indexes     │
+  ├──────────────────────────┤ 2048
+  │ Matching rules bitmap    │
+  │                          │
+  :                          :
+  │                          │
+  ├──────────────────────────┤ (number of rules / 8) + 1
+  │ Matching patterns bitmap │
+  │                          │
+  :                          :
+  │                          │
+  └──────────────────────────┘
+```
+
+# Field lookup
+
+While evaluating rule condition's, the WASM code needs to obtain from YARA the
+values stored in structures, maps and arrays. In order to minimize the number
+of calls from WASM to Rust, these field lookups are performed in bulk. For
+example, suppose that a YARA module named `some_module` exports a structure
+named `some_struct` that has an integer field named `some_int`. For accessing,
+that field in a YARA rule you would write `some_module.some_struct.some_int`.
+The WASM code for obtaining the value of `some_int` consists in a single call
+to the [`lookup_integer`] function. This functions receives a series of field
+indexes: the index of `some_module` within the global structure, the index
+of `some_struct` within `some_module`, and finally the index of `some_int`,
+within `some_struct`. These indexes are stored starting at offset 1024 in
+the WASM module's main memory (see "Memory layout") before calling
+[`lookup_integer`], while the global variable `lookup_stack_top` says how
+many indexes to lookup.
 
  */
 
@@ -111,11 +132,8 @@ pub(crate) struct WasmSymbols {
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
     pub is_pat_match_in: walrus::FunctionId,
 
-    /// Functions that given an `IdentId`, search for the identifier in the
-    /// current symbol table and return its value. In the case of structs,
-    /// arrays and maps the value is not returned, but is stored in
-    /// ScanContext::current_struct, ScanContext::current_array and
-    /// ScanContext::current_map, respectively.
+    /// Functions that given a sequence of field indexes, lookup the fields
+    /// and return their values.
     pub lookup_integer: walrus::FunctionId,
     pub lookup_float: walrus::FunctionId,
     pub lookup_bool: walrus::FunctionId,

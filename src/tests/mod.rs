@@ -316,6 +316,9 @@ fn test_proto2_module() {
         r#"test_proto2.map_int64_struct[100].nested_int64_one == 1"#
     );
 
+    //condition_true!(r#"for any i in test_proto2.array_int64 : (i == 10)"#);
+    //condition_true!(r#"for any s in test_proto2.array_struct : (s == 10)"#);
+
     // This field is named `bool_proto` in the protobuf definition, but it's
     // name for YARA wsa changed to `bool_yara`, with:
     //

@@ -849,7 +849,13 @@ fn semcheck_iterable(
         Iterable::Expr(expr) => {
             let ty = semcheck_expr(ctx, expr)?;
             match ty {
-                Type::Array | Type::Map => Ok(ty),
+                Type::Array => {
+                    Ok(ctx.current_array.take().unwrap().item_type())
+                }
+                Type::Map => {
+                    // todo
+                    Ok(Type::Unknown)
+                }
                 _ => Err(Error::CompileError(CompileError::wrong_type(
                     ctx.report_builder,
                     ctx.src,
