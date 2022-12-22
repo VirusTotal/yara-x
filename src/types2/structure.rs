@@ -12,7 +12,7 @@ use yara_proto::exts::field_options as yara_field_options;
 use yara_proto::exts::module_options as yara_module_options;
 
 use crate::symbols::{Symbol, SymbolLookup};
-use crate::types2::{Array, Map, Type, Value};
+use crate::types2::{Array, Map, Type, TypeValue};
 
 pub struct StructField {
     // Field name.
@@ -23,20 +23,20 @@ pub struct StructField {
     // Index that occupies the field in the structure it belongs to.
     pub index: i32,
     // Field type and value.
-    pub value: Value,
+    pub value: TypeValue,
 }
 
 impl StructField {
     fn ty(&self) -> Type {
         match self.value {
-            Value::Unknown => Type::Unknown,
-            Value::Integer(_) => Type::Integer,
-            Value::Float(_) => Type::Float,
-            Value::Bool(_) => Type::Bool,
-            Value::String(_) => Type::String,
-            Value::Struct(_) => Type::Struct,
-            Value::Array(_) => Type::Array,
-            Value::Map(_) => Type::Map,
+            TypeValue::Unknown => Type::Unknown,
+            TypeValue::Integer(_) => Type::Integer,
+            TypeValue::Float(_) => Type::Float,
+            TypeValue::Bool(_) => Type::Bool,
+            TypeValue::String(_) => Type::String,
+            TypeValue::Struct(_) => Type::Struct,
+            TypeValue::Array(_) => Type::Array,
+            TypeValue::Map(_) => Type::Map,
         }
     }
 }
@@ -82,7 +82,7 @@ impl Struct {
         Self { fields: Vec::new(), field_index: FxHashMap::default() }
     }
 
-    pub fn insert(&mut self, name: &str, value: Value) -> &mut Self {
+    pub fn insert(&mut self, name: &str, value: TypeValue) -> &mut Self {
         let index = self.fields.len();
         self.fields.push(StructField {
             value,
@@ -260,13 +260,13 @@ impl Struct {
                 for item in enum_.values() {
                     enum_struct.insert(
                         item.name(),
-                        Value::Integer(Some(item.value() as i64)),
+                        TypeValue::Integer(Some(item.value() as i64)),
                     );
                 }
 
                 fields.push(StructField {
                     index: fields.len() as i32,
-                    value: Value::Struct(Rc::new(enum_struct)),
+                    value: TypeValue::Struct(Rc::new(enum_struct)),
                     number: 0,
                     name: enum_.name().to_owned(),
                 })
@@ -354,28 +354,36 @@ impl Struct {
         ty: &RuntimeType,
         value: Option<ReflectValueRef>,
         enum_as_fields: bool,
-    ) -> Value {
+    ) -> TypeValue {
         match ty {
-            RuntimeType::I32 => Value::Integer(value.map(Self::value_as_i64)),
-            RuntimeType::I64 => Value::Integer(value.map(Self::value_as_i64)),
-            RuntimeType::U32 => Value::Integer(value.map(Self::value_as_i64)),
-            RuntimeType::U64 => Value::Integer(value.map(Self::value_as_i64)),
-            RuntimeType::F32 => {
-                Value::Float(value.map(|value| value.to_f32().unwrap() as f64))
+            RuntimeType::I32 => {
+                TypeValue::Integer(value.map(Self::value_as_i64))
             }
+            RuntimeType::I64 => {
+                TypeValue::Integer(value.map(Self::value_as_i64))
+            }
+            RuntimeType::U32 => {
+                TypeValue::Integer(value.map(Self::value_as_i64))
+            }
+            RuntimeType::U64 => {
+                TypeValue::Integer(value.map(Self::value_as_i64))
+            }
+            RuntimeType::F32 => TypeValue::Float(
+                value.map(|value| value.to_f32().unwrap() as f64),
+            ),
             RuntimeType::F64 => {
-                Value::Float(value.map(|value| value.to_f64().unwrap()))
+                TypeValue::Float(value.map(|value| value.to_f64().unwrap()))
             }
             RuntimeType::Bool => {
-                Value::Bool(value.map(|value| value.to_bool().unwrap()))
+                TypeValue::Bool(value.map(|value| value.to_bool().unwrap()))
             }
-            RuntimeType::String => Value::String(
+            RuntimeType::String => TypeValue::String(
                 value.map(|value| BString::from(value.to_str().unwrap())),
             ),
-            RuntimeType::VecU8 => Value::String(
+            RuntimeType::VecU8 => TypeValue::String(
                 value.map(|value| BString::from(value.to_bytes().unwrap())),
             ),
-            RuntimeType::Enum(_) => Value::Integer(
+            RuntimeType::Enum(_) => TypeValue::Integer(
                 value.map(|value| value.to_enum_value().unwrap() as i64),
             ),
             RuntimeType::Message(msg_descriptor) => {
@@ -392,7 +400,7 @@ impl Struct {
                         enum_as_fields,
                     )
                 };
-                Value::Struct(Rc::new(structure))
+                TypeValue::Struct(Rc::new(structure))
             }
         }
     }
@@ -401,7 +409,7 @@ impl Struct {
         ty: &RuntimeType,
         repeated: Option<ReflectRepeatedRef>,
         enum_as_fields: bool,
-    ) -> Value {
+    ) -> TypeValue {
         let array = match ty {
             RuntimeType::I32 => {
                 if let Some(repeated) = repeated {
@@ -544,7 +552,7 @@ impl Struct {
             }
         };
 
-        Value::Array(Rc::new(array))
+        TypeValue::Array(Rc::new(array))
     }
 
     fn new_map(
@@ -552,7 +560,7 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
-    ) -> Value {
+    ) -> TypeValue {
         let map = match key_ty {
             RuntimeType::String => {
                 Self::new_map_with_string_key(value_ty, map, enum_as_fields)
@@ -566,7 +574,7 @@ impl Struct {
             _ => unreachable!(),
         };
 
-        Value::Map(Rc::new(map))
+        TypeValue::Map(Rc::new(map))
     }
 
     fn new_map_with_integer_key(

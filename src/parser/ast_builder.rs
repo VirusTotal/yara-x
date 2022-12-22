@@ -12,6 +12,7 @@ use pest::pratt_parser::{Assoc, Op, PrattParser};
 use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
 use crate::ast::*;
 use crate::parser::{CSTNode, Context, Error, ErrorInfo, GrammarRule, CST};
+use crate::types2;
 use crate::warnings::Warning;
 
 macro_rules! expect {
@@ -52,21 +53,35 @@ fn create_unary_expr<'src>(
     let expr = match op.as_rule() {
         GrammarRule::BITWISE_NOT => {
             let value = operand.value().bitwise_not();
+            let type_value = types2::TypeValue::from(&value);
             BitwiseNot(Box::new(UnaryExpr::new(
                 operand,
                 span,
                 Type::Integer,
                 value,
+                type_value,
             )))
         }
         GrammarRule::k_NOT => {
             let value = operand.value().not();
-            Not(Box::new(UnaryExpr::new(operand, span, Type::Bool, value)))
+            let type_value = types2::TypeValue::from(&value);
+
+            Not(Box::new(UnaryExpr::new(
+                operand,
+                span,
+                Type::Bool,
+                value,
+                type_value,
+            )))
         }
         GrammarRule::MINUS => {
             let ty = operand.ty();
             let value = operand.value().minus();
-            Minus(Box::new(UnaryExpr::new(operand, span, ty, value)))
+            let type_value = types2::TypeValue::from(&value);
+
+            Minus(Box::new(UnaryExpr::new(
+                operand, span, ty, value, type_value,
+            )))
         }
         rule => unreachable!("{:?}", rule),
     };
@@ -996,6 +1011,7 @@ fn boolean_term_from_cst<'src>(
                     ident.as_span().into(),
                     Type::Bool,
                     Value::Unknown,
+                    types2::TypeValue::Bool(None),
                 ),
                 anchor,
             }))
@@ -1149,26 +1165,24 @@ fn primary_expr_from_cst<'src>(
             expect!(children.next().unwrap(), GrammarRule::RPAREN);
             expr
         }
-        GrammarRule::string_lit => Expr::Literal(Box::new(Literal {
-            span: node.as_span().into(),
-            literal: node.as_span().as_str(),
-            ty: Type::String,
-            value: Value::String(
-                string_lit_from_cst(ctx, node, true)?.into_owned(),
-            ),
-        })),
-        GrammarRule::float_lit => Expr::Literal(Box::new(Literal {
-            span: node.as_span().into(),
-            literal: node.as_span().as_str(),
-            ty: Type::Float,
-            value: Value::Float(float_lit_from_cst(ctx, node)?),
-        })),
-        GrammarRule::integer_lit => Expr::Literal(Box::new(Literal {
-            span: node.as_span().into(),
-            literal: node.as_span().as_str(),
-            ty: Type::Integer,
-            value: Value::Integer(integer_lit_from_cst(ctx, node)?),
-        })),
+        GrammarRule::string_lit => Expr::Literal(Box::new(Literal::new(
+            node.as_span().as_str(),
+            node.as_span().into(),
+            Type::String,
+            Value::String(string_lit_from_cst(ctx, node, true)?.into_owned()),
+        ))),
+        GrammarRule::float_lit => Expr::Literal(Box::new(Literal::new(
+            node.as_span().as_str(),
+            node.as_span().into(),
+            Type::Float,
+            Value::Float(float_lit_from_cst(ctx, node)?),
+        ))),
+        GrammarRule::integer_lit => Expr::Literal(Box::new(Literal::new(
+            node.as_span().as_str(),
+            node.as_span().into(),
+            Type::Integer,
+            Value::Integer(integer_lit_from_cst(ctx, node)?),
+        ))),
         GrammarRule::pattern_count => {
             // Is there some range after the pattern count?
             // Example: #a in (0..10)

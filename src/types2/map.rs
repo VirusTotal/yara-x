@@ -1,4 +1,4 @@
-use crate::types2::Value;
+use crate::types2::TypeValue;
 use bstr::BString;
 use rustc_hash::FxHashMap;
 
@@ -13,9 +13,12 @@ pub enum Map {
         // fields will contain no data. The deputy value is optional because
         // it is present only at compile time, when the `map` field is an
         // empty map.
-        deputy: Option<Value>,
-        map: FxHashMap<i64, Value>,
+        deputy: Option<TypeValue>,
+        map: FxHashMap<i64, TypeValue>,
     },
     /// A map that has string keys.
-    StringKeys { deputy: Option<Value>, map: FxHashMap<BString, Value> },
+    StringKeys {
+        deputy: Option<TypeValue>,
+        map: FxHashMap<BString, TypeValue>,
+    },
 }

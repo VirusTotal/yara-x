@@ -11,6 +11,8 @@ mod array;
 mod map;
 mod structure;
 
+use crate::ast;
+use crate::ast::Value;
 pub use array::*;
 pub use map::*;
 pub use structure::*;
@@ -27,8 +29,12 @@ pub enum Type {
     Map,
 }
 
+pub(crate) const UNKNOWN: TypeValue = TypeValue::Unknown;
+pub(crate) const TRUE: TypeValue = TypeValue::Bool(Some(true));
+pub(crate) const FALSE: TypeValue = TypeValue::Bool(Some(false));
+
 #[derive(Clone)]
-pub enum Value {
+pub enum TypeValue {
     Unknown,
     Integer(Option<i64>),
     Float(Option<f64>),
@@ -39,13 +45,46 @@ pub enum Value {
     Map(Rc<Map>),
 }
 
+impl From<&ast::TypeValue> for TypeValue {
+    fn from(value: &ast::TypeValue) -> Self {
+        Self::from(&value.1)
+    }
+}
+
+impl From<&ast::Type> for TypeValue {
+    fn from(ty: &ast::Type) -> Self {
+        match ty {
+            ast::Type::Unknown => Self::Unknown,
+            ast::Type::Integer => Self::Integer(None),
+            ast::Type::Float => Self::Float(None),
+            ast::Type::Bool => Self::Bool(None),
+            ast::Type::String => Self::String(None),
+            ast::Type::Struct => panic!(),
+            ast::Type::Array => panic!(),
+            ast::Type::Map => panic!(),
+        }
+    }
+}
+
+impl From<&ast::Value> for TypeValue {
+    fn from(value: &ast::Value) -> Self {
+        match value {
+            ast::Value::Unknown => Self::Unknown,
+            ast::Value::Integer(i) => Self::Integer(Some(*i)),
+            ast::Value::Float(f) => Self::Float(Some(*f)),
+            ast::Value::Bool(b) => Self::Bool(Some(*b)),
+            ast::Value::String(s) => Self::String(Some(s.clone())),
+        }
+    }
+}
+
 macro_rules! cast_to_bool {
     ($value:expr) => {{
         match $value {
-            Value::Integer(Some(i)) => *i != 0,
-            Value::Float(Some(f)) => *f != 0.0,
-            Value::String(Some(s)) => s.len() > 0,
-            Value::Bool(Some(b)) => *b,
+            TypeValue::Integer(Some(i)) => *i != 0,
+            TypeValue::Float(Some(f)) => *f != 0.0,
+            TypeValue::String(Some(s)) => s.len() > 0,
+            TypeValue::Bool(Some(b)) => *b,
             _ => panic!("can not cast {:?} to bool", $value),
         }
     }};
@@ -53,7 +92,7 @@ macro_rules! cast_to_bool {
 
 macro_rules! gen_boolean_op {
     ($name:ident, $op:tt) => {
-        pub(crate) fn $name(&self, rhs: &Value) -> Value {
+        pub(crate) fn $name(&self, rhs: &Self) -> Self {
             match (self, rhs) {
                 (Self::Unknown, _) | (_, Self::Unknown)=> Self::Unknown,
                 _ => {
@@ -69,7 +108,7 @@ macro_rules! gen_boolean_op {
 
 macro_rules! gen_arithmetic_op {
     ($name:ident, $op:tt, $checked_op:ident) => {
-        pub(crate) fn $name(&self, rhs: &Value) -> Value {
+        pub(crate) fn $name(&self, rhs: &Self) -> Self {
             match (self, rhs) {
                 (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
                 (Self::Integer(lhs), Self::Integer(rhs)) => {
@@ -116,7 +155,7 @@ macro_rules! gen_arithmetic_op {
 
 macro_rules! gen_bitwise_op {
     ($name:ident, $op:tt) => {
-        pub(crate) fn $name(&self, rhs: &Value) -> Value {
+        pub(crate) fn $name(&self, rhs: &Self) -> Self {
             match (self, rhs) {
                 (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
                 (Self::Integer(lhs), Self::Integer(rhs)) => match (lhs, rhs) {
@@ -133,7 +172,7 @@ macro_rules! gen_bitwise_op {
 
 macro_rules! gen_shift_op {
     ($name:ident, $op:tt) => {
-        pub(crate) fn $name(&self, rhs: &Value) -> Value {
+        pub(crate) fn $name(&self, rhs: &Self) -> Self {
             match (self, rhs) {
                 (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
                 (Self::Integer(lhs), Self::Integer(rhs)) => match (lhs, rhs) {
@@ -170,9 +209,9 @@ macro_rules! gen_string_op {
     ($name:ident, $op:tt) => {
         pub(crate) fn $name(
             &self,
-            rhs: &Value,
+            rhs: &Self,
             case_insensitive: bool,
-        ) -> Value {
+        ) -> Self {
             match (self, rhs) {
                 (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
                 (Self::String(lhs), Self::String(rhs)) => match (lhs, rhs) {
@@ -180,9 +219,9 @@ macro_rules! gen_string_op {
                         if case_insensitive {
                             let lhs = lhs.to_ascii_lowercase();
                             let rhs = rhs.to_ascii_lowercase();
-                            Value::Bool(Some((&lhs).$op(&rhs)))
+                            Self::Bool(Some((&lhs).$op(&rhs)))
                         } else {
-                            Value::Bool(Some((&lhs).$op(&rhs)))
+                            Self::Bool(Some((&lhs).$op(&rhs)))
                         }
                     }
                     _ => Self::Bool(None),
@@ -195,7 +234,7 @@ macro_rules! gen_string_op {
 
 macro_rules! gen_comparison_op {
     ($name:ident, $op:tt) => {
-        pub(crate) fn $name(&self, rhs: &Value) -> Value {
+        pub(crate) fn $name(&self, rhs: &Self) -> Self {
             match (self, rhs) {
                 (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
                 (Self::Integer(lhs), Self::Integer(rhs)) => {
@@ -244,7 +283,7 @@ macro_rules! gen_comparison_op {
     };
 }
 
-impl Value {
+impl TypeValue {
     gen_boolean_op!(and, &&);
     gen_boolean_op!(or, ||);
 
@@ -273,50 +312,50 @@ impl Value {
     gen_comparison_op!(eq, ==);
     gen_comparison_op!(ne, !=);
 
-    pub(crate) fn not(&self) -> Value {
-        if let Value::Unknown = self {
-            Value::Unknown
+    pub(crate) fn not(&self) -> Self {
+        if let Self::Unknown = self {
+            Self::Unknown
         } else {
-            Value::Bool(Some(!cast_to_bool!(self)))
+            Self::Bool(Some(!cast_to_bool!(self)))
         }
     }
 
-    pub(crate) fn bitwise_not(&self) -> Value {
+    pub(crate) fn bitwise_not(&self) -> Self {
         match self {
-            Value::Integer(Some(value)) => Value::Integer(Some(!*value)),
-            _ => Value::Unknown,
+            Self::Integer(Some(value)) => Self::Integer(Some(!*value)),
+            _ => Self::Unknown,
         }
     }
 
-    pub(crate) fn minus(&self) -> Value {
+    pub(crate) fn minus(&self) -> Self {
         match self {
-            Value::Integer(Some(value)) => Value::Integer(Some(-*value)),
-            Value::Float(Some(value)) => Value::Float(Some(-*value)),
-            _ => Value::Unknown,
+            Self::Integer(Some(value)) => Self::Integer(Some(-*value)),
+            Self::Float(Some(value)) => Self::Float(Some(-*value)),
+            _ => Self::Unknown,
         }
     }
 
     pub(crate) fn ty(&self) -> Type {
         match self {
-            Value::Unknown => Type::Unknown,
-            Value::Integer(_) => Type::Integer,
-            Value::Float(_) => Type::Float,
-            Value::Bool(_) => Type::Bool,
-            Value::String(_) => Type::String,
-            Value::Map(_) => Type::Map,
-            Value::Struct(_) => Type::Struct,
-            Value::Array(_) => Type::Array,
+            Self::Unknown => Type::Unknown,
+            Self::Integer(_) => Type::Integer,
+            Self::Float(_) => Type::Float,
+            Self::Bool(_) => Type::Bool,
+            Self::String(_) => Type::String,
+            Self::Map(_) => Type::Map,
+            Self::Struct(_) => Type::Struct,
+            Self::Array(_) => Type::Array,
         }
     }
 }
 
-impl Display for Value {
+impl Display for TypeValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl Debug for Value {
+impl Debug for TypeValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Unknown => write!(f, "unknown"),
@@ -331,7 +370,7 @@ impl Debug for Value {
     }
 }
 
-impl PartialEq for Value {
+impl PartialEq for TypeValue {
     fn eq(&self, rhs: &Self) -> bool {
         match (self, rhs) {
             (Self::Unknown, Self::Unknown) => true,
@@ -352,280 +391,280 @@ impl PartialEq for Value {
 
 #[cfg(test)]
 mod tests {
-    use super::Value;
+    use super::TypeValue;
     use bstr::BString;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn value_add() {
         assert_eq!(
-            Value::Unknown.add(&Value::Integer(Some(2))),
-            Value::Unknown
+            TypeValue::Unknown.add(&TypeValue::Integer(Some(2))),
+            TypeValue::Unknown
         );
         assert_eq!(
-            Value::Integer(Some(1)).add(&Value::Unknown),
-            Value::Unknown
-        );
-
-        assert_eq!(
-            Value::Integer(None).add(&Value::Integer(Some(1))),
-            Value::Integer(None)
+            TypeValue::Integer(Some(1)).add(&TypeValue::Unknown),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Integer(Some(1)).add(&Value::Integer(None)),
-            Value::Integer(None)
+            TypeValue::Integer(None).add(&TypeValue::Integer(Some(1))),
+            TypeValue::Integer(None)
         );
 
         assert_eq!(
-            Value::Integer(Some(1)).add(&Value::Integer(Some(1))),
-            Value::Integer(Some(2))
+            TypeValue::Integer(Some(1)).add(&TypeValue::Integer(None)),
+            TypeValue::Integer(None)
         );
 
         assert_eq!(
-            Value::Integer(None).add(&Value::Float(Some(1.0))),
-            Value::Float(None)
+            TypeValue::Integer(Some(1)).add(&TypeValue::Integer(Some(1))),
+            TypeValue::Integer(Some(2))
         );
 
         assert_eq!(
-            Value::Integer(Some(1)).add(&Value::Float(Some(1.0))),
-            Value::Float(Some(2.0))
+            TypeValue::Integer(None).add(&TypeValue::Float(Some(1.0))),
+            TypeValue::Float(None)
         );
 
         assert_eq!(
-            Value::Float(Some(1.5)).add(&Value::Float(Some(1.0))),
-            Value::Float(Some(2.5))
+            TypeValue::Integer(Some(1)).add(&TypeValue::Float(Some(1.0))),
+            TypeValue::Float(Some(2.0))
+        );
+
+        assert_eq!(
+            TypeValue::Float(Some(1.5)).add(&TypeValue::Float(Some(1.0))),
+            TypeValue::Float(Some(2.5))
         );
     }
 
     #[test]
     fn value_sub() {
         assert_eq!(
-            Value::Unknown.sub(&Value::Integer(Some(2))),
-            Value::Unknown
+            TypeValue::Unknown.sub(&TypeValue::Integer(Some(2))),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Integer(Some(1)).sub(&Value::Unknown),
-            Value::Unknown
+            TypeValue::Integer(Some(1)).sub(&TypeValue::Unknown),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Integer(None).sub(&Value::Integer(Some(1))),
-            Value::Integer(None)
+            TypeValue::Integer(None).sub(&TypeValue::Integer(Some(1))),
+            TypeValue::Integer(None)
         );
 
         assert_eq!(
-            Value::Integer(Some(1)).sub(&Value::Integer(None)),
-            Value::Integer(None)
+            TypeValue::Integer(Some(1)).sub(&TypeValue::Integer(None)),
+            TypeValue::Integer(None)
         );
 
         assert_eq!(
-            Value::Integer(Some(2)).sub(&Value::Integer(Some(1))),
-            Value::Integer(Some(1))
+            TypeValue::Integer(Some(2)).sub(&TypeValue::Integer(Some(1))),
+            TypeValue::Integer(Some(1))
         );
 
         assert_eq!(
-            Value::Integer(Some(2)).sub(&Value::Float(Some(1.0))),
-            Value::Float(Some(1.0))
+            TypeValue::Integer(Some(2)).sub(&TypeValue::Float(Some(1.0))),
+            TypeValue::Float(Some(1.0))
         );
 
         assert_eq!(
-            Value::Float(Some(1.5)).sub(&Value::Float(Some(1.0))),
-            Value::Float(Some(0.5))
+            TypeValue::Float(Some(1.5)).sub(&TypeValue::Float(Some(1.0))),
+            TypeValue::Float(Some(0.5))
         );
     }
 
     #[test]
     fn value_mul() {
         assert_eq!(
-            Value::Unknown.mul(&Value::Integer(Some(2))),
-            Value::Unknown
+            TypeValue::Unknown.mul(&TypeValue::Integer(Some(2))),
+            TypeValue::Unknown
         );
         assert_eq!(
-            Value::Integer(Some(1)).mul(&Value::Unknown),
-            Value::Unknown
-        );
-
-        assert_eq!(
-            Value::Integer(Some(2)).mul(&Value::Integer(Some(2))),
-            Value::Integer(Some(4))
+            TypeValue::Integer(Some(1)).mul(&TypeValue::Unknown),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Integer(Some(2)).mul(&Value::Float(Some(2.0))),
-            Value::Float(Some(4.0))
+            TypeValue::Integer(Some(2)).mul(&TypeValue::Integer(Some(2))),
+            TypeValue::Integer(Some(4))
         );
 
         assert_eq!(
-            Value::Float(Some(1.5)).mul(&Value::Float(Some(2.0))),
-            Value::Float(Some(3.0))
+            TypeValue::Integer(Some(2)).mul(&TypeValue::Float(Some(2.0))),
+            TypeValue::Float(Some(4.0))
+        );
+
+        assert_eq!(
+            TypeValue::Float(Some(1.5)).mul(&TypeValue::Float(Some(2.0))),
+            TypeValue::Float(Some(3.0))
         );
     }
 
     #[test]
     fn value_div() {
         assert_eq!(
-            Value::Unknown.div(&Value::Integer(Some(2))),
-            Value::Unknown
+            TypeValue::Unknown.div(&TypeValue::Integer(Some(2))),
+            TypeValue::Unknown
         );
         assert_eq!(
-            Value::Integer(Some(1)).div(&Value::Unknown),
-            Value::Unknown
-        );
-
-        assert_eq!(
-            Value::Integer(Some(2)).div(&Value::Integer(Some(2))),
-            Value::Integer(Some(1))
+            TypeValue::Integer(Some(1)).div(&TypeValue::Unknown),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Integer(Some(2)).div(&Value::Float(Some(2.0))),
-            Value::Float(Some(1.0))
+            TypeValue::Integer(Some(2)).div(&TypeValue::Integer(Some(2))),
+            TypeValue::Integer(Some(1))
         );
 
         assert_eq!(
-            Value::Float(Some(3.0)).div(&Value::Float(Some(2.0))),
-            Value::Float(Some(1.5))
+            TypeValue::Integer(Some(2)).div(&TypeValue::Float(Some(2.0))),
+            TypeValue::Float(Some(1.0))
         );
 
         assert_eq!(
-            Value::Integer(Some(2)).div(&Value::Integer(Some(0))),
-            Value::Integer(None)
+            TypeValue::Float(Some(3.0)).div(&TypeValue::Float(Some(2.0))),
+            TypeValue::Float(Some(1.5))
         );
 
         assert_eq!(
-            Value::Float(Some(2.0)).div(&Value::Float(Some(0.0))),
-            Value::Float(Some(f64::INFINITY))
+            TypeValue::Integer(Some(2)).div(&TypeValue::Integer(Some(0))),
+            TypeValue::Integer(None)
         );
 
         assert_eq!(
-            Value::Integer(Some(2)).div(&Value::Float(Some(0.0))),
-            Value::Float(Some(f64::INFINITY))
+            TypeValue::Float(Some(2.0)).div(&TypeValue::Float(Some(0.0))),
+            TypeValue::Float(Some(f64::INFINITY))
+        );
+
+        assert_eq!(
+            TypeValue::Integer(Some(2)).div(&TypeValue::Float(Some(0.0))),
+            TypeValue::Float(Some(f64::INFINITY))
         );
     }
 
     #[test]
     fn value_rem() {
         assert_eq!(
-            Value::Unknown.rem(&Value::Integer(Some(2))),
-            Value::Unknown
+            TypeValue::Unknown.rem(&TypeValue::Integer(Some(2))),
+            TypeValue::Unknown
         );
         assert_eq!(
-            Value::Integer(Some(1)).rem(&Value::Unknown),
-            Value::Unknown
-        );
-
-        assert_eq!(
-            Value::Integer(Some(3)).rem(&Value::Integer(Some(2))),
-            Value::Integer(Some(1))
+            TypeValue::Integer(Some(1)).rem(&TypeValue::Unknown),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Integer(Some(5)).rem(&Value::Float(Some(2.0))),
-            Value::Float(Some(1.0))
+            TypeValue::Integer(Some(3)).rem(&TypeValue::Integer(Some(2))),
+            TypeValue::Integer(Some(1))
         );
 
         assert_eq!(
-            Value::Float(Some(3.0)).rem(&Value::Float(Some(2.0))),
-            Value::Float(Some(1.0))
+            TypeValue::Integer(Some(5)).rem(&TypeValue::Float(Some(2.0))),
+            TypeValue::Float(Some(1.0))
         );
 
         assert_eq!(
-            Value::Integer(Some(2)).rem(&Value::Integer(Some(0))),
-            Value::Integer(None)
+            TypeValue::Float(Some(3.0)).rem(&TypeValue::Float(Some(2.0))),
+            TypeValue::Float(Some(1.0))
+        );
+
+        assert_eq!(
+            TypeValue::Integer(Some(2)).rem(&TypeValue::Integer(Some(0))),
+            TypeValue::Integer(None)
         );
     }
 
     #[test]
     fn value_and() {
         assert_eq!(
-            Value::Unknown.and(&Value::Bool(Some(true))),
-            Value::Unknown
+            TypeValue::Unknown.and(&TypeValue::Bool(Some(true))),
+            TypeValue::Unknown
         );
         assert_eq!(
-            Value::Bool(Some(true)).and(&Value::Unknown),
-            Value::Unknown
-        );
-
-        assert_eq!(
-            Value::Bool(Some(true)).and(&Value::Bool(Some(false))),
-            Value::Bool(Some(false))
+            TypeValue::Bool(Some(true)).and(&TypeValue::Unknown),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Bool(Some(true)).and(&Value::Bool(Some(true))),
-            Value::Bool(Some(true))
+            TypeValue::Bool(Some(true)).and(&TypeValue::Bool(Some(false))),
+            TypeValue::Bool(Some(false))
         );
 
         assert_eq!(
-            Value::Integer(Some(1)).and(&Value::Bool(Some(true))),
-            Value::Bool(Some(true))
+            TypeValue::Bool(Some(true)).and(&TypeValue::Bool(Some(true))),
+            TypeValue::Bool(Some(true))
         );
 
         assert_eq!(
-            Value::Integer(Some(0)).and(&Value::Bool(Some(true))),
-            Value::Bool(Some(false))
+            TypeValue::Integer(Some(1)).and(&TypeValue::Bool(Some(true))),
+            TypeValue::Bool(Some(true))
         );
 
         assert_eq!(
-            Value::Integer(Some(1))
-                .and(&Value::String(Some(BString::from("foo")))),
-            Value::Bool(Some(true))
+            TypeValue::Integer(Some(0)).and(&TypeValue::Bool(Some(true))),
+            TypeValue::Bool(Some(false))
         );
 
         assert_eq!(
-            Value::Float(Some(1.0)).and(&Value::Float(Some(2.0))),
-            Value::Bool(Some(true))
+            TypeValue::Integer(Some(1))
+                .and(&TypeValue::String(Some(BString::from("foo")))),
+            TypeValue::Bool(Some(true))
         );
 
         assert_eq!(
-            Value::Float(Some(0.0)).and(&Value::Float(Some(2.0))),
-            Value::Bool(Some(false))
+            TypeValue::Float(Some(1.0)).and(&TypeValue::Float(Some(2.0))),
+            TypeValue::Bool(Some(true))
+        );
+
+        assert_eq!(
+            TypeValue::Float(Some(0.0)).and(&TypeValue::Float(Some(2.0))),
+            TypeValue::Bool(Some(false))
         );
     }
 
     #[test]
     fn value_shl() {
         assert_eq!(
-            Value::Unknown.shl(&Value::Bool(Some(true))),
-            Value::Unknown
+            TypeValue::Unknown.shl(&TypeValue::Bool(Some(true))),
+            TypeValue::Unknown
         );
         assert_eq!(
-            Value::Bool(Some(true)).shl(&Value::Unknown),
-            Value::Unknown
-        );
-
-        assert_eq!(
-            Value::Integer(Some(4)).shl(&Value::Integer(Some(1))),
-            Value::Integer(Some(8))
+            TypeValue::Bool(Some(true)).shl(&TypeValue::Unknown),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Integer(Some(1)).shl(&Value::Integer(Some(64))),
-            Value::Integer(Some(0))
+            TypeValue::Integer(Some(4)).shl(&TypeValue::Integer(Some(1))),
+            TypeValue::Integer(Some(8))
+        );
+
+        assert_eq!(
+            TypeValue::Integer(Some(1)).shl(&TypeValue::Integer(Some(64))),
+            TypeValue::Integer(Some(0))
         );
     }
 
     #[test]
     fn value_shr() {
         assert_eq!(
-            Value::Unknown.shr(&Value::Bool(Some(true))),
-            Value::Unknown
+            TypeValue::Unknown.shr(&TypeValue::Bool(Some(true))),
+            TypeValue::Unknown
         );
         assert_eq!(
-            Value::Bool(Some(true)).shr(&Value::Unknown),
-            Value::Unknown
-        );
-
-        assert_eq!(
-            Value::Integer(Some(1)).shr(&Value::Integer(Some(1))),
-            Value::Integer(Some(0))
+            TypeValue::Bool(Some(true)).shr(&TypeValue::Unknown),
+            TypeValue::Unknown
         );
 
         assert_eq!(
-            Value::Integer(Some(2)).shr(&Value::Integer(Some(1))),
-            Value::Integer(Some(1))
+            TypeValue::Integer(Some(1)).shr(&TypeValue::Integer(Some(1))),
+            TypeValue::Integer(Some(0))
+        );
+
+        assert_eq!(
+            TypeValue::Integer(Some(2)).shr(&TypeValue::Integer(Some(1))),
+            TypeValue::Integer(Some(1))
         );
     }
 }
