@@ -236,11 +236,11 @@ pub(super) fn emit_expr(
         },
         Expr::Ident(ident) => {
             emit_const_or_code!(ctx, instr, &ident.type_value, {
-                let current_struct = ctx.borrow_mut().current_struct.take();
-
                 // Search for the identifier in the current structure, if any,
                 // or in the global symbol table if `current_struct` is None.
-                let symbol = if let Some(ref current_struct) = current_struct {
+                let symbol = if let Some(current_struct) =
+                    &ctx.borrow().current_struct
+                {
                     current_struct.lookup(ident.name).unwrap()
                 } else {
                     ctx.borrow().symbol_table.lookup(ident.name).unwrap()
@@ -362,6 +362,8 @@ pub(super) fn emit_expr(
                     Some(operands.lhs.type_value().as_struct().unwrap());
 
                 emit_expr(ctx, instr, &operands.rhs);
+
+                ctx.borrow_mut().current_struct = None;
             })
         }
         Expr::FnCall(_) => {
