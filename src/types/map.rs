@@ -1,4 +1,4 @@
-use crate::types2::TypeValue;
+use crate::types::TypeValue;
 use bstr::BString;
 use rustc_hash::FxHashMap;
 

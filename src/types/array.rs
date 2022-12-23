@@ -1,4 +1,4 @@
-use crate::types2::{Struct, Type};
+use crate::types::{Struct, Type};
 use bstr::BString;
 use std::rc::Rc;
 

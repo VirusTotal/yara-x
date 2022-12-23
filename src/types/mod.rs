@@ -4,20 +4,18 @@ use std::ops::BitOr;
 use std::ops::BitXor;
 use std::rc::Rc;
 
-use bstr::BString;
 use bstr::ByteSlice;
+use bstr::{BStr, BString};
 
 mod array;
 mod map;
 mod structure;
 
-use crate::ast;
-use crate::ast::Value;
 pub use array::*;
 pub use map::*;
 pub use structure::*;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Type {
     Unknown,
     Integer,
@@ -29,9 +27,32 @@ pub enum Type {
     Map,
 }
 
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Debug for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unknown => write!(f, "unknown"),
+            Self::Integer => write!(f, "integer"),
+            Self::Float => write!(f, "float"),
+            Self::Bool => write!(f, "boolean"),
+            Self::String => write!(f, "string"),
+            Self::Struct => write!(f, "struct"),
+            Self::Array => write!(f, "array"),
+            Self::Map => write!(f, "map"),
+        }
+    }
+}
+
 pub(crate) const UNKNOWN: TypeValue = TypeValue::Unknown;
-pub(crate) const TRUE: TypeValue = TypeValue::Bool(Some(true));
+pub(crate) const UNKNOWN_BOOL: TypeValue = TypeValue::Bool(None);
+pub(crate) const UNKNOWN_INT: TypeValue = TypeValue::Integer(None);
 pub(crate) const FALSE: TypeValue = TypeValue::Bool(Some(false));
+pub(crate) const TRUE: TypeValue = TypeValue::Bool(Some(true));
 
 #[derive(Clone)]
 pub enum TypeValue {
@@ -45,46 +66,17 @@ pub enum TypeValue {
     Map(Rc<Map>),
 }
 
-impl From<&ast::TypeValue> for TypeValue {
-    fn from(value: &ast::TypeValue) -> Self {
-        Self::from(&value.1)
-    }
-}
-
-impl From<&ast::Type> for TypeValue {
-    fn from(ty: &ast::Type) -> Self {
-        match ty {
-            ast::Type::Unknown => Self::Unknown,
-            ast::Type::Integer => Self::Integer(None),
-            ast::Type::Float => Self::Float(None),
-            ast::Type::Bool => Self::Bool(None),
-            ast::Type::String => Self::String(None),
-            ast::Type::Struct => panic!(),
-            ast::Type::Array => panic!(),
-            ast::Type::Map => panic!(),
-        }
-    }
-}
-
-impl From<&ast::Value> for TypeValue {
-    fn from(value: &ast::Value) -> Self {
-        match value {
-            ast::Value::Unknown => Self::Unknown,
-            ast::Value::Integer(i) => Self::Integer(Some(*i)),
-            ast::Value::Float(f) => Self::Float(Some(*f)),
-            ast::Value::Bool(b) => Self::Bool(Some(*b)),
-            ast::Value::String(s) => Self::String(Some(s.clone())),
-        }
-    }
-}
-
 macro_rules! cast_to_bool {
     ($value:expr) => {{
         match $value {
-            TypeValue::Integer(Some(i)) => *i != 0,
-            TypeValue::Float(Some(f)) => *f != 0.0,
-            TypeValue::String(Some(s)) => s.len() > 0,
-            TypeValue::Bool(Some(b)) => *b,
+            TypeValue::Integer(Some(i)) => TypeValue::Bool(Some(*i != 0)),
+            TypeValue::Float(Some(f)) => TypeValue::Bool(Some(*f != 0.0)),
+            TypeValue::String(Some(s)) => TypeValue::Bool(Some(s.len() > 0)),
+            TypeValue::Bool(Some(b)) => TypeValue::Bool(Some(*b)),
+            TypeValue::Integer(None) => TypeValue::Bool(None),
+            TypeValue::Float(None) => TypeValue::Bool(None),
+            TypeValue::String(None) => TypeValue::Bool(None),
+            TypeValue::Bool(None) => TypeValue::Bool(None),
             _ => panic!("can not cast {:?} to bool", $value),
         }
     }};
@@ -94,12 +86,18 @@ macro_rules! gen_boolean_op {
     ($name:ident, $op:tt) => {
         pub(crate) fn $name(&self, rhs: &Self) -> Self {
             match (self, rhs) {
-                (Self::Unknown, _) | (_, Self::Unknown)=> Self::Unknown,
+                (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
                 _ => {
                     let lhs = cast_to_bool!(self);
                     let rhs = cast_to_bool!(rhs);
-
-                    Self::Bool(Some(lhs $op rhs))
+                    match (lhs, rhs) {
+                        (Self::Bool(Some(lhs)), Self::Bool(Some(rhs))) => {
+                             Self::Bool(Some(lhs $op rhs))
+                        },
+                        _ => {
+                             Self::Bool(None)
+                        },
+                    }
                 }
             }
         }
@@ -316,7 +314,11 @@ impl TypeValue {
         if let Self::Unknown = self {
             Self::Unknown
         } else {
-            Self::Bool(Some(!cast_to_bool!(self)))
+            match cast_to_bool!(self) {
+                Self::Bool(Some(b)) => Self::Bool(Some(!b)),
+                Self::Bool(None) => Self::Bool(None),
+                _ => unreachable!(),
+            }
         }
     }
 
@@ -347,6 +349,29 @@ impl TypeValue {
             Self::Array(_) => Type::Array,
         }
     }
+
+    pub fn as_bstr(&self) -> Option<&BStr> {
+        if let TypeValue::String(v) = self {
+            v.as_ref().map(|v| v.as_bstr())
+        } else {
+            panic!()
+        }
+    }
+}
+
+impl From<&Type> for TypeValue {
+    fn from(ty: &Type) -> Self {
+        match ty {
+            Type::Unknown => Self::Unknown,
+            Type::Integer => Self::Integer(None),
+            Type::Float => Self::Float(None),
+            Type::Bool => Self::Bool(None),
+            Type::String => Self::String(None),
+            Type::Struct => todo!(),
+            Type::Array => todo!(),
+            Type::Map => todo!(),
+        }
+    }
 }
 
 impl Display for TypeValue {
@@ -359,10 +384,34 @@ impl Debug for TypeValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Unknown => write!(f, "unknown"),
-            Self::Bool(v) => write!(f, "boolean({:?})", v),
-            Self::Integer(v) => write!(f, "integer({:?})", v),
-            Self::Float(v) => write!(f, "float({:?})", v),
-            Self::String(v) => write!(f, "string({:?})", v),
+            Self::Bool(v) => {
+                if let Some(v) = v {
+                    write!(f, "boolean({:?})", v)
+                } else {
+                    write!(f, "boolean(unknown)")
+                }
+            }
+            Self::Integer(v) => {
+                if let Some(v) = v {
+                    write!(f, "integer({:?})", v)
+                } else {
+                    write!(f, "integer(unknown)")
+                }
+            }
+            Self::Float(v) => {
+                if let Some(v) = v {
+                    write!(f, "float({:?})", v)
+                } else {
+                    write!(f, "float(unknown)")
+                }
+            }
+            Self::String(v) => {
+                if let Some(v) = v {
+                    write!(f, "string({:?})", v)
+                } else {
+                    write!(f, "string(unknown)")
+                }
+            }
             Self::Map(_) => write!(f, "map"),
             Self::Struct(_) => write!(f, "struct"),
             Self::Array(_) => write!(f, "array"),

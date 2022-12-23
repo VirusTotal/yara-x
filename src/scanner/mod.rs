@@ -4,7 +4,7 @@
 
 use crate::compiler::{CompiledRule, CompiledRules, RuleId};
 use crate::string_pool::BStringPool;
-use crate::types::{RuntimeStruct, RuntimeValue};
+use crate::types::{Struct, TypeValue};
 use crate::{modules, wasm};
 use bitvec::prelude::*;
 use memmap::MmapOptions;
@@ -37,7 +37,7 @@ impl<'r> Scanner<'r> {
                 compiled_rules,
                 string_pool: BStringPool::new(),
                 current_struct: None,
-                root_struct: RuntimeStruct::new(),
+                root_struct: Struct::new(),
                 scanned_data: null(),
                 scanned_data_len: 0,
                 rules_matching: Vec::new(),
@@ -210,7 +210,7 @@ impl<'r> Scanner<'r> {
             let generate_fields_for_enum =
                 !cfg!(feature = "compile-time-optimization");
 
-            let module_struct = RuntimeStruct::from_proto_msg(
+            let module_struct = Struct::from_proto_msg(
                 module_output,
                 generate_fields_for_enum,
             );
@@ -222,7 +222,7 @@ impl<'r> Scanner<'r> {
             // in the data structure, as they are used in the rule conditions.
             ctx.root_struct.insert(
                 module_name,
-                RuntimeValue::Struct(Rc::new(module_struct)),
+                TypeValue::Struct(Rc::new(module_struct)),
             );
         }
 
@@ -334,10 +334,10 @@ pub(crate) struct ScanContext<'r> {
     /// Structure that contains top-level symbols, like module names
     /// and external variables. Symbols are normally looked up in this
     /// table, except if `current_struct` is set to some other structure.
-    pub(crate) root_struct: RuntimeStruct,
+    pub(crate) root_struct: Struct,
     /// Symbol table for the currently active structure, if any. When this
     /// set it overrides `symbol_table`.
-    pub(crate) current_struct: Option<Rc<RuntimeStruct>>,
+    pub(crate) current_struct: Option<Rc<Struct>>,
     /// String pool where the strings produced at runtime are stored. This
     /// for example stores the strings returned by YARA modules.
     pub(crate) string_pool: BStringPool<RuntimeStringId>,

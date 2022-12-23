@@ -25,7 +25,7 @@ use crate::wasm::WasmSymbols;
 #[doc(inline)]
 pub use crate::compiler::errors::*;
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
-use crate::types::{RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeValue};
+use crate::types::{Array, Map, Struct, TypeValue};
 
 mod emit;
 mod errors;
@@ -272,7 +272,7 @@ impl<'a> Compiler<'a> {
     ) -> Result<(), Error> {
         // Structure where each field has the name of some imported module and
         // its value the module's root structure.
-        let mut modules_struct = RuntimeStruct::new();
+        let mut modules_struct = Struct::new();
 
         // Iterate over the list of imported modules.
         for import in imports.iter() {
@@ -286,7 +286,7 @@ impl<'a> Compiler<'a> {
                     self.ident_pool.get_or_intern(import.module_name.as_str()),
                 );
 
-                let root_struct = RuntimeStruct::from_proto_descriptor_and_msg(
+                let root_struct = Struct::from_proto_descriptor_and_msg(
                     &module.root_struct_descriptor,
                     None,
                     true,
@@ -294,7 +294,7 @@ impl<'a> Compiler<'a> {
 
                 modules_struct.insert(
                     import.module_name.as_str(),
-                    RuntimeValue::Struct(Rc::new(root_struct)),
+                    TypeValue::Struct(Rc::new(root_struct)),
                 );
             } else {
                 // ... if no, that's an error.
@@ -387,10 +387,10 @@ struct Context<'a, 'sym> {
     current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
 
     /// Contains the currently active array, if any.
-    current_array: Option<Rc<RuntimeArray>>,
+    current_array: Option<Rc<Array>>,
 
     /// Contains the currently active map, if any.
-    current_map: Option<Rc<RuntimeMap>>,
+    current_map: Option<Rc<Map>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
     /// code.
