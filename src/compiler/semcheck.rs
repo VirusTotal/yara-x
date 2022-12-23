@@ -5,14 +5,13 @@ use std::rc::Rc;
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
-use crate::types::{Array, Map, TypeValue};
+use crate::types::{Map, Type, TypeValue};
 use crate::warnings::Warning;
 
 macro_rules! semcheck {
     ($ctx:expr, $( $accepted_types:path )|+, $expr:expr) => {
         {
-            use crate::ast::Type;
-            use crate::compiler::errors::Error;
+            use crate::types::Type;
             use crate::compiler::semcheck::semcheck_expr;
             let span = (&*$expr).span();
             let ty = semcheck_expr($ctx, $expr)?;
@@ -465,17 +464,7 @@ pub(super) fn semcheck_expr(
             match expr.primary.type_value() {
                 TypeValue::Array(array) => {
                     semcheck!(ctx, Type::Integer, &mut expr.index)?;
-
-                    let item_type = array.item_type();
-
-                    if let Array::Struct(s) = array.borrow() {
-                        expr.set_type_and_value(TypeValue::Struct(
-                            s.first().unwrap().clone(),
-                        ));
-                    } else {
-                        expr.set_type_and_value(TypeValue::from(&item_type));
-                    }
-
+                    expr.set_type_and_value(array.deputy());
                     Ok(expr.ty())
                 }
                 TypeValue::Map(map) => {

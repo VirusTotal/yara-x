@@ -17,6 +17,8 @@ use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
+use crate::symbols::{StackedSymbolTable, SymbolLookup};
+use crate::types::{Struct, TypeValue};
 use crate::warnings::Warning;
 use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
@@ -24,8 +26,6 @@ use crate::wasm::WasmSymbols;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbols::{StackedSymbolTable, SymbolLookup};
-use crate::types::{Array, Map, Struct, TypeValue};
 
 mod emit;
 mod errors;

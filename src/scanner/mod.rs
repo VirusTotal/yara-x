@@ -207,12 +207,12 @@ impl<'r> Scanner<'r> {
             // field in a struct, and its value is determined at scan time.
             // For that reason these fields must be generated for enums when
             // optimizations are disabled.
-            let generate_fields_for_enum =
+            let generate_fields_for_enums =
                 !cfg!(feature = "compile-time-optimization");
 
             let module_struct = Struct::from_proto_msg(
                 module_output,
-                generate_fields_for_enum,
+                generate_fields_for_enums,
             );
 
             // The data structure obtained from the module is added to the

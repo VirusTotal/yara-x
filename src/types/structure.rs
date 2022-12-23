@@ -12,33 +12,19 @@ use yara_proto::exts::field_options as yara_field_options;
 use yara_proto::exts::module_options as yara_module_options;
 
 use crate::symbols::{Symbol, SymbolLookup};
-use crate::types::{Array, Map, Type, TypeValue};
+use crate::types::{Array, Map, TypeValue};
 
+/// A field in a [`Struct`].
 pub struct StructField {
-    // Field name.
+    /// Field name.
     pub name: String,
-    // For structures derived from a protobuf this contains the field number
-    // specified in the .proto file. For other structures this is set to 0.
+    /// For structures derived from a protobuf this contains the field number
+    /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
-    // Index that occupies the field in the structure it belongs to.
+    /// Index that occupies the field in the structure it belongs to.
     pub index: i32,
-    // Field type and value.
+    /// Field type and value.
     pub type_value: TypeValue,
-}
-
-impl StructField {
-    fn ty(&self) -> Type {
-        match self.type_value {
-            TypeValue::Unknown => Type::Unknown,
-            TypeValue::Integer(_) => Type::Integer,
-            TypeValue::Float(_) => Type::Float,
-            TypeValue::Bool(_) => Type::Bool,
-            TypeValue::String(_) => Type::String,
-            TypeValue::Struct(_) => Type::Struct,
-            TypeValue::Array(_) => Type::Array,
-            TypeValue::Map(_) => Type::Map,
-        }
-    }
 }
 
 /// A dynamic structure with one or more fields.
@@ -56,13 +42,15 @@ impl StructField {
 /// associated to that module. Functions [`Struct::from_proto_msg`] and
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
 pub struct Struct {
-    // Fields in this structure. The index of each field is the index that it
-    // has in this vector. Fields are sorted by field number, which means that
-    // for protobuf-derived structures the order of the fields  doesn't depend
-    // on the order in which they appear in the source .proto file.
+    /// Fields in this structure. The index of each field is the index that it
+    /// has in this vector. Fields are sorted by field number, which means that
+    /// for protobuf-derived structures the order of the fields  doesn't depend
+    /// on the order in which they appear in the source .proto file. For
+    /// structures that are not created from a protobuf, the order of fields is
+    /// the order in which they were inserted.
     fields: Vec<StructField>,
-    // Map where keys are field names and values are their corresponding index
-    // in the `fields` vector.
+    /// Map where keys are field names and values are their corresponding index
+    /// in the `fields` vector.
     field_index: FxHashMap<String, usize>,
 }
 
@@ -305,10 +293,9 @@ impl Struct {
     /// Given a [`FieldDescriptor`] returns the name that this field will
     /// have in the corresponding [`Struct`].
     ///
-    /// By default, the name of the field in its [`Struct`] will be
-    /// the same one that it has in the protobuf definition. However, the
-    /// name can be set to something different by using an annotation in
-    /// the .proto file, like this:
+    /// By default, the name of the field will be the same one that it has in
+    /// the protobuf definition. However, the name can be set to something
+    /// different by using an annotation in the .proto file, like this:
     ///
     /// ```text
     /// int64 foo = 1 [(yara.field_options).name = "bar"];
@@ -411,38 +398,38 @@ impl Struct {
         let array = match ty {
             RuntimeType::I32 => {
                 if let Some(repeated) = repeated {
-                    Array::Integer(
+                    Array::Integers(
                         repeated
                             .into_iter()
                             .map(|value| value.to_i32().unwrap() as i64)
                             .collect(),
                     )
                 } else {
-                    Array::Integer(vec![])
+                    Array::Integers(vec![])
                 }
             }
             RuntimeType::I64 => {
                 if let Some(repeated) = repeated {
-                    Array::Integer(
+                    Array::Integers(
                         repeated
                             .into_iter()
                             .map(|value| value.to_i64().unwrap())
                             .collect(),
                     )
                 } else {
-                    Array::Integer(vec![])
+                    Array::Integers(vec![])
                 }
             }
             RuntimeType::U32 => {
                 if let Some(repeated) = repeated {
-                    Array::Integer(
+                    Array::Integers(
                         repeated
                             .into_iter()
                             .map(|value| value.to_u32().unwrap() as i64)
                             .collect(),
                     )
                 } else {
-                    Array::Integer(vec![])
+                    Array::Integers(vec![])
                 }
             }
             RuntimeType::U64 => {
@@ -450,43 +437,43 @@ impl Struct {
             }
             RuntimeType::F32 => {
                 if let Some(repeated) = repeated {
-                    Array::Float(
+                    Array::Floats(
                         repeated
                             .into_iter()
                             .map(|value| value.to_f32().unwrap() as f64)
                             .collect(),
                     )
                 } else {
-                    Array::Float(vec![])
+                    Array::Floats(vec![])
                 }
             }
             RuntimeType::F64 => {
                 if let Some(repeated) = repeated {
-                    Array::Float(
+                    Array::Floats(
                         repeated
                             .into_iter()
                             .map(|value| value.to_f64().unwrap())
                             .collect(),
                     )
                 } else {
-                    Array::Float(vec![])
+                    Array::Floats(vec![])
                 }
             }
             RuntimeType::Bool => {
                 if let Some(repeated) = repeated {
-                    Array::Bool(
+                    Array::Bools(
                         repeated
                             .into_iter()
                             .map(|value| value.to_bool().unwrap())
                             .collect(),
                     )
                 } else {
-                    Array::Bool(vec![])
+                    Array::Bools(vec![])
                 }
             }
             RuntimeType::String => {
                 if let Some(repeated) = repeated {
-                    Array::String(
+                    Array::Strings(
                         repeated
                             .into_iter()
                             .map(|value| {
@@ -495,12 +482,12 @@ impl Struct {
                             .collect(),
                     )
                 } else {
-                    Array::String(vec![])
+                    Array::Strings(vec![])
                 }
             }
             RuntimeType::VecU8 => {
                 if let Some(repeated) = repeated {
-                    Array::String(
+                    Array::Strings(
                         repeated
                             .into_iter()
                             .map(|value| {
@@ -509,24 +496,24 @@ impl Struct {
                             .collect(),
                     )
                 } else {
-                    Array::String(vec![])
+                    Array::Strings(vec![])
                 }
             }
             RuntimeType::Enum(_) => {
                 if let Some(repeated) = repeated {
-                    Array::Integer(
+                    Array::Integers(
                         repeated
                             .into_iter()
                             .map(|value| value.to_enum_value().unwrap() as i64)
                             .collect(),
                     )
                 } else {
-                    Array::Integer(vec![])
+                    Array::Integers(vec![])
                 }
             }
             RuntimeType::Message(msg_descriptor) => {
                 if let Some(repeated) = repeated {
-                    Array::Struct(
+                    Array::Structs(
                         repeated
                             .into_iter()
                             .map(|value| {
@@ -539,7 +526,7 @@ impl Struct {
                             .collect(),
                     )
                 } else {
-                    Array::Struct(vec![Rc::new(
+                    Array::Structs(vec![Rc::new(
                         Struct::from_proto_descriptor_and_msg(
                             msg_descriptor,
                             None,

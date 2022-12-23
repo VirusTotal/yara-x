@@ -15,6 +15,7 @@ pub use array::*;
 pub use map::*;
 pub use structure::*;
 
+/// The type of a YARA expression or identifier.
 #[derive(Clone, PartialEq)]
 pub enum Type {
     Unknown,
@@ -54,6 +55,11 @@ pub(crate) const UNKNOWN_INT: TypeValue = TypeValue::Integer(None);
 pub(crate) const FALSE: TypeValue = TypeValue::Bool(Some(false));
 pub(crate) const TRUE: TypeValue = TypeValue::Bool(Some(true));
 
+/// A [`TypeValue`] contains information about the type, and possibly the
+/// value of a YARA expression or identifier.
+///
+/// Values are optional because at compile time the value of most identifiers
+/// is unknown.
 #[derive(Clone)]
 pub enum TypeValue {
     Unknown,
@@ -66,6 +72,10 @@ pub enum TypeValue {
     Map(Rc<Map>),
 }
 
+/// Macro that casts a [`TypeValue`] to [`TypeValue::Bool`].
+///
+/// Only integers, floats, and strings can be casted to bool. Attempting to
+/// cast any other type to bool will cause a panic.
 macro_rules! cast_to_bool {
     ($value:expr) => {{
         match $value {
@@ -325,6 +335,7 @@ impl TypeValue {
     pub(crate) fn bitwise_not(&self) -> Self {
         match self {
             Self::Integer(Some(value)) => Self::Integer(Some(!*value)),
+            Self::Integer(None) => Self::Integer(None),
             _ => Self::Unknown,
         }
     }
@@ -333,6 +344,8 @@ impl TypeValue {
         match self {
             Self::Integer(Some(value)) => Self::Integer(Some(-*value)),
             Self::Float(Some(value)) => Self::Float(Some(-*value)),
+            Self::Integer(None) => Self::Integer(None),
+            Self::Float(None) => Self::Float(None),
             _ => Self::Unknown,
         }
     }
@@ -371,21 +384,6 @@ impl TypeValue {
             Some(structure.clone())
         } else {
             None
-        }
-    }
-}
-
-impl From<&Type> for TypeValue {
-    fn from(ty: &Type) -> Self {
-        match ty {
-            Type::Unknown => Self::Unknown,
-            Type::Integer => Self::Integer(None),
-            Type::Float => Self::Float(None),
-            Type::Bool => Self::Bool(None),
-            Type::String => Self::String(None),
-            Type::Struct => todo!(),
-            Type::Array => todo!(),
-            Type::Map => todo!(),
         }
     }
 }
@@ -456,280 +454,118 @@ impl PartialEq for TypeValue {
 
 #[cfg(test)]
 mod tests {
-    use super::TypeValue;
+    use super::TypeValue::*;
     use bstr::BString;
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn value_add() {
-        assert_eq!(
-            TypeValue::Unknown.add(&TypeValue::Integer(Some(2))),
-            TypeValue::Unknown
-        );
-        assert_eq!(
-            TypeValue::Integer(Some(1)).add(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
+    fn add() {
+        assert_eq!(Unknown.add(&Integer(Some(2))), Unknown);
+        assert_eq!(Integer(Some(1)).add(&Unknown), Unknown);
+        assert_eq!(Integer(None).add(&Integer(Some(1))), Integer(None));
+        assert_eq!(Integer(Some(1)).add(&Integer(None)), Integer(None));
+        assert_eq!(Integer(Some(1)).add(&Integer(Some(1))), Integer(Some(2)));
+        assert_eq!(Integer(None).add(&Float(Some(1.0))), Float(None));
+        assert_eq!(Integer(Some(1)).add(&Float(Some(1.0))), Float(Some(2.0)));
+        assert_eq!(Float(Some(1.5)).add(&Float(Some(1.0))), Float(Some(2.5)));
+    }
 
-        assert_eq!(
-            TypeValue::Integer(None).add(&TypeValue::Integer(Some(1))),
-            TypeValue::Integer(None)
-        );
+    #[test]
+    fn sub() {
+        assert_eq!(Unknown.sub(&Integer(Some(2))), Unknown);
+        assert_eq!(Integer(Some(1)).sub(&Unknown), Unknown);
+        assert_eq!(Integer(None).sub(&Integer(Some(1))), Integer(None));
+        assert_eq!(Integer(Some(1)).sub(&Integer(None)), Integer(None));
+        assert_eq!(Integer(Some(2)).sub(&Integer(Some(1))), Integer(Some(1)));
+        assert_eq!(Integer(Some(2)).sub(&Float(Some(1.0))), Float(Some(1.0)));
+        assert_eq!(Float(Some(1.5)).sub(&Float(Some(1.0))), Float(Some(0.5)));
+    }
 
-        assert_eq!(
-            TypeValue::Integer(Some(1)).add(&TypeValue::Integer(None)),
-            TypeValue::Integer(None)
-        );
+    #[test]
+    fn mul() {
+        assert_eq!(Unknown.mul(&Integer(Some(2))), Unknown);
+        assert_eq!(Integer(Some(1)).mul(&Unknown), Unknown);
+        assert_eq!(Integer(None).mul(&Integer(Some(1))), Integer(None));
+        assert_eq!(Integer(Some(1)).mul(&Integer(None)), Integer(None));
+        assert_eq!(Integer(Some(2)).mul(&Integer(Some(2))), Integer(Some(4)));
+        assert_eq!(Integer(Some(2)).mul(&Float(Some(2.0))), Float(Some(4.0)));
+        assert_eq!(Float(Some(1.5)).mul(&Float(Some(2.0))), Float(Some(3.0)));
+    }
 
+    #[test]
+    fn div() {
+        assert_eq!(Unknown.div(&Integer(Some(2))), Unknown);
+        assert_eq!(Integer(Some(1)).div(&Unknown), Unknown);
+        assert_eq!(Integer(None).div(&Integer(Some(1))), Integer(None));
+        assert_eq!(Integer(Some(1)).div(&Integer(None)), Integer(None));
+        assert_eq!(Integer(Some(2)).div(&Integer(Some(2))), Integer(Some(1)));
+        assert_eq!(Integer(Some(2)).div(&Float(Some(2.0))), Float(Some(1.0)));
+        assert_eq!(Float(Some(3.0)).div(&Float(Some(2.0))), Float(Some(1.5)));
+        assert_eq!(Integer(Some(2)).div(&Integer(Some(0))), Integer(None));
         assert_eq!(
-            TypeValue::Integer(Some(1)).add(&TypeValue::Integer(Some(1))),
-            TypeValue::Integer(Some(2))
+            Float(Some(2.0)).div(&Float(Some(0.0))),
+            Float(Some(f64::INFINITY))
         );
-
         assert_eq!(
-            TypeValue::Integer(None).add(&TypeValue::Float(Some(1.0))),
-            TypeValue::Float(None)
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(1)).add(&TypeValue::Float(Some(1.0))),
-            TypeValue::Float(Some(2.0))
-        );
-
-        assert_eq!(
-            TypeValue::Float(Some(1.5)).add(&TypeValue::Float(Some(1.0))),
-            TypeValue::Float(Some(2.5))
+            Integer(Some(2)).div(&Float(Some(0.0))),
+            Float(Some(f64::INFINITY))
         );
     }
 
     #[test]
-    fn value_sub() {
-        assert_eq!(
-            TypeValue::Unknown.sub(&TypeValue::Integer(Some(2))),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(1)).sub(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(
-            TypeValue::Integer(None).sub(&TypeValue::Integer(Some(1))),
-            TypeValue::Integer(None)
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(1)).sub(&TypeValue::Integer(None)),
-            TypeValue::Integer(None)
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(2)).sub(&TypeValue::Integer(Some(1))),
-            TypeValue::Integer(Some(1))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(2)).sub(&TypeValue::Float(Some(1.0))),
-            TypeValue::Float(Some(1.0))
-        );
-
-        assert_eq!(
-            TypeValue::Float(Some(1.5)).sub(&TypeValue::Float(Some(1.0))),
-            TypeValue::Float(Some(0.5))
-        );
+    fn rem() {
+        assert_eq!(Unknown.rem(&Integer(Some(2))), Unknown);
+        assert_eq!(Integer(Some(1)).rem(&Unknown), Unknown);
+        assert_eq!(Integer(None).rem(&Integer(Some(1))), Integer(None));
+        assert_eq!(Integer(Some(1)).rem(&Integer(None)), Integer(None));
+        assert_eq!(Integer(Some(3)).rem(&Integer(Some(2))), Integer(Some(1)));
+        assert_eq!(Integer(Some(5)).rem(&Float(Some(2.0))), Float(Some(1.0)));
+        assert_eq!(Float(Some(3.0)).rem(&Float(Some(2.0))), Float(Some(1.0)));
+        assert_eq!(Integer(Some(2)).rem(&Integer(Some(0))), Integer(None));
     }
 
     #[test]
-    fn value_mul() {
-        assert_eq!(
-            TypeValue::Unknown.mul(&TypeValue::Integer(Some(2))),
-            TypeValue::Unknown
-        );
-        assert_eq!(
-            TypeValue::Integer(Some(1)).mul(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
+    fn and() {
+        assert_eq!(Unknown.and(&Bool(Some(true))), Unknown);
+        assert_eq!(Bool(Some(true)).and(&Unknown), Unknown);
+        assert_eq!(Bool(Some(true)).and(&Bool(None)), Bool(None));
+        assert_eq!(Bool(None).and(&Bool(Some(true))), Bool(None));
 
         assert_eq!(
-            TypeValue::Integer(Some(2)).mul(&TypeValue::Integer(Some(2))),
-            TypeValue::Integer(Some(4))
+            Bool(Some(true)).and(&Bool(Some(false))),
+            Bool(Some(false))
         );
 
-        assert_eq!(
-            TypeValue::Integer(Some(2)).mul(&TypeValue::Float(Some(2.0))),
-            TypeValue::Float(Some(4.0))
-        );
+        assert_eq!(Bool(Some(true)).and(&Bool(Some(true))), Bool(Some(true)));
+        assert_eq!(Integer(Some(1)).and(&Bool(Some(true))), Bool(Some(true)));
+        assert_eq!(Integer(Some(0)).and(&Bool(Some(true))), Bool(Some(false)));
 
         assert_eq!(
-            TypeValue::Float(Some(1.5)).mul(&TypeValue::Float(Some(2.0))),
-            TypeValue::Float(Some(3.0))
+            Integer(Some(1)).and(&String(Some(BString::from("foo")))),
+            Bool(Some(true))
         );
+
+        assert_eq!(Float(Some(1.0)).and(&Float(Some(2.0))), Bool(Some(true)));
+        assert_eq!(Float(Some(0.0)).and(&Float(Some(2.0))), Bool(Some(false)));
     }
 
     #[test]
-    fn value_div() {
-        assert_eq!(
-            TypeValue::Unknown.div(&TypeValue::Integer(Some(2))),
-            TypeValue::Unknown
-        );
-        assert_eq!(
-            TypeValue::Integer(Some(1)).div(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(2)).div(&TypeValue::Integer(Some(2))),
-            TypeValue::Integer(Some(1))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(2)).div(&TypeValue::Float(Some(2.0))),
-            TypeValue::Float(Some(1.0))
-        );
-
-        assert_eq!(
-            TypeValue::Float(Some(3.0)).div(&TypeValue::Float(Some(2.0))),
-            TypeValue::Float(Some(1.5))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(2)).div(&TypeValue::Integer(Some(0))),
-            TypeValue::Integer(None)
-        );
-
-        assert_eq!(
-            TypeValue::Float(Some(2.0)).div(&TypeValue::Float(Some(0.0))),
-            TypeValue::Float(Some(f64::INFINITY))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(2)).div(&TypeValue::Float(Some(0.0))),
-            TypeValue::Float(Some(f64::INFINITY))
-        );
+    fn shl() {
+        assert_eq!(Unknown.shl(&Bool(Some(true))), Unknown);
+        assert_eq!(Bool(Some(true)).shl(&Unknown), Unknown);
+        assert_eq!(Integer(None).shl(&Integer(Some(1))), Integer(None));
+        assert_eq!(Integer(Some(1)).shl(&Integer(None)), Integer(None));
+        assert_eq!(Integer(Some(4)).shl(&Integer(Some(1))), Integer(Some(8)));
+        assert_eq!(Integer(Some(1)).shl(&Integer(Some(64))), Integer(Some(0)));
     }
 
     #[test]
-    fn value_rem() {
-        assert_eq!(
-            TypeValue::Unknown.rem(&TypeValue::Integer(Some(2))),
-            TypeValue::Unknown
-        );
-        assert_eq!(
-            TypeValue::Integer(Some(1)).rem(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(3)).rem(&TypeValue::Integer(Some(2))),
-            TypeValue::Integer(Some(1))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(5)).rem(&TypeValue::Float(Some(2.0))),
-            TypeValue::Float(Some(1.0))
-        );
-
-        assert_eq!(
-            TypeValue::Float(Some(3.0)).rem(&TypeValue::Float(Some(2.0))),
-            TypeValue::Float(Some(1.0))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(2)).rem(&TypeValue::Integer(Some(0))),
-            TypeValue::Integer(None)
-        );
-    }
-
-    #[test]
-    fn value_and() {
-        assert_eq!(
-            TypeValue::Unknown.and(&TypeValue::Bool(Some(true))),
-            TypeValue::Unknown
-        );
-        assert_eq!(
-            TypeValue::Bool(Some(true)).and(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(
-            TypeValue::Bool(Some(true)).and(&TypeValue::Bool(Some(false))),
-            TypeValue::Bool(Some(false))
-        );
-
-        assert_eq!(
-            TypeValue::Bool(Some(true)).and(&TypeValue::Bool(Some(true))),
-            TypeValue::Bool(Some(true))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(1)).and(&TypeValue::Bool(Some(true))),
-            TypeValue::Bool(Some(true))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(0)).and(&TypeValue::Bool(Some(true))),
-            TypeValue::Bool(Some(false))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(1))
-                .and(&TypeValue::String(Some(BString::from("foo")))),
-            TypeValue::Bool(Some(true))
-        );
-
-        assert_eq!(
-            TypeValue::Float(Some(1.0)).and(&TypeValue::Float(Some(2.0))),
-            TypeValue::Bool(Some(true))
-        );
-
-        assert_eq!(
-            TypeValue::Float(Some(0.0)).and(&TypeValue::Float(Some(2.0))),
-            TypeValue::Bool(Some(false))
-        );
-    }
-
-    #[test]
-    fn value_shl() {
-        assert_eq!(
-            TypeValue::Unknown.shl(&TypeValue::Bool(Some(true))),
-            TypeValue::Unknown
-        );
-        assert_eq!(
-            TypeValue::Bool(Some(true)).shl(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(4)).shl(&TypeValue::Integer(Some(1))),
-            TypeValue::Integer(Some(8))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(1)).shl(&TypeValue::Integer(Some(64))),
-            TypeValue::Integer(Some(0))
-        );
-    }
-
-    #[test]
-    fn value_shr() {
-        assert_eq!(
-            TypeValue::Unknown.shr(&TypeValue::Bool(Some(true))),
-            TypeValue::Unknown
-        );
-        assert_eq!(
-            TypeValue::Bool(Some(true)).shr(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(1)).shr(&TypeValue::Integer(Some(1))),
-            TypeValue::Integer(Some(0))
-        );
-
-        assert_eq!(
-            TypeValue::Integer(Some(2)).shr(&TypeValue::Integer(Some(1))),
-            TypeValue::Integer(Some(1))
-        );
+    fn shr() {
+        assert_eq!(Unknown.shr(&Bool(Some(true))), Unknown);
+        assert_eq!(Bool(Some(true)).shr(&Unknown), Unknown);
+        assert_eq!(Integer(None).shr(&Integer(Some(1))), Integer(None));
+        assert_eq!(Integer(Some(1)).shr(&Integer(None)), Integer(None));
+        assert_eq!(Integer(Some(1)).shr(&Integer(Some(1))), Integer(Some(0)));
+        assert_eq!(Integer(Some(2)).shr(&Integer(Some(1))), Integer(Some(1)));
     }
 }

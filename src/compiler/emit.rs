@@ -650,43 +650,41 @@ fn emit_array_lookup(
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
 ) {
-    // If the items in the array are structs, update `current_struct`.
-    if let Array::Struct(array) = array.as_ref() {
-        ctx.borrow_mut().current_struct = Some(array.first().unwrap().clone())
-    }
-
     emit_lookup_common(ctx, instr);
 
-    match array.item_type() {
-        Type::Integer => {
+    match array.as_ref() {
+        Array::Integers(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
                 ctx.borrow().wasm_symbols.array_lookup_integer,
             );
         }
-        Type::Float => {
+        Array::Floats(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
                 ctx.borrow().wasm_symbols.array_lookup_float,
             );
         }
-        Type::Bool => {
+        Array::Bools(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
                 ctx.borrow().wasm_symbols.array_lookup_bool,
             );
         }
-        Type::Struct => {
+        Array::Structs(array) => {
+            ctx.borrow_mut().current_struct =
+                Some(array.first().unwrap().clone());
+
             emit_call_and_handle_undef(
                 ctx,
                 instr,
                 ctx.borrow().wasm_symbols.array_lookup_struct,
             );
         }
-        Type::String => {
+        Array::Strings(_) => {
             emit_call_and_handle_undef_str(
                 ctx,
                 instr,

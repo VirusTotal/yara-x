@@ -15,10 +15,11 @@ use yara_macros::*;
 
 use crate::ast::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
+use crate::types::*;
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
-pub use crate::types::*;
+pub use crate::types::Type;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -502,7 +503,7 @@ impl<'src> Ident<'src> {
     }
 
     /// Returns the identifier's type.
-    #[inline]
+    #[inline(always)]
     pub fn ty(&self) -> Type {
         self.type_value.ty()
     }
@@ -580,7 +581,7 @@ impl<'src> Literal<'src> {
     }
 
     /// Returns the literal's type
-    #[inline]
+    #[inline(always)]
     pub fn ty(&self) -> Type {
         self.type_value.ty()
     }
@@ -604,7 +605,7 @@ impl<'src> UnaryExpr<'src> {
     }
 
     /// Returns the expression's type
-    #[inline]
+    #[inline(always)]
     pub fn ty(&self) -> Type {
         self.type_value.ty()
     }
@@ -647,7 +648,7 @@ impl<'src> BinaryExpr<'src> {
     }
 
     /// Returns the expression's type
-    #[inline]
+    #[inline(always)]
     pub fn ty(&self) -> Type {
         self.type_value.ty()
     }
@@ -698,7 +699,7 @@ impl<'src> Lookup<'src> {
     }
 
     /// Returns the expression's type
-    #[inline]
+    #[inline(always)]
     pub fn ty(&self) -> Type {
         self.type_value.ty()
     }
@@ -818,60 +819,12 @@ impl PatternSetItem<'_> {
 }
 
 impl<'src> Expr<'src> {
+    #[inline(always)]
     pub fn ty(&self) -> Type {
-        match self {
-            Expr::FieldAccess(expr)
-            | Expr::And(expr)
-            | Expr::Or(expr)
-            | Expr::Eq(expr)
-            | Expr::Ne(expr)
-            | Expr::Lt(expr)
-            | Expr::Gt(expr)
-            | Expr::Le(expr)
-            | Expr::Ge(expr)
-            | Expr::Contains(expr)
-            | Expr::IContains(expr)
-            | Expr::StartsWith(expr)
-            | Expr::IStartsWith(expr)
-            | Expr::EndsWith(expr)
-            | Expr::IEndsWith(expr)
-            | Expr::IEquals(expr)
-            | Expr::Add(expr)
-            | Expr::Sub(expr)
-            | Expr::Mul(expr)
-            | Expr::Div(expr)
-            | Expr::Modulus(expr)
-            | Expr::Shl(expr)
-            | Expr::Shr(expr)
-            | Expr::BitwiseAnd(expr)
-            | Expr::BitwiseOr(expr)
-            | Expr::BitwiseXor(expr) => expr.ty(),
-
-            Expr::Lookup(expr) => expr.ty(),
-            Expr::Ident(ident) => ident.ty(),
-            Expr::Literal(l) => l.ty(),
-
-            Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
-                expr.ty()
-            }
-
-            Expr::Filesize { .. }
-            | Expr::Entrypoint { .. }
-            | Expr::PatternCount(_)
-            | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => Type::Integer,
-
-            Expr::True { .. }
-            | Expr::False { .. }
-            | Expr::PatternMatch(_)
-            | Expr::FnCall(_)
-            | Expr::Of(_)
-            | Expr::ForOf(_)
-            | Expr::ForIn(_) => Type::Bool,
-        }
+        self.type_value().ty()
     }
 
-    pub fn type_value(&self) -> &TypeValue {
+    pub(crate) fn type_value(&self) -> &TypeValue {
         match self {
             Expr::FieldAccess(expr)
             | Expr::And(expr)

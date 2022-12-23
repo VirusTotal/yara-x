@@ -1,38 +1,28 @@
-use crate::types::{Struct, Type, TypeValue};
+use crate::types::{Struct, TypeValue};
 use bstr::BString;
 use std::rc::Rc;
 
 pub enum Array {
-    Integer(Vec<i64>),
-    Float(Vec<f64>),
-    Bool(Vec<bool>),
-    String(Vec<BString>),
-    Struct(Vec<Rc<Struct>>),
+    Integers(Vec<i64>),
+    Floats(Vec<f64>),
+    Bools(Vec<bool>),
+    Strings(Vec<BString>),
+    Structs(Vec<Rc<Struct>>),
 }
 
 impl Array {
-    pub fn item_type(&self) -> Type {
-        match self {
-            Array::Integer(_) => Type::Integer,
-            Array::Float(_) => Type::Float,
-            Array::Bool(_) => Type::Bool,
-            Array::String(_) => Type::String,
-            Array::Struct(_) => Type::Struct,
-        }
-    }
-
     pub fn deputy(&self) -> TypeValue {
         match self {
-            Array::Integer(_) => TypeValue::Integer(None),
-            Array::Float(_) => TypeValue::Float(None),
-            Array::Bool(_) => TypeValue::Bool(None),
-            Array::String(_) => TypeValue::String(None),
-            Array::Struct(s) => TypeValue::Struct(s.first().unwrap().clone()),
+            Array::Integers(_) => TypeValue::Integer(None),
+            Array::Floats(_) => TypeValue::Float(None),
+            Array::Bools(_) => TypeValue::Bool(None),
+            Array::Strings(_) => TypeValue::String(None),
+            Array::Structs(s) => TypeValue::Struct(s.first().unwrap().clone()),
         }
     }
 
     pub fn as_integer_array(&self) -> &Vec<i64> {
-        if let Self::Integer(v) = self {
+        if let Self::Integers(v) = self {
             v
         } else {
             panic!()
@@ -40,7 +30,7 @@ impl Array {
     }
 
     pub fn as_float_array(&self) -> &Vec<f64> {
-        if let Self::Float(v) = self {
+        if let Self::Floats(v) = self {
             v
         } else {
             panic!()
@@ -48,7 +38,7 @@ impl Array {
     }
 
     pub fn as_bool_array(&self) -> &Vec<bool> {
-        if let Self::Bool(v) = self {
+        if let Self::Bools(v) = self {
             v
         } else {
             panic!()
@@ -56,7 +46,7 @@ impl Array {
     }
 
     pub fn as_string_array(&self) -> &Vec<BString> {
-        if let Self::String(v) = self {
+        if let Self::Strings(v) = self {
             v
         } else {
             panic!()
@@ -64,7 +54,7 @@ impl Array {
     }
 
     pub fn as_struct_array(&self) -> &Vec<Rc<Struct>> {
-        if let Self::Struct(v) = self {
+        if let Self::Structs(v) = self {
             v
         } else {
             panic!()

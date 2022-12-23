@@ -10,12 +10,6 @@ pub trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
-pub trait SymbolIndex<I> {
-    fn index(&self, index: I) -> Option<Symbol>;
-    fn item_type(&self) -> Type;
-    fn item_value(&self) -> TypeValue;
-}
-
 #[derive(Clone)]
 pub struct Symbol {
     type_value: TypeValue,
@@ -33,7 +27,7 @@ impl Symbol {
         self
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn mem_offset(&self) -> Option<i32> {
         self.mem_offset
     }
@@ -43,17 +37,17 @@ impl Symbol {
         self
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn field_index(&self) -> Option<i32> {
         self.field_index
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn type_value(&self) -> &TypeValue {
         &self.type_value
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn ty(&self) -> Type {
         self.type_value.ty()
     }
