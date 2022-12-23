@@ -271,17 +271,6 @@ pub(super) fn emit_expr(
                             emit_lookup_string(ctx, instr, index);
                         }
                         Type::Struct => {
-                            // If the identifier refers to some struct, store
-                            // it in `current_struct`.
-                            if let TypeValue::Struct(structure) =
-                                symbol.type_value()
-                            {
-                                ctx.borrow_mut().current_struct =
-                                    Some(structure.clone());
-                            } else {
-                                unreachable!()
-                            }
-
                             ctx.borrow_mut().lookup_stack.push_back(index);
                         }
                         Type::Array => {
@@ -368,6 +357,10 @@ pub(super) fn emit_expr(
         Expr::FieldAccess(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_expr(ctx, instr, &operands.lhs);
+
+                ctx.borrow_mut().current_struct =
+                    Some(operands.lhs.type_value().as_struct().unwrap());
+
                 emit_expr(ctx, instr, &operands.rhs);
             })
         }
@@ -674,10 +667,7 @@ fn emit_array_lookup(
                 ctx.borrow().wasm_symbols.array_lookup_bool,
             );
         }
-        Array::Structs(array) => {
-            ctx.borrow_mut().current_struct =
-                Some(array.first().unwrap().clone());
-
+        Array::Structs(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
@@ -716,11 +706,6 @@ fn emit_map_integer_key_lookup(
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
-    // If values in the map are structs, update `current_struct` accordingly.
-    if let TypeValue::Struct(s) = map_value {
-        ctx.borrow_mut().current_struct = Some(s.clone())
-    }
-
     emit_lookup_common(ctx, instr);
 
     match map_value.ty() {
@@ -768,11 +753,6 @@ fn emit_map_string_key_lookup(
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
-    // If values in the map are structs, update `current_struct` accordingly.
-    if let TypeValue::Struct(s) = map_value {
-        ctx.borrow_mut().current_struct = Some(s.clone())
-    }
-
     emit_lookup_common(ctx, instr);
 
     // Generate the call depending on the type of the map values.
