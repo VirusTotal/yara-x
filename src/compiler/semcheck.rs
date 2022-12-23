@@ -1,17 +1,17 @@
 use std::borrow::Borrow;
+use std::iter;
 use std::rc::Rc;
 
 use crate::ast::*;
 use crate::compiler::{CompileError, Context, Error, ParserError};
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
-use crate::types::{RuntimeArray, RuntimeMap, RuntimeValue};
+use crate::types::{Map, Type, TypeValue};
 use crate::warnings::Warning;
 
 macro_rules! semcheck {
     ($ctx:expr, $( $accepted_types:path )|+, $expr:expr) => {
         {
-            use crate::ast::Type;
-            use crate::compiler::errors::Error;
+            use crate::types::Type;
             use crate::compiler::semcheck::semcheck_expr;
             let span = (&*$expr).span();
             let ty = semcheck_expr($ctx, $expr)?;
@@ -49,8 +49,8 @@ macro_rules! semcheck_operands {
             (
                 // If both types are in the list of compatible types,
                 // they are compatible too.
-                $compatible_types.iter().any(|&ty: &Type| ty == ty1)
-                && $compatible_types.iter().any(|&ty: &Type| ty == ty2)
+                $compatible_types.iter().any(|ty: &Type| ty == &ty1)
+                && $compatible_types.iter().any(|ty: &Type| ty == &ty2)
             )
         };
 
@@ -73,9 +73,9 @@ macro_rules! check_non_negative_integer {
     ($ctx:ident, $expr:expr) => {{
         let ty = semcheck!($ctx, Type::Integer, $expr)?;
         let span = (&*$expr).span();
-        let value = (&*$expr).value();
-        if let Value::Integer(value) = *value {
-            if value < 0 {
+        let type_value = (&*$expr).type_value();
+        if let TypeValue::Integer(Some(value)) = type_value {
+            if *value < 0 {
                 return Err(Error::CompileError(
                     CompileError::unexpected_negative_number(
                         $ctx.report_builder,
@@ -84,9 +84,7 @@ macro_rules! check_non_negative_integer {
                     ),
                 ));
             }
-        } else {
-            unreachable!();
-        };
+        }
         Ok::<_, Error>(ty)
     }};
 }
@@ -95,9 +93,9 @@ macro_rules! check_integer_in_range {
     ($ctx:ident, $expr:expr, $min:expr, $max:expr) => {{
         let ty = semcheck!($ctx, Type::Integer, $expr)?;
         let span = (&*$expr).span();
-        let value = (&*$expr).value();
-        if let Value::Integer(value) = *value {
-            if !($min..=$max).contains(&value) {
+        let type_value = (&*$expr).type_value();
+        if let TypeValue::Integer(Some(value)) = type_value {
+            if !($min..=$max).contains(value) {
                 return Err(Error::CompileError(
                     CompileError::number_out_of_range(
                         $ctx.report_builder,
@@ -108,9 +106,7 @@ macro_rules! check_integer_in_range {
                     ),
                 ));
             }
-        } else {
-            unreachable!();
-        };
+        }
         Ok::<_, Error>(ty)
     }};
 }
@@ -136,11 +132,12 @@ macro_rules! gen_semcheck_boolean_op {
                 &[Type::Bool, Type::Integer, Type::Float, Type::String]
             )?;
 
-            let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(expr.rhs.value());
+            let type_value = expr.lhs.type_value().$op(expr.rhs.type_value());
+            let ty = type_value.ty();
 
-            expr.set_type_and_value(ty, value);
-            Ok(expr.ty())
+            expr.set_type_and_value(type_value);
+
+            Ok(ty)
         }
     };
 }
@@ -165,11 +162,11 @@ macro_rules! gen_semcheck_comparison_op {
                 &[Type::Integer, Type::Float]
             )?;
 
-            let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(expr.rhs.value());
+            let type_value = expr.lhs.type_value().$op(expr.rhs.type_value());
+            let ty = type_value.ty();
 
-            expr.set_type_and_value(ty, value);
-            Ok(expr.ty())
+            expr.set_type_and_value(type_value);
+            Ok(ty)
         }
     };
 }
@@ -197,8 +194,10 @@ macro_rules! gen_semcheck_shift_op {
                 &[]
             )?;
 
-            if let Value::Integer(value) = *expr.rhs.value() {
-                if value < 0 {
+            let rhs_type_value = expr.rhs.type_value();
+
+            if let TypeValue::Integer(Some(value)) = rhs_type_value {
+                if *value < 0 {
                     return Err(Error::CompileError(
                         CompileError::unexpected_negative_number(
                             ctx.report_builder,
@@ -207,15 +206,13 @@ macro_rules! gen_semcheck_shift_op {
                         ),
                     ));
                 }
-            } else {
-                unreachable!();
-            };
+            }
 
-            let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(expr.rhs.value());
+            let type_value = expr.lhs.type_value().$op(rhs_type_value);
+            let ty = type_value.ty();
 
-            expr.set_type_and_value(ty, value);
-            Ok(expr.ty())
+            expr.set_type_and_value(type_value);
+            Ok(ty)
         }
     };
 }
@@ -237,11 +234,11 @@ macro_rules! gen_semcheck_bitwise_op {
                 &[]
             )?;
 
-            let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(expr.rhs.value());
+            let type_value = expr.lhs.type_value().$op(expr.rhs.type_value());
+            let ty = type_value.ty();
 
-            expr.set_type_and_value(ty, value);
-            Ok(expr.ty())
+            expr.set_type_and_value(type_value);
+            Ok(ty)
         }
     };
 }
@@ -257,7 +254,7 @@ macro_rules! gen_semcheck_string_op {
             expr: &mut Box<BinaryExpr>,
             case_insensitive: bool,
         ) -> Result<Type, Error> {
-            let (lhs_ty, rhs_ty) = semcheck_operands!(
+            semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
@@ -265,12 +262,15 @@ macro_rules! gen_semcheck_string_op {
                 &[]
             )?;
 
-            let ty = lhs_ty.$op(rhs_ty);
-            let value =
-                expr.lhs.value().$op(expr.rhs.value(), case_insensitive);
+            let type_value = expr
+                .lhs
+                .type_value()
+                .$op(expr.rhs.type_value(), case_insensitive);
 
-            expr.set_type_and_value(ty, value);
-            Ok(expr.ty())
+            let ty = type_value.ty();
+
+            expr.set_type_and_value(type_value);
+            Ok(ty)
         }
     };
 }
@@ -286,19 +286,19 @@ macro_rules! gen_semcheck_arithmetic_op {
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-             let (lhs_ty, rhs_ty) = semcheck_operands!(
+             semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
                 $( $accepted_types )|+,
                 &[Type::Integer, Type::Float]
-            )?;
+             )?;
 
-            let ty = lhs_ty.$op(rhs_ty);
-            let value = expr.lhs.value().$op(expr.rhs.value());
+             let type_value = expr.lhs.type_value().$op(expr.rhs.type_value());
+             let ty = type_value.ty();
 
-            expr.set_type_and_value(ty, value);
-            Ok(expr.ty())
+             expr.set_type_and_value(type_value);
+             Ok(ty)
         }
     };
 }
@@ -362,7 +362,7 @@ pub(super) fn semcheck_expr(
         Expr::True { .. } | Expr::False { .. } => Ok(Type::Bool),
         Expr::Filesize { .. } | Expr::Entrypoint { .. } => Ok(Type::Integer),
 
-        Expr::Literal(lit) => Ok(lit.ty),
+        Expr::Literal(lit) => Ok(lit.ty()),
 
         Expr::Ident(ident) => semcheck_ident(ctx, ident),
 
@@ -404,8 +404,8 @@ pub(super) fn semcheck_expr(
                 Type::Bool | Type::Integer | Type::Float | Type::String,
                 &mut expr.operand
             )?;
-            let value = expr.operand.value().not();
-            expr.set_type_and_value(Type::Bool, value);
+            let type_value = expr.operand.type_value().not();
+            expr.set_type_and_value(type_value);
             Ok(Type::Bool)
         }
 
@@ -424,8 +424,8 @@ pub(super) fn semcheck_expr(
 
         Expr::BitwiseNot(expr) => {
             semcheck!(ctx, Type::Integer, &mut expr.operand)?;
-            let value = expr.operand.value().bitwise_not();
-            expr.set_type_and_value(Type::Integer, value);
+            let type_value = expr.operand.type_value().bitwise_not();
+            expr.set_type_and_value(type_value);
             Ok(Type::Integer)
         }
 
@@ -439,8 +439,8 @@ pub(super) fn semcheck_expr(
                 Type::Integer | Type::Float,
                 &mut expr.operand
             )?;
-            let value = expr.operand.value().minus();
-            expr.set_type_and_value(ty, value);
+            let type_value = expr.operand.type_value().minus();
+            expr.set_type_and_value(type_value);
             Ok(ty)
         }
 
@@ -459,43 +459,27 @@ pub(super) fn semcheck_expr(
         Expr::IEquals(expr) => semcheck_string_equals(ctx, expr, true),
 
         Expr::Lookup(expr) => {
-            match semcheck_expr(ctx, &mut expr.primary)? {
-                Type::Array => {
-                    let array = ctx.current_array.take().unwrap();
-                    let item_type = array.item_type();
+            semcheck_expr(ctx, &mut expr.primary)?;
 
-                    // Check that index is an integer. Notice that this must be
-                    // done *after* retrieving the current array from `ctx`. This
-                    // is because the index expression may also contain an index
-                    // lookup expression that modifies `ctx.current_array`.
+            match expr.primary.type_value() {
+                TypeValue::Array(array) => {
                     semcheck!(ctx, Type::Integer, &mut expr.index)?;
-
-                    if let RuntimeArray::Struct(s) = array.borrow() {
-                        ctx.current_struct = Some(s.first().unwrap().clone());
-                    }
-
-                    // The type of the Lookup expression (i.e: array[index])
-                    // is the type of the array's items.
-                    expr.set_type_and_value(item_type, Value::Unknown);
-
+                    expr.set_type_and_value(array.deputy());
                     Ok(expr.ty())
                 }
-                Type::Map => {
-                    let map = ctx.current_map.take().unwrap();
-
+                TypeValue::Map(map) => {
                     // The deputy value is a value that acts as representative
                     // of the values stored in the map. This value only contains
                     // type information, not actual data. For example, if the
-                    // value is an integer it will be RuntimeValue::Integer(None),
+                    // value is an integer it will be TypeValue::Integer(None),
                     // if it is an struct, it will contain all the fields in the
                     let (key_ty, deputy_value) = match map.borrow() {
-                        RuntimeMap::IntegerKeys {
-                            deputy: Some(value),
-                            ..
-                        } => (Type::Integer, value),
-                        RuntimeMap::StringKeys {
-                            deputy: Some(value), ..
-                        } => (Type::String, value),
+                        Map::IntegerKeys { deputy: Some(value), .. } => {
+                            (Type::Integer, value)
+                        }
+                        Map::StringKeys { deputy: Some(value), .. } => {
+                            (Type::String, value)
+                        }
                         _ => unreachable!(),
                     };
 
@@ -515,13 +499,9 @@ pub(super) fn semcheck_expr(
                         ));
                     }
 
-                    if let RuntimeValue::Struct(s) = deputy_value {
-                        ctx.current_struct = Some(s.clone());
-                    }
-
                     // The type of the Lookup expression (i.e: map[key])
                     // is the type of the map's values.
-                    expr.set_type_and_value(deputy_value.ty(), Value::Unknown);
+                    expr.set_type_and_value(deputy_value.clone());
 
                     Ok(expr.ty())
                 }
@@ -535,16 +515,25 @@ pub(super) fn semcheck_expr(
             }
         }
         Expr::FieldAccess(expr) => {
-            // The left side must be a struct.
+            // The left side operand of a field access operation (i.e: foo.bar)
+            // must be a struct.
             semcheck!(ctx, Type::Struct, &mut expr.lhs)?;
 
-            // Now check the right hand expression. During the call to
-            // semcheck_expr the current symbol table is the one corresponding
-            // to the struct.
-            let ty = semcheck_expr(ctx, &mut expr.rhs)?;
-            let value = expr.rhs.value().clone();
+            // Set `current_struct` to the structure returned by the left-hand
+            // operand.
+            ctx.current_struct =
+                Some(expr.lhs.type_value().as_struct().unwrap());
 
-            expr.set_type_and_value(ty, value);
+            // Now check the right-hand expression. During the call to
+            // semcheck_expr the symbol table of `current_struct` will be used
+            // for resolving symbols, instead of using the top-level symbol
+            // table.
+            let ty = semcheck_expr(ctx, &mut expr.rhs)?;
+
+            // The result of a field access is the result of the right-hand
+            // expression (i.e: the field).
+            expr.set_type_and_value(expr.rhs.type_value().clone());
+
             Ok(ty)
         }
 
@@ -640,8 +629,8 @@ fn semcheck_of(ctx: &mut Context, of: &mut Of) -> Result<Type, Error> {
     // If the quantifier expression is greater than the number of items,
     // the `of` expression is always false.
     if let Quantifier::Expr(expr) = &of.quantifier {
-        if let Value::Integer(value) = *expr.value() {
-            if value > items_count {
+        if let TypeValue::Integer(Some(value)) = expr.type_value() {
+            if *value > items_count {
                 ctx.warnings.push(Warning::invariant_boolean_expression(
                     ctx.report_builder,
                     ctx.src,
@@ -649,7 +638,7 @@ fn semcheck_of(ctx: &mut Context, of: &mut Of) -> Result<Type, Error> {
                     of.span(),
                     Some(format!(
                         "the expression requires {} matching patterns out of {}",
-                        value, items_count
+                        *value, items_count
                     )),
                 ));
             }
@@ -672,22 +661,22 @@ fn semcheck_of(ctx: &mut Context, of: &mut Of) -> Result<Type, Error> {
     // Raise a warning in those cases that are probably wrong.
     //
     if matches!(of.anchor, Some(MatchAnchor::At(_))) {
-        let raise_warning = match of.quantifier {
+        let raise_warning = match &of.quantifier {
             // `all of <items> at <expr>`: the warning is raised only if there
             // are more than one item. `all of ($a) at 0` doesn't raise a
             // warning.
             Quantifier::All { .. } => items_count > 1,
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
-            Quantifier::Expr(ref expr) => match *expr.value() {
-                Value::Integer(value) => value >= 2,
+            Quantifier::Expr(expr) => match expr.type_value() {
+                TypeValue::Integer(Some(value)) => *value >= 2,
                 _ => false,
             },
             // `<expr>% of <items> at <expr>: the warning is raised if the
             // <expr> percent of the items is 2 or more.
-            Quantifier::Percentage(ref expr) => match *expr.value() {
-                Value::Integer(percentage) => {
-                    items_count as f64 * (percentage) as f64 / 100.0 >= 2.0
+            Quantifier::Percentage(expr) => match expr.type_value() {
+                TypeValue::Integer(Some(percentage)) => {
+                    items_count as f64 * (*percentage) as f64 / 100.0 >= 2.0
                 }
                 _ => false,
             },
@@ -711,44 +700,27 @@ fn semcheck_ident(
     ctx: &mut Context,
     ident: &mut Ident,
 ) -> Result<Type, Error> {
-    let (ty, value): (Type, Value) = {
-        let current_struct = ctx.current_struct.take();
+    let current_struct = ctx.current_struct.take();
 
-        let symbol = if let Some(structure) = &current_struct {
-            structure.lookup(ident.name)
-        } else {
-            ctx.symbol_table.lookup(ident.name)
-        };
-
-        if let Some(symbol) = symbol {
-            match symbol.value() {
-                RuntimeValue::Struct(s) => {
-                    ctx.current_struct = Some(s.clone());
-                    (Type::Struct, Value::Unknown)
-                }
-                RuntimeValue::Array(a) => {
-                    ctx.current_array = Some(a.clone());
-                    (Type::Array, Value::Unknown)
-                }
-                RuntimeValue::Map(m) => {
-                    ctx.current_map = Some(m.clone());
-                    (Type::Map, Value::Unknown)
-                }
-                value => (symbol.ty(), Value::from(value)),
-            }
-        } else {
-            return Err(Error::CompileError(
-                CompileError::unknown_identifier(
-                    ctx.report_builder,
-                    ctx.src,
-                    ident.name.to_string(),
-                    ident.span(),
-                ),
-            ));
-        }
+    let symbol = if let Some(structure) = &current_struct {
+        structure.lookup(ident.name)
+    } else {
+        ctx.symbol_table.lookup(ident.name)
     };
 
-    ident.set_type_and_value(ty, value);
+    let type_value = if let Some(symbol) = symbol {
+        symbol.type_value().clone()
+    } else {
+        return Err(Error::CompileError(CompileError::unknown_identifier(
+            ctx.report_builder,
+            ctx.src,
+            ident.name.to_string(),
+            ident.span(),
+        )));
+    };
+
+    let ty = type_value.ty();
+    ident.set_type_and_value(type_value);
 
     Ok(ty)
 }
@@ -758,44 +730,52 @@ fn semcheck_for_in(
     for_in: &mut ForIn,
 ) -> Result<Type, Error> {
     semcheck_quantifier(ctx, &mut for_in.quantifier)?;
-    let ty = semcheck_iterable(ctx, &mut for_in.iterable)?;
+    semcheck_iterable(ctx, &mut for_in.iterable)?;
 
     let expected_vars = match &for_in.iterable {
-        Iterable::Range(_) => 1,
-        Iterable::ExprTuple(_) => 1,
-        Iterable::Expr(expr) => match expr.ty() {
-            Type::Array => 1,
-            Type::Map => 2,
+        Iterable::Range(_) => vec![TypeValue::Integer(None)],
+        Iterable::ExprTuple(expressions) => {
+            vec![expressions.first().unwrap().type_value().clone()]
+        }
+        Iterable::Expr(expr) => match expr.type_value() {
+            TypeValue::Array(array) => vec![array.deputy()],
+            TypeValue::Map(map) => match map.as_ref() {
+                Map::IntegerKeys { .. } => {
+                    vec![TypeValue::Integer(None), map.deputy()]
+                }
+                Map::StringKeys { .. } => {
+                    vec![TypeValue::String(None), map.deputy()]
+                }
+            },
             _ => unreachable!(),
         },
     };
 
-    let variables = &for_in.variables;
+    let loop_vars = &for_in.variables;
 
-    if variables.len() != expected_vars {
-        let span = variables.first().unwrap().span();
-        let span = span.combine(&variables.last().unwrap().span());
+    if loop_vars.len() != expected_vars.len() {
+        let span = loop_vars.first().unwrap().span();
+        let span = span.combine(&loop_vars.last().unwrap().span());
         return Err(Error::CompileError(CompileError::assignment_mismatch(
             ctx.report_builder,
             ctx.src,
-            variables.len() as u8,
-            expected_vars as u8,
+            loop_vars.len() as u8,
+            expected_vars.len() as u8,
             for_in.iterable.span(),
             span,
         )));
     }
 
-    let mut loop_vars = SymbolTable::new();
+    let mut vars = SymbolTable::new();
 
     // TODO: raise warning when the loop identifier (e.g: "i") hides
     // an existing identifier with the same name.
-    for var in &for_in.variables {
-        loop_vars
-            .insert(var.as_str(), Symbol::new(ty, RuntimeValue::from(ty)));
+    for (var, type_value) in iter::zip(loop_vars, expected_vars) {
+        vars.insert(var.as_str(), Symbol::new(type_value));
     }
 
     // Put the loop variables into scope.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    ctx.symbol_table.push(Rc::new(vars));
 
     semcheck!(ctx, Type::Bool, &mut for_in.condition)?;
 
@@ -808,11 +788,12 @@ fn semcheck_for_in(
 fn semcheck_iterable(
     ctx: &mut Context,
     iterable: &mut Iterable,
-) -> Result<Type, Error> {
+) -> Result<(), Error> {
     match iterable {
-        Iterable::Range(range) => {
-            semcheck_range(ctx, range)?;
-            Ok(Type::Integer)
+        Iterable::Range(range) => semcheck_range(ctx, range),
+        Iterable::Expr(expr) => {
+            semcheck!(ctx, Type::Array | Type::Map, expr)?;
+            Ok(())
         }
         Iterable::ExprTuple(tuple) => {
             let mut prev: Option<(Type, Span)> = None;
@@ -841,29 +822,7 @@ fn semcheck_iterable(
                 }
                 prev = Some((ty, span));
             }
-
-            // Get the type of the last item in the tuple.
-            let (ty, _) = prev.unwrap();
-            Ok(ty)
-        }
-        Iterable::Expr(expr) => {
-            let ty = semcheck_expr(ctx, expr)?;
-            match ty {
-                Type::Array => {
-                    Ok(ctx.current_array.take().unwrap().item_type())
-                }
-                Type::Map => {
-                    // todo
-                    Ok(Type::Unknown)
-                }
-                _ => Err(Error::CompileError(CompileError::wrong_type(
-                    ctx.report_builder,
-                    ctx.src,
-                    "`iterable`".to_string(),
-                    expr.ty().to_string(),
-                    expr.span(),
-                ))),
-            }
+            Ok(())
         }
     }
 }

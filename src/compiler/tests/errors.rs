@@ -499,7 +499,7 @@ rule test {
    │
  5 │     for all x in test_proto2.int64_zero : ( true )
    ·                  ───────────┬──────────  
-   ·                             ╰──────────── expression should be `iterable`, but is `integer`
+   ·                             ╰──────────── expression should be `array` or `map`, but is `integer`
 ───╯
 "#,
         ),

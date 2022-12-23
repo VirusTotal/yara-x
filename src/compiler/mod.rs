@@ -17,6 +17,8 @@ use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
+use crate::symbols::{StackedSymbolTable, SymbolLookup};
+use crate::types::{Struct, TypeValue};
 use crate::warnings::Warning;
 use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
@@ -24,8 +26,6 @@ use crate::wasm::WasmSymbols;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::symbols::{StackedSymbolTable, SymbolLookup};
-use crate::types::{RuntimeArray, RuntimeMap, RuntimeStruct, RuntimeValue};
 
 mod emit;
 mod errors;
@@ -161,8 +161,6 @@ impl<'a> Compiler<'a> {
                 let mut ctx = Context {
                     src: &src,
                     current_struct: None,
-                    current_array: None,
-                    current_map: None,
                     symbol_table: &mut self.symbol_table,
                     ident_pool: &mut self.ident_pool,
                     lit_pool: &mut self.lit_pool,
@@ -272,7 +270,7 @@ impl<'a> Compiler<'a> {
     ) -> Result<(), Error> {
         // Structure where each field has the name of some imported module and
         // its value the module's root structure.
-        let mut modules_struct = RuntimeStruct::new();
+        let mut modules_struct = Struct::new();
 
         // Iterate over the list of imported modules.
         for import in imports.iter() {
@@ -286,7 +284,7 @@ impl<'a> Compiler<'a> {
                     self.ident_pool.get_or_intern(import.module_name.as_str()),
                 );
 
-                let root_struct = RuntimeStruct::from_proto_descriptor_and_msg(
+                let root_struct = Struct::from_proto_descriptor_and_msg(
                     &module.root_struct_descriptor,
                     None,
                     true,
@@ -294,7 +292,7 @@ impl<'a> Compiler<'a> {
 
                 modules_struct.insert(
                     import.module_name.as_str(),
-                    RuntimeValue::Struct(Rc::new(root_struct)),
+                    TypeValue::Struct(Rc::new(root_struct)),
                 );
             } else {
                 // ... if no, that's an error.
@@ -385,12 +383,6 @@ struct Context<'a, 'sym> {
     /// some value, symbols are looked up in this table and the main symbol
     /// table (i.e: `symbol_table`) is ignored.
     current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
-
-    /// Contains the currently active array, if any.
-    current_array: Option<Rc<RuntimeArray>>,
-
-    /// Contains the currently active map, if any.
-    current_map: Option<Rc<RuntimeMap>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
     /// code.

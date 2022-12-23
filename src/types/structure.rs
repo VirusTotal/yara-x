@@ -1,173 +1,30 @@
+use bstr::BString;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use bstr::{BStr, BString, ByteSlice};
 use protobuf::reflect::{
     EnumDescriptor, FieldDescriptor, MessageDescriptor, ReflectMapRef,
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
-
-use crate::ast::Type;
-use crate::symbols::{Symbol, SymbolLookup};
-
 use yara_proto::exts::field_options as yara_field_options;
 use yara_proto::exts::module_options as yara_module_options;
 
-/// Type and value of a structure field.
-#[derive(Clone)]
-pub enum RuntimeValue {
-    Integer(Option<i64>),
-    Float(Option<f64>),
-    Bool(Option<bool>),
-    String(Option<BString>),
-    Struct(Rc<RuntimeStruct>),
-    Array(Rc<RuntimeArray>),
-    Map(Rc<RuntimeMap>),
-}
+use crate::symbols::{Symbol, SymbolLookup};
+use crate::types::{Array, Map, TypeValue};
 
-impl From<Type> for RuntimeValue {
-    fn from(ty: Type) -> Self {
-        match ty {
-            Type::Integer => RuntimeValue::Integer(None),
-            Type::Float => RuntimeValue::Float(None),
-            Type::Bool => RuntimeValue::Bool(None),
-            Type::String => RuntimeValue::String(None),
-            _ => {
-                panic!("can not create RuntimeTypeAndValue from type `{}`", ty)
-            }
-        }
-    }
-}
-
-impl RuntimeValue {
-    pub fn ty(&self) -> Type {
-        match &self {
-            RuntimeValue::Integer(_) => Type::Integer,
-            RuntimeValue::Float(_) => Type::Float,
-            RuntimeValue::Bool(_) => Type::Bool,
-            RuntimeValue::String(_) => Type::String,
-            RuntimeValue::Struct(_) => Type::Struct,
-            RuntimeValue::Array(_) => Type::Array,
-            RuntimeValue::Map(_) => Type::Map,
-        }
-    }
-
-    pub fn as_bstr(&self) -> Option<&BStr> {
-        if let RuntimeValue::String(v) = self {
-            v.as_ref().map(|v| v.as_bstr())
-        } else {
-            panic!()
-        }
-    }
-}
-
-pub enum RuntimeArray {
-    Integer(Vec<i64>),
-    Float(Vec<f64>),
-    Bool(Vec<bool>),
-    String(Vec<BString>),
-    Struct(Vec<Rc<RuntimeStruct>>),
-}
-
-impl RuntimeArray {
-    pub fn item_type(&self) -> Type {
-        match self {
-            RuntimeArray::Integer(_) => Type::Integer,
-            RuntimeArray::Float(_) => Type::Float,
-            RuntimeArray::Bool(_) => Type::Bool,
-            RuntimeArray::String(_) => Type::String,
-            RuntimeArray::Struct(_) => Type::Struct,
-        }
-    }
-
-    pub fn as_integer_array(&self) -> &Vec<i64> {
-        if let Self::Integer(v) = self {
-            v
-        } else {
-            panic!()
-        }
-    }
-
-    pub fn as_float_array(&self) -> &Vec<f64> {
-        if let Self::Float(v) = self {
-            v
-        } else {
-            panic!()
-        }
-    }
-
-    pub fn as_bool_array(&self) -> &Vec<bool> {
-        if let Self::Bool(v) = self {
-            v
-        } else {
-            panic!()
-        }
-    }
-
-    pub fn as_string_array(&self) -> &Vec<BString> {
-        if let Self::String(v) = self {
-            v
-        } else {
-            panic!()
-        }
-    }
-
-    pub fn as_struct_array(&self) -> &Vec<Rc<RuntimeStruct>> {
-        if let Self::Struct(v) = self {
-            v
-        } else {
-            panic!()
-        }
-    }
-}
-
-pub enum RuntimeMap {
-    /// A map that has integer keys.
-    IntegerKeys {
-        // The deputy value is one that acts as a representative of the values
-        // stored in the map. This value only contains type information, not
-        // actual data. For example, if the value is an integer it will be
-        // RuntimeValue::Integer(None), if it is a structure, it will have the
-        // same fields than actual structures stored in the map, but those
-        // fields will contain no data. The deputy value is optional because
-        // it is present only at compile time, when the `map` field is an
-        // empty map.
-        deputy: Option<RuntimeValue>,
-        map: FxHashMap<i64, RuntimeValue>,
-    },
-    /// A map that has string keys.
-    StringKeys {
-        deputy: Option<RuntimeValue>,
-        map: FxHashMap<BString, RuntimeValue>,
-    },
-}
-
-pub struct RuntimeStructField {
-    // Field name.
+/// A field in a [`Struct`].
+pub struct StructField {
+    /// Field name.
     pub name: String,
-    // For structures derived from a protobuf this contains the field number
-    // specified in the .proto file. For other structures this is set to 0.
+    /// For structures derived from a protobuf this contains the field number
+    /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
-    // Index that occupies the field in the structure it belongs to.
+    /// Index that occupies the field in the structure it belongs to.
     pub index: i32,
-    // Field type and value.
-    pub value: RuntimeValue,
-}
-
-impl RuntimeStructField {
-    fn ty(&self) -> Type {
-        match self.value {
-            RuntimeValue::Integer(_) => Type::Integer,
-            RuntimeValue::Float(_) => Type::Float,
-            RuntimeValue::Bool(_) => Type::Bool,
-            RuntimeValue::String(_) => Type::String,
-            RuntimeValue::Struct(_) => Type::Struct,
-            RuntimeValue::Array(_) => Type::Array,
-            RuntimeValue::Map(_) => Type::Map,
-        }
-    }
+    /// Field type and value.
+    pub type_value: TypeValue,
 }
 
 /// A dynamic structure with one or more fields.
@@ -182,37 +39,39 @@ impl RuntimeStructField {
 /// is also represented by one of these structures.
 ///
 /// The structures that represent a YARA module are created from the protobuf
-/// associated to that module. Functions [`RuntimeStruct::from_proto_msg`] and
-/// [`RuntimeStruct::from_proto_descriptor_and_msg`] are used for that purpose.
-pub struct RuntimeStruct {
-    // Fields in this structure. The index of each field is the index that it
-    // has in this vector. Fields are sorted by field number, which means that
-    // for protobuf-derived structures the order of the fields  doesn't depend
-    // on the order in which they appear in the source .proto file.
-    fields: Vec<RuntimeStructField>,
-    // Map where keys are field names and values are their corresponding index
-    // in the `fields` vector.
+/// associated to that module. Functions [`Struct::from_proto_msg`] and
+/// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
+pub struct Struct {
+    /// Fields in this structure. The index of each field is the index that it
+    /// has in this vector. Fields are sorted by field number, which means that
+    /// for protobuf-derived structures the order of the fields  doesn't depend
+    /// on the order in which they appear in the source .proto file. For
+    /// structures that are not created from a protobuf, the order of fields is
+    /// the order in which they were inserted.
+    fields: Vec<StructField>,
+    /// Map where keys are field names and values are their corresponding index
+    /// in the `fields` vector.
     field_index: FxHashMap<String, usize>,
 }
 
-impl SymbolLookup for RuntimeStruct {
+impl SymbolLookup for Struct {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let field = self.field_by_name(ident)?;
-        let mut symbol = Symbol::new(field.ty(), field.value.clone());
+        let mut symbol = Symbol::new(field.type_value.clone());
         symbol.set_field_index(field.index);
         Some(symbol)
     }
 }
 
-impl RuntimeStruct {
+impl Struct {
     pub fn new() -> Self {
         Self { fields: Vec::new(), field_index: FxHashMap::default() }
     }
 
-    pub fn insert(&mut self, name: &str, value: RuntimeValue) -> &mut Self {
+    pub fn insert(&mut self, name: &str, value: TypeValue) -> &mut Self {
         let index = self.fields.len();
-        self.fields.push(RuntimeStructField {
-            value,
+        self.fields.push(StructField {
+            type_value: value,
             name: name.to_owned(),
             number: 0,
             index: index as i32,
@@ -222,17 +81,17 @@ impl RuntimeStruct {
     }
 
     #[inline]
-    pub fn field_by_index(&self, index: usize) -> Option<&RuntimeStructField> {
+    pub fn field_by_index(&self, index: usize) -> Option<&StructField> {
         self.fields.get(index)
     }
 
     #[inline]
-    pub fn field_by_name(&self, name: &str) -> Option<&RuntimeStructField> {
+    pub fn field_by_name(&self, name: &str) -> Option<&StructField> {
         let index = self.field_index.get(name)?;
         self.field_by_index(*index)
     }
 
-    /// Creates a [`RuntimeStruct`] from a protobuf message.
+    /// Creates a [`Struct`] from a protobuf message.
     ///
     /// See [`Self::from_proto_descriptor_and_msg`] for details.
     #[inline]
@@ -247,7 +106,7 @@ impl RuntimeStruct {
         )
     }
 
-    /// Creates a [`RuntimeStruct`] from a protobuf message descriptor.
+    /// Creates a [`Struct`] from a protobuf message descriptor.
     ///
     /// Receives the [`MessageDescriptor`] corresponding to the protobuf
     /// message, and optionally, an instance of that message with actual
@@ -284,7 +143,7 @@ impl RuntimeStruct {
     /// ```
     ///
     /// If `MyMessage` is the root message for the module, both `SomeEnum`
-    /// and `SomeOtherEnum` will be included as fields of the [`RuntimeStruct`]
+    /// and `SomeOtherEnum` will be included as fields of the [`Struct`]
     /// created for `MyMessage`.
     ///
     /// # Panics
@@ -351,10 +210,10 @@ impl RuntimeStruct {
                 }
             };
 
-            fields.push(RuntimeStructField {
+            fields.push(StructField {
                 // Index is initially zero, will be adjusted later.
                 index: 0,
-                value,
+                type_value: value,
                 number,
                 name,
             });
@@ -382,18 +241,18 @@ impl RuntimeStruct {
                 };
 
             for enum_ in enums {
-                let mut enum_struct = RuntimeStruct::new();
+                let mut enum_struct = Struct::new();
 
                 for item in enum_.values() {
                     enum_struct.insert(
                         item.name(),
-                        RuntimeValue::Integer(Some(item.value() as i64)),
+                        TypeValue::Integer(Some(item.value() as i64)),
                     );
                 }
 
-                fields.push(RuntimeStructField {
+                fields.push(StructField {
                     index: fields.len() as i32,
-                    value: RuntimeValue::Struct(Rc::new(enum_struct)),
+                    type_value: TypeValue::Struct(Rc::new(enum_struct)),
                     number: 0,
                     name: enum_.name().to_owned(),
                 })
@@ -432,19 +291,18 @@ impl RuntimeStruct {
     }
 
     /// Given a [`FieldDescriptor`] returns the name that this field will
-    /// have in the corresponding [`RuntimeStruct`].
+    /// have in the corresponding [`Struct`].
     ///
-    /// By default, the name of the field in its [`RuntimeStruct`] will be
-    /// the same one that it has in the protobuf definition. However, the
-    /// name can be set to something different by using an annotation in
-    /// the .proto file, like this:
+    /// By default, the name of the field will be the same one that it has in
+    /// the protobuf definition. However, the name can be set to something
+    /// different by using an annotation in the .proto file, like this:
     ///
     /// ```text
     /// int64 foo = 1 [(yara.field_options).name = "bar"];
     /// ```
     ///
     /// Here the `foo` field will be named `bar` when the protobuf is converted
-    /// into a [`RuntimeStruct`].
+    /// into a [`Struct`].
     fn field_name(field_descriptor: &FieldDescriptor) -> String {
         if let Some(field_options) =
             yara_field_options.get(&field_descriptor.proto().options)
@@ -481,36 +339,36 @@ impl RuntimeStruct {
         ty: &RuntimeType,
         value: Option<ReflectValueRef>,
         enum_as_fields: bool,
-    ) -> RuntimeValue {
+    ) -> TypeValue {
         match ty {
             RuntimeType::I32 => {
-                RuntimeValue::Integer(value.map(Self::value_as_i64))
+                TypeValue::Integer(value.map(Self::value_as_i64))
             }
             RuntimeType::I64 => {
-                RuntimeValue::Integer(value.map(Self::value_as_i64))
+                TypeValue::Integer(value.map(Self::value_as_i64))
             }
             RuntimeType::U32 => {
-                RuntimeValue::Integer(value.map(Self::value_as_i64))
+                TypeValue::Integer(value.map(Self::value_as_i64))
             }
             RuntimeType::U64 => {
-                RuntimeValue::Integer(value.map(Self::value_as_i64))
+                TypeValue::Integer(value.map(Self::value_as_i64))
             }
-            RuntimeType::F32 => RuntimeValue::Float(
+            RuntimeType::F32 => TypeValue::Float(
                 value.map(|value| value.to_f32().unwrap() as f64),
             ),
             RuntimeType::F64 => {
-                RuntimeValue::Float(value.map(|value| value.to_f64().unwrap()))
+                TypeValue::Float(value.map(|value| value.to_f64().unwrap()))
             }
             RuntimeType::Bool => {
-                RuntimeValue::Bool(value.map(|value| value.to_bool().unwrap()))
+                TypeValue::Bool(value.map(|value| value.to_bool().unwrap()))
             }
-            RuntimeType::String => RuntimeValue::String(
+            RuntimeType::String => TypeValue::String(
                 value.map(|value| BString::from(value.to_str().unwrap())),
             ),
-            RuntimeType::VecU8 => RuntimeValue::String(
+            RuntimeType::VecU8 => TypeValue::String(
                 value.map(|value| BString::from(value.to_bytes().unwrap())),
             ),
-            RuntimeType::Enum(_) => RuntimeValue::Integer(
+            RuntimeType::Enum(_) => TypeValue::Integer(
                 value.map(|value| value.to_enum_value().unwrap() as i64),
             ),
             RuntimeType::Message(msg_descriptor) => {
@@ -527,7 +385,7 @@ impl RuntimeStruct {
                         enum_as_fields,
                     )
                 };
-                RuntimeValue::Struct(Rc::new(structure))
+                TypeValue::Struct(Rc::new(structure))
             }
         }
     }
@@ -536,42 +394,42 @@ impl RuntimeStruct {
         ty: &RuntimeType,
         repeated: Option<ReflectRepeatedRef>,
         enum_as_fields: bool,
-    ) -> RuntimeValue {
+    ) -> TypeValue {
         let array = match ty {
             RuntimeType::I32 => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::Integer(
+                    Array::Integers(
                         repeated
                             .into_iter()
                             .map(|value| value.to_i32().unwrap() as i64)
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::Integer(vec![])
+                    Array::Integers(vec![])
                 }
             }
             RuntimeType::I64 => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::Integer(
+                    Array::Integers(
                         repeated
                             .into_iter()
                             .map(|value| value.to_i64().unwrap())
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::Integer(vec![])
+                    Array::Integers(vec![])
                 }
             }
             RuntimeType::U32 => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::Integer(
+                    Array::Integers(
                         repeated
                             .into_iter()
                             .map(|value| value.to_u32().unwrap() as i64)
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::Integer(vec![])
+                    Array::Integers(vec![])
                 }
             }
             RuntimeType::U64 => {
@@ -579,43 +437,43 @@ impl RuntimeStruct {
             }
             RuntimeType::F32 => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::Float(
+                    Array::Floats(
                         repeated
                             .into_iter()
                             .map(|value| value.to_f32().unwrap() as f64)
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::Float(vec![])
+                    Array::Floats(vec![])
                 }
             }
             RuntimeType::F64 => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::Float(
+                    Array::Floats(
                         repeated
                             .into_iter()
                             .map(|value| value.to_f64().unwrap())
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::Float(vec![])
+                    Array::Floats(vec![])
                 }
             }
             RuntimeType::Bool => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::Bool(
+                    Array::Bools(
                         repeated
                             .into_iter()
                             .map(|value| value.to_bool().unwrap())
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::Bool(vec![])
+                    Array::Bools(vec![])
                 }
             }
             RuntimeType::String => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::String(
+                    Array::Strings(
                         repeated
                             .into_iter()
                             .map(|value| {
@@ -624,12 +482,12 @@ impl RuntimeStruct {
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::String(vec![])
+                    Array::Strings(vec![])
                 }
             }
             RuntimeType::VecU8 => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::String(
+                    Array::Strings(
                         repeated
                             .into_iter()
                             .map(|value| {
@@ -638,24 +496,24 @@ impl RuntimeStruct {
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::String(vec![])
+                    Array::Strings(vec![])
                 }
             }
             RuntimeType::Enum(_) => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::Integer(
+                    Array::Integers(
                         repeated
                             .into_iter()
                             .map(|value| value.to_enum_value().unwrap() as i64)
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::Integer(vec![])
+                    Array::Integers(vec![])
                 }
             }
             RuntimeType::Message(msg_descriptor) => {
                 if let Some(repeated) = repeated {
-                    RuntimeArray::Struct(
+                    Array::Structs(
                         repeated
                             .into_iter()
                             .map(|value| {
@@ -668,8 +526,8 @@ impl RuntimeStruct {
                             .collect(),
                     )
                 } else {
-                    RuntimeArray::Struct(vec![Rc::new(
-                        RuntimeStruct::from_proto_descriptor_and_msg(
+                    Array::Structs(vec![Rc::new(
+                        Struct::from_proto_descriptor_and_msg(
                             msg_descriptor,
                             None,
                             enum_as_fields,
@@ -679,7 +537,7 @@ impl RuntimeStruct {
             }
         };
 
-        RuntimeValue::Array(Rc::new(array))
+        TypeValue::Array(Rc::new(array))
     }
 
     fn new_map(
@@ -687,7 +545,7 @@ impl RuntimeStruct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
-    ) -> RuntimeValue {
+    ) -> TypeValue {
         let map = match key_ty {
             RuntimeType::String => {
                 Self::new_map_with_string_key(value_ty, map, enum_as_fields)
@@ -701,14 +559,14 @@ impl RuntimeStruct {
             _ => unreachable!(),
         };
 
-        RuntimeValue::Map(Rc::new(map))
+        TypeValue::Map(Rc::new(map))
     }
 
     fn new_map_with_integer_key(
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
-    ) -> RuntimeMap {
+    ) -> Map {
         if let Some(map) = map {
             let mut result = FxHashMap::default();
             for (key, value) in map.into_iter() {
@@ -717,9 +575,9 @@ impl RuntimeStruct {
                     Self::new_value(value_ty, Some(value), enum_as_fields),
                 );
             }
-            RuntimeMap::IntegerKeys { deputy: None, map: result }
+            Map::IntegerKeys { deputy: None, map: result }
         } else {
-            RuntimeMap::IntegerKeys {
+            Map::IntegerKeys {
                 deputy: Some(Self::new_value(value_ty, None, enum_as_fields)),
                 map: Default::default(),
             }
@@ -730,7 +588,7 @@ impl RuntimeStruct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
-    ) -> RuntimeMap {
+    ) -> Map {
         if let Some(map) = map {
             let mut result = FxHashMap::default();
             for (key, value) in map.into_iter() {
@@ -739,9 +597,9 @@ impl RuntimeStruct {
                     Self::new_value(value_ty, Some(value), enum_as_fields),
                 );
             }
-            RuntimeMap::StringKeys { deputy: None, map: result }
+            Map::StringKeys { deputy: None, map: result }
         } else {
-            RuntimeMap::StringKeys {
+            Map::StringKeys {
                 deputy: Some(Self::new_value(value_ty, None, enum_as_fields)),
                 map: Default::default(),
             }
@@ -752,9 +610,9 @@ impl RuntimeStruct {
         msg_descriptor: &MessageDescriptor,
         value: ReflectValueRef,
         enum_as_fields: bool,
-    ) -> RuntimeStruct {
+    ) -> Struct {
         if let ReflectValueRef::Message(m) = value {
-            RuntimeStruct::from_proto_descriptor_and_msg(
+            Struct::from_proto_descriptor_and_msg(
                 msg_descriptor,
                 Some(m.deref()),
                 enum_as_fields,

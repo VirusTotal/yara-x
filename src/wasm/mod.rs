@@ -72,7 +72,7 @@ use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
 
 use crate::compiler::{LiteralId, PatternId, RuleId};
 use crate::scanner::{RuntimeStringId, ScanContext};
-use crate::types::{RuntimeMap, RuntimeValue};
+use crate::types::{Map, TypeValue};
 
 pub(crate) mod builder;
 
@@ -555,7 +555,7 @@ pub(crate) fn is_pat_match_in(
 }
 
 macro_rules! gen_lookup_common {
-    ($caller:ident, $scan_ctx:ident, $value:ident, $code:block) => {{
+    ($caller:ident, $scan_ctx:ident, $type_value:ident, $code:block) => {{
         let lookup_stack_top = $caller
             .data()
             .lookup_stack_top
@@ -592,12 +592,12 @@ macro_rules! gen_lookup_common {
             let field =
                 structure.field_by_index(*field_index as usize).unwrap();
             final_field = Some(field);
-            if let RuntimeValue::Struct(s) = &field.value {
+            if let TypeValue::Struct(s) = &field.type_value {
                 structure = &s
             }
         }
 
-        let $value = &final_field.unwrap().value;
+        let $type_value = &final_field.unwrap().type_value;
 
         let result = $code;
 
@@ -615,10 +615,10 @@ pub(crate) fn lookup_string(
 ) -> RuntimeStringWasm {
     let string = gen_lookup_common!(caller, scan_ctx, value, {
         match value {
-            RuntimeValue::String(Some(value)) => RuntimeString::Owned(
+            TypeValue::String(Some(value)) => RuntimeString::Owned(
                 scan_ctx.string_pool.get_or_intern(value.as_bstr()),
             ),
-            RuntimeValue::String(None) => RuntimeString::Undef,
+            TypeValue::String(None) => RuntimeString::Undef,
             _ => unreachable!(),
         }
     });
@@ -642,9 +642,9 @@ macro_rules! gen_lookup_fn {
     };
 }
 
-gen_lookup_fn!(lookup_integer, i64, RuntimeValue::Integer);
-gen_lookup_fn!(lookup_float, f64, RuntimeValue::Float);
-gen_lookup_fn!(lookup_bool, i32, RuntimeValue::Bool);
+gen_lookup_fn!(lookup_integer, i64, TypeValue::Integer);
+gen_lookup_fn!(lookup_float, f64, TypeValue::Float);
+gen_lookup_fn!(lookup_bool, i32, TypeValue::Bool);
 
 macro_rules! gen_array_lookup_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {
@@ -654,7 +654,7 @@ macro_rules! gen_array_lookup_fn {
         ) -> possibly_undef!($return_type) {
             let array = gen_lookup_common!(caller, scan_ctx, value, {
                 match value {
-                    RuntimeValue::Array(array) => array.clone(),
+                    TypeValue::Array(array) => array.clone(),
                     _ => unreachable!(),
                 }
             });
@@ -680,7 +680,7 @@ pub(crate) fn array_lookup_string(
 ) -> RuntimeStringWasm {
     let array = gen_lookup_common!(caller, scan_ctx, value, {
         match value {
-            RuntimeValue::Array(array) => array.clone(),
+            TypeValue::Array(array) => array.clone(),
             _ => unreachable!(),
         }
     });
@@ -704,7 +704,7 @@ pub(crate) fn array_lookup_struct(
 ) -> possibly_undef!() {
     let array = gen_lookup_common!(caller, scan_ctx, value, {
         match value {
-            RuntimeValue::Array(array) => array.clone(),
+            TypeValue::Array(array) => array.clone(),
             _ => unreachable!(),
         }
     });
@@ -728,7 +728,7 @@ macro_rules! gen_map_string_key_lookup_fn {
         ) -> possibly_undef!($return_type) {
             let map = gen_lookup_common!(caller, scan_ctx, value, {
                 match value {
-                    RuntimeValue::Map(map) => map.clone(),
+                    TypeValue::Map(map) => map.clone(),
                     _ => unreachable!(),
                 }
             });
@@ -737,7 +737,7 @@ macro_rules! gen_map_string_key_lookup_fn {
             let key_bstr = key.as_bstr(caller.data());
 
             let value = match map.borrow() {
-                RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
+                Map::StringKeys { map, .. } => map.get(key_bstr),
                 _ => unreachable!(),
             };
 
@@ -762,13 +762,13 @@ macro_rules! gen_map_integer_key_lookup_fn {
         ) -> possibly_undef!($return_type) {
             let map = gen_lookup_common!(caller, scan_ctx, value, {
                 match value {
-                    RuntimeValue::Map(map) => map.clone(),
+                    TypeValue::Map(map) => map.clone(),
                     _ => unreachable!(),
                 }
             });
 
             let value = match map.borrow() {
-                RuntimeMap::IntegerKeys { map, .. } => map.get(&key),
+                Map::IntegerKeys { map, .. } => map.get(&key),
                 _ => unreachable!(),
             };
 
@@ -788,34 +788,26 @@ macro_rules! gen_map_integer_key_lookup_fn {
 gen_map_string_key_lookup_fn!(
     map_lookup_string_integer,
     i64,
-    RuntimeValue::Integer
+    TypeValue::Integer
 );
 
 gen_map_integer_key_lookup_fn!(
     map_lookup_integer_integer,
     i64,
-    RuntimeValue::Integer
+    TypeValue::Integer
 );
 
-gen_map_string_key_lookup_fn!(
-    map_lookup_string_float,
-    f64,
-    RuntimeValue::Float
-);
+gen_map_string_key_lookup_fn!(map_lookup_string_float, f64, TypeValue::Float);
 
 gen_map_integer_key_lookup_fn!(
     map_lookup_integer_float,
     f64,
-    RuntimeValue::Float
+    TypeValue::Float
 );
 
-gen_map_string_key_lookup_fn!(map_lookup_string_bool, i32, RuntimeValue::Bool);
+gen_map_string_key_lookup_fn!(map_lookup_string_bool, i32, TypeValue::Bool);
 
-gen_map_integer_key_lookup_fn!(
-    map_lookup_integer_bool,
-    i32,
-    RuntimeValue::Bool
-);
+gen_map_integer_key_lookup_fn!(map_lookup_integer_bool, i32, TypeValue::Bool);
 
 pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
@@ -823,13 +815,13 @@ pub(crate) fn map_lookup_integer_string(
 ) -> RuntimeStringWasm {
     let map = gen_lookup_common!(caller, scan_ctx, value, {
         match value {
-            RuntimeValue::Map(map) => map.clone(),
+            TypeValue::Map(map) => map.clone(),
             _ => unreachable!(),
         }
     });
 
     let value = match map.borrow() {
-        RuntimeMap::IntegerKeys { map, .. } => map.get(&key),
+        Map::IntegerKeys { map, .. } => map.get(&key),
         _ => unreachable!(),
     };
 
@@ -852,9 +844,9 @@ pub(crate) fn map_lookup_string_string(
     key_0: u64,
     key_1: u64,
 ) -> RuntimeStringWasm {
-    let map = gen_lookup_common!(caller, scan_ctx, value, {
-        match value {
-            RuntimeValue::Map(map) => map.clone(),
+    let map = gen_lookup_common!(caller, scan_ctx, type_value, {
+        match type_value {
+            TypeValue::Map(map) => map.clone(),
             _ => unreachable!(),
         }
     });
@@ -862,17 +854,17 @@ pub(crate) fn map_lookup_string_string(
     let key = RuntimeString::from_wasm((key_0, key_1));
     let key_bstr = key.as_bstr(caller.data());
 
-    let value = match map.borrow() {
-        RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
+    let type_value = match map.borrow() {
+        Map::StringKeys { map, .. } => map.get(key_bstr),
         _ => unreachable!(),
     };
 
-    let string = if let Some(value) = value {
+    let string = if let Some(type_value) = type_value {
         RuntimeString::Owned(
             caller
                 .data_mut()
                 .string_pool
-                .get_or_intern(value.as_bstr().unwrap()),
+                .get_or_intern(type_value.as_bstr().unwrap()),
         )
     } else {
         RuntimeString::Undef
@@ -887,18 +879,18 @@ pub(crate) fn map_lookup_integer_struct(
 ) -> possibly_undef!() {
     let map = gen_lookup_common!(caller, scan_ctx, value, {
         match value {
-            RuntimeValue::Map(map) => map.clone(),
+            TypeValue::Map(map) => map.clone(),
             _ => unreachable!(),
         }
     });
 
     let value = match map.borrow() {
-        RuntimeMap::IntegerKeys { map, .. } => map.get(&key),
+        Map::IntegerKeys { map, .. } => map.get(&key),
         _ => unreachable!(),
     };
 
     if let Some(value) = value {
-        if let RuntimeValue::Struct(s) = value {
+        if let TypeValue::Struct(s) = value {
             caller.data_mut().borrow_mut().current_struct = Some(s.clone());
             defined!()
         } else {
@@ -916,7 +908,7 @@ pub(crate) fn map_lookup_string_struct(
 ) -> possibly_undef!() {
     let map = gen_lookup_common!(caller, scan_ctx, value, {
         match value {
-            RuntimeValue::Map(map) => map.clone(),
+            TypeValue::Map(map) => map.clone(),
             _ => unreachable!(),
         }
     });
@@ -925,12 +917,12 @@ pub(crate) fn map_lookup_string_struct(
     let key_bstr = key.as_bstr(caller.data());
 
     let value = match map.borrow() {
-        RuntimeMap::StringKeys { map, .. } => map.get(key_bstr),
+        Map::StringKeys { map, .. } => map.get(key_bstr),
         _ => unreachable!(),
     };
 
     if let Some(value) = value {
-        if let RuntimeValue::Struct(s) = value {
+        if let TypeValue::Struct(s) = value {
             caller.data_mut().borrow_mut().current_struct = Some(s.clone());
             defined!()
         } else {

@@ -3,31 +3,23 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
-use crate::ast::Type;
-use crate::types::RuntimeValue;
+use crate::types::{Type, TypeValue};
 
 /// Trait implemented by types that allow looking up for an identifier.
 pub trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
-pub trait SymbolIndex<I> {
-    fn index(&self, index: I) -> Option<Symbol>;
-    fn item_type(&self) -> Type;
-    fn item_value(&self) -> RuntimeValue;
-}
-
 #[derive(Clone)]
 pub struct Symbol {
-    ty: Type,
-    value: RuntimeValue,
+    type_value: TypeValue,
     mem_offset: Option<i32>,
     field_index: Option<i32>,
 }
 
 impl Symbol {
-    pub fn new(ty: Type, value: RuntimeValue) -> Self {
-        Self { ty, value, mem_offset: None, field_index: None }
+    pub fn new(type_value: TypeValue) -> Self {
+        Self { type_value, mem_offset: None, field_index: None }
     }
 
     pub fn set_mem_offset(&mut self, offset: i32) -> &Self {
@@ -35,7 +27,7 @@ impl Symbol {
         self
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn mem_offset(&self) -> Option<i32> {
         self.mem_offset
     }
@@ -45,31 +37,31 @@ impl Symbol {
         self
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn field_index(&self) -> Option<i32> {
         self.field_index
     }
 
-    #[inline]
-    pub fn value(&self) -> &RuntimeValue {
-        &self.value
+    #[inline(always)]
+    pub fn type_value(&self) -> &TypeValue {
+        &self.type_value
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn ty(&self) -> Type {
-        self.ty
+        self.type_value.ty()
     }
 
     fn as_integer(&self) -> Option<i64> {
-        if let RuntimeValue::Integer(value) = self.value {
-            value
+        if let TypeValue::Integer(value) = self.type_value {
+            value.clone()
         } else {
             None
         }
     }
 
     fn as_bstr(&self) -> Option<&BStr> {
-        if let RuntimeValue::String(Some(s)) = &self.value {
+        if let TypeValue::String(Some(s)) = &self.type_value {
             Some(s.as_bstr())
         } else {
             None
@@ -94,7 +86,7 @@ impl Symbol {
 impl SymbolLookup for Option<Symbol> {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         if let Some(symbol) = self {
-            if let RuntimeValue::Struct(s) = symbol.value() {
+            if let TypeValue::Struct(s) = symbol.type_value() {
                 s.lookup(ident)
             } else {
                 None
@@ -216,9 +208,9 @@ impl<'a> SymbolLookup for StackedSymbolTable<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::Type;
     use crate::symbols::SymbolLookup;
-    use crate::types::RuntimeStruct;
+    use crate::types::Struct;
+    use crate::types::Type;
     use bstr::BStr;
     use pretty_assertions::assert_eq;
 
@@ -230,7 +222,7 @@ mod tests {
         use crate::modules::protos::test_proto2::test_proto2::Enumeration;
         use crate::modules::protos::test_proto2::TestProto2;
 
-        let test = RuntimeStruct::from_proto_descriptor_and_msg(
+        let test = Struct::from_proto_descriptor_and_msg(
             &TestProto2::descriptor(),
             None,
             true,
@@ -301,7 +293,7 @@ mod tests {
 
         let descriptor = TestProto2::descriptor();
         let message = descriptor.parse_from_bytes(buf.as_slice()).unwrap();
-        let structure = RuntimeStruct::from_proto_descriptor_and_msg(
+        let structure = Struct::from_proto_descriptor_and_msg(
             &descriptor,
             Some(message.as_ref()),
             true,

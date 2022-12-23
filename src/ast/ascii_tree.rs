@@ -2,8 +2,8 @@
 
 use ::ascii_tree::Tree::{Leaf, Node};
 
-use crate::ast::types::Value;
 use crate::ast::*;
+use crate::types::TypeValue;
 
 /// Returns a representation of the namespace as an ASCII tree.
 pub(crate) fn namespace_ascii_tree(namespace: &Namespace) -> ascii_tree::Tree {
@@ -63,11 +63,11 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> ascii_tree::Tree {
 /// Returns a representation of the expression as an ASCII tree.
 pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
     let value = {
-        let value = expr.value();
-        if matches!(value, Value::Unknown) {
-            format!(" : {:?}(unknown)", expr.ty())
+        let type_value = expr.type_value();
+        if matches!(type_value, TypeValue::Unknown) {
+            format!(" : {:?}(unknown)", type_value.ty())
         } else {
-            format!(" : {:?}", value)
+            format!(" : {:?}", type_value)
         }
     };
     match expr {

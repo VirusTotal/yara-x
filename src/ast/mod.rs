@@ -1,7 +1,6 @@
 /*! Types representing the Abstract Syntax Tree (AST) for YARA rules.*/
 mod ascii_tree;
 mod span;
-mod types;
 
 use std::borrow::{Borrow, Cow};
 use std::collections::{HashMap, HashSet};
@@ -16,10 +15,11 @@ use yara_macros::*;
 
 use crate::ast::ascii_tree::namespace_ascii_tree;
 use crate::parser::CSTNode;
+use crate::types::*;
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
-pub use crate::ast::types::*;
+pub use crate::types::Type;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
@@ -479,27 +479,22 @@ pub struct In<'src> {
 /// An identifier (e.g. `some_ident`).
 #[derive(Debug, Clone, HasSpan)]
 pub struct Ident<'src> {
-    type_value: TypeValue,
+    pub(crate) type_value: TypeValue,
     pub(crate) span: Span,
     pub name: &'src str,
 }
 
 impl<'src> Ident<'src> {
     pub(crate) fn new(name: &'src str, span: Span) -> Self {
-        Self {
-            name,
-            span,
-            type_value: TypeValue::new(Type::Unknown, Value::Unknown),
-        }
+        Self { name, span, type_value: TypeValue::Unknown }
     }
 
     pub(crate) fn with_type_and_value(
         name: &'src str,
         span: Span,
-        ty: Type,
-        value: Value,
+        type_value: TypeValue,
     ) -> Self {
-        Self { name, span, type_value: TypeValue::new(ty, value) }
+        Self { name, span, type_value }
     }
 
     /// Returns the identifier as a string.
@@ -508,26 +503,25 @@ impl<'src> Ident<'src> {
     }
 
     /// Returns the identifier's type.
+    #[inline(always)]
     pub fn ty(&self) -> Type {
-        self.type_value.0
-    }
-
-    pub fn value(&self) -> &Value {
-        &self.type_value.1
+        self.type_value.ty()
     }
 
     pub(crate) fn set_type_and_value(
         &mut self,
-        ty: Type,
-        value: Value,
+        type_value: TypeValue,
     ) -> &Self {
-        if self.type_value.0 != Type::Unknown && self.type_value.0 != ty {
+        let current_ty = self.type_value.ty();
+
+        if current_ty != Type::Unknown && current_ty != type_value.ty() {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
-                ty, self.type_value.0
+                type_value.ty(),
+                current_ty
             );
         }
-        self.type_value = TypeValue::new(ty, value);
+        self.type_value = type_value;
         self
     }
 }
@@ -536,7 +530,7 @@ impl<'src> Ident<'src> {
 impl<'src> From<CSTNode<'src>> for Ident<'src> {
     fn from(node: CSTNode<'src>) -> Self {
         Self {
-            type_value: TypeValue::new(Type::Unknown, Value::Unknown),
+            type_value: TypeValue::Unknown,
             span: node.as_span().into(),
             name: node.as_str(),
         }
@@ -570,19 +564,33 @@ pub struct IdentWithIndex<'src> {
 /// A literal value of any type (e.g: `1`, `2.0`, `"abcd"`, `true`).
 #[derive(Debug, HasSpan)]
 pub struct Literal<'src> {
+    /// Type of the literal type and value.
+    pub(crate) type_value: TypeValue,
     pub(crate) span: Span,
     /// The literal value as it appears in the source code.
     pub literal: &'src str,
-    /// Type of the literal.
-    pub ty: Type,
-    /// The literal's value.
-    pub value: Value,
+}
+
+impl<'src> Literal<'src> {
+    pub(crate) fn new(
+        literal: &'src str,
+        span: Span,
+        type_value: TypeValue,
+    ) -> Self {
+        Self { literal, span, type_value }
+    }
+
+    /// Returns the literal's type
+    #[inline(always)]
+    pub fn ty(&self) -> Type {
+        self.type_value.ty()
+    }
 }
 
 /// An expression with a single operand.
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
-    type_value: TypeValue,
+    pub(crate) type_value: TypeValue,
     pub(crate) span: Span,
     pub operand: Expr<'src>,
 }
@@ -591,33 +599,31 @@ impl<'src> UnaryExpr<'src> {
     pub(crate) fn new(
         operand: Expr<'src>,
         span: Span,
-        ty: Type,
-        value: Value,
+        type_value: TypeValue,
     ) -> Self {
-        Self { span, operand, type_value: TypeValue::new(ty, value) }
+        Self { operand, span, type_value }
     }
 
     /// Returns the expression's type
+    #[inline(always)]
     pub fn ty(&self) -> Type {
-        self.type_value.0
-    }
-
-    pub fn value(&self) -> &Value {
-        &self.type_value.1
+        self.type_value.ty()
     }
 
     pub(crate) fn set_type_and_value(
         &mut self,
-        ty: Type,
-        value: Value,
+        type_value: TypeValue,
     ) -> &Self {
-        if self.type_value.0 != Type::Unknown && self.type_value.0 != ty {
+        let current_ty = self.type_value.ty();
+
+        if current_ty != Type::Unknown && current_ty != type_value.ty() {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
-                ty, self.type_value.0
+                type_value.ty(),
+                current_ty
             );
         }
-        self.type_value = TypeValue::new(ty, value);
+        self.type_value = type_value;
         self
     }
 }
@@ -625,7 +631,7 @@ impl<'src> UnaryExpr<'src> {
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
-    type_value: TypeValue,
+    pub(crate) type_value: TypeValue,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
@@ -636,33 +642,31 @@ impl<'src> BinaryExpr<'src> {
     pub(crate) fn new(
         lhs: Expr<'src>,
         rhs: Expr<'src>,
-        ty: Type,
-        value: Value,
+        type_value: TypeValue,
     ) -> Self {
-        Self { lhs, rhs, type_value: TypeValue::new(ty, value) }
+        Self { lhs, rhs, type_value }
     }
 
     /// Returns the expression's type
+    #[inline(always)]
     pub fn ty(&self) -> Type {
-        self.type_value.0
-    }
-
-    pub fn value(&self) -> &Value {
-        &self.type_value.1
+        self.type_value.ty()
     }
 
     pub(crate) fn set_type_and_value(
         &mut self,
-        ty: Type,
-        value: Value,
+        type_value: TypeValue,
     ) -> &Self {
-        if self.type_value.0 != Type::Unknown && self.type_value.0 != ty {
+        let current_ty = self.type_value.ty();
+
+        if current_ty != Type::Unknown && current_ty != type_value.ty() {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
-                ty, self.type_value.0
+                type_value.ty(),
+                current_ty
             );
         }
-        self.type_value = TypeValue::new(ty, value);
+        self.type_value = type_value;
         self
     }
 }
@@ -678,48 +682,43 @@ pub struct FnCall<'src> {
 /// A lookup operation in an array or dictionary.
 #[derive(Debug, HasSpan)]
 pub struct Lookup<'src> {
-    type_value: TypeValue,
+    pub(crate) type_value: TypeValue,
     pub(crate) span: Span,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
 }
 
 impl<'src> Lookup<'src> {
-    pub(crate) fn with_type(
+    pub(crate) fn new(
         primary: Expr<'src>,
         index: Expr<'src>,
         span: Span,
-        ty: Type,
+        type_value: TypeValue,
     ) -> Self {
-        Self {
-            primary,
-            index,
-            span,
-            type_value: TypeValue::new(ty, Value::Unknown),
-        }
+        Self { primary, index, span, type_value }
     }
 
     /// Returns the expression's type
+    #[inline(always)]
     pub fn ty(&self) -> Type {
-        self.type_value.0
-    }
-
-    pub fn value(&self) -> &Value {
-        &self.type_value.1
+        self.type_value.ty()
     }
 
     pub(crate) fn set_type_and_value(
         &mut self,
-        ty: Type,
-        value: Value,
+        type_value: TypeValue,
     ) -> &Self {
-        if self.type_value.0 != Type::Unknown && self.type_value.0 != ty {
+        let current_ty = self.type_value.ty();
+
+        if current_ty != Type::Unknown && current_ty != type_value.ty() {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
-                ty, self.type_value.0
+                type_value.ty(),
+                current_ty
             );
         }
-        self.type_value = TypeValue::new(ty, value);
+
+        self.type_value = type_value;
         self
     }
 }
@@ -820,7 +819,12 @@ impl PatternSetItem<'_> {
 }
 
 impl<'src> Expr<'src> {
+    #[inline(always)]
     pub fn ty(&self) -> Type {
+        self.type_value().ty()
+    }
+
+    pub(crate) fn type_value(&self) -> &TypeValue {
         match self {
             Expr::FieldAccess(expr)
             | Expr::And(expr)
@@ -847,81 +851,30 @@ impl<'src> Expr<'src> {
             | Expr::Shr(expr)
             | Expr::BitwiseAnd(expr)
             | Expr::BitwiseOr(expr)
-            | Expr::BitwiseXor(expr) => expr.ty(),
+            | Expr::BitwiseXor(expr) => &expr.type_value,
 
-            Expr::Lookup(expr) => expr.ty(),
-            Expr::Ident(ident) => ident.ty(),
-            Expr::Literal(l) => l.ty,
+            Expr::Lookup(expr) => &expr.type_value,
+            Expr::Ident(ident) => &ident.type_value,
 
-            Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
-                expr.ty()
-            }
+            Expr::Literal(l) => &l.type_value,
+            Expr::True { .. } => &TRUE,
+            Expr::False { .. } => &FALSE,
+
+            Expr::FnCall(_) => &UNKNOWN,
+
+            Expr::PatternMatch(_)
+            | Expr::Of(_)
+            | Expr::ForOf(_)
+            | Expr::ForIn(_) => &UNKNOWN_BOOL,
 
             Expr::Filesize { .. }
             | Expr::Entrypoint { .. }
             | Expr::PatternCount(_)
             | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => Type::Integer,
-
-            Expr::True { .. }
-            | Expr::False { .. }
-            | Expr::PatternMatch(_)
-            | Expr::FnCall(_)
-            | Expr::Of(_)
-            | Expr::ForOf(_)
-            | Expr::ForIn(_) => Type::Bool,
-        }
-    }
-
-    pub fn value(&self) -> &Value {
-        match self {
-            Expr::FieldAccess(expr)
-            | Expr::And(expr)
-            | Expr::Or(expr)
-            | Expr::Eq(expr)
-            | Expr::Ne(expr)
-            | Expr::Lt(expr)
-            | Expr::Gt(expr)
-            | Expr::Le(expr)
-            | Expr::Ge(expr)
-            | Expr::Contains(expr)
-            | Expr::IContains(expr)
-            | Expr::StartsWith(expr)
-            | Expr::IStartsWith(expr)
-            | Expr::EndsWith(expr)
-            | Expr::IEndsWith(expr)
-            | Expr::IEquals(expr)
-            | Expr::Add(expr)
-            | Expr::Sub(expr)
-            | Expr::Mul(expr)
-            | Expr::Div(expr)
-            | Expr::Modulus(expr)
-            | Expr::Shl(expr)
-            | Expr::Shr(expr)
-            | Expr::BitwiseAnd(expr)
-            | Expr::BitwiseOr(expr)
-            | Expr::BitwiseXor(expr) => expr.value(),
-
-            Expr::Lookup(expr) => expr.value(),
-            Expr::Ident(ident) => ident.value(),
-
-            Expr::Literal(l) => &l.value,
-            Expr::True { .. } => &TRUE,
-            Expr::False { .. } => &FALSE,
-
-            Expr::PatternMatch(_)
-            | Expr::FnCall(_)
-            | Expr::Of(_)
-            | Expr::ForOf(_)
-            | Expr::ForIn(_)
-            | Expr::Filesize { .. }
-            | Expr::Entrypoint { .. }
-            | Expr::PatternCount(_)
-            | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => &UNKNOWN,
+            | Expr::PatternLength(_) => &UNKNOWN_INT,
 
             Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
-                expr.value()
+                &expr.type_value
             }
         }
     }
