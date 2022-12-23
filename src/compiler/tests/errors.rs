@@ -598,6 +598,30 @@ rule test {
 import "test_proto2"
 rule test {
   condition:
+    for all struct in test_proto2.array_struct : ( 
+       struct.nested_int64_zero == "0" 
+    )
+}
+"#,
+            r#"error: mismatching types
+   ╭─[line:6:8]
+   │
+ 6 │        struct.nested_int64_zero == "0"
+   ·        ────────────┬───────────    ─┬─  
+   ·                    ╰──────────────────── this expression is `integer`
+   ·                                     │   
+   ·                                     ╰─── this expression is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
     test_proto2.int64_zero[0]
 }
 "#,
