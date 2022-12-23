@@ -32,3 +32,4 @@ impl Map {
             Map::StringKeys { deputy, .. } => deputy.as_ref().unwrap().clone(),
         }
     }
+}
