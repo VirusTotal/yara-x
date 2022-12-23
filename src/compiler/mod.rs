@@ -161,8 +161,6 @@ impl<'a> Compiler<'a> {
                 let mut ctx = Context {
                     src: &src,
                     current_struct: None,
-                    current_array: None,
-                    current_map: None,
                     symbol_table: &mut self.symbol_table,
                     ident_pool: &mut self.ident_pool,
                     lit_pool: &mut self.lit_pool,
@@ -385,12 +383,6 @@ struct Context<'a, 'sym> {
     /// some value, symbols are looked up in this table and the main symbol
     /// table (i.e: `symbol_table`) is ignored.
     current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
-
-    /// Contains the currently active array, if any.
-    current_array: Option<Rc<Array>>,
-
-    /// Contains the currently active map, if any.
-    current_map: Option<Rc<Map>>,
 
     /// Table with all the symbols (functions, variables) used by WebAssembly
     /// code.

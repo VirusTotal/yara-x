@@ -22,3 +22,13 @@ pub enum Map {
         map: FxHashMap<BString, TypeValue>,
     },
 }
+
+impl Map {
+    pub fn deputy(&self) -> TypeValue {
+        match self {
+            Map::IntegerKeys { deputy, .. } => {
+                deputy.as_ref().unwrap().clone()
+            }
+            Map::StringKeys { deputy, .. } => deputy.as_ref().unwrap().clone(),
+        }
+    }

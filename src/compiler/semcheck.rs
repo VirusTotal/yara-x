@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::iter;
 use std::rc::Rc;
 
 use crate::ast::*;
@@ -254,7 +255,7 @@ macro_rules! gen_semcheck_string_op {
             expr: &mut Box<BinaryExpr>,
             case_insensitive: bool,
         ) -> Result<Type, Error> {
-            let (lhs_ty, rhs_ty) = semcheck_operands!(
+            semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
@@ -286,7 +287,7 @@ macro_rules! gen_semcheck_arithmetic_op {
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-             let (lhs_ty, rhs_ty) = semcheck_operands!(
+             semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
@@ -459,22 +460,17 @@ pub(super) fn semcheck_expr(
         Expr::IEquals(expr) => semcheck_string_equals(ctx, expr, true),
 
         Expr::Lookup(expr) => {
-            match semcheck_expr(ctx, &mut expr.primary)? {
-                Type::Array => {
-                    let array = ctx.current_array.take().unwrap();
-                    let item_type = array.item_type();
+            semcheck_expr(ctx, &mut expr.primary)?;
 
-                    // Check that index is an integer. Notice that this must be
-                    // done *after* retrieving the current array from `ctx`. This
-                    // is because the index expression may also contain an index
-                    // lookup expression that modifies `ctx.current_array`.
+            match expr.primary.type_value() {
+                TypeValue::Array(array) => {
                     semcheck!(ctx, Type::Integer, &mut expr.index)?;
 
+                    let item_type = array.item_type();
+
                     if let Array::Struct(s) = array.borrow() {
-                        let item = s.first().unwrap();
-                        ctx.current_struct = Some(item.clone());
                         expr.set_type_and_value(TypeValue::Struct(
-                            item.clone(),
+                            s.first().unwrap().clone(),
                         ));
                     } else {
                         expr.set_type_and_value(TypeValue::from(&item_type));
@@ -482,9 +478,7 @@ pub(super) fn semcheck_expr(
 
                     Ok(expr.ty())
                 }
-                Type::Map => {
-                    let map = ctx.current_map.take().unwrap();
-
+                TypeValue::Map(map) => {
                     // The deputy value is a value that acts as representative
                     // of the values stored in the map. This value only contains
                     // type information, not actual data. For example, if the
@@ -516,10 +510,6 @@ pub(super) fn semcheck_expr(
                         ));
                     }
 
-                    if let TypeValue::Struct(s) = deputy_value {
-                        ctx.current_struct = Some(s.clone());
-                    }
-
                     // The type of the Lookup expression (i.e: map[key])
                     // is the type of the map's values.
                     expr.set_type_and_value(deputy_value.clone());
@@ -536,16 +526,25 @@ pub(super) fn semcheck_expr(
             }
         }
         Expr::FieldAccess(expr) => {
-            // The left side must be a struct.
+            // The left side operand of a field access operation (i.e: foo.bar)
+            // must be a struct.
             semcheck!(ctx, Type::Struct, &mut expr.lhs)?;
 
-            // Now check the right hand expression. During the call to
-            // semcheck_expr the current symbol table is the one corresponding
-            // to the struct.
-            let ty = semcheck_expr(ctx, &mut expr.rhs)?;
-            let type_value = expr.rhs.type_value().clone();
+            // Set `current_struct` to the structure returned by the left-hand
+            // operand.
+            ctx.current_struct =
+                Some(expr.lhs.type_value().as_struct().unwrap());
 
-            expr.set_type_and_value(type_value);
+            // Now check the right-hand expression. During the call to
+            // semcheck_expr the symbol table of `current_struct` will be used
+            // for resolving symbols, instead of using the top-level symbol
+            // table.
+            let ty = semcheck_expr(ctx, &mut expr.rhs)?;
+
+            // The result of a field access is the result of the right-hand
+            // expression (i.e: the field).
+            expr.set_type_and_value(expr.rhs.type_value().clone());
+
             Ok(ty)
         }
 
@@ -712,41 +711,23 @@ fn semcheck_ident(
     ctx: &mut Context,
     ident: &mut Ident,
 ) -> Result<Type, Error> {
-    let type_value: TypeValue = {
-        let current_struct = ctx.current_struct.take();
+    let current_struct = ctx.current_struct.take();
 
-        let symbol = if let Some(structure) = &current_struct {
-            structure.lookup(ident.name)
-        } else {
-            ctx.symbol_table.lookup(ident.name)
-        };
+    let symbol = if let Some(structure) = &current_struct {
+        structure.lookup(ident.name)
+    } else {
+        ctx.symbol_table.lookup(ident.name)
+    };
 
-        if let Some(symbol) = symbol {
-            match symbol.type_value() {
-                TypeValue::Struct(s) => {
-                    ctx.current_struct = Some(s.clone());
-                    TypeValue::Struct(s.clone())
-                }
-                TypeValue::Array(a) => {
-                    ctx.current_array = Some(a.clone());
-                    TypeValue::Array(a.clone())
-                }
-                TypeValue::Map(m) => {
-                    ctx.current_map = Some(m.clone());
-                    TypeValue::Map(m.clone())
-                }
-                type_value => type_value.clone(),
-            }
-        } else {
-            return Err(Error::CompileError(
-                CompileError::unknown_identifier(
-                    ctx.report_builder,
-                    ctx.src,
-                    ident.name.to_string(),
-                    ident.span(),
-                ),
-            ));
-        }
+    let type_value = if let Some(symbol) = symbol {
+        symbol.type_value().clone()
+    } else {
+        return Err(Error::CompileError(CompileError::unknown_identifier(
+            ctx.report_builder,
+            ctx.src,
+            ident.name.to_string(),
+            ident.span(),
+        )));
     };
 
     let ty = type_value.ty();
@@ -760,43 +741,52 @@ fn semcheck_for_in(
     for_in: &mut ForIn,
 ) -> Result<Type, Error> {
     semcheck_quantifier(ctx, &mut for_in.quantifier)?;
-    let ty = semcheck_iterable(ctx, &mut for_in.iterable)?;
+    semcheck_iterable(ctx, &mut for_in.iterable)?;
 
     let expected_vars = match &for_in.iterable {
-        Iterable::Range(_) => 1,
-        Iterable::ExprTuple(_) => 1,
-        Iterable::Expr(expr) => match expr.ty() {
-            Type::Array => 1,
-            Type::Map => 2,
+        Iterable::Range(_) => vec![TypeValue::Integer(None)],
+        Iterable::ExprTuple(expressions) => {
+            vec![expressions.first().unwrap().type_value().clone()]
+        }
+        Iterable::Expr(expr) => match expr.type_value() {
+            TypeValue::Array(array) => vec![array.deputy()],
+            TypeValue::Map(map) => match map.as_ref() {
+                Map::IntegerKeys { .. } => {
+                    vec![TypeValue::Integer(None), map.deputy()]
+                }
+                Map::StringKeys { .. } => {
+                    vec![TypeValue::String(None), map.deputy()]
+                }
+            },
             _ => unreachable!(),
         },
     };
 
-    let variables = &for_in.variables;
+    let loop_vars = &for_in.variables;
 
-    if variables.len() != expected_vars {
-        let span = variables.first().unwrap().span();
-        let span = span.combine(&variables.last().unwrap().span());
+    if loop_vars.len() != expected_vars.len() {
+        let span = loop_vars.first().unwrap().span();
+        let span = span.combine(&loop_vars.last().unwrap().span());
         return Err(Error::CompileError(CompileError::assignment_mismatch(
             ctx.report_builder,
             ctx.src,
-            variables.len() as u8,
-            expected_vars as u8,
+            loop_vars.len() as u8,
+            expected_vars.len() as u8,
             for_in.iterable.span(),
             span,
         )));
     }
 
-    let mut loop_vars = SymbolTable::new();
+    let mut vars = SymbolTable::new();
 
     // TODO: raise warning when the loop identifier (e.g: "i") hides
     // an existing identifier with the same name.
-    for var in &for_in.variables {
-        loop_vars.insert(var.as_str(), Symbol::new(TypeValue::from(&ty)));
+    for (var, type_value) in iter::zip(loop_vars, expected_vars) {
+        vars.insert(var.as_str(), Symbol::new(type_value));
     }
 
     // Put the loop variables into scope.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    ctx.symbol_table.push(Rc::new(vars));
 
     semcheck!(ctx, Type::Bool, &mut for_in.condition)?;
 
@@ -809,11 +799,12 @@ fn semcheck_for_in(
 fn semcheck_iterable(
     ctx: &mut Context,
     iterable: &mut Iterable,
-) -> Result<Type, Error> {
+) -> Result<(), Error> {
     match iterable {
-        Iterable::Range(range) => {
-            semcheck_range(ctx, range)?;
-            Ok(Type::Integer)
+        Iterable::Range(range) => semcheck_range(ctx, range),
+        Iterable::Expr(expr) => {
+            semcheck!(ctx, Type::Array | Type::Map, expr)?;
+            Ok(())
         }
         Iterable::ExprTuple(tuple) => {
             let mut prev: Option<(Type, Span)> = None;
@@ -842,29 +833,7 @@ fn semcheck_iterable(
                 }
                 prev = Some((ty, span));
             }
-
-            // Get the type of the last item in the tuple.
-            let (ty, _) = prev.unwrap();
-            Ok(ty)
-        }
-        Iterable::Expr(expr) => {
-            let ty = semcheck_expr(ctx, expr)?;
-            match ty {
-                Type::Array => {
-                    Ok(ctx.current_array.take().unwrap().item_type())
-                }
-                Type::Map => {
-                    // todo
-                    Ok(Type::Unknown)
-                }
-                _ => Err(Error::CompileError(CompileError::wrong_type(
-                    ctx.report_builder,
-                    ctx.src,
-                    "`iterable`".to_string(),
-                    expr.ty().to_string(),
-                    expr.span(),
-                ))),
-            }
+            Ok(())
         }
     }
 }

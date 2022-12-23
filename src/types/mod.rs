@@ -354,7 +354,23 @@ impl TypeValue {
         if let TypeValue::String(v) = self {
             v.as_ref().map(|v| v.as_bstr())
         } else {
-            panic!()
+            None
+        }
+    }
+
+    pub fn as_array(&self) -> Option<Rc<Array>> {
+        if let TypeValue::Array(array) = self {
+            Some(array.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn as_struct(&self) -> Option<Rc<Struct>> {
+        if let TypeValue::Struct(structure) = self {
+            Some(structure.clone())
+        } else {
+            None
         }
     }
 }

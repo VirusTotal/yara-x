@@ -285,29 +285,9 @@ pub(super) fn emit_expr(
                             ctx.borrow_mut().lookup_stack.push_back(index);
                         }
                         Type::Array => {
-                            // If the identifier refers to some array, store
-                            // it in `current_array`.
-                            if let TypeValue::Array(array) =
-                                symbol.type_value()
-                            {
-                                ctx.borrow_mut().current_array =
-                                    Some(array.clone())
-                            } else {
-                                unreachable!()
-                            }
-
                             ctx.borrow_mut().lookup_stack.push_back(index);
                         }
                         Type::Map => {
-                            // If the identifier refers to some map, store
-                            // it in `current_map`.
-                            if let TypeValue::Map(map) = symbol.type_value() {
-                                ctx.borrow_mut().current_map =
-                                    Some(map.clone())
-                            } else {
-                                unreachable!()
-                            }
-
                             ctx.borrow_mut().lookup_stack.push_back(index);
                         }
                         _ => {
@@ -374,12 +354,12 @@ pub(super) fn emit_expr(
                 // Emit a call instruction to the corresponding function, which
                 // depends on the type of the primary expression (array or map)
                 // and the type of the index expression.
-                match operands.primary.ty() {
-                    Type::Array => {
-                        emit_array_lookup(ctx, instr);
+                match operands.primary.type_value() {
+                    TypeValue::Array(array) => {
+                        emit_array_lookup(ctx, instr, array);
                     }
-                    Type::Map => {
-                        emit_map_lookup(ctx, instr);
+                    TypeValue::Map(map) => {
+                        emit_map_lookup(ctx, instr, map);
                     }
                     _ => unreachable!(),
                 };
@@ -665,13 +645,11 @@ pub(super) fn emit_expr(
     }
 }
 
-fn emit_array_lookup(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
-    // The lookup operation refers to the current array,
-    // let's take the array and set `current_array` to
-    // None, as no other array operation can refer to this
-    // array.
-    let array = ctx.borrow_mut().current_array.take().unwrap();
-
+fn emit_array_lookup(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    array: &Rc<Array>,
+) {
     // If the items in the array are structs, update `current_struct`.
     if let Array::Struct(array) = array.as_ref() {
         ctx.borrow_mut().current_struct = Some(array.first().unwrap().clone())
@@ -720,13 +698,11 @@ fn emit_array_lookup(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     }
 }
 
-fn emit_map_lookup(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
-    // The lookup operation refers to the current map,
-    // let's take the map and set `current_map` to
-    // None, as no other map operation can refer to this
-    // map.
-    let map = ctx.borrow_mut().current_map.take().unwrap();
-
+fn emit_map_lookup(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    map: &Rc<Map>,
+) {
     match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => {
             emit_map_integer_key_lookup(ctx, instr, deputy.as_ref().unwrap())
@@ -1239,7 +1215,11 @@ pub(super) fn emit_for_in_array(
             // Load `i` from memory.
             emit_load(ctx, instr);
 
-            emit_array_lookup(ctx, instr);
+            emit_array_lookup(
+                ctx,
+                instr,
+                &expr.type_value().as_array().unwrap(),
+            );
         },
         // Loop condition.
         |instr| {},
@@ -1256,8 +1236,6 @@ pub(super) fn emit_for_in_map(
     expr: &Expr,
 ) {
     emit_expr(ctx, instr, expr);
-
-    todo!()
 }
 
 pub(super) fn emit_for_in_expr_tuple(

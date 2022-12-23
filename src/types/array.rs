@@ -1,4 +1,4 @@
-use crate::types::{Struct, Type};
+use crate::types::{Struct, Type, TypeValue};
 use bstr::BString;
 use std::rc::Rc;
 
@@ -18,6 +18,16 @@ impl Array {
             Array::Bool(_) => Type::Bool,
             Array::String(_) => Type::String,
             Array::Struct(_) => Type::Struct,
+        }
+    }
+
+    pub fn deputy(&self) -> TypeValue {
+        match self {
+            Array::Integer(_) => TypeValue::Integer(None),
+            Array::Float(_) => TypeValue::Float(None),
+            Array::Bool(_) => TypeValue::Bool(None),
+            Array::String(_) => TypeValue::String(None),
+            Array::Struct(s) => TypeValue::Struct(s.first().unwrap().clone()),
         }
     }
 
