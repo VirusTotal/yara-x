@@ -440,6 +440,49 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for any n in (1, 2, 3) : (
+      x == "3"
+    )
+}
+"#,
+            r#"error: unknown identifier `x`
+   ╭─[line:5:7]
+   │
+ 5 │       x == "3"
+   ·       ┬  
+   ·       ╰── this identifier has not been declared
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    for any x in (1, 2, 3) : (
+      for any y in (1, 2, 3) : (
+         y == 1
+      )
+      and y == 1
+    )
+}
+"#,
+            r#"error: unknown identifier `y`
+   ╭─[line:8:11]
+   │
+ 8 │       and y == 1
+   ·           ┬  
+   ·           ╰── this identifier has not been declared
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
         #[cfg(feature = "test_proto2-module")]
         (
             line!(),
@@ -504,45 +547,46 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
         (
             line!(),
             r#"
+import "test_proto2"
 rule test {
   condition:
-    for any n in (1, 2, 3) : (
-      x == "3"
-    )
+    for all k,v in test_proto2.map_int64_string : ( k == "1" )
 }
 "#,
-            r#"error: unknown identifier `x`
-   ╭─[line:5:7]
+            r#"error: mismatching types
+   ╭─[line:5:53]
    │
- 5 │       x == "3"
-   ·       ┬  
-   ·       ╰── this identifier has not been declared
+ 5 │     for all k,v in test_proto2.map_int64_string : ( k == "1" )
+   ·                                                     ┬    ─┬─  
+   ·                                                     ╰───────── this expression is `integer`
+   ·                                                           │   
+   ·                                                           ╰─── this expression is `string`
 ───╯
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
         (
             line!(),
             r#"
+import "test_proto2"
 rule test {
   condition:
-    for any x in (1, 2, 3) : (
-      for any y in (1, 2, 3) : (
-         y == 1
-      )
-      and y == 1
-    )
+    for all k,v in test_proto2.map_int64_string : ( v == 1 )
 }
 "#,
-            r#"error: unknown identifier `y`
-   ╭─[line:8:11]
+            r#"error: mismatching types
+   ╭─[line:5:53]
    │
- 8 │       and y == 1
-   ·           ┬  
-   ·           ╰── this identifier has not been declared
+ 5 │     for all k,v in test_proto2.map_int64_string : ( v == 1 )
+   ·                                                     ┬    ┬  
+   ·                                                     ╰─────── this expression is `string`
+   ·                                                          │  
+   ·                                                          ╰── this expression is `integer`
 ───╯
 "#,
         ),
