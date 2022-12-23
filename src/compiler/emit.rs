@@ -1040,6 +1040,21 @@ pub(super) fn emit_for_in_range(
     // put in the loop variable in the next iteration.
     let next_item = ctx.borrow_mut().new_var();
 
+    // Create a symbol table containing the loop variable.
+    let mut symbol = Symbol::new(TypeValue::Integer(None));
+
+    // Associate the symbol with the memory location where `next_item` is
+    // stored. Everytime that the loop variable is used in the condition,
+    // it will refer to the value stored in `next_item`.
+    symbol.set_mem_offset(next_item);
+
+    let mut loop_vars = SymbolTable::new();
+    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+
+    // Push the symbol table with loop variable on top of the existing symbol
+    // tables.
+    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+
     emit_for(
         ctx,
         instr,
@@ -1087,18 +1102,6 @@ pub(super) fn emit_for_in_range(
             instr.i32_const(next_item);
             instr.local_get(ctx.borrow().wasm_symbols.i64_tmp);
             emit_store(ctx, instr);
-
-            let mut symbol = Symbol::new(TypeValue::Integer(None));
-
-            symbol.set_mem_offset(next_item);
-
-            let mut loop_vars = SymbolTable::new();
-
-            loop_vars
-                .insert(for_in.variables.first().unwrap().as_str(), symbol);
-
-            // Put the loop variables into scope.
-            ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
         },
         // Next item.
         |instr| {
@@ -1132,7 +1135,10 @@ pub(super) fn emit_for_in_range(
         },
     );
 
+    // Remove the symbol table that contains the loop variable.
     ctx.borrow_mut().symbol_table.pop();
+
+    // Free loop variables.
     ctx.borrow_mut().free_vars(n_ptr);
 }
 
