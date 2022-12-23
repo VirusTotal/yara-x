@@ -386,6 +386,14 @@ impl TypeValue {
             None
         }
     }
+
+    pub fn as_map(&self) -> Option<Rc<Map>> {
+        if let TypeValue::Map(map) = self {
+            Some(map.clone())
+        } else {
+            None
+        }
+    }
 }
 
 impl Display for TypeValue {
