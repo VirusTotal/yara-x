@@ -159,6 +159,13 @@ message TestProto2 {
 
   /// This field won't be visible to YARA.
   optional bool ignored = 351 [(yara.field_options).ignore = true];
+
+  /// This field will be visible in YARA as `items` instead of `Enumeration2`.
+  enum Enumeration2 {
+    option (yara.enum_options).name = "items";
+    ITEM_0 = 0;
+    ITEM_1 = 1;
+  }
 }
 
 enum TopLevelEnumeration {

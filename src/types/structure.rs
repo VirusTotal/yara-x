@@ -8,6 +8,7 @@ use protobuf::reflect::{
 };
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
+use yara_proto::exts::enum_options as yara_enum_options;
 use yara_proto::exts::field_options as yara_field_options;
 use yara_proto::exts::module_options as yara_module_options;
 
@@ -254,7 +255,7 @@ impl Struct {
                     index: fields.len() as i32,
                     type_value: TypeValue::Struct(Rc::new(enum_struct)),
                     number: 0,
-                    name: enum_.name().to_owned(),
+                    name: Self::enum_name(&enum_),
                 })
             }
         }
@@ -287,6 +288,34 @@ impl Struct {
             module_options.root_message.unwrap() == msg_descriptor.name()
         } else {
             false
+        }
+    }
+
+    /// Given a [`EnumDescriptor`] returns the name that this enum will
+    /// have in YARA..
+    ///
+    /// By default, the name of the enum will be the same one that it has in
+    /// the protobuf definition. However, the name can be set to something
+    /// different by using an annotation in the .proto file, like this:
+    ///
+    /// ```text
+    /// enum Enumeration {
+    ///   option (yara.enum_options).name = "my_enum";
+    ///   ITEM_0 = 0;
+    ///   ITEM_1 = 1;
+    /// }
+    /// ```
+    ///
+    /// Here the enum will be named `my_enum` instead of `Enumeration`.
+    fn enum_name(enum_descriptor: &EnumDescriptor) -> String {
+        if let Some(enum_options) =
+            yara_enum_options.get(&enum_descriptor.proto().options)
+        {
+            enum_options
+                .name
+                .unwrap_or_else(|| enum_descriptor.name().to_owned())
+        } else {
+            enum_descriptor.name().to_owned()
         }
     }
 

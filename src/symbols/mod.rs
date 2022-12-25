@@ -220,6 +220,7 @@ mod tests {
         use protobuf::{Enum, MessageFull};
 
         use crate::modules::protos::test_proto2::test_proto2::Enumeration;
+        use crate::modules::protos::test_proto2::test_proto2::Enumeration2;
         use crate::modules::protos::test_proto2::TestProto2;
 
         let test = Struct::from_proto_descriptor_and_msg(
@@ -239,6 +240,11 @@ mod tests {
         assert_eq!(
             test.lookup("Enumeration").lookup("ITEM_1").unwrap().as_integer(),
             Some(Enumeration::ITEM_1.value() as i64)
+        );
+
+        assert_eq!(
+            test.lookup("items").lookup("ITEM_1").unwrap().as_integer(),
+            Some(Enumeration2::ITEM_1.value() as i64)
         );
     }
 
