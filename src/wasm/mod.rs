@@ -63,7 +63,7 @@ many indexes to lookup.
 
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::Borrow;
 use std::stringify;
 
 use bstr::{BStr, ByteSlice};

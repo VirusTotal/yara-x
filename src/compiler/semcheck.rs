@@ -120,7 +120,7 @@ macro_rules! gen_semcheck_boolean_op {
             warning_if_not_boolean(ctx, &expr.lhs);
             warning_if_not_boolean(ctx, &expr.rhs);
 
-            let (lhs_ty, rhs_ty) = semcheck_operands!(
+            semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
@@ -151,7 +151,7 @@ macro_rules! gen_semcheck_comparison_op {
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-            let (lhs_ty, rhs_ty) = semcheck_operands!(
+            semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
@@ -186,7 +186,7 @@ macro_rules! gen_semcheck_shift_op {
         ) -> Result<Type, Error> {
             let span = expr.rhs.span();
 
-            let (lhs_ty, rhs_ty) = semcheck_operands!(
+            semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
@@ -226,7 +226,7 @@ macro_rules! gen_semcheck_bitwise_op {
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-            let (lhs_ty, rhs_ty) = semcheck_operands!(
+            semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
                 &mut expr.rhs,
