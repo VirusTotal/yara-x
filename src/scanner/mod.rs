@@ -43,6 +43,8 @@ impl<'r> Scanner<'r> {
                 rules_matching: Vec::new(),
                 main_memory: None,
                 lookup_stack_top: None,
+                lookup_start: None,
+                host_vars_stack: Vec::new(),
             },
         );
 
@@ -53,6 +55,13 @@ impl<'r> Scanner<'r> {
             &mut wasm_store,
             GlobalType::new(ValType::I64, Mutability::Var),
             Val::I64(0),
+        )
+        .unwrap();
+
+        let lookup_start = Global::new(
+            &mut wasm_store,
+            GlobalType::new(ValType::I32, Mutability::Var),
+            Val::I32(-1),
         )
         .unwrap();
 
@@ -104,6 +113,8 @@ impl<'r> Scanner<'r> {
                 matching_patterns_bitmap_base,
             )
             .unwrap()
+            .define("yr", "lookup_start", lookup_start)
+            .unwrap()
             .define("yr", "lookup_stack_top", lookup_stack_top)
             .unwrap()
             .define("yr", "main_memory", main_memory)
@@ -118,6 +129,7 @@ impl<'r> Scanner<'r> {
 
         wasm_store.data_mut().main_memory = Some(main_memory);
         wasm_store.data_mut().lookup_stack_top = Some(lookup_stack_top);
+        wasm_store.data_mut().lookup_start = Some(lookup_start);
 
         Self { wasm_store, wasm_main_fn, filesize }
     }
@@ -333,15 +345,20 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) compiled_rules: &'r CompiledRules,
     /// Structure that contains top-level symbols, like module names
     /// and external variables. Symbols are normally looked up in this
-    /// table, except if `current_struct` is set to some other structure.
+    /// structure, except if `current_struct` is set to some other
+    /// structure that overrides `root_struct`.
     pub(crate) root_struct: Struct,
-    /// Symbol table for the currently active structure, if any. When this
-    /// set it overrides `symbol_table`.
+    /// Currently active structure that overrides the `root_struct` if
+    /// set.
     pub(crate) current_struct: Option<Rc<Struct>>,
     /// String pool where the strings produced at runtime are stored. This
     /// for example stores the strings returned by YARA modules.
     pub(crate) string_pool: BStringPool<RuntimeStringId>,
     /// Module's main memory.
     pub(crate) main_memory: Option<wasmtime::Memory>,
+
+    pub(crate) lookup_start: Option<wasmtime::Global>,
     pub(crate) lookup_stack_top: Option<wasmtime::Global>,
+
+    pub(crate) host_vars_stack: Vec<TypeValue>,
 }

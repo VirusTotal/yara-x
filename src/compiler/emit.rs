@@ -8,19 +8,19 @@ use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
 
 use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
-use crate::compiler::Context;
-use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::compiler::{Context, WasmVar};
+use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Array, Map, Type, TypeValue};
 use crate::wasm;
-use crate::wasm::{RuntimeString, RuntimeStringWasm};
+use crate::wasm::RuntimeString;
 
-/// This macro emits a constant if the type hint indicates that the expression
-/// has a constant value (e.i: the value is known at compile time), if not,
-/// it executes the code block, emitting whatever the code block says. Notice
-/// however that this is done only if the `compile-time-optimization` feature
-/// is enabled, if the feature is not enabled the code block will be executed
-/// regardless of whether the expression's value is known at compile time or
-/// not.
+/// This macro emits a constant if the [`TypeValue`] indicates that the
+/// expression has a constant value (e.i: the value is known at compile time),
+/// if not, it executes the code block, emitting whatever the code block says.
+/// Notice however that this is done only if the `compile-time-optimization`
+/// feature is enabled, if the feature is not enabled the code block will be
+/// executed regardless of whether the expression's value is known at compile
+/// time or not.
 ///
 /// # Example
 ///
@@ -60,7 +60,7 @@ macro_rules! emit_const_or_code {
                     let literal_id =
                         $ctx.borrow_mut().lit_pool.get_or_intern(value.as_bstr());
 
-                    push_string($instr, RuntimeString::Literal(literal_id).as_wasm());
+                    $instr.i64_const(RuntimeString::Literal(literal_id).as_wasm() as i64);
                 }
                 _ => $code,
             }
@@ -227,9 +227,8 @@ pub(super) fn emit_expr(
                 let literal_id =
                     ctx.borrow_mut().lit_pool.get_or_intern(value.as_bstr());
 
-                push_string(
-                    instr,
-                    RuntimeString::Literal(literal_id).as_wasm(),
+                instr.i64_const(
+                    RuntimeString::Literal(literal_id).as_wasm() as i64
                 );
             }
             _ => unreachable!(),
@@ -246,45 +245,50 @@ pub(super) fn emit_expr(
                     ctx.borrow().symbol_table.lookup(ident.name).unwrap()
                 };
 
-                if let Some(mem_location) = symbol.mem_offset() {
-                    // The symbol is known to be at some memory location, emit
-                    // code for loading its value from memory and put it into
-                    // the stack.
-                    instr.i32_const(mem_location);
-                    emit_load(ctx, instr);
-                } else {
-                    let index = symbol.field_index().unwrap();
-
-                    // Emit code for looking up the identifier in the current
-                    // symbol table.
-                    match ident.ty() {
-                        Type::Integer => {
-                            emit_lookup_integer(ctx, instr, index);
-                        }
-                        Type::Float => {
-                            emit_lookup_float(ctx, instr, index);
-                        }
-                        Type::Bool => {
-                            emit_lookup_bool(ctx, instr, index);
-                        }
-                        Type::String => {
-                            emit_lookup_string(ctx, instr, index);
-                        }
-                        Type::Struct => {
-                            ctx.borrow_mut().lookup_stack.push_back(index);
-                        }
-                        Type::Array => {
-                            ctx.borrow_mut().lookup_stack.push_back(index);
-                        }
-                        Type::Map => {
-                            ctx.borrow_mut().lookup_stack.push_back(index);
-                        }
-                        _ => {
-                            // This point should not be reached. The type of
-                            // identifiers must be known during code emitting
-                            // because they are resolved during the semantic
-                            // check, and the AST is updated with type info.
-                            unreachable!();
+                match symbol.location {
+                    Location::None => {
+                        unreachable!("symbol location must be known while emitting code")
+                    }
+                    Location::WasmVar(var) => {
+                        // The symbol represents a variable in WASM memory,
+                        // emit code for loading its value into the stack.
+                        load_var(ctx, instr, var);
+                    }
+                    Location::HostVar(var) => {
+                        // The symbol represents a host-side variable, so it must
+                        // be a structure, map or array.
+                        ctx.borrow_mut().lookup_start = Some(var);
+                    }
+                    Location::FieldIndex(index) => {
+                        match ident.ty() {
+                            Type::Integer => {
+                                emit_lookup_integer(ctx, instr, index);
+                            }
+                            Type::Float => {
+                                emit_lookup_float(ctx, instr, index);
+                            }
+                            Type::Bool => {
+                                emit_lookup_bool(ctx, instr, index);
+                            }
+                            Type::String => {
+                                emit_lookup_string(ctx, instr, index);
+                            }
+                            Type::Struct => {
+                                ctx.borrow_mut().lookup_stack.push_back(index);
+                            }
+                            Type::Array => {
+                                ctx.borrow_mut().lookup_stack.push_back(index);
+                            }
+                            Type::Map => {
+                                ctx.borrow_mut().lookup_stack.push_back(index);
+                            }
+                            _ => {
+                                // This point should not be reached. The type of
+                                // identifiers must be known during code emitting
+                                // because they are resolved during the semantic
+                                // check, and the AST is updated with type info.
+                                unreachable!();
+                            }
                         }
                     }
                 }
@@ -327,17 +331,13 @@ pub(super) fn emit_expr(
                 // Emit the code for the index expression, which leaves the
                 // index in the stack.
                 emit_expr(ctx, instr, &operands.index);
-                // Emit code for the value (array or map) that is being indexed.
-                // This will set the value of `current_array` or `current_map`
-                // in the scan context, but doesn't leave anything in the
-                // stack.
+                // Emit code for the primary expression (array or map) that is
+                // being indexed.
                 //
-                // Notice that the index expression must be evaluated first
-                // because it may contain another indexing operation that will
-                // change the value of `current_array` or `current_map`. If
-                // the primary expression is evaluated first, the value left
-                // in `current_array/current_dict` would be overwritten while
-                // emitting the index expression.
+                // Notice that the index expression must be emitted before the
+                // primary expression because the former may need to modify
+                // `lookup_stack`, and we don't want to alter `lookup_stack`
+                // until `emit_array_lookup` or `emit_map_lookup` is called.
                 emit_expr(ctx, instr, &operands.primary);
 
                 // Emit a call instruction to the corresponding function, which
@@ -633,8 +633,8 @@ pub(super) fn emit_expr(
             Iterable::ExprTuple(expressions) => {
                 emit_for_in_expr_tuple(ctx, instr, for_in, expressions);
             }
-            Iterable::Expr(expr) => {
-                emit_for_in_expr(ctx, instr, for_in, expr);
+            Iterable::Expr(iterable) => {
+                emit_for_in_expr(ctx, instr, for_in, iterable);
             }
         },
     }
@@ -645,6 +645,7 @@ fn emit_array_lookup(
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
 ) {
+    // Emit the code that fills the `lookup_stack` in WASM memory.
     emit_lookup_common(ctx, instr);
 
     match array.as_ref() {
@@ -683,8 +684,6 @@ fn emit_array_lookup(
                 ctx.borrow().wasm_symbols.array_lookup_string,
             );
         }
-
-        _ => unreachable!(),
     }
 }
 
@@ -820,7 +819,7 @@ pub(super) fn emit_for<I, N, C>(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
-    n_ptr: i32,
+    n: WasmVar,
     loop_init: I,
     next_item: N,
     loop_cond: C,
@@ -838,54 +837,52 @@ pub(super) fn emit_for<I, N, C>(
             Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
                 // `quantifier` is the number of loop conditions that must return
                 // `true` for the loop to be `true`.
-                let quantifier = ctx.borrow_mut().new_var();
+                let quantifier = ctx.borrow_mut().new_wasm_var();
                 // `counter` is the number of loop conditions that actually
                 // returned `true`. This is initially zero.
-                let counter = ctx.borrow_mut().new_var();
+                let counter = ctx.borrow_mut().new_wasm_var();
 
-                // Push memory offset where `quantifier` will be stored.
-                instr.i32_const(quantifier);
+                set_var(ctx, instr, quantifier, |instr| {
+                    if matches!(&for_in.quantifier, Quantifier::Percentage(_))
+                    {
+                        // Quantifier is a percentage, its final value will be
+                        // n * quantifier / 100
 
-                if matches!(&for_in.quantifier, Quantifier::Percentage(_)) {
-                    // Compute n * quantifier / 100;
+                        // n * quantifier
+                        load_var(ctx, instr, n);
+                        instr.unop(UnaryOp::F64ConvertSI64);
+                        emit_expr(ctx, instr, expr);
+                        instr.unop(UnaryOp::F64ConvertSI64);
+                        instr.binop(BinaryOp::F64Mul);
 
-                    // n * quantifier
-                    instr.i32_const(n_ptr);
-                    emit_load(ctx, instr);
-                    instr.unop(UnaryOp::F64ConvertSI64);
-                    emit_expr(ctx, instr, expr);
-                    instr.unop(UnaryOp::F64ConvertSI64);
-                    instr.binop(BinaryOp::F64Mul);
+                        // / 100
+                        instr.f64_const(100.0);
+                        instr.binop(BinaryOp::F64Div);
+                        instr.unop(UnaryOp::F64Ceil);
+                        instr.unop(UnaryOp::I64TruncSF64);
+                    } else {
+                        // Quantifier is not a percentage, use it as is.
+                        emit_expr(ctx, instr, expr);
+                    }
+                });
 
-                    // / 100
-                    instr.f64_const(100.0);
-                    instr.binop(BinaryOp::F64Div);
-
-                    instr.unop(UnaryOp::F64Ceil);
-                    instr.unop(UnaryOp::I64TruncSF64);
-                } else {
-                    // Push value of `quantifier`.
-                    emit_expr(ctx, instr, expr);
-                }
-
-                // Store `quantifier` in memory.
-                emit_store(ctx, instr);
-
-                // Push memory offset where `counter` will be stored.
-                instr.i32_const(counter);
                 // Initialize `counter` to 0.
-                instr.i64_const(0);
-                // Store `counter` in memory.
-                emit_store(ctx, instr);
+                set_var(ctx, instr, counter, |instr| {
+                    instr.i64_const(0);
+                });
 
                 (quantifier, counter)
             }
-            _ => (0, 0),
+            _ => (WasmVar(0), WasmVar(0)),
         };
 
         instr.loop_(I32, |block| {
             let loop_start = block.id();
 
+            // Emit code that advances to next item.
+            next_item(block);
+
+            // Emit code for the loop's condition.
             emit_expr(ctx, block, &for_in.condition);
 
             // At the top of the stack we have the i32 with the result from
@@ -902,8 +899,6 @@ pub(super) fn emit_for<I, N, C>(
                             then_.br(loop_end);
                         },
                         |else_| {
-                            // Emit code that advances to next item.
-                            next_item(else_);
                             // Emit code that checks if loop should finish.
                             loop_cond(else_);
                             // Keep iterating while true.
@@ -921,8 +916,6 @@ pub(super) fn emit_for<I, N, C>(
                     block.if_else(
                         I32,
                         |then_| {
-                            // Emit code that advances to next item.
-                            next_item(then_);
                             // Emit code that checks if loop should finish.
                             loop_cond(then_);
                             // Keep iterating while true.
@@ -952,8 +945,6 @@ pub(super) fn emit_for<I, N, C>(
                             then_.br(loop_end);
                         },
                         |else_| {
-                            // Emit code that advances to next item.
-                            next_item(else_);
                             // Emit code that checks if loop should finish.
                             loop_cond(else_);
                             // Keep iterating while true.
@@ -971,29 +962,16 @@ pub(super) fn emit_for<I, N, C>(
                     block.if_else(
                         None,
                         |then_| {
-                            // If the condition was true increment counter.
-
-                            // Offset where the counter will be stored.
-                            then_.i32_const(counter);
-                            // Offset from where the counter will be loaded
-                            then_.i32_const(counter);
-                            // Load counter
-                            emit_load(ctx, then_);
-                            // Increment the counter by 1.
-                            then_.i64_const(1);
-                            then_.binop(BinaryOp::I64Add);
-                            // Store counter in memory.
-                            emit_store(ctx, then_);
+                            // The condition was true, increment counter.
+                            incr_var(ctx, then_, counter);
 
                             // Compare counter to quantifier.
-                            then_.i32_const(counter);
-                            emit_load(ctx, then_);
-                            then_.i32_const(quantifier);
-                            emit_load(ctx, then_);
+                            load_var(ctx, then_, counter);
+                            load_var(ctx, then_, quantifier);
                             then_.binop(BinaryOp::I64Eq);
 
                             // If the counter is equal to the quantifier
-                            // break the loop with result true
+                            // break the loop with result true.
                             then_.if_else(
                                 None,
                                 |then_| {
@@ -1006,8 +984,6 @@ pub(super) fn emit_for<I, N, C>(
                         |_| {},
                     );
 
-                    // Emit code that advances to next item.
-                    next_item(block);
                     // Emit code that checks if loop should finish.
                     loop_cond(block);
                     // Keep iterating while true.
@@ -1032,15 +1008,15 @@ pub(super) fn emit_for_in_range(
     assert_eq!(for_in.variables.len(), 1);
 
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n_ptr = ctx.borrow_mut().new_var();
+    let n = ctx.borrow_mut().new_wasm_var();
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i_ptr = ctx.borrow_mut().new_var();
+    let i = ctx.borrow_mut().new_wasm_var();
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.borrow_mut().new_var();
+    let next_item = ctx.borrow_mut().new_wasm_var();
 
     // Create a symbol table containing the loop variable.
     let mut symbol = Symbol::new(TypeValue::Integer(None));
@@ -1048,7 +1024,7 @@ pub(super) fn emit_for_in_range(
     // Associate the symbol with the memory location where `next_item` is
     // stored. Everytime that the loop variable is used in the condition,
     // it will refer to the value stored in `next_item`.
-    symbol.set_mem_offset(next_item);
+    symbol.location = Location::WasmVar(next_item);
 
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
@@ -1061,34 +1037,30 @@ pub(super) fn emit_for_in_range(
         ctx,
         instr,
         for_in,
-        n_ptr,
+        n,
         |instr, loop_end| {
             // Initialize `i` to zero.
-            instr.i32_const(i_ptr);
-            instr.i64_const(0);
-            emit_store(ctx, instr);
+            set_var(ctx, instr, i, |instr| {
+                instr.i64_const(0);
+            });
 
-            // (1) Push memory offset where `n` will be stored in the next
-            // emit_store(ctx, block);
-            instr.i32_const(n_ptr);
+            // Set n = upper_bound - lower_bound + 1;
+            set_var(ctx, instr, n, |instr| {
+                emit_expr(ctx, instr, &range.upper_bound);
+                emit_expr(ctx, instr, &range.lower_bound);
 
-            emit_expr(ctx, instr, &range.upper_bound);
-            emit_expr(ctx, instr, &range.lower_bound);
+                // Store lower_bound in temp variable, without removing
+                // it from the stack.
+                instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
 
-            // Store lower_bound in temp variable, without removing it from the stack.
-            instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
-
-            // Compute upper_bound - lower_bound + 1.
-            instr.binop(BinaryOp::I64Sub);
-            instr.i64_const(1);
-            instr.binop(BinaryOp::I64Add);
-
-            // Set n = upper_bound - lower_bound + 1. Offset of `n` was pushed in (1).
-            emit_store(ctx, instr);
+                // Compute upper_bound - lower_bound + 1.
+                instr.binop(BinaryOp::I64Sub);
+                instr.i64_const(1);
+                instr.binop(BinaryOp::I64Add);
+            });
 
             // If n <= 0, exit from the loop.
-            instr.i32_const(n_ptr);
-            emit_load(ctx, instr);
+            load_var(ctx, instr, n);
             instr.i64_const(0);
             instr.binop(BinaryOp::I64LeS);
             instr.if_else(
@@ -1101,38 +1073,20 @@ pub(super) fn emit_for_in_range(
             );
 
             // Store lower_bound in `next_item`.
-            instr.i32_const(next_item);
-            instr.local_get(ctx.borrow().wasm_symbols.i64_tmp);
-            emit_store(ctx, instr);
+            set_var(ctx, instr, next_item, |instr| {
+                instr.local_get(ctx.borrow().wasm_symbols.i64_tmp);
+            });
         },
         // Next item.
-        |instr| {
-            instr.i32_const(next_item);
-            instr.i32_const(next_item);
-            emit_load(ctx, instr);
-            instr.i64_const(1);
-            instr.binop(BinaryOp::I64Add);
-            emit_store(ctx, instr);
-        },
+        |_| {},
         // Loop condition.
         |instr| {
-            // Offset where `i` will be stored
-            instr.i32_const(i_ptr);
-            // Offset from where `i` will be loaded
-            instr.i32_const(i_ptr);
-            // Load `i` from memory.
-            emit_load(ctx, instr);
-            // Increment it
-            instr.i64_const(1);
-            instr.binop(BinaryOp::I64Add);
-            // Store it back to memory.
-            emit_store(ctx, instr);
+            incr_var(ctx, instr, next_item);
+            incr_var(ctx, instr, i);
 
             // Compare `i` to `n`.
-            instr.i32_const(i_ptr);
-            emit_load(ctx, instr);
-            instr.i32_const(n_ptr);
-            emit_load(ctx, instr);
+            load_var(ctx, instr, i);
+            load_var(ctx, instr, n);
             instr.binop(BinaryOp::I64LtS);
         },
     );
@@ -1141,21 +1095,21 @@ pub(super) fn emit_for_in_range(
     ctx.borrow_mut().symbol_table.pop();
 
     // Free loop variables.
-    ctx.borrow_mut().free_vars(n_ptr);
+    ctx.borrow_mut().free_wasm_vars(n);
 }
 
 pub(super) fn emit_for_in_expr(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
-    expr: &Expr,
+    iterable: &Expr,
 ) {
-    match expr.ty() {
+    match iterable.ty() {
         Type::Array => {
-            emit_for_in_array(ctx, instr, for_in, expr);
+            emit_for_in_array(ctx, instr, for_in, iterable);
         }
         Type::Map => {
-            emit_for_in_map(ctx, instr, for_in, expr);
+            emit_for_in_map(ctx, instr, for_in, iterable);
         }
         _ => unreachable!(),
     }
@@ -1165,63 +1119,128 @@ pub(super) fn emit_for_in_array(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
-    expr: &Expr,
+    array_expr: &Expr,
 ) {
-    emit_expr(ctx, instr, expr);
-
     // A `for` loop in an array has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
+    let array = array_expr.type_value().as_array().unwrap();
+
+    // The type of the loop variable must be the type of the items in the array,
+    // except for arrays of struct, for which we don't need to create a variable.
+    let (use_loop_var, loop_var) = match array.as_ref() {
+        Array::Integers(_) => (true, TypeValue::Integer(None)),
+        Array::Floats(_) => (true, TypeValue::Float(None)),
+        Array::Bools(_) => (true, TypeValue::Bool(None)),
+        Array::Strings(_) => (true, TypeValue::String(None)),
+        Array::Structs(_) => (false, TypeValue::Unknown),
+    };
+
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n_ptr = ctx.borrow_mut().new_var();
+    let n = ctx.borrow_mut().new_wasm_var();
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i_ptr = ctx.borrow_mut().new_var();
+    let i = ctx.borrow_mut().new_wasm_var();
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.borrow_mut().new_var();
+    let next_item = ctx.borrow_mut().new_wasm_var();
+
+    if use_loop_var {
+        // Create a symbol table containing the loop variable.
+        let mut symbol = Symbol::new(loop_var);
+
+        // Associate the symbol with the memory location where `next_item` is
+        // stored. Everytime that the loop variable is used in the condition,
+        // it will refer to the value stored in `next_item`.
+        symbol.location = Location::WasmVar(next_item);
+
+        let mut loop_vars = SymbolTable::new();
+        loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+
+        // Push the symbol table with loop variable on top of the existing symbol
+        // tables.
+        ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+    }
+
+    // Emit the expression that lookup the array.
+    emit_expr(ctx, instr, array_expr);
+
+    let array_var = ctx.borrow_mut().new_host_var();
+
+    emit_lookup_array(ctx, instr, array_var);
 
     emit_for(
         ctx,
         instr,
         for_in,
-        n_ptr,
+        n,
         |instr, loop_end| {
-            // Initialize `i` to zero.
-            instr.i32_const(i_ptr);
+            // Initialize `n` to the array's length.
+            set_var(ctx, instr, n, |instr| {
+                instr.i32_const(array_var);
+                instr.call(ctx.borrow().wasm_symbols.array_length);
+            });
+
+            // If n <= 0, exit from the loop.
+            load_var(ctx, instr, n);
             instr.i64_const(0);
-            emit_store(ctx, instr);
+            instr.binop(BinaryOp::I64LeS);
+            instr.if_else(
+                None,
+                |then_| {
+                    then_.i32_const(0);
+                    then_.br(loop_end);
+                },
+                |_| {},
+            );
+
+            // Initialize `i` to zero.
+            set_var(ctx, instr, i, |instr| {
+                instr.i64_const(0);
+            });
         },
         // Next item.
         |instr| {
-            // Offset from where `i` will be loaded
-            instr.i32_const(i_ptr);
-            // Load `i` from memory.
-            emit_load(ctx, instr);
+            ctx.borrow_mut().lookup_start = Some(array_var);
 
-            emit_array_lookup(
-                ctx,
-                instr,
-                &expr.type_value().as_array().unwrap(),
-            );
+            let get_item = |instr: &mut InstrSeqBuilder| {
+                // Load `i` from memory.
+                load_var(ctx, instr, i);
+                // Get the i-th item in the array and leave it in the stack.
+                emit_array_lookup(ctx, instr, &array);
+            };
+
+            if use_loop_var {
+                set_var(ctx, instr, next_item, get_item);
+            } else {
+                get_item(instr);
+            }
         },
-        // Loop condition.
-        |instr| {},
+        // Loop stop condition.
+        |instr| {
+            incr_var(ctx, instr, i);
+
+            // Compare `i` to `n`.
+            load_var(ctx, instr, i);
+            load_var(ctx, instr, n);
+            instr.binop(BinaryOp::I64LtS);
+        },
     );
 
     ctx.borrow_mut().symbol_table.pop();
-    ctx.borrow_mut().free_vars(n_ptr);
+    ctx.borrow_mut().free_wasm_vars(n);
+    ctx.borrow_mut().free_host_vars(array_var);
 }
 
 pub(super) fn emit_for_in_map(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
-    expr: &Expr,
+    map_expr: &Expr,
 ) {
-    emit_expr(ctx, instr, expr);
+    emit_expr(ctx, instr, map_expr);
 }
 
 pub(super) fn emit_for_in_expr_tuple(
@@ -1235,8 +1254,22 @@ pub(super) fn emit_for_in_expr_tuple(
     }
 }
 
-#[inline]
-pub(super) fn emit_store(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
+/// Sets a variable to the value produced by a code block.
+pub(super) fn set_var<B>(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    var: WasmVar,
+    block: B,
+) where
+    B: FnOnce(&mut InstrSeqBuilder),
+{
+    // First push the offset where the variable resided in memory. This will
+    // be used by the `store` instruction.
+    instr.i32_const(var.0);
+    // Block that produces the value that will be stored in the variable.
+    block(instr);
+    // The store instruction will remove two items from the stack, the value and
+    // the offset where it will be stored.
     instr.store(
         ctx.borrow().wasm_symbols.main_memory,
         StoreKind::I64 { atomic: false },
@@ -1244,16 +1277,34 @@ pub(super) fn emit_store(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
     );
 }
 
-#[inline]
-pub(super) fn emit_load(ctx: &RefCell<Context>, instr: &mut InstrSeqBuilder) {
+/// Loads the value of variable into the stack.
+pub(super) fn load_var(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    var: WasmVar,
+) {
+    instr.i32_const(var.0);
     instr.load(
         ctx.borrow().wasm_symbols.main_memory,
         LoadKind::I64 { atomic: false },
         MemArg {
             align: size_of::<i64>() as u32,
-            offset: wasm::LOOP_VARS_START as u32,
+            offset: wasm::VARS_STACK_START as u32,
         },
     );
+}
+
+/// Increments a variable.
+pub(super) fn incr_var(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    var: WasmVar,
+) {
+    set_var(ctx, instr, var, |instr| {
+        load_var(ctx, instr, var);
+        instr.i64_const(1);
+        instr.binop(BinaryOp::I64Add);
+    });
 }
 
 /// Emits WebAssembly code for boolean expression `expr` into the instruction
@@ -1341,18 +1392,15 @@ pub(super) fn emit_call_and_handle_undef(
 /// are represented differently from other values and therefore they require
 /// a different treatment.
 ///
-/// Strings in general are represented by a tuple `(i64, i64)` (see
-/// [`RuntimeStringWasm`] for more details), and they are undefined when the
-/// second item in the tuple is zero.
+/// Strings in general are represented by an `i64` (see [`RuntimeStringWasm`]
+/// for more details), and they are undefined when the value is zero.
 pub(super) fn emit_call_and_handle_undef_str(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     fn_id: walrus::FunctionId,
 ) {
     // Call the function that returns a string. The string is represented
-    // by a tuple (i64, i64), and is undefined when the second item is zero.
-    // Tuple items are pushed in the stack from left to right, so the the
-    // second item is the one at the top of the stack.
+    // by an i64, and is undefined when its value is zero.
     instr.call(fn_id);
 
     // Store the value at the top of the stack in a temp variable, but
@@ -1379,6 +1427,14 @@ pub(super) fn emit_lookup_common(
     instr: &mut InstrSeqBuilder,
 ) {
     let mut ctx_mut = ctx.borrow_mut();
+
+    if let Some(start) = ctx_mut.lookup_start.take() {
+        instr.i32_const(start);
+        instr.global_set(ctx_mut.wasm_symbols.lookup_start);
+    } else {
+        instr.i32_const(-1);
+        instr.global_set(ctx_mut.wasm_symbols.lookup_start);
+    }
 
     instr.i32_const(ctx_mut.lookup_stack.len() as i32);
     instr.global_set(ctx_mut.wasm_symbols.lookup_stack_top);
@@ -1463,6 +1519,17 @@ pub(super) fn emit_lookup_string(
     );
 }
 
+#[inline]
+pub(super) fn emit_lookup_array(
+    ctx: &RefCell<Context>,
+    instr: &mut InstrSeqBuilder,
+    context_var: i32,
+) {
+    emit_lookup_common(ctx, instr);
+    instr.i32_const(context_var);
+    instr.call(ctx.borrow().wasm_symbols.lookup_array);
+}
+
 /// Emits code that checks if the top of the stack is non-zero and executes
 /// `expr` in that case. If it is zero throws an exception that signals that
 /// the result is undefined.
@@ -1489,15 +1556,6 @@ pub(super) fn if_non_zero(
     );
 
     expr(instr);
-}
-
-#[inline]
-pub(super) fn push_string(
-    instr: &mut InstrSeqBuilder,
-    string: RuntimeStringWasm,
-) {
-    instr.i64_const(string.0 as i64);
-    instr.i64_const(string.1 as i64);
 }
 
 /// Emits code for catching exceptions caused by undefined values.

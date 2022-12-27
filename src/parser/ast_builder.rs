@@ -845,7 +845,7 @@ fn meta_from_cst<'src>(
 // original sequence are passed to F is defined by the precedence rules in
 // PrattParser.
 //
-// For example, for the sequence 1 + 2 * 3, the first call to G will be with
+// For example, for the sequence 1 + 2 * 3, the first call to F will be with
 // arguments (2, *, 3), which produces a T1. In a second call to F the arguments
 // will be (1, +, T1) and its result T2 will be returned by `parse` because
 // there's no more expression to reduce.

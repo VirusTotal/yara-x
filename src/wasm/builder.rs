@@ -51,6 +51,7 @@ impl ModuleBuilder {
         let mut module = walrus::Module::with_config(config);
 
         global!(module, lookup_stack_top, I32);
+        global!(module, lookup_start, I32);
         global!(module, filesize, I64);
         global!(module, matching_patterns_bitmap_base, I64);
 
@@ -59,51 +60,47 @@ impl ModuleBuilder {
         import!(module, is_pat_match_at, [I32, I64], [I32]);
         import!(module, is_pat_match_in, [I32, I64, I64], [I32]);
 
-        // These functions receive 4 arguments as each operand is a string
-        // represented by two I64. See RuntimeStringWasm for details.
-        import!(module, str_eq, [I64, I64, I64, I64], [I32]);
-        import!(module, str_ne, [I64, I64, I64, I64], [I32]);
-        import!(module, str_gt, [I64, I64, I64, I64], [I32]);
-        import!(module, str_lt, [I64, I64, I64, I64], [I32]);
-        import!(module, str_ge, [I64, I64, I64, I64], [I32]);
-        import!(module, str_le, [I64, I64, I64, I64], [I32]);
+        import!(module, str_eq, [I64, I64], [I32]);
+        import!(module, str_ne, [I64, I64], [I32]);
+        import!(module, str_gt, [I64, I64], [I32]);
+        import!(module, str_lt, [I64, I64], [I32]);
+        import!(module, str_ge, [I64, I64], [I32]);
+        import!(module, str_le, [I64, I64], [I32]);
 
-        import!(module, str_contains, [I64, I64, I64, I64], [I32]);
-        import!(module, str_icontains, [I64, I64, I64, I64], [I32]);
-        import!(module, str_startswith, [I64, I64, I64, I64], [I32]);
-        import!(module, str_endswith, [I64, I64, I64, I64], [I32]);
-        import!(module, str_istartswith, [I64, I64, I64, I64], [I32]);
-        import!(module, str_iendswith, [I64, I64, I64, I64], [I32]);
+        import!(module, str_contains, [I64, I64], [I32]);
+        import!(module, str_icontains, [I64, I64], [I32]);
+        import!(module, str_startswith, [I64, I64], [I32]);
+        import!(module, str_endswith, [I64, I64], [I32]);
+        import!(module, str_istartswith, [I64, I64], [I32]);
+        import!(module, str_iendswith, [I64, I64], [I32]);
 
-        import!(module, str_iequals, [I64, I64, I64, I64], [I32]);
-        import!(module, str_len, [I64, I64], [I64]);
+        import!(module, str_iequals, [I64, I64], [I32]);
+        import!(module, str_len, [I64], [I64]);
+
+        import!(module, array_length, [I32], [I64]);
 
         import!(module, lookup_integer, [], maybe_undef(I64));
         import!(module, lookup_float, [], maybe_undef(F64));
         import!(module, lookup_bool, [], maybe_undef(I32));
-        import!(module, lookup_string, [], [I64, I64]);
+        import!(module, lookup_string, [], [I64]);
+        import!(module, lookup_array, [I32], []);
 
         import!(module, array_lookup_integer, [I64], maybe_undef(I64));
         import!(module, array_lookup_float, [I64], maybe_undef(F64));
         import!(module, array_lookup_bool, [I64], maybe_undef(I32));
-        import!(module, array_lookup_string, [I64], [I64, I64]);
+        import!(module, array_lookup_string, [I64], [I64]);
         import!(module, array_lookup_struct, [I64], maybe_undef());
 
         import!(module, map_lookup_integer_integer, [I64], maybe_undef(I64));
-        import!(
-            module,
-            map_lookup_string_integer,
-            [I64, I64],
-            maybe_undef(I64)
-        );
+        import!(module, map_lookup_string_integer, [I64], maybe_undef(I64));
         import!(module, map_lookup_integer_float, [I64], maybe_undef(F64));
-        import!(module, map_lookup_string_float, [I64, I64], maybe_undef(F64));
+        import!(module, map_lookup_string_float, [I64], maybe_undef(F64));
         import!(module, map_lookup_integer_bool, [I64], maybe_undef(I32));
-        import!(module, map_lookup_string_bool, [I64, I64], maybe_undef(I32));
-        import!(module, map_lookup_integer_string, [I64], [I64, I64]);
-        import!(module, map_lookup_string_string, [I64, I64], [I64, I64]);
+        import!(module, map_lookup_string_bool, [I64], maybe_undef(I32));
+        import!(module, map_lookup_integer_string, [I64], [I64]);
+        import!(module, map_lookup_string_string, [I64], [I64]);
         import!(module, map_lookup_integer_struct, [I64], maybe_undef());
-        import!(module, map_lookup_string_struct, [I64, I64], maybe_undef());
+        import!(module, map_lookup_string_struct, [I64], maybe_undef());
 
         let (main_memory, _) =
             module.add_import_memory("yr", "main_memory", false, 1, None);
@@ -115,11 +112,14 @@ impl ModuleBuilder {
             is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
+            array_length,
+            lookup_start,
             lookup_stack_top,
             lookup_integer,
             lookup_float,
             lookup_bool,
             lookup_string,
+            lookup_array,
             array_lookup_integer,
             array_lookup_float,
             array_lookup_bool,

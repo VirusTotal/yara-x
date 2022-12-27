@@ -12,7 +12,7 @@ use yara_proto::exts::enum_options as yara_enum_options;
 use yara_proto::exts::field_options as yara_field_options;
 use yara_proto::exts::module_options as yara_module_options;
 
-use crate::symbols::{Symbol, SymbolLookup};
+use crate::symbols::{Location, Symbol, SymbolLookup};
 use crate::types::{Array, Map, TypeValue};
 
 /// A field in a [`Struct`].
@@ -59,7 +59,7 @@ impl SymbolLookup for Struct {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let field = self.field_by_name(ident)?;
         let mut symbol = Symbol::new(field.type_value.clone());
-        symbol.set_field_index(field.index);
+        symbol.location = Location::FieldIndex(field.index);
         Some(symbol)
     }
 }

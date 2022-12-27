@@ -26,7 +26,12 @@ The memory of these WebAssembly modules is organized as follows.
 
 ```text
   ┌──────────────────────────┐ 0
-  │ Loop variables           │
+  │ Variable #0              │ 8
+  │ Variable #1              │ 16
+  : ...                      :
+  │ Variable #n              │ n * 8
+  : ...                      :
+  │                          │
   ├──────────────────────────┤ 1024
   │ Field lookup indexes     │
   ├──────────────────────────┤ 2048
@@ -77,12 +82,12 @@ use crate::types::{Map, TypeValue};
 pub(crate) mod builder;
 
 /// Offset in module's main memory where the space for loop variables start.
-pub(crate) const LOOP_VARS_START: i32 = 0;
+pub(crate) const VARS_STACK_START: i32 = 0;
 /// Offset in module's main memory where the space for loop variables end.
-pub(crate) const LOOP_VARS_END: i32 = LOOP_VARS_START + 1024;
+pub(crate) const VARS_STACK_END: i32 = VARS_STACK_START + 1024;
 
 /// Offset in module's main memory where the space for lookup indexes start.
-pub(crate) const LOOKUP_INDEXES_START: i32 = LOOP_VARS_END;
+pub(crate) const LOOKUP_INDEXES_START: i32 = VARS_STACK_END;
 /// Offset in module's main memory where the space for lookup indexes end.
 pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 
@@ -106,6 +111,7 @@ pub(crate) struct WasmSymbols {
     /// The WebAssembly module's main memory.
     pub main_memory: walrus::MemoryId,
 
+    pub lookup_start: walrus::GlobalId,
     pub lookup_stack_top: walrus::GlobalId,
 
     /// Global variable that contains the offset within the module's main
@@ -132,12 +138,17 @@ pub(crate) struct WasmSymbols {
     /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
     pub is_pat_match_in: walrus::FunctionId,
 
+    /// Function that returns the length of an array.
+    /// Signature (context_var_index: i32) -> (i64)
+    pub array_length: walrus::FunctionId,
+
     /// Functions that given a sequence of field indexes, lookup the fields
     /// and return their values.
     pub lookup_integer: walrus::FunctionId,
     pub lookup_float: walrus::FunctionId,
     pub lookup_bool: walrus::FunctionId,
     pub lookup_string: walrus::FunctionId,
+    pub lookup_array: walrus::FunctionId,
 
     pub array_lookup_integer: walrus::FunctionId,
     pub array_lookup_float: walrus::FunctionId,
@@ -180,32 +191,34 @@ pub(crate) struct WasmSymbols {
     pub i64_tmp: walrus::LocalId,
 }
 
-/// Represents a [`RuntimeString`] as a tuple that can be passed from
-/// WebAssembly to host and vice-versa.
+/// Represents a [`RuntimeString`] as a `u64` that can be passed from WASM to
+/// host and vice-versa.
 ///
-/// The types that we can pass to (and receive from) WebAssembly functions are
-/// only primitive types (i64, i32, f64 and f32). In order to be able to pass
-/// a [`RuntimeString`] to and from WebAssembly, it must be represented as a
-/// tuple of primitive types.
+/// The types that we can pass to (and receive from) WASM functions are only
+/// primitive types (i64, i32, f64 and f32). In order to be able to pass a
+/// [`RuntimeString`] to and from WASM, it must be represented as one of those
+/// primitive types.
 ///
-/// This tuple is composed of two `u64` values, containing all the information
-/// required for uniquely identifying the string. This is how the information
-/// is encoded:
+/// The `u64` value contains all the information required for uniquely
+/// identifying the string. This is how the information is encoded:
 ///
-/// * `RuntimeString:Undef`  -> `(X, 0)`
-///    A zero in the second value is enough for representing an undefined string,
-///    `X` can be an arbitrary value.
+/// * `RuntimeString:Undef`  -> `0`
+///    A zero represents an undefined string.
 ///
-/// * `RuntimeString:Literal`  -> `(LiteralId, 1)`
+/// * `RuntimeString:Literal`  -> `LiteralId << 2 | 1`
+///    If the two lower bits are equal to 1, it's a literal string, where the
+///    remaining bits represent the `LiteralId`.
 ///
-/// * `RuntimeString:Owned`  -> `(RuntimeStringId, 2)`
+/// * `RuntimeString:Owned`  -> `RuntimeStringId << 2 | 2`
+///    If the two lower bits are equal to 2, it's a runtime string, where the
+///    remaining bits represent the `RuntimeStringId`.
 ///
-/// * `RuntimeString:Owned`  -> `(Offset, Len << 32 | 3)`
-///   The offset within the scanned data is stored in the first value, and the
-///   length of the string in the higher 32-bits of the second value. The lower
-///   32-bits have the value 3.
+/// * `RuntimeString:Owned`  -> `Offset << 18 | Len << 2 | 3)`
+///    If the two lower bits are 3, it's a string backed by the scanned data.
+///    Bits 18:3 ar used for representing the string length (up to 64KB),
+///    while bits 64:19 represents the offset (up to 70,368,744,177,663).
 ///
-pub(crate) type RuntimeStringWasm = (u64, u64);
+pub(crate) type RuntimeStringWasm = u64;
 
 /// String types handled by YARA's WebAssembly runtime.
 ///
@@ -271,36 +284,36 @@ impl RuntimeString {
     /// passed to WebAssembly.
     pub(crate) fn as_wasm(&self) -> RuntimeStringWasm {
         match self {
-            // Undefined strings are represented as (0, 0)
-            RuntimeString::Undef => (0, 0),
+            // Undefined strings are represented as 0.
+            RuntimeString::Undef => 0,
             // Literal strings are represented as (1, LiteralId)
-            RuntimeString::Literal(id) => (u64::from(*id), 1),
+            RuntimeString::Literal(id) => u64::from(*id) << 2 | 1,
             // Owned strings are represented as (2, RuntimeStringId)
-            RuntimeString::Owned(id) => (*id as u64, 2),
+            RuntimeString::Owned(id) => (*id as u64) << 2 | 2,
             // Slices are represented as (length << 32 | 1, offset). This
             // implies that slice length is limited to 4GB, as it must fit
             // in the upper 32-bits of the first item in the tuple.
             RuntimeString::Slice { offset, length } => {
-                if *length <= u32::MAX as usize {
-                    (*offset as u64, (*length << 32 | 3) as u64)
-                } else {
+                if *length >= u16::MAX as usize {
                     panic!(
                         "runtime-string slices can't be larger than {}",
-                        u32::MAX
+                        u16::MAX
                     )
                 }
+                (*offset as u64) << 18 | (*length as u64) << 2 | 3
             }
         }
     }
 
     /// Creates a [`RuntimeString`] from a [`RuntimeStringTuple`].
-    pub(crate) fn from_wasm(tuple: RuntimeStringWasm) -> Self {
-        match tuple.1 & 0xff {
-            1 => Self::Literal(LiteralId::from(tuple.0 as u32)),
-            2 => Self::Owned(tuple.0 as u32),
+    pub(crate) fn from_wasm(s: RuntimeStringWasm) -> Self {
+        match s & 0x3 {
+            0 => Self::Undef,
+            1 => Self::Literal(LiteralId::from((s >> 2) as u32)),
+            2 => Self::Owned((s >> 2) as u32),
             3 => Self::Slice {
-                offset: tuple.0 as usize,
-                length: (tuple.1 >> 32) as usize,
+                offset: (s >> 18) as usize,
+                length: ((s >> 2) & 0xffff) as usize,
             },
             _ => unreachable!(),
         }
@@ -447,6 +460,8 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, lookup_float);
     add_function!(linker, lookup_string);
     add_function!(linker, lookup_bool);
+    add_function!(linker, lookup_array);
+    add_function!(linker, array_length);
     add_function!(linker, array_lookup_integer);
     add_function!(linker, array_lookup_float);
     add_function!(linker, array_lookup_bool);
@@ -554,8 +569,16 @@ pub(crate) fn is_pat_match_in(
     0
 }
 
-macro_rules! gen_lookup_common {
-    ($caller:ident, $scan_ctx:ident, $type_value:ident, $code:block) => {{
+macro_rules! lookup_common {
+    ($caller:ident, $type_value:ident, $code:block) => {{
+        let lookup_start = $caller
+            .data()
+            .lookup_start
+            .unwrap()
+            .get(&mut $caller.as_context_mut())
+            .i32()
+            .unwrap();
+
         let lookup_stack_top = $caller
             .data()
             .lookup_stack_top
@@ -577,31 +600,44 @@ macro_rules! gen_lookup_common {
             )
         };
 
-        let $scan_ctx = store_ctx.data_mut();
-
-        let mut structure =
-            if let Some(ref current_structure) = $scan_ctx.current_struct {
-                &current_structure
+        let $type_value = if lookup_stack.len() > 0 {
+            let mut structure = if let Some(current_structure) =
+                &store_ctx.data().current_struct
+            {
+                current_structure.as_ref()
+            } else if lookup_start != -1 {
+                if let TypeValue::Struct(s) =
+                    &store_ctx.data().host_vars_stack[lookup_start as usize]
+                {
+                    s
+                } else {
+                    unreachable!()
+                }
             } else {
-                &$scan_ctx.root_struct
+                &store_ctx.data().root_struct
             };
 
-        let mut final_field = None;
+            let mut final_field = None;
 
-        for field_index in lookup_stack {
-            let field =
-                structure.field_by_index(*field_index as usize).unwrap();
-            final_field = Some(field);
-            if let TypeValue::Struct(s) = &field.type_value {
-                structure = &s
+            for field_index in lookup_stack {
+                let field =
+                    structure.field_by_index(*field_index as usize).unwrap();
+                final_field = Some(field);
+                if let TypeValue::Struct(s) = &field.type_value {
+                    structure = &s
+                }
             }
-        }
 
-        let $type_value = &final_field.unwrap().type_value;
+            &final_field.unwrap().type_value
+        } else if lookup_start != -1 {
+            &store_ctx.data().host_vars_stack[lookup_start as usize]
+        } else {
+            unreachable!();
+        };
 
         let result = $code;
 
-        $scan_ctx.current_struct = None;
+        $caller.data_mut().current_struct = None;
 
         result
     }};
@@ -613,11 +649,14 @@ macro_rules! gen_lookup_common {
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
 ) -> RuntimeStringWasm {
-    let string = gen_lookup_common!(caller, scan_ctx, type_value, {
+    let string = lookup_common!(caller, type_value, {
         match type_value {
-            TypeValue::String(Some(value)) => RuntimeString::Owned(
-                scan_ctx.string_pool.get_or_intern(value.as_bstr()),
-            ),
+            TypeValue::String(Some(value)) => {
+                let value = value.to_owned();
+                RuntimeString::Owned(
+                    caller.data_mut().string_pool.get_or_intern(value),
+                )
+            }
             TypeValue::String(None) => RuntimeString::Undef,
             _ => unreachable!(),
         }
@@ -626,12 +665,48 @@ pub(crate) fn lookup_string(
     string.as_wasm()
 }
 
+pub(crate) fn lookup_array(
+    mut caller: Caller<'_, ScanContext>,
+    context_var: i32,
+) {
+    let array = lookup_common!(caller, type_value, { type_value.clone() });
+    let index = context_var as usize;
+
+    let vars = &mut caller.data_mut().host_vars_stack;
+
+    if vars.len() <= index {
+        vars.resize(index + 1, TypeValue::Unknown);
+    }
+
+    vars[index] = array;
+}
+
+/// Given the index of some context variable of type array, returns the length
+/// of the array.
+///
+/// # Panics
+///
+/// If the context variable doesn't exist or is not an array.
+pub(crate) fn array_length(
+    caller: Caller<'_, ScanContext>,
+    context_var: i32,
+) -> i64 {
+    caller
+        .data()
+        .host_vars_stack
+        .get(context_var as usize)
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .len() as i64
+}
+
 macro_rules! gen_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
         ) -> possibly_undef!($return_type) {
-            gen_lookup_common!(caller, scan_ctx, type_value, {
+            lookup_common!(caller, type_value, {
                 if let $type(Some(value)) = type_value {
                     defined!(*value as $return_type)
                 } else {
@@ -652,7 +727,7 @@ macro_rules! gen_array_lookup_fn {
             mut caller: Caller<'_, ScanContext>,
             index: i64,
         ) -> possibly_undef!($return_type) {
-            let array = gen_lookup_common!(caller, scan_ctx, type_value, {
+            let array = lookup_common!(caller, type_value, {
                 type_value.as_array().unwrap()
             });
 
@@ -675,14 +750,12 @@ pub(crate) fn array_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
 ) -> RuntimeStringWasm {
-    let array = gen_lookup_common!(caller, scan_ctx, type_value, {
-        type_value.as_array().unwrap()
-    });
+    let array =
+        lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
 
     let array = array.as_string_array();
-    let string = array.get(index as usize);
 
-    if let Some(string) = string {
+    if let Some(string) = array.get(index as usize) {
         RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(string.as_bstr()),
         )
@@ -696,14 +769,13 @@ pub(crate) fn array_lookup_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
 ) -> possibly_undef!() {
-    let array = gen_lookup_common!(caller, scan_ctx, type_value, {
-        type_value.as_array().unwrap()
-    });
+    let array =
+        lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
 
     let array = array.as_struct_array();
 
-    if let Some(value) = array.get(index as usize) {
-        caller.data_mut().struct_stack.push(value.clone());
+    if let Some(s) = array.get(index as usize) {
+        caller.data_mut().current_struct = Some(s.clone());
         defined!()
     } else {
         undefined!()
@@ -714,14 +786,13 @@ macro_rules! gen_map_string_key_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
-            key_0: u64,
-            key_1: u64,
+            key: u64,
         ) -> possibly_undef!($return_type) {
-            let map = gen_lookup_common!(caller, scan_ctx, type_value, {
+            let map = lookup_common!(caller, type_value, {
                 type_value.as_map().unwrap()
             });
 
-            let key = RuntimeString::from_wasm((key_0, key_1));
+            let key = RuntimeString::from_wasm(key);
             let key_bstr = key.as_bstr(caller.data());
 
             let value = match map.borrow() {
@@ -748,7 +819,7 @@ macro_rules! gen_map_integer_key_lookup_fn {
             mut caller: Caller<'_, ScanContext>,
             key: i64,
         ) -> possibly_undef!($return_type) {
-            let map = gen_lookup_common!(caller, scan_ctx, type_value, {
+            let map = lookup_common!(caller, type_value, {
                 type_value.as_map().unwrap()
             });
 
@@ -798,9 +869,8 @@ pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> RuntimeStringWasm {
-    let map = gen_lookup_common!(caller, scan_ctx, type_value, {
-        type_value.as_map().unwrap()
-    });
+    let map =
+        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
     let value = match map.borrow() {
         Map::IntegerKeys { map, .. } => map.get(&key),
@@ -823,14 +893,12 @@ pub(crate) fn map_lookup_integer_string(
 
 pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
-    key_0: u64,
-    key_1: u64,
+    key: u64,
 ) -> RuntimeStringWasm {
-    let map = gen_lookup_common!(caller, scan_ctx, type_value, {
-        type_value.as_map().unwrap()
-    });
+    let map =
+        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
-    let key = RuntimeString::from_wasm((key_0, key_1));
+    let key = RuntimeString::from_wasm(key);
     let key_bstr = key.as_bstr(caller.data());
 
     let type_value = match map.borrow() {
@@ -856,7 +924,7 @@ pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> possibly_undef!() {
-    let map = gen_lookup_common!(caller, scan_ctx, value, {
+    let map = lookup_common!(caller, value, {
         match value {
             TypeValue::Map(map) => map.clone(),
             _ => unreachable!(),
@@ -870,7 +938,7 @@ pub(crate) fn map_lookup_integer_struct(
 
     if let Some(value) = value {
         if let TypeValue::Struct(s) = value {
-            caller.data_mut().borrow_mut().current_struct = Some(s.clone());
+            caller.data_mut().current_struct = Some(s.clone());
             defined!()
         } else {
             unreachable!()
@@ -882,17 +950,16 @@ pub(crate) fn map_lookup_integer_struct(
 
 pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
-    key_0: u64,
-    key_1: u64,
+    key: u64,
 ) -> possibly_undef!() {
-    let map = gen_lookup_common!(caller, scan_ctx, value, {
+    let map = lookup_common!(caller, value, {
         match value {
             TypeValue::Map(map) => map.clone(),
             _ => unreachable!(),
         }
     });
 
-    let key = RuntimeString::from_wasm((key_0, key_1));
+    let key = RuntimeString::from_wasm(key);
     let key_bstr = key.as_bstr(caller.data());
 
     let value = match map.borrow() {
@@ -902,7 +969,7 @@ pub(crate) fn map_lookup_string_struct(
 
     if let Some(value) = value {
         if let TypeValue::Struct(s) = value {
-            caller.data_mut().borrow_mut().current_struct = Some(s.clone());
+            caller.data_mut().current_struct = Some(s.clone());
             defined!()
         } else {
             unreachable!()
@@ -916,13 +983,11 @@ macro_rules! gen_str_cmp_fn {
     ($name:ident, $op:tt) => {
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
-            lhs_0: u64,
-            lhs_1: u64,
-            rhs_0: u64,
-            rhs_1: u64,
+            lhs: u64,
+            rhs: u64,
         ) -> i32 {
-            let lhs_str = RuntimeString::from_wasm((lhs_0, lhs_1));
-            let rhs_str = RuntimeString::from_wasm((rhs_0, rhs_1));
+            let lhs_str = RuntimeString::from_wasm(lhs);
+            let rhs_str = RuntimeString::from_wasm(rhs);
 
             lhs_str.$op(&rhs_str, caller.data()) as i32
         }
@@ -940,13 +1005,11 @@ macro_rules! gen_str_op_fn {
     ($name:ident, $op:tt, $case_insensitive:literal) => {
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
-            lhs_0: u64,
-            lhs_1: u64,
-            rhs_0: u64,
-            rhs_1: u64,
+            lhs: u64,
+            rhs: u64,
         ) -> i32 {
-            let lhs_str = RuntimeString::from_wasm((lhs_0, lhs_1));
-            let rhs_str = RuntimeString::from_wasm((rhs_0, rhs_1));
+            let lhs_str = RuntimeString::from_wasm(lhs);
+            let rhs_str = RuntimeString::from_wasm(rhs);
 
             lhs_str.$op(&rhs_str, caller.data(), $case_insensitive) as i32
         }
@@ -961,12 +1024,8 @@ gen_str_op_fn!(str_istartswith, starts_with, true);
 gen_str_op_fn!(str_iendswith, ends_with, true);
 gen_str_op_fn!(str_iequals, equals, true);
 
-pub(crate) fn str_len(
-    caller: Caller<'_, ScanContext>,
-    str_0: u64,
-    str_1: u64,
-) -> i64 {
-    let string = RuntimeString::from_wasm((str_0, str_1));
+pub(crate) fn str_len(caller: Caller<'_, ScanContext>, str: u64) -> i64 {
+    let string = RuntimeString::from_wasm(str);
     string.len(caller.data()) as i64
 }
 

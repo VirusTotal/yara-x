@@ -3,43 +3,31 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
+use crate::compiler::WasmVar;
 use crate::types::{Type, TypeValue};
 
 /// Trait implemented by types that allow looking up for an identifier.
-pub trait SymbolLookup {
+pub(crate) trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
 #[derive(Clone)]
-pub struct Symbol {
-    type_value: TypeValue,
-    mem_offset: Option<i32>,
-    field_index: Option<i32>,
+pub(crate) struct Symbol {
+    pub type_value: TypeValue,
+    pub location: Location,
+}
+
+#[derive(Clone)]
+pub(crate) enum Location {
+    None,
+    WasmVar(WasmVar),
+    HostVar(i32),
+    FieldIndex(i32),
 }
 
 impl Symbol {
     pub fn new(type_value: TypeValue) -> Self {
-        Self { type_value, mem_offset: None, field_index: None }
-    }
-
-    pub fn set_mem_offset(&mut self, offset: i32) -> &Self {
-        self.mem_offset = Some(offset);
-        self
-    }
-
-    #[inline(always)]
-    pub fn mem_offset(&self) -> Option<i32> {
-        self.mem_offset
-    }
-
-    pub fn set_field_index(&mut self, index: i32) -> &Self {
-        self.field_index = Some(index);
-        self
-    }
-
-    #[inline(always)]
-    pub fn field_index(&self) -> Option<i32> {
-        self.field_index
+        Self { type_value, location: Location::None }
     }
 
     #[inline(always)]
@@ -110,13 +98,13 @@ impl SymbolLookup for Option<Symbol> {
 /// [`Symbol`] will be of type [`Type::Struct`], which encapsulates another
 /// object that also implements the [`SymbolLookup`] trait, possibly another
 /// [`SymbolTable`].
-pub struct SymbolTable {
+pub(crate) struct SymbolTable {
     map: HashMap<String, Symbol>,
 }
 
 impl SymbolTable {
     /// Creates a new symbol table.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { map: HashMap::new() }
     }
 
@@ -125,7 +113,11 @@ impl SymbolTable {
     /// If the symbol was already in the table it gets updated and the old
     /// value is returned. If the symbol was not in the table [`None`] is
     /// returned.
-    pub fn insert<I>(&mut self, ident: I, symbol: Symbol) -> Option<Symbol>
+    pub(crate) fn insert<I>(
+        &mut self,
+        ident: I,
+        symbol: Symbol,
+    ) -> Option<Symbol>
     where
         I: Into<String>,
     {
@@ -169,23 +161,23 @@ impl SymbolLookup for RefCell<SymbolTable> {
 /// it hides any other identifier "foo" that may exists on a symbol table
 /// that is deeper in the stack.
 ///
-pub struct StackedSymbolTable<'a> {
+pub(crate) struct StackedSymbolTable<'a> {
     stack: VecDeque<Rc<dyn SymbolLookup + 'a>>,
 }
 
 impl<'a> StackedSymbolTable<'a> {
     /// Creates a new [`StackedSymbolTable`].
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { stack: VecDeque::new() }
     }
 
     /// Pushes a new symbol table to the stack.
-    pub fn push(&mut self, symbol_table: Rc<dyn SymbolLookup + 'a>) {
+    pub(crate) fn push(&mut self, symbol_table: Rc<dyn SymbolLookup + 'a>) {
         self.stack.push_back(symbol_table)
     }
 
     /// Pop a symbol table from the stack.
-    pub fn pop(&mut self) -> Option<Rc<dyn SymbolLookup + 'a>> {
+    pub(crate) fn pop(&mut self) -> Option<Rc<dyn SymbolLookup + 'a>> {
         self.stack.pop_back()
     }
 }

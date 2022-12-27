@@ -21,6 +21,16 @@ impl Array {
         }
     }
 
+    pub fn len(&self) -> usize {
+        match self {
+            Array::Integers(a) => a.len(),
+            Array::Floats(a) => a.len(),
+            Array::Bools(a) => a.len(),
+            Array::Strings(a) => a.len(),
+            Array::Structs(a) => a.len(),
+        }
+    }
+
     pub fn as_integer_array(&self) -> &Vec<i64> {
         if let Self::Integers(v) = self {
             v

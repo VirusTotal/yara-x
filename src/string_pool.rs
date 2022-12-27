@@ -1,5 +1,4 @@
 use bstr::BStr;
-use bstr::ByteSlice;
 use intaglio::Symbol;
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
@@ -84,12 +83,15 @@ where
     /// Returns the ID corresponding to `s`. Interns the string if not already
     /// interned.
     #[inline]
-    pub fn get_or_intern(&mut self, s: &BStr) -> T {
-        let bytes = s.as_bytes();
+    pub fn get_or_intern<S>(&mut self, s: S) -> T
+    where
+        S: AsRef<[u8]>,
+    {
+        let bytes = s.as_ref();
         if let Some(s) = self.pool.check_interned(bytes) {
             T::from(s.id())
         } else {
-            T::from(self.pool.intern(bytes.to_vec()).unwrap().id())
+            T::from(self.pool.intern(bytes.to_owned()).unwrap().id())
         }
     }
 
