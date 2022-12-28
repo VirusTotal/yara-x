@@ -77,7 +77,7 @@ impl ModuleBuilder {
         import!(module, str_iequals, [I64, I64], [I32]);
         import!(module, str_len, [I64], [I64]);
 
-        import!(module, array_length, [I32], [I64]);
+        import!(module, array_len, [I32], [I64]);
 
         import!(module, lookup_integer, [], maybe_undef(I64));
         import!(module, lookup_float, [], maybe_undef(F64));
@@ -85,11 +85,11 @@ impl ModuleBuilder {
         import!(module, lookup_string, [], [I64]);
         import!(module, lookup_array, [I32], []);
 
-        import!(module, array_lookup_integer, [I64], maybe_undef(I64));
-        import!(module, array_lookup_float, [I64], maybe_undef(F64));
-        import!(module, array_lookup_bool, [I64], maybe_undef(I32));
-        import!(module, array_lookup_string, [I64], [I64]);
-        import!(module, array_lookup_struct, [I64], maybe_undef());
+        import!(module, array_lookup_integer, [I64, I32], maybe_undef(I64));
+        import!(module, array_lookup_float, [I64, I32], maybe_undef(F64));
+        import!(module, array_lookup_bool, [I64, I32], maybe_undef(I32));
+        import!(module, array_lookup_string, [I64, I32], [I64]);
+        import!(module, array_lookup_struct, [I64, I32], maybe_undef());
 
         import!(module, map_lookup_integer_integer, [I64], maybe_undef(I64));
         import!(module, map_lookup_string_integer, [I64], maybe_undef(I64));
@@ -112,7 +112,7 @@ impl ModuleBuilder {
             is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
-            array_length,
+            array_len,
             lookup_start,
             lookup_stack_top,
             lookup_integer,

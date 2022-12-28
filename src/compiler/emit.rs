@@ -8,7 +8,7 @@ use walrus::InstrSeqBuilder;
 use walrus::ValType::{I32, I64};
 
 use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
-use crate::compiler::{Context, WasmVar};
+use crate::compiler::{Context, Var};
 use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Array, Map, Type, TypeValue};
 use crate::wasm;
@@ -345,7 +345,7 @@ pub(super) fn emit_expr(
                 // and the type of the index expression.
                 match operands.primary.type_value() {
                     TypeValue::Array(array) => {
-                        emit_array_lookup(ctx, instr, array);
+                        emit_array_lookup(ctx, instr, array, None);
                     }
                     TypeValue::Map(map) => {
                         emit_map_lookup(ctx, instr, map);
@@ -644,9 +644,16 @@ fn emit_array_lookup(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
+    host_var: Option<Var>,
 ) {
     // Emit the code that fills the `lookup_stack` in WASM memory.
     emit_lookup_common(ctx, instr);
+
+    if let Some(host_var) = host_var {
+        instr.i32_const(host_var.0);
+    } else {
+        instr.i32_const(-1);
+    }
 
     match array.as_ref() {
         Array::Integers(_) => {
@@ -819,7 +826,7 @@ pub(super) fn emit_for<I, N, C>(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
-    n: WasmVar,
+    n: Var,
     loop_init: I,
     next_item: N,
     loop_cond: C,
@@ -837,10 +844,10 @@ pub(super) fn emit_for<I, N, C>(
             Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
                 // `quantifier` is the number of loop conditions that must return
                 // `true` for the loop to be `true`.
-                let quantifier = ctx.borrow_mut().new_wasm_var();
+                let quantifier = ctx.borrow_mut().new_var();
                 // `counter` is the number of loop conditions that actually
                 // returned `true`. This is initially zero.
-                let counter = ctx.borrow_mut().new_wasm_var();
+                let counter = ctx.borrow_mut().new_var();
 
                 set_var(ctx, instr, quantifier, |instr| {
                     if matches!(&for_in.quantifier, Quantifier::Percentage(_))
@@ -873,7 +880,7 @@ pub(super) fn emit_for<I, N, C>(
 
                 (quantifier, counter)
             }
-            _ => (WasmVar(0), WasmVar(0)),
+            _ => (Var(0), Var(0)),
         };
 
         instr.loop_(I32, |block| {
@@ -1008,15 +1015,15 @@ pub(super) fn emit_for_in_range(
     assert_eq!(for_in.variables.len(), 1);
 
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.borrow_mut().new_wasm_var();
+    let n = ctx.borrow_mut().new_var();
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.borrow_mut().new_wasm_var();
+    let i = ctx.borrow_mut().new_var();
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.borrow_mut().new_wasm_var();
+    let next_item = ctx.borrow_mut().new_var();
 
     // Create a symbol table containing the loop variable.
     let mut symbol = Symbol::new(TypeValue::Integer(None));
@@ -1095,7 +1102,7 @@ pub(super) fn emit_for_in_range(
     ctx.borrow_mut().symbol_table.pop();
 
     // Free loop variables.
-    ctx.borrow_mut().free_wasm_vars(n);
+    ctx.borrow_mut().free_vars(n);
 }
 
 pub(super) fn emit_for_in_expr(
@@ -1128,7 +1135,7 @@ pub(super) fn emit_for_in_array(
 
     // The type of the loop variable must be the type of the items in the array,
     // except for arrays of struct, for which we don't need to create a variable.
-    let (use_loop_var, loop_var) = match array.as_ref() {
+    let (is_wasm_var, loop_var) = match array.as_ref() {
         Array::Integers(_) => (true, TypeValue::Integer(None)),
         Array::Floats(_) => (true, TypeValue::Float(None)),
         Array::Bools(_) => (true, TypeValue::Bool(None)),
@@ -1137,37 +1144,39 @@ pub(super) fn emit_for_in_array(
     };
 
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.borrow_mut().new_wasm_var();
+    let n = ctx.borrow_mut().new_var();
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.borrow_mut().new_wasm_var();
+    let i = ctx.borrow_mut().new_var();
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.borrow_mut().new_wasm_var();
+    let next_item = ctx.borrow_mut().new_var();
 
-    if use_loop_var {
-        // Create a symbol table containing the loop variable.
-        let mut symbol = Symbol::new(loop_var);
+    // Create a symbol table containing the loop variable.
+    let mut symbol = Symbol::new(loop_var);
+    let mut loop_vars = SymbolTable::new();
 
-        // Associate the symbol with the memory location where `next_item` is
-        // stored. Everytime that the loop variable is used in the condition,
-        // it will refer to the value stored in `next_item`.
+    // Associate the symbol with the memory location where `next_item` is
+    // stored. Everytime that the loop variable is used in the condition,
+    // it will refer to the value stored in `next_item`.
+    if is_wasm_var {
         symbol.location = Location::WasmVar(next_item);
-
-        let mut loop_vars = SymbolTable::new();
-        loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
-
-        // Push the symbol table with loop variable on top of the existing symbol
-        // tables.
-        ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+    } else {
+        symbol.location = Location::HostVar(next_item);
     }
+
+    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+
+    // Push the symbol table with loop variable on top of the existing symbol
+    // tables.
+    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
 
     // Emit the expression that lookup the array.
     emit_expr(ctx, instr, array_expr);
 
-    let array_var = ctx.borrow_mut().new_host_var();
+    let array_var = ctx.borrow_mut().new_var();
 
     emit_lookup_array(ctx, instr, array_var);
 
@@ -1179,8 +1188,8 @@ pub(super) fn emit_for_in_array(
         |instr, loop_end| {
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |instr| {
-                instr.i32_const(array_var);
-                instr.call(ctx.borrow().wasm_symbols.array_length);
+                instr.i32_const(array_var.0);
+                instr.call(ctx.borrow().wasm_symbols.array_len);
             });
 
             // If n <= 0, exit from the loop.
@@ -1203,19 +1212,22 @@ pub(super) fn emit_for_in_array(
         },
         // Next item.
         |instr| {
+            // The next lookup operation starts at the local variable
+            // `array_var`.
             ctx.borrow_mut().lookup_start = Some(array_var);
 
-            let get_item = |instr: &mut InstrSeqBuilder| {
-                // Load `i` from memory.
-                load_var(ctx, instr, i);
-                // Get the i-th item in the array and leave it in the stack.
-                emit_array_lookup(ctx, instr, &array);
-            };
-
-            if use_loop_var {
-                set_var(ctx, instr, next_item, get_item);
+            if is_wasm_var {
+                // Get the i-th item in the array and store it in the
+                // WASM-side local variable `next_item`.
+                set_var(ctx, instr, next_item, |instr| {
+                    load_var(ctx, instr, i);
+                    emit_array_lookup(ctx, instr, &array, None);
+                });
             } else {
-                get_item(instr);
+                // Get the i-th item in the array and store it in the
+                // host-side local variable `next_item`.
+                load_var(ctx, instr, i);
+                emit_array_lookup(ctx, instr, &array, Some(next_item));
             }
         },
         // Loop stop condition.
@@ -1230,8 +1242,7 @@ pub(super) fn emit_for_in_array(
     );
 
     ctx.borrow_mut().symbol_table.pop();
-    ctx.borrow_mut().free_wasm_vars(n);
-    ctx.borrow_mut().free_host_vars(array_var);
+    ctx.borrow_mut().free_vars(n);
 }
 
 pub(super) fn emit_for_in_map(
@@ -1258,14 +1269,14 @@ pub(super) fn emit_for_in_expr_tuple(
 pub(super) fn set_var<B>(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
-    var: WasmVar,
+    var: Var,
     block: B,
 ) where
     B: FnOnce(&mut InstrSeqBuilder),
 {
     // First push the offset where the variable resided in memory. This will
     // be used by the `store` instruction.
-    instr.i32_const(var.0);
+    instr.i32_const(var.0 * size_of::<i64>() as i32);
     // Block that produces the value that will be stored in the variable.
     block(instr);
     // The store instruction will remove two items from the stack, the value and
@@ -1281,9 +1292,9 @@ pub(super) fn set_var<B>(
 pub(super) fn load_var(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
-    var: WasmVar,
+    var: Var,
 ) {
-    instr.i32_const(var.0);
+    instr.i32_const(var.0 * size_of::<i64>() as i32);
     instr.load(
         ctx.borrow().wasm_symbols.main_memory,
         LoadKind::I64 { atomic: false },
@@ -1298,7 +1309,7 @@ pub(super) fn load_var(
 pub(super) fn incr_var(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
-    var: WasmVar,
+    var: Var,
 ) {
     set_var(ctx, instr, var, |instr| {
         load_var(ctx, instr, var);
@@ -1429,7 +1440,7 @@ pub(super) fn emit_lookup_common(
     let mut ctx_mut = ctx.borrow_mut();
 
     if let Some(start) = ctx_mut.lookup_start.take() {
-        instr.i32_const(start);
+        instr.i32_const(start.0);
         instr.global_set(ctx_mut.wasm_symbols.lookup_start);
     } else {
         instr.i32_const(-1);
@@ -1523,10 +1534,10 @@ pub(super) fn emit_lookup_string(
 pub(super) fn emit_lookup_array(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
-    context_var: i32,
+    host_var: Var,
 ) {
     emit_lookup_common(ctx, instr);
-    instr.i32_const(context_var);
+    instr.i32_const(host_var.0);
     instr.call(ctx.borrow().wasm_symbols.lookup_array);
 }
 

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
-use crate::compiler::WasmVar;
+use crate::compiler::Var;
 use crate::types::{Type, TypeValue};
 
 /// Trait implemented by types that allow looking up for an identifier.
@@ -20,8 +20,8 @@ pub(crate) struct Symbol {
 #[derive(Clone)]
 pub(crate) enum Location {
     None,
-    WasmVar(WasmVar),
-    HostVar(i32),
+    WasmVar(Var),
+    HostVar(Var),
     FieldIndex(i32),
 }
 

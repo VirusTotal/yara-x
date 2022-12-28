@@ -9,7 +9,6 @@ use num::{Bounded, CheckedMul, FromPrimitive, Integer};
 use pest::iterators::Pair;
 use pest::pratt_parser::{Assoc, Op, PrattParser};
 
-use crate::ast::Expr::{BitwiseNot, FieldAccess, Minus, Not};
 use crate::ast::*;
 use crate::parser::{CSTNode, Context, Error, ErrorInfo, GrammarRule, CST};
 use crate::types::TypeValue;
@@ -52,15 +51,17 @@ fn create_unary_expr<'src>(
     let expr = match op.as_rule() {
         GrammarRule::BITWISE_NOT => {
             let type_value = operand.type_value().bitwise_not();
-            BitwiseNot(Box::new(UnaryExpr::new(operand, span, type_value)))
+            Expr::BitwiseNot(Box::new(UnaryExpr::new(
+                operand, span, type_value,
+            )))
         }
         GrammarRule::k_NOT => {
             let type_value = operand.type_value().not();
-            Not(Box::new(UnaryExpr::new(operand, span, type_value)))
+            Expr::Not(Box::new(UnaryExpr::new(operand, span, type_value)))
         }
         GrammarRule::MINUS => {
             let type_value = operand.type_value().minus();
-            Minus(Box::new(UnaryExpr::new(operand, span, type_value)))
+            Expr::Minus(Box::new(UnaryExpr::new(operand, span, type_value)))
         }
         rule => unreachable!("{:?}", rule),
     };
@@ -73,7 +74,7 @@ fn create_binary_expr<'src>(
     rhs: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
     match op {
-        GrammarRule::DOT => Ok(FieldAccess(Box::new(BinaryExpr::new(
+        GrammarRule::DOT => Ok(Expr::FieldAccess(Box::new(BinaryExpr::new(
             lhs,
             rhs,
             TypeValue::Unknown,

@@ -44,7 +44,7 @@ impl<'r> Scanner<'r> {
                 main_memory: None,
                 lookup_stack_top: None,
                 lookup_start: None,
-                host_vars_stack: Vec::new(),
+                vars_stack: Vec::new(),
             },
         );
 
@@ -356,9 +356,13 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) string_pool: BStringPool<RuntimeStringId>,
     /// Module's main memory.
     pub(crate) main_memory: Option<wasmtime::Memory>,
+    /// The host-side stack of local variables.
+    ///
+    /// See [`crate::compiler::Context::new_var`] for a more detailed
+    /// description of what is this, and what "host-side" means in this
+    /// case.
+    pub(crate) vars_stack: Vec<TypeValue>,
 
     pub(crate) lookup_start: Option<wasmtime::Global>,
     pub(crate) lookup_stack_top: Option<wasmtime::Global>,
-
-    pub(crate) host_vars_stack: Vec<TypeValue>,
 }

@@ -35,7 +35,7 @@ pub(crate) struct Context<'src, 'rb> {
     /// of a `for .. of .. : (<expr>)` statement.
     pub(crate) inside_for_of: bool,
 
-    /// While parsing a pattern declarations this holds its identifier.
+    /// While parsing a pattern declaration this holds its identifier.
     pub(crate) current_pattern: Option<Ident<'src>>,
 
     /// Used for building error messages and warnings.

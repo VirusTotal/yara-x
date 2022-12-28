@@ -169,10 +169,9 @@ impl<'a> Compiler<'a> {
                     wasm_symbols: self.wasm_mod.wasm_symbols(),
                     warnings: &mut self.warnings,
                     exception_handler_stack: Vec::new(),
-                    wasm_vars_stack_top: 0,
+                    vars_stack_top: 0,
                     lookup_start: None,
                     lookup_stack: VecDeque::new(),
-                    host_vars_stack_top: 0,
                 };
 
                 // Verify that the rule's condition is semantically valid. This
@@ -212,7 +211,7 @@ impl<'a> Compiler<'a> {
                 });
 
                 // After emitting the whole condition, the stack should be empty.
-                assert_eq!(ctx.borrow().wasm_vars_stack_top, 0);
+                assert_eq!(ctx.borrow().vars_stack_top, 0);
             }
         }
 
@@ -407,25 +406,11 @@ struct Context<'a, 'sym> {
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
 
-    /// Loop variables are stored in a stack in WASM main's memory. The
-    /// space reserved for the stack goes from [`wasm::VARS_STACK_START`] to
-    /// [`wasm::VARS_STACK_END`]. `wasm_vars_stack_top` is offset, relative
-    /// to [`wasm::VARS_STACK_START`], for the top of the stack. It starts
-    /// at 0 and grows in increments of 8 bytes (the size of an i64).
-    wasm_vars_stack_top: i32,
+    /// Top of the variables stack. Starts at 0 and gets incremented by 1
+    /// with each call to [`Context::new_var`].
+    vars_stack_top: i32,
 
-    /// Besides the stack of variables maintained in WASM main's memory,
-    /// there's another stack of variables that is maintained in the Rust
-    /// side instead of the WASM side. This stack contains references to
-    /// structures, maps and arrays, whose values are not used directly
-    /// by WASM code, but by Rust functions invoked from WASM.
-    ///
-    /// At scan time this stack is stored in [`crate::scanner::ScanContext`],
-    /// but at compile time we only need to keep track of the number of items
-    /// in the stack. That's what `host_vars_stack_top` contains.
-    host_vars_stack_top: i32,
-
-    lookup_start: Option<i32>,
+    lookup_start: Option<Var>,
     lookup_stack: VecDeque<i32>,
 }
 
@@ -440,74 +425,62 @@ impl<'a, 'sym> Context<'a, 'sym> {
         self.ident_pool.get(ident_id).unwrap()
     }
 
-    /// Allocates space for a new `i64` variable in the stack maintained in
-    /// WASM main memory.
+    /// Allocates space for a new variable in the stack of local variables.
     ///
-    /// Do not confuse this stack with the WASM runtime stack, from where WASM
-    /// instructions take operands and put results. This is a completely
-    /// unrelated stack stored in WASM memory from [`wasm::VARS_STACK_START`]
-    /// to [`wasm::VARS_STACK_END`]. The main purpose of this stack is storing
-    /// loop variables. Those variables that belong to the inner-most loop are
-    /// located higher in the stack.
+    /// Do not confuse this stack with the WASM runtime stack (where WASM
+    /// instructions take their operands from and put their results into).
+    /// This is a completely unrelated stack used mainly for storing loop
+    /// variables.
+    ///
+    /// This stack is stored in WASM main memory, in a memory region that goes
+    /// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`]. The stack
+    /// is also mirrored at host-side (i.e: with host-side we refer to Rust
+    /// code called from WASM code), because values like structures, maps, and
+    /// arrays can't be handled by WASM code directly, and they must be
+    /// accessible to Rust functions called from WASM. These two stacks (the
+    /// WASM-side stack and the host-side stack) could be fully independent,
+    /// but they are mirrored for simplicity. This means that calls to the
+    /// this function reserves space in both of them at the same time, and
+    /// therefore the size of both stacks are always the same.
+    ///
+    /// However, each stack slot is used either by WASM-side code or by
+    /// host-side code, but not by both. The slots that are used by WASM-side
+    /// remain with empty values in the host-side stack, while the slots that
+    /// are used by host-side code, remain unused and undefined in WASM
+    /// memory.
     ///
     /// # Panics
     ///
     /// Panics if the stack grows past [`wasm::VARS_STACK_END`]
     #[inline]
-    fn new_wasm_var(&mut self) -> WasmVar {
-        let top = self.wasm_vars_stack_top;
-        self.wasm_vars_stack_top += mem::size_of::<i64>() as i32;
-        if self.wasm_vars_stack_top
+    fn new_var(&mut self) -> Var {
+        let top = self.vars_stack_top;
+        self.vars_stack_top += 1;
+        if self.vars_stack_top * mem::size_of::<i64>() as i32
             > wasm::VARS_STACK_END - wasm::VARS_STACK_START
         {
             panic!("too many nested loops");
         }
-        WasmVar(top)
+        Var(top)
     }
 
-    /// Frees stack space previously allocated with [`Context::new_wasm_var`].
+    /// Frees stack space previously allocated with [`Context::new_var`].
     ///
     /// This function restores the top of the stack to the value provided in
     /// the argument, effectively releasing all the stack space after that
     /// offset. For example:
     ///
     /// ```text
-    /// let var1 = ctx.new_wasm_var()
-    /// let var2 = ctx.new_wasm_var()
-    /// let var3 = ctx.new_wasm_var()
+    /// let var1 = ctx.new_var()
+    /// let var2 = ctx.new_var()
+    /// let var3 = ctx.new_var()
     ///
     /// // Frees both var2 and var3, because var3 was allocated after var2
-    /// ctx.free_wasm_vars(var2)
+    /// ctx.free_vars(var2)
     /// ```
     #[inline]
-    fn free_wasm_vars(&mut self, top: WasmVar) {
-        self.wasm_vars_stack_top = top.0;
-    }
-
-    /// Allocates a new variable in the host-side stack.
-    ///
-    /// This is similar to [`Self::new_wasm_var`], but it allocates variables
-    /// in a stack of variables maintained by the host (i.e: in the Rust side
-    /// instead of the WASM side). The actual stack exists only at scan time
-    /// in [`crate::scanner::ScanContext`]. At compile time we only need to
-    /// know the number of variables in the stack, and which slot in the stack
-    /// corresponds to each variable.
-    ///
-    /// The returned value is the index of the new variable in the stack. This
-    /// index can be used with [`Context::free_host_vars`] for releasing the
-    /// variable, and any other variable with a higher index.
-    fn new_host_var(&mut self) -> i32 {
-        let top = self.host_vars_stack_top;
-        self.host_vars_stack_top += 1;
-        top
-    }
-
-    /// Frees variables previously allocated with [`Context::new_host_vars`].
-    ///
-    /// It works similarly to [`Context::free_wasm_vars`], freeing any variable
-    /// with an index equal or higher than `index`.
-    fn free_host_vars(&mut self, index: i32) {
-        self.host_vars_stack_top = index;
+    fn free_vars(&mut self, top: Var) {
+        self.vars_stack_top = top.0;
     }
 
     /// Given a pattern identifier (e.g. `$a`) search for it in the current
@@ -531,7 +504,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct WasmVar(i32);
+pub(crate) struct Var(i32);
 
 /// A set of YARA rules in compiled form.
 ///

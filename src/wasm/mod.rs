@@ -140,7 +140,7 @@ pub(crate) struct WasmSymbols {
 
     /// Function that returns the length of an array.
     /// Signature (context_var_index: i32) -> (i64)
-    pub array_length: walrus::FunctionId,
+    pub array_len: walrus::FunctionId,
 
     /// Functions that given a sequence of field indexes, lookup the fields
     /// and return their values.
@@ -461,7 +461,7 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, lookup_string);
     add_function!(linker, lookup_bool);
     add_function!(linker, lookup_array);
-    add_function!(linker, array_length);
+    add_function!(linker, array_len);
     add_function!(linker, array_lookup_integer);
     add_function!(linker, array_lookup_float);
     add_function!(linker, array_lookup_bool);
@@ -606,12 +606,15 @@ macro_rules! lookup_common {
             {
                 current_structure.as_ref()
             } else if lookup_start != -1 {
-                if let TypeValue::Struct(s) =
-                    &store_ctx.data().host_vars_stack[lookup_start as usize]
-                {
+                let var =
+                    &store_ctx.data().vars_stack[lookup_start as usize];
+
+                if let TypeValue::Struct(s) = var {
                     s
                 } else {
-                    unreachable!()
+                    unreachable!(
+                        "expecting struct, got `{:?}` at variable with index {}",
+                        var, lookup_start)
                 }
             } else {
                 &store_ctx.data().root_struct
@@ -630,7 +633,7 @@ macro_rules! lookup_common {
 
             &final_field.unwrap().type_value
         } else if lookup_start != -1 {
-            &store_ctx.data().host_vars_stack[lookup_start as usize]
+            &store_ctx.data().vars_stack[lookup_start as usize]
         } else {
             unreachable!();
         };
@@ -667,12 +670,12 @@ pub(crate) fn lookup_string(
 
 pub(crate) fn lookup_array(
     mut caller: Caller<'_, ScanContext>,
-    context_var: i32,
+    host_var: i32,
 ) {
     let array = lookup_common!(caller, type_value, { type_value.clone() });
-    let index = context_var as usize;
+    let index = host_var as usize;
 
-    let vars = &mut caller.data_mut().host_vars_stack;
+    let vars = &mut caller.data_mut().vars_stack;
 
     if vars.len() <= index {
         vars.resize(index + 1, TypeValue::Unknown);
@@ -687,14 +690,14 @@ pub(crate) fn lookup_array(
 /// # Panics
 ///
 /// If the context variable doesn't exist or is not an array.
-pub(crate) fn array_length(
+pub(crate) fn array_len(
     caller: Caller<'_, ScanContext>,
-    context_var: i32,
+    host_var: i32,
 ) -> i64 {
     caller
         .data()
-        .host_vars_stack
-        .get(context_var as usize)
+        .vars_stack
+        .get(host_var as usize)
         .unwrap()
         .as_array()
         .unwrap()
@@ -726,6 +729,7 @@ macro_rules! gen_array_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             index: i64,
+            host_var: i32,
         ) -> possibly_undef!($return_type) {
             let array = lookup_common!(caller, type_value, {
                 type_value.as_array().unwrap()
@@ -749,6 +753,7 @@ gen_array_lookup_fn!(array_lookup_bool, as_bool_array, i32);
 pub(crate) fn array_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
+    host_var: i32,
 ) -> RuntimeStringWasm {
     let array =
         lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
@@ -768,6 +773,7 @@ pub(crate) fn array_lookup_string(
 pub(crate) fn array_lookup_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
+    host_var: i32,
 ) -> possibly_undef!() {
     let array =
         lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
@@ -776,6 +782,18 @@ pub(crate) fn array_lookup_struct(
 
     if let Some(s) = array.get(index as usize) {
         caller.data_mut().current_struct = Some(s.clone());
+
+        if host_var != -1 {
+            let index = host_var as usize;
+            let vars = &mut caller.data_mut().vars_stack;
+
+            if vars.len() <= index {
+                vars.resize(index + 1, TypeValue::Unknown);
+            }
+
+            vars[index] = TypeValue::Struct(s.clone());
+        }
+
         defined!()
     } else {
         undefined!()
