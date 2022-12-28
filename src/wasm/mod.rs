@@ -189,6 +189,7 @@ pub(crate) struct WasmSymbols {
 
     /// Local variable used for temporary storage.
     pub i64_tmp: walrus::LocalId,
+    pub i32_tmp: walrus::LocalId,
 }
 
 /// Represents a [`RuntimeString`] as a `u64` that can be passed from WASM to
@@ -569,6 +570,23 @@ pub(crate) fn is_pat_match_in(
     0
 }
 
+/// Given some local variable containing an array, returns the length of the
+/// array. The local variable is an index within `vars_stack`.
+///
+/// # Panics
+///
+/// If the variable doesn't exist or is not an array.
+pub(crate) fn array_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
+    caller
+        .data()
+        .vars_stack
+        .get(var as usize)
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .len() as i64
+}
+
 macro_rules! lookup_common {
     ($caller:ident, $type_value:ident, $code:block) => {{
         let lookup_start = $caller
@@ -646,9 +664,6 @@ macro_rules! lookup_common {
     }};
 }
 
-/// Given the field index for some field of type string, looks for the field
-/// in the current structure and returns its value as a [`RuntimeStringWasm`]
-/// tuple.
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
 ) -> RuntimeStringWasm {
@@ -668,12 +683,9 @@ pub(crate) fn lookup_string(
     string.as_wasm()
 }
 
-pub(crate) fn lookup_array(
-    mut caller: Caller<'_, ScanContext>,
-    host_var: i32,
-) {
+pub(crate) fn lookup_array(mut caller: Caller<'_, ScanContext>, var: i32) {
     let array = lookup_common!(caller, type_value, { type_value.clone() });
-    let index = host_var as usize;
+    let index = var as usize;
 
     let vars = &mut caller.data_mut().vars_stack;
 
@@ -682,26 +694,6 @@ pub(crate) fn lookup_array(
     }
 
     vars[index] = array;
-}
-
-/// Given the index of some context variable of type array, returns the length
-/// of the array.
-///
-/// # Panics
-///
-/// If the context variable doesn't exist or is not an array.
-pub(crate) fn array_len(
-    caller: Caller<'_, ScanContext>,
-    host_var: i32,
-) -> i64 {
-    caller
-        .data()
-        .vars_stack
-        .get(host_var as usize)
-        .unwrap()
-        .as_array()
-        .unwrap()
-        .len() as i64
 }
 
 macro_rules! gen_lookup_fn {
@@ -729,8 +721,12 @@ macro_rules! gen_array_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             index: i64,
-            host_var: i32,
+            var: i32,
         ) -> possibly_undef!($return_type) {
+            // TODO: decide what to to with this. It looks like are not going to need
+            // to store integer, floats nor bools in host-side variables.
+            assert_eq!(var, -1);
+
             let array = lookup_common!(caller, type_value, {
                 type_value.as_array().unwrap()
             });
@@ -753,8 +749,12 @@ gen_array_lookup_fn!(array_lookup_bool, as_bool_array, i32);
 pub(crate) fn array_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
-    host_var: i32,
+    var: i32,
 ) -> RuntimeStringWasm {
+    // TODO: decide what to to with this. It looks like are not going to need
+    // to store strings in host-side variables.
+    assert_eq!(var, -1);
+
     let array =
         lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
 
@@ -773,7 +773,7 @@ pub(crate) fn array_lookup_string(
 pub(crate) fn array_lookup_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
-    host_var: i32,
+    var: i32,
 ) -> possibly_undef!() {
     let array =
         lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
@@ -783,8 +783,8 @@ pub(crate) fn array_lookup_struct(
     if let Some(s) = array.get(index as usize) {
         caller.data_mut().current_struct = Some(s.clone());
 
-        if host_var != -1 {
-            let index = host_var as usize;
+        if var != -1 {
+            let index = var as usize;
             let vars = &mut caller.data_mut().vars_stack;
 
             if vars.len() <= index {

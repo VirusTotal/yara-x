@@ -16,7 +16,7 @@ pub use map::*;
 pub use structure::*;
 
 /// The type of a YARA expression or identifier.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Type {
     Unknown,
     Integer,
@@ -58,8 +58,13 @@ pub(crate) const TRUE: TypeValue = TypeValue::Bool(Some(true));
 /// A [`TypeValue`] contains information about the type, and possibly the
 /// value of a YARA expression or identifier.
 ///
-/// Values are optional because at compile time the value of most identifiers
-/// is unknown.
+/// In the case of primitive types (integer, float, bool and string), the
+/// value is optional because the value of expressions and identifiers
+/// is unknown at compile time. Structs, arrays and maps always have a
+/// reference to a [`Struct`], [`Array`] or [`Map`] respectively, but those
+/// structures, arrays and maps don't contain actual values at compile time,
+/// they only provide details about the type, like for example, which are
+/// the fields in a struct, or what's the type of the items in an array.
 #[derive(Clone)]
 pub enum TypeValue {
     Unknown,
@@ -360,6 +365,19 @@ impl TypeValue {
             Self::Map(_) => Type::Map,
             Self::Struct(_) => Type::Struct,
             Self::Array(_) => Type::Array,
+        }
+    }
+
+    pub(crate) fn clone_without_value(&self) -> Self {
+        match self {
+            Self::Unknown => Self::Unknown,
+            Self::Integer(_) => Self::Integer(None),
+            Self::Float(_) => Self::Float(None),
+            Self::Bool(_) => Self::Bool(None),
+            Self::String(_) => Self::String(None),
+            Self::Map(v) => Self::Map(v.clone()),
+            Self::Struct(v) => Self::Struct(v.clone()),
+            Self::Array(v) => Self::Array(v.clone()),
         }
     }
 

@@ -453,7 +453,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
     ///
     /// Panics if the stack grows past [`wasm::VARS_STACK_END`]
     #[inline]
-    fn new_var(&mut self) -> Var {
+    fn new_var(&mut self, ty: Type) -> Var {
         let top = self.vars_stack_top;
         self.vars_stack_top += 1;
         if self.vars_stack_top * mem::size_of::<i64>() as i32
@@ -461,7 +461,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
         {
             panic!("too many nested loops");
         }
-        Var(top)
+        Var(ty, top)
     }
 
     /// Frees stack space previously allocated with [`Context::new_var`].
@@ -480,7 +480,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
     /// ```
     #[inline]
     fn free_vars(&mut self, top: Var) {
-        self.vars_stack_top = top.0;
+        self.vars_stack_top = top.1;
     }
 
     /// Given a pattern identifier (e.g. `$a`) search for it in the current
@@ -504,7 +504,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct Var(i32);
+pub(crate) struct Var(Type, i32);
 
 /// A set of YARA rules in compiled form.
 ///

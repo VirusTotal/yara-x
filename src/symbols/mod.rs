@@ -42,7 +42,7 @@ impl Symbol {
 
     fn as_integer(&self) -> Option<i64> {
         if let TypeValue::Integer(value) = self.type_value {
-            value.clone()
+            value
         } else {
             None
         }

@@ -1,11 +1,12 @@
+use core::slice;
 use std::cell::RefCell;
 use std::mem::size_of;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
-use walrus::InstrSeqBuilder;
-use walrus::ValType::{I32, I64};
+use walrus::ValType::{F64, I32, I64};
+use walrus::{InstrSeqBuilder, ValType};
 
 use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
 use crate::compiler::{Context, Var};
@@ -650,7 +651,7 @@ fn emit_array_lookup(
     emit_lookup_common(ctx, instr);
 
     if let Some(host_var) = host_var {
-        instr.i32_const(host_var.0);
+        instr.i32_const(host_var.1);
     } else {
         instr.i32_const(-1);
     }
@@ -844,10 +845,10 @@ pub(super) fn emit_for<I, N, C>(
             Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
                 // `quantifier` is the number of loop conditions that must return
                 // `true` for the loop to be `true`.
-                let quantifier = ctx.borrow_mut().new_var();
+                let quantifier = ctx.borrow_mut().new_var(Type::Integer);
                 // `counter` is the number of loop conditions that actually
                 // returned `true`. This is initially zero.
-                let counter = ctx.borrow_mut().new_var();
+                let counter = ctx.borrow_mut().new_var(Type::Integer);
 
                 set_var(ctx, instr, quantifier, |instr| {
                     if matches!(&for_in.quantifier, Quantifier::Percentage(_))
@@ -880,7 +881,7 @@ pub(super) fn emit_for<I, N, C>(
 
                 (quantifier, counter)
             }
-            _ => (Var(0), Var(0)),
+            _ => (Var(Type::Integer, 0), Var(Type::Integer, 0)),
         };
 
         instr.loop_(I32, |block| {
@@ -1015,15 +1016,15 @@ pub(super) fn emit_for_in_range(
     assert_eq!(for_in.variables.len(), 1);
 
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.borrow_mut().new_var();
+    let n = ctx.borrow_mut().new_var(Type::Integer);
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.borrow_mut().new_var();
+    let i = ctx.borrow_mut().new_var(Type::Integer);
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.borrow_mut().new_var();
+    let next_item = ctx.borrow_mut().new_var(Type::Integer);
 
     // Create a symbol table containing the loop variable.
     let mut symbol = Symbol::new(TypeValue::Integer(None));
@@ -1144,15 +1145,15 @@ pub(super) fn emit_for_in_array(
     };
 
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.borrow_mut().new_var();
+    let n = ctx.borrow_mut().new_var(Type::Integer);
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.borrow_mut().new_var();
+    let i = ctx.borrow_mut().new_var(Type::Integer);
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.borrow_mut().new_var();
+    let next_item = ctx.borrow_mut().new_var(loop_var.ty());
 
     // Create a symbol table containing the loop variable.
     let mut symbol = Symbol::new(loop_var);
@@ -1176,7 +1177,7 @@ pub(super) fn emit_for_in_array(
     // Emit the expression that lookup the array.
     emit_expr(ctx, instr, array_expr);
 
-    let array_var = ctx.borrow_mut().new_var();
+    let array_var = ctx.borrow_mut().new_var(Type::Array);
 
     emit_lookup_array(ctx, instr, array_var);
 
@@ -1188,7 +1189,7 @@ pub(super) fn emit_for_in_array(
         |instr, loop_end| {
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |instr| {
-                instr.i32_const(array_var.0);
+                instr.i32_const(array_var.1);
                 instr.call(ctx.borrow().wasm_symbols.array_len);
             });
 
@@ -1254,15 +1255,182 @@ pub(super) fn emit_for_in_map(
     emit_expr(ctx, instr, map_expr);
 }
 
+/// Given an iterator that returns `N` expressions ([`Expr`]), generates a
+/// switch statement that takes an `i64` value from the stack (in the range
+/// `0..N-1`) and executes the corresponding expression.
+///
+/// For an iterator that returns 3 expressions the generated code looks like
+/// this:
+///
+/// ```text
+/// i32.wrap_i64                        ;; convert the i64 at the top of the
+///                                     ;; to i32.
+/// local.set $tmp                      ;; store the i32 value in $tmp
+/// block (result i64)                  ;; block @1
+///   block                             ;; block @2
+///     block                           ;; block @3
+///       block                         ;; block @4
+///         block                       ;; block @5
+///           local.get $tmp            ;; put $tmp at the top of the stack
+///           
+///           ;; Look for the i32 at the top of the stack, and depending on its
+///           ;; value jumps out of some block...
+///           br_table
+///                3 (;@2;)   ;; selector == 0 -> jump out of block @2
+///                2 (;@3;)   ;; selector == 1 -> jump out of block @3
+///                1 (;@4;)   ;; selector == 2 -> jump out of block @4
+///                0 (;@5;)   ;; default       -> jump out of block @5
+///         
+///         end                         ;; block @5
+///         unreachable                 ;; if this point is reached is because
+///                                     ;; the switch selector is out of range
+///       end                           ;; block @4
+///       ;; < code expr 2 goes here >
+///       br 2 (;@1;)                   ;; exits block @1
+///     end                             ;; block @3  
+///     ;; < code expr 1 goes here >
+///     br 1 (;@1;)                     ;; exits block @1        
+///   end                               ;; block @2
+///   ;; < code expr 0 goes here >
+///   br 0 (;@1;)                       ;; exits block @1   
+/// end                                 ;; block @1
+///                                     ;; at this point the i64 returned by the
+///                                     ;; selected expression is at the top of
+///                                     ;; the stack.
+/// ```
+fn emit_switch(
+    ctx: &RefCell<Context>,
+    ty: ValType,
+    instr: &mut InstrSeqBuilder,
+    expressions: &[Expr],
+) {
+    // Convert the i64 at the top of the stack to an i32, which is the type
+    // expected by the `bt_table` instruction.
+    instr.unop(UnaryOp::I32WrapI64);
+
+    // Store the i32 switch selector in a temp variable. The selector is the i32
+    // value at the top of the stack that tells which expression should be
+    // executed.
+    instr.local_set(ctx.borrow().wasm_symbols.i32_tmp);
+
+    let block_ids = Vec::new();
+
+    instr.block(ty, |block| {
+        emit_switch_internal(ctx, ty, block, expressions.iter(), block_ids);
+    });
+}
+
+fn emit_switch_internal(
+    ctx: &RefCell<Context>,
+    ty: ValType,
+    instr: &mut InstrSeqBuilder,
+    mut expressions: slice::Iter<Expr>,
+    mut block_ids: Vec<InstrSeqId>,
+) {
+    block_ids.push(instr.id());
+
+    if let Some(expr) = expressions.next() {
+        let outermost_block = block_ids.first().cloned();
+        instr.block(None, |block| {
+            emit_switch_internal(ctx, ty, block, expressions, block_ids);
+        });
+        emit_expr(ctx, instr, expr);
+        instr.br(outermost_block.unwrap());
+    } else {
+        instr.block(None, |block| {
+            block.local_get(ctx.borrow().wasm_symbols.i32_tmp);
+            block.br_table(block_ids[1..].into(), block.id());
+        });
+        instr.unreachable();
+    };
+}
+
 pub(super) fn emit_for_in_expr_tuple(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
-    expressions: &Vec<Expr>,
+    expressions: &[Expr],
 ) {
-    for expr in expressions {
-        emit_expr(ctx, instr, expr);
-    }
+    // A `for` in a tuple of expressions has exactly one variable.
+    assert_eq!(for_in.variables.len(), 1);
+
+    // Create variable `n`, which will contain the maximum number of iterations.
+    let n = ctx.borrow_mut().new_var(Type::Integer);
+
+    // Create variable `i`, which will contain the current iteration number.
+    // The value of `i` is in the range 0..n-1.
+    let i = ctx.borrow_mut().new_var(Type::Integer);
+
+    // Create variable `next_item`, which will contain the item that will be
+    // put in the loop variable in the next iteration.
+    let next_item =
+        ctx.borrow_mut().new_var(expressions.first().unwrap().ty());
+
+    // Create a symbol table containing the loop variable.
+    let mut symbol = Symbol::new(
+        expressions.first().unwrap().type_value().clone_without_value(),
+    );
+
+    symbol.location = Location::WasmVar(next_item);
+
+    let mut loop_vars = SymbolTable::new();
+    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+
+    // Push the symbol table with loop variable on top of the existing symbol
+    // tables.
+    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+
+    emit_for(
+        ctx,
+        instr,
+        for_in,
+        n,
+        |instr, loop_end| {
+            // Initialize `i` to zero.
+            set_var(ctx, instr, i, |instr| {
+                instr.i64_const(0);
+            });
+
+            // Initialize `n` to number of expressions.
+            set_var(ctx, instr, n, |instr| {
+                instr.i64_const(expressions.len() as i64);
+            });
+        },
+        // Next item.
+        |instr| {
+            // TODO: implement From<Type> for ValType?
+            let ty = match next_item.0 {
+                Type::Integer => I64,
+                Type::Float => F64,
+                Type::Bool => I32,
+                Type::String => I64,
+                Type::Struct => todo!(),
+                Type::Array => todo!(),
+                Type::Map => todo!(),
+                Type::Unknown => unreachable!(),
+            };
+
+            // Execute the i-th expression and save its result in `next_item`.
+            set_var(ctx, instr, next_item, |instr| {
+                load_var(ctx, instr, i);
+                emit_switch(ctx, ty, instr, expressions);
+            });
+        },
+        // Loop condition.
+        |instr| {
+            incr_var(ctx, instr, i);
+            // Compare `i` to `n`.
+            load_var(ctx, instr, i);
+            load_var(ctx, instr, n);
+            instr.binop(BinaryOp::I64LtS);
+        },
+    );
+
+    // Remove the symbol table that contains the loop variable.
+    ctx.borrow_mut().symbol_table.pop();
+
+    // Free loop variables.
+    ctx.borrow_mut().free_vars(n);
 }
 
 /// Sets a variable to the value produced by a code block.
@@ -1276,14 +1444,23 @@ pub(super) fn set_var<B>(
 {
     // First push the offset where the variable resided in memory. This will
     // be used by the `store` instruction.
-    instr.i32_const(var.0 * size_of::<i64>() as i32);
+    instr.i32_const(var.1 * size_of::<i64>() as i32);
     // Block that produces the value that will be stored in the variable.
     block(instr);
+
+    let store_kind = match var.0 {
+        Type::Bool => StoreKind::I32 { atomic: false },
+        Type::Integer => StoreKind::I64 { atomic: false },
+        Type::Float => StoreKind::F64,
+        Type::String => StoreKind::I64 { atomic: false },
+        _ => unreachable!(),
+    };
+
     // The store instruction will remove two items from the stack, the value and
     // the offset where it will be stored.
     instr.store(
         ctx.borrow().wasm_symbols.main_memory,
-        StoreKind::I64 { atomic: false },
+        store_kind,
         MemArg { align: size_of::<i64>() as u32, offset: 0 },
     );
 }
@@ -1294,10 +1471,19 @@ pub(super) fn load_var(
     instr: &mut InstrSeqBuilder,
     var: Var,
 ) {
-    instr.i32_const(var.0 * size_of::<i64>() as i32);
+    instr.i32_const(var.1 * size_of::<i64>() as i32);
+
+    let load_kind = match var.0 {
+        Type::Bool => LoadKind::I32 { atomic: false },
+        Type::Integer => LoadKind::I64 { atomic: false },
+        Type::Float => LoadKind::F64,
+        Type::String => LoadKind::I64 { atomic: false },
+        _ => unreachable!(),
+    };
+
     instr.load(
         ctx.borrow().wasm_symbols.main_memory,
-        LoadKind::I64 { atomic: false },
+        load_kind,
         MemArg {
             align: size_of::<i64>() as u32,
             offset: wasm::VARS_STACK_START as u32,
@@ -1311,6 +1497,8 @@ pub(super) fn incr_var(
     instr: &mut InstrSeqBuilder,
     var: Var,
 ) {
+    // incr_var only works with integer variables.
+    assert_eq!(var.0, Type::Integer);
     set_var(ctx, instr, var, |instr| {
         load_var(ctx, instr, var);
         instr.i64_const(1);
@@ -1323,7 +1511,7 @@ pub(super) fn incr_var(
 /// to a boolean as follows:
 ///
 /// * Integer and float values are converted to `true` if they are non-zero,
-///   `false` if they are zero.
+///   and to `false` if they are zero.
 /// * String values are `true` if they are non-empty, or `false` if they are
 ///   empty (e.g: "").
 ///
@@ -1403,8 +1591,8 @@ pub(super) fn emit_call_and_handle_undef(
 /// are represented differently from other values and therefore they require
 /// a different treatment.
 ///
-/// Strings in general are represented by an `i64` (see [`RuntimeStringWasm`]
-/// for more details), and they are undefined when the value is zero.
+/// Strings are represented by an `i64` (see [`RuntimeStringWasm`] for more
+/// details), and they are undefined when the value is zero.
 pub(super) fn emit_call_and_handle_undef_str(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
@@ -1418,7 +1606,7 @@ pub(super) fn emit_call_and_handle_undef_str(
     // leave it in the stack.
     instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
 
-    // Is the value zero?
+    // Is the value zero? The comparison removes the value from the stack.
     instr.unop(UnaryOp::I64Eqz);
     instr.if_else(
         I64,
@@ -1440,7 +1628,7 @@ pub(super) fn emit_lookup_common(
     let mut ctx_mut = ctx.borrow_mut();
 
     if let Some(start) = ctx_mut.lookup_start.take() {
-        instr.i32_const(start.0);
+        instr.i32_const(start.1);
         instr.global_set(ctx_mut.wasm_symbols.lookup_start);
     } else {
         instr.i32_const(-1);
@@ -1537,7 +1725,7 @@ pub(super) fn emit_lookup_array(
     host_var: Var,
 ) {
     emit_lookup_common(ctx, instr);
-    instr.i32_const(host_var.0);
+    instr.i32_const(host_var.1);
     instr.call(ctx.borrow().wasm_symbols.lookup_array);
 }
 
@@ -1552,7 +1740,8 @@ pub(super) fn if_non_zero(
     // Save the top of the stack into temp variable, but leave a copy in the
     // stack.
     instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
-    // Is top of the stack zero?
+    // Is top of the stack zero? The comparison removes the value from the
+    // stack.
     instr.unop(UnaryOp::I64Eqz);
     instr.if_else(
         I64,

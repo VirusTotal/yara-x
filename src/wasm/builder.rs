@@ -151,6 +151,7 @@ impl ModuleBuilder {
             str_len,
             filesize,
             i64_tmp: module.locals.add(I64),
+            i32_tmp: module.locals.add(I32),
         };
 
         let main_fn =

@@ -337,16 +337,24 @@ fn test_proto2_module() {
 
     condition_true!(
         r#"for any s in test_proto2.array_struct : (
-            s.nested_int32_zero == 0 and 
+            s.nested_int32_zero == 0 and
             s.nested_int32_one == 1 and
 
             for any s in test_proto2.array_struct : (
-                s.nested_int32_zero == 0 
+                s.nested_int32_zero == 0
             )
-            
+
             and for any s in test_proto2.array_string : (s == "foo")
           )"#
     );
+
+    condition_true!(r#"for any e in (1,2,3) : (e == 3)"#);
+    condition_true!(r#"for any e in (1+1,2+2) : (e == 2)"#);
+    condition_false!(r#"for any e in (1+1,2+2) : (e == 3)"#);
+    condition_true!(r#"for all e in (1+1,2+2) : (e < 5)"#);
+    condition_true!(r#"for 2 s in ("foo", "bar", "baz") : (s contains "ba")"#);
+    condition_true!(r#"for all x in (1.0, 2.0, 3.0) : (x >= 1.0)"#);
+    condition_true!(r#"for none x in (1.0, 2.0, 3.0) : (x > 4.0)"#);
 
     // This field is named `bool_proto` in the protobuf definition, but it's
     // name for YARA wsa changed to `bool_yara`, with:

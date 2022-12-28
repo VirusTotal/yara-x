@@ -735,7 +735,18 @@ fn semcheck_for_in(
     let expected_vars = match &for_in.iterable {
         Iterable::Range(_) => vec![TypeValue::Integer(None)],
         Iterable::ExprTuple(expressions) => {
-            vec![expressions.first().unwrap().type_value().clone()]
+            // All expressions in the tuple have the same type, we can use
+            // the type of the first item in the tuple as the type of the
+            // loop variable. Notice that we are using `clone_without_value`
+            // instead of `clone`, because we want a TypeValue with the same
+            // type than the first item in the tuple, but we don't want to
+            // clone its actual value if known. The actual value for the
+            // loop variable is not known until the loop is executed.
+            vec![expressions
+                .first()
+                .unwrap()
+                .type_value()
+                .clone_without_value()]
         }
         Iterable::Expr(expr) => match expr.type_value() {
             TypeValue::Array(array) => vec![array.deputy()],
