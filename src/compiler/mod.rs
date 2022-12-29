@@ -434,8 +434,8 @@ impl<'a, 'sym> Context<'a, 'sym> {
     ///
     /// This stack is stored in WASM main memory, in a memory region that goes
     /// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`]. The stack
-    /// is also mirrored at host-side (i.e: with host-side we refer to Rust
-    /// code called from WASM code), because values like structures, maps, and
+    /// is also mirrored at host-side (with host-side we refer to Rust code
+    /// called from WASM code), because values like structures, maps, and
     /// arrays can't be handled by WASM code directly, and they must be
     /// accessible to Rust functions called from WASM. These two stacks (the
     /// WASM-side stack and the host-side stack) could be fully independent,
@@ -461,7 +461,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
         {
             panic!("too many nested loops");
         }
-        Var(ty, top)
+        Var { ty, index: top }
     }
 
     /// Frees stack space previously allocated with [`Context::new_var`].
@@ -480,7 +480,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
     /// ```
     #[inline]
     fn free_vars(&mut self, top: Var) {
-        self.vars_stack_top = top.1;
+        self.vars_stack_top = top.index;
     }
 
     /// Given a pattern identifier (e.g. `$a`) search for it in the current
@@ -503,8 +503,12 @@ impl<'a, 'sym> Context<'a, 'sym> {
     }
 }
 
+/// Represents a local variable returned by [`Context::new_var`].
 #[derive(Clone, Copy)]
-pub(crate) struct Var(Type, i32);
+pub(crate) struct Var {
+    ty: Type,
+    index: i32,
+}
 
 /// A set of YARA rules in compiled form.
 ///

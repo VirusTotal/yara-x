@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use bstr::ByteSlice;
 use bstr::{BStr, BString};
+use walrus::ValType;
 
 mod array;
 mod map;
@@ -45,6 +46,18 @@ impl Debug for Type {
             Self::Struct => write!(f, "struct"),
             Self::Array => write!(f, "array"),
             Self::Map => write!(f, "map"),
+        }
+    }
+}
+
+impl From<Type> for ValType {
+    fn from(ty: Type) -> ValType {
+        match ty {
+            Type::Integer => ValType::I64,
+            Type::Float => ValType::F64,
+            Type::Bool => ValType::I32,
+            Type::String => ValType::I64,
+            _ => panic!("can not create WASM primitive type for `{}`", ty),
         }
     }
 }

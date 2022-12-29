@@ -1,11 +1,12 @@
 use core::slice;
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::mem::size_of;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
-use walrus::ValType::{F64, I32, I64};
+use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
 
 use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
@@ -645,13 +646,13 @@ fn emit_array_lookup(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
-    host_var: Option<Var>,
+    var: Option<Var>,
 ) {
     // Emit the code that fills the `lookup_stack` in WASM memory.
     emit_lookup_common(ctx, instr);
 
-    if let Some(host_var) = host_var {
-        instr.i32_const(host_var.1);
+    if let Some(var) = var {
+        instr.i32_const(var.index);
     } else {
         instr.i32_const(-1);
     }
@@ -881,7 +882,10 @@ pub(super) fn emit_for<I, N, C>(
 
                 (quantifier, counter)
             }
-            _ => (Var(Type::Integer, 0), Var(Type::Integer, 0)),
+            _ => (
+                Var { ty: Type::Integer, index: 0 },
+                Var { ty: Type::Integer, index: 0 },
+            ),
         };
 
         instr.loop_(I32, |block| {
@@ -1036,6 +1040,13 @@ pub(super) fn emit_for<I, N, C>(
                 }
             }
         });
+
+        if matches!(
+            &for_in.quantifier,
+            Quantifier::Percentage(_) | Quantifier::Expr(_)
+        ) {
+            ctx.borrow_mut().free_vars(quantifier);
+        };
     });
 }
 
@@ -1222,7 +1233,7 @@ pub(super) fn emit_for_in_array(
         |instr, loop_end| {
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |instr| {
-                instr.i32_const(array_var.1);
+                instr.i32_const(array_var.index);
                 instr.call(ctx.borrow().wasm_symbols.array_len);
             });
 
@@ -1431,22 +1442,10 @@ pub(super) fn emit_for_in_expr_tuple(
         },
         // Next item.
         |instr| {
-            // TODO: implement From<Type> for ValType?
-            let ty = match next_item.0 {
-                Type::Integer => I64,
-                Type::Float => F64,
-                Type::Bool => I32,
-                Type::String => I64,
-                Type::Struct => todo!(),
-                Type::Array => todo!(),
-                Type::Map => todo!(),
-                Type::Unknown => unreachable!(),
-            };
-
             // Execute the i-th expression and save its result in `next_item`.
             set_var(ctx, instr, next_item, |instr| {
                 load_var(ctx, instr, i);
-                emit_switch(ctx, ty, instr, expressions);
+                emit_switch(ctx, next_item.ty.into(), instr, expressions);
             });
         },
         // Loop condition.
@@ -1477,11 +1476,11 @@ pub(super) fn set_var<B>(
 {
     // First push the offset where the variable resided in memory. This will
     // be used by the `store` instruction.
-    instr.i32_const(var.1 * size_of::<i64>() as i32);
+    instr.i32_const(var.index * size_of::<i64>() as i32);
     // Block that produces the value that will be stored in the variable.
     block(instr);
 
-    let store_kind = match var.0 {
+    let store_kind = match var.ty {
         Type::Bool => StoreKind::I32 { atomic: false },
         Type::Integer => StoreKind::I64 { atomic: false },
         Type::Float => StoreKind::F64,
@@ -1504,9 +1503,9 @@ pub(super) fn load_var(
     instr: &mut InstrSeqBuilder,
     var: Var,
 ) {
-    instr.i32_const(var.1 * size_of::<i64>() as i32);
+    instr.i32_const(var.index * size_of::<i64>() as i32);
 
-    let load_kind = match var.0 {
+    let load_kind = match var.ty {
         Type::Bool => LoadKind::I32 { atomic: false },
         Type::Integer => LoadKind::I64 { atomic: false },
         Type::Float => LoadKind::F64,
@@ -1531,7 +1530,7 @@ pub(super) fn incr_var(
     var: Var,
 ) {
     // incr_var only works with integer variables.
-    assert_eq!(var.0, Type::Integer);
+    assert_eq!(var.ty, Type::Integer);
     set_var(ctx, instr, var, |instr| {
         load_var(ctx, instr, var);
         instr.i64_const(1);
@@ -1661,7 +1660,7 @@ pub(super) fn emit_lookup_common(
     let mut ctx_mut = ctx.borrow_mut();
 
     if let Some(start) = ctx_mut.lookup_start.take() {
-        instr.i32_const(start.1);
+        instr.i32_const(start.index);
         instr.global_set(ctx_mut.wasm_symbols.lookup_start);
     } else {
         instr.i32_const(-1);
@@ -1755,10 +1754,10 @@ pub(super) fn emit_lookup_string(
 pub(super) fn emit_lookup_array(
     ctx: &RefCell<Context>,
     instr: &mut InstrSeqBuilder,
-    host_var: Var,
+    var: Var,
 ) {
     emit_lookup_common(ctx, instr);
-    instr.i32_const(host_var.1);
+    instr.i32_const(var.index);
     instr.call(ctx.borrow().wasm_symbols.lookup_array);
 }
 
