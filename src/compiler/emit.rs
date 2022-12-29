@@ -1360,13 +1360,12 @@ fn emit_switch(
     let block_ids = Vec::new();
 
     instr.block(ty, |block| {
-        emit_switch_internal(ctx, ty, block, expressions.iter(), block_ids);
+        emit_switch_internal(ctx, block, expressions.iter(), block_ids);
     });
 }
 
 fn emit_switch_internal(
     ctx: &RefCell<Context>,
-    ty: ValType,
     instr: &mut InstrSeqBuilder,
     mut expressions: slice::Iter<Expr>,
     mut block_ids: Vec<InstrSeqId>,
@@ -1376,7 +1375,7 @@ fn emit_switch_internal(
     if let Some(expr) = expressions.next() {
         let outermost_block = block_ids.first().cloned();
         instr.block(None, |block| {
-            emit_switch_internal(ctx, ty, block, expressions, block_ids);
+            emit_switch_internal(ctx, block, expressions, block_ids);
         });
         emit_expr(ctx, instr, expr);
         instr.br(outermost_block.unwrap());
