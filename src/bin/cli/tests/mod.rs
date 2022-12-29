@@ -18,14 +18,16 @@ fn test_check_file_not_found() -> Result<(), Box<dyn std::error::Error>> {
 fn test_help() -> Result<(), Box<dyn std::error::Error>> {
     let mut cmd = Command::cargo_bin("yr")?;
 
+    let prog = if cfg!(target_os = "windows") { "yr.exe" } else { "yr" };
+
     cmd.arg("help");
-    cmd.assert().success().stdout(
+    cmd.assert().success().stdout(format!(
         r#"An experimental implementation of YARA in Rust
 
 Victor M. Alvarez <vmalvarez@virustotal.com>
 
 Usage:
-    yr [COMMAND]
+    {} [COMMAND]
 
 Commands:
   scan   Scans a file with some YARA
@@ -39,7 +41,8 @@ Options:
   -h, --help     Print help information
   -V, --version  Print version information
 "#,
-    );
+        prog
+    ));
 
     Ok(())
 }
