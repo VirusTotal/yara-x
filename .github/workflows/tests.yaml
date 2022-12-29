@@ -4,14 +4,16 @@ name: Test suite
 jobs:
   tests:
     name: Run tests
-    runs-on: ubuntu-latest
-    env:
-      CARGO_TERM_COLOR: always
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ ubuntu-latest, windows-latest, macOS-latest ]
+        rust: [ stable, nightly ]
         cargo-test-args:
         - "--features=test_proto2-module,test_proto3-module "
         - "--features=compile-time-optimization,test_proto2-module,test_proto3-module"
+    env:
+      CARGO_TERM_COLOR: always
     steps:
     - name: Checkout sources
       uses: actions/checkout@v3
@@ -25,12 +27,10 @@ jobs:
             target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Install stable toolchain
-      uses: actions-rs/toolchain@v1
+    - name: Install Rust toolchain
+      uses: hecrj/setup-rust-action@v1
       with:
-        profile: minimal
-        toolchain: stable
-        override: true
+        rust-version: ${{ matrix.rust }}
 
     - name: Run cargo test
       uses: actions-rs/cargo@v1
