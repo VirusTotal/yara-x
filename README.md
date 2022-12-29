@@ -1,6 +1,5 @@
 [![tests](https://github.com/VirusTotal/yara-x/actions/workflows/tests.yaml/badge.svg)](https://github.com/VirusTotal/yara-x/actions/workflows/tests.yaml)
-[![codecov](https://codecov.io/github.com/VirusTotal/yara-x/branch/main/graph/badge.svg?token=dPsruCiDqN)](https://codecov.io/github.com/VirusTotal/yara-x)
-
+[![coverage](https://codecov.io/gh/VirusTotal/yara-x/branch/main/graph/badge.svg?token=dPsruCiDqN)](https://app.codecov.io/gh/VirusTotal/yara-x)
 
 ## What's YARA-X?
 
