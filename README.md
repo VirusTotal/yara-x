@@ -1,3 +1,7 @@
+[![tests](https://github.com/VirusTotal/yara-x/actions/workflows/tests.yaml/badge.svg)](https://github.com/VirusTotal/yara-x/actions/workflows/tests.yaml)
+[![codecov](https://codecov.io/github.com/VirusTotal/yara-x/branch/main/graph/badge.svg?token=dPsruCiDqN)](https://codecov.io/github.com/VirusTotal/yara-x)
+
+
 ## What's YARA-X?
 
 This is an experimental project for evaluating the feasibility of writing a 
