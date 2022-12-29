@@ -12,8 +12,9 @@ use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
 use crate::compiler::{Context, Var};
 use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Array, Map, Type, TypeValue};
-use crate::wasm;
-use crate::wasm::RuntimeString;
+use crate::wasm::{
+    RuntimeString, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, VARS_STACK_START,
+};
 
 /// This macro emits a constant if the [`TypeValue`] indicates that the
 /// expression has a constant value (e.i: the value is known at compile time),
@@ -1516,7 +1517,7 @@ pub(super) fn load_var(
         load_kind,
         MemArg {
             align: size_of::<i64>() as u32,
-            offset: wasm::VARS_STACK_START as u32,
+            offset: VARS_STACK_START as u32,
         },
     );
 }
@@ -1671,18 +1672,22 @@ pub(super) fn emit_lookup_common(
     let main_memory = ctx_mut.wasm_symbols.main_memory;
 
     for (i, field_index) in ctx_mut.lookup_stack.drain(0..).enumerate() {
-        let mem_offset = (i * size_of::<i32>()) as i32;
+        let offset = (i * size_of::<i32>()) as i32;
+
         assert!(
-            wasm::LOOKUP_INDEXES_START + mem_offset < wasm::LOOKUP_INDEXES_END,
+            // Memory offset (relative to LOOKUP_INDEXES_START) must be in the
+            // range 0..LOOKUP_INDEXES_END - LOOKUP_INDEXES_START.
+            (0..LOOKUP_INDEXES_END - LOOKUP_INDEXES_START).contains(&offset)
         );
-        instr.i32_const(mem_offset);
+
+        instr.i32_const(offset);
         instr.i32_const(field_index);
         instr.store(
             main_memory,
             StoreKind::I32 { atomic: false },
             MemArg {
                 align: size_of::<i32>() as u32,
-                offset: wasm::LOOKUP_INDEXES_START as u32,
+                offset: LOOKUP_INDEXES_START as u32,
             },
         );
     }
