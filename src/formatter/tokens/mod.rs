@@ -437,10 +437,10 @@ impl<'a> Iterator for Tokens<'a> {
             // later processing.
             if sub_tree.peek().is_some() {
                 self.stack.push((Some(rule), sub_tree));
-                return Some(Token::Begin(rule));
+                Some(Token::Begin(rule))
             } else {
-                return Some(Token::from_rule(rule, span));
-            };
+                Some(Token::from_rule(rule, span))
+            }
         } else {
             // No more pairs in the parse tree at the top of the stack, remove
             // it from the stack and return a token indicating the end of the
@@ -448,7 +448,7 @@ impl<'a> Iterator for Tokens<'a> {
             let (rule, _) = self.stack.pop().unwrap();
             // Return Some(Token::End(rule)) if rule is not None, or return
             // None if otherwise.
-            return rule.map(|r| Token::End(r));
+            rule.map(Token::End)
         }
     }
 }

@@ -1,5 +1,4 @@
 use core::slice;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::mem::size_of;
 use std::rc::Rc;
@@ -1428,7 +1427,7 @@ pub(super) fn emit_for_in_expr_tuple(
         instr,
         for_in,
         n,
-        |instr, loop_end| {
+        |instr, _| {
             // Initialize `i` to zero.
             set_var(ctx, instr, i, |instr| {
                 instr.i64_const(0);
