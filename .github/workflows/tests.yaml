@@ -5,6 +5,8 @@ jobs:
   tests:
     name: Run tests
     runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
     strategy:
       matrix:
         cargo-test-args:
