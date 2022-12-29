@@ -973,18 +973,35 @@ pub(super) fn emit_for<I, N, C>(
                             // The condition was true, increment counter.
                             incr_var(ctx, then_, counter);
 
-                            // Compare counter to quantifier.
+                            // Is counter >= quantifier?.
                             load_var(ctx, then_, counter);
                             load_var(ctx, then_, quantifier);
-                            then_.binop(BinaryOp::I64Eq);
+                            then_.binop(BinaryOp::I64GeS);
 
-                            // If the counter is equal to the quantifier
-                            // break the loop with result true.
                             then_.if_else(
                                 None,
+                                // counter >= quantifier
                                 |then_| {
-                                    then_.i32_const(1);
-                                    then_.br(loop_end);
+                                    // Is quantifier == 0?
+                                    load_var(ctx, then_, quantifier);
+                                    then_.unop(UnaryOp::I64Eqz);
+                                    then_.if_else(
+                                        None,
+                                        // quantifier == 0, this should treated
+                                        // as a `none` quantifier. At this point
+                                        // counter >= 1, so break the loop with
+                                        // result false.
+                                        |then_| {
+                                            then_.i32_const(0);
+                                            then_.br(loop_end);
+                                        },
+                                        // quantifier != 0 and counter >= quantifier
+                                        // break the loop with result true.
+                                        |else_| {
+                                            else_.i32_const(1);
+                                            else_.br(loop_end);
+                                        },
+                                    );
                                 },
                                 |_| {},
                             );
@@ -996,10 +1013,26 @@ pub(super) fn emit_for<I, N, C>(
                     loop_cond(block);
                     // Keep iterating while true.
                     block.br_if(loop_start);
+
                     // If this point is reached we have iterated over the whole
-                    // range 0..n without `counter` reaching `quantifier`. The `for`
-                    // loop must return false.
-                    block.i32_const(0);
+                    // range 0..n. If quantifier is zero this means that all
+                    // iterations returned false and therefore the loop must
+                    // return true. If quantifier is non-zero it means that
+                    // `counter` didn't reached `quantifier` and the loop must
+                    // return false.
+                    load_var(ctx, block, quantifier);
+                    block.unop(UnaryOp::I64Eqz);
+                    block.if_else(
+                        I32,
+                        // quantifier == 0
+                        |then_| {
+                            then_.i32_const(1);
+                        },
+                        // quantifier != 0
+                        |else_| {
+                            else_.i32_const(0);
+                        },
+                    );
                 }
             }
         });

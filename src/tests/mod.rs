@@ -186,6 +186,11 @@ fn for_in() {
     condition_true!("for all i in (0..10) : ( i <= 10 )");
     condition_true!("for none i in (0..10) : ( i > 10 )");
     condition_true!("for all i in (3..5) : ( i >= 3 and i <= 5 )");
+
+    // `for 0..` must behave as `for none...`
+    condition_true!("for 0 i in (0..10) : ( i > 10 )");
+    condition_false!("for 0 i in (0..10) : ( i == 5 )");
+
     condition_true!(
         "for all i in (0..10) : (
             for all j in (i..10) : (
