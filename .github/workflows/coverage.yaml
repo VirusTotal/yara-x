@@ -22,8 +22,11 @@ jobs:
     - name: Install cargo-llvm-cov
       uses: taiki-e/install-action@cargo-llvm-cov
 
+    - name: Build
+      run: cargo build
+
     - name: Generate code coverage
-      run: cargo llvm-cov --features=compile-time-optimization,test_proto2-module,test_proto3-module --no-default-features --lcov --output-path lcov.info
+      run: cargo llvm-cov --all-targets --features=compile-time-optimization,test_proto2-module,test_proto3-module --no-default-features --lcov --output-path lcov.info
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
