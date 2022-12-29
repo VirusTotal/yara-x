@@ -180,18 +180,23 @@ rule test {
 ───╯
 "#,
         ),
-        /*
         ////////////////////////////////////////////////////////////
         (
             line!(),
             r#"
-        rule test {
-          condition: @a[1]
-        }
+rule test {
+  condition: @a[0]
+}
         "#,
-            r#""#,
+            r#"error: number out of range
+   ╭─[line:3:17]
+   │
+ 3 │   condition: @a[0]
+   ·                 ┬  
+   ·                 ╰── this number is out of the allowed range [1-9223372036854775807]
+───╯
+"#,
         ),
-        */
         ////////////////////////////////////////////////////////////
         (
             line!(),
@@ -302,6 +307,25 @@ rule test {
  6 │     101% of them
    ·     ─┬─  
    ·      ╰─── this number is out of the allowed range [0-100]
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+   condition:
+     for 3.14 x in (0..10) : (false)
+}
+
+"#,
+            r#"error: wrong type
+   ╭─[line:4:10]
+   │
+ 4 │      for 3.14 x in (0..10) : (false)
+   ·          ──┬─  
+   ·            ╰─── expression should be `integer`, but is `float`
 ───╯
 "#,
         ),
