@@ -17,6 +17,9 @@ use yara_x::scanner::Scanner;
 
 mod check;
 
+#[cfg(test)]
+mod tests;
+
 const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
 {author-with-newline}
 {before-help}{usage-heading}
@@ -150,18 +153,14 @@ fn main() -> anyhow::Result<()> {
     let guard =
         pprof::ProfilerGuardBuilder::default().frequency(1000).build()?;
 
-    let result = match args.subcommand() {
-        Some(("ast", args)) => cmd_ast(args),
-        Some(("wasm", args)) => cmd_wasm(args),
-        Some(("check", args)) => cmd_check(args),
-        Some(("fmt", args)) => cmd_format(args),
-        Some(("scan", args)) => cmd_scan(args),
+    match args.subcommand() {
+        Some(("ast", args)) => cmd_ast(args)?,
+        Some(("wasm", args)) => cmd_wasm(args)?,
+        Some(("check", args)) => cmd_check(args)?,
+        Some(("fmt", args)) => cmd_format(args)?,
+        Some(("scan", args)) => cmd_scan(args)?,
         _ => unreachable!(),
     };
-
-    if let Err(err) = result {
-        println!("{}", err);
-    }
 
     #[cfg(feature = "profiling")]
     if let Ok(report) = guard.report().build() {
@@ -235,7 +234,7 @@ fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
     let max_depth = args.get_one::<u16>("max-depth").unwrap_or(&1);
 
     let metadata = metadata(path)
-        .with_context(|| format!("can not access `{}`", path.display()))?;
+        .with_context(|| format!("can not read `{}`", path.display()))?;
 
     let result = if metadata.is_dir() {
         let mut patterns = Vec::new();

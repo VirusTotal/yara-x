@@ -74,6 +74,9 @@ indenter = { version = "0.3.3" , features=["std"] }
 pretty_assertions = "1.3.0"
 yaml-rust = "0.4.5"
 criterion = "0.4.0"
+assert_cmd = "2.0.7"
+predicates = "2.1.4"
+
 
 [[bench]]
 name = "yara-x-benchmark"

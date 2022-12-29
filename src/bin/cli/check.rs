@@ -24,18 +24,13 @@ pub fn check_file(
     let src = SourceCode::from(src.as_slice())
         .origin(path.as_os_str().to_str().unwrap());
 
-    match Parser::new().colorize_errors(true).build_ast(src) {
-        Ok(ast) => {
-            if ast.warnings.is_empty() {
-                println!("[{}] {}", Green.paint("ok"), path.display());
-            } else {
-                for warning in ast.warnings {
-                    println!("\n{}", warning);
-                }
-            }
-        }
-        Err(err) => {
-            println!("\n{}", err)
+    let ast = Parser::new().colorize_errors(true).build_ast(src)?;
+
+    if ast.warnings.is_empty() {
+        println!("[{}] {}", Green.paint("ok"), path.display());
+    } else {
+        for warning in ast.warnings {
+            println!("\n{}", warning);
         }
     }
 
