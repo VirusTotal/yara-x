@@ -116,7 +116,7 @@ impl<'src> Display for MetaValue<'src> {
 pub enum Pattern<'src> {
     Text(Box<TextPattern<'src>>),
     Hex(Box<HexPattern<'src>>),
-    Regexp(Box<Regexp<'src>>),
+    Regexp(Box<RegexpPattern<'src>>),
 }
 
 impl<'src> Pattern<'src> {
@@ -197,6 +197,15 @@ pub struct TextPattern<'src> {
     pub(crate) span: Span,
     pub identifier: Ident<'src>,
     pub value: Cow<'src, BStr>,
+    pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
+}
+
+/// A regular expression pattern in a YARA rule.
+#[derive(Debug, HasSpan)]
+pub struct RegexpPattern<'src> {
+    pub(crate) span: Span,
+    pub identifier: Ident<'src>,
+    pub regexp: Regexp<'src>,
     pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
 }
 
@@ -286,15 +295,6 @@ impl Display for HexJump {
     }
 }
 
-/// A regular expression in a YARA rule.
-#[derive(Debug, HasSpan)]
-pub struct Regexp<'src> {
-    pub(crate) span: Span,
-    pub identifier: Ident<'src>,
-    pub regexp: &'src str,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
-}
-
 /// An expression in the AST.
 #[derive(Debug, HasSpan)]
 pub enum Expr<'src> {
@@ -316,6 +316,9 @@ pub enum Expr<'src> {
 
     /// A literal, (e.g: `1`, `2.0`, `"abcd"`)
     Literal(Box<Literal<'src>>),
+
+    /// A regular expression (e.g: `/ab.*cd/i`)
+    Regexp(Box<Regexp<'src>>),
 
     /// Identifier (e.g. `some_identifier`).
     Ident(Box<Ident<'src>>),
@@ -424,6 +427,9 @@ pub enum Expr<'src> {
 
     /// `iequals` expression.
     IEquals(Box<BinaryExpr<'src>>),
+
+    /// `matches` expression.
+    Matches(Box<BinaryExpr<'src>>),
 
     /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`)
     Of(Box<Of<'src>>),
@@ -559,6 +565,20 @@ pub struct IdentWithIndex<'src> {
     pub(crate) span: Span,
     pub name: &'src str,
     pub index: Option<Expr<'src>>,
+}
+
+/// A regular expression in a YARA rule.
+///
+/// Used both as part of a [`RegexpPattern`] and as the right operand
+/// of a `matches` operator.
+#[derive(Debug, HasSpan)]
+pub struct Regexp<'src> {
+    /// Type of the literal type and value.
+    pub(crate) type_value: TypeValue,
+    pub(crate) span: Span,
+    pub regexp: &'src str,
+    pub case_insensitive: bool,
+    pub dotall: bool,
 }
 
 /// A literal value of any type (e.g: `1`, `2.0`, `"abcd"`, `true`).
@@ -842,6 +862,7 @@ impl<'src> Expr<'src> {
             | Expr::EndsWith(expr)
             | Expr::IEndsWith(expr)
             | Expr::IEquals(expr)
+            | Expr::Matches(expr)
             | Expr::Add(expr)
             | Expr::Sub(expr)
             | Expr::Mul(expr)
@@ -855,6 +876,7 @@ impl<'src> Expr<'src> {
 
             Expr::Lookup(expr) => &expr.type_value,
             Expr::Ident(ident) => &ident.type_value,
+            Expr::Regexp(regexp) => &regexp.type_value,
 
             Expr::Literal(l) => &l.type_value,
             Expr::True { .. } => &TRUE,

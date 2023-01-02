@@ -274,7 +274,11 @@ regexp = @{
       // Escape sequences.
       "\\" ~ ANY
   )+ ~
-  "/" ~ "i"? ~ "s"?
+  "/" ~
+  // Zero or more modifiers like "s" and "i". The grammar accepts any letter,
+  // even invalid modifiers, because the parser makes sure that they are valid
+  // and provide an appropriate error if not.
+  ASCII_ALPHANUMERIC*
 }
 
 // The original YARA accepts repeated rule modifiers like "private private",

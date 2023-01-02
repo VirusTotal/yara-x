@@ -24,6 +24,7 @@ pub enum Type {
     Float,
     Bool,
     String,
+    Regexp,
     Struct,
     Array,
     Map,
@@ -43,6 +44,7 @@ impl Debug for Type {
             Self::Float => write!(f, "float"),
             Self::Bool => write!(f, "boolean"),
             Self::String => write!(f, "string"),
+            Self::Regexp => write!(f, "regexp"),
             Self::Struct => write!(f, "struct"),
             Self::Array => write!(f, "array"),
             Self::Map => write!(f, "map"),
@@ -85,6 +87,7 @@ pub enum TypeValue {
     Float(Option<f64>),
     Bool(Option<bool>),
     String(Option<BString>),
+    Regexp(Option<String>),
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
@@ -368,6 +371,18 @@ impl TypeValue {
         }
     }
 
+    pub(crate) fn matches(&self, rhs: &Self) -> Self {
+        match (self, rhs) {
+            (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
+            (Self::String(_), Self::Regexp(_)) => {
+                // The result of a `matches` operation is never computed at
+                // compile time.
+                Self::Bool(None)
+            }
+            _ => Self::Unknown,
+        }
+    }
+
     pub(crate) fn ty(&self) -> Type {
         match self {
             Self::Unknown => Type::Unknown,
@@ -375,6 +390,7 @@ impl TypeValue {
             Self::Float(_) => Type::Float,
             Self::Bool(_) => Type::Bool,
             Self::String(_) => Type::String,
+            Self::Regexp(_) => Type::Regexp,
             Self::Map(_) => Type::Map,
             Self::Struct(_) => Type::Struct,
             Self::Array(_) => Type::Array,
@@ -388,6 +404,7 @@ impl TypeValue {
             Self::Float(_) => Self::Float(None),
             Self::Bool(_) => Self::Bool(None),
             Self::String(_) => Self::String(None),
+            Self::Regexp(_) => Self::Regexp(None),
             Self::Map(v) => Self::Map(v.clone()),
             Self::Struct(v) => Self::Struct(v.clone()),
             Self::Array(v) => Self::Array(v.clone()),
@@ -463,6 +480,13 @@ impl Debug for TypeValue {
                     write!(f, "string({:?})", v)
                 } else {
                     write!(f, "string(unknown)")
+                }
+            }
+            Self::Regexp(v) => {
+                if let Some(v) = v {
+                    write!(f, "regexp({:?})", v)
+                } else {
+                    write!(f, "regexp(unknown)")
                 }
             }
             Self::Map(_) => write!(f, "map"),

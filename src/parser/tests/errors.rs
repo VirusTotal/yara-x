@@ -889,6 +889,24 @@ rule test {
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    "foo" matches /foo/x
+}
+"#,
+            r#"error: invalid regexp modifier `x`
+   ╭─[line:4:24]
+   │
+ 4 │     "foo" matches /foo/x
+   ·                        ┬  
+   ·                        ╰── invalid modifier
+───╯
+"#,
+        ),
     ];
 
     for t in tests {

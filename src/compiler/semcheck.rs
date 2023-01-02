@@ -362,8 +362,8 @@ pub(super) fn semcheck_expr(
         Expr::True { .. } | Expr::False { .. } => Ok(Type::Bool),
         Expr::Filesize { .. } | Expr::Entrypoint { .. } => Ok(Type::Integer),
 
+        Expr::Regexp(_) => Ok(Type::Regexp),
         Expr::Literal(lit) => Ok(lit.ty()),
-
         Expr::Ident(ident) => semcheck_ident(ctx, ident),
 
         Expr::PatternCount(p) => {
@@ -457,6 +457,7 @@ pub(super) fn semcheck_expr(
         Expr::EndsWith(expr) => semcheck_string_endswith(ctx, expr, false),
         Expr::IEndsWith(expr) => semcheck_string_endswith(ctx, expr, true),
         Expr::IEquals(expr) => semcheck_string_equals(ctx, expr, true),
+        Expr::Matches(expr) => todo!(),
 
         Expr::Lookup(expr) => {
             semcheck_expr(ctx, &mut expr.primary)?;

@@ -194,6 +194,14 @@ pub enum ErrorInfo {
         detailed_report: String,
         error_span: Span,
     },
+
+    #[error("invalid regexp modifier `{modifier}`")]
+    #[label("invalid modifier", error_span)]
+    InvalidRegexpModifier {
+        detailed_report: String,
+        modifier: String,
+        error_span: Span,
+    },
     
     #[error("invalid UTF-8")]
     #[label("invalid UTF-8 character", error_span)]
@@ -245,6 +253,9 @@ impl ErrorInfo {
                 detailed_report.as_str()
             }
             Self::UnexpectedEscapeSequence { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::InvalidRegexpModifier { detailed_report, .. } => {
                 detailed_report.as_str()
             }
             Self::InvalidUTF8 { detailed_report, .. } => {

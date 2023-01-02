@@ -170,6 +170,9 @@ fn create_binary_expr<'src>(
         GrammarRule::k_IEQUALS => {
             new_string_expr!(Expr::IEquals, equals_str, lhs, rhs, true)
         }
+        GrammarRule::k_MATCHES => {
+            new_binary_expr!(Expr::Matches, matches, lhs, rhs)
+        }
 
         rule => unreachable!("{:?}", rule),
     }
@@ -626,17 +629,68 @@ fn pattern_from_cst<'src>(
             // to None.
             let identifier = ctx.current_pattern.take().unwrap();
 
-            Pattern::Regexp(Box::new(Regexp {
+            Pattern::Regexp(Box::new(RegexpPattern {
                 identifier,
                 modifiers,
                 span: node.as_span().into(),
-                regexp: node.as_str(),
+                regexp: regexp_from_cst(ctx, node)?,
             }))
         }
         rule => unreachable!("{:?}", rule),
     };
 
     Ok(pattern)
+}
+
+/// Given a CST node corresponding to the grammar rule `regexp`, returns the
+/// corresponding [`Regexp`] struct describing the regexp.
+fn regexp_from_cst<'src>(
+    ctx: &mut Context<'src, '_>,
+    regexp: CSTNode<'src>,
+) -> Result<Regexp<'src>, Error> {
+    let re = regexp.as_str();
+
+    // Regular expressions must start with a slash (/)
+    debug_assert!(re.starts_with('/'));
+
+    // It must contain a closing slash too, but not necessarily at the end
+    // because the closing slash may be follow by a regexp modifier like "i"
+    // and "s" (e.g. /foo/i)
+    let after_closing_slash = re.rfind('/').unwrap() + 1;
+
+    let mut case_insensitive = false;
+    let mut dotall = false;
+
+    for (i, modifier) in re[after_closing_slash..].char_indices() {
+        match modifier {
+            'i' => case_insensitive = true,
+            's' => dotall = true,
+            c => {
+                let span = regexp.as_span();
+
+                return Err(Error::new(ErrorInfo::invalid_regexp_modifier(
+                    ctx.report_builder,
+                    &ctx.src,
+                    format!("{}", c),
+                    Span {
+                        start: span.start() + after_closing_slash + i,
+                        end: span.start()
+                            + after_closing_slash
+                            + i
+                            + c.len_utf8(),
+                    },
+                )));
+            }
+        }
+    }
+
+    Ok(Regexp {
+        type_value: TypeValue::Regexp(Some(regexp.as_str().to_string())),
+        span: regexp.as_span().into(),
+        regexp: regexp.as_str(),
+        case_insensitive,
+        dotall,
+    })
 }
 
 /// Given a CST node corresponding to the grammar rule `pattern_mods`, returns
@@ -1158,6 +1212,9 @@ fn primary_expr_from_cst<'src>(
             node.as_span().into(),
             TypeValue::Integer(Some(integer_lit_from_cst(ctx, node)?)),
         ))),
+        GrammarRule::regexp => {
+            Expr::Regexp(Box::new(regexp_from_cst(ctx, node)?))
+        }
         GrammarRule::pattern_count => {
             // Is there some range after the pattern count?
             // Example: #a in (0..10)

@@ -213,6 +213,9 @@ pub(super) fn emit_expr(
         Expr::Entrypoint { .. } => {
             todo!()
         }
+        Expr::Regexp(_) => {
+            todo!()
+        }
         Expr::Literal(lit) => match &lit.type_value {
             TypeValue::Integer(Some(value)) => {
                 instr.i64_const(*value);
@@ -621,6 +624,9 @@ pub(super) fn emit_expr(
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
                 instr.call(ctx.borrow().wasm_symbols.str_iequals);
             });
+        }
+        Expr::Matches(_) => {
+            // TODO
         }
         Expr::Of(_) => {
             // TODO

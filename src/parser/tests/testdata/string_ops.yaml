@@ -160,3 +160,19 @@
                 └─ "FOO"
 
 ###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        "foo" matches /foo/i
+    }
+  ast: |
+    root
+    └─ namespace
+       └─ rule test
+          └─ condition
+             └─ matches : boolean(unknown)
+                ├─ "foo"
+                └─ /foo/i
+
+###############################################################################
