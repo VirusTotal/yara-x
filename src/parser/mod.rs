@@ -170,7 +170,7 @@ impl<'src> From<&'src str> for SourceCode<'src> {
 }
 
 impl<'src> From<&'src [u8]> for SourceCode<'src> {
-    /// Creates a new [`SourceCode`] from a `&str`.
+    /// Creates a new [`SourceCode`] from a `&[u8]`.
     fn from(src: &'src [u8]) -> Self {
         // Because the input is a &[u8], the code can contain invalid UTF-8,
         // so the `valid` field is set to `None`. The `validate_utf8` function
@@ -386,7 +386,7 @@ impl<'a> Parser<'a> {
     /// create its own. However this allows sharing the same report builder
     /// with the [`Compiler`]. Setting a report builder overrides the color
     /// setting specified with [`Compiler::colorize_errors`], the errors will
-    /// colorized depending on the settings of the report builder.
+    /// be colorized depending on the settings of the report builder.
     ///
     /// This API is for internal use only.
     pub(crate) fn set_report_builder(

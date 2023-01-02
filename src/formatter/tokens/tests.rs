@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
 
-use crate::formatter::tokens::{Token, Tokens};
 use crate::formatter::tokens::Token::*;
+use crate::formatter::tokens::{Token, Tokens};
 use crate::parser::{GrammarRule, Parser};
 
 #[test]

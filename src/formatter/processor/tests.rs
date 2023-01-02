@@ -2,8 +2,8 @@ use pretty_assertions::assert_eq;
 
 use crate::formatter::processor::{actions, Processor};
 use crate::formatter::tokens;
-use crate::formatter::tokens::{categories, Token};
 use crate::formatter::tokens::Token::*;
+use crate::formatter::tokens::{categories, Token};
 use crate::parser::{GrammarRule, Parser};
 
 fn tokenize(source: &str) -> tokens::Tokens {
