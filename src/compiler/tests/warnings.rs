@@ -28,6 +28,25 @@ rule test {
         (
             line!(),
             r#"
+rule test { 
+  strings: 
+    $a = { 0F 84 [4] [0-7] 8D } 
+  condition: 
+    $a 
+}"#,
+            r#"warning: consecutive jumps in hex pattern `$a`
+   ╭─[line:4:18]
+   │
+ 4 │     $a = { 0F 84 [4] [0-7] 8D }
+   ·                  ────┬────  
+   ·                      ╰────── these consecutive jumps will be treated as [4-11]
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
 rule test {
   strings:
     $a = "foo"

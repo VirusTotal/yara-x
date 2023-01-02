@@ -2115,6 +2115,8 @@ fn hex_jump_from_cst<'src>(
             end = Some(integer_lit_from_cst(ctx, node)?);
             node = children.next().unwrap();
         }
+    } else {
+        end = start;
     }
 
     expect!(node, GrammarRule::RBRACKET);

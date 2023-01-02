@@ -269,6 +269,7 @@ impl HexJump {
     ///
     ///  `[1-2][3-4]` becomes `[4-6]`
     ///  `[0-2][5-]` becomes `[5-]`
+    ///  `[4][0-7]`  becomes `[4-11]`
     ///
     pub(crate) fn coalesce(&mut self, other: HexJump) {
         match (self.start, other.start) {
