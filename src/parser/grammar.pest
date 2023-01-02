@@ -164,11 +164,7 @@ string_op = _{
 
 // Block comments...
 /* Like this one */
-block_comment = _{
-  "/*" ~
-      (block_comment | !"*/" ~ ANY)* ~
-   "*/"
-}
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
 // Single-line comments...
 // Like this one

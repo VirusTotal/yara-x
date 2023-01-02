@@ -1,9 +1,14 @@
 ###############################################################################
 
 - rule: |
+    /* 
+       Some 
+       multi-line
+       comment, which can contain /*
+    */
     private global rule test {
       condition:
-        true or /*comment*/ false and not $a
+        true or /*in-line comment*/ false and not $a // end-of line comment
     }
   ast: |
     root
@@ -16,7 +21,6 @@
                    ├─ false
                    └─ not : boolean(unknown)
                       └─ $a
-
 ###############################################################################
 
 - rule: |
