@@ -269,6 +269,13 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.array_int64[1] == 10"#);
     condition_true!(r#"test_proto2.array_int64[2] == 100"#);
 
+    condition_true!(r#"test_proto2.array_float[0] == 1.0"#);
+    condition_true!(r#"test_proto2.array_float[1] == 10.0"#);
+    condition_true!(r#"test_proto2.array_float[2] == 100.0"#);
+
+    condition_false!(r#"test_proto2.array_bool[0]"#);
+    condition_true!(r#"test_proto2.array_bool[1]"#);
+
     // array_int64[3] is undefined, so both conditions are false.
     condition_false!(r#"test_proto2.array_int64[3] == 0"#);
     condition_false!(r#"test_proto2.array_int64[3] != 0"#);
