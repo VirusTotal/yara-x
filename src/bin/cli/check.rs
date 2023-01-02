@@ -1,4 +1,4 @@
-use ansi_term::Color::Yellow;
+use ansi_term::Color::{Red, Yellow};
 use std::fs;
 use std::path::Path;
 
@@ -25,14 +25,20 @@ pub fn check_file(
     let src = SourceCode::from(src.as_slice())
         .origin(path.as_os_str().to_str().unwrap());
 
-    let ast = Parser::new().colorize_errors(true).build_ast(src)?;
-
-    if ast.warnings.is_empty() {
-        println!("[{}] {}", Green.paint("PASS"), path.display());
-    } else {
-        println!("[{}] {}", Yellow.paint("WARN"), path.display());
-        for warning in ast.warnings {
-            println!("\n{}", warning);
+    match Parser::new().colorize_errors(true).build_ast(src) {
+        Ok(ast) => {
+            if ast.warnings.is_empty() {
+                println!("[{}] {}", Green.paint("PASS"), path.display());
+            } else {
+                println!("[{}] {}\n", Yellow.paint("WARN"), path.display());
+                for warning in ast.warnings {
+                    println!("{}\n", warning);
+                }
+            }
+        }
+        Err(err) => {
+            println!("[{}] {}\n", Red.paint("ERROR"), path.display());
+            println!("{}", err);
         }
     }
 
