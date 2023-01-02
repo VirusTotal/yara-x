@@ -1,3 +1,4 @@
+use ansi_term::Color::Yellow;
 use std::fs;
 use std::path::Path;
 
@@ -27,8 +28,9 @@ pub fn check_file(
     let ast = Parser::new().colorize_errors(true).build_ast(src)?;
 
     if ast.warnings.is_empty() {
-        println!("[{}] {}", Green.paint("ok"), path.display());
+        println!("[{}] {}", Green.paint("PASS"), path.display());
     } else {
+        println!("[{}] {}", Yellow.paint("WARN"), path.display());
         for warning in ast.warnings {
             println!("\n{}", warning);
         }
