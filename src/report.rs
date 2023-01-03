@@ -76,7 +76,7 @@ impl ReportBuilder {
         {
             let map = &mut self.cache.borrow_mut().data.0;
             // ariadne::Source::from(...) is an expensive operation, so it's
-            // done only it the SourceCode is not already in the cache.
+            // done only if the SourceCode is not already in the cache.
             if map.get(key).is_none() {
                 let s = if let Some(s) = src.valid {
                     Cow::Borrowed(s)
