@@ -3,7 +3,6 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::path::Path;
 use std::rc::Rc;
@@ -190,12 +189,10 @@ impl<'a> Compiler<'a> {
 
                 // TODO: add rule name to declared identifiers.
 
-                let ctx = RefCell::new(ctx);
-
                 // Emit WebAssembly code for the rule's condition.
                 self.wasm_mod.main_fn().block(None, |block| {
-                    catch_undef(&ctx, block, |instr| {
-                        emit_bool_expr(&ctx, instr, &rule.condition);
+                    catch_undef(&mut ctx, block, |ctx, instr| {
+                        emit_bool_expr(ctx, instr, &rule.condition);
                     });
 
                     // If the condition's result is 0, jump out of the block
@@ -207,11 +204,11 @@ impl<'a> Compiler<'a> {
                     block.i32_const(rule_id);
 
                     // Emit call instruction for calling `rule_match`.
-                    block.call(ctx.borrow().wasm_symbols.rule_match);
+                    block.call(ctx.wasm_symbols.rule_match);
                 });
 
                 // After emitting the whole condition, the stack should be empty.
-                assert_eq!(ctx.borrow().vars_stack_top, 0);
+                assert_eq!(ctx.vars_stack_top, 0);
             }
         }
 

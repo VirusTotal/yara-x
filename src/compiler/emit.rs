@@ -1,5 +1,4 @@
 use core::slice;
-use std::cell::RefCell;
 use std::mem::size_of;
 use std::rc::Rc;
 
@@ -60,7 +59,7 @@ macro_rules! emit_const_or_code {
                     // Put the literal string in the pool, or get its ID if it was
                     // already there.
                     let literal_id =
-                        $ctx.borrow_mut().lit_pool.get_or_intern(value.as_bstr());
+                        $ctx.lit_pool.get_or_intern(value.as_bstr());
 
                     $instr.i64_const(RuntimeString::Literal(literal_id).as_wasm() as i64);
                 }
@@ -131,7 +130,7 @@ macro_rules! emit_comparison_op {
                     $instr.binop(BinaryOp::$float_op);
                 }
                 (Type::String, Type::String) => {
-                    $instr.call($ctx.borrow().wasm_symbols.$str_op);
+                    $instr.call($ctx.wasm_symbols.$str_op);
                 }
                 _ => unreachable!(),
             };
@@ -167,10 +166,10 @@ macro_rules! emit_shift_op {
                     //  else                                  │
                     //     push 0                             ┘
                     //
-                    $instr.local_tee($ctx.borrow().wasm_symbols.i64_tmp);
+                    $instr.local_tee($ctx.wasm_symbols.i64_tmp);
                     $instr.binop(BinaryOp::$int_op);
                     $instr.i64_const(0);
-                    $instr.local_get($ctx.borrow().wasm_symbols.i64_tmp);
+                    $instr.local_get($ctx.wasm_symbols.i64_tmp);
                     $instr.i64_const(64);
                     $instr.binop(BinaryOp::I64LtS);
                     $instr.select(Some(I64));
@@ -196,7 +195,7 @@ macro_rules! emit_bitwise_op {
 
 /// Emits WebAssembly code for `expr` into the instruction sequence `instr`.
 pub(super) fn emit_expr(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     expr: &Expr,
 ) {
@@ -208,7 +207,7 @@ pub(super) fn emit_expr(
             instr.i32_const(0);
         }
         Expr::Filesize { .. } => {
-            instr.global_get(ctx.borrow().wasm_symbols.filesize);
+            instr.global_get(ctx.wasm_symbols.filesize);
         }
         Expr::Entrypoint { .. } => {
             todo!()
@@ -229,8 +228,7 @@ pub(super) fn emit_expr(
             TypeValue::String(Some(value)) => {
                 // Put the literal string in the pool, or get its ID if it was
                 // already there.
-                let literal_id =
-                    ctx.borrow_mut().lit_pool.get_or_intern(value.as_bstr());
+                let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());
 
                 instr.i64_const(
                     RuntimeString::Literal(literal_id).as_wasm() as i64
@@ -242,12 +240,11 @@ pub(super) fn emit_expr(
             emit_const_or_code!(ctx, instr, &ident.type_value, {
                 // Search for the identifier in the current structure, if any,
                 // or in the global symbol table if `current_struct` is None.
-                let symbol = if let Some(current_struct) =
-                    &ctx.borrow().current_struct
+                let symbol = if let Some(current_struct) = &ctx.current_struct
                 {
                     current_struct.lookup(ident.name).unwrap()
                 } else {
-                    ctx.borrow().symbol_table.lookup(ident.name).unwrap()
+                    ctx.symbol_table.lookup(ident.name).unwrap()
                 };
 
                 match symbol.location {
@@ -262,7 +259,7 @@ pub(super) fn emit_expr(
                     Location::HostVar(var) => {
                         // The symbol represents a host-side variable, so it must
                         // be a structure, map or array.
-                        ctx.borrow_mut().lookup_start = Some(var);
+                        ctx.lookup_start = Some(var);
                     }
                     Location::FieldIndex(index) => {
                         match ident.ty() {
@@ -279,13 +276,13 @@ pub(super) fn emit_expr(
                                 emit_lookup_string(ctx, instr, index);
                             }
                             Type::Struct => {
-                                ctx.borrow_mut().lookup_stack.push_back(index);
+                                ctx.lookup_stack.push_back(index);
                             }
                             Type::Array => {
-                                ctx.borrow_mut().lookup_stack.push_back(index);
+                                ctx.lookup_stack.push_back(index);
                             }
                             Type::Map => {
-                                ctx.borrow_mut().lookup_stack.push_back(index);
+                                ctx.lookup_stack.push_back(index);
                             }
                             _ => {
                                 // This point should not be reached. The type of
@@ -300,25 +297,24 @@ pub(super) fn emit_expr(
             });
         }
         Expr::PatternMatch(pattern) => {
-            let pattern_id = ctx
-                .borrow()
-                .get_pattern_from_current_rule(&pattern.identifier);
+            let pattern_id =
+                ctx.get_pattern_from_current_rule(&pattern.identifier);
 
             match &pattern.anchor {
                 Some(MatchAnchor::At(anchor_at)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_at.expr);
-                    instr.call(ctx.borrow().wasm_symbols.is_pat_match_at);
+                    instr.call(ctx.wasm_symbols.is_pat_match_at);
                 }
                 Some(MatchAnchor::In(anchor_in)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_in.range.lower_bound);
                     emit_expr(ctx, instr, &anchor_in.range.upper_bound);
-                    instr.call(ctx.borrow().wasm_symbols.is_pat_match_in);
+                    instr.call(ctx.wasm_symbols.is_pat_match_in);
                 }
                 None => {
                     instr.i32_const(pattern_id);
-                    instr.call(ctx.borrow().wasm_symbols.is_pat_match);
+                    instr.call(ctx.wasm_symbols.is_pat_match);
                 }
             }
         }
@@ -363,12 +359,12 @@ pub(super) fn emit_expr(
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_expr(ctx, instr, &operands.lhs);
 
-                ctx.borrow_mut().current_struct =
+                ctx.current_struct =
                     Some(operands.lhs.type_value().as_struct().unwrap());
 
                 emit_expr(ctx, instr, &operands.rhs);
 
-                ctx.borrow_mut().current_struct = None;
+                ctx.current_struct = None;
             })
         }
         Expr::FnCall(_) => {
@@ -416,14 +412,14 @@ pub(super) fn emit_expr(
                 //     return false
                 //   }
                 //
-                catch_undef(ctx, instr, |instr| {
+                catch_undef(ctx, instr, |ctx, instr| {
                     emit_bool_expr(ctx, instr, &operands.lhs);
                 });
 
                 instr.if_else(
                     I32,
                     |then_| {
-                        catch_undef(ctx, then_, |instr| {
+                        catch_undef(ctx, then_, |ctx, instr| {
                             emit_bool_expr(ctx, instr, &operands.rhs);
                         });
                     },
@@ -449,7 +445,7 @@ pub(super) fn emit_expr(
                 //     return evaluate_right_operand()
                 //   }
                 //
-                catch_undef(ctx, instr, |instr| {
+                catch_undef(ctx, instr, |ctx, instr| {
                     emit_bool_expr(ctx, instr, &operands.lhs);
                 });
 
@@ -459,7 +455,7 @@ pub(super) fn emit_expr(
                         then_.i32_const(1);
                     },
                     |else_| {
-                        catch_undef(ctx, else_, |instr| {
+                        catch_undef(ctx, else_, |ctx, instr| {
                             emit_bool_expr(ctx, instr, &operands.rhs);
                         });
                     },
@@ -586,43 +582,43 @@ pub(super) fn emit_expr(
         Expr::Contains(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.borrow().wasm_symbols.str_contains);
+                instr.call(ctx.wasm_symbols.str_contains);
             });
         }
         Expr::IContains(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.borrow().wasm_symbols.str_icontains);
+                instr.call(ctx.wasm_symbols.str_icontains);
             });
         }
         Expr::StartsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.borrow().wasm_symbols.str_startswith);
+                instr.call(ctx.wasm_symbols.str_startswith);
             });
         }
         Expr::IStartsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.borrow().wasm_symbols.str_istartswith);
+                instr.call(ctx.wasm_symbols.str_istartswith);
             });
         }
         Expr::EndsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.borrow().wasm_symbols.str_endswith);
+                instr.call(ctx.wasm_symbols.str_endswith);
             });
         }
         Expr::IEndsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.borrow().wasm_symbols.str_iendswith);
+                instr.call(ctx.wasm_symbols.str_iendswith);
             });
         }
         Expr::IEquals(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.borrow().wasm_symbols.str_iequals);
+                instr.call(ctx.wasm_symbols.str_iequals);
             });
         }
         Expr::Matches(_) => {
@@ -649,7 +645,7 @@ pub(super) fn emit_expr(
 }
 
 fn emit_array_lookup(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
     var: Option<Var>,
@@ -668,42 +664,42 @@ fn emit_array_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.array_lookup_integer,
+                ctx.wasm_symbols.array_lookup_integer,
             );
         }
         Array::Floats(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.array_lookup_float,
+                ctx.wasm_symbols.array_lookup_float,
             );
         }
         Array::Bools(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.array_lookup_bool,
+                ctx.wasm_symbols.array_lookup_bool,
             );
         }
         Array::Structs(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.array_lookup_struct,
+                ctx.wasm_symbols.array_lookup_struct,
             );
         }
         Array::Strings(_) => {
             emit_call_and_handle_undef_str(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.array_lookup_string,
+                ctx.wasm_symbols.array_lookup_string,
             );
         }
     }
 }
 
 fn emit_map_lookup(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     map: &Rc<Map>,
 ) {
@@ -718,7 +714,7 @@ fn emit_map_lookup(
 }
 
 fn emit_map_integer_key_lookup(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
@@ -729,35 +725,35 @@ fn emit_map_integer_key_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_integer_integer,
+                ctx.wasm_symbols.map_lookup_integer_integer,
             );
         }
         Type::Float => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_integer_float,
+                ctx.wasm_symbols.map_lookup_integer_float,
             );
         }
         Type::Bool => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_integer_bool,
+                ctx.wasm_symbols.map_lookup_integer_bool,
             );
         }
         Type::Struct => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_integer_struct,
+                ctx.wasm_symbols.map_lookup_integer_struct,
             );
         }
         Type::String => {
             emit_call_and_handle_undef_str(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_integer_string,
+                ctx.wasm_symbols.map_lookup_integer_string,
             );
         }
         _ => unreachable!(),
@@ -765,7 +761,7 @@ fn emit_map_integer_key_lookup(
 }
 
 fn emit_map_string_key_lookup(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
@@ -777,35 +773,35 @@ fn emit_map_string_key_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_string_integer,
+                ctx.wasm_symbols.map_lookup_string_integer,
             );
         }
         Type::Float => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_string_float,
+                ctx.wasm_symbols.map_lookup_string_float,
             );
         }
         Type::Bool => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_string_bool,
+                ctx.wasm_symbols.map_lookup_string_bool,
             );
         }
         Type::Struct => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_string_struct,
+                ctx.wasm_symbols.map_lookup_string_struct,
             );
         }
         Type::String => {
             emit_call_and_handle_undef_str(
                 ctx,
                 instr,
-                ctx.borrow().wasm_symbols.map_lookup_string_string,
+                ctx.wasm_symbols.map_lookup_string_string,
             );
         }
         _ => unreachable!(),
@@ -831,7 +827,7 @@ fn emit_map_string_key_lookup(
 /// or not. This code should leave a i32 with values 0 or 1 in the stack, 1
 /// means the the loop should continue and 0 that it should finish.
 pub(super) fn emit_for<I, N, C>(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
     n: Var,
@@ -839,25 +835,25 @@ pub(super) fn emit_for<I, N, C>(
     next_item: N,
     loop_cond: C,
 ) where
-    I: FnOnce(&mut InstrSeqBuilder, InstrSeqId),
-    N: FnOnce(&mut InstrSeqBuilder),
-    C: FnOnce(&mut InstrSeqBuilder),
+    I: FnOnce(&mut Context, &mut InstrSeqBuilder, InstrSeqId),
+    N: FnOnce(&mut Context, &mut InstrSeqBuilder),
+    C: FnOnce(&mut Context, &mut InstrSeqBuilder),
 {
     instr.block(I32, |instr| {
         let loop_end = instr.id();
 
-        loop_init(instr, loop_end);
+        loop_init(ctx, instr, loop_end);
 
         let (quantifier, counter) = match &for_in.quantifier {
             Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
                 // `quantifier` is the number of loop conditions that must return
                 // `true` for the loop to be `true`.
-                let quantifier = ctx.borrow_mut().new_var(Type::Integer);
+                let quantifier = ctx.new_var(Type::Integer);
                 // `counter` is the number of loop conditions that actually
                 // returned `true`. This is initially zero.
-                let counter = ctx.borrow_mut().new_var(Type::Integer);
+                let counter = ctx.new_var(Type::Integer);
 
-                set_var(ctx, instr, quantifier, |instr| {
+                set_var(ctx, instr, quantifier, |ctx, instr| {
                     if matches!(&for_in.quantifier, Quantifier::Percentage(_))
                     {
                         // Quantifier is a percentage, its final value will be
@@ -882,7 +878,7 @@ pub(super) fn emit_for<I, N, C>(
                 });
 
                 // Initialize `counter` to 0.
-                set_var(ctx, instr, counter, |instr| {
+                set_var(ctx, instr, counter, |_, instr| {
                     instr.i64_const(0);
                 });
 
@@ -898,7 +894,7 @@ pub(super) fn emit_for<I, N, C>(
             let loop_start = block.id();
 
             // Emit code that advances to next item.
-            next_item(block);
+            next_item(ctx, block);
 
             // Emit code for the loop's condition.
             emit_expr(ctx, block, &for_in.condition);
@@ -918,7 +914,7 @@ pub(super) fn emit_for<I, N, C>(
                         },
                         |else_| {
                             // Emit code that checks if loop should finish.
-                            loop_cond(else_);
+                            loop_cond(ctx, else_);
                             // Keep iterating while true.
                             else_.br_if(loop_start);
                             // If this point is reached is because all the
@@ -935,7 +931,7 @@ pub(super) fn emit_for<I, N, C>(
                         I32,
                         |then_| {
                             // Emit code that checks if loop should finish.
-                            loop_cond(then_);
+                            loop_cond(ctx, then_);
                             // Keep iterating while true.
                             then_.br_if(loop_start);
                             // If this point is reached is because all the
@@ -964,7 +960,7 @@ pub(super) fn emit_for<I, N, C>(
                         },
                         |else_| {
                             // Emit code that checks if loop should finish.
-                            loop_cond(else_);
+                            loop_cond(ctx, else_);
                             // Keep iterating while true.
                             else_.br_if(loop_start);
                             // If this point is reached is because all the
@@ -1020,7 +1016,7 @@ pub(super) fn emit_for<I, N, C>(
                     );
 
                     // Emit code that checks if loop should finish.
-                    loop_cond(block);
+                    loop_cond(ctx, block);
                     // Keep iterating while true.
                     block.br_if(loop_start);
 
@@ -1051,13 +1047,13 @@ pub(super) fn emit_for<I, N, C>(
             &for_in.quantifier,
             Quantifier::Percentage(_) | Quantifier::Expr(_)
         ) {
-            ctx.borrow_mut().free_vars(quantifier);
+            ctx.free_vars(quantifier);
         };
     });
 }
 
 pub(super) fn emit_for_in_range(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
     range: &Range,
@@ -1066,15 +1062,15 @@ pub(super) fn emit_for_in_range(
     assert_eq!(for_in.variables.len(), 1);
 
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.borrow_mut().new_var(Type::Integer);
+    let n = ctx.new_var(Type::Integer);
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.borrow_mut().new_var(Type::Integer);
+    let i = ctx.new_var(Type::Integer);
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.borrow_mut().new_var(Type::Integer);
+    let next_item = ctx.new_var(Type::Integer);
 
     // Create a symbol table containing the loop variable.
     let mut symbol = Symbol::new(TypeValue::Integer(None));
@@ -1089,27 +1085,27 @@ pub(super) fn emit_for_in_range(
 
     // Push the symbol table with loop variable on top of the existing symbol
     // tables.
-    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+    ctx.symbol_table.push(Rc::new(loop_vars));
 
     emit_for(
         ctx,
         instr,
         for_in,
         n,
-        |instr, loop_end| {
+        |ctx, instr, loop_end| {
             // Initialize `i` to zero.
-            set_var(ctx, instr, i, |instr| {
+            set_var(ctx, instr, i, |_, instr| {
                 instr.i64_const(0);
             });
 
             // Set n = upper_bound - lower_bound + 1;
-            set_var(ctx, instr, n, |instr| {
+            set_var(ctx, instr, n, |ctx, instr| {
                 emit_expr(ctx, instr, &range.upper_bound);
                 emit_expr(ctx, instr, &range.lower_bound);
 
                 // Store lower_bound in temp variable, without removing
                 // it from the stack.
-                instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
+                instr.local_tee(ctx.wasm_symbols.i64_tmp);
 
                 // Compute upper_bound - lower_bound + 1.
                 instr.binop(BinaryOp::I64Sub);
@@ -1131,14 +1127,14 @@ pub(super) fn emit_for_in_range(
             );
 
             // Store lower_bound in `next_item`.
-            set_var(ctx, instr, next_item, |instr| {
-                instr.local_get(ctx.borrow().wasm_symbols.i64_tmp);
+            set_var(ctx, instr, next_item, |ctx, instr| {
+                instr.local_get(ctx.wasm_symbols.i64_tmp);
             });
         },
         // Next item.
-        |_| {},
+        |_, _| {},
         // Loop condition.
-        |instr| {
+        |ctx, instr| {
             incr_var(ctx, instr, next_item);
             incr_var(ctx, instr, i);
 
@@ -1150,14 +1146,14 @@ pub(super) fn emit_for_in_range(
     );
 
     // Remove the symbol table that contains the loop variable.
-    ctx.borrow_mut().symbol_table.pop();
+    ctx.symbol_table.pop();
 
     // Free loop variables.
-    ctx.borrow_mut().free_vars(n);
+    ctx.free_vars(n);
 }
 
 pub(super) fn emit_for_in_expr(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
     iterable: &Expr,
@@ -1174,7 +1170,7 @@ pub(super) fn emit_for_in_expr(
 }
 
 pub(super) fn emit_for_in_array(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
     array_expr: &Expr,
@@ -1195,15 +1191,15 @@ pub(super) fn emit_for_in_array(
     };
 
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.borrow_mut().new_var(Type::Integer);
+    let n = ctx.new_var(Type::Integer);
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.borrow_mut().new_var(Type::Integer);
+    let i = ctx.new_var(Type::Integer);
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.borrow_mut().new_var(loop_var.ty());
+    let next_item = ctx.new_var(loop_var.ty());
 
     // Create a symbol table containing the loop variable.
     let mut symbol = Symbol::new(loop_var);
@@ -1222,12 +1218,12 @@ pub(super) fn emit_for_in_array(
 
     // Push the symbol table with loop variable on top of the existing symbol
     // tables.
-    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+    ctx.symbol_table.push(Rc::new(loop_vars));
 
     // Emit the expression that lookup the array.
     emit_expr(ctx, instr, array_expr);
 
-    let array_var = ctx.borrow_mut().new_var(Type::Array);
+    let array_var = ctx.new_var(Type::Array);
 
     emit_lookup_array(ctx, instr, array_var);
 
@@ -1236,11 +1232,11 @@ pub(super) fn emit_for_in_array(
         instr,
         for_in,
         n,
-        |instr, loop_end| {
+        |ctx, instr, loop_end| {
             // Initialize `n` to the array's length.
-            set_var(ctx, instr, n, |instr| {
+            set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(array_var.index);
-                instr.call(ctx.borrow().wasm_symbols.array_len);
+                instr.call(ctx.wasm_symbols.array_len);
             });
 
             // If n <= 0, exit from the loop.
@@ -1257,20 +1253,20 @@ pub(super) fn emit_for_in_array(
             );
 
             // Initialize `i` to zero.
-            set_var(ctx, instr, i, |instr| {
+            set_var(ctx, instr, i, |_, instr| {
                 instr.i64_const(0);
             });
         },
         // Next item.
-        |instr| {
+        |ctx, instr| {
             // The next lookup operation starts at the local variable
             // `array_var`.
-            ctx.borrow_mut().lookup_start = Some(array_var);
+            ctx.lookup_start = Some(array_var);
 
             if is_wasm_var {
                 // Get the i-th item in the array and store it in the
                 // WASM-side local variable `next_item`.
-                set_var(ctx, instr, next_item, |instr| {
+                set_var(ctx, instr, next_item, |ctx, instr| {
                     load_var(ctx, instr, i);
                     emit_array_lookup(ctx, instr, &array, None);
                 });
@@ -1282,7 +1278,7 @@ pub(super) fn emit_for_in_array(
             }
         },
         // Loop stop condition.
-        |instr| {
+        |ctx, instr| {
             incr_var(ctx, instr, i);
 
             // Compare `i` to `n`.
@@ -1292,12 +1288,12 @@ pub(super) fn emit_for_in_array(
         },
     );
 
-    ctx.borrow_mut().symbol_table.pop();
-    ctx.borrow_mut().free_vars(n);
+    ctx.symbol_table.pop();
+    ctx.free_vars(n);
 }
 
 pub(super) fn emit_for_in_map(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
     map_expr: &Expr,
@@ -1349,7 +1345,7 @@ pub(super) fn emit_for_in_map(
 ///                                     ;; the stack.
 /// ```
 fn emit_switch(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     ty: ValType,
     instr: &mut InstrSeqBuilder,
     expressions: &[Expr],
@@ -1361,7 +1357,7 @@ fn emit_switch(
     // Store the i32 switch selector in a temp variable. The selector is the i32
     // value at the top of the stack that tells which expression should be
     // executed.
-    instr.local_set(ctx.borrow().wasm_symbols.i32_tmp);
+    instr.local_set(ctx.wasm_symbols.i32_tmp);
 
     let block_ids = Vec::new();
 
@@ -1371,7 +1367,7 @@ fn emit_switch(
 }
 
 fn emit_switch_internal(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     mut expressions: slice::Iter<Expr>,
     mut block_ids: Vec<InstrSeqId>,
@@ -1387,7 +1383,7 @@ fn emit_switch_internal(
         instr.br(outermost_block.unwrap());
     } else {
         instr.block(None, |block| {
-            block.local_get(ctx.borrow().wasm_symbols.i32_tmp);
+            block.local_get(ctx.wasm_symbols.i32_tmp);
             block.br_table(block_ids[1..].into(), block.id());
         });
         instr.unreachable();
@@ -1395,7 +1391,7 @@ fn emit_switch_internal(
 }
 
 pub(super) fn emit_for_in_expr_tuple(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
     expressions: &[Expr],
@@ -1404,16 +1400,15 @@ pub(super) fn emit_for_in_expr_tuple(
     assert_eq!(for_in.variables.len(), 1);
 
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.borrow_mut().new_var(Type::Integer);
+    let n = ctx.new_var(Type::Integer);
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.borrow_mut().new_var(Type::Integer);
+    let i = ctx.new_var(Type::Integer);
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item =
-        ctx.borrow_mut().new_var(expressions.first().unwrap().ty());
+    let next_item = ctx.new_var(expressions.first().unwrap().ty());
 
     // Create a symbol table containing the loop variable.
     let mut symbol = Symbol::new(
@@ -1427,34 +1422,34 @@ pub(super) fn emit_for_in_expr_tuple(
 
     // Push the symbol table with loop variable on top of the existing symbol
     // tables.
-    ctx.borrow_mut().symbol_table.push(Rc::new(loop_vars));
+    ctx.symbol_table.push(Rc::new(loop_vars));
 
     emit_for(
         ctx,
         instr,
         for_in,
         n,
-        |instr, _| {
+        |ctx, instr, _| {
             // Initialize `i` to zero.
-            set_var(ctx, instr, i, |instr| {
+            set_var(ctx, instr, i, |_, instr| {
                 instr.i64_const(0);
             });
 
             // Initialize `n` to number of expressions.
-            set_var(ctx, instr, n, |instr| {
+            set_var(ctx, instr, n, |_, instr| {
                 instr.i64_const(expressions.len() as i64);
             });
         },
         // Next item.
-        |instr| {
+        |ctx, instr| {
             // Execute the i-th expression and save its result in `next_item`.
-            set_var(ctx, instr, next_item, |instr| {
+            set_var(ctx, instr, next_item, |ctx, instr| {
                 load_var(ctx, instr, i);
                 emit_switch(ctx, next_item.ty.into(), instr, expressions);
             });
         },
         // Loop condition.
-        |instr| {
+        |ctx, instr| {
             incr_var(ctx, instr, i);
             // Compare `i` to `n`.
             load_var(ctx, instr, i);
@@ -1464,26 +1459,26 @@ pub(super) fn emit_for_in_expr_tuple(
     );
 
     // Remove the symbol table that contains the loop variable.
-    ctx.borrow_mut().symbol_table.pop();
+    ctx.symbol_table.pop();
 
     // Free loop variables.
-    ctx.borrow_mut().free_vars(n);
+    ctx.free_vars(n);
 }
 
 /// Sets a variable to the value produced by a code block.
 pub(super) fn set_var<B>(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     var: Var,
     block: B,
 ) where
-    B: FnOnce(&mut InstrSeqBuilder),
+    B: FnOnce(&mut Context, &mut InstrSeqBuilder),
 {
     // First push the offset where the variable resided in memory. This will
     // be used by the `store` instruction.
     instr.i32_const(var.index * size_of::<i64>() as i32);
     // Block that produces the value that will be stored in the variable.
-    block(instr);
+    block(ctx, instr);
 
     let store_kind = match var.ty {
         Type::Bool => StoreKind::I32 { atomic: false },
@@ -1496,18 +1491,14 @@ pub(super) fn set_var<B>(
     // The store instruction will remove two items from the stack, the value and
     // the offset where it will be stored.
     instr.store(
-        ctx.borrow().wasm_symbols.main_memory,
+        ctx.wasm_symbols.main_memory,
         store_kind,
         MemArg { align: size_of::<i64>() as u32, offset: 0 },
     );
 }
 
 /// Loads the value of variable into the stack.
-pub(super) fn load_var(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-    var: Var,
-) {
+pub(super) fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
     instr.i32_const(var.index * size_of::<i64>() as i32);
 
     let load_kind = match var.ty {
@@ -1519,7 +1510,7 @@ pub(super) fn load_var(
     };
 
     instr.load(
-        ctx.borrow().wasm_symbols.main_memory,
+        ctx.wasm_symbols.main_memory,
         load_kind,
         MemArg {
             align: size_of::<i64>() as u32,
@@ -1530,13 +1521,13 @@ pub(super) fn load_var(
 
 /// Increments a variable.
 pub(super) fn incr_var(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     var: Var,
 ) {
     // incr_var only works with integer variables.
     assert_eq!(var.ty, Type::Integer);
-    set_var(ctx, instr, var, |instr| {
+    set_var(ctx, instr, var, |ctx, instr| {
         load_var(ctx, instr, var);
         instr.i64_const(1);
         instr.binop(BinaryOp::I64Add);
@@ -1553,7 +1544,7 @@ pub(super) fn incr_var(
 ///   empty (e.g: "").
 ///
 pub(super) fn emit_bool_expr(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     expr: &Expr,
 ) {
@@ -1572,7 +1563,7 @@ pub(super) fn emit_bool_expr(
             instr.binop(BinaryOp::F64Ne);
         }
         Type::String => {
-            instr.call(ctx.borrow().wasm_symbols.str_len);
+            instr.call(ctx.wasm_symbols.str_len);
             instr.i64_const(0);
             instr.binop(BinaryOp::I64Ne);
         }
@@ -1595,7 +1586,7 @@ pub(super) fn emit_bool_expr(
 /// is undefined, and throws an exception if that's the case (see:
 /// [`throw_undef`])
 pub(super) fn emit_call_and_handle_undef(
-    ctx: &RefCell<Context>,
+    ctx: &Context,
     instr: &mut InstrSeqBuilder,
     fn_id: walrus::FunctionId,
 ) {
@@ -1631,7 +1622,7 @@ pub(super) fn emit_call_and_handle_undef(
 /// Strings are represented by an `i64` (see [`RuntimeStringWasm`] for more
 /// details), and they are undefined when the value is zero.
 pub(super) fn emit_call_and_handle_undef_str(
-    ctx: &RefCell<Context>,
+    ctx: &Context,
     instr: &mut InstrSeqBuilder,
     fn_id: walrus::FunctionId,
 ) {
@@ -1641,7 +1632,7 @@ pub(super) fn emit_call_and_handle_undef_str(
 
     // Store the value at the top of the stack in a temp variable, but
     // leave it in the stack.
-    instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
+    instr.local_tee(ctx.wasm_symbols.i64_tmp);
 
     // Is the value zero? The comparison removes the value from the stack.
     instr.unop(UnaryOp::I64Eqz);
@@ -1653,31 +1644,29 @@ pub(super) fn emit_call_and_handle_undef_str(
         },
         |else_| {
             // It's non-zero, return the value to the top of the stack.
-            else_.local_get(ctx.borrow().wasm_symbols.i64_tmp);
+            else_.local_get(ctx.wasm_symbols.i64_tmp);
         },
     );
 }
 
 pub(super) fn emit_lookup_common(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
 ) {
-    let mut ctx_mut = ctx.borrow_mut();
-
-    if let Some(start) = ctx_mut.lookup_start.take() {
+    if let Some(start) = ctx.lookup_start.take() {
         instr.i32_const(start.index);
-        instr.global_set(ctx_mut.wasm_symbols.lookup_start);
+        instr.global_set(ctx.wasm_symbols.lookup_start);
     } else {
         instr.i32_const(-1);
-        instr.global_set(ctx_mut.wasm_symbols.lookup_start);
+        instr.global_set(ctx.wasm_symbols.lookup_start);
     }
 
-    instr.i32_const(ctx_mut.lookup_stack.len() as i32);
-    instr.global_set(ctx_mut.wasm_symbols.lookup_stack_top);
+    instr.i32_const(ctx.lookup_stack.len() as i32);
+    instr.global_set(ctx.wasm_symbols.lookup_stack_top);
 
-    let main_memory = ctx_mut.wasm_symbols.main_memory;
+    let main_memory = ctx.wasm_symbols.main_memory;
 
-    for (i, field_index) in ctx_mut.lookup_stack.drain(0..).enumerate() {
+    for (i, field_index) in ctx.lookup_stack.drain(0..).enumerate() {
         let offset = (i * size_of::<i32>()) as i32;
 
         assert!(
@@ -1701,86 +1690,70 @@ pub(super) fn emit_lookup_common(
 
 #[inline]
 pub(super) fn emit_lookup_integer(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     field_index: i32,
 ) {
-    ctx.borrow_mut().lookup_stack.push_back(field_index);
+    ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_integer,
-    );
+    emit_call_and_handle_undef(ctx, instr, ctx.wasm_symbols.lookup_integer);
 }
 
 #[inline]
 pub(super) fn emit_lookup_float(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     field_index: i32,
 ) {
-    ctx.borrow_mut().lookup_stack.push_back(field_index);
+    ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_float,
-    );
+    emit_call_and_handle_undef(ctx, instr, ctx.wasm_symbols.lookup_float);
 }
 
 #[inline]
 pub(super) fn emit_lookup_bool(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     field_index: i32,
 ) {
-    ctx.borrow_mut().lookup_stack.push_back(field_index);
+    ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_bool,
-    );
+    emit_call_and_handle_undef(ctx, instr, ctx.wasm_symbols.lookup_bool);
 }
 
 #[inline]
 pub(super) fn emit_lookup_string(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     field_index: i32,
 ) {
-    ctx.borrow_mut().lookup_stack.push_back(field_index);
+    ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef_str(
-        ctx,
-        instr,
-        ctx.borrow().wasm_symbols.lookup_string,
-    );
+    emit_call_and_handle_undef_str(ctx, instr, ctx.wasm_symbols.lookup_string);
 }
 
 #[inline]
 pub(super) fn emit_lookup_array(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     var: Var,
 ) {
     emit_lookup_common(ctx, instr);
     instr.i32_const(var.index);
-    instr.call(ctx.borrow().wasm_symbols.lookup_array);
+    instr.call(ctx.wasm_symbols.lookup_array);
 }
 
 /// Emits code that checks if the top of the stack is non-zero and executes
 /// `expr` in that case. If it is zero throws an exception that signals that
 /// the result is undefined.
 pub(super) fn if_non_zero(
-    ctx: &RefCell<Context>,
+    ctx: &Context,
     instr: &mut InstrSeqBuilder,
     expr: impl FnOnce(&mut InstrSeqBuilder),
 ) {
     // Save the top of the stack into temp variable, but leave a copy in the
     // stack.
-    instr.local_tee(ctx.borrow().wasm_symbols.i64_tmp);
+    instr.local_tee(ctx.wasm_symbols.i64_tmp);
     // Is top of the stack zero? The comparison removes the value from the
     // stack.
     instr.unop(UnaryOp::I64Eqz);
@@ -1792,7 +1765,7 @@ pub(super) fn if_non_zero(
         },
         |else_| {
             // Non-zero, put back the value into the stack.
-            else_.local_get(ctx.borrow().wasm_symbols.i64_tmp);
+            else_.local_get(ctx.wasm_symbols.i64_tmp);
         },
     );
 
@@ -1831,32 +1804,27 @@ pub(super) fn if_non_zero(
 /// ```
 ///
 pub(super) fn catch_undef(
-    ctx: &RefCell<Context>,
+    ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    expr: impl FnOnce(&mut InstrSeqBuilder),
+    expr: impl FnOnce(&mut Context, &mut InstrSeqBuilder),
 ) {
     // Create a new block containing `expr`. When an exception is raised from
     // within `expr`, the control flow will jump out of this block via a `br`
     // instruction.
     instr.block(I32, |block| {
         // Push the type and ID of the current block in the handlers stack.
-        ctx.borrow_mut().exception_handler_stack.push((I32, block.id()));
-        expr(block);
+        ctx.exception_handler_stack.push((I32, block.id()));
+        expr(ctx, block);
     });
 
     // Pop exception handler from the stack.
-    ctx.borrow_mut().exception_handler_stack.pop();
+    ctx.exception_handler_stack.pop();
 }
 
 /// Throws an exception when an undefined value is found.
 ///
 /// For more information see [`catch_undef`].
-pub(super) fn throw_undef(
-    ctx: &RefCell<Context>,
-    instr: &mut InstrSeqBuilder,
-) {
-    let ctx = ctx.borrow();
-
+pub(super) fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
     let innermost_handler = *ctx
         .exception_handler_stack
         .last()
