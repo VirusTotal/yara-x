@@ -488,10 +488,8 @@ pub(super) fn emit_expr(
                     (Type::Integer, Type::Integer) => {
                         // Make sure that the divisor is not zero, if that's
                         // the case the result is undefined.
-                        if_non_zero(ctx, instr, |instr| {
-                            // Both operands are integer, the operation is integer.
-                            instr.binop(BinaryOp::I64RemS);
-                        });
+                        throw_undef_if_zero(ctx, instr);
+                        instr.binop(BinaryOp::I64RemS);
                     }
                     _ => unreachable!(),
                 };
@@ -521,10 +519,8 @@ pub(super) fn emit_expr(
                     (Type::Integer, Type::Integer) => {
                         // Make sure that the divisor is not zero, if that's
                         // the case the result is undefined.
-                        if_non_zero(ctx, instr, |instr| {
-                            // Both operands are integer, the operation is integer.
-                            instr.binop(BinaryOp::I64DivS);
-                        });
+                        throw_undef_if_zero(ctx, instr);
+                        instr.binop(BinaryOp::I64DivS);
                     }
                     (Type::Float, Type::Float) => {
                         // Both operands are float, the operation is float.
@@ -1629,24 +1625,8 @@ pub(super) fn emit_call_and_handle_undef_str(
     // Call the function that returns a string. The string is represented
     // by an i64, and is undefined when its value is zero.
     instr.call(fn_id);
-
-    // Store the value at the top of the stack in a temp variable, but
-    // leave it in the stack.
-    instr.local_tee(ctx.wasm_symbols.i64_tmp);
-
-    // Is the value zero? The comparison removes the value from the stack.
-    instr.unop(UnaryOp::I64Eqz);
-    instr.if_else(
-        I64,
-        |then_| {
-            // It's zero, throw exception.
-            throw_undef(ctx, then_);
-        },
-        |else_| {
-            // It's non-zero, return the value to the top of the stack.
-            else_.local_get(ctx.wasm_symbols.i64_tmp);
-        },
-    );
+    // If the value was zero throws an exception.
+    throw_undef_if_zero(ctx, instr);
 }
 
 pub(super) fn emit_lookup_common(
@@ -1741,35 +1721,6 @@ pub(super) fn emit_lookup_array(
     emit_lookup_common(ctx, instr);
     instr.i32_const(var.index);
     instr.call(ctx.wasm_symbols.lookup_array);
-}
-
-/// Emits code that checks if the top of the stack is non-zero and executes
-/// `expr` in that case. If it is zero throws an exception that signals that
-/// the result is undefined.
-pub(super) fn if_non_zero(
-    ctx: &Context,
-    instr: &mut InstrSeqBuilder,
-    expr: impl FnOnce(&mut InstrSeqBuilder),
-) {
-    // Save the top of the stack into temp variable, but leave a copy in the
-    // stack.
-    instr.local_tee(ctx.wasm_symbols.i64_tmp);
-    // Is top of the stack zero? The comparison removes the value from the
-    // stack.
-    instr.unop(UnaryOp::I64Eqz);
-    instr.if_else(
-        I64,
-        |then| {
-            // Is zero, throw exception
-            throw_undef(ctx, then);
-        },
-        |else_| {
-            // Non-zero, put back the value into the stack.
-            else_.local_get(ctx.wasm_symbols.i64_tmp);
-        },
-    );
-
-    expr(instr);
 }
 
 /// Emits code for catching exceptions caused by undefined values.
@@ -1873,4 +1824,27 @@ pub(super) fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
 
     // Jump to the exception handler.
     instr.br(innermost_handler.1);
+}
+
+/// Similar to [`throw_undef`], but throws the exception if the top of the
+/// stack is zero. If the top of the stack is non-zero, calling this function
+/// is a no-op.
+pub(super) fn throw_undef_if_zero(ctx: &Context, instr: &mut InstrSeqBuilder) {
+    // Save the top of the stack into temp variable, but leave a copy in the
+    // stack.
+    instr.local_tee(ctx.wasm_symbols.i64_tmp);
+    // Is top of the stack zero? The comparison removes the value from the
+    // stack.
+    instr.unop(UnaryOp::I64Eqz);
+    instr.if_else(
+        I64,
+        |then| {
+            // Is zero, throw exception
+            throw_undef(ctx, then);
+        },
+        |else_| {
+            // Non-zero, put back the value into the stack.
+            else_.local_get(ctx.wasm_symbols.i64_tmp);
+        },
+    );
 }
