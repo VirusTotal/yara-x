@@ -807,38 +807,72 @@ fn emit_map_string_key_lookup(
 /// Emits a `for` loop.
 ///
 /// This function allows creating different types of `for` loops by receiving
-/// other functions that emit the loop initialization code, the code that
-/// produces the next item, and the code that checks if the loop has finished.
+/// other functions that emit the loop initialization code, the code that gets
+/// executed just before and after each iteration.
 ///
 /// `loop_init` is the function that emits the initialization code, which is
-/// executed only once, before the loop itself. This code should not leave
-/// anything on the stack.
+/// executed only once, before the loop itself. This code should initialize
+/// the variable `n` with the total number of items in the object that is
+/// being iterated. This code should not leave anything on the stack.
 ///
-/// `next_item` emits the code that gets executed on every iteration just
-/// before the loop's condition. The code produced by `next_item` must set the
-/// loop variable(s) used by the condition to the value(s) corresponding to
-/// the current iteration. This code should not leave anything on the stack.
+/// `before_cond` emits the code that gets executed on every iteration just
+/// before the loop's condition. The code produced by `before_cond` must set
+/// the loop variable(s) used by the condition to the value(s) corresponding
+/// to the current iteration. This code should not leave anything on the stack.
 ///
-/// `loop_cond` emits the code that decides whether the loop should continue
-/// or not. This code should leave a i32 with values 0 or 1 in the stack, 1
-/// means the the loop should continue and 0 that it should finish.
-pub(super) fn emit_for<I, N, C>(
+/// `after_cond` emits the code that gets executed on every iteration after
+/// the loop's condition. This code should not leave anything on the stack.
+pub(super) fn emit_for<I, B, A>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     for_in: &ForIn,
-    n: Var,
     loop_init: I,
-    next_item: N,
-    loop_cond: C,
+    before_cond: B,
+    after_cond: A,
 ) where
-    I: FnOnce(&mut Context, &mut InstrSeqBuilder, InstrSeqId),
-    N: FnOnce(&mut Context, &mut InstrSeqBuilder),
-    C: FnOnce(&mut Context, &mut InstrSeqBuilder),
+    I: FnOnce(&mut Context, &mut InstrSeqBuilder, Var, InstrSeqId),
+    B: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
+    A: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
 {
+    // Create variable `n`, which will contain the maximum number of iterations.
+    let n = ctx.new_var(Type::Integer);
+
+    // Create variable `i`, which will contain the current iteration number.
+    // The value of `i` is in the range 0..n-1.
+    let i = ctx.new_var(Type::Integer);
+
+    // Function that increments `i` and checks if `i` < `n` after each
+    // iteration, repeating the loop while the condition is true.
+    let incr_i_and_repeat =
+        |ctx: &mut Context,
+         instr: &mut InstrSeqBuilder,
+         n: Var,
+         i: Var,
+         loop_start: InstrSeqId| {
+            // Emit code that checks if loop should finish.
+            after_cond(ctx, instr, n);
+
+            // Increment `i`.
+            incr_var(ctx, instr, i);
+
+            // Compare `i` to `n`.
+            load_var(ctx, instr, i);
+            load_var(ctx, instr, n);
+            instr.binop(BinaryOp::I64LtS);
+
+            // Keep iterating while i < n.
+            instr.br_if(loop_start);
+        };
+
     instr.block(I32, |instr| {
         let loop_end = instr.id();
 
-        loop_init(ctx, instr, loop_end);
+        loop_init(ctx, instr, n, loop_end);
+
+        // Initialize `i` to zero.
+        set_var(ctx, instr, i, |_, instr| {
+            instr.i64_const(0);
+        });
 
         let (quantifier, counter) = match &for_in.quantifier {
             Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
@@ -890,7 +924,7 @@ pub(super) fn emit_for<I, N, C>(
             let loop_start = block.id();
 
             // Emit code that advances to next item.
-            next_item(ctx, block);
+            before_cond(ctx, block, i);
 
             // Emit code for the loop's condition.
             emit_expr(ctx, block, &for_in.condition);
@@ -909,10 +943,8 @@ pub(super) fn emit_for<I, N, C>(
                             then_.br(loop_end);
                         },
                         |else_| {
-                            // Emit code that checks if loop should finish.
-                            loop_cond(ctx, else_);
-                            // Keep iterating while true.
-                            else_.br_if(loop_start);
+                            incr_i_and_repeat(ctx, else_, n, i, loop_start);
+
                             // If this point is reached is because all the
                             // the range was iterated without the condition
                             // returning true, this means that the whole "for"
@@ -926,10 +958,8 @@ pub(super) fn emit_for<I, N, C>(
                     block.if_else(
                         I32,
                         |then_| {
-                            // Emit code that checks if loop should finish.
-                            loop_cond(ctx, then_);
-                            // Keep iterating while true.
-                            then_.br_if(loop_start);
+                            incr_i_and_repeat(ctx, then_, n, i, loop_start);
+
                             // If this point is reached is because all the
                             // the range was iterated without the condition
                             // returning false, this means that the whole "for"
@@ -955,10 +985,8 @@ pub(super) fn emit_for<I, N, C>(
                             then_.br(loop_end);
                         },
                         |else_| {
-                            // Emit code that checks if loop should finish.
-                            loop_cond(ctx, else_);
-                            // Keep iterating while true.
-                            else_.br_if(loop_start);
+                            incr_i_and_repeat(ctx, else_, n, i, loop_start);
+
                             // If this point is reached is because all the
                             // the range was iterated without the condition
                             // returning true, this means that the whole "for"
@@ -1011,10 +1039,7 @@ pub(super) fn emit_for<I, N, C>(
                         |_| {},
                     );
 
-                    // Emit code that checks if loop should finish.
-                    loop_cond(ctx, block);
-                    // Keep iterating while true.
-                    block.br_if(loop_start);
+                    incr_i_and_repeat(ctx, block, n, i, loop_start);
 
                     // If this point is reached we have iterated over the whole
                     // range 0..n. If quantifier is zero this means that all
@@ -1046,6 +1071,8 @@ pub(super) fn emit_for<I, N, C>(
             ctx.free_vars(quantifier);
         };
     });
+
+    ctx.free_vars(n);
 }
 
 pub(super) fn emit_for_in_range(
@@ -1056,13 +1083,6 @@ pub(super) fn emit_for_in_range(
 ) {
     // A `for` loop in a range has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
-
-    // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.new_var(Type::Integer);
-
-    // Create variable `i`, which will contain the current iteration number.
-    // The value of `i` is in the range 0..n-1.
-    let i = ctx.new_var(Type::Integer);
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
@@ -1087,13 +1107,7 @@ pub(super) fn emit_for_in_range(
         ctx,
         instr,
         for_in,
-        n,
-        |ctx, instr, loop_end| {
-            // Initialize `i` to zero.
-            set_var(ctx, instr, i, |_, instr| {
-                instr.i64_const(0);
-            });
-
+        |ctx, instr, n, loop_end| {
             // Set n = upper_bound - lower_bound + 1;
             set_var(ctx, instr, n, |ctx, instr| {
                 emit_expr(ctx, instr, &range.upper_bound);
@@ -1127,17 +1141,11 @@ pub(super) fn emit_for_in_range(
                 instr.local_get(ctx.wasm_symbols.i64_tmp);
             });
         },
-        // Next item.
-        |_, _| {},
-        // Loop condition.
-        |ctx, instr| {
+        // Before each iteration.
+        |_, _, _| {},
+        // After each iteration.
+        |ctx, instr, _| {
             incr_var(ctx, instr, next_item);
-            incr_var(ctx, instr, i);
-
-            // Compare `i` to `n`.
-            load_var(ctx, instr, i);
-            load_var(ctx, instr, n);
-            instr.binop(BinaryOp::I64LtS);
         },
     );
 
@@ -1145,7 +1153,7 @@ pub(super) fn emit_for_in_range(
     ctx.symbol_table.pop();
 
     // Free loop variables.
-    ctx.free_vars(n);
+    ctx.free_vars(next_item);
 }
 
 pub(super) fn emit_for_in_expr(
@@ -1186,13 +1194,6 @@ pub(super) fn emit_for_in_array(
         Array::Structs(_) => (false, TypeValue::Unknown),
     };
 
-    // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.new_var(Type::Integer);
-
-    // Create variable `i`, which will contain the current iteration number.
-    // The value of `i` is in the range 0..n-1.
-    let i = ctx.new_var(Type::Integer);
-
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
     let next_item = ctx.new_var(loop_var.ty());
@@ -1227,8 +1228,7 @@ pub(super) fn emit_for_in_array(
         ctx,
         instr,
         for_in,
-        n,
-        |ctx, instr, loop_end| {
+        |ctx, instr, n, loop_end| {
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(array_var.index);
@@ -1247,14 +1247,9 @@ pub(super) fn emit_for_in_array(
                 },
                 |_| {},
             );
-
-            // Initialize `i` to zero.
-            set_var(ctx, instr, i, |_, instr| {
-                instr.i64_const(0);
-            });
         },
-        // Next item.
-        |ctx, instr| {
+        // Before each iteration.
+        |ctx, instr, i| {
             // The next lookup operation starts at the local variable
             // `array_var`.
             ctx.lookup_start = Some(array_var);
@@ -1273,19 +1268,12 @@ pub(super) fn emit_for_in_array(
                 emit_array_lookup(ctx, instr, &array, Some(next_item));
             }
         },
-        // Loop stop condition.
-        |ctx, instr| {
-            incr_var(ctx, instr, i);
-
-            // Compare `i` to `n`.
-            load_var(ctx, instr, i);
-            load_var(ctx, instr, n);
-            instr.binop(BinaryOp::I64LtS);
-        },
+        // After each iteration.
+        |_, _, _| {},
     );
 
     ctx.symbol_table.pop();
-    ctx.free_vars(n);
+    ctx.free_vars(next_item);
 }
 
 pub(super) fn emit_for_in_map(
@@ -1395,13 +1383,6 @@ pub(super) fn emit_for_in_expr_tuple(
     // A `for` in a tuple of expressions has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.new_var(Type::Integer);
-
-    // Create variable `i`, which will contain the current iteration number.
-    // The value of `i` is in the range 0..n-1.
-    let i = ctx.new_var(Type::Integer);
-
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
     let next_item = ctx.new_var(expressions.first().unwrap().ty());
@@ -1424,41 +1405,29 @@ pub(super) fn emit_for_in_expr_tuple(
         ctx,
         instr,
         for_in,
-        n,
-        |ctx, instr, _| {
-            // Initialize `i` to zero.
-            set_var(ctx, instr, i, |_, instr| {
-                instr.i64_const(0);
-            });
-
+        |ctx, instr, n, _| {
             // Initialize `n` to number of expressions.
             set_var(ctx, instr, n, |_, instr| {
                 instr.i64_const(expressions.len() as i64);
             });
         },
-        // Next item.
-        |ctx, instr| {
+        // Before each iteration.
+        |ctx, instr, i| {
             // Execute the i-th expression and save its result in `next_item`.
             set_var(ctx, instr, next_item, |ctx, instr| {
                 load_var(ctx, instr, i);
                 emit_switch(ctx, next_item.ty.into(), instr, expressions);
             });
         },
-        // Loop condition.
-        |ctx, instr| {
-            incr_var(ctx, instr, i);
-            // Compare `i` to `n`.
-            load_var(ctx, instr, i);
-            load_var(ctx, instr, n);
-            instr.binop(BinaryOp::I64LtS);
-        },
+        // After each iteration.
+        |_, _, _| {},
     );
 
     // Remove the symbol table that contains the loop variable.
     ctx.symbol_table.pop();
 
     // Free loop variables.
-    ctx.free_vars(n);
+    ctx.free_vars(next_item);
 }
 
 /// Sets a variable to the value produced by a code block.
