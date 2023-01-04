@@ -89,8 +89,8 @@ impl<'r> Scanner<'r> {
 
         let matching_patterns_bitmap_base = Global::new(
             &mut wasm_store,
-            GlobalType::new(ValType::I64, Mutability::Var),
-            Val::I64(matching_patterns_bitmap_base as i64),
+            GlobalType::new(ValType::I32, Mutability::Const),
+            Val::I32(matching_patterns_bitmap_base as i32),
         )
         .unwrap();
 

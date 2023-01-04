@@ -37,10 +37,17 @@ macro_rules! import {
     };
 }
 
-macro_rules! global {
-    ($module:ident, $name:ident, $ty:ident ) => {
+macro_rules! global_var {
+    ($module:ident, $name:ident, $ty:ident) => {
         let ($name, _) =
             $module.add_import_global("yr", stringify!($name), $ty, true);
+    };
+}
+
+macro_rules! global_const {
+    ($module:ident, $name:ident, $ty:ident) => {
+        let ($name, _) =
+            $module.add_import_global("yr", stringify!($name), $ty, false);
     };
 }
 
@@ -50,13 +57,12 @@ impl ModuleBuilder {
         let config = walrus::ModuleConfig::new();
         let mut module = walrus::Module::with_config(config);
 
-        global!(module, lookup_stack_top, I32);
-        global!(module, lookup_start, I32);
-        global!(module, filesize, I64);
-        global!(module, matching_patterns_bitmap_base, I64);
+        global_const!(module, matching_patterns_bitmap_base, I32);
+        global_var!(module, lookup_stack_top, I32);
+        global_var!(module, lookup_start, I32);
+        global_var!(module, filesize, I64);
 
         import!(module, rule_match, [I32], []);
-        import!(module, is_pat_match, [I32], [I32]);
         import!(module, is_pat_match_at, [I32, I64], [I32]);
         import!(module, is_pat_match_in, [I32, I64, I64], [I32]);
 
@@ -110,7 +116,6 @@ impl ModuleBuilder {
             main_memory,
             matching_patterns_bitmap_base,
             rule_match,
-            is_pat_match,
             is_pat_match_at,
             is_pat_match_in,
             array_len,

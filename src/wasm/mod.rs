@@ -126,10 +126,6 @@ pub(crate) struct WasmSymbols {
     /// Signature: (rule_id: i32) -> ()
     pub rule_match: walrus::FunctionId,
 
-    /// Ask YARA whether a pattern matched or not.
-    /// Signature: (pattern_id: i32) -> (i32)
-    pub is_pat_match: walrus::FunctionId,
-
     /// Ask YARA whether a pattern matched at a specific offset.
     /// Signature: (pattern_id: i32, offset: i64) -> (i32)
     pub is_pat_match_at: walrus::FunctionId,
@@ -458,7 +454,6 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, str_iendswith);
     add_function!(linker, str_len);
     add_function!(linker, rule_match);
-    add_function!(linker, is_pat_match);
     add_function!(linker, is_pat_match_at);
     add_function!(linker, is_pat_match_in);
     add_function!(linker, lookup_integer);
@@ -532,18 +527,6 @@ pub(crate) fn rule_match(
     bits.set(rule_id as usize, true);
 
     caller.as_context_mut().data_mut().rules_matching.push(rule_id);
-}
-
-/// Invoked from WebAssembly to ask whether a pattern matches or not.
-///
-/// Returns 1 if the pattern identified by `pattern_id` matches, or 0 if
-/// otherwise.
-pub(crate) fn is_pat_match(
-    _caller: Caller<'_, ScanContext>,
-    _pattern_id: PatternId,
-) -> i32 {
-    // TODO
-    0
 }
 
 /// Invoked from WebAssembly to ask whether a pattern matches at a given file
