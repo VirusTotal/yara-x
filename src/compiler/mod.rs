@@ -3,20 +3,22 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
+use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::ops::DerefMut;
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, mem};
 use walrus::ir::{InstrSeqId, UnaryOp};
-use walrus::{Module, ValType};
+use walrus::{InstrSeqBuilder, Module, ValType};
 
 use crate::ast::*;
-use crate::compiler::emit::{catch_undef, emit_bool_expr};
+use crate::compiler::emit::{catch_undef, emit_bool_expr, emit_rule_code};
 use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
-use crate::symbols::{StackedSymbolTable, SymbolLookup};
+use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
 use crate::types::{Struct, TypeValue};
 use crate::warnings::Warning;
 use crate::wasm;
@@ -119,6 +121,10 @@ impl<'a> Compiler<'a> {
         self.warnings.append(&mut ast.warnings);
 
         for ns in ast.namespaces.iter_mut() {
+            // Create the symbol table that will contain the symbols defined
+            // in this namespace, like modules and rules.
+            let namespace_symbols = self.symbol_table.push_new();
+
             // Process import statements. Checks that all imported modules
             // actually exist, and raise warnings in case of duplicated
             // imports.
@@ -126,90 +132,12 @@ impl<'a> Compiler<'a> {
 
             // Iterate over the list of declared rules.
             for rule in ns.rules.iter_mut() {
-                // Create array with pairs (IdentId, PatternId) that describe
-                // the patterns in a compiled rule.
-                let pairs = if let Some(patterns) = &rule.patterns {
-                    let mut pairs = Vec::with_capacity(patterns.len());
-                    for pattern in patterns {
-                        let ident_id = self
-                            .ident_pool
-                            .get_or_intern(pattern.identifier().as_str());
-
-                        // PatternId is the index of the pattern in
-                        // `self.patterns`.
-                        let pattern_id = self.patterns.len() as PatternId;
-
-                        self.patterns.push(Pattern {});
-
-                        pairs.push((ident_id, pattern_id));
-                    }
-                    pairs
-                } else {
-                    Vec::new()
-                };
-
-                let rule_id = self.rules.len() as RuleId;
-
-                self.rules.push(CompiledRule {
-                    ident: self
-                        .ident_pool
-                        .get_or_intern(rule.identifier.as_str()),
-                    patterns: pairs,
-                });
-
-                let mut ctx = Context {
-                    src: &src,
-                    current_struct: None,
-                    symbol_table: &mut self.symbol_table,
-                    ident_pool: &mut self.ident_pool,
-                    lit_pool: &mut self.lit_pool,
-                    report_builder: &self.report_builder,
-                    current_rule: self.rules.last().unwrap(),
-                    wasm_symbols: self.wasm_mod.wasm_symbols(),
-                    warnings: &mut self.warnings,
-                    exception_handler_stack: Vec::new(),
-                    vars_stack_top: 0,
-                    lookup_start: None,
-                    lookup_stack: VecDeque::new(),
-                };
-
-                // Verify that the rule's condition is semantically valid. This
-                // traverses the condition's AST recursively. The condition can
-                // be an expression returning a bool, integer, float or string.
-                // Integer, float and string result are casted to boolean.
-                semcheck!(
-                    &mut ctx,
-                    Type::Bool | Type::Integer | Type::Float | Type::String,
-                    &mut rule.condition
-                )?;
-
-                // However, if the condition's result is not a boolean and must
-                // be casted, raise a warning about it.
-                warning_if_not_boolean(&mut ctx, &rule.condition);
-
-                // TODO: add rule name to declared identifiers.
-
-                // Emit WebAssembly code for the rule's condition.
-                self.wasm_mod.main_fn().block(None, |block| {
-                    catch_undef(&mut ctx, block, |ctx, instr| {
-                        emit_bool_expr(ctx, instr, &rule.condition);
-                    });
-
-                    // If the condition's result is 0, jump out of the block
-                    // and don't call the `rule_result` function.
-                    block.unop(UnaryOp::I32Eqz);
-                    block.br_if(block.id());
-
-                    // RuleId is the argument to `rule_match`.
-                    block.i32_const(rule_id);
-
-                    // Emit call instruction for calling `rule_match`.
-                    block.call(ctx.wasm_symbols.rule_match);
-                });
-
-                // After emitting the whole condition, the stack should be empty.
-                assert_eq!(ctx.vars_stack_top, 0);
+                self.process_rule(rule, &src, &namespace_symbols)?;
             }
+
+            // Remove the symbol table for the current namespace. The next
+            // namespace can't access symbols defined by this namespace.
+            self.symbol_table.pop();
         }
 
         Ok(self)
@@ -261,6 +189,87 @@ impl<'a> Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
+    fn process_rule(
+        &mut self,
+        rule: &mut Rule,
+        src: &SourceCode,
+        symbol_table: &Rc<RefCell<SymbolTable>>,
+    ) -> Result<(), Error> {
+        // Create array with pairs (IdentId, PatternId) that describe
+        // the patterns in a compiled rule.
+        let pairs = if let Some(patterns) = &rule.patterns {
+            let mut pairs = Vec::with_capacity(patterns.len());
+            for pattern in patterns {
+                let ident_id = self
+                    .ident_pool
+                    .get_or_intern(pattern.identifier().as_str());
+
+                // PatternId is the index of the pattern in
+                // `self.patterns`.
+                let pattern_id = self.patterns.len() as PatternId;
+
+                self.patterns.push(Pattern {});
+
+                pairs.push((ident_id, pattern_id));
+            }
+            pairs
+        } else {
+            Vec::new()
+        };
+
+        let rule_id = self.rules.len() as RuleId;
+
+        self.rules.push(CompiledRule {
+            ident: self.ident_pool.get_or_intern(rule.identifier.as_str()),
+            patterns: pairs,
+        });
+
+        let mut ctx = Context {
+            src,
+            current_struct: None,
+            symbol_table: &mut self.symbol_table,
+            ident_pool: &mut self.ident_pool,
+            lit_pool: &mut self.lit_pool,
+            report_builder: &self.report_builder,
+            current_rule: self.rules.last().unwrap(),
+            wasm_symbols: self.wasm_mod.wasm_symbols(),
+            warnings: &mut self.warnings,
+            exception_handler_stack: Vec::new(),
+            vars_stack_top: 0,
+            lookup_start: None,
+            lookup_stack: VecDeque::new(),
+        };
+
+        // Insert symbol of type boolean for the rule. This allows
+        // other rules to make reference to this one.
+        symbol_table.borrow_mut().insert(
+            rule.identifier.as_str(),
+            Symbol::new(TypeValue::Bool(None)),
+        );
+
+        // Verify that the rule's condition is semantically valid. This
+        // traverses the condition's AST recursively. The condition can
+        // be an expression returning a bool, integer, float or string.
+        // Integer, float and string result are casted to boolean.
+        semcheck!(
+            &mut ctx,
+            Type::Bool | Type::Integer | Type::Float | Type::String,
+            &mut rule.condition
+        )?;
+
+        // However, if the condition's result is not a boolean and must
+        // be casted, raise a warning about it.
+        warning_if_not_boolean(&mut ctx, &rule.condition);
+
+        // Emit the code for the rule's condition.
+        emit_rule_code(&mut ctx, &mut self.wasm_mod.main_fn(), rule_id, rule);
+
+        // After emitting the whole condition, the stack should be empty.
+        assert_eq!(ctx.vars_stack_top, 0);
+
+        Ok(())
+    }
+
     fn process_imports(
         &mut self,
         src: &SourceCode,

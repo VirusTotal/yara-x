@@ -195,7 +195,33 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
-/// Emits WebAssembly code for `expr` into the instruction sequence `instr`.
+/// Emits WASM code of a rule.
+pub(super) fn emit_rule_code(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    rule_id: RuleId,
+    rule: &Rule,
+) {
+    // Emit WebAssembly code for the rule's condition.
+    instr.block(None, |block| {
+        catch_undef(ctx, block, |ctx, instr| {
+            emit_bool_expr(ctx, instr, &rule.condition);
+        });
+
+        // If the condition's result is 0, jump out of the block
+        // and don't call the `rule_result` function.
+        block.unop(UnaryOp::I32Eqz);
+        block.br_if(block.id());
+
+        // RuleId is the argument to `rule_match`.
+        block.i32_const(rule_id);
+
+        // Emit call instruction for calling `rule_match`.
+        block.call(ctx.wasm_symbols.rule_match);
+    });
+}
+
+/// Emits WASM code for `expr` into the instruction sequence `instr`.
 pub(super) fn emit_expr(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
@@ -1284,7 +1310,91 @@ pub(super) fn emit_for_in_map(
     for_in: &ForIn,
     map_expr: &Expr,
 ) {
+    // A `for` loop in an map has exactly two variables.
+    assert_eq!(for_in.variables.len(), 2);
+
+    let map = map_expr.type_value().as_map().unwrap();
+
+    let (key, val) = match map.as_ref() {
+        Map::IntegerKeys { deputy, .. } => (
+            TypeValue::Integer(None),
+            deputy.as_ref().unwrap().clone_without_value(),
+        ),
+        Map::StringKeys { deputy, .. } => (
+            TypeValue::String(None),
+            deputy.as_ref().unwrap().clone_without_value(),
+        ),
+    };
+
+    // Create variable `next_key`, which will contain the key that will be
+    // put in the loop variable in the next iteration.
+    let next_key = ctx.new_var(key.ty());
+
+    // Create variable `next_val`, which will contain the value that will be
+    // put in the loop variable in the next iteration.
+    let next_val = ctx.new_var(val.ty());
+
+    // Create a symbol table containing the loop variable.
+    let mut symbol_key = Symbol::new(key);
+    let mut symbol_val = Symbol::new(val);
+
+    symbol_key.kind = SymbolKind::WasmVar(next_key);
+    symbol_val.kind = match next_key.ty {
+        Type::Integer | Type::Float | Type::Bool | Type::String => {
+            SymbolKind::WasmVar(next_val)
+        }
+        Type::Struct | Type::Array => SymbolKind::HostVar(next_val),
+        _ => unreachable!(),
+    };
+
+    let mut loop_vars = SymbolTable::new();
+
+    loop_vars.insert(for_in.variables[0].as_str(), symbol_key);
+    loop_vars.insert(for_in.variables[1].as_str(), symbol_val);
+
+    // Push the symbol table with loop variable on top of the existing symbol
+    // tables.
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    // Emit the expression that lookup the map.
     emit_expr(ctx, instr, map_expr);
+
+    let map_var = ctx.new_var(Type::Map);
+
+    emit_lookup_value(ctx, instr, map_var);
+
+    emit_for(
+        ctx,
+        instr,
+        for_in,
+        |ctx, instr, n, loop_end| {
+            // Initialize `n` to the maps's length.
+            set_var(ctx, instr, n, |ctx, instr| {
+                instr.i32_const(map_var.index);
+                instr.call(ctx.wasm_symbols.map_len);
+            });
+
+            // If n <= 0, exit from the loop.
+            load_var(ctx, instr, n);
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64LeS);
+            instr.if_else(
+                None,
+                |then_| {
+                    then_.i32_const(0);
+                    then_.br(loop_end);
+                },
+                |_| {},
+            );
+        },
+        // Before each iteration.
+        |ctx, instr, i| todo!(),
+        // After each iteration.
+        |_, _, _| todo!(),
+    );
+
+    ctx.symbol_table.pop();
+    ctx.free_vars(next_key);
 }
 
 /// Given an iterator that returns `N` expressions ([`Expr`]), generates a
@@ -1684,14 +1794,14 @@ pub(super) fn emit_lookup_string(
 }
 
 #[inline]
-pub(super) fn emit_lookup_array(
+pub(super) fn emit_lookup_value(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     var: Var,
 ) {
     emit_lookup_common(ctx, instr);
     instr.i32_const(var.index);
-    instr.call(ctx.wasm_symbols.lookup_array);
+    instr.call(ctx.wasm_symbols.lookup_value);
 }
 
 /// Emits code for catching exceptions caused by undefined values.

@@ -179,7 +179,14 @@ impl<'a> StackedSymbolTable<'a> {
         Self { stack: VecDeque::new() }
     }
 
-    /// Pushes a new symbol table to the stack.
+    /// Creates a new symbol table and pushes it into the stack.
+    pub(crate) fn push_new(&mut self) -> Rc<RefCell<SymbolTable>> {
+        let symbol_table = Rc::new(RefCell::new(SymbolTable::new()));
+        self.stack.push_back(symbol_table.clone());
+        symbol_table
+    }
+
+    /// Pushes a new symbol table into the stack.
     pub(crate) fn push(&mut self, symbol_table: Rc<dyn SymbolLookup + 'a>) {
         self.stack.push_back(symbol_table)
     }

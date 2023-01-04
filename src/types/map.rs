@@ -32,4 +32,11 @@ impl Map {
             Map::StringKeys { deputy, .. } => deputy.as_ref().unwrap().clone(),
         }
     }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Map::IntegerKeys { map, .. } => map.len(),
+            Map::StringKeys { map, .. } => map.len(),
+        }
+    }
 }

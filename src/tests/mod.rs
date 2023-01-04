@@ -241,6 +241,31 @@ fn filesize() {
     assert_eq!(scanner.scan(&[1]).matching_rules(), 1);
 }
 
+/*
+#[test]
+fn rule_reuse() {
+    let rules = crate::compiler::Compiler::new()
+        .add_source(
+            r#"
+        rule rule_1 {
+          condition:
+            true
+        }
+        rule rule_2 {
+          condition:
+            rule_1
+        }
+        "#,
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(&[]).matching_rules(), 2);
+}*/
+
 #[test]
 #[cfg(feature = "test_proto2-module")]
 fn test_proto2_module() {

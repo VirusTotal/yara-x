@@ -7,8 +7,10 @@ use std::rc::Rc;
 use bstr::ByteSlice;
 use bstr::{BStr, BString};
 use walrus::ValType;
+use wasmtime::Func;
 
 mod array;
+mod func;
 mod map;
 mod structure;
 
@@ -28,6 +30,7 @@ pub enum Type {
     Struct,
     Array,
     Map,
+    Func,
 }
 
 impl Display for Type {
@@ -48,6 +51,7 @@ impl Debug for Type {
             Self::Struct => write!(f, "struct"),
             Self::Array => write!(f, "array"),
             Self::Map => write!(f, "map"),
+            Self::Func => write!(f, "function"),
         }
     }
 }
@@ -91,6 +95,7 @@ pub enum TypeValue {
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
+    Func(Rc<Func>),
 }
 
 /// Macro that casts a [`TypeValue`] to [`TypeValue::Bool`].
@@ -394,6 +399,7 @@ impl TypeValue {
             Self::Map(_) => Type::Map,
             Self::Struct(_) => Type::Struct,
             Self::Array(_) => Type::Array,
+            Self::Func(_) => Type::Func,
         }
     }
 
@@ -408,6 +414,7 @@ impl TypeValue {
             Self::Map(v) => Self::Map(v.clone()),
             Self::Struct(v) => Self::Struct(v.clone()),
             Self::Array(v) => Self::Array(v.clone()),
+            Self::Func(v) => Self::Func(v.clone()),
         }
     }
 
@@ -492,6 +499,7 @@ impl Debug for TypeValue {
             Self::Map(_) => write!(f, "map"),
             Self::Struct(_) => write!(f, "struct"),
             Self::Array(_) => write!(f, "array"),
+            Self::Func(_) => write!(f, "function"),
         }
     }
 }

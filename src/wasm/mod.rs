@@ -139,8 +139,12 @@ pub(crate) struct WasmSymbols {
     pub is_pat_match_in: walrus::FunctionId,
 
     /// Function that returns the length of an array.
-    /// Signature (context_var_index: i32) -> (i64)
+    /// Signature (host_var_index: i32) -> (i64)
     pub array_len: walrus::FunctionId,
+
+    /// Function that returns the length of an map.
+    /// Signature (host_var_index: i32) -> (i64)
+    pub map_len: walrus::FunctionId,
 
     /// Functions that given a sequence of field indexes, lookup the fields
     /// and return their values.
@@ -148,7 +152,7 @@ pub(crate) struct WasmSymbols {
     pub lookup_float: walrus::FunctionId,
     pub lookup_bool: walrus::FunctionId,
     pub lookup_string: walrus::FunctionId,
-    pub lookup_array: walrus::FunctionId,
+    pub lookup_value: walrus::FunctionId,
 
     pub array_lookup_integer: walrus::FunctionId,
     pub array_lookup_float: walrus::FunctionId,
@@ -461,13 +465,14 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     add_function!(linker, lookup_float);
     add_function!(linker, lookup_string);
     add_function!(linker, lookup_bool);
-    add_function!(linker, lookup_array);
+    add_function!(linker, lookup_value);
     add_function!(linker, array_len);
     add_function!(linker, array_lookup_integer);
     add_function!(linker, array_lookup_float);
     add_function!(linker, array_lookup_bool);
     add_function!(linker, array_lookup_string);
     add_function!(linker, array_lookup_struct);
+    add_function!(linker, map_len);
     add_function!(linker, map_lookup_integer_integer);
     add_function!(linker, map_lookup_string_integer);
     add_function!(linker, map_lookup_integer_float);
@@ -577,14 +582,35 @@ pub(crate) fn is_pat_match_in(
 ///
 /// If the variable doesn't exist or is not an array.
 pub(crate) fn array_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
-    caller
+    let len = caller
         .data()
         .vars_stack
         .get(var as usize)
         .unwrap()
         .as_array()
         .unwrap()
-        .len() as i64
+        .len();
+
+    len as i64
+}
+
+/// Given some local variable containing a map, returns the length of the
+/// map. The local variable is an index within `vars_stack`.
+///
+/// # Panics
+///
+/// If the variable doesn't exist or is not a map.
+pub(crate) fn map_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
+    let len = caller
+        .data()
+        .vars_stack
+        .get(var as usize)
+        .unwrap()
+        .as_map()
+        .unwrap()
+        .len();
+
+    len as i64
 }
 
 macro_rules! lookup_common {
@@ -683,8 +709,8 @@ pub(crate) fn lookup_string(
     string.as_wasm()
 }
 
-pub(crate) fn lookup_array(mut caller: Caller<'_, ScanContext>, var: i32) {
-    let array = lookup_common!(caller, type_value, { type_value.clone() });
+pub(crate) fn lookup_value(mut caller: Caller<'_, ScanContext>, var: i32) {
+    let value = lookup_common!(caller, type_value, { type_value.clone() });
     let index = var as usize;
 
     let vars = &mut caller.data_mut().vars_stack;
@@ -693,7 +719,7 @@ pub(crate) fn lookup_array(mut caller: Caller<'_, ScanContext>, var: i32) {
         vars.resize(index + 1, TypeValue::Unknown);
     }
 
-    vars[index] = array;
+    vars[index] = value;
 }
 
 macro_rules! gen_lookup_fn {

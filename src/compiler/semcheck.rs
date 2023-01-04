@@ -538,9 +538,7 @@ pub(super) fn semcheck_expr(
             Ok(ty)
         }
 
-        Expr::FnCall(_) => {
-            todo!()
-        }
+        Expr::FnCall(fn_call) => semcheck_fn_call(ctx, fn_call),
 
         Expr::Of(of) => semcheck_of(ctx, of),
 
@@ -837,6 +835,15 @@ fn semcheck_iterable(
             Ok(())
         }
     }
+}
+
+fn semcheck_fn_call(
+    ctx: &mut Context,
+    fn_call: &mut FnCall,
+) -> Result<Type, Error> {
+    semcheck!(ctx, Type::Func, &mut fn_call.callable)?;
+
+    todo!()
 }
 
 /// If `expr` is not of type boolean, it raises a warning indicating that the

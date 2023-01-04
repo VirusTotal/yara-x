@@ -78,12 +78,13 @@ impl ModuleBuilder {
         import!(module, str_len, [I64], [I64]);
 
         import!(module, array_len, [I32], [I64]);
+        import!(module, map_len, [I32], [I64]);
 
         import!(module, lookup_integer, [], maybe_undef(I64));
         import!(module, lookup_float, [], maybe_undef(F64));
         import!(module, lookup_bool, [], maybe_undef(I32));
         import!(module, lookup_string, [], [I64]);
-        import!(module, lookup_array, [I32], []);
+        import!(module, lookup_value, [I32], []);
 
         import!(module, array_lookup_integer, [I64, I32], maybe_undef(I64));
         import!(module, array_lookup_float, [I64, I32], maybe_undef(F64));
@@ -113,13 +114,14 @@ impl ModuleBuilder {
             is_pat_match_at,
             is_pat_match_in,
             array_len,
+            map_len,
             lookup_start,
             lookup_stack_top,
             lookup_integer,
             lookup_float,
             lookup_bool,
             lookup_string,
-            lookup_array,
+            lookup_value,
             array_lookup_integer,
             array_lookup_float,
             array_lookup_bool,
