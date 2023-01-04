@@ -10,6 +10,7 @@ use walrus::{InstrSeqBuilder, ValType};
 use crate::ast::{
     Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range, Rule,
 };
+use crate::compiler::{Context, RuleId, Var};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Array, Map, Type, TypeValue};
 use crate::wasm::{
