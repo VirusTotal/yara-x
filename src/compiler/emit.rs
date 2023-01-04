@@ -3,6 +3,7 @@ use std::mem::size_of;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
+use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
@@ -14,7 +15,8 @@ use crate::compiler::{Context, RuleId, Var};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Array, Map, Type, TypeValue};
 use crate::wasm::{
-    RuntimeString, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, VARS_STACK_START,
+    RuntimeString, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START,
+    MATCHING_RULES_BITMAP_BASE, VARS_STACK_START,
 };
 
 /// This macro emits a constant if the [`TypeValue`] indicates that the
@@ -277,7 +279,41 @@ pub(super) fn emit_expr(
 
                 match symbol.kind {
                     SymbolKind::Unknown => {
-                        unreachable!("symbol location must be known while emitting code")
+                        unreachable!(
+                            "symbol kind must be known while emitting code"
+                        )
+                    }
+                    SymbolKind::Rule(rule_id) => {
+                        // Starting at MATCHING_RULES_BITMAP_BASE there's a
+                        // bitmap where the N-th bit corresponds to the rule
+                        // with RuleId = N. If the bit is 1 the rule matched.
+                        //
+                        // Notice that the bits in a byte are numbered starting
+                        // from the least significant bit (LSB). So, the bit
+                        // corresponding to RuleId = 0, is the LSB of the byte
+                        // at MATCHING_RULES_BITMAP_BASE.
+                        //
+                        // The first thing is loading the byte where the bit
+                        // resides..
+                        instr.i32_const(rule_id / 8);
+                        instr.load(
+                            ctx.wasm_symbols.main_memory,
+                            LoadKind::I32_8 { kind: ZeroExtend },
+                            MemArg {
+                                align: size_of::<i8>() as u32,
+                                offset: MATCHING_RULES_BITMAP_BASE as u32,
+                            },
+                        );
+                        // This is the first operator for the I32ShrU operation.
+                        instr.i32_const(rule_id % 8);
+                        // Compute byte & (1 << (rule_id % 8)), which clears all
+                        // bits except the one we are interested in.
+                        instr.i32_const(1 << (rule_id % 8));
+                        instr.binop(BinaryOp::I32And);
+                        // Now shift the byte to the right, leaving the
+                        // interesting bit as the LSB. So the result is either
+                        // 1 or 0.
+                        instr.binop(BinaryOp::I32ShrU);
                     }
                     SymbolKind::WasmVar(var) => {
                         // The symbol represents a variable in WASM memory,

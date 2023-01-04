@@ -5,20 +5,21 @@ module implements the YARA compiler.
 */
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::ops::DerefMut;
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, mem};
-use walrus::ir::{InstrSeqId, UnaryOp};
-use walrus::{InstrSeqBuilder, Module, ValType};
+use walrus::ir::InstrSeqId;
+use walrus::{Module, ValType};
 
 use crate::ast::*;
-use crate::compiler::emit::{catch_undef, emit_bool_expr, emit_rule_code};
+use crate::compiler::emit::emit_rule_code;
 use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
 use crate::parser::{ErrorInfo as ParserError, Parser, SourceCode};
 use crate::report::ReportBuilder;
 use crate::string_pool::{BStringPool, StringPool};
-use crate::symbols::{StackedSymbolTable, Symbol, SymbolLookup, SymbolTable};
+use crate::symbols::{
+    StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
+};
 use crate::types::{Struct, TypeValue};
 use crate::warnings::Warning;
 use crate::wasm;
@@ -27,6 +28,7 @@ use crate::wasm::WasmSymbols;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
+use crate::modules::BUILTIN_MODULES;
 
 mod emit;
 mod errors;
@@ -72,6 +74,11 @@ pub struct Compiler<'a> {
     /// the [`IdentId`] corresponding to the module's identifier.
     imported_modules: Vec<IdentId>,
 
+    /// Structure where each field corresponds to a module imported by the
+    /// rules. The value of each field is the structure that describes the
+    /// module.
+    modules_struct: Struct,
+
     /// Warnings generated while compiling the rules.
     warnings: Vec<Warning>,
 }
@@ -84,6 +91,7 @@ impl<'a> Compiler<'a> {
             rules: Vec::new(),
             patterns: Vec::new(),
             imported_modules: Vec::new(),
+            modules_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
             ident_pool: StringPool::new(),
             lit_pool: BStringPool::new(),
@@ -128,7 +136,7 @@ impl<'a> Compiler<'a> {
             // Process import statements. Checks that all imported modules
             // actually exist, and raise warnings in case of duplicated
             // imports.
-            self.process_imports(&src, &ns.imports)?;
+            self.process_imports(&src, &ns.imports, &namespace_symbols)?;
 
             // Iterate over the list of declared rules.
             for rule in ns.rules.iter_mut() {
@@ -193,7 +201,7 @@ impl<'a> Compiler<'a> {
         &mut self,
         rule: &mut Rule,
         src: &SourceCode,
-        symbol_table: &Rc<RefCell<SymbolTable>>,
+        namespace_symbols: &Rc<RefCell<SymbolTable>>,
     ) -> Result<(), Error> {
         // Create array with pairs (IdentId, PatternId) that describe
         // the patterns in a compiled rule.
@@ -242,10 +250,14 @@ impl<'a> Compiler<'a> {
 
         // Insert symbol of type boolean for the rule. This allows
         // other rules to make reference to this one.
-        symbol_table.borrow_mut().insert(
-            rule.identifier.as_str(),
-            Symbol::new(TypeValue::Bool(None)),
-        );
+        let mut symbol = Symbol::new(TypeValue::Bool(None));
+
+        symbol.kind = SymbolKind::Rule(rule_id);
+
+        namespace_symbols
+            .as_ref()
+            .borrow_mut()
+            .insert(rule.identifier.as_str(), symbol);
 
         // Verify that the rule's condition is semantically valid. This
         // traverses the condition's AST recursively. The condition can
@@ -274,33 +286,50 @@ impl<'a> Compiler<'a> {
         &mut self,
         src: &SourceCode,
         imports: &[Import],
+        namespace_symbols: &Rc<RefCell<SymbolTable>>,
     ) -> Result<(), Error> {
-        // Structure where each field has the name of some imported module and
-        // its value the module's root structure.
-        let mut modules_struct = Struct::new();
-
         // Iterate over the list of imported modules.
         for import in imports.iter() {
             // Does the imported module actually exist? ...
-            if let Some(module) = crate::modules::BUILTIN_MODULES
-                .get(import.module_name.as_str())
+            if let Some(module) =
+                BUILTIN_MODULES.get(import.module_name.as_str())
             {
+                let module_name = import.module_name.as_str();
                 // ... if yes, add the module to the list of imported modules
                 // and the symbol table.
-                self.imported_modules.push(
-                    self.ident_pool.get_or_intern(import.module_name.as_str()),
-                );
 
-                let root_struct = Struct::from_proto_descriptor_and_msg(
+                self.imported_modules
+                    .push(self.ident_pool.get_or_intern(module_name));
+
+                // Create the structure that describes the module.
+                let module_struct = Struct::from_proto_descriptor_and_msg(
                     &module.root_struct_descriptor,
                     None,
                     true,
                 );
 
-                modules_struct.insert(
-                    import.module_name.as_str(),
-                    TypeValue::Struct(Rc::new(root_struct)),
+                let module_struct = TypeValue::Struct(Rc::new(module_struct));
+
+                // Insert the module in the struct that contains all imported
+                // modules. This struct contains all modules imported, from
+                // all namespaces.
+                self.modules_struct.insert(module_name, module_struct.clone());
+
+                // Create a symbol for the module and insert it in the symbol
+                // table for this namespace.
+                let mut symbol = Symbol::new(module_struct);
+
+                symbol.kind = SymbolKind::FieldIndex(
+                    self.modules_struct
+                        .field_by_name(module_name)
+                        .unwrap()
+                        .index,
                 );
+
+                namespace_symbols
+                    .as_ref()
+                    .borrow_mut()
+                    .insert(module_name, symbol);
             } else {
                 // ... if no, that's an error.
                 return Err(Error::CompileError(
@@ -313,8 +342,6 @@ impl<'a> Compiler<'a> {
                 ));
             }
         }
-
-        self.symbol_table.push(Rc::new(modules_struct));
 
         Ok(())
     }

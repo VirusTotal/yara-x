@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
-use crate::compiler::Var;
+use crate::compiler::{RuleId, Var};
 use crate::types::{Type, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
@@ -30,6 +30,8 @@ pub(crate) enum SymbolKind {
     HostVar(Var),
     /// The symbol refers to some field in a structure.
     FieldIndex(i32),
+    /// The symbol refers to a rule.
+    Rule(RuleId),
 }
 
 impl Symbol {
