@@ -6,28 +6,35 @@ use std::rc::Rc;
 use crate::compiler::Var;
 use crate::types::{Type, TypeValue};
 
-/// Trait implemented by types that allow looking up for an identifier.
+/// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Symbol {
     pub type_value: TypeValue,
-    pub location: Location,
+    pub kind: SymbolKind,
 }
 
-#[derive(Clone)]
-pub(crate) enum Location {
-    None,
+/// Kinds of symbol.
+///
+/// Used by the compiler to determine how to generate code that
+/// accesses the symbol.
+#[derive(Clone, Debug)]
+pub(crate) enum SymbolKind {
+    Unknown,
+    /// The symbol refers to a variable stored in WASM memory.
     WasmVar(Var),
+    /// The symbol refers to a variable stored in the host.
     HostVar(Var),
+    /// The symbol refers to some field in a structure.
     FieldIndex(i32),
 }
 
 impl Symbol {
     pub fn new(type_value: TypeValue) -> Self {
-        Self { type_value, location: Location::None }
+        Self { type_value, kind: SymbolKind::Unknown }
     }
 
     #[inline(always)]
@@ -98,6 +105,7 @@ impl SymbolLookup for Option<Symbol> {
 /// [`Symbol`] will be of type [`Type::Struct`], which encapsulates another
 /// object that also implements the [`SymbolLookup`] trait, possibly another
 /// [`SymbolTable`].
+#[derive(Debug)]
 pub(crate) struct SymbolTable {
     map: HashMap<String, Symbol>,
 }

@@ -501,7 +501,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
 }
 
 /// Represents a local variable returned by [`Context::new_var`].
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct Var {
     ty: Type,
     index: i32,

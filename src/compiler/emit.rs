@@ -7,9 +7,10 @@ use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
 
-use crate::ast::{Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range};
-use crate::compiler::{Context, Var};
-use crate::symbols::{Location, Symbol, SymbolLookup, SymbolTable};
+use crate::ast::{
+    Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range, Rule,
+};
+use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Array, Map, Type, TypeValue};
 use crate::wasm::{
     RuntimeString, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, VARS_STACK_START,
@@ -247,21 +248,21 @@ pub(super) fn emit_expr(
                     ctx.symbol_table.lookup(ident.name).unwrap()
                 };
 
-                match symbol.location {
-                    Location::None => {
+                match symbol.kind {
+                    SymbolKind::Unknown => {
                         unreachable!("symbol location must be known while emitting code")
                     }
-                    Location::WasmVar(var) => {
+                    SymbolKind::WasmVar(var) => {
                         // The symbol represents a variable in WASM memory,
                         // emit code for loading its value into the stack.
                         load_var(ctx, instr, var);
                     }
-                    Location::HostVar(var) => {
+                    SymbolKind::HostVar(var) => {
                         // The symbol represents a host-side variable, so it must
                         // be a structure, map or array.
                         ctx.lookup_start = Some(var);
                     }
-                    Location::FieldIndex(index) => {
+                    SymbolKind::FieldIndex(index) => {
                         match ident.ty() {
                             Type::Integer => {
                                 emit_lookup_integer(ctx, instr, index);
@@ -1094,7 +1095,7 @@ pub(super) fn emit_for_in_range(
     // Associate the symbol with the memory location where `next_item` is
     // stored. Everytime that the loop variable is used in the condition,
     // it will refer to the value stored in `next_item`.
-    symbol.location = Location::WasmVar(next_item);
+    symbol.kind = SymbolKind::WasmVar(next_item);
 
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
@@ -1206,9 +1207,9 @@ pub(super) fn emit_for_in_array(
     // stored. Everytime that the loop variable is used in the condition,
     // it will refer to the value stored in `next_item`.
     if is_wasm_var {
-        symbol.location = Location::WasmVar(next_item);
+        symbol.kind = SymbolKind::WasmVar(next_item);
     } else {
-        symbol.location = Location::HostVar(next_item);
+        symbol.kind = SymbolKind::HostVar(next_item);
     }
 
     loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
@@ -1222,7 +1223,7 @@ pub(super) fn emit_for_in_array(
 
     let array_var = ctx.new_var(Type::Array);
 
-    emit_lookup_array(ctx, instr, array_var);
+    emit_lookup_value(ctx, instr, array_var);
 
     emit_for(
         ctx,
@@ -1392,7 +1393,7 @@ pub(super) fn emit_for_in_expr_tuple(
         expressions.first().unwrap().type_value().clone_without_value(),
     );
 
-    symbol.location = Location::WasmVar(next_item);
+    symbol.kind = SymbolKind::WasmVar(next_item);
 
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
@@ -1499,7 +1500,7 @@ pub(super) fn incr_var(
     });
 }
 
-/// Emits WebAssembly code for boolean expression `expr` into the instruction
+/// Emits WASM code for boolean expression `expr` into the instruction
 /// sequence `instr`. If `expr` doesn't return a boolean its result is casted
 /// to a boolean as follows:
 ///
