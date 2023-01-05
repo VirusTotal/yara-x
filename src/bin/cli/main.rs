@@ -1,5 +1,5 @@
 use std::fs;
-use std::fs::metadata;
+use std::fs::{metadata, File};
 use std::io::{stdin, stdout};
 use std::path::PathBuf;
 
@@ -284,11 +284,14 @@ fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
 
 fn cmd_format(args: &ArgMatches) -> anyhow::Result<()> {
     let files = args.get_many::<PathBuf>("FILE");
-
     let formatter = formatter::Formatter::new();
 
     if let Some(files) = files {
-        println!("{:?}", files);
+        for file in files {
+            let input = fs::read(file.as_path())?;
+            let output = File::create(file.as_path())?;
+            formatter.format(input.as_slice(), output)?;
+        }
     } else {
         formatter.format(stdin(), stdout())?;
     }
