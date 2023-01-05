@@ -9,6 +9,7 @@ use crate::{modules, wasm};
 use bitvec::prelude::*;
 use memmap::MmapOptions;
 
+use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use std::fs::File;
 use std::path::Path;
 use std::ptr::null;
@@ -146,34 +147,34 @@ impl<'r> Scanner<'r> {
 
     /// Scans a data buffer.
     pub fn scan<'s>(&'s mut self, data: &[u8]) -> ScanResults<'s, 'r> {
+        let ctx = self.wasm_store.data_mut();
+
         // Get the number of rules.
-        let num_rules = self.wasm_store.data().compiled_rules.rules().len();
+        let num_rules = ctx.compiled_rules.rules().len();
+
+        // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
+        // were the N-th bit indicates if the rule with ID = N matched or not.
+        // If some rule matched in a previous call the bitmap will contain some
+        // bits set to 1 and need to be cleared.
+        if !ctx.rules_matching.is_empty() {
+            // Clear the list of matching rules.
+            ctx.rules_matching.clear();
+            let offset = wasm::MATCHING_RULES_BITMAP_BASE as usize;
+            let mem = ctx.main_memory.unwrap().data_mut(&mut self.wasm_store);
+            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
+                &mut mem[offset..offset + num_rules / 8 + 1],
+            );
+            // Set to zero all bits in the bitmap.
+            bitmap.fill(false);
+        }
 
         // Set the global variable `filesize` to the size of the scanned data.
         self.filesize
             .set(&mut self.wasm_store, Val::I64(data.len() as i64))
             .unwrap();
 
-        let main_memory = self
-            .wasm_store
-            .data_mut()
-            .main_memory
-            .unwrap()
-            .data_mut(&mut self.wasm_store);
-
-        // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
-        // were the N-th bit indicates if the rule with ID = N matched or not.
-        let offset = wasm::MATCHING_RULES_BITMAP_BASE as usize;
-        let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
-            &mut main_memory[offset..offset + num_rules / 8 + 1],
-        );
-
-        // Set to zero all bits in the bitmap.
-        bitmap.fill(false);
-
         let ctx = self.wasm_store.data_mut();
 
-        ctx.rules_matching.clear();
         ctx.scanned_data = data.as_ptr();
         ctx.scanned_data_len = data.len();
 
@@ -313,7 +314,9 @@ impl<'s, 'r> IterNonMatches<'s, 'r> {
             .unwrap()
             .data(&scanner.wasm_store);
 
-        let bits = BitSlice::<_, Lsb0>::from_slice(&main_memory[2048..]);
+        let bits = BitSlice::<_, Lsb0>::from_slice(
+            &main_memory[MATCHING_RULES_BITMAP_BASE as usize..],
+        );
 
         Self {
             iterator: bits.iter_zeros(),
