@@ -181,6 +181,7 @@ where
         if token.is_none() {
             return;
         }
+
         let token = token.unwrap();
 
         if let Token::End(rule) = token {

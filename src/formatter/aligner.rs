@@ -23,11 +23,11 @@ use crate::formatter::tokens::{Token, TokenStream};
 ///     $even_longer = "baz"
 /// ```
 ///
-/// This is done by inserting an [`AlignmentMarker`] in front of every equal sign
-/// token in a rule declaration, and enclosing all the declarations in a block
-/// using the [`AlignmentBlockBegin`] and [`AlignmentBlockEnd`] tokens for
-/// indicating the block's start and ending point. Once this done, the resulting
-/// token stream is passed to [`Aligner`].
+/// This is done by inserting an [`AlignmentMarker`] in front of every equal
+/// sign token in a rule declaration, and enclosing all the declarations in
+/// a block using the [`AlignmentBlockBegin`] and [`AlignmentBlockEnd`] tokens
+/// for indicating the block's start and ending point. Once this is done, the
+/// resulting token stream is passed to [`Aligner`].
 ///
 /// Notice that [`Aligner`] requires that the input stream already contains  
 /// at least one newline token after each pattern declaration.
