@@ -1,7 +1,5 @@
-//! Automatic formatting of YARA rules.
-//!
-//! This crate implements a formatter for YARA rules, in the spirit of other
-//! tools like `rustfmt` and `gofmt`.
+//! This crate implements a code formatter for YARA rules, in the spirit of
+//! other tools like `rustfmt` and `gofmt`.
 //!
 //! # Usage
 //!
@@ -35,19 +33,19 @@ mod trailing_spaces;
 #[cfg(test)]
 mod tests;
 
-/// Represents the errors returned by [`Formatter::format`].
+/// Errors returned by [`Formatter::format`].
 #[derive(Error, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum Error {
-    /// Represents a failure while reading from input.
+    /// Error while reading from input.
     #[error("Read error")]
     ReadError(io::Error),
 
-    /// Represents a failure while writing to output.
+    /// Error while writing to output.
     #[error("Write error")]
     WriteError(io::Error),
 
-    /// Represents a failure while parsing the input.
+    /// Error while parsing the input.
     #[error("Parse error")]
     ParseError(#[from] yara_x_parser::Error),
 }
@@ -75,10 +73,16 @@ impl Formatter {
         self
     }
 
+    /// Reads YARA source code from `input` and write it into `output` after
+    /// formatting.
+    ///
+    /// This function will fail if it can't read from the input, write to the
+    /// output, or when the input doesn't contain syntactically valid YARA
+    /// rules.
     pub fn format<R, W>(&self, mut input: R, output: W) -> Result<(), Error>
     where
-        R: std::io::Read,
-        W: std::io::Write,
+        R: io::Read,
+        W: io::Write,
     {
         let mut buf = String::new();
 
