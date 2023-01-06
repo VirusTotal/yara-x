@@ -1,4 +1,46 @@
-/*! Concrete Syntax Tree (CST) for YARA rules.*/
+/*! Concrete Syntax Tree (CST) for YARA rules.
+
+ # Example
+
+```rust
+use yara_x_parser::{Parser, GrammarRule};
+let rule = r#"
+ rule test {
+   condition:
+     true
+ }
+"#;
+
+let mut cst = Parser::new().build_cst(rule).unwrap();
+
+// The CST is an iterator that returns nodes of type CSTNode. At the top
+// level the iterator returns a single node, corresponding to the grammar
+// rule source_file`, which is the grammar's top-level rule.
+let root = cst.next().unwrap();
+
+// The top-level rule is always `GrammarRule::source_file`.
+assert_eq!(root.as_rule(), GrammarRule::source_file);
+
+// With the `into_inner` method we obtain a new CST with the children of
+// the top-level node. At this level there are three possible grammar
+// rules, `import_stmt` and `rule_decl` and `EOI` (end-of-input).
+for child in root.into_inner() {
+    match child.as_rule() {
+        GrammarRule::import_stmt => {
+            // import statement
+        },
+        GrammarRule::rule_decl => {
+            // rule declaration
+        },
+        GrammarRule::EOI => {
+            // end of input
+        },
+        _ => unreachable!()
+    }
+}
+```
+
+*/
 
 use std::fmt::Debug;
 
@@ -108,8 +150,11 @@ impl<'src, T> PairsIterator<'src> for T where
 
 /// A Concrete Syntax Tree (CST) for YARA rules.
 ///
-/// A CST is a tree where each node corresponds to a grammar rule. YARA's
-/// grammar can be found in `src/parser/grammar.pest` file.
+/// A CST is a tree where each node corresponds to a grammar rule in the
+/// [`GrammarRule`] enum. This structure is actually an iterator that returns
+/// tree nodes as instances of [`CSTNode`]. In turn, each [`CSTNode`] has a
+/// [`CSTNode::into_inner`] method that returns a [`CST`] for iterating the
+/// children of that node.
 pub struct CST<'src> {
     pub(crate) comments: bool,
     pub(crate) whitespaces: bool,

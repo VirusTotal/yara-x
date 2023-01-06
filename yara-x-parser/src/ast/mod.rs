@@ -1,4 +1,20 @@
-/*! Abstract Syntax Tree (AST) for YARA rules.*/
+/*! Abstract Syntax Tree (AST) for YARA rules.
+
+# Example
+
+```rust
+use yara_x_parser::{Parser, GrammarRule};
+let rule = r#"
+ rule test {
+   condition:
+     true
+ }
+"#;
+
+let ast = Parser::new().build_ast(rule).unwrap();
+```
+
+*/
 #[cfg(feature = "ascii-tree")]
 mod ascii_tree;
 mod span;
@@ -76,7 +92,7 @@ bitmask! {
 /// An import statement.
 #[derive(Debug, HasSpan)]
 pub struct Import {
-    pub(crate) span: Span,
+    pub span: Span,
     pub module_name: String,
 }
 
@@ -199,7 +215,7 @@ impl Display for PatternModifier<'_> {
 /// A text pattern (a.k.a text string) in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct TextPattern<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub identifier: Ident<'src>,
     pub value: Cow<'src, BStr>,
     pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
@@ -208,7 +224,7 @@ pub struct TextPattern<'src> {
 /// A regular expression pattern in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct RegexpPattern<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub identifier: Ident<'src>,
     pub regexp: Regexp<'src>,
     pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
@@ -217,7 +233,7 @@ pub struct RegexpPattern<'src> {
 /// A hex pattern (a.k.a hex string) in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct HexPattern<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub identifier: Ident<'src>,
     pub tokens: HexTokens,
     pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
@@ -450,7 +466,7 @@ pub enum Expr<'src> {
 /// A pattern match expression (e.g. `$a`, `$b at 0`, `$c in (0..10)`).
 #[derive(Debug, HasSpan)]
 pub struct PatternMatch<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub identifier: Ident<'src>,
     pub anchor: Option<MatchAnchor<'src>>,
 }
@@ -468,14 +484,14 @@ pub enum MatchAnchor<'src> {
 /// (e.g. `at <expr>`).
 #[derive(Debug, HasSpan)]
 pub struct At<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub expr: Expr<'src>,
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
 #[derive(Debug, HasSpan)]
 pub struct Range<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub lower_bound: Expr<'src>,
     pub upper_bound: Expr<'src>,
 }
@@ -484,14 +500,15 @@ pub struct Range<'src> {
 /// e.g. `in <range>`).
 #[derive(Debug, HasSpan)]
 pub struct In<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub range: Range<'src>,
 }
 
 /// An identifier (e.g. `some_ident`).
 #[derive(Debug, Clone, HasSpan)]
 pub struct Ident<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
+    #[doc(hidden)]
     pub type_value: TypeValue,
     pub name: &'src str,
 }
@@ -520,9 +537,9 @@ impl<'src> Ident<'src> {
         self.type_value.ty()
     }
 
-    pub fn set_type_and_value(&mut self, type_value: TypeValue) -> &Self {
+    #[doc(hidden)]
+    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
         let current_ty = self.type_value.ty();
-
         if current_ty != Type::Unknown && current_ty != type_value.ty() {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
@@ -553,7 +570,7 @@ impl<'src> From<CSTNode<'src>> for Ident<'src> {
 /// represented by this struct.
 #[derive(Debug, HasSpan)]
 pub struct IdentWithRange<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub name: &'src str,
     pub range: Option<Range<'src>>,
 }
@@ -565,7 +582,7 @@ pub struct IdentWithRange<'src> {
 /// represented by this struct.
 #[derive(Debug, HasSpan)]
 pub struct IdentWithIndex<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub name: &'src str,
     pub index: Option<Expr<'src>>,
 }
@@ -576,8 +593,8 @@ pub struct IdentWithIndex<'src> {
 /// of a `matches` operator.
 #[derive(Debug, HasSpan)]
 pub struct Regexp<'src> {
-    /// Type of the literal type and value.
-    pub(crate) span: Span,
+    pub span: Span,
+    #[doc(hidden)]
     pub type_value: TypeValue,
     pub regexp: &'src str,
     pub case_insensitive: bool,
@@ -587,8 +604,8 @@ pub struct Regexp<'src> {
 /// A literal value of any type (e.g: `1`, `2.0`, `"abcd"`, `true`).
 #[derive(Debug, HasSpan)]
 pub struct Literal<'src> {
-    /// Type of the literal type and value.
-    pub(crate) span: Span,
+    pub span: Span,
+    #[doc(hidden)]
     pub type_value: TypeValue,
     /// The literal value as it appears in the source code.
     pub literal: &'src str,
@@ -613,7 +630,8 @@ impl<'src> Literal<'src> {
 /// An expression with a single operand.
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
+    #[doc(hidden)]
     pub type_value: TypeValue,
     pub operand: Expr<'src>,
 }
@@ -633,9 +651,9 @@ impl<'src> UnaryExpr<'src> {
         self.type_value.ty()
     }
 
-    pub fn set_type_and_value(&mut self, type_value: TypeValue) -> &Self {
+    #[doc(hidden)]
+    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
         let current_ty = self.type_value.ty();
-
         if current_ty != Type::Unknown && current_ty != type_value.ty() {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
@@ -651,6 +669,7 @@ impl<'src> UnaryExpr<'src> {
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
+    #[doc(hidden)]
     pub type_value: TypeValue,
     /// Left-hand side.
     pub lhs: Expr<'src>,
@@ -673,9 +692,9 @@ impl<'src> BinaryExpr<'src> {
         self.type_value.ty()
     }
 
-    pub fn set_type_and_value(&mut self, type_value: TypeValue) -> &Self {
+    #[doc(hidden)]
+    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
         let current_ty = self.type_value.ty();
-
         if current_ty != Type::Unknown && current_ty != type_value.ty() {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
@@ -691,7 +710,7 @@ impl<'src> BinaryExpr<'src> {
 /// An expression representing a function call.
 #[derive(Debug, HasSpan)]
 pub struct FnCall<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub callable: Expr<'src>,
     pub args: Vec<Expr<'src>>,
 }
@@ -699,7 +718,8 @@ pub struct FnCall<'src> {
 /// A lookup operation in an array or dictionary.
 #[derive(Debug, HasSpan)]
 pub struct Lookup<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
+    #[doc(hidden)]
     pub type_value: TypeValue,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
@@ -721,9 +741,9 @@ impl<'src> Lookup<'src> {
         self.type_value.ty()
     }
 
-    pub fn set_type_and_value(&mut self, type_value: TypeValue) -> &Self {
+    #[doc(hidden)]
+    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
         let current_ty = self.type_value.ty();
-
         if current_ty != Type::Unknown && current_ty != type_value.ty() {
             panic!(
                 "setting type `{:?}` to expression that was previously `{:?}",
@@ -731,7 +751,6 @@ impl<'src> Lookup<'src> {
                 current_ty
             );
         }
-
         self.type_value = type_value;
         self
     }
@@ -741,7 +760,7 @@ impl<'src> Lookup<'src> {
 /// `any of (true, false)`)
 #[derive(Debug, HasSpan)]
 pub struct Of<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub quantifier: Quantifier<'src>,
     pub items: OfItems<'src>,
     pub anchor: Option<MatchAnchor<'src>>,
@@ -751,7 +770,7 @@ pub struct Of<'src> {
 /// `for 1 of ($a,$b) : (..)`)
 #[derive(Debug, HasSpan)]
 pub struct ForOf<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub quantifier: Quantifier<'src>,
     pub pattern_set: PatternSet<'src>,
     pub condition: Expr<'src>,
@@ -760,7 +779,7 @@ pub struct ForOf<'src> {
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
 #[derive(Debug, HasSpan)]
 pub struct ForIn<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub quantifier: Quantifier<'src>,
     pub variables: Vec<Ident<'src>>,
     pub iterable: Iterable<'src>,
@@ -814,7 +833,7 @@ pub enum PatternSet<'src> {
 /// [`PatternSetItem`].
 #[derive(Debug, HasSpan)]
 pub struct PatternSetItem<'src> {
-    pub(crate) span: Span,
+    pub span: Span,
     pub identifier: &'src str,
 }
 
@@ -838,6 +857,7 @@ impl<'src> Expr<'src> {
         self.type_value().ty()
     }
 
+    #[doc(hidden)]
     pub fn type_value(&self) -> &TypeValue {
         match self {
             Expr::FieldAccess(expr)

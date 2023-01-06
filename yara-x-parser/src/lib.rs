@@ -20,60 +20,6 @@ applied, providing a more accurate representation of expressions.
 
 Deciding whether to use a CST or AST depends on the kind of problem you want
 to solve.
-
-# Examples
-
-Building a CST...
-
-```
-use yara_x_parser::{Parser, GrammarRule};
-let rule = r#"
- rule test {
-   condition:
-     true
- }
-"#;
-
-let mut cst = Parser::new().build_cst(rule).unwrap();
-
-// The CST is an iterator that returns nodes of type CSTNode. At the top level
-// the iterator returns a single node, corresponding to the grammar rule
-// source_file, which is the grammar's top-level rule.
-let root = cst.next().unwrap();
-assert_eq!(root.as_rule(), GrammarRule::source_file);
-
-// With into_inner we get another CST with the children of the top-level node.
-// At this level there are two possible grammar rules, import_stmt and rule_decl
-for child in root.into_inner() {
-    match child.as_rule() {
-        GrammarRule::import_stmt => {
-            // import statement
-        },
-        GrammarRule::rule_decl => {
-            // rule declaration
-        },
-        GrammarRule::EOI => {
-            // end of input
-        },
-        _ => unreachable!()
-    }
-}
-```
-
-Building an AST...
-
-
-```
-use yara_x_parser::{Parser, GrammarRule};
-let rule = r#"
- rule test {
-   condition:
-     true
- }
-"#;
-
-let ast = Parser::new().build_ast(rule).unwrap();
-```
  */
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

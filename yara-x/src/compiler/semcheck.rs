@@ -137,7 +137,7 @@ macro_rules! gen_semcheck_boolean_op {
             let type_value = expr.lhs.type_value().$op(expr.rhs.type_value());
             let ty = type_value.ty();
 
-            expr.set_type_and_value(type_value);
+            expr.set_type_value(type_value);
 
             Ok(ty)
         }
@@ -167,7 +167,7 @@ macro_rules! gen_semcheck_comparison_op {
             let type_value = expr.lhs.type_value().$op(expr.rhs.type_value());
             let ty = type_value.ty();
 
-            expr.set_type_and_value(type_value);
+            expr.set_type_value(type_value);
             Ok(ty)
         }
     };
@@ -213,7 +213,7 @@ macro_rules! gen_semcheck_shift_op {
             let type_value = expr.lhs.type_value().$op(rhs_type_value);
             let ty = type_value.ty();
 
-            expr.set_type_and_value(type_value);
+            expr.set_type_value(type_value);
             Ok(ty)
         }
     };
@@ -239,7 +239,7 @@ macro_rules! gen_semcheck_bitwise_op {
             let type_value = expr.lhs.type_value().$op(expr.rhs.type_value());
             let ty = type_value.ty();
 
-            expr.set_type_and_value(type_value);
+            expr.set_type_value(type_value);
             Ok(ty)
         }
     };
@@ -271,7 +271,7 @@ macro_rules! gen_semcheck_string_op {
 
             let ty = type_value.ty();
 
-            expr.set_type_and_value(type_value);
+            expr.set_type_value(type_value);
             Ok(ty)
         }
     };
@@ -299,7 +299,7 @@ macro_rules! gen_semcheck_arithmetic_op {
              let type_value = expr.lhs.type_value().$op(expr.rhs.type_value());
              let ty = type_value.ty();
 
-             expr.set_type_and_value(type_value);
+             expr.set_type_value(type_value);
              Ok(ty)
         }
     };
@@ -407,7 +407,7 @@ pub(super) fn semcheck_expr(
                 &mut expr.operand
             )?;
             let type_value = expr.operand.type_value().not();
-            expr.set_type_and_value(type_value);
+            expr.set_type_value(type_value);
             Ok(Type::Bool)
         }
 
@@ -427,7 +427,7 @@ pub(super) fn semcheck_expr(
         Expr::BitwiseNot(expr) => {
             semcheck!(ctx, Type::Integer, &mut expr.operand)?;
             let type_value = expr.operand.type_value().bitwise_not();
-            expr.set_type_and_value(type_value);
+            expr.set_type_value(type_value);
             Ok(Type::Integer)
         }
 
@@ -442,7 +442,7 @@ pub(super) fn semcheck_expr(
                 &mut expr.operand
             )?;
             let type_value = expr.operand.type_value().minus();
-            expr.set_type_and_value(type_value);
+            expr.set_type_value(type_value);
             Ok(ty)
         }
 
@@ -467,7 +467,7 @@ pub(super) fn semcheck_expr(
             match expr.primary.type_value() {
                 TypeValue::Array(array) => {
                     semcheck!(ctx, Type::Integer, &mut expr.index)?;
-                    expr.set_type_and_value(array.deputy());
+                    expr.set_type_value(array.deputy());
                     Ok(expr.ty())
                 }
                 TypeValue::Map(map) => {
@@ -504,7 +504,7 @@ pub(super) fn semcheck_expr(
 
                     // The type of the Lookup expression (i.e: map[key])
                     // is the type of the map's values.
-                    expr.set_type_and_value(deputy_value.clone());
+                    expr.set_type_value(deputy_value.clone());
 
                     Ok(expr.ty())
                 }
@@ -535,7 +535,7 @@ pub(super) fn semcheck_expr(
 
             // The result of a field access is the result of the right-hand
             // expression (i.e: the field).
-            expr.set_type_and_value(expr.rhs.type_value().clone());
+            expr.set_type_value(expr.rhs.type_value().clone());
 
             Ok(ty)
         }
@@ -721,7 +721,7 @@ fn semcheck_ident(
     };
 
     let ty = type_value.ty();
-    ident.set_type_and_value(type_value);
+    ident.set_type_value(type_value);
 
     Ok(ty)
 }

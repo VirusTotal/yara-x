@@ -302,11 +302,12 @@ impl<'a> Parser<'a> {
     ///
     /// This is optional, if the report builder is not set the Parser will
     /// create its own. However this allows sharing the same report builder
-    /// with the [`Compiler`]. Setting a report builder overrides the color
-    /// setting specified with [`Compiler::colorize_errors`], the errors will
+    /// with the compiler. Setting a report builder overrides any color
+    /// setting specified with [`Parser::colorize_errors`], the errors will
     /// be colorized depending on the settings of the report builder.
     ///
     /// This API is for internal use only.
+    #[doc(hidden)]
     pub fn set_report_builder(
         &mut self,
         report_builder: &'a ReportBuilder,
