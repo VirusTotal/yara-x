@@ -98,35 +98,13 @@ pub enum TypeValue {
     Func(Rc<Func>),
 }
 
-/// Macro that casts a [`TypeValue`] to [`TypeValue::Bool`].
-///
-/// Only integers, floats, and strings can be casted to bool. Attempting to
-/// cast any other type to bool will cause a panic.
-macro_rules! cast_to_bool {
-    ($value:expr) => {{
-        match $value {
-            TypeValue::Integer(Some(i)) => TypeValue::Bool(Some(*i != 0)),
-            TypeValue::Float(Some(f)) => TypeValue::Bool(Some(*f != 0.0)),
-            TypeValue::String(Some(s)) => TypeValue::Bool(Some(s.len() > 0)),
-            TypeValue::Bool(Some(b)) => TypeValue::Bool(Some(*b)),
-            TypeValue::Integer(None) => TypeValue::Bool(None),
-            TypeValue::Float(None) => TypeValue::Bool(None),
-            TypeValue::String(None) => TypeValue::Bool(None),
-            TypeValue::Bool(None) => TypeValue::Bool(None),
-            _ => panic!("can not cast {:?} to bool", $value),
-        }
-    }};
-}
-
 macro_rules! gen_boolean_op {
     ($name:ident, $op:tt) => {
         pub fn $name(&self, rhs: &Self) -> Self {
             match (self, rhs) {
                 (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
                 _ => {
-                    let lhs = cast_to_bool!(self);
-                    let rhs = cast_to_bool!(rhs);
-                    match (lhs, rhs) {
+                    match (self.cast_to_bool(), rhs.cast_to_bool()) {
                         (Self::Bool(Some(lhs)), Self::Bool(Some(rhs))) => {
                              Self::Bool(Some(lhs $op rhs))
                         },
@@ -346,7 +324,7 @@ impl TypeValue {
         if let Self::Unknown = self {
             Self::Unknown
         } else {
-            match cast_to_bool!(self) {
+            match self.cast_to_bool() {
                 Self::Bool(Some(b)) => Self::Bool(Some(!b)),
                 Self::Bool(None) => Self::Bool(None),
                 _ => unreachable!(),
@@ -411,6 +389,26 @@ impl TypeValue {
             Self::Struct(v) => Self::Struct(v.clone()),
             Self::Array(v) => Self::Array(v.clone()),
             Self::Func(v) => Self::Func(v.clone()),
+        }
+    }
+
+    /// Casts a [`TypeValue`] to [`TypeValue::Bool`].
+    ///
+    /// # Panics
+    ///
+    /// If the [`TypeValue`] has a type that can't be casted to bool. Only
+    /// integers, floats, and strings can be casted to bool.
+    pub fn cast_to_bool(&self) -> Self {
+        match self {
+            Self::Integer(Some(i)) => Self::Bool(Some(*i != 0)),
+            Self::Float(Some(f)) => Self::Bool(Some(*f != 0.0)),
+            Self::String(Some(s)) => Self::Bool(Some(s.len() > 0)),
+            Self::Bool(Some(b)) => Self::Bool(Some(*b)),
+            Self::Integer(None) => Self::Bool(None),
+            Self::Float(None) => Self::Bool(None),
+            Self::String(None) => Self::Bool(None),
+            Self::Bool(None) => Self::Bool(None),
+            _ => panic!("can not cast {:?} to bool", self),
         }
     }
 
