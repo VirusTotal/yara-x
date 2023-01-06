@@ -36,6 +36,6 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all-targets --no-default-features ${{ matrix.cargo-test-args }}
+        args: --workspace --all-targets --no-default-features ${{ matrix.cargo-test-args }}
       env:
         RUSTFLAGS: -Awarnings  # Allow all warnings

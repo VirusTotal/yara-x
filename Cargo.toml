@@ -1,41 +1,19 @@
-[package]
-name = "yara-x"
+[workspace.package]
 version = "0.1.0"
-edition = "2021"
-description = "An experimental implementation of YARA in Rust"
 authors = ["Victor M. Alvarez <vmalvarez@virustotal.com>"]
-readme = "README.md"
-license = "MIT"
+edition = "2021"
 
-[features]
-# Controls whether compile-time optimizations are applied or not.
-# If this feature is enabled, expressions like `2+2+2` and
-# `true or false`, whose value can be determined at compile time,
-# will be reduced to its final value, instead of producing code
-# that actually computes the expression.
-compile-time-optimization = []
-
-# Features for enabling/disabling test modules.
-test_proto2-module = []
-test_proto3-module = []
-
-# When this feature is enabled the CLI program saves CPU profiling
-# information into a flamegraph.svg file when run.
-profiling = ["pprof"]
-
-# Features that are enabled by default.
-default = [
-    "compile-time-optimization",
-    "test_proto2-module",
-    "test_proto3-module",
+[workspace]
+members = [
+    "yara-x",
+    "yara-x-cli",
+    "yara-x-fmt",
+    "yara-x-macros",
+    "yara-x-parser",
+    "yara-x-proto",
 ]
 
-[[bin]]
-name = "yr"
-path = "src/bin/cli/main.rs"
-
-[dependencies]
-annotate-snippets = { version="0.9.1", features=["color"] }
+[workspace.dependencies]
 ansi_term = "0.12.1"
 anyhow = "1.0.65"
 ariadne = "0.1.5"
@@ -43,45 +21,32 @@ ascii_tree = "0.1.1"
 bitmask = "0.5.0"
 bitvec = "1.0.1"
 bstr = { version= "1.0.1", features=["alloc"] }
-clap = { version = "4.0.29", features=["cargo"] }
+criterion = "0.4.0"
 globset = "0.4.9"
+indenter = { version = "0.3.3" , features=["std"] }
 intaglio = "1.7.0"
 lazy_static = "1.4.0"
 line-span = "0.1.3"
-num = "0.4.0"
 memmap = "0.7.0"
-pest = { version ="2.5.2", features=["fast-line-col"] }
-pest_derive = "2.5.2"
+num = "0.4.0"
+predicates = "2.1.4"
+pretty_assertions = "1.3.0"
 protobuf = "3.2.0"
-pprof = { version = "0.11", features = ["flamegraph"], optional=true }
-rustc-hash = "1.1.0"
-thiserror = "1.0.34"
-walkdir = "2.3.2"
-walrus = "0.19.0"
-wasmtime = { version= "3.0.1", features=["cranelift"] }
-yansi = "0.5.1"
-yara-x-macros = { path = "macros",  version = "0.1.0" }
-yara-proto = { path = "./proto",  version = "0.1.0" }
-
-[build-dependencies]
-yara-proto = { path = "./proto",  version = "0.1.0" }
-protobuf = { version = "3.2.0" }
 protobuf-codegen = { version = "3.2.0" }
 protobuf-parse = { version = "3.2.0" }
-
-[dev-dependencies]
-indenter = { version = "0.3.3" , features=["std"] }
-pretty_assertions = "1.3.0"
+rustc-hash = "1.1.0"
+thiserror = "1.0.38"
+walrus = "0.19.0"
+wasmtime = { version= "3.0.1", features=["cranelift"] }
 yaml-rust = "0.4.5"
-criterion = "0.4.0"
-assert_cmd = "2.0.7"
-predicates = "2.1.4"
-yara = { version = "0.16.2", features = ["vendored"] }
-
-
-[[bench]]
-name = "benches"
-harness = false
+yansi = "0.5.1"
+yara-x = { path = "yara-x" }
+yara-x-fmt = { path = "yara-x-fmt" }
+yara-x-macros = { path = "yara-x-macros" }
+yara-x-parser = { path = "yara-x-parser" }
+yara-x-proto = { path = "yara-x-proto" }
+pest = { version ="2.5.2", features=["fast-line-col"] }
+pest_derive = "2.5.2"
 
 [profile.release]
 debug = 1

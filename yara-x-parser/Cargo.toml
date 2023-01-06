@@ -1,0 +1,29 @@
+[package]
+name = "yara-x-parser"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ansi_term = { workspace = true }
+anyhow = { workspace = true }
+ariadne = { workspace = true }
+ascii_tree = { workspace = true }
+bitmask =  { workspace = true }
+bstr = { workspace = true }
+lazy_static = { workspace = true }
+line-span = { workspace = true }
+num = { workspace = true }
+pest = { workspace = true }
+pest_derive = { workspace = true }
+protobuf = { workspace = true }
+rustc-hash = { workspace = true }
+thiserror = { workspace = true }
+walrus = { workspace = true }
+yansi = { workspace = true }
+yara-x-macros = { workspace = true }
+yara-x-proto = { workspace = true }
+
+[dev-dependencies]
+indenter = { workspace = true }
+pretty_assertions = { workspace = true }
+yaml-rust = { workspace = true }

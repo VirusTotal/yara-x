@@ -1,0 +1,47 @@
+[package]
+name = "yara-x"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "An experimental implementation of YARA in Rust"
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/VirusTotal/yara-x"
+homepage = "https://github.com/VirusTotal/yara-x"
+
+[dependencies]
+ansi_term = { workspace = true }
+anyhow = { workspace = true }
+ariadne = { workspace = true }
+ascii_tree = { workspace = true }
+bitmask = { workspace = true }
+bitvec = { workspace = true }
+bstr = { workspace = true }
+globset = { workspace = true }
+intaglio = { workspace = true }
+lazy_static = { workspace = true }
+memmap = { workspace = true }
+protobuf = { workspace = true }
+rustc-hash = { workspace = true }
+thiserror = { workspace = true }
+walrus = { workspace = true }
+wasmtime = { workspace = true }
+yansi = { workspace = true }
+yara-x-fmt = { workspace = true }
+yara-x-macros = { workspace = true }
+yara-x-parser = { workspace = true }
+yara-x-proto = { workspace = true }
+
+
+[build-dependencies]
+protobuf = { workspace = true }
+protobuf-codegen = { workspace = true }
+protobuf-parse = { workspace = true }
+yara-x-proto = { workspace = true }
+
+[dev-dependencies]
+predicates = { workspace = true }
+pretty_assertions = { workspace = true }
+yaml-rust = { workspace = true }
+yara = { version = "0.16.2", features = ["vendored"] }
+
