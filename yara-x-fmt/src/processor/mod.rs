@@ -119,10 +119,7 @@ where
                 if (condition)(&self.context) {
                     rule_found = true;
                     (action)(&mut self.context);
-                    // The action produced some to output
-                    if !self.context.output.is_empty() {
-                        break;
-                    }
+                    break;
                 }
             }
 
@@ -137,13 +134,11 @@ where
     }
 }
 
-/// Context is the structure passed to condition and action functions that
-/// conform a processor rule.
+/// Context is the structure passed to conditions and actions.
 ///
 /// The context has methods that allows conditions to peek into the next
-/// input tokens, and the past output tokens. It also has methods that action
-/// functions use for removing a token from the input and putting tokens into
-/// the output.
+/// input tokens and the past output tokens. It also has methods that actions
+/// use for removing a token from the input and putting tokens into the output.
 #[derive(Debug)]
 pub(crate) struct Context<'a, T>
 where
@@ -152,8 +147,15 @@ where
     input: Peekable<T>,
     output: VecDeque<Token<'a>>,
     stack: Vec<super::GrammarRule>,
+    /// A list with the last N tokens that has been written into the output
+    /// (N <= MAX_PREV_TOKENS). Contains only non-passthrough tokens.
     prev_tokens: VecDeque<Token<'a>>,
+    /// A list where input tokens are buffered, allowing to peek into the
+    /// next few input tokens. This list accumulates tokens from the input
+    /// until it contains MAX_NEXT_TOKENS non-passthrough tokens. Its size
+    /// can be larger though, because it may contain passthrough tokens too.
     next_tokens: VecDeque<Token<'a>>,
+    /// Categories of tokens that are considered passthrough tokens.
     passthrough: categories::Category,
 }
 
@@ -228,7 +230,7 @@ where
     pub fn token(&self, n: i8) -> &Token<'a> {
         // n is 1,2,3,4 ... MAX_NEXT_TOKENS
         if n >= 1 && n <= Self::MAX_NEXT_TOKENS as i8 {
-            // Return Nth token that is not a
+            // Return Nth token that is not a passthrough token.
             self.next_tokens
                 .iter()
                 .filter(|token| !token.is(self.passthrough))

@@ -41,8 +41,7 @@ fn copy() {
 #[test]
 fn drop() {
     // Make sure that a processor with a single rule where the condition is
-    // always true and the action is actions::drop returns only the control
-    // tokens.
+    // always true and the action is actions::drop doesn't return any tokens.
     let mut processor =
         Processor::new(tokenize(r#"rule test { condition: true }"#))
             .add_rule(|_| true, actions::drop);

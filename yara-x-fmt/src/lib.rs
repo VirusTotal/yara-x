@@ -219,7 +219,7 @@ impl Formatter {
                 |ctx| {
                     ctx.token(1).eq(&Begin(GrammarRule::rule_decl))
                         && ctx.token(-1).is(*NEWLINE)
-                        && !ctx.token(-2).is(*NEWLINE | *COMMENT)
+                        && ctx.token(-2).is_not(*NEWLINE | *COMMENT)
                 },
                 processor::actions::newline,
             )
@@ -258,14 +258,14 @@ impl Formatter {
                         Keyword("meta")
                             | Keyword("strings")
                             | Keyword("condition")
-                    ) && !ctx.token(-1).is(*NEWLINE)
+                    ) && ctx.token(-1).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
             )
             // Add newline after "meta:", "strings:" and "condition:".
             .add_rule(
                 |ctx| {
-                    !ctx.token(1).is(*NEWLINE)
+                    ctx.token(1).is_not(*NEWLINE)
                         && ctx.token(-1).eq(&COLON)
                         && matches!(
                             ctx.token(-2),
@@ -282,7 +282,7 @@ impl Formatter {
                 |ctx| {
                     ctx.in_rule(GrammarRule::pattern_def)
                         && ctx.token(1).is(*IDENTIFIER)
-                        && !ctx.token(-1).is(*NEWLINE)
+                        && ctx.token(-1).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
             )
@@ -291,7 +291,7 @@ impl Formatter {
                 |ctx| {
                     ctx.in_rule(GrammarRule::rule_decl)
                         && ctx.token(1).eq(&RBRACE)
-                        && !ctx.token(-1).is(*NEWLINE)
+                        && ctx.token(-1).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
             );
@@ -368,6 +368,7 @@ impl Formatter {
         I: TokenStream<'a> + 'a,
     {
         processor::Processor::new(input)
+            // Ignore all comments
             .set_passthrough(*COMMENT)
             // Increase indentation after "condition:"
             .add_rule(
@@ -427,6 +428,7 @@ impl Formatter {
         I: TokenStream<'a> + 'a,
     {
         processor::Processor::new(input)
+            // Ignore all comments.
             .set_passthrough(*COMMENT)
             // Increase indentation after the opening brace in a rule
             // declaration.
@@ -509,6 +511,7 @@ impl Formatter {
         I: TokenStream<'a> + 'a,
     {
         processor::Processor::new(input)
+            // Ignore all control tokens.
             .set_passthrough(*CONTROL)
             // Insert spaces in-between all tokens, except in the following
             // cases:
