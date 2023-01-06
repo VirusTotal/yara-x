@@ -1,13 +1,29 @@
 [package]
 name = "yara-x-parser"
 version.workspace = true
+authors.workspace = true
 edition.workspace = true
+description.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[features]
+# Add functions that allows printing ASTs and CSTs as ASCII trees.
+ascii-tree = ["ascii_tree"]
+
+# Configuration for docs.rs.
+[package.metadata.docs.rs]
+# While generating the documentation for doc.rs all features are enabled
+all-features = true
+# Pass "docsrs" config to rustdoc while generating documentation for doc.rs
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 ansi_term = { workspace = true }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
-ascii_tree = { workspace = true }
+ascii_tree = { workspace = true, optional=true }
 bitmask =  { workspace = true }
 bstr = { workspace = true }
 lazy_static = { workspace = true }

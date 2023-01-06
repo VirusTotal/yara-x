@@ -3,11 +3,10 @@ name = "yara-x"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "An experimental implementation of YARA in Rust"
-readme = "README.md"
-license = "MIT"
-repository = "https://github.com/VirusTotal/yara-x"
-homepage = "https://github.com/VirusTotal/yara-x"
+description.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
 
 [features]
 # Controls whether compile-time optimizations are applied or not.

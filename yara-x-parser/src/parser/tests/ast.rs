@@ -7,6 +7,7 @@ use yaml_rust::{Yaml, YamlLoader};
 
 use crate::parser::Parser;
 
+#[cfg(feature = "ascii-tree")]
 #[test]
 fn ast() {
     let mut tests_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

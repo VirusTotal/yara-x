@@ -76,6 +76,8 @@ let ast = Parser::new().build_ast(rule).unwrap();
 ```
  */
 
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 pub mod ast;
 pub mod cst;
 pub use parser::*;

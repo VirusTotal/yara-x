@@ -1,7 +1,12 @@
 [package]
 name = "yara-x-cli"
 version.workspace = true
+authors.workspace = true
 edition.workspace = true
+description.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
 
 [[bin]]
 name = "yr"
@@ -19,7 +24,7 @@ anyhow = { workspace = true }
 globset = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true }
-yara-x-parser = { workspace = true }
+yara-x-parser = { workspace = true, features = ["ascii-tree"]}
 yara-x-fmt = { workspace = true }
 
 clap = { version = "4.0.32", features=["cargo"] }

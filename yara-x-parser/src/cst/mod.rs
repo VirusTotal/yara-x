@@ -153,6 +153,7 @@ impl<'src> CST<'src> {
     }
 
     /// Returns an ASCII tree that represents the CST.
+    #[cfg(feature = "ascii-tree")]
     pub fn ascii_tree(&mut self) -> Vec<ascii_tree::Tree> {
         let mut vec = Vec::new();
         for node in self.by_ref() {
@@ -174,6 +175,7 @@ impl<'src> CST<'src> {
     }
 
     /// Returns a String with an ASCII tree that represents the CST.
+    #[cfg(feature = "ascii-tree")]
     pub fn ascii_tree_string(&mut self) -> String {
         let mut buf = String::new();
         for tree in self.ascii_tree() {

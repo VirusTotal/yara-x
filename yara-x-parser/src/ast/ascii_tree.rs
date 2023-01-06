@@ -1,12 +1,13 @@
 /*! Functions that returns an ASCII representation of YARA Abstract Syntax Trees (ASTs).*/
 
+use ::ascii_tree::Tree;
 use ::ascii_tree::Tree::{Leaf, Node};
 
 use crate::ast::*;
 use crate::types::TypeValue;
 
 /// Returns a representation of the namespace as an ASCII tree.
-pub(crate) fn namespace_ascii_tree(namespace: &Namespace) -> ascii_tree::Tree {
+pub(crate) fn namespace_ascii_tree(namespace: &Namespace) -> Tree {
     Node(
         "namespace".to_string(),
         namespace.rules.iter().map(rule_ascii_tree).collect(),
@@ -14,7 +15,7 @@ pub(crate) fn namespace_ascii_tree(namespace: &Namespace) -> ascii_tree::Tree {
 }
 
 /// Returns a representation of the rule as an ASCII tree.
-pub(crate) fn rule_ascii_tree(rule: &Rule) -> ascii_tree::Tree {
+pub(crate) fn rule_ascii_tree(rule: &Rule) -> Tree {
     let mut rule_children = Vec::new();
 
     if let Some(meta) = &rule.meta {
@@ -61,7 +62,7 @@ pub(crate) fn rule_ascii_tree(rule: &Rule) -> ascii_tree::Tree {
 }
 
 /// Returns a representation of the expression as an ASCII tree.
-pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
+pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
     let value = {
         let type_value = expr.type_value();
         if matches!(type_value, TypeValue::Unknown) {
@@ -433,9 +434,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> ascii_tree::Tree {
     }
 }
 
-pub(crate) fn quantifier_ascii_tree(
-    quantifier: &Quantifier,
-) -> ascii_tree::Tree {
+pub(crate) fn quantifier_ascii_tree(quantifier: &Quantifier) -> Tree {
     match quantifier {
         Quantifier::None { .. } => Leaf(vec!["none".to_string()]),
         Quantifier::All { .. } => Leaf(vec!["all".to_string()]),
@@ -447,9 +446,7 @@ pub(crate) fn quantifier_ascii_tree(
     }
 }
 
-pub(crate) fn pattern_set_ascii_tree(
-    pattern_set: &PatternSet,
-) -> ascii_tree::Tree {
+pub(crate) fn pattern_set_ascii_tree(pattern_set: &PatternSet) -> Tree {
     match pattern_set {
         PatternSet::Them => Leaf(vec!["them".to_string()]),
         PatternSet::Set(set) => {
@@ -458,7 +455,7 @@ pub(crate) fn pattern_set_ascii_tree(
     }
 }
 
-pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> ascii_tree::Tree {
+pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
     match pattern {
         Pattern::Text(s) => {
             let modifiers = if let Some(modifiers) = &s.modifiers {
@@ -490,7 +487,7 @@ pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> ascii_tree::Tree {
     }
 }
 
-pub(crate) fn hex_tokens_ascii_tree(tokens: &HexTokens) -> ascii_tree::Tree {
+pub(crate) fn hex_tokens_ascii_tree(tokens: &HexTokens) -> Tree {
     let nodes = tokens
         .tokens
         .iter()

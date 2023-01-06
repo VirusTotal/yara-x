@@ -1,7 +1,12 @@
 [package]
 name = "yara-x-fmt"
 version.workspace = true
+authors.workspace = true
 edition.workspace = true
+description.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
