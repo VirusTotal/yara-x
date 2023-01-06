@@ -297,13 +297,13 @@ where
     ///   Begin(Rule::rule_decl),
     ///      Keyword("rule"),
     ///      Identifier("test"),
-    ///      Punctuation("{"),
+    ///      Grouping("{"),
     ///      Keyword("condition"),
     ///      Punctuation(":"),
     ///      Begin(Rule::boolean_expr),
     ///         Keyword("true"),
     ///      End(Rule::boolean_expr),
-    ///      Punctuation("}"),
+    ///      Grouping("}"),
     ///   End(Rule::rule_decl),
     ///
     /// In the example above *Rule::boolean_expr* is a sub-rule of

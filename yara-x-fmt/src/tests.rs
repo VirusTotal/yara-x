@@ -23,7 +23,7 @@ fn spacer() {
         ),
         (
             r#"  rule  test  :  tag1  tag2  {  strings : $a  =  "foo"  condition  :  true  }"#,
-            r#"rule test : tag1 tag2 { strings: $a = "foo" condition: true }"#,
+            r#"rule test: tag1 tag2 { strings: $a = "foo" condition: true }"#,
         ),
         (
             r#"  rule test {  strings : $a  =  {  00  01  }  condition  :  true  }"#,
@@ -56,7 +56,9 @@ fn format() {
                 .unwrap();
 
             for test in tests {
-                let hash = test.into_hash().unwrap();
+                let hash = test.into_hash().unwrap_or_else(|| {
+                    panic!("item in {:?} is not a map", &path)
+                });
 
                 let unformatted = hash
                     .get(&Yaml::String("unformatted".to_string()))

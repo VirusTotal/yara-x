@@ -149,7 +149,7 @@
         true
     }
   formatted: |
-    rule test : tag1 tag2 {
+    rule test: tag1 tag2 {
       condition:
         true
     }
@@ -201,6 +201,69 @@
         $very_long = "baz"
       condition:
         true
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test {
+      strings:
+        $hex = {000102030405}
+      condition:
+        $hex
+    }
+  formatted: |
+    rule test {
+      strings:
+        $hex = { 00 01 02 03 04 05 }
+      condition:
+        $hex
+    }
+
+###############################################################################
+#
+#- unformatted: |
+#    rule test {
+#      strings:
+#        $hex = {
+#          00 01 02   // foo
+#          03 04 05   // bar
+#        }
+#      condition:
+#        $hex
+#    }
+#  formatted: |
+#    rule test {
+#      strings:
+#        $hex = { 00 01 02 03 04 05 }
+#      condition:
+#        $hex
+#    }
+#
+################################################################################
+
+- unformatted: |
+    rule test {
+      condition:
+        (1+1)*2==4
+    }
+  formatted: |
+    rule test {
+      condition:
+        (1 + 1) * 2 == 4
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test {
+      condition:
+        for all x in ( 0 .. 10) : ( array[ 0 ] == ident )
+    }
+  formatted: |
+    rule test {
+      condition:
+        for all x in (0..10): (array[0] == ident)
     }
 
 ###############################################################################

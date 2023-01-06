@@ -23,6 +23,7 @@ use tokens::TokenStream;
 
 use crate::aligner::Aligner;
 use crate::tokens::categories::*;
+use crate::tokens::*;
 
 mod aligner;
 mod comments;
@@ -264,9 +265,14 @@ impl Formatter {
             // Add newline after "meta:", "strings:" and "condition:".
             .add_rule(
                 |ctx| {
-                    !ctx.in_rule(GrammarRule::rule_tags)
-                        && ctx.token(-1).eq(&Punctuation(":"))
-                        && !ctx.token(1).is(*NEWLINE)
+                    !ctx.token(1).is(*NEWLINE)
+                        && ctx.token(-1).eq(&COLON)
+                        && matches!(
+                            ctx.token(-2),
+                            Keyword("meta")
+                                | Keyword("strings")
+                                | Keyword("condition")
+                        )
                 },
                 processor::actions::newline,
             )
@@ -284,7 +290,7 @@ impl Formatter {
             .add_rule(
                 |ctx| {
                     ctx.in_rule(GrammarRule::rule_decl)
-                        && ctx.token(1).eq(&Punctuation("}"))
+                        && ctx.token(1).eq(&RBRACE)
                         && !ctx.token(-1).is(*NEWLINE)
                 },
                 processor::actions::newline,
@@ -367,7 +373,7 @@ impl Formatter {
             .add_rule(
                 |ctx| {
                     ctx.in_rule(GrammarRule::rule_decl)
-                        && ctx.token(-1).eq(&Punctuation(":"))
+                        && ctx.token(-1).eq(&COLON)
                 },
                 processor::actions::insert(Indentation(1)),
             )
@@ -383,7 +389,7 @@ impl Formatter {
             .add_rule(
                 |ctx| {
                     ctx.in_rule(GrammarRule::pattern_defs)
-                        && ctx.token(-1).eq(&Punctuation(":"))
+                        && ctx.token(-1).eq(&COLON)
                 },
                 processor::actions::insert(Indentation(1)),
             )
@@ -427,14 +433,14 @@ impl Formatter {
             .add_rule(
                 |ctx| {
                     ctx.in_rule(GrammarRule::rule_decl)
-                        && ctx.token(-1).eq(&Punctuation("{"))
+                        && ctx.token(-1).eq(&LBRACE)
                 },
                 processor::actions::insert(Indentation(1)),
             )
             .add_rule(
                 |ctx| {
                     ctx.in_rule(GrammarRule::rule_decl)
-                        && ctx.token(1).eq(&Punctuation("}"))
+                        && ctx.token(1).eq(&RBRACE)
                         && ctx.token(-1).neq(&Indentation(-1))
                 },
                 processor::actions::insert(Indentation(-1)),
@@ -486,7 +492,7 @@ impl Formatter {
             .add_rule(
                 |ctx| {
                     ctx.in_rule(GrammarRule::pattern_def)
-                        && ctx.token(1).eq(&Punctuation("="))
+                        && ctx.token(1).eq(&EQUAL)
                         && ctx.token(-1).neq(&AlignmentMarker)
                 },
                 processor::actions::insert(AlignmentMarker),
@@ -504,21 +510,32 @@ impl Formatter {
     {
         processor::Processor::new(input)
             .set_passthrough(*CONTROL)
-            // Insert spaces in-between all tokens, but keep "meta:", "strings:"
-            // "conditions:" without spaces before the colon (:).
+            // Insert spaces in-between all tokens, except in the following
+            // cases:
+            // - No space after opening parenthesis and brackets (example: (1 + 1))
+            // - No space before closing parenthesis and brackets
+            // - No space before colon (:)
+            // - No space before or after ".." (e.g: (0..10))
             .add_rule(
                 |ctx| {
                     let prev_token = ctx.token(-1);
                     let next_token = ctx.token(1);
 
-                    next_token.is(*TEXT)
-                        && prev_token.is(*TEXT)
-                        && !matches!(
-                            prev_token,
-                            Keyword("meta")
-                                | Keyword("strings")
-                                | Keyword("condition")
-                        )
+                    // Insert space if previous token is anything except ( or [,
+                    // and next token is anything except ) or ].
+                    let add_space = prev_token.is(*TEXT ^ *LGROUPING)
+                        && next_token.is(*TEXT ^ *RGROUPING);
+
+                    // Don't insert space if next token is ":" or ".."
+                    let drop_space = next_token.eq(&COLON)
+                        || prev_token.eq(&DOT_DOT)
+                        || next_token.eq(&DOT_DOT)
+                        // ...also, don't insert space in-between some 
+                        // identifier and ( or [. (e.g: ident(), ident[0])
+                        || prev_token.is(*IDENTIFIER)
+                            && next_token.is(*LGROUPING);
+
+                    add_space && !drop_space
                 },
                 processor::actions::space,
             )

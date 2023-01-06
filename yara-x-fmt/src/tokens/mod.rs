@@ -1,5 +1,7 @@
 use std::iter::Peekable;
 
+use lazy_static::lazy_static;
+
 use yara_x_parser::cst::CST;
 use yara_x_parser::GrammarRule;
 
@@ -44,6 +46,8 @@ pub(crate) mod categories {
             Operator            = 0b00000000000000000100000000000000,
             Keyword             = 0b00000000000000001000000000000000,
             Literal             = 0b00000000000000010000000000000000,
+            LGrouping           = 0b00000000000000100000000000000000,
+            RGrouping           = 0b00000000000001000000000000000000,
         }
     }
     lazy_static! {
@@ -99,6 +103,12 @@ pub(crate) mod categories {
         pub static ref LITERAL: Category =
             Category::from(BaseCategory::Literal);
 
+        pub static ref LGROUPING: Category =
+            Category::from(BaseCategory::LGrouping);
+
+        pub static ref RGROUPING: Category =
+            Category::from(BaseCategory::RGrouping);
+
         // These are super-categories that are composed of other categories.
         pub static ref CONTROL: Category =
             *BEGIN |
@@ -116,10 +126,22 @@ pub(crate) mod categories {
         pub static ref TEXT: Category =
             *KEYWORD |
             *PUNCTUATION |
+            *LGROUPING |
+            *RGROUPING |
             *IDENTIFIER |
             *OPERATOR |
             *LITERAL;
     }
+}
+
+lazy_static! {
+    pub(crate) static ref COLON: Token<'static> = Token::Punctuation(":");
+    pub(crate) static ref DOT_DOT: Token<'static> = Token::Punctuation("..");
+    pub(crate) static ref EQUAL: Token<'static> = Token::Punctuation("=");
+    pub(crate) static ref LBRACE: Token<'static> = Token::Punctuation("{");
+    pub(crate) static ref RBRACE: Token<'static> = Token::Punctuation("}");
+    pub(crate) static ref LBRACKET: Token<'static> = Token::LGrouping("[");
+    pub(crate) static ref RBRACKET: Token<'static> = Token::RGrouping("]");
 }
 
 /// Type that represents the tokens used by the formatter.
@@ -202,6 +224,11 @@ pub(crate) enum Token<'a> {
     Keyword(&'a str),
     Punctuation(&'a str),
     Literal(&'a str),
+
+    // Left parenthesis and brackets.
+    LGrouping(&'a str),
+    // Right parenthesis and brackets.
+    RGrouping(&'a str),
 }
 
 impl<'a> Token<'a> {
@@ -232,6 +259,8 @@ impl<'a> Token<'a> {
             Token::Newline => categories::BaseCategory::Newline,
             Token::Identifier(..) => categories::BaseCategory::Identifier,
             Token::Keyword(..) => categories::BaseCategory::Keyword,
+            Token::LGrouping(..) => categories::BaseCategory::LGrouping,
+            Token::RGrouping(..) => categories::BaseCategory::RGrouping,
             Token::Punctuation(..) => categories::BaseCategory::Punctuation,
             Token::Literal(..) => categories::BaseCategory::Literal,
         }
@@ -265,9 +294,24 @@ impl<'a> Token<'a> {
             Token::Identifier(s)
             | Token::Keyword(s)
             | Token::Punctuation(s)
+            | Token::LGrouping(s)
+            | Token::RGrouping(s)
             | Token::Literal(s)
             | Token::Comment(s) => s,
-            _ => "",
+            // Control tokens.
+            Token::None
+            | Token::Begin(_)
+            | Token::End(_)
+            | Token::Indentation(_)
+            | Token::BlockBegin
+            | Token::BlockEnd
+            | Token::AlignmentBlockBegin
+            | Token::AlignmentBlockEnd
+            | Token::AlignmentMarker
+            | Token::BlockComment(_)
+            | Token::HeadComment(_)
+            | Token::TailComment(_)
+            | Token::InlineComment(_) => "",
         }
     }
 
@@ -331,18 +375,21 @@ impl<'a> Token<'a> {
             | GrammarRule::DOT
             | GrammarRule::DOT_DOT
             | GrammarRule::EQUAL
+            | GrammarRule::DOUBLE_QUOTES
             | GrammarRule::LBRACE
             | GrammarRule::RBRACE
-            | GrammarRule::LBRACKET
-            | GrammarRule::RBRACKET
-            | GrammarRule::LPAREN
-            | GrammarRule::RPAREN
-            | GrammarRule::DOUBLE_QUOTES
             | GrammarRule::MINUS
             | GrammarRule::HYPHEN
             | GrammarRule::PERCENT
             | GrammarRule::PIPE
             | GrammarRule::TILDE => Token::Punctuation(src),
+            // Grouping
+            GrammarRule::LBRACKET | GrammarRule::LPAREN => {
+                Token::LGrouping(src)
+            }
+            GrammarRule::RBRACKET | GrammarRule::RPAREN => {
+                Token::RGrouping(src)
+            }
             // Identifiers.
             GrammarRule::ident | GrammarRule::pattern_ident => {
                 Token::Identifier(src)
@@ -379,10 +426,25 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::Identifier(_)
                 | Token::Keyword(_)
                 | Token::Literal(_)
+                | Token::LGrouping(_)
+                | Token::RGrouping(_)
                 | Token::Punctuation(_) => {
                     w.write_all(token.as_str().as_bytes())?;
                 }
-                _ => {}
+                Token::None
+                | Token::Begin(_)
+                | Token::End(_)
+                | Token::BlockBegin
+                | Token::BlockEnd
+                | Token::AlignmentBlockBegin
+                | Token::AlignmentBlockEnd
+                | Token::AlignmentMarker
+                | Token::BlockComment(_)
+                | Token::HeadComment(_)
+                | Token::TailComment(_)
+                | Token::InlineComment(_) => {
+                    // Control tokens are not visible, nothing to write.
+                }
             }
         }
 
