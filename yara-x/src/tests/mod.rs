@@ -237,8 +237,8 @@ fn filesize() {
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(&[]).matching_rules(), 1);
-    assert_eq!(scanner.scan(&[1]).matching_rules(), 1);
+    assert_eq!(scanner.scan(&[]).num_matching_rules(), 1);
+    assert_eq!(scanner.scan(&[1]).num_matching_rules(), 1);
 }
 
 #[test]
@@ -290,7 +290,7 @@ fn rule_reuse() {
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(&[]).matching_rules(), 9);
+    assert_eq!(scanner.scan(&[]).num_matching_rules(), 9);
 }
 
 #[test]

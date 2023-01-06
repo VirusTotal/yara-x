@@ -5,8 +5,8 @@ translated into WebAssembly (WASM) code. This code is later converted to native
 code and executed by [wasmtime](https://wasmtime.dev/), a WASM runtime embedded
 in YARA.
 
-For each instance of [`CompiledRules`] the compiler creates a WASM module.
-This WASM module works in close collaboration with YARA's Rust code for
+For each instance of [`crate::compiler::Rules`] the compiler creates a WASM
+module. This WASM module works in close collaboration with YARA's Rust code for
 evaluating the rule's conditions. For example, the WASM module exports a
 function called `main`, which contains the code that evaluates the conditions
 of all the compiled rules. This WASM function is called by YARA at scan time,

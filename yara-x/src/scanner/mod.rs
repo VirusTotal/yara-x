@@ -10,7 +10,7 @@ use std::slice::Iter;
 
 use yara_x_parser::types::{Struct, TypeValue};
 
-use crate::compiler::{CompiledRule, CompiledRules, RuleId};
+use crate::compiler::{Rule, RuleId, Rules};
 use crate::string_pool::BStringPool;
 use crate::{modules, wasm};
 use bitvec::prelude::*;
@@ -34,11 +34,11 @@ pub struct Scanner<'r> {
 
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
-    pub fn new(compiled_rules: &'r CompiledRules) -> Self {
+    pub fn new(rules: &'r Rules) -> Self {
         let mut wasm_store = Store::new(
             &crate::wasm::ENGINE,
             ScanContext {
-                compiled_rules,
+                compiled_rules: rules,
                 string_pool: BStringPool::new(),
                 current_struct: None,
                 root_struct: Struct::new(),
@@ -76,8 +76,8 @@ impl<'r> Scanner<'r> {
         )
         .unwrap();
 
-        let num_rules = compiled_rules.rules().len() as u32;
-        let num_patterns = compiled_rules.patterns().len() as u32;
+        let num_rules = rules.rules().len() as u32;
+        let num_patterns = rules.patterns().len() as u32;
 
         // Compute the base offset for the bitmap that contains matching
         // information for patterns. This bitmap has 1 bit per pattern,
@@ -123,7 +123,7 @@ impl<'r> Scanner<'r> {
             .unwrap()
             .define("yr", "main_memory", main_memory)
             .unwrap()
-            .instantiate(&mut wasm_store, compiled_rules.compiled_wasm_mod())
+            .instantiate(&mut wasm_store, rules.compiled_wasm_mod())
             .unwrap();
 
         // Obtain a reference to the "main" function exported by the module.
@@ -139,16 +139,19 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans a file.
-    pub fn scan_file<'s, P: AsRef<Path>>(
+    pub fn scan_file<'s, P>(
         &'s mut self,
         path: P,
-    ) -> std::io::Result<ScanResults<'s, 'r>> {
+    ) -> std::io::Result<ScanResults<'s, 'r>>
+    where
+        P: AsRef<Path>,
+    {
         let file = File::open(path)?;
         let mmap = unsafe { MmapOptions::new().map(&file)? };
         Ok(self.scan(&mmap[..]))
     }
 
-    /// Scans a data buffer.
+    /// Scans in-memory data.
     pub fn scan<'s>(&'s mut self, data: &[u8]) -> ScanResults<'s, 'r> {
         let ctx = self.wasm_store.data_mut();
 
@@ -184,7 +187,7 @@ impl<'r> Scanner<'r> {
         // TODO: this should be done only if the string pool is too large.
         ctx.string_pool = BStringPool::new();
 
-        for module_name in ctx.compiled_rules.imported_modules() {
+        for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
             let module = modules::BUILTIN_MODULES.get(module_name).unwrap();
 
@@ -267,26 +270,28 @@ impl<'s, 'r> ScanResults<'s, 'r> {
     }
 
     /// Returns the number of rules that matched.
-    pub fn matching_rules(&self) -> usize {
+    pub fn num_matching_rules(&self) -> usize {
         self.scanner.wasm_store.data().rules_matching.len()
     }
 
-    pub fn iter(&self) -> IterMatches<'s, 'r> {
-        IterMatches::new(self.scanner)
+    /// Returns an iterator over the matching rules.
+    pub fn iter(&self) -> Matches<'s, 'r> {
+        Matches::new(self.scanner)
     }
 
-    pub fn iter_non_matches(&self) -> IterNonMatches<'s, 'r> {
-        IterNonMatches::new(self.scanner)
+    /// Returns an iterator over the non-matching rules.
+    pub fn iter_non_matches(&self) -> NonMatches<'s, 'r> {
+        NonMatches::new(self.scanner)
     }
 }
 
 /// Iterator that returns the rules that matched,
-pub struct IterMatches<'s, 'r> {
-    rules: &'r [CompiledRule],
+pub struct Matches<'s, 'r> {
+    rules: &'r [Rule],
     iterator: Iter<'s, RuleId>,
 }
 
-impl<'s, 'r> IterMatches<'s, 'r> {
+impl<'s, 'r> Matches<'s, 'r> {
     fn new(scanner: &'s Scanner<'r>) -> Self {
         Self {
             iterator: scanner.wasm_store.data().rules_matching.iter(),
@@ -295,8 +300,8 @@ impl<'s, 'r> IterMatches<'s, 'r> {
     }
 }
 
-impl<'s, 'r> Iterator for IterMatches<'s, 'r> {
-    type Item = &'r CompiledRule;
+impl<'s, 'r> Iterator for Matches<'s, 'r> {
+    type Item = &'r Rule;
 
     fn next(&mut self) -> Option<Self::Item> {
         let rule_id = *self.iterator.next()?;
@@ -305,12 +310,12 @@ impl<'s, 'r> Iterator for IterMatches<'s, 'r> {
 }
 
 /// Iterator that returns the rules that didn't match.
-pub struct IterNonMatches<'s, 'r> {
-    rules: &'r [CompiledRule],
+pub struct NonMatches<'s, 'r> {
+    rules: &'r [Rule],
     iterator: bitvec::slice::IterZeros<'s, u8, Lsb0>,
 }
 
-impl<'s, 'r> IterNonMatches<'s, 'r> {
+impl<'s, 'r> NonMatches<'s, 'r> {
     fn new(scanner: &'s Scanner<'r>) -> Self {
         let main_memory = scanner
             .wasm_store
@@ -330,8 +335,8 @@ impl<'s, 'r> IterNonMatches<'s, 'r> {
     }
 }
 
-impl<'s, 'r> Iterator for IterNonMatches<'s, 'r> {
-    type Item = &'r CompiledRule;
+impl<'s, 'r> Iterator for NonMatches<'s, 'r> {
+    type Item = &'r Rule;
 
     fn next(&mut self) -> Option<Self::Item> {
         let rule_id = self.iterator.next()?;
@@ -350,7 +355,7 @@ pub(crate) struct ScanContext<'r> {
     /// Length of data being scanned.
     pub(crate) scanned_data_len: usize,
     /// Compiled rules for this scan.
-    pub(crate) compiled_rules: &'r CompiledRules,
+    pub(crate) compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
     /// and external variables. Symbols are normally looked up in this
     /// structure, except if `current_struct` is set to some other

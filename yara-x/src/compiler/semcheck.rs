@@ -397,7 +397,7 @@ pub(super) fn semcheck_expr(
         }
 
         Expr::Not(expr) => {
-            warning_if_not_boolean(ctx, &expr.operand);
+            warn_if_not_bool(ctx, &expr.operand);
             // The `not` operator accepts integers, float and strings because
             // those types can be casted to bool.
             semcheck!(
@@ -849,7 +849,7 @@ fn semcheck_fn_call(
 
 /// If `expr` is not of type boolean, it raises a warning indicating that the
 /// expression is being casted to a boolean.
-pub(super) fn warning_if_not_boolean(ctx: &mut Context, expr: &Expr) {
+pub(super) fn warn_if_not_bool(ctx: &mut Context, expr: &Expr) {
     let ty = expr.ty();
     let note = match ty {
         Type::Integer => Some(

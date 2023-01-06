@@ -19,7 +19,7 @@ rule rule_4 { condition: false }
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(&[]);
 
-    assert_eq!(results.matching_rules(), 2);
+    assert_eq!(results.num_matching_rules(), 2);
 
     let mut iter = results.iter();
 

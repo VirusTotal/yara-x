@@ -18,7 +18,7 @@ use yara_x_parser::warnings::Warning;
 use yara_x_parser::{ErrorInfo as ParserError, Parser, SourceCode};
 
 use crate::compiler::emit::emit_rule_code;
-use crate::compiler::semcheck::{semcheck, warning_if_not_boolean};
+use crate::compiler::semcheck::{semcheck, warn_if_not_bool};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
@@ -66,7 +66,7 @@ pub struct Compiler<'a> {
 
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
-    rules: Vec<CompiledRule>,
+    rules: Vec<Rule>,
 
     /// A vector with all the patterns from all the rules. A [`PatternId`]
     /// is an index in this vector.
@@ -156,8 +156,8 @@ impl<'a> Compiler<'a> {
     /// Builds the source code previously added to the compiler.
     ///
     /// This function consumes the compiler and returns an instance of
-    /// [`CompiledRules`].
-    pub fn build(self) -> Result<CompiledRules, Error> {
+    /// [`Rules`].
+    pub fn build(self) -> Result<Rules, Error> {
         // Finish building the WebAssembly module.
         let mut wasm_mod = self.wasm_mod.build();
 
@@ -170,7 +170,7 @@ impl<'a> Compiler<'a> {
         )
         .unwrap();
 
-        Ok(CompiledRules {
+        Ok(Rules {
             compiled_wasm_mod,
             wasm_mod,
             ident_pool: self.ident_pool,
@@ -229,7 +229,7 @@ impl<'a> Compiler<'a> {
 
         let rule_id = self.rules.len() as RuleId;
 
-        self.rules.push(CompiledRule {
+        self.rules.push(Rule {
             ident: self.ident_pool.get_or_intern(rule.identifier.as_str()),
             patterns: pairs,
         });
@@ -271,9 +271,9 @@ impl<'a> Compiler<'a> {
             &mut rule.condition
         )?;
 
-        // However, if the condition's result is not a boolean and must
-        // be casted, raise a warning about it.
-        warning_if_not_boolean(&mut ctx, &rule.condition);
+        // If the condition's result is not a boolean and must be casted,
+        // raise a warning about it.
+        warn_if_not_bool(&mut ctx, &rule.condition);
 
         // Emit the code for the rule's condition.
         emit_rule_code(&mut ctx, &mut self.wasm_mod.main_fn(), rule_id, rule);
@@ -427,7 +427,7 @@ struct Context<'a, 'sym> {
     src: &'a SourceCode<'a>,
 
     /// Rule that is being compiled.
-    current_rule: &'a CompiledRule,
+    current_rule: &'a Rule,
 
     /// Warnings generated during the compilation.
     warnings: &'a mut Vec<Warning>,
@@ -548,7 +548,7 @@ pub(crate) struct Var {
 /// A set of YARA rules in compiled form.
 ///
 /// This is the result from [`Compiler::build`].
-pub struct CompiledRules {
+pub struct Rules {
     /// Pool with identifiers used in the rules. Each identifier has its
     /// own [`IdentId`], which can be used for retrieving the identifier
     /// from the pool as a `&str`.
@@ -572,7 +572,7 @@ pub struct CompiledRules {
 
     /// Vector containing all the compiled rules. A [`RuleId`] is an index
     /// in this vector.
-    rules: Vec<CompiledRule>,
+    rules: Vec<Rule>,
 
     /// Vector with all the patterns used in the rules. This vector has not
     /// duplicated items, if two different rules use the "MZ" pattern, it
@@ -581,10 +581,10 @@ pub struct CompiledRules {
     patterns: Vec<Pattern>,
 }
 
-impl CompiledRules {
+impl Rules {
     /// Returns an slice with the individual rules that were compiled.
     #[inline]
-    pub fn rules(&self) -> &[CompiledRule] {
+    pub fn rules(&self) -> &[Rule] {
         self.rules.as_slice()
     }
 
@@ -596,8 +596,8 @@ impl CompiledRules {
 
     /// An iterator that yields the name of the modules imported by the
     /// rules.
-    pub fn imported_modules(&self) -> ImportedModules {
-        ImportedModules {
+    pub fn imports(&self) -> Imports {
+        Imports {
             iter: self.imported_modules.iter(),
             ident_pool: &self.ident_pool,
         }
@@ -620,12 +620,12 @@ impl CompiledRules {
 }
 
 /// Iterator that returns the modules imported by the rules.
-pub struct ImportedModules<'a> {
+pub struct Imports<'a> {
     iter: std::slice::Iter<'a, IdentId>,
     ident_pool: &'a StringPool<IdentId>,
 }
 
-impl<'a> Iterator for ImportedModules<'a> {
+impl<'a> Iterator for Imports<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -633,8 +633,8 @@ impl<'a> Iterator for ImportedModules<'a> {
     }
 }
 
-/// Each of the individual rules included in [`CompiledRules`].
-pub struct CompiledRule {
+/// Each of the individual rules included in [`Rules`].
+pub struct Rule {
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident: IdentId,
 
