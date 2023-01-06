@@ -1,8 +1,8 @@
-use bstr::{BStr, ByteSlice};
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
+use bstr::{BStr, ByteSlice};
 use yara_x_parser::types::{Struct, Type, TypeValue};
 
 use crate::compiler::{RuleId, Var};
@@ -228,6 +228,7 @@ impl<'a> SymbolLookup for StackedSymbolTable<'a> {
 #[cfg(test)]
 mod tests {
     use crate::symbols::SymbolLookup;
+    use bstr::BStr;
     use yara_x_parser::types::{Struct, Type};
 
     #[test]

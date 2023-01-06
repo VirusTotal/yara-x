@@ -7,6 +7,11 @@ edition.workspace = true
 name = "yr"
 path = "src/main.rs"
 
+[features]
+# When this feature is enabled the CLI program saves CPU profiling
+# information into a flamegraph.svg file when run.
+profiling = ["pprof"]
+
 [dependencies]
 ascii_tree = { workspace = true }
 ansi_term = { workspace = true }

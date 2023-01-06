@@ -13,7 +13,7 @@ bstr = { workspace = true }
 lazy_static = { workspace = true }
 line-span = { workspace = true }
 num = { workspace = true }
-pest = { workspace = true }
+pest = { workspace = true, features=["fast-line-col"] }
 pest_derive = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
@@ -24,6 +24,6 @@ yara-x-macros = { workspace = true }
 yara-x-proto = { workspace = true }
 
 [dev-dependencies]
-indenter = { workspace = true }
+indenter = { workspace = true, features=["std"] }
 pretty_assertions = { workspace = true }
 yaml-rust = { workspace = true }
