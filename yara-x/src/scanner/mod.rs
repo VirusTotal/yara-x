@@ -274,18 +274,18 @@ impl<'s, 'r> ScanResults<'s, 'r> {
         self.scanner.wasm_store.data().rules_matching.len()
     }
 
-    /// Returns an iterator over the matching rules.
+    /// Returns an iterator that yields the matching rules.
     pub fn iter(&self) -> Matches<'s, 'r> {
         Matches::new(self.scanner)
     }
 
-    /// Returns an iterator over the non-matching rules.
+    /// Returns an iterator that yields the non-matching rules.
     pub fn iter_non_matches(&self) -> NonMatches<'s, 'r> {
         NonMatches::new(self.scanner)
     }
 }
 
-/// Iterator that returns the rules that matched,
+/// Iterator that yields the rules that matched,
 pub struct Matches<'s, 'r> {
     rules: &'r [Rule],
     iterator: Iter<'s, RuleId>,
@@ -309,7 +309,7 @@ impl<'s, 'r> Iterator for Matches<'s, 'r> {
     }
 }
 
-/// Iterator that returns the rules that didn't match.
+/// Iterator that yields the rules that didn't match.
 pub struct NonMatches<'s, 'r> {
     rules: &'r [Rule],
     iterator: bitvec::slice::IterZeros<'s, u8, Lsb0>,

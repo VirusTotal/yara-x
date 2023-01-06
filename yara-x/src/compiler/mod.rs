@@ -40,7 +40,7 @@ mod semcheck;
 #[cfg(test)]
 mod tests;
 
-/// A YARA compiler.
+/// Takes YARA source code and produces compiled [`Rules`].
 pub struct Compiler<'a> {
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
@@ -620,7 +620,7 @@ impl Rules {
     }
 }
 
-/// Iterator that returns the modules imported by the rules.
+/// Iterator that yields the names of the modules imported by the rules.
 pub struct Imports<'a> {
     iter: std::slice::Iter<'a, IdentId>,
     ident_pool: &'a StringPool<IdentId>,
@@ -643,5 +643,5 @@ pub struct Rule {
     patterns: Vec<(IdentId, PatternId)>,
 }
 
-/// A pattern in the compiled rules.
+/// A pattern (a.k.a string) in the compiled rules.
 pub struct Pattern {}
