@@ -516,6 +516,7 @@ impl Formatter {
             // - No space before closing parenthesis and brackets
             // - No space before colon (:)
             // - No space before or after ".." (e.g: (0..10))
+            // - No space in-between identifiers and ( or [. (e.g: array[0], func("foo"))
             .add_rule(
                 |ctx| {
                     let prev_token = ctx.token(-1);
@@ -530,8 +531,8 @@ impl Formatter {
                     let drop_space = next_token.eq(&COLON)
                         || prev_token.eq(&DOT_DOT)
                         || next_token.eq(&DOT_DOT)
-                        // ...also, don't insert space in-between some 
-                        // identifier and ( or [. (e.g: ident(), ident[0])
+                        // don't insert space in-between some identifier and (
+                        // or [. (e.g: ident(), ident[0])
                         || prev_token.is(*IDENTIFIER)
                             && next_token.is(*LGROUPING);
 

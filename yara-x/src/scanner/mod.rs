@@ -280,7 +280,7 @@ impl<'s, 'r> ScanResults<'s, 'r> {
     }
 }
 
-/// Iterator that returns the rule that matched,
+/// Iterator that returns the rules that matched,
 pub struct IterMatches<'s, 'r> {
     rules: &'r [CompiledRule],
     iterator: Iter<'s, RuleId>,

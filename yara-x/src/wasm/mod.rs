@@ -22,7 +22,7 @@ by WASM code when `filesize` is used in the condition.
 
 # Memory layout
 
-The memory of these WebAssembly modules is organized as follows.
+The memory of these WASM modules is organized as follows.
 
 ```text
   ┌──────────────────────────┐ 0
@@ -95,19 +95,19 @@ pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 /// bit is set, it indicates that the rule with RuleId = N matched.
 pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
 
-/// Table with functions and variables used by the WebAssembly module.
+/// Table with functions and variables used by the WASM module.
 ///
-/// The WebAssembly module generated for evaluating rule conditions needs to
+/// The WASM module generated for evaluating rule conditions needs to
 /// call back to YARA for multiple tasks. For example, it calls YARA for
 /// reporting rule matches, for asking if a pattern matches at a given offset,
 /// for executing functions like `uint32()`, etc.
 ///
 /// This table contains the [`FunctionId`] for such functions, which are
-/// imported by the WebAssembly module and implemented by YARA. It also
+/// imported by the WASM module and implemented by YARA. It also
 /// contains the definition of some variables used by the module.
 #[derive(Clone)]
 pub(crate) struct WasmSymbols {
-    /// The WebAssembly module's main memory.
+    /// The WASM module's main memory.
     pub main_memory: walrus::MemoryId,
 
     pub lookup_start: walrus::GlobalId,
@@ -220,9 +220,9 @@ pub(crate) struct WasmSymbols {
 ///
 pub(crate) type RuntimeStringWasm = u64;
 
-/// String types handled by YARA's WebAssembly runtime.
+/// String types handled by YARA's WASM runtime.
 ///
-/// At runtime, when the the WebAssembly code generated for rule conditions is
+/// At runtime, when the the WASM code generated for rule conditions is
 /// being executed, text strings can adopt multiple forms. The difference
 /// between them resides in the place in which the string's data is stored.
 ///
@@ -281,7 +281,7 @@ impl RuntimeString {
     }
 
     /// Returns this string as a tuple of primitive types suitable to be
-    /// passed to WebAssembly.
+    /// passed to WASM.
     pub(crate) fn as_wasm(&self) -> RuntimeStringWasm {
         match self {
             // Undefined strings are represented as 0.
@@ -508,7 +508,7 @@ macro_rules! undefined {
     };
 }
 
-/// Invoked from WebAssembly to notify when a rule matches.
+/// Invoked from WASM to notify when a rule matches.
 pub(crate) fn rule_match(
     mut caller: Caller<'_, ScanContext>,
     rule_id: RuleId,
@@ -528,7 +528,7 @@ pub(crate) fn rule_match(
     caller.as_context_mut().data_mut().rules_matching.push(rule_id);
 }
 
-/// Invoked from WebAssembly to ask whether a pattern matches at a given file
+/// Invoked from WASM to ask whether a pattern matches at a given file
 /// offset.
 ///
 /// Returns 1 if the pattern identified by `pattern_id` matches at `offset`,
@@ -542,7 +542,7 @@ pub(crate) fn is_pat_match_at(
     0
 }
 
-/// Invoked from WebAssembly to ask whether a pattern at some offset within
+/// Invoked from WASM to ask whether a pattern at some offset within
 /// given range.
 ///
 /// Returns 1 if the pattern identified by `pattern_id` matches at some offset

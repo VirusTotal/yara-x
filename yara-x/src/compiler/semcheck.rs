@@ -2,7 +2,6 @@ use std::borrow::Borrow;
 use std::iter;
 use std::rc::Rc;
 
-use yara_x_parser;
 use yara_x_parser::ast::*;
 use yara_x_parser::types::{Map, Type, TypeValue};
 use yara_x_parser::warnings::Warning;
