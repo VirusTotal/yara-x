@@ -18,7 +18,9 @@ macro_rules! condition_true {
             .build()
             .unwrap();
         assert_eq!(
-            crate::scanner::Scanner::new(&rules).scan(&[]).matching_rules(),
+            crate::scanner::Scanner::new(&rules)
+                .scan(&[])
+                .num_matching_rules(),
             1,
             "`{}` should be true, but it is false",
             $condition
@@ -43,7 +45,9 @@ macro_rules! condition_false {
             .build()
             .unwrap();
         assert_eq!(
-            crate::scanner::Scanner::new(&rules).scan(&[]).matching_rules(),
+            crate::scanner::Scanner::new(&rules)
+                .scan(&[])
+                .num_matching_rules(),
             0,
             "`{}` should be false, but it is true",
             $condition

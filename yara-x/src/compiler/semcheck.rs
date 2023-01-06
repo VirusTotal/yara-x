@@ -118,8 +118,8 @@ macro_rules! gen_semcheck_boolean_op {
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
         ) -> Result<Type, Error> {
-            warning_if_not_boolean(ctx, &expr.lhs);
-            warning_if_not_boolean(ctx, &expr.rhs);
+            warn_if_not_bool(ctx, &expr.lhs);
+            warn_if_not_bool(ctx, &expr.rhs);
 
             semcheck_operands!(
                 ctx,

@@ -11,6 +11,7 @@ use std::{fmt, mem};
 use walrus::ir::InstrSeqId;
 use walrus::{Module, ValType};
 
+use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::types::{Struct, TypeValue};
@@ -201,7 +202,7 @@ impl<'a> Compiler<'a> {
 impl<'a> Compiler<'a> {
     fn process_rule(
         &mut self,
-        rule: &mut Rule,
+        rule: &mut ast::Rule,
         src: &SourceCode,
         namespace_symbols: &Rc<RefCell<SymbolTable>>,
     ) -> Result<(), Error> {
