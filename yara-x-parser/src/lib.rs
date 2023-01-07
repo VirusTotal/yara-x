@@ -27,6 +27,8 @@ to solve.
 pub mod ast;
 pub mod cst;
 pub use parser::*;
+
+#[doc(inline)]
 pub use warnings::*;
 
 mod parser;

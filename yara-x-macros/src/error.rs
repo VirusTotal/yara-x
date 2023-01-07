@@ -182,6 +182,7 @@ fn gen_build_func(
             };
 
             Ok(quote!(
+                #[doc(hidden)]
                 pub fn #fn_ident(report_builder: &ReportBuilder, src: &SourceCode, #args) -> Self {
                     let detailed_report = report_builder.create_report(
                         #report_type,
