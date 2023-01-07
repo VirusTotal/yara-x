@@ -143,7 +143,7 @@ bitwise_op = _{
 
 comparison_op = _{
   EQ                |
-  NE               |
+  NE                |
   LE                |
   LT                |
   GE                |

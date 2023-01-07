@@ -51,7 +51,7 @@ pub struct SourceCode<'src> {
     pub(crate) valid: Option<&'src str>,
     /// An optional string that tells which is the origin of the code. Usually
     /// a file path.
-    pub(crate) origin: Option<std::string::String>,
+    pub(crate) origin: Option<String>,
 }
 
 impl<'src> SourceCode<'src> {
