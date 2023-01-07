@@ -515,11 +515,13 @@ impl Formatter {
             .set_passthrough(*CONTROL)
             // Insert spaces in-between all tokens, except in the following
             // cases:
-            // - No space after opening parenthesis and brackets (example: (1 + 1))
-            // - No space before closing parenthesis and brackets
-            // - No space before colon (:)
+            // - No space after "(" and "["
+            // - No space before ")" and "]"
+            // - No space before ":"
             // - No space before or after ".." (e.g: (0..10))
-            // - No space in-between identifiers and ( or [. (e.g: array[0], func("foo"))
+            // - No space in-between identifiers and "(" or "[" (e.g: array[0], func("foo")).
+            // - No space before or after "-" in pattern modifiers and hex jumps
+            //   (e.g: xor(0-255), [0-10]).
             .add_rule(
                 |ctx| {
                     let prev_token = ctx.token(-1);
@@ -530,14 +532,22 @@ impl Formatter {
                     let add_space = prev_token.is(*TEXT ^ *LGROUPING)
                         && next_token.is(*TEXT ^ *RGROUPING);
 
-                    // Don't insert space if next token is ":" or ".."
-                    let drop_space = next_token.eq(&COLON)
+                    let drop_space =
+                        // Don't insert space if next token is ":" or ".."
+                        next_token.eq(&COLON)
                         || prev_token.eq(&DOT_DOT)
                         || next_token.eq(&DOT_DOT)
-                        // don't insert space in-between some identifier and (
-                        // or [. (e.g: ident(), ident[0])
+                        // don't insert space in-between some identifier and "("
+                        // or "[".
                         || prev_token.is(*IDENTIFIER)
-                            && next_token.is(*LGROUPING);
+                            && next_token.is(*LGROUPING)
+                        // don't insert spaces before "(" in pattern modifiers.
+                        || ctx.in_rule(GrammarRule::pattern_mods) && next_token.is(*LGROUPING)
+                        // don't insert spaces before or after "-" in pattern 
+                        // modifiers and hex jumps.
+                        || (ctx.in_rule(GrammarRule::pattern_mods) ||
+                            ctx.in_rule(GrammarRule::hex_jump))
+                            && (next_token.eq(&HYPHEN) || prev_token.eq(&HYPHEN));
 
                     add_space && !drop_space
                 },

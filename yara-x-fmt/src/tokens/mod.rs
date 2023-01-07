@@ -138,6 +138,7 @@ lazy_static! {
     pub(crate) static ref COLON: Token<'static> = Token::Punctuation(":");
     pub(crate) static ref DOT_DOT: Token<'static> = Token::Punctuation("..");
     pub(crate) static ref EQUAL: Token<'static> = Token::Punctuation("=");
+    pub(crate) static ref HYPHEN: Token<'static> = Token::Punctuation("-");
     pub(crate) static ref LBRACE: Token<'static> = Token::Punctuation("{");
     pub(crate) static ref RBRACE: Token<'static> = Token::Punctuation("}");
     pub(crate) static ref LBRACKET: Token<'static> = Token::LGrouping("[");
@@ -391,9 +392,11 @@ impl<'a> Token<'a> {
                 Token::RGrouping(src)
             }
             // Identifiers.
-            GrammarRule::ident | GrammarRule::pattern_ident => {
-                Token::Identifier(src)
-            }
+            GrammarRule::ident
+            | GrammarRule::pattern_ident
+            | GrammarRule::pattern_count
+            | GrammarRule::pattern_offset
+            | GrammarRule::pattern_length => Token::Identifier(src),
             // Literals.
             _ => Token::Literal(src),
         }

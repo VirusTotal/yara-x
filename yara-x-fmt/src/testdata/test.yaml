@@ -245,12 +245,12 @@
 - unformatted: |
     rule test {
       condition:
-        (1+1)*2==4
+        -(1+1)*2==-4 + (3 - 1)
     }
   formatted: |
     rule test {
       condition:
-        (1 + 1) * 2 == 4
+        - (1 + 1) * 2 == -4 + (3 - 1)
     }
 
 ###############################################################################
@@ -264,6 +264,41 @@
     rule test {
       condition:
         for all x in (0..10): (array[0] == ident)
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test {
+      strings:
+        $a = "foo" xor(0 - 10) base64 ("foo")
+      condition:
+        #a[ 0] == 0 and !a [0] == 0 and @a[ 0 ] == 0
+    }
+  formatted: |
+    rule test {
+      strings:
+        $a = "foo" xor(0-10) base64("foo")
+      condition:
+        #a[0] == 0 and !a[0] == 0 and @a[0] == 0
+    }
+
+###############################################################################
+
+
+- unformatted: |
+    rule test {
+      strings:
+        $hex = {00[-]01[1-]0203[0-1]0405(06|07)08}
+      condition:
+        $hex
+    }
+  formatted: |
+    rule test {
+      strings:
+        $hex = { 00 [-] 01 [1-] 02 03 [0-1] 04 05 (06 | 07) 08 }
+      condition:
+        $hex
     }
 
 ###############################################################################
