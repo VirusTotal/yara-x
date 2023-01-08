@@ -386,6 +386,23 @@ impl Formatter {
                 },
                 processor::actions::insert(Indentation(-1)),
             )
+            // Increase indentation after "meta:"
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(GrammarRule::meta_defs)
+                        && ctx.token(-1).eq(&COLON)
+                },
+                processor::actions::insert(Indentation(1)),
+            )
+            // Decrease indentation after meta definitions
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(GrammarRule::meta_defs)
+                        && ctx.token(1).eq(&End(GrammarRule::meta_defs))
+                        && ctx.token(-1).neq(&Indentation(-1))
+                },
+                processor::actions::insert(Indentation(-1)),
+            )
             // Increase indentation after "strings:"
             .add_rule(
                 |ctx| {
