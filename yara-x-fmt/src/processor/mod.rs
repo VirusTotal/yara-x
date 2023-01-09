@@ -42,6 +42,7 @@ where
 {
     context: Context<'a, T>,
     rules: Vec<(ConditionFn<'a, T>, ActionFn<'a, T>)>,
+    debug: bool,
 }
 
 type ConditionFn<'a, T> = Box<dyn Fn(&Context<'a, T>) -> bool + 'a>;
@@ -63,6 +64,7 @@ where
                 passthrough: *categories::NONE,
             },
             rules: Vec::new(),
+            debug: false,
         }
     }
 
@@ -89,6 +91,11 @@ where
         self.rules.push((Box::new(condition), Box::new(action)));
         self
     }
+
+    pub fn debug(mut self) -> Self {
+        self.debug = true;
+        self
+    }
 }
 
 impl<'a, T> Iterator for Processor<'a, T>
@@ -102,6 +109,9 @@ where
             // If there are pending tokens in the output buffer, return one
             // of the pending tokens.
             if let Some(output) = self.context.output.pop_front() {
+                if self.debug {
+                    dbg!(&output);
+                }
                 return Some(output);
             }
 

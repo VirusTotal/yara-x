@@ -72,6 +72,7 @@ where
 mod tests {
     use crate::tokens::Token;
     use crate::trailing_spaces::TrailingSpacesRemover;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test1() {

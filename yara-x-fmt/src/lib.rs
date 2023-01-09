@@ -27,6 +27,7 @@ use crate::tokens::*;
 
 mod aligner;
 mod comments;
+mod newline_unnester;
 mod processor;
 mod tokens;
 mod trailing_spaces;
@@ -111,8 +112,10 @@ impl Formatter {
     where
         I: TokenStream<'a> + 'a,
     {
+        let tokens = newline_unnester::NewlineUnnester::new(input);
+
         // Remove all whitespaces from the original source.
-        let tokens = processor::Processor::new(input).add_rule(
+        let tokens = processor::Processor::new(tokens).add_rule(
             |ctx| ctx.token(1).is(*WHITESPACE),
             processor::actions::drop,
         );
@@ -128,12 +131,46 @@ impl Formatter {
                 },
                 processor::actions::drop,
             )
-            // Remove newlines in between rule modifiers "private" and "global"
+            // Remove newlines in between rule tags and rule modifiers (i.e: "private",
+            // "global").
             .add_rule(
                 |ctx| {
-                    (ctx.in_rule(GrammarRule::rule_decl)
-                        || ctx.in_rule(GrammarRule::rule_mods)
+                    (ctx.in_rule(GrammarRule::rule_mods)
                         || ctx.in_rule(GrammarRule::rule_tags))
+                        && ctx.token(1).is(*NEWLINE)
+                },
+                processor::actions::drop,
+            )
+            // Remove all newlines directly in rule_decl.
+            //
+            // Example:
+            //   rule test {
+            //     condition: true
+            //   }
+            //
+            // Removes newline after "{" and after "true". These newlines will
+            // be added again later
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(GrammarRule::rule_decl)
+                        && ctx.token(1).is(*NEWLINE)
+                },
+                processor::actions::drop,
+            )
+            // Remove newlines after "meta:"
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(GrammarRule::meta_defs)
+                        && ctx.token(-1).eq(&COLON)
+                        && ctx.token(1).is(*NEWLINE)
+                },
+                processor::actions::drop,
+            )
+            // Remove newlines after "strings:"
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(GrammarRule::pattern_defs)
+                        && ctx.token(-1).eq(&COLON)
                         && ctx.token(1).is(*NEWLINE)
                 },
                 processor::actions::drop,
