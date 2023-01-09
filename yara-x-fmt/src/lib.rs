@@ -573,6 +573,7 @@ impl Formatter {
             // - No space before ")" and "]"
             // - No space before ":"
             // - No space before or after ".." (e.g: (0..10))
+            // - No space before or after "." (e.g: foo.bar)
             // - No space in-between identifiers and "(" or "[" (e.g: array[0], func("foo")).
             // - No space before or after "-" in pattern modifiers and hex jumps
             //   (e.g: xor(0-255), [0-10]).
