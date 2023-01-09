@@ -289,12 +289,12 @@
 - unformatted: |
     rule test {
       condition:
-        for all x in ( 0 .. 10) : ( array[ 0 ] == ident )
+        for all x in ( 0 .. 10) : ( some.array[ 0 ] == some.ident )
     }
   formatted: |
     rule test {
       condition:
-        for all x in (0..10): (array[0] == ident)
+        for all x in (0..10): (some.array[0] == some.ident)
     }
 
 ###############################################################################

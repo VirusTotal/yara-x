@@ -587,10 +587,14 @@ impl Formatter {
                         && next_token.is(*TEXT ^ *RGROUPING);
 
                     let drop_space =
-                        // Don't insert space if next token is ":" or ".."
+                        // Don't insert space if next token is ":"
                         next_token.eq(&COLON)
+                        // Don't insert spaces around ".."
                         || prev_token.eq(&DOT_DOT)
                         || next_token.eq(&DOT_DOT)
+                        // Don't insert spaces around "."
+                        || prev_token.eq(&DOT)
+                        || next_token.eq(&DOT)
                         // don't insert space in-between some identifier and "("
                         // or "[".
                         || prev_token.is(*IDENTIFIER)

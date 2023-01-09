@@ -136,6 +136,7 @@ pub(crate) mod categories {
 
 lazy_static! {
     pub(crate) static ref COLON: Token<'static> = Token::Punctuation(":");
+    pub(crate) static ref DOT: Token<'static> = Token::Punctuation(".");
     pub(crate) static ref DOT_DOT: Token<'static> = Token::Punctuation("..");
     pub(crate) static ref EQUAL: Token<'static> = Token::Punctuation("=");
     pub(crate) static ref HYPHEN: Token<'static> = Token::Punctuation("-");
