@@ -297,10 +297,12 @@ where
         self.next_tokens.swap(index_i, index_j)
     }
 
-    /// Returns true if the the next token is within the scope of a given
-    /// parsing rule. Notice that the result is true only if the token is part
-    /// of the rule itself, but not if the token is part of any of its
-    /// sub-rules.
+    /// Returns true if the the next token is within a given grammar rule.
+    ///
+    /// If `deep` is `false` this function returns true only when the token is
+    /// a direct child of the grammar rule, tokens within sub-rules won't be
+    /// taken into account. When `deep` is true, the result of the function
+    /// is true if the token appears in the given rule or any of its sub-rules.
     ///
     /// For example, the code "rule test { condition: true }" produces the
     /// following sequence of tokens (indentation was added for highlighting
@@ -318,44 +320,54 @@ where
     ///      Grouping("}"),
     ///   End(Rule::rule_decl),
     ///
-    /// In the example above *Rule::boolean_expr* is a sub-rule of
-    /// *Rule::rule_decl*, if in_rule(Rule::rule_decl) is called while
-    /// the next token is the "true" keyword within *Rule::boolean_expr* the
-    /// result will be false, because "true" is not directly within the scope
-    /// of *Rule::rule_decl*. In the other hand in_rule(Rule::boolean_expr)
-    /// will return true.
-    pub fn in_rule(&self, rule: GrammarRule) -> bool {
-        // We are within the scope of a certain rule if that rule is currently
-        // at the top of the stack. The only exception is when the next token
-        // indicates the end of the rule. If next token is Token::End(some_rule)
-        // the rule at the top of the stack must be some_rule, but we don't
-        // want Token::End(some_rule) to be within the scope of some_rule. Both
-        // Token::Begin(some_rule) and Token::End(some_rule) are within the
-        // scope of their parent rule.
+    /// Now let's suppose the next token is the `true` keyword. In that state,
+    /// `in_rule(Rule::rule_decl, false)` returns `false` because the `true`
+    /// keyword it not a direct child of `Rule::rule_decl`.  
+    ///
+    /// However, calling `in_rule(Rule::rule_decl, true)` returns `true`,
+    /// because the `true` keyword is somewhere inside `Rule::rule_decl`,
+    /// although not directly.
+    pub fn in_rule(&self, rule: GrammarRule, deep: bool) -> bool {
+        // The logic for determining if the next token is within the scope of
+        // a rule goes as follows:
+        //
+        // * deep == true  => the rule is anywhere in the stack.
+        // * deep == false => the rule is at the top of the stack.
+        //
+        // However, there's an edge-case when the next token is End(some_rule).
+        // In that case the rule at the top of the stack must be `some_rule`,
+        // but we don't want End(some_rule) to be considered within the scope
+        // of `some_rule`. Both Begin(some_rule) and End(some_rule) are within
+        // the scope of their parent rule.
+        //
+        // This means that when the next token is End(some_rule), the top of the
+        // stack is ignored.
+
+        // First step is creating an iterator for traversing the stack starting
+        // at the top and going downwards.
+        let mut stack_iter = self.stack.iter().rev();
+
+        // If the next token indicates the end of a rule, make sure that the
+        // top of the stack is that same rule, but remove it from the iterator
+        // so that it won't taken into account in next step.
         if let Some(&Token::End(rule)) = self.next_tokens.front() {
-            // The next token indicates the end of a rule, make sure that the
-            // top of the stack is that same rule.
-            debug_assert_eq!(*self.stack.last().unwrap(), rule);
-            // Get the rule that was in the stack before the one at the top.
-            let before_top = match self.stack.len() {
-                // The stack is empty or have only one item, so there's no
-                // previous item.
-                0..=1 => None,
-                // Return the item previous to the top.
-                n => self.stack.get(n - 1),
-            };
-            return if let Some(rule_before_top) = before_top {
-                *rule_before_top == rule
-            } else {
-                false
-            };
+            let top = stack_iter.next();
+            debug_assert_eq!(*top.unwrap(), rule);
         }
-        // Common case, where the next token is not Token::End.
-        if let Some(top) = self.stack.last() {
-            *top == rule
-        } else {
-            false
+
+        // If deep is true look for the rule in the whole stack (the top
+        // was removed if necessary), if not look only at the top.
+        if deep {
+            for r in stack_iter {
+                if *r == rule {
+                    return true;
+                }
+            }
+        } else if let Some(r) = stack_iter.next() {
+            return *r == rule;
         }
+
+        false
     }
 
     /// Helper function that reads tokens from input and puts them into

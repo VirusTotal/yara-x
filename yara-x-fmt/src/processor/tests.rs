@@ -203,37 +203,25 @@ fn in_rule() {
     use crate::tokens::Token::*;
     use yara_x_parser::GrammarRule;
 
-    let processor =
-        Processor::new(tokenize(r#"rule test { condition: true }"#))
-            .add_rule(
-                |c| {
-                    c.token(1).eq(&Keyword("true"))
-                        && c.token(-1).neq(&Literal("<before true>"))
-                },
-                actions::insert(Literal("<before true>")),
-            )
-            .add_rule(
-                |c| c.token(-1).eq(&Token::Keyword("true")),
-                actions::insert(Literal("<after true>")),
-            )
-            .add_rule(
-                |c| {
-                    c.token(1).eq(&Begin(GrammarRule::boolean_expr))
-                        && c.token(-1)
-                            .neq(&Literal("<begin Rule::boolean_expr>"))
-                },
-                actions::insert(Literal("<begin Rule::boolean_expr>")),
-            )
-            .add_rule(
-                |c| {
-                    c.token(1).eq(&End(GrammarRule::boolean_expr))
-                        && c.token(-1)
-                            .neq(&Literal("<end Rule::boolean_expr>"))
-                },
-                actions::insert(Literal("<end Rule::boolean_expr>")),
-            );
+    let tokens = Processor::new(tokenize(r#"rule test { condition: true }"#))
+        .add_rule(
+            |c| {
+                c.in_rule(GrammarRule::boolean_expr, false)
+                    && c.token(-1)
+                        .neq(&Literal("<next token is in boolean_expr>"))
+            },
+            actions::insert(Literal("<next token is in boolean_expr>")),
+        )
+        .add_rule(
+            |c| {
+                c.in_rule(GrammarRule::boolean_term, false)
+                    && c.token(-1)
+                        .neq(&Literal("<next token is in boolean_term>"))
+            },
+            actions::insert(Literal("<next token is in boolean_term>")),
+        );
 
-    let output_tokens: Vec<Token> = processor.collect();
+    let output_tokens: Vec<Token> = tokens.collect();
 
     assert_eq!(
         output_tokens,
@@ -245,14 +233,13 @@ fn in_rule() {
             Punctuation("{"),
             Keyword("condition"),
             Punctuation(":"),
-            Literal("<begin Rule::boolean_expr>"),
             Begin(GrammarRule::boolean_expr),
+            Literal("<next token is in boolean_expr>"),
             Begin(GrammarRule::boolean_term),
-            Literal("<before true>"),
+            Literal("<next token is in boolean_term>"),
             Keyword("true"),
-            Literal("<after true>"),
+            Literal("<next token is in boolean_expr>"),
             End(GrammarRule::boolean_term),
-            Literal("<end Rule::boolean_expr>"),
             End(GrammarRule::boolean_expr),
             Punctuation("}"),
             End(GrammarRule::rule_decl),
