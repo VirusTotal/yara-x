@@ -31,6 +31,7 @@
     rule test {
       condition:
         true
+    
     }
 
 ###############################################################################
@@ -94,13 +95,13 @@
     import "test" /* Comment */ rule test1 {condition:true} /* Comment */ rule test2 {condition:true}
   formatted: |
     import "test"
-    /* Comment */
-    rule test1 {
+    
+    /* Comment */rule test1 {
       condition:
         true
     }
-    /* Comment */
-    rule test2 {
+    
+    /* Comment */rule test2 {
       condition:
         true
     }
@@ -108,19 +109,38 @@
 ###############################################################################
 
 - unformatted: |
-    import "test" // Comment
+    rule test {
+          /*
+             Some comment
+          */
+          condition:true
+    }
+  formatted: |
+    rule test {
+      /*
+         Some comment
+      */
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    import "test"// Comment
     rule test {
     strings: $a = "foo"
     condition:true}
   formatted: |
-    import "test"// Comment
+    import "test"
+    
+    // Comment
     rule test {
       strings:
         $a = "foo"
       condition:
         true
     }
-    
 
 ###############################################################################
 
@@ -140,9 +160,12 @@
     rule test {
       meta:
         a = 1
+      
       strings:
         $a = "foo"
+      
       condition:
+        
         true
     }
 
@@ -164,8 +187,24 @@
 ###############################################################################
 
 - unformatted: |
+    global
+    private // Lorem ipsum
+    rule test {
+      condition:
+        true
+    }
+  formatted: |
+    global private  // Lorem ipsum
+    rule test {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
     rule test : 
-      tag1 
+      tag1
       tag2 
     {
       condition:
@@ -179,6 +218,40 @@
 
 ###############################################################################
 
+- unformatted: |
+    rule test : 
+      tag1  
+      tag2 // Lorem ipsum
+    {
+      condition:
+        true
+    }
+  formatted: |
+    rule test: tag1 tag2  // Lorem ipsum
+    {
+      condition:
+        true
+    }
+
+###############################################################################
+
+- unformatted: |
+    rule test : 
+      tag1 // Lorem ipsum
+      tag2 // Lorem ipsum
+    {
+      condition:
+        true
+    }
+  formatted: |
+    rule test: tag1  // Lorem ipsum
+    tag2  // Lorem ipsum
+    {
+      condition:
+        true
+    }
+
+###############################################################################
 
 - unformatted: |
     import "test" // Comment
@@ -191,7 +264,7 @@
       condition: true
     }
   formatted: |
-    import "test"// Comment
+    import "test"  // Comment
     
     // Comment
     rule test {
@@ -275,6 +348,45 @@
 
 - unformatted: |
     rule test {
+      strings:
+        // Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+        // sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+    
+        // Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
+        // nisi ut aliquip ex ea commodo consequat
+        $hex = {
+          00 01 02 // Lorem ipsum
+          00 01 02 // Lorem ipsum
+                   // dolot sit amet
+          00 01 02 // Lorem ipsum
+          // Lorem ipsum
+        }
+      condition:
+        $hex
+    }
+  formatted: |
+    rule test {
+      strings:
+        // Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+        // sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        
+        // Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris
+        // nisi ut aliquip ex ea commodo consequat
+        $hex = {
+        00 01 02  // Lorem ipsum
+        00 01 02  // Lorem ipsum
+                  // dolot sit amet
+        00 01 02  // Lorem ipsum
+        // Lorem ipsum
+        }
+      condition:
+        $hex
+    }
+
+################################################################################
+
+- unformatted: |
+    rule test {
       condition:
         -(1+1)*2==-4 + (3 - 1)
     }
@@ -315,7 +427,6 @@
     }
 
 ###############################################################################
-
 
 - unformatted: |
     rule test {

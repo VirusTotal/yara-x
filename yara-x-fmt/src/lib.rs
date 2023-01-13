@@ -21,13 +21,13 @@ use yara_x_parser::Parser;
 use tokens::Token::*;
 use tokens::TokenStream;
 
-use crate::aligner::Aligner;
+use crate::align::Align;
 use crate::tokens::categories::*;
 use crate::tokens::*;
 
-mod aligner;
+mod align;
+mod bubble;
 mod comments;
-mod newline_unnester;
 mod processor;
 mod tokens;
 mod trailing_spaces;
@@ -112,7 +112,7 @@ impl Formatter {
     where
         I: TokenStream<'a> + 'a,
     {
-        let tokens = newline_unnester::NewlineUnnester::new(input);
+        let tokens = comments::CommentProcessor::new(input);
 
         // Remove all whitespaces from the original source.
         let tokens = processor::Processor::new(tokens).add_rule(
@@ -120,9 +120,37 @@ impl Formatter {
             processor::actions::drop,
         );
 
+        // Displace tail comments to the left with respect to tokens that
+        // indicate the end of a grammar rule. This effectively moves such
+        // comments to the innermost grammar rule.
+        let tokens = bubble::Bubble::new(
+            tokens,
+            |token| matches!(token, Token::TailComment(_)),
+            |token| matches!(token, Token::End(_)),
+        );
+
+        // Displace newlines to the right with respect to tokens that indicate
+        // the end of a grammar rule. This effectively moves them to the
+        // outermost grammar rule. See the documentation for the `bubble`
+        // module for more details.
+        let tokens = bubble::Bubble::new(
+            tokens,
+            |token| matches!(token, Token::End(_)),
+            |token| token.is(*NEWLINE),
+        );
+
+        let tokens = processor::Processor::new(tokens).add_rule(
+            |ctx| {
+                dbg!(ctx.token(1));
+                false
+            },
+            processor::actions::drop,
+        );
+
+        // Remove newlines in multiple cases.
         let tokens = processor::Processor::new(tokens)
-            // Remove excess of newlines, only two consecutive newlines are
-            // allowed.
+            // Remove excess of consecutive newlines, only two consecutive
+            // newlines are allowed.
             .add_rule(
                 |ctx| {
                     ctx.token(-2).is(*NEWLINE)
@@ -131,28 +159,28 @@ impl Formatter {
                 },
                 processor::actions::drop,
             )
-            // Remove newlines in between rule tags and rule modifiers (i.e: "private",
-            // "global").
+            // Remove newlines between rule tags and between rule modifiers.
             .add_rule(
                 |ctx| {
                     (ctx.in_rule(GrammarRule::rule_mods)
                         || ctx.in_rule(GrammarRule::rule_tags))
+                        && ctx.token(-1).is_not(*COMMENT)
                         && ctx.token(1).is(*NEWLINE)
                 },
                 processor::actions::drop,
             )
-            // Remove all newlines directly in rule_decl.
-            //
-            // Example:
-            //   rule test {
-            //     condition: true
-            //   }
-            //
-            // Removes newline after "{" and after "true". These newlines will
-            // be added again later
+            // Remove newlines after rule modifiers.
             .add_rule(
                 |ctx| {
-                    ctx.in_rule(GrammarRule::rule_decl)
+                    ctx.token(-1).eq(&End(GrammarRule::rule_mods))
+                        && ctx.token(1).is(*NEWLINE)
+                },
+                processor::actions::drop,
+            )
+            // Remove newlines after rule tags
+            .add_rule(
+                |ctx| {
+                    ctx.token(-1).eq(&End(GrammarRule::rule_tags))
                         && ctx.token(1).is(*NEWLINE)
                 },
                 processor::actions::drop,
@@ -338,42 +366,25 @@ impl Formatter {
 
         // indent_body and indent_sections will insert Indentation tokens, but
         // won't take into account that those tokens must appear before the
-        // newline they are expected to affect. This processor fixes that by
-        // moving the Indentation tokens in front of Newline tokens if they
-        // appear in reverse order.
+        // newline they are expected to affect. This fixes the issue by moving
+        // indentation tokens in front of newline tokens if they appear in
+        // reverse order.
+        let tokens = bubble::Bubble::new(
+            tokens,
+            |token| matches!(token, Token::Indentation(_)),
+            |token| token.is(*NEWLINE),
+        );
+
         let tokens = processor::Processor::new(tokens)
-            // Ignore all control tokens except indentation.
-            .set_passthrough(*CONTROL ^ *INDENTATION)
-            // Swap newlines followed by indentations. Notice that there are
-            // two rules, one that swaps tokens at positions 2 and 3, and
-            // another one that swaps tokens at positions 1 and 2. This is
-            // because we want a sequence [Newline, Newline, Indentation]
-            // ending up as [Indentation, Newline, Newline]. Swapping positions
-            // 1 and 2 is not enough because the first two tokens [Newline,
-            // Newline] don't match the rule, causing the first Newline to
-            // be copied to the output. The following Newline and Indentation,
-            // are swapped later, resulting in output [Newline, Indentation,
-            // Newline].
-            // By using two rules we make sure that tokens at positions 2 and 3
-            // are swapped first, and then tokens at position 1 and 2 will be
-            // swapped in the next iteration if necessary. But this strategy
-            // works as long as we don't have more than two consecutive
-            // newlines, a sequence [Newline, Newline, Newline, Indentation]
-            // ends up being [Newline, Indentation, Newline, Newline] not
-            // [Indentation, Newline, Newline, Newline]. That's ok because
-            // a previous step reduces sequences of more than two consecutive
-            // newlines to two of them.
+            .set_passthrough(*CONTROL)
             .add_rule(
                 |ctx| {
-                    ctx.token(2).is(*NEWLINE) && ctx.token(3).is(*INDENTATION)
+                    matches!(
+                        ctx.token(-1),
+                        Token::TailComment(_) | Token::BlockComment(_)
+                    ) && ctx.token(1).is_not(*NEWLINE)
                 },
-                processor::actions::swap(2, 3),
-            )
-            .add_rule(
-                |ctx| {
-                    ctx.token(1).is(*NEWLINE) && ctx.token(2).is(*INDENTATION)
-                },
-                processor::actions::swap(1, 2),
+                processor::actions::newline,
             );
 
         let tokens = Self::add_spacing(tokens);
@@ -557,7 +568,7 @@ impl Formatter {
         // ... then pass the token stream with the markers to Aligner, which
         // returns a token stream that replaces the markers with the
         // appropriate number of spaces.
-        Aligner::new(input_with_markers)
+        Align::new(input_with_markers)
     }
 
     fn add_spacing<'a, I>(input: I) -> impl TokenStream<'a> + 'a
@@ -611,6 +622,17 @@ impl Formatter {
                     add_space && !drop_space
                 },
                 processor::actions::space,
+            )
+            // Insert two spaces before trailing comments in a line.
+            .add_rule(
+                |ctx| {
+                    ctx.token(-1).is(*TEXT) &&
+                    ctx.token(1).is(*COMMENT)
+                },
+                |ctx| {
+                    ctx.push_output_token(Some(Whitespace));
+                    ctx.push_output_token(Some(Whitespace));
+                }
             )
     }
 }

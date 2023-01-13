@@ -1,7 +1,67 @@
-use std::collections::VecDeque;
+use crate::{COMMENT, CONTROL, NEWLINE, WHITESPACE};
+use std::collections::vec_deque::VecDeque;
 
 use crate::tokens::{Token, TokenStream};
 
+/// Converts all instances of [`Token::Comment`] into one of:
+///
+///  [`Token::BlockComment`],
+///  [`Token::TailComment`],
+///  [`Token::HeadComment`],
+///  [`Token::InlineComments`]
+///
+/// ... depending on the token's position within the line.
+///
+/// For example,
+///
+/// ```text
+/// rule test {
+///   // This is a block comment
+///   /* This is a head comment */ condition:
+///      true // This is a tail comment
+/// }
+/// ```
+///
+/// This processor must be used with a token stream that still retains the
+/// original spacing of the source code, because it needs the spacing for
+/// determining the original indentation of the comment. For example:
+///
+/// ```text
+/// rule test {
+///          /*
+///           *  This comment is indented
+///           */
+///     condition: true
+/// }
+/// ```
+///
+/// While adjusting the indentation of the code above we want the comment to
+/// look like this:
+///
+/// ```text
+/// rule test {
+///     /*
+///      * This comment is indented
+///      */
+///     condition: true
+/// }
+/// ```
+///
+/// Not like this:
+///
+/// ```text
+/// rule test {
+///     /*
+///           *  This comment is indented
+///           */
+///     condition: true
+/// }
+/// ```
+///
+/// For achieving this we can't simply copy everything contained between
+/// /* and */ verbatim, we must be able to recognize the original comment's
+/// indentation and remove the extra spaces accordingly.
+///
 pub(crate) struct CommentProcessor<'a, T>
 where
     T: TokenStream<'a>,
@@ -9,7 +69,25 @@ where
     input: T,
     input_buffer: VecDeque<Token<'a>>,
     output_buffer: VecDeque<Token<'a>>,
-    heading_newline: bool,
+    start_of_input: bool,
+    end_of_input: bool,
+    indentation: usize,
+}
+
+/// States used in [`CommentProcessor::process_input_buffer`]
+enum State {
+    /// This state indicates that a comment token has not been
+    /// found yet. When a newline character is found before
+    /// finding a comment, `leading_newline` is set to `true`.
+    PreComment { leading_newline: bool },
+    /// Once a comment token is found, it goes to this state
+    /// which contains information about the being created.
+    Comment {
+        indentation: usize,
+        leading_newline: bool,
+        trailing_newline: bool,
+        lines: Vec<String>,
+    },
 }
 
 impl<'a, T> CommentProcessor<'a, T>
@@ -21,67 +99,190 @@ where
             input,
             output_buffer: VecDeque::new(),
             input_buffer: VecDeque::new(),
-            // heading_newline is initially true because the start of the token
-            // stream is treated as a newline. If the first token in the stream
-            // is a comment, it should be treated as if was preceded by a
-            // newline
-            heading_newline: true,
+            start_of_input: true,
+            end_of_input: false,
+            indentation: 0,
         }
     }
 
-    fn process_input_buffer(&mut self, end_of_input: bool) {
-        for (i, token) in self.input_buffer.iter().enumerate() {
-            if let Token::Comment(comment) = token {
-                // Is this comment preceded by a newline? If the comment is the
-                // first token in the input buffer, we rely on the value of
-                // self.heading_newline, which indicates if the token immediately
-                // before the first one in input buffer was a newline or not.
-                let heading_newline = if i > 0 {
-                    if let Some(token) = self.input_buffer.get(i - 1) {
-                        matches!(token, Token::Newline)
-                    } else {
-                        self.heading_newline
-                    }
-                } else {
-                    self.heading_newline
-                };
+    fn push_comment(
+        &mut self,
+        comment_lines: Vec<String>,
+        leading_newline: bool,
+        trailing_newline: bool,
+    ) {
+        let comment = match (leading_newline, trailing_newline) {
+            (true, true) => Token::BlockComment(comment_lines),
+            (true, false) => Token::HeadComment(comment_lines),
+            (false, true) => Token::TailComment(comment_lines),
+            (false, false) => Token::InlineComment(comment_lines),
+        };
 
-                // Is this comment followed by a newline? If the comment is the
-                // the last token in the input buffer, we rely on the value of
-                // end_of_input, which indicates if there is some token after
-                // the ones in the input buffer. If end_of_input is true, we
-                // treat it as if the input finishes with a trailing newline.
-                // If it's false, the pending tokens can't be newlines and
-                // therefore trailing_newline is false.
-                let tailing_newline =
-                    if let Some(token) = self.input_buffer.get(i + 1) {
-                        matches!(token, Token::Newline)
-                    } else {
-                        end_of_input
-                    };
+        self.output_buffer.push_back(comment);
 
-                // Create the appropriate type of comment depending on whether
-                // it is preceded and/or followed by a newline.
-                let comment = match (heading_newline, tailing_newline) {
-                    (true, true) => {
-                        Token::BlockComment((*comment).to_string())
-                    }
-                    (true, false) => {
-                        Token::HeadComment((*comment).to_string())
-                    }
-                    (false, true) => {
-                        Token::TailComment((*comment).to_string())
-                    }
-                    (false, false) => {
-                        Token::InlineComment((*comment).to_string())
-                    }
-                };
+        if trailing_newline {
+            self.output_buffer.push_back(Token::Newline);
+        };
+    }
 
-                self.output_buffer.push_back(comment);
+    /// Process any pending tokens in the input buffer.
+    ///
+    /// The input buffer always contains a mixture of whitespaces, newlines
+    /// comments, and control tokens. No other kind of tokens can appear in
+    /// the input buffer. In fact, this function is called when a different
+    /// kind of tokens is observed in the input stream, so, while processing
+    /// the input buffer we can assume that the token that comes next after
+    /// those in the input buffer is not a whitespace, newline nor comment.
+    ///
+    /// This function works like an automaton with two states `PreComment`
+    /// and `Comment`. The automaton remains in the `PreComment` state
+    /// while it processes any whitespaces and newlines that precede the
+    /// the comment. When it finds a [`Token::Comment`], it switches to
+    /// the `Comment` state.
+    fn process_input_buffer(&mut self) {
+        // Start at PreComment state, `leading_newline` is initialized with
+        // the value of `start_of_input` because comments that are at the
+        // very beginning of a file are handled as if they were preceded by
+        // a newline character.
+        let mut state =
+            State::PreComment { leading_newline: self.start_of_input };
+        loop {
+            match &mut state {
+                State::PreComment { ref mut leading_newline } => {
+                    match self.input_buffer.pop_front() {
+                        Some(token @ Token::Whitespace) => {
+                            self.indentation += token.len();
+                            self.output_buffer.push_back(token);
+                        }
+                        // A newline has been found while in PreComment state,
+                        // set the state's leading_newline to true.
+                        Some(token @ Token::Newline) => {
+                            self.indentation = 0;
+                            self.output_buffer.push_back(token);
+                            *leading_newline = true;
+                        }
+                        // A comment was found while in PreComment state, move
+                        // to a new Comment state.
+                        Some(ref token @ Token::Comment(comment)) => {
+                            state = State::Comment {
+                                indentation: self.indentation,
+                                leading_newline: *leading_newline,
+                                trailing_newline: false,
+                                lines: split_comment_lines(
+                                    comment,
+                                    self.indentation,
+                                ),
+                            };
+                            self.indentation += token.len();
+                        }
+                        // Control tokens are passed directly to output.
+                        Some(token) => self.output_buffer.push_back(token),
+                        None => break,
+                    }
+                }
+                State::Comment {
+                    lines,
+                    trailing_newline,
+                    leading_newline,
+                    indentation,
+                } => match self.input_buffer.pop_front() {
+                    Some(token @ Token::Whitespace) => {
+                        self.indentation += token.len();
+                    }
+                    // Newline found while in the Comment state. If this is the
+                    // first newline after the comment, the trailing_newline
+                    // field in the current comment is set to true. However,
+                    // if trailing_newline was already true this is the second
+                    // newline after the comment, and in that case we push the
+                    // current comment and start with a new one.
+                    //
+                    // This means that an empty line in between comments break
+                    // the comment block in two. For example:
+                    //
+                    // ```
+                    // // This is a comment block.
+                    // // These three lines are
+                    // // are put in the same BlockComment.
+                    //
+                    // // However, this other block is separated from
+                    // // the previous one by an empty line, therefore
+                    // // it goes to a different BlockComment.
+                    // ```
+                    //
+                    Some(Token::Newline) => {
+                        if *trailing_newline {
+                            self.push_comment(
+                                (*lines).to_vec(),
+                                *leading_newline,
+                                *trailing_newline,
+                            );
+                            self.output_buffer.push_back(Token::Newline);
+                            state = State::Comment {
+                                indentation: self.indentation,
+                                leading_newline: true,
+                                trailing_newline: false,
+                                lines: Vec::new(),
+                            };
+                        } else {
+                            *trailing_newline = true;
+                        };
+                        self.indentation = 0;
+                    }
+                    // Comment token found while in the Comment state. If the
+                    // token's indentation matches the indentation of the
+                    // current comment it is considered part of the same block.
+                    //
+                    // Example:
+                    // ```
+                    //      // This line, and the following one are part of
+                    //      // the same block because they are aligned.
+                    //
+                    //      // This line is an independent comment.
+                    //          // This line is independent comment.
+                    // ```
+                    Some(Token::Comment(comment)) => {
+                        if *indentation == self.indentation {
+                            lines.append(
+                                split_comment_lines(comment, *indentation)
+                                    .as_mut(),
+                            );
+                            *trailing_newline = false;
+                        } else {
+                            self.push_comment(
+                                (*lines).to_vec(),
+                                *leading_newline,
+                                *trailing_newline,
+                            );
+                            state = State::Comment {
+                                indentation: self.indentation,
+                                leading_newline: *trailing_newline,
+                                trailing_newline: false,
+                                lines: split_comment_lines(
+                                    comment,
+                                    self.indentation,
+                                ),
+                            };
+                        }
+                    }
+                    Some(token) => self.output_buffer.push_back(token),
+                    None => break,
+                },
             }
         }
 
-        self.input_buffer.clear()
+        if let State::Comment {
+            lines,
+            leading_newline,
+            trailing_newline,
+            ..
+        } = state
+        {
+            self.push_comment(
+                lines,
+                leading_newline,
+                trailing_newline || self.end_of_input,
+            );
+        }
     }
 }
 
@@ -97,35 +298,65 @@ where
             if let Some(token) = self.output_buffer.pop_front() {
                 return Some(token);
             }
-
             // No tokens in the output buffer, take a token from the input.
             if let Some(token) = self.input.next() {
-                match token {
-                    // If the token from input is a newline or comment, put it
-                    // in the input buffer.
-                    Token::Newline | Token::Comment(_) => {
-                        self.input_buffer.push_back(token)
-                    }
-                    // If the token from the input is not a newline or comment
-                    // the input buffer is processed, putting some tokens in
-                    // the output buffer.
-                    _ => {
-                        self.process_input_buffer(false);
-                        self.output_buffer.push_back(token);
-                        self.heading_newline = false;
-                    }
+                // If the token from input is a newline, space or comment,
+                // put it in the input buffer.
+                if token.is(*NEWLINE | *WHITESPACE | *COMMENT | *CONTROL) {
+                    self.input_buffer.push_back(token)
+                }
+                // If the token from the input is not a newline, space or
+                // comment the input buffer is processed, putting some
+                // tokens in the output buffer.
+                else {
+                    self.process_input_buffer();
+                    self.indentation += token.len();
+                    self.output_buffer.push_back(token);
+                    self.start_of_input = false;
                 }
             } else if !self.input_buffer.is_empty() {
-                // No more tokens in the input but, but the input buffer
+                // No more tokens in the input stream, but the input buffer
                 // contains some tokens, process them.
-                self.process_input_buffer(true);
+                self.end_of_input = true;
+                self.process_input_buffer();
             } else {
-                // No more tokens in the input and the input buffer is empty,
-                // nothing else to do.
+                // No more tokens in the input stream and the input buffer
+                // is empty, nothing else to do.
                 return None;
             }
         }
     }
+}
+
+/// Splits a multi-line comment into lines.
+///
+/// Also removes the specified number of whitespaces from the beginning of
+/// each line, except the first one.
+///
+/// This is necessary because when a multi-line comment that uses the
+/// `/* comment */` syntax is indented, the comment itself contains some spaces
+/// that are actually part of the indentation. For example:
+///
+/// ```text
+/// <-- indentation -->/*  
+/// <-- indentation -->    This comment is indented
+/// <-- indentation -->*/
+/// ```
+///
+/// Notice how the comment contains some spaces (here represented by
+/// `<-- indentation -->`) that should be removed/adjusted when the comment
+/// is re-indented.
+fn split_comment_lines(comment: &str, indentation: usize) -> Vec<String> {
+    let indent = " ".repeat(indentation);
+    let mut result = Vec::new();
+    for line in comment.lines() {
+        if let Some(line_without_indent) = line.strip_prefix(indent.as_str()) {
+            result.push(line_without_indent.to_string())
+        } else {
+            result.push(line.to_owned())
+        }
+    }
+    result
 }
 
 #[cfg(test)]
@@ -135,55 +366,127 @@ mod tests {
     use crate::comments::CommentProcessor;
     use crate::tokens::Token;
 
-    #[test]
-    fn test1() {
-        let input = vec![Token::Comment("// some comment")];
-
-        let output =
-            CommentProcessor::new(input.into_iter()).collect::<Vec<Token>>();
-
+    fn test(input: Vec<Token>, expected_output: Vec<Token>) {
         assert_eq!(
-            output,
-            vec![Token::BlockComment("// some comment".to_string())]
-        )
+            expected_output,
+            CommentProcessor::new(input.into_iter()).collect::<Vec<Token>>()
+        );
     }
 
     #[test]
-    fn test2() {
-        let input = vec![
-            Token::Comment("// some comment"),
-            Token::Comment("// some other comment"),
-        ];
-
-        let output =
-            CommentProcessor::new(input.into_iter()).collect::<Vec<Token>>();
-
-        assert_eq!(
-            output,
+    fn tests() {
+        test(
+            vec![Token::Comment("// some comment")],
             vec![
-                Token::HeadComment("// some comment".to_string()),
-                Token::TailComment("// some other comment".to_string()),
-            ]
-        )
-    }
+                Token::BlockComment(vec!["// some comment".to_string()]),
+                Token::Newline,
+            ],
+        );
 
-    #[test]
-    fn test3() {
-        let input = vec![
-            Token::Comment("// some comment"),
-            Token::Newline,
-            Token::Comment("// some other comment"),
-        ];
-
-        let output =
-            CommentProcessor::new(input.into_iter()).collect::<Vec<Token>>();
-
-        assert_eq!(
-            output,
+        test(
             vec![
-                Token::BlockComment("// some comment".to_string()),
-                Token::BlockComment("// some other comment".to_string()),
-            ]
-        )
+                Token::Comment("// some comment"),
+                Token::Newline,
+                Token::Whitespace,
+                Token::Comment("// some other comment"),
+            ],
+            vec![
+                Token::BlockComment(vec!["// some comment".to_string()]),
+                Token::Newline,
+                Token::BlockComment(vec!["// some other comment".to_string()]),
+                Token::Newline,
+            ],
+        );
+
+        test(
+            vec![
+                Token::Whitespace,
+                Token::Comment("// some comment"),
+                Token::Newline,
+                Token::Whitespace,
+                Token::Comment("// some other comment"),
+            ],
+            vec![
+                Token::Whitespace,
+                Token::BlockComment(vec![
+                    "// some comment".to_string(),
+                    "// some other comment".to_string(),
+                ]),
+                Token::Newline,
+            ],
+        );
+
+        test(
+            vec![
+                Token::Comment("// some comment"),
+                Token::Newline,
+                Token::Newline,
+                Token::Comment("// some other comment"),
+            ],
+            vec![
+                Token::BlockComment(vec!["// some comment".to_string()]),
+                Token::Newline,
+                Token::Newline,
+                Token::BlockComment(vec!["// some other comment".to_string()]),
+                Token::Newline,
+            ],
+        );
+
+        test(
+            vec![
+                Token::Identifier("foo"),
+                Token::Whitespace,
+                Token::Comment("// some comment"),
+                Token::Newline,
+                Token::Comment("// some other comment"),
+            ],
+            vec![
+                Token::Identifier("foo"),
+                Token::Whitespace,
+                Token::TailComment(vec!["// some comment".to_string()]),
+                Token::Newline,
+                Token::BlockComment(vec!["// some other comment".to_string()]),
+                Token::Newline,
+            ],
+        );
+
+        test(
+            vec![
+                Token::Identifier("foo"),
+                Token::Whitespace,
+                Token::Comment("// some comment"),
+                Token::Newline,
+                Token::Whitespace,
+                Token::Whitespace,
+                Token::Whitespace,
+                Token::Whitespace,
+                Token::Comment("// some other comment"),
+            ],
+            vec![
+                Token::Identifier("foo"),
+                Token::Whitespace,
+                Token::TailComment(vec![
+                    "// some comment".to_string(),
+                    "// some other comment".to_string(),
+                ]),
+                Token::Newline,
+            ],
+        );
+
+        test(
+            vec![
+                Token::Identifier("foo"),
+                Token::Whitespace,
+                Token::Comment("/* some comment */"),
+                Token::Whitespace,
+                Token::Identifier("foo"),
+            ],
+            vec![
+                Token::Identifier("foo"),
+                Token::Whitespace,
+                Token::InlineComment(vec!["/* some comment */".to_string()]),
+                Token::Identifier("foo"),
+            ],
+        );
     }
 }

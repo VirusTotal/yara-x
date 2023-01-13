@@ -32,7 +32,7 @@ use crate::tokens::{Token, TokenStream};
 /// Notice that [`Aligner`] requires that the input stream already contains  
 /// at least one newline token after each pattern declaration.
 ///
-pub(crate) struct Aligner<'a, T>
+pub(crate) struct Align<'a, T>
 where
     T: TokenStream<'a>,
 {
@@ -40,7 +40,7 @@ where
     output_buffer: VecDeque<Token<'a>>,
 }
 
-impl<'a, T> Aligner<'a, T>
+impl<'a, T> Align<'a, T>
 where
     T: TokenStream<'a>,
 {
@@ -49,7 +49,7 @@ where
     }
 }
 
-impl<'a, T> Iterator for Aligner<'a, T>
+impl<'a, T> Iterator for Align<'a, T>
 where
     T: TokenStream<'a>,
 {

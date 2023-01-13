@@ -216,10 +216,10 @@ pub(crate) enum Token<'a> {
     Whitespace,
     Comment(&'a str),
 
-    BlockComment(String),
-    HeadComment(String),
-    TailComment(String),
-    InlineComment(String),
+    BlockComment(Vec<String>),
+    HeadComment(Vec<String>),
+    TailComment(Vec<String>),
+    InlineComment(Vec<String>),
 
     Newline,
     Identifier(&'a str),
@@ -315,6 +315,13 @@ impl<'a> Token<'a> {
             | Token::TailComment(_)
             | Token::InlineComment(_) => "",
         }
+    }
+
+    /// Returns the length of the token in text form
+    ///
+    /// The length of control tokens is zero.
+    pub fn len(&self) -> usize {
+        self.as_str().len()
     }
 
     /// Create a token from a parser rule and its associated span.
@@ -414,12 +421,14 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
         W: std::io::Write,
     {
         let mut indent_level = 0;
+        let mut col_num = 0;
         for token in self {
             match token {
                 Token::Indentation(increase) => {
                     indent_level += increase;
                 }
                 Token::Newline => {
+                    col_num = indent_level * indent.len() as i16;
                     w.write_all("\n".as_bytes())?;
                     w.write_all(
                         indent.repeat(indent_level as usize).as_bytes(),
@@ -433,8 +442,36 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::LGrouping(_)
                 | Token::RGrouping(_)
                 | Token::Punctuation(_) => {
+                    col_num += token.len() as i16;
                     w.write_all(token.as_str().as_bytes())?;
                 }
+
+                Token::BlockComment(lines)
+                | Token::HeadComment(lines)
+                | Token::TailComment(lines)
+                | Token::InlineComment(lines) => {
+                    let mut lines = lines.iter();
+                    let message_col = col_num;
+
+                    // The first line of the comment is already indented.
+                    if let Some(first_line) = lines.next() {
+                        col_num += first_line.len() as i16;
+                        w.write_all(first_line.as_bytes())?;
+                    }
+
+                    // For all remaining lines in a multi-line comment we
+                    // need to add the line-break and the corresponding
+                    // indentation.
+                    for line in lines {
+                        w.write_all("\n".as_bytes())?;
+                        w.write_all(
+                            " ".repeat(message_col as usize).as_bytes(),
+                        )?;
+                        w.write_all(line.as_bytes())?;
+                        col_num = message_col + line.len() as i16;
+                    }
+                }
+
                 Token::None
                 | Token::Begin(_)
                 | Token::End(_)
@@ -442,11 +479,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::BlockEnd
                 | Token::AlignmentBlockBegin
                 | Token::AlignmentBlockEnd
-                | Token::AlignmentMarker
-                | Token::BlockComment(_)
-                | Token::HeadComment(_)
-                | Token::TailComment(_)
-                | Token::InlineComment(_) => {
+                | Token::AlignmentMarker => {
                     // Control tokens are not visible, nothing to write.
                 }
             }

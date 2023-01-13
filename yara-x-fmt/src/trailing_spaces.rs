@@ -3,7 +3,8 @@ use std::collections::VecDeque;
 use crate::tokens::categories::CONTROL;
 use crate::tokens::{Token, TokenStream};
 
-pub(crate) struct TrailingSpacesRemover<'a, T>
+/// Processor that removes trailing spaces.
+pub(crate) struct RemoveTrailingSpaces<'a, T>
 where
     T: TokenStream<'a>,
 {
@@ -11,7 +12,7 @@ where
     output_buffer: VecDeque<Token<'a>>,
 }
 
-impl<'a, T> TrailingSpacesRemover<'a, T>
+impl<'a, T> RemoveTrailingSpaces<'a, T>
 where
     T: TokenStream<'a>,
 {
@@ -20,7 +21,7 @@ where
     }
 }
 
-impl<'a, T> Iterator for TrailingSpacesRemover<'a, T>
+impl<'a, T> Iterator for RemoveTrailingSpaces<'a, T>
 where
     T: TokenStream<'a>,
 {
@@ -71,14 +72,14 @@ where
 #[cfg(test)]
 mod tests {
     use crate::tokens::Token;
-    use crate::trailing_spaces::TrailingSpacesRemover;
+    use crate::trailing_spaces::RemoveTrailingSpaces;
     use pretty_assertions::assert_eq;
 
     #[test]
     fn test1() {
         let input = vec![Token::Whitespace, Token::Whitespace, Token::Newline];
 
-        let output = TrailingSpacesRemover::new(input.into_iter())
+        let output = RemoveTrailingSpaces::new(input.into_iter())
             .collect::<Vec<Token>>();
 
         assert_eq!(output, vec![Token::Newline,])
@@ -89,7 +90,7 @@ mod tests {
         let input =
             vec![Token::Whitespace, Token::Keyword("foo"), Token::Newline];
 
-        let output = TrailingSpacesRemover::new(input.into_iter())
+        let output = RemoveTrailingSpaces::new(input.into_iter())
             .collect::<Vec<Token>>();
 
         assert_eq!(
