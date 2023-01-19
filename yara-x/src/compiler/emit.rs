@@ -14,9 +14,10 @@ use yara_x_parser::types::{Array, Map, Type, TypeValue};
 
 use crate::compiler::{Context, PatternId, RuleId, Var};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
+use crate::wasm::string::RuntimeString;
 use crate::wasm::{
-    RuntimeString, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START,
-    MATCHING_RULES_BITMAP_BASE, VARS_STACK_START,
+    LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
+    VARS_STACK_START,
 };
 
 /// This macro emits a constant if the [`TypeValue`] indicates that the
@@ -134,7 +135,7 @@ macro_rules! emit_comparison_op {
                     $instr.binop(BinaryOp::$float_op);
                 }
                 (Type::String, Type::String) => {
-                    $instr.call($ctx.wasm_symbols.$str_op);
+                    $instr.call($ctx.function_id(stringify!($str_op)));
                 }
                 _ => unreachable!(),
             };
@@ -219,7 +220,7 @@ pub(super) fn emit_rule_code(
         block.i32_const(rule_id);
 
         // Emit call instruction for calling `rule_match`.
-        block.call(ctx.wasm_symbols.rule_match);
+        block.call(ctx.function_id("rule_match"));
     });
 }
 
@@ -341,13 +342,13 @@ pub(super) fn emit_expr(
                 Some(MatchAnchor::At(anchor_at)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_at.expr);
-                    instr.call(ctx.wasm_symbols.is_pat_match_at);
+                    instr.call(ctx.function_id("is_pat_match_at"));
                 }
                 Some(MatchAnchor::In(anchor_in)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_in.range.lower_bound);
                     emit_expr(ctx, instr, &anchor_in.range.upper_bound);
-                    instr.call(ctx.wasm_symbols.is_pat_match_in);
+                    instr.call(ctx.function_id("is_pat_match_in"));
                 }
                 None => {
                     emit_check_for_pattern_match(ctx, instr, pattern_id);
@@ -614,43 +615,43 @@ pub(super) fn emit_expr(
         Expr::Contains(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.wasm_symbols.str_contains);
+                instr.call(ctx.function_id("str_contains"));
             });
         }
         Expr::IContains(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.wasm_symbols.str_icontains);
+                instr.call(ctx.function_id("str_icontains"));
             });
         }
         Expr::StartsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.wasm_symbols.str_startswith);
+                instr.call(ctx.function_id("str_startswith"));
             });
         }
         Expr::IStartsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.wasm_symbols.str_istartswith);
+                instr.call(ctx.function_id("str_istartswith"));
             });
         }
         Expr::EndsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.wasm_symbols.str_endswith);
+                instr.call(ctx.function_id("str_endswith"));
             });
         }
         Expr::IEndsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.wasm_symbols.str_iendswith);
+                instr.call(ctx.function_id("str_iendswith"));
             });
         }
         Expr::IEquals(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.wasm_symbols.str_iequals);
+                instr.call(ctx.function_id("str_iequals"));
             });
         }
         Expr::Matches(_) => {
@@ -764,35 +765,35 @@ fn emit_array_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.array_lookup_integer,
+                ctx.function_id("array_lookup_integer"),
             );
         }
         Array::Floats(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.array_lookup_float,
+                ctx.function_id("array_lookup_float"),
             );
         }
         Array::Bools(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.array_lookup_bool,
+                ctx.function_id("array_lookup_bool"),
             );
         }
         Array::Structs(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.array_lookup_struct,
+                ctx.function_id("array_lookup_struct"),
             );
         }
         Array::Strings(_) => {
             emit_call_and_handle_undef_str(
                 ctx,
                 instr,
-                ctx.wasm_symbols.array_lookup_string,
+                ctx.function_id("array_lookup_string"),
             );
         }
     }
@@ -825,35 +826,35 @@ fn emit_map_integer_key_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_integer_integer,
+                ctx.function_id("map_lookup_integer_integer"),
             );
         }
         Type::Float => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_integer_float,
+                ctx.function_id("map_lookup_integer_float"),
             );
         }
         Type::Bool => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_integer_bool,
+                ctx.function_id("map_lookup_integer_bool"),
             );
         }
         Type::Struct => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_integer_struct,
+                ctx.function_id("map_lookup_integer_struct"),
             );
         }
         Type::String => {
             emit_call_and_handle_undef_str(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_integer_string,
+                ctx.function_id("map_lookup_integer_string"),
             );
         }
         _ => unreachable!(),
@@ -873,35 +874,35 @@ fn emit_map_string_key_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_string_integer,
+                ctx.function_id("map_lookup_string_integer"),
             );
         }
         Type::Float => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_string_float,
+                ctx.function_id("map_lookup_string_float"),
             );
         }
         Type::Bool => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_string_bool,
+                ctx.function_id("map_lookup_string_bool"),
             );
         }
         Type::Struct => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_string_struct,
+                ctx.function_id("map_lookup_string_struct"),
             );
         }
         Type::String => {
             emit_call_and_handle_undef_str(
                 ctx,
                 instr,
-                ctx.wasm_symbols.map_lookup_string_string,
+                ctx.function_id("map_lookup_string_string"),
             );
         }
         _ => unreachable!(),
@@ -1336,7 +1337,7 @@ pub(super) fn emit_for_in_array(
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(array_var.index);
-                instr.call(ctx.wasm_symbols.array_len);
+                instr.call(ctx.function_id("array_len"));
             });
 
             // If n <= 0, exit from the loop.
@@ -1447,7 +1448,7 @@ pub(super) fn emit_for_in_map(
             // Initialize `n` to the maps's length.
             set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(map_var.index);
-                instr.call(ctx.wasm_symbols.map_len);
+                instr.call(ctx.function_id("map_len"));
             });
 
             // If n <= 0, exit from the loop.
@@ -1716,7 +1717,7 @@ pub(super) fn emit_bool_expr(
             instr.binop(BinaryOp::F64Ne);
         }
         Type::String => {
-            instr.call(ctx.wasm_symbols.str_len);
+            instr.call(ctx.function_id("str_len"));
             instr.i64_const(0);
             instr.binop(BinaryOp::I64Ne);
         }
@@ -1833,7 +1834,7 @@ pub(super) fn emit_lookup_integer(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(ctx, instr, ctx.wasm_symbols.lookup_integer);
+    emit_call_and_handle_undef(ctx, instr, ctx.function_id("lookup_integer"));
 }
 
 #[inline]
@@ -1844,7 +1845,7 @@ pub(super) fn emit_lookup_float(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(ctx, instr, ctx.wasm_symbols.lookup_float);
+    emit_call_and_handle_undef(ctx, instr, ctx.function_id("lookup_float"));
 }
 
 #[inline]
@@ -1855,7 +1856,7 @@ pub(super) fn emit_lookup_bool(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(ctx, instr, ctx.wasm_symbols.lookup_bool);
+    emit_call_and_handle_undef(ctx, instr, ctx.function_id("lookup_bool"));
 }
 
 #[inline]
@@ -1866,7 +1867,11 @@ pub(super) fn emit_lookup_string(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef_str(ctx, instr, ctx.wasm_symbols.lookup_string);
+    emit_call_and_handle_undef_str(
+        ctx,
+        instr,
+        ctx.function_id("lookup_string"),
+    );
 }
 
 #[inline]
@@ -1877,7 +1882,7 @@ pub(super) fn emit_lookup_value(
 ) {
     emit_lookup_common(ctx, instr);
     instr.i32_const(var.index);
-    instr.call(ctx.wasm_symbols.lookup_value);
+    instr.call(ctx.function_id("lookup_value"));
 }
 
 /// Emits code for catching exceptions caused by undefined values.

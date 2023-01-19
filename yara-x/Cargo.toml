@@ -38,6 +38,7 @@ bstr = { workspace = true  }
 globset = { workspace = true }
 intaglio = { workspace = true }
 lazy_static = { workspace = true }
+linkme = { workspace = true }
 memmap = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }

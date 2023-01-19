@@ -13,7 +13,7 @@ of all the compiled rules. This WASM function is called by YARA at scan time,
 and the WASM code calls back the Rust [`rule_match`] function for notifying
 YARA about matching rules. The WASM module calls Rust functions in many other
 cases, for example when it needs to call YARA built-in functions like
-`uint8(...)`.
+`uint8(...)`, or functions implemented by YARA modules.
 
 WASM and Rust code also share information via WASM global variables and by
 sharing memory. For example, the value for YARA's `filesize` keyword is
@@ -65,20 +65,26 @@ the WASM module's main memory (see "Memory layout") before calling
 many indexes to lookup.
 
  */
+use std::any::{type_name, TypeId};
 use std::borrow::Borrow;
-use std::stringify;
 
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
-use bstr::{BStr, ByteSlice};
+use bstr::ByteSlice;
 use lazy_static::lazy_static;
-use wasmtime::{AsContextMut, Caller, Config, Engine, Linker};
+use linkme::distributed_slice;
+use wasmtime::{AsContextMut, Caller, Config, Engine, FuncType, Linker, Val};
+
+use yara_x_macros::wasm_export;
 use yara_x_parser::types::{Map, TypeValue};
 
-use crate::compiler::{LiteralId, PatternId, RuleId};
-use crate::scanner::{RuntimeStringId, ScanContext};
+use crate::compiler::{PatternId, RuleId};
+use crate::scanner::ScanContext;
+use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
+use crate::LiteralId;
 
 pub(crate) mod builder;
+pub(crate) mod string;
 
 /// Offset in module's main memory where the space for loop variables start.
 pub(crate) const VARS_STACK_START: i32 = 0;
@@ -94,6 +100,287 @@ pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 /// rule matches or not. This bitmap contains one bit per rule, if the N-th
 /// bit is set, it indicates that the rule with RuleId = N matched.
 pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
+
+/// Global slice that contains an entry for each function that is callable from
+/// WASM code. Functions with the `#[wasm_export]` attribute are automatically
+/// added to this slice. See for https://github.com/dtolnay/linkme for details
+/// about how `#[distributed_slice]` works.
+#[distributed_slice]
+pub(crate) static WASM_EXPORTS: [WasmExport] = [..];
+
+/// Type of each entry in [`WASM_EXPORTS`].
+pub(crate) struct WasmExport {
+    name: &'static str,
+    func: &'static (dyn WasmExportedFn + Send + Sync),
+}
+
+/// Trait implemented for all types that represent a function exported to WASM.
+///
+/// Implementors of this trait are [`WasmExportedFn0`], [`WasmExportedFn1`],
+/// [`WasmExportedFn2`], etc. Each of these types is a generic type that
+/// represents all functions with 0, 1, and 2 arguments respectively.
+trait WasmExportedFn {
+    /// Returns the function that will be passed to [`wasmtime::Func::new`]
+    /// while linking the WASM code to this function.
+    fn trampoline(&'static self) -> TrampolineFn;
+
+    /// Returns a [`Vec<walrus::ValType>`] with the types of the function's
+    /// arguments
+    fn walrus_args(&'static self) -> Vec<walrus::ValType>;
+
+    /// Returns a [`Vec<walrus::ValType>`] with the types of the function's
+    /// return values.
+    fn walrus_results(&'static self) -> Vec<walrus::ValType>;
+
+    /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
+    /// arguments
+    fn wasmtime_args(&'static self) -> Vec<wasmtime::ValType> {
+        self.walrus_args().iter().map(walrus_to_wasmtime).collect()
+    }
+
+    /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
+    /// return values.
+    fn wasmtime_results(&'static self) -> Vec<wasmtime::ValType> {
+        self.walrus_results().iter().map(walrus_to_wasmtime).collect()
+    }
+}
+
+type TrampolineFn = Box<
+    dyn Fn(Caller<'_, ScanContext>, &[Val], &mut [Val]) -> anyhow::Result<()>
+        + Send
+        + Sync
+        + 'static,
+>;
+
+/// Represents an argument passed to a function exported to WASM.
+///
+/// The purpose of this type is converting [`wasmtime::Val`] into Rust
+/// types (e.g: `i64`, `i32`, `f64`, `f32`)
+struct WasmArg(Val);
+
+impl From<Val> for WasmArg {
+    fn from(value: Val) -> Self {
+        Self(value)
+    }
+}
+
+impl From<WasmArg> for i64 {
+    fn from(value: WasmArg) -> Self {
+        value.0.unwrap_i64()
+    }
+}
+
+impl From<WasmArg> for i32 {
+    fn from(value: WasmArg) -> Self {
+        value.0.unwrap_i32()
+    }
+}
+
+impl From<WasmArg> for LiteralId {
+    fn from(value: WasmArg) -> Self {
+        LiteralId::from(value.0.unwrap_i32())
+    }
+}
+
+/// Represents the return value of a function exported to WASM.
+///
+/// The purpose of this type if converting Rust types into a slice of
+/// [`wasmtime::Val`] that can be returned to WASM code.
+#[derive(Debug)]
+pub struct WasmResult {
+    values: Vec<Val>,
+}
+
+impl WasmResult {
+    fn as_slice(&self) -> &[Val] {
+        self.values.as_slice()
+    }
+}
+
+impl From<()> for WasmResult {
+    fn from(_value: ()) -> Self {
+        Self { values: Vec::new() }
+    }
+}
+
+impl From<i32> for WasmResult {
+    fn from(value: i32) -> Self {
+        Self { values: vec![Val::from(value)] }
+    }
+}
+
+impl From<i64> for WasmResult {
+    fn from(value: i64) -> Self {
+        Self { values: vec![wasmtime::Val::from(value)] }
+    }
+}
+
+impl From<u32> for WasmResult {
+    fn from(value: u32) -> Self {
+        Self { values: vec![wasmtime::Val::from(value as i32)] }
+    }
+}
+
+impl From<u64> for WasmResult {
+    fn from(value: u64) -> Self {
+        Self { values: vec![wasmtime::Val::from(value as i64)] }
+    }
+}
+
+impl From<f32> for WasmResult {
+    fn from(value: f32) -> Self {
+        Self { values: vec![wasmtime::Val::from(value)] }
+    }
+}
+
+impl From<f64> for WasmResult {
+    fn from(value: f64) -> Self {
+        Self { values: vec![wasmtime::Val::from(value)] }
+    }
+}
+
+/// Return type for functions that may return an undefined value.
+pub enum MaybeUndef<T> {
+    Ok(T),
+    Undef,
+}
+
+impl<T> From<MaybeUndef<T>> for WasmResult
+where
+    T: Default,
+    WasmResult: From<T>,
+{
+    fn from(value: MaybeUndef<T>) -> Self {
+        let values = match value {
+            MaybeUndef::Ok(value) => {
+                let mut vec = WasmResult::from(value).as_slice().to_vec();
+                vec.push(Val::I32(0));
+                vec
+            }
+            MaybeUndef::Undef::<T> => {
+                let mut vec =
+                    WasmResult::from(T::default()).as_slice().to_vec();
+                vec.push(Val::I32(1));
+                vec
+            }
+        };
+        Self { values }
+    }
+}
+
+pub fn walrus_to_wasmtime(ty: &walrus::ValType) -> wasmtime::ValType {
+    match ty {
+        walrus::ValType::I64 => wasmtime::ValType::I64,
+        walrus::ValType::I32 => wasmtime::ValType::I32,
+        walrus::ValType::F64 => wasmtime::ValType::F64,
+        walrus::ValType::F32 => wasmtime::ValType::F32,
+        _ => unreachable!(),
+    }
+}
+
+fn type_id_to_walrus(
+    type_id: TypeId,
+    type_name: &'static str,
+) -> &'static [walrus::ValType] {
+    if type_id == TypeId::of::<i64>() {
+        return &[walrus::ValType::I64];
+    } else if type_id == TypeId::of::<i32>() {
+        return &[walrus::ValType::I32];
+    } else if type_id == TypeId::of::<f64>() {
+        return &[walrus::ValType::F64];
+    } else if type_id == TypeId::of::<f32>() {
+        return &[walrus::ValType::F32];
+    } else if type_id == TypeId::of::<LiteralId>() {
+        return &[walrus::ValType::I32];
+    } else if type_id == TypeId::of::<bool>() {
+        return &[walrus::ValType::I32];
+    } else if type_id == TypeId::of::<()>() {
+        return &[];
+    } else if type_id == TypeId::of::<MaybeUndef<i64>>() {
+        return &[walrus::ValType::I64, walrus::ValType::I32];
+    } else if type_id == TypeId::of::<MaybeUndef<i32>>() {
+        return &[walrus::ValType::I32, walrus::ValType::I32];
+    } else if type_id == TypeId::of::<MaybeUndef<f64>>() {
+        return &[walrus::ValType::F64, walrus::ValType::I32];
+    } else if type_id == TypeId::of::<MaybeUndef<f32>>() {
+        return &[walrus::ValType::F32, walrus::ValType::I32];
+    } else if type_id == TypeId::of::<MaybeUndef<()>>() {
+        return &[walrus::ValType::I32];
+    }
+    panic!("type `{}` can be an argument or return value", type_name)
+}
+
+/// Macro that creates types [`WasmExportedFn0`], [`WasmExportedFn1`], etc,
+/// and implements the [`WasmExportedFn`] trait for them.
+macro_rules! impl_wasm_exported_fn {
+    ($name:ident $($args:ident)*) => {
+        pub(super) struct $name <$($args,)* R>
+        where
+            $($args: 'static,)*
+            R: 'static,
+        {
+            target_fn: &'static (dyn Fn(Caller<'_, ScanContext>, $($args),*) -> R
+                          + Send
+                          + Sync
+                          + 'static),
+        }
+
+        impl<$($args,)* R> WasmExportedFn for $name<$($args,)* R>
+        where
+            $($args: From<WasmArg>,)*
+            WasmResult: From<R>,
+        {
+            #[allow(unused_mut)]
+            fn walrus_args(&'static self) -> Vec<walrus::ValType> {
+                let mut result = Vec::new();
+                $(
+                    result.extend_from_slice(type_id_to_walrus(
+                        TypeId::of::<$args>(),
+                        type_name::<$args>(),
+                    ));
+                )*
+                result
+            }
+
+            fn walrus_results(&'static self) -> Vec<walrus::ValType> {
+                Vec::from(type_id_to_walrus(TypeId::of::<R>(), type_name::<R>()))
+            }
+
+            #[allow(unused_assignments)]
+            #[allow(unused_variables)]
+            #[allow(non_snake_case)]
+            #[allow(unused_mut)]
+            fn trampoline(&'static self) -> TrampolineFn {
+                Box::new(
+                    |caller: Caller<'_, ScanContext>,
+                     args: &[Val],
+                     results: &mut [Val]|
+                     -> anyhow::Result<()> {
+                        let mut i = 0;
+                        $(
+                            let $args = WasmArg::from(args[i].clone()).into();
+                            i += 1;
+                        )*
+                        let fn_result = WasmResult::from((self.target_fn)(
+                            caller, $($args),*
+                        ));
+                        results.clone_from_slice(fn_result.as_slice());
+                        anyhow::Ok(())
+                    },
+                )
+             }
+        }
+    };
+}
+
+// Generate multiple structures implementing the WasmExportedFn trait,
+// each for a different number of arguments. The WasmExportedFn0 is a generic
+// type that represents all exported functions that have no arguments,
+// WasmExportedFn1 represents functions with 1 argument, and so on.
+impl_wasm_exported_fn!(WasmExportedFn0);
+impl_wasm_exported_fn!(WasmExportedFn1 A1);
+impl_wasm_exported_fn!(WasmExportedFn2 A1 A2);
+impl_wasm_exported_fn!(WasmExportedFn3 A1 A2 A3);
 
 /// Table with functions and variables used by the WASM module.
 ///
@@ -121,302 +408,9 @@ pub(crate) struct WasmSymbols {
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
 
-    /// Called when a rule matches.
-    /// Signature: (rule_id: i32) -> ()
-    pub rule_match: walrus::FunctionId,
-
-    /// Ask YARA whether a pattern matched at a specific offset.
-    /// Signature: (pattern_id: i32, offset: i64) -> (i32)
-    pub is_pat_match_at: walrus::FunctionId,
-
-    /// Ask YARA whether a pattern matched within a range of offsets.
-    /// Signature: (pattern_id: i32, lower_bound: i64, upper_bound: i64) -> (i32)
-    pub is_pat_match_in: walrus::FunctionId,
-
-    /// Function that returns the length of an array.
-    /// Signature (host_var_index: i32) -> (i64)
-    pub array_len: walrus::FunctionId,
-
-    /// Function that returns the length of an map.
-    /// Signature (host_var_index: i32) -> (i64)
-    pub map_len: walrus::FunctionId,
-
-    /// Functions that given a sequence of field indexes, lookup the fields
-    /// and return their values.
-    pub lookup_integer: walrus::FunctionId,
-    pub lookup_float: walrus::FunctionId,
-    pub lookup_bool: walrus::FunctionId,
-    pub lookup_string: walrus::FunctionId,
-    pub lookup_value: walrus::FunctionId,
-
-    pub array_lookup_integer: walrus::FunctionId,
-    pub array_lookup_float: walrus::FunctionId,
-    pub array_lookup_bool: walrus::FunctionId,
-    pub array_lookup_string: walrus::FunctionId,
-    pub array_lookup_struct: walrus::FunctionId,
-
-    pub map_lookup_integer_integer: walrus::FunctionId,
-    pub map_lookup_string_integer: walrus::FunctionId,
-    pub map_lookup_integer_float: walrus::FunctionId,
-    pub map_lookup_string_float: walrus::FunctionId,
-    pub map_lookup_integer_bool: walrus::FunctionId,
-    pub map_lookup_string_bool: walrus::FunctionId,
-    pub map_lookup_integer_string: walrus::FunctionId,
-    pub map_lookup_string_string: walrus::FunctionId,
-    pub map_lookup_integer_struct: walrus::FunctionId,
-    pub map_lookup_string_struct: walrus::FunctionId,
-
-    /// String comparison functions.
-    /// Signature: (lhs_0: i64, lhs_1: i64, rhs_0: i64, rhs_1: i64) -> (i32)
-    pub str_eq: walrus::FunctionId,
-    pub str_ne: walrus::FunctionId,
-    pub str_lt: walrus::FunctionId,
-    pub str_gt: walrus::FunctionId,
-    pub str_le: walrus::FunctionId,
-    pub str_ge: walrus::FunctionId,
-
-    /// String operation functions.
-    /// Signature: (lhs_0: i64, lhs_1: i64, rhs_0: i64, rhs_1: i64) -> (i32)
-    pub str_contains: walrus::FunctionId,
-    pub str_startswith: walrus::FunctionId,
-    pub str_endswith: walrus::FunctionId,
-    pub str_icontains: walrus::FunctionId,
-    pub str_istartswith: walrus::FunctionId,
-    pub str_iendswith: walrus::FunctionId,
-    pub str_iequals: walrus::FunctionId,
-    pub str_len: walrus::FunctionId,
-
     /// Local variable used for temporary storage.
     pub i64_tmp: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
-}
-
-/// Represents a [`RuntimeString`] as a `u64` that can be passed from WASM to
-/// host and vice-versa.
-///
-/// The types that we can pass to (and receive from) WASM functions are only
-/// primitive types (i64, i32, f64 and f32). In order to be able to pass a
-/// [`RuntimeString`] to and from WASM, it must be represented as one of those
-/// primitive types.
-///
-/// The `u64` value contains all the information required for uniquely
-/// identifying the string. This is how the information is encoded:
-///
-/// * `RuntimeString:Undef`  -> `0`
-///    A zero represents an undefined string.
-///
-/// * `RuntimeString:Literal`  -> `LiteralId << 2 | 1`
-///    If the two lower bits are equal to 1, it's a literal string, where the
-///    remaining bits represent the `LiteralId`.
-///
-/// * `RuntimeString:Owned`  -> `RuntimeStringId << 2 | 2`
-///    If the two lower bits are equal to 2, it's a runtime string, where the
-///    remaining bits represent the `RuntimeStringId`.
-///
-/// * `RuntimeString:Owned`  -> `Offset << 18 | Len << 2 | 3)`
-///    If the two lower bits are 3, it's a string backed by the scanned data.
-///    Bits 18:3 ar used for representing the string length (up to 64KB),
-///    while bits 64:19 represents the offset (up to 70,368,744,177,663).
-///
-pub(crate) type RuntimeStringWasm = u64;
-
-/// String types handled by YARA's WASM runtime.
-///
-/// At runtime, when the the WASM code generated for rule conditions is
-/// being executed, text strings can adopt multiple forms. The difference
-/// between them resides in the place in which the string's data is stored.
-///
-/// For example, literal strings appearing in the source code are stored in
-/// a string pool created at compile time, these strings are identified by the
-/// [`LiteralId`] returned by the pool. Instead of making copies of those
-/// literal strings, the runtime passes the [`LiteralId`] around when referring
-/// to them.
-///
-/// Similarly, functions exported by YARA modules can return strings that
-/// appear verbatim in the data being scanned. Instead of making a copy, the
-/// runtime passes around only the offset within the data where the string
-/// starts, and its length.
-///
-/// In some other cases a function may need to return a string that doesn't
-/// appear neither in the scanned data nor as a literal in the source code,
-/// in such cases the runtime stores the string a pool maintained by
-/// [`ScanContext`], and passes around only the ID that allows locating the
-/// string in that pool.
-#[derive(Debug, PartialEq)]
-pub(crate) enum RuntimeString {
-    /// An undefined string.
-    Undef,
-    /// A literal string appearing in the source code. The string is identified
-    /// by its [`LiteralId`] within the literal strings pool.
-    Literal(LiteralId),
-    /// A string represented found in the scanned data, represented by the
-    /// offset within the data and its length.
-    Slice { offset: usize, length: usize },
-    /// A string owned by the runtime. The string is identified by its
-    /// [`RuntimeStringId`] within the string pool stored in [`ScanContext`].
-    Owned(RuntimeStringId),
-}
-
-impl RuntimeString {
-    /// Returns this string as a &[`BStr`].
-    fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
-        match self {
-            RuntimeString::Undef => {
-                panic!("as_bstr() called for RuntimeString::Undef")
-            }
-            RuntimeString::Literal(id) => {
-                ctx.compiled_rules.lit_pool().get(*id).unwrap()
-            }
-            RuntimeString::Slice { offset, length } => {
-                let slice = unsafe {
-                    std::slice::from_raw_parts::<u8>(
-                        ctx.scanned_data,
-                        ctx.scanned_data_len,
-                    )
-                };
-                BStr::new(&slice[*offset..*offset + *length])
-            }
-            RuntimeString::Owned(id) => ctx.string_pool.get(*id).unwrap(),
-        }
-    }
-
-    /// Returns this string as a tuple of primitive types suitable to be
-    /// passed to WASM.
-    pub(crate) fn as_wasm(&self) -> RuntimeStringWasm {
-        match self {
-            // Undefined strings are represented as 0.
-            RuntimeString::Undef => 0,
-            // Literal strings are represented as (1, LiteralId)
-            RuntimeString::Literal(id) => u64::from(*id) << 2 | 1,
-            // Owned strings are represented as (2, RuntimeStringId)
-            RuntimeString::Owned(id) => (*id as u64) << 2 | 2,
-            // Slices are represented as (length << 32 | 1, offset). This
-            // implies that slice length is limited to 4GB, as it must fit
-            // in the upper 32-bits of the first item in the tuple.
-            RuntimeString::Slice { offset, length } => {
-                if *length >= u16::MAX as usize {
-                    panic!(
-                        "runtime-string slices can't be larger than {}",
-                        u16::MAX
-                    )
-                }
-                (*offset as u64) << 18 | (*length as u64) << 2 | 3
-            }
-        }
-    }
-
-    /// Creates a [`RuntimeString`] from a [`RuntimeStringTuple`].
-    pub(crate) fn from_wasm(s: RuntimeStringWasm) -> Self {
-        match s & 0x3 {
-            0 => Self::Undef,
-            1 => Self::Literal(LiteralId::from((s >> 2) as u32)),
-            2 => Self::Owned((s >> 2) as u32),
-            3 => Self::Slice {
-                offset: (s >> 18) as usize,
-                length: ((s >> 2) & 0xffff) as usize,
-            },
-            _ => unreachable!(),
-        }
-    }
-
-    #[inline]
-    fn len(&self, ctx: &ScanContext) -> usize {
-        self.as_bstr(ctx).len()
-    }
-
-    #[inline]
-    fn eq(&self, other: &Self, ctx: &ScanContext) -> bool {
-        self.as_bstr(ctx).eq(other.as_bstr(ctx))
-    }
-
-    #[inline]
-    fn ne(&self, other: &Self, ctx: &ScanContext) -> bool {
-        self.as_bstr(ctx).ne(other.as_bstr(ctx))
-    }
-
-    #[inline]
-    fn lt(&self, other: &Self, ctx: &ScanContext) -> bool {
-        self.as_bstr(ctx).lt(other.as_bstr(ctx))
-    }
-
-    #[inline]
-    fn gt(&self, other: &Self, ctx: &ScanContext) -> bool {
-        self.as_bstr(ctx).gt(other.as_bstr(ctx))
-    }
-
-    #[inline]
-    fn le(&self, other: &Self, ctx: &ScanContext) -> bool {
-        self.as_bstr(ctx).le(other.as_bstr(ctx))
-    }
-
-    #[inline]
-    fn ge(&self, other: &Self, ctx: &ScanContext) -> bool {
-        self.as_bstr(ctx).ge(other.as_bstr(ctx))
-    }
-
-    #[inline]
-    fn contains(
-        &self,
-        other: &Self,
-        ctx: &ScanContext,
-        case_insensitive: bool,
-    ) -> bool {
-        if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.contains_str(other)
-        } else {
-            self.as_bstr(ctx).contains_str(other.as_bstr(ctx))
-        }
-    }
-
-    #[inline]
-    fn starts_with(
-        &self,
-        other: &Self,
-        ctx: &ScanContext,
-        case_insensitive: bool,
-    ) -> bool {
-        if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.starts_with_str(other)
-        } else {
-            self.as_bstr(ctx).starts_with_str(other.as_bstr(ctx))
-        }
-    }
-
-    #[inline]
-    fn ends_with(
-        &self,
-        other: &Self,
-        ctx: &ScanContext,
-        case_insensitive: bool,
-    ) -> bool {
-        if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.ends_with_str(other)
-        } else {
-            self.as_bstr(ctx).ends_with_str(other.as_bstr(ctx))
-        }
-    }
-
-    #[inline]
-    fn equals(
-        &self,
-        other: &Self,
-        ctx: &ScanContext,
-        case_insensitive: bool,
-    ) -> bool {
-        if case_insensitive {
-            let this = self.as_bstr(ctx).to_lowercase();
-            let other = other.as_bstr(ctx).to_lowercase();
-            this.eq(&other)
-        } else {
-            self.as_bstr(ctx).eq(other.as_bstr(ctx))
-        }
-    }
 }
 
 lazy_static! {
@@ -429,86 +423,22 @@ lazy_static! {
     pub(crate) static ref LINKER: Linker<ScanContext<'static>> = new_linker();
 }
 
-macro_rules! add_function {
-    ($linker:ident, $name:ident) => {
-        $linker.func_wrap("yr", stringify!($name), $name).unwrap();
-    };
-}
-
 pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     let mut linker = Linker::<ScanContext<'r>>::new(&ENGINE);
-
-    add_function!(linker, str_eq);
-    add_function!(linker, str_ne);
-    add_function!(linker, str_lt);
-    add_function!(linker, str_gt);
-    add_function!(linker, str_le);
-    add_function!(linker, str_ge);
-    add_function!(linker, str_contains);
-    add_function!(linker, str_startswith);
-    add_function!(linker, str_endswith);
-    add_function!(linker, str_icontains);
-    add_function!(linker, str_istartswith);
-    add_function!(linker, str_iequals);
-    add_function!(linker, str_iendswith);
-    add_function!(linker, str_len);
-    add_function!(linker, rule_match);
-    add_function!(linker, is_pat_match_at);
-    add_function!(linker, is_pat_match_in);
-    add_function!(linker, lookup_integer);
-    add_function!(linker, lookup_float);
-    add_function!(linker, lookup_string);
-    add_function!(linker, lookup_bool);
-    add_function!(linker, lookup_value);
-    add_function!(linker, array_len);
-    add_function!(linker, array_lookup_integer);
-    add_function!(linker, array_lookup_float);
-    add_function!(linker, array_lookup_bool);
-    add_function!(linker, array_lookup_string);
-    add_function!(linker, array_lookup_struct);
-    add_function!(linker, map_len);
-    add_function!(linker, map_lookup_integer_integer);
-    add_function!(linker, map_lookup_string_integer);
-    add_function!(linker, map_lookup_integer_float);
-    add_function!(linker, map_lookup_string_float);
-    add_function!(linker, map_lookup_integer_bool);
-    add_function!(linker, map_lookup_string_bool);
-    add_function!(linker, map_lookup_integer_string);
-    add_function!(linker, map_lookup_string_string);
-    add_function!(linker, map_lookup_integer_struct);
-    add_function!(linker, map_lookup_string_struct);
-
+    for export in WASM_EXPORTS {
+        let func_type = FuncType::new(
+            export.func.wasmtime_args(),
+            export.func.wasmtime_results(),
+        );
+        linker
+            .func_new("yr", export.name, func_type, export.func.trampoline())
+            .unwrap();
+    }
     linker
 }
 
-macro_rules! possibly_undef {
-    ($ty:ty) => {
-        ($ty, i32)
-    };
-    () => {
-        i32
-    };
-}
-
-macro_rules! defined {
-    ($expr:expr) => {
-        ($expr, 0)
-    };
-    () => {
-        0
-    };
-}
-
-macro_rules! undefined {
-    (_) => {
-        (0.into(), 1)
-    };
-    () => {
-        1
-    };
-}
-
 /// Invoked from WASM to notify when a rule matches.
+#[wasm_export]
 pub(crate) fn rule_match(
     mut caller: Caller<'_, ScanContext>,
     rule_id: RuleId,
@@ -533,6 +463,7 @@ pub(crate) fn rule_match(
 ///
 /// Returns 1 if the pattern identified by `pattern_id` matches at `offset`,
 /// or 0 if otherwise.
+#[wasm_export]
 pub(crate) fn is_pat_match_at(
     _caller: Caller<'_, ScanContext>,
     _pattern_id: PatternId,
@@ -547,6 +478,7 @@ pub(crate) fn is_pat_match_at(
 ///
 /// Returns 1 if the pattern identified by `pattern_id` matches at some offset
 /// in the range [`lower_bound`, `upper_bound`].
+#[wasm_export]
 pub(crate) fn is_pat_match_in(
     _caller: Caller<'_, ScanContext>,
     _pattern_id: PatternId,
@@ -563,6 +495,7 @@ pub(crate) fn is_pat_match_in(
 /// # Panics
 ///
 /// If the variable doesn't exist or is not an array.
+#[wasm_export]
 pub(crate) fn array_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
     let len = caller
         .data()
@@ -582,6 +515,7 @@ pub(crate) fn array_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
 /// # Panics
 ///
 /// If the variable doesn't exist or is not a map.
+#[wasm_export]
 pub(crate) fn map_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
     let len = caller
         .data()
@@ -672,6 +606,7 @@ macro_rules! lookup_common {
     }};
 }
 
+#[wasm_export]
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
 ) -> RuntimeStringWasm {
@@ -691,6 +626,7 @@ pub(crate) fn lookup_string(
     string.as_wasm()
 }
 
+#[wasm_export]
 pub(crate) fn lookup_value(mut caller: Caller<'_, ScanContext>, var: i32) {
     let value = lookup_common!(caller, type_value, { type_value.clone() });
     let index = var as usize;
@@ -706,14 +642,15 @@ pub(crate) fn lookup_value(mut caller: Caller<'_, ScanContext>, var: i32) {
 
 macro_rules! gen_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
+        #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
-        ) -> possibly_undef!($return_type) {
+        ) -> MaybeUndef<$return_type> {
             lookup_common!(caller, type_value, {
                 if let $type(Some(value)) = type_value {
-                    defined!(*value as $return_type)
+                    MaybeUndef::Ok(*value as $return_type)
                 } else {
-                    undefined!(_)
+                    MaybeUndef::Undef
                 }
             })
         }
@@ -726,11 +663,12 @@ gen_lookup_fn!(lookup_bool, i32, TypeValue::Bool);
 
 macro_rules! gen_array_lookup_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {
+        #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             index: i64,
             var: i32,
-        ) -> possibly_undef!($return_type) {
+        ) -> MaybeUndef<$return_type> {
             // TODO: decide what to to with this. It looks like are not going to need
             // to store integer, floats nor bools in host-side variables.
             assert_eq!(var, -1);
@@ -742,9 +680,9 @@ macro_rules! gen_array_lookup_fn {
             let array = array.$fn();
 
             if let Some(value) = array.get(index as usize) {
-                defined!(*value as $return_type)
+                MaybeUndef::Ok(*value as $return_type)
             } else {
-                undefined!(_)
+                MaybeUndef::Undef
             }
         }
     };
@@ -754,6 +692,7 @@ gen_array_lookup_fn!(array_lookup_integer, as_integer_array, i64);
 gen_array_lookup_fn!(array_lookup_float, as_float_array, f64);
 gen_array_lookup_fn!(array_lookup_bool, as_bool_array, i32);
 
+#[wasm_export]
 pub(crate) fn array_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
@@ -778,11 +717,12 @@ pub(crate) fn array_lookup_string(
     }
 }
 
+#[wasm_export]
 pub(crate) fn array_lookup_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
     var: i32,
-) -> possibly_undef!() {
+) -> MaybeUndef<()> {
     let array =
         lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
 
@@ -802,18 +742,19 @@ pub(crate) fn array_lookup_struct(
             vars[index] = TypeValue::Struct(s.clone());
         }
 
-        defined!()
+        MaybeUndef::Ok(())
     } else {
-        undefined!()
+        MaybeUndef::Undef
     }
 }
 
 macro_rules! gen_map_string_key_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
+        #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
-            key: u64,
-        ) -> possibly_undef!($return_type) {
+            key: i64,
+        ) -> MaybeUndef<$return_type> {
             let map = lookup_common!(caller, type_value, {
                 type_value.as_map().unwrap()
             });
@@ -826,14 +767,10 @@ macro_rules! gen_map_string_key_lookup_fn {
                 _ => unreachable!(),
             };
 
-            if let Some($type(value)) = value {
-                if let Some(value) = value {
-                    defined!(*value as $return_type)
-                } else {
-                    unreachable!()
-                }
+            if let Some($type(Some(value))) = value {
+                MaybeUndef::Ok(*value as $return_type)
             } else {
-                undefined!(_)
+                MaybeUndef::Undef
             }
         }
     };
@@ -841,10 +778,11 @@ macro_rules! gen_map_string_key_lookup_fn {
 
 macro_rules! gen_map_integer_key_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
+        #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             key: i64,
-        ) -> possibly_undef!($return_type) {
+        ) -> MaybeUndef<$return_type> {
             let map = lookup_common!(caller, type_value, {
                 type_value.as_map().unwrap()
             });
@@ -854,43 +792,58 @@ macro_rules! gen_map_integer_key_lookup_fn {
                 _ => unreachable!(),
             };
 
-            if let Some($type(value)) = value {
-                if let Some(value) = value {
-                    defined!(*value as $return_type)
-                } else {
-                    unreachable!()
-                }
+            if let Some($type(Some(value))) = value {
+                MaybeUndef::Ok(*value as $return_type)
             } else {
-                undefined!(_)
+                MaybeUndef::Undef
             }
         }
     };
 }
 
+#[rustfmt::skip]
 gen_map_string_key_lookup_fn!(
     map_lookup_string_integer,
     i64,
     TypeValue::Integer
 );
 
+#[rustfmt::skip]
+gen_map_string_key_lookup_fn!(
+    map_lookup_string_float,
+    f64,
+    TypeValue::Float
+);
+
+#[rustfmt::skip]
+gen_map_string_key_lookup_fn!(
+    map_lookup_string_bool,
+    i32,
+    TypeValue::Bool
+);
+
+#[rustfmt::skip]
 gen_map_integer_key_lookup_fn!(
     map_lookup_integer_integer,
     i64,
     TypeValue::Integer
 );
 
-gen_map_string_key_lookup_fn!(map_lookup_string_float, f64, TypeValue::Float);
-
+#[rustfmt::skip]
 gen_map_integer_key_lookup_fn!(
     map_lookup_integer_float,
     f64,
     TypeValue::Float
 );
 
-gen_map_string_key_lookup_fn!(map_lookup_string_bool, i32, TypeValue::Bool);
+#[rustfmt::skip]
+gen_map_integer_key_lookup_fn!(
+    map_lookup_integer_bool,
+    i32,
+    TypeValue::Bool
+);
 
-gen_map_integer_key_lookup_fn!(map_lookup_integer_bool, i32, TypeValue::Bool);
-
+#[wasm_export]
 pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
@@ -917,9 +870,10 @@ pub(crate) fn map_lookup_integer_string(
     string.as_wasm()
 }
 
+#[wasm_export]
 pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
-    key: u64,
+    key: i64,
 ) -> RuntimeStringWasm {
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
@@ -946,10 +900,11 @@ pub(crate) fn map_lookup_string_string(
     string.as_wasm()
 }
 
+#[wasm_export]
 pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
-) -> possibly_undef!() {
+) -> MaybeUndef<()> {
     let map = lookup_common!(caller, value, {
         match value {
             TypeValue::Map(map) => map.clone(),
@@ -965,19 +920,20 @@ pub(crate) fn map_lookup_integer_struct(
     if let Some(value) = value {
         if let TypeValue::Struct(s) = value {
             caller.data_mut().current_struct = Some(s.clone());
-            defined!()
+            MaybeUndef::Ok(())
         } else {
             unreachable!()
         }
     } else {
-        undefined!()
+        MaybeUndef::Undef
     }
 }
 
+#[wasm_export]
 pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
-    key: u64,
-) -> possibly_undef!() {
+    key: i64,
+) -> MaybeUndef<()> {
     let map = lookup_common!(caller, value, {
         match value {
             TypeValue::Map(map) => map.clone(),
@@ -996,21 +952,22 @@ pub(crate) fn map_lookup_string_struct(
     if let Some(value) = value {
         if let TypeValue::Struct(s) = value {
             caller.data_mut().current_struct = Some(s.clone());
-            defined!()
+            MaybeUndef::Ok(())
         } else {
             unreachable!()
         }
     } else {
-        undefined!()
+        MaybeUndef::Undef
     }
 }
 
 macro_rules! gen_str_cmp_fn {
     ($name:ident, $op:tt) => {
+        #[wasm_export]
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
-            lhs: u64,
-            rhs: u64,
+            lhs: i64,
+            rhs: i64,
         ) -> i32 {
             let lhs_str = RuntimeString::from_wasm(lhs);
             let rhs_str = RuntimeString::from_wasm(rhs);
@@ -1029,10 +986,11 @@ gen_str_cmp_fn!(str_ge, ge);
 
 macro_rules! gen_str_op_fn {
     ($name:ident, $op:tt, $case_insensitive:literal) => {
+        #[wasm_export]
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
-            lhs: u64,
-            rhs: u64,
+            lhs: i64,
+            rhs: i64,
         ) -> i32 {
             let lhs_str = RuntimeString::from_wasm(lhs);
             let rhs_str = RuntimeString::from_wasm(rhs);
@@ -1050,33 +1008,52 @@ gen_str_op_fn!(str_istartswith, starts_with, true);
 gen_str_op_fn!(str_iendswith, ends_with, true);
 gen_str_op_fn!(str_iequals, equals, true);
 
-pub(crate) fn str_len(caller: Caller<'_, ScanContext>, str: u64) -> i64 {
+#[wasm_export]
+pub(crate) fn str_len(caller: Caller<'_, ScanContext>, str: i64) -> i64 {
     let string = RuntimeString::from_wasm(str);
     string.len(caller.data()) as i64
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::LiteralId;
-    use crate::wasm::RuntimeString;
-    use pretty_assertions::assert_eq;
+    use crate::wasm::{MaybeUndef, WasmResult};
 
     #[test]
-    fn runtime_string_wasm_conversion() {
-        let s = RuntimeString::Literal(LiteralId::from(1));
-        assert_eq!(s, RuntimeString::from_wasm(s.as_wasm()));
+    fn wasm_result_conversion() {
+        let r = WasmResult::from(1_i64);
+        assert!(matches!(r.as_slice(), &[wasmtime::Val::I64(1)]));
 
-        let s = RuntimeString::Slice { length: 100, offset: 0x1000000 };
-        assert_eq!(s, RuntimeString::from_wasm(s.as_wasm()));
-    }
+        let r = WasmResult::from(1_i32);
+        assert!(matches!(r.as_slice(), &[wasmtime::Val::I32(1)]));
 
-    #[test]
-    #[should_panic]
-    fn runtime_string_wasm_max_size() {
-        let s = RuntimeString::Slice {
-            length: u32::MAX as usize + 1,
-            offset: 0x1000000,
-        };
-        assert_eq!(s, RuntimeString::from_wasm(s.as_wasm()));
+        let r = WasmResult::from(MaybeUndef::<i64>::Ok(2));
+        assert!(matches!(
+            r.as_slice(),
+            &[wasmtime::Val::I64(2), wasmtime::Val::I32(0)]
+        ));
+
+        let r = WasmResult::from(MaybeUndef::<i64>::Undef);
+        assert!(matches!(
+            r.as_slice(),
+            &[wasmtime::Val::I64(0), wasmtime::Val::I32(1)]
+        ));
+
+        let r = WasmResult::from(MaybeUndef::<i32>::Ok(2));
+        assert!(matches!(
+            r.as_slice(),
+            &[wasmtime::Val::I32(2), wasmtime::Val::I32(0)]
+        ));
+
+        let r = WasmResult::from(MaybeUndef::<i32>::Undef);
+        assert!(matches!(
+            r.as_slice(),
+            &[wasmtime::Val::I32(0), wasmtime::Val::I32(1)]
+        ));
+
+        let r = WasmResult::from(MaybeUndef::<()>::Ok(()));
+        assert!(matches!(r.as_slice(), &[wasmtime::Val::I32(0)]));
+
+        let r = WasmResult::from(MaybeUndef::<()>::Undef);
+        assert!(matches!(r.as_slice(), &[wasmtime::Val::I32(1)]));
     }
 }

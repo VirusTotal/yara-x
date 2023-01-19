@@ -3,13 +3,14 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
+use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, mem};
 use walrus::ir::InstrSeqId;
-use walrus::{Module, ValType};
+use walrus::{FunctionId, Module, ValType};
 
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
@@ -244,6 +245,7 @@ impl<'a> Compiler<'a> {
             report_builder: &self.report_builder,
             current_rule: self.rules.last().unwrap(),
             wasm_symbols: self.wasm_mod.wasm_symbols(),
+            wasm_funcs: &self.wasm_mod.wasm_funcs,
             warnings: &mut self.warnings,
             exception_handler_stack: Vec::new(),
             vars_stack_top: 0,
@@ -277,7 +279,12 @@ impl<'a> Compiler<'a> {
         warn_if_not_bool(&mut ctx, &rule.condition);
 
         // Emit the code for the rule's condition.
-        emit_rule_code(&mut ctx, &mut self.wasm_mod.main_fn(), rule_id, rule);
+        emit_rule_code(
+            &mut ctx,
+            &mut self.wasm_mod.main_fn.func_body(),
+            rule_id,
+            rule,
+        );
 
         // After emitting the whole condition, the stack should be empty.
         assert_eq!(ctx.vars_stack_top, 0);
@@ -382,6 +389,12 @@ impl From<IdentId> for u32 {
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub(crate) struct LiteralId(u32);
 
+impl From<i32> for LiteralId {
+    fn from(v: i32) -> Self {
+        Self(v as u32)
+    }
+}
+
 impl From<u32> for LiteralId {
     fn from(v: u32) -> Self {
         Self(v)
@@ -391,6 +404,12 @@ impl From<u32> for LiteralId {
 impl From<LiteralId> for u32 {
     fn from(v: LiteralId) -> Self {
         v.0
+    }
+}
+
+impl From<LiteralId> for i64 {
+    fn from(v: LiteralId) -> Self {
+        v.0 as i64
     }
 }
 
@@ -423,6 +442,8 @@ struct Context<'a, 'sym> {
 
     /// Table with all the symbols (functions, variables) used by WASM.
     wasm_symbols: WasmSymbols,
+
+    wasm_funcs: &'a FxHashMap<String, FunctionId>,
 
     /// Source code that is being compiled.
     src: &'a SourceCode<'a>,
@@ -536,6 +557,15 @@ impl<'a, 'sym> Context<'a, 'sym> {
             self.resolve_ident(self.current_rule.ident),
             ident.as_str()
         );
+    }
+
+    /// Given a function name returns its id.
+    ///
+    /// # Panics
+    ///
+    /// If a no function with the given name exists.
+    pub fn function_id(&self, fn_name: &str) -> FunctionId {
+        *self.wasm_funcs.get(fn_name).unwrap()
     }
 }
 

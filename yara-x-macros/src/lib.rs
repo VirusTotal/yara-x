@@ -4,6 +4,7 @@ use syn::{parse_macro_input, DeriveInput, ItemFn};
 mod error;
 mod module_main;
 mod span;
+mod wasm_export;
 
 /// The `HasSpan` derive macro implements the [`HasSpan`] trait for structs and
 /// enums.
@@ -173,6 +174,32 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemFn);
     module_main::impl_module_main_macro(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// The `wasm_export` macro is used for declaring a function that will be
+/// called from WASM.
+///
+/// The function's first argument must be of type [`wasmtime::Caller`], which
+/// contains information about the context in which the function is called,
+/// including a reference to the [`yara_x::scanner::ScanContext`] corresponding
+/// to the current scan.
+///
+/// The rest of the arguments, if any, can be of any of the primitive types
+/// supported by WASM (i.e: `i64`, `i32`, `f64`, `f32`)
+///
+/// # Example
+///
+/// ```text
+/// #[wasm_export]
+/// fn add(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
+///     a + b
+/// }
+#[proc_macro_attribute]
+pub fn wasm_export(_attr: TokenStream, input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemFn);
+    wasm_export::impl_wasm_export_macro(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
