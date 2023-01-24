@@ -1,0 +1,4 @@
+rule test: tag1 tag2 {
+  condition:
+    true
+}

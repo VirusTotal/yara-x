@@ -1,0 +1,6 @@
+global
+private // Lorem ipsum
+rule test {
+  condition:
+    true
+}

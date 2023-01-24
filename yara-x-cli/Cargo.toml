@@ -21,13 +21,13 @@ profiling = ["pprof"]
 ascii_tree = { workspace = true }
 ansi_term = { workspace = true }
 anyhow = { workspace = true }
+clap = { workspace = true, features=["cargo"] }
+enable-ansi-support = { workspace = true }
 globset = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true }
 yara-x-parser = { workspace = true, features = ["ascii-tree"]}
 yara-x-fmt = { workspace = true }
 
-clap = { version = "4.0.32", features=["cargo"] }
-enable-ansi-support = "0.2.1"
 pprof = { version = "0.11", features = ["flamegraph"], optional=true }
 walkdir = "2.3.2"

@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 use walrus::FunctionId;
-use walrus::ValType::{F64, I32, I64};
+use walrus::ValType::{I32, I64};
 
 use super::WasmSymbols;
 

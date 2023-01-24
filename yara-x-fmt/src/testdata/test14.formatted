@@ -1,0 +1,5 @@
+rule test: tag1 tag2  // Lorem ipsum
+{
+  condition:
+    true
+}

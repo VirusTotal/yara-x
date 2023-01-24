@@ -8,11 +8,18 @@ readme.workspace = true
 license.workspace = true
 homepage.workspace = true
 
+[[bin]]
+name = "yarafmt"
+path = "src/bin/main.rs"
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+anyhow = { workspace = true }
 bitmask =  { workspace = true }
+clap = { workspace = true, features=["cargo"] }
+enable-ansi-support = { workspace = true }
 lazy_static = { workspace = true }
 thiserror = { workspace = true }
 yara-x-parser = { workspace = true }
@@ -20,4 +27,3 @@ wasm-bindgen = "0.2"
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-yaml-rust = { workspace = true }

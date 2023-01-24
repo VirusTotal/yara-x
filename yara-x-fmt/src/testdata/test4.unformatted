@@ -1,0 +1,1 @@
+rule test1 {condition:true} rule test2 {condition:true}

@@ -28,6 +28,7 @@ use crate::tokens::*;
 mod align;
 mod bubble;
 mod comments;
+mod indentation;
 mod processor;
 mod tokens;
 mod trailing_spaces;
@@ -53,9 +54,7 @@ pub enum Error {
 }
 
 /// Formats YARA source code automatically.
-pub struct Formatter {
-    indent: String,
-}
+pub struct Formatter {}
 
 impl Default for Formatter {
     fn default() -> Self {
@@ -67,12 +66,7 @@ impl Default for Formatter {
 impl Formatter {
     /// Creates a new formatter.
     pub fn new() -> Self {
-        Formatter { indent: "  ".to_string() }
-    }
-
-    pub fn indentation(&mut self, indentation: &str) -> &mut Self {
-        self.indent = indentation.to_string();
-        self
+        Formatter {}
     }
 
     /// Reads YARA source code from `input` and write it into `output` after
@@ -101,7 +95,7 @@ impl Formatter {
         let tokens = tokens::Tokens::new(cst);
 
         Formatter::formatter(tokens)
-            .write_to(output, self.indent.as_str())
+            .write_to(output)
             .map_err(Error::WriteError)
     }
 }
@@ -386,6 +380,19 @@ impl Formatter {
 
         let tokens = Self::align_comments_in_hex_patterns(tokens);
         let tokens = Self::align_patterns(tokens);
+
+        let tokens = indentation::AddIndentationSpaces::new(tokens);
+        let tokens = trailing_spaces::RemoveTrailingSpaces::new(tokens);
+
+        let tokens = processor::Processor::new(tokens)
+            .set_passthrough(*CONTROL)
+            .add_rule(
+                |ctx| {
+                    println!("{:?}", ctx.token(1));
+                    false
+                },
+                processor::actions::drop,
+            );
 
         tokens
     }

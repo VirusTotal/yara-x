@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $hex = {000102030405}
+  condition:
+    $hex
+}

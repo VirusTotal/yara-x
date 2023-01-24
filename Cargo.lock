@@ -2526,12 +2526,14 @@ dependencies = [
 name = "yara-x-fmt"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bitmask",
+ "clap",
+ "enable-ansi-support",
  "lazy_static",
  "pretty_assertions",
  "thiserror",
  "wasm-bindgen",
- "yaml-rust",
  "yara-x-parser",
 ]
 

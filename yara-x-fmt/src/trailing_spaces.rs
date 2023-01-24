@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use crate::tokens::categories::CONTROL;
 use crate::tokens::{Token, TokenStream};
 
-/// Processor that removes trailing spaces.
+/// Pipeline that removes trailing spaces.
 pub(crate) struct RemoveTrailingSpaces<'a, T>
 where
     T: TokenStream<'a>,

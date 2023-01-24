@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    for all x in (0..10): (some.array[0] == some.ident)
+}

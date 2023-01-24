@@ -1,0 +1,1 @@
+import "test" /* Comment */ rule test1 {condition:true} /* Comment */ rule test2 {condition:true}

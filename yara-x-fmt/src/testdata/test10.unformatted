@@ -1,0 +1,11 @@
+rule test {
+meta:
+
+  a = 1
+
+strings:
+  $a = "foo"
+
+condition:
+
+  true}

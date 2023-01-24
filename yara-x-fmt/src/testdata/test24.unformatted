@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $hex = {00[-]01[1-]0203[0-1]0405(06|07)08}
+  condition:
+    $hex
+}

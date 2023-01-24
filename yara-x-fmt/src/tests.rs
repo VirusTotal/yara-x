@@ -1,9 +1,9 @@
+use anyhow::Context;
 use std::io::Cursor;
 use std::path::PathBuf;
-use std::{fs, str, string};
+use std::{fs, str};
 
 use pretty_assertions::assert_eq;
-use yaml_rust::{Yaml, YamlLoader};
 
 use crate::tokens::{TokenStream, Tokens};
 use crate::Formatter;
@@ -35,58 +35,41 @@ fn spacer() {
         let mut output = Vec::new();
         let tokens = Tokens::new(Parser::new().build_cst(t.0).unwrap());
 
-        Formatter::add_spacing(tokens).write_to(&mut output, "  ").unwrap();
+        Formatter::add_spacing(tokens).write_to(&mut output).unwrap();
         assert_eq!(str::from_utf8(&output).unwrap(), t.1);
     }
 }
 
 #[test]
-fn format() {
+fn format() -> Result<(), anyhow::Error> {
     let mut tests_data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     tests_data_dir.push("src/testdata");
 
     for entry in fs::read_dir(tests_data_dir).unwrap() {
-        let path = entry.unwrap().path();
-        let metadata = fs::metadata(&path).unwrap();
-        if metadata.is_file() {
-            let tests_file = fs::read_to_string(&path).unwrap();
-            let tests = YamlLoader::load_from_str(tests_file.as_str())
-                .unwrap()
-                .pop()
-                .unwrap();
+        let mut path = entry?.path();
 
-            for test in tests {
-                let hash = test.into_hash().unwrap_or_else(|| {
-                    panic!("item in {:?} is not a map", &path)
-                });
+        if let Some(extension) = path.extension() {
+            if extension == "unformatted" {
+                let input = fs::read_to_string(&path)
+                    .context(format!("error reading file {:?}", path))?;
 
-                let unformatted = hash
-                    .get(&Yaml::String("unformatted".to_string()))
-                    .unwrap()
-                    .as_str()
-                    .unwrap();
-
-                let expected = hash
-                    .get(&Yaml::String("formatted".to_string()))
-                    .unwrap()
-                    .as_str()
-                    .unwrap();
+                path.set_extension("formatted");
+                let expected = fs::read_to_string(&path)
+                    .context(format!("error reading file {:?}", path))?;
 
                 let mut output = Cursor::new(Vec::new());
+                Formatter::new().format(input.as_bytes(), &mut output)?;
 
-                Formatter::new()
-                    .format(unformatted.as_bytes(), &mut output)
-                    .unwrap();
-
-                let output =
-                    string::String::from_utf8(output.into_inner()).unwrap();
+                let output = String::from_utf8(output.into_inner())?;
 
                 assert_eq!(
                     expected, output,
                     "\n\nfile {:?}\n\n{}",
-                    path, unformatted
+                    path, input
                 );
             }
         }
     }
+
+    Ok(())
 }

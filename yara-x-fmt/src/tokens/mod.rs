@@ -415,24 +415,17 @@ impl<'a> Token<'a> {
 /// to anything implementing the [`std::io::Write`] trait.
 pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
     /// Write the tokens in text form to the given writer.
-    fn write_to<W>(self, mut w: W, indent: &str) -> std::io::Result<()>
+    fn write_to<W>(self, mut w: W) -> std::io::Result<()>
     where
         Self: Sized,
         W: std::io::Write,
     {
-        let mut indent_level = 0;
         let mut col_num = 0;
         for token in self {
             match token {
-                Token::Indentation(increase) => {
-                    indent_level += increase;
-                }
                 Token::Newline => {
-                    col_num = indent_level * indent.len() as i16;
                     w.write_all("\n".as_bytes())?;
-                    w.write_all(
-                        indent.repeat(indent_level as usize).as_bytes(),
-                    )?;
+                    col_num = 0;
                 }
                 Token::Whitespace
                 | Token::Comment(_)
@@ -442,8 +435,8 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 | Token::LGrouping(_)
                 | Token::RGrouping(_)
                 | Token::Punctuation(_) => {
-                    col_num += token.len() as i16;
                     w.write_all(token.as_str().as_bytes())?;
+                    col_num += token.len() as i16;
                 }
 
                 Token::BlockComment(lines)
@@ -473,6 +466,7 @@ pub(crate) trait TokenStream<'a>: Iterator<Item = Token<'a>> {
                 }
 
                 Token::None
+                | Token::Indentation(_)
                 | Token::Begin(_)
                 | Token::End(_)
                 | Token::BlockBegin
