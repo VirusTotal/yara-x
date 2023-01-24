@@ -191,14 +191,6 @@ impl Formatter {
                 processor::actions::drop,
             );
 
-        let tokens = processor::Processor::new(tokens).add_rule(
-            |ctx| {
-                dbg!("{:?}", ctx.token(1));
-                false
-            },
-            processor::actions::drop,
-        );
-
         let tokens = processor::Processor::new(tokens)
             //
             // Insert newline in front of import statements, making sure that
@@ -235,6 +227,9 @@ impl Formatter {
                     ctx.push_output_token(Some(Newline));
                 },
             )
+            //
+            // Insert empty line at the end of the file
+            //
             .add_rule(
                 |ctx| {
                     ctx.token(1).eq(&End(GrammarRule::source_file))
