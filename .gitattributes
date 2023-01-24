@@ -1,0 +1,3 @@
+# Files that must preserve LF line endings, even on Windows.
+*.formatted text eol=lf
+*.unformatted text eol=lf
