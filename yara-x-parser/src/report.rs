@@ -47,6 +47,12 @@ impl ariadne::Cache<String> for &CacheMap {
     }
 }
 
+impl Default for ReportBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReportBuilder {
     /// Creates a new instance of [`ReportBuilder`].
     pub fn new() -> Self {
@@ -151,7 +157,7 @@ impl ReportBuilder {
     }
 
     pub(crate) fn convert_pest_error(
-        &mut self,
+        &self,
         src: &SourceCode,
         pest_error: pest::error::Error<GrammarRule>,
     ) -> Error {

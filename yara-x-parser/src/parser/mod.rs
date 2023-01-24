@@ -101,14 +101,17 @@ impl<'src> From<&'src [u8]> for SourceCode<'src> {
 /// or an Abstract Syntax Tree (AST).
 #[derive(Default)]
 pub struct Parser<'a> {
-    colorize_errors: bool,
-    report_builder: Option<&'a ReportBuilder>,
+    external_report_builder: Option<&'a ReportBuilder>,
+    own_report_builder: ReportBuilder,
 }
 
 impl<'a> Parser<'a> {
     /// Creates a new YARA parser.
     pub fn new() -> Self {
-        Self { colorize_errors: false, report_builder: None }
+        Self {
+            external_report_builder: None,
+            own_report_builder: ReportBuilder::new(),
+        }
     }
 
     /// Specifies whether the parser should produce colorful error messages.
@@ -116,7 +119,7 @@ impl<'a> Parser<'a> {
     /// Colorized error messages contain ANSI escape sequences that make them
     /// look nicer on compatible consoles. The default setting is `false`.
     pub fn colorize_errors(&mut self, b: bool) -> &mut Self {
-        self.colorize_errors = b;
+        self.own_report_builder.with_colors(b);
         self
     }
 
@@ -155,44 +158,7 @@ impl<'a> Parser<'a> {
     where
         S: Into<SourceCode<'src>>,
     {
-        // If self.report_builder is None, create my own.
-        let owned_report_builder = if self.report_builder.is_none() {
-            let mut r = ReportBuilder::new();
-            r.with_colors(self.colorize_errors);
-            Some(r)
-        } else {
-            None
-        };
-
-        // Use self.report_builder if not None, or my own report builder
-        // if otherwise.
-        let report_builder =
-            self.report_builder.or(owned_report_builder.as_ref()).unwrap();
-
-        let mut src = src.into();
-
-        // Make sure that source code is valid UTF-8.
-        let utf8_validation = src.validate_utf8();
-
-        // Register the source code with the report builder, even if the code
-        // is not valid UTF-8, so that we can build the report that tells
-        // about the invalid UTF-8.
-        report_builder.register_source(&src);
-
-        // If the code is not valid UTF-8 fail with an error.
-        if let Err(err) = utf8_validation {
-            let span_start = err.valid_up_to();
-            let span_end = if let Some(len) = err.error_len() {
-                span_start + len
-            } else {
-                span_start
-            };
-            return Err(Error::new(ErrorInfo::invalid_utf_8(
-                report_builder,
-                &src,
-                Span { start: span_start, end: span_end },
-            )));
-        }
+        let src = src.into();
 
         // Create the CST but ignore comments and whitespaces. They won't
         // be visible while traversing the CST as we don't need them for
@@ -204,7 +170,7 @@ impl<'a> Parser<'a> {
         let root = cst.into_iter().next().unwrap();
         assert_eq!(root.as_rule(), GrammarRule::source_file);
 
-        let mut ctx = Context::new(src, report_builder);
+        let mut ctx = Context::new(src, self.get_report_builder());
 
         let namespace = namespace_from_cst(&mut ctx, root.into_inner())?;
         let namespaces = vec![namespace];
@@ -264,7 +230,7 @@ impl<'a> Parser<'a> {
     where
         S: Into<SourceCode<'src>>,
     {
-        let mut report_builder = ReportBuilder::new();
+        let report_builder = self.get_report_builder();
         let mut src = src.into();
 
         // Make sure that source code is valid UTF-8.
@@ -273,7 +239,7 @@ impl<'a> Parser<'a> {
         // Register the source code with the report builder, even if the code
         // is not valid UTF-8, so that we can build the report that tells
         // about the invalid UTF-8.
-        report_builder.with_colors(self.colorize_errors).register_source(&src);
+        report_builder.register_source(&src);
 
         // If the code is not valid UTF-8 fail with an error.
         if let Err(err) = utf8_validation {
@@ -284,7 +250,7 @@ impl<'a> Parser<'a> {
                 span_start
             };
             return Err(Error::new(ErrorInfo::invalid_utf_8(
-                &report_builder,
+                report_builder,
                 &src,
                 Span { start: span_start, end: span_end },
             )));
@@ -312,8 +278,17 @@ impl<'a> Parser<'a> {
         &mut self,
         report_builder: &'a ReportBuilder,
     ) -> &mut Self {
-        self.report_builder = Some(report_builder);
+        self.external_report_builder = Some(report_builder);
         self
+    }
+
+    /// Returns the report builder associated to the parser.
+    ///
+    /// If an external report builder was previously set using
+    /// [`Parser::set_report_builder`] the external report builder is returned,
+    /// if not, the report builder owned by the parser is returned instead.
+    fn get_report_builder(&self) -> &ReportBuilder {
+        self.external_report_builder.unwrap_or(&self.own_report_builder)
     }
 }
 
