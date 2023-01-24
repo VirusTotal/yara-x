@@ -46,7 +46,7 @@ protobuf-parse = "3.2.0"
 rustc-hash = "1.1.0"
 thiserror = "1.0.38"
 walrus = "0.19.0"
-wasmtime = "3.0.1"
+wasmtime = "5.0.0"
 yaml-rust = "0.4.5"
 yansi = "0.5.1"
 yara-x = { path = "yara-x" }

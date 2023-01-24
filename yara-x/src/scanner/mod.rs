@@ -128,7 +128,7 @@ impl<'r> Scanner<'r> {
 
         // Obtain a reference to the "main" function exported by the module.
         let wasm_main_fn = wasm_instance
-            .get_typed_func::<(), (), _>(&mut wasm_store, "main")
+            .get_typed_func::<(), ()>(&mut wasm_store, "main")
             .unwrap();
 
         wasm_store.data_mut().main_memory = Some(main_memory);
