@@ -278,6 +278,7 @@ pub fn walrus_to_wasmtime(ty: &walrus::ValType) -> wasmtime::ValType {
     }
 }
 
+#[allow(clippy::if_same_then_else)]
 fn type_id_to_walrus(
     type_id: TypeId,
     type_name: &'static str,

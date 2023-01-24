@@ -78,7 +78,9 @@ fn command(name: &'static str) -> Command {
 fn main() -> anyhow::Result<()> {
     // Enable support for ANSI escape codes in Windows. In other platforms
     // this is a no-op.
-    enable_ansi_support::enable_ansi_support();
+    if let Err(err) = enable_ansi_support::enable_ansi_support() {
+        println!("could not enable ANSI support: {}", err)
+    }
 
     let args = command!()
         .author(crate_authors!("\n")) // requires `cargo` feature
