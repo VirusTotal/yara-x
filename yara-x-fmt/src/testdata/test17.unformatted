@@ -9,4 +9,4 @@ rule test {
     $very_long = "baz"
   condition:
     true
-}                                  
+}

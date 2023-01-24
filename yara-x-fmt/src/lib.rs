@@ -12,6 +12,7 @@
 //!
 //! Formatter::new().format(input, output).unwrap();
 //! ```
+use std::cmp::Ordering::Greater;
 use std::io;
 
 use thiserror::Error;
@@ -190,6 +191,14 @@ impl Formatter {
                 processor::actions::drop,
             );
 
+        let tokens = processor::Processor::new(tokens).add_rule(
+            |ctx| {
+                dbg!("{:?}", ctx.token(1));
+                false
+            },
+            processor::actions::drop,
+        );
+
         let tokens = processor::Processor::new(tokens)
             //
             // Insert newline in front of import statements, making sure that
@@ -225,6 +234,13 @@ impl Formatter {
                     ctx.push_output_token(comment);
                     ctx.push_output_token(Some(Newline));
                 },
+            )
+            .add_rule(
+                |ctx| {
+                    ctx.token(1).eq(&End(GrammarRule::source_file))
+                        && ctx.token(-1).is_not(*NEWLINE)
+                },
+                processor::actions::newline,
             )
             //
             // Insert newline in front of rule declarations, making sure that
@@ -383,16 +399,6 @@ impl Formatter {
 
         let tokens = indentation::AddIndentationSpaces::new(tokens);
         let tokens = trailing_spaces::RemoveTrailingSpaces::new(tokens);
-
-        let tokens = processor::Processor::new(tokens)
-            .set_passthrough(*CONTROL)
-            .add_rule(
-                |ctx| {
-                    println!("{:?}", ctx.token(1));
-                    false
-                },
-                processor::actions::drop,
-            );
 
         tokens
     }
