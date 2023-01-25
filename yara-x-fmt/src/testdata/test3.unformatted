@@ -1,3 +1,4 @@
+
 rule test {
 condition:
 true

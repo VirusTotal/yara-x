@@ -1,6 +1,5 @@
-import "test"
+import "test"  // Comment
 
-// Comment
 rule test {
   strings:
     $a = "foo"

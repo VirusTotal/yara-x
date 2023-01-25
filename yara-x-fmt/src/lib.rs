@@ -115,19 +115,62 @@ impl Formatter {
             processor::actions::drop,
         );
 
-        // Displace tail comments to the left with respect to tokens that
-        // indicate the end of a grammar rule. This effectively moves such
-        // comments to the innermost grammar rule.
+        // Displace tail comments and newlines up with respect to tokens that
+        // indicate the start and end of a grammar rule. This effectively moves
+        // such comments and newlines to the innermost grammar rule preceding them.
+        // For example, suppose that we have the following rule:
+        //
+        //   import "test"  // Comment
+        //
+        //   rule test {
+        //     strings:
+        //       $a = "foo"
+        //     condition:
+        //       true
+        //   }
+        //
+        // The sequence of tokens produced for that rule looks like:
+        //
+        //   Begin(source_file)
+        //   Begin(import_stmt)
+        //   Keyword("import")
+        //   Literal("tests")
+        //   End(import_stmt)
+        //   Begin(rule_decl)
+        //   TailComment("// Comment")
+        //   Newline
+        //   Keyword("rule")
+        //   .... more
+        //
+        // Notice how TailComment("// Comment") and the Newline that follows
+        // are placed just before the "rule" keyword, and inside the rule_decl
+        // grammar rule. This is not the most natural place for this tail comment,
+        // its natural place is just after the "tests" literal, like this:
+        //
+        //   Begin(source_file)
+        //   Begin(import_stmt)
+        //   Keyword("import")
+        //   Literal("tests")
+        //   TailComment("// Comment")
+        //   Newline
+        //   End(import_stmt)
+        //   Begin(rule_decl)
+        //   Keyword("rule")
+        //   .... more
+        //
+        // That's exactly what the Bubble pipeline does. See the documentation for
+        // the `bubble` module for more details.
         let tokens = bubble::Bubble::new(
             tokens,
-            |token| matches!(token, Token::TailComment(_)),
-            |token| matches!(token, Token::End(_)),
+            |token| {
+                matches!(token, Token::TailComment(_)) || token.is(*NEWLINE)
+            },
+            |token| matches!(token, Token::Begin(_) | Token::End(_)),
         );
 
-        // Displace newlines to the right with respect to tokens that indicate
-        // the end of a grammar rule. This effectively moves them to the
-        // outermost grammar rule. See the documentation for the `bubble`
-        // module for more details.
+        // Displace newlines down with respect to tokens that indicate end of a
+        // grammar rule. This effectively moves them to the outermost grammar
+        // rule. See the documentation for the `bubble` module for more details.
         let tokens = bubble::Bubble::new(
             tokens,
             |token| matches!(token, Token::End(_)),
@@ -136,6 +179,14 @@ impl Formatter {
 
         // Remove newlines in multiple cases.
         let tokens = processor::Processor::new(tokens)
+            // Remove all newlines at the beginning of the file.
+            .add_rule(
+                |ctx| {
+                    !ctx.in_rule(GrammarRule::source_file, true)
+                        && ctx.token(1).is(*NEWLINE)
+                },
+                processor::actions::drop,
+            )
             // Remove excess of consecutive newlines, only two consecutive
             // newlines are allowed.
             .add_rule(
@@ -214,29 +265,6 @@ impl Formatter {
                 },
                 processor::actions::newline,
             )
-            .add_rule(
-                |ctx| {
-                    ctx.token(1).is(*COMMENT)
-                        && ctx.token(2).eq(&Begin(GrammarRule::rule_decl))
-                        && ctx.token(-1).is_not(*NEWLINE)
-                },
-                |ctx| {
-                    ctx.push_output_token(Some(Newline));
-                    let comment = ctx.pop_input_token();
-                    ctx.push_output_token(comment);
-                    ctx.push_output_token(Some(Newline));
-                },
-            )
-            //
-            // Insert empty line at the end of the file
-            //
-            .add_rule(
-                |ctx| {
-                    ctx.token(1).eq(&End(GrammarRule::source_file))
-                        && ctx.token(-1).is_not(*NEWLINE)
-                },
-                processor::actions::newline,
-            )
             //
             // Insert newline in front of rule declarations, making sure that
             // rule declarations starts at a new line. The newline is not
@@ -286,26 +314,14 @@ impl Formatter {
                 processor::actions::newline,
             )
             //
-            // Similar to the rule above, but handles the case where the rule
-            // is preceded by a comment.
             //
-            //  rule foo {
-            //    ...
-            //  }
-            //  // Comment
-            //  rule bar {
-            //    ...
-            //  }
-            //
-            //  Inserts newline before comment
+            // Insert empty line at the end of the file
             //
             .add_rule(
                 |ctx| {
-                    ctx.token(1).is(*COMMENT)
-                        && ctx.token(2).is(*NEWLINE)
-                        && ctx.token(3).eq(&Begin(GrammarRule::rule_decl))
-                        && ctx.token(-1).is(*NEWLINE)
-                        && ctx.token(-2).is_not(*NEWLINE)
+                    ctx.token(1).eq(&End(GrammarRule::source_file))
+                        && ctx.token(-1).is_not(*NEWLINE)
+                        && ctx.token(2).is_not(*NEWLINE)
                 },
                 processor::actions::newline,
             );
