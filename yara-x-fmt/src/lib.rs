@@ -179,11 +179,14 @@ impl Formatter {
 
         // Remove newlines in multiple cases.
         let tokens = processor::Processor::new(tokens)
-            // Remove all newlines at the beginning of the file.
+            // Remove all newlines at the beginning of the file. When the
+            // processor is at the beginning of the file token(-1) is None.
+            // Notice that this works because all these newlines have been
+            // moved up and placed Token::Begin(source_file) by the first
+            // bubble pipeline.
             .add_rule(
                 |ctx| {
-                    !ctx.in_rule(GrammarRule::source_file, true)
-                        && ctx.token(1).is(*NEWLINE)
+                    ctx.token(-1).eq(&Token::None) && ctx.token(1).is(*NEWLINE)
                 },
                 processor::actions::drop,
             )
