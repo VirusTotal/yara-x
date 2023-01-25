@@ -72,7 +72,7 @@ where
     /// without being processed by rules. All tokens in this category will be
     /// completely invisible to rules, and rules can be created as if those
     /// tokens don't exist at all. This means that if we have the sequence
-    /// *foo*, *bar*, *baz*, where *bar* belongs to the passthrough category,
+    /// *foo*, *bar*, *baz*, where *bar* belongs to the pass-through category,
     /// from the rules standpoint the input sequence is *foo*, *baz* and
     /// therefore rule conditions that checks for *baz* being right after *foo*
     /// will be true.
@@ -158,14 +158,14 @@ where
     output: VecDeque<Token<'a>>,
     stack: Vec<super::GrammarRule>,
     /// A list with the last N tokens that has been written into the output
-    /// (N <= MAX_PREV_TOKENS). Contains only non-passthrough tokens.
+    /// (N <= MAX_PREV_TOKENS). Contains only non-pass-through tokens.
     prev_tokens: VecDeque<Token<'a>>,
     /// A list where input tokens are buffered, allowing to peek into the
     /// next few input tokens. This list accumulates tokens from the input
-    /// until it contains MAX_NEXT_TOKENS non-passthrough tokens. Its size
-    /// can be larger though, because it may contain passthrough tokens too.
+    /// until it contains MAX_NEXT_TOKENS non-pass-through tokens. Its size
+    /// can be larger though, because it may contain pass-through tokens too.
     next_tokens: VecDeque<Token<'a>>,
-    /// Categories of tokens that are considered passthrough tokens.
+    /// Categories of tokens that are considered pass-through tokens.
     passthrough: categories::Category,
 }
 
@@ -176,9 +176,9 @@ where
     const MAX_PREV_TOKENS: usize = 3;
     const MAX_NEXT_TOKENS: usize = 3;
 
-    /// Returns the next non-passthrough token from the input. Returns None
+    /// Returns the next non-pass-through token from the input. Returns None
     /// if the end of the input has being reached. Tokens that match the
-    /// passthrough category are copied directly to the output when found.
+    /// pass-through category are copied directly to the output when found.
     pub fn pop_input_token(&mut self) -> Option<Token<'a>> {
         self.advance();
         self.next_tokens.pop_front()
@@ -207,7 +207,7 @@ where
         }
 
         // Store outputted token in prev_tokens, but only if it is a
-        // non-passthrough token.
+        // non-pass-through token.
         if !token.is(self.passthrough) {
             self.prev_tokens.push_front(token.clone());
         }
@@ -231,8 +231,8 @@ where
     /// (both inclusive) except 0, which is not valid. Invalid values of n
     /// make the function panic.
     ///
-    /// Notice that passthrough tokens are completely ignored, which means that
-    /// token(1) actually returns the first non-passthrough token in the input.
+    /// Notice that pass-through tokens are completely ignored, which means that
+    /// token(1) actually returns the first non-pass-through token in the input.
     ///
     /// If the requested token can't be returned because the end of the input
     /// is reached, or no token has been outputted yet, the result will be
@@ -240,7 +240,7 @@ where
     pub fn token(&self, n: i8) -> &Token<'a> {
         // n is 1,2,3,4 ... MAX_NEXT_TOKENS
         if n >= 1 && n <= Self::MAX_NEXT_TOKENS as i8 {
-            // Return Nth token that is not a passthrough token.
+            // Return Nth token that is not a pass-through token.
             self.next_tokens
                 .iter()
                 .filter(|token| !token.is(self.passthrough))
@@ -260,8 +260,8 @@ where
         }
     }
 
-    /// Swaps the tokens at positions i and j in the input. Passthrough tokens
-    /// are ignored, which means that position i means the i-th non-passthrough
+    /// Swaps the tokens at positions i and j in the input. Pass-through tokens
+    /// are ignored, which means that position i means the i-th non-pass-through
     /// token in the input.
     pub fn swap(&mut self, i: i8, j: i8) {
         if i < 1
@@ -274,9 +274,9 @@ where
             )
         }
 
-        // Compute the actual index in the input for the i-th non-passthrough
+        // Compute the actual index in the input for the i-th non-pass-through
         // token. The actual index can be larger than i, as the input may
-        // contain passthrough tokens that should be ignored.
+        // contain pass-through tokens that should be ignored.
         let (index_i, _) = self
             .next_tokens
             .iter()
@@ -285,7 +285,8 @@ where
             .nth((i - 1) as usize)
             .unwrap();
 
-        // Compute the actual index in the input for the j-th non-passthrough token
+        // Compute the actual index in the input for the j-th non-pass-through
+        // token
         let (index_j, _) = self
             .next_tokens
             .iter()
@@ -371,14 +372,14 @@ where
     }
 
     /// Helper function that reads tokens from input and puts them into
-    /// `next_tokens` until we have enough non-passthrough tokens to satisfy
+    /// `next_tokens` until we have enough non-pass-through tokens to satisfy
     /// calls to `token(n)`. The function guarantees that the first token
-    /// in `next_tokens` is a non-passthrough token.
+    /// in `next_tokens` is a non-pass-through token.
     ///
     /// Returns true if there are token in `next_tokens` or if there are
     /// any pending tokens in the output buffer.
     fn advance(&mut self) -> bool {
-        // Count the number of non-passthrough tokens already in the input
+        // Count the number of non-pass-through tokens already in the input
         // buffer.
         let mut non_passthrough_tokens = self
             .next_tokens
@@ -386,7 +387,7 @@ where
             .filter(|token| !token.is(self.passthrough))
             .count();
         // Keep reading tokens from the input and putting them in next_tokens
-        // until next_tokens contains at least MAX_NEXT_TOKENS non-passthrough
+        // until next_tokens contains at least MAX_NEXT_TOKENS non-pass-through
         // tokens. Break the loop if the end of the input is reached.
         while non_passthrough_tokens < Self::MAX_NEXT_TOKENS {
             if let Some(next) = self.input.next() {
@@ -398,13 +399,13 @@ where
                 break;
             }
         }
-        // Check if the tokens at the front of the input queue are passthrough
+        // Check if the tokens at the front of the input queue are pass-through
         // tokens. In that case copy them directly to the output until the we
-        // have a non-passthrough token at the front of the queue.
+        // have a non-pass-through token at the front of the queue.
         while let Some(token) = self.next_tokens.front() {
             if token.is(self.passthrough) {
                 let token = self.next_tokens.pop_front().unwrap();
-                // Adjust the stack if the passthrough token indicates the
+                // Adjust the stack if the pass-through token indicates the
                 // start or the end of a rule.
                 if let Token::Begin(rule) = token {
                     self.stack.push(rule)

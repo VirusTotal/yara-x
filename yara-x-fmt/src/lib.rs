@@ -117,8 +117,8 @@ impl Formatter {
 
         // Displace tail comments and newlines up with respect to tokens that
         // indicate the start and end of a grammar rule. This effectively moves
-        // such comments and newlines to the innermost grammar rule preceding them.
-        // For example, suppose that we have the following rule:
+        // such comments and newlines to the innermost grammar rule preceding
+        // them. For example, suppose that we have the following rule:
         //
         //   import "test"  // Comment
         //
@@ -665,7 +665,8 @@ impl Formatter {
             // - No space before ":"
             // - No space before or after ".." (e.g: (0..10))
             // - No space before or after "." (e.g: foo.bar)
-            // - No space in-between identifiers and "(" or "[" (e.g: array[0], func("foo")).
+            // - No space in-between identifiers and "(" or "[" (e.g: array[0], 
+            //   func("foo")).
             // - No space before or after "-" in pattern modifiers and hex jumps
             //   (e.g: xor(0-255), [0-10]).
             .add_rule(
