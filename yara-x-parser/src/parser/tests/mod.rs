@@ -19,7 +19,6 @@ fn newlines_and_spaces() {
     ├─ WHITESPACE ""
     ├─ ident "test"
     ├─ WHITESPACE ""
-    ├─ WHITESPACE ""
     ├─ LBRACE "{"
     ├─ WHITESPACE ""
     ├─ k_CONDITION "condition"

@@ -334,7 +334,7 @@ impl<'a> Token<'a> {
                 // The CST treats newlines as a type of whitespace, but the
                 // formatter has different type of tokens for newlines and
                 // whitespaces.
-                "\r" | "\n" => Token::Newline,
+                "\r" | "\n" | "\r\n" => Token::Newline,
                 " " | "\t" => Token::Whitespace,
                 _ => unreachable!(),
             },

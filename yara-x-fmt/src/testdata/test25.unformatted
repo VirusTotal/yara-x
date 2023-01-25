@@ -1,0 +1,10 @@
+rule test
+{
+	meta:
+		description = "Contains CRLF newlines"
+	strings:
+		$a = "foo"
+		$b = "bar"
+	condition:
+		any of them
+}

@@ -173,7 +173,9 @@ single_line_comment = _{ "//" ~ (!NEWLINE ~ ANY)* }
 // Comments are either block or single-line.
 COMMENT = { block_comment | single_line_comment }
 
-WHITESPACE = { " " | "\t" | "\n" | "\r" }
+// Spaces, tabs and newlines are treated as whitespaces. The CRLF sequence is
+// handled as a single token.
+WHITESPACE = { " " | "\t" | "\r\n" | "\n" | "\r" }
 
 // A YARA source file is a sequence of import statements and rule declarations.
 // This is the grammar's root rule.
