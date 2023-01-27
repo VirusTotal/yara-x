@@ -265,6 +265,12 @@ impl From<f64> for WasmResult {
     }
 }
 
+impl From<bool> for WasmResult {
+    fn from(value: bool) -> Self {
+        Self { values: vec![wasmtime::Val::from(value as i32)] }
+    }
+}
+
 /// Return type for functions that may return an undefined value.
 pub enum MaybeUndef<T> {
     Ok(T),
@@ -500,9 +506,9 @@ pub(crate) fn is_pat_match_at(
     _caller: Caller<'_, ScanContext>,
     _pattern_id: PatternId,
     _offset: i64,
-) -> i32 {
+) -> bool {
     // TODO
-    0
+    false
 }
 
 /// Invoked from WASM to ask whether a pattern at some offset within
@@ -516,9 +522,9 @@ pub(crate) fn is_pat_match_in(
     _pattern_id: PatternId,
     _lower_bound: i64,
     _upper_bound: i64,
-) -> i32 {
+) -> bool {
     // TODO
-    0
+    false
 }
 
 /// Given some local variable containing an array, returns the length of the
@@ -1000,11 +1006,11 @@ macro_rules! gen_str_cmp_fn {
             caller: Caller<'_, ScanContext>,
             lhs: i64,
             rhs: i64,
-        ) -> i32 {
+        ) -> bool {
             let lhs_str = RuntimeString::from_wasm(lhs);
             let rhs_str = RuntimeString::from_wasm(rhs);
 
-            lhs_str.$op(&rhs_str, caller.data()) as i32
+            lhs_str.$op(&rhs_str, caller.data())
         }
     };
 }
@@ -1023,11 +1029,11 @@ macro_rules! gen_str_op_fn {
             caller: Caller<'_, ScanContext>,
             lhs: i64,
             rhs: i64,
-        ) -> i32 {
+        ) -> bool {
             let lhs_str = RuntimeString::from_wasm(lhs);
             let rhs_str = RuntimeString::from_wasm(rhs);
 
-            lhs_str.$op(&rhs_str, caller.data(), $case_insensitive) as i32
+            lhs_str.$op(&rhs_str, caller.data(), $case_insensitive)
         }
     };
 }
