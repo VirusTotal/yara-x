@@ -67,6 +67,7 @@ many indexes to lookup.
  */
 use std::any::{type_name, TypeId};
 use std::borrow::Borrow;
+use std::mem;
 
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
@@ -79,6 +80,7 @@ use yara_x_macros::wasm_export;
 use yara_x_parser::types::{Map, TypeValue};
 
 use crate::compiler::{PatternId, RuleId};
+use crate::modules::BUILTIN_MODULES;
 use crate::scanner::ScanContext;
 use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
 use crate::LiteralId;
@@ -110,8 +112,32 @@ pub(crate) static WASM_EXPORTS: [WasmExport] = [..];
 
 /// Type of each entry in [`WASM_EXPORTS`].
 pub(crate) struct WasmExport {
-    name: &'static str,
-    func: &'static (dyn WasmExportedFn + Send + Sync),
+    /// Function's name.
+    pub name: &'static str,
+    pub mangled_name: &'static str,
+    /// Path of the module where the function resides. This an absolute path
+    /// that includes the crate name (e.g: yara_x::modules::test_proto2)
+    pub rust_module_path: &'static str,
+    /// Reference to some type that implements the WasmExportedFn trait.
+    pub func: &'static (dyn WasmExportedFn + Send + Sync),
+}
+
+impl WasmExport {
+    /// Returns the fully qualified YARA name for a #[wasm_export] function.
+    ///
+    /// This is the name of the function as seen by YARA, containing the full
+    /// path, which includes the YARA module's name.
+    pub fn fully_qualified_yara_name(&self) -> String {
+        for (module_name, module) in BUILTIN_MODULES.iter() {
+            if let Some(rust_module_name) = module.rust_module_name {
+                if self.rust_module_path.ends_with(rust_module_name) {
+                    return format!("{}.{}", module_name, self.mangled_name);
+                }
+            }
+        }
+        // todo: this should return the mangled name
+        self.name.to_owned()
+    }
 }
 
 /// Trait implemented for all types that represent a function exported to WASM.
@@ -119,7 +145,7 @@ pub(crate) struct WasmExport {
 /// Implementors of this trait are [`WasmExportedFn0`], [`WasmExportedFn1`],
 /// [`WasmExportedFn2`], etc. Each of these types is a generic type that
 /// represents all functions with 0, 1, and 2 arguments respectively.
-trait WasmExportedFn {
+pub(crate) trait WasmExportedFn {
     /// Returns the function that will be passed to [`wasmtime::Func::new`]
     /// while linking the WASM code to this function.
     fn trampoline(&'static self) -> TrampolineFn;
@@ -320,7 +346,7 @@ macro_rules! impl_wasm_exported_fn {
             $($args: 'static,)*
             R: 'static,
         {
-            target_fn: &'static (dyn Fn(Caller<'_, ScanContext>, $($args),*) -> R
+            pub target_fn: &'static (dyn Fn(Caller<'_, ScanContext>, $($args),*) -> R
                           + Send
                           + Sync
                           + 'static),
@@ -432,7 +458,12 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
             export.func.wasmtime_results(),
         );
         linker
-            .func_new("yr", export.name, func_type, export.func.trampoline())
+            .func_new(
+                export.rust_module_path,
+                export.fully_qualified_yara_name().as_str(),
+                func_type,
+                export.func.trampoline(),
+            )
             .unwrap();
     }
     linker
@@ -1013,6 +1044,63 @@ gen_str_op_fn!(str_iequals, equals, true);
 pub(crate) fn str_len(caller: Caller<'_, ScanContext>, str: i64) -> i64 {
     let string = RuntimeString::from_wasm(str);
     string.len(caller.data()) as i64
+}
+
+#[wasm_export]
+pub(crate) fn uint8(
+    caller: Caller<'_, ScanContext>,
+    offset: i64,
+) -> MaybeUndef<i64> {
+    if let Ok(offset) = usize::try_from(offset) {
+        caller
+            .data()
+            .scanned_data()
+            .get(offset..offset + mem::size_of::<u8>())
+            .map_or(MaybeUndef::Undef, |bytes| {
+                let value = u8::from_le_bytes(bytes.try_into().unwrap());
+                MaybeUndef::Ok(value as i64)
+            })
+    } else {
+        MaybeUndef::Undef
+    }
+}
+
+#[wasm_export]
+pub(crate) fn uint16(
+    caller: Caller<'_, ScanContext>,
+    offset: i64,
+) -> MaybeUndef<i64> {
+    if let Ok(offset) = usize::try_from(offset) {
+        caller
+            .data()
+            .scanned_data()
+            .get(offset..offset + mem::size_of::<u16>())
+            .map_or(MaybeUndef::Undef, |bytes| {
+                let value = u16::from_le_bytes(bytes.try_into().unwrap());
+                MaybeUndef::Ok(value as i64)
+            })
+    } else {
+        MaybeUndef::Undef
+    }
+}
+
+#[wasm_export]
+pub(crate) fn uint32(
+    caller: Caller<'_, ScanContext>,
+    offset: i64,
+) -> MaybeUndef<i64> {
+    if let Ok(offset) = usize::try_from(offset) {
+        caller
+            .data()
+            .scanned_data()
+            .get(offset..offset + mem::size_of::<u32>())
+            .map_or(MaybeUndef::Undef, |bytes| {
+                let value = u16::from_le_bytes(bytes.try_into().unwrap());
+                MaybeUndef::Ok(value as i64)
+            })
+    } else {
+        MaybeUndef::Undef
+    }
 }
 
 #[cfg(test)]

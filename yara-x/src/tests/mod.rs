@@ -300,6 +300,8 @@ fn rule_reuse() {
 #[test]
 #[cfg(feature = "test_proto2-module")]
 fn test_proto2_module() {
+    condition_true!(r#"test_proto2.add(1,2) == 3"#);
+
     condition_true!(r#"test_proto2.int64_zero == 0"#);
     condition_true!(r#"test_proto2.int64_one == 1"#);
     condition_true!(r#"test_proto2.int64_one + test_proto2.int64_zero == 1"#);

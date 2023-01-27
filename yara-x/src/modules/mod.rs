@@ -18,6 +18,9 @@ type MainFn = fn(&ScanContext) -> Box<dyn MessageDyn>;
 pub(crate) struct Module {
     /// Pointer to the module's main function.
     pub main_fn: Option<MainFn>,
+    /// Name of the Rust module, if any, that contains code for this YARA
+    /// module (e.g: "test_proto2").
+    pub rust_module_name: Option<&'static str>,
     /// A [`MessageDescriptor`] that describes the module's structure. This
     /// corresponds to the the protobuf message declared in the "root_message"
     /// for the YARA module. It allows iterating the fields declared by the
@@ -32,7 +35,7 @@ pub(crate) struct Module {
 /// include_module!(modules, "test", test, Test, Some(test::main as MainFn));
 ///
 macro_rules! add_module {
-    ($modules:expr, $name:literal, $proto:ident, $root_message:ident, $main_fn:expr) => {{
+    ($modules:expr, $name:literal, $proto:ident, $root_message:ident, $rust_module_name:expr, $main_fn:expr) => {{
         use std::stringify;
         let root_struct_descriptor = protos::$proto::file_descriptor()
             // message_by_full_name expects a dot (.) at the beginning
@@ -48,6 +51,7 @@ macro_rules! add_module {
             $name,
             Module {
                 main_fn: $main_fn,
+                rust_module_name: $rust_module_name,
                 root_struct_descriptor,
             },
         );

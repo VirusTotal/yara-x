@@ -3,7 +3,6 @@ use std::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
 use yara_x_macros::Error as CompileError;
 
-use yara_x_parser;
 use yara_x_parser::ast::Span;
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::report::ReportType;
@@ -47,6 +46,16 @@ pub enum CompileError {
         type2: String,
         type1_span: Span,
         type2_span: Span,
+    },
+
+    #[error("wrong number of arguments")]
+    #[label("{msg} in this call", args_span)]
+    #[note(note)]
+    WrongArguments {
+        detailed_report: String,
+        msg: String,
+        args_span: Span,
+        note: Option<String>,
     },
 
     #[error("assignment mismatch")]

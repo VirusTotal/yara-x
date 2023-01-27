@@ -13,8 +13,8 @@ mod func;
 mod map;
 mod structure;
 
-use crate::types::func::Func;
 pub use array::*;
+pub use func::*;
 pub use map::*;
 pub use structure::*;
 
@@ -68,7 +68,6 @@ impl From<Type> for ValType {
     }
 }
 
-pub(crate) const UNKNOWN: TypeValue = TypeValue::Unknown;
 pub(crate) const UNKNOWN_BOOL: TypeValue = TypeValue::Bool(None);
 pub(crate) const UNKNOWN_INT: TypeValue = TypeValue::Integer(None);
 pub(crate) const FALSE: TypeValue = TypeValue::Bool(Some(false));

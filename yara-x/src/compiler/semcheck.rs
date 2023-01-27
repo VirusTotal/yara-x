@@ -844,7 +844,61 @@ fn semcheck_fn_call(
 ) -> Result<Type, Error> {
     semcheck!(ctx, Type::Func, &mut fn_call.callable)?;
 
-    todo!()
+    let type_value = if let TypeValue::Func(func) =
+        fn_call.callable.type_value()
+    {
+        if func.args().len() != fn_call.args.len() {
+            let expected_args: Vec<String> = func
+                .args()
+                .iter()
+                .map(|arg| format!("`{}`", arg.ty()))
+                .collect();
+
+            let msg = if func.args().len() > fn_call.args.len() {
+                "missing arguments"
+            } else {
+                "extra arguments"
+            };
+
+            return Err(Error::CompileError(CompileError::wrong_arguments(
+                ctx.report_builder,
+                ctx.src,
+                msg.to_string(),
+                (&fn_call.args).span(),
+                Some(format!(
+                    "expected arguments: {}",
+                    expected_args.join(", ")
+                )),
+            )));
+        }
+
+        // Make sure that types of the provided argument matches the types
+        // expected by the function.
+        for (expected_arg, provided_arg) in
+            func.args().iter().zip(fn_call.args.iter_mut())
+        {
+            let ty = semcheck_expr(ctx, provided_arg)?;
+            let expected_ty = expected_arg.ty();
+
+            if ty != expected_arg.ty() {
+                return Err(Error::CompileError(CompileError::wrong_type(
+                    ctx.report_builder,
+                    ctx.src,
+                    ParserError::join_with_or(&[expected_ty], true),
+                    ty.to_string(),
+                    provided_arg.span(),
+                )));
+            }
+        }
+
+        func.result().clone()
+    } else {
+        unreachable!()
+    };
+
+    let ty = type_value.ty();
+    fn_call.set_type_value(type_value);
+    Ok(ty)
 }
 
 /// If `expr` is not of type boolean, it raises a warning indicating that the

@@ -2,10 +2,13 @@ use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 
 use crate::scanner::ScanContext;
-use yara_x_macros::module_main;
+use crate::wasm::*;
+use linkme::distributed_slice;
+use wasmtime::Caller;
+use yara_x_macros::{module_main, wasm_export};
 
-//#[member_of(Submessage)]
-pub(crate) fn sum(a: i64, b: i64) -> i64 {
+#[wasm_export]
+pub(crate) fn add(_caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
     a + b
 }
 

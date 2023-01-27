@@ -261,9 +261,7 @@ pub(super) fn emit_expr(
                 // already there.
                 let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());
 
-                instr.i64_const(
-                    RuntimeString::Literal(literal_id).as_wasm() as i64
-                );
+                instr.i64_const(RuntimeString::Literal(literal_id).as_wasm());
             }
             _ => unreachable!(),
         },
@@ -298,6 +296,9 @@ pub(super) fn emit_expr(
                         // The symbol represents a host-side variable, so it must
                         // be a structure, map or array.
                         ctx.lookup_start = Some(var);
+                    }
+                    SymbolKind::Func(fn_name) => {
+                        instr.call(ctx.function_id(fn_name.as_str()));
                     }
                     SymbolKind::FieldIndex(index) => {
                         match ident.ty() {
@@ -404,8 +405,11 @@ pub(super) fn emit_expr(
                 ctx.current_struct = None;
             })
         }
-        Expr::FnCall(_) => {
-            // TODO
+        Expr::FnCall(fn_call) => {
+            for expr in fn_call.args.iter() {
+                emit_expr(ctx, instr, expr);
+            }
+            emit_expr(ctx, instr, &fn_call.callable);
         }
         Expr::Not(operand) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {

@@ -15,6 +15,7 @@ use walrus::{FunctionId, Module, ValType};
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
+use yara_x_parser::types::Func;
 use yara_x_parser::types::{Struct, TypeValue};
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{ErrorInfo as ParserError, Parser, SourceCode};
@@ -28,7 +29,7 @@ use crate::symbols::{
 
 use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
-use crate::wasm::WasmSymbols;
+use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -139,10 +140,12 @@ impl<'a> Compiler<'a> {
 
             // Process import statements. Checks that all imported modules
             // actually exist, and raise warnings in case of duplicated
-            // imports.
+            // imports. For each module add a symbol to the current namespace.
             self.process_imports(&src, &ns.imports, &namespace_symbols)?;
 
-            // Iterate over the list of declared rules.
+            // Iterate over the list of declared rules and verify that their
+            // conditions are semantically valid. For each rule add a symbol
+            // to the current namespace.
             for rule in ns.rules.iter_mut() {
                 self.process_rule(rule, &src, &namespace_symbols)?;
             }
@@ -304,19 +307,41 @@ impl<'a> Compiler<'a> {
             if let Some(module) =
                 BUILTIN_MODULES.get(import.module_name.as_str())
             {
-                let module_name = import.module_name.as_str();
                 // ... if yes, add the module to the list of imported modules
                 // and the symbol table.
+                let module_name = import.module_name.as_str();
 
                 self.imported_modules
                     .push(self.ident_pool.get_or_intern(module_name));
 
                 // Create the structure that describes the module.
-                let module_struct = Struct::from_proto_descriptor_and_msg(
+                let mut module_struct = Struct::from_proto_descriptor_and_msg(
                     &module.root_struct_descriptor,
                     None,
                     true,
                 );
+
+                // Does the YARA module has an associated Rust module? If
+                // yes, search for functions exported by the module.
+                if let Some(mod_name) = module.rust_module_name {
+                    for export in WASM_EXPORTS {
+                        if export.rust_module_path.ends_with(mod_name) {
+                            // todo: detect when the name collision with an existing one
+                            module_struct.insert(
+                                export.name,
+                                TypeValue::Func(Rc::new(
+                                    Func::from_mangled_name(
+                                        format!(
+                                            "{}.{}",
+                                            module_name, export.mangled_name
+                                        )
+                                        .into(),
+                                    ),
+                                )),
+                            );
+                        };
+                    }
+                }
 
                 let module_struct = TypeValue::Struct(Rc::new(module_struct));
 
@@ -336,6 +361,8 @@ impl<'a> Compiler<'a> {
                         .index,
                 );
 
+                // Insert the symbol in the symbol table for the current
+                // namespace
                 namespace_symbols
                     .as_ref()
                     .borrow_mut()
@@ -565,7 +592,10 @@ impl<'a, 'sym> Context<'a, 'sym> {
     ///
     /// If a no function with the given name exists.
     pub fn function_id(&self, fn_name: &str) -> FunctionId {
-        *self.wasm_funcs.get(fn_name).unwrap()
+        *self
+            .wasm_funcs
+            .get(fn_name)
+            .unwrap_or_else(|| panic!("can't find function `{}`", fn_name))
     }
 }
 

@@ -2619,6 +2619,7 @@ dependencies = [
  "bitmask",
  "bstr 1.1.0",
  "indenter",
+ "itertools",
  "lazy_static",
  "line-span",
  "num",

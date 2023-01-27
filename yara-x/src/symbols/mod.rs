@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
 use bstr::{BStr, ByteSlice};
-use yara_x_parser::types::{Struct, Type, TypeValue};
+use yara_x_parser::types::{MangledFnName, Struct, Type, TypeValue};
 
 use crate::compiler::{RuleId, Var};
 
@@ -33,6 +33,10 @@ pub(crate) enum SymbolKind {
     FieldIndex(i32),
     /// The symbol refers to a rule.
     Rule(RuleId),
+    /// The symbol refers to a function. The string is function's name in
+    /// mangled form. The mangled name contains information about the
+    /// arguments and return types.
+    Func(MangledFnName),
 }
 
 impl Symbol {
@@ -99,7 +103,13 @@ impl SymbolLookup for Struct {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let field = self.field_by_name(ident)?;
         let mut symbol = Symbol::new(field.type_value.clone());
-        symbol.kind = SymbolKind::FieldIndex(field.index);
+
+        if let TypeValue::Func(func) = &field.type_value {
+            symbol.kind = SymbolKind::Func(func.mangled_name());
+        } else {
+            symbol.kind = SymbolKind::FieldIndex(field.index);
+        }
+
         Some(symbol)
     }
 }

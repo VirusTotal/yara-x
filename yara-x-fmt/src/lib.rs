@@ -12,7 +12,6 @@
 //!
 //! Formatter::new().format(input, output).unwrap();
 //! ```
-use std::cmp::Ordering::Greater;
 use std::io;
 
 use thiserror::Error;

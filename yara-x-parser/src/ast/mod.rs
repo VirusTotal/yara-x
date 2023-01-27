@@ -711,8 +711,32 @@ impl<'src> BinaryExpr<'src> {
 #[derive(Debug, HasSpan)]
 pub struct FnCall<'src> {
     pub span: Span,
+    #[doc(hidden)]
+    pub type_value: TypeValue,
     pub callable: Expr<'src>,
     pub args: Vec<Expr<'src>>,
+}
+
+impl<'src> FnCall<'src> {
+    // Returns the function's return type.
+    #[inline(always)]
+    pub fn ty(&self) -> Type {
+        self.type_value.ty()
+    }
+
+    #[doc(hidden)]
+    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
+        let current_ty = self.type_value.ty();
+        if current_ty != Type::Unknown && current_ty != type_value.ty() {
+            panic!(
+                "setting type `{:?}` to expression that was previously `{:?}",
+                type_value.ty(),
+                current_ty
+            );
+        }
+        self.type_value = type_value;
+        self
+    }
 }
 
 /// A lookup operation in an array or dictionary.
@@ -891,12 +915,11 @@ impl<'src> Expr<'src> {
             Expr::Lookup(expr) => &expr.type_value,
             Expr::Ident(ident) => &ident.type_value,
             Expr::Regexp(regexp) => &regexp.type_value,
+            Expr::FnCall(fn_call) => &fn_call.type_value,
 
             Expr::Literal(l) => &l.type_value,
             Expr::True { .. } => &TRUE,
             Expr::False { .. } => &FALSE,
-
-            Expr::FnCall(_) => &UNKNOWN,
 
             Expr::PatternMatch(_)
             | Expr::Of(_)

@@ -119,11 +119,17 @@ pub mod {rust_mod};"#,
             "None".to_string()
         };
 
+        let rust_mod_name = if let Some(rust_mod) = &rust_mod {
+            format!(r#"Some("{}")"#, rust_mod)
+        } else {
+            "None".to_string()
+        };
+
         write!(
             add_modules_rs,
             r#"
 #[cfg(feature = "{name}-module")]
-add_module!(modules, "{name}", {proto_mod}, {root_message}, {main_fn});
+add_module!(modules, "{name}", {proto_mod}, {root_message}, {rust_mod_name}, {main_fn});
             "#,
         )
         .unwrap();

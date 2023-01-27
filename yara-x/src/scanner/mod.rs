@@ -109,19 +109,19 @@ impl<'r> Scanner<'r> {
         // `compiled_wasm_mod` function and links its imported functions with
         // the implementations that YARA provides (see wasm.rs).
         let wasm_instance = wasm::new_linker()
-            .define("yr", "filesize", filesize)
+            .define("yara_x", "filesize", filesize)
             .unwrap()
             .define(
-                "yr",
+                "yara_x",
                 "matching_patterns_bitmap_base",
                 matching_patterns_bitmap_base,
             )
             .unwrap()
-            .define("yr", "lookup_start", lookup_start)
+            .define("yara_x", "lookup_start", lookup_start)
             .unwrap()
-            .define("yr", "lookup_stack_top", lookup_stack_top)
+            .define("yara_x", "lookup_stack_top", lookup_stack_top)
             .unwrap()
-            .define("yr", "main_memory", main_memory)
+            .define("yara_x", "main_memory", main_memory)
             .unwrap()
             .instantiate(&mut wasm_store, rules.compiled_wasm_mod())
             .unwrap();
@@ -378,4 +378,16 @@ pub(crate) struct ScanContext<'r> {
 
     pub(crate) lookup_start: Option<wasmtime::Global>,
     pub(crate) lookup_stack_top: Option<wasmtime::Global>,
+}
+
+impl ScanContext<'_> {
+    /// An slice with the data being scanned.
+    pub(crate) fn scanned_data(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts::<u8>(
+                self.scanned_data,
+                self.scanned_data_len,
+            )
+        }
+    }
 }

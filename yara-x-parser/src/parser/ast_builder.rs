@@ -1338,7 +1338,13 @@ fn func_call_expr_from_cst<'src>(
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
-    Ok(Expr::FnCall(Box::new(FnCall { span: span.into(), callable, args })))
+    Ok(Expr::FnCall(Box::new(FnCall {
+        span: span.into(),
+        callable,
+        args,
+        // Function's return type is not known at this stage.
+        type_value: TypeValue::Unknown,
+    })))
 }
 
 /// From a CST node corresponding to the grammar rule `range`, returns a

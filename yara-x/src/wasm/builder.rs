@@ -15,14 +15,14 @@ pub(crate) struct ModuleBuilder {
 macro_rules! global_var {
     ($module:ident, $name:ident, $ty:ident) => {
         let ($name, _) =
-            $module.add_import_global("yr", stringify!($name), $ty, true);
+            $module.add_import_global("yara_x", stringify!($name), $ty, true);
     };
 }
 
 macro_rules! global_const {
     ($module:ident, $name:ident, $ty:ident) => {
         let ($name, _) =
-            $module.add_import_global("yr", stringify!($name), $ty, false);
+            $module.add_import_global("yara_x", stringify!($name), $ty, false);
     };
 }
 
@@ -38,8 +38,13 @@ impl ModuleBuilder {
                 export.func.walrus_args().as_slice(),
                 export.func.walrus_results().as_slice(),
             );
-            let (func_id, _) = module.add_import_func("yr", export.name, ty);
-            wasm_funcs.insert(export.name.to_owned(), func_id);
+            let n = export.fully_qualified_yara_name();
+            let (func_id, _) = module.add_import_func(
+                export.rust_module_path,
+                n.as_str(),
+                ty,
+            );
+            wasm_funcs.insert(export.fully_qualified_yara_name(), func_id);
         }
 
         global_const!(module, matching_patterns_bitmap_base, I32);
@@ -48,7 +53,7 @@ impl ModuleBuilder {
         global_var!(module, filesize, I64);
 
         let (main_memory, _) =
-            module.add_import_memory("yr", "main_memory", false, 1, None);
+            module.add_import_memory("yara_x", "main_memory", false, 1, None);
 
         let wasm_symbols = WasmSymbols {
             main_memory,

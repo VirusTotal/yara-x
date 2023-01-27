@@ -79,13 +79,8 @@ impl RuntimeString {
                 ctx.compiled_rules.lit_pool().get(*id).unwrap()
             }
             RuntimeString::Slice { offset, length } => {
-                let slice = unsafe {
-                    std::slice::from_raw_parts::<u8>(
-                        ctx.scanned_data,
-                        ctx.scanned_data_len,
-                    )
-                };
-                BStr::new(&slice[*offset..*offset + *length])
+                let data = ctx.scanned_data();
+                BStr::new(&data[*offset..*offset + *length])
             }
             RuntimeString::Owned(id) => ctx.string_pool.get(*id).unwrap(),
         }
