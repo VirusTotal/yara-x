@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::borrow::Borrow;
 use std::iter;
 use std::rc::Rc;
@@ -859,8 +860,10 @@ fn semcheck_fn_call(
         let mut matching_signature = None;
 
         // Determine if any of the signatures for the called function matches
-        // the provided arguments.
-        for (i, signature) in func.signatures().iter().enumerate() {
+        // the provided arguments. Signatures are sorted by function name, so
+        // that the error messages are stable, without sorting the order of
+        // accepted argument combinations in the message is random.
+        for (i, signature) in func.signatures().iter().enumerate().sorted() {
             let expected_arg_types: Vec<Type> =
                 signature.args.iter().map(|arg| arg.ty()).collect();
 

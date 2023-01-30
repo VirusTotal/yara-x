@@ -2542,6 +2542,7 @@ dependencies = [
  "bstr 1.1.0",
  "globset",
  "intaglio",
+ "itertools",
  "lazy_static",
  "linkme",
  "memmap",

@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use std::cmp::Ordering;
 
 use crate::types::TypeValue;
 
@@ -82,6 +83,26 @@ pub struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
     pub result: TypeValue,
+}
+
+impl Ord for FuncSignature {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.mangled_name.as_str().cmp(other.mangled_name.as_str())
+    }
+}
+
+impl PartialOrd for FuncSignature {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.mangled_name.as_str().cmp(other.mangled_name.as_str()))
+    }
+}
+
+impl Eq for FuncSignature {}
+
+impl PartialEq for FuncSignature {
+    fn eq(&self, other: &Self) -> bool {
+        self.mangled_name == other.mangled_name
+    }
 }
 
 impl From<String> for FuncSignature {
