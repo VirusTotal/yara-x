@@ -124,15 +124,17 @@ impl Func {
     }
 
     pub fn add_signature(&mut self, signature: FuncSignature) {
-        for s in self.signatures.iter() {
-            if s.mangled_name == signature.mangled_name {
+        // Signatures are inserted into self.signatures sorted by
+        // mangled named.
+        match self.signatures.binary_search(&signature) {
+            Ok(_) => {
                 panic!(
                     "function `{}` is implemented twice",
-                    s.mangled_name.as_str()
+                    signature.mangled_name.as_str()
                 )
             }
+            Err(pos) => self.signatures.insert(pos, signature),
         }
-        self.signatures.push(signature);
     }
 
     pub fn signatures(&self) -> &[FuncSignature] {
