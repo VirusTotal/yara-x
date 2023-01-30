@@ -863,7 +863,7 @@ fn semcheck_fn_call(
         // the provided arguments. Signatures are sorted by function name, so
         // that the error messages are stable, without sorting the order of
         // accepted argument combinations in the message is random.
-        for (i, signature) in func.signatures().iter().enumerate().sorted() {
+        for (i, signature) in func.signatures().iter().sorted().enumerate() {
             let expected_arg_types: Vec<Type> =
                 signature.args.iter().map(|arg| arg.ty()).collect();
 
