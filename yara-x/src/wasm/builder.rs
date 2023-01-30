@@ -38,13 +38,13 @@ impl ModuleBuilder {
                 export.func.walrus_args().as_slice(),
                 export.func.walrus_results().as_slice(),
             );
-            let n = export.fully_qualified_yara_name();
+            let fully_qualified_name = export.fully_qualified_yara_name();
             let (func_id, _) = module.add_import_func(
                 export.rust_module_path,
-                n.as_str(),
+                fully_qualified_name.as_str(),
                 ty,
             );
-            wasm_funcs.insert(export.fully_qualified_yara_name(), func_id);
+            wasm_funcs.insert(fully_qualified_name, func_id);
         }
 
         global_const!(module, matching_patterns_bitmap_base, I32);

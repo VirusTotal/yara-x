@@ -48,12 +48,11 @@ pub enum CompileError {
         type2_span: Span,
     },
 
-    #[error("wrong number of arguments")]
-    #[label("{msg} in this call", args_span)]
+    #[error("wrong arguments")]
+    #[label("wrong arguments in this call", args_span)]
     #[note(note)]
     WrongArguments {
         detailed_report: String,
-        msg: String,
         args_span: Span,
         note: Option<String>,
     },

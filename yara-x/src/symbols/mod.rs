@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
 use bstr::{BStr, ByteSlice};
-use yara_x_parser::types::{MangledFnName, Struct, Type, TypeValue};
+use yara_x_parser::types::{Func, Struct, Type, TypeValue};
 
 use crate::compiler::{RuleId, Var};
 
@@ -12,7 +12,7 @@ pub(crate) trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct Symbol {
     pub type_value: TypeValue,
     pub kind: SymbolKind,
@@ -22,7 +22,7 @@ pub(crate) struct Symbol {
 ///
 /// Used by the compiler to determine how to generate code that
 /// accesses the symbol.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) enum SymbolKind {
     Unknown,
     /// The symbol refers to a variable stored in WASM memory.
@@ -33,10 +33,8 @@ pub(crate) enum SymbolKind {
     FieldIndex(i32),
     /// The symbol refers to a rule.
     Rule(RuleId),
-    /// The symbol refers to a function. The string is function's name in
-    /// mangled form. The mangled name contains information about the
-    /// arguments and return types.
-    Func(MangledFnName),
+    /// The symbol refers to a function.
+    Func(Rc<Func>),
 }
 
 impl Symbol {
@@ -105,7 +103,7 @@ impl SymbolLookup for Struct {
         let mut symbol = Symbol::new(field.type_value.clone());
 
         if let TypeValue::Func(func) = &field.type_value {
-            symbol.kind = SymbolKind::Func(func.mangled_name());
+            symbol.kind = SymbolKind::Func(func.clone());
         } else {
             symbol.kind = SymbolKind::FieldIndex(field.index);
         }
@@ -127,7 +125,6 @@ impl SymbolLookup for Struct {
 /// [`Symbol`] will be of type [`Type::Struct`], which encapsulates another
 /// object that also implements the [`SymbolLookup`] trait, possibly another
 /// [`SymbolTable`].
-#[derive(Debug)]
 pub(crate) struct SymbolTable {
     map: HashMap<String, Symbol>,
 }

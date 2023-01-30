@@ -749,56 +749,17 @@ rule test {
     test_proto2.add(1, "2") == 3
 }
 "#,
-            r#"error: wrong type
-   ╭─[line:5:24]
+            r#"error: wrong arguments
+   ╭─[line:5:21]
    │
  5 │     test_proto2.add(1, "2") == 3
-   ·                        ─┬─  
-   ·                         ╰─── expression should be `integer`, but is `string`
-───╯
-"#,
-        ),
-        ////////////////////////////////////////////////////////////
-        #[cfg(feature = "test_proto2-module")]
-        (
-            line!(),
-            r#"
-import "test_proto2"
-rule test {
-  condition:
-    test_proto2.add(1) == 3
-}
-"#,
-            r#"error: wrong number of arguments
-   ╭─[line:5:21]
-   │
- 5 │     test_proto2.add(1) == 3
-   ·                     ┬  
-   ·                     ╰── missing arguments in this call
+   ·                     ───┬──  
+   ·                        ╰──── wrong arguments in this call
    · 
-   · Note: expected arguments: `integer`, `integer`
-───╯
-"#,
-        ),
-        ////////////////////////////////////////////////////////////
-        #[cfg(feature = "test_proto2-module")]
-        (
-            line!(),
-            r#"
-import "test_proto2"
-rule test {
-  condition:
-    test_proto2.add(1,2,3) == 3
-}
-"#,
-            r#"error: wrong number of arguments
-   ╭─[line:5:21]
-   │
- 5 │     test_proto2.add(1,2,3) == 3
-   ·                     ──┬──  
-   ·                       ╰──── extra arguments in this call
-   · 
-   · Note: expected arguments: `integer`, `integer`
+   · Note: accepted argument combinations:
+
+             (float, float)
+             (integer, integer)
 ───╯
 "#,
         ),

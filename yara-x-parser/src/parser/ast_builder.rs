@@ -1344,6 +1344,11 @@ fn func_call_expr_from_cst<'src>(
         args,
         // Function's return type is not known at this stage.
         type_value: TypeValue::Unknown,
+        // Function's signature index is not known at this stage. This is set
+        // during the semantic check, when we are able to know the actual
+        // type of arguments and choose one signature among the multiple
+        // ones that may exist for overloaded functions.
+        fn_signature_index: None,
     })))
 }
 

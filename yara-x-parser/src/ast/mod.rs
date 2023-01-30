@@ -715,6 +715,8 @@ pub struct FnCall<'src> {
     pub type_value: TypeValue,
     pub callable: Expr<'src>,
     pub args: Vec<Expr<'src>>,
+    #[doc(hidden)]
+    pub fn_signature_index: Option<usize>,
 }
 
 impl<'src> FnCall<'src> {

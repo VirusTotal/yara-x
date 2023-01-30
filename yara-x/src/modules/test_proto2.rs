@@ -7,9 +7,30 @@ use linkme::distributed_slice;
 use wasmtime::Caller;
 use yara_x_macros::{module_main, wasm_export};
 
-#[wasm_export]
-pub(crate) fn add(_caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
-    a + b
+mod add_i64 {
+    use super::*;
+
+    #[wasm_export]
+    pub(crate) fn add(
+        _caller: Caller<'_, ScanContext>,
+        a: i64,
+        b: i64,
+    ) -> i64 {
+        a + b
+    }
+}
+
+mod add_f64 {
+    use super::*;
+
+    #[wasm_export]
+    pub(crate) fn add(
+        _caller: Caller<'_, ScanContext>,
+        a: f64,
+        b: f64,
+    ) -> f64 {
+        a + b
+    }
 }
 
 #[module_main]

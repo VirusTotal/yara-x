@@ -15,7 +15,7 @@ use walrus::{FunctionId, Module, ValType};
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::types::Func;
+use yara_x_parser::types::{Func, FuncSignature, MangledFnName};
 use yara_x_parser::types::{Struct, TypeValue};
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{ErrorInfo as ParserError, Parser, SourceCode};
@@ -242,6 +242,7 @@ impl<'a> Compiler<'a> {
         let mut ctx = Context {
             src,
             current_struct: None,
+            current_signature: None,
             symbol_table: &mut self.symbol_table,
             ident_pool: &mut self.ident_pool,
             lit_pool: &mut self.lit_pool,
@@ -324,22 +325,43 @@ impl<'a> Compiler<'a> {
                 // Does the YARA module has an associated Rust module? If
                 // yes, search for functions exported by the module.
                 if let Some(mod_name) = module.rust_module_name {
+                    // This map will contain all the functions exported by the
+                    // YARA module. Keys are the function names, and values
+                    // are `Func` objects.
+                    let mut functions: FxHashMap<&'static str, Func> =
+                        FxHashMap::default();
+
+                    // Iterate over all functions in WASM_EXPORTS looking for
+                    // those that were exported by the current YARA module. Add
+                    // them to `functions` map, or update the `Func` object
+                    // an additional signature if the function is overloaded.
                     for export in WASM_EXPORTS {
-                        if export.rust_module_path.ends_with(mod_name) {
-                            // todo: detect when the name collision with an existing one
-                            module_struct.insert(
-                                export.name,
-                                TypeValue::Func(Rc::new(
-                                    Func::from_mangled_name(
-                                        format!(
-                                            "{}.{}",
-                                            module_name, export.mangled_name
-                                        )
-                                        .into(),
-                                    ),
-                                )),
-                            );
-                        };
+                        if export.rust_module_path.contains(mod_name) {
+                            let signature = FuncSignature::from(format!(
+                                "{}.{}",
+                                module_name, export.mangled_name
+                            ));
+                            // If the function was already present in the map
+                            // is because it has multiple signatures. If that's
+                            // the case, add more signatures to the existing
+                            // `Func` object.
+                            if let Some(function) =
+                                functions.get_mut(export.name)
+                            {
+                                function.add_signature(signature)
+                            } else {
+                                functions.insert(
+                                    export.name,
+                                    Func::with_signature(signature),
+                                );
+                            }
+                        }
+                    }
+
+                    // Insert the functions in the module's struct.
+                    for (name, export) in functions.drain() {
+                        module_struct
+                            .insert(name, TypeValue::Func(Rc::new(export)));
                     }
                 }
 
@@ -466,6 +488,10 @@ struct Context<'a, 'sym> {
     /// some value, symbols are looked up in this table and the main symbol
     /// table (i.e: `symbol_table`) is ignored.
     current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
+
+    /// Used during code emitting for tracking the function signature
+    /// associated to a function call.
+    current_signature: Option<usize>,
 
     /// Table with all the symbols (functions, variables) used by WASM.
     wasm_symbols: WasmSymbols,

@@ -297,8 +297,13 @@ pub(super) fn emit_expr(
                         // be a structure, map or array.
                         ctx.lookup_start = Some(var);
                     }
-                    SymbolKind::Func(fn_name) => {
-                        instr.call(ctx.function_id(fn_name.as_str()));
+                    SymbolKind::Func(func) => {
+                        let signature =
+                            &func.signatures()[ctx.current_signature.unwrap()];
+
+                        instr.call(
+                            ctx.function_id(signature.mangled_name.as_str()),
+                        );
                     }
                     SymbolKind::FieldIndex(index) => {
                         match ident.ty() {
@@ -409,7 +414,14 @@ pub(super) fn emit_expr(
             for expr in fn_call.args.iter() {
                 emit_expr(ctx, instr, expr);
             }
+
+            let previous = ctx
+                .current_signature
+                .replace(fn_call.fn_signature_index.unwrap());
+
             emit_expr(ctx, instr, &fn_call.callable);
+
+            ctx.current_signature = previous;
         }
         Expr::Not(operand) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {

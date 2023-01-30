@@ -130,7 +130,7 @@ impl WasmExport {
     pub fn fully_qualified_yara_name(&self) -> String {
         for (module_name, module) in BUILTIN_MODULES.iter() {
             if let Some(rust_module_name) = module.rust_module_name {
-                if self.rust_module_path.ends_with(rust_module_name) {
+                if self.rust_module_path.contains(rust_module_name) {
                     return format!("{}.{}", module_name, self.mangled_name);
                 }
             }
@@ -199,6 +199,18 @@ impl From<WasmArg> for i64 {
 impl From<WasmArg> for i32 {
     fn from(value: WasmArg) -> Self {
         value.0.unwrap_i32()
+    }
+}
+
+impl From<WasmArg> for f64 {
+    fn from(value: WasmArg) -> Self {
+        value.0.unwrap_f64()
+    }
+}
+
+impl From<WasmArg> for f32 {
+    fn from(value: WasmArg) -> Self {
+        value.0.unwrap_f32()
     }
 }
 

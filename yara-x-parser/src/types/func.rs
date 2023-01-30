@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 use crate::types::TypeValue;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 /// Represents a mangled function name.
 ///
 /// A mangled name is a function name decorated with additional information
@@ -73,40 +73,48 @@ impl From<String> for MangledFnName {
     }
 }
 
-pub struct Func {
-    mangled_name: MangledFnName,
-    args: Vec<TypeValue>,
-    result: TypeValue,
+/// Represents a function's signature.
+///
+/// YARA modules allow function overloading, therefore functions can have the
+/// same name but different arguments.
+#[derive(Clone)]
+pub struct FuncSignature {
+    pub mangled_name: MangledFnName,
+    pub args: Vec<TypeValue>,
+    pub result: TypeValue,
 }
 
-impl Func {
-    /// Creates a [`Func`] struct from a [`MangledFnName`].
-    ///
-    /// The mangled name contains information about function arguments and
-    /// return types, so it's possible to create a [`Func`] from it. See
-    /// the documentation of [`MangledFnName`] for details.
-    ///
-    /// # Panics
-    ///
-    /// If the mangled doesn't have the correct structure.
-    pub fn from_mangled_name(mangled_name: MangledFnName) -> Self {
+impl From<String> for FuncSignature {
+    fn from(value: String) -> Self {
+        let mangled_name = MangledFnName::from(value);
         let (args, result) = mangled_name.unmangle();
         Self { mangled_name, args, result }
     }
+}
 
-    // Returns the function's arguments.
-    #[inline]
-    pub fn args(&self) -> &[TypeValue] {
-        self.args.as_slice()
+#[derive(Clone)]
+pub struct Func {
+    signatures: Vec<FuncSignature>,
+}
+
+impl Func {
+    pub fn with_signature(signature: FuncSignature) -> Self {
+        Self { signatures: vec![signature] }
     }
 
-    #[inline]
-    pub fn result(&self) -> &TypeValue {
-        &self.result
+    pub fn add_signature(&mut self, signature: FuncSignature) {
+        for s in self.signatures.iter() {
+            if s.mangled_name == signature.mangled_name {
+                panic!(
+                    "function `{}` is implemented twice",
+                    s.mangled_name.as_str()
+                )
+            }
+        }
+        self.signatures.push(signature);
     }
 
-    #[inline]
-    pub fn mangled_name(&self) -> MangledFnName {
-        self.mangled_name.clone()
+    pub fn signatures(&self) -> &[FuncSignature] {
+        self.signatures.as_slice()
     }
 }

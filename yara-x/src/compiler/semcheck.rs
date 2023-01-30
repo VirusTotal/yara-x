@@ -847,51 +847,59 @@ fn semcheck_fn_call(
     let type_value = if let TypeValue::Func(func) =
         fn_call.callable.type_value()
     {
-        if func.args().len() != fn_call.args.len() {
-            let expected_args: Vec<String> = func
-                .args()
-                .iter()
-                .map(|arg| format!("`{}`", arg.ty()))
-                .collect();
+        // Validate the expressions passed as arguments to the function, and
+        // collect their types.
+        let provided_arg_types: Vec<Type> = fn_call
+            .args
+            .iter_mut()
+            .map(|arg| semcheck_expr(ctx, arg))
+            .collect::<Result<_, _>>()?;
 
-            let msg = if func.args().len() > fn_call.args.len() {
-                "missing arguments"
-            } else {
-                "extra arguments"
-            };
+        let mut expected_args = Vec::new();
+        let mut matching_signature = None;
 
+        // Determine if any of the signatures for the called function matches
+        // the provided arguments.
+        for (i, signature) in func.signatures().iter().enumerate() {
+            let expected_arg_types: Vec<Type> =
+                signature.args.iter().map(|arg| arg.ty()).collect();
+
+            if provided_arg_types == expected_arg_types {
+                fn_call.fn_signature_index = Some(i);
+                matching_signature = Some(signature);
+                break;
+            }
+
+            expected_args.push(expected_arg_types);
+        }
+
+        if let Some(matching_signature) = matching_signature {
+            matching_signature.result.clone()
+        } else {
+            // No matching signature was found, that means that the arguments
+            // provided were incorrect.
             return Err(Error::CompileError(CompileError::wrong_arguments(
                 ctx.report_builder,
                 ctx.src,
-                msg.to_string(),
                 (&fn_call.args).span(),
                 Some(format!(
-                    "expected arguments: {}",
-                    expected_args.join(", ")
+                    "accepted argument combinations:\n\n             {}",
+                    expected_args
+                        .iter()
+                        .map(|v| {
+                            format!(
+                                "({})",
+                                v.iter()
+                                    .map(|i| i.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join(", ")
+                            )
+                        })
+                        .collect::<Vec<String>>()
+                        .join("\n             ")
                 )),
             )));
         }
-
-        // Make sure that types of the provided argument matches the types
-        // expected by the function.
-        for (expected_arg, provided_arg) in
-            func.args().iter().zip(fn_call.args.iter_mut())
-        {
-            let ty = semcheck_expr(ctx, provided_arg)?;
-            let expected_ty = expected_arg.ty();
-
-            if ty != expected_arg.ty() {
-                return Err(Error::CompileError(CompileError::wrong_type(
-                    ctx.report_builder,
-                    ctx.src,
-                    ParserError::join_with_or(&[expected_ty], true),
-                    ty.to_string(),
-                    provided_arg.span(),
-                )));
-            }
-        }
-
-        func.result().clone()
     } else {
         unreachable!()
     };
