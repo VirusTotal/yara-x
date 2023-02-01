@@ -301,6 +301,9 @@ fn rule_reuse() {
 #[cfg(feature = "test_proto2-module")]
 fn test_proto2_module() {
     condition_true!(r#"test_proto2.add(1,2) == 3"#);
+    condition_true!(r#"test_proto2.uppercase("foo") == "FOO""#);
+    condition_false!(r#"test_proto2.undef_i64() == 0"#);
+    condition_false!(r#"test_proto2.undef_i64() != 0"#);
 
     condition_true!(r#"test_proto2.int64_zero == 0"#);
     condition_true!(r#"test_proto2.int64_one == 1"#);

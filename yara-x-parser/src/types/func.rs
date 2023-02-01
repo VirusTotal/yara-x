@@ -26,6 +26,12 @@ use crate::types::TypeValue;
 //  can't return regular expressions). For example, a function `add` with
 //  two integer arguments that return another integer would have the
 //  mangled name: `add@ii@i`.
+//
+//  Additionally, the return type may be followed by a `u` character if
+//  the returned value may be undefined. For example, a function `foo` that
+//  receives no argument and returns a string that may undefined will have
+//  a mangled name: `foo@@su`.
+//
 pub struct MangledFnName(String);
 
 impl MangledFnName {
@@ -56,7 +62,7 @@ impl MangledFnName {
             }
         }
 
-        let result = match ret {
+        let result = match ret.get(0..1).unwrap() {
             "i" => TypeValue::Integer(None),
             "f" => TypeValue::Float(None),
             "b" => TypeValue::Bool(None),
@@ -66,11 +72,19 @@ impl MangledFnName {
 
         (args, result)
     }
+
+    // Returns true if the function's result may be undefined.
+    pub fn result_may_be_undef(&self) -> bool {
+        self.0.ends_with('u')
+    }
 }
 
-impl From<String> for MangledFnName {
-    fn from(value: String) -> Self {
-        Self(value)
+impl<S> From<S> for MangledFnName
+where
+    S: Into<String>,
+{
+    fn from(value: S) -> Self {
+        Self(value.into())
     }
 }
 
@@ -83,6 +97,7 @@ pub struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
     pub result: TypeValue,
+    pub result_may_be_undef: bool,
 }
 
 impl Ord for FuncSignature {
@@ -108,8 +123,9 @@ impl PartialEq for FuncSignature {
 impl From<String> for FuncSignature {
     fn from(value: String) -> Self {
         let mangled_name = MangledFnName::from(value);
+        let result_may_be_undef = mangled_name.result_may_be_undef();
         let (args, result) = mangled_name.unmangle();
-        Self { mangled_name, args, result }
+        Self { mangled_name, args, result, result_may_be_undef }
     }
 }
 
@@ -139,5 +155,60 @@ impl Func {
 
     pub fn signatures(&self) -> &[FuncSignature] {
         self.signatures.as_slice()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::types::{MangledFnName, TypeValue};
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn mangled_name() {
+        assert_eq!(
+            MangledFnName::from("foo@@i").unmangle(),
+            (vec![], TypeValue::Integer(None))
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@i@i").unmangle(),
+            (vec![TypeValue::Integer(None)], TypeValue::Integer(None))
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@f@f").unmangle(),
+            (vec![TypeValue::Float(None)], TypeValue::Float(None))
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@b@b").unmangle(),
+            (vec![TypeValue::Bool(None)], TypeValue::Bool(None))
+        );
+
+        assert_eq!(
+            MangledFnName::from("foo@s@s").unmangle(),
+            (vec![TypeValue::String(None)], TypeValue::String(None))
+        );
+
+        assert!(!MangledFnName::from("foo@i@i").result_may_be_undef());
+        assert!(MangledFnName::from("foo@i@iu").result_may_be_undef());
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_mangled_name_1() {
+        MangledFnName::from("foo@i").unmangle();
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_mangled_name_2() {
+        MangledFnName::from("foo@@x").unmangle();
+    }
+
+    #[test]
+    #[should_panic]
+    fn invalid_mangled_name_3() {
+        MangledFnName::from("foo@x@i").unmangle();
     }
 }

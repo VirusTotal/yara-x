@@ -220,6 +220,12 @@ impl From<WasmArg> for LiteralId {
     }
 }
 
+impl From<WasmArg> for RuntimeString {
+    fn from(value: WasmArg) -> Self {
+        Self::from_wasm(RuntimeStringWasm::from(value))
+    }
+}
+
 /// Represents the return value of a function exported to WASM.
 ///
 /// The purpose of this type if converting Rust types into a slice of
@@ -280,6 +286,12 @@ impl From<f64> for WasmResult {
 impl From<bool> for WasmResult {
     fn from(value: bool) -> Self {
         Self { values: vec![wasmtime::Val::from(value as i32)] }
+    }
+}
+
+impl From<RuntimeString> for WasmResult {
+    fn from(value: RuntimeString) -> Self {
+        Self { values: vec![wasmtime::Val::from(value.as_wasm())] }
     }
 }
 
@@ -351,8 +363,10 @@ fn type_id_to_walrus(
         return &[walrus::ValType::F32, walrus::ValType::I32];
     } else if type_id == TypeId::of::<MaybeUndef<()>>() {
         return &[walrus::ValType::I32];
+    } else if type_id == TypeId::of::<RuntimeString>() {
+        return &[walrus::ValType::I64];
     }
-    panic!("type `{}` can be an argument or return value", type_name)
+    panic!("type `{}` can't be an argument or return value", type_name)
 }
 
 /// Macro that creates types [`WasmExportedFn0`], [`WasmExportedFn1`], etc,

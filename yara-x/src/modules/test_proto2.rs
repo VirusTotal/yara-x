@@ -1,7 +1,10 @@
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
+use bstr::{BString, ByteSlice};
 
 use crate::scanner::ScanContext;
+use crate::wasm;
+use crate::wasm::string::RuntimeString;
 use crate::wasm::*;
 use linkme::distributed_slice;
 use wasmtime::Caller;
@@ -31,6 +34,23 @@ mod add_f64 {
     ) -> f64 {
         a + b
     }
+}
+
+#[wasm_export]
+pub(crate) fn uppercase(
+    mut caller: Caller<'_, ScanContext>,
+    s: string::RuntimeString,
+) -> string::RuntimeString {
+    let s = s.as_bstr(caller.data()).to_uppercase();
+
+    let s_id = caller.data_mut().string_pool.get_or_intern(s);
+
+    RuntimeString::Owned(s_id)
+}
+
+#[wasm_export]
+pub(crate) fn undef_i64(_caller: Caller<'_, ScanContext>) -> MaybeUndef<i64> {
+    MaybeUndef::Undef
 }
 
 #[module_main]

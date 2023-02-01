@@ -301,9 +301,21 @@ pub(super) fn emit_expr(
                         let signature =
                             &func.signatures()[ctx.current_signature.unwrap()];
 
-                        instr.call(
-                            ctx.function_id(signature.mangled_name.as_str()),
-                        );
+                        if signature.result_may_be_undef {
+                            emit_call_and_handle_undef(
+                                ctx,
+                                instr,
+                                ctx.function_id(
+                                    signature.mangled_name.as_str(),
+                                ),
+                            );
+                        } else {
+                            instr.call(
+                                ctx.function_id(
+                                    signature.mangled_name.as_str(),
+                                ),
+                            );
+                        }
                     }
                     SymbolKind::FieldIndex(index) => {
                         match ident.ty() {

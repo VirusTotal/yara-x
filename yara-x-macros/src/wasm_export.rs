@@ -2,16 +2,16 @@ extern crate proc_macro;
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use std::collections::VecDeque;
+use std::collections::vec_deque::VecDeque;
 use syn::visit::Visit;
-use syn::{ItemFn, PatType, Type};
+use syn::{GenericArgument, ItemFn, PatType, PathArguments, ReturnType, Type};
 
 /// Parses signature of a Rust function and returns its
-struct FuncSignatureParser {
-    arg_types: Option<VecDeque<String>>,
+struct FuncSignatureParser<'ast> {
+    arg_types: Option<VecDeque<&'ast Type>>,
 }
 
-impl FuncSignatureParser {
+impl<'ast> FuncSignatureParser<'ast> {
     fn new() -> Self {
         Self { arg_types: None }
     }
@@ -22,11 +22,13 @@ impl FuncSignatureParser {
             "f32" | "f64" => "f",
             "PatternId" | "RuleId" => "i",
             "bool" => "b",
+            "RuntimeString" => "s",
+            "RuntimeStringWasm" => "s",
             _ => unreachable!("unknown type: {}", ty),
         }
     }
 
-    fn parse(&mut self, func: &ItemFn) -> syn::Result<String> {
+    fn parse(&mut self, func: &'ast syn::ItemFn) -> syn::Result<String> {
         self.arg_types = Some(VecDeque::new());
 
         // This loop traverses the function arguments' AST, populating
@@ -38,43 +40,103 @@ impl FuncSignatureParser {
         let mut arg_types = self.arg_types.take().unwrap();
 
         // Make sure that the first argument is `Caller`.
-        match arg_types.pop_front().as_deref() {
-            Some("Caller") => {}
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    &func.sig,
-                    format!(
-                        "function `{}` must have at least one argument of type `Caller<'_, ScanContext>`",
-                        func.sig.ident),
-                ));
-            }
+        let first_argument_is_ok = if let Some(ty) = arg_types.pop_front() {
+            Self::extract_type_ident(ty)?.map_or(false, |type_ident| {
+                type_ident.to_string().as_str() == "Caller"
+            })
+        } else {
+            false
+        };
+
+        if !first_argument_is_ok {
+            return Err(syn::Error::new_spanned(
+                &func.sig,
+                format!(
+                    "the first argument for function `{}` must be `Caller<'_, ScanContext>`",
+                    func.sig.ident),
+            ));
         }
 
         let mut mangled_named = format!("{}@", func.sig.ident);
 
         for arg_type in arg_types {
-            mangled_named
-                .push_str(Self::rust_type_to_mangled(arg_type.as_str()));
+            mangled_named.push_str(Self::rust_type_to_mangled(
+                Self::extract_type_ident(arg_type)?
+                    .unwrap()
+                    .to_string()
+                    .as_str(),
+            ));
         }
 
-        mangled_named.push('@');
-        mangled_named.push_str(Self::rust_type_to_mangled("i32"));
+        if let ReturnType::Type(.., return_type) = &func.sig.output {
+            let mut type_ident = Self::extract_type_ident(return_type)?;
+            let mut maybe_undef = false;
+
+            // If the result type is MaybeUndef<T>, type_ident will be "T"
+            // and maybe_undef is set to true.
+            while let Some(t) = type_ident {
+                if t == "MaybeUndef" {
+                    maybe_undef = true;
+                    if let Type::Path(path) = return_type.as_ref() {
+                        if let PathArguments::AngleBracketed(angle_bracketed) =
+                            &path.path.segments.last().unwrap().arguments
+                        {
+                            if let GenericArgument::Type(ty) =
+                                angle_bracketed.args.first().unwrap()
+                            {
+                                type_ident = Self::extract_type_ident(ty)?;
+                            }
+                        }
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            if let Some(t) = type_ident {
+                mangled_named.push('@');
+                mangled_named.push_str(Self::rust_type_to_mangled(
+                    t.to_string().as_str(),
+                ));
+
+                if maybe_undef {
+                    mangled_named.push('u');
+                }
+            }
+        }
 
         Ok(mangled_named)
     }
 
-    fn extract_type_ident(ty: &syn::Type) -> &syn::Ident {
+    fn extract_type_ident(ty: &syn::Type) -> syn::Result<Option<&syn::Ident>> {
         match ty {
-            Type::Path(path) => &path.path.segments.last().unwrap().ident,
-            _ => unreachable!(),
+            Type::Path(path) => {
+                Ok(Some(&path.path.segments.last().unwrap().ident))
+            }
+            Type::Group(group) => {
+                Self::extract_type_ident(group.elem.as_ref())
+            }
+            Type::Tuple(tuple) => {
+                if tuple.elems.is_empty() {
+                    Ok(None)
+                } else {
+                    Err(syn::Error::new_spanned(
+                        ty,
+                        "can not return or receive this type",
+                    ))
+                }
+            }
+            _ => Err(syn::Error::new_spanned(
+                ty,
+                "can not return or receive this type",
+            )),
         }
     }
 }
 
-impl<'ast> Visit<'ast> for FuncSignatureParser {
+impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
     fn visit_pat_type(&mut self, pat_type: &'ast PatType) {
-        let type_ident = Self::extract_type_ident(pat_type.ty.as_ref());
-        self.arg_types.as_mut().unwrap().push_back(type_ident.to_string());
+        self.arg_types.as_mut().unwrap().push_back(pat_type.ty.as_ref());
     }
 }
 

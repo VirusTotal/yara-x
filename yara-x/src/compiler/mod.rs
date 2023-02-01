@@ -15,7 +15,7 @@ use walrus::{FunctionId, Module, ValType};
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::types::{Func, FuncSignature, MangledFnName};
+use yara_x_parser::types::{Func, FuncSignature};
 use yara_x_parser::types::{Struct, TypeValue};
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{ErrorInfo as ParserError, Parser, SourceCode};
