@@ -353,6 +353,10 @@ fn type_id_to_walrus(
         return &[walrus::ValType::I32];
     } else if type_id == TypeId::of::<()>() {
         return &[];
+    } else if type_id == TypeId::of::<RuntimeString>() {
+        return &[walrus::ValType::I64];
+    } else if type_id == TypeId::of::<MaybeUndef<()>>() {
+        return &[walrus::ValType::I32];
     } else if type_id == TypeId::of::<MaybeUndef<i64>>() {
         return &[walrus::ValType::I64, walrus::ValType::I32];
     } else if type_id == TypeId::of::<MaybeUndef<i32>>() {
@@ -361,10 +365,8 @@ fn type_id_to_walrus(
         return &[walrus::ValType::F64, walrus::ValType::I32];
     } else if type_id == TypeId::of::<MaybeUndef<f32>>() {
         return &[walrus::ValType::F32, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<MaybeUndef<()>>() {
-        return &[walrus::ValType::I32];
-    } else if type_id == TypeId::of::<RuntimeString>() {
-        return &[walrus::ValType::I64];
+    } else if type_id == TypeId::of::<MaybeUndef<RuntimeString>>() {
+        return &[walrus::ValType::I64, walrus::ValType::I32];
     }
     panic!("type `{}` can't be an argument or return value", type_name)
 }
@@ -673,21 +675,19 @@ macro_rules! lookup_common {
 #[wasm_export]
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
-) -> RuntimeStringWasm {
-    let string = lookup_common!(caller, type_value, {
+) -> MaybeUndef<RuntimeString> {
+    lookup_common!(caller, type_value, {
         match type_value {
             TypeValue::String(Some(value)) => {
                 let value = value.to_owned();
-                RuntimeString::Owned(
+                MaybeUndef::Ok(RuntimeString::Owned(
                     caller.data_mut().string_pool.get_or_intern(value),
-                )
+                ))
             }
-            TypeValue::String(None) => RuntimeString::Undef,
+            TypeValue::String(None) => MaybeUndef::Undef,
             _ => unreachable!(),
         }
-    });
-
-    string.as_wasm()
+    })
 }
 
 #[wasm_export]
@@ -761,7 +761,7 @@ pub(crate) fn array_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
     var: i32,
-) -> RuntimeStringWasm {
+) -> MaybeUndef<RuntimeString> {
     // TODO: decide what to to with this. It looks like are not going to need
     // to store strings in host-side variables.
     assert_eq!(var, -1);
@@ -772,12 +772,11 @@ pub(crate) fn array_lookup_string(
     let array = array.as_string_array();
 
     if let Some(string) = array.get(index as usize) {
-        RuntimeString::Owned(
+        MaybeUndef::Ok(RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(string.as_bstr()),
-        )
-        .as_wasm()
+        ))
     } else {
-        RuntimeString::Undef.as_wasm()
+        MaybeUndef::Undef
     }
 }
 
@@ -911,7 +910,7 @@ gen_map_integer_key_lookup_fn!(
 pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
-) -> RuntimeStringWasm {
+) -> MaybeUndef<RuntimeString> {
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
@@ -920,25 +919,23 @@ pub(crate) fn map_lookup_integer_string(
         _ => unreachable!(),
     };
 
-    let string = if let Some(value) = value {
-        RuntimeString::Owned(
+    if let Some(value) = value {
+        MaybeUndef::Ok(RuntimeString::Owned(
             caller
                 .data_mut()
                 .string_pool
                 .get_or_intern(value.as_bstr().unwrap()),
-        )
+        ))
     } else {
-        RuntimeString::Undef
-    };
-
-    string.as_wasm()
+        MaybeUndef::Undef
+    }
 }
 
 #[wasm_export]
 pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
-) -> RuntimeStringWasm {
+) -> MaybeUndef<RuntimeString> {
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
@@ -950,18 +947,16 @@ pub(crate) fn map_lookup_string_string(
         _ => unreachable!(),
     };
 
-    let string = if let Some(type_value) = type_value {
-        RuntimeString::Owned(
+    if let Some(type_value) = type_value {
+        MaybeUndef::Ok(RuntimeString::Owned(
             caller
                 .data_mut()
                 .string_pool
                 .get_or_intern(type_value.as_bstr().unwrap()),
-        )
+        ))
     } else {
-        RuntimeString::Undef
-    };
-
-    string.as_wasm()
+        MaybeUndef::Undef
+    }
 }
 
 #[wasm_export]

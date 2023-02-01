@@ -55,8 +55,6 @@ pub(crate) type RuntimeStringWasm = i64;
 /// string in that pool.
 #[derive(Debug, PartialEq)]
 pub(crate) enum RuntimeString {
-    /// An undefined string.
-    Undef,
     /// A literal string appearing in the source code. The string is identified
     /// by its [`LiteralId`] within the literal strings pool.
     Literal(LiteralId),
@@ -68,13 +66,16 @@ pub(crate) enum RuntimeString {
     Owned(RuntimeStringId),
 }
 
+impl Default for RuntimeString {
+    fn default() -> Self {
+        Self::Slice { offset: 0, length: 0 }
+    }
+}
+
 impl RuntimeString {
     /// Returns this string as a &[`BStr`].
     pub(crate) fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
         match self {
-            RuntimeString::Undef => {
-                panic!("as_bstr() called for RuntimeString::Undef")
-            }
             RuntimeString::Literal(id) => {
                 ctx.compiled_rules.lit_pool().get(*id).unwrap()
             }
@@ -86,19 +87,11 @@ impl RuntimeString {
         }
     }
 
-    /// Returns this string as a tuple of primitive types suitable to be
-    /// passed to WASM.
+    /// Returns this string as a primitive type suitable to be passed to WASM.
     pub(crate) fn as_wasm(&self) -> RuntimeStringWasm {
         match self {
-            // Undefined strings are represented as 0.
-            RuntimeString::Undef => 0,
-            // Literal strings are represented as (1, LiteralId)
-            RuntimeString::Literal(id) => i64::from(*id) << 2 | 1,
-            // Owned strings are represented as (2, RuntimeStringId)
-            RuntimeString::Owned(id) => (*id as i64) << 2 | 2,
-            // Slices are represented as (length << 32 | 1, offset). This
-            // implies that slice length is limited to 4GB, as it must fit
-            // in the upper 32-bits of the first item in the tuple.
+            RuntimeString::Literal(id) => i64::from(*id) << 2,
+            RuntimeString::Owned(id) => (*id as i64) << 2 | 1,
             RuntimeString::Slice { offset, length } => {
                 if *length >= u16::MAX as usize {
                     panic!(
@@ -106,7 +99,7 @@ impl RuntimeString {
                         u16::MAX
                     )
                 }
-                (*offset as i64) << 18 | (*length as i64) << 2 | 3
+                (*offset as i64) << 18 | (*length as i64) << 2 | 2
             }
         }
     }
@@ -114,10 +107,9 @@ impl RuntimeString {
     /// Creates a [`RuntimeString`] from a [`RuntimeStringWasm`].
     pub(crate) fn from_wasm(s: RuntimeStringWasm) -> Self {
         match s & 0x3 {
-            0 => Self::Undef,
-            1 => Self::Literal(LiteralId::from((s >> 2) as u32)),
-            2 => Self::Owned((s >> 2) as u32),
-            3 => Self::Slice {
+            0 => Self::Literal(LiteralId::from((s >> 2) as u32)),
+            1 => Self::Owned((s >> 2) as u32),
+            2 => Self::Slice {
                 offset: (s >> 18) as usize,
                 length: ((s >> 2) & 0xffff) as usize,
             },

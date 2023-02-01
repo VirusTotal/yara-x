@@ -818,7 +818,7 @@ fn emit_array_lookup(
             );
         }
         Array::Strings(_) => {
-            emit_call_and_handle_undef_str(
+            emit_call_and_handle_undef(
                 ctx,
                 instr,
                 ctx.function_id("array_lookup_string"),
@@ -879,7 +879,7 @@ fn emit_map_integer_key_lookup(
             );
         }
         Type::String => {
-            emit_call_and_handle_undef_str(
+            emit_call_and_handle_undef(
                 ctx,
                 instr,
                 ctx.function_id("map_lookup_integer_string"),
@@ -927,7 +927,7 @@ fn emit_map_string_key_lookup(
             );
         }
         Type::String => {
-            emit_call_and_handle_undef_str(
+            emit_call_and_handle_undef(
                 ctx,
                 instr,
                 ctx.function_id("map_lookup_string_string"),
@@ -1795,26 +1795,6 @@ pub(super) fn emit_call_and_handle_undef(
     );
 }
 
-/// Calls a function that may return an undefined string.
-///
-/// This function is similar to [`emit_call_and_handle_undef`], but strings
-/// are represented differently from other values and therefore they require
-/// a different treatment.
-///
-/// Strings are represented by an `i64` (see [`RuntimeStringWasm`] for more
-/// details), and they are undefined when the value is zero.
-pub(super) fn emit_call_and_handle_undef_str(
-    ctx: &Context,
-    instr: &mut InstrSeqBuilder,
-    fn_id: walrus::FunctionId,
-) {
-    // Call the function that returns a string. The string is represented
-    // by an i64, and is undefined when its value is zero.
-    instr.call(fn_id);
-    // If the value was zero throws an exception.
-    throw_undef_if_zero(ctx, instr);
-}
-
 pub(super) fn emit_lookup_common(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
@@ -1895,11 +1875,7 @@ pub(super) fn emit_lookup_string(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef_str(
-        ctx,
-        instr,
-        ctx.function_id("lookup_string"),
-    );
+    emit_call_and_handle_undef(ctx, instr, ctx.function_id("lookup_string"));
 }
 
 #[inline]
