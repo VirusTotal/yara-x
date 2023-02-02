@@ -9,6 +9,16 @@ pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 }
 
+pub(crate) mod prelude {
+    pub(crate) use crate::wasm::string::*;
+    pub(crate) use crate::wasm::*;
+    pub(crate) use crate::ScanContext;
+    pub(crate) use bstr::ByteSlice;
+    pub(crate) use linkme::distributed_slice;
+    pub(crate) use wasmtime::Caller;
+    pub(crate) use yara_x_macros::{module_export, module_main, wasm_export};
+}
+
 include!("modules.rs");
 
 /// Type of module's main function.

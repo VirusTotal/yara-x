@@ -1,7 +1,9 @@
 use proc_macro::TokenStream;
+use syn::punctuated::Punctuated;
 use syn::{parse_macro_input, DeriveInput, ItemFn};
 
 mod error;
+mod module_export;
 mod module_main;
 mod span;
 mod wasm_export;
@@ -111,7 +113,7 @@ pub fn span_macro_derive(input: TokenStream) -> TokenStream {
 /// span indicated by that field.
 ///
 /// In the example above we use `#[label("duplicate tag", tag_span)]` for
-/// creating a label with the text "duplicate tag" asociated to the span
+/// creating a label with the text "duplicate tag" associated to the span
 /// indicated in `tag_span`. You can specify more than one label if
 /// necessary.
 ///
@@ -186,8 +188,11 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// including a reference to the [`yara_x::scanner::ScanContext`] corresponding
 /// to the current scan.
 ///
-/// The rest of the arguments, if any, can be of any of the primitive types
-/// supported by WASM (i.e: `i64`, `i32`, `f64`, `f32`)
+/// The rest of the arguments, if any, can be of any of the following types:
+/// - i64
+/// - f64
+/// - bool
+/// - RuntimeString
 ///
 /// # Example
 ///
@@ -196,10 +201,74 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// fn add(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
 ///     a + b
 /// }
+/// ```
+///
+/// Optionally, the `wasm_export` macro can receive the name used for exporting
+/// the function. If not specified, the function will be exported with the name
+/// it has in the Rust code, but you can specify a different name. This allow
+/// having multiple functions with the same name, as long as their signatures
+/// are different.
+///
+/// # Example
+///
+/// ```no_run
+/// use wasmtime::Caller;
+///
+/// #[wasm_export(add)]
+/// fn add_i64(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
+///     a + b
+/// }
+///
+/// #[wasm_export(add)]
+/// fn add_f64(caller: Caller<'_, ScanContext>, a: f64, b: f64) -> f64 {   
+///      a + b
+/// }
+/// ```
 #[proc_macro_attribute]
-pub fn wasm_export(_attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
+    let arg = parse_macro_input!(
+        args with Punctuated::<syn::Ident, syn::Token![.]>::parse_terminated);
     let input = parse_macro_input!(input as ItemFn);
-    wasm_export::impl_wasm_export_macro(input)
+    wasm_export::impl_wasm_export_macro(arg, input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+/// The `module_export` macro is used for declaring that a function is exported
+/// from a YARA module and therefore it's callable from YARA rules.
+///
+/// The function's first argument must be of a reference to [`ScanContext`].
+/// This reference can be either mutable or immutable, depending on whether
+/// the function needs to mutate the context.
+///
+/// The rest of the arguments, if any, can be of any of the following types:
+/// - `i64`
+/// - `f64`
+/// - `bool`
+/// - `RuntimeString`
+///
+/// # Example
+///
+/// ```no_run
+/// #[wasm_export]
+/// fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {   
+///     a + b
+/// }
+/// ```
+///
+/// Optionally, the `module_export` macro can receive the name used for exporting
+/// the function. If not specified, the function will be exported with the name
+/// it has in the Rust code, but you can specify a different name. This allow
+/// having multiple functions with the same name, as long as their signatures
+/// are different.
+///
+///
+#[proc_macro_attribute]
+pub fn module_export(args: TokenStream, input: TokenStream) -> TokenStream {
+    let arg = parse_macro_input!(
+        args with Punctuated::<syn::Ident, syn::Token![.]>::parse_terminated);
+    let input = parse_macro_input!(input as ItemFn);
+    module_export::impl_module_export_macro(arg, input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

@@ -1,55 +1,27 @@
+use crate::modules::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
-use bstr::{BString, ByteSlice};
 
-use crate::scanner::ScanContext;
-use crate::wasm;
-use crate::wasm::string::RuntimeString;
-use crate::wasm::*;
-use linkme::distributed_slice;
-use wasmtime::Caller;
-use yara_x_macros::{module_main, wasm_export};
-
-mod add_i64 {
-    use super::*;
-
-    #[wasm_export]
-    pub(crate) fn add(
-        _caller: Caller<'_, ScanContext>,
-        a: i64,
-        b: i64,
-    ) -> i64 {
-        a + b
-    }
+#[module_export(add)]
+pub(crate) fn add_i64(_ctx: &mut ScanContext, a: i64, b: i64) -> i64 {
+    a + b
 }
 
-mod add_f64 {
-    use super::*;
-
-    #[wasm_export]
-    pub(crate) fn add(
-        _caller: Caller<'_, ScanContext>,
-        a: f64,
-        b: f64,
-    ) -> f64 {
-        a + b
-    }
+#[module_export(add)]
+pub(crate) fn add_f64(_ctx: &mut ScanContext, a: f64, b: f64) -> f64 {
+    a + b
 }
 
-#[wasm_export]
+#[module_export]
 pub(crate) fn uppercase(
-    mut caller: Caller<'_, ScanContext>,
-    s: string::RuntimeString,
-) -> string::RuntimeString {
-    let s = s.as_bstr(caller.data()).to_uppercase();
-
-    let s_id = caller.data_mut().string_pool.get_or_intern(s);
-
-    RuntimeString::Owned(s_id)
+    ctx: &mut ScanContext,
+    s: RuntimeString,
+) -> RuntimeString {
+    RuntimeString::new_owned(ctx, s.as_bstr(ctx).to_uppercase())
 }
 
-#[wasm_export]
-pub(crate) fn undef_i64(_caller: Caller<'_, ScanContext>) -> MaybeUndef<i64> {
+#[module_export]
+pub(crate) fn undef_i64(_ctx: &mut ScanContext) -> MaybeUndef<i64> {
     MaybeUndef::Undef
 }
 

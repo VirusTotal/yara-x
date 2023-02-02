@@ -3,8 +3,12 @@ extern crate proc_macro;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use std::collections::vec_deque::VecDeque;
+use syn::punctuated::Punctuated;
+use syn::token::Dot;
 use syn::visit::Visit;
-use syn::{GenericArgument, ItemFn, PatType, PathArguments, ReturnType, Type};
+use syn::{
+    GenericArgument, Ident, ItemFn, PatType, PathArguments, ReturnType, Type,
+};
 
 /// Parses signature of a Rust function and returns its
 struct FuncSignatureParser<'ast> {
@@ -57,7 +61,7 @@ impl<'ast> FuncSignatureParser<'ast> {
             ));
         }
 
-        let mut mangled_named = format!("{}@", func.sig.ident);
+        let mut mangled_named = String::from("@");
 
         for arg_type in arg_types {
             mangled_named.push_str(Self::rust_type_to_mangled(
@@ -174,10 +178,16 @@ impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
 /// receives two parameters (not counting `caller: Caller<'_, ScanContext>`)
 ///
 pub(crate) fn impl_wasm_export_macro(
+    name: Punctuated<Ident, Dot>,
     func: ItemFn,
 ) -> syn::Result<TokenStream> {
     let fn_name = &func.sig.ident;
-    let fn_name_str = fn_name.to_string();
+
+    let fn_name_str = if name.is_empty() {
+        fn_name.to_string()
+    } else {
+        name.to_token_stream().to_string()
+    };
 
     if func.sig.inputs.is_empty() {
         return Err(syn::Error::new_spanned(
@@ -194,7 +204,9 @@ pub(crate) fn impl_wasm_export_macro(
     let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
 
     let mut func_sig_parser = FuncSignatureParser::new();
-    let mangled_fn_name = func_sig_parser.parse(&func)?;
+
+    let mangled_fn_name =
+        format!("{}{}", fn_name_str, func_sig_parser.parse(&func)?);
 
     let fn_descriptor = quote! {
         #[allow(non_upper_case_globals)]
@@ -223,9 +235,15 @@ mod tests {
         let mut parser = FuncSignatureParser::new();
 
         let func = parse_quote! {
-          fn add(caller: Caller<'_, ScanContext>, a: i32, b: i32) -> i32 { a + b }
+          fn foo(caller: Caller<'_, ScanContext>) -> i32 { 0 }
         };
 
-        assert_eq!(parser.parse(&func).unwrap(), "add@ii@i");
+        assert_eq!(parser.parse(&func).unwrap(), "@@i");
+
+        let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>, a: i32, b: i32) -> i32 { a + b }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@ii@i");
     }
 }

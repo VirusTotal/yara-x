@@ -104,9 +104,9 @@ pub(crate) const LOOKUP_INDEXES_END: i32 = LOOKUP_INDEXES_START + 1024;
 pub(crate) const MATCHING_RULES_BITMAP_BASE: i32 = LOOKUP_INDEXES_END;
 
 /// Global slice that contains an entry for each function that is callable from
-/// WASM code. Functions with the `#[wasm_export]` attribute are automatically
-/// added to this slice. See for https://github.com/dtolnay/linkme for details
-/// about how `#[distributed_slice]` works.
+/// WASM code. Functions with attributes `#[wasm_export]` and `#[module_export]`
+/// are automatically added to this slice. See https://github.com/dtolnay/linkme
+/// for details about how `#[distributed_slice]` works.
 #[distributed_slice]
 pub(crate) static WASM_EXPORTS: [WasmExport] = [..];
 
@@ -114,6 +114,9 @@ pub(crate) static WASM_EXPORTS: [WasmExport] = [..];
 pub(crate) struct WasmExport {
     /// Function's name.
     pub name: &'static str,
+    /// Function's mangled name. The mangled name contains information about
+    /// the function's arguments and return type. For additional details see
+    /// [`yara_x_parser::types::MangledFnName`].
     pub mangled_name: &'static str,
     /// Path of the module where the function resides. This an absolute path
     /// that includes the crate name (e.g: yara_x::modules::test_proto2)
@@ -562,15 +565,11 @@ pub(crate) fn is_pat_match_in(
 ///
 /// If the variable doesn't exist or is not an array.
 #[wasm_export]
-pub(crate) fn array_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
-    let len = caller
-        .data()
-        .vars_stack
-        .get(var as usize)
-        .unwrap()
-        .as_array()
-        .unwrap()
-        .len();
+pub(crate) fn array_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
+    let ctx = caller.data_mut();
+
+    let len =
+        ctx.vars_stack.get(var as usize).unwrap().as_array().unwrap().len();
 
     len as i64
 }
@@ -582,15 +581,11 @@ pub(crate) fn array_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
 ///
 /// If the variable doesn't exist or is not a map.
 #[wasm_export]
-pub(crate) fn map_len(caller: Caller<'_, ScanContext>, var: i32) -> i64 {
-    let len = caller
-        .data()
-        .vars_stack
-        .get(var as usize)
-        .unwrap()
-        .as_map()
-        .unwrap()
-        .len();
+pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
+    let ctx = caller.data_mut();
+
+    let len =
+        ctx.vars_stack.get(var as usize).unwrap().as_map().unwrap().len();
 
     len as i64
 }
@@ -816,17 +811,16 @@ macro_rules! gen_map_string_key_lookup_fn {
         #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
-            key: i64,
+            key: RuntimeString,
         ) -> MaybeUndef<$return_type> {
             let map = lookup_common!(caller, type_value, {
                 type_value.as_map().unwrap()
             });
 
-            let key = RuntimeString::from_wasm(key);
-            let key_bstr = key.as_bstr(caller.data());
+            let key = key.as_bstr(caller.data());
 
             let value = match map.borrow() {
-                Map::StringKeys { map, .. } => map.get(key_bstr),
+                Map::StringKeys { map, .. } => map.get(key),
                 _ => unreachable!(),
             };
 
@@ -934,12 +928,11 @@ pub(crate) fn map_lookup_integer_string(
 #[wasm_export]
 pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
-    key: i64,
+    key: RuntimeString,
 ) -> MaybeUndef<RuntimeString> {
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
-    let key = RuntimeString::from_wasm(key);
     let key_bstr = key.as_bstr(caller.data());
 
     let type_value = match map.borrow() {
@@ -991,7 +984,7 @@ pub(crate) fn map_lookup_integer_struct(
 #[wasm_export]
 pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
-    key: i64,
+    key: RuntimeString,
 ) -> MaybeUndef<()> {
     let map = lookup_common!(caller, value, {
         match value {
@@ -1000,7 +993,6 @@ pub(crate) fn map_lookup_string_struct(
         }
     });
 
-    let key = RuntimeString::from_wasm(key);
     let key_bstr = key.as_bstr(caller.data());
 
     let value = match map.borrow() {
@@ -1025,13 +1017,10 @@ macro_rules! gen_str_cmp_fn {
         #[wasm_export]
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
-            lhs: i64,
-            rhs: i64,
+            lhs: RuntimeString,
+            rhs: RuntimeString,
         ) -> bool {
-            let lhs_str = RuntimeString::from_wasm(lhs);
-            let rhs_str = RuntimeString::from_wasm(rhs);
-
-            lhs_str.$op(&rhs_str, caller.data())
+            lhs.$op(&rhs, caller.data())
         }
     };
 }
@@ -1048,13 +1037,10 @@ macro_rules! gen_str_op_fn {
         #[wasm_export]
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
-            lhs: i64,
-            rhs: i64,
+            lhs: RuntimeString,
+            rhs: RuntimeString,
         ) -> bool {
-            let lhs_str = RuntimeString::from_wasm(lhs);
-            let rhs_str = RuntimeString::from_wasm(rhs);
-
-            lhs_str.$op(&rhs_str, caller.data(), $case_insensitive)
+            lhs.$op(&rhs, caller.data(), $case_insensitive)
         }
     };
 }
@@ -1068,9 +1054,11 @@ gen_str_op_fn!(str_iendswith, ends_with, true);
 gen_str_op_fn!(str_iequals, equals, true);
 
 #[wasm_export]
-pub(crate) fn str_len(caller: Caller<'_, ScanContext>, str: i64) -> i64 {
-    let string = RuntimeString::from_wasm(str);
-    string.len(caller.data()) as i64
+pub(crate) fn str_len(
+    caller: Caller<'_, ScanContext>,
+    s: RuntimeString,
+) -> i64 {
+    s.len(caller.data()) as i64
 }
 
 #[wasm_export]

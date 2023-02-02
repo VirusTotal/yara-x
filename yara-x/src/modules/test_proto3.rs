@@ -1,8 +1,6 @@
+use crate::modules::prelude::*;
 use crate::modules::protos::test_proto3::NestedProto3;
 use crate::modules::protos::test_proto3::TestProto3;
-
-use crate::scanner::ScanContext;
-use yara_x_macros::module_main;
 
 #[module_main]
 fn main(_ctx: &ScanContext) -> TestProto3 {

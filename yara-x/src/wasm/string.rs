@@ -73,6 +73,14 @@ impl Default for RuntimeString {
 }
 
 impl RuntimeString {
+    /// Returns a copy of `s` as a [`RuntimeString::Owned`].
+    pub(crate) fn new_owned<S>(ctx: &mut ScanContext, s: S) -> Self
+    where
+        S: AsRef<[u8]>,
+    {
+        Self::Owned(ctx.string_pool.get_or_intern(s))
+    }
+
     /// Returns this string as a &[`BStr`].
     pub(crate) fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
         match self {

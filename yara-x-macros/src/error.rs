@@ -72,7 +72,7 @@ pub(crate) fn impl_error_macro(
 fn impl_enum_error_macro(
     data_enum: &DataEnum,
 ) -> syn::Result<(Vec<&Ident>, Vec<TokenStream>)> {
-    // Generate a proto function for each variant in the enum thas is labelled
+    // Generate a proto function for each variant in the enum labelled
     // with #[error(...)] or #[warning(...)].
     let mut funcs = Vec::new();
     let mut variants = Vec::new();
