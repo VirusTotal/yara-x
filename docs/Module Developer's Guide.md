@@ -70,12 +70,12 @@ import "yara.proto";
 With this line we are importing certain YARA-specific definitions will be used 
 later in the `proto` file, so, this line is required.
 
----
-**NOTE**
+----
 
-If you are curious about the content of `yara.proto` you can find it at
+**NOTE**: If you are curious about the content of `yara.proto` you can find it at
 `yara-x-proto/src/yara.proto`.
----
+
+----
 
 Let's start with the interesting part:
 
@@ -198,10 +198,10 @@ Here we are importing all the Rust types automatically generated from our
 message declared in the proto file. 
 
 ---
-**NOTE**
 
-If your protobuf file is `foobar.proto`, the module created for it will be
+**NOTE**: If your protobuf file is `foobar.proto`, the module created for it will be
 `crate::modules::protos::foobar`
+
 ---
 
 Next comes the module's main function:
