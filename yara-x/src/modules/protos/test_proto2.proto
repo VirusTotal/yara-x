@@ -83,6 +83,7 @@ message TestProto2 {
   required sfixed64           sfixed64_zero = 10;
 
   required float              float_zero = 11;
+  required double             double_zero = 12;
 
   // Numeric values initialized to 1 by the module.
 
@@ -102,6 +103,7 @@ message TestProto2 {
   required sfixed64           sfixed64_one = 30;
 
   required float              float_one = 31;
+  required double             double_one = 32;
 
   // Numeric values that remain undefined.
 
@@ -121,6 +123,7 @@ message TestProto2 {
   optional sfixed64           sfixed64_undef  = 50;
 
   optional float              float_undef  = 51;
+  optional double             double_undef = 52;
 
   // String values.
 

@@ -45,6 +45,7 @@ fn main(_ctx: &ScanContext) -> TestProto2 {
     test.set_sfixed32_zero(0);
     test.set_sfixed64_zero(0);
     test.set_float_zero(0.0);
+    test.set_double_zero(0.0);
 
     test.set_int32_one(1);
     test.set_int64_one(1);
@@ -57,6 +58,7 @@ fn main(_ctx: &ScanContext) -> TestProto2 {
     test.set_sfixed32_one(1);
     test.set_sfixed64_one(1);
     test.set_float_one(1.0);
+    test.set_double_one(1.0);
 
     test.set_string_foo("foo".to_string());
     test.set_string_bar("bar".to_string());

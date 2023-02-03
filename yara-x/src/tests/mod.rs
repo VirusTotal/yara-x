@@ -316,6 +316,25 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.int64_one * test_proto2.int64_one == 1"#);
     condition_true!(r#"test_proto2.int64_one - test_proto2.int64_one == 0"#);
 
+    condition_true!(r#"test_proto2.float_zero == 0.0"#);
+    condition_true!(r#"test_proto2.float_one == 1.0"#);
+    condition_true!(r#"test_proto2.double_zero == 0.0"#);
+    condition_true!(r#"test_proto2.double_one == 1.0"#);
+
+    condition_true!(
+        r#"test_proto2.double_one + test_proto2.float_one == 2.0"#
+    );
+
+    condition_true!(
+        r#"test_proto2.double_one - test_proto2.float_one == 0.0"#
+    );
+
+    condition_true!(
+        r#"test_proto2.double_one * test_proto2.float_one == 1.0"#
+    );
+
+    condition_true!(r#"test_proto2.double_one \ 2 == 0.5"#);
+
     condition_true!(r#"test_proto2.nested.nested_int64_zero == 0"#);
     condition_true!(r#"test_proto2.nested.nested_int64_one == 1"#);
 
