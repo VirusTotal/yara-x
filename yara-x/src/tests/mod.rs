@@ -304,6 +304,8 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.add(1.0,2.0) == 3.0"#);
 
     condition_true!(r#"test_proto2.uppercase("foo") == "FOO""#);
+    condition_true!(r#"test_proto2.nested.nested_func()"#);
+
     condition_false!(r#"test_proto2.undef_i64() == 0"#);
     condition_false!(r#"test_proto2.undef_i64() != 0"#);
 

@@ -105,7 +105,7 @@ impl SymbolLookup for Struct {
         if let TypeValue::Func(func) = &field.type_value {
             symbol.kind = SymbolKind::Func(func.clone());
         } else {
-            symbol.kind = SymbolKind::FieldIndex(field.index);
+            symbol.kind = SymbolKind::FieldIndex(field.index as i32);
         }
 
         Some(symbol)

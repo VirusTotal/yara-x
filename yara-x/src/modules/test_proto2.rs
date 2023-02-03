@@ -12,12 +12,17 @@ pub(crate) fn add_f64(_ctx: &mut ScanContext, a: f64, b: f64) -> f64 {
     a + b
 }
 
-#[module_export]
+#[module_export(uppercase)]
 pub(crate) fn uppercase(
     ctx: &mut ScanContext,
     s: RuntimeString,
 ) -> RuntimeString {
     RuntimeString::new_owned(ctx, s.as_bstr(ctx).to_uppercase())
+}
+
+#[module_export(nested.nested_func)]
+pub(crate) fn nested_func(ctx: &mut ScanContext) -> bool {
+    true
 }
 
 #[module_export]

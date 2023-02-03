@@ -9,6 +9,7 @@ pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 }
 
+#[allow(unused_imports)]
 pub(crate) mod prelude {
     pub(crate) use crate::wasm::string::*;
     pub(crate) use crate::wasm::*;

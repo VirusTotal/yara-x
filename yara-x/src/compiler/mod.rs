@@ -361,7 +361,7 @@ impl<'a> Compiler<'a> {
                     // Insert the functions in the module's struct.
                     for (name, export) in functions.drain() {
                         module_struct
-                            .insert(name, TypeValue::Func(Rc::new(export)));
+                            .add_field(name, TypeValue::Func(Rc::new(export)));
                     }
                 }
 
@@ -370,7 +370,8 @@ impl<'a> Compiler<'a> {
                 // Insert the module in the struct that contains all imported
                 // modules. This struct contains all modules imported, from
                 // all namespaces.
-                self.modules_struct.insert(module_name, module_struct.clone());
+                self.modules_struct
+                    .add_field(module_name, module_struct.clone());
 
                 // Create a symbol for the module and insert it in the symbol
                 // table for this namespace.
@@ -380,7 +381,7 @@ impl<'a> Compiler<'a> {
                     self.modules_struct
                         .field_by_name(module_name)
                         .unwrap()
-                        .index,
+                        .index as i32,
                 );
 
                 // Insert the symbol in the symbol table for the current

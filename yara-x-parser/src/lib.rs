@@ -24,6 +24,8 @@ to solve.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+extern crate core;
+
 pub mod ast;
 pub mod cst;
 pub use parser::*;

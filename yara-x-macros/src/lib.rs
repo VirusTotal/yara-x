@@ -157,10 +157,10 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 /// The `module_main` macro is used for indicating which is the main function
 /// in a YARA module.
 ///
-/// The main function in a YARA module must receive a single argument of
-/// type `&ScanContext`, and must return the protobuf structure that corresponds
-/// to the module. The function can have any name, as long as it is marked with
-/// `#[module_main]`, but it's a good practice to name it `main`.
+/// The main function in a YARA module must receive a reference to [`ScanContext`]
+/// and must return the protobuf structure that corresponds to the module. The
+/// function can have any name, as long as it is marked with `#[module_main]`, but
+/// it's a good practice to name it `main`.
 ///
 /// # Example
 ///
@@ -211,7 +211,7 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```text
 /// use wasmtime::Caller;
 ///
 /// #[wasm_export(add)]
@@ -234,35 +234,62 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// The `module_export` macro is used for declaring that a function is exported
-/// from a YARA module and therefore it's callable from YARA rules.
+/// Indicates that a function is exported from a YARA module and therefore
+/// it's callable from YARA rules.
 ///
-/// The function's first argument must be of a reference to [`ScanContext`].
-/// This reference can be either mutable or immutable, depending on whether
-/// the function needs to mutate the context.
+/// The function's first argument must be of a mutable or immutable reference
+/// to [`ScanContext`]. The rest of the arguments, if any, can be of any of
+/// the following types:
 ///
-/// The rest of the arguments, if any, can be of any of the following types:
 /// - `i64`
 /// - `f64`
 /// - `bool`
 /// - `RuntimeString`
 ///
-/// # Example
+/// Optionally, `module_export` can receive the path of the function within
+/// the module's structure, like in `#[module_export(foo)]` and
+/// `#[module_export(foo.bar)]`.
 ///
-/// ```no_run
-/// #[wasm_export]
+/// # Examples
+///
+/// Using `#[module_export]` without arguments. The function will be exported
+/// with name `add` at the module's top-level structure (i.e: if the module
+/// is named `my_module`, the function is invoked as `my_module.add`):
+///
+/// ```text
+/// #[module_export]
 /// fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {   
 ///     a + b
 /// }
 /// ```
 ///
-/// Optionally, the `module_export` macro can receive the name used for exporting
-/// the function. If not specified, the function will be exported with the name
-/// it has in the Rust code, but you can specify a different name. This allow
-/// having multiple functions with the same name, as long as their signatures
-/// are different.
+/// Passing the function name to `#[module_export]` and using the same name
+/// with two functions that have different signatures. Both functions will
+/// be called as `my_module.add`, YARA chooses which one to call based on
+/// the type of the arguments:
 ///
+/// ```text
+/// #[module_export(add)]
+///  fn add_i64(ctx: &ScanContext, a: i64, b: i64) -> i64 {
+///   a + b
+/// }
 ///
+/// #[module_export(add)]
+/// fn add_f64(ctx: &ScanContext, a: f64, b: f64) -> f64 {   
+///     a + b
+/// }
+/// ```
+///
+/// Passing a path to `#[module_export]`. The function will be called as
+/// `my_module.my_struct.add`. The module must have a field `my_struct`
+/// of struct type.
+///
+/// ```text
+/// #[module_export(my_struct.add)]
+///  fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {
+///   a + b
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn module_export(args: TokenStream, input: TokenStream) -> TokenStream {
     let arg = parse_macro_input!(

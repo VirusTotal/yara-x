@@ -22,7 +22,7 @@ pub struct StructField {
     /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
     /// Index that occupies the field in the structure it belongs to.
-    pub index: i32,
+    pub index: usize,
     /// Field type and value.
     pub type_value: TypeValue,
 }
@@ -54,20 +54,64 @@ pub struct Struct {
     field_index: FxHashMap<String, usize>,
 }
 
+impl Default for Struct {
+    fn default() -> Self {
+        Struct::new()
+    }
+}
+
 impl Struct {
     pub fn new() -> Self {
         Self { fields: Vec::new(), field_index: FxHashMap::default() }
     }
 
-    pub fn insert(&mut self, name: &str, value: TypeValue) -> &mut Self {
-        let index = self.fields.len();
-        self.fields.push(StructField {
-            type_value: value,
-            name: name.to_owned(),
-            number: 0,
-            index: index as i32,
-        });
-        self.field_index.insert(name.to_owned(), index);
+    /// Adds a new field to the structure.
+    ///
+    /// The field name may be a dot-separated sequence of field names, like
+    /// "foo.bar.baz". In such cases the structure must contain a field named
+    /// "foo", which must be another struct with a field named "bar", which
+    /// must be a structure where the field "baz" will be finally inserted.
+    ///
+    /// # Panics
+    ///
+    /// If the name is a dot-separated sequence of field names but some of
+    /// the fields don't exist or is not a structure. For example if field
+    /// name is "foo.bar.baz" but the field "foo" doesn't exist or is not
+    /// a structure.
+    ///
+    /// Also panics if there is some [`Rc`] or [`Weak`] pointer pointing to
+    /// any of the intermediate structures (e.g: the structures in the "foo"
+    /// and "bar" fields).
+    pub fn add_field(&mut self, name: &str, value: TypeValue) -> &mut Self {
+        if let Some(dot) = name.find('.') {
+            let field =
+                self.field_by_name_mut(&name[0..dot]).unwrap_or_else(|| {
+                    panic!("field `{}` was not found", &name[0..dot])
+                });
+
+            if let TypeValue::Struct(ref mut s) = field.type_value {
+                let s = Rc::<Struct>::get_mut(s).unwrap_or_else(|| {
+                    panic!(
+                        "`add_field` was called while an `Rc` or `Weak` pointer points to field `{}`",
+                        (&name[0..dot])
+                    )
+                });
+
+                s.add_field(&name[dot + 1..], value);
+            } else {
+                panic!("field `{}` is not a struct", &name[0..dot])
+            }
+        } else {
+            let index = self.fields.len();
+            self.fields.push(StructField {
+                type_value: value,
+                name: name.to_owned(),
+                number: 0,
+                index,
+            });
+            self.field_index.insert(name.to_owned(), index);
+        }
+
         self
     }
 
@@ -80,6 +124,23 @@ impl Struct {
     pub fn field_by_name(&self, name: &str) -> Option<&StructField> {
         let index = self.field_index.get(name)?;
         self.field_by_index(*index)
+    }
+
+    #[inline]
+    pub fn field_by_index_mut(
+        &mut self,
+        index: usize,
+    ) -> Option<&mut StructField> {
+        self.fields.get_mut(index)
+    }
+
+    #[inline]
+    pub fn field_by_name_mut(
+        &mut self,
+        name: &str,
+    ) -> Option<&mut StructField> {
+        let index = self.field_index.get(name)?;
+        self.field_by_index_mut(*index)
     }
 
     /// Creates a [`Struct`] from a protobuf message.
@@ -235,14 +296,14 @@ impl Struct {
                 let mut enum_struct = Struct::new();
 
                 for item in enum_.values() {
-                    enum_struct.insert(
+                    enum_struct.add_field(
                         item.name(),
                         TypeValue::Integer(Some(item.value() as i64)),
                     );
                 }
 
                 fields.push(StructField {
-                    index: fields.len() as i32,
+                    index: fields.len(),
                     type_value: TypeValue::Struct(Rc::new(enum_struct)),
                     number: 0,
                     name: Self::enum_name(&enum_),
@@ -256,7 +317,7 @@ impl Struct {
         let mut field_index = FxHashMap::default();
 
         for (index, field) in fields.iter_mut().enumerate() {
-            field.index = index as i32;
+            field.index = index;
             if field_index.insert(field.name.clone(), index).is_some() {
                 panic!(
                     "duplicate field name `{}` in `{}`",
@@ -656,5 +717,28 @@ impl Struct {
             ReflectValueRef::String(v) => v,
             _ => panic!(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Struct;
+    use crate::types::TypeValue;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_struct() {
+        let mut root = Struct::default();
+        let foo = Struct::default();
+
+        root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
+
+        let field1 = root.field_by_name("foo").unwrap();
+        let field2 = root.field_by_index(field1.index).unwrap();
+
+        assert_eq!(field1.name, "foo");
+        assert_eq!(field1.name, field2.name);
+
+        root.add_field("foo.bar", TypeValue::Integer(Some(1)));
     }
 }

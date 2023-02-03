@@ -248,7 +248,7 @@ impl<'r> Scanner<'r> {
             // structure implements the SymbolLookup trait, which is used
             // by the runtime for obtaining the values of individual fields
             // in the data structure, as they are used in the rule conditions.
-            ctx.root_struct.insert(
+            ctx.root_struct.add_field(
                 module_name,
                 TypeValue::Struct(Rc::new(module_struct)),
             );
@@ -357,12 +357,12 @@ pub(crate) type RuntimeStringId = u32;
 
 /// Structure that holds information a about the current scan.
 pub(crate) struct ScanContext<'r> {
+    /// Data being scanned.
+    scanned_data: *const u8,
+    /// Length of data being scanned.
+    scanned_data_len: usize,
     /// Vector containing the IDs of the rules that matched.
     pub(crate) rules_matching: Vec<RuleId>,
-    /// Data being scanned.
-    pub(crate) scanned_data: *const u8,
-    /// Length of data being scanned.
-    pub(crate) scanned_data_len: usize,
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names

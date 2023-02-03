@@ -15,7 +15,7 @@ use syn::{Expr, FnArg, Ident, ItemFn, Pat};
 ///
 /// Suppose that our function is:
 ///
-/// ```no_run
+/// ```text
 /// #[module_export]
 /// fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {
 ///     a + b
@@ -24,7 +24,7 @@ use syn::{Expr, FnArg, Ident, ItemFn, Pat};
 ///
 /// The code generated will be:
 ///
-/// ```no_run
+/// ```text
 /// use wasmtime::Caller;
 ///
 /// #[wasm_export(add)]
@@ -37,13 +37,18 @@ use syn::{Expr, FnArg, Ident, ItemFn, Pat};
 /// }
 /// ```
 pub(crate) fn impl_module_export_macro(
-    name: Punctuated<Ident, Dot>,
+    mut name: Punctuated<Ident, Dot>,
     mut func: ItemFn,
 ) -> syn::Result<TokenStream> {
-    let orginal_func = quote! {
+    // Include the original function in the output without changes.
+    let mut token_stream = quote! {
         #func
-    };
+    }
+    .to_token_stream();
 
+    // Create new arguments that are exactly the same arguments in the
+    // original function, except the first one which changes from
+    // &ScanContext to Caller<'_, ScanContext>.
     let mut args: Punctuated<FnArg, Comma> = Punctuated::new();
 
     args.push(syn::parse2(quote! {
@@ -66,33 +71,28 @@ pub(crate) fn impl_module_export_macro(
         }
     }
 
+    if name.is_empty() {
+        name.push(func.sig.ident.clone())
+    }
+
     let fn_name = func.sig.ident;
 
-    let export_name = format_ident!(
-        "{}",
-        if name.is_empty() {
-            fn_name.to_string()
-        } else {
-            name.to_token_stream().to_string()
-        }
-    );
-
+    // Modify the original function and convert it into the thunk function.
     func.sig.ident = format_ident!("__thunk__{}", fn_name);
     func.sig.inputs = args;
+
     func.block = syn::parse2(quote! {{
         #fn_name(caller.data_mut(), #arg_pats)
     }})
     .unwrap();
 
-    let thunk_func = quote! {
-        #[wasm_export(#export_name)]
+    // Add the thunk function to the output.
+    token_stream.extend(quote! {
+        #[wasm_export(#name)]
         #[inline(always)]
         #[allow(non_snake_case)]
         #func
-    };
-
-    let mut token_stream = orginal_func.to_token_stream();
-    token_stream.extend(thunk_func);
+    });
 
     Ok(token_stream)
 }
