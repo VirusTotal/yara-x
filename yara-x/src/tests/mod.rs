@@ -322,6 +322,10 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.string_foo != test_proto2.string_bar"#);
     condition_true!(r#"test_proto2.string_foo == "foo""#);
     condition_true!(r#"test_proto2.string_bar == "bar""#);
+    condition_true!(r#"test_proto2.string_foo > "fo""#);
+    condition_true!(r#"test_proto2.string_bar < "bara""#);
+    condition_true!(r#"test_proto2.string_foo >= "fo""#);
+    condition_true!(r#"test_proto2.string_bar <= "bara""#);
     condition_true!(r#"test_proto2.string_foo contains "oo""#);
     condition_true!(r#"test_proto2.string_foo endswith "oo""#);
     condition_true!(r#"test_proto2.string_foo startswith "foo""#);
