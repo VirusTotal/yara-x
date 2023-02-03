@@ -1,22 +1,29 @@
-## Module Developer's Guide
+Module Developer's Guide
+========================
 
-YARA modules are the way in which you can extend YARA's capabilities by adding
-new data structures and functions that can be later used in your rules, 
+YARA modules are the way in which you can extend YARA's capabilities by 
+adding new data structures and functions that can be later used in your rules, 
 making them more powerful and expressive. For example, a YARA module can
 parse a file format and expose to YARA any information extracted from the 
 file that may be useful while creating YARA rules.
 
-This document will guide you through the process of creating a YARA module. For
-illustrative purposes we are going to create a `csv` module that parses
+This document will guide you through the process of creating a YARA module. 
+For illustrative purposes we are going to create a `csv` module that parses
 [Comma-Separated Values](https://en.wikipedia.org/wiki/Comma-separated_values) 
 (CSV) files.
 
 
-### Defining the module's structure
+* [Defining the module's structure](#defining-the-modules-structure)
+* [Proto2 vs Proto3](#proto2-vs-proto3)
+* [Defining the module's main function](#defining-the-modules-main-function)
+* [Building your module](#building-your-module)
+
+
+## Defining the module's structure
 
 Most YARA modules define a data structure that is filled with information 
 extracted from the scanned file and exposed to YARA with the purpose of being
-used your rules. In YARA-X this structure is defined by using 
+used your rules. In YARA this structure is defined by using 
 [Protocol Buffers](https://developers.google.com/protocol-buffers) (protobuf 
 from now on). The first thing you must do when creating your module is 
 writing the protobuf definition that defines the module's structure. If you are
@@ -32,9 +39,9 @@ directory. As an starting point we can use the following file:
 ```protobuf
 syntax = "proto2";
 
-import "yara.proto";
+import "YARA.proto";
 
-option (yara.module_options) = {
+option (YARA.module_options) = {
   name : "csv"
   root_message: "CSV"
   rust_module: "csv"
@@ -72,8 +79,8 @@ later in the `proto` file, so, this line is required.
 
 ----
 
-**NOTE**: If you are curious about the content of `yara.proto` you can find it at
-`yara-x-proto/src/yara.proto`.
+**NOTE**: If you are curious about the content of `yara.proto` you can find it
+at`yara-x-proto/src/yara.proto`.
 
 ----
 
@@ -87,9 +94,9 @@ option (yara.module_options) = {
 };
 ```
 
-The snippet above is also required for every `.proto` file that describes a YARA 
-module. This is what tells that the file is not an ordinary `.proto` file, but
-one describing a module. In fact, you can put any `.proto` file in the
+The snippet above is also required for every `.proto` file that describes a 
+YARA module. This is what tells that the file is not an ordinary `.proto` 
+file, but one describing a module. In fact, you can put any `.proto` file in the
 `yara-x/src/modules/protos` directory, and that doesn't mean that each of those 
 files is describing a YARA module. Only files containing a `yara.module_options` 
 section will define a module.
@@ -133,15 +140,64 @@ import "csv"
 
 rule csv_with_two_columns_and_many_rows {
     condition:
-        csv.num_cols == 2 and csv.num_row > 100
+        csv.num_cols == 2 and csv.num_rows > 100
 }
 ```
 
-But we are not done yet, of course. So far we have defined the structure of our
+Of course, we are not done yet. So far we have defined the structure of our
 module, but we need to populate that structure with actual values extracted from
-the scanned files. This is what will be discussed in the next section.
+the scanned files. That's where the module's main function enters into play. But
+before going into the details of how to implement this function, let's discuss 
+first the differences between `proto2` and `proto3`, as they may determine some 
+aspects of our implementation.
 
-### Populating the module's structure
+## Proto2 vs Proto3
+
+When writing a YARA module you can choose between `proto2` and `proto3` for
+writing the protobuf that describes your module's structure. Both of them
+are very similar, but they also have significant differences.
+
+One of the most important differences is that in `proto2` fields are either
+`optional` or `required`, while in `proto3` all fields are optional, and therefore
+the keywords `optional` and `required` are not accepted at all. But this difference
+goes beyond a simple syntactic matter, it also affects the way in which missing
+fields are handled.
+
+In `proto2` when some structure contains a `required` field, this field must
+be initialized to some value before the structure gets serialized. If you don't
+provide a value for a `required` field, an error occurs while serializing the
+structure. In the other hand, `optional` fields don't need to be initialized,
+they simply won't be included in the serialized data, and they will be missing
+after the data is deserialized. In fact, if you have a field `optional int64 foo`
+in your protobuf, the corresponding Rust structure will have a field
+`foo: Option<i64>`. If `foo` is not initialized, its value after deserializing
+the structure will be `None`. This means that in `proto2` you can know whether
+the field `foo` was originally initialized to some value, or it was simply left
+uninitialized.
+
+In `proto3` things are a bit different. All fields in `proto3` are optional,
+but uninitialized fields will have a default value that depends on the type.
+For example, for numeric fields the default value is zero, and for string fields
+the default value is the empty string. This means that in `proto3` a protobuf
+field `int64 foo` is translated into a field `foo: i64`. If `foo` is not
+initialized, it will behave as it was initialized to 0. After deserializing
+your structure, you won't be able to tell if `foo` was explicitly set to 0,
+or if it was left uninitialized.
+
+This subtle difference is important when creating a YARA module, because 
+YARA has the concept of `undefined` values. A value in YARA is `undefined` when 
+it hasn't been initialized to some meaningful value. When `proto2` is used for
+defining the structure of your module, uninitialized fields will have an
+`undefined` value. In the other hand, when `proto3` is used  all fields will
+have a value, even if you don't initialize it explicitly. If a field is not
+initialized it will have its corresponding default value.
+
+The bottom line is that with `proto3` you won't be able to have fields with
+`undefined` values. In some cases that may be what you need, and using `proto3`
+is very useful in such cases, as you don't need to explicitly initialize all
+the fields in your structure.
+
+## Defining the module's main function
 
 Once you have a `.proto` file that describes the structure of your module you
 need write the logic that parses every scanned file and fills the module's
@@ -171,9 +227,10 @@ use crate::modules::protos::csv::*;
 #[module_main]
 fn main(ctx: &ScanContext) -> CSV {
     let mut csv_proto = CSV::new();
-    
-    // TODO: parse the scanned file and populate csv_proto.
-    
+    let data = ctx.scanned_data();
+
+    // TODO: parse the scanned data and populate csv_proto.
+
     csv_proto
 }
 ```
@@ -199,8 +256,8 @@ message declared in the proto file.
 
 ---
 
-**NOTE**: If your protobuf file is `foobar.proto`, the module created for it will be
-`crate::modules::protos::foobar`
+**NOTE**: If your protobuf file is `foobar.proto`, the module created for it 
+will be `crate::modules::protos::foobar`
 
 ---
 
@@ -222,52 +279,57 @@ to be called `main`, it can have any arbitrary name, as long as it has the
 `#[module_main]` attribute. Of course, this attribute can't be used with more 
 than one function per module.
 
-Before going into the details of how to implement our module's main function, 
-let's discuss the differences between `proto2` and `proto3`, as they may 
-determine some aspects of our implementation.
+The main function usually consists in creating an instance of the protobuf 
+returned by the module, and then populate and return that proto.
 
-### Proto2 vs Proto3
+After defining the module's structure, and providing the main function for our
+module, we are ready to build the module into YARA.
 
-When writing a YARA module you can choose between `proto2` and `proto3` for 
-writing the protobuf that describes your module's structure. Both of them
-are very similar, but they also have significant differences.
+## Building your module
 
-One of the most important differences is that in `proto2` fields are either
-`optional` or `required`, while in `proto3` all fields are optional, and therefore
-the keywords `optional` and `required` are not accepted at all. But this difference
-goes beyond a simple syntactic matter, it also affects the way in which missing
-fields are handled.
+After creating the files `yara-x/src/modules/protos/csv.proto` and 
+`yara-x/src/modules/csv.rs` we are almost ready for building the module into 
+YARA. But there are few more pending steps.
 
-In `proto2` when some structure contains a `required` field, this field must
-be initialized to some value before the structure gets serialized. If you don't 
-provide a value for a `required` field, an error occurs while serializing the
-structure. In the other hand, `optional` fields don't need to be initialized,
-they simply won't be included in the serialized data, and they will be missing 
-after the data is deserialized. In fact, if you have a field `optional int64 foo`
-in your protobuf, the corresponding Rust structure will have a field 
-`foo: Option<i64>`. If `foo` is not initialized, its value after deserializing
-the structure will be `None`. This means that in `proto2` you can know whether
-the field `foo` was originally initialized to some value, or it was simply left
-uninitialized.
+Ths first thing that you must know is that your module is behind a `cargo` feature
+flag. The module won't be built into YARA unless you tell `cargo` to do so. The 
+name of the feature controlling your module is `csv-module`, and this feature 
+must be added to the `[features]` section in the `yara-x/Cargo.toml` file.
 
-In `proto3` things are a bit different. All fields in `proto3` are optional,
-but uninitialized fields will have a default value that depends on the type. 
-For example, for numeric fields the default value is zero, and for string fields
-the default value is the empty string. This means that in `proto3` a protobuf 
-field `int64 foo` is translated into a field `foo: i64`. If `foo` is not
-initialized, it will behave as it was initialized to 0. After deserializing
-your structure, you won't be able to tell if `foo` was explicitly set to 0,
-or if it was left uninitialized.
+```
+[features]
+csv-module = []  # Add this line to yara-x/Cargo.toml
+```
 
-This subtle difference is important when creating a YARA module, because YARA 
-has the concept of `undefined` values. A value in YARA is `undefined` when it
-hasn't been initialized to some meaningful value. When `proto2` is used for
-defining the structure of your module, uninitialized fields will have an
-`undefined` value. In the other hand, when `proto3` is used  all fields will
-have a value, even if you don't initialize it explicitly. If a field is not 
-initialized it will have its corresponding default value.
+Additionally, if you want your module to be included by default in YARA, add
+the feature name to the `default` list in the `[features]` section of
+`yara-x/Cargo.toml`:
 
-The bottom line is that with `proto3` you won't be able to have fields with
-`undefined` values. In some cases that may be what you need, and using `proto3`
-is very useful in such cases, as you don't need to explicitly initialize all
-the fields in your structure.
+
+```
+[features]
+csv-module = []
+
+# Features that are enabled by default.
+default = [
+    "compile-time-optimization",
+    "test_proto2-module",
+    "test_proto3-module",
+    "csv-module"             # The csv module will be included by default
+]
+```
+
+If the module's feature flag is not added to the `default` list, you must
+explicitly tell `cargo` that you want to build YARA with your module:
+
+```shell
+cargo build --features=csv-module
+```
+
+---
+
+**NOTE**: The name of the feature flag depends on the module's name. If the 
+module's name is `foobar`, the feature flag is `foobar-module`.
+
+---
+
