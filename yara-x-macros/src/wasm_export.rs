@@ -27,7 +27,6 @@ impl<'ast> FuncSignatureParser<'ast> {
             "PatternId" | "RuleId" => "i",
             "bool" => "b",
             "RuntimeString" => "s",
-            "RuntimeStringWasm" => "s",
             _ => unreachable!("unknown type: {}", ty),
         }
     }
