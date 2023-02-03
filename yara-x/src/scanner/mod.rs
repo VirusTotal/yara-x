@@ -215,6 +215,15 @@ impl<'r> Scanner<'r> {
                 module_output.descriptor_dyn().full_name(),
             );
 
+            // Make sure that the module is returning a protobuf message where
+            // all required fields are initialized.
+            debug_assert!(
+                module_output.is_initialized_dyn(),
+                "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
+                module_name,
+                module.root_struct_descriptor.full_name()
+            );
+
             // When compile-time optimizations are enabled we don't need to
             // generate structure fields for enums. This is because during the
             // optimization process symbols like MyEnum.ENUM_ITEM are resolved
