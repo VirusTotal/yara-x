@@ -23,18 +23,17 @@ For illustrative purposes we are going to create a `csv` module that parses
 
 Most YARA modules define a data structure that is filled with information 
 extracted from the scanned file and exposed to YARA with the purpose of being
-used your rules. In YARA this structure is defined by using 
+used in your rules. In YARA-X this structure is defined by using 
 [Protocol Buffers](https://developers.google.com/protocol-buffers) (protobuf 
 from now on). The first thing you must do when creating your module is 
-writing the protobuf definition that defines the module's structure. If you are
-not familiar with protobufs we recommend you to start by exploring its
-documentation and getting used to its syntax. You don't need to become an expert
-in protobufs for being able to define a YARA module, but some familiarity will
-certainly help.
+writing the protobuf that defines the module's structure. If you are not familiar
+with protobufs we recommend you to start by exploring its documentation and 
+getting used to its syntax. You don't need to become an expert in protobufs for
+being able to define a YARA module, but some familiarity will certainly help.
 
 Let's start defining the structure for our `csv` module. For that, you must 
 create a `csv.proto` file and put it into the `yara-x/src/modules/protos`
-directory. As an starting point we can use the following file:
+directory. As a starting point we can use the following file:
 
 ```protobuf
 syntax = "proto2";
@@ -53,29 +52,28 @@ message CSV {
 }
 ```
 
-This is a very simple module that exposes only two fields to YARA:
-`num_rows` and `num_cols`. Let's dissect the content of `csv.proto` line by
-line:
+This is a very simple module that exposes only two fields: `num_rows` and 
+`num_cols`. Let's dissect the content of `csv.proto` line by line:
 
 ```protobuf
 syntax = "proto2";
 ```
 
-This indicates which version of the protobuf syntax you are going to use in your
-file. There are two possibilities here: `proto2` and `proto3`. We are going to 
-talk about the differences between the two versions in 
-[Proto2 vs Proto3](#proto2-vs-proto3), but for the time  being let's use `proto2`. 
-By the way, `proto2` is the default if you don't  specify any syntax version, 
-which means that the first line in the file is  actually optional, but we 
-recommend to make your choice explicit by always including this line at the 
-beginning of your file. Let's see the next line:
+This indicates which version of the protobuf syntax you are going to use. There
+are two possibilities here: `proto2` and `proto3`. We are going to talk about 
+the differences between the two in [Proto2 vs Proto3](#proto2-vs-proto3), but
+for the time  being let's use `proto2`. By the way, `proto2` is the default 
+if you don't specify the syntax version, which means that the first line in 
+the file is  actually optional. However, we recommend making your choice 
+explicit by always including this line at the beginning of your file. Let's 
+see the next line:
 
 ```protobuf
 import "yara.proto";
 ```
 
-With this line we are importing certain YARA-specific definitions will be used 
-later in the `proto` file, so, this line is required.
+With this line we are importing certain YARA-specific definitions that will be
+used later in the `proto` file. This line is required.
 
 ----
 
@@ -95,7 +93,7 @@ option (yara.module_options) = {
 ```
 
 The snippet above is also required for every `.proto` file that describes a 
-YARA module. This is what tells that the file is not an ordinary `.proto` 
+YARA module. This is what tells that this file is not an ordinary `.proto` 
 file, but one describing a module. In fact, you can put any `.proto` file in the
 `yara-x/src/modules/protos` directory, and that doesn't mean that each of those 
 files is describing a YARA module. Only files containing a `yara.module_options` 
