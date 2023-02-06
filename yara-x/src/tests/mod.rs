@@ -2,7 +2,7 @@
 use pretty_assertions::assert_eq;
 
 macro_rules! condition_true {
-    ($condition:literal) => {{
+    ($condition:literal, $data:expr) => {{
         let src = if cfg!(feature = "test_proto2-module") {
             format!(
                 r#"import "test_proto2" rule t {{condition: {} }}"#,
@@ -19,12 +19,15 @@ macro_rules! condition_true {
             .unwrap();
         assert_eq!(
             crate::scanner::Scanner::new(&rules)
-                .scan(&[])
+                .scan($data)
                 .num_matching_rules(),
             1,
             "`{}` should be true, but it is false",
             $condition
         );
+    }};
+    ($condition:literal) => {{
+        condition_true!($condition, &[]);
     }};
 }
 
@@ -173,6 +176,11 @@ fn boolean_casting() {
     condition_false!("not 1.0");
     condition_true!(r#""foo""#);
     condition_false!(r#""""#);
+}
+
+#[test]
+fn uintxx() {
+    condition_true!("uint8(0) == 0", &[0]);
 }
 
 #[test]

@@ -96,15 +96,16 @@ impl<'ast> FuncSignatureParser<'ast> {
                 }
             }
 
+            mangled_named.push('@');
+
             if let Some(t) = type_ident {
-                mangled_named.push('@');
                 mangled_named.push_str(Self::rust_type_to_mangled(
                     t.to_string().as_str(),
                 ));
+            }
 
-                if maybe_undef {
-                    mangled_named.push('u');
-                }
+            if maybe_undef {
+                mangled_named.push('u');
             }
         }
 
@@ -244,5 +245,11 @@ mod tests {
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@ii@i");
+
+        let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>) -> MaybeUndef<()> { MaybeUndef::Undef }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@u");
     }
 }
