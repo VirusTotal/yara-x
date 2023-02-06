@@ -91,7 +91,23 @@ pub struct Compiler<'a> {
 impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
+        let mut symbol_table = StackedSymbolTable::new();
+
+        let builtin_functions = symbol_table.push_new();
+
+        for export in WASM_EXPORTS {
+            let signature = FuncSignature::from(export.mangled_name.to_string());
+            let func = Func::with_signature(signature);
+
+            builtin_functions.borrow_mut().insert(
+                export.name,
+                Symbol::new(TypeValue::Func(Rc::new(func))));
+
+        }
+
+
         Self {
+            symbol_table,
             warnings: Vec::new(),
             rules: Vec::new(),
             patterns: Vec::new(),
@@ -101,7 +117,6 @@ impl<'a> Compiler<'a> {
             ident_pool: StringPool::new(),
             lit_pool: BStringPool::new(),
             wasm_mod: ModuleBuilder::new(),
-            symbol_table: StackedSymbolTable::new(),
         }
     }
 

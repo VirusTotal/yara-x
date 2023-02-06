@@ -126,11 +126,11 @@ pub(crate) struct WasmExport {
 }
 
 impl WasmExport {
-    /// Returns the fully qualified YARA name for a #[wasm_export] function.
+    /// Returns the fully qualified name for a #[wasm_export] function.
     ///
-    /// This is the name of the function as seen by YARA, containing the full
-    /// path, which includes the YARA module's name.
-    pub fn fully_qualified_yara_name(&self) -> String {
+    /// The fully qualified name includes not only the function's name, but
+    /// also the module's name (e.g: `my_module.my_struct.my_func@ii@i`)
+    pub fn fully_qualified_mangled_name(&self) -> String {
         for (module_name, module) in BUILTIN_MODULES.iter() {
             if let Some(rust_module_name) = module.rust_module_name {
                 if self.rust_module_path.contains(rust_module_name) {
@@ -138,8 +138,7 @@ impl WasmExport {
                 }
             }
         }
-        // todo: this should return the mangled name
-        self.name.to_owned()
+        self.mangled_name.to_owned()
     }
 }
 
@@ -368,6 +367,8 @@ fn type_id_to_walrus(
         return &[walrus::ValType::F64, walrus::ValType::I32];
     } else if type_id == TypeId::of::<MaybeUndef<f32>>() {
         return &[walrus::ValType::F32, walrus::ValType::I32];
+    } else if type_id == TypeId::of::<MaybeUndef<bool>>() {
+        return &[walrus::ValType::I32, walrus::ValType::I32];
     } else if type_id == TypeId::of::<MaybeUndef<RuntimeString>>() {
         return &[walrus::ValType::I64, walrus::ValType::I32];
     }
@@ -497,7 +498,7 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
         linker
             .func_new(
                 export.rust_module_path,
-                export.fully_qualified_yara_name().as_str(),
+                export.fully_qualified_mangled_name().as_str(),
                 func_type,
                 export.func.trampoline(),
             )
@@ -718,7 +719,7 @@ macro_rules! gen_lookup_fn {
 
 gen_lookup_fn!(lookup_integer, i64, TypeValue::Integer);
 gen_lookup_fn!(lookup_float, f64, TypeValue::Float);
-gen_lookup_fn!(lookup_bool, i32, TypeValue::Bool);
+gen_lookup_fn!(lookup_bool, bool, TypeValue::Bool);
 
 macro_rules! gen_array_lookup_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {
@@ -749,7 +750,7 @@ macro_rules! gen_array_lookup_fn {
 
 gen_array_lookup_fn!(array_lookup_integer, as_integer_array, i64);
 gen_array_lookup_fn!(array_lookup_float, as_float_array, f64);
-gen_array_lookup_fn!(array_lookup_bool, as_bool_array, i32);
+gen_array_lookup_fn!(array_lookup_bool, as_bool_array, bool);
 
 #[wasm_export]
 pub(crate) fn array_lookup_string(

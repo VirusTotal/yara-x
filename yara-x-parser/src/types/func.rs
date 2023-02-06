@@ -10,28 +10,28 @@ use crate::types::TypeValue;
 /// about the function's arguments and return types.
 ///
 /// Mangled names have the format `<func name>@<arguments>@<return type>`,
-//  where `<arguments>` is a sequence of characters, one per argument,
-//  that specify the argument's type. Allowed types are:
-//
-//  ```text
-//   i: integer
-//   f: float
-//   b: bool
-//   s: string
-//   r: regexp
-//  ```
-//
-//  `<return type>` is also one of the characters above, specifying the
-//  type of the returned by the function (except `r`, because functions
-//  can't return regular expressions). For example, a function `add` with
-//  two integer arguments that return another integer would have the
-//  mangled name: `add@ii@i`.
-//
-//  Additionally, the return type may be followed by a `u` character if
-//  the returned value may be undefined. For example, a function `foo` that
-//  receives no argument and returns a string that may undefined will have
-//  a mangled name: `foo@@su`.
-//
+///  where `<arguments>` is a sequence of characters, one per argument,
+///  that specify the argument's type. Allowed types are:
+///
+///  ```text
+///   i: integer
+///   f: float
+///   b: bool
+///   s: string
+///   r: regexp
+///  ```
+///
+///  `<return type>` is also one of the characters above, specifying the
+///  type of the returned by the function (except `r`, because functions
+///  can't return regular expressions). For example, a function `add` with
+///  two integer arguments that return another integer would have the
+///  mangled name: `add@ii@i`.
+///
+///  Additionally, the return type may be followed by a `u` character if
+///  the returned value may be undefined. For example, a function `foo` that
+///  receives no argument and returns a string that may undefined will have
+///  a mangled name: `foo@@su`.
+///
 pub struct MangledFnName(String);
 
 impl MangledFnName {

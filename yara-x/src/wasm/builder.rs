@@ -38,7 +38,7 @@ impl ModuleBuilder {
                 export.func.walrus_args().as_slice(),
                 export.func.walrus_results().as_slice(),
             );
-            let fully_qualified_name = export.fully_qualified_yara_name();
+            let fully_qualified_name = export.fully_qualified_mangled_name();
             let (func_id, _) = module.add_import_func(
                 export.rust_module_path,
                 fully_qualified_name.as_str(),
