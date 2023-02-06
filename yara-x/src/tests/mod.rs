@@ -183,14 +183,42 @@ fn boolean_casting() {
 
 #[test]
 fn uintxx() {
-    condition_true!("uint8(0) == 0", &[0]);
-    condition_true!("uint8(0) == 1", &[1]);
-    condition_false!("uint8(1) == 0", &[1]);
-    condition_true!("uint8(1) == 2", &[1, 2]);
+    let data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A];
 
-    condition_true!("uint16(0) == 0x0100", &[0x00, 0x01, 0x02, 0x03]);
-    condition_true!("uint16(1) == 0x0201", &[0x00, 0x01, 0x02, 0x03]);
-    condition_true!("uint16(2) == 0x0302", &[0x00, 0x01, 0x02, 0x03]);
+    condition_true!("uint8(0) == 0x01", &data);
+    condition_true!("uint8(1) == 0x02", &data);
+    condition_true!("uint8(2) == 0x03", &data);
+
+    condition_true!("uint16(0) == 0x0201", &data);
+    condition_true!("uint16(1) == 0x0302", &data);
+    condition_true!("uint16(2) == 0x0403", &data);
+
+    condition_true!("uint32(0) == 0x04030201", &data);
+    condition_true!("uint32(1) == 0x05040302", &data);
+    condition_true!("uint32(2) == 0x06050403", &data);
+
+    condition_true!("uint64(0) == 0x0807060504030201", &data);
+    condition_true!("uint64(1) == 0x0908070605040302", &data);
+    condition_true!("uint64(2) == 0x0A09080706050403", &data);
+
+    condition_true!("uint16be(0) == 0x0102", &data);
+    condition_true!("uint16be(1) == 0x0203", &data);
+    condition_true!("uint16be(2) == 0x0304", &data);
+
+    condition_true!("uint32be(0) == 0x01020304", &data);
+    condition_true!("uint32be(1) == 0x02030405", &data);
+    condition_true!("uint32be(2) == 0x03040506", &data);
+
+    condition_true!("uint64be(0) == 0x0102030405060708", &data);
+    condition_true!("uint64be(1) == 0x0203040506070809", &data);
+    condition_true!("uint64be(2) == 0x030405060708090A", &data);
+
+    condition_false!("uint16(9) == 0", &data);
+    condition_false!("uint16(9) != 0", &data);
+    condition_false!("uint32(8) == 0", &data);
+    condition_false!("uint32(8) != 0", &data);
+    condition_false!("uint64(3) == 0", &data);
+    condition_false!("uint64(3) != 0", &data);
 }
 
 #[test]

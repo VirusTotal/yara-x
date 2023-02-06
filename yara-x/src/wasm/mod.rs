@@ -69,13 +69,15 @@ use std::any::{type_name, TypeId};
 use std::borrow::Borrow;
 use std::mem;
 
-use smallvec::{SmallVec, smallvec};
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
 use bstr::ByteSlice;
 use lazy_static::lazy_static;
 use linkme::distributed_slice;
-use wasmtime::{AsContextMut, Caller, Config, Engine, FuncType, Linker, Val};
+use smallvec::{smallvec, SmallVec};
+use wasmtime::{
+    AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
+};
 
 use yara_x_macros::wasm_export;
 use yara_x_parser::types::{Map, TypeValue};
@@ -180,7 +182,7 @@ pub(crate) trait WasmExportedFn {
 }
 
 type TrampolineFn = Box<
-    dyn Fn(Caller<'_, ScanContext>, &[Val], &mut [Val]) -> anyhow::Result<()>
+    dyn Fn(Caller<'_, ScanContext>, &mut [ValRaw]) -> anyhow::Result<()>
         + Send
         + Sync
         + 'static,
@@ -190,41 +192,41 @@ type TrampolineFn = Box<
 ///
 /// The purpose of this type is converting [`wasmtime::Val`] into Rust
 /// types (e.g: `i64`, `i32`, `f64`, `f32`)
-struct WasmArg(Val);
+struct WasmArg(ValRaw);
 
-impl From<Val> for WasmArg {
-    fn from(value: Val) -> Self {
+impl From<ValRaw> for WasmArg {
+    fn from(value: ValRaw) -> Self {
         Self(value)
     }
 }
 
 impl From<WasmArg> for i64 {
     fn from(value: WasmArg) -> Self {
-        value.0.unwrap_i64()
+        value.0.get_i64()
     }
 }
 
 impl From<WasmArg> for i32 {
     fn from(value: WasmArg) -> Self {
-        value.0.unwrap_i32()
+        value.0.get_i32()
     }
 }
 
 impl From<WasmArg> for f64 {
     fn from(value: WasmArg) -> Self {
-        value.0.unwrap_f64()
+        f64::from_bits(value.0.get_f64())
     }
 }
 
 impl From<WasmArg> for f32 {
     fn from(value: WasmArg) -> Self {
-        value.0.unwrap_f32()
+        f32::from_bits(value.0.get_f32())
     }
 }
 
 impl From<WasmArg> for LiteralId {
     fn from(value: WasmArg) -> Self {
-        LiteralId::from(value.0.unwrap_i32())
+        LiteralId::from(value.0.get_i32())
     }
 }
 
@@ -238,13 +240,12 @@ impl From<WasmArg> for RuntimeString {
 ///
 /// The purpose of this type if converting Rust types into a slice of
 /// [`wasmtime::Val`] that can be returned to WASM code.
-#[derive(Debug)]
 pub struct WasmResult {
-    pub values: SmallVec<[Val; 4]>,
+    pub values: SmallVec<[ValRaw; 4]>,
 }
 
 impl WasmResult {
-    fn as_slice(&self) -> &[Val] {
+    fn as_slice(&self) -> &[ValRaw] {
         self.values.as_slice()
     }
 }
@@ -257,49 +258,49 @@ impl From<()> for WasmResult {
 
 impl From<i32> for WasmResult {
     fn from(value: i32) -> Self {
-        Self { values: smallvec![Val::from(value)] }
+        Self { values: smallvec![ValRaw::i32(value)] }
     }
 }
 
 impl From<i64> for WasmResult {
     fn from(value: i64) -> Self {
-        Self { values: smallvec![wasmtime::Val::from(value)] }
+        Self { values: smallvec![ValRaw::i64(value)] }
     }
 }
 
 impl From<u32> for WasmResult {
     fn from(value: u32) -> Self {
-        Self { values: smallvec![wasmtime::Val::from(value as i32)] }
+        Self { values: smallvec![ValRaw::u32(value)] }
     }
 }
 
 impl From<u64> for WasmResult {
     fn from(value: u64) -> Self {
-        Self { values: smallvec![wasmtime::Val::from(value as i64)] }
+        Self { values: smallvec![ValRaw::u64(value)] }
     }
 }
 
 impl From<f32> for WasmResult {
     fn from(value: f32) -> Self {
-        Self { values: smallvec![wasmtime::Val::from(value)] }
+        Self { values: smallvec![ValRaw::f32(f32::to_bits(value))] }
     }
 }
 
 impl From<f64> for WasmResult {
     fn from(value: f64) -> Self {
-        Self { values: smallvec![wasmtime::Val::from(value)] }
+        Self { values: smallvec![ValRaw::f64(f64::to_bits(value))] }
     }
 }
 
 impl From<bool> for WasmResult {
     fn from(value: bool) -> Self {
-        Self { values: smallvec![wasmtime::Val::from(value as i32)] }
+        Self { values: smallvec![ValRaw::i32(value as i32)] }
     }
 }
 
 impl From<RuntimeString> for WasmResult {
     fn from(value: RuntimeString) -> Self {
-        Self { values: smallvec![wasmtime::Val::from(value.as_wasm())] }
+        Self { values: smallvec![ValRaw::i64(value.as_wasm() as i64)] }
     }
 }
 
@@ -318,12 +319,12 @@ where
         match value {
             MaybeUndef::Ok(value) => {
                 let mut result = WasmResult::from(value);
-                result.values.push(Val::I32(0));
+                result.values.push(ValRaw::i32(0));
                 result
             }
             MaybeUndef::Undef::<T> => {
                 let mut result = WasmResult::from(T::default());
-                result.values.push(Val::I32(1));
+                result.values.push(ValRaw::i32(1));
                 result
             }
         }
@@ -422,22 +423,25 @@ macro_rules! impl_wasm_exported_fn {
             fn trampoline(&'static self) -> TrampolineFn {
                 Box::new(
                     |caller: Caller<'_, ScanContext>,
-                     args: &[Val],
-                     results: &mut [Val]|
+                     args_and_results: &mut [ValRaw]|
                      -> anyhow::Result<()> {
                         let mut i = 0;
                         $(
-                            let $args = WasmArg::from(args[i].clone()).into();
+                            let $args = WasmArg::from(args_and_results[i].clone()).into();
                             i += 1;
                         )*
-                        let fn_result = WasmResult::from((self.target_fn)(
+                        let result = WasmResult::from((self.target_fn)(
                             caller, $($args),*
                         ));
-                        results.clone_from_slice(fn_result.as_slice());
+
+                        let result_slice = result.as_slice();
+                        let num_results = result_slice.len();
+
+                        args_and_results[0..num_results].clone_from_slice(result_slice);
                         anyhow::Ok(())
                     },
                 )
-             }
+            }
         }
     };
 }
@@ -499,15 +503,20 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
             export.func.wasmtime_args(),
             export.func.wasmtime_results(),
         );
-        linker
-            .func_new(
-                export.rust_module_path,
-                export.fully_qualified_mangled_name().as_str(),
-                func_type,
-                export.func.trampoline(),
-            )
-            .unwrap();
+        // Using `func_new_unchecked` instead of `func_new` makes function
+        // calls from WASM to Rust around 3x faster.
+        unsafe {
+            linker
+                .func_new_unchecked(
+                    export.rust_module_path,
+                    export.fully_qualified_mangled_name().as_str(),
+                    func_type,
+                    export.func.trampoline(),
+                )
+                .unwrap();
+        }
     }
+
     linker
 }
 
@@ -1066,103 +1075,89 @@ pub(crate) fn str_len(
     s.len(caller.data()) as i64
 }
 
-#[wasm_export(public = true)]
-pub(crate) fn uint8(
-    caller: Caller<'_, ScanContext>,
-    offset: i64,
-) -> MaybeUndef<i64> {
-    if let Ok(offset) = usize::try_from(offset) {
-        caller
-            .data()
-            .scanned_data()
-            .get(offset..offset + mem::size_of::<u8>())
-            .map_or(MaybeUndef::Undef, |bytes| {
-                let value = u8::from_le_bytes(bytes.try_into().unwrap());
-                MaybeUndef::Ok(value as i64)
-            })
-    } else {
-        MaybeUndef::Undef
-    }
+macro_rules! gen_uint_fn {
+    ($name:ident, $return_type:ty, $from_fn:ident) => {
+        #[wasm_export(public = true)]
+        pub(crate) fn $name(
+            caller: Caller<'_, ScanContext>,
+            offset: i64,
+        ) -> MaybeUndef<i64> {
+            if let Ok(offset) = usize::try_from(offset) {
+                caller
+                    .data()
+                    .scanned_data()
+                    .get(offset..offset + mem::size_of::<$return_type>())
+                    .map_or(MaybeUndef::Undef, |bytes| {
+                        let value = <$return_type>::$from_fn(
+                            bytes.try_into().unwrap(),
+                        );
+                        MaybeUndef::Ok(value as i64)
+                    })
+            } else {
+                MaybeUndef::Undef
+            }
+        }
+    };
 }
 
-#[wasm_export(public = true)]
-pub(crate) fn uint16(
-    caller: Caller<'_, ScanContext>,
-    offset: i64,
-) -> MaybeUndef<i64> {
-    if let Ok(offset) = usize::try_from(offset) {
-        caller
-            .data()
-            .scanned_data()
-            .get(offset..offset + mem::size_of::<u16>())
-            .map_or(MaybeUndef::Undef, |bytes| {
-                let value = u16::from_le_bytes(bytes.try_into().unwrap());
-                MaybeUndef::Ok(value as i64)
-            })
-    } else {
-        MaybeUndef::Undef
-    }
-}
-
-#[wasm_export(public = true)]
-pub(crate) fn uint32(
-    caller: Caller<'_, ScanContext>,
-    offset: i64,
-) -> MaybeUndef<i64> {
-    if let Ok(offset) = usize::try_from(offset) {
-        caller
-            .data()
-            .scanned_data()
-            .get(offset..offset + mem::size_of::<u32>())
-            .map_or(MaybeUndef::Undef, |bytes| {
-                let value = u16::from_le_bytes(bytes.try_into().unwrap());
-                MaybeUndef::Ok(value as i64)
-            })
-    } else {
-        MaybeUndef::Undef
-    }
-}
+gen_uint_fn!(uint8, u8, from_le_bytes);
+gen_uint_fn!(uint16, u16, from_le_bytes);
+gen_uint_fn!(uint32, u32, from_le_bytes);
+gen_uint_fn!(uint64, u64, from_le_bytes);
+gen_uint_fn!(uint8be, u8, from_be_bytes);
+gen_uint_fn!(uint16be, u16, from_be_bytes);
+gen_uint_fn!(uint32be, u32, from_be_bytes);
+gen_uint_fn!(uint64be, u64, from_be_bytes);
 
 #[cfg(test)]
 mod tests {
     use crate::wasm::{MaybeUndef, WasmResult};
+    use wasmtime::ValRaw;
 
     #[test]
     fn wasm_result_conversion() {
         let r = WasmResult::from(1_i64);
-        assert!(matches!(r.as_slice(), &[wasmtime::Val::I64(1)]));
+        let s = r.as_slice();
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0].get_i64(), 1);
 
         let r = WasmResult::from(1_i32);
-        assert!(matches!(r.as_slice(), &[wasmtime::Val::I32(1)]));
+        let s = r.as_slice();
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0].get_i32(), 1);
 
         let r = WasmResult::from(MaybeUndef::<i64>::Ok(2));
-        assert!(matches!(
-            r.as_slice(),
-            &[wasmtime::Val::I64(2), wasmtime::Val::I32(0)]
-        ));
+        let s = r.as_slice();
+        assert_eq!(s.len(), 2);
+        assert_eq!(s[0].get_i64(), 2);
+        assert_eq!(s[1].get_i32(), 0);
 
         let r = WasmResult::from(MaybeUndef::<i64>::Undef);
-        assert!(matches!(
-            r.as_slice(),
-            &[wasmtime::Val::I64(0), wasmtime::Val::I32(1)]
-        ));
+        let s = r.as_slice();
+        assert_eq!(s.len(), 2);
+        assert_eq!(s[0].get_i64(), 0);
+        assert_eq!(s[1].get_i32(), 1);
 
         let r = WasmResult::from(MaybeUndef::<i32>::Ok(2));
-        assert!(matches!(
-            r.as_slice(),
-            &[wasmtime::Val::I32(2), wasmtime::Val::I32(0)]
-        ));
+        let s = r.as_slice();
+        assert_eq!(s.len(), 2);
+        assert_eq!(s[0].get_i64(), 2);
+        assert_eq!(s[1].get_i32(), 0);
 
         let r = WasmResult::from(MaybeUndef::<i32>::Undef);
-        assert!(matches!(
-            r.as_slice(),
-            &[wasmtime::Val::I32(0), wasmtime::Val::I32(1)]
-        ));
+        let s = r.as_slice();
+        assert_eq!(s.len(), 2);
+        assert_eq!(s[0].get_i32(), 0);
+        assert_eq!(s[1].get_i32(), 1);
 
         let r = WasmResult::from(MaybeUndef::<()>::Ok(()));
-        assert!(matches!(r.as_slice(), &[wasmtime::Val::I32(0)]));
+        let s = r.as_slice();
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0].get_i32(), 0);
 
         let r = WasmResult::from(MaybeUndef::<()>::Undef);
-        assert!(matches!(r.as_slice(), &[wasmtime::Val::I32(1)]));
+        let s = r.as_slice();
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0].get_i32(), 1);
     }
 }
