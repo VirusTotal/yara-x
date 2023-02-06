@@ -32,6 +32,14 @@ use crate::types::TypeValue;
 ///  receives no argument and returns a string that may undefined will have
 ///  a mangled name: `foo@@su`.
 ///
+/// Both `<arguments>` and `<return type>` can be empty if the function
+/// doesn't receive arguments or doesn't return a value. Let's see some e
+/// examples:
+///
+/// foo(i: i64) { .. }       ->  foo@i@
+/// bar() { .. }             ->  bar@@
+/// baz() -> MaybeUndef<()>  ->  baz@@u
+///
 pub struct MangledFnName(String);
 
 impl MangledFnName {
@@ -62,12 +70,17 @@ impl MangledFnName {
             }
         }
 
-        let result = match ret.get(0..1).unwrap() {
-            "i" => TypeValue::Integer(None),
-            "f" => TypeValue::Float(None),
-            "b" => TypeValue::Bool(None),
-            "s" => TypeValue::String(None),
-            _ => panic!("unexpected return type: `{}`", ret),
+        let result = if let Some(ret) = ret.get(0..1) {
+            match ret.get(0..1).unwrap() {
+                "i" => TypeValue::Integer(None),
+                "f" => TypeValue::Float(None),
+                "b" => TypeValue::Bool(None),
+                "s" => TypeValue::String(None),
+                "u" => TypeValue::Unknown,
+                _ => panic!("unexpected return type: `{}`", ret),
+            }
+        } else {
+            TypeValue::Unknown
         };
 
         (args, result)
