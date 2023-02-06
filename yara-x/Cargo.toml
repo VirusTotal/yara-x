@@ -43,6 +43,7 @@ linkme = { workspace = true }
 memmap = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
+smallvec = { workspace = true }
 thiserror = { workspace = true }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features=["cranelift"]  }

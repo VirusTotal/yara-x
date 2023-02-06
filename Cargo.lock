@@ -2593,6 +2593,7 @@ dependencies = [
  "protobuf-codegen",
  "protobuf-parse",
  "rustc-hash",
+ "smallvec",
  "thiserror",
  "walrus",
  "wasmtime",

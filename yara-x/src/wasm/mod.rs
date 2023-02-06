@@ -69,6 +69,7 @@ use std::any::{type_name, TypeId};
 use std::borrow::Borrow;
 use std::mem;
 
+use smallvec::{SmallVec, smallvec};
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
 use bstr::ByteSlice;
@@ -239,7 +240,7 @@ impl From<WasmArg> for RuntimeString {
 /// [`wasmtime::Val`] that can be returned to WASM code.
 #[derive(Debug)]
 pub struct WasmResult {
-    values: Vec<Val>,
+    pub values: SmallVec<[Val; 4]>,
 }
 
 impl WasmResult {
@@ -250,55 +251,55 @@ impl WasmResult {
 
 impl From<()> for WasmResult {
     fn from(_value: ()) -> Self {
-        Self { values: Vec::new() }
+        Self { values: SmallVec::new() }
     }
 }
 
 impl From<i32> for WasmResult {
     fn from(value: i32) -> Self {
-        Self { values: vec![Val::from(value)] }
+        Self { values: smallvec![Val::from(value)] }
     }
 }
 
 impl From<i64> for WasmResult {
     fn from(value: i64) -> Self {
-        Self { values: vec![wasmtime::Val::from(value)] }
+        Self { values: smallvec![wasmtime::Val::from(value)] }
     }
 }
 
 impl From<u32> for WasmResult {
     fn from(value: u32) -> Self {
-        Self { values: vec![wasmtime::Val::from(value as i32)] }
+        Self { values: smallvec![wasmtime::Val::from(value as i32)] }
     }
 }
 
 impl From<u64> for WasmResult {
     fn from(value: u64) -> Self {
-        Self { values: vec![wasmtime::Val::from(value as i64)] }
+        Self { values: smallvec![wasmtime::Val::from(value as i64)] }
     }
 }
 
 impl From<f32> for WasmResult {
     fn from(value: f32) -> Self {
-        Self { values: vec![wasmtime::Val::from(value)] }
+        Self { values: smallvec![wasmtime::Val::from(value)] }
     }
 }
 
 impl From<f64> for WasmResult {
     fn from(value: f64) -> Self {
-        Self { values: vec![wasmtime::Val::from(value)] }
+        Self { values: smallvec![wasmtime::Val::from(value)] }
     }
 }
 
 impl From<bool> for WasmResult {
     fn from(value: bool) -> Self {
-        Self { values: vec![wasmtime::Val::from(value as i32)] }
+        Self { values: smallvec![wasmtime::Val::from(value as i32)] }
     }
 }
 
 impl From<RuntimeString> for WasmResult {
     fn from(value: RuntimeString) -> Self {
-        Self { values: vec![wasmtime::Val::from(value.as_wasm())] }
+        Self { values: smallvec![wasmtime::Val::from(value.as_wasm())] }
     }
 }
 
@@ -314,20 +315,18 @@ where
     WasmResult: From<T>,
 {
     fn from(value: MaybeUndef<T>) -> Self {
-        let values = match value {
+        match value {
             MaybeUndef::Ok(value) => {
-                let mut vec = WasmResult::from(value).as_slice().to_vec();
-                vec.push(Val::I32(0));
-                vec
+                let mut result = WasmResult::from(value);
+                result.values.push(Val::I32(0));
+                result
             }
             MaybeUndef::Undef::<T> => {
-                let mut vec =
-                    WasmResult::from(T::default()).as_slice().to_vec();
-                vec.push(Val::I32(1));
-                vec
+                let mut result = WasmResult::from(T::default());
+                result.values.push(Val::I32(1));
+                result
             }
-        };
-        Self { values }
+        }
     }
 }
 
