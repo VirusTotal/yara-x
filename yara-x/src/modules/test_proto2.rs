@@ -2,17 +2,17 @@ use crate::modules::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 
-#[module_export(add)]
+#[module_export(name = "add")]
 pub(crate) fn add_i64(_ctx: &mut ScanContext, a: i64, b: i64) -> i64 {
     a + b
 }
 
-#[module_export(add)]
+#[module_export(name = "add")]
 pub(crate) fn add_f64(_ctx: &mut ScanContext, a: f64, b: f64) -> f64 {
     a + b
 }
 
-#[module_export(uppercase)]
+#[module_export(name = "uppercase")]
 pub(crate) fn uppercase(
     ctx: &mut ScanContext,
     s: RuntimeString,
@@ -20,7 +20,7 @@ pub(crate) fn uppercase(
     RuntimeString::new_owned(ctx, s.as_bstr(ctx).to_uppercase())
 }
 
-#[module_export(nested.nested_func)]
+#[module_export(name = "nested.nested_func")]
 pub(crate) fn nested_func(ctx: &mut ScanContext) -> bool {
     true
 }

@@ -1,13 +1,13 @@
 extern crate proc_macro;
 
+use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use std::collections::vec_deque::VecDeque;
-use syn::punctuated::Punctuated;
-use syn::token::Dot;
 use syn::visit::Visit;
 use syn::{
-    GenericArgument, Ident, ItemFn, PatType, PathArguments, ReturnType, Type,
+    AttributeArgs, GenericArgument, ItemFn, PatType, PathArguments,
+    ReturnType, Type,
 };
 
 /// Parses signature of a Rust function and returns its
@@ -71,6 +71,8 @@ impl<'ast> FuncSignatureParser<'ast> {
             ));
         }
 
+        mangled_named.push('@');
+
         if let ReturnType::Type(.., return_type) = &func.sig.output {
             let mut type_ident = Self::extract_type_ident(return_type)?;
             let mut maybe_undef = false;
@@ -95,8 +97,6 @@ impl<'ast> FuncSignatureParser<'ast> {
                     break;
                 }
             }
-
-            mangled_named.push('@');
 
             if let Some(t) = type_ident {
                 mangled_named.push_str(Self::rust_type_to_mangled(
@@ -144,6 +144,14 @@ impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
     }
 }
 
+#[derive(Debug, FromMeta)]
+/// Arguments received by the `#[wasm_export]` macro.
+pub struct WasmExportArgs {
+    name: Option<String>,
+    #[darling(default)]
+    public: bool,
+}
+
 /// Implementation for the `#[wasm_export]` attribute macro.
 ///
 /// This attribute is used in functions that will be called from WASM.
@@ -178,15 +186,16 @@ impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
 /// receives two parameters (not counting `caller: Caller<'_, ScanContext>`)
 ///
 pub(crate) fn impl_wasm_export_macro(
-    name: Punctuated<Ident, Dot>,
+    attr_args: AttributeArgs,
     func: ItemFn,
 ) -> syn::Result<TokenStream> {
-    let fn_name = &func.sig.ident;
+    let attr_args = WasmExportArgs::from_list(&attr_args)?;
 
-    let fn_name_str = if name.is_empty() {
-        fn_name.to_string()
+    let fn_name = &func.sig.ident;
+    let fn_name_str = if let Some(name) = attr_args.name {
+        name
     } else {
-        name.to_token_stream().to_string()
+        fn_name.to_string()
     };
 
     if func.sig.inputs.is_empty() {
@@ -202,6 +211,7 @@ pub(crate) fn impl_wasm_export_macro(
 
     let export_ident = format_ident!("__export__{}", fn_name);
     let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
+    let public = attr_args.public;
 
     let mut func_sig_parser = FuncSignatureParser::new();
 
@@ -214,6 +224,7 @@ pub(crate) fn impl_wasm_export_macro(
         static #export_ident: WasmExport = WasmExport {
             name: #fn_name_str,
             mangled_name: #mangled_fn_name,
+            public: #public,
             rust_module_path: module_path!(),
             func: &#exported_fn_ident { target_fn: &#fn_name },
         };
@@ -251,5 +262,11 @@ mod tests {
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@u");
+
+        let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>)  {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@");
     }
 }

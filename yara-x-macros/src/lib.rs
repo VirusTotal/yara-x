@@ -1,6 +1,5 @@
 use proc_macro::TokenStream;
-use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, DeriveInput, ItemFn};
+use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn};
 
 mod error;
 mod module_export;
@@ -180,7 +179,7 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// The `wasm_export` macro is used for declaring a function that will be
+/// The `wasm_export` macro is used for declaring a Rust function that will be
 /// called from WASM.
 ///
 /// The function's first argument must be of type [`wasmtime::Caller`], which
@@ -188,7 +187,8 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// including a reference to the [`yara_x::scanner::ScanContext`] corresponding
 /// to the current scan.
 ///
-/// The rest of the arguments, if any, can be of any of the following types:
+/// The rest of the arguments, if any, must be of any of the following types:
+///
 /// - i64
 /// - f64
 /// - bool
@@ -214,22 +214,33 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// ```text
 /// use wasmtime::Caller;
 ///
-/// #[wasm_export(add)]
+/// #[wasm_export(name = "add")]
 /// fn add_i64(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
 ///     a + b
 /// }
 ///
-/// #[wasm_export(add)]
+/// #[wasm_export(name = "add")]
 /// fn add_f64(caller: Caller<'_, ScanContext>, a: f64, b: f64) -> f64 {   
 ///      a + b
 /// }
 /// ```
+///
+/// The macro can also receive a `public` argument, which specifies that the
+/// function will be visible from YARA rules.
+///
+/// # Example
+///
+/// ```text
+/// #[wasm_export(public = true)]
+/// fn uint8(caller: Caller<'_, ScanContext>, offset: i64) -> i64 {
+///   ...
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
-    let arg = parse_macro_input!(
-        args with Punctuated::<syn::Ident, syn::Token![.]>::parse_terminated);
+    let args = parse_macro_input!(args as AttributeArgs);
     let input = parse_macro_input!(input as ItemFn);
-    wasm_export::impl_wasm_export_macro(arg, input)
+    wasm_export::impl_wasm_export_macro(args, input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
@@ -292,10 +303,9 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn module_export(args: TokenStream, input: TokenStream) -> TokenStream {
-    let arg = parse_macro_input!(
-        args with Punctuated::<syn::Ident, syn::Token![.]>::parse_terminated);
+    let args = parse_macro_input!(args as AttributeArgs);
     let input = parse_macro_input!(input as ItemFn);
-    module_export::impl_module_export_macro(arg, input)
+    module_export::impl_module_export_macro(args, input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

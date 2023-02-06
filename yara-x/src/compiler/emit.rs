@@ -220,7 +220,7 @@ pub(super) fn emit_rule_code(
         block.i32_const(rule_id);
 
         // Emit call instruction for calling `rule_match`.
-        block.call(ctx.function_id("rule_match@i"));
+        block.call(ctx.function_id("rule_match@i@"));
     });
 }
 
@@ -612,32 +612,68 @@ pub(super) fn emit_expr(
         }
         Expr::Eq(operands) => {
             emit_comparison_op!(
-                ctx, instr, expr, operands, I64Eq, F64Eq, "str_eq@ss@b"
+                ctx,
+                instr,
+                expr,
+                operands,
+                I64Eq,
+                F64Eq,
+                "str_eq@ss@b"
             );
         }
         Expr::Ne(operands) => {
             emit_comparison_op!(
-                ctx, instr, expr, operands, I64Ne, F64Ne, "str_ne@ss@b"
+                ctx,
+                instr,
+                expr,
+                operands,
+                I64Ne,
+                F64Ne,
+                "str_ne@ss@b"
             );
         }
         Expr::Lt(operands) => {
             emit_comparison_op!(
-                ctx, instr, expr, operands, I64LtS, F64Lt, "str_lt@ss@b"
+                ctx,
+                instr,
+                expr,
+                operands,
+                I64LtS,
+                F64Lt,
+                "str_lt@ss@b"
             );
         }
         Expr::Gt(operands) => {
             emit_comparison_op!(
-                ctx, instr, expr, operands, I64GtS, F64Gt, "str_gt@ss@b"
+                ctx,
+                instr,
+                expr,
+                operands,
+                I64GtS,
+                F64Gt,
+                "str_gt@ss@b"
             );
         }
         Expr::Le(operands) => {
             emit_comparison_op!(
-                ctx, instr, expr, operands, I64LeS, F64Le, "str_le@ss@b"
+                ctx,
+                instr,
+                expr,
+                operands,
+                I64LeS,
+                F64Le,
+                "str_le@ss@b"
             );
         }
         Expr::Ge(operands) => {
             emit_comparison_op!(
-                ctx, instr, expr, operands, I64GeS, F64Ge, "str_ge@ss@b"
+                ctx,
+                instr,
+                expr,
+                operands,
+                I64GeS,
+                F64Ge,
+                "str_ge@ss@b"
             );
         }
         Expr::Contains(operands) => {
@@ -814,7 +850,7 @@ fn emit_array_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("array_lookup_struct@ii"),
+                ctx.function_id("array_lookup_struct@ii@u"),
             );
         }
         Array::Strings(_) => {
@@ -875,7 +911,7 @@ fn emit_map_integer_key_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_integer_struct@i"),
+                ctx.function_id("map_lookup_integer_struct@i@u"),
             );
         }
         Type::String => {
@@ -923,7 +959,7 @@ fn emit_map_string_key_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_string_struct@s"),
+                ctx.function_id("map_lookup_string_struct@s@u"),
             );
         }
         Type::String => {
@@ -1842,7 +1878,11 @@ pub(super) fn emit_lookup_integer(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(ctx, instr, ctx.function_id("lookup_integer@@iu"));
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.function_id("lookup_integer@@iu"),
+    );
 }
 
 #[inline]
@@ -1853,7 +1893,11 @@ pub(super) fn emit_lookup_float(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(ctx, instr, ctx.function_id("lookup_float@@fu"));
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.function_id("lookup_float@@fu"),
+    );
 }
 
 #[inline]
@@ -1875,7 +1919,11 @@ pub(super) fn emit_lookup_string(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(ctx, instr, ctx.function_id("lookup_string@@su"));
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.function_id("lookup_string@@su"),
+    );
 }
 
 #[inline]
@@ -1886,7 +1934,7 @@ pub(super) fn emit_lookup_value(
 ) {
     emit_lookup_common(ctx, instr);
     instr.i32_const(var.index);
-    instr.call(ctx.function_id("lookup_value@i"));
+    instr.call(ctx.function_id("lookup_value@i@"));
 }
 
 /// Emits code for catching exceptions caused by undefined values.

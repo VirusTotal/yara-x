@@ -118,6 +118,11 @@ pub(crate) struct WasmExport {
     /// the function's arguments and return type. For additional details see
     /// [`yara_x_parser::types::MangledFnName`].
     pub mangled_name: &'static str,
+    /// True if the function is visible from YARA rules. Functions exported by
+    /// modules, as well as built-in functions like uint8, uint16, etc are
+    /// public, but many other functions callable from WASM are for internal
+    /// use only and therefore are not public.
+    pub public: bool,
     /// Path of the module where the function resides. This an absolute path
     /// that includes the crate name (e.g: yara_x::modules::test_proto2)
     pub rust_module_path: &'static str,
@@ -1062,7 +1067,7 @@ pub(crate) fn str_len(
     s.len(caller.data()) as i64
 }
 
-#[wasm_export]
+#[wasm_export(public = true)]
 pub(crate) fn uint8(
     caller: Caller<'_, ScanContext>,
     offset: i64,
@@ -1081,7 +1086,7 @@ pub(crate) fn uint8(
     }
 }
 
-#[wasm_export]
+#[wasm_export(public = true)]
 pub(crate) fn uint16(
     caller: Caller<'_, ScanContext>,
     offset: i64,
@@ -1100,7 +1105,7 @@ pub(crate) fn uint16(
     }
 }
 
-#[wasm_export]
+#[wasm_export(public = true)]
 pub(crate) fn uint32(
     caller: Caller<'_, ScanContext>,
     offset: i64,

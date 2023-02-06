@@ -93,18 +93,19 @@ impl<'a> Compiler<'a> {
     pub fn new() -> Self {
         let mut symbol_table = StackedSymbolTable::new();
 
+        // Add symbols for built-in functions like uint8, uint16, etc.
         let builtin_functions = symbol_table.push_new();
 
-        for export in WASM_EXPORTS {
-            let signature = FuncSignature::from(export.mangled_name.to_string());
-            let func = Func::with_signature(signature);
+        for export in WASM_EXPORTS.iter().filter(|e| e.public) {
+            let func = Rc::new(Func::with_signature(FuncSignature::from(
+                export.mangled_name.to_string(),
+            )));
 
-            builtin_functions.borrow_mut().insert(
-                export.name,
-                Symbol::new(TypeValue::Func(Rc::new(func))));
+            let mut symbol = Symbol::new(TypeValue::Func(func.clone()));
+            symbol.kind = SymbolKind::Func(func);
 
+            builtin_functions.borrow_mut().insert(export.name, symbol);
         }
-
 
         Self {
             symbol_table,
@@ -346,11 +347,11 @@ impl<'a> Compiler<'a> {
                     let mut functions: FxHashMap<&'static str, Func> =
                         FxHashMap::default();
 
-                    // Iterate over all functions in WASM_EXPORTS looking for
-                    // those that were exported by the current YARA module. Add
-                    // them to `functions` map, or update the `Func` object
+                    // Iterate over public functions in WASM_EXPORTS looking
+                    // for those that were exported by the current YARA module.
+                    // Add them to `functions` map, or update the `Func` object
                     // an additional signature if the function is overloaded.
-                    for export in WASM_EXPORTS {
+                    for export in WASM_EXPORTS.iter().filter(|e| e.public) {
                         if export.rust_module_path.contains(mod_name) {
                             let signature = FuncSignature::from(format!(
                                 "{}.{}",

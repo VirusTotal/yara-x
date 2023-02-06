@@ -32,7 +32,7 @@ macro_rules! condition_true {
 }
 
 macro_rules! condition_false {
-    ($condition:literal) => {{
+    ($condition:literal,  $data:expr) => {{
         let src = if cfg!(feature = "test_proto2-module") {
             format!(
                 r#"import "test_proto2" rule t {{condition: {} }}"#,
@@ -49,12 +49,15 @@ macro_rules! condition_false {
             .unwrap();
         assert_eq!(
             crate::scanner::Scanner::new(&rules)
-                .scan(&[])
+                .scan($data)
                 .num_matching_rules(),
             0,
             "`{}` should be false, but it is true",
             $condition
         );
+    }};
+    ($condition:literal) => {{
+        condition_false!($condition, &[]);
     }};
 }
 
@@ -181,6 +184,13 @@ fn boolean_casting() {
 #[test]
 fn uintxx() {
     condition_true!("uint8(0) == 0", &[0]);
+    condition_true!("uint8(0) == 1", &[1]);
+    condition_false!("uint8(1) == 0", &[1]);
+    condition_true!("uint8(1) == 2", &[1, 2]);
+
+    condition_true!("uint16(0) == 0x0100", &[0x00, 0x01, 0x02, 0x03]);
+    condition_true!("uint16(1) == 0x0201", &[0x00, 0x01, 0x02, 0x03]);
+    condition_true!("uint16(2) == 0x0302", &[0x00, 0x01, 0x02, 0x03]);
 }
 
 #[test]
