@@ -360,6 +360,9 @@ fn test_defined_2() {
     condition_false!(r#"defined test_proto2.undef_i64()"#);
     condition_true!(r#"not defined test_proto2.undef_i64()"#);
     condition_true!(r#"not defined test_proto2.undef_i64()"#);
+    condition_true!(
+        r#"defined (for any x in (0..10) : (test_proto2.undef_i64() == 0))"#
+    );
 }
 
 #[test]

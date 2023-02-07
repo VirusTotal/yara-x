@@ -1119,8 +1119,13 @@ pub(super) fn emit_for<I, B, A>(
             // Emit code that advances to next item.
             before_cond(ctx, block, i);
 
-            // Emit code for the loop's condition.
-            emit_expr(ctx, block, &for_in.condition);
+            // Emit code for the loop's condition. Use `catch_undef` for
+            // capturing any undefined exception produced by the condition
+            // because we don't want to abort the loop in such cases. When the
+            // condition is undefined it's handled as a false.
+            catch_undef(ctx, block, |ctx, block| {
+                emit_expr(ctx, block, &for_in.condition);
+            });
 
             // At the top of the stack we have the i32 with the result from
             // the loop condition. Decide what to do depending on the
