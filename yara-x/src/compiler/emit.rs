@@ -437,11 +437,20 @@ pub(super) fn emit_expr(
         }
         Expr::Defined(operand) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
+                // The `defined` expression is emitted as:
+                //
+                //   try {
+                //     evaluate_operand()
+                //     true
+                //   } catch undefined {
+                //     false
+                //   }
+                //
                 catch_undef(ctx, instr, |ctx, instr| {
                     emit_bool_expr(ctx, instr, &operand.operand);
                     // Drop the operand's value as we are not interested in the
-                    // value of the value, ww are interested only in whether
-                    // it's defined or not.
+                    // value, we are interested only in whether it's defined or
+                    // not.
                     instr.drop();
                     // Push a 1 in the stack indicating that the operand is
                     // defined. This point is not reached if the operand calls
@@ -452,12 +461,12 @@ pub(super) fn emit_expr(
         }
         Expr::Not(operand) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
-                // The NOT expression is emitted as:
+                // The `not` expression is emitted as:
                 //
                 //   if (evaluate_operand()) {
-                //     0
+                //     false
                 //   } else {
-                //     1
+                //     true
                 //   }
                 //
                 emit_bool_expr(ctx, instr, &operand.operand);
@@ -474,7 +483,7 @@ pub(super) fn emit_expr(
         }
         Expr::And(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
-                // The AND expression is emitted as:
+                // The `and` expression is emitted as:
                 //
                 //   try {
                 //     lhs = evaluate_left_operand()
@@ -484,12 +493,12 @@ pub(super) fn emit_expr(
                 //
                 //   if (lhs) {
                 //     try {
-                //        return evaluate_right_operand()
+                //        evaluate_right_operand()
                 //     } catch undefined {
-                //        return false
+                //        false
                 //     }
                 //   } else {
-                //     return false
+                //     false
                 //   }
                 //
                 catch_undef(ctx, instr, |ctx, instr| {
@@ -511,7 +520,7 @@ pub(super) fn emit_expr(
         }
         Expr::Or(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
-                // The OR expression is emitted as:
+                // The `or` expression is emitted as:
                 //
                 //   try {
                 //     lhs = evaluate_left_operand()
@@ -520,9 +529,9 @@ pub(super) fn emit_expr(
                 //   }
                 //
                 //   if (lhs) {
-                //     return true
+                //     true
                 //   } else {
-                //     return evaluate_right_operand()
+                //     evaluate_right_operand()
                 //   }
                 //
                 catch_undef(ctx, instr, |ctx, instr| {
