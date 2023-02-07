@@ -79,6 +79,10 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
         Expr::Literal(lit) => Leaf(vec![lit.literal.to_string()]),
         Expr::Ident(ident) => Leaf(vec![ident.name.to_string()]),
         Expr::Regexp(regexp) => Leaf(vec![regexp.regexp.to_string()]),
+        Expr::Defined(expr) => Node(
+            format!("defined{}", value),
+            vec![expr_ascii_tree(&expr.operand)],
+        ),
         Expr::Not(expr) => {
             Node(format!("not{}", value), vec![expr_ascii_tree(&expr.operand)])
         }

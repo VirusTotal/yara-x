@@ -366,6 +366,9 @@ pub enum Expr<'src> {
     /// A function call expression (e.g. `foo()`, `bar(1,2)`)
     FnCall(Box<FnCall<'src>>),
 
+    /// A `defined` expression (e.g. `defined foo`)
+    Defined(Box<UnaryExpr<'src>>),
+
     /// Boolean `not` expression.
     Not(Box<UnaryExpr<'src>>),
 
@@ -934,9 +937,10 @@ impl<'src> Expr<'src> {
             | Expr::PatternOffset(_)
             | Expr::PatternLength(_) => &UNKNOWN_INT,
 
-            Expr::Not(expr) | Expr::BitwiseNot(expr) | Expr::Minus(expr) => {
-                &expr.type_value
-            }
+            Expr::Defined(expr)
+            | Expr::Not(expr)
+            | Expr::BitwiseNot(expr)
+            | Expr::Minus(expr) => &expr.type_value,
         }
     }
 }

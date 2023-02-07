@@ -396,6 +396,17 @@ pub(super) fn semcheck_expr(
             Ok(Type::Bool)
         }
 
+        Expr::Defined(expr) => {
+            semcheck!(
+                ctx,
+                Type::Bool | Type::Integer | Type::Float | Type::String,
+                &mut expr.operand
+            )?;
+            let type_value = expr.operand.type_value().defined();
+            expr.set_type_value(type_value);
+            Ok(Type::Bool)
+        }
+
         Expr::Not(expr) => {
             warn_if_not_bool(ctx, &expr.operand);
             // The `not` operator accepts integers, float and strings because

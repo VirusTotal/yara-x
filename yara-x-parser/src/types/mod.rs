@@ -319,6 +319,16 @@ impl TypeValue {
     gen_comparison_op!(eq, ==);
     gen_comparison_op!(ne, !=);
 
+    pub fn defined(&self) -> Self {
+        match self {
+            Self::Unknown => Self::Unknown,
+            Self::Integer(Some(_)) => Self::Bool(Some(true)),
+            Self::Float(Some(_)) => Self::Bool(Some(true)),
+            Self::String(Some(_)) => Self::Bool(Some(true)),
+            _ => Self::Bool(None),
+        }
+    }
+
     pub fn not(&self) -> Self {
         if let Self::Unknown = self {
             Self::Unknown

@@ -60,6 +60,10 @@ fn create_unary_expr<'src>(
             let type_value = operand.type_value().not();
             Expr::Not(Box::new(UnaryExpr::new(operand, span, type_value)))
         }
+        GrammarRule::k_DEFINED => {
+            let type_value = operand.type_value().defined();
+            Expr::Defined(Box::new(UnaryExpr::new(operand, span, type_value)))
+        }
         GrammarRule::MINUS => {
             let type_value = operand.type_value().minus();
             Expr::Minus(Box::new(UnaryExpr::new(operand, span, type_value)))
@@ -996,6 +1000,16 @@ fn boolean_term_from_cst<'src>(
             let expr = boolean_term_from_cst(ctx, term)?;
 
             create_unary_expr(not, expr)?
+        }
+        GrammarRule::k_DEFINED => {
+            // Consume the first child, corresponding to the `defined` keyword.
+            let defined = children.next().unwrap();
+
+            // The child after the `defined` is the boolean term.
+            let term = children.next().unwrap();
+            let expr = boolean_term_from_cst(ctx, term)?;
+
+            create_unary_expr(defined, expr)?
         }
         GrammarRule::LPAREN => {
             // Consume the opening parenthesis.

@@ -344,6 +344,25 @@ fn rule_reuse() {
 }
 
 #[test]
+fn test_defined_1() {
+    condition_true!(r#"defined 1"#);
+    condition_true!(r#"defined 1.0"#);
+    condition_true!(r#"defined false"#);
+    condition_true!(r#"defined "foo""#);
+    condition_false!(r#"defined 1 and false"#);
+    condition_true!(r#"defined (true and false)"#);
+    condition_false!(r#"defined true and false"#);
+}
+
+#[test]
+#[cfg(feature = "test_proto2-module")]
+fn test_defined_2() {
+    condition_false!(r#"defined test_proto2.undef_i64()"#);
+    condition_true!(r#"not defined test_proto2.undef_i64()"#);
+    condition_true!(r#"not defined test_proto2.undef_i64()"#);
+}
+
+#[test]
 #[cfg(feature = "test_proto2-module")]
 fn test_proto2_module() {
     condition_true!(r#"test_proto2.add(1,2) == 3"#);

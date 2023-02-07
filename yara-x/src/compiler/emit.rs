@@ -435,6 +435,21 @@ pub(super) fn emit_expr(
 
             ctx.current_signature = previous;
         }
+        Expr::Defined(operand) => {
+            emit_const_or_code!(ctx, instr, expr.type_value(), {
+                catch_undef(ctx, instr, |ctx, instr| {
+                    emit_bool_expr(ctx, instr, &operand.operand);
+                    // Drop the operand's value as we are not interested in the
+                    // value of the value, ww are interested only in whether
+                    // it's defined or not.
+                    instr.drop();
+                    // Push a 1 in the stack indicating that the operand is
+                    // defined. This point is not reached if the operand calls
+                    // `throw_undef`.
+                    instr.i32_const(1);
+                });
+            })
+        }
         Expr::Not(operand) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 // The NOT expression is emitted as:

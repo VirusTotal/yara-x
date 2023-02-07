@@ -402,6 +402,7 @@ boolean_term = {
   k_TRUE                                               |
   k_FALSE                                              |
   k_NOT ~ boolean_term                                 |
+  k_DEFINED ~ boolean_term                             |
   for_expr                                             |
   of_expr                                              |
   expr ~ ((comparison_op | string_op) ~ expr)*         |
