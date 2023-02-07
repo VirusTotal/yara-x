@@ -1112,7 +1112,6 @@ gen_uint_fn!(uint64be, u64, from_be_bytes);
 #[cfg(test)]
 mod tests {
     use crate::wasm::{MaybeUndef, WasmResult};
-    use wasmtime::ValRaw;
 
     #[test]
     fn wasm_result_conversion() {

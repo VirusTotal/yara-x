@@ -1,8 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use yara_x::{compiler, scanner};
-
-
-
+use yara_x;
 
 fn bench_loop(c: &mut Criterion) {
     let mut group = c.benchmark_group("Loop");
@@ -28,13 +25,13 @@ fn bench_loop(c: &mut Criterion) {
     });
 
     group.bench_function("yara-x", |b| {
-        let rules = compiler::Compiler::new()
+        let rules = yara_x::Compiler::new()
             .add_source(src)
             .unwrap()
             .build()
             .unwrap();
 
-        let mut scanner = scanner::Scanner::new(&rules);
+        let mut scanner = yara_x::Scanner::new(&rules);
 
         b.iter(|| {
             scanner.scan(&[]);
@@ -47,8 +44,7 @@ fn bench_pattern(c: &mut Criterion) {
 
     group.sample_size(100);
 
-    let src =
-        r#"rule test { strings: $a = "foo" condition: for any x in (0..1000000) : ($a) }"#;
+    let src = r#"rule test { strings: $a = "foo" condition: for any x in (0..1000000) : ($a) }"#;
 
     group.bench_function("yara", |b| {
         let rules = yara::Compiler::new()
@@ -66,13 +62,13 @@ fn bench_pattern(c: &mut Criterion) {
     });
 
     group.bench_function("yara-x", |b| {
-        let rules = compiler::Compiler::new()
+        let rules = yara_x::Compiler::new()
             .add_source(src)
             .unwrap()
             .build()
             .unwrap();
 
-        let mut scanner = scanner::Scanner::new(&rules);
+        let mut scanner = yara_x::Scanner::new(&rules);
 
         b.iter(|| {
             scanner.scan(&[]);
