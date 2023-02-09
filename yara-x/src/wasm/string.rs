@@ -58,8 +58,8 @@ pub(crate) enum RuntimeString {
     /// A literal string appearing in the source code. The string is identified
     /// by its [`LiteralId`] within the literal strings pool.
     Literal(LiteralId),
-    /// A string represented found in the scanned data, represented by the
-    /// offset within the data and its length.
+    /// A string found in the scanned data, represented by the offset within
+    /// the data and its length.
     Slice { offset: usize, length: usize },
     /// A string owned by the runtime. The string is identified by its
     /// [`RuntimeStringId`] within the string pool stored in [`ScanContext`].

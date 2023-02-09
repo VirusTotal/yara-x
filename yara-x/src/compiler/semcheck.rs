@@ -481,11 +481,15 @@ pub(super) fn semcheck_expr(
                     Ok(expr.ty())
                 }
                 TypeValue::Map(map) => {
-                    // The deputy value is a value that acts as representative
-                    // of the values stored in the map. This value only contains
-                    // type information, not actual data. For example, if the
-                    // value is an integer it will be TypeValue::Integer(None),
-                    // if it is an struct, it will contain all the fields in the
+                    // The deputy value is a TypeValue that acts as a
+                    // representative of the values stored in the map. It conveys
+                    // only type information, not actual data. For example, if
+                    // the values in the map are integers, the deputy will be
+                    // TypeValue::Integer(None); if values are structures, the
+                    // deputy will be TypeValue::Struct(<some_ref>), where
+                    // <some_ref> points to a structure exactly like the ones
+                    // stored in the map, but without any real value in its
+                    // fields.
                     let (key_ty, deputy_value) = match map.borrow() {
                         Map::IntegerKeys { deputy: Some(value), .. } => {
                             (Type::Integer, value)
@@ -538,7 +542,7 @@ pub(super) fn semcheck_expr(
                 Some(expr.lhs.type_value().as_struct().unwrap());
 
             // Now check the right-hand expression. During the call to
-            // semcheck_expr the symbol table of `current_struct` will be used
+            // `semcheck_expr` the symbol table of `current_struct` will be used
             // for resolving symbols, instead of using the top-level symbol
             // table.
             let ty = semcheck_expr(ctx, &mut expr.rhs)?;

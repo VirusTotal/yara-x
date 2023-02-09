@@ -189,10 +189,12 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// The rest of the arguments, if any, must be of any of the following types:
 ///
-/// - i64
-/// - f64
-/// - bool
-/// - RuntimeString
+/// - `i32`
+/// - `i64`
+/// - `f32`
+/// - `f64`
+/// - `bool`
+/// - `RuntimeString`
 ///
 /// # Example
 ///
@@ -252,7 +254,9 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 /// to [`ScanContext`]. The rest of the arguments, if any, can be of any of
 /// the following types:
 ///
+/// - `i32`
 /// - `i64`
+/// - `f32`
 /// - `f64`
 /// - `bool`
 /// - `RuntimeString`

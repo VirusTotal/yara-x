@@ -1504,7 +1504,7 @@ pub(super) fn emit_for_in_map(
     // put in the loop variable in the next iteration.
     let next_val = ctx.new_var(val.ty());
 
-    // Create a symbol table containing the loop variable.
+    // Create a symbol table containing the loop variables.
     let mut symbol_key = Symbol::new(key);
     let mut symbol_val = Symbol::new(val);
 
@@ -1541,7 +1541,7 @@ pub(super) fn emit_for_in_map(
             // Initialize `n` to the maps's length.
             set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(map_var.index);
-                instr.call(ctx.function_id("map_len"));
+                instr.call(ctx.function_id("map_len@i@i"));
             });
 
             // If n <= 0, exit from the loop.
