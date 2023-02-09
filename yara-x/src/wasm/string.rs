@@ -1,4 +1,5 @@
 use bstr::{BStr, ByteSlice};
+use std::iter::Scan;
 
 use crate::{LiteralId, RuntimeStringId, ScanContext};
 
@@ -50,7 +51,7 @@ pub(crate) type RuntimeStringWasm = i64;
 ///
 /// In some other cases a function may need to return a string that doesn't
 /// appear neither in the scanned data nor as a literal in the source code,
-/// in such cases the runtime stores the string a pool maintained by
+/// in such cases the runtime stores the string in a pool maintained by
 /// [`ScanContext`], and passes around only the ID that allows locating the
 /// string in that pool.
 #[derive(Debug, PartialEq)]
@@ -60,7 +61,7 @@ pub(crate) enum RuntimeString {
     Literal(LiteralId),
     /// A string found in the scanned data, represented by the offset within
     /// the data and its length.
-    Slice { offset: usize, length: usize },
+    ScannedDataSlice { offset: usize, length: usize },
     /// A string owned by the runtime. The string is identified by its
     /// [`RuntimeStringId`] within the string pool stored in [`ScanContext`].
     Owned(RuntimeStringId),
@@ -68,7 +69,7 @@ pub(crate) enum RuntimeString {
 
 impl Default for RuntimeString {
     fn default() -> Self {
-        Self::Slice { offset: 0, length: 0 }
+        Self::ScannedDataSlice { offset: 0, length: 0 }
     }
 }
 
@@ -81,13 +82,44 @@ impl RuntimeString {
         Self::Owned(ctx.string_pool.get_or_intern(s))
     }
 
+    /// Creates a [`RuntimeString`] from a reference to a byte slice.
+    ///
+    /// If the original slice is contained withing the scanned data, this
+    /// function returns the [`RuntimeString::ScannedDataSlice`] variant, which
+    /// doesn't need to copy the string data.
+    ///
+    /// In any other case it makes a copy of the string and return the
+    /// [`RuntimeString::Owned`] variant.
+    pub(crate) fn from_bytes<S>(ctx: &mut ScanContext, s: S) -> Self
+    where
+        S: AsRef<[u8]>,
+    {
+        let data = ctx.scanned_data();
+        let s = s.as_ref();
+
+        let data_start = data.as_ptr() as usize;
+        let data_end = data_start + data.len();
+
+        let s_start = s.as_ptr() as usize;
+        let s_end = s_start + s.len();
+
+        if s_start >= data_start && s_end <= data_end {
+            RuntimeString::ScannedDataSlice {
+                offset: s_start - data_start,
+                length: s.len(),
+            }
+        } else {
+            RuntimeString::new_owned(ctx, s)
+        }
+    }
+
     /// Returns this string as a &[`BStr`].
     pub(crate) fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
         match self {
             RuntimeString::Literal(id) => {
                 ctx.compiled_rules.lit_pool().get(*id).unwrap()
             }
-            RuntimeString::Slice { offset, length } => {
+            RuntimeString::ScannedDataSlice { offset, length } => {
                 let data = ctx.scanned_data();
                 BStr::new(&data[*offset..*offset + *length])
             }
@@ -100,7 +132,7 @@ impl RuntimeString {
         match self {
             RuntimeString::Literal(id) => i64::from(*id) << 2,
             RuntimeString::Owned(id) => (*id as i64) << 2 | 1,
-            RuntimeString::Slice { offset, length } => {
+            RuntimeString::ScannedDataSlice { offset, length } => {
                 if *length >= u16::MAX as usize {
                     panic!(
                         "runtime-string slices can't be larger than {}",
@@ -117,7 +149,7 @@ impl RuntimeString {
         match s & 0x3 {
             0 => Self::Literal(LiteralId::from((s >> 2) as u32)),
             1 => Self::Owned((s >> 2) as u32),
-            2 => Self::Slice {
+            2 => Self::ScannedDataSlice {
                 offset: (s >> 18) as usize,
                 length: ((s >> 2) & 0xffff) as usize,
             },
@@ -236,14 +268,15 @@ mod tests {
         let s = RuntimeString::Literal(LiteralId::from(1));
         assert_eq!(s, RuntimeString::from_wasm(s.as_wasm()));
 
-        let s = RuntimeString::Slice { length: 100, offset: 0x1000000 };
+        let s =
+            RuntimeString::ScannedDataSlice { length: 100, offset: 0x1000000 };
         assert_eq!(s, RuntimeString::from_wasm(s.as_wasm()));
     }
 
     #[test]
     #[should_panic]
     fn runtime_string_wasm_max_size() {
-        let s = RuntimeString::Slice {
+        let s = RuntimeString::ScannedDataSlice {
             length: u32::MAX as usize + 1,
             offset: 0x1000000,
         };

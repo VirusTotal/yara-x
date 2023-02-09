@@ -188,10 +188,10 @@ type TrampolineFn = Box<
         + 'static,
 >;
 
-/// Represents an argument passed to a function exported to WASM.
+/// Represents an argument passed to a `#[wasm_export]` function.
 ///
-/// The purpose of this type is converting [`wasmtime::Val`] into Rust
-/// types (e.g: `i64`, `i32`, `f64`, `f32`)
+/// The purpose of this type is converting [`wasmtime::ValRaw`] into Rust
+/// types (e.g: `i64`, `i32`, `f64`, `f32`, etc)
 struct WasmArg(ValRaw);
 
 impl From<ValRaw> for WasmArg {
