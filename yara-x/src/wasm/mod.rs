@@ -726,13 +726,7 @@ macro_rules! gen_array_lookup_fn {
                 type_value.as_array().unwrap()
             });
 
-            let array = array.$fn();
-
-            if let Some(value) = array.get(index as usize) {
-                Some(*value as $return_type)
-            } else {
-                None
-            }
+            array.$fn().get(index as usize).map(|value| *value as $return_type)
         }
     };
 }
@@ -754,15 +748,11 @@ pub(crate) fn array_lookup_string(
     let array =
         lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
 
-    let array = array.as_string_array();
-
-    if let Some(string) = array.get(index as usize) {
-        Some(RuntimeString::Owned(
+    array.as_string_array().get(index as usize).map(|string| {
+        RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(string.as_bstr()),
-        ))
-    } else {
-        None
-    }
+        )
+    })
 }
 
 #[wasm_export]
@@ -774,11 +764,8 @@ pub(crate) fn array_lookup_struct(
     let array =
         lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
 
-    let array = array.as_struct_array();
-
-    if let Some(s) = array.get(index as usize) {
+    array.as_struct_array().get(index as usize).map(|s| {
         caller.data_mut().current_struct = Some(s.clone());
-
         if var != -1 {
             let index = var as usize;
             let vars = &mut caller.data_mut().vars_stack;
@@ -786,14 +773,9 @@ pub(crate) fn array_lookup_struct(
             if vars.len() <= index {
                 vars.resize(index + 1, TypeValue::Unknown);
             }
-
             vars[index] = TypeValue::Struct(s.clone());
         }
-
-        Some(())
-    } else {
-        None
-    }
+    })
 }
 
 macro_rules! gen_map_string_key_lookup_fn {
@@ -898,21 +880,18 @@ pub(crate) fn map_lookup_integer_string(
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
-    let value = match map.borrow() {
+    let type_value = match map.borrow() {
         Map::IntegerKeys { map, .. } => map.get(&key),
         _ => unreachable!(),
     };
 
-    if let Some(value) = value {
-        Some(RuntimeString::Owned(
-            caller
-                .data_mut()
-                .string_pool
-                .get_or_intern(value.as_bstr().unwrap()),
-        ))
-    } else {
-        None
-    }
+    let type_value = type_value.map(|v| {
+        RuntimeString::Owned(
+            caller.data_mut().string_pool.get_or_intern(v.as_bstr().unwrap()),
+        )
+    });
+
+    type_value
 }
 
 #[wasm_export]
@@ -930,16 +909,13 @@ pub(crate) fn map_lookup_string_string(
         _ => unreachable!(),
     };
 
-    if let Some(type_value) = type_value {
-        Some(RuntimeString::Owned(
-            caller
-                .data_mut()
-                .string_pool
-                .get_or_intern(type_value.as_bstr().unwrap()),
-        ))
-    } else {
-        None
-    }
+    let type_value = type_value.map(|v| {
+        RuntimeString::Owned(
+            caller.data_mut().string_pool.get_or_intern(v.as_bstr().unwrap()),
+        )
+    });
+
+    type_value
 }
 
 #[wasm_export]
@@ -954,21 +930,20 @@ pub(crate) fn map_lookup_integer_struct(
         }
     });
 
-    let value = match map.borrow() {
+    let type_value = match map.borrow() {
         Map::IntegerKeys { map, .. } => map.get(&key),
         _ => unreachable!(),
     };
 
-    if let Some(value) = value {
-        if let TypeValue::Struct(s) = value {
+    let type_value = type_value.map(|v| {
+        if let TypeValue::Struct(s) = v {
             caller.data_mut().current_struct = Some(s.clone());
-            Some(())
         } else {
             unreachable!()
         }
-    } else {
-        None
-    }
+    });
+
+    type_value
 }
 
 #[wasm_export]
@@ -985,21 +960,20 @@ pub(crate) fn map_lookup_string_struct(
 
     let key_bstr = key.as_bstr(caller.data());
 
-    let value = match map.borrow() {
+    let type_value = match map.borrow() {
         Map::StringKeys { map, .. } => map.get(key_bstr),
         _ => unreachable!(),
     };
 
-    if let Some(value) = value {
-        if let TypeValue::Struct(s) = value {
+    let type_value = type_value.map(|v| {
+        if let TypeValue::Struct(s) = v {
             caller.data_mut().current_struct = Some(s.clone());
-            Some(())
         } else {
             unreachable!()
         }
-    } else {
-        None
-    }
+    });
+
+    type_value
 }
 
 macro_rules! gen_str_cmp_fn {
