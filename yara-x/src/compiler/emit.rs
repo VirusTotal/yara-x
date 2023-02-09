@@ -30,7 +30,7 @@ use crate::wasm::{
 ///
 /// # Example
 ///
-/// This how we emit the code for the `add` operation:
+/// This is how we emit the code for the `add` operation:
 ///
 /// ```text
 ///emit_const_or_code!(ctx, instr, expr.type_value(), {

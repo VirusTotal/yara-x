@@ -77,10 +77,10 @@ impl<'ast> FuncSignatureParser<'ast> {
             let mut type_ident = Self::extract_type_ident(return_type)?;
             let mut maybe_undef = false;
 
-            // If the result type is MaybeUndef<T>, type_ident will be "T"
-            // and maybe_undef is set to true.
+            // If the result type is Option<T>, type_ident will be "T" and
+            // maybe_undef is set to true.
             while let Some(t) = type_ident {
-                if t == "MaybeUndef" {
+                if t == "Option" {
                     maybe_undef = true;
                     if let Type::Path(path) = return_type.as_ref() {
                         if let PathArguments::AngleBracketed(angle_bracketed) =
@@ -258,7 +258,7 @@ mod tests {
         assert_eq!(parser.parse(&func).unwrap(), "@ii@i");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) -> MaybeUndef<()> { MaybeUndef::Undef }
+          fn foo(caller: Caller<'_, ScanContext>) -> Option<()> { None }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@u");

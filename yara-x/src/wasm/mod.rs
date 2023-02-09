@@ -287,30 +287,24 @@ impl ToWasm for RuntimeString {
     }
 }
 
-impl<T> ToWasm for MaybeUndef<T>
+impl<T> ToWasm for Option<T>
 where
     T: ToWasm + Default,
 {
     fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
         match self {
-            MaybeUndef::Ok(value) => {
+            Some(value) => {
                 let mut result = value.to_wasm();
                 result.push(ValRaw::i32(0));
                 result
             }
-            MaybeUndef::Undef::<T> => {
+            None => {
                 let mut result = T::default().to_wasm();
                 result.push(ValRaw::i32(1));
                 result
             }
         }
     }
-}
-
-/// Return type for functions that may return an undefined value.
-pub enum MaybeUndef<T> {
-    Ok(T),
-    Undef,
 }
 
 pub fn walrus_to_wasmtime(ty: &walrus::ValType) -> wasmtime::ValType {
@@ -344,19 +338,19 @@ fn type_id_to_walrus(
         return &[];
     } else if type_id == TypeId::of::<RuntimeString>() {
         return &[walrus::ValType::I64];
-    } else if type_id == TypeId::of::<MaybeUndef<()>>() {
+    } else if type_id == TypeId::of::<Option<()>>() {
         return &[walrus::ValType::I32];
-    } else if type_id == TypeId::of::<MaybeUndef<i64>>() {
+    } else if type_id == TypeId::of::<Option<i64>>() {
         return &[walrus::ValType::I64, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<MaybeUndef<i32>>() {
+    } else if type_id == TypeId::of::<Option<i32>>() {
         return &[walrus::ValType::I32, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<MaybeUndef<f64>>() {
+    } else if type_id == TypeId::of::<Option<f64>>() {
         return &[walrus::ValType::F64, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<MaybeUndef<f32>>() {
+    } else if type_id == TypeId::of::<Option<f32>>() {
         return &[walrus::ValType::F32, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<MaybeUndef<bool>>() {
+    } else if type_id == TypeId::of::<Option<bool>>() {
         return &[walrus::ValType::I32, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<MaybeUndef<RuntimeString>>() {
+    } else if type_id == TypeId::of::<Option<RuntimeString>>() {
         return &[walrus::ValType::I64, walrus::ValType::I32];
     }
     panic!("type `{}` can't be an argument or return value", type_name)
@@ -666,16 +660,16 @@ macro_rules! lookup_common {
 #[wasm_export]
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
-) -> MaybeUndef<RuntimeString> {
+) -> Option<RuntimeString> {
     lookup_common!(caller, type_value, {
         match type_value {
             TypeValue::String(Some(value)) => {
                 let value = value.to_owned();
-                MaybeUndef::Ok(RuntimeString::Owned(
+                Some(RuntimeString::Owned(
                     caller.data_mut().string_pool.get_or_intern(value),
                 ))
             }
-            TypeValue::String(None) => MaybeUndef::Undef,
+            TypeValue::String(None) => None,
             _ => unreachable!(),
         }
     })
@@ -700,12 +694,12 @@ macro_rules! gen_lookup_fn {
         #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
-        ) -> MaybeUndef<$return_type> {
+        ) -> Option<$return_type> {
             lookup_common!(caller, type_value, {
                 if let $type(Some(value)) = type_value {
-                    MaybeUndef::Ok(*value as $return_type)
+                    Some(*value as $return_type)
                 } else {
-                    MaybeUndef::Undef
+                    None
                 }
             })
         }
@@ -723,7 +717,7 @@ macro_rules! gen_array_lookup_fn {
             mut caller: Caller<'_, ScanContext>,
             index: i64,
             var: i32,
-        ) -> MaybeUndef<$return_type> {
+        ) -> Option<$return_type> {
             // TODO: decide what to to with this. It looks like are not going to need
             // to store integer, floats nor bools in host-side variables.
             assert_eq!(var, -1);
@@ -735,9 +729,9 @@ macro_rules! gen_array_lookup_fn {
             let array = array.$fn();
 
             if let Some(value) = array.get(index as usize) {
-                MaybeUndef::Ok(*value as $return_type)
+                Some(*value as $return_type)
             } else {
-                MaybeUndef::Undef
+                None
             }
         }
     };
@@ -752,7 +746,7 @@ pub(crate) fn array_lookup_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
     var: i32,
-) -> MaybeUndef<RuntimeString> {
+) -> Option<RuntimeString> {
     // TODO: decide what to to with this. It looks like are not going to need
     // to store strings in host-side variables.
     assert_eq!(var, -1);
@@ -763,11 +757,11 @@ pub(crate) fn array_lookup_string(
     let array = array.as_string_array();
 
     if let Some(string) = array.get(index as usize) {
-        MaybeUndef::Ok(RuntimeString::Owned(
+        Some(RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(string.as_bstr()),
         ))
     } else {
-        MaybeUndef::Undef
+        None
     }
 }
 
@@ -776,7 +770,7 @@ pub(crate) fn array_lookup_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
     var: i32,
-) -> MaybeUndef<()> {
+) -> Option<()> {
     let array =
         lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
 
@@ -796,9 +790,9 @@ pub(crate) fn array_lookup_struct(
             vars[index] = TypeValue::Struct(s.clone());
         }
 
-        MaybeUndef::Ok(())
+        Some(())
     } else {
-        MaybeUndef::Undef
+        None
     }
 }
 
@@ -808,7 +802,7 @@ macro_rules! gen_map_string_key_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             key: RuntimeString,
-        ) -> MaybeUndef<$return_type> {
+        ) -> Option<$return_type> {
             let map = lookup_common!(caller, type_value, {
                 type_value.as_map().unwrap()
             });
@@ -821,9 +815,9 @@ macro_rules! gen_map_string_key_lookup_fn {
             };
 
             if let Some($type(Some(value))) = value {
-                MaybeUndef::Ok(*value as $return_type)
+                Some(*value as $return_type)
             } else {
-                MaybeUndef::Undef
+                None
             }
         }
     };
@@ -835,7 +829,7 @@ macro_rules! gen_map_integer_key_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             key: i64,
-        ) -> MaybeUndef<$return_type> {
+        ) -> Option<$return_type> {
             let map = lookup_common!(caller, type_value, {
                 type_value.as_map().unwrap()
             });
@@ -846,9 +840,9 @@ macro_rules! gen_map_integer_key_lookup_fn {
             };
 
             if let Some($type(Some(value))) = value {
-                MaybeUndef::Ok(*value as $return_type)
+                Some(*value as $return_type)
             } else {
-                MaybeUndef::Undef
+                None
             }
         }
     };
@@ -900,7 +894,7 @@ gen_map_integer_key_lookup_fn!(
 pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
-) -> MaybeUndef<RuntimeString> {
+) -> Option<RuntimeString> {
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
@@ -910,14 +904,14 @@ pub(crate) fn map_lookup_integer_string(
     };
 
     if let Some(value) = value {
-        MaybeUndef::Ok(RuntimeString::Owned(
+        Some(RuntimeString::Owned(
             caller
                 .data_mut()
                 .string_pool
                 .get_or_intern(value.as_bstr().unwrap()),
         ))
     } else {
-        MaybeUndef::Undef
+        None
     }
 }
 
@@ -925,7 +919,7 @@ pub(crate) fn map_lookup_integer_string(
 pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
-) -> MaybeUndef<RuntimeString> {
+) -> Option<RuntimeString> {
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
@@ -937,14 +931,14 @@ pub(crate) fn map_lookup_string_string(
     };
 
     if let Some(type_value) = type_value {
-        MaybeUndef::Ok(RuntimeString::Owned(
+        Some(RuntimeString::Owned(
             caller
                 .data_mut()
                 .string_pool
                 .get_or_intern(type_value.as_bstr().unwrap()),
         ))
     } else {
-        MaybeUndef::Undef
+        None
     }
 }
 
@@ -952,7 +946,7 @@ pub(crate) fn map_lookup_string_string(
 pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
-) -> MaybeUndef<()> {
+) -> Option<()> {
     let map = lookup_common!(caller, value, {
         match value {
             TypeValue::Map(map) => map.clone(),
@@ -968,12 +962,12 @@ pub(crate) fn map_lookup_integer_struct(
     if let Some(value) = value {
         if let TypeValue::Struct(s) = value {
             caller.data_mut().current_struct = Some(s.clone());
-            MaybeUndef::Ok(())
+            Some(())
         } else {
             unreachable!()
         }
     } else {
-        MaybeUndef::Undef
+        None
     }
 }
 
@@ -981,7 +975,7 @@ pub(crate) fn map_lookup_integer_struct(
 pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
-) -> MaybeUndef<()> {
+) -> Option<()> {
     let map = lookup_common!(caller, value, {
         match value {
             TypeValue::Map(map) => map.clone(),
@@ -999,12 +993,12 @@ pub(crate) fn map_lookup_string_struct(
     if let Some(value) = value {
         if let TypeValue::Struct(s) = value {
             caller.data_mut().current_struct = Some(s.clone());
-            MaybeUndef::Ok(())
+            Some(())
         } else {
             unreachable!()
         }
     } else {
-        MaybeUndef::Undef
+        None
     }
 }
 
@@ -1063,20 +1057,20 @@ macro_rules! gen_uint_fn {
         pub(crate) fn $name(
             caller: Caller<'_, ScanContext>,
             offset: i64,
-        ) -> MaybeUndef<i64> {
+        ) -> Option<i64> {
             if let Ok(offset) = usize::try_from(offset) {
                 caller
                     .data()
                     .scanned_data()
                     .get(offset..offset + mem::size_of::<$return_type>())
-                    .map_or(MaybeUndef::Undef, |bytes| {
+                    .map_or(None, |bytes| {
                         let value = <$return_type>::$from_fn(
                             bytes.try_into().unwrap(),
                         );
-                        MaybeUndef::Ok(value as i64)
+                        Some(value as i64)
                     })
             } else {
-                MaybeUndef::Undef
+                None
             }
         }
     };
@@ -1093,7 +1087,7 @@ gen_uint_fn!(uint64be, u64, from_be_bytes);
 
 #[cfg(test)]
 mod tests {
-    use crate::wasm::{MaybeUndef, ToWasm};
+    use crate::wasm::ToWasm;
 
     #[test]
     fn wasm_result_conversion() {
@@ -1105,31 +1099,31 @@ mod tests {
         assert_eq!(w.len(), 1);
         assert_eq!(w[0].get_i32(), 1);
 
-        let w = MaybeUndef::<i64>::Ok(2).to_wasm();
+        let w = Option::<i64>::Some(2).to_wasm();
         assert_eq!(w.len(), 2);
         assert_eq!(w[0].get_i64(), 2);
         assert_eq!(w[1].get_i32(), 0);
 
-        let w = MaybeUndef::<i64>::Undef.to_wasm();
+        let w = Option::<i64>::None.to_wasm();
         assert_eq!(w.len(), 2);
         assert_eq!(w[0].get_i64(), 0);
         assert_eq!(w[1].get_i32(), 1);
 
-        let w = MaybeUndef::<i32>::Ok(2).to_wasm();
+        let w = Option::<i32>::Some(2).to_wasm();
         assert_eq!(w.len(), 2);
         assert_eq!(w[0].get_i64(), 2);
         assert_eq!(w[1].get_i32(), 0);
 
-        let w = MaybeUndef::<i32>::Undef.to_wasm();
+        let w = Option::<i32>::None.to_wasm();
         assert_eq!(w.len(), 2);
         assert_eq!(w[0].get_i32(), 0);
         assert_eq!(w[1].get_i32(), 1);
 
-        let w = MaybeUndef::<()>::Ok(()).to_wasm();
+        let w = Option::<()>::Some(()).to_wasm();
         assert_eq!(w.len(), 1);
         assert_eq!(w[0].get_i32(), 0);
 
-        let w = MaybeUndef::<()>::Undef.to_wasm();
+        let w = Option::<()>::None.to_wasm();
         assert_eq!(w.len(), 1);
         assert_eq!(w[0].get_i32(), 1);
     }

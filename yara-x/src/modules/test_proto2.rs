@@ -26,8 +26,8 @@ pub(crate) fn nested_func(ctx: &mut ScanContext) -> bool {
 }
 
 #[module_export]
-pub(crate) fn undef_i64(_ctx: &mut ScanContext) -> MaybeUndef<i64> {
-    MaybeUndef::Undef
+pub(crate) fn undef_i64(_ctx: &mut ScanContext) -> Option<i64> {
+    None
 }
 
 #[module_main]

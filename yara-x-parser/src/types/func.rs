@@ -38,7 +38,7 @@ use crate::types::TypeValue;
 ///
 /// foo(i: i64) { .. }       ->  foo@i@
 /// bar() { .. }             ->  bar@@
-/// baz() -> MaybeUndef<()>  ->  baz@@u
+/// baz() -> Some<()>        ->  baz@@u
 ///
 pub struct MangledFnName(String);
 
