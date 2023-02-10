@@ -16,6 +16,8 @@ words
 * [Proto2 vs Proto3](#proto2-vs-proto3)
 * [Implementing the module's main function](#implementing-the-modules-main-function)
 * [Building your module](#building-your-module)
+* [Adding functions to your module](#adding-functions-to-your-module)
+* [String types in module functions](#string-types-in-module-functions)
 * [Adding dependencies](#adding-dependencies)
 
 ## Defining the module's structure
