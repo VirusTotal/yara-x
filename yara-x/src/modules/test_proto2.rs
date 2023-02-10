@@ -17,7 +17,7 @@ pub(crate) fn uppercase(
     ctx: &mut ScanContext,
     s: RuntimeString,
 ) -> RuntimeString {
-    RuntimeString::new_owned(ctx, s.as_bstr(ctx).to_uppercase())
+    RuntimeString::from_bytes(ctx, s.as_bstr(ctx).to_uppercase())
 }
 
 #[module_export(name = "nested.nested_func")]

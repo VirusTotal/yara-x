@@ -74,14 +74,6 @@ impl Default for RuntimeString {
 }
 
 impl RuntimeString {
-    /// Returns a copy of `s` as a [`RuntimeString::Owned`].
-    pub(crate) fn new_owned<S>(ctx: &mut ScanContext, s: S) -> Self
-    where
-        S: AsRef<[u8]>,
-    {
-        Self::Owned(ctx.string_pool.get_or_intern(s))
-    }
-
     /// Creates a [`RuntimeString`] from a reference to a byte slice.
     ///
     /// If the original slice is contained withing the scanned data, this
@@ -104,35 +96,35 @@ impl RuntimeString {
         let s_end = s_start + s.len();
 
         if s_start >= data_start && s_end <= data_end {
-            RuntimeString::ScannedDataSlice {
+            Self::ScannedDataSlice {
                 offset: s_start - data_start,
                 length: s.len(),
             }
         } else {
-            RuntimeString::new_owned(ctx, s)
+            Self::Owned(ctx.string_pool.get_or_intern(s))
         }
     }
 
     /// Returns this string as a &[`BStr`].
     pub(crate) fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
         match self {
-            RuntimeString::Literal(id) => {
+            Self::Literal(id) => {
                 ctx.compiled_rules.lit_pool().get(*id).unwrap()
             }
-            RuntimeString::ScannedDataSlice { offset, length } => {
+            Self::ScannedDataSlice { offset, length } => {
                 let data = ctx.scanned_data();
                 BStr::new(&data[*offset..*offset + *length])
             }
-            RuntimeString::Owned(id) => ctx.string_pool.get(*id).unwrap(),
+            Self::Owned(id) => ctx.string_pool.get(*id).unwrap(),
         }
     }
 
     /// Returns this string as a primitive type suitable to be passed to WASM.
     pub(crate) fn as_wasm(&self) -> RuntimeStringWasm {
         match self {
-            RuntimeString::Literal(id) => i64::from(*id) << 2,
-            RuntimeString::Owned(id) => (*id as i64) << 2 | 1,
-            RuntimeString::ScannedDataSlice { offset, length } => {
+            Self::Literal(id) => i64::from(*id) << 2,
+            Self::Owned(id) => (*id as i64) << 2 | 1,
+            Self::ScannedDataSlice { offset, length } => {
                 if *length >= u16::MAX as usize {
                     panic!(
                         "runtime-string slices can't be larger than {}",
