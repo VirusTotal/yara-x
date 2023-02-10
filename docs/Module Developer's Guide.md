@@ -8,16 +8,15 @@ parse a file format and expose to YARA any information extracted from the
 file that may be useful while creating YARA rules.
 
 This document will guide you through the process of creating a YARA module. 
-For illustrative purposes we are going to create a `csv` module that parses
-[Comma-Separated Values](https://en.wikipedia.org/wiki/Comma-separated_values) 
-(CSV) files.
-
+For illustrative purposes we are going to create a `text` module that allows
+creating YARA rules for plain-text files, based on the number of lines and
+words
 
 * [Defining the module's structure](#defining-the-modules-structure)
 * [Proto2 vs Proto3](#proto2-vs-proto3)
-* [Defining the module's main function](#defining-the-modules-main-function)
+* [Implementing the module's main function](#implementing-the-modules-main-function)
 * [Building your module](#building-your-module)
-
+* [Adding dependencies](#adding-dependencies)
 
 ## Defining the module's structure
 
@@ -31,8 +30,8 @@ with protobufs we recommend you to start by exploring its documentation and
 getting used to its syntax. You don't need to become an expert in protobufs for
 being able to define a YARA module, but some familiarity will certainly help.
 
-Let's start defining the structure for our `csv` module. For that, you must 
-create a `csv.proto` file and put it into the `yara-x/src/modules/protos`
+Let's start defining the structure for our `text` module. For that, you must 
+create a `text.proto` file and put it into the `yara-x/src/modules/protos`
 directory. As a starting point we can use the following file:
 
 ```protobuf
@@ -41,19 +40,19 @@ syntax = "proto2";
 import "YARA.proto";
 
 option (YARA.module_options) = {
-  name : "csv"
-  root_message: "CSV"
-  rust_module: "csv"
+  name : "text"
+  root_message: "Text"
+  rust_module: "text"
 };
 
-message CSV {
-  optional int64 num_rows = 1;
-  optional int64 num_cols = 2;
+message Text {
+  optional int64 num_lines = 1;
+  optional int64 num_words = 2;
 }
 ```
 
-This is a very simple module that exposes only two fields: `num_rows` and 
-`num_cols`. Let's dissect the content of `csv.proto` line by line:
+This is a very simple module that exposes only two fields: `num_lines` and 
+`num_words`. Let's dissect the content of `text.proto` line by line:
 
 ```protobuf
 syntax = "proto2";
@@ -86,9 +85,9 @@ Let's start with the interesting part:
 
 ```protobuf
 option (yara.module_options) = {
-  name : "csv"
-  root_message: "CSV"
-  rust_module: "csv"
+  name : "text"
+  root_message: "Text"
+  rust_module: "text"
 };
 ```
 
@@ -102,17 +101,17 @@ section will define a module.
 Options `name` and `root_message` are required, while `rust_module` is optional.
 The `name` option defines the module's name. This is the name that will be used
 for importing the module in a YARA rule, in this case our module will be imported
-with `import "csv"`. The `root_message` option indicates which is the module's 
+with `import "text"`. The `root_message` option indicates which is the module's 
 root structure, it must contain the name of some structure (a.k.a message) defined 
-in the `.proto` file. In our case the value for `root_message` is `"CSV"` because
-we have defined our module's structure in a message named `CSV`. This is required
+in the `.proto` file. In our case the value for `root_message` is `"Text"` because
+we have defined our module's structure in a message named `Text`. This is required
 because your `.proto` file can define multiple messages, and YARA needs to know
 which of them considered the root message for the module.
 
 And here is our root structure/message:
 
 ```protobuf
-message CSV {
+message Text {
   optional int64 num_rows = 1;
   optional int64 num_cols = 2;
 }
@@ -134,11 +133,11 @@ With this we have defined a very simple module that could be used in a YARA
 rule like this:
 
 ```yara
-import "csv"
+import "text"
 
-rule csv_with_two_columns_and_many_rows {
+rule text_with_100_words {
     condition:
-        csv.num_cols == 2 and csv.num_rows > 100
+        text.num_words == 100
 }
 ```
 
@@ -195,7 +194,7 @@ The bottom line is that with `proto3` you won't be able to have fields with
 is very useful in such cases, as you don't need to explicitly initialize all
 the fields in your structure.
 
-## Defining the module's main function
+## Implementing the module's main function
 
 Once you have a `.proto` file that describes the structure of your module you
 need write the logic that parses every scanned file and fills the module's
@@ -204,32 +203,32 @@ a function that will act as the entry point for your module.
 
 This is where the `rust_module` option described in the previous section enters 
 into play. This option is the name of the Rust module that contains the code 
-for your module. In our `csv.proto` file we have `rust_module: "csv"`, which 
-means that our Rust module must be named `csv`.
+for your module. In our `text.proto` file we have `rust_module: "text"`, which 
+means that our Rust module must be named `text`.
 
-There are two options for creating our `csv` module:
+There are two options for creating our `text` module:
 
-* Creating a `csv.rs` file in `yara-x/src/modules`.
-* Creating a directory `yara-x/src/modules/csv` containing a`mod.rs` file.
+* Creating a `text.rs` file in `yara-x/src/modules`.
+* Creating a directory `yara-x/src/modules/text` containing a`mod.rs` file.
 
 For simple modules that can be contained in a single `.rs` file the first 
 approach is enough. For more complex modules with multiple source files the 
 second approach is the recommended one.
 
-So, let's create our `yara-x/src/modules/csv.rs` file:
+So, let's create our `yara-x/src/modules/text.rs` file:
 
 ```rust
 use crate::modules::prelude::*;
-use crate::modules::protos::csv::*;
+use crate::modules::protos::text::*;
 
 #[module_main]
-fn main(ctx: &ScanContext) -> CSV {
-    let mut csv_proto = CSV::new();
+fn main(ctx: &ScanContext) -> Text {
+    let mut text_proto = Text::new();
     let data = ctx.scanned_data();
 
-    // TODO: parse the scanned data and populate csv_proto.
+    // TODO: parse the data and populate text_proto.
 
-    csv_proto
+    text_proto
 }
 ```
 
@@ -245,12 +244,12 @@ by a YARA module. All your modules must start by importing the module's
 prelude, otherwise compilation will fail.
 
 ```rust
-use crate::modules::protos::csv::*;
+use crate::modules::protos::text::*;
 ```
 
 Here we are importing all the Rust types automatically generated from our
-`csv.proto` file. This includes the `CSV` structure, which represents the `CSV` 
-message declared in the proto file. 
+`text.proto` file. This includes the `Text` structure, which represents the 
+`Text` message declared in the proto file. 
 
 ---
 
@@ -263,40 +262,82 @@ Next comes the module's main function:
 
 ```rust
 #[module_main]
-fn main(ctx: &ScanContext) -> CSV { 
+fn main(ctx: &ScanContext) -> Text { 
     ...
 }
 ```
 
 The module's main function is called for every file scanned by YARA. This 
 function receives a reference to a `ScanContext` structure that gives you access
-to the scanned data, as we will show later. It must return the `CSV` structure 
-that was generated from the `csv.proto` file. The main function must have the 
-`#[module_main]` attribute. Notice that the module's main function doesn't need 
-to be called `main`, it can have any arbitrary name, as long as it has the 
-`#[module_main]` attribute. Of course, this attribute can't be used with more 
-than one function per module.
+to the scanned data. It must return the `Text` structure that was generated from
+the `text.proto` file. The main function must have the `#[module_main]` attribute.
+Notice that the module's main function doesn't need to be called `main`, it can 
+have any arbitrary name, as long as it has the `#[module_main]` attribute. Of 
+course, this attribute can't be used with more than one function per module.
 
 The main function usually consists in creating an instance of the protobuf 
-returned by the module, and then populate and return that proto.
+you previously defined, and populating the protobuf with information extracted from
+the scanned file. Let's finish the implementation of the main function for our
+`text` module.
 
-After defining the module's structure, and providing the main function for our
-module, we are ready to build the module into YARA.
+```rust 
+use crate::modules::prelude::*;
+use crate::modules::protos::text::*;
+
+use std::io;
+use std::io::BufRead;
+
+#[module_main]
+fn main(ctx: &ScanContext) -> Text {
+    // Create an empty instance of the Text protobuf.
+    let mut text_proto = Text::new();
+
+    // Get a &[u8] slice with the content of the file being scanned.
+    let data = ctx.scanned_data();
+
+    let mut num_lines = 0;
+    let mut num_words = 0;
+
+    // Create cursor for iterating over the lines.
+    let cursor = io::Cursor::new(data);
+
+    // Count the lines and words in the file.
+    for line in cursor.lines() {
+        match line {
+            Ok(line) => {
+                num_words += line.split_whitespace().count();
+                num_lines += 1;
+            }
+            Err(_) => return text_proto,
+        }
+    }
+    
+    // Set the value for fields `num_lines` and `num_words` in the protobuf.
+    text_proto.set_num_lines(num_lines as i64);
+    text_proto.set_num_words(num_words as i64);
+
+    // Return the Text proto after filling the relevant fields.
+    text_proto
+}
+```
+
+That's all you need for having a fully functional YARA module. Now, let's build
+it!
 
 ## Building your module
 
-After creating the files `yara-x/src/modules/protos/csv.proto` and 
-`yara-x/src/modules/csv.rs` we are almost ready for building the module into 
+After creating the files `yara-x/src/modules/protos/text.proto` and 
+`yara-x/src/modules/text.rs` we are almost ready for building the module into 
 YARA. But there are few more pending steps.
 
 Ths first thing that you must know is that your module is behind a `cargo` feature
 flag. The module won't be built into YARA unless you tell `cargo` to do so. The 
-name of the feature controlling your module is `csv-module`, and this feature 
+name of the feature controlling your module is `text-module`, and this feature 
 must be added to the `[features]` section in the `yara-x/Cargo.toml` file.
 
-```
+```toml
 [features]
-csv-module = []  # Add this line to yara-x/Cargo.toml
+text-module = []  # Add this line to yara-x/Cargo.toml
 ```
 
 Additionally, if you want your module to be included by default in YARA, add
@@ -304,16 +345,16 @@ the feature name to the `default` list in the `[features]` section of
 `yara-x/Cargo.toml`:
 
 
-```
+```toml
 [features]
-csv-module = []
+text-module = []
 
 # Features that are enabled by default.
 default = [
     "compile-time-optimization",
     "test_proto2-module",
     "test_proto3-module",
-    "csv-module"             # The csv module will be included by default
+    "text-module"             # The text module will be included by default
 ]
 ```
 
@@ -321,7 +362,7 @@ If the module's feature flag is not added to the `default` list, you must
 explicitly tell `cargo` that you want to build YARA with your module:
 
 ```shell
-cargo build --features=csv-module
+cargo build --features=text-module
 ```
 
 ---
@@ -330,4 +371,238 @@ cargo build --features=csv-module
 module's name is `foobar`, the feature flag is `foobar-module`.
 
 ---
+
+Congratulations! Now your `text` module can be used!
+
+## Adding functions to your module
+
+YARA modules not only expose structured data that can be used in rules. They
+also allow to expose functions that can be called from YARA rules. Suppose that
+you want to add a function to the `text` module that returns the N-th line in
+the file.
+
+Let's add a function called `get_line` to the `yara-x/src/modules/text.rs`
+file. This function receives the line number and returns a string with the
+corresponding line. Let's take a look at the implementation:
+
+```rust
+#[module_export]
+fn get_line(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
+    let cursor = io::Cursor::new(ctx.scanned_data());
+
+    if let Some(Ok(line)) = cursor.lines().nth(5) {
+        Some(RuntimeString::from_bytes(ctx, line))
+    } else {
+        None
+    }
+}
+```
+
+The first thing you may have noticed is that the function has the 
+`#[module_export]` attribute. This is how you indicate that your module exports
+that function to YARA rules. The function will appear as a field of the `text` 
+module, and will have the same name as in the Rust code, so you can call it 
+from a YARA rule like `text.get_line(0)`.
+
+The second important thing is that the function's first argument must be either 
+`&mut ScanContext` or `&ScanContext`. Of course this first argument won't be 
+part of the function's signature from the YARA rule standpoint. Any other 
+argument that you add to the function will be part of its signature when invoked
+from YARA. In our example, the `n: i64` argument is where we pass the line 
+number to the function.
+
+As types in YARA are limited to integers, floats, booleans and strings, the 
+types that you can use for function arguments or return types is limited to 
+a handful of Rust types. The following tables summarizes the accepted argument
+and return types:
+
+###### Valid function arguments
+
+| Rust type       | YARA type | 
+|-----------------|-----------|
+| `i32`           | integer   |
+| `i64`           | integer   |
+| `f32`           | float     |
+| `f64`           | float     |
+| `bool`          | bool      | 
+| `RuntimeString` | string    |
+
+
+###### Valid return types
+
+| Rust type               | YARA type                     | 
+|-------------------------|-------------------------------|
+| `i32`                   | integer                       |
+| `i64`                   | integer                       |
+| `f32`                   | float                         |
+| `f64`                   | float                         |
+| `bool`                  | bool                          | 
+| `RuntimeString`         | string                        |
+| `Option<i32>`           | integer / undefined if `None` |
+| `Option<i64>`           | integer / undefined if `None` |
+| `Option<f32>`           | float / undefined if `None`   |
+| `Option<f64>`           | float  / undefined if `None`  |
+| `Option<bool>`          | bool  / undefined if `None`   |  
+| `Option<RuntimeString>` | string / undefined if `None`  |
+
+
+One noticeable difference between arguments and return types is that in return
+types you can use `Option<T>`, where `T` is one of the acceptable Rust types. 
+When a function returns `None`, that's translated to `undefined` in the YARA's
+world.
+           
+Also notice that string types are always passed around in the form of a
+`RuntimeString` instance, which represents an arbitrary sequence of bytes. The 
+standard Rust types (`String`, `&str`, `&[u8]`, etc) are not allowed. In the 
+next section were going to discuss more about how to receive and return strings
+in module functions.
+
+## String types in module functions
+
+When you want to receive an argument or return a value of type string you must
+use the `RuntimeString` type. This type is an enum with three variants:
+
+* `RuntimeString::Literal`
+* `RuntimeString::ScannedDataSlice`
+* `RuntimeString::Owned`
+
+
+`RuntimeString::Literal` is used when the string is a literal in the YARA rule.
+For example, if your rule uses the expression `my_module.my_func("foo")`, `"foo"`
+is a literal and the function `my_func` will receive a `RuntimeString::Literal`
+argument. Instances of `RuntimeString::Literal` are normally created by YARA and
+passed as arguments to functions. Functions won't return instances of 
+`RuntimeString::Literal` created by themselves.
+
+`RuntimeString::ScannedDataSlice` represents a string that is a slice of the
+scanned data. This variant is useful when you want to return some string that
+is part of the scanned  data, without having to make a copy of it. Internally,
+this variant simply contains the offset within the data where the string starts
+and its length, so it's a very similar to Rust slices.
+
+`RuntimeString::Owned` is a string owned by the function. This is the variant
+used when the string you are returning from your function is not part of the
+scanned data, and therefore needs to reside in its own memory.
+
+Regardless of the variant, `RuntimeString` has a `as_bstr` method that allows 
+you to obtain a reference to the actual string. This method receives a `&ScanContext`
+and returns a `&BStr`. The `&BStr` type is equivalent to `&str`, but it doesn't 
+require that the string must be a valid UTF-8, as `&str` does. Aside from that,
+`&BStr` behaves almost exactly to `&str` and has the same methods. You can find 
+more information in the documentation for the [bstr](https://docs.rs/bstr/latest/bstr/) 
+crate.
+
+For creating an instance of `RuntimeString` you must use the associated function
+`RuntimeString::from_bytes`. This function accepts any type implementing the 
+trait `AsRef<[u8]>`, so you can pass either a `&str`, `&[u8]` or `String` to it.
+The `from_bytes` function is smart enough to figure out which variant of
+`RuntimeString` is the most appropriate, depending on what you passed to it. If
+a slice (e.g: `&str`, `&[u8]`) that lies within the boundaries of the scanned
+data, it will return the `RuntimeString::ScannedDataSlice` variant. In all other
+cases it will return the`RuntimeString::Owned` variant.
+
+```rust
+/// A function that always returns the string "foo".
+#[module_export]
+fn foo(ctx: &mut ScanContext) -> RuntimeString {
+    RuntimeString::from_bytes(ctx, "foo")
+}
+```
+
+```rust
+/// A function that receives a string and returns it in uppercase.
+#[module_export]
+fn uppercase(ctx: &mut ScanContext, s: RuntimeString) -> RuntimeString {
+    // Obtain a &BStr pointing to the actual string content. 
+    let s = s.as_bstr(ctx);
+    // &BStr has the same methods than &str, including to_uppercase. 
+    let s = s.to_uppercase();
+    // Returns RuntimeString::Owned with the new string.
+    RuntimeString::from_bytes(ctx, s)
+}
+```
+
+```rust
+/// A function that returns a string with the first n bytes of the scanned data.
+/// 
+/// If the data is smaller than n bytes the result will be `None`, which is
+/// treated in YARA as `undefined`.
+#[module_export]
+fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
+    // Get the first n bytes, or return None.
+    let head = ctx.scanned_data().get(0..n as usize)?;
+    // Returns RuntimeString::ScannedDataSlice, as the `head` slice is contained
+    // within the scanned data.
+    Some(RuntimeString::from_bytes(ctx, head))
+}
+```
+
+## Adding dependencies
+
+Most of the time your module is going to depend on external crates. Let's say
+we want to add a new feature to our `text` module that detects the language in
+which the text is written. For that, we are going to rely on the existing crate
+[lingua](https://docs.rs/lingua/1.4.0/lingua/).
+
+The first step is adding the `lingua` to the `[dependencies]` section in 
+`yara-x/Cargo.toml`, as any other dependency for the project. For example:
+
+```toml
+[dependencies]
+lingua = { version = "1.4.0", optional = true }
+```
+
+Notice the use `optional = true` for preventing this crate from being compiled
+by default. We want to build the `lingua` crate only when the `text-module` 
+feature flag is set. This done by adding `"dep:lingua"` to the feature as 
+shown below.
+
+```toml
+[features]
+text-module = ["dep:lingua"]
+```
+
+Now we can use the `lingua` crate in our `text` module, so let's add a function
+for detecting the language:
+
+```rust
+use lingua::Language::{English, French, German, Spanish};
+use lingua::LanguageDetectorBuilder;
+
+#[module_export]
+fn language(ctx: &ScanContext) -> Option<i64> {
+    let data = ctx.scanned_data();
+    // Use `as_bstr()` for getting the scanned data as a `&BStr` instead of a
+    // a `&[u8]`. Then call `to_str` for converting the `&BStr` to `&str`. This
+    // operation can fail if the context is not valid UTF-8, in that case
+    // returns `None`, which is interpreted as `undefined` in YARA.
+    let text = data.as_bstr().to_str().ok()?;
+
+    // Configure the languages that we want to detect.
+    let detector = LanguageDetectorBuilder::from_languages(&[
+        English, French, German, Spanish,
+    ])
+    .build();
+
+    // Detect the language. Returns `None` if the language cannot be reliably
+    // detected.
+    let language = detector.detect_language_of(text)?;
+
+    /// language is an enum that has only unit variants, it can be casted to
+    /// `i64` for getting the numeric value.
+    Some(language as i64)
+}
+```
+
+The code above has a problem, though. We are returning an `i64` where each 
+value represents a language, but writing YARA conditions like 
+`text.language() == 3` is not very readable. Which is language 3? This is 
+where enums come into play.
+
+## Using enums and constants
+
+TODO
+
+
+
 
