@@ -391,7 +391,7 @@ pub(crate) struct ScanContext<'r> {
 
 impl ScanContext<'_> {
     /// An slice with the data being scanned.
-    pub(crate) fn scanned_data(&self) -> &[u8] {
+    pub(crate) fn scanned_data<'a>(&self) -> &'a [u8] {
         unsafe {
             std::slice::from_raw_parts::<u8>(
                 self.scanned_data,
