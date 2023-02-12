@@ -1,20 +1,22 @@
+mod parallel;
+
 use std::fs;
-use std::fs::{metadata, File};
+use std::fs::File;
 use std::io::{stdin, stdout};
+use std::num::NonZeroU8;
 use std::path::PathBuf;
 
-use ansi_term::Color::{Blue, Red};
+use ansi_term::Color::{Green, Red, Yellow};
 use anyhow::Context;
 use clap::{
     arg, command, crate_authors, value_parser, ArgAction, ArgMatches, Command,
 };
-use globset::GlobBuilder;
+
+use parallel::for_each_file;
 use yara_x::Compiler;
 use yara_x::Scanner;
 use yara_x_fmt::Formatter;
 use yara_x_parser::{Parser, SourceCode};
-
-mod check;
 
 const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
 {author-with-newline}
@@ -28,16 +30,20 @@ const CHECK_LONG_HELP: &str = r#"Check if YARA source files are syntactically co
 
 If <PATH> is a directory, all files with extensions `yar` and `yara` will be
 checked. The `--filter` option allows changing this behavior.
+"#;
 
+const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
+
+Controls how many threads are usef for the operation. The default value depends 
+on the number of CPUs.
 "#;
 
 const DEPTH_LONG_HELP: &str = r#"Walk directories recursively up to a given depth
 
 Controls how many levels to go down in the directory tree while looking for
-files. This only applies when <PATH> is a directory. The default value is 1,
+files. This only applies when <PATH> is a directory. The default value is 0,
 which means that only the files in the specified directory will be checked,
 without entering in subdirectories.
-
 "#;
 
 const FILTER_LONG_HELP: &str = r#"Check files that match the given pattern only
@@ -56,12 +62,11 @@ Patterns can contains the following wilcards:
 [!...] is the negation of [...]
 
 This option can be used more than once with different patterns. In such cases
-files matching any one of patterns will be checked.
+files matching any of the patterns will be checked.
 
 The absense of this options is equivalent to using this:
 
 --filter='**/*.yara' --filter='**/*.yar'
-
 "#;
 
 fn command(name: &'static str) -> Command {
@@ -126,13 +131,22 @@ fn main() -> anyhow::Result<()> {
                         .value_parser(value_parser!(PathBuf)),
                 )
                 .arg(
+                    arg!(-p --"threads" <NUM_THREADS>)
+                        .help(
+                            "Use the given number of threads",
+                        )
+                        .long_help(THREADS_LONG_HELP)
+                        .required(false)
+                        .value_parser(value_parser!(u8).range(1..)),
+                )
+                .arg(
                     arg!(-d --"max-depth" <DEPTH>)
                         .help(
                             "Walk directories recursively up to a given depth",
                         )
                         .long_help(DEPTH_LONG_HELP)
                         .required(false)
-                        .value_parser(value_parser!(u16).range(1..)),
+                        .value_parser(value_parser!(u16)),
                 )
                 .arg(
                     arg!(-f --filter <PATTERN>)
@@ -188,7 +202,9 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     let mut scanner = Scanner::new(&rules);
 
-    scanner.scan_file(file_path)?;
+    let scan_results = scanner.scan_file(file_path)?;
+
+    for matching_rule in scan_results.iter() {}
 
     Ok(())
 }
@@ -232,55 +248,46 @@ fn cmd_wasm(args: &ArgMatches) -> anyhow::Result<()> {
 
 fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
     let path = args.get_one::<PathBuf>("PATH").unwrap();
-    let max_depth = args.get_one::<u16>("max-depth").unwrap_or(&1);
+    let max_depth = args.get_one::<u16>("max-depth").map(|n| *n as usize);
+    let filters = args.get_many::<String>("filter");
+    let num_threads =
+        args.get_one::<u8>("threads").map(|n| NonZeroU8::new(*n).unwrap());
 
-    let metadata = metadata(path)
-        .with_context(|| format!("can not read `{}`", path.display()))?;
+    for_each_file(path, num_threads, max_depth, filters, |file_path| {
+        let src = fs::read(file_path.clone()).with_context(|| {
+            format!("can not read `{}`", file_path.display())
+        })?;
 
-    let result = if metadata.is_dir() {
-        let mut patterns = Vec::new();
-        if let Some(filters) = args.get_many::<String>("filter") {
-            for f in filters {
-                patterns.push(
-                    GlobBuilder::new(f)
-                        .literal_separator(true)
-                        .build()?
-                        .compile_matcher(),
-                )
+        let src = SourceCode::from(src.as_slice())
+            .origin(file_path.as_os_str().to_str().unwrap());
+
+        match Parser::new().colorize_errors(true).build_ast(src) {
+            Ok(ast) => {
+                if ast.warnings.is_empty() {
+                    println!(
+                        "[{}] {}",
+                        Green.paint("PASS"),
+                        file_path.display()
+                    );
+                } else {
+                    println!(
+                        "[{}] {}\n",
+                        Yellow.paint("WARN"),
+                        file_path.display()
+                    );
+                    for warning in ast.warnings {
+                        println!("{}\n", warning);
+                    }
+                }
             }
-        } else {
-            patterns.push(
-                GlobBuilder::new("**/*.yar")
-                    .literal_separator(true)
-                    .build()
-                    .unwrap()
-                    .compile_matcher(),
-            );
-            patterns.push(
-                GlobBuilder::new("**/*.yara")
-                    .literal_separator(true)
-                    .build()
-                    .unwrap()
-                    .compile_matcher(),
-            );
-        }
+            Err(err) => {
+                println!("[{}] {}\n", Red.paint("ERROR"), file_path.display());
+                println!("{}", err);
+            }
+        };
 
-        check::check_dir(path, *max_depth, Some(&patterns))
-    } else {
-        check::check_file(path, None)
-    };
-
-    if let Err(err) = result {
-        println!(
-            "\n{}: {:?}\n {} {}",
-            Red.paint("error"),
-            err,
-            Blue.paint("-->"),
-            path.display(),
-        );
-    }
-
-    Ok(())
+        Ok(())
+    })
 }
 
 fn cmd_format(args: &ArgMatches) -> anyhow::Result<()> {

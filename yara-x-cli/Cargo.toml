@@ -29,5 +29,6 @@ yara-x = { workspace = true }
 yara-x-parser = { workspace = true, features = ["ascii-tree"] }
 yara-x-fmt = { workspace = true }
 
+crossbeam = "0.8.2"
 pprof = { version = "0.11", features = ["flamegraph"], optional=true }
 walkdir = "2.3.2"
