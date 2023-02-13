@@ -16,7 +16,7 @@ homepage.workspace = true
 # that actually computes the expression.
 compile-time-optimization = []
 
-# Features for enabling/disabling test modules.
+# Features for enabling/disabling modules.
 test_proto2-module = []
 test_proto3-module = []
 
@@ -34,13 +34,13 @@ ariadne = { workspace = true }
 ascii_tree = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
-bstr = { workspace = true  }
+bstr = { workspace = true }
+fmmap = { workspace = true }
 globset = { workspace = true }
 intaglio = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }
-memmap = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }

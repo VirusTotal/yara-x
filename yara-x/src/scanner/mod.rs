@@ -14,7 +14,7 @@ use crate::compiler::{Rule, RuleId, Rules};
 use crate::string_pool::BStringPool;
 use crate::{modules, wasm};
 use bitvec::prelude::*;
-use memmap::MmapOptions;
+use fmmap::{MmapFile, MmapFileExt};
 
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 
@@ -146,9 +146,8 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        let file = File::open(path)?;
-        let mmap = unsafe { MmapOptions::new().map(&file)? };
-        Ok(self.scan(&mmap[..]))
+        let mut file = MmapFile::open(path).unwrap();
+        Ok(self.scan(file.as_slice()))
     }
 
     /// Scans in-memory data.
