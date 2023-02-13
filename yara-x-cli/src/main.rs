@@ -85,6 +85,12 @@ fn main() -> anyhow::Result<()> {
         println!("could not enable ANSI support: {}", err)
     }
 
+    let num_threads_arg = arg!(-p --"threads" <NUM_THREADS>)
+        .help("Use the given number of threads")
+        .long_help(THREADS_LONG_HELP)
+        .required(false)
+        .value_parser(value_parser!(u8).range(1..));
+
     let args = command!()
         .author(crate_authors!("\n")) // requires `cargo` feature
         .arg_required_else_help(true)
@@ -98,11 +104,13 @@ fn main() -> anyhow::Result<()> {
                     arg!(<RULES_FILE>)
                         .help("Path to YARA source file")
                         .value_parser(value_parser!(PathBuf)),
-                ).arg(
-                arg!(<PATH>)
-                    .help("Path to the file or directory that will be scanned")
-                    .value_parser(value_parser!(PathBuf))
-            ),
+                )
+                .arg(
+                    arg!(<PATH>)
+                        .help("Path to the file or directory that will be scanned")
+                        .value_parser(value_parser!(PathBuf))
+                )
+                .arg(&num_threads_arg),
             command("ast")
                 .about(
                     "Print Abstract Syntax Tree (AST) for a YARA source file",
@@ -129,15 +137,6 @@ fn main() -> anyhow::Result<()> {
                         .value_parser(value_parser!(PathBuf)),
                 )
                 .arg(
-                    arg!(-p --"threads" <NUM_THREADS>)
-                        .help(
-                            "Use the given number of threads",
-                        )
-                        .long_help(THREADS_LONG_HELP)
-                        .required(false)
-                        .value_parser(value_parser!(u8).range(1..)),
-                )
-                .arg(
                     arg!(-d --"max-depth" <DEPTH>)
                         .help(
                             "Walk directories recursively up to a given depth",
@@ -152,7 +151,8 @@ fn main() -> anyhow::Result<()> {
                         .long_help(FILTER_LONG_HELP)
                         .required(false)
                         .action(ArgAction::Append)
-                ),
+                )
+                .arg(&num_threads_arg),
             command("fmt").about("Format YARA source files").arg(
                 arg!([FILE])
                     .help("Path to YARA source files")
@@ -188,6 +188,7 @@ fn main() -> anyhow::Result<()> {
 fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_FILE").unwrap();
     let path = args.get_one::<PathBuf>("PATH").unwrap();
+    let num_threads = args.get_one::<u8>("threads");
 
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
@@ -200,7 +201,13 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     let r = &rules;
 
-    walk::ParallelWalk::new(path).run(
+    let mut walker = walk::ParallelWalk::new(path);
+
+    if let Some(num_threads) = num_threads {
+        walker = walker.num_threads(*num_threads);
+    }
+
+    walker.run(
         // The initialization function creates a scanner for each thread.
         || Scanner::new(r),
         |scanner, file_path| {
