@@ -2,6 +2,9 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
+#[cfg(test)]
+use bstr::{BStr, ByteSlice};
+
 use yara_x_parser::types::{Func, Struct, TypeValue};
 
 use crate::compiler::{RuleId, Var};
@@ -44,6 +47,24 @@ impl Symbol {
     #[inline(always)]
     pub fn type_value(&self) -> &TypeValue {
         &self.type_value
+    }
+
+    #[cfg(test)]
+    fn as_integer(&self) -> Option<i64> {
+        if let TypeValue::Integer(value) = self.type_value {
+            value
+        } else {
+            None
+        }
+    }
+
+    #[cfg(test)]
+    fn as_bstr(&self) -> Option<&BStr> {
+        if let TypeValue::String(Some(s)) = &self.type_value {
+            Some(s.as_bstr())
+        } else {
+            None
+        }
     }
 }
 
@@ -231,11 +252,22 @@ mod tests {
             true,
         );
 
-        assert_eq!(test.lookup("int32_zero").unwrap().ty(), Type::Integer);
-        assert_eq!(test.lookup("string_foo").unwrap().ty(), Type::String);
+        assert_eq!(
+            test.lookup("int32_zero").unwrap().type_value.ty(),
+            Type::Integer
+        );
 
         assert_eq!(
-            test.lookup("nested").lookup("nested_int32_zero").unwrap().ty(),
+            test.lookup("string_foo").unwrap().type_value.ty(),
+            Type::String
+        );
+
+        assert_eq!(
+            test.lookup("nested")
+                .lookup("nested_int32_zero")
+                .unwrap()
+                .type_value
+                .ty(),
             Type::Integer
         );
 
