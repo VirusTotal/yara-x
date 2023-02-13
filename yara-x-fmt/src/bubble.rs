@@ -80,7 +80,7 @@ Begin(pattern_def),
 Identifier("$b"),
 ... more tokens
 
-The [`crate::tokens::bubble::Bubble`] processor fixes this issue by moving the
+The [`crate::bubble::Bubble`] processor fixes this issue by moving the
 End(..) tokens to the left while displacing newlines to the right.
 */
 

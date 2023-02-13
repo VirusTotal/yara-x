@@ -469,7 +469,7 @@ pub(super) fn semcheck_expr(
         Expr::EndsWith(expr) => semcheck_string_endswith(ctx, expr, false),
         Expr::IEndsWith(expr) => semcheck_string_endswith(ctx, expr, true),
         Expr::IEquals(expr) => semcheck_string_equals(ctx, expr, true),
-        Expr::Matches(expr) => todo!(),
+        Expr::Matches(_expr) => todo!(),
 
         Expr::Lookup(expr) => {
             semcheck_expr(ctx, &mut expr.primary)?;

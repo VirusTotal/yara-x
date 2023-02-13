@@ -1,5 +1,4 @@
 use bstr::{BStr, ByteSlice};
-use std::iter::Scan;
 
 use crate::{LiteralId, RuntimeStringId, ScanContext};
 

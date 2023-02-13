@@ -156,7 +156,7 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 /// The `module_main` macro is used for indicating which is the main function
 /// in a YARA module.
 ///
-/// The main function in a YARA module must receive a reference to [`ScanContext`]
+/// The main function in a YARA module must receive a reference to `ScanContext`]
 /// and must return the protobuf structure that corresponds to the module. The
 /// function can have any name, as long as it is marked with `#[module_main]`, but
 /// it's a good practice to name it `main`.
@@ -184,7 +184,7 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// The function's first argument must be of type [`wasmtime::Caller`], which
 /// contains information about the context in which the function is called,
-/// including a reference to the [`yara_x::scanner::ScanContext`] corresponding
+/// including a reference to the `yara_x::scanner::ScanContext` corresponding
 /// to the current scan.
 ///
 /// The rest of the arguments, if any, must be of any of the following types:
@@ -251,7 +251,7 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 /// it's callable from YARA rules.
 ///
 /// The function's first argument must be of a mutable or immutable reference
-/// to [`ScanContext`]. The rest of the arguments, if any, can be of any of
+/// to `ScanContext`. The rest of the arguments, if any, can be of any of
 /// the following types:
 ///
 /// - `i32`

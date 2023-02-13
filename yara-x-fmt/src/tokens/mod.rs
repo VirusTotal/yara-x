@@ -190,7 +190,9 @@ pub(crate) enum Token<'a> {
     //     XX XX XX ... XX XX XX
     //  }
     //
+    #[allow(dead_code)] // TODO: remove when BlockBegin is used
     BlockBegin,
+    #[allow(dead_code)] // TODO: remove when BlockEnd is used
     BlockEnd,
 
     // AlignmentBlockBegin/AlignmentBlockEnd indicates the starting/ending

@@ -664,6 +664,7 @@ pub struct Rules {
     lit_pool: BStringPool<LiteralId>,
 
     /// WebAssembly module containing the code for all rule conditions.
+    #[allow(dead_code)] // TODO: remove when wasm_mod is used
     wasm_mod: Module,
 
     /// WebAssembly module already compiled into native code for the current

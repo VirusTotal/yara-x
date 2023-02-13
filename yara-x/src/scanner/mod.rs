@@ -15,10 +15,10 @@ use wasmtime::{
 
 use yara_x_parser::types::{Struct, TypeValue};
 
-use crate::compiler::{Rule, RuleId, RuleInfo, Rules};
+use crate::compiler::{Rule, RuleId, Rules};
 use crate::string_pool::BStringPool;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{compiler, modules, wasm};
+use crate::{modules, wasm};
 
 #[cfg(test)]
 mod tests;
@@ -144,7 +144,7 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        let mut file = MmapFile::open(path).unwrap();
+        let file = MmapFile::open(path).unwrap();
         Ok(self.scan(file.as_slice()))
     }
 
@@ -294,7 +294,6 @@ impl<'s, 'r> ScanResults<'s, 'r> {
 /// Iterator that yields the rules that matched.
 pub struct Matches<'s, 'r> {
     scanner: &'s Scanner<'r>,
-    rules: &'r [RuleInfo],
     iterator: Iter<'s, RuleId>,
 }
 
@@ -303,7 +302,6 @@ impl<'s, 'r> Matches<'s, 'r> {
         Self {
             scanner,
             iterator: scanner.wasm_store.data().rules_matching.iter(),
-            rules: scanner.wasm_store.data().compiled_rules.rules(),
         }
     }
 }
@@ -323,7 +321,6 @@ impl<'s, 'r> Iterator for Matches<'s, 'r> {
 /// Iterator that yields the rules that didn't match.
 pub struct NonMatches<'s, 'r> {
     scanner: &'s Scanner<'r>,
-    rules: &'r [RuleInfo],
     iterator: bitvec::slice::IterZeros<'s, u8, Lsb0>,
 }
 
@@ -340,11 +337,7 @@ impl<'s, 'r> NonMatches<'s, 'r> {
             &main_memory[MATCHING_RULES_BITMAP_BASE as usize..],
         );
 
-        Self {
-            scanner,
-            iterator: bits.iter_zeros(),
-            rules: scanner.wasm_store.data().compiled_rules.rules(),
-        }
+        Self { scanner, iterator: bits.iter_zeros() }
     }
 }
 

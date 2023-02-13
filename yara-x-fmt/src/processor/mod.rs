@@ -92,6 +92,8 @@ where
         self
     }
 
+    /// Prints the processor's output to stdout for debugging purposes.
+    #[allow(dead_code)]
     pub fn debug(mut self) -> Self {
         self.debug = true;
         self
@@ -263,6 +265,7 @@ where
     /// Swaps the tokens at positions i and j in the input. Pass-through tokens
     /// are ignored, which means that position i means the i-th non-pass-through
     /// token in the input.
+    #[allow(dead_code)]
     pub fn swap(&mut self, i: i8, j: i8) {
         if i < 1
             || i > Self::MAX_NEXT_TOKENS as i8
@@ -442,6 +445,7 @@ pub(crate) mod actions {
     /// the output. Notice that this action is named as "move" in
     /// [`A Pretty Good Formatting Pipeline`], but "move" is reserved keyword
     /// in Rust.
+    #[allow(dead_code)]
     pub(crate) fn copy<'a, I>(ctx: &mut Context<'a, I>)
     where
         I: TokenStream<'a>,
@@ -481,6 +485,7 @@ pub(crate) mod actions {
 
     /// Action that swaps the tokens at positions i and j in the input.
     /// Both i and j most be in the range [1..MAX_NEXT_TOKENS].
+    #[allow(dead_code)]
     pub(crate) fn swap<'a, I>(i: i8, j: i8) -> ActionFn<'a, I>
     where
         I: TokenStream<'a>,

@@ -21,7 +21,7 @@ pub(crate) fn uppercase(
 }
 
 #[module_export(name = "nested.nested_func")]
-pub(crate) fn nested_func(ctx: &mut ScanContext) -> bool {
+pub(crate) fn nested_func(_ctx: &mut ScanContext) -> bool {
     true
 }
 

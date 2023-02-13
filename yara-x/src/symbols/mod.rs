@@ -2,8 +2,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
-use bstr::{BStr, ByteSlice};
-use yara_x_parser::types::{Func, Struct, Type, TypeValue};
+use yara_x_parser::types::{Func, Struct, TypeValue};
 
 use crate::compiler::{RuleId, Var};
 
@@ -45,27 +44,6 @@ impl Symbol {
     #[inline(always)]
     pub fn type_value(&self) -> &TypeValue {
         &self.type_value
-    }
-
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    fn as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer(value) = self.type_value {
-            value
-        } else {
-            None
-        }
-    }
-
-    fn as_bstr(&self) -> Option<&BStr> {
-        if let TypeValue::String(Some(s)) = &self.type_value {
-            Some(s.as_bstr())
-        } else {
-            None
-        }
     }
 }
 

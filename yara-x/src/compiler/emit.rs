@@ -1558,7 +1558,7 @@ pub(super) fn emit_for_in_map(
             );
         },
         // Before each iteration.
-        |ctx, instr, i| todo!(),
+        |_ctx, _instr, _i| todo!(),
         // After each iteration.
         |_, _, _| todo!(),
     );
