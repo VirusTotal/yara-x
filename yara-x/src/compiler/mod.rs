@@ -69,7 +69,7 @@ pub struct Compiler<'a> {
 
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
-    rules: Vec<Rule>,
+    rules: Vec<RuleInfo>,
 
     /// A vector with all the patterns from all the rules. A [`PatternId`]
     /// is an index in this vector.
@@ -248,8 +248,8 @@ impl<'a> Compiler<'a> {
 
         let rule_id = self.rules.len() as RuleId;
 
-        self.rules.push(Rule {
-            ident: self.ident_pool.get_or_intern(rule.identifier.as_str()),
+        self.rules.push(RuleInfo {
+            ident_id: self.ident_pool.get_or_intern(rule.identifier.as_str()),
             patterns: pairs,
         });
 
@@ -519,7 +519,7 @@ struct Context<'a, 'sym> {
     src: &'a SourceCode<'a>,
 
     /// Rule that is being compiled.
-    current_rule: &'a Rule,
+    current_rule: &'a RuleInfo,
 
     /// Warnings generated during the compilation.
     warnings: &'a mut Vec<Warning>,
@@ -624,7 +624,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
         }
         panic!(
             "rule `{}` does not have pattern `{}` ",
-            self.resolve_ident(self.current_rule.ident),
+            self.resolve_ident(self.current_rule.ident_id),
             ident.as_str()
         );
     }
@@ -676,7 +676,7 @@ pub struct Rules {
 
     /// Vector containing all the compiled rules. A [`RuleId`] is an index
     /// in this vector.
-    rules: Vec<Rule>,
+    rules: Vec<RuleInfo>,
 
     /// Vector with all the patterns used in the rules. This vector has not
     /// duplicated items, if two different rules use the "MZ" pattern, it
@@ -686,15 +686,24 @@ pub struct Rules {
 }
 
 impl Rules {
+    /// Returns a [`Rule`] given its [`RuleId`].
+    ///
+    /// # Panics
+    ///
+    /// If no rule with such [`RuleId`] exists.
+    pub(crate) fn get(&self, rule_id: RuleId) -> &RuleInfo {
+        self.rules.get(rule_id as usize).unwrap()
+    }
+
     /// Returns an slice with the individual rules that were compiled.
     #[inline]
-    pub fn rules(&self) -> &[Rule] {
+    pub(crate) fn rules(&self) -> &[RuleInfo] {
         self.rules.as_slice()
     }
 
     /// Returns an slice with the individual patterns that were compiled.
     #[inline]
-    pub fn patterns(&self) -> &[Pattern] {
+    pub(crate) fn patterns(&self) -> &[Pattern] {
         self.patterns.as_slice()
     }
 
@@ -737,14 +746,26 @@ impl<'a> Iterator for Imports<'a> {
     }
 }
 
-/// Each of the individual rules included in [`Rules`].
-pub struct Rule {
+/// Information about each of the individual rules included in [`Rules`].
+pub(crate) struct RuleInfo {
     /// The ID of the rule identifier in the identifiers pool.
-    pub(crate) ident: IdentId,
-
+    pub(crate) ident_id: IdentId,
     /// Vector with all the patterns defined by this rule.
     patterns: Vec<(IdentId, PatternId)>,
 }
 
+/// A structure that describes a rule.
+pub struct Rule<'r> {
+    pub(crate) rules: &'r Rules,
+    pub(crate) rule_info: &'r RuleInfo,
+}
+
+impl<'r> Rule<'r> {
+    /// Returns the rule's name.
+    pub fn name(&self) -> &str {
+        self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
+    }
+}
+
 /// A pattern (a.k.a string) in the compiled rules.
-pub struct Pattern {}
+pub(crate) struct Pattern {}

@@ -213,7 +213,7 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
         |scanner, file_path| {
             let scan_results = scanner.scan_file(&file_path)?;
             for matching_rule in scan_results.iter() {
-                println!("{}", file_path.display());
+                println!("{} {}", matching_rule.name(), file_path.display());
             }
             Ok::<(), anyhow::Error>(())
         },

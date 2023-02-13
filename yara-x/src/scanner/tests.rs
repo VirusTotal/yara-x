@@ -23,11 +23,11 @@ rule rule_4 { condition: false }
 
     let mut iter = results.iter();
 
-    assert_eq!(u32::from(iter.next().unwrap().ident), 0);
-    assert_eq!(u32::from(iter.next().unwrap().ident), 2);
+    assert_eq!(iter.next().unwrap().name(), "rule_1");
+    assert_eq!(iter.next().unwrap().name(), "rule_3");
 
     let mut iter = results.iter_non_matches();
 
-    assert_eq!(u32::from(iter.next().unwrap().ident), 1);
-    assert_eq!(u32::from(iter.next().unwrap().ident), 3);
+    assert_eq!(iter.next().unwrap().name(), "rule_2");
+    assert_eq!(iter.next().unwrap().name(), "rule_4");
 }

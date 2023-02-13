@@ -2,25 +2,23 @@
 
 */
 
-use std::fs::File;
 use std::path::Path;
 use std::ptr::null;
 use std::rc::Rc;
 use std::slice::Iter;
 
-use yara_x_parser::types::{Struct, TypeValue};
-
-use crate::compiler::{Rule, RuleId, Rules};
-use crate::string_pool::BStringPool;
-use crate::{modules, wasm};
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
-
-use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-
 use wasmtime::{
     Global, GlobalType, MemoryType, Mutability, Store, TypedFunc, Val, ValType,
 };
+
+use yara_x_parser::types::{Struct, TypeValue};
+
+use crate::compiler::{Rule, RuleId, RuleInfo, Rules};
+use crate::string_pool::BStringPool;
+use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::{compiler, modules, wasm};
 
 #[cfg(test)]
 mod tests;
@@ -293,15 +291,17 @@ impl<'s, 'r> ScanResults<'s, 'r> {
     }
 }
 
-/// Iterator that yields the rules that matched,
+/// Iterator that yields the rules that matched.
 pub struct Matches<'s, 'r> {
-    rules: &'r [Rule],
+    scanner: &'s Scanner<'r>,
+    rules: &'r [RuleInfo],
     iterator: Iter<'s, RuleId>,
 }
 
 impl<'s, 'r> Matches<'s, 'r> {
     fn new(scanner: &'s Scanner<'r>) -> Self {
         Self {
+            scanner,
             iterator: scanner.wasm_store.data().rules_matching.iter(),
             rules: scanner.wasm_store.data().compiled_rules.rules(),
         }
@@ -309,17 +309,21 @@ impl<'s, 'r> Matches<'s, 'r> {
 }
 
 impl<'s, 'r> Iterator for Matches<'s, 'r> {
-    type Item = &'r Rule;
+    type Item = Rule<'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let rule_id = *self.iterator.next()?;
-        Some(&self.rules[rule_id as usize])
+        let rules = self.scanner.wasm_store.data().compiled_rules;
+        let rule_info = rules.get(rule_id);
+
+        Some(Rule { rule_info, rules })
     }
 }
 
 /// Iterator that yields the rules that didn't match.
 pub struct NonMatches<'s, 'r> {
-    rules: &'r [Rule],
+    scanner: &'s Scanner<'r>,
+    rules: &'r [RuleInfo],
     iterator: bitvec::slice::IterZeros<'s, u8, Lsb0>,
 }
 
@@ -337,6 +341,7 @@ impl<'s, 'r> NonMatches<'s, 'r> {
         );
 
         Self {
+            scanner,
             iterator: bits.iter_zeros(),
             rules: scanner.wasm_store.data().compiled_rules.rules(),
         }
@@ -344,11 +349,14 @@ impl<'s, 'r> NonMatches<'s, 'r> {
 }
 
 impl<'s, 'r> Iterator for NonMatches<'s, 'r> {
-    type Item = &'r Rule;
+    type Item = Rule<'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let rule_id = self.iterator.next()?;
-        Some(&self.rules[rule_id])
+        let rule_id = self.iterator.next()? as RuleId;
+        let rules = self.scanner.wasm_store.data().compiled_rules;
+        let rule_info = rules.get(rule_id);
+
+        Some(Rule { rule_info, rules })
     }
 }
 
