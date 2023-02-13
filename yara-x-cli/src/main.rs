@@ -270,6 +270,9 @@ fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
         for filter in filters {
             walker = walker.filter(filter);
         }
+    } else {
+        // Default filters are `**/*.yar` and `**/*.yara`.
+        walker = walker.filter("**/*.yar").filter("**/*.yara");
     }
 
     walker.run(
