@@ -1,6 +1,9 @@
-on: [push, pull_request]
-
 name: Code coverage with grcov
+
+on:
+  schedule:
+  # Run at every day at 2:15.
+  - cron: '15 2 * * *'
 
 jobs:
   coverage:
