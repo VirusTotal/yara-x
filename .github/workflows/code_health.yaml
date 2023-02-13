@@ -1,6 +1,6 @@
-on: [push, pull_request]
-
 name: Code health
+
+on: [push, pull_request]
 
 jobs:
   clippy:
