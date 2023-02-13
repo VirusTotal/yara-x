@@ -1,9 +1,8 @@
-mod parallel;
+mod walk;
 
 use std::fs;
 use std::fs::File;
 use std::io::{stdin, stdout};
-use std::num::NonZeroU8;
 use std::path::PathBuf;
 
 use ansi_term::Color::{Green, Red, Yellow};
@@ -12,7 +11,6 @@ use clap::{
     arg, command, crate_authors, value_parser, ArgAction, ArgMatches, Command,
 };
 
-use parallel::for_each_file;
 use yara_x::Compiler;
 use yara_x::Scanner;
 use yara_x_fmt::Formatter;
@@ -34,7 +32,7 @@ checked. The `--filter` option allows changing this behavior.
 
 const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
-Controls how many threads are usef for the operation. The default value depends 
+Controls how many threads are used for the operation. The default value depends 
 on the number of CPUs.
 "#;
 
@@ -48,7 +46,7 @@ without entering in subdirectories.
 
 const FILTER_LONG_HELP: &str = r#"Check files that match the given pattern only
 
-Patterns can contains the following wilcards:
+Patterns can contains the following wildcards:
 
 ?      matches any single character.
 
@@ -94,15 +92,15 @@ fn main() -> anyhow::Result<()> {
         .subcommands(vec![
             command("scan")
                 .about(
-                    "Scans a file with some YARA",
+                    "Scans a file or directory with some YARA rule",
                 )
                 .arg(
                     arg!(<RULES_FILE>)
                         .help("Path to YARA source file")
                         .value_parser(value_parser!(PathBuf)),
                 ).arg(
-                arg!(<FILE>)
-                    .help("Path to the file that will be scanned")
+                arg!(<PATH>)
+                    .help("Path to the file or directory that will be scanned")
                     .value_parser(value_parser!(PathBuf))
             ),
             command("ast")
@@ -189,7 +187,7 @@ fn main() -> anyhow::Result<()> {
 
 fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let rules_path = args.get_one::<PathBuf>("RULES_FILE").unwrap();
-    let file_path = args.get_one::<PathBuf>("FILE").unwrap();
+    let path = args.get_one::<PathBuf>("PATH").unwrap();
 
     let src = fs::read(rules_path)
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
@@ -200,13 +198,19 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let rules =
         Compiler::new().colorize_errors(true).add_source(src)?.build()?;
 
-    let mut scanner = Scanner::new(&rules);
+    let r = &rules;
 
-    let scan_results = scanner.scan_file(file_path)?;
-
-    for matching_rule in scan_results.iter() {}
-
-    Ok(())
+    walk::ParallelWalk::new(path).run(
+        // The initialization function creates a scanner for each thread.
+        || Scanner::new(r),
+        |scanner, file_path| {
+            let scan_results = scanner.scan_file(&file_path)?;
+            for matching_rule in scan_results.iter() {
+                println!("{}", file_path.display());
+            }
+            Ok::<(), anyhow::Error>(())
+        },
+    )
 }
 
 fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
@@ -248,46 +252,68 @@ fn cmd_wasm(args: &ArgMatches) -> anyhow::Result<()> {
 
 fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
     let path = args.get_one::<PathBuf>("PATH").unwrap();
-    let max_depth = args.get_one::<u16>("max-depth").map(|n| *n as usize);
+    let max_depth = args.get_one::<u16>("max-depth");
     let filters = args.get_many::<String>("filter");
-    let num_threads =
-        args.get_one::<u8>("threads").map(|n| NonZeroU8::new(*n).unwrap());
+    let num_threads = args.get_one::<u8>("threads");
 
-    for_each_file(path, num_threads, max_depth, filters, |file_path| {
-        let src = fs::read(file_path.clone()).with_context(|| {
-            format!("can not read `{}`", file_path.display())
-        })?;
+    let mut walker = walk::ParallelWalk::new(path);
 
-        let src = SourceCode::from(src.as_slice())
-            .origin(file_path.as_os_str().to_str().unwrap());
+    if let Some(max_depth) = max_depth {
+        walker = walker.max_depth(*max_depth as usize);
+    }
 
-        match Parser::new().colorize_errors(true).build_ast(src) {
-            Ok(ast) => {
-                if ast.warnings.is_empty() {
-                    println!(
-                        "[{}] {}",
-                        Green.paint("PASS"),
-                        file_path.display()
-                    );
-                } else {
-                    println!(
-                        "[{}] {}\n",
-                        Yellow.paint("WARN"),
-                        file_path.display()
-                    );
-                    for warning in ast.warnings {
-                        println!("{}\n", warning);
+    if let Some(num_threads) = num_threads {
+        walker = walker.num_threads(*num_threads);
+    }
+
+    if let Some(filters) = filters {
+        for filter in filters {
+            walker = walker.filter(filter);
+        }
+    }
+
+    walker.run(
+        || {},
+        |_, file_path| {
+            let src = fs::read(file_path.clone()).with_context(|| {
+                format!("can not read `{}`", file_path.display())
+            })?;
+
+            let src = SourceCode::from(src.as_slice())
+                .origin(file_path.as_os_str().to_str().unwrap());
+
+            match Parser::new().colorize_errors(true).build_ast(src) {
+                Ok(ast) => {
+                    if ast.warnings.is_empty() {
+                        println!(
+                            "[{}] {}",
+                            Green.paint("PASS"),
+                            file_path.display()
+                        );
+                    } else {
+                        println!(
+                            "[{}] {}\n",
+                            Yellow.paint("WARN"),
+                            file_path.display()
+                        );
+                        for warning in ast.warnings {
+                            println!("{}\n", warning);
+                        }
                     }
                 }
-            }
-            Err(err) => {
-                println!("[{}] {}\n", Red.paint("ERROR"), file_path.display());
-                println!("{}", err);
-            }
-        };
+                Err(err) => {
+                    println!(
+                        "[{}] {}\n",
+                        Red.paint("ERROR"),
+                        file_path.display()
+                    );
+                    println!("{}", err);
+                }
+            };
 
-        Ok(())
-    })
+            Ok::<(), anyhow::Error>(())
+        },
+    )
 }
 
 fn cmd_format(args: &ArgMatches) -> anyhow::Result<()> {
