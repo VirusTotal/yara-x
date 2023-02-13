@@ -885,13 +885,11 @@ pub(crate) fn map_lookup_integer_string(
         _ => unreachable!(),
     };
 
-    let type_value = type_value.map(|v| {
+    type_value.map(|v| {
         RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(v.as_bstr().unwrap()),
         )
-    });
-
-    type_value
+    })
 }
 
 #[wasm_export]
@@ -909,13 +907,11 @@ pub(crate) fn map_lookup_string_string(
         _ => unreachable!(),
     };
 
-    let type_value = type_value.map(|v| {
+    type_value.map(|v| {
         RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(v.as_bstr().unwrap()),
         )
-    });
-
-    type_value
+    })
 }
 
 #[wasm_export]
@@ -935,15 +931,13 @@ pub(crate) fn map_lookup_integer_struct(
         _ => unreachable!(),
     };
 
-    let type_value = type_value.map(|v| {
+    type_value.map(|v| {
         if let TypeValue::Struct(s) = v {
             caller.data_mut().current_struct = Some(s.clone());
         } else {
             unreachable!()
         }
-    });
-
-    type_value
+    })
 }
 
 #[wasm_export]
@@ -965,15 +959,13 @@ pub(crate) fn map_lookup_string_struct(
         _ => unreachable!(),
     };
 
-    let type_value = type_value.map(|v| {
+    type_value.map(|v| {
         if let TypeValue::Struct(s) = v {
             caller.data_mut().current_struct = Some(s.clone());
         } else {
             unreachable!()
         }
-    });
-
-    type_value
+    })
 }
 
 macro_rules! gen_str_cmp_fn {

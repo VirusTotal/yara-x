@@ -140,7 +140,7 @@ fn gen_build_func(
             // The main label is the first label in the tuple.
             let main_label = &labels.first().ok_or_else(|| {
                 syn::Error::new_spanned(
-                    &variant,
+                    variant,
                     "#[error(...)] must be accompanied by at least one instance of #[label(...)}",
                 )})?;
 
@@ -202,7 +202,7 @@ fn gen_build_func(
         }
         syn::Fields::Unnamed(_) | syn::Fields::Unit => {
             Err(syn::Error::new_spanned(
-                &variant,
+                variant,
                 format!(
                     "{} not a struct variant, #[error(...)] can be used only with struct variants",
                     variant.ident
@@ -252,7 +252,7 @@ fn get_note(variant: &Variant) -> syn::Result<TokenStream> {
 
         let note_field = note_field.ok_or_else(|| {
             syn::Error::new_spanned(
-                &note_field,
+                note_field,
                 format!(
                     "the argument for #[note(...)] must be a field in `{}`",
                     variant.ident
@@ -324,10 +324,10 @@ fn get_labels(
                 // name is not "style".
                 if !value.path.is_ident("style") {
                     return Err(syn::Error::new_spanned(
-                        &value,
+                        value,
                         format!(
                             "unkown argument {}",
-                            value.path.get_ident().unwrap().to_string()
+                            value.path.get_ident().unwrap()
                         ),
                     ));
                 }
@@ -336,7 +336,7 @@ fn get_labels(
                     Lit::Str(l) => l.value(),
                     _ => {
                         return Err(syn::Error::new_spanned(
-                            &value,
+                            value,
                             "argument style must be a string literal",
                         ));
                     }
@@ -373,7 +373,7 @@ fn get_labels(
 
         let label_span_field = label_span_field.ok_or_else(|| {
             syn::Error::new_spanned(
-                &label_span_field,
+                label_span_field,
                 format!(
                     "the second argument for #[label(...)] must be a field in `{}`",
                     variant.ident
@@ -389,7 +389,7 @@ fn get_labels(
 
         if !field_found {
             return Err(syn::Error::new_spanned(
-                &label_span_field,
+                label_span_field,
                 format!(
                     "field `{}` not found in `{}`",
                     label_span_field, variant.ident
