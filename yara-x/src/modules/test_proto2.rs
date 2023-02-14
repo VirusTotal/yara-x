@@ -130,8 +130,8 @@ fn main(_ctx: &ScanContext) -> TestProto2 {
     nested.nested_array_int64.push(400);
 
     test.map_int64_struct.insert(100, nested);
-    test.map_int64_int64.insert(100, 100);
-    test.map_int64_string.insert(100, "one hundred".to_string());
+    test.map_int64_int64.insert(100, 1000);
+    test.map_int64_string.insert(100, "one thousand".to_string());
 
     test.set_bool_proto(true);
 
