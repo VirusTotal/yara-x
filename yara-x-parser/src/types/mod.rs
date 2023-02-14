@@ -452,6 +452,14 @@ impl TypeValue {
             None
         }
     }
+
+    pub fn as_integer(&self) -> Option<i64> {
+        if let TypeValue::Integer(i) = self {
+            *i
+        } else {
+            None
+        }
+    }
 }
 
 impl Display for TypeValue {

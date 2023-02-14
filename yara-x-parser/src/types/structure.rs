@@ -1,13 +1,15 @@
-use bstr::BString;
 use std::ops::Deref;
 use std::rc::Rc;
 
+use bstr::BString;
+use indexmap::IndexMap;
 use protobuf::reflect::{
     EnumDescriptor, FieldDescriptor, MessageDescriptor, ReflectMapRef,
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
+
 use yara_x_proto::exts::enum_options as yara_enum_options;
 use yara_x_proto::exts::field_options as yara_field_options;
 use yara_x_proto::exts::module_options as yara_module_options;
@@ -648,7 +650,7 @@ impl Struct {
         enum_as_fields: bool,
     ) -> Map {
         if let Some(map) = map {
-            let mut result = FxHashMap::default();
+            let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
                 result.insert(
                     Self::value_as_i64(key),
@@ -670,7 +672,7 @@ impl Struct {
         enum_as_fields: bool,
     ) -> Map {
         if let Some(map) = map {
-            let mut result = FxHashMap::default();
+            let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
                 result.insert(
                     BString::from(Self::value_as_str(key)),

@@ -1,6 +1,6 @@
 use crate::types::TypeValue;
 use bstr::BString;
-use rustc_hash::FxHashMap;
+use indexmap::IndexMap;
 
 pub enum Map {
     /// A map that has integer keys.
@@ -14,13 +14,14 @@ pub enum Map {
         // it is present only at compile time, when the `map` field is an
         // empty map.
         deputy: Option<TypeValue>,
-        map: FxHashMap<i64, TypeValue>,
+        // Use IndexMap instead of HashMap because IndexMap allows to get an
+        // item not only by key, but also by index. HashMap doesn't offer
+        // that functionality (it doesn't even have a stable iterator that
+        // returns the items in a predictable order).
+        map: IndexMap<i64, TypeValue>,
     },
     /// A map that has string keys.
-    StringKeys {
-        deputy: Option<TypeValue>,
-        map: FxHashMap<BString, TypeValue>,
-    },
+    StringKeys { deputy: Option<TypeValue>, map: IndexMap<BString, TypeValue> },
 }
 
 impl Map {

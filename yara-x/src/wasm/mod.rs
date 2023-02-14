@@ -506,6 +506,7 @@ pub(crate) struct WasmSymbols {
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
+    pub f64_tmp: walrus::LocalId,
 }
 
 lazy_static! {
@@ -1012,6 +1013,27 @@ pub(crate) fn map_lookup_string_struct(
             unreachable!()
         }
     })
+}
+
+#[wasm_export]
+pub(crate) fn map_lookup_by_index_integer_integer(
+    mut caller: Caller<'_, ScanContext>,
+    index: i64,
+) -> (i64, i64) {
+    let map = lookup_common!(caller, value, {
+        match value {
+            TypeValue::Map(map) => map.clone(),
+            _ => unreachable!(),
+        }
+    });
+
+    match map.borrow() {
+        Map::IntegerKeys { map, .. } => {
+            let (key, value) = map.get_index(index as usize).unwrap();
+            (*key, value.as_integer().unwrap())
+        }
+        _ => unreachable!(),
+    }
 }
 
 macro_rules! gen_str_cmp_fn {

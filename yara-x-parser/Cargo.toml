@@ -26,6 +26,7 @@ ariadne = { workspace = true }
 ascii_tree = { workspace = true, optional=true }
 bitmask =  { workspace = true }
 bstr = { workspace = true }
+indexmap = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 line-span = { workspace = true }

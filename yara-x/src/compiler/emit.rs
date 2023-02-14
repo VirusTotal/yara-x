@@ -833,6 +833,11 @@ fn emit_check_for_pattern_match(
     instr.binop(BinaryOp::I32ShrU);
 }
 
+// Emits the code that performs an array lookup.
+//
+// This function must be called right after emitting the code that leaves the
+// the index in the stack. The code emitted by this function assumes that the
+// top of the stack is an i64 with the index.
 fn emit_array_lookup(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
@@ -842,6 +847,9 @@ fn emit_array_lookup(
     // Emit the code that fills the `lookup_stack` in WASM memory.
     emit_lookup_common(ctx, instr);
 
+    // Push the index of the host-side variable where the result will be
+    // stored. If `var` is None pushes -1 which will be ignored by the
+    // host-side function that performs the lookup.
     if let Some(var) = var {
         instr.i32_const(var.index);
     } else {
@@ -883,6 +891,40 @@ fn emit_array_lookup(
                 instr,
                 ctx.function_id("array_lookup_string@ii@su"),
             );
+        }
+    }
+}
+
+fn emit_map_lookup_by_index(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    map: &Rc<Map>,
+) {
+    match map.as_ref() {
+        Map::IntegerKeys { deputy, .. } => {
+            match deputy.as_ref().unwrap().ty() {
+                Type::Integer => {
+                    instr.call(ctx.function_id(
+                        "map_lookup_by_index_integer_integer@i@ii",
+                    ));
+                }
+                Type::String => {
+                    todo!()
+                }
+                Type::Float => {
+                    todo!()
+                }
+                Type::Bool => {
+                    todo!()
+                }
+                Type::Struct => {
+                    todo!()
+                }
+                _ => unreachable!(),
+            }
+        }
+        Map::StringKeys { deputy, .. } => {
+            todo!();
         }
     }
 }
@@ -1558,9 +1600,18 @@ pub(super) fn emit_for_in_map(
             );
         },
         // Before each iteration.
-        |_ctx, _instr, _i| todo!(),
+        |ctx, instr, i| {
+            // The next lookup operation starts at the local variable
+            // `map_var`.
+            ctx.lookup_start = Some(map_var);
+
+            set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
+                load_var(ctx, instr, i);
+                emit_map_lookup_by_index(ctx, instr, &map);
+            });
+        },
         // After each iteration.
-        |_, _, _| todo!(),
+        |_, _, _| {},
     );
 
     ctx.symbol_table.pop();
@@ -1712,7 +1763,7 @@ pub(super) fn emit_for_in_expr_tuple(
     ctx.free_vars(next_item);
 }
 
-/// Sets a variable to the value produced by a code block.
+/// Sets into a variable the value produced by a code block.
 pub(super) fn set_var<B>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
@@ -1742,6 +1793,65 @@ pub(super) fn set_var<B>(
         store_kind,
         MemArg { align: size_of::<i64>() as u32, offset: 0 },
     );
+}
+
+/// Sets into variables the values produced by a code block.
+///
+/// The code block must leave in the stack as many values as the number of vars
+/// and their types must match. The first variable will contain the first value
+/// that was pushed into the stack.
+pub(super) fn set_vars<B>(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    vars: &[Var],
+    block: B,
+) where
+    B: FnOnce(&mut Context, &mut InstrSeqBuilder),
+{
+    // Execute the block that produces the values.
+    block(ctx, instr);
+
+    // Iterate variables in reverse order as the last variable is the one
+    // at the top of the stack.
+    for var in vars.iter().rev() {
+        match var.ty {
+            Type::Bool => {
+                // Pop the value and store it into temp variable.
+                instr.local_set(ctx.wasm_symbols.i32_tmp);
+                // Push the offset where the variable resides in memory.
+                instr.i32_const(var.index * size_of::<i64>() as i32);
+                // Push the value.
+                instr.local_get(ctx.wasm_symbols.i32_tmp);
+                // Store the value in memory.
+                instr.store(
+                    ctx.wasm_symbols.main_memory,
+                    StoreKind::I32 { atomic: false },
+                    MemArg { align: size_of::<i64>() as u32, offset: 0 },
+                );
+            }
+            Type::Integer | Type::String => {
+                instr.local_set(ctx.wasm_symbols.i64_tmp);
+                instr.i32_const(var.index * size_of::<i64>() as i32);
+                instr.local_get(ctx.wasm_symbols.i64_tmp);
+                instr.store(
+                    ctx.wasm_symbols.main_memory,
+                    StoreKind::I64 { atomic: false },
+                    MemArg { align: size_of::<i64>() as u32, offset: 0 },
+                );
+            }
+            Type::Float => {
+                instr.local_set(ctx.wasm_symbols.f64_tmp);
+                instr.i32_const(var.index * size_of::<i64>() as i32);
+                instr.local_get(ctx.wasm_symbols.f64_tmp);
+                instr.store(
+                    ctx.wasm_symbols.main_memory,
+                    StoreKind::F64,
+                    MemArg { align: size_of::<i64>() as u32, offset: 0 },
+                );
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 /// Loads the value of variable into the stack.

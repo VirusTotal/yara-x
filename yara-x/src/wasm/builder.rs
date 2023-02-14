@@ -1,6 +1,6 @@
 use rustc_hash::FxHashMap;
 use walrus::FunctionId;
-use walrus::ValType::{I32, I64};
+use walrus::ValType::{F64, I32, I64};
 
 use super::WasmSymbols;
 
@@ -63,6 +63,7 @@ impl ModuleBuilder {
             filesize,
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
+            f64_tmp: module.locals.add(F64),
         };
 
         let main_fn =
