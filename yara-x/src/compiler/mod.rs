@@ -635,10 +635,9 @@ impl<'a, 'sym> Context<'a, 'sym> {
     ///
     /// If a no function with the given name exists.
     pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
-        *self
-            .wasm_funcs
-            .get(fn_mangled_name)
-            .unwrap_or_else(|| panic!("can't find function `{}`", fn_name))
+        *self.wasm_funcs.get(fn_mangled_name).unwrap_or_else(|| {
+            panic!("can't find function `{}`", fn_mangled_name)
+        })
     }
 }
 
