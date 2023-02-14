@@ -629,15 +629,15 @@ impl<'a, 'sym> Context<'a, 'sym> {
         );
     }
 
-    /// Given a function name returns its id.
+    /// Given a function mangled name returns its id.
     ///
     /// # Panics
     ///
     /// If a no function with the given name exists.
-    pub fn function_id(&self, fn_name: &str) -> FunctionId {
+    pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
         *self
             .wasm_funcs
-            .get(fn_name)
+            .get(fn_mangled_name)
             .unwrap_or_else(|| panic!("can't find function `{}`", fn_name))
     }
 }

@@ -1,6 +1,6 @@
-use core::slice;
 use std::mem::size_of;
 use std::rc::Rc;
+use std::slice::Iter;
 
 use bstr::ByteSlice;
 use walrus::ir::ExtendedLoad::ZeroExtend;
@@ -14,6 +14,7 @@ use yara_x_parser::types::{Array, Map, Type, TypeValue};
 
 use crate::compiler::{Context, PatternId, RuleId, Var};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
+use crate::wasm;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
     LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
@@ -125,7 +126,7 @@ macro_rules! emit_arithmetic_op {
 }
 
 macro_rules! emit_comparison_op {
-    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt, $float_op:tt, $str_op:tt) => {{
+    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt, $float_op:tt, $str_op:expr) => {{
         emit_const_or_code!($ctx, $instr, $expr.type_value(), {
             match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
                 (Type::Integer, Type::Integer) => {
@@ -220,7 +221,7 @@ pub(super) fn emit_rule_code(
         block.i32_const(rule_id);
 
         // Emit call instruction for calling `rule_match`.
-        block.call(ctx.function_id("rule_match@i@"));
+        block.call(ctx.function_id(wasm::export__rule_match.mangled_name));
     });
 }
 
@@ -360,13 +361,17 @@ pub(super) fn emit_expr(
                 Some(MatchAnchor::At(anchor_at)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_at.expr);
-                    instr.call(ctx.function_id("is_pat_match_at@ii@b"));
+                    instr.call(ctx.function_id(
+                        wasm::export__is_pat_match_at.mangled_name,
+                    ));
                 }
                 Some(MatchAnchor::In(anchor_in)) => {
                     instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_in.range.lower_bound);
                     emit_expr(ctx, instr, &anchor_in.range.upper_bound);
-                    instr.call(ctx.function_id("is_pat_match_in@ii@b"));
+                    instr.call(ctx.function_id(
+                        wasm::export__is_pat_match_in.mangled_name,
+                    ));
                 }
                 None => {
                     emit_check_for_pattern_match(ctx, instr, pattern_id);
@@ -642,7 +647,7 @@ pub(super) fn emit_expr(
                 operands,
                 I64Eq,
                 F64Eq,
-                "str_eq@ss@b"
+                wasm::export__str_eq.mangled_name
             );
         }
         Expr::Ne(operands) => {
@@ -653,7 +658,7 @@ pub(super) fn emit_expr(
                 operands,
                 I64Ne,
                 F64Ne,
-                "str_ne@ss@b"
+                wasm::export__str_ne.mangled_name
             );
         }
         Expr::Lt(operands) => {
@@ -664,7 +669,7 @@ pub(super) fn emit_expr(
                 operands,
                 I64LtS,
                 F64Lt,
-                "str_lt@ss@b"
+                wasm::export__str_lt.mangled_name
             );
         }
         Expr::Gt(operands) => {
@@ -675,7 +680,7 @@ pub(super) fn emit_expr(
                 operands,
                 I64GtS,
                 F64Gt,
-                "str_gt@ss@b"
+                wasm::export__str_gt.mangled_name
             );
         }
         Expr::Le(operands) => {
@@ -686,7 +691,7 @@ pub(super) fn emit_expr(
                 operands,
                 I64LeS,
                 F64Le,
-                "str_le@ss@b"
+                wasm::export__str_le.mangled_name
             );
         }
         Expr::Ge(operands) => {
@@ -697,49 +702,65 @@ pub(super) fn emit_expr(
                 operands,
                 I64GeS,
                 F64Ge,
-                "str_ge@ss@b"
+                wasm::export__str_ge.mangled_name
             );
         }
         Expr::Contains(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.function_id("str_contains@ss@b"));
+                instr.call(
+                    ctx.function_id(wasm::export__str_contains.mangled_name),
+                );
             });
         }
         Expr::IContains(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.function_id("str_icontains@ss@b"));
+                instr.call(
+                    ctx.function_id(wasm::export__str_icontains.mangled_name),
+                );
             });
         }
         Expr::StartsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.function_id("str_startswith@ss@b"));
+                instr.call(
+                    ctx.function_id(wasm::export__str_startswith.mangled_name),
+                );
             });
         }
         Expr::IStartsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.function_id("str_istartswith@ss@b"));
+                instr.call(
+                    ctx.function_id(
+                        wasm::export__str_istartswith.mangled_name,
+                    ),
+                );
             });
         }
         Expr::EndsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.function_id("str_endswith@ss@b"));
+                instr.call(
+                    ctx.function_id(wasm::export__str_endswith.mangled_name),
+                );
             });
         }
         Expr::IEndsWith(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.function_id("str_iendswith@ss@b"));
+                instr.call(
+                    ctx.function_id(wasm::export__str_iendswith.mangled_name),
+                );
             });
         }
         Expr::IEquals(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {
                 emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(ctx.function_id("str_iequals@ss@b"));
+                instr.call(
+                    ctx.function_id(wasm::export__str_iequals.mangled_name),
+                );
             });
         }
         Expr::Matches(_) => {
@@ -861,35 +882,41 @@ fn emit_array_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("array_lookup_integer@ii@iu"),
+                ctx.function_id(
+                    wasm::export__array_lookup_integer.mangled_name,
+                ),
             );
         }
         Array::Floats(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("array_lookup_float@ii@fu"),
+                ctx.function_id(wasm::export__array_lookup_float.mangled_name),
             );
         }
         Array::Bools(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("array_lookup_bool@ii@bu"),
+                ctx.function_id(wasm::export__array_lookup_bool.mangled_name),
             );
         }
         Array::Structs(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("array_lookup_struct@ii@u"),
+                ctx.function_id(
+                    wasm::export__array_lookup_struct.mangled_name,
+                ),
             );
         }
         Array::Strings(_) => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("array_lookup_string@ii@su"),
+                ctx.function_id(
+                    wasm::export__array_lookup_string.mangled_name,
+                ),
             );
         }
     }
@@ -904,9 +931,12 @@ fn emit_map_lookup_by_index(
         Map::IntegerKeys { deputy, .. } => {
             match deputy.as_ref().unwrap().ty() {
                 Type::Integer => {
-                    instr.call(ctx.function_id(
-                        "map_lookup_by_index_integer_integer@i@ii",
-                    ));
+                    instr.call(
+                        ctx.function_id(
+                            wasm::export__map_lookup_by_index_integer_integer
+                                .mangled_name,
+                        ),
+                    );
                 }
                 Type::String => {
                     todo!()
@@ -923,7 +953,7 @@ fn emit_map_lookup_by_index(
                 _ => unreachable!(),
             }
         }
-        Map::StringKeys { deputy, .. } => {
+        Map::StringKeys { .. } => {
             todo!();
         }
     }
@@ -956,35 +986,45 @@ fn emit_map_integer_key_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_integer_integer@i@iu"),
+                ctx.function_id(
+                    wasm::export__map_lookup_integer_integer.mangled_name,
+                ),
             );
         }
         Type::Float => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_integer_float@i@fu"),
+                ctx.function_id(
+                    wasm::export__map_lookup_integer_float.mangled_name,
+                ),
             );
         }
         Type::Bool => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_integer_bool@i@bu"),
+                ctx.function_id(
+                    wasm::export__map_lookup_integer_bool.mangled_name,
+                ),
             );
         }
         Type::Struct => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_integer_struct@i@u"),
+                ctx.function_id(
+                    wasm::export__map_lookup_integer_struct.mangled_name,
+                ),
             );
         }
         Type::String => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_integer_string@i@su"),
+                ctx.function_id(
+                    wasm::export__map_lookup_integer_string.mangled_name,
+                ),
             );
         }
         _ => unreachable!(),
@@ -1004,35 +1044,45 @@ fn emit_map_string_key_lookup(
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_string_integer@s@iu"),
+                ctx.function_id(
+                    wasm::export__map_lookup_string_integer.mangled_name,
+                ),
             );
         }
         Type::Float => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_string_float@s@fu"),
+                ctx.function_id(
+                    wasm::export__map_lookup_string_float.mangled_name,
+                ),
             );
         }
         Type::Bool => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_string_bool@s@bu"),
+                ctx.function_id(
+                    wasm::export__map_lookup_string_bool.mangled_name,
+                ),
             );
         }
         Type::Struct => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_string_struct@s@u"),
+                ctx.function_id(
+                    wasm::export__map_lookup_string_struct.mangled_name,
+                ),
             );
         }
         Type::String => {
             emit_call_and_handle_undef(
                 ctx,
                 instr,
-                ctx.function_id("map_lookup_string_string@s@su"),
+                ctx.function_id(
+                    wasm::export__map_lookup_string_string.mangled_name,
+                ),
             );
         }
         _ => unreachable!(),
@@ -1472,7 +1522,9 @@ pub(super) fn emit_for_in_array(
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(array_var.index);
-                instr.call(ctx.function_id("array_len@i@i"));
+                instr.call(
+                    ctx.function_id(wasm::export__array_len.mangled_name),
+                );
             });
 
             // If n <= 0, exit from the loop.
@@ -1583,7 +1635,8 @@ pub(super) fn emit_for_in_map(
             // Initialize `n` to the maps's length.
             set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(map_var.index);
-                instr.call(ctx.function_id("map_len@i@i"));
+                instr
+                    .call(ctx.function_id(wasm::export__map_len.mangled_name));
             });
 
             // If n <= 0, exit from the loop.
@@ -1686,7 +1739,7 @@ fn emit_switch(
 fn emit_switch_internal(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    mut expressions: slice::Iter<Expr>,
+    mut expressions: Iter<Expr>,
     mut block_ids: Vec<InstrSeqId>,
 ) {
     block_ids.push(instr.id());
@@ -1920,7 +1973,7 @@ pub(super) fn emit_bool_expr(
             instr.binop(BinaryOp::F64Ne);
         }
         Type::String => {
-            instr.call(ctx.function_id("str_len@s@i"));
+            instr.call(ctx.function_id(&wasm::export__str_len.mangled_name));
             instr.i64_const(0);
             instr.binop(BinaryOp::I64Ne);
         }
@@ -2020,7 +2073,7 @@ pub(super) fn emit_lookup_integer(
     emit_call_and_handle_undef(
         ctx,
         instr,
-        ctx.function_id("lookup_integer@@iu"),
+        ctx.function_id(wasm::export__lookup_integer.mangled_name),
     );
 }
 
@@ -2035,7 +2088,7 @@ pub(super) fn emit_lookup_float(
     emit_call_and_handle_undef(
         ctx,
         instr,
-        ctx.function_id("lookup_float@@fu"),
+        ctx.function_id(wasm::export__lookup_float.mangled_name),
     );
 }
 
@@ -2047,7 +2100,11 @@ pub(super) fn emit_lookup_bool(
 ) {
     ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
-    emit_call_and_handle_undef(ctx, instr, ctx.function_id("lookup_bool@@bu"));
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.function_id(wasm::export__lookup_bool.mangled_name),
+    );
 }
 
 #[inline]
@@ -2061,7 +2118,7 @@ pub(super) fn emit_lookup_string(
     emit_call_and_handle_undef(
         ctx,
         instr,
-        ctx.function_id("lookup_string@@su"),
+        ctx.function_id(wasm::export__lookup_string.mangled_name),
     );
 }
 
@@ -2073,7 +2130,7 @@ pub(super) fn emit_lookup_value(
 ) {
     emit_lookup_common(ctx, instr);
     instr.i32_const(var.index);
-    instr.call(ctx.function_id("lookup_value@i@"));
+    instr.call(ctx.function_id(wasm::export__lookup_value.mangled_name));
 }
 
 /// Emits code for catching exceptions caused by undefined values.

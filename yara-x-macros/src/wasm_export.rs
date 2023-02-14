@@ -165,7 +165,7 @@ pub struct WasmExportArgs {
 ///
 /// ```text
 /// #[distributed_slice(WASM_EXPORTS)]
-/// static __export__add: WasmExport = WasmExport {
+/// pub(crate) static export__add: WasmExport = WasmExport {
 ///     name: "add",
 ///     mangled_name: "add@ii@i",
 ///     rust_module_path: "yara_x::modules::my_module",
@@ -200,7 +200,7 @@ pub(crate) fn impl_wasm_export_macro(
 
     let num_args = func.sig.inputs.len() - 1;
 
-    let export_ident = format_ident!("__export__{}", fn_name);
+    let export_ident = format_ident!("export__{}", fn_name);
     let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
     let public = attr_args.public;
 
@@ -212,7 +212,7 @@ pub(crate) fn impl_wasm_export_macro(
     let fn_descriptor = quote! {
         #[allow(non_upper_case_globals)]
         #[distributed_slice(WASM_EXPORTS)]
-        static #export_ident: WasmExport = WasmExport {
+        pub(crate) static #export_ident: WasmExport = WasmExport {
             name: #fn_name_str,
             mangled_name: #mangled_fn_name,
             public: #public,
