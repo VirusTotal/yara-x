@@ -3,11 +3,13 @@ extern crate proc_macro;
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
+use std::borrow::Cow;
 use std::collections::vec_deque::VecDeque;
+use std::ops::Add;
 use syn::visit::Visit;
 use syn::{
-    AttributeArgs, GenericArgument, ItemFn, PatType, PathArguments,
-    ReturnType, Type,
+    AttributeArgs, GenericArgument, Ident, ItemFn, PatType, PathArguments,
+    ReturnType, Type, TypePath,
 };
 
 /// Parses signature of a Rust function and returns its
@@ -20,14 +22,69 @@ impl<'ast> FuncSignatureParser<'ast> {
         Self { arg_types: None }
     }
 
-    fn rust_type_to_mangled(ty: &str) -> &str {
+    #[inline(always)]
+    fn type_ident(type_path: &TypePath) -> &Ident {
+        &type_path.path.segments.last().unwrap().ident
+    }
+
+    fn type_path_to_mangled_named(
+        type_path: &TypePath,
+    ) -> syn::Result<Cow<'static, str>> {
+        match Self::type_ident(type_path).to_string().as_str() {
+            "i32" | "i64" => Ok(Cow::Borrowed("i")),
+            "f32" | "f64" => Ok(Cow::Borrowed("f")),
+            "bool" => Ok(Cow::Borrowed("b")),
+            "PatternId" | "RuleId" => Ok(Cow::Borrowed("i")),
+            "RuntimeString" => Ok(Cow::Borrowed("s")),
+            type_ident => Err(syn::Error::new_spanned(
+                type_path,
+                format!(
+                    "type `{}` is not supported as argument or return type",
+                    type_ident
+                ),
+            )),
+        }
+    }
+
+    fn mangled_type(ty: &Type) -> syn::Result<Cow<'static, str>> {
         match ty {
-            "i32" | "i64" => "i",
-            "f32" | "f64" => "f",
-            "PatternId" | "RuleId" => "i",
-            "bool" => "b",
-            "RuntimeString" => "s",
-            _ => unreachable!("unknown type: {}", ty),
+            Type::Path(type_path) => {
+                if Self::type_ident(type_path) == "Option" {
+                    if let PathArguments::AngleBracketed(angle_bracketed) =
+                        &type_path.path.segments.last().unwrap().arguments
+                    {
+                        if let GenericArgument::Type(ty) =
+                            angle_bracketed.args.first().unwrap()
+                        {
+                            Ok(Self::mangled_type(ty)?.add("u"))
+                        } else {
+                            unreachable!()
+                        }
+                    } else {
+                        unreachable!()
+                    }
+                } else {
+                    Self::type_path_to_mangled_named(type_path)
+                }
+            }
+            Type::Group(group) => Self::mangled_type(group.elem.as_ref()),
+            Type::Tuple(tuple) => {
+                let mut result = String::new();
+                for elem in tuple.elems.iter() {
+                    result.push_str(Self::mangled_type(elem)?.as_ref());
+                }
+                Ok(Cow::Owned(result))
+            }
+            _ => Err(syn::Error::new_spanned(ty, "unsupported type")),
+        }
+    }
+
+    fn mangled_return_type(ty: &ReturnType) -> syn::Result<Cow<'static, str>> {
+        match ty {
+            // The function doesn't return anything.
+            ReturnType::Default => Ok(Cow::Borrowed("")),
+            // The function returns some type.
+            ReturnType::Type(_, ty) => Self::mangled_type(ty),
         }
     }
 
@@ -43,13 +100,12 @@ impl<'ast> FuncSignatureParser<'ast> {
         let mut arg_types = self.arg_types.take().unwrap();
 
         // Make sure that the first argument is `Caller`.
-        let first_argument_is_ok = if let Some(ty) = arg_types.pop_front() {
-            Self::extract_type_ident(ty)?.map_or(false, |type_ident| {
-                type_ident.to_string().as_str() == "Caller"
-            })
-        } else {
-            false
-        };
+        let first_argument_is_ok =
+            if let Some(Type::Path(type_path)) = arg_types.pop_front() {
+                Self::type_ident(type_path) == "Caller"
+            } else {
+                false
+            };
 
         if !first_argument_is_ok {
             return Err(syn::Error::new_spanned(
@@ -60,81 +116,16 @@ impl<'ast> FuncSignatureParser<'ast> {
             ));
         }
 
-        let mut mangled_named = String::from("@");
+        let mut mangled_name = String::from("@");
 
         for arg_type in arg_types {
-            mangled_named.push_str(Self::rust_type_to_mangled(
-                Self::extract_type_ident(arg_type)?
-                    .unwrap()
-                    .to_string()
-                    .as_str(),
-            ));
+            mangled_name.push_str(Self::mangled_type(arg_type)?.as_ref());
         }
 
-        mangled_named.push('@');
+        mangled_name.push('@');
+        mangled_name.push_str(&Self::mangled_return_type(&func.sig.output)?);
 
-        if let ReturnType::Type(.., return_type) = &func.sig.output {
-            let mut type_ident = Self::extract_type_ident(return_type)?;
-            let mut maybe_undef = false;
-
-            // If the result type is Option<T>, type_ident will be "T" and
-            // maybe_undef is set to true.
-            while let Some(t) = type_ident {
-                if t == "Option" {
-                    maybe_undef = true;
-                    if let Type::Path(path) = return_type.as_ref() {
-                        if let PathArguments::AngleBracketed(angle_bracketed) =
-                            &path.path.segments.last().unwrap().arguments
-                        {
-                            if let GenericArgument::Type(ty) =
-                                angle_bracketed.args.first().unwrap()
-                            {
-                                type_ident = Self::extract_type_ident(ty)?;
-                            }
-                        }
-                    }
-                } else {
-                    break;
-                }
-            }
-
-            if let Some(t) = type_ident {
-                mangled_named.push_str(Self::rust_type_to_mangled(
-                    t.to_string().as_str(),
-                ));
-            }
-
-            if maybe_undef {
-                mangled_named.push('u');
-            }
-        }
-
-        Ok(mangled_named)
-    }
-
-    fn extract_type_ident(ty: &syn::Type) -> syn::Result<Option<&syn::Ident>> {
-        match ty {
-            Type::Path(path) => {
-                Ok(Some(&path.path.segments.last().unwrap().ident))
-            }
-            Type::Group(group) => {
-                Self::extract_type_ident(group.elem.as_ref())
-            }
-            Type::Tuple(tuple) => {
-                if tuple.elems.is_empty() {
-                    Ok(None)
-                } else {
-                    Err(syn::Error::new_spanned(
-                        ty,
-                        "can not return or receive this type",
-                    ))
-                }
-            }
-            _ => Err(syn::Error::new_spanned(
-                ty,
-                "can not return or receive this type",
-            )),
-        }
+        Ok(mangled_name)
     }
 }
 
@@ -246,10 +237,22 @@ mod tests {
         let mut parser = FuncSignatureParser::new();
 
         let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>) {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@");
+
+        let func = parse_quote! {
           fn foo(caller: Caller<'_, ScanContext>) -> i32 { 0 }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@i");
+
+        let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>) -> (i32, i32) { (0,0) }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@ii");
 
         let func = parse_quote! {
           fn foo(caller: Caller<'_, ScanContext>, a: i32, b: i32) -> i32 { a + b }
@@ -264,9 +267,33 @@ mod tests {
         assert_eq!(parser.parse(&func).unwrap(), "@@u");
 
         let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>) -> Option<i64> { None }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@iu");
+
+        let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>) -> Option<i64> { None }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@iu");
+
+        let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>) -> Option<(i64, f64)> { None }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@ifu");
+
+        let func = parse_quote! {
           fn foo(caller: Caller<'_, ScanContext>)  {  }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@");
+
+        let func = parse_quote! {
+          fn foo(caller: Caller<'_, ScanContext>) -> (i64, RuntimeString) {  }
+        };
+
+        assert_eq!(parser.parse(&func).unwrap(), "@@is");
     }
 }

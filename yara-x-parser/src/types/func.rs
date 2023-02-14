@@ -21,11 +21,12 @@ use crate::types::TypeValue;
 ///   r: regexp
 ///  ```
 ///
-///  `<return type>` is also one of the characters above, specifying the
-///  type of the returned by the function (except `r`, because functions
-///  can't return regular expressions). For example, a function `add` with
-///  two integer arguments that return another integer would have the
-///  mangled name: `add@ii@i`.
+///  `<return type>` is also a sequence of one or more of the characters
+///  above, specifying the types returned by the function (except `r`,
+///  because functions can't return regular expressions). For example, a
+///  function `add` with two integer arguments that return another integer
+///  would have the mangled name `add@ii@i`. A function `foo` that returns
+///  a tuple of two integers have the mangled name `foo@@ii`.
 ///
 ///  Additionally, the return type may be followed by a `u` character if
 ///  the returned value may be undefined. For example, a function `foo` that
@@ -36,10 +37,14 @@ use crate::types::TypeValue;
 /// doesn't receive arguments or doesn't return a value. Let's see some e
 /// examples:
 ///
-/// foo(i: i64) { .. }       ->  foo@i@
-/// bar() { .. }             ->  bar@@
-/// baz() -> Some<()>        ->  baz@@u
-///
+/// ```text
+/// foo()                          ->  foo@@
+/// foo(i: i64)                    ->  foo@i@
+/// foo() -> i32                   ->  foo@@i
+/// foo() -> Option<()>            ->  foo@@u
+/// foo() -> Option<f32>           ->  foo@@fu
+/// foo() -> Option<(f64,f64)>     ->  foo@@ffu
+/// ```
 pub struct MangledFnName(String);
 
 impl MangledFnName {

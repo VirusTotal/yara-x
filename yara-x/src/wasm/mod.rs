@@ -75,6 +75,7 @@ use bstr::ByteSlice;
 use lazy_static::lazy_static;
 use linkme::distributed_slice;
 use smallvec::{smallvec, SmallVec};
+use walrus;
 use wasmtime::{
     AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
@@ -160,24 +161,24 @@ pub(crate) trait WasmExportedFn {
     /// while linking the WASM code to this function.
     fn trampoline(&'static self) -> TrampolineFn;
 
-    /// Returns a [`Vec<walrus::ValType>`] with the types of the function's
-    /// arguments
-    fn walrus_args(&'static self) -> Vec<walrus::ValType>;
-
-    /// Returns a [`Vec<walrus::ValType>`] with the types of the function's
-    /// return values.
-    fn walrus_results(&'static self) -> Vec<walrus::ValType>;
-
     /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
     /// arguments
-    fn wasmtime_args(&'static self) -> Vec<wasmtime::ValType> {
-        self.walrus_args().iter().map(walrus_to_wasmtime).collect()
+    fn wasmtime_args(&'static self) -> Vec<wasmtime::ValType>;
+
+    /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
+    /// return values.
+    fn wasmtime_results(&'static self) -> WasmResultArray<wasmtime::ValType>;
+
+    /// Returns a [`Vec<walrus::ValType>`] with the types of the function's
+    /// arguments
+    fn walrus_args(&'static self) -> Vec<walrus::ValType> {
+        self.wasmtime_args().iter().map(wasmtime_to_walrus).collect()
     }
 
-    /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
+    /// Returns a [`Vec<walrus::ValType>`] with the types of the function's
     /// return values.
-    fn wasmtime_results(&'static self) -> Vec<wasmtime::ValType> {
-        self.walrus_results().iter().map(walrus_to_wasmtime).collect()
+    fn walrus_results(&'static self) -> WasmResultArray<walrus::ValType> {
+        self.wasmtime_results().iter().map(wasmtime_to_walrus).collect()
     }
 }
 
@@ -187,6 +188,9 @@ type TrampolineFn = Box<
         + Sync
         + 'static,
 >;
+
+const MAX_RESULTS: usize = 4;
+type WasmResultArray<T> = SmallVec<[T; MAX_RESULTS]>;
 
 /// Represents an argument passed to a `#[wasm_export]` function.
 ///
@@ -236,124 +240,166 @@ impl From<WasmArg> for RuntimeString {
     }
 }
 
-/// A trait for converting a value into an array of [`wasmtime::ValRaw`]
-/// suitable to be passed to WASM code.
+/// A trait for converting a function result into an array of
+/// [`wasmtime::ValRaw`] values suitable to be passed to WASM code.
 ///
 /// Functions with the `#[wasm_export]` attribute must return a type that
 /// implements this trait.
-pub(crate) trait ToWasm {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]>;
+pub(crate) trait WasmResult {
+    // Returns the WASM values representing this result.
+    fn values(&self) -> WasmResultArray<ValRaw>;
+
+    // Returns the WASM types that conform this result.
+    fn types() -> WasmResultArray<wasmtime::ValType>;
 }
 
-impl ToWasm for () {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
+impl WasmResult for () {
+    fn values(&self) -> WasmResultArray<ValRaw> {
+        smallvec![]
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
         smallvec![]
     }
 }
 
-impl ToWasm for i32 {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
+impl WasmResult for i32 {
+    fn values(&self) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i32(*self)]
     }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I32]
+    }
 }
 
-impl ToWasm for i64 {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
+impl WasmResult for i64 {
+    fn values(&self) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i64(*self)]
     }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I64]
+    }
 }
 
-impl ToWasm for f32 {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
+impl WasmResult for f32 {
+    fn values(&self) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::f32(f32::to_bits(*self))]
     }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::F32]
+    }
 }
 
-impl ToWasm for f64 {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
+impl WasmResult for f64 {
+    fn values(&self) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::f64(f64::to_bits(*self))]
     }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::F64]
+    }
 }
 
-impl ToWasm for bool {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
+impl WasmResult for bool {
+    fn values(&self) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i32(*self as i32)]
     }
-}
 
-impl ToWasm for RuntimeString {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
-        smallvec![ValRaw::i64(self.as_wasm())]
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I32]
     }
 }
 
-impl<T> ToWasm for Option<T>
+impl WasmResult for RuntimeString {
+    fn values(&self) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i64(self.as_wasm())]
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I64]
+    }
+}
+
+impl<A, B> WasmResult for (A, B)
 where
-    T: ToWasm + Default,
+    A: WasmResult,
+    B: WasmResult,
 {
-    fn to_wasm(&self) -> SmallVec<[ValRaw; 2]> {
+    fn values(&self) -> WasmResultArray<ValRaw> {
+        let mut result = self.0.values();
+        result.extend(self.1.values());
+        result
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        let mut result = A::types();
+        result.extend(B::types());
+        result
+    }
+}
+
+impl<T> WasmResult for Option<T>
+where
+    T: WasmResult + Default,
+{
+    fn values(&self) -> WasmResultArray<ValRaw> {
         match self {
             Some(value) => {
-                let mut result = value.to_wasm();
+                let mut result = value.values();
                 result.push(ValRaw::i32(0));
                 result
             }
             None => {
-                let mut result = T::default().to_wasm();
+                let mut result = T::default().values();
                 result.push(ValRaw::i32(1));
                 result
             }
         }
     }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        let mut result = T::types();
+        result.push(wasmtime::ValType::I32);
+        result
+    }
 }
 
-pub fn walrus_to_wasmtime(ty: &walrus::ValType) -> wasmtime::ValType {
+pub fn wasmtime_to_walrus(ty: &wasmtime::ValType) -> walrus::ValType {
     match ty {
-        walrus::ValType::I64 => wasmtime::ValType::I64,
-        walrus::ValType::I32 => wasmtime::ValType::I32,
-        walrus::ValType::F64 => wasmtime::ValType::F64,
-        walrus::ValType::F32 => wasmtime::ValType::F32,
+        wasmtime::ValType::I64 => walrus::ValType::I64,
+        wasmtime::ValType::I32 => walrus::ValType::I32,
+        wasmtime::ValType::F64 => walrus::ValType::F64,
+        wasmtime::ValType::F32 => walrus::ValType::F32,
         _ => unreachable!(),
     }
 }
 
 #[allow(clippy::if_same_then_else)]
-fn type_id_to_walrus(
+fn type_id_to_wasmtime(
     type_id: TypeId,
     type_name: &'static str,
-) -> &'static [walrus::ValType] {
+) -> &'static [wasmtime::ValType] {
     if type_id == TypeId::of::<i64>() {
-        return &[walrus::ValType::I64];
+        return &[wasmtime::ValType::I64];
     } else if type_id == TypeId::of::<i32>() {
-        return &[walrus::ValType::I32];
+        return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<f64>() {
-        return &[walrus::ValType::F64];
+        return &[wasmtime::ValType::F64];
     } else if type_id == TypeId::of::<f32>() {
-        return &[walrus::ValType::F32];
+        return &[wasmtime::ValType::F32];
     } else if type_id == TypeId::of::<LiteralId>() {
-        return &[walrus::ValType::I32];
+        return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<bool>() {
-        return &[walrus::ValType::I32];
+        return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<()>() {
         return &[];
     } else if type_id == TypeId::of::<RuntimeString>() {
-        return &[walrus::ValType::I64];
-    } else if type_id == TypeId::of::<Option<()>>() {
-        return &[walrus::ValType::I32];
-    } else if type_id == TypeId::of::<Option<i64>>() {
-        return &[walrus::ValType::I64, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<Option<i32>>() {
-        return &[walrus::ValType::I32, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<Option<f64>>() {
-        return &[walrus::ValType::F64, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<Option<f32>>() {
-        return &[walrus::ValType::F32, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<Option<bool>>() {
-        return &[walrus::ValType::I32, walrus::ValType::I32];
-    } else if type_id == TypeId::of::<Option<RuntimeString>>() {
-        return &[walrus::ValType::I64, walrus::ValType::I32];
+        return &[wasmtime::ValType::I64];
     }
-    panic!("type `{}` can't be an argument or return value", type_name)
+    panic!("type `{}` can't be an argument", type_name)
 }
 
 /// Macro that creates types [`WasmExportedFn0`], [`WasmExportedFn1`], etc,
@@ -374,13 +420,13 @@ macro_rules! impl_wasm_exported_fn {
         impl<$($args,)* R> WasmExportedFn for $name<$($args,)* R>
         where
             $($args: From<WasmArg>,)*
-            R: ToWasm,
+            R: WasmResult,
         {
             #[allow(unused_mut)]
-            fn walrus_args(&'static self) -> Vec<walrus::ValType> {
+            fn wasmtime_args(&'static self) -> Vec<wasmtime::ValType> {
                 let mut result = Vec::new();
                 $(
-                    result.extend_from_slice(type_id_to_walrus(
+                    result.extend_from_slice(type_id_to_wasmtime(
                         TypeId::of::<$args>(),
                         type_name::<$args>(),
                     ));
@@ -388,8 +434,8 @@ macro_rules! impl_wasm_exported_fn {
                 result
             }
 
-            fn walrus_results(&'static self) -> Vec<walrus::ValType> {
-                Vec::from(type_id_to_walrus(TypeId::of::<R>(), type_name::<R>()))
+            fn wasmtime_results(&'static self) -> WasmResultArray<wasmtime::ValType> {
+                R::types()
             }
 
             #[allow(unused_assignments)]
@@ -408,7 +454,7 @@ macro_rules! impl_wasm_exported_fn {
                         )*
 
                         let result = (self.target_fn)(caller, $($args),*);
-                        let result = result.to_wasm();
+                        let result = result.values();
 
                         let result_slice = result.as_slice();
                         let num_results = result_slice.len();
@@ -1053,43 +1099,43 @@ gen_uint_fn!(uint64be, u64, from_be_bytes);
 
 #[cfg(test)]
 mod tests {
-    use crate::wasm::ToWasm;
+    use crate::wasm::WasmResult;
 
     #[test]
     fn wasm_result_conversion() {
-        let w = 1_i64.to_wasm();
+        let w = 1_i64.values();
         assert_eq!(w.len(), 1);
         assert_eq!(w[0].get_i64(), 1);
 
-        let w = 1_i32.to_wasm();
+        let w = 1_i32.values();
         assert_eq!(w.len(), 1);
         assert_eq!(w[0].get_i32(), 1);
 
-        let w = Option::<i64>::Some(2).to_wasm();
+        let w = Option::<i64>::Some(2).values();
         assert_eq!(w.len(), 2);
         assert_eq!(w[0].get_i64(), 2);
         assert_eq!(w[1].get_i32(), 0);
 
-        let w = Option::<i64>::None.to_wasm();
+        let w = Option::<i64>::None.values();
         assert_eq!(w.len(), 2);
         assert_eq!(w[0].get_i64(), 0);
         assert_eq!(w[1].get_i32(), 1);
 
-        let w = Option::<i32>::Some(2).to_wasm();
+        let w = Option::<i32>::Some(2).values();
         assert_eq!(w.len(), 2);
         assert_eq!(w[0].get_i64(), 2);
         assert_eq!(w[1].get_i32(), 0);
 
-        let w = Option::<i32>::None.to_wasm();
+        let w = Option::<i32>::None.values();
         assert_eq!(w.len(), 2);
         assert_eq!(w[0].get_i32(), 0);
         assert_eq!(w[1].get_i32(), 1);
 
-        let w = Option::<()>::Some(()).to_wasm();
+        let w = Option::<()>::Some(()).values();
         assert_eq!(w.len(), 1);
         assert_eq!(w[0].get_i32(), 0);
 
-        let w = Option::<()>::None.to_wasm();
+        let w = Option::<()>::None.values();
         assert_eq!(w.len(), 1);
         assert_eq!(w[0].get_i32(), 1);
     }
