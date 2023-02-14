@@ -877,49 +877,15 @@ fn emit_array_lookup(
         instr.i32_const(-1);
     }
 
-    match array.as_ref() {
-        Array::Integers(_) => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__array_lookup_integer.mangled_name,
-                ),
-            );
-        }
-        Array::Floats(_) => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(wasm::export__array_lookup_float.mangled_name),
-            );
-        }
-        Array::Bools(_) => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(wasm::export__array_lookup_bool.mangled_name),
-            );
-        }
-        Array::Structs(_) => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__array_lookup_struct.mangled_name,
-                ),
-            );
-        }
-        Array::Strings(_) => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__array_lookup_string.mangled_name,
-                ),
-            );
-        }
-    }
+    let func = match array.as_ref() {
+        Array::Integers(_) => &wasm::export__array_lookup_integer,
+        Array::Floats(_) => &wasm::export__array_lookup_float,
+        Array::Bools(_) => &wasm::export__array_lookup_bool,
+        Array::Structs(_) => &wasm::export__array_lookup_struct,
+        Array::Strings(_) => &wasm::export__array_lookup_string,
+    };
+
+    emit_call_and_handle_undef(ctx, instr, ctx.function_id(func.mangled_name));
 }
 
 fn emit_map_lookup_by_index(
@@ -981,54 +947,16 @@ fn emit_map_integer_key_lookup(
 ) {
     emit_lookup_common(ctx, instr);
 
-    match map_value.ty() {
-        Type::Integer => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_integer_integer.mangled_name,
-                ),
-            );
-        }
-        Type::Float => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_integer_float.mangled_name,
-                ),
-            );
-        }
-        Type::Bool => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_integer_bool.mangled_name,
-                ),
-            );
-        }
-        Type::Struct => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_integer_struct.mangled_name,
-                ),
-            );
-        }
-        Type::String => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_integer_string.mangled_name,
-                ),
-            );
-        }
+    let func = match map_value.ty() {
+        Type::Integer => &wasm::export__map_lookup_integer_integer,
+        Type::Float => &wasm::export__map_lookup_integer_float,
+        Type::Bool => &wasm::export__map_lookup_integer_bool,
+        Type::Struct => &wasm::export__map_lookup_integer_struct,
+        Type::String => &wasm::export__map_lookup_integer_string,
         _ => unreachable!(),
-    }
+    };
+
+    emit_call_and_handle_undef(ctx, instr, ctx.function_id(func.mangled_name));
 }
 
 fn emit_map_string_key_lookup(
@@ -1039,54 +967,16 @@ fn emit_map_string_key_lookup(
     emit_lookup_common(ctx, instr);
 
     // Generate the call depending on the type of the map values.
-    match map_value.ty() {
-        Type::Integer => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_string_integer.mangled_name,
-                ),
-            );
-        }
-        Type::Float => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_string_float.mangled_name,
-                ),
-            );
-        }
-        Type::Bool => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_string_bool.mangled_name,
-                ),
-            );
-        }
-        Type::Struct => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_string_struct.mangled_name,
-                ),
-            );
-        }
-        Type::String => {
-            emit_call_and_handle_undef(
-                ctx,
-                instr,
-                ctx.function_id(
-                    wasm::export__map_lookup_string_string.mangled_name,
-                ),
-            );
-        }
+    let func = match map_value.ty() {
+        Type::Integer => &wasm::export__map_lookup_string_integer,
+        Type::Float => &wasm::export__map_lookup_string_float,
+        Type::Bool => &wasm::export__map_lookup_string_bool,
+        Type::Struct => &wasm::export__map_lookup_string_struct,
+        Type::String => &wasm::export__map_lookup_string_string,
         _ => unreachable!(),
-    }
+    };
+
+    emit_call_and_handle_undef(ctx, instr, ctx.function_id(func.mangled_name));
 }
 
 /// Emits a `for` loop.
