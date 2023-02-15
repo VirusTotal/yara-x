@@ -460,6 +460,22 @@ impl TypeValue {
             None
         }
     }
+
+    pub fn as_float(&self) -> Option<f64> {
+        if let TypeValue::Float(f) = self {
+            *f
+        } else {
+            None
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        if let TypeValue::Bool(b) = self {
+            *b
+        } else {
+            None
+        }
+    }
 }
 
 impl Display for TypeValue {

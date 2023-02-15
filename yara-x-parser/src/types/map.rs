@@ -34,14 +34,40 @@ impl Map {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    /// Returns the map as an [`IndexMap`] with integer keys.
+    ///
+    /// # Panics
+    ///
+    /// If the map is not the [`Map::IntegerKeys`] variant.
+    pub fn with_integer_keys(&self) -> &IndexMap<i64, TypeValue> {
+        match self {
+            Map::IntegerKeys { map, .. } => map,
+            _ => panic!("calling `with_integers_keys` on an map that is not `Map::IntegerKeys`"),
+        }
     }
 
+    /// Returns the map as an [`IndexMap`] with integer keys.
+    ///
+    /// # Panics
+    ///
+    /// If the map is not the [`Map::StringKeys`] variant.
+    pub fn with_string_keys(&self) -> &IndexMap<BString, TypeValue> {
+        match self {
+            Map::StringKeys { map, .. } => map,
+            _ => panic!("calling `with_string_keys` on an map that is not `Map::StringKeys`"),
+        }
+    }
+
+    /// Returns the number of items in the map.
     pub fn len(&self) -> usize {
         match self {
             Map::IntegerKeys { map, .. } => map.len(),
             Map::StringKeys { map, .. } => map.len(),
         }
+    }
+
+    /// Returns true if the map is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }

@@ -895,14 +895,10 @@ fn emit_map_lookup_by_index(
 ) {
     match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => {
-            match deputy.as_ref().unwrap().ty() {
+            let func = match deputy.as_ref().unwrap().ty() {
                 Type::Integer => {
-                    instr.call(
-                        ctx.function_id(
-                            wasm::export__map_lookup_by_index_integer_integer
-                                .mangled_name,
-                        ),
-                    );
+                    wasm::export__map_lookup_by_index_integer_integer
+                        .mangled_name
                 }
                 Type::String => {
                     todo!()
@@ -917,7 +913,9 @@ fn emit_map_lookup_by_index(
                     todo!()
                 }
                 _ => unreachable!(),
-            }
+            };
+
+            instr.call(ctx.function_id(func));
         }
         Map::StringKeys { .. } => {
             todo!();

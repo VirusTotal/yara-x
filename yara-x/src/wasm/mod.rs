@@ -66,7 +66,6 @@ many indexes to lookup.
 
  */
 use std::any::{type_name, TypeId};
-use std::borrow::Borrow;
 use std::mem;
 
 use bitvec::order::Lsb0;
@@ -81,7 +80,7 @@ use wasmtime::{
 };
 
 use yara_x_macros::wasm_export;
-use yara_x_parser::types::{Map, TypeValue};
+use yara_x_parser::types::TypeValue;
 
 use crate::compiler::{PatternId, RuleId};
 use crate::modules::BUILTIN_MODULES;
@@ -825,35 +824,44 @@ pub(crate) fn array_lookup_struct(
     })
 }
 
-macro_rules! gen_map_string_key_lookup_fn {
-    ($name:ident, $return_type:ty, $type:path) => {
-        #[wasm_export]
-        pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
-            key: RuntimeString,
-        ) -> Option<$return_type> {
-            let map = lookup_common!(caller, type_value, {
-                type_value.as_map().unwrap()
-            });
-
-            let key = key.as_bstr(caller.data());
-
-            let value = match map.borrow() {
-                Map::StringKeys { map, .. } => map.get(key),
-                _ => unreachable!(),
-            };
-
-            if let Some($type(Some(value))) = value {
-                Some(*value as $return_type)
-            } else {
-                None
-            }
-        }
+macro_rules! gen_map_lookup_fn {
+    ($name:ident, i64, i64) => {
+        gen_map_lookup_fn!($name, i64, i64, with_integer_keys, as_integer);
     };
-}
-
-macro_rules! gen_map_integer_key_lookup_fn {
-    ($name:ident, $return_type:ty, $type:path) => {
+    ($name:ident, i64, f64) => {
+        gen_map_lookup_fn!($name, i64, f64, with_integer_keys, as_float);
+    };
+    ($name:ident, i64, bool) => {
+        gen_map_lookup_fn!($name, i64, bool, with_integer_keys, as_bool);
+    };
+    ($name:ident, RuntimeString, i64) => {
+        gen_map_lookup_fn!(
+            $name,
+            RuntimeString,
+            i64,
+            with_string_keys,
+            as_integer
+        );
+    };
+    ($name:ident, RuntimeString, f64) => {
+        gen_map_lookup_fn!(
+            $name,
+            RuntimeString,
+            f64,
+            with_string_keys,
+            as_float
+        );
+    };
+    ($name:ident, RuntimeString, bool) => {
+        gen_map_lookup_fn!(
+            $name,
+            RuntimeString,
+            bool,
+            with_string_keys,
+            as_bool
+        );
+    };
+    ($name:ident, i64, $return_type:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
@@ -862,61 +870,64 @@ macro_rules! gen_map_integer_key_lookup_fn {
             let map = lookup_common!(caller, type_value, {
                 type_value.as_map().unwrap()
             });
-
-            let value = match map.borrow() {
-                Map::IntegerKeys { map, .. } => map.get(&key),
-                _ => unreachable!(),
-            };
-
-            if let Some($type(Some(value))) = value {
-                Some(*value as $return_type)
-            } else {
-                None
-            }
+            map.$with().get(&key).map(|v| v.$as().unwrap())
+        }
+    };
+    ($name:ident, RuntimeString, $return_type:ty, $with:ident, $as:ident) => {
+        #[wasm_export]
+        pub(crate) fn $name(
+            mut caller: Caller<'_, ScanContext>,
+            key: RuntimeString,
+        ) -> Option<$return_type> {
+            let map = lookup_common!(caller, type_value, {
+                type_value.as_map().unwrap()
+            });
+            let key = key.as_bstr(caller.data());
+            map.$with().get(key).map(|v| v.$as().unwrap())
         }
     };
 }
 
 #[rustfmt::skip]
-gen_map_string_key_lookup_fn!(
+gen_map_lookup_fn!(
     map_lookup_string_integer,
-    i64,
-    TypeValue::Integer
+    RuntimeString,
+    i64
 );
 
 #[rustfmt::skip]
-gen_map_string_key_lookup_fn!(
+gen_map_lookup_fn!(
     map_lookup_string_float,
-    f64,
-    TypeValue::Float
+    RuntimeString,
+    f64
 );
 
 #[rustfmt::skip]
-gen_map_string_key_lookup_fn!(
+gen_map_lookup_fn!(
     map_lookup_string_bool,
-    i32,
-    TypeValue::Bool
+    RuntimeString,
+    bool
 );
 
 #[rustfmt::skip]
-gen_map_integer_key_lookup_fn!(
+gen_map_lookup_fn!(
     map_lookup_integer_integer,
     i64,
-    TypeValue::Integer
+    i64
 );
 
 #[rustfmt::skip]
-gen_map_integer_key_lookup_fn!(
+gen_map_lookup_fn!(
     map_lookup_integer_float,
-    f64,
-    TypeValue::Float
+    i64,
+    f64
 );
 
 #[rustfmt::skip]
-gen_map_integer_key_lookup_fn!(
+gen_map_lookup_fn!(
     map_lookup_integer_bool,
-    i32,
-    TypeValue::Bool
+    i64,
+    bool
 );
 
 #[wasm_export]
@@ -927,12 +938,7 @@ pub(crate) fn map_lookup_integer_string(
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
-    let type_value = match map.borrow() {
-        Map::IntegerKeys { map, .. } => map.get(&key),
-        _ => unreachable!(),
-    };
-
-    type_value.map(|v| {
+    map.with_integer_keys().get(&key).map(|v| {
         RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(v.as_bstr().unwrap()),
         )
@@ -947,14 +953,9 @@ pub(crate) fn map_lookup_string_string(
     let map =
         lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
-    let key_bstr = key.as_bstr(caller.data());
+    let key = key.as_bstr(caller.data());
 
-    let type_value = match map.borrow() {
-        Map::StringKeys { map, .. } => map.get(key_bstr),
-        _ => unreachable!(),
-    };
-
-    type_value.map(|v| {
+    map.with_string_keys().get(key).map(|v| {
         RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(v.as_bstr().unwrap()),
         )
@@ -966,24 +967,11 @@ pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> Option<()> {
-    let map = lookup_common!(caller, value, {
-        match value {
-            TypeValue::Map(map) => map.clone(),
-            _ => unreachable!(),
-        }
-    });
+    let map =
+        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
-    let type_value = match map.borrow() {
-        Map::IntegerKeys { map, .. } => map.get(&key),
-        _ => unreachable!(),
-    };
-
-    type_value.map(|v| {
-        if let TypeValue::Struct(s) = v {
-            caller.data_mut().current_struct = Some(s.clone());
-        } else {
-            unreachable!()
-        }
+    map.with_integer_keys().get(&key).map(|v| {
+        caller.data_mut().current_struct = Some(v.as_struct().unwrap())
     })
 }
 
@@ -992,26 +980,13 @@ pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
 ) -> Option<()> {
-    let map = lookup_common!(caller, value, {
-        match value {
-            TypeValue::Map(map) => map.clone(),
-            _ => unreachable!(),
-        }
-    });
+    let map =
+        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
-    let key_bstr = key.as_bstr(caller.data());
+    let key = key.as_bstr(caller.data());
 
-    let type_value = match map.borrow() {
-        Map::StringKeys { map, .. } => map.get(key_bstr),
-        _ => unreachable!(),
-    };
-
-    type_value.map(|v| {
-        if let TypeValue::Struct(s) = v {
-            caller.data_mut().current_struct = Some(s.clone());
-        } else {
-            unreachable!()
-        }
+    map.with_string_keys().get(key).map(|v| {
+        caller.data_mut().current_struct = Some(v.as_struct().unwrap())
     })
 }
 
@@ -1020,20 +995,13 @@ pub(crate) fn map_lookup_by_index_integer_integer(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
 ) -> (i64, i64) {
-    let map = lookup_common!(caller, value, {
-        match value {
-            TypeValue::Map(map) => map.clone(),
-            _ => unreachable!(),
-        }
-    });
+    let map =
+        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
 
-    match map.borrow() {
-        Map::IntegerKeys { map, .. } => {
-            let (key, value) = map.get_index(index as usize).unwrap();
-            (*key, value.as_integer().unwrap())
-        }
-        _ => unreachable!(),
-    }
+    let (key, value) =
+        map.with_integer_keys().get_index(index as usize).unwrap();
+
+    (*key, value.as_integer().unwrap())
 }
 
 macro_rules! gen_str_cmp_fn {
