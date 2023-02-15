@@ -105,7 +105,7 @@ impl RuntimeString {
     }
 
     /// Returns this string as a &[`BStr`].
-    pub(crate) fn as_bstr<'a>(&'a self, ctx: &'a ScanContext) -> &'a BStr {
+    pub(crate) fn as_bstr<'a>(&self, ctx: &'a ScanContext) -> &'a BStr {
         match self {
             Self::Literal(id) => {
                 ctx.compiled_rules.lit_pool().get(*id).unwrap()
