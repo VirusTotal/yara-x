@@ -538,8 +538,7 @@ pub(super) fn semcheck_expr(
 
             // Set `current_struct` to the structure returned by the left-hand
             // operand.
-            ctx.current_struct =
-                Some(expr.lhs.type_value().as_struct().unwrap());
+            ctx.current_struct = Some(expr.lhs.type_value().as_struct());
 
             // Now check the right-hand expression. During the call to
             // `semcheck_expr` the symbol table of `current_struct` will be used

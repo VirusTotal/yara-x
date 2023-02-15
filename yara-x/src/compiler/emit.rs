@@ -420,7 +420,7 @@ pub(super) fn emit_expr(
                 emit_expr(ctx, instr, &operands.lhs);
 
                 ctx.current_struct =
-                    Some(operands.lhs.type_value().as_struct().unwrap());
+                    Some(operands.lhs.type_value().as_struct());
 
                 emit_expr(ctx, instr, &operands.rhs);
 
@@ -1360,7 +1360,7 @@ pub(super) fn emit_for_in_array(
     // A `for` loop in an array has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    let array = array_expr.type_value().as_array().unwrap();
+    let array = array_expr.type_value().as_array();
 
     // The type of the loop variable must be the type of the items in the array,
     // except for arrays of struct, for which we don't need to create a variable.
@@ -1465,7 +1465,7 @@ pub(super) fn emit_for_in_map(
     // A `for` loop in an map has exactly two variables.
     assert_eq!(for_in.variables.len(), 2);
 
-    let map = map_expr.type_value().as_map().unwrap();
+    let map = map_expr.type_value().as_map();
 
     let (key, val) = match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => (

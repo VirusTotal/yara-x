@@ -421,59 +421,65 @@ impl TypeValue {
         }
     }
 
-    pub fn as_bstr(&self) -> Option<&BStr> {
+    pub fn as_bstr(&self) -> &BStr {
         if let TypeValue::String(v) = self {
-            v.as_ref().map(|v| v.as_bstr())
+            v.as_ref()
+                .expect("TypeValue doesn't have an associated value")
+                .as_bstr()
         } else {
-            None
+            panic!(
+                "called `as_bstr` on TypeValue that is not TypeValue::String"
+            )
         }
     }
 
-    pub fn as_array(&self) -> Option<Rc<Array>> {
+    pub fn as_array(&self) -> Rc<Array> {
         if let TypeValue::Array(array) = self {
-            Some(array.clone())
+            array.clone()
         } else {
-            None
+            panic!("called `as_array` on a TypeValue that is not TypeValue::Array")
         }
     }
 
-    pub fn as_struct(&self) -> Option<Rc<Struct>> {
+    pub fn as_struct(&self) -> Rc<Struct> {
         if let TypeValue::Struct(structure) = self {
-            Some(structure.clone())
+            structure.clone()
         } else {
-            None
+            panic!("called `as_struct` on a TypeValue that is not TypeValue::Struct")
         }
     }
 
-    pub fn as_map(&self) -> Option<Rc<Map>> {
+    pub fn as_map(&self) -> Rc<Map> {
         if let TypeValue::Map(map) = self {
-            Some(map.clone())
+            map.clone()
         } else {
-            None
+            panic!("called `as_map` on a TypeValue that is not TypeValue::Map")
         }
     }
 
-    pub fn as_integer(&self) -> Option<i64> {
+    pub fn as_integer(&self) -> i64 {
         if let TypeValue::Integer(i) = self {
-            *i
+            i.expect("TypeValue doesn't have an associated value")
         } else {
-            None
+            panic!("called `as_integer` on a TypeValue that is not TypeValue::Integer")
         }
     }
 
-    pub fn as_float(&self) -> Option<f64> {
+    pub fn as_float(&self) -> f64 {
         if let TypeValue::Float(f) = self {
-            *f
+            f.expect("TypeValue doesn't have an associated value")
         } else {
-            None
+            panic!("called `as_float` on a TypeValue that is not TypeValue::Float")
         }
     }
 
-    pub fn as_bool(&self) -> Option<bool> {
+    pub fn as_bool(&self) -> bool {
         if let TypeValue::Bool(b) = self {
-            *b
+            b.expect("TypeValue doesn't have an associated value")
         } else {
-            None
+            panic!(
+                "called `as_bool` on a TypeValue that is not TypeValue::Bool"
+            )
         }
     }
 }

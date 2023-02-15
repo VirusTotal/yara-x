@@ -603,10 +603,7 @@ pub(crate) fn is_pat_match_in(
 #[wasm_export]
 pub(crate) fn array_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
     let ctx = caller.data_mut();
-
-    let len =
-        ctx.vars_stack.get(var as usize).unwrap().as_array().unwrap().len();
-
+    let len = ctx.vars_stack.get(var as usize).unwrap().as_array().len();
     len as i64
 }
 
@@ -619,10 +616,7 @@ pub(crate) fn array_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
 #[wasm_export]
 pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
     let ctx = caller.data_mut();
-
-    let len =
-        ctx.vars_stack.get(var as usize).unwrap().as_map().unwrap().len();
-
+    let len = ctx.vars_stack.get(var as usize).unwrap().as_map().len();
     len as i64
 }
 
@@ -768,9 +762,8 @@ macro_rules! gen_array_lookup_fn {
             // to store integer, floats nor bools in host-side variables.
             assert_eq!(var, -1);
 
-            let array = lookup_common!(caller, type_value, {
-                type_value.as_array().unwrap()
-            });
+            let array =
+                lookup_common!(caller, type_value, { type_value.as_array() });
 
             array.$fn().get(index as usize).map(|value| *value as $return_type)
         }
@@ -791,8 +784,7 @@ pub(crate) fn array_lookup_string(
     // to store strings in host-side variables.
     assert_eq!(var, -1);
 
-    let array =
-        lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
+    let array = lookup_common!(caller, type_value, { type_value.as_array() });
 
     array.as_string_array().get(index as usize).map(|string| {
         RuntimeString::Owned(
@@ -807,8 +799,7 @@ pub(crate) fn array_lookup_struct(
     index: i64,
     var: i32,
 ) -> Option<()> {
-    let array =
-        lookup_common!(caller, type_value, { type_value.as_array().unwrap() });
+    let array = lookup_common!(caller, type_value, { type_value.as_array() });
 
     array.as_struct_array().get(index as usize).map(|s| {
         caller.data_mut().current_struct = Some(s.clone());
@@ -867,10 +858,9 @@ macro_rules! gen_map_lookup_fn {
             mut caller: Caller<'_, ScanContext>,
             key: i64,
         ) -> Option<$return_type> {
-            let map = lookup_common!(caller, type_value, {
-                type_value.as_map().unwrap()
-            });
-            map.$with().get(&key).map(|v| v.$as().unwrap())
+            let map =
+                lookup_common!(caller, type_value, { type_value.as_map() });
+            map.$with().get(&key).map(|v| v.$as())
         }
     };
     ($name:ident, RuntimeString, $return_type:ty, $with:ident, $as:ident) => {
@@ -879,11 +869,10 @@ macro_rules! gen_map_lookup_fn {
             mut caller: Caller<'_, ScanContext>,
             key: RuntimeString,
         ) -> Option<$return_type> {
-            let map = lookup_common!(caller, type_value, {
-                type_value.as_map().unwrap()
-            });
+            let map =
+                lookup_common!(caller, type_value, { type_value.as_map() });
             let key = key.as_bstr(caller.data());
-            map.$with().get(key).map(|v| v.$as().unwrap())
+            map.$with().get(key).map(|v| v.$as())
         }
     };
 }
@@ -935,14 +924,11 @@ pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> Option<RuntimeString> {
-    let map =
-        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
+    let map = lookup_common!(caller, type_value, { type_value.as_map() });
 
-    map.with_integer_keys().get(&key).map(|v| {
-        RuntimeString::Owned(
-            caller.data_mut().string_pool.get_or_intern(v.as_bstr().unwrap()),
-        )
-    })
+    map.with_integer_keys()
+        .get(&key)
+        .map(|v| RuntimeString::from_bytes(caller.data_mut(), v.as_bstr()))
 }
 
 #[wasm_export]
@@ -950,16 +936,12 @@ pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
 ) -> Option<RuntimeString> {
-    let map =
-        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
-
+    let map = lookup_common!(caller, type_value, { type_value.as_map() });
     let key = key.as_bstr(caller.data());
 
-    map.with_string_keys().get(key).map(|v| {
-        RuntimeString::Owned(
-            caller.data_mut().string_pool.get_or_intern(v.as_bstr().unwrap()),
-        )
-    })
+    map.with_string_keys()
+        .get(key)
+        .map(|v| RuntimeString::from_bytes(caller.data_mut(), v.as_bstr()))
 }
 
 #[wasm_export]
@@ -967,12 +949,11 @@ pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> Option<()> {
-    let map =
-        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
+    let map = lookup_common!(caller, type_value, { type_value.as_map() });
 
-    map.with_integer_keys().get(&key).map(|v| {
-        caller.data_mut().current_struct = Some(v.as_struct().unwrap())
-    })
+    map.with_integer_keys()
+        .get(&key)
+        .map(|v| caller.data_mut().current_struct = Some(v.as_struct()))
 }
 
 #[wasm_export]
@@ -980,14 +961,12 @@ pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
 ) -> Option<()> {
-    let map =
-        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
-
+    let map = lookup_common!(caller, type_value, { type_value.as_map() });
     let key = key.as_bstr(caller.data());
 
-    map.with_string_keys().get(key).map(|v| {
-        caller.data_mut().current_struct = Some(v.as_struct().unwrap())
-    })
+    map.with_string_keys()
+        .get(key)
+        .map(|v| caller.data_mut().current_struct = Some(v.as_struct()))
 }
 
 #[wasm_export]
@@ -995,13 +974,11 @@ pub(crate) fn map_lookup_by_index_integer_integer(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
 ) -> (i64, i64) {
-    let map =
-        lookup_common!(caller, type_value, { type_value.as_map().unwrap() });
-
+    let map = lookup_common!(caller, type_value, { type_value.as_map() });
     let (key, value) =
         map.with_integer_keys().get_index(index as usize).unwrap();
 
-    (*key, value.as_integer().unwrap())
+    (*key, value.as_integer())
 }
 
 macro_rules! gen_str_cmp_fn {
