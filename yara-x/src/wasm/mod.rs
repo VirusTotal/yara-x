@@ -620,113 +620,108 @@ pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
     len as i64
 }
 
-macro_rules! lookup_common {
-    ($caller:ident, $type_value:ident, $code:block) => {{
-        let lookup_start = $caller
-            .data()
-            .lookup_start
-            .unwrap()
-            .get(&mut $caller.as_context_mut())
-            .i32()
-            .unwrap();
+fn lookup(caller: &mut Caller<'_, ScanContext>) -> TypeValue {
+    let lookup_start = caller
+        .data()
+        .lookup_start
+        .unwrap()
+        .get(&mut caller.as_context_mut())
+        .i32()
+        .unwrap();
 
-        let lookup_stack_top = $caller
-            .data()
-            .lookup_stack_top
-            .unwrap()
-            .get(&mut $caller.as_context_mut())
-            .i32()
-            .unwrap();
+    let lookup_stack_top = caller
+        .data()
+        .lookup_stack_top
+        .unwrap()
+        .get(&mut caller.as_context_mut())
+        .i32()
+        .unwrap();
 
-        let mut store_ctx = $caller.as_context_mut();
+    let mut store_ctx = caller.as_context_mut();
 
-        let lookup_stack_ptr =
-            store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
+    let lookup_stack_ptr =
+        store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
 
-        let lookup_stack = unsafe {
-            std::slice::from_raw_parts::<i32>(
-                lookup_stack_ptr.offset(LOOKUP_INDEXES_START as isize)
-                    as *const i32,
-                lookup_stack_top as usize,
-            )
-        };
+    let lookup_stack = unsafe {
+        std::slice::from_raw_parts::<i32>(
+            lookup_stack_ptr.offset(LOOKUP_INDEXES_START as isize)
+                as *const i32,
+            lookup_stack_top as usize,
+        )
+    };
 
-        let $type_value = if lookup_stack.len() > 0 {
-            let mut structure = if let Some(current_structure) =
-                &store_ctx.data().current_struct
-            {
-                current_structure.as_ref()
-            } else if lookup_start != -1 {
-                let var =
-                    &store_ctx.data().vars_stack[lookup_start as usize];
-
-                if let TypeValue::Struct(s) = var {
-                    s
-                } else {
-                    unreachable!(
-                        "expecting struct, got `{:?}` at variable with index {}",
-                        var, lookup_start)
-                }
-            } else {
-                &store_ctx.data().root_struct
-            };
-
-            let mut final_field = None;
-
-            for field_index in lookup_stack {
-                let field =
-                    structure.field_by_index(*field_index as usize).unwrap();
-                final_field = Some(field);
-                if let TypeValue::Struct(s) = &field.type_value {
-                    structure = &s
-                }
-            }
-
-            &final_field.unwrap().type_value
+    let type_value = if lookup_stack.len() > 0 {
+        let mut structure = if let Some(current_structure) =
+            &store_ctx.data().current_struct
+        {
+            current_structure.as_ref()
         } else if lookup_start != -1 {
-            &store_ctx.data().vars_stack[lookup_start as usize]
+            let var = &store_ctx.data().vars_stack[lookup_start as usize];
+
+            if let TypeValue::Struct(s) = var {
+                s
+            } else {
+                unreachable!(
+                    "expecting struct, got `{:?}` at variable with index {}",
+                    var, lookup_start
+                )
+            }
         } else {
-            unreachable!();
+            &store_ctx.data().root_struct
         };
 
-        let result = $code;
+        let mut final_field = None;
 
-        $caller.data_mut().current_struct = None;
+        for field_index in lookup_stack {
+            let field =
+                structure.field_by_index(*field_index as usize).unwrap();
+            final_field = Some(field);
+            if let TypeValue::Struct(s) = &field.type_value {
+                structure = &s
+            }
+        }
 
-        result
-    }};
+        &final_field.unwrap().type_value
+    } else if lookup_start != -1 {
+        &store_ctx.data().vars_stack[lookup_start as usize]
+    } else {
+        unreachable!();
+    };
+
+    let type_value = type_value.clone();
+
+    caller.data_mut().current_struct = None;
+
+    type_value.clone()
 }
 
 #[wasm_export]
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
 ) -> Option<RuntimeString> {
-    lookup_common!(caller, type_value, {
-        match type_value {
-            TypeValue::String(Some(value)) => {
-                let value = value.to_owned();
-                Some(RuntimeString::Owned(
-                    caller.data_mut().string_pool.get_or_intern(value),
-                ))
-            }
-            TypeValue::String(None) => None,
-            _ => unreachable!(),
+    match lookup(&mut caller) {
+        TypeValue::String(Some(value)) => {
+            let value = value.to_owned();
+            Some(RuntimeString::Owned(
+                caller.data_mut().string_pool.get_or_intern(value),
+            ))
         }
-    })
+        TypeValue::String(None) => None,
+        _ => unreachable!(),
+    }
 }
 
 #[wasm_export]
 pub(crate) fn lookup_value(mut caller: Caller<'_, ScanContext>, var: i32) {
-    let value = lookup_common!(caller, type_value, { type_value.clone() });
+    let type_value = lookup(&mut caller);
     let index = var as usize;
-
     let vars = &mut caller.data_mut().vars_stack;
 
     if vars.len() <= index {
         vars.resize(index + 1, TypeValue::Unknown);
     }
 
-    vars[index] = value;
+    vars[index] = type_value;
 }
 
 macro_rules! gen_lookup_fn {
@@ -735,13 +730,11 @@ macro_rules! gen_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
         ) -> Option<$return_type> {
-            lookup_common!(caller, type_value, {
-                if let $type(Some(value)) = type_value {
-                    Some(*value as $return_type)
-                } else {
-                    None
-                }
-            })
+            if let $type(Some(value)) = lookup(&mut caller) {
+                Some(value as $return_type)
+            } else {
+                None
+            }
         }
     };
 }
@@ -761,11 +754,11 @@ macro_rules! gen_array_lookup_fn {
             // TODO: decide what to to with this. It looks like are not going to need
             // to store integer, floats nor bools in host-side variables.
             assert_eq!(var, -1);
-
-            let array =
-                lookup_common!(caller, type_value, { type_value.as_array() });
-
-            array.$fn().get(index as usize).map(|value| *value as $return_type)
+            lookup(&mut caller)
+                .as_array()
+                .$fn()
+                .get(index as usize)
+                .map(|value| *value as $return_type)
         }
     };
 }
@@ -784,7 +777,7 @@ pub(crate) fn array_lookup_string(
     // to store strings in host-side variables.
     assert_eq!(var, -1);
 
-    let array = lookup_common!(caller, type_value, { type_value.as_array() });
+    let array = lookup(&mut caller).as_array();
 
     array.as_string_array().get(index as usize).map(|string| {
         RuntimeString::Owned(
@@ -799,7 +792,7 @@ pub(crate) fn array_lookup_struct(
     index: i64,
     var: i32,
 ) -> Option<()> {
-    let array = lookup_common!(caller, type_value, { type_value.as_array() });
+    let array = lookup(&mut caller).as_array();
 
     array.as_struct_array().get(index as usize).map(|s| {
         caller.data_mut().current_struct = Some(s.clone());
@@ -858,8 +851,7 @@ macro_rules! gen_map_lookup_fn {
             mut caller: Caller<'_, ScanContext>,
             key: i64,
         ) -> Option<$return_type> {
-            let map =
-                lookup_common!(caller, type_value, { type_value.as_map() });
+            let map = lookup(&mut caller).as_map();
             map.$with().get(&key).map(|v| v.$as())
         }
     };
@@ -869,8 +861,7 @@ macro_rules! gen_map_lookup_fn {
             mut caller: Caller<'_, ScanContext>,
             key: RuntimeString,
         ) -> Option<$return_type> {
-            let map =
-                lookup_common!(caller, type_value, { type_value.as_map() });
+            let map = lookup(&mut caller).as_map();
             let key = key.as_bstr(caller.data());
             map.$with().get(key).map(|v| v.$as())
         }
@@ -924,7 +915,7 @@ pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> Option<RuntimeString> {
-    let map = lookup_common!(caller, type_value, { type_value.as_map() });
+    let map = lookup(&mut caller).as_map();
 
     map.with_integer_keys()
         .get(&key)
@@ -936,7 +927,7 @@ pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
 ) -> Option<RuntimeString> {
-    let map = lookup_common!(caller, type_value, { type_value.as_map() });
+    let map = lookup(&mut caller).as_map();
     let key = key.as_bstr(caller.data());
 
     map.with_string_keys()
@@ -949,7 +940,7 @@ pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
 ) -> Option<()> {
-    let map = lookup_common!(caller, type_value, { type_value.as_map() });
+    let map = lookup(&mut caller).as_map();
 
     map.with_integer_keys()
         .get(&key)
@@ -961,7 +952,7 @@ pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
 ) -> Option<()> {
-    let map = lookup_common!(caller, type_value, { type_value.as_map() });
+    let map = lookup(&mut caller).as_map();
     let key = key.as_bstr(caller.data());
 
     map.with_string_keys()
@@ -974,7 +965,7 @@ pub(crate) fn map_lookup_by_index_integer_integer(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
 ) -> (i64, i64) {
-    let map = lookup_common!(caller, type_value, { type_value.as_map() });
+    let map = lookup(&mut caller).as_map();
     let (key, value) =
         map.with_integer_keys().get_index(index as usize).unwrap();
 
