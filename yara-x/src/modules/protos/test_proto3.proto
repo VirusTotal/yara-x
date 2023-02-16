@@ -97,7 +97,7 @@ message TestProto3 {
 
   float      float_one = 31;
 
-  // Numeric values initialized to 1 by the module.
+  // Numeric values that remain non-initialized.
 
   int32      int32_undef = 41;
   int64      int64_undef = 42;
@@ -115,6 +115,7 @@ message TestProto3 {
   sfixed64   sfixed64_undef  = 50;
 
   float      float_undef  = 51;
+  bool       bool_undef = 52;
 
   string     string_foo = 61;
   string     string_bar = 62;
@@ -123,34 +124,4 @@ message TestProto3 {
   bytes      bytes_foo = 64;
   bytes      bytes_bar = 65;
   bytes      bytes_undef = 66;
-
-  enum Enumeration {
-    ITEM_0 = 0;
-    ITEM_1 = 1;
-  }
-
-  Enumeration        enumeration = 100;
-  NestedProto3       nested = 101;
-
-  repeated int64              array_int64 = 102;
-  repeated float              array_float = 103;
-  repeated bool               array_bool = 104;
-  repeated string             array_string = 106;
-  repeated NestedProto3       array_struct = 105;
-
-  map<string, NestedProto3>   map_string_struct = 200;
-  map<string, int64>          map_string_int64 = 201;
-  map<string, string>         map_string_string = 202;
-
-  map<int64, NestedProto3>    map_int64_struct = 300;
-  map<int64, int64>           map_int64_int64 = 301;
-  map<int64, string>          map_int64_string = 302;
-}
-
-message NestedProto3 {
-  int32               nested_int32_zero = 1;
-  int64               nested_int64_zero = 2;
-  int32               nested_int32_one = 3;
-  int64               nested_int64_one = 4;
-  repeated int64      nested_array_int64 = 5;
 }

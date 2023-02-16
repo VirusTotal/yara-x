@@ -91,47 +91,19 @@ fn main(_ctx: &ScanContext) -> TestProto2 {
     nested.nested_array_int64.push(10);
     nested.nested_array_int64.push(100);
 
-    test.nested = Some(nested).into();
+    test.nested = Some(nested.clone()).into();
 
-    let mut nested = NestedProto2::new();
+    test.array_struct.push(nested.clone());
 
-    nested.set_nested_int32_zero(0);
-    nested.set_nested_int64_zero(0);
-    nested.set_nested_int32_one(1);
-    nested.set_nested_int64_one(1);
-    nested.nested_array_int64.push(2);
-    nested.nested_array_int64.push(20);
-    nested.nested_array_int64.push(200);
-
-    test.array_struct.push(nested);
-
-    let mut nested = NestedProto2::new();
-
-    nested.set_nested_int32_zero(0);
-    nested.set_nested_int64_zero(0);
-    nested.set_nested_int32_one(1);
-    nested.set_nested_int64_one(1);
-    nested.nested_array_int64.push(3);
-    nested.nested_array_int64.push(30);
-    nested.nested_array_int64.push(300);
-
-    test.map_string_struct.insert("foo".to_string(), nested);
+    test.map_string_struct.insert("foo".to_string(), nested.clone());
     test.map_string_int64.insert("one".to_string(), 1);
     test.map_string_string.insert("foo".to_string(), "FOO".to_string());
+    test.map_string_bool.insert("foo".to_string(), true);
 
-    let mut nested = NestedProto2::new();
-
-    nested.set_nested_int32_zero(0);
-    nested.set_nested_int64_zero(0);
-    nested.set_nested_int32_one(1);
-    nested.set_nested_int64_one(1);
-    nested.nested_array_int64.push(4);
-    nested.nested_array_int64.push(40);
-    nested.nested_array_int64.push(400);
-
-    test.map_int64_struct.insert(100, nested);
+    test.map_int64_struct.insert(100, nested.clone());
     test.map_int64_int64.insert(100, 1000);
     test.map_int64_string.insert(100, "one thousand".to_string());
+    test.map_int64_bool.insert(100, true);
 
     test.set_bool_proto(true);
 

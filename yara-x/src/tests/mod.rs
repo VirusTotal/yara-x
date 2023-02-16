@@ -3,14 +3,19 @@ use pretty_assertions::assert_eq;
 
 macro_rules! condition_true {
     ($condition:literal, $data:expr) => {{
-        let src = if cfg!(feature = "test_proto2-module") {
-            format!(
-                r#"import "test_proto2" rule t {{condition: {} }}"#,
-                $condition
-            )
-        } else {
-            format!("rule t {{condition: {} }}", $condition)
-        };
+        let mut src = String::new();
+
+        if cfg!(feature = "test_proto2-module") {
+            src.push_str(r#"import "test_proto2""#);
+        }
+
+        if cfg!(feature = "test_proto3-module") {
+            src.push_str(r#"import "test_proto3""#);
+        }
+
+        src.push_str(
+            format!("rule t {{condition: {} }}", $condition).as_str(),
+        );
 
         let rules = crate::compiler::Compiler::new()
             .add_source(src.as_str())
@@ -33,14 +38,19 @@ macro_rules! condition_true {
 
 macro_rules! condition_false {
     ($condition:literal,  $data:expr) => {{
-        let src = if cfg!(feature = "test_proto2-module") {
-            format!(
-                r#"import "test_proto2" rule t {{condition: {} }}"#,
-                $condition
-            )
-        } else {
-            format!("rule t {{condition: {} }}", $condition)
-        };
+        let mut src = String::new();
+
+        if cfg!(feature = "test_proto2-module") {
+            src.push_str(r#"import "test_proto2""#);
+        }
+
+        if cfg!(feature = "test_proto3-module") {
+            src.push_str(r#"import "test_proto3""#);
+        }
+
+        src.push_str(
+            format!("rule t {{condition: {} }}", $condition).as_str(),
+        );
 
         let rules = crate::compiler::Compiler::new()
             .add_source(src.as_str())
@@ -366,6 +376,21 @@ fn test_defined_2() {
 }
 
 #[test]
+#[cfg(feature = "test_proto3-module")]
+fn test_defined_3() {
+    // In modules defined with a proto3 there's no such thing as undefined
+    // fields. If the field was not explicitly set to some value, it will
+    // have the default value for the type.
+    condition_true!(r#"defined test_proto3.int64_undef"#);
+    condition_false!(r#"not defined test_proto3.int64_undef"#);
+    condition_true!(r#"test_proto3.int64_undef == 0"#);
+    condition_true!(r#"test_proto3.fixed64_undef == 0.0"#);
+    condition_false!(r#"test_proto3.bool_undef"#);
+    condition_true!(r#"not test_proto3.bool_undef"#);
+    condition_true!(r#"test_proto3.string_undef == """#);
+}
+
+#[test]
 #[cfg(feature = "test_proto2-module")]
 fn test_proto2_module() {
     condition_true!(r#"test_proto2.add(1,2) == 3"#);
@@ -373,6 +398,10 @@ fn test_proto2_module() {
 
     condition_true!(r#"test_proto2.uppercase("foo") == "FOO""#);
     condition_true!(r#"test_proto2.nested.nested_func()"#);
+    condition_true!(
+        r#"test_proto2.head(3) == "\x01\x02\x03""#,
+        &[0x01, 0x02, 0x03, 0x04]
+    );
 
     condition_false!(r#"test_proto2.undef_i64() == 0"#);
     condition_false!(r#"test_proto2.undef_i64() != 0"#);

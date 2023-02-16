@@ -232,13 +232,13 @@ impl<'a> SymbolLookup for StackedSymbolTable<'a> {
 }
 
 #[cfg(test)]
+#[cfg(feature = "test_proto2-module")]
 mod tests {
     use crate::symbols::SymbolLookup;
     use bstr::BStr;
     use yara_x_parser::types::{Struct, Type};
 
     #[test]
-    #[cfg(feature = "test_proto2-module")]
     fn message_lookup() {
         use protobuf::{Enum, MessageFull};
 
@@ -283,7 +283,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "test_proto2-module")]
     fn message_dyn_lookup() {
         use protobuf::{Enum, Message, MessageField, MessageFull};
 

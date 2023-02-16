@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use bstr::BString;
 use indexmap::IndexMap;
+use protobuf::reflect::Syntax;
 use protobuf::reflect::{
     EnumDescriptor, FieldDescriptor, MessageDescriptor, ReflectMapRef,
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
@@ -209,6 +210,7 @@ impl Struct {
         msg: Option<&dyn MessageDyn>,
         generate_fields_for_enums: bool,
     ) -> Self {
+        let syntax = msg_descriptor.file_descriptor().syntax();
         let mut fields = Vec::new();
 
         for fd in msg_descriptor.fields() {
@@ -229,9 +231,15 @@ impl Struct {
                             &ty,
                             fd.get_singular(msg),
                             generate_fields_for_enums,
+                            syntax,
                         )
                     } else {
-                        Self::new_value(&ty, None, generate_fields_for_enums)
+                        Self::new_value(
+                            &ty,
+                            None,
+                            generate_fields_for_enums,
+                            syntax,
+                        )
                     }
                 }
                 RuntimeFieldType::Repeated(ty) => {
@@ -252,6 +260,7 @@ impl Struct {
                             &value_ty,
                             Some(fd.get_map(msg)),
                             generate_fields_for_enums,
+                            syntax,
                         )
                     } else {
                         Self::new_map(
@@ -259,6 +268,7 @@ impl Struct {
                             &value_ty,
                             None,
                             generate_fields_for_enums,
+                            syntax,
                         )
                     }
                 }
@@ -417,41 +427,73 @@ impl Struct {
         }
     }
 
+    /// Given a protobuf type and value returns a [`TypeValue`].
+    ///
+    /// For proto2, if `value` is `None`, the resulting [`TypeValue`] will
+    /// contain type information only, but not values. For proto3, `None`
+    /// values will be translated to the default value for the type (i.e:
+    /// 0, false, empty strings).
+    ///
+    /// This is because in proto3, when a field is missing in the serialized
+    /// data, we can't know whether it's because the field was left uninitialized
+    /// or because it was initialized with its default value. In both cases the
+    /// result is that the field is not included in the serialized data. For
+    /// that reason we can't assume that a missing field can be translated to
+    /// an undefined field in YARA. An integer field that is missing from the
+    /// serialized data could be simply because its value was set to 0.
+    ///
+    /// In proto2 in the other hand, initialized fields are always present in
+    /// the serialized data, regardless of their values. So we can distinguish
+    /// a default value (like 0) from an uninitialized value, and handle the
+    /// latter undefined values in YARA.
     fn new_value(
         ty: &RuntimeType,
         value: Option<ReflectValueRef>,
         enum_as_fields: bool,
+        syntax: Syntax,
     ) -> TypeValue {
         match ty {
-            RuntimeType::I32 => {
-                TypeValue::Integer(value.map(Self::value_as_i64))
-            }
-            RuntimeType::I64 => {
-                TypeValue::Integer(value.map(Self::value_as_i64))
-            }
-            RuntimeType::U32 => {
-                TypeValue::Integer(value.map(Self::value_as_i64))
-            }
-            RuntimeType::U64 => {
-                TypeValue::Integer(value.map(Self::value_as_i64))
-            }
-            RuntimeType::F32 => TypeValue::Float(
-                value.map(|value| value.to_f32().unwrap() as f64),
+            RuntimeType::I32
+            | RuntimeType::I64
+            | RuntimeType::U32
+            | RuntimeType::U64
+            | RuntimeType::Enum(_) => TypeValue::Integer(
+                value.map(Self::value_as_i64).or_else(|| {
+                    // None values are translated to their default values,
+                    // in proto3. In proto2 they are left as None.
+                    if syntax == Syntax::Proto3 {
+                        Some(0)
+                    } else {
+                        None
+                    }
+                }),
             ),
-            RuntimeType::F64 => {
-                TypeValue::Float(value.map(|value| value.to_f64().unwrap()))
+            RuntimeType::F32 | RuntimeType::F64 => {
+                TypeValue::Float(value.map(Self::value_as_f64).or_else(|| {
+                    if syntax == Syntax::Proto3 {
+                        Some(0_f64)
+                    } else {
+                        None
+                    }
+                }))
             }
             RuntimeType::Bool => {
-                TypeValue::Bool(value.map(|value| value.to_bool().unwrap()))
+                TypeValue::Bool(value.map(Self::value_as_bool).or_else(|| {
+                    if syntax == Syntax::Proto3 {
+                        Some(false)
+                    } else {
+                        None
+                    }
+                }))
             }
-            RuntimeType::String => TypeValue::String(
-                value.map(|value| BString::from(value.to_str().unwrap())),
-            ),
-            RuntimeType::VecU8 => TypeValue::String(
-                value.map(|value| BString::from(value.to_bytes().unwrap())),
-            ),
-            RuntimeType::Enum(_) => TypeValue::Integer(
-                value.map(|value| value.to_enum_value().unwrap() as i64),
+            RuntimeType::String | RuntimeType::VecU8 => TypeValue::String(
+                value.map(Self::value_as_bstring).or_else(|| {
+                    if syntax == Syntax::Proto3 {
+                        Some(BString::default())
+                    } else {
+                        None
+                    }
+                }),
             ),
             RuntimeType::Message(msg_descriptor) => {
                 let structure = if let Some(value) = value {
@@ -627,17 +669,24 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        syntax: Syntax,
     ) -> TypeValue {
         let map = match key_ty {
-            RuntimeType::String => {
-                Self::new_map_with_string_key(value_ty, map, enum_as_fields)
-            }
+            RuntimeType::String => Self::new_map_with_string_key(
+                value_ty,
+                map,
+                enum_as_fields,
+                syntax,
+            ),
             RuntimeType::I32
             | RuntimeType::I64
             | RuntimeType::U32
-            | RuntimeType::U64 => {
-                Self::new_map_with_integer_key(value_ty, map, enum_as_fields)
-            }
+            | RuntimeType::U64 => Self::new_map_with_integer_key(
+                value_ty,
+                map,
+                enum_as_fields,
+                syntax,
+            ),
             ty => {
                 panic!("maps in YARA can't have keys of type `{}`", ty);
             }
@@ -650,19 +699,30 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        syntax: Syntax,
     ) -> Map {
         if let Some(map) = map {
             let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
                 result.insert(
                     Self::value_as_i64(key),
-                    Self::new_value(value_ty, Some(value), enum_as_fields),
+                    Self::new_value(
+                        value_ty,
+                        Some(value),
+                        enum_as_fields,
+                        syntax,
+                    ),
                 );
             }
             Map::IntegerKeys { deputy: None, map: result }
         } else {
             Map::IntegerKeys {
-                deputy: Some(Self::new_value(value_ty, None, enum_as_fields)),
+                deputy: Some(Self::new_value(
+                    value_ty,
+                    None,
+                    enum_as_fields,
+                    syntax,
+                )),
                 map: Default::default(),
             }
         }
@@ -672,19 +732,30 @@ impl Struct {
         value_ty: &RuntimeType,
         map: Option<ReflectMapRef>,
         enum_as_fields: bool,
+        syntax: Syntax,
     ) -> Map {
         if let Some(map) = map {
             let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
                 result.insert(
-                    BString::from(Self::value_as_str(key)),
-                    Self::new_value(value_ty, Some(value), enum_as_fields),
+                    Self::value_as_bstring(key),
+                    Self::new_value(
+                        value_ty,
+                        Some(value),
+                        enum_as_fields,
+                        syntax,
+                    ),
                 );
             }
             Map::StringKeys { deputy: None, map: result }
         } else {
             Map::StringKeys {
-                deputy: Some(Self::new_value(value_ty, None, enum_as_fields)),
+                deputy: Some(Self::new_value(
+                    value_ty,
+                    None,
+                    enum_as_fields,
+                    syntax,
+                )),
                 map: Default::default(),
             }
         }
@@ -712,13 +783,30 @@ impl Struct {
             ReflectValueRef::U64(v) => v as i64,
             ReflectValueRef::I32(v) => v as i64,
             ReflectValueRef::I64(v) => v,
+            ReflectValueRef::Enum(_, v) => v as i64,
             _ => panic!(),
         }
     }
 
-    fn value_as_str(value: ReflectValueRef) -> &str {
+    fn value_as_f64(value: ReflectValueRef) -> f64 {
         match value {
-            ReflectValueRef::String(v) => v,
+            ReflectValueRef::F64(v) => v,
+            ReflectValueRef::F32(v) => v as f64,
+            _ => panic!(),
+        }
+    }
+
+    fn value_as_bool(value: ReflectValueRef) -> bool {
+        match value {
+            ReflectValueRef::Bool(v) => v,
+            _ => panic!(),
+        }
+    }
+
+    fn value_as_bstring(value: ReflectValueRef) -> BString {
+        match value {
+            ReflectValueRef::String(v) => BString::from(v),
+            ReflectValueRef::Bytes(v) => BString::from(v),
             _ => panic!(),
         }
     }
