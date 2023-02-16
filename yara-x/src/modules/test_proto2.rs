@@ -30,6 +30,12 @@ pub(crate) fn undef_i64(_ctx: &mut ScanContext) -> Option<i64> {
     None
 }
 
+#[module_export]
+fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
+    let head = ctx.scanned_data().get(0..n as usize)?;
+    Some(RuntimeString::from_bytes(ctx, head))
+}
+
 #[module_main]
 fn main(_ctx: &ScanContext) -> TestProto2 {
     let mut test = TestProto2::new();
