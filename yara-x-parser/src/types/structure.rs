@@ -638,7 +638,9 @@ impl Struct {
             | RuntimeType::U64 => {
                 Self::new_map_with_integer_key(value_ty, map, enum_as_fields)
             }
-            _ => unreachable!(),
+            ty => {
+                panic!("maps in YARA can't have keys of type `{}`", ty);
+            }
         };
 
         TypeValue::Map(Rc::new(map))
