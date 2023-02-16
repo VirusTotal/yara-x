@@ -447,10 +447,10 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.array_struct[0].nested_int64_one == 1"#);
 
     condition_true!(
-        r#"test_proto2.array_struct[0].nested_array_int64[0] == 2"#
+        r#"test_proto2.array_struct[0].nested_array_int64[0] == 1"#
     );
     condition_true!(
-        r#"test_proto2.array_struct[0].nested_array_int64[1] == 20"#
+        r#"test_proto2.array_struct[0].nested_array_int64[1] == 10"#
     );
 
     condition_true!(r#"test_proto2.Enumeration.ITEM_0 == 0"#);
@@ -529,8 +529,38 @@ fn test_proto2_module() {
     );
 
     condition_true!(
+        r#"for any key, value in test_proto2.map_int64_bool : (
+                key == 100 and value
+          )"#
+    );
+
+    condition_true!(
         r#"for any key, value in test_proto2.map_int64_struct : (
                 key == 100 and value.nested_int64_one == 1
+          )"#
+    );
+
+    condition_true!(
+        r#"for any key, value in test_proto2.map_string_int64 : (
+                key == "one" and value == 1
+          )"#
+    );
+
+    condition_true!(
+        r#"for any key, value in test_proto2.map_string_bool : (
+                key == "foo" and value
+          )"#
+    );
+
+    condition_true!(
+        r#"for any key, value in test_proto2.map_string_string : (
+                key == "foo" and value == "FOO"
+          )"#
+    );
+
+    condition_true!(
+        r#"for any key, value in test_proto2.map_string_struct : (
+                key == "foo" and value.nested_int64_one == 1
           )"#
     );
 

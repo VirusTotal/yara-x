@@ -910,12 +910,12 @@ fn emit_array_indexing(
 /// Emits the code that performs map lookup by index.
 ///
 /// This function must be called right after emitting the code that leaves the
-/// the index in the stack. The code emitted by this function assumes that the
-/// top of the stack is an i64 with the index.
+/// index in the stack. The code emitted by this function assumes that the top
+/// of the stack is an i64 with the index.
 ///
 /// The `dst_var` argument only has effect when the map values are structs.
-/// If this argument is not `None`, it indicates the host-side variable where the
-/// resulting structure will be stored.
+/// If this argument is not `None`, it indicates the host-side variable where
+/// the resulting structure will be stored.
 ///
 /// # Panics
 ///
@@ -929,9 +929,9 @@ fn emit_map_lookup_by_index(
     // Emit the code that fills the `lookup_stack` in WASM memory.
     emit_lookup_common(ctx, instr);
 
-    match map.as_ref() {
+    let func = match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => {
-            let func = match deputy.as_ref().unwrap().ty() {
+            match deputy.as_ref().unwrap().ty() {
                 Type::Integer => {
                     assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_integer_integer
@@ -964,14 +964,45 @@ fn emit_map_lookup_by_index(
                         .mangled_name
                 }
                 _ => unreachable!(),
-            };
+            }
+        }
+        Map::StringKeys { deputy, .. } => {
+            match deputy.as_ref().unwrap().ty() {
+                Type::Integer => {
+                    assert!(dst_var.is_none());
+                    wasm::export__map_lookup_by_index_string_integer
+                        .mangled_name
+                }
+                Type::String => {
+                    assert!(dst_var.is_none());
+                    wasm::export__map_lookup_by_index_string_string
+                        .mangled_name
+                }
+                Type::Float => {
+                    assert!(dst_var.is_none());
+                    wasm::export__map_lookup_by_index_string_float.mangled_name
+                }
+                Type::Bool => {
+                    wasm::export__map_lookup_by_index_string_bool.mangled_name
+                }
+                Type::Struct => {
+                    // Push the index of the host-side variable where the structure
+                    // will be stored. If `var` is None pushes -1 which will be
+                    // ignored by the host-side function that performs the lookup.
+                    if let Some(var) = dst_var {
+                        instr.i32_const(var.index);
+                    } else {
+                        instr.i32_const(-1);
+                    }
+                    wasm::export__map_lookup_by_index_string_struct
+                        .mangled_name
+                }
+                _ => unreachable!(),
+            }
+        }
+    };
 
-            instr.call(ctx.function_id(func));
-        }
-        Map::StringKeys { .. } => {
-            todo!();
-        }
-    }
+    instr.call(ctx.function_id(func));
 }
 
 fn emit_map_lookup(
@@ -1787,10 +1818,12 @@ pub(super) fn set_var<B>(
     // Block that produces the value that will be stored in the variable.
     block(ctx, instr);
 
-    let store_kind = match var.ty {
-        Type::Bool => StoreKind::I32 { atomic: false },
-        Type::Float => StoreKind::F64,
-        Type::Integer | Type::String => StoreKind::I64 { atomic: false },
+    let (store_kind, alignment) = match var.ty {
+        Type::Bool => (StoreKind::I32 { atomic: false }, size_of::<i32>()),
+        Type::Float => (StoreKind::F64, size_of::<f64>()),
+        Type::Integer | Type::String | Type::Struct => {
+            (StoreKind::I64 { atomic: false }, size_of::<i64>())
+        }
         _ => unreachable!(),
     };
 
@@ -1799,7 +1832,7 @@ pub(super) fn set_var<B>(
     instr.store(
         ctx.wasm_symbols.main_memory,
         store_kind,
-        MemArg { align: size_of::<i64>() as u32, offset: 0 },
+        MemArg { align: alignment as u32, offset: 0 },
     );
 }
 
@@ -1829,6 +1862,9 @@ pub(super) fn set_vars<B>(
                 // Pop the value and store it into temp variable.
                 instr.local_set(ctx.wasm_symbols.i32_tmp);
                 // Push the offset where the variable resides in memory.
+                // The offset is always multiple of 64-bits, as each variable
+                // occupies a 64-bits slot. This is true even for bool values
+                // that are represented as a 32-bits integer.
                 instr.i32_const(var.index * size_of::<i64>() as i32);
                 // Push the value.
                 instr.local_get(ctx.wasm_symbols.i32_tmp);
@@ -1836,7 +1872,7 @@ pub(super) fn set_vars<B>(
                 instr.store(
                     ctx.wasm_symbols.main_memory,
                     StoreKind::I32 { atomic: false },
-                    MemArg { align: size_of::<i64>() as u32, offset: 0 },
+                    MemArg { align: size_of::<i32>() as u32, offset: 0 },
                 );
             }
             Type::Integer | Type::String => {
@@ -1856,7 +1892,7 @@ pub(super) fn set_vars<B>(
                 instr.store(
                     ctx.wasm_symbols.main_memory,
                     StoreKind::F64,
-                    MemArg { align: size_of::<i64>() as u32, offset: 0 },
+                    MemArg { align: size_of::<f64>() as u32, offset: 0 },
                 );
             }
             _ => unreachable!(),
@@ -1866,13 +1902,16 @@ pub(super) fn set_vars<B>(
 
 /// Loads the value of variable into the stack.
 pub(super) fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
+    // The slots where variables are stored start at offset VARS_STACK_START
+    // within main memory, and are 64-bits long. Lets compute the variable's
+    // offset with respect to VARS_STACK_START.
     instr.i32_const(var.index * size_of::<i64>() as i32);
 
-    let load_kind = match var.ty {
-        Type::Bool => LoadKind::I32 { atomic: false },
-        Type::Float => LoadKind::F64,
+    let (load_kind, alignment) = match var.ty {
+        Type::Bool => (LoadKind::I32 { atomic: false }, size_of::<i32>()),
+        Type::Float => (LoadKind::F64, size_of::<i64>()),
         Type::Integer | Type::String | Type::Struct => {
-            LoadKind::I64 { atomic: false }
+            (LoadKind::I64 { atomic: false }, size_of::<i64>())
         }
         _ => unreachable!(),
     };
@@ -1880,10 +1919,7 @@ pub(super) fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
     instr.load(
         ctx.wasm_symbols.main_memory,
         load_kind,
-        MemArg {
-            align: size_of::<i64>() as u32,
-            offset: VARS_STACK_START as u32,
-        },
+        MemArg { align: alignment as u32, offset: VARS_STACK_START as u32 },
     );
 }
 
