@@ -45,7 +45,6 @@ impl<'r> Scanner<'r> {
                 rules_matching: Vec::new(),
                 main_memory: None,
                 lookup_stack_top: None,
-                lookup_start: None,
                 vars_stack: Vec::new(),
             },
         );
@@ -57,13 +56,6 @@ impl<'r> Scanner<'r> {
             &mut wasm_store,
             GlobalType::new(ValType::I64, Mutability::Var),
             Val::I64(0),
-        )
-        .unwrap();
-
-        let lookup_start = Global::new(
-            &mut wasm_store,
-            GlobalType::new(ValType::I32, Mutability::Var),
-            Val::I32(-1),
         )
         .unwrap();
 
@@ -115,8 +107,6 @@ impl<'r> Scanner<'r> {
                 matching_patterns_bitmap_base,
             )
             .unwrap()
-            .define("yara_x", "lookup_start", lookup_start)
-            .unwrap()
             .define("yara_x", "lookup_stack_top", lookup_stack_top)
             .unwrap()
             .define("yara_x", "main_memory", main_memory)
@@ -131,7 +121,6 @@ impl<'r> Scanner<'r> {
 
         wasm_store.data_mut().main_memory = Some(main_memory);
         wasm_store.data_mut().lookup_stack_top = Some(lookup_stack_top);
-        wasm_store.data_mut().lookup_start = Some(lookup_start);
 
         Self { wasm_store, wasm_main_fn, filesize }
     }
@@ -385,7 +374,6 @@ pub(crate) struct ScanContext<'r> {
     /// case.
     pub(crate) vars_stack: Vec<TypeValue>,
 
-    pub(crate) lookup_start: Option<wasmtime::Global>,
     pub(crate) lookup_stack_top: Option<wasmtime::Global>,
 }
 

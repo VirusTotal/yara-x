@@ -522,6 +522,18 @@ fn test_proto2_module() {
           )"#
     );
 
+    condition_true!(
+        r#"for any key, value in test_proto2.map_int64_string : (
+                key == 100 and value == "one thousand"
+          )"#
+    );
+
+    condition_true!(
+        r#"for any key, value in test_proto2.map_int64_struct : (
+                key == 100 and value.nested_int64_one == 1
+          )"#
+    );
+
     condition_true!(r#"for any e in (1,2,3) : (e == 3)"#);
     condition_true!(r#"for any e in (1+1,2+2) : (e == 2)"#);
     condition_false!(r#"for any e in (1+1,2+2) : (e == 3)"#);

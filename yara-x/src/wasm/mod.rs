@@ -64,6 +64,8 @@ the WASM module's main memory (see "Memory layout") before calling
 [`lookup_integer`], while the global variable `lookup_stack_top` says how
 many indexes to lookup.
 
+See the [`lookup`] function.
+
  */
 use std::any::{type_name, TypeId};
 use std::mem;
@@ -491,7 +493,6 @@ pub(crate) struct WasmSymbols {
     /// The WASM module's main memory.
     pub main_memory: walrus::MemoryId,
 
-    pub lookup_start: walrus::GlobalId,
     pub lookup_stack_top: walrus::GlobalId,
 
     /// Global variable that contains the offset within the module's main
@@ -620,15 +621,40 @@ pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
     len as i64
 }
 
-fn lookup(caller: &mut Caller<'_, ScanContext>) -> TypeValue {
-    let lookup_start = caller
-        .data()
-        .lookup_start
-        .unwrap()
-        .get(&mut caller.as_context_mut())
-        .i32()
-        .unwrap();
-
+/// Given a structure and a series of fields indexes, walks the structure
+/// looking for the final field.
+///
+/// For example, suppose that we have a structure that has two fields, the
+/// first one is an integer and the second one is another struct, which in
+/// turns have another integer field:
+///
+/// {
+///   integer_field,
+///   struct_field: {
+///      integer_field
+///   }
+/// }
+///
+/// For locating the integer field in the inner structure, we can start at the
+/// outer structure and pass the following sequence of field indexes: 1, 0. The
+/// first value (1) is the index of `struct_field` within the outer structure,
+/// as this field is another structure, we can continue looking for fields, and
+/// the next value (0) is the index of `integer_field` within the inner
+/// structure. So starting at the outer structure and following the path: 1,0 we
+/// reach the inner `integer_field`.
+///
+/// The initial structure is the one stored in the variable `struct_var`
+/// (`struct_var` is actually an index within `vars_stack`, so, the structure is
+/// stored in `vars_stack[struct_var]`). If `struct_var` is -1 the initial
+/// structure will be `ScanContext.current_struct`.
+///
+/// The sequence of indexes is stored in WASM main memory, starting at
+/// `LOOKUP_INDEXES_START`, and the number of indexes is indicated by the WASM
+/// global variable `lookup_stack_top`.
+fn lookup_field(
+    caller: &mut Caller<'_, ScanContext>,
+    struct_var: i32,
+) -> TypeValue {
     let lookup_stack_top = caller
         .data()
         .lookup_stack_top
@@ -655,15 +681,15 @@ fn lookup(caller: &mut Caller<'_, ScanContext>) -> TypeValue {
             &store_ctx.data().current_struct
         {
             current_structure.as_ref()
-        } else if lookup_start != -1 {
-            let var = &store_ctx.data().vars_stack[lookup_start as usize];
+        } else if struct_var != -1 {
+            let var = &store_ctx.data().vars_stack[struct_var as usize];
 
             if let TypeValue::Struct(s) = var {
                 s
             } else {
                 unreachable!(
                     "expecting struct, got `{:?}` at variable with index {}",
-                    var, lookup_start
+                    var, struct_var
                 )
             }
         } else {
@@ -682,8 +708,8 @@ fn lookup(caller: &mut Caller<'_, ScanContext>) -> TypeValue {
         }
 
         &final_field.unwrap().type_value
-    } else if lookup_start != -1 {
-        &store_ctx.data().vars_stack[lookup_start as usize]
+    } else if struct_var != -1 {
+        &store_ctx.data().vars_stack[struct_var as usize]
     } else {
         unreachable!();
     };
@@ -695,11 +721,15 @@ fn lookup(caller: &mut Caller<'_, ScanContext>) -> TypeValue {
     type_value.clone()
 }
 
+/// Lookup a field of string type and returns its value.
+///
+/// See [`lookup_field`].
 #[wasm_export]
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
+    struct_var: i32,
 ) -> Option<RuntimeString> {
-    match lookup(&mut caller) {
+    match lookup_field(&mut caller, struct_var) {
         TypeValue::String(Some(value)) => {
             let value = value.to_owned();
             Some(RuntimeString::Owned(
@@ -711,10 +741,17 @@ pub(crate) fn lookup_string(
     }
 }
 
+/// Lookup a field of string type and returns its value.
+///
+/// See [`lookup_field`].
 #[wasm_export]
-pub(crate) fn lookup_value(mut caller: Caller<'_, ScanContext>, var: i32) {
-    let type_value = lookup(&mut caller);
-    let index = var as usize;
+pub(crate) fn lookup_value(
+    mut caller: Caller<'_, ScanContext>,
+    struct_var: i32,
+    dst_var: i32,
+) {
+    let type_value = lookup_field(&mut caller, struct_var);
+    let index = dst_var as usize;
     let vars = &mut caller.data_mut().vars_stack;
 
     if vars.len() <= index {
@@ -729,8 +766,9 @@ macro_rules! gen_lookup_fn {
         #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
+            struct_var: i32,
         ) -> Option<$return_type> {
-            if let $type(Some(value)) = lookup(&mut caller) {
+            if let $type(Some(value)) = lookup_field(&mut caller, struct_var) {
                 Some(value as $return_type)
             } else {
                 None
@@ -743,18 +781,15 @@ gen_lookup_fn!(lookup_integer, i64, TypeValue::Integer);
 gen_lookup_fn!(lookup_float, f64, TypeValue::Float);
 gen_lookup_fn!(lookup_bool, bool, TypeValue::Bool);
 
-macro_rules! gen_array_lookup_fn {
+macro_rules! gen_array_indexing_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {
         #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             index: i64,
-            var: i32,
+            struct_var: i32,
         ) -> Option<$return_type> {
-            // TODO: decide what to to with this. It looks like are not going to need
-            // to store integer, floats nor bools in host-side variables.
-            assert_eq!(var, -1);
-            lookup(&mut caller)
+            lookup_field(&mut caller, struct_var)
                 .as_array()
                 .$fn()
                 .get(index as usize)
@@ -763,49 +798,49 @@ macro_rules! gen_array_lookup_fn {
     };
 }
 
-gen_array_lookup_fn!(array_lookup_integer, as_integer_array, i64);
-gen_array_lookup_fn!(array_lookup_float, as_float_array, f64);
-gen_array_lookup_fn!(array_lookup_bool, as_bool_array, bool);
+gen_array_indexing_fn!(array_indexing_integer, as_integer_array, i64);
+gen_array_indexing_fn!(array_indexing_float, as_float_array, f64);
+gen_array_indexing_fn!(array_indexing_bool, as_bool_array, bool);
 
 #[wasm_export]
-pub(crate) fn array_lookup_string(
+#[rustfmt::skip]
+pub(crate) fn array_indexing_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
-    var: i32,
+    struct_var: i32,
 ) -> Option<RuntimeString> {
-    // TODO: decide what to to with this. It looks like are not going to need
-    // to store strings in host-side variables.
-    assert_eq!(var, -1);
-
-    let array = lookup(&mut caller).as_array();
-
-    array.as_string_array().get(index as usize).map(|string| {
-        RuntimeString::Owned(
-            caller.data_mut().string_pool.get_or_intern(string.as_bstr()),
-        )
-    })
+    lookup_field(&mut caller, struct_var)
+        .as_array()
+        .as_string_array()
+        .get(index as usize)
+        .map(|s| { 
+            RuntimeString::from_bytes(caller.data_mut(), s.as_bstr())
+        })
 }
 
 #[wasm_export]
-pub(crate) fn array_lookup_struct(
+#[rustfmt::skip]
+pub(crate) fn array_indexing_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
-    var: i32,
+    struct_var: i32,
+    dst_var: i32,
 ) -> Option<()> {
-    let array = lookup(&mut caller).as_array();
-
-    array.as_struct_array().get(index as usize).map(|s| {
-        caller.data_mut().current_struct = Some(s.clone());
-        if var != -1 {
-            let index = var as usize;
-            let vars = &mut caller.data_mut().vars_stack;
-
-            if vars.len() <= index {
-                vars.resize(index + 1, TypeValue::Unknown);
+    lookup_field(&mut caller, struct_var)
+        .as_array()
+        .as_struct_array()
+        .get(index as usize)
+        .map(|s| {
+            if dst_var != -1 {
+                let index = dst_var as usize;
+                let vars = &mut caller.data_mut().vars_stack;
+                if vars.len() <= index {
+                    vars.resize(index + 1, TypeValue::Unknown);
+                }
+                vars[index] = TypeValue::Struct(s.clone());
             }
-            vars[index] = TypeValue::Struct(s.clone());
-        }
-    })
+            caller.data_mut().current_struct = Some(s.clone());
+        })
 }
 
 macro_rules! gen_map_lookup_fn {
@@ -850,8 +885,9 @@ macro_rules! gen_map_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             key: i64,
+            struct_var: i32,
         ) -> Option<$return_type> {
-            let map = lookup(&mut caller).as_map();
+            let map = lookup_field(&mut caller, struct_var).as_map();
             map.$with().get(&key).map(|v| v.$as())
         }
     };
@@ -860,8 +896,9 @@ macro_rules! gen_map_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             key: RuntimeString,
+            struct_var: i32,
         ) -> Option<$return_type> {
-            let map = lookup(&mut caller).as_map();
+            let map = lookup_field(&mut caller, struct_var).as_map();
             let key = key.as_bstr(caller.data());
             map.$with().get(key).map(|v| v.$as())
         }
@@ -914,10 +951,11 @@ gen_map_lookup_fn!(
 pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
+    struct_var: i32,
 ) -> Option<RuntimeString> {
-    let map = lookup(&mut caller).as_map();
-
-    map.with_integer_keys()
+    lookup_field(&mut caller, struct_var)
+        .as_map()
+        .with_integer_keys()
         .get(&key)
         .map(|v| RuntimeString::from_bytes(caller.data_mut(), v.as_bstr()))
 }
@@ -926,10 +964,10 @@ pub(crate) fn map_lookup_integer_string(
 pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
+    struct_var: i32,
 ) -> Option<RuntimeString> {
-    let map = lookup(&mut caller).as_map();
+    let map = lookup_field(&mut caller, struct_var).as_map();
     let key = key.as_bstr(caller.data());
-
     map.with_string_keys()
         .get(key)
         .map(|v| RuntimeString::from_bytes(caller.data_mut(), v.as_bstr()))
@@ -939,10 +977,11 @@ pub(crate) fn map_lookup_string_string(
 pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
+    struct_var: i32,
 ) -> Option<()> {
-    let map = lookup(&mut caller).as_map();
-
-    map.with_integer_keys()
+    lookup_field(&mut caller, struct_var)
+        .as_map()
+        .with_integer_keys()
         .get(&key)
         .map(|v| caller.data_mut().current_struct = Some(v.as_struct()))
 }
@@ -951,25 +990,95 @@ pub(crate) fn map_lookup_integer_struct(
 pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
+    struct_var: i32,
 ) -> Option<()> {
-    let map = lookup(&mut caller).as_map();
+    let map = lookup_field(&mut caller, struct_var).as_map();
     let key = key.as_bstr(caller.data());
-
     map.with_string_keys()
         .get(key)
         .map(|v| caller.data_mut().current_struct = Some(v.as_struct()))
 }
 
+macro_rules! gen_map_lookup_by_index_fn {
+    ($name:ident, $key:ty, $val:ty, $with:ident, $as:ident) => {
+        #[wasm_export]
+        pub(crate) fn $name(
+            mut caller: Caller<'_, ScanContext>,
+            index: i64,
+            struct_var: i32,
+        ) -> ($key, $val) {
+            let map = lookup_field(&mut caller, struct_var).as_map();
+            let (key, value) = map.$with().get_index(index as usize).unwrap();
+            (*key, value.$as())
+        }
+    };
+}
+
+#[rustfmt::skip]
+gen_map_lookup_by_index_fn!(
+    map_lookup_by_index_integer_integer,
+    i64,
+    i64,
+    with_integer_keys,
+    as_integer
+);
+
+#[rustfmt::skip]
+gen_map_lookup_by_index_fn!(
+    map_lookup_by_index_integer_float,
+    i64,
+    f64,
+    with_integer_keys,
+    as_float
+);
+
+#[rustfmt::skip]
+gen_map_lookup_by_index_fn!(
+    map_lookup_by_index_integer_bool,
+    i64,
+    bool,
+    with_integer_keys,
+    as_bool
+);
+
 #[wasm_export]
-pub(crate) fn map_lookup_by_index_integer_integer(
+pub(crate) fn map_lookup_by_index_integer_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
-) -> (i64, i64) {
-    let map = lookup(&mut caller).as_map();
+    struct_var: i32,
+) -> (i64, RuntimeString) {
+    let map = lookup_field(&mut caller, struct_var).as_map();
+    let (key, value) =
+        map.with_integer_keys().get_index(index as usize).unwrap();
+    let value = RuntimeString::from_bytes(caller.data_mut(), value.as_bstr());
+    (*key, value)
+}
+
+#[wasm_export]
+pub(crate) fn map_lookup_by_index_integer_struct(
+    mut caller: Caller<'_, ScanContext>,
+    index: i64,
+    struct_var: i32,
+    dst_var: i32,
+) -> i64 {
+    let map = lookup_field(&mut caller, struct_var).as_map();
     let (key, value) =
         map.with_integer_keys().get_index(index as usize).unwrap();
 
-    (*key, value.as_integer())
+    let value = value.as_struct();
+
+    if dst_var != -1 {
+        let index = dst_var as usize;
+        let vars = &mut caller.data_mut().vars_stack;
+        if vars.len() <= index {
+            vars.resize(index + 1, TypeValue::Unknown);
+        }
+        vars[index] = TypeValue::Struct(value.clone());
+    }
+
+    caller.data_mut().current_struct = Some(value);
+
+    *key
 }
 
 macro_rules! gen_str_cmp_fn {

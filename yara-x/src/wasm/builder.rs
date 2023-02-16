@@ -49,7 +49,6 @@ impl ModuleBuilder {
 
         global_const!(module, matching_patterns_bitmap_base, I32);
         global_var!(module, lookup_stack_top, I32);
-        global_var!(module, lookup_start, I32);
         global_var!(module, filesize, I64);
 
         let (main_memory, _) =
@@ -58,7 +57,6 @@ impl ModuleBuilder {
         let wasm_symbols = WasmSymbols {
             main_memory,
             matching_patterns_bitmap_base,
-            lookup_start,
             lookup_stack_top,
             filesize,
             i64_tmp: module.locals.add(I64),

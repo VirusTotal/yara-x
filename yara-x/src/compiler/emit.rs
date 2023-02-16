@@ -319,27 +319,25 @@ pub(super) fn emit_expr(
                         }
                     }
                     SymbolKind::FieldIndex(index) => {
+                        ctx.lookup_stack.push_back(index);
+
                         match ident.ty() {
                             Type::Integer => {
-                                emit_lookup_integer(ctx, instr, index);
+                                emit_lookup_integer(ctx, instr);
                             }
                             Type::Float => {
-                                emit_lookup_float(ctx, instr, index);
+                                emit_lookup_float(ctx, instr);
                             }
                             Type::Bool => {
-                                emit_lookup_bool(ctx, instr, index);
+                                emit_lookup_bool(ctx, instr);
                             }
                             Type::String => {
-                                emit_lookup_string(ctx, instr, index);
+                                emit_lookup_string(ctx, instr);
                             }
-                            Type::Struct => {
-                                ctx.lookup_stack.push_back(index);
-                            }
-                            Type::Array => {
-                                ctx.lookup_stack.push_back(index);
-                            }
-                            Type::Map => {
-                                ctx.lookup_stack.push_back(index);
+                            Type::Struct | Type::Array | Type::Map => {
+                                // Do nothing. For structs, arrays and maps pushing
+                                // the field index in `lookup_stack` is enough. We
+                                // don't need to emit a call for retrieving a value.
                             }
                             _ => {
                                 // This point should not be reached. The type of
@@ -398,7 +396,7 @@ pub(super) fn emit_expr(
                 // Notice that the index expression must be emitted before the
                 // primary expression because the former may need to modify
                 // `lookup_stack`, and we don't want to alter `lookup_stack`
-                // until `emit_array_lookup` or `emit_map_lookup` is called.
+                // until `emit_array_indexing` or `emit_map_lookup` is called.
                 emit_expr(ctx, instr, &operands.primary);
 
                 // Emit a call instruction to the corresponding function, which
@@ -406,7 +404,7 @@ pub(super) fn emit_expr(
                 // and the type of the index expression.
                 match operands.primary.type_value() {
                     TypeValue::Array(array) => {
-                        emit_array_lookup(ctx, instr, array, None);
+                        emit_array_indexing(ctx, instr, array, None);
                     }
                     TypeValue::Map(map) => {
                         emit_map_lookup(ctx, instr, map);
@@ -854,63 +852,116 @@ fn emit_check_for_pattern_match(
     instr.binop(BinaryOp::I32ShrU);
 }
 
-// Emits the code that performs an array lookup.
-//
-// This function must be called right after emitting the code that leaves the
-// the index in the stack. The code emitted by this function assumes that the
-// top of the stack is an i64 with the index.
-fn emit_array_lookup(
+/// Emits the code that gets an array item by index.
+///
+/// This function must be called right after emitting the code that leaves the
+/// the index in the stack. The code emitted by this function assumes that the
+/// top of the stack is an i64 with the index.
+///
+/// The `var` argument only has effect when the array contains structs. If this
+/// argument is not `None`, it indicates the host-side variable where the
+/// resulting structure will be stored.
+///
+/// # Panics
+///
+/// If the `var` argument is not `None` for arrays that don't contain structs.
+fn emit_array_indexing(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
-    var: Option<Var>,
+    dst_var: Option<Var>,
 ) {
     // Emit the code that fills the `lookup_stack` in WASM memory.
     emit_lookup_common(ctx, instr);
 
-    // Push the index of the host-side variable where the result will be
-    // stored. If `var` is None pushes -1 which will be ignored by the
-    // host-side function that performs the lookup.
-    if let Some(var) = var {
-        instr.i32_const(var.index);
-    } else {
-        instr.i32_const(-1);
-    }
-
     let func = match array.as_ref() {
-        Array::Integers(_) => &wasm::export__array_lookup_integer,
-        Array::Floats(_) => &wasm::export__array_lookup_float,
-        Array::Bools(_) => &wasm::export__array_lookup_bool,
-        Array::Structs(_) => &wasm::export__array_lookup_struct,
-        Array::Strings(_) => &wasm::export__array_lookup_string,
+        Array::Integers(_) => {
+            assert!(dst_var.is_none());
+            &wasm::export__array_indexing_integer
+        }
+        Array::Floats(_) => {
+            assert!(dst_var.is_none());
+            &wasm::export__array_indexing_float
+        }
+        Array::Bools(_) => {
+            assert!(dst_var.is_none());
+            &wasm::export__array_indexing_bool
+        }
+        Array::Strings(_) => {
+            assert!(dst_var.is_none());
+            &wasm::export__array_indexing_string
+        }
+        Array::Structs(_) => {
+            // Push the index of the host-side variable where the structure
+            // will be stored. If `var` is None pushes -1 which will be
+            // ignored by the host-side function that performs the lookup.
+            if let Some(var) = dst_var {
+                instr.i32_const(var.index);
+            } else {
+                instr.i32_const(-1);
+            }
+            &wasm::export__array_indexing_struct
+        }
     };
 
     emit_call_and_handle_undef(ctx, instr, ctx.function_id(func.mangled_name));
 }
 
+/// Emits the code that performs map lookup by index.
+///
+/// This function must be called right after emitting the code that leaves the
+/// the index in the stack. The code emitted by this function assumes that the
+/// top of the stack is an i64 with the index.
+///
+/// The `dst_var` argument only has effect when the map values are structs.
+/// If this argument is not `None`, it indicates the host-side variable where the
+/// resulting structure will be stored.
+///
+/// # Panics
+///
+/// If the `dst_var` argument is not `None` for maps that don't contain structs.
 fn emit_map_lookup_by_index(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     map: &Rc<Map>,
+    dst_var: Option<Var>,
 ) {
+    // Emit the code that fills the `lookup_stack` in WASM memory.
+    emit_lookup_common(ctx, instr);
+
     match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => {
             let func = match deputy.as_ref().unwrap().ty() {
                 Type::Integer => {
+                    assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_integer_integer
                         .mangled_name
                 }
                 Type::String => {
-                    todo!()
+                    assert!(dst_var.is_none());
+                    wasm::export__map_lookup_by_index_integer_string
+                        .mangled_name
                 }
                 Type::Float => {
-                    todo!()
+                    assert!(dst_var.is_none());
+                    wasm::export__map_lookup_by_index_integer_float
+                        .mangled_name
                 }
                 Type::Bool => {
-                    todo!()
+                    assert!(dst_var.is_none());
+                    wasm::export__map_lookup_by_index_integer_bool.mangled_name
                 }
                 Type::Struct => {
-                    todo!()
+                    // Push the index of the host-side variable where the structure
+                    // will be stored. If `var` is None pushes -1 which will be
+                    // ignored by the host-side function that performs the lookup.
+                    if let Some(var) = dst_var {
+                        instr.i32_const(var.index);
+                    } else {
+                        instr.i32_const(-1);
+                    }
+                    wasm::export__map_lookup_by_index_integer_struct
+                        .mangled_name
                 }
                 _ => unreachable!(),
             };
@@ -1364,7 +1415,7 @@ pub(super) fn emit_for_in_array(
 
     // The type of the loop variable must be the type of the items in the array,
     // except for arrays of struct, for which we don't need to create a variable.
-    let (is_wasm_var, loop_var) = match array.as_ref() {
+    let (wasm_side_next_item, loop_var) = match array.as_ref() {
         Array::Integers(_) => (true, TypeValue::Integer(None)),
         Array::Floats(_) => (true, TypeValue::Float(None)),
         Array::Bools(_) => (true, TypeValue::Bool(None)),
@@ -1383,7 +1434,7 @@ pub(super) fn emit_for_in_array(
     // Associate the symbol with the memory location where `next_item` is
     // stored. Everytime that the loop variable is used in the condition,
     // it will refer to the value stored in `next_item`.
-    if is_wasm_var {
+    if wasm_side_next_item {
         symbol.kind = SymbolKind::WasmVar(next_item);
     } else {
         symbol.kind = SymbolKind::HostVar(next_item);
@@ -1434,18 +1485,18 @@ pub(super) fn emit_for_in_array(
             // `array_var`.
             ctx.lookup_start = Some(array_var);
 
-            if is_wasm_var {
+            if wasm_side_next_item {
                 // Get the i-th item in the array and store it in the
                 // WASM-side local variable `next_item`.
                 set_var(ctx, instr, next_item, |ctx, instr| {
                     load_var(ctx, instr, i);
-                    emit_array_lookup(ctx, instr, &array, None);
+                    emit_array_indexing(ctx, instr, &array, None);
                 });
             } else {
                 // Get the i-th item in the array and store it in the
                 // host-side local variable `next_item`.
                 load_var(ctx, instr, i);
-                emit_array_lookup(ctx, instr, &array, Some(next_item));
+                emit_array_indexing(ctx, instr, &array, Some(next_item));
             }
         },
         // After each iteration.
@@ -1469,12 +1520,12 @@ pub(super) fn emit_for_in_map(
 
     let (key, val) = match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => (
-            TypeValue::Integer(None),
-            deputy.as_ref().unwrap().clone_without_value(),
+            TypeValue::Integer(None),                       // key
+            deputy.as_ref().unwrap().clone_without_value(), // value
         ),
         Map::StringKeys { deputy, .. } => (
-            TypeValue::String(None),
-            deputy.as_ref().unwrap().clone_without_value(),
+            TypeValue::String(None),                        // key
+            deputy.as_ref().unwrap().clone_without_value(), // value
         ),
     };
 
@@ -1486,12 +1537,16 @@ pub(super) fn emit_for_in_map(
     // put in the loop variable in the next iteration.
     let next_val = ctx.new_var(val.ty());
 
+    // When values in the map are structs, `next_val` is a host-side variable.
+    // For every other type it is a WASM-side variable.
+    let wasm_side_next_val = !matches!(val.ty(), Type::Struct);
+
     // Create a symbol table containing the loop variables.
     let mut symbol_key = Symbol::new(key);
     let mut symbol_val = Symbol::new(val);
 
     symbol_key.kind = SymbolKind::WasmVar(next_key);
-    symbol_val.kind = match next_key.ty {
+    symbol_val.kind = match next_val.ty {
         Type::Integer | Type::Float | Type::Bool | Type::String => {
             SymbolKind::WasmVar(next_val)
         }
@@ -1546,10 +1601,21 @@ pub(super) fn emit_for_in_map(
             // `map_var`.
             ctx.lookup_start = Some(map_var);
 
-            set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
-                load_var(ctx, instr, i);
-                emit_map_lookup_by_index(ctx, instr, &map);
-            });
+            // If `next_val` is a WASM-side variable, its value will be returned
+            // by the lookup function, and the WASM code must put it into the
+            // WASM-side variable. If not, it's a host-side variable that
+            // will be set directly by the lookup function.
+            if wasm_side_next_val {
+                set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
+                    load_var(ctx, instr, i);
+                    emit_map_lookup_by_index(ctx, instr, &map, None);
+                });
+            } else {
+                set_var(ctx, instr, next_key, |ctx, instr| {
+                    load_var(ctx, instr, i);
+                    emit_map_lookup_by_index(ctx, instr, &map, Some(next_val));
+                });
+            }
         },
         // After each iteration.
         |_, _, _| {},
@@ -1705,6 +1771,8 @@ pub(super) fn emit_for_in_expr_tuple(
 }
 
 /// Sets into a variable the value produced by a code block.
+///
+/// For multiple variables use [`set_vars`].
 pub(super) fn set_var<B>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
@@ -1721,9 +1789,8 @@ pub(super) fn set_var<B>(
 
     let store_kind = match var.ty {
         Type::Bool => StoreKind::I32 { atomic: false },
-        Type::Integer => StoreKind::I64 { atomic: false },
         Type::Float => StoreKind::F64,
-        Type::String => StoreKind::I64 { atomic: false },
+        Type::Integer | Type::String => StoreKind::I64 { atomic: false },
         _ => unreachable!(),
     };
 
@@ -1741,6 +1808,8 @@ pub(super) fn set_var<B>(
 /// The code block must leave in the stack as many values as the number of vars
 /// and their types must match. The first variable will contain the first value
 /// that was pushed into the stack.
+///
+/// For a single variable use [`set_var`].
 pub(super) fn set_vars<B>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
@@ -1801,9 +1870,10 @@ pub(super) fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
 
     let load_kind = match var.ty {
         Type::Bool => LoadKind::I32 { atomic: false },
-        Type::Integer => LoadKind::I64 { atomic: false },
         Type::Float => LoadKind::F64,
-        Type::String => LoadKind::I64 { atomic: false },
+        Type::Integer | Type::String | Type::Struct => {
+            LoadKind::I64 { atomic: false }
+        }
         _ => unreachable!(),
     };
 
@@ -1915,14 +1985,6 @@ pub(super) fn emit_lookup_common(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
 ) {
-    if let Some(start) = ctx.lookup_start.take() {
-        instr.i32_const(start.index);
-        instr.global_set(ctx.wasm_symbols.lookup_start);
-    } else {
-        instr.i32_const(-1);
-        instr.global_set(ctx.wasm_symbols.lookup_start);
-    }
-
     instr.i32_const(ctx.lookup_stack.len() as i32);
     instr.global_set(ctx.wasm_symbols.lookup_stack_top);
 
@@ -1948,15 +2010,19 @@ pub(super) fn emit_lookup_common(
             },
         );
     }
+
+    if let Some(start) = ctx.lookup_start.take() {
+        instr.i32_const(start.index);
+    } else {
+        instr.i32_const(-1);
+    }
 }
 
 #[inline]
 pub(super) fn emit_lookup_integer(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    field_index: i32,
 ) {
-    ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -1969,9 +2035,7 @@ pub(super) fn emit_lookup_integer(
 pub(super) fn emit_lookup_float(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    field_index: i32,
 ) {
-    ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -1984,9 +2048,7 @@ pub(super) fn emit_lookup_float(
 pub(super) fn emit_lookup_bool(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    field_index: i32,
 ) {
-    ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -1999,9 +2061,7 @@ pub(super) fn emit_lookup_bool(
 pub(super) fn emit_lookup_string(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    field_index: i32,
 ) {
-    ctx.lookup_stack.push_back(field_index);
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2014,10 +2074,10 @@ pub(super) fn emit_lookup_string(
 pub(super) fn emit_lookup_value(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    var: Var,
+    dst_var: Var,
 ) {
     emit_lookup_common(ctx, instr);
-    instr.i32_const(var.index);
+    instr.i32_const(dst_var.index);
     instr.call(ctx.function_id(wasm::export__lookup_value.mangled_name));
 }
 
