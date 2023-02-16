@@ -1219,20 +1219,16 @@ macro_rules! gen_uint_fn {
             caller: Caller<'_, ScanContext>,
             offset: i64,
         ) -> Option<i64> {
-            if let Ok(offset) = usize::try_from(offset) {
-                caller
-                    .data()
-                    .scanned_data()
-                    .get(offset..offset + mem::size_of::<$return_type>())
-                    .map_or(None, |bytes| {
-                        let value = <$return_type>::$from_fn(
-                            bytes.try_into().unwrap(),
-                        );
-                        Some(value as i64)
-                    })
-            } else {
-                None
-            }
+            let offset = usize::try_from(offset).ok()?;
+            caller
+                .data()
+                .scanned_data()
+                .get(offset..offset + mem::size_of::<$return_type>())
+                .map_or(None, |bytes| {
+                    let value =
+                        <$return_type>::$from_fn(bytes.try_into().unwrap());
+                    Some(value as i64)
+                })
         }
     };
 }
