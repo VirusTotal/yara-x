@@ -64,7 +64,7 @@ the WASM module's main memory (see "Memory layout") before calling
 [`lookup_integer`], while the global variable `lookup_stack_top` says how
 many indexes to lookup.
 
-See the [`lookup`] function.
+See the [`lookup_field`] function.
 
  */
 use std::any::{type_name, TypeId};
@@ -76,7 +76,6 @@ use bstr::ByteSlice;
 use lazy_static::lazy_static;
 use linkme::distributed_slice;
 use smallvec::{smallvec, SmallVec};
-use walrus;
 use wasmtime::{
     AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
@@ -676,7 +675,7 @@ fn lookup_field(
         )
     };
 
-    let type_value = if lookup_stack.len() > 0 {
+    let type_value = if !lookup_stack.is_empty() {
         let mut structure = if let Some(current_structure) =
             &store_ctx.data().current_struct
         {
@@ -703,7 +702,7 @@ fn lookup_field(
                 structure.field_by_index(*field_index as usize).unwrap();
             final_field = Some(field);
             if let TypeValue::Struct(s) = &field.type_value {
-                structure = &s
+                structure = s
             }
         }
 
@@ -718,7 +717,7 @@ fn lookup_field(
 
     caller.data_mut().current_struct = None;
 
-    type_value.clone()
+    type_value
 }
 
 /// Lookup a field of string type and returns its value.
@@ -730,12 +729,9 @@ pub(crate) fn lookup_string(
     struct_var: i32,
 ) -> Option<RuntimeString> {
     match lookup_field(&mut caller, struct_var) {
-        TypeValue::String(Some(value)) => {
-            let value = value.to_owned();
-            Some(RuntimeString::Owned(
-                caller.data_mut().string_pool.get_or_intern(value),
-            ))
-        }
+        TypeValue::String(Some(value)) => Some(RuntimeString::Owned(
+            caller.data_mut().string_pool.get_or_intern(value),
+        )),
         TypeValue::String(None) => None,
         _ => unreachable!(),
     }

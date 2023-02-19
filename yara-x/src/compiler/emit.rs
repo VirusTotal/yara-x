@@ -1424,8 +1424,8 @@ fn emit_for_of(
     emit_for(
         ctx,
         instr,
-        &quantifier,
-        &condition,
+        quantifier,
+        condition,
         |ctx, instr, n, _| {
             // Set n = number of patterns.
             set_var(ctx, instr, n, |_, instr| {
