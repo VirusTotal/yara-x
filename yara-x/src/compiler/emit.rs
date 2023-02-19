@@ -1,14 +1,15 @@
 use std::mem::size_of;
 use std::rc::Rc;
-use std::slice::Iter;
 
 use bstr::ByteSlice;
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
+use yara_x_parser::ast::Of;
+use yara_x_parser::ast::OfItems;
 use yara_x_parser::ast::{
-    Expr, ForIn, Iterable, MatchAnchor, Quantifier, Range, Rule,
+    Expr, ForIn, Iterable, MatchAnchor, PatternSet, Quantifier, Range, Rule,
 };
 use yara_x_parser::types::{Array, Map, Type, TypeValue};
 
@@ -206,14 +207,14 @@ pub(super) fn emit_rule_code(
     rule_id: RuleId,
     rule: &Rule,
 ) {
-    // Emit WebAssembly code for the rule's condition.
+    // Emit WASM code for the rule's condition.
     instr.block(None, |block| {
         catch_undef(ctx, block, |ctx, instr| {
             emit_bool_expr(ctx, instr, &rule.condition);
         });
 
         // If the condition's result is 0, jump out of the block
-        // and don't call the `rule_result` function.
+        // and don't call the `rule_match` function.
         block.unop(UnaryOp::I32Eqz);
         block.br_if(block.id());
 
@@ -352,19 +353,36 @@ pub(super) fn emit_expr(
             });
         }
         Expr::PatternMatch(pattern) => {
-            let pattern_id =
-                ctx.get_pattern_from_current_rule(&pattern.identifier);
+            // Push the pattern ID in the stack. Identifier "$" is an special
+            // case, as this is used inside `for` loops and it represents a
+            // different pattern on each iteration. In those cases the pattern
+            // ID is obtained from a loop variable.
+            if pattern.identifier.as_str() == "$" {
+                match ctx.symbol_table.lookup("$").unwrap().kind {
+                    SymbolKind::WasmVar(var) => {
+                        load_var(ctx, instr, var);
+                        // load_var returns a I64, convert it to I32.
+                        instr.unop(UnaryOp::I32WrapI64);
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            // For normal pattern identifiers (e.g: $a, $b, $foo) we find the
+            // corresponding pattern in the current rule, and push its ID.
+            else {
+                instr.i32_const(
+                    ctx.get_pattern_from_current_rule(&pattern.identifier),
+                );
+            };
 
             match &pattern.anchor {
                 Some(MatchAnchor::At(anchor_at)) => {
-                    instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_at.expr);
                     instr.call(ctx.function_id(
                         wasm::export__is_pat_match_at.mangled_name,
                     ));
                 }
                 Some(MatchAnchor::In(anchor_in)) => {
-                    instr.i32_const(pattern_id);
                     emit_expr(ctx, instr, &anchor_in.range.lower_bound);
                     emit_expr(ctx, instr, &anchor_in.range.upper_bound);
                     instr.call(ctx.function_id(
@@ -372,7 +390,7 @@ pub(super) fn emit_expr(
                     ));
                 }
                 None => {
-                    emit_check_for_pattern_match(ctx, instr, pattern_id);
+                    emit_check_for_pattern_match(ctx, instr);
                 }
             }
         }
@@ -764,11 +782,17 @@ pub(super) fn emit_expr(
         Expr::Matches(_) => {
             // TODO
         }
-        Expr::Of(_) => {
-            // TODO
+        Expr::Of(of) => {
+            emit_of(ctx, instr, of);
         }
-        Expr::ForOf(_) => {
-            // TODO
+        Expr::ForOf(for_of) => {
+            emit_for_of(
+                ctx,
+                instr,
+                &for_of.pattern_set,
+                &for_of.quantifier,
+                &for_of.condition,
+            );
         }
         Expr::ForIn(for_in) => match &for_in.iterable {
             Iterable::Range(range) => {
@@ -826,29 +850,57 @@ fn emit_check_for_rule_match(
 
 /// Emits the code that checks if a pattern (a.k.a string) has matched.
 ///
-/// The emitted code leaves 0 or 1 at the top of the stack.
+/// This function assumes that the PatternId is at the top of the stack as a
+/// I32. The emitted code consumes the PatternId and leaves another I32 with
+/// value 0 or 1 at the top of the stack.
 fn emit_check_for_pattern_match(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    pattern_id: PatternId,
 ) {
+    // Take the pattern ID at the top of the stack and store it in a temp
+    // variable, but leaving a copy in the stack.
+    instr.local_tee(ctx.wasm_symbols.i32_tmp);
+
+    // Divide by pattern ID by 8 for getting the byte offset relative to
+    // the start of the bitmap.
+    instr.i32_const(3);
+    instr.binop(BinaryOp::I32ShrU);
+
+    // Add the base of the bitmap for getting the final memory address.
     instr.global_get(ctx.wasm_symbols.matching_patterns_bitmap_base);
-    instr.i32_const(pattern_id / 8);
     instr.binop(BinaryOp::I32Add);
+
+    // Load the byte that contains the ID-th bit.
     instr.load(
         ctx.wasm_symbols.main_memory,
         LoadKind::I32_8 { kind: ZeroExtend },
         MemArg { align: size_of::<i8>() as u32, offset: 0 },
     );
-    // This is the first operator for the I32ShrU operation.
-    instr.i32_const(pattern_id % 8);
-    // Compute byte & (1 << (rule_id % 8)), which clears all
-    // bits except the one we are interested in.
-    instr.i32_const(1 << (pattern_id % 8));
+
+    // At this point the byte is at the top of the stack. The byte will be
+    // the first argument for the I32And instruction below.
+
+    // Put 1 in the stack. This is the first argument to I32Shl.
+    instr.i32_const(1);
+
+    // Compute pattern_id % 8 and store the result back to temp variable,
+    // but leaving a copy in the stack,
+    instr.local_get(ctx.wasm_symbols.i32_tmp);
+    instr.i32_const(8);
+    instr.binop(BinaryOp::I32RemU);
+    instr.local_tee(ctx.wasm_symbols.i32_tmp);
+
+    // Compute (1 << (rule_id % 8))
+    instr.binop(BinaryOp::I32Shl);
+
+    // Compute byte & (1 << (rule_id % 8)) which clears all the bits except
+    // the one we are interested in.
     instr.binop(BinaryOp::I32And);
+
     // Now shift the byte to the right, leaving the
     // interesting bit as the LSB. So the result is either
     // 1 or 0.
+    instr.local_get(ctx.wasm_symbols.i32_tmp);
     instr.binop(BinaryOp::I32ShrU);
 }
 
@@ -1080,7 +1132,8 @@ fn emit_map_string_key_lookup(
 pub(super) fn emit_for<I, B, A>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
+    quantifier: &Quantifier,
+    condition: &Expr,
     loop_init: I,
     before_cond: B,
     after_cond: A,
@@ -1129,18 +1182,17 @@ pub(super) fn emit_for<I, B, A>(
             instr.i64_const(0);
         });
 
-        let (quantifier, counter) = match &for_in.quantifier {
+        let (max_count, count) = match quantifier {
             Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
-                // `quantifier` is the number of loop conditions that must return
+                // `max_count` is the number of loop conditions that must return
                 // `true` for the loop to be `true`.
-                let quantifier = ctx.new_var(Type::Integer);
-                // `counter` is the number of loop conditions that actually
+                let max_count = ctx.new_var(Type::Integer);
+                // `count` is the number of loop conditions that actually
                 // returned `true`. This is initially zero.
-                let counter = ctx.new_var(Type::Integer);
+                let count = ctx.new_var(Type::Integer);
 
-                set_var(ctx, instr, quantifier, |ctx, instr| {
-                    if matches!(&for_in.quantifier, Quantifier::Percentage(_))
-                    {
+                set_var(ctx, instr, max_count, |ctx, instr| {
+                    if matches!(quantifier, Quantifier::Percentage(_)) {
                         // Quantifier is a percentage, its final value will be
                         // n * quantifier / 100
 
@@ -1162,12 +1214,12 @@ pub(super) fn emit_for<I, B, A>(
                     }
                 });
 
-                // Initialize `counter` to 0.
-                set_var(ctx, instr, counter, |_, instr| {
+                // Initialize `count` to 0.
+                set_var(ctx, instr, count, |_, instr| {
                     instr.i64_const(0);
                 });
 
-                (quantifier, counter)
+                (max_count, count)
             }
             _ => (
                 Var { ty: Type::Integer, index: 0 },
@@ -1186,13 +1238,13 @@ pub(super) fn emit_for<I, B, A>(
             // because we don't want to abort the loop in such cases. When the
             // condition is undefined it's handled as a false.
             catch_undef(ctx, block, |ctx, block| {
-                emit_expr(ctx, block, &for_in.condition);
+                emit_expr(ctx, block, condition);
             });
 
             // At the top of the stack we have the i32 with the result from
             // the loop condition. Decide what to do depending on the
             // quantifier.
-            match &for_in.quantifier {
+            match quantifier {
                 Quantifier::None { .. } => {
                     block.if_else(
                         I32,
@@ -1260,32 +1312,32 @@ pub(super) fn emit_for<I, B, A>(
                     block.if_else(
                         None,
                         |then_| {
-                            // The condition was true, increment counter.
-                            incr_var(ctx, then_, counter);
+                            // The condition was true, increment count.
+                            incr_var(ctx, then_, count);
 
                             // Is counter >= quantifier?.
-                            load_var(ctx, then_, counter);
-                            load_var(ctx, then_, quantifier);
+                            load_var(ctx, then_, count);
+                            load_var(ctx, then_, max_count);
                             then_.binop(BinaryOp::I64GeS);
 
                             then_.if_else(
                                 None,
-                                // counter >= quantifier
+                                // count >= max_count
                                 |then_| {
-                                    // Is quantifier == 0?
-                                    load_var(ctx, then_, quantifier);
+                                    // Is max_count == 0?
+                                    load_var(ctx, then_, max_count);
                                     then_.unop(UnaryOp::I64Eqz);
                                     then_.if_else(
                                         None,
-                                        // quantifier == 0, this should treated
+                                        // max_count == 0, this should treated be
                                         // as a `none` quantifier. At this point
-                                        // counter >= 1, so break the loop with
+                                        // count >= 1, so break the loop with
                                         // result false.
                                         |then_| {
                                             then_.i32_const(0);
                                             then_.br(loop_end);
                                         },
-                                        // quantifier != 0 and counter >= quantifier
+                                        // max_count != 0 and count >= max_count
                                         // break the loop with result true.
                                         |else_| {
                                             else_.i32_const(1);
@@ -1302,20 +1354,20 @@ pub(super) fn emit_for<I, B, A>(
                     incr_i_and_repeat(ctx, block, n, i, loop_start);
 
                     // If this point is reached we have iterated over the whole
-                    // range 0..n. If quantifier is zero this means that all
+                    // range 0..n. If `max_count` is zero this means that all
                     // iterations returned false and therefore the loop must
-                    // return true. If quantifier is non-zero it means that
-                    // `counter` didn't reached `quantifier` and the loop must
+                    // return true. If `max_count` is non-zero it means that
+                    // `counter` didn't reached `max_count` and the loop must
                     // return false.
-                    load_var(ctx, block, quantifier);
+                    load_var(ctx, block, max_count);
                     block.unop(UnaryOp::I64Eqz);
                     block.if_else(
                         I32,
-                        // quantifier == 0
+                        // max_count == 0
                         |then_| {
                             then_.i32_const(1);
                         },
-                        // quantifier != 0
+                        // max_count != 0
                         |else_| {
                             else_.i32_const(0);
                         },
@@ -1325,14 +1377,84 @@ pub(super) fn emit_for<I, B, A>(
         });
 
         if matches!(
-            &for_in.quantifier,
+            quantifier,
             Quantifier::Percentage(_) | Quantifier::Expr(_)
         ) {
-            ctx.free_vars(quantifier);
+            ctx.free_vars(max_count);
         };
     });
 
     ctx.free_vars(n);
+}
+
+fn emit_of(_ctx: &mut Context, _instr: &mut InstrSeqBuilder, of: &Of) {
+    match &of.items {
+        OfItems::PatternSet(_) => {
+            // TODO
+        }
+        OfItems::BoolExprTuple(_) => {
+            // TODO
+        }
+    }
+}
+
+fn emit_for_of(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    pattern_set: &PatternSet,
+    quantifier: &Quantifier,
+    condition: &Expr,
+) {
+    let pattern_ids: Vec<PatternId> =
+        patterns_matching(ctx, pattern_set).collect();
+
+    let num_patterns = pattern_ids.len();
+    let mut pattern_ids = pattern_ids.into_iter();
+
+    let next_pattern_id = ctx.new_var(Type::Integer);
+
+    let mut symbol = Symbol::new(TypeValue::Integer(None));
+    symbol.kind = SymbolKind::WasmVar(next_pattern_id);
+
+    let mut loop_vars = SymbolTable::new();
+    loop_vars.insert("$", symbol);
+
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    emit_for(
+        ctx,
+        instr,
+        &quantifier,
+        &condition,
+        |ctx, instr, n, _| {
+            // Set n = number of patterns.
+            set_var(ctx, instr, n, |_, instr| {
+                instr.i64_const(num_patterns as i64);
+            });
+        },
+        // Before each iteration.
+        |ctx, instr, i| {
+            // Get the i-th pattern ID, and store it in `next_pattern_id`.
+            set_var(ctx, instr, next_pattern_id, |ctx, instr| {
+                load_var(ctx, instr, i);
+                emit_switch(ctx, I64, instr, |_, instr| {
+                    if let Some(pattern_id) = pattern_ids.next() {
+                        instr.i64_const(pattern_id as i64);
+                        return true;
+                    }
+                    false
+                });
+            });
+        },
+        // After each iteration.
+        |_, _, _| {},
+    );
+
+    // Remove the symbol table that contains the loop variable.
+    ctx.symbol_table.pop();
+
+    // Free loop variables.
+    ctx.free_vars(next_pattern_id);
 }
 
 pub(super) fn emit_for_in_range(
@@ -1366,7 +1488,8 @@ pub(super) fn emit_for_in_range(
     emit_for(
         ctx,
         instr,
-        for_in,
+        &for_in.quantifier,
+        &for_in.condition,
         |ctx, instr, n, loop_end| {
             // Set n = upper_bound - lower_bound + 1;
             set_var(ctx, instr, n, |ctx, instr| {
@@ -1487,7 +1610,8 @@ pub(super) fn emit_for_in_array(
     emit_for(
         ctx,
         instr,
-        for_in,
+        &for_in.quantifier,
+        &for_in.condition,
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |ctx, instr| {
@@ -1604,7 +1728,8 @@ pub(super) fn emit_for_in_map(
     emit_for(
         ctx,
         instr,
-        for_in,
+        &for_in.quantifier,
+        &for_in.condition,
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the maps's length.
             set_var(ctx, instr, n, |ctx, instr| {
@@ -1656,12 +1781,19 @@ pub(super) fn emit_for_in_map(
     ctx.free_vars(next_key);
 }
 
+/// Produces a switch statement by calling a `branch_generator` function
+/// multiple times.
+///
+/// On each call to `branch_generator` it emits the code for one of the
+/// branches and returns `true`. When `branch_generator` returns `false`
+/// it won't be called anymore and no more branches will be produced.
+///
 /// Given an iterator that returns `N` expressions ([`Expr`]), generates a
 /// switch statement that takes an `i64` value from the stack (in the range
 /// `0..N-1`) and executes the corresponding expression.
 ///
-/// For an iterator that returns 3 expressions the generated code looks like
-/// this:
+/// For `branch_generator` function that returns 3 expressions the generated
+/// code looks like this:
 ///
 /// ```text
 /// i32.wrap_i64                        ;; convert the i64 at the top of the
@@ -1686,25 +1818,33 @@ pub(super) fn emit_for_in_map(
 ///         unreachable                 ;; if this point is reached is because
 ///                                     ;; the switch selector is out of range
 ///       end                           ;; block @4
-///       ;; < code expr 2 goes here >
+///       block (result i64)
+///         ;; < code expr 2 goes here >
+///       end
 ///       br 2 (;@1;)                   ;; exits block @1
 ///     end                             ;; block @3  
-///     ;; < code expr 1 goes here >
+///     block (result i64)
+///       ;; < code expr 1 goes here >
+///     end
 ///     br 1 (;@1;)                     ;; exits block @1        
 ///   end                               ;; block @2
-///   ;; < code expr 0 goes here >
+///   block (result i64)                
+///     ;; < code expr 0 goes here >
+///   end                                 
 ///   br 0 (;@1;)                       ;; exits block @1   
 /// end                                 ;; block @1
 ///                                     ;; at this point the i64 returned by the
 ///                                     ;; selected expression is at the top of
 ///                                     ;; the stack.
 /// ```
-fn emit_switch(
+fn emit_switch<F>(
     ctx: &mut Context,
     ty: ValType,
     instr: &mut InstrSeqBuilder,
-    expressions: &[Expr],
-) {
+    branch_generator: F,
+) where
+    F: FnMut(&mut Context, &mut InstrSeqBuilder) -> bool,
+{
     // Convert the i64 at the top of the stack to an i32, which is the type
     // expected by the `bt_table` instruction.
     instr.unop(UnaryOp::I32WrapI64);
@@ -1717,32 +1857,46 @@ fn emit_switch(
     let block_ids = Vec::new();
 
     instr.block(ty, |block| {
-        emit_switch_internal(ctx, block, expressions.iter(), block_ids);
+        emit_switch_internal(ctx, ty, block, branch_generator, block_ids);
     });
 }
 
-fn emit_switch_internal(
+fn emit_switch_internal<F>(
     ctx: &mut Context,
+    ty: ValType,
     instr: &mut InstrSeqBuilder,
-    mut expressions: Iter<Expr>,
+    mut branch_generator: F,
     mut block_ids: Vec<InstrSeqId>,
-) {
+) where
+    F: FnMut(&mut Context, &mut InstrSeqBuilder) -> bool,
+{
     block_ids.push(instr.id());
 
-    if let Some(expr) = expressions.next() {
+    // Create a dangling instructions sequence, this sequence will be inserting
+    // later in the final code, but for the time being is floating around.
+    let mut expr = instr.dangling_instr_seq(ty);
+
+    // Call the branch generator, that will emit code into the dangling
+    // instruction sequence.
+    if branch_generator(ctx, &mut expr) {
+        // The branch generator function returned true, which means that it
+        // emitted code for a branch.
+        let expr_id = expr.id();
         let outermost_block = block_ids.first().cloned();
         instr.block(None, |block| {
-            emit_switch_internal(ctx, block, expressions, block_ids);
+            emit_switch_internal(ctx, ty, block, branch_generator, block_ids);
         });
-        emit_expr(ctx, instr, expr);
+        instr.instr(walrus::ir::Block { seq: expr_id });
         instr.br(outermost_block.unwrap());
     } else {
+        // The branch generator function returned false, no more branches will
+        // be emitted. Let's emit the `br_table` which jumps to the appropriate
+        // branch depending on the switch selector.
         instr.block(None, |block| {
             block.local_get(ctx.wasm_symbols.i32_tmp);
             block.br_table(block_ids[1..].into(), block.id());
         });
-        instr.unreachable();
-    };
+    }
 }
 
 pub(super) fn emit_for_in_expr_tuple(
@@ -1772,14 +1926,18 @@ pub(super) fn emit_for_in_expr_tuple(
     // tables.
     ctx.symbol_table.push(Rc::new(loop_vars));
 
+    let num_expressions = expressions.len();
+    let mut expressions = expressions.iter();
+
     emit_for(
         ctx,
         instr,
-        for_in,
+        &for_in.quantifier,
+        &for_in.condition,
         |ctx, instr, n, _| {
             // Initialize `n` to number of expressions.
             set_var(ctx, instr, n, |_, instr| {
-                instr.i64_const(expressions.len() as i64);
+                instr.i64_const(num_expressions as i64);
             });
         },
         // Before each iteration.
@@ -1787,7 +1945,13 @@ pub(super) fn emit_for_in_expr_tuple(
             // Execute the i-th expression and save its result in `next_item`.
             set_var(ctx, instr, next_item, |ctx, instr| {
                 load_var(ctx, instr, i);
-                emit_switch(ctx, next_item.ty.into(), instr, expressions);
+                emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
+                    if let Some(expr) = expressions.next() {
+                        emit_expr(ctx, instr, expr);
+                        return true;
+                    }
+                    false
+                });
             });
         },
         // After each iteration.
@@ -1967,7 +2131,7 @@ pub(super) fn emit_bool_expr(
             instr.binop(BinaryOp::F64Ne);
         }
         Type::String => {
-            instr.call(ctx.function_id(&wasm::export__str_len.mangled_name));
+            instr.call(ctx.function_id(wasm::export__str_len.mangled_name));
             instr.i64_const(0);
             instr.binop(BinaryOp::I64Ne);
         }
@@ -2241,4 +2405,31 @@ pub(super) fn throw_undef_if_zero(ctx: &Context, instr: &mut InstrSeqBuilder) {
             else_.local_get(ctx.wasm_symbols.i64_tmp);
         },
     );
+}
+
+/// Returns the patterns (a.k.a: strings) in the current rule that match a
+/// pattern set.
+fn patterns_matching<'a>(
+    ctx: &'a mut Context,
+    pattern_set: &'a PatternSet,
+) -> Box<dyn Iterator<Item = PatternId> + 'a> {
+    match pattern_set {
+        PatternSet::Them => {
+            Box::new(ctx.current_rule.patterns.iter().map(|p| p.1))
+        }
+        PatternSet::Set(set_patterns) => Box::new(
+            ctx.current_rule.patterns.iter().filter_map(move |rule_pattern| {
+                // Get the pattern identifier (e.g: $, $a, $foo)
+                let ident = ctx.ident_pool.get(rule_pattern.0).unwrap();
+                // Iterate over the patterns in the set (e.g: $foo, $foo*) and
+                // check if some of them matches the identifier.
+                for set_pattern in set_patterns {
+                    if set_pattern.matches(ident) {
+                        return Some(rule_pattern.1);
+                    }
+                }
+                None
+            }),
+        ),
+    }
 }

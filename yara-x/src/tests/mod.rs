@@ -274,6 +274,14 @@ fn for_in() {
     condition_false!("for all i in (5..2) : ( false )");
     condition_false!("for none i in (5..2) : ( true )");
     condition_false!("for none i in (5..2) : ( false )");
+
+    condition_true!(r#"for any e in (1,2,3) : (e == 3)"#);
+    condition_true!(r#"for any e in (1+1,2+2) : (e == 2)"#);
+    condition_false!(r#"for any e in (1+1,2+2) : (e == 3)"#);
+    condition_true!(r#"for all e in (1+1,2+2) : (e < 5)"#);
+    condition_true!(r#"for 2 s in ("foo", "bar", "baz") : (s contains "ba")"#);
+    condition_true!(r#"for all x in (1.0, 2.0, 3.0) : (x >= 1.0)"#);
+    condition_true!(r#"for none x in (1.0, 2.0, 3.0) : (x > 4.0)"#);
 }
 
 #[test]
@@ -299,6 +307,29 @@ fn filesize() {
 
     assert_eq!(scanner.scan(&[]).num_matching_rules(), 1);
     assert_eq!(scanner.scan(&[1]).num_matching_rules(), 1);
+}
+
+#[test]
+fn for_of() {
+    let rules = crate::compiler::Compiler::new()
+        .add_source(
+            r#"
+        rule filesize_0 {
+          strings:
+            $a = "foo"
+            $b = "bar"
+          condition:
+            for none of ($a, $b) : ($)
+        }
+        "#,
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(&[]).num_matching_rules(), 1);
 }
 
 #[test]
@@ -592,14 +623,6 @@ fn test_proto2_module() {
                 key == "foo" and value.nested_int64_one == 1
           )"#
     );
-
-    condition_true!(r#"for any e in (1,2,3) : (e == 3)"#);
-    condition_true!(r#"for any e in (1+1,2+2) : (e == 2)"#);
-    condition_false!(r#"for any e in (1+1,2+2) : (e == 3)"#);
-    condition_true!(r#"for all e in (1+1,2+2) : (e < 5)"#);
-    condition_true!(r#"for 2 s in ("foo", "bar", "baz") : (s contains "ba")"#);
-    condition_true!(r#"for all x in (1.0, 2.0, 3.0) : (x >= 1.0)"#);
-    condition_true!(r#"for none x in (1.0, 2.0, 3.0) : (x > 4.0)"#);
 
     // This field is named `bool_proto` in the protobuf definition, but it's
     // name for YARA wsa changed to `bool_yara`, with:
