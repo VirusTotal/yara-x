@@ -2330,9 +2330,7 @@ fn emit_call_and_handle_undef(
 }
 
 fn emit_lookup_common(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
-    instr.i32_const(ctx.lookup_stack.len() as i32);
-    instr.global_set(ctx.wasm_symbols.lookup_stack_top);
-
+    let num_lookup_indexes = ctx.lookup_stack.len();
     let main_memory = ctx.wasm_symbols.main_memory;
 
     for (i, field_index) in ctx.lookup_stack.drain(0..).enumerate() {
@@ -2355,6 +2353,8 @@ fn emit_lookup_common(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
             },
         );
     }
+
+    instr.i32_const(num_lookup_indexes as i32);
 
     if let Some(start) = ctx.lookup_start.take() {
         instr.i32_const(start.index);

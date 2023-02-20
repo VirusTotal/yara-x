@@ -61,7 +61,7 @@ indexes: the index of `some_module` within the global structure, the index
 of `some_struct` within `some_module`, and finally the index of `some_int`,
 within `some_struct`. These indexes are stored starting at offset 1024 in
 the WASM module's main memory (see "Memory layout") before calling
-[`lookup_integer`], while the global variable `lookup_stack_top` says how
+[`lookup_integer`], while the global variable `lookup_num_lookup_indexes` says how
 many indexes to lookup.
 
 See the [`lookup_field`] function.
@@ -476,6 +476,7 @@ impl_wasm_exported_fn!(WasmExportedFn0);
 impl_wasm_exported_fn!(WasmExportedFn1 A1);
 impl_wasm_exported_fn!(WasmExportedFn2 A1 A2);
 impl_wasm_exported_fn!(WasmExportedFn3 A1 A2 A3);
+impl_wasm_exported_fn!(WasmExportedFn4 A1 A2 A3 A4);
 
 /// Table with functions and variables used by the WASM module.
 ///
@@ -491,8 +492,6 @@ impl_wasm_exported_fn!(WasmExportedFn3 A1 A2 A3);
 pub(crate) struct WasmSymbols {
     /// The WASM module's main memory.
     pub main_memory: walrus::MemoryId,
-
-    pub lookup_stack_top: walrus::GlobalId,
 
     /// Global variable that contains the offset within the module's main
     /// memory where resides the bitmap that indicates if a pattern matches
@@ -671,34 +670,27 @@ pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
 /// structure will be `ScanContext.current_struct`.
 ///
 /// The sequence of indexes is stored in WASM main memory, starting at
-/// `LOOKUP_INDEXES_START`, and the number of indexes is indicated by the WASM
-/// global variable `lookup_stack_top`.
+/// `LOOKUP_INDEXES_START`, and the number of indexes is indicated by the
+/// argument `num_lookup_indexes`.
 fn lookup_field(
     caller: &mut Caller<'_, ScanContext>,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> TypeValue {
-    let lookup_stack_top = caller
-        .data()
-        .lookup_stack_top
-        .unwrap()
-        .get(&mut caller.as_context_mut())
-        .i32()
-        .unwrap();
-
     let mut store_ctx = caller.as_context_mut();
 
-    let lookup_stack_ptr =
+    let lookup_indexes_ptr =
         store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
 
-    let lookup_stack = unsafe {
+    let lookup_indexes = unsafe {
         std::slice::from_raw_parts::<i32>(
-            lookup_stack_ptr.offset(LOOKUP_INDEXES_START as isize)
+            lookup_indexes_ptr.offset(LOOKUP_INDEXES_START as isize)
                 as *const i32,
-            lookup_stack_top as usize,
+            num_lookup_indexes as usize,
         )
     };
 
-    let type_value = if !lookup_stack.is_empty() {
+    let type_value = if !lookup_indexes.is_empty() {
         let mut structure = if let Some(current_structure) =
             &store_ctx.data().current_struct
         {
@@ -720,7 +712,7 @@ fn lookup_field(
 
         let mut final_field = None;
 
-        for field_index in lookup_stack {
+        for field_index in lookup_indexes {
             let field =
                 structure.field_by_index(*field_index as usize).unwrap();
             final_field = Some(field);
@@ -749,9 +741,10 @@ fn lookup_field(
 #[wasm_export]
 pub(crate) fn lookup_string(
     mut caller: Caller<'_, ScanContext>,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> Option<RuntimeString> {
-    match lookup_field(&mut caller, struct_var) {
+    match lookup_field(&mut caller, num_lookup_indexes, struct_var) {
         TypeValue::String(Some(value)) => Some(RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(value),
         )),
@@ -766,10 +759,11 @@ pub(crate) fn lookup_string(
 #[wasm_export]
 pub(crate) fn lookup_value(
     mut caller: Caller<'_, ScanContext>,
+    num_lookup_indexes: i32,
     struct_var: i32,
     dst_var: i32,
 ) {
-    let type_value = lookup_field(&mut caller, struct_var);
+    let type_value = lookup_field(&mut caller, num_lookup_indexes, struct_var);
     let index = dst_var as usize;
     let vars = &mut caller.data_mut().vars_stack;
 
@@ -785,9 +779,12 @@ macro_rules! gen_lookup_fn {
         #[wasm_export]
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
+            num_lookup_indexes: i32,
             struct_var: i32,
         ) -> Option<$return_type> {
-            if let $type(Some(value)) = lookup_field(&mut caller, struct_var) {
+            if let $type(Some(value)) =
+                lookup_field(&mut caller, num_lookup_indexes, struct_var)
+            {
                 Some(value as $return_type)
             } else {
                 None
@@ -806,9 +803,10 @@ macro_rules! gen_array_indexing_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             index: i64,
+            num_lookup_indexes: i32,
             struct_var: i32,
         ) -> Option<$return_type> {
-            lookup_field(&mut caller, struct_var)
+            lookup_field(&mut caller, num_lookup_indexes, struct_var)
                 .as_array()
                 .$fn()
                 .get(index as usize)
@@ -826,9 +824,10 @@ gen_array_indexing_fn!(array_indexing_bool, as_bool_array, bool);
 pub(crate) fn array_indexing_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> Option<RuntimeString> {
-    lookup_field(&mut caller, struct_var)
+    lookup_field(&mut caller, num_lookup_indexes,struct_var )
         .as_array()
         .as_string_array()
         .get(index as usize)
@@ -842,10 +841,11 @@ pub(crate) fn array_indexing_string(
 pub(crate) fn array_indexing_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
+    num_lookup_indexes: i32,
     struct_var: i32,
     dst_var: i32,
 ) -> Option<()> {
-    lookup_field(&mut caller, struct_var)
+    lookup_field(&mut caller, num_lookup_indexes,struct_var )
         .as_array()
         .as_struct_array()
         .get(index as usize)
@@ -904,9 +904,12 @@ macro_rules! gen_map_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             key: i64,
+            num_lookup_indexes: i32,
             struct_var: i32,
         ) -> Option<$return_type> {
-            let map = lookup_field(&mut caller, struct_var).as_map();
+            let map =
+                lookup_field(&mut caller, num_lookup_indexes, struct_var)
+                    .as_map();
             map.$with().get(&key).map(|v| v.$as())
         }
     };
@@ -915,9 +918,12 @@ macro_rules! gen_map_lookup_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             key: RuntimeString,
+            num_lookup_indexes: i32,
             struct_var: i32,
         ) -> Option<$return_type> {
-            let map = lookup_field(&mut caller, struct_var).as_map();
+            let map =
+                lookup_field(&mut caller, num_lookup_indexes, struct_var)
+                    .as_map();
             let key = key.as_bstr(caller.data());
             map.$with().get(key).map(|v| v.$as())
         }
@@ -970,9 +976,10 @@ gen_map_lookup_fn!(
 pub(crate) fn map_lookup_integer_string(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> Option<RuntimeString> {
-    lookup_field(&mut caller, struct_var)
+    lookup_field(&mut caller, num_lookup_indexes, struct_var)
         .as_map()
         .with_integer_keys()
         .get(&key)
@@ -983,9 +990,11 @@ pub(crate) fn map_lookup_integer_string(
 pub(crate) fn map_lookup_string_string(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> Option<RuntimeString> {
-    let map = lookup_field(&mut caller, struct_var).as_map();
+    let map =
+        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
     let key = key.as_bstr(caller.data());
     map.with_string_keys()
         .get(key)
@@ -996,9 +1005,10 @@ pub(crate) fn map_lookup_string_string(
 pub(crate) fn map_lookup_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     key: i64,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> Option<()> {
-    lookup_field(&mut caller, struct_var)
+    lookup_field(&mut caller, num_lookup_indexes, struct_var)
         .as_map()
         .with_integer_keys()
         .get(&key)
@@ -1009,9 +1019,11 @@ pub(crate) fn map_lookup_integer_struct(
 pub(crate) fn map_lookup_string_struct(
     mut caller: Caller<'_, ScanContext>,
     key: RuntimeString,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> Option<()> {
-    let map = lookup_field(&mut caller, struct_var).as_map();
+    let map =
+        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
     let key = key.as_bstr(caller.data());
     map.with_string_keys()
         .get(key)
@@ -1024,9 +1036,12 @@ macro_rules! gen_map_lookup_by_index_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             index: i64,
+            num_lookup_indexes: i32,
             struct_var: i32,
         ) -> (RuntimeString, $val) {
-            let map = lookup_field(&mut caller, struct_var).as_map();
+            let map =
+                lookup_field(&mut caller, num_lookup_indexes, struct_var)
+                    .as_map();
             let (key, value) = map.$with().get_index(index as usize).unwrap();
             let key =
                 RuntimeString::from_bytes(caller.data_mut(), key.as_bstr());
@@ -1038,9 +1053,12 @@ macro_rules! gen_map_lookup_by_index_fn {
         pub(crate) fn $name(
             mut caller: Caller<'_, ScanContext>,
             index: i64,
+            num_lookup_indexes: i32,
             struct_var: i32,
         ) -> ($key, $val) {
-            let map = lookup_field(&mut caller, struct_var).as_map();
+            let map =
+                lookup_field(&mut caller, num_lookup_indexes, struct_var)
+                    .as_map();
             let (key, value) = map.$with().get_index(index as usize).unwrap();
             (*key, value.$as())
         }
@@ -1105,9 +1123,11 @@ gen_map_lookup_by_index_fn!(
 pub(crate) fn map_lookup_by_index_integer_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> (i64, RuntimeString) {
-    let map = lookup_field(&mut caller, struct_var).as_map();
+    let map =
+        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
     let (key, value) =
         map.with_integer_keys().get_index(index as usize).unwrap();
     let value = RuntimeString::from_bytes(caller.data_mut(), value.as_bstr());
@@ -1118,9 +1138,11 @@ pub(crate) fn map_lookup_by_index_integer_string(
 pub(crate) fn map_lookup_by_index_string_string(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
+    num_lookup_indexes: i32,
     struct_var: i32,
 ) -> (RuntimeString, RuntimeString) {
-    let map = lookup_field(&mut caller, struct_var).as_map();
+    let map =
+        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
     let (key, value) =
         map.with_string_keys().get_index(index as usize).unwrap();
     let key = RuntimeString::from_bytes(caller.data_mut(), key.as_bstr());
@@ -1132,10 +1154,12 @@ pub(crate) fn map_lookup_by_index_string_string(
 pub(crate) fn map_lookup_by_index_integer_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
+    num_lookup_indexes: i32,
     struct_var: i32,
     dst_var: i32,
 ) -> i64 {
-    let map = lookup_field(&mut caller, struct_var).as_map();
+    let map =
+        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
     let (key, value) =
         map.with_integer_keys().get_index(index as usize).unwrap();
 
@@ -1159,10 +1183,12 @@ pub(crate) fn map_lookup_by_index_integer_struct(
 pub(crate) fn map_lookup_by_index_string_struct(
     mut caller: Caller<'_, ScanContext>,
     index: i64,
+    num_lookup_indexes: i32,
     struct_var: i32,
     dst_var: i32,
 ) -> RuntimeString {
-    let map = lookup_field(&mut caller, struct_var).as_map();
+    let map =
+        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
     let (key, value) =
         map.with_string_keys().get_index(index as usize).unwrap();
 
