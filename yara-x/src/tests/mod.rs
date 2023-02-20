@@ -365,7 +365,7 @@ fn of() {
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 2);
+    assert_eq!(scanner.scan(&[]).num_matching_rules(), 3);
 }
 
 #[test]
