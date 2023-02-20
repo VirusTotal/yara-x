@@ -314,7 +314,7 @@ fn for_of() {
     let rules = crate::compiler::Compiler::new()
         .add_source(
             r#"
-        rule filesize_0 {
+        rule test {
           strings:
             $a = "foo"
             $b = "bar"
@@ -330,6 +330,42 @@ fn for_of() {
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
     assert_eq!(scanner.scan(&[]).num_matching_rules(), 1);
+}
+
+#[test]
+fn of() {
+    let rules = crate::compiler::Compiler::new()
+        .add_source(
+            r#"
+        rule test_1 {
+          condition:
+            none of (1 == 0, 2 == 0)
+        }
+        rule test_2 {
+          strings: 
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            none of ($a*, $b1)
+        }
+        rule test_3 {
+          strings: 
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            none of them
+        }
+        "#,
+        )
+        .unwrap()
+        .build()
+        .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(&[]).num_matching_rules(), 2);
 }
 
 #[test]

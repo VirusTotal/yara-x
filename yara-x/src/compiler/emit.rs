@@ -6,11 +6,11 @@ use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
-use yara_x_parser::ast::Of;
 use yara_x_parser::ast::OfItems;
 use yara_x_parser::ast::{
     Expr, ForIn, Iterable, MatchAnchor, PatternSet, Quantifier, Range, Rule,
 };
+use yara_x_parser::ast::{ForOf, Of};
 use yara_x_parser::types::{Array, Map, Type, TypeValue};
 
 use crate::compiler::{Context, PatternId, RuleId, Var};
@@ -200,6 +200,34 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
+/// Emits the code that determines if some pattern is matching.
+///
+/// This function assumes that the pattern ID is at the top of the stack.
+fn emit_pattern_match(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    anchor: Option<&MatchAnchor>,
+) {
+    match anchor {
+        Some(MatchAnchor::At(anchor_at)) => {
+            emit_expr(ctx, instr, &anchor_at.expr);
+            instr.call(
+                ctx.function_id(wasm::export__is_pat_match_at.mangled_name),
+            );
+        }
+        Some(MatchAnchor::In(anchor_in)) => {
+            emit_expr(ctx, instr, &anchor_in.range.lower_bound);
+            emit_expr(ctx, instr, &anchor_in.range.upper_bound);
+            instr.call(
+                ctx.function_id(wasm::export__is_pat_match_in.mangled_name),
+            );
+        }
+        None => {
+            emit_check_for_pattern_match(ctx, instr);
+        }
+    }
+}
+
 /// Emits WASM code of a rule.
 pub(super) fn emit_rule_code(
     ctx: &mut Context,
@@ -375,24 +403,7 @@ pub(super) fn emit_expr(
                 );
             };
 
-            match &pattern.anchor {
-                Some(MatchAnchor::At(anchor_at)) => {
-                    emit_expr(ctx, instr, &anchor_at.expr);
-                    instr.call(ctx.function_id(
-                        wasm::export__is_pat_match_at.mangled_name,
-                    ));
-                }
-                Some(MatchAnchor::In(anchor_in)) => {
-                    emit_expr(ctx, instr, &anchor_in.range.lower_bound);
-                    emit_expr(ctx, instr, &anchor_in.range.upper_bound);
-                    instr.call(ctx.function_id(
-                        wasm::export__is_pat_match_in.mangled_name,
-                    ));
-                }
-                None => {
-                    emit_check_for_pattern_match(ctx, instr);
-                }
-            }
+            emit_pattern_match(ctx, instr, pattern.anchor.as_ref());
         }
         Expr::PatternCount(_) => {
             // TODO
@@ -782,17 +793,16 @@ pub(super) fn emit_expr(
         Expr::Matches(_) => {
             // TODO
         }
-        Expr::Of(of) => {
-            emit_of(ctx, instr, of);
-        }
+        Expr::Of(of) => match &of.items {
+            OfItems::PatternSet(pattern_set) => {
+                emit_of_pattern_set(ctx, instr, of, pattern_set);
+            }
+            OfItems::BoolExprTuple(expressions) => {
+                emit_of_expr_tuple(ctx, instr, of, expressions);
+            }
+        },
         Expr::ForOf(for_of) => {
-            emit_for_of(
-                ctx,
-                instr,
-                &for_of.pattern_set,
-                &for_of.quantifier,
-                &for_of.condition,
-            );
+            emit_for_of_pattern_set(ctx, instr, for_of);
         }
         Expr::ForIn(for_in) => match &for_in.iterable {
             Iterable::Range(range) => {
@@ -1111,11 +1121,571 @@ fn emit_map_string_key_lookup(
     emit_call_and_handle_undef(ctx, instr, ctx.function_id(func.mangled_name));
 }
 
+fn emit_of_pattern_set(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    of: &Of,
+    pattern_set: &PatternSet,
+) {
+    let pattern_ids: Vec<PatternId> =
+        patterns_matching(ctx, pattern_set).collect();
+
+    let num_patterns = pattern_ids.len();
+    let mut pattern_ids = pattern_ids.into_iter();
+    let next_pattern_id = ctx.new_var(Type::Integer);
+
+    emit_for(
+        ctx,
+        instr,
+        &of.quantifier,
+        |ctx, instr, n, _| {
+            // Set n = number of patterns.
+            set_var(ctx, instr, n, |_, instr| {
+                instr.i64_const(num_patterns as i64);
+            });
+        },
+        // Before each iteration.
+        |ctx, instr, i| {
+            // Get the i-th pattern ID, and store it in `next_pattern_id`.
+            set_var(ctx, instr, next_pattern_id, |ctx, instr| {
+                load_var(ctx, instr, i);
+                emit_switch(ctx, I64, instr, |_, instr| {
+                    if let Some(pattern_id) = pattern_ids.next() {
+                        instr.i64_const(pattern_id as i64);
+                        return true;
+                    }
+                    false
+                });
+            });
+        },
+        // Condition
+        |ctx, instr| {
+            // Push the pattern ID into the stack.
+            load_var(ctx, instr, next_pattern_id);
+            // load_var returns a I64, convert it to I32.
+            instr.unop(UnaryOp::I32WrapI64);
+
+            emit_pattern_match(ctx, instr, of.anchor.as_ref());
+        },
+        // After each iteration.
+        |_, _, _| {},
+    );
+
+    // Free loop variables.
+    ctx.free_vars(next_pattern_id);
+}
+
+fn emit_of_expr_tuple(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    of: &Of,
+    expressions: &[Expr],
+) {
+    // Create variable `next_item`, which will contain the item that will be
+    // put in the loop variable in the next iteration.
+    let next_item = ctx.new_var(Type::Bool);
+
+    let num_expressions = expressions.len();
+    let mut expressions = expressions.iter();
+
+    emit_for(
+        ctx,
+        instr,
+        &of.quantifier,
+        |ctx, instr, n, _| {
+            // Initialize `n` to number of expressions.
+            set_var(ctx, instr, n, |_, instr| {
+                instr.i64_const(num_expressions as i64);
+            });
+        },
+        // Before each iteration.
+        |ctx, instr, i| {
+            // Execute the i-th expression and save its result in `next_item`.
+            set_var(ctx, instr, next_item, |ctx, instr| {
+                load_var(ctx, instr, i);
+                emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
+                    if let Some(expr) = expressions.next() {
+                        assert_eq!(expr.ty(), Type::Bool);
+                        emit_expr(ctx, instr, expr);
+                        return true;
+                    }
+                    false
+                });
+            });
+        },
+        // Condition.
+        |ctx, instr| {
+            load_var(ctx, instr, next_item);
+        },
+        // After each iteration.
+        |_, _, _| {},
+    );
+
+    // Free loop variables.
+    ctx.free_vars(next_item);
+}
+
+fn emit_for_of_pattern_set(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    for_of: &ForOf,
+) {
+    let pattern_ids: Vec<PatternId> =
+        patterns_matching(ctx, &for_of.pattern_set).collect();
+
+    let num_patterns = pattern_ids.len();
+    let mut pattern_ids = pattern_ids.into_iter();
+    let next_pattern_id = ctx.new_var(Type::Integer);
+
+    let mut symbol = Symbol::new(TypeValue::Integer(None));
+    symbol.kind = SymbolKind::WasmVar(next_pattern_id);
+
+    let mut loop_vars = SymbolTable::new();
+    loop_vars.insert("$", symbol);
+
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    emit_for(
+        ctx,
+        instr,
+        &for_of.quantifier,
+        |ctx, instr, n, _| {
+            // Set n = number of patterns.
+            set_var(ctx, instr, n, |_, instr| {
+                instr.i64_const(num_patterns as i64);
+            });
+        },
+        // Before each iteration.
+        |ctx, instr, i| {
+            // Get the i-th pattern ID, and store it in `next_pattern_id`.
+            set_var(ctx, instr, next_pattern_id, |ctx, instr| {
+                load_var(ctx, instr, i);
+                emit_switch(ctx, I64, instr, |_, instr| {
+                    if let Some(pattern_id) = pattern_ids.next() {
+                        instr.i64_const(pattern_id as i64);
+                        return true;
+                    }
+                    false
+                });
+            });
+        },
+        // Condition
+        |ctx, instr| emit_expr(ctx, instr, &for_of.condition),
+        // After each iteration.
+        |_, _, _| {},
+    );
+
+    // Remove the symbol table that contains the loop variable.
+    ctx.symbol_table.pop();
+
+    // Free loop variables.
+    ctx.free_vars(next_pattern_id);
+}
+
+fn emit_for_in_range(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    for_in: &ForIn,
+    range: &Range,
+) {
+    // A `for` loop in a range has exactly one variable.
+    assert_eq!(for_in.variables.len(), 1);
+
+    // Create variable `next_item`, which will contain the item that will be
+    // put in the loop variable in the next iteration.
+    let next_item = ctx.new_var(Type::Integer);
+
+    // Create a symbol table containing the loop variable.
+    let mut symbol = Symbol::new(TypeValue::Integer(None));
+
+    // Associate the symbol with the memory location where `next_item` is
+    // stored. Everytime that the loop variable is used in the condition,
+    // it will refer to the value stored in `next_item`.
+    symbol.kind = SymbolKind::WasmVar(next_item);
+
+    let mut loop_vars = SymbolTable::new();
+    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+
+    // Push the symbol table with loop variable on top of the existing symbol
+    // tables.
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    emit_for(
+        ctx,
+        instr,
+        &for_in.quantifier,
+        |ctx, instr, n, loop_end| {
+            // Set n = upper_bound - lower_bound + 1;
+            set_var(ctx, instr, n, |ctx, instr| {
+                emit_expr(ctx, instr, &range.upper_bound);
+                emit_expr(ctx, instr, &range.lower_bound);
+
+                // Store lower_bound in temp variable, without removing
+                // it from the stack.
+                instr.local_tee(ctx.wasm_symbols.i64_tmp);
+
+                // Compute upper_bound - lower_bound + 1.
+                instr.binop(BinaryOp::I64Sub);
+                instr.i64_const(1);
+                instr.binop(BinaryOp::I64Add);
+            });
+
+            // If n <= 0, exit from the loop.
+            load_var(ctx, instr, n);
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64LeS);
+            instr.if_else(
+                None,
+                |then_| {
+                    then_.i32_const(0);
+                    then_.br(loop_end);
+                },
+                |_| {},
+            );
+
+            // Store lower_bound in `next_item`.
+            set_var(ctx, instr, next_item, |ctx, instr| {
+                instr.local_get(ctx.wasm_symbols.i64_tmp);
+            });
+        },
+        // Before each iteration.
+        |_, _, _| {},
+        // Condition.
+        |ctx, instr| emit_expr(ctx, instr, &for_in.condition),
+        // After each iteration.
+        |ctx, instr, _| {
+            incr_var(ctx, instr, next_item);
+        },
+    );
+
+    // Remove the symbol table that contains the loop variable.
+    ctx.symbol_table.pop();
+
+    // Free loop variables.
+    ctx.free_vars(next_item);
+}
+
+fn emit_for_in_expr(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    for_in: &ForIn,
+    iterable: &Expr,
+) {
+    match iterable.ty() {
+        Type::Array => {
+            emit_for_in_array(ctx, instr, for_in, iterable);
+        }
+        Type::Map => {
+            emit_for_in_map(ctx, instr, for_in, iterable);
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn emit_for_in_array(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    for_in: &ForIn,
+    array_expr: &Expr,
+) {
+    // A `for` loop in an array has exactly one variable.
+    assert_eq!(for_in.variables.len(), 1);
+
+    let array = array_expr.type_value().as_array();
+
+    // The type of the loop variable must be the type of the items in the array,
+    // except for arrays of struct, for which we don't need to create a variable.
+    let (wasm_side_next_item, loop_var) = match array.as_ref() {
+        Array::Integers(_) => (true, TypeValue::Integer(None)),
+        Array::Floats(_) => (true, TypeValue::Float(None)),
+        Array::Bools(_) => (true, TypeValue::Bool(None)),
+        Array::Strings(_) => (true, TypeValue::String(None)),
+        Array::Structs(_) => (false, TypeValue::Unknown),
+    };
+
+    // Create variable `next_item`, which will contain the item that will be
+    // put in the loop variable in the next iteration.
+    let next_item = ctx.new_var(loop_var.ty());
+
+    // Create a symbol table containing the loop variable.
+    let mut symbol = Symbol::new(loop_var);
+    let mut loop_vars = SymbolTable::new();
+
+    // Associate the symbol with the memory location where `next_item` is
+    // stored. Everytime that the loop variable is used in the condition,
+    // it will refer to the value stored in `next_item`.
+    if wasm_side_next_item {
+        symbol.kind = SymbolKind::WasmVar(next_item);
+    } else {
+        symbol.kind = SymbolKind::HostVar(next_item);
+    }
+
+    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+
+    // Push the symbol table with loop variable on top of the existing symbol
+    // tables.
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    // Emit the expression that lookup the array.
+    emit_expr(ctx, instr, array_expr);
+
+    let array_var = ctx.new_var(Type::Array);
+
+    emit_lookup_value(ctx, instr, array_var);
+
+    emit_for(
+        ctx,
+        instr,
+        &for_in.quantifier,
+        |ctx, instr, n, loop_end| {
+            // Initialize `n` to the array's length.
+            set_var(ctx, instr, n, |ctx, instr| {
+                instr.i32_const(array_var.index);
+                instr.call(
+                    ctx.function_id(wasm::export__array_len.mangled_name),
+                );
+            });
+
+            // If n <= 0, exit from the loop.
+            load_var(ctx, instr, n);
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64LeS);
+            instr.if_else(
+                None,
+                |then_| {
+                    then_.i32_const(0);
+                    then_.br(loop_end);
+                },
+                |_| {},
+            );
+        },
+        // Before each iteration.
+        |ctx, instr, i| {
+            // The next lookup operation starts at the local variable
+            // `array_var`.
+            ctx.lookup_start = Some(array_var);
+
+            if wasm_side_next_item {
+                // Get the i-th item in the array and store it in the
+                // WASM-side local variable `next_item`.
+                set_var(ctx, instr, next_item, |ctx, instr| {
+                    load_var(ctx, instr, i);
+                    emit_array_indexing(ctx, instr, &array, None);
+                });
+            } else {
+                // Get the i-th item in the array and store it in the
+                // host-side local variable `next_item`.
+                load_var(ctx, instr, i);
+                emit_array_indexing(ctx, instr, &array, Some(next_item));
+            }
+        },
+        |ctx, instr| {
+            emit_expr(ctx, instr, &for_in.condition);
+        },
+        // After each iteration.
+        |_, _, _| {},
+    );
+
+    ctx.symbol_table.pop();
+    ctx.free_vars(next_item);
+}
+
+fn emit_for_in_map(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    for_in: &ForIn,
+    map_expr: &Expr,
+) {
+    // A `for` loop in an map has exactly two variables.
+    assert_eq!(for_in.variables.len(), 2);
+
+    let map = map_expr.type_value().as_map();
+
+    let (key, val) = match map.as_ref() {
+        Map::IntegerKeys { deputy, .. } => (
+            TypeValue::Integer(None),                       // key
+            deputy.as_ref().unwrap().clone_without_value(), // value
+        ),
+        Map::StringKeys { deputy, .. } => (
+            TypeValue::String(None),                        // key
+            deputy.as_ref().unwrap().clone_without_value(), // value
+        ),
+    };
+
+    // Create variable `next_key`, which will contain the key that will be
+    // put in the loop variable in the next iteration.
+    let next_key = ctx.new_var(key.ty());
+
+    // Create variable `next_val`, which will contain the value that will be
+    // put in the loop variable in the next iteration.
+    let next_val = ctx.new_var(val.ty());
+
+    // When values in the map are structs, `next_val` is a host-side variable.
+    // For every other type it is a WASM-side variable.
+    let wasm_side_next_val = !matches!(val.ty(), Type::Struct);
+
+    // Create a symbol table containing the loop variables.
+    let mut symbol_key = Symbol::new(key);
+    let mut symbol_val = Symbol::new(val);
+
+    symbol_key.kind = SymbolKind::WasmVar(next_key);
+    symbol_val.kind = match next_val.ty {
+        Type::Integer | Type::Float | Type::Bool | Type::String => {
+            SymbolKind::WasmVar(next_val)
+        }
+        Type::Struct | Type::Array => SymbolKind::HostVar(next_val),
+        _ => unreachable!(),
+    };
+
+    let mut loop_vars = SymbolTable::new();
+
+    loop_vars.insert(for_in.variables[0].as_str(), symbol_key);
+    loop_vars.insert(for_in.variables[1].as_str(), symbol_val);
+
+    // Push the symbol table with loop variable on top of the existing symbol
+    // tables.
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    // Emit the expression that lookup the map.
+    emit_expr(ctx, instr, map_expr);
+
+    let map_var = ctx.new_var(Type::Map);
+
+    emit_lookup_value(ctx, instr, map_var);
+
+    emit_for(
+        ctx,
+        instr,
+        &for_in.quantifier,
+        |ctx, instr, n, loop_end| {
+            // Initialize `n` to the maps's length.
+            set_var(ctx, instr, n, |ctx, instr| {
+                instr.i32_const(map_var.index);
+                instr
+                    .call(ctx.function_id(wasm::export__map_len.mangled_name));
+            });
+
+            // If n <= 0, exit from the loop.
+            load_var(ctx, instr, n);
+            instr.i64_const(0);
+            instr.binop(BinaryOp::I64LeS);
+            instr.if_else(
+                None,
+                |then_| {
+                    then_.i32_const(0);
+                    then_.br(loop_end);
+                },
+                |_| {},
+            );
+        },
+        // Before each iteration.
+        |ctx, instr, i| {
+            // The next lookup operation starts at the local variable
+            // `map_var`.
+            ctx.lookup_start = Some(map_var);
+
+            // If `next_val` is a WASM-side variable, its value will be returned
+            // by the lookup function, and the WASM code must put it into the
+            // WASM-side variable. If not, it's a host-side variable that
+            // will be set directly by the lookup function.
+            if wasm_side_next_val {
+                set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
+                    load_var(ctx, instr, i);
+                    emit_map_lookup_by_index(ctx, instr, &map, None);
+                });
+            } else {
+                set_var(ctx, instr, next_key, |ctx, instr| {
+                    load_var(ctx, instr, i);
+                    emit_map_lookup_by_index(ctx, instr, &map, Some(next_val));
+                });
+            }
+        },
+        // Condition.
+        |ctx, instr| {
+            emit_expr(ctx, instr, &for_in.condition);
+        },
+        // After each iteration.
+        |_, _, _| {},
+    );
+
+    ctx.symbol_table.pop();
+    ctx.free_vars(next_key);
+}
+
+fn emit_for_in_expr_tuple(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    for_in: &ForIn,
+    expressions: &[Expr],
+) {
+    // A `for` in a tuple of expressions has exactly one variable.
+    assert_eq!(for_in.variables.len(), 1);
+
+    // Create variable `next_item`, which will contain the item that will be
+    // put in the loop variable in the next iteration.
+    let next_item = ctx.new_var(expressions.first().unwrap().ty());
+
+    // Create a symbol table containing the loop variable.
+    let mut symbol = Symbol::new(
+        expressions.first().unwrap().type_value().clone_without_value(),
+    );
+
+    symbol.kind = SymbolKind::WasmVar(next_item);
+
+    let mut loop_vars = SymbolTable::new();
+    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+
+    // Push the symbol table with loop variable on top of the existing symbol
+    // tables.
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    let num_expressions = expressions.len();
+    let mut expressions = expressions.iter();
+
+    emit_for(
+        ctx,
+        instr,
+        &for_in.quantifier,
+        |ctx, instr, n, _| {
+            // Initialize `n` to number of expressions.
+            set_var(ctx, instr, n, |_, instr| {
+                instr.i64_const(num_expressions as i64);
+            });
+        },
+        // Before each iteration.
+        |ctx, instr, i| {
+            // Execute the i-th expression and save its result in `next_item`.
+            set_var(ctx, instr, next_item, |ctx, instr| {
+                load_var(ctx, instr, i);
+                emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
+                    if let Some(expr) = expressions.next() {
+                        emit_expr(ctx, instr, expr);
+                        return true;
+                    }
+                    false
+                });
+            });
+        },
+        // Condition.
+        |ctx, instr| {
+            emit_expr(ctx, instr, &for_in.condition);
+        },
+        // After each iteration.
+        |_, _, _| {},
+    );
+
+    // Remove the symbol table that contains the loop variable.
+    ctx.symbol_table.pop();
+
+    // Free loop variables.
+    ctx.free_vars(next_item);
+}
+
 /// Emits a `for` loop.
 ///
 /// This function allows creating different types of `for` loops by receiving
 /// other functions that emit the loop initialization code, the code that gets
-/// executed just before and after each iteration.
+/// executed just before and after each iteration, and the for condition.
 ///
 /// `loop_init` is the function that emits the initialization code, which is
 /// executed only once, before the loop itself. This code should initialize
@@ -1127,19 +1697,23 @@ fn emit_map_string_key_lookup(
 /// the loop variable(s) used by the condition to the value(s) corresponding
 /// to the current iteration. This code should not leave anything on the stack.
 ///
+/// `cond` emits the loop's condition, it should leave an I32 on the stack with
+/// value 0 or 1.
+///
 /// `after_cond` emits the code that gets executed on every iteration after
 /// the loop's condition. This code should not leave anything on the stack.
-pub(super) fn emit_for<I, B, A>(
+fn emit_for<I, B, C, A>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     quantifier: &Quantifier,
-    condition: &Expr,
     loop_init: I,
     before_cond: B,
+    condition: C,
     after_cond: A,
 ) where
     I: FnOnce(&mut Context, &mut InstrSeqBuilder, Var, InstrSeqId),
     B: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
+    C: FnOnce(&mut Context, &mut InstrSeqBuilder),
     A: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
 {
     // Create variable `n`, which will contain the maximum number of iterations.
@@ -1238,7 +1812,7 @@ pub(super) fn emit_for<I, B, A>(
             // because we don't want to abort the loop in such cases. When the
             // condition is undefined it's handled as a false.
             catch_undef(ctx, block, |ctx, block| {
-                emit_expr(ctx, block, condition);
+                condition(ctx, block);
             });
 
             // At the top of the stack we have the i32 with the result from
@@ -1387,400 +1961,6 @@ pub(super) fn emit_for<I, B, A>(
     ctx.free_vars(n);
 }
 
-fn emit_of(_ctx: &mut Context, _instr: &mut InstrSeqBuilder, of: &Of) {
-    match &of.items {
-        OfItems::PatternSet(_) => {
-            // TODO
-        }
-        OfItems::BoolExprTuple(_) => {
-            // TODO
-        }
-    }
-}
-
-fn emit_for_of(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    pattern_set: &PatternSet,
-    quantifier: &Quantifier,
-    condition: &Expr,
-) {
-    let pattern_ids: Vec<PatternId> =
-        patterns_matching(ctx, pattern_set).collect();
-
-    let num_patterns = pattern_ids.len();
-    let mut pattern_ids = pattern_ids.into_iter();
-
-    let next_pattern_id = ctx.new_var(Type::Integer);
-
-    let mut symbol = Symbol::new(TypeValue::Integer(None));
-    symbol.kind = SymbolKind::WasmVar(next_pattern_id);
-
-    let mut loop_vars = SymbolTable::new();
-    loop_vars.insert("$", symbol);
-
-    ctx.symbol_table.push(Rc::new(loop_vars));
-
-    emit_for(
-        ctx,
-        instr,
-        quantifier,
-        condition,
-        |ctx, instr, n, _| {
-            // Set n = number of patterns.
-            set_var(ctx, instr, n, |_, instr| {
-                instr.i64_const(num_patterns as i64);
-            });
-        },
-        // Before each iteration.
-        |ctx, instr, i| {
-            // Get the i-th pattern ID, and store it in `next_pattern_id`.
-            set_var(ctx, instr, next_pattern_id, |ctx, instr| {
-                load_var(ctx, instr, i);
-                emit_switch(ctx, I64, instr, |_, instr| {
-                    if let Some(pattern_id) = pattern_ids.next() {
-                        instr.i64_const(pattern_id as i64);
-                        return true;
-                    }
-                    false
-                });
-            });
-        },
-        // After each iteration.
-        |_, _, _| {},
-    );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_pattern_id);
-}
-
-pub(super) fn emit_for_in_range(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    range: &Range,
-) {
-    // A `for` loop in a range has exactly one variable.
-    assert_eq!(for_in.variables.len(), 1);
-
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(Type::Integer);
-
-    // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(TypeValue::Integer(None));
-
-    // Associate the symbol with the memory location where `next_item` is
-    // stored. Everytime that the loop variable is used in the condition,
-    // it will refer to the value stored in `next_item`.
-    symbol.kind = SymbolKind::WasmVar(next_item);
-
-    let mut loop_vars = SymbolTable::new();
-    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
-
-    emit_for(
-        ctx,
-        instr,
-        &for_in.quantifier,
-        &for_in.condition,
-        |ctx, instr, n, loop_end| {
-            // Set n = upper_bound - lower_bound + 1;
-            set_var(ctx, instr, n, |ctx, instr| {
-                emit_expr(ctx, instr, &range.upper_bound);
-                emit_expr(ctx, instr, &range.lower_bound);
-
-                // Store lower_bound in temp variable, without removing
-                // it from the stack.
-                instr.local_tee(ctx.wasm_symbols.i64_tmp);
-
-                // Compute upper_bound - lower_bound + 1.
-                instr.binop(BinaryOp::I64Sub);
-                instr.i64_const(1);
-                instr.binop(BinaryOp::I64Add);
-            });
-
-            // If n <= 0, exit from the loop.
-            load_var(ctx, instr, n);
-            instr.i64_const(0);
-            instr.binop(BinaryOp::I64LeS);
-            instr.if_else(
-                None,
-                |then_| {
-                    then_.i32_const(0);
-                    then_.br(loop_end);
-                },
-                |_| {},
-            );
-
-            // Store lower_bound in `next_item`.
-            set_var(ctx, instr, next_item, |ctx, instr| {
-                instr.local_get(ctx.wasm_symbols.i64_tmp);
-            });
-        },
-        // Before each iteration.
-        |_, _, _| {},
-        // After each iteration.
-        |ctx, instr, _| {
-            incr_var(ctx, instr, next_item);
-        },
-    );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_item);
-}
-
-pub(super) fn emit_for_in_expr(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    iterable: &Expr,
-) {
-    match iterable.ty() {
-        Type::Array => {
-            emit_for_in_array(ctx, instr, for_in, iterable);
-        }
-        Type::Map => {
-            emit_for_in_map(ctx, instr, for_in, iterable);
-        }
-        _ => unreachable!(),
-    }
-}
-
-pub(super) fn emit_for_in_array(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    array_expr: &Expr,
-) {
-    // A `for` loop in an array has exactly one variable.
-    assert_eq!(for_in.variables.len(), 1);
-
-    let array = array_expr.type_value().as_array();
-
-    // The type of the loop variable must be the type of the items in the array,
-    // except for arrays of struct, for which we don't need to create a variable.
-    let (wasm_side_next_item, loop_var) = match array.as_ref() {
-        Array::Integers(_) => (true, TypeValue::Integer(None)),
-        Array::Floats(_) => (true, TypeValue::Float(None)),
-        Array::Bools(_) => (true, TypeValue::Bool(None)),
-        Array::Strings(_) => (true, TypeValue::String(None)),
-        Array::Structs(_) => (false, TypeValue::Unknown),
-    };
-
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(loop_var.ty());
-
-    // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(loop_var);
-    let mut loop_vars = SymbolTable::new();
-
-    // Associate the symbol with the memory location where `next_item` is
-    // stored. Everytime that the loop variable is used in the condition,
-    // it will refer to the value stored in `next_item`.
-    if wasm_side_next_item {
-        symbol.kind = SymbolKind::WasmVar(next_item);
-    } else {
-        symbol.kind = SymbolKind::HostVar(next_item);
-    }
-
-    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
-
-    // Emit the expression that lookup the array.
-    emit_expr(ctx, instr, array_expr);
-
-    let array_var = ctx.new_var(Type::Array);
-
-    emit_lookup_value(ctx, instr, array_var);
-
-    emit_for(
-        ctx,
-        instr,
-        &for_in.quantifier,
-        &for_in.condition,
-        |ctx, instr, n, loop_end| {
-            // Initialize `n` to the array's length.
-            set_var(ctx, instr, n, |ctx, instr| {
-                instr.i32_const(array_var.index);
-                instr.call(
-                    ctx.function_id(wasm::export__array_len.mangled_name),
-                );
-            });
-
-            // If n <= 0, exit from the loop.
-            load_var(ctx, instr, n);
-            instr.i64_const(0);
-            instr.binop(BinaryOp::I64LeS);
-            instr.if_else(
-                None,
-                |then_| {
-                    then_.i32_const(0);
-                    then_.br(loop_end);
-                },
-                |_| {},
-            );
-        },
-        // Before each iteration.
-        |ctx, instr, i| {
-            // The next lookup operation starts at the local variable
-            // `array_var`.
-            ctx.lookup_start = Some(array_var);
-
-            if wasm_side_next_item {
-                // Get the i-th item in the array and store it in the
-                // WASM-side local variable `next_item`.
-                set_var(ctx, instr, next_item, |ctx, instr| {
-                    load_var(ctx, instr, i);
-                    emit_array_indexing(ctx, instr, &array, None);
-                });
-            } else {
-                // Get the i-th item in the array and store it in the
-                // host-side local variable `next_item`.
-                load_var(ctx, instr, i);
-                emit_array_indexing(ctx, instr, &array, Some(next_item));
-            }
-        },
-        // After each iteration.
-        |_, _, _| {},
-    );
-
-    ctx.symbol_table.pop();
-    ctx.free_vars(next_item);
-}
-
-pub(super) fn emit_for_in_map(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    map_expr: &Expr,
-) {
-    // A `for` loop in an map has exactly two variables.
-    assert_eq!(for_in.variables.len(), 2);
-
-    let map = map_expr.type_value().as_map();
-
-    let (key, val) = match map.as_ref() {
-        Map::IntegerKeys { deputy, .. } => (
-            TypeValue::Integer(None),                       // key
-            deputy.as_ref().unwrap().clone_without_value(), // value
-        ),
-        Map::StringKeys { deputy, .. } => (
-            TypeValue::String(None),                        // key
-            deputy.as_ref().unwrap().clone_without_value(), // value
-        ),
-    };
-
-    // Create variable `next_key`, which will contain the key that will be
-    // put in the loop variable in the next iteration.
-    let next_key = ctx.new_var(key.ty());
-
-    // Create variable `next_val`, which will contain the value that will be
-    // put in the loop variable in the next iteration.
-    let next_val = ctx.new_var(val.ty());
-
-    // When values in the map are structs, `next_val` is a host-side variable.
-    // For every other type it is a WASM-side variable.
-    let wasm_side_next_val = !matches!(val.ty(), Type::Struct);
-
-    // Create a symbol table containing the loop variables.
-    let mut symbol_key = Symbol::new(key);
-    let mut symbol_val = Symbol::new(val);
-
-    symbol_key.kind = SymbolKind::WasmVar(next_key);
-    symbol_val.kind = match next_val.ty {
-        Type::Integer | Type::Float | Type::Bool | Type::String => {
-            SymbolKind::WasmVar(next_val)
-        }
-        Type::Struct | Type::Array => SymbolKind::HostVar(next_val),
-        _ => unreachable!(),
-    };
-
-    let mut loop_vars = SymbolTable::new();
-
-    loop_vars.insert(for_in.variables[0].as_str(), symbol_key);
-    loop_vars.insert(for_in.variables[1].as_str(), symbol_val);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
-
-    // Emit the expression that lookup the map.
-    emit_expr(ctx, instr, map_expr);
-
-    let map_var = ctx.new_var(Type::Map);
-
-    emit_lookup_value(ctx, instr, map_var);
-
-    emit_for(
-        ctx,
-        instr,
-        &for_in.quantifier,
-        &for_in.condition,
-        |ctx, instr, n, loop_end| {
-            // Initialize `n` to the maps's length.
-            set_var(ctx, instr, n, |ctx, instr| {
-                instr.i32_const(map_var.index);
-                instr
-                    .call(ctx.function_id(wasm::export__map_len.mangled_name));
-            });
-
-            // If n <= 0, exit from the loop.
-            load_var(ctx, instr, n);
-            instr.i64_const(0);
-            instr.binop(BinaryOp::I64LeS);
-            instr.if_else(
-                None,
-                |then_| {
-                    then_.i32_const(0);
-                    then_.br(loop_end);
-                },
-                |_| {},
-            );
-        },
-        // Before each iteration.
-        |ctx, instr, i| {
-            // The next lookup operation starts at the local variable
-            // `map_var`.
-            ctx.lookup_start = Some(map_var);
-
-            // If `next_val` is a WASM-side variable, its value will be returned
-            // by the lookup function, and the WASM code must put it into the
-            // WASM-side variable. If not, it's a host-side variable that
-            // will be set directly by the lookup function.
-            if wasm_side_next_val {
-                set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
-                    load_var(ctx, instr, i);
-                    emit_map_lookup_by_index(ctx, instr, &map, None);
-                });
-            } else {
-                set_var(ctx, instr, next_key, |ctx, instr| {
-                    load_var(ctx, instr, i);
-                    emit_map_lookup_by_index(ctx, instr, &map, Some(next_val));
-                });
-            }
-        },
-        // After each iteration.
-        |_, _, _| {},
-    );
-
-    ctx.symbol_table.pop();
-    ctx.free_vars(next_key);
-}
-
 /// Produces a switch statement by calling a `branch_generator` function
 /// multiple times.
 ///
@@ -1899,76 +2079,10 @@ fn emit_switch_internal<F>(
     }
 }
 
-pub(super) fn emit_for_in_expr_tuple(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    expressions: &[Expr],
-) {
-    // A `for` in a tuple of expressions has exactly one variable.
-    assert_eq!(for_in.variables.len(), 1);
-
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(expressions.first().unwrap().ty());
-
-    // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(
-        expressions.first().unwrap().type_value().clone_without_value(),
-    );
-
-    symbol.kind = SymbolKind::WasmVar(next_item);
-
-    let mut loop_vars = SymbolTable::new();
-    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
-
-    let num_expressions = expressions.len();
-    let mut expressions = expressions.iter();
-
-    emit_for(
-        ctx,
-        instr,
-        &for_in.quantifier,
-        &for_in.condition,
-        |ctx, instr, n, _| {
-            // Initialize `n` to number of expressions.
-            set_var(ctx, instr, n, |_, instr| {
-                instr.i64_const(num_expressions as i64);
-            });
-        },
-        // Before each iteration.
-        |ctx, instr, i| {
-            // Execute the i-th expression and save its result in `next_item`.
-            set_var(ctx, instr, next_item, |ctx, instr| {
-                load_var(ctx, instr, i);
-                emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
-                    if let Some(expr) = expressions.next() {
-                        emit_expr(ctx, instr, expr);
-                        return true;
-                    }
-                    false
-                });
-            });
-        },
-        // After each iteration.
-        |_, _, _| {},
-    );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_item);
-}
-
 /// Sets into a variable the value produced by a code block.
 ///
 /// For multiple variables use [`set_vars`].
-pub(super) fn set_var<B>(
+fn set_var<B>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     var: Var,
@@ -2007,7 +2121,7 @@ pub(super) fn set_var<B>(
 /// that was pushed into the stack.
 ///
 /// For a single variable use [`set_var`].
-pub(super) fn set_vars<B>(
+fn set_vars<B>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     vars: &[Var],
@@ -2065,7 +2179,7 @@ pub(super) fn set_vars<B>(
 }
 
 /// Loads the value of variable into the stack.
-pub(super) fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
+fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
     // The slots where variables are stored start at offset VARS_STACK_START
     // within main memory, and are 64-bits long. Lets compute the variable's
     // offset with respect to VARS_STACK_START.
@@ -2088,11 +2202,7 @@ pub(super) fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
 }
 
 /// Increments a variable.
-pub(super) fn incr_var(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    var: Var,
-) {
+fn incr_var(ctx: &mut Context, instr: &mut InstrSeqBuilder, var: Var) {
     // incr_var only works with integer variables.
     assert_eq!(var.ty, Type::Integer);
     set_var(ctx, instr, var, |ctx, instr| {
@@ -2111,7 +2221,7 @@ pub(super) fn incr_var(
 /// * String values are `true` if they are non-empty, or `false` if they are
 ///   empty (e.g: "").
 ///
-pub(super) fn emit_bool_expr(
+fn emit_bool_expr(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     expr: &Expr,
@@ -2153,7 +2263,7 @@ pub(super) fn emit_bool_expr(
 /// This emits code that calls the specified function, checks if its result
 /// is undefined, and throws an exception if that's the case (see:
 /// [`throw_undef`])
-pub(super) fn emit_call_and_handle_undef(
+fn emit_call_and_handle_undef(
     ctx: &Context,
     instr: &mut InstrSeqBuilder,
     fn_id: walrus::FunctionId,
@@ -2181,10 +2291,7 @@ pub(super) fn emit_call_and_handle_undef(
     );
 }
 
-pub(super) fn emit_lookup_common(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-) {
+fn emit_lookup_common(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
     instr.i32_const(ctx.lookup_stack.len() as i32);
     instr.global_set(ctx.wasm_symbols.lookup_stack_top);
 
@@ -2219,10 +2326,7 @@ pub(super) fn emit_lookup_common(
 }
 
 #[inline]
-pub(super) fn emit_lookup_integer(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-) {
+fn emit_lookup_integer(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2232,10 +2336,7 @@ pub(super) fn emit_lookup_integer(
 }
 
 #[inline]
-pub(super) fn emit_lookup_float(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-) {
+fn emit_lookup_float(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2245,10 +2346,7 @@ pub(super) fn emit_lookup_float(
 }
 
 #[inline]
-pub(super) fn emit_lookup_bool(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-) {
+fn emit_lookup_bool(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2258,10 +2356,7 @@ pub(super) fn emit_lookup_bool(
 }
 
 #[inline]
-pub(super) fn emit_lookup_string(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-) {
+fn emit_lookup_string(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2271,7 +2366,7 @@ pub(super) fn emit_lookup_string(
 }
 
 #[inline]
-pub(super) fn emit_lookup_value(
+fn emit_lookup_value(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     dst_var: Var,
@@ -2312,7 +2407,7 @@ pub(super) fn emit_lookup_value(
 /// // stack.
 /// ```
 ///
-pub(super) fn catch_undef(
+fn catch_undef(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     expr: impl FnOnce(&mut Context, &mut InstrSeqBuilder),
@@ -2333,7 +2428,7 @@ pub(super) fn catch_undef(
 /// Throws an exception when an undefined value is found.
 ///
 /// For more information see [`catch_undef`].
-pub(super) fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
+fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
     let innermost_handler = *ctx
         .exception_handler_stack
         .last()
@@ -2387,7 +2482,7 @@ pub(super) fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
 /// Similar to [`throw_undef`], but throws the exception if the top of the
 /// stack is zero. If the top of the stack is non-zero, calling this function
 /// is a no-op.
-pub(super) fn throw_undef_if_zero(ctx: &Context, instr: &mut InstrSeqBuilder) {
+fn throw_undef_if_zero(ctx: &Context, instr: &mut InstrSeqBuilder) {
     // Save the top of the stack into temp variable, but leave a copy in the
     // stack.
     instr.local_tee(ctx.wasm_symbols.i64_tmp);
