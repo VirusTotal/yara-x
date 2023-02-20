@@ -200,6 +200,30 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
+/// Emits code that checks if the pattern search phase has not been executed
+/// yet, and do it in that case.
+fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+    instr.local_get(ctx.wasm_symbols.pattern_search_done);
+    instr.if_else(
+        None,
+        |_then| {
+            // The pattern search phase was already executed. Nothing to
+            // do here.
+        },
+        |_else| {
+            // Search for patterns.
+            _else.call(
+                ctx.function_id(
+                    wasm::export__search_for_patterns.mangled_name,
+                ),
+            );
+            // Set pattern_search_done to true.
+            _else.i32_const(1);
+            _else.local_set(ctx.wasm_symbols.pattern_search_done);
+        },
+    );
+}
+
 /// Emits the code that determines if some pattern is matching.
 ///
 /// This function assumes that the pattern ID is at the top of the stack.
@@ -381,6 +405,9 @@ pub(super) fn emit_expr(
             });
         }
         Expr::PatternMatch(pattern) => {
+            // If the patterns has not been searched yet, do it now.
+            emit_lazy_pattern_search(ctx, instr);
+
             // Push the pattern ID in the stack. Identifier "$" is an special
             // case, as this is used inside `for` loops and it represents a
             // different pattern on each iteration. In those cases the pattern
@@ -406,12 +433,17 @@ pub(super) fn emit_expr(
             emit_pattern_match(ctx, instr, pattern.anchor.as_ref());
         }
         Expr::PatternCount(_) => {
+            // If the patterns has not been searched yet, do it now.
+            emit_lazy_pattern_search(ctx, instr);
             // TODO
         }
         Expr::PatternOffset(_) => {
+            // If the patterns has not been searched yet, do it now.
+            emit_lazy_pattern_search(ctx, instr);
             // TODO
         }
         Expr::PatternLength(_) => {
+            emit_lazy_pattern_search(ctx, instr);
             // TODO
         }
         Expr::Lookup(operands) => {
@@ -1134,6 +1166,10 @@ fn emit_of_pattern_set(
     let mut pattern_ids = pattern_ids.into_iter();
     let next_pattern_id = ctx.new_var(Type::Integer);
 
+    // Make sure the pattern search phase is executed, as the `of` statement
+    // depends on patterns.
+    emit_lazy_pattern_search(ctx, instr);
+
     emit_for(
         ctx,
         instr,
@@ -1270,7 +1306,9 @@ fn emit_for_of_pattern_set(
             });
         },
         // Condition
-        |ctx, instr| emit_expr(ctx, instr, &for_of.condition),
+        |ctx, instr| {
+            emit_expr(ctx, instr, &for_of.condition);
+        },
         // After each iteration.
         |_, _, _| {},
     );

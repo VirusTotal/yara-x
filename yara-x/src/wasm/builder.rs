@@ -59,6 +59,7 @@ impl ModuleBuilder {
             matching_patterns_bitmap_base,
             lookup_stack_top,
             filesize,
+            pattern_search_done: module.locals.add(I32),
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
             f64_tmp: module.locals.add(F64),

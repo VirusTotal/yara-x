@@ -387,4 +387,8 @@ impl ScanContext<'_> {
             )
         }
     }
+
+    pub(crate) fn search_for_patterns(&mut self) {
+        // TODO
+    }
 }

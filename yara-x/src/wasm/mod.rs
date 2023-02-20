@@ -502,6 +502,13 @@ pub(crate) struct WasmSymbols {
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
 
+    /// Local variable that is set to true after the pattern search phase
+    /// has been executed. In this phase the data is scanned looking for
+    /// all the patterns at the same time using the Aho-Corasick algorithm.
+    /// However this phase is executed lazily, when rule conditions are
+    /// evaluated and some of them needs to know if a pattern matched or not.
+    pub pattern_search_done: walrus::LocalId,
+
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
@@ -540,6 +547,22 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     }
 
     linker
+}
+
+/// Invoked from WASM for triggering the pattern search phase.
+///
+/// The pattern search phase is when YARA scans the data looking for the
+/// patterns declared in rules. All the patterns are searched simultaneously
+/// using the Aho-Corasick algorithm. This phase is triggered lazily during
+/// the evaluation of the rule conditions, when some of the conditions need
+/// to know if a pattern matched or not.
+///
+/// This function won't be called if the conditions can be fully evaluated
+/// without looking for any of the patterns. If it must be called, it will be
+/// called only once.
+#[wasm_export]
+pub(crate) fn search_for_patterns(mut caller: Caller<'_, ScanContext>) {
+    caller.data_mut().search_for_patterns();
 }
 
 /// Invoked from WASM to notify when a rule matches.
