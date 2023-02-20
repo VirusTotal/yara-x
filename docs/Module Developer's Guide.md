@@ -108,23 +108,22 @@ root structure, it must contain the name of some structure (a.k.a message) defin
 in the `.proto` file. In our case the value for `root_message` is `"Text"` because
 we have defined our module's structure in a message named `Text`. This is required
 because your `.proto` file can define multiple messages, and YARA needs to know
-which of them considered the root message for the module.
+which of them is considered the root message for the module.
 
 And here is our root structure/message:
 
 ```protobuf
 message Text {
-  optional int64 num_rows = 1;
-  optional int64 num_cols = 2;
+  optional int64 num_lines = 1;
+  optional int64 num_words = 2;
 }
 ```
 
 This is a very simple structure with only two integer fields. Notice that the
 numbers after the `=` signs are not the values for those fields, they are 
 actually field tags (i.e: a unique number identifying each field in a message).
-This may be confusing for those of you who are not familiar with protobuf's
-syntax, so again: explore the protobuf's 
-[documentation](https://developers.google.com/protocol-buffers). 
+This may be confusing if you are not familiar with protobuf's  syntax, so again:
+explore the protobuf's [documentation](https://developers.google.com/protocol-buffers). 
 
 Also notice that we are defining our fields as `optional`. In `proto2` fields
 must be either `optional` or `required`, while in `proto3` they are always
@@ -147,14 +146,14 @@ Of course, we are not done yet. So far we have defined the structure of our
 module, but we need to populate that structure with actual values extracted from
 the scanned files. That's where the module's main function enters into play. But
 before going into the details of how to implement this function, let's discuss 
-first the differences between `proto2` and `proto3`, as they may determine some 
-aspects of our implementation.
+the differences between `proto2` and `proto3`, as they may determine some aspects
+of our implementation.
 
 ## Proto2 vs Proto3
 
 When writing a YARA module you can choose between `proto2` and `proto3` for
 writing the protobuf that describes your module's structure. Both of them
-are very similar, but they also have significant differences.
+are very similar, but they also have some differences.
 
 One of the most important differences is that in `proto2` fields are either
 `optional` or `required`, while in `proto3` all fields are optional, and therefore
@@ -162,7 +161,7 @@ the keywords `optional` and `required` are not accepted at all. But this differe
 goes beyond a simple syntactic matter, it also affects the way in which missing
 fields are handled.
 
-In `proto2` when some structure contains a `required` field, this field must
+In `proto2`, when some structure contains a `required` field, this field must
 be initialized to some value before the structure gets serialized. If you don't
 provide a value for a `required` field, an error occurs while serializing the
 structure. In the other hand, `optional` fields don't need to be initialized,
@@ -175,11 +174,11 @@ the field `foo` was originally initialized to some value, or it was simply left
 uninitialized.
 
 In `proto3` things are a bit different. All fields in `proto3` are optional,
-but uninitialized fields will have a default value that depends on the type.
+but uninitialized fields will default to a value that depends on the type.
 For example, for numeric fields the default value is zero, and for string fields
 the default value is the empty string. This means that in `proto3` a protobuf
 field `int64 foo` is translated into a field `foo: i64`. If `foo` is not
-initialized, it will behave as it was initialized to 0. After deserializing
+initialized, it will behave as if it was initialized to 0. After deserializing
 your structure, you won't be able to tell if `foo` was explicitly set to 0,
 or if it was left uninitialized.
 
@@ -392,7 +391,7 @@ corresponding line. Let's take a look at the implementation:
 fn get_line(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     let cursor = io::Cursor::new(ctx.scanned_data());
 
-    if let Some(Ok(line)) = cursor.lines().nth(5) {
+    if let Some(Ok(line)) = cursor.lines().nth(n as usize) {
         Some(RuntimeString::from_bytes(ctx, line))
     } else {
         None
@@ -450,7 +449,7 @@ and return types:
 
 One noticeable difference between arguments and return types is that in return
 types you can use `Option<T>`, where `T` is one of the acceptable Rust types. 
-When a function returns `None`, that's translated to `undefined` in the YARA's
+When a function returns `None`, that's translated to `undefined` in YARA's
 world.
            
 Also notice that string types are always passed around in the form of a
