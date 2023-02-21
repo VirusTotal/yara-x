@@ -59,4 +59,6 @@ yara-x-parser = { path = "yara-x-parser" }
 yara-x-proto = { path = "yara-x-proto" }
 
 [profile.release]
-debug = 1
+# debug = 1   # Include debug information in the binary.
+lto = true    # Enable link-time optimization.
+strip = true  # Automatically strip symbols from the binary.
