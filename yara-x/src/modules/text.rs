@@ -1,0 +1,103 @@
+// Example "text" module described in the Module's Developer Guide.
+//
+use crate::modules::prelude::*;
+use crate::modules::protos::text::*;
+
+use std::io;
+use std::io::BufRead;
+
+use lingua::{Language, LanguageDetectorBuilder};
+
+/// Module's main function.
+///
+/// The main function is called for every file that is scanned by YARA. The
+/// `#[module_main]` attribute indicates that this is the module's main
+/// function. The name of the function is irrelevant, but using `main` is
+/// advised for consistency.
+///
+/// This function must return an instance of the protobuf message indicated
+/// in the `root_message` option in `text.proto`.
+#[module_main]
+fn main(ctx: &ScanContext) -> Text {
+    // Create an empty instance of the Text protobuf.
+    let mut text_proto = Text::new();
+
+    // Get a &[u8] slice with the content of the file being scanned.
+    let data = ctx.scanned_data();
+
+    let mut num_lines = 0;
+    let mut num_words = 0;
+
+    // Create cursor for iterating over the lines.
+    let cursor = io::Cursor::new(data);
+
+    // Count the lines and words in the file.
+    for line in cursor.lines() {
+        match line {
+            Ok(line) => {
+                num_words += line.split_whitespace().count();
+                num_lines += 1;
+            }
+            Err(_) => return text_proto,
+        }
+    }
+
+    dbg!(num_lines);
+    dbg!(num_words);
+
+    // Set the value for fields `num_lines` and `num_words` in the protobuf.
+    text_proto.set_num_lines(num_lines as i64);
+    text_proto.set_num_words(num_words as i64);
+
+    // Return the Text proto after filling the relevant fields.
+    text_proto
+}
+
+/// Function that returns the n-th line in the file.
+///
+/// Returns None if the file has less than n lines, which is translated in YARA
+/// to an undefined value.
+#[module_export]
+fn get_line(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
+    let cursor = io::Cursor::new(ctx.scanned_data());
+
+    if let Some(Ok(line)) = cursor.lines().nth(n as usize) {
+        Some(RuntimeString::from_bytes(ctx, line))
+    } else {
+        None
+    }
+}
+
+/// Function that returns the language in which the text file is written.
+///
+/// Returns None if the language can't be determined (which in YARA is handled
+/// as an undefined value), or some of the values in the Language enum.
+#[module_export]
+fn language(ctx: &ScanContext) -> Option<i64> {
+    let data = ctx.scanned_data();
+    // Use `as_bstr()` for getting the scanned data as a `&BStr` instead of a
+    // a `&[u8]`. Then call `to_str` for converting the `&BStr` to `&str`. This
+    // operation can fail if the context is not valid UTF-8, in that case
+    // returns `None`, which is interpreted as `undefined` in YARA.
+    let text = data.as_bstr().to_str().ok()?;
+
+    let detector = LanguageDetectorBuilder::from_languages(&[
+        lingua::Language::English,
+        lingua::Language::French,
+        lingua::Language::German,
+        lingua::Language::Spanish,
+    ])
+    .build();
+
+    // Detect the language. Returns `None` if the language cannot be reliably
+    // detected.
+    let language = match detector.detect_language_of(text)? {
+        lingua::Language::English => Language::English,
+        lingua::Language::French => Language::French,
+        lingua::Language::German => Language::German,
+        lingua::Language::Spanish => Language::Spanish,
+        _ => unreachable!(),
+    };
+
+    Some(language as i64)
+}

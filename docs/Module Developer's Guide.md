@@ -19,6 +19,7 @@ words
 * [Adding functions to your module](#adding-functions-to-your-module)
 * [String types in module functions](#string-types-in-module-functions)
 * [Adding dependencies](#adding-dependencies)
+* [Using enums](#using-enums)
 
 ## Defining the module's structure
 
@@ -458,6 +459,72 @@ standard Rust types (`String`, `&str`, `&[u8]`, etc) are not allowed. In the
 next section were going to discuss more about how to receive and return strings
 in module functions.
 
+In our example, the `get_line` function is defined at the top level of the 
+module's namespace, which means that it will be invoked from YARA as 
+`text.get_line(..)`. But sometimes we want our function to appear as a member
+of some inner structure. For example, suppose that we have a module with the
+following structure:
+
+```protobuf
+message SomeStruct {
+  optional int64 foo = 1;
+  optional int64 bar = 2;
+}
+
+message MyModule {
+  optional SomeStruct some_struct = 1;
+}
+```
+
+Here `MyModule` is the module's root structure, and it has a field `some_structure`
+described by `SomeStruct`. What if you want a function `some_function` that 
+appears to be a member of `some_structure`? In other words, you want to invoke 
+your function in YARA like this...
+
+```yara
+import "my_module"
+
+rule my_rule {
+    condition:
+        my_module.some_structure.some_function()
+}
+```
+
+Well, in that case the function must be named explicitly, including in the 
+name the full path of the function relative to the module's main structure. 
+This is done by providing a `name` argument to the `module_export` attribute.
+For example:
+
+```rust
+#[module_export(name = "some_structure.some_function")]
+pub(crate) fn some_function(ctx: &mut ScanContext)  {
+   // ...  
+}
+```
+
+When a `name` argument is passed to `module_export`, the function's name in Rust
+is ignored, and the explicitly provided name is used instead. This name is the 
+full path of the function, relative to the module.
+
+This mechanism for choosing the name of your function explicitly also comes handy  
+for function overloading (i.e: using the same name for functions that differ in 
+their signatures). For example, suppose that you want to implement a `sum` 
+function that can receive either integer or floating point numbers. The Rust
+language doesn't support function overloading, but you can provide two different
+implementations and force them to have the same name in YARA.
+
+```rust
+#[module_export(name = "add")]
+pub(crate) fn add_i64(ctx: &mut ScanContext, a: i64, b: i64) -> i64  {
+   a + b
+}
+
+#[module_export(name = "add")]
+pub(crate) fn add_f64(ctx: &mut ScanContext, a: f64, b: f64) -> f64  {
+    a + b
+}
+```
+
 ## String types in module functions
 
 When you want to receive an argument or return a value of type string you must
@@ -567,7 +634,6 @@ Now we can use the `lingua` crate in our `text` module, so let's add a function
 for detecting the language:
 
 ```rust
-use lingua::Language::{English, French, German, Spanish};
 use lingua::LanguageDetectorBuilder;
 
 #[module_export]
@@ -581,7 +647,10 @@ fn language(ctx: &ScanContext) -> Option<i64> {
 
     // Configure the languages that we want to detect.
     let detector = LanguageDetectorBuilder::from_languages(&[
-        English, French, German, Spanish,
+        lingua::Language::English,
+        lingua::Language::French,
+        lingua::Language::German,
+        lingua::Language::Spanish,
     ])
     .build();
 
@@ -589,8 +658,8 @@ fn language(ctx: &ScanContext) -> Option<i64> {
     // detected.
     let language = detector.detect_language_of(text)?;
 
-    /// language is an enum that has only unit variants, it can be casted to
-    /// `i64` for getting the numeric value.
+    // `language` is an enum that has only unit variants, it can be casted to
+    // `i64` for getting the numeric value.
     Some(language as i64)
 }
 ```
@@ -600,10 +669,110 @@ value represents a language, but writing YARA conditions like
 `text.language() == 3` is not very readable. Which is language 3? This is 
 where enums come into play.
 
-## Using enums and constants
+## Using enums
 
-TODO
+In the previous section we implemented the `language` function that returns a 
+numeric value indicating the language in which a text file is written. However,
+using numeric literals like `1`, `2` or `3` for identifying languages is not 
+readable, it would be much better if we could associate those literals to more
+descriptive symbols like `english`, `spanish` and `french`. In cases like this
+enums are really useful. Let's add this enum definition to the `text.proto` 
+file:
 
+```protobuf
+enum Language {
+  English = 1;
+  Spanish = 2;
+  French = 3;
+  German = 4;
+}
+```
+
+Now let's rewrite the `language` function:
+
+```rust
+#[module_export]
+fn lang(ctx: &ScanContext) -> Option<i64> {
+    let data = ctx.scanned_data();
+    // Use `as_bstr()` for getting the scanned data as a `&BStr` instead of a
+    // a `&[u8]`. Then call `to_str` for converting the `&BStr` to `&str`. This
+    // operation can fail if the context is not valid UTF-8, in that case
+    // returns `None`, which is interpreted as `undefined` in YARA.
+    let text = data.as_bstr().to_str().ok()?;
+
+    let detector = LanguageDetectorBuilder::from_languages(&[
+        lingua::Language::English,
+        lingua::Language::French,
+        lingua::Language::German,
+        lingua::Language::Spanish,
+    ])
+    .build();
+
+    // Detect the language. Convert the result returned by `lingua` to our
+    // own enum defined in the protobuf.
+    let language = match detector.detect_language_of(text)? {
+        lingua::Language::English => Language::English,
+        lingua::Language::French => Language::French,
+        lingua::Language::German => Language::German,
+        lingua::Language::Spanish => Language::Spanish,
+        _ => unreachable!(),
+    };
+
+    Some(language as i64)
+}
+```
+
+In the snippet above, constants `Language::English`, `Language::French`, 
+`Language::German` and `Language::Spanish` are the ones defined in the 
+`text.proto` file. They are accessible in our code because of the 
+`use crate::modules::protos::text::*;` statement at the beginning of the source
+file, which imports all the types defined by the protobuf.
+
+Also notice how the `match` statement is converting the result returned by
+the `lingua` crate, which is one of the values in the `lingua::Language` enum, 
+to our own enum. This is because relying on the actual numeric value associated
+to each alternative in `lingua::Language` (the discriminant in Rust terms) is 
+not a good idea. If the developers of `lingua` alter the order in which the 
+languages appear in the `lingua::Language` enum, this would also change their
+respective numeric values (or discriminant).
+
+After this change we can write a YARA rule like:
+
+```yara
+import "text"
+
+rule text_in_english {
+    condition:
+        text.language() == text.Language.English
+}
+```
+
+In our example the values in the enum started at 1 and where consecutive. But
+this is not a requirement, you can associate arbitrary values to each enum
+item, and use hexadecimal numbers for better legibility. All the following 
+enums are valid:
+
+```protobuf
+enum Threshold {
+  Low = 100;
+  Medium = 400;
+  High = 900;
+}
+
+
+enum DllCharacteristics {
+  HIGH_ENTROPY_VA = 0x0020;
+  DYNAMIC_BASE = 0x0040;
+  FORCE_INTEGRITY = 0x0080;
+  NX_COMPAT = 0x0100;
+}
+```
+
+----
+
+**NOTE**: The maximum possible value for an enum item is `0x7fffffff`
+
+----
 
 
 
