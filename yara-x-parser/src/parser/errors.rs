@@ -446,6 +446,7 @@ impl ErrorInfo {
             GrammarRule::PIPE => "pipe `|`",
             GrammarRule::COMMA => "comma `,`",
             GrammarRule::DOT => "dot `.`",
+            GrammarRule::DOT_DOT => "`..`",
             GrammarRule::EQUAL => "equal `=` ",
             GrammarRule::PERCENT => "percent `%`",
             GrammarRule::MINUS => "`-`",
