@@ -240,6 +240,10 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = null();
         ctx.scanned_data_len = 0;
 
+        // Clear the value of `current_struct` as it may contain a reference
+        // to some struct.
+        ctx.current_struct = None;
+
         ScanResults::new(self)
     }
 }
