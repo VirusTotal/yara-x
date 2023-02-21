@@ -1,3 +1,11 @@
+/*! This module emits the WASM code for conditions in YARA rules.
+
+The entry point for this module is the [`emit_rule_code`] function, which
+emits the WASM a code for a single YARA rule. This function calls other
+functions in the module which generate WASM code for specific kinds of
+expressions or language constructs.
+ */
+
 use std::mem::size_of;
 use std::rc::Rc;
 
@@ -200,6 +208,32 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
+/// Emits WASM code of a rule.
+pub(super) fn emit_rule_code(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    rule_id: RuleId,
+    rule: &Rule,
+) {
+    // Emit WASM code for the rule's condition.
+    instr.block(None, |block| {
+        catch_undef(ctx, block, |ctx, instr| {
+            emit_bool_expr(ctx, instr, &rule.condition);
+        });
+
+        // If the condition's result is 0, jump out of the block
+        // and don't call the `rule_match` function.
+        block.unop(UnaryOp::I32Eqz);
+        block.br_if(block.id());
+
+        // RuleId is the argument to `rule_match`.
+        block.i32_const(rule_id);
+
+        // Emit call instruction for calling `rule_match`.
+        block.call(ctx.function_id(wasm::export__rule_match.mangled_name));
+    });
+}
+
 /// Emits code that checks if the pattern search phase has not been executed
 /// yet, and do it in that case.
 fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
@@ -252,38 +286,8 @@ fn emit_pattern_match(
     }
 }
 
-/// Emits WASM code of a rule.
-pub(super) fn emit_rule_code(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    rule_id: RuleId,
-    rule: &Rule,
-) {
-    // Emit WASM code for the rule's condition.
-    instr.block(None, |block| {
-        catch_undef(ctx, block, |ctx, instr| {
-            emit_bool_expr(ctx, instr, &rule.condition);
-        });
-
-        // If the condition's result is 0, jump out of the block
-        // and don't call the `rule_match` function.
-        block.unop(UnaryOp::I32Eqz);
-        block.br_if(block.id());
-
-        // RuleId is the argument to `rule_match`.
-        block.i32_const(rule_id);
-
-        // Emit call instruction for calling `rule_match`.
-        block.call(ctx.function_id(wasm::export__rule_match.mangled_name));
-    });
-}
-
 /// Emits WASM code for `expr` into the instruction sequence `instr`.
-pub(super) fn emit_expr(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    expr: &Expr,
-) {
+fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
     match expr {
         Expr::True { .. } => {
             instr.i32_const(1);

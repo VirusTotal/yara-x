@@ -1,5 +1,6 @@
-/*! Scans data with already compiled YARA rules.
+/*! This module implements the YARA scanner.
 
+The scanner takes the rules produces by the compiler and scans data with them.
 */
 
 use std::path::Path;

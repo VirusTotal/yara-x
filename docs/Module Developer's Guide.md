@@ -508,7 +508,7 @@ full path of the function, relative to the module.
 
 This mechanism for choosing the name of your function explicitly also comes handy  
 for function overloading (i.e: using the same name for functions that differ in 
-their signatures). For example, suppose that you want to implement a `sum` 
+their signatures). For example, suppose that you want to implement a `add` 
 function that can receive either integer or floating point numbers. The Rust
 language doesn't support function overloading, but you can provide two different
 implementations and force them to have the same name in YARA.

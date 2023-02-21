@@ -1,17 +1,18 @@
-//! This crate implements a code formatter for YARA rules, in the spirit of
-//! other tools like `rustfmt` and `gofmt`.
-//!
-//! # Usage
-//!
-//! ```no_run
-//!# use std::fs::File;
-//! use yara_x_fmt::Formatter;
-//!
-//! let input = File::open("original.yar").unwrap();
-//! let output = File::create("formatted.yar").unwrap();
-//!
-//! Formatter::new().format(input, output).unwrap();
-//! ```
+/*! This crate implements a code formatter for YARA rules, in the spirit of
+other tools like `rustfmt` and `gofmt`.
+
+# Usage
+
+```no_run
+# use std::fs::File;
+use yara_x_fmt::Formatter;
+
+let input = File::open("original.yar").unwrap();
+let output = File::create("formatted.yar").unwrap();
+
+Formatter::new().format(input, output).unwrap();
+```
+*/
 use std::io;
 
 use thiserror::Error;

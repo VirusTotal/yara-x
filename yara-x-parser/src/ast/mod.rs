@@ -1,5 +1,8 @@
 /*! Abstract Syntax Tree (AST) for YARA rules.
 
+Each structure defined in this module corresponds to some construct in the
+YARA language, like a rule, expression, identifier, import statement, etc.
+
 # Example
 
 ```rust
