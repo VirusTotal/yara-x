@@ -42,6 +42,28 @@ mod semcheck;
 #[cfg(test)]
 mod tests;
 
+/// Compiles a YARA source code.
+///
+/// This function receives any type that implements the `Into<SourceCode>` trait,
+/// which includes `&str`, `String` and [`SourceCode`] and produces compiled
+/// [`Rules`] that can be passed later to the scanner.
+///
+/// # Example
+///
+/// ```rust
+/// # use yara_x;
+/// let rules = yara_x::compile("rule test { condition: true }").unwrap();
+/// let mut scanner = yara_x::Scanner::new(&rules);
+/// let results = scanner.scan("Lorem ipsum".as_bytes());
+/// assert_eq!(results.num_matching_rules(), 1);
+/// ```
+pub fn compile<'src, S>(src: S) -> Result<Rules, Error>
+where
+    S: Into<SourceCode<'src>>,
+{
+    Compiler::new().add_source(src)?.build()
+}
+
 /// Takes YARA source code and produces compiled [`Rules`].
 pub struct Compiler<'a> {
     /// Used for generating error and warning reports.
