@@ -18,6 +18,7 @@ use yara_x_proto::exts::module_options as yara_module_options;
 use crate::types::{Array, Map, TypeValue};
 
 /// A field in a [`Struct`].
+#[derive(Debug)]
 pub struct StructField {
     /// Field name.
     pub name: String,
@@ -44,6 +45,7 @@ pub struct StructField {
 /// The structures that represent a YARA module are created from the protobuf
 /// associated to that module. Functions [`Struct::from_proto_msg`] and
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
+#[derive(Debug)]
 pub struct Struct {
     /// Fields in this structure. The index of each field is the index that it
     /// has in this vector. Fields are sorted by field number, which means that
