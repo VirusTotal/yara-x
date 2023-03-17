@@ -154,10 +154,8 @@ where
                 self.output_buffer.push_back(token);
                 return self.output_buffer.pop_front();
             } else {
-                self.input_buffer.push_back(token);
-                for token in self.input_buffer.drain(0..) {
-                    self.output_buffer.push_back(token)
-                }
+                self.output_buffer.append(&mut self.input_buffer);
+                self.output_buffer.push_back(token);
                 return self.output_buffer.pop_front();
             }
         }
