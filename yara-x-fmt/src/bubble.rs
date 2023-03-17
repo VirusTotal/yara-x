@@ -149,7 +149,6 @@ where
             }
             if is_water {
                 self.input_buffer.push_back(token);
-                continue;
             } else if is_air {
                 self.output_buffer.push_back(token);
                 return self.output_buffer.pop_front();
