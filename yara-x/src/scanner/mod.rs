@@ -338,7 +338,7 @@ impl<'s, 'r> Iterator for NonMatches<'s, 'r> {
 
 pub(crate) type RuntimeStringId = u32;
 
-/// Structure that holds information a about the current scan.
+/// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r> {
     /// Data being scanned.
     scanned_data: *const u8,
