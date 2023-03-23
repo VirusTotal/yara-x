@@ -210,6 +210,9 @@ impl<'a> StackedSymbolTable<'a> {
     }
 
     /// Pop a symbol table from the stack.
+    ///
+    /// Returns the symbol table removed from the stack or None if the stack
+    /// was empty.
     pub(crate) fn pop(&mut self) -> Option<Rc<dyn SymbolLookup + 'a>> {
         self.stack.pop_back()
     }

@@ -64,6 +64,16 @@ where
     Compiler::new().add_source(src)?.build()
 }
 
+/// Structure that contains information about a rule namespace.
+///
+/// Includes the IdentId corresponding to the namespace's identifier
+/// and the symbol table that contains the symbols defined in the
+/// namespace.
+struct Namespace {
+    ident_id: IdentId,
+    symbols: Rc<RefCell<SymbolTable>>,
+}
+
 /// Takes YARA source code and produces compiled [`Rules`].
 pub struct Compiler<'a> {
     /// Used for generating error and warning reports.
@@ -71,6 +81,10 @@ pub struct Compiler<'a> {
 
     /// The main symbol table used by the compiler.
     symbol_table: StackedSymbolTable<'a>,
+
+    /// Information about the current namespace (i.e: the namespace that will
+    /// contain any new rules added via a call to `add_sources`.
+    current_namespace: Namespace,
 
     /// Pool that contains all the identifiers used in the rules. Each
     /// identifier appears only once, even if they are used by multiple
@@ -113,10 +127,11 @@ pub struct Compiler<'a> {
 impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
+        let mut ident_pool = StringPool::new();
         let mut symbol_table = StackedSymbolTable::new();
 
         // Add symbols for built-in functions like uint8, uint16, etc.
-        let builtin_functions = symbol_table.push_new();
+        let global_symbols = symbol_table.push_new();
 
         for export in WASM_EXPORTS.iter().filter(|e| e.public) {
             let func = Rc::new(Func::with_signature(FuncSignature::from(
@@ -126,18 +141,27 @@ impl<'a> Compiler<'a> {
             let mut symbol = Symbol::new(TypeValue::Func(func.clone()));
             symbol.kind = SymbolKind::Func(func);
 
-            builtin_functions.borrow_mut().insert(export.name, symbol);
+            global_symbols.borrow_mut().insert(export.name, symbol);
         }
 
+        // Create the default namespace. Rule identifiers will be added to this
+        // namespace, unless the user defines some namespace explicitly by calling
+        // `Compiler::new_namespace`.
+        let default_namespace = Namespace {
+            ident_id: ident_pool.get_or_intern("default"),
+            symbols: symbol_table.push_new(),
+        };
+
         Self {
+            ident_pool,
             symbol_table,
+            current_namespace: default_namespace,
             warnings: Vec::new(),
             rules: Vec::new(),
             patterns: Vec::new(),
             imported_modules: Vec::new(),
             modules_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
-            ident_pool: StringPool::new(),
             lit_pool: BStringPool::new(),
             wasm_mod: ModuleBuilder::new(),
         }
@@ -149,6 +173,51 @@ impl<'a> Compiler<'a> {
     /// look nicer on compatible consoles. The default setting is `false`.
     pub fn colorize_errors(mut self, b: bool) -> Self {
         self.report_builder.with_colors(b);
+        self
+    }
+
+    /// Creates a new namespace with a given name.
+    ///
+    /// Further calls to [`Compiler::add_source`] will put the rules under the
+    /// newly created namespace.
+    ///
+    /// In the example below both rules `foo` and `bar` are put into the same
+    /// namespace (the default namespace), therefore `bar` can use `foo` as
+    /// part of its condition, and everything is ok.
+    ///
+    /// ```
+    /// # use yara_x::Compiler;
+    /// assert!(Compiler::new()
+    ///     .add_source("rule foo {condition: true}")?
+    ///     .add_source("rule bar {condition: foo}")
+    ///     .is_ok());
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// In this other example the rule `foo` is put in the default namespace,
+    /// but the rule `bar` is put under the `bar` namespace. This implies that
+    /// `foo` is not visible to `bar`, and the second all to `add_source`
+    /// fails.
+    ///
+    /// ```
+    /// # use yara_x::Compiler;
+    /// assert!(Compiler::new()
+    ///     .add_source("rule foo {condition: true}")?
+    ///     .new_namespace("bar")
+    ///     .add_source("rule bar {condition: foo}")
+    ///     .is_err());
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn new_namespace(mut self, namespace: &str) -> Self {
+        // Remove the symbol table corresponding to the previous namespace.
+        self.symbol_table.pop().expect("expecting a namespace");
+        // Create a new namespace.
+        self.current_namespace = Namespace {
+            ident_id: self.ident_pool.get_or_intern(namespace),
+            symbols: self.symbol_table.push_new(),
+        };
         self
     }
 
@@ -172,25 +241,18 @@ impl<'a> Compiler<'a> {
         self.warnings.append(&mut ast.warnings);
 
         for ns in ast.namespaces.iter_mut() {
-            // Create the symbol table that will contain the symbols defined
-            // in this namespace, like modules and rules.
-            let namespace_symbols = self.symbol_table.push_new();
-
             // Process import statements. Checks that all imported modules
             // actually exist, and raise warnings in case of duplicated
-            // imports. For each module add a symbol to the current namespace.
-            self.process_imports(&src, &ns.imports, &namespace_symbols)?;
+            // imports within the same source file. For each module add a
+            // symbol to the current namespace.
+            self.process_imports(&src, &ns.imports)?;
 
             // Iterate over the list of declared rules and verify that their
             // conditions are semantically valid. For each rule add a symbol
             // to the current namespace.
             for rule in ns.rules.iter_mut() {
-                self.process_rule(rule, &src, &namespace_symbols)?;
+                self.process_rule(&src, rule)?;
             }
-
-            // Remove the symbol table for the current namespace. The next
-            // namespace can't access symbols defined by this namespace.
-            self.symbol_table.pop();
         }
 
         Ok(self)
@@ -242,9 +304,8 @@ impl<'a> Compiler<'a> {
 impl<'a> Compiler<'a> {
     fn process_rule(
         &mut self,
-        rule: &mut ast::Rule,
         src: &SourceCode,
-        namespace_symbols: &Rc<RefCell<SymbolTable>>,
+        rule: &mut ast::Rule,
     ) -> Result<(), Error> {
         // Create array with pairs (IdentId, PatternId) that describe
         // the patterns in a compiled rule.
@@ -272,6 +333,7 @@ impl<'a> Compiler<'a> {
 
         self.rules.push(RuleInfo {
             ident_id: self.ident_pool.get_or_intern(rule.identifier.as_str()),
+            namespace_id: self.current_namespace.ident_id,
             patterns: pairs,
         });
 
@@ -299,7 +361,8 @@ impl<'a> Compiler<'a> {
 
         symbol.kind = SymbolKind::Rule(rule_id);
 
-        namespace_symbols
+        self.current_namespace
+            .symbols
             .as_ref()
             .borrow_mut()
             .insert(rule.identifier.as_str(), symbol);
@@ -336,7 +399,6 @@ impl<'a> Compiler<'a> {
         &mut self,
         src: &SourceCode,
         imports: &[Import],
-        namespace_symbols: &Rc<RefCell<SymbolTable>>,
     ) -> Result<(), Error> {
         // Iterate over the list of imported modules.
         for import in imports.iter() {
@@ -421,8 +483,9 @@ impl<'a> Compiler<'a> {
                 );
 
                 // Insert the symbol in the symbol table for the current
-                // namespace
-                namespace_symbols
+                // namespace.
+                self.current_namespace
+                    .symbols
                     .as_ref()
                     .borrow_mut()
                     .insert(module_name, symbol);
@@ -708,7 +771,7 @@ pub struct Rules {
 }
 
 impl Rules {
-    /// Returns a [`Rule`] given its [`RuleId`].
+    /// Returns a [`RuleInfo`] given its [`RuleId`].
     ///
     /// # Panics
     ///
@@ -772,6 +835,8 @@ impl<'a> Iterator for Imports<'a> {
 pub(crate) struct RuleInfo {
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident_id: IdentId,
+    /// The ID of the rule namespace in the identifiers pool.
+    pub(crate) namespace_id: IdentId,
     /// Vector with all the patterns defined by this rule.
     patterns: Vec<(IdentId, PatternId)>,
 }
@@ -786,6 +851,11 @@ impl<'r> Rule<'r> {
     /// Returns the rule's name.
     pub fn name(&self) -> &str {
         self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
+    }
+
+    /// Returns the rule's namespace.
+    pub fn namespace(&self) -> &str {
+        self.rules.ident_pool().get(self.rule_info.namespace_id).unwrap()
     }
 }
 
