@@ -2928,6 +2928,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wild"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05b116685a6be0c52f5a103334cbff26db643826c7b3735fc0a3ba9871310a74"
+dependencies = [
+ "glob",
+]
+
+[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3151,6 +3160,7 @@ dependencies = [
  "globset",
  "pprof",
  "walkdir",
+ "wild",
  "yansi",
  "yara-x",
  "yara-x-fmt",

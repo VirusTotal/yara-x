@@ -27,24 +27,19 @@ const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
 const CHECK_LONG_HELP: &str = r#"Check if YARA source files are syntactically correct
 
 If <PATH> is a directory, all files with extensions `yar` and `yara` will be
-checked. The `--filter` option allows changing this behavior.
-"#;
+checked. The `--filter` option allows changing this behavior."#;
 
 const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
 
-Controls how many threads are used for the operation. The default value depends 
-on the number of CPUs.
-"#;
+The default value is automatically determined based on the number of CPU cores."#;
 
 const DEPTH_LONG_HELP: &str = r#"Walk directories recursively up to a given depth
 
-Controls how many levels to go down in the directory tree while looking for
-files. This only applies when <PATH> is a directory. The default value is 0,
-which means that only the files in the specified directory will be checked,
-without entering in subdirectories.
-"#;
+This is ignored if <RULES_PATH> is not a directory. When <MAX_DEPTH> is 0 it means
+that files located in the specified directory will be processed, but subdirectories
+won't be traversed. By default <MAX_DEPTH> is infinite."#;
 
-const FILTER_LONG_HELP: &str = r#"Check files that match the given pattern only
+const FILTER_LONG_HELP: &str = r#"Only check files that match the given pattern
 
 Patterns can contains the following wildcards:
 
@@ -64,8 +59,7 @@ files matching any of the patterns will be checked.
 
 The absense of this options is equivalent to using this:
 
---filter='**/*.yara' --filter='**/*.yar'
-"#;
+--filter='**/*.yara' --filter='**/*.yar'"#;
 
 fn command(name: &'static str) -> Command {
     Command::new(name).help_template(
@@ -101,14 +95,19 @@ fn main() -> anyhow::Result<()> {
                     "Scans a file or directory with some YARA rule",
                 )
                 .arg(
-                    arg!(<RULES_FILE>)
+                    arg!(<RULES_PATH>)
                         .help("Path to YARA source file")
-                        .value_parser(value_parser!(PathBuf)),
+                        .value_parser(value_parser!(PathBuf))
+                        .action(ArgAction::Append),
                 )
                 .arg(
                     arg!(<PATH>)
                         .help("Path to the file or directory that will be scanned")
                         .value_parser(value_parser!(PathBuf))
+                )
+                .arg(
+                    arg!(-e --"print-namespace")
+                        .help("Print rule namespace")
                 )
                 .arg(&num_threads_arg),
             command("ast")
@@ -116,14 +115,14 @@ fn main() -> anyhow::Result<()> {
                     "Print Abstract Syntax Tree (AST) for a YARA source file",
                 )
                 .arg(
-                    arg!(<FILE>)
+                    arg!(<RULES_PATH>)
                         .help("Path to YARA source file")
                         .value_parser(value_parser!(PathBuf)),
                 ),
             command("wasm")
                 .about("Emits a .wasm file with the code generated for a YARA source file")
                 .arg(
-                    arg!(<FILE>)
+                    arg!(<RULES_PATH>)
                         .help("Path to YARA source file")
                         .value_parser(value_parser!(PathBuf)),
                 )
@@ -132,35 +131,33 @@ fn main() -> anyhow::Result<()> {
                 .about("Check if YARA source files are syntactically correct")
                 .long_about(CHECK_LONG_HELP)
                 .arg(
-                    arg!(<PATH>)
+                    arg!(<RULES_PATH>)
                         .help("Path to YARA source file or directory")
                         .value_parser(value_parser!(PathBuf)),
                 )
                 .arg(
-                    arg!(-d --"max-depth" <DEPTH>)
+                    arg!(-d --"max-depth" <MAX_DEPTH>)
                         .help(
                             "Walk directories recursively up to a given depth",
                         )
                         .long_help(DEPTH_LONG_HELP)
-                        .required(false)
                         .value_parser(value_parser!(u16)),
                 )
                 .arg(
                     arg!(-f --filter <PATTERN>)
                         .help("Check files that match the given pattern only")
                         .long_help(FILTER_LONG_HELP)
-                        .required(false)
                         .action(ArgAction::Append)
                 )
                 .arg(&num_threads_arg),
             command("fmt").about("Format YARA source files").arg(
-                arg!([FILE])
+                arg!(<RULES_PATH>)
                     .help("Path to YARA source files")
                     .action(ArgAction::Append)
                     .value_parser(value_parser!(PathBuf)),
             ),
         ])
-        .get_matches();
+        .get_matches_from(wild::args());
 
     #[cfg(feature = "profiling")]
     let guard =
@@ -186,20 +183,25 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
-    let rules_path = args.get_one::<PathBuf>("RULES_FILE").unwrap();
+    let rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
     let path = args.get_one::<PathBuf>("PATH").unwrap();
     let num_threads = args.get_one::<u8>("threads");
+    let print_namespace = args.get_flag("print-namespace");
 
-    let src = fs::read(rules_path)
-        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
+    let mut compiler = Compiler::new().colorize_errors(true);
 
-    let src = SourceCode::from(src.as_slice())
-        .origin(rules_path.as_os_str().to_str().unwrap());
+    for path in rules_path {
+        let src = fs::read(path)
+            .with_context(|| format!("can not read `{}`", path.display()))?;
 
-    let rules =
-        Compiler::new().colorize_errors(true).add_source(src)?.build()?;
+        let src = SourceCode::from(src.as_slice())
+            .origin(path.as_os_str().to_str().unwrap());
 
-    let r = &rules;
+        compiler = compiler.add_source(src)?;
+    }
+
+    let rules = compiler.build()?;
+    let rules_ref = &rules;
 
     let mut walker = walk::ParallelWalk::new(path);
 
@@ -209,11 +211,24 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     walker.run(
         // The initialization function creates a scanner for each thread.
-        || Scanner::new(r),
+        || Scanner::new(rules_ref),
         |scanner, file_path| {
             let scan_results = scanner.scan_file(&file_path)?;
             for matching_rule in scan_results.iter() {
-                println!("{} {}", matching_rule.name(), file_path.display());
+                if print_namespace {
+                    println!(
+                        "{}:{} {}",
+                        matching_rule.namespace(),
+                        matching_rule.name(),
+                        file_path.display()
+                    );
+                } else {
+                    println!(
+                        "{} {}",
+                        matching_rule.name(),
+                        file_path.display()
+                    );
+                }
             }
             Ok::<(), anyhow::Error>(())
         },
@@ -221,13 +236,13 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
 }
 
 fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
-    let file_path = args.get_one::<PathBuf>("FILE").unwrap();
+    let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
 
-    let src = fs::read(file_path)
-        .with_context(|| format!("can not read `{}`", file_path.display()))?;
+    let src = fs::read(rules_path)
+        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let src = SourceCode::from(src.as_slice())
-        .origin(file_path.as_os_str().to_str().unwrap());
+        .origin(rules_path.as_os_str().to_str().unwrap());
 
     let ast = Parser::new().colorize_errors(true).build_ast(src)?;
 
@@ -239,31 +254,32 @@ fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
 }
 
 fn cmd_wasm(args: &ArgMatches) -> anyhow::Result<()> {
-    let mut file_path = args.get_one::<PathBuf>("FILE").unwrap().to_path_buf();
+    let mut rules_path =
+        args.get_one::<PathBuf>("RULES_PATH").unwrap().to_path_buf();
 
-    let src = fs::read(file_path.as_path())
-        .with_context(|| format!("can not read `{}`", file_path.display()))?;
+    let src = fs::read(rules_path.as_path())
+        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let src = SourceCode::from(src.as_slice())
-        .origin(file_path.as_os_str().to_str().unwrap());
+        .origin(rules_path.as_os_str().to_str().unwrap());
 
-    file_path.set_extension("wasm");
+    rules_path.set_extension("wasm");
 
     Compiler::new()
         .colorize_errors(true)
         .add_source(src)?
-        .emit_wasm_file(file_path.as_path())?;
+        .emit_wasm_file(rules_path.as_path())?;
 
     Ok(())
 }
 
 fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
-    let path = args.get_one::<PathBuf>("PATH").unwrap();
+    let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
     let max_depth = args.get_one::<u16>("max-depth");
     let filters = args.get_many::<String>("filter");
     let num_threads = args.get_one::<u8>("threads");
 
-    let mut walker = walk::ParallelWalk::new(path);
+    let mut walker = walk::ParallelWalk::new(rules_path);
 
     if let Some(max_depth) = max_depth {
         walker = walker.max_depth(*max_depth as usize);
@@ -327,10 +343,10 @@ fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
 }
 
 fn cmd_format(args: &ArgMatches) -> anyhow::Result<()> {
-    let files = args.get_many::<PathBuf>("FILE");
+    let rules_path = args.get_many::<PathBuf>("RULES_PATH");
     let formatter = Formatter::new();
 
-    if let Some(files) = files {
+    if let Some(files) = rules_path {
         for file in files {
             let input = fs::read(file.as_path())?;
             let output = File::create(file.as_path())?;
