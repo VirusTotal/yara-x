@@ -11,8 +11,8 @@ use clap::{
     arg, command, crate_authors, value_parser, ArgAction, ArgMatches, Command,
 };
 
-use yara_x::Compiler;
 use yara_x::Scanner;
+use yara_x::{Compiler, Rule};
 use yara_x_fmt::Formatter;
 use yara_x_parser::{Parser, SourceCode};
 
@@ -92,7 +92,7 @@ fn main() -> anyhow::Result<()> {
         .subcommands(vec![
             command("scan")
                 .about(
-                    "Scans a file or directory with some YARA rule",
+                    "Scans a file or directory",
                 )
                 .arg(
                     arg!(<RULES_PATH>)
@@ -108,6 +108,14 @@ fn main() -> anyhow::Result<()> {
                 .arg(
                     arg!(-e --"print-namespace")
                         .help("Print rule namespace")
+                )
+                .arg(
+                    arg!(--"path-as-namespace")
+                        .help("Use file path as rule namespace")
+                )
+                .arg(
+                    arg!(-n --"negate")
+                        .help("Print non-satisfied rules only")
                 )
                 .arg(&num_threads_arg),
             command("ast")
@@ -152,7 +160,7 @@ fn main() -> anyhow::Result<()> {
                 .arg(&num_threads_arg),
             command("fmt").about("Format YARA source files").arg(
                 arg!(<RULES_PATH>)
-                    .help("Path to YARA source files")
+                    .help("Path to YARA source file")
                     .action(ArgAction::Append)
                     .value_parser(value_parser!(PathBuf)),
             ),
@@ -187,6 +195,8 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let path = args.get_one::<PathBuf>("PATH").unwrap();
     let num_threads = args.get_one::<u8>("threads");
     let print_namespace = args.get_flag("print-namespace");
+    let path_as_namespace = args.get_flag("path-as-namespace");
+    let negate = args.get_flag("negate");
 
     let mut compiler = Compiler::new().colorize_errors(true);
 
@@ -196,6 +206,10 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
         let src = SourceCode::from(src.as_slice())
             .origin(path.as_os_str().to_str().unwrap());
+
+        if path_as_namespace {
+            compiler = compiler.new_namespace(path.to_string_lossy().as_ref());
+        }
 
         compiler = compiler.add_source(src)?;
     }
@@ -214,7 +228,14 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
         || Scanner::new(rules_ref),
         |scanner, file_path| {
             let scan_results = scanner.scan_file(&file_path)?;
-            for matching_rule in scan_results.iter() {
+
+            let matching_rules: Vec<Rule> = if negate {
+                scan_results.iter_non_matches().collect()
+            } else {
+                scan_results.iter().collect()
+            };
+
+            for matching_rule in matching_rules {
                 if print_namespace {
                     println!(
                         "{}:{} {}",
