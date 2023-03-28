@@ -309,18 +309,25 @@ pub struct NonMatches<'s, 'r> {
 
 impl<'s, 'r> NonMatches<'s, 'r> {
     fn new(scanner: &'s Scanner<'r>) -> Self {
-        let main_memory = scanner
-            .wasm_store
-            .data()
-            .main_memory
-            .unwrap()
-            .data(&scanner.wasm_store);
+        let ctx = scanner.wasm_store.data();
+        let num_rules = ctx.compiled_rules.rules().len();
+        let main_memory = ctx.main_memory.unwrap().data(&scanner.wasm_store);
 
-        let bits = BitSlice::<_, Lsb0>::from_slice(
-            &main_memory[MATCHING_RULES_BITMAP_BASE as usize..],
+        let base = MATCHING_RULES_BITMAP_BASE as usize;
+
+        // Create a BitSlice that covers the region of main memory containing
+        // the bitmap that tells which rules matched and which did not.
+        let matching_rules_bitmap = BitSlice::<_, Lsb0>::from_slice(
+            &main_memory[base..base + num_rules / 8 + 1],
         );
 
-        Self { scanner, iterator: bits.iter_zeros() }
+        // The BitSlice will cover more bits than necessary, for example, if
+        // there are 3 rules the BitSlice will have 8 bits because it is
+        // created from a u8 slice that has 1 byte. Here we make sure that
+        // the BitSlice has exactly as many bits as existing rules.
+        let matching_rules_bitmap = &matching_rules_bitmap[0..num_rules];
+
+        Self { scanner, iterator: matching_rules_bitmap.iter_zeros() }
     }
 }
 
