@@ -12,6 +12,7 @@ use std::{fmt, mem};
 use walrus::ir::InstrSeqId;
 use walrus::{FunctionId, Module, ValType};
 
+use crate::compiler::atoms::Atoms;
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
@@ -35,6 +36,7 @@ use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 pub use crate::compiler::errors::*;
 use crate::modules::BUILTIN_MODULES;
 
+mod atoms;
 mod emit;
 mod errors;
 mod semcheck;
