@@ -76,6 +76,10 @@ struct Namespace {
     symbols: Rc<RefCell<SymbolTable>>,
 }
 
+struct AtomInfo {
+    pattern_id: PatternId,
+}
+
 /// Takes YARA source code and produces compiled [`Rules`].
 pub struct Compiler<'a> {
     /// Used for generating error and warning reports.

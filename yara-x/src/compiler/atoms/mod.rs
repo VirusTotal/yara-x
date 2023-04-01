@@ -154,7 +154,7 @@ impl Atoms for ast::TextPattern<'_> {
         let mut best_atom = None;
         let mut atoms = Vec::new();
 
-        for i in 0..=len - MAX_ATOM_SIZE {
+        for i in 0..=len.checked_sub(MAX_ATOM_SIZE).unwrap_or(0) {
             let atom = Atom::from(&s[i..cmp::min(len, i + MAX_ATOM_SIZE)]);
             let quality = atom.quality();
             if quality > max_quality {
@@ -173,13 +173,15 @@ impl Atoms for ast::TextPattern<'_> {
 
 impl Atoms for ast::RegexpPattern<'_> {
     fn atoms(&self) -> Vec<Atom> {
-        todo!()
+        // TODO
+        Vec::new()
     }
 }
 
 impl Atoms for ast::HexPattern<'_> {
     fn atoms(&self) -> Vec<Atom> {
-        todo!()
+        // TODO
+        Vec::new()
     }
 }
 
@@ -232,7 +234,7 @@ mod test {
     use pretty_assertions::assert_eq;
     use std::borrow::Cow;
     use yara_x_parser::ast;
-    use yara_x_parser::ast::{Ident, Span};
+    use yara_x_parser::ast::{Ident, PatternModifiers, Span};
     use yara_x_parser::types::TypeValue;
 
     #[test]
@@ -267,7 +269,7 @@ mod test {
                 name: "",
             },
             value: Cow::Owned(BString::from("abcdef")),
-            modifiers: None,
+            modifiers: PatternModifiers::default(),
         };
 
         assert_eq!(text_pattern.atoms(), vec![Atom::from("abcd")]);
@@ -279,8 +281,21 @@ mod test {
                 type_value: TypeValue::Unknown,
                 name: "",
             },
+            value: Cow::Owned(BString::from("ab")),
+            modifiers: PatternModifiers::default(),
+        };
+
+        assert_eq!(text_pattern.atoms(), vec![Atom::from("ab")]);
+
+        let text_pattern = ast::TextPattern {
+            span: Span::default(),
+            identifier: Ident {
+                span: Span::default(),
+                type_value: TypeValue::Unknown,
+                name: "",
+            },
             value: Cow::Owned(BString::from("abcd0")),
-            modifiers: None,
+            modifiers: PatternModifiers::default(),
         };
 
         assert_eq!(text_pattern.atoms(), vec![Atom::from("bcd0")]);

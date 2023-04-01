@@ -2,6 +2,7 @@
 
 use ::ascii_tree::Tree;
 use ::ascii_tree::Tree::{Leaf, Node};
+use itertools::Itertools;
 
 use crate::ast::*;
 use crate::types::TypeValue;
@@ -461,28 +462,12 @@ pub(crate) fn pattern_set_ascii_tree(pattern_set: &PatternSet) -> Tree {
 
 pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
     match pattern {
-        Pattern::Text(s) => {
-            let modifiers = if let Some(modifiers) = &s.modifiers {
-                // The pattern has modifiers, let's generate a textual
-                // representation of them.
-                let mut m = modifiers
-                    .values()
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>();
-                // .values() doesn't guarantee a stable order, so we need
-                // to explicitly sort the vector in order to have a
-                // predictable result.
-                m.sort();
-                m.join(" ")
-            } else {
-                "".to_string()
-            };
-
-            Leaf(vec![format!(
-                "{} = \"{}\" {}",
-                s.identifier.name, s.value, modifiers
-            )])
-        }
+        Pattern::Text(s) => Leaf(vec![format!(
+            "{} = \"{}\" {}",
+            s.identifier.name,
+            s.value,
+            s.modifiers.iter().map(|m| m.to_string()).join(" ")
+        )]),
         Pattern::Hex(h) => Node(
             h.identifier.name.to_string(),
             vec![hex_tokens_ascii_tree(&h.tokens)],
