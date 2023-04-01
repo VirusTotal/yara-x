@@ -532,11 +532,6 @@ impl<'src> Ident<'src> {
         Self { name, span, type_value }
     }
 
-    /// Returns the identifier as a string.
-    pub fn as_str(&self) -> &'src str {
-        self.name
-    }
-
     /// Returns the identifier's type.
     #[inline(always)]
     pub fn ty(&self) -> Type {

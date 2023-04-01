@@ -314,9 +314,8 @@ impl<'a> Compiler<'a> {
         let pairs = if let Some(patterns) = &rule.patterns {
             let mut pairs = Vec::with_capacity(patterns.len());
             for pattern in patterns {
-                let ident_id = self
-                    .ident_pool
-                    .get_or_intern(pattern.identifier().as_str());
+                let ident_id =
+                    self.ident_pool.get_or_intern(pattern.identifier().name);
 
                 // PatternId is the index of the pattern in
                 // `self.patterns`.
@@ -334,7 +333,7 @@ impl<'a> Compiler<'a> {
         let rule_id = self.rules.len() as RuleId;
 
         self.rules.push(RuleInfo {
-            ident_id: self.ident_pool.get_or_intern(rule.identifier.as_str()),
+            ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
             namespace_id: self.current_namespace.ident_id,
             patterns: pairs,
         });
@@ -367,7 +366,7 @@ impl<'a> Compiler<'a> {
             .symbols
             .as_ref()
             .borrow_mut()
-            .insert(rule.identifier.as_str(), symbol);
+            .insert(rule.identifier.name, symbol);
 
         // Verify that the rule's condition is semantically valid. This
         // traverses the condition's AST recursively. The condition can
@@ -705,14 +704,14 @@ impl<'a, 'sym> Context<'a, 'sym> {
     /// Panics if the current rule does not have the requested pattern.
     fn get_pattern_from_current_rule(&self, ident: &Ident) -> PatternId {
         for (ident_id, pattern_id) in &self.current_rule.patterns {
-            if self.resolve_ident(*ident_id) == ident.as_str() {
+            if self.resolve_ident(*ident_id) == ident.name {
                 return *pattern_id;
             }
         }
         panic!(
             "rule `{}` does not have pattern `{}` ",
             self.resolve_ident(self.current_rule.ident_id),
-            ident.as_str()
+            ident.name
         );
     }
 

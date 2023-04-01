@@ -796,7 +796,7 @@ fn semcheck_for_in(
     // TODO: raise warning when the loop identifier (e.g: "i") hides
     // an existing identifier with the same name.
     for (var, type_value) in iter::zip(loop_vars, expected_vars) {
-        vars.insert(var.as_str(), Symbol::new(type_value));
+        vars.insert(var.name, Symbol::new(type_value));
     }
 
     // Put the loop variables into scope.
