@@ -9,6 +9,7 @@ use std::rc::Rc;
 use std::slice::Iter;
 
 use bitvec::prelude::*;
+use bstr::ByteSlice;
 use fmmap::{MmapFile, MmapFileExt};
 use wasmtime::{
     Global, GlobalType, MemoryType, Mutability, Store, TypedFunc, Val, ValType,
@@ -19,7 +20,7 @@ use yara_x_parser::types::{Struct, TypeValue};
 use crate::compiler::{Rule, RuleId, Rules};
 use crate::string_pool::BStringPool;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, wasm};
+use crate::{modules, wasm, Pattern, PatternId};
 
 #[cfg(test)]
 mod tests;
@@ -46,6 +47,7 @@ impl<'r> Scanner<'r> {
                 rules_matching: Vec::new(),
                 main_memory: None,
                 vars_stack: Vec::new(),
+                patterns_found: false,
             },
         );
 
@@ -129,26 +131,8 @@ impl<'r> Scanner<'r> {
 
     /// Scans in-memory data.
     pub fn scan<'s>(&'s mut self, data: &[u8]) -> ScanResults<'s, 'r> {
-        let ctx = self.wasm_store.data_mut();
-
-        // Get the number of rules.
-        let num_rules = ctx.compiled_rules.rules().len();
-
-        // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
-        // were the N-th bit indicates if the rule with ID = N matched or not.
-        // If some rule matched in a previous call the bitmap will contain some
-        // bits set to 1 and need to be cleared.
-        if !ctx.rules_matching.is_empty() {
-            // Clear the list of matching rules.
-            ctx.rules_matching.clear();
-            let offset = wasm::MATCHING_RULES_BITMAP_BASE as usize;
-            let mem = ctx.main_memory.unwrap().data_mut(&mut self.wasm_store);
-            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
-                &mut mem[offset..offset + num_rules / 8 + 1],
-            );
-            // Set to zero all bits in the bitmap.
-            bitmap.fill(false);
-        }
+        // Clear information about matches found in a previous scan, if any.
+        self.clear_matches();
 
         // Set the global variable `filesize` to the size of the scanned data.
         self.filesize
@@ -245,6 +229,31 @@ impl<'r> Scanner<'r> {
         ctx.current_struct = None;
 
         ScanResults::new(self)
+    }
+
+    // Clear information about previous matches.
+    fn clear_matches(&mut self) {
+        let ctx = self.wasm_store.data_mut();
+        let num_rules = ctx.compiled_rules.rules().len();
+        let num_patterns = ctx.compiled_rules.patterns().len();
+
+        if ctx.patterns_found || !ctx.rules_matching.is_empty() {
+            // Clear the list of matching rules.
+            ctx.rules_matching.clear();
+            let mem = ctx.main_memory.unwrap().data_mut(&mut self.wasm_store);
+            // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
+            // were the N-th bit indicates if the rule with ID = N matched or not,
+            // If some rule matched in a previous call the bitmap will contain some
+            // bits set to 1 and need to be cleared.
+            let base = MATCHING_RULES_BITMAP_BASE as usize;
+            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
+                &mut mem[base..base
+                    + (num_rules / 8 + 1)
+                    + (num_patterns / 8 + 1)],
+            );
+            // Set to zero all bits in the bitmap.
+            bitmap.fill(false);
+        }
     }
 }
 
@@ -353,6 +362,10 @@ pub(crate) struct ScanContext<'r> {
     scanned_data_len: usize,
     /// Vector containing the IDs of the rules that matched.
     pub(crate) rules_matching: Vec<RuleId>,
+    /// True if some pattern has been found. This is simply a flag that
+    /// indicates that the bitmap that tells which patterns has matched
+    /// needs to be cleared.
+    pub(crate) patterns_found: bool,
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -387,7 +400,39 @@ impl ScanContext<'_> {
         }
     }
 
+    pub(crate) fn save_match(&mut self, pattern_id: PatternId) {
+        self.patterns_found = true;
+    }
+
     pub(crate) fn search_for_patterns(&mut self) {
-        // TODO
+        let ac = self.compiled_rules.aho_corasick();
+
+        for atom_match in ac.find_overlapping_iter(self.scanned_data()) {
+            let matched_atom =
+                &self.compiled_rules.atoms()[atom_match.pattern()];
+
+            let pattern = &self.compiled_rules.patterns()
+                [matched_atom.pattern_id as usize];
+
+            let pattern_matched = match pattern {
+                Pattern::Fixed(lit_id) => {
+                    let offset = atom_match.start()
+                        - matched_atom.atom.backtrack as usize;
+
+                    let pattern =
+                        self.compiled_rules.lit_pool().get(*lit_id).unwrap();
+
+                    &self.scanned_data()[offset..atom_match.len()]
+                        == pattern.as_bytes()
+                }
+                Pattern::Regexp => {
+                    todo!()
+                }
+            };
+
+            if pattern_matched {
+                self.save_match(matched_atom.pattern_id);
+            }
+        }
     }
 }

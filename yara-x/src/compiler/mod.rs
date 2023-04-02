@@ -3,6 +3,7 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
+use aho_corasick::AhoCorasick;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -12,7 +13,7 @@ use std::{fmt, mem};
 use walrus::ir::InstrSeqId;
 use walrus::{FunctionId, Module, ValType};
 
-use crate::compiler::atoms::Atoms;
+use crate::compiler::atoms::{Atom, Atoms};
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
@@ -76,10 +77,6 @@ struct Namespace {
     symbols: Rc<RefCell<SymbolTable>>,
 }
 
-struct AtomInfo {
-    pattern_id: PatternId,
-}
-
 /// Takes YARA source code and produces compiled [`Rules`].
 pub struct Compiler<'a> {
     /// Used for generating error and warning reports.
@@ -102,7 +99,8 @@ pub struct Compiler<'a> {
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
     /// capable of storing [`bstr::BString`] must be used, the [`String`] type
-    /// only accepts valid UTF-8.
+    /// only accepts valid UTF-8. This pool also stores the atoms extracted
+    /// from patterns.
     lit_pool: BStringPool<LiteralId>,
 
     /// Builder for creating the WebAssembly module that contains the code
@@ -116,6 +114,11 @@ pub struct Compiler<'a> {
     /// A vector with all the patterns from all the rules. A [`PatternId`]
     /// is an index in this vector.
     patterns: Vec<Pattern>,
+
+    /// A vector that contains all the atoms generated for the patterns. Each
+    /// atom has an associated [`PatternId`] that indicates the pattern it
+    /// belongs to.
+    atoms: Vec<AtomInfo>,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -165,6 +168,7 @@ impl<'a> Compiler<'a> {
             warnings: Vec::new(),
             rules: Vec::new(),
             patterns: Vec::new(),
+            atoms: Vec::new(),
             imported_modules: Vec::new(),
             modules_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
@@ -282,14 +286,20 @@ impl<'a> Compiler<'a> {
         )
         .expect("WASM module is not valid");
 
+        // Build the Aho-Corasick automaton used while searching for the atoms
+        // in the scanned data.
+        let ac = AhoCorasick::new(self.atoms.iter().map(|x| &x.atom));
+
         Ok(Rules {
+            ac,
             compiled_wasm_mod,
             wasm_mod,
             ident_pool: self.ident_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
-            patterns: self.patterns,
             rules: self.rules,
+            patterns: self.patterns,
+            atoms: self.atoms,
         })
     }
 
@@ -318,14 +328,33 @@ impl<'a> Compiler<'a> {
         let pairs = if let Some(patterns) = &rule.patterns {
             let mut pairs = Vec::with_capacity(patterns.len());
             for pattern in patterns {
+                // Save pattern identifier (e.g: $a) in the pool of identifiers
+                // or reuse the IdentId if the identifier has been used already.
                 let ident_id =
                     self.ident_pool.get_or_intern(pattern.identifier().name);
 
-                // PatternId is the index of the pattern in
-                // `self.patterns`.
+                // PatternId is the index of the pattern in `self.patterns`.
                 let pattern_id = self.patterns.len() as PatternId;
 
-                self.patterns.push(Pattern {});
+                for atom in pattern.atoms() {
+                    self.atoms.push(AtomInfo { pattern_id, atom })
+                }
+
+                let pattern = match pattern {
+                    ast::Pattern::Text(p) => Pattern::Fixed(
+                        self.lit_pool.get_or_intern(p.value.as_ref()),
+                    ),
+                    ast::Pattern::Hex(_) => {
+                        // TODO
+                        Pattern::Regexp
+                    }
+                    ast::Pattern::Regexp(_) => {
+                        // TODO
+                        Pattern::Regexp
+                    }
+                };
+
+                self.patterns.push(pattern);
 
                 pairs.push((ident_id, pattern_id));
             }
@@ -773,6 +802,16 @@ pub struct Rules {
     /// appears in this list once. A [`PatternId`] is an index in this
     /// vector.
     patterns: Vec<Pattern>,
+
+    /// A vector that contains all the atoms generated for the patterns. Each
+    /// atom has an associated [`PatternId`] that indicates the pattern it
+    /// belongs to.
+    atoms: Vec<AtomInfo>,
+
+    /// Aho-Corasick automaton containing the atoms extracted from the patterns.
+    /// This allows to search for all the atoms in the scanned data at the same
+    /// time in an efficient manner.
+    ac: AhoCorasick,
 }
 
 impl Rules {
@@ -795,6 +834,18 @@ impl Rules {
     #[inline]
     pub(crate) fn patterns(&self) -> &[Pattern] {
         self.patterns.as_slice()
+    }
+
+    #[inline]
+    pub(crate) fn atoms(&self) -> &[AtomInfo] {
+        self.atoms.as_slice()
+    }
+
+    /// Returns the Aho-Corasick automaton that allows to search for pattern
+    /// atoms.
+    #[inline]
+    pub(crate) fn aho_corasick(&self) -> &AhoCorasick {
+        &self.ac
     }
 
     /// An iterator that yields the name of the modules imported by the
@@ -864,5 +915,13 @@ impl<'r> Rule<'r> {
     }
 }
 
+pub(crate) struct AtomInfo {
+    pub pattern_id: PatternId,
+    pub atom: Atom,
+}
+
 /// A pattern (a.k.a string) in the compiled rules.
-pub(crate) struct Pattern {}
+pub(crate) enum Pattern {
+    Fixed(LiteralId),
+    Regexp,
+}

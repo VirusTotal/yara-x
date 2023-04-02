@@ -3113,6 +3113,7 @@ dependencies = [
 name = "yara-x"
 version = "0.1.0"
 dependencies = [
+ "aho-corasick",
  "ansi_term",
  "anyhow",
  "ariadne",

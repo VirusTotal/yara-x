@@ -18,6 +18,7 @@ members = [
 ]
 
 [workspace.dependencies]
+aho-corasick = "0.7.20"
 ansi_term = "0.12.1"
 anyhow = "1.0.65"
 ariadne = "0.1.5"

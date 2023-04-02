@@ -33,6 +33,7 @@ default = [
 ]
 
 [dependencies]
+aho-corasick = { workspace = true }
 ansi_term = { workspace = true }
 anyhow = { workspace = true }
 ariadne = { workspace = true }

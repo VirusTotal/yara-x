@@ -56,8 +56,12 @@ and `"efg"` will be used because `"a"` and `"h"` are too short.
 mod mask;
 mod quality;
 
+use bstr::ByteSlice;
 use itertools::{Itertools, MultiProduct};
 use std::cmp;
+use std::collections::Bound;
+use std::ops::RangeBounds;
+use std::slice::SliceIndex;
 
 use yara_x_parser::ast;
 use yara_x_parser::ast::Pattern;
@@ -65,27 +69,72 @@ use yara_x_parser::ast::Pattern;
 use crate::compiler::atoms::mask::ByteMaskCombinator;
 use crate::compiler::atoms::quality::{atom_quality, masked_atom_quality};
 
-/// Maximum number of bytes in an atom.
-const MAX_ATOM_SIZE: usize = 4;
+/// The number of bytes that every atom *should* have. Some atoms may be
+/// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,
+/// good-quality atom from a string. Similarly, some atoms may be larger.
+const DESIRED_ATOM_SIZE: usize = 4;
 
-/// A substring extracted from rule patterns. See the module documentation for
-/// details.
+/// A substring extracted from a rule pattern. See the module documentation for
+/// a general explanation of what is an atom.
+///
+/// Each atom consists in a sequence of bytes of variable length and a
+/// backtrack amount. When the atom is found in the scanned data, this amount
+/// is subtracted from the offset at which the atom was found. This means
+/// that atom matches are reported `backtrack` bytes before the offset where
+/// they actually occurred. This is useful while searching for fixed length
+/// patterns, where the atom position within the pattern is known beforehand.
+/// In such cases, once the atom is found we can go back to the offset where
+/// the pattern should match and verify the match from there.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct Atom {
+pub(crate) struct Atom {
     // TODO: use tinyvec or smallvec?
     bytes: Vec<u8>,
+    pub backtrack: u16,
 }
 
-impl<T> From<T> for Atom
-where
-    T: AsRef<[u8]>,
-{
-    fn from(value: T) -> Self {
-        Self { bytes: value.as_ref().to_vec() }
+impl AsRef<[u8]> for Atom {
+    fn as_ref(&self) -> &[u8] {
+        self.bytes.as_ref()
+    }
+}
+
+impl From<&[u8]> for Atom {
+    /// Creates an atom from a byte slice.
+    ///
+    /// The atom's backtrack will be 0.
+    fn from(value: &[u8]) -> Self {
+        Self { bytes: value.to_vec(), backtrack: 0 }
     }
 }
 
 impl Atom {
+    /// Creates an atom representing a range of offsets within a byte slice.
+    ///
+    /// The atom's backtrack value will be equal to the atom's start offset
+    /// within the byte slice.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let atom = Atom::from_slice_range(&[0x00, 0x01, 0x02, 0x03], 1..=2);
+    /// assert_eq!(atom.as_ref(), &[0x01, 0x02])
+    /// assert_eq!(atom.backtrack, 1)
+    /// ```
+    ///
+    pub fn from_slice_range<R>(s: &[u8], range: R) -> Self
+    where
+        R: RangeBounds<usize> + SliceIndex<[u8], Output = [u8]>,
+    {
+        let backtrack = match range.start_bound() {
+            Bound::Included(b) => *b as u16,
+            Bound::Excluded(b) => (*b + 1) as u16,
+            Bound::Unbounded => 0,
+        };
+        let s: &[u8] = &s[range];
+
+        Self { bytes: s.to_vec(), backtrack }
+    }
+
     /// Compute the atom's quality
     pub fn quality(&self) -> i32 {
         atom_quality(self.bytes.clone())
@@ -105,11 +154,13 @@ pub(super) struct MaskedAtom {
     // and the mask.
     // TODO: use tinyvec or smallvec?
     bytes: Vec<(u8, u8)>,
+    // See the documentation for Atom.
+    pub backtrack: u16,
 }
 
 impl MaskedAtom {
     pub fn new() -> Self {
-        Self { bytes: Vec::new() }
+        Self { bytes: Vec::new(), backtrack: 0 }
     }
 
     #[inline]
@@ -147,15 +198,18 @@ impl Atoms for ast::Pattern<'_> {
 
 impl Atoms for ast::TextPattern<'_> {
     fn atoms(&self) -> Vec<Atom> {
-        let s = self.value.as_ref();
-        let len = s.len();
+        let pattern_bytes = self.value.as_ref().as_bytes();
+        let pattern_len = pattern_bytes.len();
 
         let mut max_quality = 0;
         let mut best_atom = None;
         let mut atoms = Vec::new();
 
-        for i in 0..=len.checked_sub(MAX_ATOM_SIZE).unwrap_or(0) {
-            let atom = Atom::from(&s[i..cmp::min(len, i + MAX_ATOM_SIZE)]);
+        for i in 0..=pattern_len.checked_sub(DESIRED_ATOM_SIZE).unwrap_or(0) {
+            let atom = Atom::from_slice_range(
+                pattern_bytes,
+                i..cmp::min(pattern_len, i + DESIRED_ATOM_SIZE),
+            );
             let quality = atom.quality();
             if quality > max_quality {
                 max_quality = quality;
@@ -166,6 +220,8 @@ impl Atoms for ast::TextPattern<'_> {
         if let Some(best_atom) = best_atom {
             atoms.push(best_atom);
         }
+
+        // TODO: add new atoms according to the used modifiers.
 
         atoms
     }
@@ -186,14 +242,17 @@ impl Atoms for ast::HexPattern<'_> {
 }
 
 /// Expands a [`MaskedAtom`] into multiple [`Atom`] by trying all the possible
-/// combinations for the masked bits.
+/// combinations for the masked bits. The backtrack value for all the produced
+/// atoms are the same than the one in the masked atom.
 pub(super) struct MaskedAtomExpander {
     cartesian_product: MultiProduct<ByteMaskCombinator>,
+    backtrack: u16,
 }
 
 impl MaskedAtomExpander {
     pub fn new(atom: &MaskedAtom) -> Self {
         Self {
+            backtrack: atom.backtrack,
             cartesian_product: atom
                 .bytes
                 .iter()
@@ -207,7 +266,9 @@ impl Iterator for MaskedAtomExpander {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        Some(Atom::from(self.cartesian_product.next()?))
+        let mut atom = Atom::from(self.cartesian_product.next()?.as_slice());
+        atom.backtrack = self.backtrack;
+        Some(atom)
     }
 }
 
@@ -241,8 +302,8 @@ mod test {
     fn atom_expander() {
         let mut atoms = MaskedAtom::new().push((0x10, 0xF0)).expand();
 
-        for i in 0x10..=0x1F {
-            assert_eq!(atoms.next(), Some(Atom::from([i])));
+        for i in 0x10..=0x1F_u8 {
+            assert_eq!(atoms.next(), Some(Atom::from([i].as_slice())));
         }
 
         assert_eq!(atoms.next(), None);
@@ -250,9 +311,9 @@ mod test {
         let mut atoms =
             MaskedAtom::new().push((0x10, 0xF0)).push((0x02, 0x0F)).expand();
 
-        for i in 0x10..=0x1F {
-            for j in (0x02..=0xF2).step_by(0x10) {
-                assert_eq!(atoms.next(), Some(Atom::from([i, j])));
+        for i in 0x10..=0x1F_u8 {
+            for j in (0x02..=0xF2_u8).step_by(0x10) {
+                assert_eq!(atoms.next(), Some(Atom::from([i, j].as_slice())));
             }
         }
 
@@ -272,7 +333,11 @@ mod test {
             modifiers: PatternModifiers::default(),
         };
 
-        assert_eq!(text_pattern.atoms(), vec![Atom::from("abcd")]);
+        let expected_atom = Atom::from_slice_range("abcdef".as_bytes(), 0..4);
+
+        assert_eq!(expected_atom.as_ref(), "abcd".as_bytes());
+        assert_eq!(expected_atom.backtrack, 0);
+        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
 
         let text_pattern = ast::TextPattern {
             span: Span::default(),
@@ -285,7 +350,11 @@ mod test {
             modifiers: PatternModifiers::default(),
         };
 
-        assert_eq!(text_pattern.atoms(), vec![Atom::from("ab")]);
+        let expected_atom = Atom::from_slice_range("ab".as_bytes(), 0..2);
+
+        assert_eq!(expected_atom.as_ref(), "ab".as_bytes());
+        assert_eq!(expected_atom.backtrack, 0);
+        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
 
         let text_pattern = ast::TextPattern {
             span: Span::default(),
@@ -298,6 +367,10 @@ mod test {
             modifiers: PatternModifiers::default(),
         };
 
-        assert_eq!(text_pattern.atoms(), vec![Atom::from("bcd0")]);
+        let expected_atom = Atom::from_slice_range("abcd0".as_bytes(), 1..=4);
+
+        assert_eq!(expected_atom.as_ref(), "bcd0".as_bytes());
+        assert_eq!(expected_atom.backtrack, 1);
+        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
     }
 }
