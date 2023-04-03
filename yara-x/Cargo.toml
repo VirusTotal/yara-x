@@ -47,6 +47,7 @@ intaglio = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }
+memx = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
