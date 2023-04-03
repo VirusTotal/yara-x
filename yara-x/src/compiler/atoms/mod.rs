@@ -62,6 +62,7 @@ use std::cmp;
 use std::collections::Bound;
 use std::ops::RangeBounds;
 use std::slice::SliceIndex;
+use std::vec::IntoIter;
 
 use yara_x_parser::ast;
 use yara_x_parser::ast::Pattern;
@@ -205,6 +206,7 @@ impl Atoms for ast::TextPattern<'_> {
         let mut best_atom = None;
         let mut atoms = Vec::new();
 
+        // Extract the highest-quality atom from the pattern.
         for i in 0..=pattern_len.checked_sub(DESIRED_ATOM_SIZE).unwrap_or(0) {
             let atom = Atom::from_slice_range(
                 pattern_bytes,
@@ -218,7 +220,11 @@ impl Atoms for ast::TextPattern<'_> {
         }
 
         if let Some(best_atom) = best_atom {
-            atoms.push(best_atom);
+            if self.modifiers.nocase().is_none() {
+                atoms.push(best_atom);
+            } else {
+                atoms.extend(CaseCombinator::new(&best_atom));
+            }
         }
 
         // TODO: add new atoms according to the used modifiers.
@@ -272,11 +278,39 @@ impl Iterator for MaskedAtomExpander {
     }
 }
 
-pub(super) struct CaseCombinator {}
+/// Given an [`Atom`] produces a sequence of atoms that covers all the possible
+/// case combinations for the ASCII characters. The original atom is included
+/// in the sequence, and non-alphabetic characters are left untouched. For
+/// example for the atom "1aBc2" the result is the sequence:
+///
+///  "1abc2", "1abC2", "1aBc2", "1aBC2", "1Abc2", "1AbC2", "1ABc2", "1ABC2"
+///
+pub(super) struct CaseCombinator {
+    cartesian_product: MultiProduct<IntoIter<u8>>,
+    backtrack: u16,
+}
 
 impl CaseCombinator {
     pub fn new(atom: &Atom) -> Self {
-        Self {}
+        Self {
+            backtrack: atom.backtrack,
+            cartesian_product: atom
+                .bytes
+                .to_ascii_lowercase()
+                .into_iter()
+                .map(|byte| {
+                    // For alphabetic characters return both the lowercase
+                    // and uppercase variants. For non-alphabetic characters
+                    // return the original one.
+                    if byte.is_ascii_alphabetic() {
+                        // TODO: use smallvec here
+                        vec![byte, byte.to_ascii_uppercase()]
+                    } else {
+                        vec![byte]
+                    }
+                })
+                .multi_cartesian_product(),
+        }
     }
 }
 
@@ -284,13 +318,15 @@ impl Iterator for CaseCombinator {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        let mut atom = Atom::from(self.cartesian_product.next()?.as_bytes());
+        atom.backtrack = self.backtrack;
+        Some(atom)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::compiler::atoms::{Atom, Atoms, MaskedAtom};
+    use crate::compiler::atoms::{Atom, Atoms, CaseCombinator, MaskedAtom};
     use bstr::BString;
     use pretty_assertions::assert_eq;
     use std::borrow::Cow;
@@ -318,6 +354,29 @@ mod test {
         }
 
         assert_eq!(atoms.next(), None);
+    }
+
+    #[test]
+    fn case_combinator() {
+        let atom = Atom::from("a1B2c".as_bytes());
+        let mut c = CaseCombinator::new(&atom);
+
+        assert_eq!(c.next(), Some(Atom::from("a1b2c".as_bytes())));
+        assert_eq!(c.next(), Some(Atom::from("a1b2C".as_bytes())));
+        assert_eq!(c.next(), Some(Atom::from("a1B2c".as_bytes())));
+        assert_eq!(c.next(), Some(Atom::from("a1B2C".as_bytes())));
+        assert_eq!(c.next(), Some(Atom::from("A1b2c".as_bytes())));
+        assert_eq!(c.next(), Some(Atom::from("A1b2C".as_bytes())));
+        assert_eq!(c.next(), Some(Atom::from("A1B2c".as_bytes())));
+        assert_eq!(c.next(), Some(Atom::from("A1B2C".as_bytes())));
+        assert_eq!(c.next(), None);
+
+        let bytes = [0x00_u8, 0x01, 0x02];
+        let atom = Atom::from(&bytes[..]);
+        let mut c = CaseCombinator::new(&atom);
+
+        assert_eq!(c.next(), Some(atom));
+        assert_eq!(c.next(), None);
     }
 
     #[test]

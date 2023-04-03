@@ -482,7 +482,7 @@ impl ScanContext<'_> {
                 [matched_atom.pattern_id as usize];
 
             let pattern_matched = match pattern {
-                Pattern::Fixed(lit_id) => {
+                Pattern::Fixed { lit_id, case_insensitive } => {
                     // Subtract the backtrack value from the atom's match
                     // offset. If the result is negative the atom can't be
                     // inside the scanned data and therefor there's no
@@ -504,7 +504,11 @@ impl ScanContext<'_> {
                             let data = &self.scanned_data()
                                 [offset..offset + pattern.len()];
 
-                            memx::memeq(data, pattern.as_bytes())
+                            if *case_insensitive {
+                                pattern.eq_ignore_ascii_case(data)
+                            } else {
+                                memx::memeq(data, pattern.as_bytes())
+                            }
                         } else {
                             false
                         }

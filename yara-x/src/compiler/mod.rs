@@ -341,9 +341,10 @@ impl<'a> Compiler<'a> {
                 }
 
                 let pattern = match pattern {
-                    ast::Pattern::Text(p) => Pattern::Fixed(
-                        self.lit_pool.get_or_intern(p.value.as_ref()),
-                    ),
+                    ast::Pattern::Text(p) => Pattern::Fixed {
+                        lit_id: self.lit_pool.get_or_intern(p.value.as_ref()),
+                        case_insensitive: p.modifiers.nocase().is_some(),
+                    },
                     ast::Pattern::Hex(_) => {
                         // TODO
                         Pattern::Regexp
@@ -922,6 +923,6 @@ pub(crate) struct AtomInfo {
 
 /// A pattern (a.k.a string) in the compiled rules.
 pub(crate) enum Pattern {
-    Fixed(LiteralId),
+    Fixed { lit_id: LiteralId, case_insensitive: bool },
     Regexp,
 }

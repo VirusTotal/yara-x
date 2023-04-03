@@ -42,9 +42,10 @@ fn test() {
 rule rule_1 { 
     strings:
         $a = "issi"
-        $b = "ssippis"
+        $b = "IssI" nocase
+        $c = "ssippis"
     condition: 
-        $a and not $b
+        $a and $b and not $c
 }
 "#,
         )
