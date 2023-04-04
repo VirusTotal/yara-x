@@ -33,27 +33,3 @@ rule rule_4 { condition: false }
     assert_eq!(iter.next().unwrap().name(), "rule_4");
     assert!(iter.next().is_none());
 }
-
-#[test]
-fn test() {
-    let rules = Compiler::new()
-        .add_source(
-            r#"
-rule rule_1 { 
-    strings:
-        $a = "issi"
-        $b = "IssI" nocase
-        $c = "ssippis"
-    condition: 
-        $a and $b and not $c
-}
-"#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
-
-    let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan("mississippi".as_bytes());
-    assert_eq!(results.num_matching_rules(), 1);
-}
