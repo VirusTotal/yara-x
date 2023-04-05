@@ -482,7 +482,9 @@ impl ScanContext<'_> {
                 [matched_atom.pattern_id as usize];
 
             let pattern_matched = match pattern {
-                Pattern::Fixed { lit_id, case_insensitive } => {
+                Pattern::Fixed(id)
+                | Pattern::FixedCaseInsensitive(id)
+                | Pattern::Xored(id) => {
                     // Subtract the backtrack value from the atom's match
                     // offset. If the result is negative the atom can't be
                     // inside the scanned data and therefor there's no
@@ -491,23 +493,54 @@ impl ScanContext<'_> {
                         .start()
                         .overflowing_sub(matched_atom.atom.backtrack as usize)
                     {
-                        let pattern = self
-                            .compiled_rules
-                            .lit_pool()
-                            .get(*lit_id)
-                            .unwrap();
+                        let pattern_bytes =
+                            self.compiled_rules.lit_pool().get(*id).unwrap();
 
                         // If the number of bytes from `offset` to the end of the
-                        // buffer is at least the length of pattern, check if
-                        // if the data matches the pattern. If not,
-                        if self.scanned_data_len >= offset + pattern.len() {
+                        // buffer is at least the pattern's length, check if the
+                        // data matches the pattern. If not, the pattern can't
+                        // match.
+                        if self.scanned_data_len
+                            >= offset + pattern_bytes.len()
+                        {
                             let data = &self.scanned_data()
-                                [offset..offset + pattern.len()];
+                                [offset..offset + pattern_bytes.len()];
 
-                            if *case_insensitive {
-                                pattern.eq_ignore_ascii_case(data)
-                            } else {
-                                memx::memeq(data, pattern.as_bytes())
+                            match pattern {
+                                Pattern::Fixed(_) => {
+                                    memx::memeq(data, pattern_bytes.as_bytes())
+                                }
+                                Pattern::FixedCaseInsensitive(_) => {
+                                    pattern_bytes.eq_ignore_ascii_case(data)
+                                }
+                                Pattern::Xored(_) => {
+                                    let mut pattern_bytes =
+                                        pattern_bytes.to_owned();
+
+                                    // The atom that matched is the result of
+                                    // XORing the pattern with some key. The
+                                    // key can be obtained by XORing some byte
+                                    // in the atom with the corresponding byte
+                                    // in the pattern.
+                                    let key = matched_atom.atom.as_ref()[0]
+                                        ^ pattern_bytes[matched_atom
+                                            .atom
+                                            .backtrack
+                                            as usize];
+
+                                    // Now we can XOR the whole pattern with
+                                    // the obtained key and make sure that it
+                                    // matches the data. This only makes sense
+                                    // if the key is not zero.
+                                    if key != 0 {
+                                        for i in 0..pattern_bytes.len() {
+                                            pattern_bytes[i] ^= key;
+                                        }
+                                    }
+
+                                    memx::memeq(data, pattern_bytes.as_bytes())
+                                }
+                                _ => unreachable!(),
                             }
                         } else {
                             false

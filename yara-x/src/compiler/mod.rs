@@ -341,10 +341,19 @@ impl<'a> Compiler<'a> {
                 }
 
                 let pattern = match pattern {
-                    ast::Pattern::Text(p) => Pattern::Fixed {
-                        lit_id: self.lit_pool.get_or_intern(p.value.as_ref()),
-                        case_insensitive: p.modifiers.nocase().is_some(),
-                    },
+                    ast::Pattern::Text(p) => {
+                        let id = self.lit_pool.get_or_intern(p.value.as_ref());
+
+                        if p.modifiers.xor().is_some() {
+                            // `nocase` can't be used together with `xor`.
+                            debug_assert!(p.modifiers.nocase().is_none());
+                            Pattern::Xored(id)
+                        } else if p.modifiers.nocase().is_some() {
+                            Pattern::FixedCaseInsensitive(id)
+                        } else {
+                            Pattern::Fixed(id)
+                        }
+                    }
                     ast::Pattern::Hex(_) => {
                         // TODO
                         Pattern::Regexp
@@ -923,6 +932,8 @@ pub(crate) struct AtomInfo {
 
 /// A pattern (a.k.a string) in the compiled rules.
 pub(crate) enum Pattern {
-    Fixed { lit_id: LiteralId, case_insensitive: bool },
+    Fixed(LiteralId),
+    FixedCaseInsensitive(LiteralId),
+    Xored(LiteralId),
     Regexp,
 }

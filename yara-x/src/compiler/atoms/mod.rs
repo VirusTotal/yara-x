@@ -60,12 +60,12 @@ use bstr::ByteSlice;
 use itertools::{Itertools, MultiProduct};
 use std::cmp;
 use std::collections::Bound;
-use std::ops::RangeBounds;
+use std::ops::{RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
 use std::vec::IntoIter;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::Pattern;
+use yara_x_parser::ast::PatternModifier;
 
 use crate::compiler::atoms::mask::ByteMaskCombinator;
 use crate::compiler::atoms::quality::{atom_quality, masked_atom_quality};
@@ -99,12 +99,16 @@ impl AsRef<[u8]> for Atom {
     }
 }
 
-impl From<&[u8]> for Atom {
-    /// Creates an atom from a byte slice.
+impl<T> From<T> for Atom
+where
+    T: IntoIterator<Item = u8>,
+{
+    /// Creates an atom from any type that can be converted into an iterator of
+    /// bytes.
     ///
     /// The atom's backtrack will be 0.
-    fn from(value: &[u8]) -> Self {
-        Self { bytes: value.to_vec(), backtrack: 0 }
+    fn from(value: T) -> Self {
+        Self { bytes: value.into_iter().collect(), backtrack: 0 }
     }
 }
 
@@ -190,9 +194,9 @@ pub(super) trait Atoms {
 impl Atoms for ast::Pattern<'_> {
     fn atoms(&self) -> Vec<Atom> {
         match self {
-            Pattern::Text(p) => p.atoms(),
-            Pattern::Hex(p) => p.atoms(),
-            Pattern::Regexp(p) => p.atoms(),
+            ast::Pattern::Text(p) => p.atoms(),
+            ast::Pattern::Hex(p) => p.atoms(),
+            ast::Pattern::Regexp(p) => p.atoms(),
         }
     }
 }
@@ -219,15 +223,31 @@ impl Atoms for ast::TextPattern<'_> {
             }
         }
 
-        if let Some(best_atom) = best_atom {
-            if self.modifiers.nocase().is_none() {
-                atoms.push(best_atom);
-            } else {
-                atoms.extend(CaseCombinator::new(&best_atom));
-            }
+        // The best atom *MUST* exist, if it is not that good.
+        let best_atom = best_atom.unwrap();
+
+        if self.modifiers.nocase().is_none() {
+            atoms.push(best_atom);
+        } else {
+            atoms.extend(CaseGenerator::new(&best_atom));
         }
 
-        // TODO: add new atoms according to the used modifiers.
+        if let Some(PatternModifier::Xor { start, end, .. }) =
+            self.modifiers.xor()
+        {
+            let mut xored_atoms =
+                Vec::with_capacity(atoms.len() * (end - start) as usize + 1);
+
+            for atom in atoms.iter() {
+                for xored_atom in
+                    XorGenerator::new(atom, *start..=*end).into_iter()
+                {
+                    xored_atoms.push(xored_atom);
+                }
+            }
+
+            atoms = xored_atoms
+        }
 
         atoms
     }
@@ -272,7 +292,7 @@ impl Iterator for MaskedAtomExpander {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut atom = Atom::from(self.cartesian_product.next()?.as_slice());
+        let mut atom = Atom::from(self.cartesian_product.next()?.into_iter());
         atom.backtrack = self.backtrack;
         Some(atom)
     }
@@ -285,12 +305,12 @@ impl Iterator for MaskedAtomExpander {
 ///
 ///  "1abc2", "1abC2", "1aBc2", "1aBC2", "1Abc2", "1AbC2", "1ABc2", "1ABC2"
 ///
-pub(super) struct CaseCombinator {
+pub(super) struct CaseGenerator {
     cartesian_product: MultiProduct<IntoIter<u8>>,
     backtrack: u16,
 }
 
-impl CaseCombinator {
+impl CaseGenerator {
     pub fn new(atom: &Atom) -> Self {
         Self {
             backtrack: atom.backtrack,
@@ -314,19 +334,47 @@ impl CaseCombinator {
     }
 }
 
-impl Iterator for CaseCombinator {
+impl Iterator for CaseGenerator {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut atom = Atom::from(self.cartesian_product.next()?.as_bytes());
+        let mut atom = Atom::from(self.cartesian_product.next()?.into_iter());
         atom.backtrack = self.backtrack;
+        Some(atom)
+    }
+}
+
+/// Given an [`Atom`] and a inclusive range (e.g. 0..=255, 10..=20), returns
+/// as many atoms as values are in the range. Each returned atom is the result
+/// of XORing the original one with one of the values in the range.
+pub(super) struct XorGenerator {
+    atom: Atom,
+    range: RangeInclusive<u8>,
+}
+
+impl XorGenerator {
+    pub fn new(atom: &Atom, range: RangeInclusive<u8>) -> Self {
+        Self { atom: atom.clone(), range }
+    }
+}
+
+impl Iterator for XorGenerator {
+    type Item = Atom;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let i = self.range.next()?;
+        // XOR all bytes in the atom with the current value i.
+        let mut atom = Atom::from(self.atom.bytes.iter().map(|b| *b ^ i));
+        atom.backtrack = self.atom.backtrack;
         Some(atom)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::compiler::atoms::{Atom, Atoms, CaseCombinator, MaskedAtom};
+    use crate::compiler::atoms::{
+        Atom, Atoms, CaseGenerator, MaskedAtom, XorGenerator,
+    };
     use bstr::BString;
     use pretty_assertions::assert_eq;
     use std::borrow::Cow;
@@ -339,7 +387,7 @@ mod test {
         let mut atoms = MaskedAtom::new().push((0x10, 0xF0)).expand();
 
         for i in 0x10..=0x1F_u8 {
-            assert_eq!(atoms.next(), Some(Atom::from([i].as_slice())));
+            assert_eq!(atoms.next(), Some(Atom::from([i].into_iter())));
         }
 
         assert_eq!(atoms.next(), None);
@@ -349,7 +397,7 @@ mod test {
 
         for i in 0x10..=0x1F_u8 {
             for j in (0x02..=0xF2_u8).step_by(0x10) {
-                assert_eq!(atoms.next(), Some(Atom::from([i, j].as_slice())));
+                assert_eq!(atoms.next(), Some(Atom::from([i, j].into_iter())));
             }
         }
 
@@ -357,25 +405,36 @@ mod test {
     }
 
     #[test]
-    fn case_combinator() {
-        let atom = Atom::from("a1B2c".as_bytes());
-        let mut c = CaseCombinator::new(&atom);
+    fn case_generator() {
+        let atom = Atom::from("a1B2c".bytes());
+        let mut c = CaseGenerator::new(&atom);
 
-        assert_eq!(c.next(), Some(Atom::from("a1b2c".as_bytes())));
-        assert_eq!(c.next(), Some(Atom::from("a1b2C".as_bytes())));
-        assert_eq!(c.next(), Some(Atom::from("a1B2c".as_bytes())));
-        assert_eq!(c.next(), Some(Atom::from("a1B2C".as_bytes())));
-        assert_eq!(c.next(), Some(Atom::from("A1b2c".as_bytes())));
-        assert_eq!(c.next(), Some(Atom::from("A1b2C".as_bytes())));
-        assert_eq!(c.next(), Some(Atom::from("A1B2c".as_bytes())));
-        assert_eq!(c.next(), Some(Atom::from("A1B2C".as_bytes())));
+        assert_eq!(c.next(), Some(Atom::from("a1b2c".bytes())));
+        assert_eq!(c.next(), Some(Atom::from("a1b2C".bytes())));
+        assert_eq!(c.next(), Some(Atom::from("a1B2c".bytes())));
+        assert_eq!(c.next(), Some(Atom::from("a1B2C".bytes())));
+        assert_eq!(c.next(), Some(Atom::from("A1b2c".bytes())));
+        assert_eq!(c.next(), Some(Atom::from("A1b2C".bytes())));
+        assert_eq!(c.next(), Some(Atom::from("A1B2c".bytes())));
+        assert_eq!(c.next(), Some(Atom::from("A1B2C".bytes())));
         assert_eq!(c.next(), None);
 
-        let bytes = [0x00_u8, 0x01, 0x02];
-        let atom = Atom::from(&bytes[..]);
-        let mut c = CaseCombinator::new(&atom);
+        let mut atom = Atom::from([0x00_u8, 0x01, 0x02]);
+        atom.backtrack = 2;
+
+        let mut c = CaseGenerator::new(&atom);
 
         assert_eq!(c.next(), Some(atom));
+        assert_eq!(c.next(), None);
+    }
+
+    #[test]
+    fn xor_generator() {
+        let atom = Atom::from([0x00, 0x01, 0x02]);
+        let mut c = XorGenerator::new(&atom, 0..=1);
+
+        assert_eq!(c.next(), Some(Atom::from([0x00, 0x01, 0x02])));
+        assert_eq!(c.next(), Some(Atom::from([0x01, 0x00, 0x03])));
         assert_eq!(c.next(), None);
     }
 

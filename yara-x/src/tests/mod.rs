@@ -94,15 +94,6 @@ macro_rules! rule_false {
     }};
 }
 
-macro_rules! condition_false {
-    ($condition:literal,  $data:expr) => {{
-        test_condition!($condition, $data, false);
-    }};
-    ($condition:literal) => {{
-        test_condition!($condition, &[], false);
-    }};
-}
-
 #[test]
 fn arithmetic_operations() {
     condition_true!("1 == 1");
@@ -346,6 +337,18 @@ fn text_patterns() {
         b"mississippi"
     );
 
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "ssippis"
+            condition:
+                $a
+        }
+        "#,
+        b"mississippi"
+    );
+
     rule_true!(
         r#"
         rule test { 
@@ -358,16 +361,52 @@ fn text_patterns() {
         b"mississippi"
     );
 
-    rule_false!(
+    rule_true!(
         r#"
-        rule test {
+        rule test { 
             strings:
-                $a = "ssippis"
-            condition:
+                $a = "mississippi" xor
+            condition: 
                 $a
         }
         "#,
-        b"mississippi"
+        b"lhrrhrrhqqh"
+    );
+
+    rule_true!(
+        r#"
+        rule test { 
+            strings:
+                $a = "mmmmississippi" xor
+            condition: 
+                $a
+        }
+        "#,
+        b"llllhrrhrrhqqh"
+    );
+
+    rule_false!(
+        r#"
+        rule test { 
+            strings:
+                $a = "mississippi" xor(2-255)
+            condition: 
+                $a
+        }
+        "#,
+        b"lhrrhrrhqqh"
+    );
+
+    rule_true!(
+        r#"
+        rule test { 
+            strings:
+                $a = "mississippi" xor(255)
+            condition: 
+                $a
+        }
+        "#,
+        &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
     );
 }
 
