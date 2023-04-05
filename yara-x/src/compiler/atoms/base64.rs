@@ -37,6 +37,8 @@ pub(super) fn base64_patterns(
     alphabet: Option<&str>,
 ) -> Vec<BString> {
     // The input string must be at least 2 bytes long.
+    // TODO: Ensure that the parser doesn't allow the base64 modifier in strings
+    // of length 1.
     assert_eq!(s.len() > 1);
 
     let alphabet = if let Some(alphabet) = alphabet {
