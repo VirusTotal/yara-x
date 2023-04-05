@@ -53,6 +53,7 @@ will end up using the `"Look"` atom alone, but in `/a(bcd|efg)h/` atoms `"bcd"`
 and `"efg"` will be used because `"a"` and `"h"` are too short.
  */
 
+mod base64;
 mod mask;
 mod quality;
 
@@ -209,6 +210,12 @@ impl Atoms for ast::TextPattern<'_> {
         let mut max_quality = 0;
         let mut best_atom = None;
         let mut atoms = Vec::new();
+
+        if let Some(PatternModifier::Base64 { alphabet, .. }) =
+            self.modifiers.base64()
+        {
+            todo!()
+        }
 
         // Extract the highest-quality atom from the pattern.
         for i in 0..=pattern_len.checked_sub(DESIRED_ATOM_SIZE).unwrap_or(0) {
