@@ -22,9 +22,6 @@ pub(crate) mod prelude {
 
 include!("modules.rs");
 
-#[cfg(test)]
-mod tests;
-
 /// Type of module's main function.
 type MainFn = fn(&ScanContext) -> Box<dyn MessageDyn>;
 

@@ -1,6 +1,9 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::magic::*;
 
+#[cfg(test)]
+mod tests;
+
 thread_local! {
     static MAGIC: magic::Cookie = {
         let cookie = magic::Cookie::open(Default::default())
