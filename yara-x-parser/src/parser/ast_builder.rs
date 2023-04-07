@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::iter::Iterator;
 use std::str;
 
@@ -214,16 +214,16 @@ lazy_static! {
 fn check_pattern_modifiers<'src>(
     ctx: &mut Context<'src, '_>,
     rule_type: GrammarRule,
-    modifiers: &HashMap<&'src str, PatternModifier>,
+    modifiers: &PatternModifiers,
 ) -> Result<(), Error> {
-    let xor = modifiers.get("xor");
-    let nocase = modifiers.get("nocase");
-    let fullword = modifiers.get("fullword");
-    let base64 = modifiers.get("base64");
-    let base64wide = modifiers.get("base64wide");
+    let xor = modifiers.xor();
+    let nocase = modifiers.nocase();
+    let fullword = modifiers.fullword();
+    let base64 = modifiers.base64();
+    let base64wide = modifiers.base64wide();
 
-    for (name, modifier) in modifiers.iter() {
-        if !ACCEPTED_MODIFIERS[name].contains(&rule_type) {
+    for modifier in modifiers.iter() {
+        if !ACCEPTED_MODIFIERS[modifier.as_text()].contains(&rule_type) {
             let error_detail = match rule_type {
                 GrammarRule::hex_pattern => {
                     "this modifier can't be applied to a hex pattern"
@@ -581,13 +581,13 @@ fn pattern_from_cst<'src>(
             expect!(hex_pattern.next().unwrap(), GrammarRule::RBRACE);
 
             let modifiers = if let Some(modifiers) = children.next() {
-                Some(pattern_mods_from_cst(
+                pattern_mods_from_cst(
                     ctx,
                     GrammarRule::hex_pattern,
                     modifiers,
-                )?)
+                )?
             } else {
-                None
+                PatternModifiers::default()
             };
 
             Pattern::Hex(Box::new(HexPattern {
@@ -601,13 +601,9 @@ fn pattern_from_cst<'src>(
             let span = node.as_span().into();
             let value = string_lit_from_cst(ctx, node, true)?;
             let modifiers = if let Some(modifiers) = children.next() {
-                Some(pattern_mods_from_cst(
-                    ctx,
-                    GrammarRule::string_lit,
-                    modifiers,
-                )?)
+                pattern_mods_from_cst(ctx, GrammarRule::string_lit, modifiers)?
             } else {
-                None
+                PatternModifiers::default()
             };
             // Take the identifier and set ctx.current_pattern
             // to None.
@@ -622,13 +618,9 @@ fn pattern_from_cst<'src>(
         }
         GrammarRule::regexp => {
             let modifiers = if let Some(modifiers) = children.next() {
-                Some(pattern_mods_from_cst(
-                    ctx,
-                    GrammarRule::regexp,
-                    modifiers,
-                )?)
+                pattern_mods_from_cst(ctx, GrammarRule::regexp, modifiers)?
             } else {
-                None
+                PatternModifiers::default()
             };
             // Take the identifier and set ctx.current_pattern
             // to None.
@@ -699,16 +691,16 @@ fn regexp_from_cst<'src>(
 }
 
 /// Given a CST node corresponding to the grammar rule `pattern_mods`, returns
-/// a hash set of [`StringModifier`] structs describing the modifiers.
+/// a [`PatternModifiers`] struct describing the modifiers.
 fn pattern_mods_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     rule_type: GrammarRule,
     pattern_mods: CSTNode<'src>,
-) -> Result<HashMap<&'src str, PatternModifier<'src>>, Error> {
+) -> Result<PatternModifiers<'src>, Error> {
     expect!(pattern_mods, GrammarRule::pattern_mods);
 
     let mut children = pattern_mods.into_inner().peekable();
-    let mut modifiers = HashMap::new();
+    let mut modifiers = BTreeMap::new();
 
     while let Some(node) = children.next() {
         let modifier = match node.as_rule() {
@@ -822,6 +814,8 @@ fn pattern_mods_from_cst<'src>(
             )));
         }
     }
+
+    let modifiers = PatternModifiers::new(modifiers);
 
     // Check for invalid combinations of modifiers.
     check_pattern_modifiers(ctx, rule_type, &modifiers)?;

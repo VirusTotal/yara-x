@@ -416,7 +416,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
             // case, as this is used inside `for` loops and it represents a
             // different pattern on each iteration. In those cases the pattern
             // ID is obtained from a loop variable.
-            if pattern.identifier.as_str() == "$" {
+            if pattern.identifier.name == "$" {
                 match ctx.symbol_table.lookup("$").unwrap().kind {
                     SymbolKind::WasmVar(var) => {
                         load_var(ctx, instr, var);
@@ -1346,7 +1346,7 @@ fn emit_for_in_range(
     symbol.kind = SymbolKind::WasmVar(next_item);
 
     let mut loop_vars = SymbolTable::new();
-    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
 
     // Push the symbol table with loop variable on top of the existing symbol
     // tables.
@@ -1462,7 +1462,7 @@ fn emit_for_in_array(
         symbol.kind = SymbolKind::HostVar(next_item);
     }
 
-    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
 
     // Push the symbol table with loop variable on top of the existing symbol
     // tables.
@@ -1581,8 +1581,8 @@ fn emit_for_in_map(
 
     let mut loop_vars = SymbolTable::new();
 
-    loop_vars.insert(for_in.variables[0].as_str(), symbol_key);
-    loop_vars.insert(for_in.variables[1].as_str(), symbol_val);
+    loop_vars.insert(for_in.variables[0].name, symbol_key);
+    loop_vars.insert(for_in.variables[1].name, symbol_val);
 
     // Push the symbol table with loop variable on top of the existing symbol
     // tables.
@@ -1675,7 +1675,7 @@ fn emit_for_in_expr_tuple(
     symbol.kind = SymbolKind::WasmVar(next_item);
 
     let mut loop_vars = SymbolTable::new();
-    loop_vars.insert(for_in.variables.first().unwrap().as_str(), symbol);
+    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
 
     // Push the symbol table with loop variable on top of the existing symbol
     // tables.

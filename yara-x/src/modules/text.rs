@@ -42,9 +42,6 @@ fn main(ctx: &ScanContext) -> Text {
         }
     }
 
-    dbg!(num_lines);
-    dbg!(num_words);
-
     // Set the value for fields `num_lines` and `num_words` in the protobuf.
     text_proto.set_num_lines(num_lines as i64);
     text_proto.set_num_words(num_words as i64);

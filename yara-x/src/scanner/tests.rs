@@ -25,9 +25,11 @@ rule rule_4 { condition: false }
 
     assert_eq!(iter.next().unwrap().name(), "rule_1");
     assert_eq!(iter.next().unwrap().name(), "rule_3");
+    assert!(iter.next().is_none());
 
     let mut iter = results.iter_non_matches();
 
     assert_eq!(iter.next().unwrap().name(), "rule_2");
     assert_eq!(iter.next().unwrap().name(), "rule_4");
+    assert!(iter.next().is_none());
 }

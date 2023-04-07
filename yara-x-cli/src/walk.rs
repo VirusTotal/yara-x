@@ -34,7 +34,7 @@ use walkdir::WalkDir;
 /// ```
 pub(crate) struct ParallelWalk {
     path: PathBuf,
-    patterns: Vec<GlobMatcher>,
+    filters: Vec<GlobMatcher>,
     num_threads: Option<u8>,
     max_depth: Option<usize>,
 }
@@ -44,7 +44,7 @@ impl ParallelWalk {
     pub fn new(path: &Path) -> Self {
         Self {
             path: path.to_path_buf(),
-            patterns: Vec::new(),
+            filters: Vec::new(),
             num_threads: None,
             max_depth: None,
         }
@@ -95,7 +95,7 @@ impl ParallelWalk {
     /// - `**/my_dir/*.yara`: Files directly contained in a dir named `my_dir`.
     ///
     pub fn filter(mut self, filter: &str) -> Self {
-        self.patterns.push(
+        self.filters.push(
             GlobBuilder::new(filter)
                 .literal_separator(true)
                 .build()
@@ -106,10 +106,10 @@ impl ParallelWalk {
     }
 
     fn should_process(&self, path: &Path) -> bool {
-        if self.patterns.is_empty() {
+        if self.filters.is_empty() {
             true
         } else {
-            self.patterns.iter().any(|pattern| pattern.is_match(path))
+            self.filters.iter().any(|pattern| pattern.is_match(path))
         }
     }
 

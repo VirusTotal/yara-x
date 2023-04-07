@@ -149,24 +149,19 @@ where
             }
             if is_water {
                 self.input_buffer.push_back(token);
-                continue;
             } else if is_air {
                 self.output_buffer.push_back(token);
                 return self.output_buffer.pop_front();
             } else {
-                self.input_buffer.push_back(token);
-                for token in self.input_buffer.drain(0..) {
-                    self.output_buffer.push_back(token)
-                }
+                self.output_buffer.append(&mut self.input_buffer);
+                self.output_buffer.push_back(token);
                 return self.output_buffer.pop_front();
             }
         }
         // When this point is reached there's nothing in output_buffer
         // and no more input, move anything remaining in input_buffer
         // to output_buffer.
-        for token in self.input_buffer.drain(0..) {
-            self.output_buffer.push_back(token)
-        }
+        self.output_buffer.append(&mut self.input_buffer);
         self.output_buffer.pop_front()
     }
 }

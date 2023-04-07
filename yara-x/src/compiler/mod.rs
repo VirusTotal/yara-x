@@ -3,6 +3,7 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
+use aho_corasick::AhoCorasick;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -12,6 +13,7 @@ use std::{fmt, mem};
 use walrus::ir::InstrSeqId;
 use walrus::{FunctionId, Module, ValType};
 
+use crate::compiler::atoms::{Atom, Atoms};
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
@@ -35,6 +37,7 @@ use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 pub use crate::compiler::errors::*;
 use crate::modules::BUILTIN_MODULES;
 
+mod atoms;
 mod emit;
 mod errors;
 mod semcheck;
@@ -64,6 +67,16 @@ where
     Compiler::new().add_source(src)?.build()
 }
 
+/// Structure that contains information about a rule namespace.
+///
+/// Includes the IdentId corresponding to the namespace's identifier
+/// and the symbol table that contains the symbols defined in the
+/// namespace.
+struct Namespace {
+    ident_id: IdentId,
+    symbols: Rc<RefCell<SymbolTable>>,
+}
+
 /// Takes YARA source code and produces compiled [`Rules`].
 pub struct Compiler<'a> {
     /// Used for generating error and warning reports.
@@ -71,6 +84,10 @@ pub struct Compiler<'a> {
 
     /// The main symbol table used by the compiler.
     symbol_table: StackedSymbolTable<'a>,
+
+    /// Information about the current namespace (i.e: the namespace that will
+    /// contain any new rules added via a call to `add_sources`.
+    current_namespace: Namespace,
 
     /// Pool that contains all the identifiers used in the rules. Each
     /// identifier appears only once, even if they are used by multiple
@@ -82,7 +99,8 @@ pub struct Compiler<'a> {
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
     /// capable of storing [`bstr::BString`] must be used, the [`String`] type
-    /// only accepts valid UTF-8.
+    /// only accepts valid UTF-8. This pool also stores the atoms extracted
+    /// from patterns.
     lit_pool: BStringPool<LiteralId>,
 
     /// Builder for creating the WebAssembly module that contains the code
@@ -96,6 +114,11 @@ pub struct Compiler<'a> {
     /// A vector with all the patterns from all the rules. A [`PatternId`]
     /// is an index in this vector.
     patterns: Vec<Pattern>,
+
+    /// A vector that contains all the atoms generated for the patterns. Each
+    /// atom has an associated [`PatternId`] that indicates the pattern it
+    /// belongs to.
+    atoms: Vec<AtomInfo>,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -113,10 +136,11 @@ pub struct Compiler<'a> {
 impl<'a> Compiler<'a> {
     /// Creates a new YARA compiler.
     pub fn new() -> Self {
+        let mut ident_pool = StringPool::new();
         let mut symbol_table = StackedSymbolTable::new();
 
         // Add symbols for built-in functions like uint8, uint16, etc.
-        let builtin_functions = symbol_table.push_new();
+        let global_symbols = symbol_table.push_new();
 
         for export in WASM_EXPORTS.iter().filter(|e| e.public) {
             let func = Rc::new(Func::with_signature(FuncSignature::from(
@@ -126,18 +150,28 @@ impl<'a> Compiler<'a> {
             let mut symbol = Symbol::new(TypeValue::Func(func.clone()));
             symbol.kind = SymbolKind::Func(func);
 
-            builtin_functions.borrow_mut().insert(export.name, symbol);
+            global_symbols.borrow_mut().insert(export.name, symbol);
         }
 
+        // Create the default namespace. Rule identifiers will be added to this
+        // namespace, unless the user defines some namespace explicitly by calling
+        // `Compiler::new_namespace`.
+        let default_namespace = Namespace {
+            ident_id: ident_pool.get_or_intern("default"),
+            symbols: symbol_table.push_new(),
+        };
+
         Self {
+            ident_pool,
             symbol_table,
+            current_namespace: default_namespace,
             warnings: Vec::new(),
             rules: Vec::new(),
             patterns: Vec::new(),
+            atoms: Vec::new(),
             imported_modules: Vec::new(),
             modules_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
-            ident_pool: StringPool::new(),
             lit_pool: BStringPool::new(),
             wasm_mod: ModuleBuilder::new(),
         }
@@ -149,6 +183,51 @@ impl<'a> Compiler<'a> {
     /// look nicer on compatible consoles. The default setting is `false`.
     pub fn colorize_errors(mut self, b: bool) -> Self {
         self.report_builder.with_colors(b);
+        self
+    }
+
+    /// Creates a new namespace with a given name.
+    ///
+    /// Further calls to [`Compiler::add_source`] will put the rules under the
+    /// newly created namespace.
+    ///
+    /// In the example below both rules `foo` and `bar` are put into the same
+    /// namespace (the default namespace), therefore `bar` can use `foo` as
+    /// part of its condition, and everything is ok.
+    ///
+    /// ```
+    /// # use yara_x::Compiler;
+    /// assert!(Compiler::new()
+    ///     .add_source("rule foo {condition: true}")?
+    ///     .add_source("rule bar {condition: foo}")
+    ///     .is_ok());
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// In this other example the rule `foo` is put in the default namespace,
+    /// but the rule `bar` is put under the `bar` namespace. This implies that
+    /// `foo` is not visible to `bar`, and the second all to `add_source`
+    /// fails.
+    ///
+    /// ```
+    /// # use yara_x::Compiler;
+    /// assert!(Compiler::new()
+    ///     .add_source("rule foo {condition: true}")?
+    ///     .new_namespace("bar")
+    ///     .add_source("rule bar {condition: foo}")
+    ///     .is_err());
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn new_namespace(mut self, namespace: &str) -> Self {
+        // Remove the symbol table corresponding to the previous namespace.
+        self.symbol_table.pop().expect("expecting a namespace");
+        // Create a new namespace.
+        self.current_namespace = Namespace {
+            ident_id: self.ident_pool.get_or_intern(namespace),
+            symbols: self.symbol_table.push_new(),
+        };
         self
     }
 
@@ -172,25 +251,18 @@ impl<'a> Compiler<'a> {
         self.warnings.append(&mut ast.warnings);
 
         for ns in ast.namespaces.iter_mut() {
-            // Create the symbol table that will contain the symbols defined
-            // in this namespace, like modules and rules.
-            let namespace_symbols = self.symbol_table.push_new();
-
             // Process import statements. Checks that all imported modules
             // actually exist, and raise warnings in case of duplicated
-            // imports. For each module add a symbol to the current namespace.
-            self.process_imports(&src, &ns.imports, &namespace_symbols)?;
+            // imports within the same source file. For each module add a
+            // symbol to the current namespace.
+            self.process_imports(&src, &ns.imports)?;
 
             // Iterate over the list of declared rules and verify that their
             // conditions are semantically valid. For each rule add a symbol
             // to the current namespace.
             for rule in ns.rules.iter_mut() {
-                self.process_rule(rule, &src, &namespace_symbols)?;
+                self.process_rule(&src, rule)?;
             }
-
-            // Remove the symbol table for the current namespace. The next
-            // namespace can't access symbols defined by this namespace.
-            self.symbol_table.pop();
         }
 
         Ok(self)
@@ -214,14 +286,20 @@ impl<'a> Compiler<'a> {
         )
         .expect("WASM module is not valid");
 
+        // Build the Aho-Corasick automaton used while searching for the atoms
+        // in the scanned data.
+        let ac = AhoCorasick::new(self.atoms.iter().map(|x| &x.atom));
+
         Ok(Rules {
+            ac,
             compiled_wasm_mod,
             wasm_mod,
             ident_pool: self.ident_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
-            patterns: self.patterns,
             rules: self.rules,
+            patterns: self.patterns,
+            atoms: self.atoms,
         })
     }
 
@@ -242,24 +320,51 @@ impl<'a> Compiler<'a> {
 impl<'a> Compiler<'a> {
     fn process_rule(
         &mut self,
-        rule: &mut ast::Rule,
         src: &SourceCode,
-        namespace_symbols: &Rc<RefCell<SymbolTable>>,
+        rule: &mut ast::Rule,
     ) -> Result<(), Error> {
         // Create array with pairs (IdentId, PatternId) that describe
         // the patterns in a compiled rule.
         let pairs = if let Some(patterns) = &rule.patterns {
             let mut pairs = Vec::with_capacity(patterns.len());
             for pattern in patterns {
-                let ident_id = self
-                    .ident_pool
-                    .get_or_intern(pattern.identifier().as_str());
+                // Save pattern identifier (e.g: $a) in the pool of identifiers
+                // or reuse the IdentId if the identifier has been used already.
+                let ident_id =
+                    self.ident_pool.get_or_intern(pattern.identifier().name);
 
-                // PatternId is the index of the pattern in
-                // `self.patterns`.
+                // PatternId is the index of the pattern in `self.patterns`.
                 let pattern_id = self.patterns.len() as PatternId;
 
-                self.patterns.push(Pattern {});
+                for atom in pattern.atoms() {
+                    self.atoms.push(AtomInfo { pattern_id, atom })
+                }
+
+                let pattern = match pattern {
+                    ast::Pattern::Text(p) => {
+                        let id = self.lit_pool.get_or_intern(p.value.as_ref());
+
+                        if p.modifiers.xor().is_some() {
+                            // `nocase` can't be used together with `xor`.
+                            debug_assert!(p.modifiers.nocase().is_none());
+                            Pattern::Xored(id)
+                        } else if p.modifiers.nocase().is_some() {
+                            Pattern::FixedCaseInsensitive(id)
+                        } else {
+                            Pattern::Fixed(id)
+                        }
+                    }
+                    ast::Pattern::Hex(_) => {
+                        // TODO
+                        Pattern::Regexp
+                    }
+                    ast::Pattern::Regexp(_) => {
+                        // TODO
+                        Pattern::Regexp
+                    }
+                };
+
+                self.patterns.push(pattern);
 
                 pairs.push((ident_id, pattern_id));
             }
@@ -271,7 +376,8 @@ impl<'a> Compiler<'a> {
         let rule_id = self.rules.len() as RuleId;
 
         self.rules.push(RuleInfo {
-            ident_id: self.ident_pool.get_or_intern(rule.identifier.as_str()),
+            ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
+            namespace_id: self.current_namespace.ident_id,
             patterns: pairs,
         });
 
@@ -299,10 +405,11 @@ impl<'a> Compiler<'a> {
 
         symbol.kind = SymbolKind::Rule(rule_id);
 
-        namespace_symbols
+        self.current_namespace
+            .symbols
             .as_ref()
             .borrow_mut()
-            .insert(rule.identifier.as_str(), symbol);
+            .insert(rule.identifier.name, symbol);
 
         // Verify that the rule's condition is semantically valid. This
         // traverses the condition's AST recursively. The condition can
@@ -336,7 +443,6 @@ impl<'a> Compiler<'a> {
         &mut self,
         src: &SourceCode,
         imports: &[Import],
-        namespace_symbols: &Rc<RefCell<SymbolTable>>,
     ) -> Result<(), Error> {
         // Iterate over the list of imported modules.
         for import in imports.iter() {
@@ -421,8 +527,9 @@ impl<'a> Compiler<'a> {
                 );
 
                 // Insert the symbol in the symbol table for the current
-                // namespace
-                namespace_symbols
+                // namespace.
+                self.current_namespace
+                    .symbols
                     .as_ref()
                     .borrow_mut()
                     .insert(module_name, symbol);
@@ -640,14 +747,14 @@ impl<'a, 'sym> Context<'a, 'sym> {
     /// Panics if the current rule does not have the requested pattern.
     fn get_pattern_from_current_rule(&self, ident: &Ident) -> PatternId {
         for (ident_id, pattern_id) in &self.current_rule.patterns {
-            if self.resolve_ident(*ident_id) == ident.as_str() {
+            if self.resolve_ident(*ident_id) == ident.name {
                 return *pattern_id;
             }
         }
         panic!(
             "rule `{}` does not have pattern `{}` ",
             self.resolve_ident(self.current_rule.ident_id),
-            ident.as_str()
+            ident.name
         );
     }
 
@@ -705,10 +812,20 @@ pub struct Rules {
     /// appears in this list once. A [`PatternId`] is an index in this
     /// vector.
     patterns: Vec<Pattern>,
+
+    /// A vector that contains all the atoms generated for the patterns. Each
+    /// atom has an associated [`PatternId`] that indicates the pattern it
+    /// belongs to.
+    atoms: Vec<AtomInfo>,
+
+    /// Aho-Corasick automaton containing the atoms extracted from the patterns.
+    /// This allows to search for all the atoms in the scanned data at the same
+    /// time in an efficient manner.
+    ac: AhoCorasick,
 }
 
 impl Rules {
-    /// Returns a [`Rule`] given its [`RuleId`].
+    /// Returns a [`RuleInfo`] given its [`RuleId`].
     ///
     /// # Panics
     ///
@@ -727,6 +844,18 @@ impl Rules {
     #[inline]
     pub(crate) fn patterns(&self) -> &[Pattern] {
         self.patterns.as_slice()
+    }
+
+    #[inline]
+    pub(crate) fn atoms(&self) -> &[AtomInfo] {
+        self.atoms.as_slice()
+    }
+
+    /// Returns the Aho-Corasick automaton that allows to search for pattern
+    /// atoms.
+    #[inline]
+    pub(crate) fn aho_corasick(&self) -> &AhoCorasick {
+        &self.ac
     }
 
     /// An iterator that yields the name of the modules imported by the
@@ -772,6 +901,8 @@ impl<'a> Iterator for Imports<'a> {
 pub(crate) struct RuleInfo {
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident_id: IdentId,
+    /// The ID of the rule namespace in the identifiers pool.
+    pub(crate) namespace_id: IdentId,
     /// Vector with all the patterns defined by this rule.
     patterns: Vec<(IdentId, PatternId)>,
 }
@@ -787,7 +918,22 @@ impl<'r> Rule<'r> {
     pub fn name(&self) -> &str {
         self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
     }
+
+    /// Returns the rule's namespace.
+    pub fn namespace(&self) -> &str {
+        self.rules.ident_pool().get(self.rule_info.namespace_id).unwrap()
+    }
+}
+
+pub(crate) struct AtomInfo {
+    pub pattern_id: PatternId,
+    pub atom: Atom,
 }
 
 /// A pattern (a.k.a string) in the compiled rules.
-pub(crate) struct Pattern {}
+pub(crate) enum Pattern {
+    Fixed(LiteralId),
+    FixedCaseInsensitive(LiteralId),
+    Xored(LiteralId),
+    Regexp,
+}

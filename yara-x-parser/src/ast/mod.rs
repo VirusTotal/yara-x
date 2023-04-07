@@ -23,9 +23,11 @@ mod ascii_tree;
 mod span;
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
-use std::fmt;
+use std::collections::btree_map::Values;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
+use std::{fmt, mem};
 
 use bitmask::bitmask;
 use bstr::BStr;
@@ -140,7 +142,17 @@ impl<'src> Display for MetaValue<'src> {
 /// Types of patterns (a.k.a strings) that can appear in a YARA rule.
 ///
 /// Possible types are: text patterns, hex patterns and regular expressions.
-#[derive(Debug)]
+///
+/// This type implements the [`Hash`] trait, which produces the same hash for
+/// patterns that are equal and have the same modifiers. The pattern identifier
+/// or the rule it belongs to is not taken into account while computing the
+/// hash, which allows identifying patterns that are defined in more than one
+/// YARA rule in an identical way. Notice however that some patterns may be
+/// semantically equivalent, but their hashes may differ due to being declared
+/// in different ways. For example: `{ 01 [-] 02 }` is equivalent to
+/// `{ 01 [0-] 03 }` but they don't have the same hash because their
+/// definitions are not identical.
+#[derive(Hash, Debug)]
 pub enum Pattern<'src> {
     Text(Box<TextPattern<'src>>),
     Hex(Box<HexPattern<'src>>),
@@ -157,6 +169,66 @@ impl<'src> Pattern<'src> {
     }
 }
 
+/// A set of modifiers associated to a pattern.
+#[derive(Debug, Default)]
+pub struct PatternModifiers<'src> {
+    modifiers: BTreeMap<&'src str, PatternModifier<'src>>,
+}
+
+impl<'src> PatternModifiers<'src> {
+    pub(crate) fn new(
+        modifiers: BTreeMap<&'src str, PatternModifier<'src>>,
+    ) -> Self {
+        Self { modifiers }
+    }
+
+    /// Returns an iterator for all the modifiers associated to the pattern.
+    #[inline]
+    pub fn iter(&self) -> PatternModifiersIter {
+        PatternModifiersIter { iter: self.modifiers.values() }
+    }
+
+    #[inline]
+    pub fn base64(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("base64")
+    }
+
+    #[inline]
+    pub fn base64wide(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("base64wide")
+    }
+
+    #[inline]
+    pub fn fullword(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("fullword")
+    }
+
+    #[inline]
+    pub fn nocase(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("nocase")
+    }
+
+    #[inline]
+    pub fn xor(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("xor")
+    }
+}
+
+/// Iterator that returns all the modifiers in a [`PatternModifiers`].
+///
+/// This is the result of [`PatternModifiers::iter`].
+pub struct PatternModifiersIter<'src> {
+    iter: Values<'src, &'src str, PatternModifier<'src>>,
+}
+
+impl<'src> Iterator for PatternModifiersIter<'src> {
+    type Item = &'src PatternModifier<'src>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
 /// A pattern (a.k.a string) modifier.
 #[derive(Debug, HasSpan)]
 pub enum PatternModifier<'src> {
@@ -168,6 +240,40 @@ pub enum PatternModifier<'src> {
     Base64 { span: Span, alphabet: Option<Cow<'src, BStr>> },
     Base64Wide { span: Span, alphabet: Option<Cow<'src, BStr>> },
     Xor { span: Span, start: u8, end: u8 },
+}
+
+impl PatternModifier<'_> {
+    pub fn as_text(&self) -> &'static str {
+        match self {
+            PatternModifier::Ascii { .. } => "ascii",
+            PatternModifier::Wide { .. } => "wide",
+            PatternModifier::Nocase { .. } => "nocase",
+            PatternModifier::Private { .. } => "private",
+            PatternModifier::Fullword { .. } => "fullword",
+            PatternModifier::Base64 { .. } => "base64",
+            PatternModifier::Base64Wide { .. } => "base64wide",
+            PatternModifier::Xor { .. } => "xor",
+        }
+    }
+}
+
+impl Hash for PatternModifier<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        mem::discriminant(self).hash(state);
+        match self {
+            PatternModifier::Base64 { alphabet, .. } => {
+                alphabet.hash(state);
+            }
+            PatternModifier::Base64Wide { alphabet, .. } => {
+                alphabet.hash(state);
+            }
+            PatternModifier::Xor { start, end, .. } => {
+                start.hash(state);
+                end.hash(state);
+            }
+            _ => {}
+        }
+    }
 }
 
 impl Display for PatternModifier<'_> {
@@ -221,7 +327,16 @@ pub struct TextPattern<'src> {
     pub span: Span,
     pub identifier: Ident<'src>,
     pub value: Cow<'src, BStr>,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
+    pub modifiers: PatternModifiers<'src>,
+}
+
+impl Hash for TextPattern<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.value.hash(state);
+        for modifier in self.modifiers.iter() {
+            modifier.hash(state);
+        }
+    }
 }
 
 /// A regular expression pattern in a YARA rule.
@@ -230,7 +345,16 @@ pub struct RegexpPattern<'src> {
     pub span: Span,
     pub identifier: Ident<'src>,
     pub regexp: Regexp<'src>,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
+    pub modifiers: PatternModifiers<'src>,
+}
+
+impl Hash for RegexpPattern<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.regexp.hash(state);
+        for modifier in self.modifiers.iter() {
+            modifier.hash(state);
+        }
+    }
 }
 
 /// A hex pattern (a.k.a hex string) in a YARA rule.
@@ -239,11 +363,20 @@ pub struct HexPattern<'src> {
     pub span: Span,
     pub identifier: Ident<'src>,
     pub tokens: HexTokens,
-    pub modifiers: Option<HashMap<&'src str, PatternModifier<'src>>>,
+    pub modifiers: PatternModifiers<'src>,
+}
+
+impl Hash for HexPattern<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.tokens.hash(state);
+        for modifier in self.modifiers.iter() {
+            modifier.hash(state);
+        }
+    }
 }
 
 /// A sequence of tokens that conform a hex pattern (a.k.a hex string).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct HexTokens {
     pub tokens: Vec<HexToken>,
 }
@@ -252,7 +385,7 @@ pub struct HexTokens {
 ///
 /// A token can be a single byte, a negated byte (e.g. `~XX`), an
 /// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum HexToken {
     Byte(Box<HexByte>),
     NotByte(Box<HexByte>),
@@ -263,7 +396,7 @@ pub enum HexToken {
 /// A single byte in a hex pattern (a.k.a hex string).
 ///
 /// The byte is accompanied by a mask which will be 0xFF for non-masked bytes.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct HexByte {
     pub value: u8,
     pub mask: u8,
@@ -272,13 +405,13 @@ pub struct HexByte {
 /// An alternative in a hex pattern (a.k.a hex string).
 ///
 /// Alternatives are sequences of hex tokens separated by `|`.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct HexAlternative {
     pub alternatives: Vec<HexTokens>,
 }
 
 /// A jump in a hex pattern (a.k.a hex string).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct HexJump {
     pub start: Option<u16>,
     pub end: Option<u16>,
@@ -477,8 +610,11 @@ pub struct PatternMatch<'src> {
     pub anchor: Option<MatchAnchor<'src>>,
 }
 
-/// In expressions like `$a at 0` or `$b in (0..10)`, this struct represents
-/// the anchor, which is the part of the expression that follows the identifier
+/// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
+/// anchor (e.g. `at <expr>`, `in <range>`).
+///
+/// The anchor is the part of the expression that restricts the offset range
+/// where the match can occur.
 /// (e.g. `at <expr>`, `in <range>`).
 #[derive(Debug, HasSpan)]
 pub enum MatchAnchor<'src> {
@@ -486,7 +622,7 @@ pub enum MatchAnchor<'src> {
     In(Box<In<'src>>),
 }
 
-/// In expressions like `$a at 0`, this structs represents the anchor
+/// In expressions like `$a at 0`, this type represents the anchor
 /// (e.g. `at <expr>`).
 #[derive(Debug, HasSpan)]
 pub struct At<'src> {
@@ -530,11 +666,6 @@ impl<'src> Ident<'src> {
         type_value: TypeValue,
     ) -> Self {
         Self { name, span, type_value }
-    }
-
-    /// Returns the identifier as a string.
-    pub fn as_str(&self) -> &'src str {
-        self.name
     }
 
     /// Returns the identifier's type.
@@ -605,6 +736,14 @@ pub struct Regexp<'src> {
     pub regexp: &'src str,
     pub case_insensitive: bool,
     pub dotall: bool,
+}
+
+impl Hash for Regexp<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.regexp.hash(state);
+        self.case_insensitive.hash(state);
+        self.dotall.hash(state);
+    }
 }
 
 /// A literal value of any type (e.g: `1`, `2.0`, `"abcd"`, `true`).

@@ -6,7 +6,7 @@ pub trait HasSpan {
 }
 
 /// Contains the starting and ending position for a piece of source code.
-#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Default, Hash, Eq, PartialEq, Copy, Clone)]
 pub struct Span {
     pub(crate) start: usize,
     pub(crate) end: usize,

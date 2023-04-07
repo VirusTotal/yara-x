@@ -4,9 +4,9 @@
 ## What's YARA-X?
 
 This is an experimental project for evaluating the feasibility of writing a 
-full-fledged implementation of YARA in Rust. For the time being don't take this
-project very seriously, it may be abandoned at any time if it doesn't prove to
-be worth the effort.
+full-fledged implementation of [YARA](https://github.com/VirusTotal/yara) in Rust. 
+For the time being don't take this project very seriously, it may be abandoned 
+at any time if it doesn't prove to be worth the effort.
 
 However, I would like to get something useful out of this, so the intention is
 at the very least implementing a code formatting tool for YARA in the spirit of
@@ -29,7 +29,7 @@ The expression `@a[-1]` is valid in YARA 4.x, but its value is always
 In YARA 4.x rules can have any number of `global` or `private`, for example the
 following is valid:
 
-```yara
+```
 global global global rule duplicated_global  {
    ... 
 }
@@ -45,34 +45,34 @@ In YARA 4.x the `of` statement accepts a tuple of string or rule identifiers.
 In both cases the identifiers can contain wildcards. For example both of these 
 are valid:
 
-```yara
+```
 1 of ($a, $c, $b*, $*)
 ```
 
-```yara
+```
 1 of (some_rule, another_rule*)
 ```
 
 The first case remains the same, but the second one has been generalized to
 accept arbitrary boolean expressions, like in...
 
-```yara
+```
 1 of (true, false)
 ```
 
-```yara
+```
 1 of ($a and not $b, $c, false)
 ```
 
 Notice however that we have lost the possibility of using wildcards with rule
 names. So, this is valid...
 
-```yara
+```
 1 of (some_rule)
 ```
 
 But this is not valid...
 
-```yara
+```
 1 of (some_rule*)
 ```
