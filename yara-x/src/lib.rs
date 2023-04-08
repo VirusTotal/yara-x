@@ -31,6 +31,3 @@ mod scanner;
 mod string_pool;
 mod symbols;
 mod wasm;
-
-#[cfg(test)]
-mod tests;

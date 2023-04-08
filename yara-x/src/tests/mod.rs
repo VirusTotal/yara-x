@@ -1,8 +1,8 @@
 /*! End-to-end tests.*/
 use pretty_assertions::assert_eq;
 
-macro_rules! condition_true {
-    ($condition:literal, $data:expr) => {{
+macro_rules! test_condition {
+    ($condition:literal, $data:expr, $expected_result:expr) => {{
         let mut src = String::new();
 
         if cfg!(feature = "test_proto2-module") {
@@ -22,52 +22,75 @@ macro_rules! condition_true {
             .unwrap()
             .build()
             .unwrap();
+
+        let num_matching_rules = crate::scanner::Scanner::new(&rules)
+            .scan($data)
+            .num_matching_rules();
+
         assert_eq!(
-            crate::scanner::Scanner::new(&rules)
-                .scan($data)
-                .num_matching_rules(),
-            1,
-            "`{}` should be true, but it is false",
-            $condition
+            num_matching_rules, $expected_result as usize,
+            "\n\n`{}` should be {}, but it is {}",
+            $condition, $expected_result, !$expected_result
         );
     }};
+}
+
+macro_rules! condition_true {
+    ($condition:literal,  $data:expr) => {{
+        test_condition!($condition, $data, true);
+    }};
     ($condition:literal) => {{
-        condition_true!($condition, &[]);
+        test_condition!($condition, &[], true);
     }};
 }
 
 macro_rules! condition_false {
     ($condition:literal,  $data:expr) => {{
-        let mut src = String::new();
+        test_condition!($condition, $data, false);
+    }};
+    ($condition:literal) => {{
+        test_condition!($condition, &[], false);
+    }};
+}
 
-        if cfg!(feature = "test_proto2-module") {
-            src.push_str(r#"import "test_proto2""#);
-        }
-
-        if cfg!(feature = "test_proto3-module") {
-            src.push_str(r#"import "test_proto3""#);
-        }
-
-        src.push_str(
-            format!("rule t {{condition: {} }}", $condition).as_str(),
-        );
-
+macro_rules! test_rule {
+    ($rule:literal,  $data:expr, $expected_result:expr) => {{
         let rules = crate::compiler::Compiler::new()
-            .add_source(src.as_str())
+            .add_source($rule)
             .unwrap()
             .build()
             .unwrap();
+
+        let num_matching_rules = crate::scanner::Scanner::new(&rules)
+            .scan($data)
+            .num_matching_rules();
+
         assert_eq!(
-            crate::scanner::Scanner::new(&rules)
-                .scan($data)
-                .num_matching_rules(),
-            0,
-            "`{}` should be false, but it is true",
-            $condition
+            num_matching_rules, $expected_result as usize,
+            "\n\n`{}` should be {}, but it is {}",
+            $rule, $expected_result, !$expected_result
         );
     }};
+    ($rule:literal) => {{
+        rule_true!($rule, &[]);
+    }};
+}
+
+macro_rules! rule_true {
+    ($rule:literal,  $data:expr) => {{
+        test_rule!($rule, $data, true);
+    }};
     ($condition:literal) => {{
-        condition_false!($condition, &[]);
+        test_rule!($rule, &[], true);
+    }};
+}
+
+macro_rules! rule_false {
+    ($rule:literal,  $data:expr) => {{
+        test_rule!($rule, $data, false);
+    }};
+    ($condition:literal) => {{
+        test_rule!($rule, &[], false);
     }};
 }
 
@@ -75,6 +98,7 @@ macro_rules! condition_false {
 fn arithmetic_operations() {
     condition_true!("1 == 1");
     condition_true!("1 + 1 == 2");
+    condition_true!("1 - 1 == 0");
     condition_true!("2 * 2 == 4");
     condition_true!("4 \\ 2 == 2");
     condition_true!("5 % 2 == 1");
@@ -101,6 +125,21 @@ fn arithmetic_operations() {
     condition_true!("-0o10 == -8");
     condition_true!("0o100 == 64");
     condition_true!("0o755 == 493");
+}
+
+#[test]
+fn test_comparison_operationd() {
+    condition_true!("2 > 1");
+    condition_true!("1 < 2");
+    condition_true!("2 >= 1");
+    condition_true!("2 >= 2");
+    condition_true!("1 <= 1");
+    condition_true!("1 <= 2");
+    condition_true!("1 == 1");
+    condition_true!("1.5 == 1.5");
+    condition_true!("1.0 == 1");
+    condition_true!("1.0 != 1.000000000000001");
+    condition_true!("1.0 < 1.000000000000001");
 }
 
 #[test]
@@ -282,6 +321,93 @@ fn for_in() {
     condition_true!(r#"for 2 s in ("foo", "bar", "baz") : (s contains "ba")"#);
     condition_true!(r#"for all x in (1.0, 2.0, 3.0) : (x >= 1.0)"#);
     condition_true!(r#"for none x in (1.0, 2.0, 3.0) : (x > 4.0)"#);
+}
+
+#[test]
+fn text_patterns() {
+    rule_true!(
+        r#"
+        rule test { 
+            strings:
+                $a = "issi"
+            condition: 
+                $a
+        }
+        "#,
+        b"mississippi"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "ssippis"
+            condition:
+                $a
+        }
+        "#,
+        b"mississippi"
+    );
+
+    rule_true!(
+        r#"
+        rule test { 
+            strings:
+                $a = "IssI" nocase
+            condition: 
+                $a
+        }
+        "#,
+        b"mississippi"
+    );
+
+    rule_true!(
+        r#"
+        rule test { 
+            strings:
+                $a = "mississippi" xor
+            condition: 
+                $a
+        }
+        "#,
+        b"lhrrhrrhqqh"
+    );
+
+    rule_true!(
+        r#"
+        rule test { 
+            strings:
+                $a = "mmmmississippi" xor
+            condition: 
+                $a
+        }
+        "#,
+        b"llllhrrhrrhqqh"
+    );
+
+    rule_false!(
+        r#"
+        rule test { 
+            strings:
+                $a = "mississippi" xor(2-255)
+            condition: 
+                $a
+        }
+        "#,
+        b"lhrrhrrhqqh"
+    );
+
+    rule_true!(
+        r#"
+        rule test { 
+            strings:
+                $a = "mississippi" xor(255)
+            condition: 
+                $a
+        }
+        "#,
+        &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
+    );
 }
 
 #[test]
@@ -582,6 +708,8 @@ fn test_proto2_module() {
     condition_true!(
         r#"test_proto2.map_int64_struct[100].nested_int64_one == 1"#
     );
+
+    condition_true!(r#"test_proto2.map_string_string["foo"] == "FOO""#);
 
     condition_true!(r#"for any i in test_proto2.array_int64 : (i == 10)"#);
     condition_true!(r#"for all i in test_proto2.array_int64 : (i < 10000)"#);
