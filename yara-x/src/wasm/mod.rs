@@ -70,8 +70,6 @@ See the [`lookup_field`] function.
 use std::any::{type_name, TypeId};
 use std::mem;
 
-use bitvec::order::Lsb0;
-use bitvec::slice::BitSlice;
 use bstr::ByteSlice;
 use lazy_static::lazy_static;
 use linkme::distributed_slice;
@@ -549,16 +547,6 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
 }
 
 /// Invoked from WASM for triggering the pattern search phase.
-///
-/// The pattern search phase is when YARA scans the data looking for the
-/// patterns declared in rules. All the patterns are searched simultaneously
-/// using the Aho-Corasick algorithm. This phase is triggered lazily during
-/// the evaluation of the rule conditions, when some of the conditions need
-/// to know if a pattern matched or not.
-///
-/// This function won't be called if the conditions can be fully evaluated
-/// without looking for any of the patterns. If it must be called, it will be
-/// called only once.
 #[wasm_export]
 pub(crate) fn search_for_patterns(mut caller: Caller<'_, ScanContext>) {
     caller.data_mut().search_for_patterns();
@@ -570,19 +558,7 @@ pub(crate) fn rule_match(
     mut caller: Caller<'_, ScanContext>,
     rule_id: RuleId,
 ) {
-    let mut store_ctx = caller.as_context_mut();
-
-    let main_mem =
-        store_ctx.data_mut().main_memory.unwrap().data_mut(store_ctx);
-
-    let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
-        &mut main_mem[MATCHING_RULES_BITMAP_BASE as usize..],
-    );
-
-    // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
-    bits.set(rule_id as usize, true);
-
-    caller.as_context_mut().data_mut().rules_matching.push(rule_id);
+    caller.data_mut().track_rule_match(rule_id);
 }
 
 /// Invoked from WASM to ask whether a pattern matches at a given file

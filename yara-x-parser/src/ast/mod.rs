@@ -146,8 +146,12 @@ impl<'src> Display for MetaValue<'src> {
 /// This type implements the [`Hash`] trait, which produces the same hash for
 /// patterns that are equal and have the same modifiers. The pattern identifier
 /// or the rule it belongs to is not taken into account while computing the
-/// hash. This allows detecting patterns that are defined in more than one
-/// YARA rule.
+/// hash, which allows identifying patterns that are defined in more than one
+/// YARA rule in an identical way. Notice however that some patterns may be
+/// semantically equivalent, but their hashes may differ due to being declared
+/// in different ways. For example: `{ 01 [-] 02 }` is equivalent to
+/// `{ 01 [0-] 03 }` but they don't have the same hash because their
+/// definitions are not identical.
 #[derive(Hash, Debug)]
 pub enum Pattern<'src> {
     Text(Box<TextPattern<'src>>),

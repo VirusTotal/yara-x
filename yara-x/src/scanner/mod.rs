@@ -3,15 +3,19 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 
+use std::ops::Deref;
 use std::path::Path;
-use std::ptr::null;
+use std::pin::Pin;
+use std::ptr::{null, NonNull};
 use std::rc::Rc;
 use std::slice::Iter;
 
 use bitvec::prelude::*;
+use bstr::ByteSlice;
 use fmmap::{MmapFile, MmapFileExt};
 use wasmtime::{
-    Global, GlobalType, MemoryType, Mutability, Store, TypedFunc, Val, ValType,
+    AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
+    Store, TypedFunc, Val, ValType,
 };
 
 use yara_x_parser::types::{Struct, TypeValue};
@@ -19,24 +23,34 @@ use yara_x_parser::types::{Struct, TypeValue};
 use crate::compiler::{Rule, RuleId, Rules};
 use crate::string_pool::BStringPool;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, wasm};
+use crate::{modules, wasm, Pattern, PatternId};
 
 #[cfg(test)]
 mod tests;
 
 /// Scans data with already compiled YARA rules.
 pub struct Scanner<'r> {
-    wasm_store: wasmtime::Store<ScanContext<'r>>,
+    wasm_store: Pin<Box<Store<ScanContext<'r>>>>,
     wasm_main_fn: TypedFunc<(), ()>,
-    filesize: wasmtime::Global,
+    filesize: Global,
 }
 
 impl<'r> Scanner<'r> {
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
-        let mut wasm_store = Store::new(
+        // The ScanContext structure belongs to the WASM store, but at the same
+        // time it must have a reference to the store because it is required
+        // for accessing the WASM memory from code that only has a reference
+        // to ScanContext. This kind of circular data structures are not
+        // natural to Rust, and they can be achieved either by using unsafe
+        // pointers, or by using Rc::Weak. In this case we are storing a pointer
+        // to the store in ScanContext. The store is put into a pinned box in
+        // order to make sure that it doesn't move from its original memory
+        // address and the pointer remains valid.
+        let mut wasm_store = Box::pin(Store::new(
             &crate::wasm::ENGINE,
             ScanContext {
+                wasm_store: NonNull::dangling(),
                 compiled_rules: rules,
                 string_pool: BStringPool::new(),
                 current_struct: None,
@@ -46,14 +60,20 @@ impl<'r> Scanner<'r> {
                 rules_matching: Vec::new(),
                 main_memory: None,
                 vars_stack: Vec::new(),
+                patterns_found: false,
             },
-        );
+        ));
+
+        // Initialize the ScanContext.wasm_store pointer that was initially
+        // dangling.
+        wasm_store.data_mut().wasm_store =
+            NonNull::from(wasm_store.as_ref().deref());
 
         // Global variable that will hold the value for `filesize`. This is
         // initialized to 0 because the file size is not known until some
         // data is scanned.
         let filesize = Global::new(
-            &mut wasm_store,
+            wasm_store.as_context_mut(),
             GlobalType::new(ValType::I64, Mutability::Var),
             Val::I64(0),
         )
@@ -75,7 +95,7 @@ impl<'r> Scanner<'r> {
             matching_patterns_bitmap_base + num_patterns / 8 % 65536 + 1;
 
         let matching_patterns_bitmap_base = Global::new(
-            &mut wasm_store,
+            wasm_store.as_context_mut(),
             GlobalType::new(ValType::I32, Mutability::Const),
             Val::I32(matching_patterns_bitmap_base as i32),
         )
@@ -83,7 +103,7 @@ impl<'r> Scanner<'r> {
 
         // Create module's main memory.
         let main_memory = wasmtime::Memory::new(
-            &mut wasm_store,
+            wasm_store.as_context_mut(),
             MemoryType::new(mem_size, None),
         )
         .unwrap();
@@ -102,12 +122,15 @@ impl<'r> Scanner<'r> {
             .unwrap()
             .define("yara_x", "main_memory", main_memory)
             .unwrap()
-            .instantiate(&mut wasm_store, rules.compiled_wasm_mod())
+            .instantiate(
+                wasm_store.as_context_mut(),
+                rules.compiled_wasm_mod(),
+            )
             .unwrap();
 
         // Obtain a reference to the "main" function exported by the module.
         let wasm_main_fn = wasm_instance
-            .get_typed_func::<(), ()>(&mut wasm_store, "main")
+            .get_typed_func::<(), ()>(wasm_store.as_context_mut(), "main")
             .unwrap();
 
         wasm_store.data_mut().main_memory = Some(main_memory);
@@ -129,30 +152,12 @@ impl<'r> Scanner<'r> {
 
     /// Scans in-memory data.
     pub fn scan<'s>(&'s mut self, data: &[u8]) -> ScanResults<'s, 'r> {
-        let ctx = self.wasm_store.data_mut();
-
-        // Get the number of rules.
-        let num_rules = ctx.compiled_rules.rules().len();
-
-        // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
-        // were the N-th bit indicates if the rule with ID = N matched or not.
-        // If some rule matched in a previous call the bitmap will contain some
-        // bits set to 1 and need to be cleared.
-        if !ctx.rules_matching.is_empty() {
-            // Clear the list of matching rules.
-            ctx.rules_matching.clear();
-            let offset = wasm::MATCHING_RULES_BITMAP_BASE as usize;
-            let mem = ctx.main_memory.unwrap().data_mut(&mut self.wasm_store);
-            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
-                &mut mem[offset..offset + num_rules / 8 + 1],
-            );
-            // Set to zero all bits in the bitmap.
-            bitmap.fill(false);
-        }
+        // Clear information about matches found in a previous scan, if any.
+        self.clear_matches();
 
         // Set the global variable `filesize` to the size of the scanned data.
         self.filesize
-            .set(&mut self.wasm_store, Val::I64(data.len() as i64))
+            .set(self.wasm_store.as_context_mut(), Val::I64(data.len() as i64))
             .unwrap();
 
         let ctx = self.wasm_store.data_mut();
@@ -230,8 +235,10 @@ impl<'r> Scanner<'r> {
             );
         }
 
-        // Invoke the main function.
-        self.wasm_main_fn.call(&mut self.wasm_store, ()).unwrap();
+        // Invoke the main function, which evaluates the rules' conditions. It
+        // triggers the Aho-Corasick scanning phase only if necessary. See
+        // ScanContext::search_for_patterns.
+        self.wasm_main_fn.call(self.wasm_store.as_context_mut(), ()).unwrap();
 
         let ctx = self.wasm_store.data_mut();
 
@@ -245,6 +252,34 @@ impl<'r> Scanner<'r> {
         ctx.current_struct = None;
 
         ScanResults::new(self)
+    }
+
+    // Clear information about previous matches.
+    fn clear_matches(&mut self) {
+        let ctx = self.wasm_store.data_mut();
+        let num_rules = ctx.compiled_rules.rules().len();
+        let num_patterns = ctx.compiled_rules.patterns().len();
+
+        if ctx.patterns_found || !ctx.rules_matching.is_empty() {
+            // Clear the list of matching rules.
+            ctx.rules_matching.clear();
+            let mem = ctx
+                .main_memory
+                .unwrap()
+                .data_mut(self.wasm_store.as_context_mut());
+            // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
+            // were the N-th bit indicates if the rule with ID = N matched or not,
+            // If some rule matched in a previous call the bitmap will contain some
+            // bits set to 1 and need to be cleared.
+            let base = MATCHING_RULES_BITMAP_BASE as usize;
+            let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
+                &mut mem[base..base
+                    + (num_rules / 8 + 1)
+                    + (num_patterns / 8 + 1)],
+            );
+            // Set to zero all bits in the bitmap.
+            bitmap.fill(false);
+        }
     }
 }
 
@@ -311,7 +346,8 @@ impl<'s, 'r> NonMatches<'s, 'r> {
     fn new(scanner: &'s Scanner<'r>) -> Self {
         let ctx = scanner.wasm_store.data();
         let num_rules = ctx.compiled_rules.rules().len();
-        let main_memory = ctx.main_memory.unwrap().data(&scanner.wasm_store);
+        let main_memory =
+            ctx.main_memory.unwrap().data(scanner.wasm_store.as_context());
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
 
@@ -347,12 +383,18 @@ pub(crate) type RuntimeStringId = u32;
 
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r> {
-    /// Data being scanned.
+    /// Pointer to the WASM store.
+    wasm_store: NonNull<Store<ScanContext<'r>>>,
+    /// Pointer to the data being scanned.
     scanned_data: *const u8,
     /// Length of data being scanned.
     scanned_data_len: usize,
     /// Vector containing the IDs of the rules that matched.
     pub(crate) rules_matching: Vec<RuleId>,
+    /// True if some pattern has been found. This is simply a flag that
+    /// indicates that the bitmap that tells which patterns has matched
+    /// needs to be cleared.
+    pub(crate) patterns_found: bool,
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -387,7 +429,134 @@ impl ScanContext<'_> {
         }
     }
 
+    /// Called during the scan process when a rule has matched for tracking
+    /// the matching rules.
+    pub(crate) fn track_rule_match(&mut self, rule_id: RuleId) {
+        // Store the RuleId in the vector of matching rules.
+        self.rules_matching.push(rule_id);
+
+        let wasm_store = unsafe { self.wasm_store.as_mut() };
+        let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
+
+        let base = MATCHING_RULES_BITMAP_BASE as usize;
+        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
+
+        // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
+        bits.set(rule_id as usize, true);
+    }
+
+    /// Called during the scan process when a pattern has matched for tracking
+    /// the matching patterns.
+    pub(crate) fn track_pattern_match(&mut self, pattern_id: PatternId) {
+        self.patterns_found = true;
+
+        let wasm_store = unsafe { self.wasm_store.as_mut() };
+        let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
+        let num_rules = self.compiled_rules.rules().len();
+
+        let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules / 8 + 1;
+        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
+
+        bits.set(pattern_id as usize, true);
+    }
+
+    /// Search for patterns in the data.
+    ///
+    /// The pattern search phase is when YARA scans the data looking for the
+    /// patterns declared in rules. All the patterns are searched simultaneously
+    /// using the Aho-Corasick algorithm. This phase is triggered lazily during
+    /// the evaluation of the rule conditions, when some of the conditions need
+    /// to know if a pattern matched or not.
+    ///
+    /// This function won't be called if the conditions can be fully evaluated
+    /// without looking for any of the patterns. If it must be called, it will be
+    /// called only once.
     pub(crate) fn search_for_patterns(&mut self) {
-        // TODO
+        let ac = self.compiled_rules.aho_corasick();
+
+        for atom_match in ac.find_overlapping_iter(self.scanned_data()) {
+            let matched_atom =
+                &self.compiled_rules.atoms()[atom_match.pattern()];
+
+            let pattern = &self.compiled_rules.patterns()
+                [matched_atom.pattern_id as usize];
+
+            let pattern_matched = match pattern {
+                Pattern::Fixed(id)
+                | Pattern::FixedCaseInsensitive(id)
+                | Pattern::Xored(id) => {
+                    // Subtract the backtrack value from the atom's match
+                    // offset. If the result is negative the atom can't be
+                    // inside the scanned data and therefor there's no
+                    // possible match.
+                    if let (offset, false) = atom_match
+                        .start()
+                        .overflowing_sub(matched_atom.atom.backtrack as usize)
+                    {
+                        let pattern_bytes =
+                            self.compiled_rules.lit_pool().get(*id).unwrap();
+
+                        // If the number of bytes from `offset` to the end of the
+                        // buffer is at least the pattern's length, check if the
+                        // data matches the pattern. If not, the pattern can't
+                        // match.
+                        if self.scanned_data_len
+                            >= offset + pattern_bytes.len()
+                        {
+                            let data = &self.scanned_data()
+                                [offset..offset + pattern_bytes.len()];
+
+                            match pattern {
+                                Pattern::Fixed(_) => {
+                                    memx::memeq(data, pattern_bytes.as_bytes())
+                                }
+                                Pattern::FixedCaseInsensitive(_) => {
+                                    pattern_bytes.eq_ignore_ascii_case(data)
+                                }
+                                Pattern::Xored(_) => {
+                                    let mut pattern_bytes =
+                                        pattern_bytes.to_owned();
+
+                                    // The atom that matched is the result of
+                                    // XORing the pattern with some key. The
+                                    // key can be obtained by XORing some byte
+                                    // in the atom with the corresponding byte
+                                    // in the pattern.
+                                    let key = matched_atom.atom.as_ref()[0]
+                                        ^ pattern_bytes[matched_atom
+                                            .atom
+                                            .backtrack
+                                            as usize];
+
+                                    // Now we can XOR the whole pattern with
+                                    // the obtained key and make sure that it
+                                    // matches the data. This only makes sense
+                                    // if the key is not zero.
+                                    if key != 0 {
+                                        for i in 0..pattern_bytes.len() {
+                                            pattern_bytes[i] ^= key;
+                                        }
+                                    }
+
+                                    memx::memeq(data, pattern_bytes.as_bytes())
+                                }
+                                _ => unreachable!(),
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                Pattern::Regexp => {
+                    todo!()
+                }
+            };
+
+            if pattern_matched {
+                self.track_pattern_match(matched_atom.pattern_id);
+            }
+        }
     }
 }
