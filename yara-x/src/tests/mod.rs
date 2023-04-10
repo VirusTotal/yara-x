@@ -795,6 +795,3 @@ fn test_proto2_module() {
     //
     condition_true!(r#"test_proto2.bool_yara"#);
 }
-
-//#[cfg(test)]
-//mod test_time_module;
