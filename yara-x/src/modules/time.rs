@@ -9,8 +9,8 @@ fn main(_ctx: &ScanContext) -> Time {
     time_proto
 }
 
-#[module_export(name = "now")]
-fn time_now(ctx: &ScanContext) -> Option<i64> {
+#[module_export]
+fn now(ctx: &ScanContext) -> Option<i64> {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(n) => return Some(n.as_secs() as i64),
         Err(_) => return None,
