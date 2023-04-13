@@ -9,46 +9,48 @@ use bstr::{BString, ByteVec};
 /// but it will appear as part of a longer string that has been encoded
 /// in base64. Let's say that the file contains the string:
 ///
-/// TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=
+/// `TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ=`
 ///
 /// Which is the result of:
 ///
-/// base64("Lorem ipsum dolor sit amet")
+/// `base64("Lorem ipsum dolor sit amet")`
 ///
-/// The result of base64("ipsum") is aXBzdW0==, which happens to appear within
-/// the longer base64 string (after stripping the == padding):
+/// The result of `base64("ipsum")` is `aXBzdW0==`, which happens to appear
+/// within the longer base64 string (the == padding is stripped):
 ///
-/// TG9yZW0g *aXBzdW0* gZG9sb3Igc2l0IGFtZXQ
-///
+/// ```text
+/// TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ
+///         ------- here is aXBzdW0
+/// ```
 /// However, due the nature of base64 this is not always the case. The substring
 /// "ipsum" can adopt multiple forms in the base64-encoded text, depending on
-/// the characters that surround it, and its position within the text. The good
-/// news is that there are only 3 string that we need to look for: "aXBzdW",
-/// "lwc3Vt" or "pcHN1b". If some string S contains "ipsum", the result of
-/// base64(S) must contain one of those three patterns.
+/// the characters that surround it and its position within the text. For
+/// example `base64("-Lorem ipsum dolor sit amet")` produces a different
+/// result, which doesn't contain `aXBzdW0`:
+///
+/// `LUxvcmVtIGlwc3VtIGRvbG9yIHNpdCBhbWV0`
+///
+/// The good news is that there are only 3 string that we need to look for:
+/// `aXBzdW`, `lwc3Vt` or `pcHN1b`. If some string `S` contains "ipsum", the
+/// result of `base64(S)` must contain one of these three patterns.
+///
+/// These three patterns are the results of `base64(S)`, `base64("X" + S)`
+/// and `base64("XX" + S)`, after removing the characters that are affected
+/// by the "X" at the beginning of the pattern, or that could be affected
+/// if more bytes bytes are added after "ipsum".
+///
+/// padding + S        base64(padding + S)      final pattern
+/// "ipsum"         -> "aXBzdW0"            ->  "aXBzdW"
+/// "Xipsum"        -> "WGlwc3Vt"           ->  "lwc3Vt"
+/// "XXipsum"       -> "WFhpcHN1bQ"         ->  "pcHN1b"
 ///
 /// See: https://www.leeholmes.com/searching-for-content-in-base-64-strings/
 ///
 /// This function returns the three patterns that can be used for locating the
 /// string `s` withing some data encoded as base64.
 ///
-/// Each pattern has an associated offset, that can be either 0, 2 or 3. The
-/// offset indicates how many bytes we must go back in order to find a place
-/// where it is safe to start decoding the string. This rely on the fact that
-/// you can start decoding a base64 string at the middle of it, as long as the
-/// offset is a multiple of 4. The string TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ
-/// can be decoded starting at:
-///
-/// ZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ
-/// aXBzdW0gZG9sb3Igc2l0IGFtZXQ
-/// dW0gZG9sb3Igc2l0IGFtZXQ
-///
-/// ..etc
-///
-/// When this function returns something like (2, "lwc3Vt") it means that
-/// "lwc3Vt" can appear as part of a longer base64 string containing the
-/// plain-text string "ipsum", and it's safe to decode that base64 string
-/// starting 2 bytes before the offset where "lwc3Vt" was found.
+/// Each pattern is returned together with the amount of padding applied, that
+/// can be either 0, 1 or 2.
 ///
 /// # Panics
 ///
@@ -56,7 +58,7 @@ use bstr::{BString, ByteVec};
 /// characters long and can't have repeated characters.
 ///
 /// Also panics if the length of s is 1 or less.
-pub(super) fn base64_patterns(
+pub(crate) fn base64_patterns(
     s: &[u8],
     alphabet: Option<&str>,
 ) -> Vec<(usize, BString)> {
@@ -75,7 +77,7 @@ pub(super) fn base64_patterns(
     );
 
     // Prepend "XX" to the original string. These two characters are irrelevant,
-    // the portion of the base64 result affected by them will be removed from
+    // the portion of the base64 result affected by them will be stripped from
     // the final results. They are prepended only for being able to compute the
     // base64 with 1 and 2 extra bytes at the left of the pattern.
     let mut pattern: Vec<u8> = Vec::with_capacity(3 + s.len());
@@ -94,29 +96,38 @@ pub(super) fn base64_patterns(
     // right ends, in order to remove the parts that are influenced by the
     // bytes around the pattern.
     for i in 0..=2 {
+        // Trim the pattern i bytes from the left in order to ignore 0, 1 or 2
+        // "X" characters.
+        let pattern = &pattern[i..];
+
+        // Encode the pattern as base64.
         let base64_len =
-            base64_engine.encode_slice(&pattern[i..], &mut buf).unwrap();
+            base64_engine.encode_slice(pattern, &mut buf).unwrap();
 
         // Now `buf` contains the base64 string, but we must adjust the length
         // to match the actual size of the string, as returned by
         // `encode_slice`.
         buf.truncate(base64_len);
 
-        // Trim 0 bytes from the right if the pattern's length - i is multiple
-        // of 3, or 1 if otherwise.
-        let right_trim = usize::from((pattern.len() - i) % 3 != 0);
+        // If the pattern's length is not multiple of 3 remove the right-most
+        // character from the produced base64.
+        let right_trim = usize::from(pattern.len() % 3 != 0);
 
+        // Depending on the amount of padding applied we must discard a certain
+        // number of characters from the left of the produced base64 strings.
         let range = match i {
-            // "XX" + s
+            // "XX" + s, 3 characters discarded from the left of the base64
+            // string, as they are affected by "XX".
             0 => 3..base64_len - right_trim,
-            // "X" + s
+            // "X" + s, 2 characters discarded from the left of the base64
+            // string, as they are affected by "X".
             1 => 2..base64_len - right_trim,
-            // s
+            // s, no bytes discarded from the left.
             2 => 0..base64_len - right_trim,
             _ => unreachable!(),
         };
 
-        base64_patterns.push((range.start, BString::from(&buf[range])));
+        base64_patterns.push((2 - i, BString::from(&buf[range])));
     }
 
     base64_patterns
@@ -133,8 +144,8 @@ mod test {
         assert_eq!(
             base64_patterns(b"fo", None),
             vec![
-                (3, BString::from("mb")),
-                (2, BString::from("Zv")),
+                (2, BString::from("mb")),
+                (1, BString::from("Zv")),
                 (0, BString::from("Zm"))
             ]
         );
@@ -142,8 +153,8 @@ mod test {
         assert_eq!(
             base64_patterns(b"foo", None),
             vec![
-                (3, BString::from("mb2")),
-                (2, BString::from("Zvb")),
+                (2, BString::from("mb2")),
+                (1, BString::from("Zvb")),
                 (0, BString::from("Zm9v")),
             ]
         );
@@ -151,8 +162,8 @@ mod test {
         assert_eq!(
             base64_patterns(b"foob", None),
             vec![
-                (3, BString::from("mb29i")),
-                (2, BString::from("Zvb2")),
+                (2, BString::from("mb29i")),
+                (1, BString::from("Zvb2")),
                 (0, BString::from("Zm9vY"))
             ]
         );
@@ -160,8 +171,8 @@ mod test {
         assert_eq!(
             base64_patterns(b"fooba", None),
             vec![
-                (3, BString::from("mb29iY")),
-                (2, BString::from("Zvb2Jh")),
+                (2, BString::from("mb29iY")),
+                (1, BString::from("Zvb2Jh")),
                 (0, BString::from("Zm9vYm"))
             ]
         );
@@ -169,8 +180,8 @@ mod test {
         assert_eq!(
             base64_patterns(b"foobar", None),
             vec![
-                (3, BString::from("mb29iYX")),
-                (2, BString::from("Zvb2Jhc")),
+                (2, BString::from("mb29iYX")),
+                (1, BString::from("Zvb2Jhc")),
                 (0, BString::from("Zm9vYmFy"))
             ]
         );
@@ -178,8 +189,8 @@ mod test {
         assert_eq!(
             base64_patterns(b"foobar", Some("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")),
             vec![
-                (3, BString::from("mb29iYX")),
-                (2, BString::from("Zvb2Jhc")),                      
+                (2, BString::from("mb29iYX")),
+                (1, BString::from("Zvb2Jhc")),                      
                 (0, BString::from("Zm9vYmFy"))
             ]
         );
@@ -187,8 +198,8 @@ mod test {
         assert_eq!(
             base64_patterns(b"foobar", Some("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")),
             vec![
-                (3, BString::from("kZ07gWV")),
-                (2, BString::from("XtZ0Hfa")),
+                (2, BString::from("kZ07gWV")),
+                (1, BString::from("XtZ0Hfa")),
                 (0, BString::from("Xk7tWkDw"))
             ]
         );

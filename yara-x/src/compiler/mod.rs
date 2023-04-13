@@ -4,6 +4,7 @@ YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
 use aho_corasick::AhoCorasick;
+use bstr::ByteSlice;
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -13,7 +14,10 @@ use std::{fmt, mem};
 use walrus::ir::InstrSeqId;
 use walrus::{FunctionId, Module, ValType};
 
-use crate::compiler::atoms::{Atom, Atoms};
+use crate::compiler::atoms::base64::base64_patterns;
+use crate::compiler::atoms::{
+    best_atom_from_slice_range, Atom, CaseGenerator, XorGenerator,
+};
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
@@ -111,9 +115,12 @@ pub struct Compiler<'a> {
     /// an index in this vector.
     rules: Vec<RuleInfo>,
 
-    /// A vector with all the patterns from all the rules. A [`PatternId`]
-    /// is an index in this vector.
-    patterns: Vec<Pattern>,
+    /// Next (not unused yet) [`PatternId`].
+    next_pattern_id: PatternId,
+
+    /// A vector with all the sub-patterns from all the rules. A
+    /// [`SubPatternId`] is an index in this vector.
+    sub_patterns: Vec<(PatternId, SubPattern)>,
 
     /// A vector that contains all the atoms generated for the patterns. Each
     /// atom has an associated [`PatternId`] that indicates the pattern it
@@ -164,10 +171,11 @@ impl<'a> Compiler<'a> {
         Self {
             ident_pool,
             symbol_table,
+            next_pattern_id: 0,
             current_namespace: default_namespace,
             warnings: Vec::new(),
             rules: Vec::new(),
-            patterns: Vec::new(),
+            sub_patterns: Vec::new(),
             atoms: Vec::new(),
             imported_modules: Vec::new(),
             modules_struct: Struct::new(),
@@ -294,11 +302,12 @@ impl<'a> Compiler<'a> {
             ac,
             compiled_wasm_mod,
             wasm_mod,
+            num_patterns: self.next_pattern_id as usize,
             ident_pool: self.ident_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
             rules: self.rules,
-            patterns: self.patterns,
+            sub_patterns: self.sub_patterns,
             atoms: self.atoms,
         })
     }
@@ -318,6 +327,13 @@ impl<'a> Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
+    #[inline]
+    fn push_sub_pattern(&mut self, sub_pattern: SubPattern) -> SubPatternId {
+        let id = self.sub_patterns.len();
+        self.sub_patterns.push((self.next_pattern_id, sub_pattern));
+        SubPatternId(id as u32)
+    }
+
     fn process_rule(
         &mut self,
         src: &SourceCode,
@@ -333,61 +349,20 @@ impl<'a> Compiler<'a> {
                 let ident_id =
                     self.ident_pool.get_or_intern(pattern.identifier().name);
 
-                // PatternId is the index of the pattern in `self.patterns`.
-                let pattern_id = self.patterns.len() as PatternId;
-
-                for atom in pattern.atoms() {
-                    self.atoms.push(AtomInfo { pattern_id, atom })
-                }
-
-                let pattern = match pattern {
-                    ast::Pattern::Text(p) => {
-                        let id = self.lit_pool.get_or_intern(p.value.as_ref());
-
-                        if let Some(PatternModifier::Base64 {
-                            alphabet, ..
-                        }) = p.modifiers.base64()
-                        {
-                            debug_assert!(p.modifiers.nocase().is_none());
-                            debug_assert!(p.modifiers.xor().is_none());
-                            debug_assert!(p.modifiers.fullword().is_none());
-
-                            if let Some(alphabet) = alphabet {
-                                Pattern::Base64Custom(
-                                    id,
-                                    self.lit_pool.get_or_intern(*alphabet),
-                                )
-                            } else {
-                                Pattern::Base64(id)
-                            }
-                        } else if p.modifiers.xor().is_some() {
-                            debug_assert!(p.modifiers.nocase().is_none());
-                            debug_assert!(p.modifiers.base64().is_none());
-                            debug_assert!(p.modifiers.base64wide().is_none());
-
-                            Pattern::Xor(id)
-                        } else if p.modifiers.nocase().is_some() {
-                            debug_assert!(p.modifiers.base64().is_none());
-                            debug_assert!(p.modifiers.base64wide().is_none());
-
-                            Pattern::FixedCaseInsensitive(id)
-                        } else {
-                            Pattern::Fixed(id)
-                        }
+                match pattern {
+                    Pattern::Text(p) => {
+                        self.process_text_pattern(p.as_ref());
                     }
-                    ast::Pattern::Hex(_) => {
+                    Pattern::Hex(_) => {
                         // TODO
-                        Pattern::Regexp
                     }
-                    ast::Pattern::Regexp(_) => {
+                    Pattern::Regexp(_) => {
                         // TODO
-                        Pattern::Regexp
                     }
                 };
 
-                self.patterns.push(pattern);
-
-                pairs.push((ident_id, pattern_id));
+                pairs.push((ident_id, self.next_pattern_id));
+                self.next_pattern_id += 1;
             }
             pairs
         } else {
@@ -458,6 +433,81 @@ impl<'a> Compiler<'a> {
         assert_eq!(ctx.vars_stack_top, 0);
 
         Ok(())
+    }
+
+    fn process_text_pattern(&mut self, p: &TextPattern) {
+        let id = self.lit_pool.get_or_intern(p.value.as_ref());
+        let mut atoms = Vec::new();
+
+        if let Some(PatternModifier::Base64 { alphabet, .. }) =
+            p.modifiers.base64()
+        {
+            debug_assert!(p.modifiers.nocase().is_none());
+            debug_assert!(p.modifiers.xor().is_none());
+            debug_assert!(p.modifiers.fullword().is_none());
+
+            for (padding, pattern) in
+                base64_patterns(p.value.as_ref(), alphabet.to_owned())
+            {
+                let sub_pattern = if let Some(alphabet) = alphabet {
+                    let alphabet_id = self.lit_pool.get_or_intern(*alphabet);
+                    match padding {
+                        0 => SubPattern::CustomBase64_0(id, alphabet_id),
+                        1 => SubPattern::CustomBase64_1(id, alphabet_id),
+                        2 => SubPattern::CustomBase64_2(id, alphabet_id),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    match padding {
+                        0 => SubPattern::Base64_0(id),
+                        1 => SubPattern::Base64_1(id),
+                        2 => SubPattern::Base64_2(id),
+                        _ => unreachable!(),
+                    }
+                };
+
+                let sub_pattern_id = self.push_sub_pattern(sub_pattern);
+                let atom = best_atom_from_slice_range(pattern.as_slice());
+
+                atoms.push(AtomInfo { sub_pattern_id, atom })
+            }
+        } else if let Some(PatternModifier::Xor { start, end, .. }) =
+            p.modifiers.xor()
+        {
+            debug_assert!(p.modifiers.nocase().is_none());
+            debug_assert!(p.modifiers.base64().is_none());
+            debug_assert!(p.modifiers.base64wide().is_none());
+
+            let sub_pattern_id = self.push_sub_pattern(SubPattern::Xor(id));
+            let atom = best_atom_from_slice_range(p.value.as_ref().as_bytes());
+
+            atoms.reserve((end - start) as usize + 1);
+
+            for atom in XorGenerator::new(&atom, *start..=*end) {
+                atoms.push(AtomInfo { sub_pattern_id, atom });
+            }
+        } else if p.modifiers.nocase().is_some() {
+            debug_assert!(p.modifiers.base64().is_none());
+            debug_assert!(p.modifiers.base64wide().is_none());
+
+            let sub_pattern_id =
+                self.push_sub_pattern(SubPattern::FixedCaseInsensitive(id));
+
+            let atom = best_atom_from_slice_range(p.value.as_ref().as_bytes());
+
+            for atom in CaseGenerator::new(&atom) {
+                atoms.push(AtomInfo { sub_pattern_id, atom });
+            }
+        } else {
+            let sub_pattern_id = self.push_sub_pattern(SubPattern::Fixed(id));
+
+            let best_atom =
+                best_atom_from_slice_range(p.value.as_ref().as_bytes());
+
+            atoms.push(AtomInfo { sub_pattern_id, atom: best_atom })
+        };
+
+        self.atoms.extend(atoms);
     }
 
     fn process_imports(
@@ -633,11 +683,28 @@ impl From<LiteralId> for u64 {
     }
 }
 
-/// ID associated to each pattern.
-pub(crate) type PatternId = i32;
-
 /// ID associated to each rule.
 pub(crate) type RuleId = i32;
+
+/// ID associated to each pattern.
+///
+/// For each unique pattern defined in a set of YARA rules there's a PatternId
+/// that identifies it. If two different rules define exactly the same pattern
+/// there's a single instance of the pattern and therefore a single PatternId
+/// shared by both rules. Two patterns are considered equal when the have the
+/// same data and modifiers, but the identifier is not relevant. For example,
+/// if one rule defines `$a = "mz"` and another one `$mz = "mz"`, the pattern
+/// `"mz"` is shared by the two rules. Each rule has a Vec<(IdentId, PatternId)>
+/// that associates identifiers to their corresponding patterns.
+pub(crate) type PatternId = i32;
+
+/// ID associated to each sub-pattern.
+///
+/// For each pattern there's one or more sub-patterns, depending on the pattern
+/// and its modifiers. For example the pattern `"foo" ascii wide` may have one
+/// subpattern for the ascii case and another one for the wide case.
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct SubPatternId(u32);
 
 /// Structure that contains information and data structures required during the
 /// current compilation process.
@@ -828,15 +895,17 @@ pub struct Rules {
     /// in this vector.
     rules: Vec<RuleInfo>,
 
-    /// Vector with all the patterns used in the rules. This vector has not
-    /// duplicated items, if two different rules use the "MZ" pattern, it
-    /// appears in this list once. A [`PatternId`] is an index in this
-    /// vector.
-    patterns: Vec<Pattern>,
+    /// Total number of patterns in all rules. This is equal to the last
+    /// [`PatternId`] +  1.
+    num_patterns: usize,
+
+    /// Vector with all the sub-patterns used in the rules. A [`SubPatternId`]
+    /// is an index in this vector.
+    sub_patterns: Vec<(PatternId, SubPattern)>,
 
     /// A vector that contains all the atoms generated for the patterns. Each
-    /// atom has an associated [`PatternId`] that indicates the pattern it
-    /// belongs to.
+    /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
+    /// it belongs to.
     atoms: Vec<AtomInfo>,
 
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
@@ -861,15 +930,23 @@ impl Rules {
         self.rules.as_slice()
     }
 
-    /// Returns an slice with the individual patterns that were compiled.
+    /// Returns a sub-pattern by [`SubPatternId`].
     #[inline]
-    pub(crate) fn patterns(&self) -> &[Pattern] {
-        self.patterns.as_slice()
+    pub(crate) fn get_sub_pattern(
+        &self,
+        sub_pattern_id: SubPatternId,
+    ) -> &(PatternId, SubPattern) {
+        &self.sub_patterns[sub_pattern_id.0 as usize]
     }
 
     #[inline]
     pub(crate) fn atoms(&self) -> &[AtomInfo] {
         self.atoms.as_slice()
+    }
+
+    #[inline]
+    pub(crate) fn num_patterns(&self) -> usize {
+        self.num_patterns
     }
 
     /// Returns the Aho-Corasick automaton that allows to search for pattern
@@ -947,16 +1024,32 @@ impl<'r> Rule<'r> {
 }
 
 pub(crate) struct AtomInfo {
-    pub pattern_id: PatternId,
+    pub sub_pattern_id: SubPatternId,
     pub atom: Atom,
 }
 
-/// A pattern (a.k.a string) in the compiled rules.
-pub(crate) enum Pattern {
+/// A sub-pattern in the compiled rules.
+///
+/// Each pattern in a rule has one ore more associated sub-patterns. For
+/// example, the pattern `$a = "foo" ascii wide` has a sub-pattern for the
+/// ASCII variant of "foo", and another one for the wide variant.
+///
+/// Also, each [`Atom`] is associated to a [`SubPattern`]. When the atom is
+/// found in the scanned data by the Aho-Corasick algorithm, the scanner
+/// verifies that the sub-pattern actually matches.
+pub(crate) enum SubPattern {
     Fixed(LiteralId),
     FixedCaseInsensitive(LiteralId),
     Xor(LiteralId),
-    Base64(LiteralId),
-    Base64Custom(LiteralId, LiteralId),
-    Regexp,
+
+    // A base64 pattern. There are three variants, each representing
+    // a different amount of padding.
+    Base64_0(LiteralId),
+    Base64_1(LiteralId),
+    Base64_2(LiteralId),
+
+    // Like Base64_X, but with a custom base64 alphabet.
+    CustomBase64_0(LiteralId, LiteralId),
+    CustomBase64_1(LiteralId, LiteralId),
+    CustomBase64_2(LiteralId, LiteralId),
 }

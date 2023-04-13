@@ -53,21 +53,16 @@ will end up using the `"Look"` atom alone, but in `/a(bcd|efg)h/` atoms `"bcd"`
 and `"efg"` will be used because `"a"` and `"h"` are too short.
  */
 
-mod base64;
+pub mod base64;
 mod mask;
 mod quality;
 
-use bstr::ByteSlice;
 use itertools::{Itertools, MultiProduct};
 use std::cmp;
 use std::collections::Bound;
 use std::ops::{RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
 use std::vec::IntoIter;
-
-use crate::compiler::atoms::base64::base64_patterns;
-use yara_x_parser::ast;
-use yara_x_parser::ast::PatternModifier;
 
 use crate::compiler::atoms::mask::ByteMaskCombinator;
 use crate::compiler::atoms::quality::{atom_quality, masked_atom_quality};
@@ -189,21 +184,7 @@ impl MaskedAtom {
     }
 }
 
-pub(super) trait Atoms {
-    fn atoms(&self) -> Vec<Atom>;
-}
-
-impl Atoms for ast::Pattern<'_> {
-    fn atoms(&self) -> Vec<Atom> {
-        match self {
-            ast::Pattern::Text(p) => p.atoms(),
-            ast::Pattern::Hex(p) => p.atoms(),
-            ast::Pattern::Regexp(p) => p.atoms(),
-        }
-    }
-}
-
-fn best_atom_from_slice_range(s: &[u8]) -> Atom {
+pub(super) fn best_atom_from_slice_range(s: &[u8]) -> Atom {
     let mut best_quality = 0;
     let mut best_atom = None;
 
@@ -220,71 +201,6 @@ fn best_atom_from_slice_range(s: &[u8]) -> Atom {
     }
 
     best_atom.expect("at least one atom should be generated")
-}
-
-impl Atoms for ast::TextPattern<'_> {
-    fn atoms(&self) -> Vec<Atom> {
-        let pattern = self.value.as_ref().as_bytes();
-        let mut atoms = Vec::new();
-
-        if let Some(PatternModifier::Base64 { alphabet, .. }) =
-            self.modifiers.base64()
-        {
-            for (offset, pat) in base64_patterns(pattern, alphabet.to_owned())
-            {
-                let mut atom = best_atom_from_slice_range(pat.as_slice());
-                // Increase the atom's backtrack amount by the offset reported
-                // by base64_patterns. This means the the matching offset won't
-                // correspond to the position where the pattern starts, but to
-                // a position where it is safe to start decoding the base64
-                // string. This is 0, 2 or 3 bytes before the point where the
-                // base64 pattern matched.
-                atom.backtrack += offset as u16;
-                atoms.push(atom);
-            }
-        } else {
-            // Extract the highest-quality atom from the pattern.
-            let best_atom = best_atom_from_slice_range(pattern);
-
-            if self.modifiers.nocase().is_some() {
-                atoms.extend(CaseGenerator::new(&best_atom));
-            } else {
-                atoms.push(best_atom);
-            }
-
-            if let Some(PatternModifier::Xor { start, end, .. }) =
-                self.modifiers.xor()
-            {
-                let mut xored_atoms = Vec::with_capacity(
-                    atoms.len() * (end - start) as usize + 1,
-                );
-
-                for atom in atoms.iter() {
-                    for xored_atom in XorGenerator::new(atom, *start..=*end) {
-                        xored_atoms.push(xored_atom);
-                    }
-                }
-
-                atoms = xored_atoms
-            }
-        }
-
-        atoms
-    }
-}
-
-impl Atoms for ast::RegexpPattern<'_> {
-    fn atoms(&self) -> Vec<Atom> {
-        // TODO
-        Vec::new()
-    }
-}
-
-impl Atoms for ast::HexPattern<'_> {
-    fn atoms(&self) -> Vec<Atom> {
-        // TODO
-        Vec::new()
-    }
 }
 
 /// Expands a [`MaskedAtom`] into multiple [`Atom`] by trying all the possible
@@ -393,14 +309,9 @@ impl Iterator for XorGenerator {
 #[cfg(test)]
 mod test {
     use crate::compiler::atoms::{
-        Atom, Atoms, CaseGenerator, MaskedAtom, XorGenerator,
+        Atom, CaseGenerator, MaskedAtom, XorGenerator,
     };
-    use bstr::BString;
     use pretty_assertions::assert_eq;
-    use std::borrow::Cow;
-    use yara_x_parser::ast;
-    use yara_x_parser::ast::{Ident, PatternModifiers, Span};
-    use yara_x_parser::types::TypeValue;
 
     #[test]
     fn atom_expander() {
@@ -456,59 +367,5 @@ mod test {
         assert_eq!(c.next(), Some(Atom::from([0x00, 0x01, 0x02])));
         assert_eq!(c.next(), Some(Atom::from([0x01, 0x00, 0x03])));
         assert_eq!(c.next(), None);
-    }
-
-    #[test]
-    fn text_pattern_atoms() {
-        let text_pattern = ast::TextPattern {
-            span: Span::default(),
-            identifier: Ident {
-                span: Span::default(),
-                type_value: TypeValue::Unknown,
-                name: "",
-            },
-            value: Cow::Owned(BString::from("abcdef")),
-            modifiers: PatternModifiers::default(),
-        };
-
-        let expected_atom = Atom::from_slice_range("abcdef".as_bytes(), 0..4);
-
-        assert_eq!(expected_atom.as_ref(), "abcd".as_bytes());
-        assert_eq!(expected_atom.backtrack, 0);
-        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
-
-        let text_pattern = ast::TextPattern {
-            span: Span::default(),
-            identifier: Ident {
-                span: Span::default(),
-                type_value: TypeValue::Unknown,
-                name: "",
-            },
-            value: Cow::Owned(BString::from("ab")),
-            modifiers: PatternModifiers::default(),
-        };
-
-        let expected_atom = Atom::from_slice_range("ab".as_bytes(), 0..2);
-
-        assert_eq!(expected_atom.as_ref(), "ab".as_bytes());
-        assert_eq!(expected_atom.backtrack, 0);
-        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
-
-        let text_pattern = ast::TextPattern {
-            span: Span::default(),
-            identifier: Ident {
-                span: Span::default(),
-                type_value: TypeValue::Unknown,
-                name: "",
-            },
-            value: Cow::Owned(BString::from("abcd0")),
-            modifiers: PatternModifiers::default(),
-        };
-
-        let expected_atom = Atom::from_slice_range("abcd0".as_bytes(), 1..=4);
-
-        assert_eq!(expected_atom.as_ref(), "bcd0".as_bytes());
-        assert_eq!(expected_atom.backtrack, 1);
-        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
     }
 }

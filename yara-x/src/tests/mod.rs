@@ -571,6 +571,18 @@ fn base64() {
         b"eHhmb29i" // base64("xxfoob")
     );
 
+    rule_false!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"mb29iYQ" // base64("xxfooba")
+    );
+
     // In the C implementation of YARA the `base64` modifier could produce
     // false positives like this. In this implementation the issue is fixed.
     rule_false!(

@@ -24,7 +24,7 @@ use yara_x_parser::types::{Struct, TypeValue};
 use crate::compiler::{Rule, RuleId, Rules};
 use crate::string_pool::BStringPool;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, wasm, AtomInfo, LiteralId, Pattern, PatternId};
+use crate::{modules, wasm, AtomInfo, LiteralId, PatternId, SubPattern};
 
 #[cfg(test)]
 mod tests;
@@ -81,7 +81,7 @@ impl<'r> Scanner<'r> {
         .unwrap();
 
         let num_rules = rules.rules().len() as u32;
-        let num_patterns = rules.patterns().len() as u32;
+        let num_patterns = rules.num_patterns() as u32;
 
         // Compute the base offset for the bitmap that contains matching
         // information for patterns. This bitmap has 1 bit per pattern,
@@ -259,7 +259,7 @@ impl<'r> Scanner<'r> {
     fn clear_matches(&mut self) {
         let ctx = self.wasm_store.data_mut();
         let num_rules = ctx.compiled_rules.rules().len();
-        let num_patterns = ctx.compiled_rules.patterns().len();
+        let num_patterns = ctx.compiled_rules.num_patterns();
 
         if ctx.patterns_found || !ctx.rules_matching.is_empty() {
             // Clear the list of matching rules.
@@ -490,29 +490,51 @@ impl ScanContext<'_> {
                 continue;
             }
 
-            let pattern = &self.compiled_rules.patterns()
-                [matched_atom.pattern_id as usize];
+            let (pattern_id, sub_pattern) = &self
+                .compiled_rules
+                .get_sub_pattern(matched_atom.sub_pattern_id);
 
-            let pattern_matched = match pattern {
-                Pattern::Fixed(pattern_lit_id) => self.verify_fixed_match(
+            let match_verified = match sub_pattern {
+                SubPattern::Fixed(pattern_lit_id) => self.verify_fixed_match(
                     match_start,
                     *pattern_lit_id,
                     false,
                 ),
-                Pattern::FixedCaseInsensitive(pattern_lit_id) => {
+                SubPattern::FixedCaseInsensitive(pattern_lit_id) => {
                     self.verify_fixed_match(match_start, *pattern_lit_id, true)
                 }
-                Pattern::Xor(pattern_lit_id) => self.verify_xor_match(
+                SubPattern::Xor(pattern_lit_id) => self.verify_xor_match(
                     match_start,
                     matched_atom,
                     *pattern_lit_id,
                 ),
-                Pattern::Base64(pattern_lit_id) => self.verify_base64_match(
-                    match_start,
-                    *pattern_lit_id,
-                    None,
-                ),
-                Pattern::Base64Custom(pattern_lit_id, alphabet_lit_id) => {
+                SubPattern::Base64_0(pattern_lit_id)
+                | SubPattern::Base64_1(pattern_lit_id)
+                | SubPattern::Base64_2(pattern_lit_id) => self
+                    .verify_base64_match(
+                        match sub_pattern {
+                            SubPattern::Base64_0(_) => 0,
+                            SubPattern::Base64_1(_) => 1,
+                            SubPattern::Base64_2(_) => 2,
+                            _ => unreachable!(),
+                        },
+                        match_start,
+                        *pattern_lit_id,
+                        None,
+                    ),
+
+                SubPattern::CustomBase64_0(
+                    pattern_lit_id,
+                    alphabet_lit_id,
+                )
+                | SubPattern::CustomBase64_1(
+                    pattern_lit_id,
+                    alphabet_lit_id,
+                )
+                | SubPattern::CustomBase64_2(
+                    pattern_lit_id,
+                    alphabet_lit_id,
+                ) => {
                     let alphabet = self
                         .compiled_rules
                         .lit_pool()
@@ -529,18 +551,24 @@ impl ScanContext<'_> {
                     assert!(alphabet.is_some());
 
                     self.verify_base64_match(
+                        match sub_pattern {
+                            SubPattern::CustomBase64_0(_, _) => 0,
+                            SubPattern::CustomBase64_1(_, _) => 1,
+                            SubPattern::CustomBase64_2(_, _) => 2,
+                            _ => unreachable!(),
+                        },
                         match_start,
                         *pattern_lit_id,
                         alphabet,
                     )
                 }
-                Pattern::Regexp => {
+                SubPattern::Regexp => {
                     todo!()
                 }
             };
 
-            if pattern_matched {
-                self.track_pattern_match(matched_atom.pattern_id);
+            if match_verified {
+                self.track_pattern_match(*pattern_id);
             }
         }
     }
@@ -604,80 +632,75 @@ impl ScanContext<'_> {
 
     fn verify_base64_match(
         &self,
+        padding: usize,
         match_start: usize,
         pattern_id: LiteralId,
         alphabet: Option<base64::alphabet::Alphabet>,
     ) -> bool {
-        let base64_engine = base64::engine::GeneralPurpose::new(
-            alphabet.as_ref().unwrap_or(&base64::alphabet::STANDARD),
-            base64::engine::general_purpose::NO_PAD,
-        );
-
-        // matched_data is the scanned data from match_start to the end of the
-        // scanned buffer. Due to the way in which the atoms are constructed it
-        // safe to start decoding the base64 string at match_start. See the
-        // documentation for compiler::atoms::base64::base64_patterns for more
-        // details.
-        let matched_data = &self.scanned_data()[match_start..];
-
-        // The length of the matched base64 string must be at least 4. This is
-        // guaranteed because any string with at least 3 bytes results in 4
-        // characters or more when encoded to base64, and strings shorter than
-        // 3 bytes can not be used with the `base64` modifier.
-        assert!(matched_data.len() >= 4);
-
         // The pattern is stored in its original form, not encoded as base64.
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
 
         // Compute the size of the pattern once it is encoded as base64.
         let len = base64::encoded_len(pattern.len(), false).unwrap();
 
-        // Decode the first 4 characters in the matched base64 string. This
-        // results in exactly 3 bytes after decoding.
-        let mut prefix = [0; 3];
-        base64_engine.decode_slice(&matched_data[0..4], &mut prefix).unwrap();
-
-        // There are three cases in which pattern `foobar` can match, when:
-        //
-        // 1 - decoded_prefix is `foo`
-        // 2 - decoded_prefix is `?fo`
-        // 3 - decoded_prefix is `??f`
-        //
-        // Here `?` represents any arbitrary character. Try the 3 alternatives
-        // in a loop.
-        for i in 0..3 {
-            if let Some(pattern_remainder) = pattern.strip_prefix(&prefix[i..])
-            {
-                let len = match i {
-                    0 => len,
-                    1 => match len % 4 {
-                        0 => len + 2,
-                        2 => len + 1,
-                        3 => len + 1,
-                        _ => unreachable!(),
-                    },
-                    2 => match len % 4 {
-                        0 => len + 3,
-                        2 => len + 2,
-                        3 => len + 3,
-                        _ => unreachable!(),
-                    },
-                    _ => unreachable!(),
-                };
-
-                if len > matched_data.len() {
+        // The base64 pattern was found at match_start, but decoding the base64
+        // string starting at that position is not ok, as it may not be the
+        // real starting point for the base64 string (remember that some
+        // characters may have been removed from the left and right of the
+        // pattern). Based on the padding and the pattern's length, we decide
+        // where to start decoding and how many characters to use. The starting
+        // point is either at match_start, match_start - 2, or match_start - 3,
+        // depending on the padding. That's ok even if the base64 string in the
+        // scanned data starts way before match_start, we are relying on the
+        // fact that you can partially decode a base64 string starting from a
+        // middle point, provided that this point is at a 4-characters boundary
+        // within the string.
+        let range = match padding {
+            0 => match_start..match_start + len,
+            1 => {
+                if match_start < 2 {
                     return false;
                 }
-
-                let decoded_remainder =
-                    base64_engine.decode(&matched_data[4..len]).unwrap();
-
-                if pattern_remainder.eq(&decoded_remainder) {
-                    return true;
+                match len % 4 {
+                    0 => match_start - 2..match_start + len,
+                    2 => match_start - 2..match_start + len - 1,
+                    3 => match_start - 2..match_start + len - 1,
+                    _ => unreachable!(),
                 }
             }
+            2 => {
+                if match_start < 3 {
+                    return false;
+                }
+                match len % 4 {
+                    0 => match_start - 3..match_start + len,
+                    2 => match_start - 3..match_start + len - 1,
+                    3 => match_start - 3..match_start + len,
+                    _ => unreachable!(),
+                }
+            }
+            _ => unreachable!(),
+        };
+
+        if range.end > self.scanned_data_len {
+            return false;
         }
 
-        false
+        let base64_string = &self.scanned_data()[range];
+
+        // The length of the matched base64 string must be at least 4. This is
+        // guaranteed because any string with at least 3 bytes results in 4
+        // characters or more when encoded to base64, and strings shorter than
+        // 3 bytes can not be used with the `base64` modifier.
+        assert!(base64_string.len() >= 4);
+
+        let base64_engine = base64::engine::GeneralPurpose::new(
+            alphabet.as_ref().unwrap_or(&base64::alphabet::STANDARD),
+            base64::engine::general_purpose::NO_PAD,
+        );
+
+        let decoded = base64_engine.decode(&base64_string).unwrap();
+
+        pattern.eq(&decoded[padding..])
     }
 }
