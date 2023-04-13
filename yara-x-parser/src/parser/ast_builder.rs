@@ -211,8 +211,8 @@ lazy_static! {
 ///
 /// Certain modifiers can't be used in conjunction, and this function
 /// returns an error in those cases.
-fn check_pattern_modifiers<'src>(
-    ctx: &mut Context<'src, '_>,
+fn check_pattern_modifiers(
+    ctx: &mut Context<'_, '_>,
     rule_type: GrammarRule,
     modifiers: &PatternModifiers,
 ) -> Result<(), Error> {
@@ -1094,7 +1094,7 @@ fn boolean_term_from_cst<'src>(
         GrammarRule::expr => {
             // See comments in `boolean_expr_from_cst` for some explanation
             // of the logic below.
-            let expr = PRATT_PARSER
+            PRATT_PARSER
                 .map_primary(|pair| {
                     expr_from_cst(
                         ctx,
@@ -1108,9 +1108,7 @@ fn boolean_term_from_cst<'src>(
                         create_binary_expr(lhs?, op.as_rule(), rhs?)
                     },
                 )
-                .parse(children.map(|node| node.into_pair()))?;
-
-            expr
+                .parse(children.map(|node| node.into_pair()))?
         }
         GrammarRule::of_expr => {
             of_expr_from_cst(ctx, children.next().unwrap())?
