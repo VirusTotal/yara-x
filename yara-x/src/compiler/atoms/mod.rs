@@ -53,6 +53,7 @@ will end up using the `"Look"` atom alone, but in `/a(bcd|efg)h/` atoms `"bcd"`
 and `"efg"` will be used because `"a"` and `"h"` are too short.
  */
 
+mod base64;
 mod mask;
 mod quality;
 
@@ -64,6 +65,7 @@ use std::ops::{RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
 use std::vec::IntoIter;
 
+use crate::compiler::atoms::base64::base64_patterns;
 use yara_x_parser::ast;
 use yara_x_parser::ast::PatternModifier;
 
@@ -183,7 +185,7 @@ impl MaskedAtom {
     }
 
     pub fn expand(&self) -> MaskedAtomExpander {
-        MaskedAtomExpander::new(&self)
+        MaskedAtomExpander::new(self)
     }
 }
 
@@ -201,52 +203,70 @@ impl Atoms for ast::Pattern<'_> {
     }
 }
 
+fn best_atom_from_slice_range(s: &[u8]) -> Atom {
+    let mut best_quality = 0;
+    let mut best_atom = None;
+
+    for i in 0..=s.len().saturating_sub(DESIRED_ATOM_SIZE) {
+        let atom = Atom::from_slice_range(
+            s,
+            i..cmp::min(s.len(), i + DESIRED_ATOM_SIZE),
+        );
+        let quality = atom.quality();
+        if quality > best_quality {
+            best_quality = quality;
+            best_atom = Some(atom);
+        }
+    }
+
+    best_atom.expect("at least one atom should be generated")
+}
+
 impl Atoms for ast::TextPattern<'_> {
     fn atoms(&self) -> Vec<Atom> {
-        let pattern_bytes = self.value.as_ref().as_bytes();
-        let pattern_len = pattern_bytes.len();
-
-        let mut max_quality = 0;
-        let mut best_atom = None;
+        let pattern = self.value.as_ref().as_bytes();
         let mut atoms = Vec::new();
 
-        // Extract the highest-quality atom from the pattern.
-        for i in 0..=pattern_len.checked_sub(DESIRED_ATOM_SIZE).unwrap_or(0) {
-            let atom = Atom::from_slice_range(
-                pattern_bytes,
-                i..cmp::min(pattern_len, i + DESIRED_ATOM_SIZE),
-            );
-            let quality = atom.quality();
-            if quality > max_quality {
-                max_quality = quality;
-                best_atom = Some(atom);
-            }
-        }
-
-        // The best atom *MUST* exist, if it is not that good.
-        let best_atom = best_atom.unwrap();
-
-        if self.modifiers.nocase().is_none() {
-            atoms.push(best_atom);
-        } else {
-            atoms.extend(CaseGenerator::new(&best_atom));
-        }
-
-        if let Some(PatternModifier::Xor { start, end, .. }) =
-            self.modifiers.xor()
+        if let Some(PatternModifier::Base64 { alphabet, .. }) =
+            self.modifiers.base64()
         {
-            let mut xored_atoms =
-                Vec::with_capacity(atoms.len() * (end - start) as usize + 1);
+            for (offset, pat) in base64_patterns(pattern, alphabet.to_owned())
+            {
+                let mut atom = best_atom_from_slice_range(pat.as_slice());
+                // Increase the atom's backtrack amount by the offset reported
+                // by base64_patterns. This means the the matching offset won't
+                // correspond to the position where the pattern starts, but to
+                // a position where it is safe to start decoding the base64
+                // string. This is 0, 2 or 3 bytes before the point where the
+                // base64 pattern matched.
+                atom.backtrack += offset as u16;
+                atoms.push(atom);
+            }
+        } else {
+            // Extract the highest-quality atom from the pattern.
+            let best_atom = best_atom_from_slice_range(pattern);
 
-            for atom in atoms.iter() {
-                for xored_atom in
-                    XorGenerator::new(atom, *start..=*end).into_iter()
-                {
-                    xored_atoms.push(xored_atom);
-                }
+            if self.modifiers.nocase().is_some() {
+                atoms.extend(CaseGenerator::new(&best_atom));
+            } else {
+                atoms.push(best_atom);
             }
 
-            atoms = xored_atoms
+            if let Some(PatternModifier::Xor { start, end, .. }) =
+                self.modifiers.xor()
+            {
+                let mut xored_atoms = Vec::with_capacity(
+                    atoms.len() * (end - start) as usize + 1,
+                );
+
+                for atom in atoms.iter() {
+                    for xored_atom in XorGenerator::new(atom, *start..=*end) {
+                        xored_atoms.push(xored_atom);
+                    }
+                }
+
+                atoms = xored_atoms
+            }
         }
 
         atoms

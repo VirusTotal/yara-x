@@ -76,3 +76,13 @@ But this is not valid...
 ```
 1 of (some_rule*)
 ```
+
+### `base64` modifier can't be used with strings shorter than 3 characters
+
+In YARA 4.x you can use the `base64` modifier with strings shorter than 3 
+characters, but this is an error in YARA-X. In the other hand, YARA-X won't
+produce false positives when the `base64` modifiers is used, as it may happen 
+in YARA 4.x in certain cases. This is a well-known YARA 4.x issue described in
+the documentation:
+
+> Because of the way that YARA strips the leading and trailing characters after base64 encoding, one of the base64 encodings of "Dhis program cannow" and "This program cannot" are identical.

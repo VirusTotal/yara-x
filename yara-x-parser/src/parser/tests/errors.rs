@@ -326,7 +326,7 @@ strings:
   $a = { 00 ~?? 11 }
 condition: true
 }"#,
-            r#"error: invalid hex pattern `$a`
+            r#"error: invalid pattern `$a`
    ╭─[line:4:13]
    │
  4 │   $a = { 00 ~?? 11 }
@@ -363,7 +363,7 @@ strings:
 condition: 
   $a
 }"#,
-            r#"error: invalid hex pattern `$a`
+            r#"error: invalid pattern `$a`
    ╭─[line:4:16]
    │
  4 │   $a = { 01 02 0 }
@@ -644,7 +644,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid hex pattern `$a`
+            r#"error: invalid pattern `$a`
    ╭─[line:4:15]
    │
  4 │     $a = { 11 [2-1] 22 }
@@ -664,7 +664,7 @@ rule test {
     $a
 }
 "#,
-            r#"error: invalid hex pattern `$a`
+            r#"error: invalid pattern `$a`
    ╭─[line:4:15]
    │
  4 │     $a = { 11 [1-2][40-38] 22 }
@@ -886,6 +886,68 @@ rule test {
  4 │     $a = "foo" base64("foo\x00")
    ·                       ────┬────  
    ·                           ╰────── escape sequences are not allowed in this string
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings: 
+    $a = "foo" base64("ff")
+  condition:
+    $a
+}
+        "#,
+            r#"error: invalid base64 alphabet
+   ╭─[line:4:23]
+   │
+ 4 │     $a = "foo" base64("ff")
+   ·                       ──┬─  
+   ·                         ╰─── invalid length - must be 64 bytes
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings: 
+    $a = "aa" base64
+  condition:
+    $a
+}
+        "#,
+            r#"error: invalid pattern `$a`
+   ╭─[line:4:10]
+   │
+ 4 │     $a = "aa" base64
+   ·          ──┬─  
+   ·            ╰─── this pattern is too short
+   · 
+   · Note: `base64` requires that pattern is at least 3 bytes long
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings: 
+    $a = ""
+  condition:
+    $a
+}
+        "#,
+            r#"error: invalid pattern `$a`
+   ╭─[line:4:10]
+   │
+ 4 │     $a = ""
+   ·          ─┬  
+   ·           ╰── this pattern is too short
 ───╯
 "#,
         ),

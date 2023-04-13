@@ -237,8 +237,8 @@ pub enum PatternModifier<'src> {
     Nocase { span: Span },
     Private { span: Span },
     Fullword { span: Span },
-    Base64 { span: Span, alphabet: Option<Cow<'src, BStr>> },
-    Base64Wide { span: Span, alphabet: Option<Cow<'src, BStr>> },
+    Base64 { span: Span, alphabet: Option<&'src str> },
+    Base64Wide { span: Span, alphabet: Option<&'src str> },
     Xor { span: Span, start: u8, end: u8 },
 }
 

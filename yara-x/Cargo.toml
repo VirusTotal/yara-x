@@ -38,6 +38,7 @@ ansi_term = { workspace = true }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
 ascii_tree = { workspace = true }
+base64 = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true }
