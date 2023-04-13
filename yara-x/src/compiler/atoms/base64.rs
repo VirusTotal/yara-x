@@ -32,22 +32,43 @@ use bstr::{BString, ByteVec};
 ///
 /// This function returns the three patterns that can be used for locating the
 /// string `s` withing some data encoded as base64.
+///
+/// Each pattern has an associated offset, that can be either 0, 2 or 3. The
+/// offset indicates how many bytes we must go back in order to find a place
+/// where it is safe to start decoding the string. This rely on the fact that
+/// you can start decoding a base64 string at the middle of it, as long as the
+/// offset is a multiple of 4. The string TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ
+/// can be decoded starting at:
+///
+/// ZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQ
+/// aXBzdW0gZG9sb3Igc2l0IGFtZXQ
+/// dW0gZG9sb3Igc2l0IGFtZXQ
+///
+/// ..etc
+///
+/// When this function returns something like (2, "lwc3Vt") it means that
+/// "lwc3Vt" can appear as part of a longer base64 string containing the
+/// plain-text string "ipsum", and it's safe to decode that base64 string
+/// starting 2 bytes before the offset where "lwc3Vt" was found.
+///
+/// # Panics
+///
+/// If the provided alphabet is not valid. The alphabet must be exactly 64
+/// characters long and can't have repeated characters.
+///
+/// Also panics if the length of s is 1 or less.
 pub(super) fn base64_patterns(
     s: &[u8],
     alphabet: Option<&str>,
-) -> Vec<BString> {
+) -> Vec<(usize, BString)> {
     // The input string must be at least 2 bytes long.
-    // TODO: Ensure that the parser doesn't allow the base64 modifier in strings
-    // of length 1.
     assert!(s.len() > 1);
 
-    let alphabet = if let Some(alphabet) = alphabet {
-        // TODO: what if alphabet is incorrect? Validate it when generating
-        // the AST.
-        base64::alphabet::Alphabet::new(alphabet).unwrap()
-    } else {
-        base64::alphabet::STANDARD
-    };
+    // If some alphabet is provided the caller must guarantee that it is a
+    // valid alphabet.
+    let alphabet = alphabet.map_or(base64::alphabet::STANDARD, |a| {
+        base64::alphabet::Alphabet::new(a).unwrap()
+    });
 
     let base64_engine = base64::engine::GeneralPurpose::new(
         &alphabet,
@@ -94,7 +115,7 @@ pub(super) fn base64_patterns(
             _ => unreachable!(),
         };
 
-        base64_patterns.push(BString::from(&buf[range]));
+        base64_patterns.push((range.start, BString::from(&buf[range])));
     }
 
     base64_patterns
@@ -108,50 +129,66 @@ mod test {
 
     #[test]
     fn base64() {
-        // TODO: test cases with a different alphabet
-
         assert_eq!(
             base64_patterns(b"fo", None),
             vec![
-                BString::from("mb"),
-                BString::from("Zv"),
-                BString::from("Zm")
+                (3, BString::from("mb")),
+                (2, BString::from("Zv")),
+                (0, BString::from("Zm"))
             ]
         );
 
         assert_eq!(
             base64_patterns(b"foo", None),
             vec![
-                BString::from("mb2"),
-                BString::from("Zvb"),
-                BString::from("Zm9v")
+                (3, BString::from("mb2")),
+                (2, BString::from("Zvb")),
+                (0, BString::from("Zm9v")),
             ]
         );
 
         assert_eq!(
             base64_patterns(b"foob", None),
             vec![
-                BString::from("mb29i"),
-                BString::from("Zvb2"),
-                BString::from("Zm9vY")
+                (3, BString::from("mb29i")),
+                (2, BString::from("Zvb2")),
+                (0, BString::from("Zm9vY"))
             ]
         );
 
         assert_eq!(
             base64_patterns(b"fooba", None),
             vec![
-                BString::from("mb29iY"),
-                BString::from("Zvb2Jh"),
-                BString::from("Zm9vYm")
+                (3, BString::from("mb29iY")),
+                (2, BString::from("Zvb2Jh")),
+                (0, BString::from("Zm9vYm"))
             ]
         );
 
         assert_eq!(
             base64_patterns(b"foobar", None),
             vec![
-                BString::from("mb29iYX"),
-                BString::from("Zvb2Jhc"),
-                BString::from("Zm9vYmFy")
+                (3, BString::from("mb29iYX")),
+                (2, BString::from("Zvb2Jhc")),
+                (0, BString::from("Zm9vYmFy"))
+            ]
+        );
+
+        assert_eq!(
+            base64_patterns(b"foobar", Some("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")),
+            vec![
+                (3, BString::from("mb29iYX")),
+                (2, BString::from("Zvb2Jhc")),                      
+                (0, BString::from("Zm9vYmFy"))
+            ]
+        );
+
+        assert_eq!(
+            base64_patterns(b"foobar", Some("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")),
+            vec![
+                (3, BString::from("kZ07gWV")),
+                (2, BString::from("XtZ0Hfa")),
+                (0, BString::from("Xk7tWkDw"))
             ]
         );
     }

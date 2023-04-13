@@ -344,11 +344,32 @@ impl<'a> Compiler<'a> {
                     ast::Pattern::Text(p) => {
                         let id = self.lit_pool.get_or_intern(p.value.as_ref());
 
-                        if p.modifiers.xor().is_some() {
-                            // `nocase` can't be used together with `xor`.
+                        if let Some(PatternModifier::Base64 {
+                            alphabet, ..
+                        }) = p.modifiers.base64()
+                        {
                             debug_assert!(p.modifiers.nocase().is_none());
-                            Pattern::Xored(id)
+                            debug_assert!(p.modifiers.xor().is_none());
+                            debug_assert!(p.modifiers.fullword().is_none());
+
+                            if let Some(alphabet) = alphabet {
+                                Pattern::Base64Custom(
+                                    id,
+                                    self.lit_pool.get_or_intern(*alphabet),
+                                )
+                            } else {
+                                Pattern::Base64(id)
+                            }
+                        } else if p.modifiers.xor().is_some() {
+                            debug_assert!(p.modifiers.nocase().is_none());
+                            debug_assert!(p.modifiers.base64().is_none());
+                            debug_assert!(p.modifiers.base64wide().is_none());
+
+                            Pattern::Xor(id)
                         } else if p.modifiers.nocase().is_some() {
+                            debug_assert!(p.modifiers.base64().is_none());
+                            debug_assert!(p.modifiers.base64wide().is_none());
+
                             Pattern::FixedCaseInsensitive(id)
                         } else {
                             Pattern::Fixed(id)
@@ -934,6 +955,8 @@ pub(crate) struct AtomInfo {
 pub(crate) enum Pattern {
     Fixed(LiteralId),
     FixedCaseInsensitive(LiteralId),
-    Xored(LiteralId),
+    Xor(LiteralId),
+    Base64(LiteralId),
+    Base64Custom(LiteralId, LiteralId),
     Regexp,
 }

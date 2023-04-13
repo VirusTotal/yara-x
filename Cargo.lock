@@ -3237,6 +3237,7 @@ dependencies = [
  "anyhow",
  "ariadne",
  "ascii_tree",
+ "base64 0.21.0",
  "bitmask",
  "bstr",
  "indenter",

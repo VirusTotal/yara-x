@@ -360,7 +360,10 @@ fn text_patterns() {
         "#,
         b"mississippi"
     );
+}
 
+#[test]
+fn xor() {
     rule_true!(
         r#"
         rule test { 
@@ -407,6 +410,191 @@ fn text_patterns() {
         }
         "#,
         &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
+    );
+}
+
+#[test]
+fn base64() {
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"Zm9vYmFy" // base64("foobar")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eHh4Zm9vYmFy" // base64("xxxfoobar")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eGZvb2Jhcg" // base64("xfoobar")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eHhmb29iYXI" // base64("xxfoobar")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foob" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"Zm9vYg" // base64("foob")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foob" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eGZvb2I" // base64("xfoob")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foob" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eHhmb29i" // base64("xxfoob")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foob" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eHhmb29i\x01"
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "This program cannot" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q" // base64("This program cannot")
+    );
+
+    rule_false!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"Zm9vYmE" // base64("fooba")
+    );
+
+    rule_false!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eHhmb29iYQ" // base64("xxfooba")
+    );
+
+    rule_false!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eHhmb29i" // base64("xxfoob")
+    );
+
+    // In the C implementation of YARA the `base64` modifier could produce
+    // false positives like this. In this implementation the issue is fixed.
+    rule_false!(
+        r#"
+            rule test {
+                strings:
+                    $a = "Dhis program cannow" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q" // base64("This program cannot")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+                condition:
+                    $a
+            }
+            "#,
+        b"Xk7tWkDw" // base64("foobar")
     );
 }
 

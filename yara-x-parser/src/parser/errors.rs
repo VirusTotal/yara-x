@@ -140,6 +140,13 @@ pub enum ErrorInfo {
         note: Option<String>,
     },
 
+    #[error("invalid base64 alphabet")]
+    #[label("{error_msg}", error_span)]
+    InvalidBase64Alphabet {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span},
+    
     #[error("unused pattern `{pattern_ident}`")]
     #[label("this pattern was not used in the condition", pattern_ident_span)]
     UnusedPattern {
@@ -148,10 +155,10 @@ pub enum ErrorInfo {
         pattern_ident_span: Span,
     },
 
-    #[error("invalid hex pattern `{pattern_ident}`")]
+    #[error("invalid pattern `{pattern_ident}`")]
     #[label("{error_msg}", error_span)]
     #[note(note)]
-    InvalidHexPattern {
+    InvalidPattern {
         detailed_report: String,
         pattern_ident: String,
         error_msg: String,
@@ -237,10 +244,13 @@ impl ErrorInfo {
             Self::InvalidModifierCombination { detailed_report, .. } => {
                 detailed_report.as_str()
             }
+            Self::InvalidBase64Alphabet { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
             Self::UnusedPattern { detailed_report, .. } => {
                 detailed_report.as_str()
             }
-            Self::InvalidHexPattern { detailed_report, .. } => {
+            Self::InvalidPattern { detailed_report, .. } => {
                 detailed_report.as_str()
             }
             Self::InvalidRange { detailed_report, .. } => {
