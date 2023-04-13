@@ -562,9 +562,6 @@ impl ScanContext<'_> {
                         alphabet,
                     )
                 }
-                SubPattern::Regexp => {
-                    todo!()
-                }
             };
 
             if match_verified {
