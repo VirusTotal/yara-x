@@ -696,7 +696,7 @@ impl ScanContext<'_> {
             base64::engine::general_purpose::NO_PAD,
         );
 
-        let decoded = base64_engine.decode(&base64_string).unwrap();
+        let decoded = base64_engine.decode(base64_string).unwrap();
 
         pattern.eq(&decoded[padding..])
     }
