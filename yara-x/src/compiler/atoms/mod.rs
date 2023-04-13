@@ -185,7 +185,7 @@ impl MaskedAtom {
     }
 
     pub fn expand(&self) -> MaskedAtomExpander {
-        MaskedAtomExpander::new(&self)
+        MaskedAtomExpander::new(self)
     }
 }
 
@@ -207,7 +207,7 @@ fn best_atom_from_slice_range(s: &[u8]) -> Atom {
     let mut best_quality = 0;
     let mut best_atom = None;
 
-    for i in 0..=s.len().checked_sub(DESIRED_ATOM_SIZE).unwrap_or(0) {
+    for i in 0..=s.len().saturating_sub(DESIRED_ATOM_SIZE) {
         let atom = Atom::from_slice_range(
             s,
             i..cmp::min(s.len(), i + DESIRED_ATOM_SIZE),
@@ -260,9 +260,7 @@ impl Atoms for ast::TextPattern<'_> {
                 );
 
                 for atom in atoms.iter() {
-                    for xored_atom in
-                        XorGenerator::new(atom, *start..=*end).into_iter()
-                    {
+                    for xored_atom in XorGenerator::new(atom, *start..=*end) {
                         xored_atoms.push(xored_atom);
                     }
                 }

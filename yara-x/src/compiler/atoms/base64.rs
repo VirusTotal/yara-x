@@ -1,4 +1,3 @@
-use base64;
 use base64::Engine;
 use bstr::{BString, ByteVec};
 
@@ -103,7 +102,9 @@ pub(super) fn base64_patterns(
         // `encode_slice`.
         buf.truncate(base64_len);
 
-        let right_trim = if (pattern.len() - i) % 3 == 0 { 0 } else { 1 };
+        // Trim 0 bytes from the right if the pattern's length - i is multiple
+        // of 3, or 1 if otherwise.
+        let right_trim = usize::from((pattern.len() - i) % 3 != 0);
 
         let range = match i {
             // "XX" + s

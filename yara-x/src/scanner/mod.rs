@@ -504,7 +504,7 @@ impl ScanContext<'_> {
                 }
                 Pattern::Xor(pattern_lit_id) => self.verify_xor_match(
                     match_start,
-                    &matched_atom,
+                    matched_atom,
                     *pattern_lit_id,
                 ),
                 Pattern::Base64(pattern_lit_id) => self.verify_base64_match(
