@@ -467,6 +467,42 @@ fn base64() {
         r#"
             rule test {
                 strings:
+                    $a = "fooba" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"Zm9vYmE" // base64("fooba")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "fooba" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eGZvb2Jh" // base64("xfooba")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
+                    $a = "fooba" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"eHhmb29iYQ" // base64("xxfooba")
+    );
+
+    rule_true!(
+        r#"
+            rule test {
+                strings:
                     $a = "foob" base64
                 condition:
                     $a
@@ -580,7 +616,19 @@ fn base64() {
                     $a
             }
             "#,
-        b"mb29iYQ" // base64("xxfooba")
+        b"Zvb2Jhcg"
+    );
+
+    rule_false!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b"mb29iYQ"
     );
 
     rule_false!(
