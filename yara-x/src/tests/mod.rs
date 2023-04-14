@@ -483,14 +483,20 @@ fn base64() {
         b"Z\0m\09\0v\0Y\0m\0F\0y\0" // base64("foobar") in wide form
     );
 
-    pattern_true!(
+    // The the last byte should be 0, but it's 1, so the pattern doesn't match.
+    pattern_false!(
         r#""foobar" base64wide"#,
-        b"e\0G\0Z\0v\0b\02\0J\0h\0c\0g\0" // base64("xfoobar") in wide form
+        b"Z\0m\09\0v\0Y\0m\0F\0y\x01" // base64("foobar") in wide form
     );
 
     pattern_true!(
         r#""foobar" base64wide"#,
-        b"e\0H\0h\0m\0b\02\09\0i\0Y\0X\0I\0" // base64("xxfoobar") in wide form
+        b"e\0G\0Z\0v\0b\x002\0J\0h\0c\0g\0" // base64("xfoobar") in wide form
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        b"e\0H\0h\0m\0b\x002\09\0i\0Y\0X\0I\0" // base64("xxfoobar") in wide form
     );
 
     pattern_true!(

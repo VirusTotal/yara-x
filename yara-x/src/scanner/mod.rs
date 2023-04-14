@@ -680,14 +680,16 @@ impl ScanContext<'_> {
         );
 
         let decoded = if wide {
-            // Ignore the interleaved zeroes at odd positions and collect the
-            // ASCII characters at even positions.
-            let ascii: Vec<u8> = self.scanned_data()[range]
-                .iter()
-                .enumerate()
-                .filter_map(|(i, x)| if i % 2 == 0 { Some(*x) } else { None })
-                .collect();
-
+            // Collect the ASCII characters at even positions and check that
+            // there are zeroes at even positions.
+            let mut ascii = Vec::with_capacity(len / 2);
+            for (i, b) in self.scanned_data()[range].iter().enumerate() {
+                if i % 2 == 0 {
+                    ascii.push(*b)
+                } else if *b != 0 {
+                    return false;
+                }
+            }
             base64_engine.decode(ascii.as_slice())
         } else {
             base64_engine.decode(&self.scanned_data()[range])
