@@ -680,8 +680,8 @@ impl ScanContext<'_> {
         );
 
         let decoded = if wide {
-            // Collect the ASCII characters at even positions and check that
-            // there are zeroes at even positions.
+            // Collect the ASCII characters at even positions and make sure
+            // that bytes at odd positions are zeroes.
             let mut ascii = Vec::with_capacity(len / 2);
             for (i, b) in self.scanned_data()[range].iter().enumerate() {
                 if i % 2 == 0 {
