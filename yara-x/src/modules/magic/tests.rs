@@ -10,7 +10,10 @@ fn get_filetype() {
 #[test]
 fn get_mimetype() {
     let expected = "text/plain";
-    assert_eq!(expected, crate::modules::magic::get_mime_type(expected.as_bytes()))
+    assert_eq!(
+        expected,
+        crate::modules::magic::get_mime_type(expected.as_bytes())
+    )
 }
 
 #[test]

@@ -4,8 +4,8 @@ import "yara.proto";
 
 option (yara.module_options) = {
   name : "magic"
-  root_message: "Magic"
-  rust_module: "magic"
+  root_message : "Magic"
+  rust_module : "magic"
 };
 
 message Magic {
