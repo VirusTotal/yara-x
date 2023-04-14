@@ -515,12 +515,12 @@ fn base64() {
         r#"
             rule test {
                 strings:
-                    $a = "This program cannot" base64
+                    $a = "foobar" base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
                 condition:
                     $a
             }
             "#,
-        b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q" // base64("This program cannot")
+        b"Xk7tWkDw" // base64("foobar")
     );
 
     rule_false!(
@@ -583,6 +583,18 @@ fn base64() {
         b"mb29iYQ" // base64("xxfooba")
     );
 
+    rule_false!(
+        r#"
+            rule test {
+                strings:
+                    $a = "foobar" base64
+                condition:
+                    $a
+            }
+            "#,
+        b":::mb29iYXI" // Invalid base64 that contains an atom from "foobar"
+    );
+
     // In the C implementation of YARA the `base64` modifier could produce
     // false positives like this. In this implementation the issue is fixed.
     rule_false!(
@@ -601,12 +613,12 @@ fn base64() {
         r#"
             rule test {
                 strings:
-                    $a = "foobar" base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+                    $a = "This program cannot" base64
                 condition:
                     $a
             }
             "#,
-        b"Xk7tWkDw" // base64("foobar")
+        b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q" // base64("This program cannot")
     );
 }
 
