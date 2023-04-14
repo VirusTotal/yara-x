@@ -189,6 +189,16 @@ impl<'src> PatternModifiers<'src> {
     }
 
     #[inline]
+    pub fn ascii(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("ascii")
+    }
+
+    #[inline]
+    pub fn wide(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("wide")
+    }
+
+    #[inline]
     pub fn base64(&self) -> Option<&PatternModifier> {
         self.modifiers.get("base64")
     }

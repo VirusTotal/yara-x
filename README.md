@@ -86,3 +86,18 @@ in YARA 4.x in certain cases. This is a well-known YARA 4.x issue described in
 the documentation:
 
 > Because of the way that YARA strips the leading and trailing characters after base64 encoding, one of the base64 encodings of "Dhis program cannow" and "This program cannot" are identical.
+
+
+### `base64` and `base64wide` modifiers can have different alphabets
+
+In YARA 4.x if you use both `base64` and `base64wide` in the same string they
+must use the same alphabet. If you specify a custom alphabet for `base64`, you
+must do the same for `base64wide`, so this in error:
+
+```
+$a = "foo" base64 base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+```
+
+In YARA-X you can specify different alphabets for `base64` and `base64wide` 
+in the same string. In the example above `base64` would use the default alphabet
+as always, while `base64wide` would use the custom alphabet.

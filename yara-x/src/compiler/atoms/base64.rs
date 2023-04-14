@@ -61,7 +61,7 @@ use bstr::{BString, ByteVec};
 pub(crate) fn base64_patterns(
     s: &[u8],
     alphabet: Option<&str>,
-) -> Vec<(usize, BString)> {
+) -> Vec<(u8, BString)> {
     // The input string must be at least 2 bytes long.
     assert!(s.len() > 1);
 
@@ -95,10 +95,10 @@ pub(crate) fn base64_patterns(
     // order. The resulting base64 strings are trimmed from the left and
     // right ends, in order to remove the parts that are influenced by the
     // bytes around the pattern.
-    for i in 0..=2 {
+    for i in 0..=2_u8 {
         // Trim the pattern i bytes from the left in order to ignore 0, 1 or 2
         // "X" characters.
-        let pattern = &pattern[i..];
+        let pattern = &pattern[i as usize..];
 
         // Encode the pattern as base64.
         let base64_len =

@@ -54,7 +54,7 @@ macro_rules! condition_false {
 }
 
 macro_rules! test_rule {
-    ($rule:literal,  $data:expr, $expected_result:expr) => {{
+    ($rule:expr,  $data:expr, $expected_result:expr) => {{
         let rules = crate::compiler::Compiler::new()
             .add_source($rule)
             .unwrap()
@@ -71,26 +71,46 @@ macro_rules! test_rule {
             $rule, $expected_result, !$expected_result
         );
     }};
-    ($rule:literal) => {{
+    ($rule:expr) => {{
         rule_true!($rule, &[]);
     }};
 }
 
 macro_rules! rule_true {
-    ($rule:literal,  $data:expr) => {{
+    ($rule:expr,  $data:expr) => {{
         test_rule!($rule, $data, true);
     }};
-    ($condition:literal) => {{
+    ($rule:expr) => {{
         test_rule!($rule, &[], true);
     }};
 }
 
 macro_rules! rule_false {
-    ($rule:literal,  $data:expr) => {{
+    ($rule:expr,  $data:expr) => {{
         test_rule!($rule, $data, false);
     }};
-    ($condition:literal) => {{
+    ($rule:expr) => {{
         test_rule!($rule, &[], false);
+    }};
+}
+
+macro_rules! pattern_true {
+    ($pattern:literal,  $data:expr) => {{
+        rule_true!(
+            format!("rule test {{ strings: $a = {} condition: $a}}", $pattern)
+                .as_str(),
+            $data
+        );
+    }};
+}
+
+macro_rules! pattern_false {
+    ($pattern:literal,  $data:expr) => {{
+        rule_false!(
+            format!("rule test {{ strings: $a = {} condition: $a}}", $pattern)
+                .as_str(),
+            $data
+        );
     }};
 }
 
@@ -325,348 +345,174 @@ fn for_in() {
 
 #[test]
 fn text_patterns() {
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "issi"
-            condition: 
-                $a
-        }
-        "#,
-        b"mississippi"
-    );
-
-    rule_false!(
-        r#"
-        rule test {
-            strings:
-                $a = "ssippis"
-            condition:
-                $a
-        }
-        "#,
-        b"mississippi"
-    );
-
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "IssI" nocase
-            condition: 
-                $a
-        }
-        "#,
-        b"mississippi"
-    );
+    pattern_true!(r#""issi""#, b"mississippi");
+    pattern_false!(r#""ssippis""#, b"mississippi");
+    pattern_true!(r#""IssI" nocase"#, b"mississippi");
 }
 
 #[test]
 fn xor() {
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor
-            condition: 
-                $a
-        }
-        "#,
-        b"lhrrhrrhqqh"
-    );
-
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mmmmississippi" xor
-            condition: 
-                $a
-        }
-        "#,
-        b"llllhrrhrrhqqh"
-    );
-
-    rule_false!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor(2-255)
-            condition: 
-                $a
-        }
-        "#,
-        b"lhrrhrrhqqh"
-    );
-
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor(255)
-            condition: 
-                $a
-        }
-        "#,
+    pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""mississippi" xor(2-255)"#, b"lhrrhrrhqqh");
+    pattern_true!(
+        r#""mississippi" xor(255)"#,
         &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
     );
 }
 
 #[test]
 fn base64() {
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""foobar" base64"#,
         b"Zm9vYmFy" // base64("foobar")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
-        b"eHh4Zm9vYmFy" // base64("xxxfoobar")
-    );
-
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""foobar" base64"#,
         b"eGZvb2Jhcg" // base64("xfoobar")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""foobar" base64"#,
         b"eHhmb29iYXI" // base64("xxfoobar")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "fooba" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"eHh4Zm9vYmFy" // base64("xxxfoobar")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
         b"Zm9vYmE" // base64("fooba")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "fooba" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""fooba" base64"#,
         b"eGZvb2Jh" // base64("xfooba")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "fooba" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""fooba" base64"#,
         b"eHhmb29iYQ" // base64("xxfooba")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foob" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""foob" base64"#,
         b"Zm9vYg" // base64("foob")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foob" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""foob" base64"#,
         b"eGZvb2I" // base64("xfoob")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foob" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""foob" base64"#,
         b"eHhmb29i" // base64("xxfoob")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foob" base64
-                condition:
-                    $a
-            }
-            "#,
-        b"eHhmb29i\x01"
+    pattern_true!(
+        r#""foob" base64"#,
+        b"eHhmb29i\x01" // base64("xxfoob")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
-                condition:
-                    $a
-            }
-            "#,
-        b"Xk7tWkDw" // base64("foobar")
+    pattern_true!(
+        r#""foobar" base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"Xk7tWkDw"
     );
 
-    rule_false!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
-        b"foobar"
+    // When `base64` is combined with `wide` the latter if applied first,
+    // so it must match base64("f\0o\0o\0b\0a\0r\0").
+    pattern_true!(
+        r#""foobar" base64 wide"#,
+        b"ZgBvAG8AYgBhAHIA" // base64("f\0o\0o\0b\0a\0r\0")
     );
 
-    rule_false!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
-        b"Zm9vYmE" // base64("fooba")
+    // When `base64` is combined with `wide` the latter if applied first,
+    // so it does NOT match base64("foobar").
+    pattern_false!(
+        r#""foobar" base64 wide"#,
+        b"Zm9vYmFy" // base64("foobar")
     );
 
-    rule_false!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
-        b"eHhmb29iYQ" // base64("xxfooba")
+    // When `base64` is combined with both `wide` and `ascii` it should
+    // match base64("f\0o\0o\0b\0a\0r\0") and base64("foobar").
+    pattern_true!(
+        r#""foobar" base64 wide ascii"#,
+        b"Zm9vYmFy" // base64("foobar")
     );
 
-    rule_false!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
-        b"eHhmb29i" // base64("xxfoob")
+    pattern_false!(r#""foobar" base64"#, b"foobar");
+    pattern_false!(r#""foobar" base64 ascii"#, b"foobar");
+    pattern_false!(r#""foobar" base64 wide"#, b"f\0o\0o\0b\0a\0r\0");
+
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"Zm9vYmE" // base64("fooba"))
     );
 
-    rule_false!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
-        b"Zvb2Jhcg"
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"eHhmb29iYQ" // base64("xxfooba"))
     );
 
-    rule_false!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
-        b"mb29iYQ"
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"eHhmb29i" // base64("xxfoob"))
     );
 
-    rule_false!(
-        r#"
-            rule test {
-                strings:
-                    $a = "foobar" base64
-                condition:
-                    $a
-            }
-            "#,
-        b":::mb29iYXI" // Invalid base64 that contains an atom from "foobar"
-    );
+    pattern_false!(r#""foobar" base64"#, b"Zvb2Jhcg");
+    pattern_false!(r#""foobar" base64"#, b"mb29iYQ");
+    pattern_false!(r#""foobar" base64"#, b":::mb29iYXI");
 
     // In the C implementation of YARA the `base64` modifier could produce
     // false positives like this. In this implementation the issue is fixed.
-    rule_false!(
-        r#"
-            rule test {
-                strings:
-                    $a = "Dhis program cannow" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_false!(
+        r#""Dhis program cannow" base64"#,
         b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q" // base64("This program cannot")
     );
 
-    rule_true!(
-        r#"
-            rule test {
-                strings:
-                    $a = "This program cannot" base64
-                condition:
-                    $a
-            }
-            "#,
+    pattern_true!(
+        r#""This program cannot" base64"#,
         b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q" // base64("This program cannot")
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        b"Z\0m\09\0v\0Y\0m\0F\0y\0" // base64("foobar") in wide form
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        b"e\0G\0Z\0v\0b\02\0J\0h\0c\0g\0" // base64("xfoobar") in wide form
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        b"e\0H\0h\0m\0b\02\09\0i\0Y\0X\0I\0" // base64("xxfoobar") in wide form
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        b"e\0H\0h\04\0Z\0m\09\0v\0Y\0m\0F\0y\0" // base64("xxxfoobar") in wide form
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide wide"#,
+        b"Z\0g\0B\0v\0A\0G\08\0A\0Y\0g\0B\0h\0A\0H\0I\0A\0" // base64("f\0o\0o\0b\0a\0r\0") in wide form
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"X\0k\07\0t\0W\0k\0D\0w\0"
+    );
+
+    pattern_true!(
+        r#""foobar" 
+            base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+            base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"X\0k\07\0t\0W\0k\0D\0w\0"
     );
 }
 

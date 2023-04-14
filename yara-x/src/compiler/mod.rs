@@ -16,7 +16,8 @@ use walrus::{FunctionId, Module, ValType};
 
 use crate::compiler::atoms::base64::base64_patterns;
 use crate::compiler::atoms::{
-    best_atom_from_slice_range, Atom, CaseGenerator, XorGenerator,
+    best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
+    DESIRED_ATOM_SIZE,
 };
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
@@ -436,78 +437,152 @@ impl<'a> Compiler<'a> {
     }
 
     fn process_text_pattern(&mut self, p: &TextPattern) {
+        if p.modifiers.base64().is_some() || p.modifiers.base64wide().is_some()
+        {
+            self.process_text_pattern_base64(p);
+            return;
+        }
+
         let id = self.lit_pool.get_or_intern(p.value.as_ref());
         let mut atoms = Vec::new();
+        let mut implicit_ascii = true;
 
-        if let Some(PatternModifier::Base64 { alphabet, .. }) =
-            p.modifiers.base64()
-        {
-            debug_assert!(p.modifiers.nocase().is_none());
-            debug_assert!(p.modifiers.xor().is_none());
-            debug_assert!(p.modifiers.fullword().is_none());
-
-            for (padding, pattern) in
-                base64_patterns(p.value.as_ref(), alphabet.to_owned())
-            {
-                let sub_pattern = if let Some(alphabet) = alphabet {
-                    let alphabet_id = self.lit_pool.get_or_intern(*alphabet);
-                    match padding {
-                        0 => SubPattern::CustomBase64_0(id, alphabet_id),
-                        1 => SubPattern::CustomBase64_1(id, alphabet_id),
-                        2 => SubPattern::CustomBase64_2(id, alphabet_id),
-                        _ => unreachable!(),
-                    }
-                } else {
-                    match padding {
-                        0 => SubPattern::Base64_0(id),
-                        1 => SubPattern::Base64_1(id),
-                        2 => SubPattern::Base64_2(id),
-                        _ => unreachable!(),
-                    }
-                };
-
-                let sub_pattern_id = self.push_sub_pattern(sub_pattern);
-                let atom = best_atom_from_slice_range(pattern.as_slice());
-
-                atoms.push(AtomInfo { sub_pattern_id, atom })
-            }
-        } else if let Some(PatternModifier::Xor { start, end, .. }) =
+        if let Some(PatternModifier::Xor { start, end, .. }) =
             p.modifiers.xor()
         {
+            // When `xor` is used `ascii` is not implicit anymore.
+            implicit_ascii = false;
+
             debug_assert!(p.modifiers.nocase().is_none());
             debug_assert!(p.modifiers.base64().is_none());
             debug_assert!(p.modifiers.base64wide().is_none());
 
             let sub_pattern_id = self.push_sub_pattern(SubPattern::Xor(id));
-            let atom = best_atom_from_slice_range(p.value.as_ref().as_bytes());
+            let atom = best_atom_from_slice(
+                p.value.as_ref().as_bytes(),
+                DESIRED_ATOM_SIZE,
+            );
 
             atoms.reserve((end - start) as usize + 1);
 
             for atom in XorGenerator::new(&atom, *start..=*end) {
                 atoms.push(AtomInfo { sub_pattern_id, atom });
             }
-        } else if p.modifiers.nocase().is_some() {
+        }
+
+        if p.modifiers.nocase().is_some() {
             debug_assert!(p.modifiers.base64().is_none());
             debug_assert!(p.modifiers.base64wide().is_none());
 
             let sub_pattern_id =
                 self.push_sub_pattern(SubPattern::FixedCaseInsensitive(id));
 
-            let atom = best_atom_from_slice_range(p.value.as_ref().as_bytes());
+            let atom = best_atom_from_slice(
+                p.value.as_ref().as_bytes(),
+                DESIRED_ATOM_SIZE,
+            );
 
             for atom in CaseGenerator::new(&atom) {
                 atoms.push(AtomInfo { sub_pattern_id, atom });
             }
-        } else {
+        }
+
+        if implicit_ascii || p.modifiers.ascii().is_some() {
             let sub_pattern_id = self.push_sub_pattern(SubPattern::Fixed(id));
 
-            let best_atom =
-                best_atom_from_slice_range(p.value.as_ref().as_bytes());
+            let best_atom = best_atom_from_slice(
+                p.value.as_ref().as_bytes(),
+                DESIRED_ATOM_SIZE,
+            );
 
             atoms.push(AtomInfo { sub_pattern_id, atom: best_atom })
         };
 
         self.atoms.extend(atoms);
+    }
+
+    fn process_text_pattern_base64(&mut self, p: &TextPattern) {
+        // Make sure that `base64` and `base64wide` are not used together with
+        // `nocase`, `xor` or `fullword`.
+        debug_assert!(p.modifiers.nocase().is_none());
+        debug_assert!(p.modifiers.xor().is_none());
+        debug_assert!(p.modifiers.fullword().is_none());
+
+        let mut plain_text_patterns = Vec::new();
+        let wide_pattern;
+
+        // The `ascii` modifier is usually implicit, except when some other
+        // modifier like `wide` is used.
+        let mut implicit_ascii = true;
+
+        if p.modifiers.wide().is_some() {
+            implicit_ascii = false;
+            wide_pattern = make_wide(p.value.as_ref());
+            plain_text_patterns.push(wide_pattern.as_slice());
+        }
+
+        if implicit_ascii || p.modifiers.ascii().is_some() {
+            plain_text_patterns.push(p.value.as_ref());
+        }
+
+        if let Some(PatternModifier::Base64 { alphabet, .. }) =
+            p.modifiers.base64()
+        {
+            for p in plain_text_patterns.iter() {
+                let id = self.lit_pool.get_or_intern(p);
+
+                for (padding, base64_pattern) in base64_patterns(p, *alphabet)
+                {
+                    let sub_pattern = if let Some(alphabet) = *alphabet {
+                        SubPattern::CustomBase64(
+                            id,
+                            self.lit_pool.get_or_intern(alphabet),
+                            padding,
+                        )
+                    } else {
+                        SubPattern::Base64(id, padding)
+                    };
+
+                    let sub_pattern_id = self.push_sub_pattern(sub_pattern);
+                    let atom = best_atom_from_slice(
+                        base64_pattern.as_slice(),
+                        DESIRED_ATOM_SIZE,
+                    );
+
+                    self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                }
+            }
+        }
+
+        if let Some(PatternModifier::Base64Wide { alphabet, .. }) =
+            p.modifiers.base64wide()
+        {
+            for p in plain_text_patterns.iter() {
+                let id = self.lit_pool.get_or_intern(p);
+
+                for (padding, base64_pattern) in base64_patterns(p, *alphabet)
+                {
+                    let sub_pattern = if let Some(alphabet) = *alphabet {
+                        SubPattern::CustomBase64Wide(
+                            id,
+                            self.lit_pool.get_or_intern(alphabet),
+                            padding,
+                        )
+                    } else {
+                        SubPattern::Base64Wide(id, padding)
+                    };
+
+                    let sub_pattern_id = self.push_sub_pattern(sub_pattern);
+                    let wide = make_wide(base64_pattern.as_slice());
+                    let atom = best_atom_from_slice(
+                        wide.as_slice(),
+                        DESIRED_ATOM_SIZE * 2,
+                    );
+
+                    self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                }
+            }
+        }
     }
 
     fn process_imports(
@@ -1042,14 +1117,8 @@ pub(crate) enum SubPattern {
     FixedCaseInsensitive(LiteralId),
     Xor(LiteralId),
 
-    // A base64 pattern. There are three variants, each representing
-    // a different amount of padding.
-    Base64_0(LiteralId),
-    Base64_1(LiteralId),
-    Base64_2(LiteralId),
-
-    // Like Base64_X, but with a custom base64 alphabet.
-    CustomBase64_0(LiteralId, LiteralId),
-    CustomBase64_1(LiteralId, LiteralId),
-    CustomBase64_2(LiteralId, LiteralId),
+    Base64(LiteralId, u8),
+    Base64Wide(LiteralId, u8),
+    CustomBase64(LiteralId, LiteralId, u8),
+    CustomBase64Wide(LiteralId, LiteralId, u8),
 }

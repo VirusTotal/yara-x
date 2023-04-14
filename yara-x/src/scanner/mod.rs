@@ -508,58 +508,42 @@ impl ScanContext<'_> {
                     matched_atom,
                     *pattern_lit_id,
                 ),
-                SubPattern::Base64_0(pattern_lit_id)
-                | SubPattern::Base64_1(pattern_lit_id)
-                | SubPattern::Base64_2(pattern_lit_id) => self
+                SubPattern::Base64(id, padding)
+                | SubPattern::Base64Wide(id, padding) => self
                     .verify_base64_match(
-                        match sub_pattern {
-                            SubPattern::Base64_0(_) => 0,
-                            SubPattern::Base64_1(_) => 1,
-                            SubPattern::Base64_2(_) => 2,
-                            _ => unreachable!(),
-                        },
+                        *padding,
                         match_start,
-                        *pattern_lit_id,
+                        *id,
                         None,
+                        matches!(sub_pattern, SubPattern::Base64Wide(..)),
                     ),
 
-                SubPattern::CustomBase64_0(
-                    pattern_lit_id,
-                    alphabet_lit_id,
-                )
-                | SubPattern::CustomBase64_1(
-                    pattern_lit_id,
-                    alphabet_lit_id,
-                )
-                | SubPattern::CustomBase64_2(
-                    pattern_lit_id,
-                    alphabet_lit_id,
-                ) => {
+                SubPattern::CustomBase64(id, alphabet, padding)
+                | SubPattern::CustomBase64Wide(id, alphabet, padding) => {
                     let alphabet = self
                         .compiled_rules
                         .lit_pool()
-                        .get_str(*alphabet_lit_id)
-                        .map(|lit| {
+                        .get_str(*alphabet)
+                        .map(|alphabet| {
                             // `Alphabet::new` validates the string again. This
                             // is not really necessary as we already know that
                             // the string represents a valid alphabet, it would
                             // be better if could use the private function
                             // `Alphabet::from_str_unchecked`
-                            base64::alphabet::Alphabet::new(lit).unwrap()
+                            base64::alphabet::Alphabet::new(alphabet).unwrap()
                         });
 
                     assert!(alphabet.is_some());
 
                     self.verify_base64_match(
-                        match sub_pattern {
-                            SubPattern::CustomBase64_0(_, _) => 0,
-                            SubPattern::CustomBase64_1(_, _) => 1,
-                            SubPattern::CustomBase64_2(_, _) => 2,
-                            _ => unreachable!(),
-                        },
+                        *padding,
                         match_start,
-                        *pattern_lit_id,
+                        *id,
                         alphabet,
+                        matches!(
+                            sub_pattern,
+                            SubPattern::CustomBase64Wide(..)
+                        ),
                     )
                 }
             };
@@ -629,16 +613,17 @@ impl ScanContext<'_> {
 
     fn verify_base64_match(
         &self,
-        padding: usize,
+        padding: u8,
         match_start: usize,
         pattern_id: LiteralId,
         alphabet: Option<base64::alphabet::Alphabet>,
+        wide: bool,
     ) -> bool {
         // The pattern is stored in its original form, not encoded as base64.
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
 
         // Compute the size of the pattern once it is encoded as base64.
-        let len = base64::encoded_len(pattern.len(), false).unwrap();
+        let mut len = base64::encoded_len(pattern.len(), false).unwrap();
 
         // The base64 pattern was found at match_start, but decoding the base64
         // string starting at that position is not ok, as it may not be the
@@ -652,54 +637,66 @@ impl ScanContext<'_> {
         // fact that you can partially decode a base64 string starting from a
         // middle point, provided that this point is at a 4-characters boundary
         // within the string.
-        let range = match padding {
-            0 => match_start..match_start + len,
-            1 => {
-                if match_start < 2 {
-                    return false;
-                }
-                match len % 4 {
-                    0 => match_start - 2..match_start + len,
-                    2 => match_start - 2..match_start + len - 1,
-                    3 => match_start - 2..match_start + len - 1,
-                    _ => unreachable!(),
-                }
-            }
-            2 => {
-                if match_start < 3 {
-                    return false;
-                }
-                match len % 4 {
-                    0 => match_start - 3..match_start + len,
-                    2 => match_start - 3..match_start + len - 1,
-                    3 => match_start - 3..match_start + len,
-                    _ => unreachable!(),
-                }
-            }
+        let (mut left_adjustment, mut right_adjustment) = match padding {
+            0 => (0, 0),
+            1 => match len % 4 {
+                0 => (2, 0),
+                2 => (2, 1),
+                3 => (2, 1),
+                _ => unreachable!(),
+            },
+            2 => match len % 4 {
+                0 => (3, 0),
+                2 => (3, 1),
+                3 => (3, 0),
+                _ => unreachable!(),
+            },
             _ => unreachable!(),
+        };
+
+        // In wide mode each base64 character is two bytes long, adjust the
+        // length and adjustments accordingly.
+        if wide {
+            left_adjustment *= 2;
+            right_adjustment *= 2;
+            len *= 2;
+        }
+
+        let range = if let (adjusted_start, false) =
+            match_start.overflowing_sub(left_adjustment)
+        {
+            adjusted_start..match_start + len - right_adjustment
+        } else {
+            return false;
         };
 
         if range.end > self.scanned_data_len {
             return false;
         }
 
-        let base64_string = &self.scanned_data()[range];
-
-        // The length of the matched base64 string must be at least 4. This is
-        // guaranteed because any string with at least 3 bytes results in 4
-        // characters or more when encoded to base64, and strings shorter than
-        // 3 bytes can not be used with the `base64` modifier.
-        assert!(base64_string.len() >= 4);
-
         let base64_engine = base64::engine::GeneralPurpose::new(
             alphabet.as_ref().unwrap_or(&base64::alphabet::STANDARD),
             base64::engine::general_purpose::NO_PAD,
         );
 
-        if let Ok(decoded) = base64_engine.decode(base64_string) {
-            return pattern.eq(&decoded[padding..]);
-        }
+        let decoded = if wide {
+            // Ignore the interleaved zeroes at odd positions and collect the
+            // ASCII characters at even positions.
+            let ascii: Vec<u8> = self.scanned_data()[range]
+                .iter()
+                .enumerate()
+                .filter_map(|(i, x)| if i % 2 == 0 { Some(*x) } else { None })
+                .collect();
 
-        false
+            base64_engine.decode(ascii.as_slice())
+        } else {
+            base64_engine.decode(&self.scanned_data()[range])
+        };
+
+        if let Ok(decoded) = decoded {
+            pattern.eq(&decoded[padding as usize..])
+        } else {
+            false
+        }
     }
 }

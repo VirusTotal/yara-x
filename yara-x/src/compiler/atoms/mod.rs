@@ -70,7 +70,7 @@ use crate::compiler::atoms::quality::{atom_quality, masked_atom_quality};
 /// The number of bytes that every atom *should* have. Some atoms may be
 /// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,
 /// good-quality atom from a string. Similarly, some atoms may be larger.
-const DESIRED_ATOM_SIZE: usize = 4;
+pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 
 /// A substring extracted from a rule pattern. See the module documentation for
 /// a general explanation of what is an atom.
@@ -184,15 +184,17 @@ impl MaskedAtom {
     }
 }
 
-pub(super) fn best_atom_from_slice_range(s: &[u8]) -> Atom {
+/// Returns the best possible atom from a slice.
+///
+/// The returned atom will have the `desired_size` if possible, but it can be
+/// shorter if the slice is shorter.
+pub(super) fn best_atom_from_slice(s: &[u8], desired_size: usize) -> Atom {
     let mut best_quality = 0;
     let mut best_atom = None;
 
-    for i in 0..=s.len().saturating_sub(DESIRED_ATOM_SIZE) {
-        let atom = Atom::from_slice_range(
-            s,
-            i..cmp::min(s.len(), i + DESIRED_ATOM_SIZE),
-        );
+    for i in 0..=s.len().saturating_sub(desired_size) {
+        let atom =
+            Atom::from_slice_range(s, i..cmp::min(s.len(), i + desired_size));
         let quality = atom.quality();
         if quality > best_quality {
             best_quality = quality;
@@ -201,6 +203,25 @@ pub(super) fn best_atom_from_slice_range(s: &[u8]) -> Atom {
     }
 
     best_atom.expect("at least one atom should be generated")
+}
+
+/// Given a slice of bytes, returns a vector where each byte is followed by
+/// a zero.
+///
+/// # Example
+///
+/// ```text
+/// assert_eq!(
+///    make_wide(&[0x01, 0x02, 0x03]),
+///    &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]
+/// )
+/// ```
+pub(super) fn make_wide(s: &[u8]) -> Vec<u8> {
+    itertools::interleave(
+        s.iter().cloned(),
+        itertools::repeat_n(0_u8, s.len()),
+    )
+    .collect()
 }
 
 /// Expands a [`MaskedAtom`] into multiple [`Atom`] by trying all the possible
@@ -308,6 +329,7 @@ impl Iterator for XorGenerator {
 
 #[cfg(test)]
 mod test {
+    use crate::compiler::atoms;
     use crate::compiler::atoms::{
         Atom, CaseGenerator, MaskedAtom, XorGenerator,
     };
@@ -367,5 +389,13 @@ mod test {
         assert_eq!(c.next(), Some(Atom::from([0x00, 0x01, 0x02])));
         assert_eq!(c.next(), Some(Atom::from([0x01, 0x00, 0x03])));
         assert_eq!(c.next(), None);
+    }
+
+    #[test]
+    fn make_wide() {
+        assert_eq!(
+            atoms::make_wide(&[0x01, 0x02, 0x03]),
+            &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]
+        )
     }
 }
