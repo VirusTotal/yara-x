@@ -226,6 +226,18 @@ impl From<WasmArg> for f32 {
     }
 }
 
+impl From<WasmArg> for RuleId {
+    fn from(value: WasmArg) -> Self {
+        RuleId::from(value.0.get_i32())
+    }
+}
+
+impl From<WasmArg> for PatternId {
+    fn from(value: WasmArg) -> Self {
+        PatternId::from(value.0.get_i32())
+    }
+}
+
 impl From<WasmArg> for LiteralId {
     fn from(value: WasmArg) -> Self {
         LiteralId::from(value.0.get_i32())
@@ -388,9 +400,13 @@ fn type_id_to_wasmtime(
         return &[wasmtime::ValType::F64];
     } else if type_id == TypeId::of::<f32>() {
         return &[wasmtime::ValType::F32];
+    } else if type_id == TypeId::of::<bool>() {
+        return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<LiteralId>() {
         return &[wasmtime::ValType::I32];
-    } else if type_id == TypeId::of::<bool>() {
+    } else if type_id == TypeId::of::<PatternId>() {
+        return &[wasmtime::ValType::I32];
+    } else if type_id == TypeId::of::<RuleId>() {
         return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<()>() {
         return &[];

@@ -117,7 +117,7 @@ pub struct Compiler<'a> {
     rules: Vec<RuleInfo>,
 
     /// Next (not unused yet) [`PatternId`].
-    next_pattern_id: PatternId,
+    next_pattern_id: i32,
 
     /// A vector with all the sub-patterns from all the rules. A
     /// [`SubPatternId`] is an index in this vector.
@@ -331,7 +331,7 @@ impl<'a> Compiler<'a> {
     #[inline]
     fn push_sub_pattern(&mut self, sub_pattern: SubPattern) -> SubPatternId {
         let id = self.sub_patterns.len();
-        self.sub_patterns.push((self.next_pattern_id, sub_pattern));
+        self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
         SubPatternId(id as u32)
     }
 
@@ -362,7 +362,7 @@ impl<'a> Compiler<'a> {
                     }
                 };
 
-                pairs.push((ident_id, self.next_pattern_id));
+                pairs.push((ident_id, PatternId(self.next_pattern_id)));
                 self.next_pattern_id += 1;
             }
             pairs
@@ -370,7 +370,7 @@ impl<'a> Compiler<'a> {
             Vec::new()
         };
 
-        let rule_id = self.rules.len() as RuleId;
+        let rule_id = RuleId(self.rules.len() as i32);
 
         self.rules.push(RuleInfo {
             ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
@@ -759,7 +759,29 @@ impl From<LiteralId> for u64 {
 }
 
 /// ID associated to each rule.
-pub(crate) type RuleId = i32;
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct RuleId(i32);
+
+impl From<i32> for RuleId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<usize> for RuleId {
+    #[inline]
+    fn from(value: usize) -> Self {
+        Self(value as i32)
+    }
+}
+
+impl From<RuleId> for usize {
+    #[inline]
+    fn from(value: RuleId) -> Self {
+        value.0 as usize
+    }
+}
 
 /// ID associated to each pattern.
 ///
@@ -771,7 +793,36 @@ pub(crate) type RuleId = i32;
 /// if one rule defines `$a = "mz"` and another one `$mz = "mz"`, the pattern
 /// `"mz"` is shared by the two rules. Each rule has a Vec<(IdentId, PatternId)>
 /// that associates identifiers to their corresponding patterns.
-pub(crate) type PatternId = i32;
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct PatternId(i32);
+
+impl From<i32> for PatternId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<PatternId> for i64 {
+    #[inline]
+    fn from(value: PatternId) -> Self {
+        value.0 as i64
+    }
+}
+
+impl From<usize> for PatternId {
+    #[inline]
+    fn from(value: usize) -> Self {
+        Self(value as i32)
+    }
+}
+
+impl From<PatternId> for usize {
+    #[inline]
+    fn from(value: PatternId) -> Self {
+        value.0 as usize
+    }
+}
 
 /// ID associated to each sub-pattern.
 ///
@@ -996,7 +1047,7 @@ impl Rules {
     ///
     /// If no rule with such [`RuleId`] exists.
     pub(crate) fn get(&self, rule_id: RuleId) -> &RuleInfo {
-        self.rules.get(rule_id as usize).unwrap()
+        self.rules.get(rule_id.0 as usize).unwrap()
     }
 
     /// Returns an slice with the individual rules that were compiled.

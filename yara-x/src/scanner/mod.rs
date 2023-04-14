@@ -372,7 +372,7 @@ impl<'s, 'r> Iterator for NonMatches<'s, 'r> {
     type Item = Rule<'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let rule_id = self.iterator.next()? as RuleId;
+        let rule_id = RuleId::from(self.iterator.next()?);
         let rules = self.scanner.wasm_store.data().compiled_rules;
         let rule_info = rules.get(rule_id);
 
@@ -443,7 +443,7 @@ impl ScanContext<'_> {
         let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
 
         // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
-        bits.set(rule_id as usize, true);
+        bits.set(rule_id.into(), true);
     }
 
     /// Called during the scan process when a pattern has matched for tracking
@@ -458,7 +458,7 @@ impl ScanContext<'_> {
         let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules / 8 + 1;
         let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
 
-        bits.set(pattern_id as usize, true);
+        bits.set(pattern_id.into(), true);
     }
 
     /// Search for patterns in the data.
