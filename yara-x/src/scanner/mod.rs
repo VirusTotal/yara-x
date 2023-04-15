@@ -3,6 +3,7 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 
+use base64::Engine;
 use std::ops::Deref;
 use std::path::Path;
 use std::pin::Pin;
@@ -23,7 +24,7 @@ use yara_x_parser::types::{Struct, TypeValue};
 use crate::compiler::{Rule, RuleId, Rules};
 use crate::string_pool::BStringPool;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, wasm, Pattern, PatternId};
+use crate::{modules, wasm, AtomInfo, LiteralId, PatternId, SubPattern};
 
 #[cfg(test)]
 mod tests;
@@ -80,7 +81,7 @@ impl<'r> Scanner<'r> {
         .unwrap();
 
         let num_rules = rules.rules().len() as u32;
-        let num_patterns = rules.patterns().len() as u32;
+        let num_patterns = rules.num_patterns() as u32;
 
         // Compute the base offset for the bitmap that contains matching
         // information for patterns. This bitmap has 1 bit per pattern,
@@ -258,7 +259,7 @@ impl<'r> Scanner<'r> {
     fn clear_matches(&mut self) {
         let ctx = self.wasm_store.data_mut();
         let num_rules = ctx.compiled_rules.rules().len();
-        let num_patterns = ctx.compiled_rules.patterns().len();
+        let num_patterns = ctx.compiled_rules.num_patterns();
 
         if ctx.patterns_found || !ctx.rules_matching.is_empty() {
             // Clear the list of matching rules.
@@ -371,7 +372,7 @@ impl<'s, 'r> Iterator for NonMatches<'s, 'r> {
     type Item = Rule<'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let rule_id = self.iterator.next()? as RuleId;
+        let rule_id = RuleId::from(self.iterator.next()?);
         let rules = self.scanner.wasm_store.data().compiled_rules;
         let rule_info = rules.get(rule_id);
 
@@ -442,7 +443,7 @@ impl ScanContext<'_> {
         let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
 
         // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
-        bits.set(rule_id as usize, true);
+        bits.set(rule_id.into(), true);
     }
 
     /// Called during the scan process when a pattern has matched for tracking
@@ -457,7 +458,7 @@ impl ScanContext<'_> {
         let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules / 8 + 1;
         let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
 
-        bits.set(pattern_id as usize, true);
+        bits.set(pattern_id.into(), true);
     }
 
     /// Search for patterns in the data.
@@ -478,85 +479,226 @@ impl ScanContext<'_> {
             let matched_atom =
                 &self.compiled_rules.atoms()[atom_match.pattern()];
 
-            let pattern = &self.compiled_rules.patterns()
-                [matched_atom.pattern_id as usize];
+            // Subtract the backtrack value from the offset where the atom
+            // matched. If the result is negative the atom can't be inside
+            // the scanned data and therefore is not a possible match.
+            let (match_start, overflow) = atom_match
+                .start()
+                .overflowing_sub(matched_atom.atom.backtrack as usize);
 
-            let pattern_matched = match pattern {
-                Pattern::Fixed(id)
-                | Pattern::FixedCaseInsensitive(id)
-                | Pattern::Xored(id) => {
-                    // Subtract the backtrack value from the atom's match
-                    // offset. If the result is negative the atom can't be
-                    // inside the scanned data and therefor there's no
-                    // possible match.
-                    if let (offset, false) = atom_match
-                        .start()
-                        .overflowing_sub(matched_atom.atom.backtrack as usize)
-                    {
-                        let pattern_bytes =
-                            self.compiled_rules.lit_pool().get(*id).unwrap();
+            if overflow {
+                continue;
+            }
 
-                        // If the number of bytes from `offset` to the end of the
-                        // buffer is at least the pattern's length, check if the
-                        // data matches the pattern. If not, the pattern can't
-                        // match.
-                        if self.scanned_data_len
-                            >= offset + pattern_bytes.len()
-                        {
-                            let data = &self.scanned_data()
-                                [offset..offset + pattern_bytes.len()];
+            let (pattern_id, sub_pattern) = &self
+                .compiled_rules
+                .get_sub_pattern(matched_atom.sub_pattern_id);
 
-                            match pattern {
-                                Pattern::Fixed(_) => {
-                                    memx::memeq(data, pattern_bytes.as_bytes())
-                                }
-                                Pattern::FixedCaseInsensitive(_) => {
-                                    pattern_bytes.eq_ignore_ascii_case(data)
-                                }
-                                Pattern::Xored(_) => {
-                                    let mut pattern_bytes =
-                                        pattern_bytes.to_owned();
-
-                                    // The atom that matched is the result of
-                                    // XORing the pattern with some key. The
-                                    // key can be obtained by XORing some byte
-                                    // in the atom with the corresponding byte
-                                    // in the pattern.
-                                    let key = matched_atom.atom.as_ref()[0]
-                                        ^ pattern_bytes[matched_atom
-                                            .atom
-                                            .backtrack
-                                            as usize];
-
-                                    // Now we can XOR the whole pattern with
-                                    // the obtained key and make sure that it
-                                    // matches the data. This only makes sense
-                                    // if the key is not zero.
-                                    if key != 0 {
-                                        for i in 0..pattern_bytes.len() {
-                                            pattern_bytes[i] ^= key;
-                                        }
-                                    }
-
-                                    memx::memeq(data, pattern_bytes.as_bytes())
-                                }
-                                _ => unreachable!(),
-                            }
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
+            let match_verified = match sub_pattern {
+                SubPattern::Fixed(pattern_lit_id) => self.verify_fixed_match(
+                    match_start,
+                    *pattern_lit_id,
+                    false,
+                ),
+                SubPattern::FixedCaseInsensitive(pattern_lit_id) => {
+                    self.verify_fixed_match(match_start, *pattern_lit_id, true)
                 }
-                Pattern::Regexp => {
-                    todo!()
+                SubPattern::Xor(pattern_lit_id) => self.verify_xor_match(
+                    match_start,
+                    matched_atom,
+                    *pattern_lit_id,
+                ),
+                SubPattern::Base64(id, padding)
+                | SubPattern::Base64Wide(id, padding) => self
+                    .verify_base64_match(
+                        *padding,
+                        match_start,
+                        *id,
+                        None,
+                        matches!(sub_pattern, SubPattern::Base64Wide(..)),
+                    ),
+
+                SubPattern::CustomBase64(id, alphabet, padding)
+                | SubPattern::CustomBase64Wide(id, alphabet, padding) => {
+                    let alphabet = self
+                        .compiled_rules
+                        .lit_pool()
+                        .get_str(*alphabet)
+                        .map(|alphabet| {
+                            // `Alphabet::new` validates the string again. This
+                            // is not really necessary as we already know that
+                            // the string represents a valid alphabet, it would
+                            // be better if could use the private function
+                            // `Alphabet::from_str_unchecked`
+                            base64::alphabet::Alphabet::new(alphabet).unwrap()
+                        });
+
+                    assert!(alphabet.is_some());
+
+                    self.verify_base64_match(
+                        *padding,
+                        match_start,
+                        *id,
+                        alphabet,
+                        matches!(
+                            sub_pattern,
+                            SubPattern::CustomBase64Wide(..)
+                        ),
+                    )
                 }
             };
 
-            if pattern_matched {
-                self.track_pattern_match(matched_atom.pattern_id);
+            if match_verified {
+                self.track_pattern_match(*pattern_id);
             }
+        }
+    }
+
+    fn verify_fixed_match(
+        &self,
+        match_start: usize,
+        pattern_id: LiteralId,
+        case_insensitive: bool,
+    ) -> bool {
+        let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
+
+        if self.scanned_data_len < match_start + pattern.len() {
+            return false;
+        }
+
+        let data =
+            &self.scanned_data()[match_start..match_start + pattern.len()];
+
+        if case_insensitive {
+            pattern.eq_ignore_ascii_case(data)
+        } else {
+            memx::memeq(data, pattern.as_bytes())
+        }
+    }
+
+    fn verify_xor_match(
+        &self,
+        match_start: usize,
+        matched_atom: &AtomInfo,
+        pattern_id: LiteralId,
+    ) -> bool {
+        let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
+
+        if self.scanned_data_len < match_start + pattern.len() {
+            return false;
+        }
+
+        let mut pattern = pattern.to_owned();
+
+        // The atom that matched is the result of XORing the pattern with some
+        // key. The key can be obtained by XORing some byte in the atom with
+        // the corresponding byte in the pattern.
+        let key = matched_atom.atom.as_ref()[0]
+            ^ pattern[matched_atom.atom.backtrack as usize];
+
+        // Now we can XOR the whole pattern with the obtained key and make sure
+        // that it matches the data. This only makes sense if the key is not
+        // zero.
+        if key != 0 {
+            for i in 0..pattern.len() {
+                pattern[i] ^= key;
+            }
+        }
+
+        let data =
+            &self.scanned_data()[match_start..match_start + pattern.len()];
+
+        memx::memeq(data, pattern.as_bytes())
+    }
+
+    fn verify_base64_match(
+        &self,
+        padding: u8,
+        match_start: usize,
+        pattern_id: LiteralId,
+        alphabet: Option<base64::alphabet::Alphabet>,
+        wide: bool,
+    ) -> bool {
+        // The pattern is stored in its original form, not encoded as base64.
+        let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
+
+        // Compute the size of the pattern once it is encoded as base64.
+        let mut len = base64::encoded_len(pattern.len(), false).unwrap();
+
+        // The base64 pattern was found at match_start, but decoding the base64
+        // string starting at that position is not ok, as it may not be the
+        // real starting point for the base64 string (remember that some
+        // characters may have been removed from the left and right of the
+        // pattern). Based on the padding and the pattern's length, we decide
+        // where to start decoding and how many characters to use. The starting
+        // point is either at match_start, match_start - 2, or match_start - 3,
+        // depending on the padding. That's ok even if the base64 string in the
+        // scanned data starts way before match_start, we are relying on the
+        // fact that you can partially decode a base64 string starting from a
+        // middle point, provided that this point is at a 4-characters boundary
+        // within the string.
+        let (mut left_adjustment, mut right_adjustment) = match padding {
+            0 => (0, 0),
+            1 => match len % 4 {
+                0 => (2, 0),
+                2 => (2, 1),
+                3 => (2, 1),
+                _ => unreachable!(),
+            },
+            2 => match len % 4 {
+                0 => (3, 0),
+                2 => (3, 1),
+                3 => (3, 0),
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        };
+
+        // In wide mode each base64 character is two bytes long, adjust the
+        // length and adjustments accordingly.
+        if wide {
+            left_adjustment *= 2;
+            right_adjustment *= 2;
+            len *= 2;
+        }
+
+        let range = if let (adjusted_start, false) =
+            match_start.overflowing_sub(left_adjustment)
+        {
+            adjusted_start..match_start + len - right_adjustment
+        } else {
+            return false;
+        };
+
+        if range.end > self.scanned_data_len {
+            return false;
+        }
+
+        let base64_engine = base64::engine::GeneralPurpose::new(
+            alphabet.as_ref().unwrap_or(&base64::alphabet::STANDARD),
+            base64::engine::general_purpose::NO_PAD,
+        );
+
+        let decoded = if wide {
+            // Collect the ASCII characters at even positions and make sure
+            // that bytes at odd positions are zeroes.
+            let mut ascii = Vec::with_capacity(len / 2);
+            for (i, b) in self.scanned_data()[range].iter().enumerate() {
+                if i % 2 == 0 {
+                    ascii.push(*b)
+                } else if *b != 0 {
+                    return false;
+                }
+            }
+            base64_engine.decode(ascii.as_slice())
+        } else {
+            base64_engine.decode(&self.scanned_data()[range])
+        };
+
+        if let Ok(decoded) = decoded {
+            pattern.eq(&decoded[padding as usize..])
+        } else {
+            false
         }
     }
 }

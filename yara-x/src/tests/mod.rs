@@ -54,7 +54,7 @@ macro_rules! condition_false {
 }
 
 macro_rules! test_rule {
-    ($rule:literal,  $data:expr, $expected_result:expr) => {{
+    ($rule:expr,  $data:expr, $expected_result:expr) => {{
         let rules = crate::compiler::Compiler::new()
             .add_source($rule)
             .unwrap()
@@ -71,26 +71,46 @@ macro_rules! test_rule {
             $rule, $expected_result, !$expected_result
         );
     }};
-    ($rule:literal) => {{
+    ($rule:expr) => {{
         rule_true!($rule, &[]);
     }};
 }
 
 macro_rules! rule_true {
-    ($rule:literal,  $data:expr) => {{
+    ($rule:expr,  $data:expr) => {{
         test_rule!($rule, $data, true);
     }};
-    ($condition:literal) => {{
+    ($rule:expr) => {{
         test_rule!($rule, &[], true);
     }};
 }
 
 macro_rules! rule_false {
-    ($rule:literal,  $data:expr) => {{
+    ($rule:expr,  $data:expr) => {{
         test_rule!($rule, $data, false);
     }};
-    ($condition:literal) => {{
+    ($rule:expr) => {{
         test_rule!($rule, &[], false);
+    }};
+}
+
+macro_rules! pattern_true {
+    ($pattern:literal,  $data:expr) => {{
+        rule_true!(
+            format!("rule test {{ strings: $a = {} condition: $a}}", $pattern)
+                .as_str(),
+            $data
+        );
+    }};
+}
+
+macro_rules! pattern_false {
+    ($pattern:literal,  $data:expr) => {{
+        rule_false!(
+            format!("rule test {{ strings: $a = {} condition: $a}}", $pattern)
+                .as_str(),
+            $data
+        );
     }};
 }
 
@@ -325,88 +345,191 @@ fn for_in() {
 
 #[test]
 fn text_patterns() {
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "issi"
-            condition: 
-                $a
-        }
-        "#,
-        b"mississippi"
-    );
+    pattern_true!(r#""issi""#, b"mississippi");
+    pattern_false!(r#""ssippis""#, b"mississippi");
+    pattern_true!(r#""IssI" nocase"#, b"mississippi");
+}
 
-    rule_false!(
-        r#"
-        rule test {
-            strings:
-                $a = "ssippis"
-            condition:
-                $a
-        }
-        "#,
-        b"mississippi"
-    );
-
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "IssI" nocase
-            condition: 
-                $a
-        }
-        "#,
-        b"mississippi"
-    );
-
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor
-            condition: 
-                $a
-        }
-        "#,
-        b"lhrrhrrhqqh"
-    );
-
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mmmmississippi" xor
-            condition: 
-                $a
-        }
-        "#,
-        b"llllhrrhrrhqqh"
-    );
-
-    rule_false!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor(2-255)
-            condition: 
-                $a
-        }
-        "#,
-        b"lhrrhrrhqqh"
-    );
-
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor(255)
-            condition: 
-                $a
-        }
-        "#,
+#[test]
+fn xor() {
+    pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""mississippi" xor(2-255)"#, b"lhrrhrrhqqh");
+    pattern_true!(
+        r#""mississippi" xor(255)"#,
         &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
+    );
+}
+
+#[test]
+fn base64() {
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"Zm9vYmFy" // base64("foobar")
+    );
+
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"eGZvb2Jhcg" // base64("xfoobar")
+    );
+
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"eHhmb29iYXI" // base64("xxfoobar")
+    );
+
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"eHh4Zm9vYmFy" // base64("xxxfoobar")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
+        b"Zm9vYmE" // base64("fooba")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
+        b"eGZvb2Jh" // base64("xfooba")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
+        b"eHhmb29iYQ" // base64("xxfooba")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"Zm9vYg" // base64("foob")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"eGZvb2I" // base64("xfoob")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"eHhmb29i" // base64("xxfoob")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"eHhmb29i\x01" // base64("xxfoob")
+    );
+
+    pattern_true!(
+        r#""foobar" base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"Xk7tWkDw"
+    );
+
+    // When `base64` is combined with `wide` the latter if applied first,
+    // so it must match base64("f\x00o\x00o\x00b\x00a\x00r\x00").
+    pattern_true!(
+        r#""foobar" base64 wide"#,
+        b"ZgBvAG8AYgBhAHIA" // base64("f\x00o\x00o\x00b\x00a\x00r\x00")
+    );
+
+    // When `base64` is combined with `wide` the latter if applied first,
+    // so it does NOT match base64("foobar").
+    pattern_false!(
+        r#""foobar" base64 wide"#,
+        b"Zm9vYmFy" // base64("foobar")
+    );
+
+    // When `base64` is combined with both `wide` and `ascii` it should
+    // match base64("f\x00o\x00o\x00b\x00a\x00r\x00") and base64("foobar").
+    pattern_true!(
+        r#""foobar" base64 wide ascii"#,
+        b"Zm9vYmFy" // base64("foobar")
+    );
+
+    pattern_false!(r#""foobar" base64"#, b"foobar");
+    pattern_false!(r#""foobar" base64 ascii"#, b"foobar");
+    pattern_false!(
+        r#""foobar" base64 wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"Zm9vYmE" // base64("fooba"))
+    );
+
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"eHhmb29iYQ" // base64("xxfooba"))
+    );
+
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"eHhmb29i" // base64("xxfoob"))
+    );
+
+    pattern_false!(r#""foobar" base64"#, b"Zvb2Jhcg");
+    pattern_false!(r#""foobar" base64"#, b"mb29iYQ");
+    pattern_false!(r#""foobar" base64"#, b":::mb29iYXI");
+
+    // In the C implementation of YARA the `base64` modifier could produce
+    // false positives like this. In this implementation the issue is fixed.
+    pattern_false!(
+        r#""Dhis program cannow" base64"#,
+        // base64("This program cannot")
+        b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q"
+    );
+
+    pattern_true!(
+        r#""This program cannot" base64"#,
+        // base64("This program cannot")
+        b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        // base64("foobar") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x00"
+    );
+
+    // The the last byte should be 0, but it's 1, so the pattern doesn't match.
+    pattern_false!(
+        r#""foobar" base64wide"#,
+        // base64("foobar") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x01"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        // base64("xfoobar") in wide form
+        b"e\x00G\x00Z\x00v\x00b\x002\x00J\x00h\x00c\x00g\x00"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        // base64("xxfoobar") in wide form
+        b"e\x00H\x00h\x00m\x00b\x002\x009\x00i\x00Y\x00X\x00I\x00"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        // base64("xxxfoobar") in wide form
+        b"e\x00H\x00h\x004\x00Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x00"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide wide"#,
+        // base64("f\x00o\x00o\x00b\x00a\x00r\x00") in wide form
+        b"Z\x00g\x00B\x00v\x00A\x00G\x008\x00A\x00Y\x00g\x00B\x00h\x00A\x00H\x00I\x00A\x00" 
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"X\x00k\x007\x00t\x00W\x00k\x00D\x00w\x00"
+    );
+
+    pattern_true!(
+        r#""foobar" 
+            base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+            base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"X\x00k\x007\x00t\x00W\x00k\x00D\x00w\x00"
     );
 }
 

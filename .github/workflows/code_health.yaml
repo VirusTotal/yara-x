@@ -11,7 +11,7 @@ jobs:
     - uses: dtolnay/rust-toolchain@stable
       with:
         components: clippy
-    - run: cargo clippy --tests --all-features
+    - run: cargo clippy --tests --no-deps --all-features -- --deny clippy::all
 
   rustfmt:
     name: Rustfmt

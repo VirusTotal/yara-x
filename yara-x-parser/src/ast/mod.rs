@@ -189,6 +189,16 @@ impl<'src> PatternModifiers<'src> {
     }
 
     #[inline]
+    pub fn ascii(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("ascii")
+    }
+
+    #[inline]
+    pub fn wide(&self) -> Option<&PatternModifier> {
+        self.modifiers.get("wide")
+    }
+
+    #[inline]
     pub fn base64(&self) -> Option<&PatternModifier> {
         self.modifiers.get("base64")
     }
@@ -237,8 +247,8 @@ pub enum PatternModifier<'src> {
     Nocase { span: Span },
     Private { span: Span },
     Fullword { span: Span },
-    Base64 { span: Span, alphabet: Option<Cow<'src, BStr>> },
-    Base64Wide { span: Span, alphabet: Option<Cow<'src, BStr>> },
+    Base64 { span: Span, alphabet: Option<&'src str> },
+    Base64Wide { span: Span, alphabet: Option<&'src str> },
     Xor { span: Span, start: u8, end: u8 },
 }
 

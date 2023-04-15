@@ -101,4 +101,19 @@ where
     pub fn get(&self, id: T) -> Option<&BStr> {
         self.pool.get(Symbol::from(id.into())).map(BStr::new)
     }
+
+    /// Similar to [`BStringPool::get`], but returns the string as `&str`.
+    ///
+    /// # Panics
+    ///
+    /// If the interned string is not valid UTF-8.
+    #[inline]
+    pub fn get_str(&self, id: T) -> Option<&str> {
+        self.pool
+            .get(Symbol::from(id.into()))
+            .map(|s| {
+                std::str::from_utf8(s)
+                    .expect("using BStringPool::get_str with a string that is not valid UTF-8")
+            })
+    }
 }

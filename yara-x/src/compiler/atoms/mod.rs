@@ -53,10 +53,10 @@ will end up using the `"Look"` atom alone, but in `/a(bcd|efg)h/` atoms `"bcd"`
 and `"efg"` will be used because `"a"` and `"h"` are too short.
  */
 
+pub mod base64;
 mod mask;
 mod quality;
 
-use bstr::ByteSlice;
 use itertools::{Itertools, MultiProduct};
 use std::cmp;
 use std::collections::Bound;
@@ -64,16 +64,13 @@ use std::ops::{RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
 use std::vec::IntoIter;
 
-use yara_x_parser::ast;
-use yara_x_parser::ast::PatternModifier;
-
 use crate::compiler::atoms::mask::ByteMaskCombinator;
 use crate::compiler::atoms::quality::{atom_quality, masked_atom_quality};
 
 /// The number of bytes that every atom *should* have. Some atoms may be
 /// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,
 /// good-quality atom from a string. Similarly, some atoms may be larger.
-const DESIRED_ATOM_SIZE: usize = 4;
+pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 
 /// A substring extracted from a rule pattern. See the module documentation for
 /// a general explanation of what is an atom.
@@ -183,88 +180,48 @@ impl MaskedAtom {
     }
 
     pub fn expand(&self) -> MaskedAtomExpander {
-        MaskedAtomExpander::new(&self)
+        MaskedAtomExpander::new(self)
     }
 }
 
-pub(super) trait Atoms {
-    fn atoms(&self) -> Vec<Atom>;
-}
+/// Returns the best possible atom from a slice.
+///
+/// The returned atom will have the `desired_size` if possible, but it can be
+/// shorter if the slice is shorter.
+pub(super) fn best_atom_from_slice(s: &[u8], desired_size: usize) -> Atom {
+    let mut best_quality = 0;
+    let mut best_atom = None;
 
-impl Atoms for ast::Pattern<'_> {
-    fn atoms(&self) -> Vec<Atom> {
-        match self {
-            ast::Pattern::Text(p) => p.atoms(),
-            ast::Pattern::Hex(p) => p.atoms(),
-            ast::Pattern::Regexp(p) => p.atoms(),
+    for i in 0..=s.len().saturating_sub(desired_size) {
+        let atom =
+            Atom::from_slice_range(s, i..cmp::min(s.len(), i + desired_size));
+        let quality = atom.quality();
+        if quality > best_quality {
+            best_quality = quality;
+            best_atom = Some(atom);
         }
     }
+
+    best_atom.expect("at least one atom should be generated")
 }
 
-impl Atoms for ast::TextPattern<'_> {
-    fn atoms(&self) -> Vec<Atom> {
-        let pattern_bytes = self.value.as_ref().as_bytes();
-        let pattern_len = pattern_bytes.len();
-
-        let mut max_quality = 0;
-        let mut best_atom = None;
-        let mut atoms = Vec::new();
-
-        // Extract the highest-quality atom from the pattern.
-        for i in 0..=pattern_len.checked_sub(DESIRED_ATOM_SIZE).unwrap_or(0) {
-            let atom = Atom::from_slice_range(
-                pattern_bytes,
-                i..cmp::min(pattern_len, i + DESIRED_ATOM_SIZE),
-            );
-            let quality = atom.quality();
-            if quality > max_quality {
-                max_quality = quality;
-                best_atom = Some(atom);
-            }
-        }
-
-        // The best atom *MUST* exist, if it is not that good.
-        let best_atom = best_atom.unwrap();
-
-        if self.modifiers.nocase().is_none() {
-            atoms.push(best_atom);
-        } else {
-            atoms.extend(CaseGenerator::new(&best_atom));
-        }
-
-        if let Some(PatternModifier::Xor { start, end, .. }) =
-            self.modifiers.xor()
-        {
-            let mut xored_atoms =
-                Vec::with_capacity(atoms.len() * (end - start) as usize + 1);
-
-            for atom in atoms.iter() {
-                for xored_atom in
-                    XorGenerator::new(atom, *start..=*end).into_iter()
-                {
-                    xored_atoms.push(xored_atom);
-                }
-            }
-
-            atoms = xored_atoms
-        }
-
-        atoms
-    }
-}
-
-impl Atoms for ast::RegexpPattern<'_> {
-    fn atoms(&self) -> Vec<Atom> {
-        // TODO
-        Vec::new()
-    }
-}
-
-impl Atoms for ast::HexPattern<'_> {
-    fn atoms(&self) -> Vec<Atom> {
-        // TODO
-        Vec::new()
-    }
+/// Given a slice of bytes, returns a vector where each byte is followed by
+/// a zero.
+///
+/// # Example
+///
+/// ```text
+/// assert_eq!(
+///    make_wide(&[0x01, 0x02, 0x03]),
+///    &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]
+/// )
+/// ```
+pub(super) fn make_wide(s: &[u8]) -> Vec<u8> {
+    itertools::interleave(
+        s.iter().cloned(),
+        itertools::repeat_n(0_u8, s.len()),
+    )
+    .collect()
 }
 
 /// Expands a [`MaskedAtom`] into multiple [`Atom`] by trying all the possible
@@ -372,15 +329,11 @@ impl Iterator for XorGenerator {
 
 #[cfg(test)]
 mod test {
+    use crate::compiler::atoms;
     use crate::compiler::atoms::{
-        Atom, Atoms, CaseGenerator, MaskedAtom, XorGenerator,
+        Atom, CaseGenerator, MaskedAtom, XorGenerator,
     };
-    use bstr::BString;
     use pretty_assertions::assert_eq;
-    use std::borrow::Cow;
-    use yara_x_parser::ast;
-    use yara_x_parser::ast::{Ident, PatternModifiers, Span};
-    use yara_x_parser::types::TypeValue;
 
     #[test]
     fn atom_expander() {
@@ -439,56 +392,10 @@ mod test {
     }
 
     #[test]
-    fn text_pattern_atoms() {
-        let text_pattern = ast::TextPattern {
-            span: Span::default(),
-            identifier: Ident {
-                span: Span::default(),
-                type_value: TypeValue::Unknown,
-                name: "",
-            },
-            value: Cow::Owned(BString::from("abcdef")),
-            modifiers: PatternModifiers::default(),
-        };
-
-        let expected_atom = Atom::from_slice_range("abcdef".as_bytes(), 0..4);
-
-        assert_eq!(expected_atom.as_ref(), "abcd".as_bytes());
-        assert_eq!(expected_atom.backtrack, 0);
-        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
-
-        let text_pattern = ast::TextPattern {
-            span: Span::default(),
-            identifier: Ident {
-                span: Span::default(),
-                type_value: TypeValue::Unknown,
-                name: "",
-            },
-            value: Cow::Owned(BString::from("ab")),
-            modifiers: PatternModifiers::default(),
-        };
-
-        let expected_atom = Atom::from_slice_range("ab".as_bytes(), 0..2);
-
-        assert_eq!(expected_atom.as_ref(), "ab".as_bytes());
-        assert_eq!(expected_atom.backtrack, 0);
-        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
-
-        let text_pattern = ast::TextPattern {
-            span: Span::default(),
-            identifier: Ident {
-                span: Span::default(),
-                type_value: TypeValue::Unknown,
-                name: "",
-            },
-            value: Cow::Owned(BString::from("abcd0")),
-            modifiers: PatternModifiers::default(),
-        };
-
-        let expected_atom = Atom::from_slice_range("abcd0".as_bytes(), 1..=4);
-
-        assert_eq!(expected_atom.as_ref(), "bcd0".as_bytes());
-        assert_eq!(expected_atom.backtrack, 1);
-        assert_eq!(text_pattern.atoms(), vec![expected_atom]);
+    fn make_wide() {
+        assert_eq!(
+            atoms::make_wide(&[0x01, 0x02, 0x03]),
+            &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]
+        )
     }
 }
