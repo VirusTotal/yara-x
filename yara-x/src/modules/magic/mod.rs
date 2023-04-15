@@ -17,8 +17,7 @@ thread_local! {
 #[module_main]
 fn main(_ctx: &ScanContext) -> Magic {
     // Nothing to do, but we have to return our protobuf
-    let magic_proto = Magic::new();
-    magic_proto
+    Magic::new()
 }
 
 #[module_export(name = "type")]
@@ -36,7 +35,7 @@ fn get_type(data: &[u8]) -> String {
         .with(|magic| magic.set_flags(Default::default()))
         .expect("set libmagic options");
 
-    MAGIC.with(|magic| magic.buffer(&data)).expect("libmagic didn't break")
+    MAGIC.with(|magic| magic.buffer(data)).expect("libmagic didn't break")
 }
 
 fn get_mime_type(data: &[u8]) -> String {
@@ -44,5 +43,5 @@ fn get_mime_type(data: &[u8]) -> String {
         .with(|magic| magic.set_flags(magic::CookieFlags::MIME_TYPE))
         .expect("set libmagic options");
 
-    MAGIC.with(|magic| magic.buffer(&data)).expect("libmagic didn't break")
+    MAGIC.with(|magic| magic.buffer(data)).expect("libmagic didn't break")
 }
