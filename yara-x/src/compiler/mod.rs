@@ -1100,7 +1100,7 @@ impl Rules {
         W: Write,
     {
         // Write file header.
-        writer.write(b"YARA-X").unwrap();
+        writer.write_all(b"YARA-X")?;
 
         // Serialize rules.
         Ok(bincode::DefaultOptions::new()
