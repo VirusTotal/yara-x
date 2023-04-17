@@ -57,12 +57,14 @@ pub mod base64;
 mod mask;
 mod quality;
 
-use itertools::{Itertools, MultiProduct};
 use std::cmp;
 use std::collections::Bound;
 use std::ops::{RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
 use std::vec::IntoIter;
+
+use itertools::{Itertools, MultiProduct};
+use serde::{Deserialize, Serialize};
 
 use crate::compiler::atoms::mask::ByteMaskCombinator;
 use crate::compiler::atoms::quality::{atom_quality, masked_atom_quality};
@@ -83,7 +85,7 @@ pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 /// patterns, where the atom position within the pattern is known beforehand.
 /// In such cases, once the atom is found we can go back to the offset where
 /// the pattern should match and verify the match from there.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Atom {
     // TODO: use tinyvec or smallvec?
     bytes: Vec<u8>,

@@ -3,22 +3,22 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use aho_corasick::AhoCorasick;
-use bstr::ByteSlice;
-use rustc_hash::FxHashMap;
+
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, mem};
-use walrus::ir::InstrSeqId;
-use walrus::{FunctionId, Module, ValType};
 
-use crate::compiler::atoms::base64::base64_patterns;
-use crate::compiler::atoms::{
-    best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
-    DESIRED_ATOM_SIZE,
-};
+use aho_corasick::AhoCorasick;
+use bincode::Options;
+use bstr::ByteSlice;
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
+use walrus::ir::InstrSeqId;
+use walrus::{FunctionId, ValType};
+
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
@@ -27,8 +27,14 @@ use yara_x_parser::types::{Struct, TypeValue};
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{ErrorInfo as ParserError, Parser, SourceCode};
 
+use crate::compiler::atoms::base64::base64_patterns;
+use crate::compiler::atoms::{
+    best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
+    DESIRED_ATOM_SIZE,
+};
 use crate::compiler::emit::emit_rule_code;
 use crate::compiler::semcheck::{semcheck, warn_if_not_bool};
+
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
@@ -283,7 +289,7 @@ impl<'a> Compiler<'a> {
     /// [`Rules`].
     pub fn build(self) -> Result<Rules, Error> {
         // Finish building the WASM module.
-        let mut wasm_mod = self.wasm_mod.build();
+        let wasm_mod = self.wasm_mod.build().emit_wasm();
 
         // Compile the WASM module for the current platform. This panics
         // if the WASM code is invalid, which should not happen as the code is
@@ -291,7 +297,7 @@ impl<'a> Compiler<'a> {
         // wrong WASM code is being emitted.
         let compiled_wasm_mod = wasmtime::Module::from_binary(
             &crate::wasm::ENGINE,
-            wasm_mod.emit_wasm().as_slice(),
+            wasm_mod.as_slice(),
         )
         .expect("WASM module is not valid");
 
@@ -300,9 +306,9 @@ impl<'a> Compiler<'a> {
         let ac = AhoCorasick::new(self.atoms.iter().map(|x| &x.atom));
 
         Ok(Rules {
-            ac,
-            compiled_wasm_mod,
             wasm_mod,
+            ac: Some(ac),
+            compiled_wasm_mod: Some(compiled_wasm_mod),
             num_patterns: self.next_pattern_id as usize,
             ident_pool: self.ident_pool,
             lit_pool: self.lit_pool,
@@ -709,7 +715,8 @@ impl Default for Compiler<'_> {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 pub(crate) struct IdentId(u32);
 
 impl From<u32> for IdentId {
@@ -725,7 +732,8 @@ impl From<IdentId> for u32 {
 }
 
 /// ID associated to each literal string in the literals pool.
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 pub(crate) struct LiteralId(u32);
 
 impl From<i32> for LiteralId {
@@ -793,7 +801,8 @@ impl From<RuleId> for usize {
 /// if one rule defines `$a = "mz"` and another one `$mz = "mz"`, the pattern
 /// `"mz"` is shared by the two rules. Each rule has a Vec<(IdentId, PatternId)>
 /// that associates identifiers to their corresponding patterns.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
 pub(crate) struct PatternId(i32);
 
 impl From<i32> for PatternId {
@@ -829,7 +838,8 @@ impl From<PatternId> for usize {
 /// For each pattern there's one or more sub-patterns, depending on the pattern
 /// and its modifiers. For example the pattern `"foo" ascii wide` may have one
 /// subpattern for the ascii case and another one for the wide case.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
 pub(crate) struct SubPatternId(u32);
 
 /// Structure that contains information and data structures required during the
@@ -994,6 +1004,7 @@ pub(crate) struct Var {
 /// A set of YARA rules in compiled form.
 ///
 /// This is the result from [`Compiler::build`].
+#[derive(Serialize, Deserialize)]
 pub struct Rules {
     /// Pool with identifiers used in the rules. Each identifier has its
     /// own [`IdentId`], which can be used for retrieving the identifier
@@ -1005,13 +1016,12 @@ pub struct Rules {
     /// string as `&BStr`.
     lit_pool: BStringPool<LiteralId>,
 
-    /// WebAssembly module containing the code for all rule conditions.
-    #[allow(dead_code)] // TODO: remove when wasm_mod is used
-    wasm_mod: Module,
+    /// Raw data for the WASM module containing the code for rule conditions.
+    wasm_mod: Vec<u8>,
 
-    /// WebAssembly module already compiled into native code for the current
-    /// platform.
-    compiled_wasm_mod: wasmtime::Module,
+    /// WASM module already compiled into native code for the current platform.
+    #[serde(skip)]
+    compiled_wasm_mod: Option<wasmtime::Module>,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -1037,10 +1047,67 @@ pub struct Rules {
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
     /// This allows to search for all the atoms in the scanned data at the same
     /// time in an efficient manner.
-    ac: AhoCorasick,
+    #[serde(skip)]
+    ac: Option<AhoCorasick>,
 }
 
 impl Rules {
+    /// Deserializes the rules from a sequence of bytes produced by
+    /// [`Rules::serialize`].
+    pub fn deserialize<B>(bytes: B) -> Result<Self, Error>
+    where
+        B: AsRef<[u8]>,
+    {
+        let bytes = bytes.as_ref();
+
+        if &bytes[0..6] != b"YARA-X" {
+            return Err(Error::InvalidFileFormat);
+        }
+
+        // Skip the header and deserialize the remaining data.
+        let mut rules = bincode::DefaultOptions::new()
+            .with_varint_encoding()
+            .deserialize::<Self>(&bytes[6..])?;
+
+        // The Aho-Corasick automaton is not serialized, it must be rebuilt.
+        rules.ac = Some(AhoCorasick::new(rules.atoms.iter().map(|x| &x.atom)));
+
+        // The WASM module must be compiled for the current platform.
+        rules.compiled_wasm_mod = Some(
+            wasmtime::Module::from_binary(
+                &crate::wasm::ENGINE,
+                rules.wasm_mod.as_slice(),
+            )
+            .expect("WASM module is not valid"),
+        );
+
+        Ok(rules)
+    }
+
+    /// Serializes the rules as a sequence of bytes.
+    ///
+    /// The [`Rules`] can be restored back by passing the bytes to
+    /// [`Rules::deserialize`].
+    pub fn serialize(&self) -> Result<Vec<u8>, Error> {
+        let mut bytes = BufWriter::new(Vec::new());
+        self.serialize_into(&mut bytes)?;
+        Ok(bytes.into_inner().unwrap())
+    }
+
+    /// Serializes the rules and writes the bytes into a `writer`.
+    pub fn serialize_into<W>(&self, mut writer: W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        // Write file header.
+        writer.write(b"YARA-X").unwrap();
+
+        // Serialize rules.
+        Ok(bincode::DefaultOptions::new()
+            .with_varint_encoding()
+            .serialize_into(writer, self)?)
+    }
+
     /// Returns a [`RuleInfo`] given its [`RuleId`].
     ///
     /// # Panics
@@ -1079,7 +1146,7 @@ impl Rules {
     /// atoms.
     #[inline]
     pub(crate) fn aho_corasick(&self) -> &AhoCorasick {
-        &self.ac
+        &self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
     }
 
     /// An iterator that yields the name of the modules imported by the
@@ -1103,7 +1170,7 @@ impl Rules {
 
     #[inline]
     pub(crate) fn compiled_wasm_mod(&self) -> &wasmtime::Module {
-        &self.compiled_wasm_mod
+        &self.compiled_wasm_mod.as_ref().expect("WASM module not compiled")
     }
 }
 
@@ -1122,6 +1189,7 @@ impl<'a> Iterator for Imports<'a> {
 }
 
 /// Information about each of the individual rules included in [`Rules`].
+#[derive(Serialize, Deserialize)]
 pub(crate) struct RuleInfo {
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident_id: IdentId,
@@ -1149,6 +1217,7 @@ impl<'r> Rule<'r> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct AtomInfo {
     pub sub_pattern_id: SubPatternId,
     pub atom: Atom,
@@ -1163,6 +1232,7 @@ pub(crate) struct AtomInfo {
 /// Also, each [`Atom`] is associated to a [`SubPattern`]. When the atom is
 /// found in the scanned data by the Aho-Corasick algorithm, the scanner
 /// verifies that the sub-pattern actually matches.
+#[derive(Serialize, Deserialize)]
 pub(crate) enum SubPattern {
     Fixed(LiteralId),
     FixedCaseInsensitive(LiteralId),
