@@ -1146,7 +1146,7 @@ impl Rules {
     /// atoms.
     #[inline]
     pub(crate) fn aho_corasick(&self) -> &AhoCorasick {
-        &self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
+        self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
     }
 
     /// An iterator that yields the name of the modules imported by the
@@ -1170,7 +1170,7 @@ impl Rules {
 
     #[inline]
     pub(crate) fn compiled_wasm_mod(&self) -> &wasmtime::Module {
-        &self.compiled_wasm_mod.as_ref().expect("WASM module not compiled")
+        self.compiled_wasm_mod.as_ref().expect("WASM module not compiled")
     }
 }
 
