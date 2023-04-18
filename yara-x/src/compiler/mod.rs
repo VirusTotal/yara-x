@@ -555,7 +555,7 @@ impl<'a> Compiler<'a> {
             } else if p.modifiers.nocase().is_some() {
                 debug_assert!(p.modifiers.base64().is_none());
                 debug_assert!(p.modifiers.base64wide().is_none());
-                debug_assert!(p.modifiers.xor());
+                debug_assert!(p.modifiers.xor().is_none());
 
                 let sub_pattern_id = self
                     .push_sub_pattern(SubPattern::FixedCaseInsensitive(id));
