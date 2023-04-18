@@ -74,7 +74,7 @@ fn language(ctx: &ScanContext) -> Option<i64> {
     let data = ctx.scanned_data();
     // Use `as_bstr()` for getting the scanned data as a `&BStr` instead of a
     // a `&[u8]`. Then call `to_str` for converting the `&BStr` to `&str`. This
-    // operation can fail if the context is not valid UTF-8, in that case
+    // operation can fail if the scanned data is not valid UTF-8, in that case
     // returns `None`, which is interpreted as `undefined` in YARA.
     let text = data.as_bstr().to_str().ok()?;
 
