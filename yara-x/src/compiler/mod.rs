@@ -479,6 +479,10 @@ impl<'a> Compiler<'a> {
             if let Some(PatternModifier::Xor { start, end, .. }) =
                 p.modifiers.xor()
             {
+                debug_assert!(p.modifiers.base64().is_none());
+                debug_assert!(p.modifiers.base64wide().is_none());
+                debug_assert!(p.modifiers.nocase().is_none());
+
                 let sub_pattern_id =
                     self.push_sub_pattern(SubPattern::Xor(id));
 
@@ -490,6 +494,10 @@ impl<'a> Compiler<'a> {
             } else if p.modifiers.base64().is_some()
                 || p.modifiers.base64wide().is_some()
             {
+                debug_assert!(p.modifiers.nocase().is_none());
+                debug_assert!(p.modifiers.xor().is_none());
+                debug_assert!(p.modifiers.fullword().is_none());
+
                 if let Some(PatternModifier::Base64 { alphabet, .. }) =
                     p.modifiers.base64()
                 {
@@ -545,6 +553,10 @@ impl<'a> Compiler<'a> {
                     }
                 }
             } else if p.modifiers.nocase().is_some() {
+                debug_assert!(p.modifiers.base64().is_none());
+                debug_assert!(p.modifiers.base64wide().is_none());
+                debug_assert!(p.modifiers.xor());
+
                 let sub_pattern_id = self
                     .push_sub_pattern(SubPattern::FixedCaseInsensitive(id));
 
