@@ -13,7 +13,6 @@ use std::{fmt, mem};
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
-use bstr::ByteSlice;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::ir::InstrSeqId;
@@ -443,150 +442,120 @@ impl<'a> Compiler<'a> {
     }
 
     fn process_text_pattern(&mut self, p: &TextPattern) {
-        if p.modifiers.base64().is_some() || p.modifiers.base64wide().is_some()
-        {
-            self.process_text_pattern_base64(p);
-            return;
-        }
-
-        let id = self.lit_pool.get_or_intern(p.value.as_ref());
-        let mut atoms = Vec::new();
+        // The `ascii` modifier is usually implicit, but when `wide` is used
+        // it must be declared explicitly.
         let mut implicit_ascii = true;
 
-        if let Some(PatternModifier::Xor { start, end, .. }) =
-            p.modifiers.xor()
-        {
-            // When `xor` is used `ascii` is not implicit anymore.
-            implicit_ascii = false;
-
-            debug_assert!(p.modifiers.nocase().is_none());
-            debug_assert!(p.modifiers.base64().is_none());
-            debug_assert!(p.modifiers.base64wide().is_none());
-
-            let sub_pattern_id = self.push_sub_pattern(SubPattern::Xor(id));
-            let atom = best_atom_from_slice(
-                p.value.as_ref().as_bytes(),
-                DESIRED_ATOM_SIZE,
-            );
-
-            atoms.reserve((end - start) as usize + 1);
-
-            for atom in XorGenerator::new(&atom, *start..=*end) {
-                atoms.push(AtomInfo { sub_pattern_id, atom });
-            }
-        }
-
-        if p.modifiers.nocase().is_some() {
-            debug_assert!(p.modifiers.base64().is_none());
-            debug_assert!(p.modifiers.base64wide().is_none());
-
-            let sub_pattern_id =
-                self.push_sub_pattern(SubPattern::FixedCaseInsensitive(id));
-
-            let atom = best_atom_from_slice(
-                p.value.as_ref().as_bytes(),
-                DESIRED_ATOM_SIZE,
-            );
-
-            for atom in CaseGenerator::new(&atom) {
-                atoms.push(AtomInfo { sub_pattern_id, atom });
-            }
-        }
-
-        if implicit_ascii || p.modifiers.ascii().is_some() {
-            let sub_pattern_id = self.push_sub_pattern(SubPattern::Fixed(id));
-
-            let best_atom = best_atom_from_slice(
-                p.value.as_ref().as_bytes(),
-                DESIRED_ATOM_SIZE,
-            );
-
-            atoms.push(AtomInfo { sub_pattern_id, atom: best_atom })
-        };
-
-        self.atoms.extend(atoms);
-    }
-
-    fn process_text_pattern_base64(&mut self, p: &TextPattern) {
-        // Make sure that `base64` and `base64wide` are not used together with
-        // `nocase`, `xor` or `fullword`.
-        debug_assert!(p.modifiers.nocase().is_none());
-        debug_assert!(p.modifiers.xor().is_none());
-        debug_assert!(p.modifiers.fullword().is_none());
-
-        let mut plain_text_patterns = Vec::new();
+        // Depending on the combination of `ascii` and `wide` modifiers, the
+        // `base_patterns` vector will contain either the pattern's `ascii`
+        // version, the `wide` version, or both. Each item in `base_patterns`
+        // also contains the best atom for the pattern.
+        let mut base_patterns = Vec::new();
         let wide_pattern;
-
-        // The `ascii` modifier is usually implicit, except when some other
-        // modifier like `wide` is used.
-        let mut implicit_ascii = true;
 
         if p.modifiers.wide().is_some() {
             implicit_ascii = false;
             wide_pattern = make_wide(p.value.as_ref());
-            plain_text_patterns.push(wide_pattern.as_slice());
+            base_patterns.push((
+                best_atom_from_slice(
+                    wide_pattern.as_slice(),
+                    // For wide patterns let's use atoms twice large as usual.
+                    DESIRED_ATOM_SIZE * 2,
+                ),
+                wide_pattern.as_slice(),
+            ));
         }
 
         if implicit_ascii || p.modifiers.ascii().is_some() {
-            plain_text_patterns.push(p.value.as_ref());
+            base_patterns.push((
+                best_atom_from_slice(p.value.as_ref(), DESIRED_ATOM_SIZE),
+                p.value.as_ref(),
+            ));
         }
 
-        if let Some(PatternModifier::Base64 { alphabet, .. }) =
-            p.modifiers.base64()
-        {
-            for p in plain_text_patterns.iter() {
-                let id = self.lit_pool.get_or_intern(p);
+        for (best_atom, base_pattern) in base_patterns {
+            let id = self.lit_pool.get_or_intern(base_pattern);
 
-                for (padding, base64_pattern) in base64_patterns(p, *alphabet)
-                {
-                    let sub_pattern = if let Some(alphabet) = *alphabet {
-                        SubPattern::CustomBase64(
-                            id,
-                            self.lit_pool.get_or_intern(alphabet),
-                            padding,
-                        )
-                    } else {
-                        SubPattern::Base64(id, padding)
-                    };
+            if let Some(PatternModifier::Xor { start, end, .. }) =
+                p.modifiers.xor()
+            {
+                let sub_pattern_id =
+                    self.push_sub_pattern(SubPattern::Xor(id));
 
-                    let sub_pattern_id = self.push_sub_pattern(sub_pattern);
-                    let atom = best_atom_from_slice(
-                        base64_pattern.as_slice(),
-                        DESIRED_ATOM_SIZE,
-                    );
+                self.atoms.reserve((end - start) as usize + 1);
 
-                    self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                for atom in XorGenerator::new(&best_atom, *start..=*end) {
+                    self.atoms.push(AtomInfo { sub_pattern_id, atom });
                 }
-            }
-        }
-
-        if let Some(PatternModifier::Base64Wide { alphabet, .. }) =
-            p.modifiers.base64wide()
-        {
-            for p in plain_text_patterns.iter() {
-                let id = self.lit_pool.get_or_intern(p);
-
-                for (padding, base64_pattern) in base64_patterns(p, *alphabet)
+            } else if p.modifiers.base64().is_some()
+                || p.modifiers.base64wide().is_some()
+            {
+                if let Some(PatternModifier::Base64 { alphabet, .. }) =
+                    p.modifiers.base64()
                 {
-                    let sub_pattern = if let Some(alphabet) = *alphabet {
-                        SubPattern::CustomBase64Wide(
-                            id,
-                            self.lit_pool.get_or_intern(alphabet),
-                            padding,
-                        )
-                    } else {
-                        SubPattern::Base64Wide(id, padding)
-                    };
+                    for (padding, base64_pattern) in
+                        base64_patterns(base_pattern, *alphabet)
+                    {
+                        let sub_pattern = if let Some(alphabet) = *alphabet {
+                            SubPattern::CustomBase64(
+                                id,
+                                self.lit_pool.get_or_intern(alphabet),
+                                padding,
+                            )
+                        } else {
+                            SubPattern::Base64(id, padding)
+                        };
 
-                    let sub_pattern_id = self.push_sub_pattern(sub_pattern);
-                    let wide = make_wide(base64_pattern.as_slice());
-                    let atom = best_atom_from_slice(
-                        wide.as_slice(),
-                        DESIRED_ATOM_SIZE * 2,
-                    );
+                        let sub_pattern_id =
+                            self.push_sub_pattern(sub_pattern);
+                        let atom = best_atom_from_slice(
+                            base64_pattern.as_slice(),
+                            DESIRED_ATOM_SIZE,
+                        );
 
-                    self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                        self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                    }
                 }
+
+                if let Some(PatternModifier::Base64Wide { alphabet, .. }) =
+                    p.modifiers.base64wide()
+                {
+                    for (padding, base64_pattern) in
+                        base64_patterns(base_pattern, *alphabet)
+                    {
+                        let sub_pattern = if let Some(alphabet) = *alphabet {
+                            SubPattern::CustomBase64Wide(
+                                id,
+                                self.lit_pool.get_or_intern(alphabet),
+                                padding,
+                            )
+                        } else {
+                            SubPattern::Base64Wide(id, padding)
+                        };
+
+                        let sub_pattern_id =
+                            self.push_sub_pattern(sub_pattern);
+                        let wide = make_wide(base64_pattern.as_slice());
+                        let atom = best_atom_from_slice(
+                            wide.as_slice(),
+                            DESIRED_ATOM_SIZE * 2,
+                        );
+
+                        self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                    }
+                }
+            } else if p.modifiers.nocase().is_some() {
+                let sub_pattern_id = self
+                    .push_sub_pattern(SubPattern::FixedCaseInsensitive(id));
+
+                for atom in CaseGenerator::new(&best_atom) {
+                    self.atoms.push(AtomInfo { sub_pattern_id, atom });
+                }
+            } else {
+                let sub_pattern_id =
+                    self.push_sub_pattern(SubPattern::Fixed(id));
+
+                self.atoms.push(AtomInfo { sub_pattern_id, atom: best_atom })
             }
         }
     }

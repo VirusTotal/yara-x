@@ -346,13 +346,39 @@ fn for_in() {
 #[test]
 fn text_patterns() {
     pattern_true!(r#""issi""#, b"mississippi");
+    pattern_true!(r#""issi" ascii"#, b"mississippi");
+    pattern_false!(r#""issi" wide "#, b"mississippi");
     pattern_false!(r#""ssippis""#, b"mississippi");
     pattern_true!(r#""IssI" nocase"#, b"mississippi");
+
+    pattern_true!(
+        r#""issi" wide "#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""issi" ascii wide"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
 }
 
 #[test]
 fn xor() {
     pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
+    pattern_true!(r#""mississippi" xor ascii"#, b"lhrrhrrhqqh");
+    pattern_true!(r#""mississippi" xor ascii wide"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""mississippi" xor wide"#, b"lhrrhrrhqqh");
+
+    pattern_true!(
+        r#""mississippi" xor wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor ascii wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
     pattern_false!(r#""mississippi" xor(2-255)"#, b"lhrrhrrhqqh");
     pattern_true!(
         r#""mississippi" xor(255)"#,
