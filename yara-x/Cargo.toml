@@ -74,7 +74,6 @@ yara-x-proto = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-predicates = { workspace = true }
 pretty_assertions = { workspace = true }
 yaml-rust = { workspace = true }
 yara = { version = "0.16.2", features = ["vendored"] }
