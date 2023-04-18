@@ -447,16 +447,17 @@ impl<'a> Compiler<'a> {
         let mut implicit_ascii = true;
 
         // Depending on the combination of `ascii` and `wide` modifiers, the
-        // `base_patterns` vector will contain either the pattern's `ascii`
-        // version, the `wide` version, or both. Each item in `base_patterns`
+        // `main_patterns` vector will contain either the pattern's `ascii`
+        // version, the `wide` version, or both. Each item in `main_patterns`
         // also contains the best atom for the pattern.
-        let mut base_patterns = Vec::new();
+        let mut main_patterns = Vec::new();
         let wide_pattern;
 
         if p.modifiers.wide().is_some() {
             implicit_ascii = false;
             wide_pattern = make_wide(p.value.as_ref());
-            base_patterns.push((
+            main_patterns.push((
+                true, // is wide
                 best_atom_from_slice(
                     wide_pattern.as_slice(),
                     // For wide patterns let's use atoms twice large as usual.
@@ -467,14 +468,19 @@ impl<'a> Compiler<'a> {
         }
 
         if implicit_ascii || p.modifiers.ascii().is_some() {
-            base_patterns.push((
+            main_patterns.push((
+                false, // is not wide
                 best_atom_from_slice(p.value.as_ref(), DESIRED_ATOM_SIZE),
                 p.value.as_ref(),
             ));
         }
 
-        for (best_atom, base_pattern) in base_patterns {
-            let id = self.lit_pool.get_or_intern(base_pattern);
+        for (wide, best_atom, main_pattern) in main_patterns {
+            let full_word = match (p.modifiers.fullword().is_some(), wide) {
+                (true, true) => FullWord::Wide,
+                (true, false) => FullWord::Ascii,
+                _ => FullWord::Disabled,
+            };
 
             if let Some(PatternModifier::Xor { start, end, .. }) =
                 p.modifiers.xor()
@@ -483,8 +489,11 @@ impl<'a> Compiler<'a> {
                 debug_assert!(p.modifiers.base64wide().is_none());
                 debug_assert!(p.modifiers.nocase().is_none());
 
-                let sub_pattern_id =
-                    self.push_sub_pattern(SubPattern::Xor(id));
+                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
+                let sub_pattern_id = self.push_sub_pattern(SubPattern::Xor {
+                    pattern: pattern_lit_id,
+                    full_word,
+                });
 
                 self.atoms.reserve((end - start) as usize + 1);
 
@@ -502,20 +511,30 @@ impl<'a> Compiler<'a> {
                     p.modifiers.base64()
                 {
                     for (padding, base64_pattern) in
-                        base64_patterns(base_pattern, *alphabet)
+                        base64_patterns(main_pattern, *alphabet)
                     {
                         let sub_pattern = if let Some(alphabet) = *alphabet {
-                            SubPattern::CustomBase64(
-                                id,
-                                self.lit_pool.get_or_intern(alphabet),
+                            SubPattern::CustomBase64 {
+                                pattern: self
+                                    .lit_pool
+                                    .get_or_intern(main_pattern),
+                                alphabet: self
+                                    .lit_pool
+                                    .get_or_intern(alphabet),
                                 padding,
-                            )
+                            }
                         } else {
-                            SubPattern::Base64(id, padding)
+                            SubPattern::Base64 {
+                                pattern: self
+                                    .lit_pool
+                                    .get_or_intern(main_pattern),
+                                padding,
+                            }
                         };
 
                         let sub_pattern_id =
                             self.push_sub_pattern(sub_pattern);
+
                         let atom = best_atom_from_slice(
                             base64_pattern.as_slice(),
                             DESIRED_ATOM_SIZE,
@@ -529,20 +548,30 @@ impl<'a> Compiler<'a> {
                     p.modifiers.base64wide()
                 {
                     for (padding, base64_pattern) in
-                        base64_patterns(base_pattern, *alphabet)
+                        base64_patterns(main_pattern, *alphabet)
                     {
                         let sub_pattern = if let Some(alphabet) = *alphabet {
-                            SubPattern::CustomBase64Wide(
-                                id,
-                                self.lit_pool.get_or_intern(alphabet),
+                            SubPattern::CustomBase64Wide {
+                                pattern: self
+                                    .lit_pool
+                                    .get_or_intern(main_pattern),
+                                alphabet: self
+                                    .lit_pool
+                                    .get_or_intern(alphabet),
                                 padding,
-                            )
+                            }
                         } else {
-                            SubPattern::Base64Wide(id, padding)
+                            SubPattern::Base64Wide {
+                                pattern: self
+                                    .lit_pool
+                                    .get_or_intern(main_pattern),
+                                padding,
+                            }
                         };
 
                         let sub_pattern_id =
                             self.push_sub_pattern(sub_pattern);
+
                         let wide = make_wide(base64_pattern.as_slice());
                         let atom = best_atom_from_slice(
                             wide.as_slice(),
@@ -557,15 +586,23 @@ impl<'a> Compiler<'a> {
                 debug_assert!(p.modifiers.base64wide().is_none());
                 debug_assert!(p.modifiers.xor().is_none());
 
-                let sub_pattern_id = self
-                    .push_sub_pattern(SubPattern::FixedCaseInsensitive(id));
+                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
+                let sub_pattern_id =
+                    self.push_sub_pattern(SubPattern::FixedCaseInsensitive {
+                        pattern: pattern_lit_id,
+                        full_word,
+                    });
 
                 for atom in CaseGenerator::new(&best_atom) {
                     self.atoms.push(AtomInfo { sub_pattern_id, atom });
                 }
             } else {
+                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
                 let sub_pattern_id =
-                    self.push_sub_pattern(SubPattern::Fixed(id));
+                    self.push_sub_pattern(SubPattern::Fixed {
+                        pattern: pattern_lit_id,
+                        full_word,
+                    });
 
                 self.atoms.push(AtomInfo { sub_pattern_id, atom: best_atom })
             }
@@ -1215,12 +1252,18 @@ pub(crate) struct AtomInfo {
 /// verifies that the sub-pattern actually matches.
 #[derive(Serialize, Deserialize)]
 pub(crate) enum SubPattern {
-    Fixed(LiteralId),
-    FixedCaseInsensitive(LiteralId),
-    Xor(LiteralId),
+    Fixed { pattern: LiteralId, full_word: FullWord },
+    FixedCaseInsensitive { pattern: LiteralId, full_word: FullWord },
+    Xor { pattern: LiteralId, full_word: FullWord },
+    Base64 { pattern: LiteralId, padding: u8 },
+    Base64Wide { pattern: LiteralId, padding: u8 },
+    CustomBase64 { pattern: LiteralId, alphabet: LiteralId, padding: u8 },
+    CustomBase64Wide { pattern: LiteralId, alphabet: LiteralId, padding: u8 },
+}
 
-    Base64(LiteralId, u8),
-    Base64Wide(LiteralId, u8),
-    CustomBase64(LiteralId, LiteralId, u8),
-    CustomBase64Wide(LiteralId, LiteralId, u8),
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub(crate) enum FullWord {
+    Disabled,
+    Ascii,
+    Wide,
 }
