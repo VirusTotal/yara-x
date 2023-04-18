@@ -101,3 +101,17 @@ $a = "foo" base64 base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv
 In YARA-X you can specify different alphabets for `base64` and `base64wide` 
 in the same string. In the example above `base64` would use the default alphabet
 as always, while `base64wide` would use the custom alphabet.
+
+### `xor` and `fullword` behave differently when used together
+
+In YARA 4.x the combination `xor` and `fullword` looks for the bytes before
+and after the XORed pattern and makes sure that they are not alphanumeric, so
+the pattern `"mississippi" xor(1) fullword` matches `{lhrrhrrhqqh}`, which is the
+result of XORing `mississippi` with 1. The pattern matches because the XORed
+`mississippi` is delimited by the non-alphanumeric characters `{` and `}`.
+
+In YARA-X the bytes before and after the pattern are also XORed before checking 
+if they are alphanumeric, therefore `{lhrrhrrhqqh}` becomes `zmississippiz`,
+which doesn't match `"mississippi" xor(1) fullword`. In other words, YARA-X 
+searches for full words contained inside a longer XORed string, which is 
+the intended behavior in most cases.

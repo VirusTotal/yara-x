@@ -365,13 +365,73 @@ fn text_patterns() {
 #[test]
 fn xor() {
     pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
+    pattern_true!(r#""ssi" xor"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""miss" xor fullword"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""ppi" xor fullword"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""ssi" xor fullword"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""ssis" xor fullword"#, b"lhrrhrrhqqh");
+
+    pattern_true!(
+        r#""mississippi" xor fullword "#,
+        b"y!lhrrhrrhqqh" // "x mississippi"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor fullword "#,
+        b"lhrrhrrhqqh!y" // "mississippi x"
+    );
+
+    pattern_false!(
+        r#""mississippi" xor fullword "#,
+        b"ylhrrhrrhqqh" // "xmississippi"
+    );
+
+    pattern_false!(
+        r#""mississippi" xor fullword "#,
+        b"lhrrhrrhqqhy" // "mississippix"
+    );
+
     pattern_true!(r#""mississippi" xor ascii"#, b"lhrrhrrhqqh");
     pattern_true!(r#""mississippi" xor ascii wide"#, b"lhrrhrrhqqh");
     pattern_false!(r#""mississippi" xor wide"#, b"lhrrhrrhqqh");
 
+    // YARA 4.x doesn't XOR the bytes before and after the matching
+    // pattern, so `mississippi" xor(1) fullword` matches `{lhrrhrrhqqh}`.
+    // In YARA-X `{lhrrhrrhqqh}` becomes `zmississipiz`, which
+    // doesn't match.
+    pattern_false!(
+        r#""mississippi" xor(1) fullword"#,
+        b"{lhrrhrrhqqh}" // zmississippiz xor 1
+    );
+
     pattern_true!(
         r#""mississippi" xor wide"#,
         b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor fullword wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_false!(
+        r#""mississippi" xor fullword wide"#,
+        b"y\x01l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor fullword wide"#,
+        b"\x01\x02l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor fullword wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01\x02\x01"
+    );
+
+    pattern_false!(
+        r#""mississippi" xor fullword wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01y\x01"
     );
 
     pattern_true!(
@@ -383,6 +443,89 @@ fn xor() {
     pattern_true!(
         r#""mississippi" xor(255)"#,
         &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
+    );
+}
+
+#[test]
+fn fullword() {
+    pattern_true!(r#""mississippi" fullword"#, b"mississippi");
+    pattern_true!(r#""mississippi" fullword"#, b"mississippi ");
+    pattern_true!(r#""mississippi" fullword"#, b" mississippi");
+    pattern_true!(r#""mississippi" fullword"#, b" mississippi ");
+    pattern_true!(r#""mississippi" fullword"#, b"\x00mississippi\x00");
+    pattern_true!(r#""mississippi" fullword"#, b"\x01mississippi\x02");
+    pattern_false!(r#""miss" fullword"#, b"mississippi");
+    pattern_false!(r#""ippi" fullword"#, b"mississippi");
+    pattern_false!(r#""issi" fullword"#, b"mississippi");
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00 \0x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b" \x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b" \x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00 \x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,  
+        b"\x00\x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00\x00\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"\x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"\x00\x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"\x00\x01m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"x\x01m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00x\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00\x01\x00"
+    );
+
+    pattern_false!(
+        r#""miss" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_false!(
+        r#""ippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_false!(
+        r#""issi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
     );
 }
 

@@ -24,7 +24,9 @@ use yara_x_parser::types::{Struct, TypeValue};
 use crate::compiler::{Rule, RuleId, Rules};
 use crate::string_pool::BStringPool;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, wasm, AtomInfo, LiteralId, PatternId, SubPattern};
+use crate::{
+    modules, wasm, AtomInfo, FullWord, LiteralId, PatternId, SubPattern,
+};
 
 #[cfg(test)]
 mod tests;
@@ -495,31 +497,44 @@ impl ScanContext<'_> {
                 .get_sub_pattern(matched_atom.sub_pattern_id);
 
             let match_verified = match sub_pattern {
-                SubPattern::Fixed(pattern_lit_id) => self.verify_fixed_match(
-                    match_start,
-                    *pattern_lit_id,
-                    false,
-                ),
-                SubPattern::FixedCaseInsensitive(pattern_lit_id) => {
-                    self.verify_fixed_match(match_start, *pattern_lit_id, true)
+                SubPattern::Fixed { pattern, full_word } => self
+                    .verify_fixed_match(
+                        match_start,
+                        *pattern,
+                        false,
+                        *full_word,
+                    ),
+                SubPattern::FixedCaseInsensitive { pattern, full_word } => {
+                    self.verify_fixed_match(
+                        match_start,
+                        *pattern,
+                        true,
+                        *full_word,
+                    )
                 }
-                SubPattern::Xor(pattern_lit_id) => self.verify_xor_match(
-                    match_start,
-                    matched_atom,
-                    *pattern_lit_id,
-                ),
-                SubPattern::Base64(id, padding)
-                | SubPattern::Base64Wide(id, padding) => self
+                SubPattern::Xor { pattern, full_word } => self
+                    .verify_xor_match(
+                        match_start,
+                        matched_atom,
+                        *pattern,
+                        *full_word,
+                    ),
+                SubPattern::Base64 { pattern, padding }
+                | SubPattern::Base64Wide { pattern, padding } => self
                     .verify_base64_match(
                         *padding,
                         match_start,
-                        *id,
+                        *pattern,
                         None,
-                        matches!(sub_pattern, SubPattern::Base64Wide(..)),
+                        matches!(sub_pattern, SubPattern::Base64Wide { .. }),
                     ),
 
-                SubPattern::CustomBase64(id, alphabet, padding)
-                | SubPattern::CustomBase64Wide(id, alphabet, padding) => {
+                SubPattern::CustomBase64 { pattern, alphabet, padding }
+                | SubPattern::CustomBase64Wide {
+                    pattern,
+                    alphabet,
+                    padding,
+                } => {
                     let alphabet = self
                         .compiled_rules
                         .lit_pool()
@@ -538,11 +553,11 @@ impl ScanContext<'_> {
                     self.verify_base64_match(
                         *padding,
                         match_start,
-                        *id,
+                        *pattern,
                         alphabet,
                         matches!(
                             sub_pattern,
-                            SubPattern::CustomBase64Wide(..)
+                            SubPattern::CustomBase64Wide { .. }
                         ),
                     )
                 }
@@ -559,20 +574,55 @@ impl ScanContext<'_> {
         match_start: usize,
         pattern_id: LiteralId,
         case_insensitive: bool,
+        full_word: FullWord,
     ) -> bool {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
+        let data = self.scanned_data();
 
-        if self.scanned_data_len < match_start + pattern.len() {
+        // Offset where the match should end (inclusive).
+        let match_end = match_start + pattern.len() - 1;
+
+        // The match can not end past the end of the scanned data.
+        if match_end >= data.len() {
             return false;
         }
 
-        let data =
-            &self.scanned_data()[match_start..match_start + pattern.len()];
+        match full_word {
+            FullWord::Ascii => {
+                if match_start >= 1
+                    && data[match_start - 1].is_ascii_alphanumeric()
+                {
+                    return false;
+                }
+
+                if match_end + 1 < data.len()
+                    && data[match_end + 1].is_ascii_alphanumeric()
+                {
+                    return false;
+                }
+            }
+            FullWord::Wide => {
+                if match_start >= 2
+                    && data[match_start - 1] == 0
+                    && data[match_start - 2].is_ascii_alphanumeric()
+                {
+                    return false;
+                }
+
+                if match_end + 2 < data.len()
+                    && data[match_end + 2] == 0
+                    && data[match_end + 1].is_ascii_alphanumeric()
+                {
+                    return false;
+                }
+            }
+            FullWord::Disabled => {}
+        }
 
         if case_insensitive {
-            pattern.eq_ignore_ascii_case(data)
+            pattern.eq_ignore_ascii_case(&data[match_start..=match_end])
         } else {
-            memx::memeq(data, pattern.as_bytes())
+            memx::memeq(&data[match_start..=match_end], pattern.as_bytes())
         }
     }
 
@@ -581,10 +631,16 @@ impl ScanContext<'_> {
         match_start: usize,
         matched_atom: &AtomInfo,
         pattern_id: LiteralId,
+        full_word: FullWord,
     ) -> bool {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
+        let data = self.scanned_data();
 
-        if self.scanned_data_len < match_start + pattern.len() {
+        // Offset where the match should end (inclusive).
+        let match_end = match_start + pattern.len() - 1;
+
+        // The match can not end past the end of the scanned data.
+        if match_end >= data.len() {
             return false;
         }
 
@@ -596,6 +652,38 @@ impl ScanContext<'_> {
         let key = matched_atom.atom.as_ref()[0]
             ^ pattern[matched_atom.atom.backtrack as usize];
 
+        match full_word {
+            FullWord::Ascii => {
+                if match_start >= 1
+                    && (data[match_start - 1] ^ key).is_ascii_alphanumeric()
+                {
+                    return false;
+                }
+
+                if match_end + 1 < data.len()
+                    && (data[match_end + 1] ^ key).is_ascii_alphanumeric()
+                {
+                    return false;
+                }
+            }
+            FullWord::Wide => {
+                if match_start >= 2
+                    && (data[match_start - 1] ^ key) == 0
+                    && (data[match_start - 2] ^ key).is_ascii_alphanumeric()
+                {
+                    return false;
+                }
+
+                if match_end + 2 < data.len()
+                    && (data[match_end + 2] ^ key) == 0
+                    && (data[match_end + 1] ^ key).is_ascii_alphanumeric()
+                {
+                    return false;
+                }
+            }
+            FullWord::Disabled => {}
+        }
+
         // Now we can XOR the whole pattern with the obtained key and make sure
         // that it matches the data. This only makes sense if the key is not
         // zero.
@@ -605,10 +693,7 @@ impl ScanContext<'_> {
             }
         }
 
-        let data =
-            &self.scanned_data()[match_start..match_start + pattern.len()];
-
-        memx::memeq(data, pattern.as_bytes())
+        memx::memeq(&data[match_start..=match_end], pattern.as_bytes())
     }
 
     fn verify_base64_match(
