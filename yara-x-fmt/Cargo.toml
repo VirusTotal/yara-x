@@ -23,7 +23,6 @@ enable-ansi-support = { workspace = true }
 lazy_static = { workspace = true }
 thiserror = { workspace = true }
 yara-x-parser = { workspace = true }
-wasm-bindgen = "0.2"
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
