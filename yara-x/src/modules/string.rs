@@ -19,11 +19,12 @@ fn to_int_base(
     string: RuntimeString,
     base: i64,
 ) -> Option<i64> {
+    let base: u32 = base.try_into().ok()?;
     if !(2..=36).contains(&base) {
         return None;
     }
     let string = string.as_bstr(ctx).to_str().ok()?;
-    i64::from_str_radix(string, base as u32).ok()
+    i64::from_str_radix(string, base).ok()
 }
 
 #[module_export]
