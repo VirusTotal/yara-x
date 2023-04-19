@@ -4,8 +4,7 @@ use crate::modules::protos::string::*;
 #[module_main]
 fn main(_ctx: &ScanContext) -> String {
     // Nothing to do, but we have to return our protobuf
-    let string_proto = String::new();
-    string_proto
+    String::new()
 }
 
 #[module_export]
@@ -20,7 +19,7 @@ fn to_int_base(
     string: RuntimeString,
     base: i64,
 ) -> Option<i64> {
-    if base < 2 || base > 36 {
+    if !(2..=36).contains(&base) {
         return None;
     }
     let string = string.as_bstr(ctx).to_str().ok()?;
