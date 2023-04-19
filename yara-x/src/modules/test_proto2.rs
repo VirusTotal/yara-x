@@ -43,6 +43,7 @@ fn get_foo(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::from_bytes(ctx, foo))
 }
 
+#[module_export]
 fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     let string = string.to_str(ctx).ok()?;
     string.parse::<i64>().ok()
