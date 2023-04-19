@@ -65,6 +65,19 @@ fn get_line(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     }
 }
 
+/// Function that returns `num_words / num_lines`.
+#[module_export]
+fn avg_words_per_line(ctx: &mut ScanContext) -> Option<f64> {
+    // Obtain a reference to the `Text` protobuf that was returned by the
+    // module's main function.
+    let text = ctx.module_output::<Text>()?;
+
+    let num_lines = text.num_lines? as f64;
+    let num_words = text.num_words? as f64;
+
+    Some(num_words / num_lines)
+}
+
 /// Function that returns the language in which the text file is written.
 ///
 /// Returns None if the language can't be determined (which in YARA is handled
@@ -74,7 +87,7 @@ fn language(ctx: &ScanContext) -> Option<i64> {
     let data = ctx.scanned_data();
     // Use `as_bstr()` for getting the scanned data as a `&BStr` instead of a
     // a `&[u8]`. Then call `to_str` for converting the `&BStr` to `&str`. This
-    // operation can fail if the context is not valid UTF-8, in that case
+    // operation can fail if the scanned data is not valid UTF-8, in that case
     // returns `None`, which is interpreted as `undefined` in YARA.
     let text = data.as_bstr().to_str().ok()?;
 

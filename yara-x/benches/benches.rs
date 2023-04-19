@@ -23,12 +23,7 @@ macro_rules! gen_bench {
             });
 
             group.bench_function("yara-x", |b| {
-                let rules = yara_x::Compiler::new()
-                    .add_source($rule)
-                    .unwrap()
-                    .build()
-                    .unwrap();
-
+                let rules = yara_x::compile($rule).unwrap();
                 let mut scanner = yara_x::Scanner::new(&rules);
 
                 b.iter(|| {

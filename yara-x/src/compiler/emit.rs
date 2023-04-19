@@ -227,7 +227,7 @@ pub(super) fn emit_rule_code(
         block.br_if(block.id());
 
         // RuleId is the argument to `rule_match`.
-        block.i32_const(rule_id);
+        block.i32_const(rule_id.0);
 
         // Emit call instruction for calling `rule_match`.
         block.call(ctx.function_id(wasm::export__rule_match.mangled_name));
@@ -430,7 +430,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
             // corresponding pattern in the current rule, and push its ID.
             else {
                 instr.i32_const(
-                    ctx.get_pattern_from_current_rule(&pattern.identifier),
+                    ctx.get_pattern_from_current_rule(&pattern.identifier).0,
                 );
             };
 
@@ -873,7 +873,7 @@ fn emit_check_for_rule_match(
     //
     // The first thing is loading the byte where the bit
     // resides..
-    instr.i32_const(rule_id / 8);
+    instr.i32_const(rule_id.0 / 8);
     instr.load(
         ctx.wasm_symbols.main_memory,
         LoadKind::I32_8 { kind: ZeroExtend },
@@ -883,10 +883,10 @@ fn emit_check_for_rule_match(
         },
     );
     // This is the first operator for the I32ShrU operation.
-    instr.i32_const(rule_id % 8);
+    instr.i32_const(rule_id.0 % 8);
     // Compute byte & (1 << (rule_id % 8)), which clears all
     // bits except the one we are interested in.
-    instr.i32_const(1 << (rule_id % 8));
+    instr.i32_const(1 << (rule_id.0 % 8));
     instr.binop(BinaryOp::I32And);
     // Now shift the byte to the right, leaving the
     // interesting bit as the LSB. So the result is either
@@ -1191,7 +1191,7 @@ fn emit_of_pattern_set(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |_, instr| {
                     if let Some(pattern_id) = pattern_ids.next() {
-                        instr.i64_const(pattern_id as i64);
+                        instr.i64_const(pattern_id.into());
                         return true;
                     }
                     false
@@ -1302,7 +1302,7 @@ fn emit_for_of_pattern_set(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |_, instr| {
                     if let Some(pattern_id) = pattern_ids.next() {
-                        instr.i64_const(pattern_id as i64);
+                        instr.i64_const(pattern_id.into());
                         return true;
                     }
                     false

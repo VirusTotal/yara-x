@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::iter::Iterator;
 use std::str;
 
-use bstr::{BStr, BString};
+use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
 use num::{Bounded, CheckedMul, FromPrimitive, Integer};
 use pest::iterators::Pair;
@@ -211,8 +211,8 @@ lazy_static! {
 ///
 /// Certain modifiers can't be used in conjunction, and this function
 /// returns an error in those cases.
-fn check_pattern_modifiers<'src>(
-    ctx: &mut Context<'src, '_>,
+fn check_pattern_modifiers(
+    ctx: &mut Context<'_, '_>,
     rule_type: GrammarRule,
     modifiers: &PatternModifiers,
 ) -> Result<(), Error> {
@@ -249,8 +249,6 @@ fn check_pattern_modifiers<'src>(
         ("base64wide", base64wide, "nocase", nocase),
         ("base64", base64, "fullword", fullword),
         ("base64wide", base64wide, "fullword", fullword),
-        ("base64", base64, "nocase", nocase),
-        ("base64wide", base64wide, "nocase", nocase),
         ("base64", base64, "xor", xor),
         ("base64wide", base64wide, "xor", xor),
     ];
@@ -289,8 +287,7 @@ pub(crate) fn namespace_from_cst<'src>(
                 expect!(children.next().unwrap(), GrammarRule::k_IMPORT);
 
                 let module_name =
-                    string_lit_from_cst(ctx, children.next().unwrap(), false)?
-                        .to_string();
+                    utf8_string_lit_from_cst(ctx, children.next().unwrap())?;
 
                 let already_imported = imports
                     .iter()
@@ -308,7 +305,10 @@ pub(crate) fn namespace_from_cst<'src>(
                     ));
                 }
 
-                imports.push(Import { span: span.into(), module_name });
+                imports.push(Import {
+                    span: span.into(),
+                    module_name: module_name.to_string(),
+                });
             }
             // .. or rule declarations.
             GrammarRule::rule_decl => {
@@ -484,7 +484,7 @@ fn rule_from_cst<'src>(
 }
 
 /// Given a CST node corresponding to the grammar rule` pattern_defs`, returns
-/// a vector of [`String`] structs describing the defined strings.
+/// a vector of [`Pattern`] structs describing the defined strings.
 fn patterns_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     pattern_defs: CSTNode<'src>,
@@ -540,7 +540,7 @@ fn patterns_from_cst<'src>(
 }
 
 /// Given a CST node corresponding to the grammar rule `pattern_def`, returns
-/// a [`String`] struct describing the defined pattern.
+/// a [`Pattern`] struct describing the defined pattern.
 fn pattern_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     pattern_def: CSTNode<'src>,
@@ -605,6 +605,26 @@ fn pattern_from_cst<'src>(
             } else {
                 PatternModifiers::default()
             };
+
+            let (min_len, note) = if modifiers.base64().is_some() {
+                (3, Some("`base64` requires that pattern is at least 3 bytes long".to_string()))
+            } else if modifiers.base64wide().is_some() {
+                (3, Some("`base64wide` requires that pattern is at least 3 bytes long".to_string()))
+            } else {
+                (1, None)
+            };
+
+            if value.len() < min_len {
+                return Err(Error::new(ErrorInfo::invalid_pattern(
+                    ctx.report_builder,
+                    &ctx.src,
+                    ctx.current_pattern_ident(),
+                    "this pattern is too short".to_string(),
+                    span,
+                    note,
+                )));
+            }
+
             // Take the identifier and set ctx.current_pattern
             // to None.
             let identifier = ctx.current_pattern.take().unwrap();
@@ -782,11 +802,24 @@ fn pattern_mods_from_cst<'src>(
                 if let Some(node) = children.peek() {
                     if node.as_rule() == GrammarRule::LPAREN {
                         children.next().unwrap();
-                        alphabet = Some(string_lit_from_cst(
-                            ctx,
-                            children.next().unwrap(),
-                            false,
-                        )?);
+                        let node = children.next().unwrap();
+                        let span = node.as_span().into();
+                        let lit = utf8_string_lit_from_cst(ctx, node)?;
+
+                        // Make sure the base64 alphabet is a valid one.
+                        if let Err(e) = base64::alphabet::Alphabet::new(lit) {
+                            return Err(Error::new(
+                                ErrorInfo::invalid_base_64_alphabet(
+                                    ctx.report_builder,
+                                    &ctx.src,
+                                    e.to_string().to_lowercase(),
+                                    span,
+                                ),
+                            ));
+                        }
+
+                        alphabet = Some(lit);
+
                         expect!(children.next().unwrap(), GrammarRule::RPAREN);
                     }
                 }
@@ -1059,7 +1092,7 @@ fn boolean_term_from_cst<'src>(
         GrammarRule::expr => {
             // See comments in `boolean_expr_from_cst` for some explanation
             // of the logic below.
-            let expr = PRATT_PARSER
+            PRATT_PARSER
                 .map_primary(|pair| {
                     expr_from_cst(
                         ctx,
@@ -1073,9 +1106,7 @@ fn boolean_term_from_cst<'src>(
                         create_binary_expr(lhs?, op.as_rule(), rhs?)
                     },
                 )
-                .parse(children.map(|node| node.into_pair()))?;
-
-            expr
+                .parse(children.map(|node| node.into_pair()))?
         }
         GrammarRule::of_expr => {
             of_expr_from_cst(ctx, children.next().unwrap())?
@@ -1324,30 +1355,43 @@ fn func_call_expr_from_cst<'src>(
 
     // After the callable expression follows the opening parenthesis
     // enclosing the arguments.
-    expect!(children.next().unwrap(), GrammarRule::LPAREN);
+    let lparen = children.next().unwrap();
+    expect!(lparen, GrammarRule::LPAREN);
 
     let mut args = Vec::new();
+    let mut children = children.peekable();
 
-    // For all CST nodes after the opening parenthesis...
-    for node in children.by_ref() {
+    // For all CST nodes after the opening parenthesis, and before the closing
+    // parenthesis...
+    while let Some(node) =
+        children.next_if(|n| !matches!(n.as_rule(), GrammarRule::RPAREN))
+    {
         match node.as_rule() {
             // ... if the node is an expression, add it to the function
             // arguments.
             GrammarRule::expr => {
                 args.push(expr_from_cst(ctx, node)?);
             }
-            // ... if the node is a comma separating the arguments, or the
-            // closing parenthesis, do nothing and continue.
-            GrammarRule::COMMA | GrammarRule::RPAREN => {}
+            // ... if the node is a comma separating the arguments, do
+            // nothing and continue.
+            GrammarRule::COMMA => {}
             rule => unreachable!("{:?}", rule),
         }
     }
+
+    // The function arguments must be followed by a closing parenthesis
+    let rparen = children.next().unwrap();
+    expect!(rparen, GrammarRule::RPAREN);
+
+    let args_span =
+        Span { start: lparen.as_span().start(), end: rparen.as_span().end() };
 
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
     Ok(Expr::FnCall(Box::new(FnCall {
         span: span.into(),
+        args_span,
         callable,
         args,
         // Function's return type is not known at this stage.
@@ -1969,6 +2013,22 @@ fn string_lit_from_cst<'src>(
     Ok(Cow::Owned(result))
 }
 
+/// This function is similar [`string_lit_from_cst`] but guarantees that the
+/// string is a valid UTF-8 string.
+fn utf8_string_lit_from_cst<'src>(
+    ctx: &mut Context<'src, '_>,
+    string_lit: CSTNode<'src>,
+) -> Result<&'src str, Error> {
+    // Call string_lit_from_cst with allow_escape_char set to false. This
+    // guarantees that the returned string is borrowed from the source code
+    // and is valid UTF-8, therefore is safe to convert it to &str without
+    // additional checks.
+    match string_lit_from_cst(ctx, string_lit, false)? {
+        Cow::Borrowed(a) => unsafe { Ok(a.to_str_unchecked()) },
+        _ => unreachable!(),
+    }
+}
+
 /// From a CST node corresponding to the grammar rule `hex_pattern`, returns
 /// the [`HexPattern`] representing it.
 fn hex_pattern_from_cst<'src>(
@@ -2016,7 +2076,7 @@ fn hex_pattern_from_cst<'src>(
                     // nibbles in a byte sequence (e.g. { 000 }). The grammar
                     // allows this case, even if invalid, precisely for detecting
                     // it here and providing a meaningful error message.
-                    return Err(Error::new(ErrorInfo::invalid_hex_pattern(
+                    return Err(Error::new(ErrorInfo::invalid_pattern(
                         ctx.report_builder,
                         &ctx.src,
                         ctx.current_pattern_ident(),
@@ -2028,7 +2088,7 @@ fn hex_pattern_from_cst<'src>(
 
                 // ~?? is not allowed.
                 if negated && mask == 0x00 {
-                    return Err(Error::new(ErrorInfo::invalid_hex_pattern(
+                    return Err(Error::new(ErrorInfo::invalid_pattern(
                         ctx.report_builder,
                         &ctx.src,
                         ctx.current_pattern_ident(),
@@ -2078,7 +2138,7 @@ fn hex_pattern_from_cst<'src>(
 
                 if let (Some(start), Some(end)) = (jump.start, jump.end) {
                     if start > end {
-                        return Err(Error::new(ErrorInfo::invalid_hex_pattern(
+                        return Err(Error::new(ErrorInfo::invalid_pattern(
                             ctx.report_builder,
                             &ctx.src,
                             ctx.current_pattern_ident(),

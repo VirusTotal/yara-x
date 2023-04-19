@@ -41,7 +41,9 @@ impl<'src> HasSpan for BinaryExpr<'src> {
 
 impl<'src> HasSpan for &Vec<Expr<'src>> {
     fn span(&self) -> Span {
-        let span = self.first().unwrap().span();
+        let span =
+            self.first().expect("calling span() on an empty Vec<Expr>").span();
+
         span.combine(&self.last().unwrap().span())
     }
 }

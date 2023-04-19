@@ -153,12 +153,12 @@ impl Struct {
     /// See [`Self::from_proto_descriptor_and_msg`] for details.
     #[inline]
     pub fn from_proto_msg(
-        msg: Box<dyn MessageDyn>,
+        msg: &dyn MessageDyn,
         generate_fields_for_enums: bool,
     ) -> Self {
         Self::from_proto_descriptor_and_msg(
             &msg.descriptor_dyn(),
-            Some(msg.deref()),
+            Some(msg),
             generate_fields_for_enums,
         )
     }

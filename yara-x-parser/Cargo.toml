@@ -20,16 +20,15 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-ansi_term = { workspace = true }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
 ascii_tree = { workspace = true, optional=true }
+base64 = { workspace = true }
 bitmask =  { workspace = true }
 bstr = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
-line-span = { workspace = true }
 num = { workspace = true }
 pest = { workspace = true }
 pest_derive = { workspace = true }

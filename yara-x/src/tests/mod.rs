@@ -17,11 +17,7 @@ macro_rules! test_condition {
             format!("rule t {{condition: {} }}", $condition).as_str(),
         );
 
-        let rules = crate::compiler::Compiler::new()
-            .add_source(src.as_str())
-            .unwrap()
-            .build()
-            .unwrap();
+        let rules = crate::compile(src.as_str()).unwrap();
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
             .scan($data)
@@ -54,12 +50,8 @@ macro_rules! condition_false {
 }
 
 macro_rules! test_rule {
-    ($rule:literal,  $data:expr, $expected_result:expr) => {{
-        let rules = crate::compiler::Compiler::new()
-            .add_source($rule)
-            .unwrap()
-            .build()
-            .unwrap();
+    ($rule:expr,  $data:expr, $expected_result:expr) => {{
+        let rules = crate::compile($rule).unwrap();
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
             .scan($data)
@@ -71,26 +63,46 @@ macro_rules! test_rule {
             $rule, $expected_result, !$expected_result
         );
     }};
-    ($rule:literal) => {{
+    ($rule:expr) => {{
         rule_true!($rule, &[]);
     }};
 }
 
 macro_rules! rule_true {
-    ($rule:literal,  $data:expr) => {{
+    ($rule:expr,  $data:expr) => {{
         test_rule!($rule, $data, true);
     }};
-    ($condition:literal) => {{
+    ($rule:expr) => {{
         test_rule!($rule, &[], true);
     }};
 }
 
 macro_rules! rule_false {
-    ($rule:literal,  $data:expr) => {{
+    ($rule:expr,  $data:expr) => {{
         test_rule!($rule, $data, false);
     }};
-    ($condition:literal) => {{
+    ($rule:expr) => {{
         test_rule!($rule, &[], false);
+    }};
+}
+
+macro_rules! pattern_true {
+    ($pattern:literal,  $data:expr) => {{
+        rule_true!(
+            format!("rule test {{ strings: $a = {} condition: $a}}", $pattern)
+                .as_str(),
+            $data
+        );
+    }};
+}
+
+macro_rules! pattern_false {
+    ($pattern:literal,  $data:expr) => {{
+        rule_false!(
+            format!("rule test {{ strings: $a = {} condition: $a}}", $pattern)
+                .as_str(),
+            $data
+        );
     }};
 }
 
@@ -325,96 +337,367 @@ fn for_in() {
 
 #[test]
 fn text_patterns() {
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "issi"
-            condition: 
-                $a
-        }
-        "#,
-        b"mississippi"
+    pattern_true!(r#""issi""#, b"mississippi");
+    pattern_true!(r#""issi" ascii"#, b"mississippi");
+    pattern_false!(r#""issi" wide "#, b"mississippi");
+    pattern_false!(r#""ssippis""#, b"mississippi");
+    pattern_true!(r#""IssI" nocase"#, b"mississippi");
+
+    pattern_true!(
+        r#""issi" wide "#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
     );
 
-    rule_false!(
-        r#"
-        rule test {
-            strings:
-                $a = "ssippis"
-            condition:
-                $a
-        }
-        "#,
-        b"mississippi"
+    pattern_true!(
+        r#""issi" ascii wide"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+}
+
+#[test]
+fn xor() {
+    pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
+    pattern_true!(r#""ssi" xor"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""miss" xor fullword"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""ppi" xor fullword"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""ssi" xor fullword"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""ssis" xor fullword"#, b"lhrrhrrhqqh");
+
+    pattern_true!(
+        r#""mississippi" xor fullword "#,
+        b"y!lhrrhrrhqqh" // "x mississippi"
     );
 
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "IssI" nocase
-            condition: 
-                $a
-        }
-        "#,
-        b"mississippi"
+    pattern_true!(
+        r#""mississippi" xor fullword "#,
+        b"lhrrhrrhqqh!y" // "mississippi x"
     );
 
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor
-            condition: 
-                $a
-        }
-        "#,
-        b"lhrrhrrhqqh"
+    pattern_false!(
+        r#""mississippi" xor fullword "#,
+        b"ylhrrhrrhqqh" // "xmississippi"
     );
 
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mmmmississippi" xor
-            condition: 
-                $a
-        }
-        "#,
-        b"llllhrrhrrhqqh"
+    pattern_false!(
+        r#""mississippi" xor fullword "#,
+        b"lhrrhrrhqqhy" // "mississippix"
     );
 
-    rule_false!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor(2-255)
-            condition: 
-                $a
-        }
-        "#,
-        b"lhrrhrrhqqh"
+    pattern_true!(r#""mississippi" xor ascii"#, b"lhrrhrrhqqh");
+    pattern_true!(r#""mississippi" xor ascii wide"#, b"lhrrhrrhqqh");
+    pattern_false!(r#""mississippi" xor wide"#, b"lhrrhrrhqqh");
+
+    // YARA 4.x doesn't XOR the bytes before and after the matching
+    // pattern, so `mississippi" xor(1) fullword` matches `{lhrrhrrhqqh}`.
+    // In YARA-X `{lhrrhrrhqqh}` becomes `zmississipiz`, which
+    // doesn't match.
+    pattern_false!(
+        r#""mississippi" xor(1) fullword"#,
+        b"{lhrrhrrhqqh}" // zmississippiz xor 1
     );
 
-    rule_true!(
-        r#"
-        rule test { 
-            strings:
-                $a = "mississippi" xor(255)
-            condition: 
-                $a
-        }
-        "#,
+    pattern_true!(
+        r#""mississippi" xor wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor fullword wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_false!(
+        r#""mississippi" xor fullword wide"#,
+        b"y\x01l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor fullword wide"#,
+        b"\x01\x02l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor fullword wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01\x02\x01"
+    );
+
+    pattern_false!(
+        r#""mississippi" xor fullword wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01y\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" xor ascii wide"#,
+        b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
+    );
+
+    pattern_false!(r#""mississippi" xor(2-255)"#, b"lhrrhrrhqqh");
+    pattern_true!(
+        r#""mississippi" xor(255)"#,
         &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
     );
 }
 
 #[test]
+fn fullword() {
+    pattern_true!(r#""mississippi" fullword"#, b"mississippi");
+    pattern_true!(r#""mississippi" fullword"#, b"mississippi ");
+    pattern_true!(r#""mississippi" fullword"#, b" mississippi");
+    pattern_true!(r#""mississippi" fullword"#, b" mississippi ");
+    pattern_true!(r#""mississippi" fullword"#, b"\x00mississippi\x00");
+    pattern_true!(r#""mississippi" fullword"#, b"\x01mississippi\x02");
+    pattern_false!(r#""miss" fullword"#, b"mississippi");
+    pattern_false!(r#""ippi" fullword"#, b"mississippi");
+    pattern_false!(r#""issi" fullword"#, b"mississippi");
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00 \0x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b" \x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b" \x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00 \x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,  
+        b"\x00\x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00\x00\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"\x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"\x00\x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"\x00\x01m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"x\x01m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00x\x01"
+    );
+
+    pattern_true!(
+        r#""mississippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00\x01\x00"
+    );
+
+    pattern_false!(
+        r#""miss" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_false!(
+        r#""ippi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_false!(
+        r#""issi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+}
+
+#[test]
+fn base64() {
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"Zm9vYmFy" // base64("foobar")
+    );
+
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"eGZvb2Jhcg" // base64("xfoobar")
+    );
+
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"eHhmb29iYXI" // base64("xxfoobar")
+    );
+
+    pattern_true!(
+        r#""foobar" base64"#,
+        b"eHh4Zm9vYmFy" // base64("xxxfoobar")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
+        b"Zm9vYmE" // base64("fooba")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
+        b"eGZvb2Jh" // base64("xfooba")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
+        b"eHhmb29iYQ" // base64("xxfooba")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"Zm9vYg" // base64("foob")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"eGZvb2I" // base64("xfoob")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"eHhmb29i" // base64("xxfoob")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"eHhmb29i\x01" // base64("xxfoob")
+    );
+
+    pattern_true!(
+        r#""foobar" base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"Xk7tWkDw"
+    );
+
+    // When `base64` is combined with `wide` the latter if applied first,
+    // so it must match base64("f\x00o\x00o\x00b\x00a\x00r\x00").
+    pattern_true!(
+        r#""foobar" base64 wide"#,
+        b"ZgBvAG8AYgBhAHIA" // base64("f\x00o\x00o\x00b\x00a\x00r\x00")
+    );
+
+    // When `base64` is combined with `wide` the latter if applied first,
+    // so it does NOT match base64("foobar").
+    pattern_false!(
+        r#""foobar" base64 wide"#,
+        b"Zm9vYmFy" // base64("foobar")
+    );
+
+    // When `base64` is combined with both `wide` and `ascii` it should
+    // match base64("f\x00o\x00o\x00b\x00a\x00r\x00") and base64("foobar").
+    pattern_true!(
+        r#""foobar" base64 wide ascii"#,
+        b"Zm9vYmFy" // base64("foobar")
+    );
+
+    pattern_false!(r#""foobar" base64"#, b"foobar");
+    pattern_false!(r#""foobar" base64 ascii"#, b"foobar");
+    pattern_false!(
+        r#""foobar" base64 wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"Zm9vYmE" // base64("fooba"))
+    );
+
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"eHhmb29iYQ" // base64("xxfooba"))
+    );
+
+    pattern_false!(
+        r#""foobar" base64"#,
+        b"eHhmb29i" // base64("xxfoob"))
+    );
+
+    pattern_false!(r#""foobar" base64"#, b"Zvb2Jhcg");
+    pattern_false!(r#""foobar" base64"#, b"mb29iYQ");
+    pattern_false!(r#""foobar" base64"#, b":::mb29iYXI");
+
+    // In the C implementation of YARA the `base64` modifier could produce
+    // false positives like this. In this implementation the issue is fixed.
+    pattern_false!(
+        r#""Dhis program cannow" base64"#,
+        // base64("This program cannot")
+        b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q"
+    );
+
+    pattern_true!(
+        r#""This program cannot" base64"#,
+        // base64("This program cannot")
+        b"QVRoaXMgcHJvZ3JhbSBjYW5ub3Q"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        // base64("foobar") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x00"
+    );
+
+    // The the last byte should be 0, but it's 1, so the pattern doesn't match.
+    pattern_false!(
+        r#""foobar" base64wide"#,
+        // base64("foobar") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x01"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        // base64("xfoobar") in wide form
+        b"e\x00G\x00Z\x00v\x00b\x002\x00J\x00h\x00c\x00g\x00"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        // base64("xxfoobar") in wide form
+        b"e\x00H\x00h\x00m\x00b\x002\x009\x00i\x00Y\x00X\x00I\x00"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide"#,
+        // base64("xxxfoobar") in wide form
+        b"e\x00H\x00h\x004\x00Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x00"
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide wide"#,
+        // base64("f\x00o\x00o\x00b\x00a\x00r\x00") in wide form
+        b"Z\x00g\x00B\x00v\x00A\x00G\x008\x00A\x00Y\x00g\x00B\x00h\x00A\x00H\x00I\x00A\x00" 
+    );
+
+    pattern_true!(
+        r#""foobar" base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"X\x00k\x007\x00t\x00W\x00k\x00D\x00w\x00"
+    );
+
+    pattern_true!(
+        r#""foobar" 
+            base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+            base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
+        b"X\x00k\x007\x00t\x00W\x00k\x00D\x00w\x00"
+    );
+}
+
+#[test]
 fn filesize() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
         rule filesize_0 {
           condition:
             filesize == 0
@@ -424,10 +707,8 @@ fn filesize() {
             filesize == 1
         }
         "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
@@ -437,9 +718,8 @@ fn filesize() {
 
 #[test]
 fn for_of() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
         rule test {
           strings:
             $a = "foo"
@@ -448,10 +728,8 @@ fn for_of() {
             for none of ($a, $b) : ($)
         }
         "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
@@ -460,9 +738,8 @@ fn for_of() {
 
 #[test]
 fn of() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
         rule test_1 {
           condition:
             none of (1 == 0, 2 == 0)
@@ -484,10 +761,8 @@ fn of() {
             none of them
         }
         "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
@@ -496,9 +771,8 @@ fn of() {
 
 #[test]
 fn rule_reuse() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
         rule rule_1 {
           condition:
             true
@@ -536,10 +810,8 @@ fn rule_reuse() {
             rule_8
         }
         "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
@@ -787,6 +1059,9 @@ fn test_proto2_module() {
                 key == "foo" and value.nested_int64_one == 1
           )"#
     );
+
+    condition_true!(r#"test_proto2.get_foo() == "foo""#);
+    condition_true!(r#"test_proto2.to_int("123") == 123"#);
 
     // This field is named `bool_proto` in the protobuf definition, but it's
     // name for YARA wsa changed to `bool_yara`, with:

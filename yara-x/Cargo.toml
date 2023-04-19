@@ -37,15 +37,15 @@ default = [
 
 [dependencies]
 aho-corasick = { workspace = true }
-ansi_term = { workspace = true }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
 ascii_tree = { workspace = true }
+base64 = { workspace = true }
+bincode = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true }
 fmmap = { workspace = true }
-globset = { workspace = true }
 intaglio = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
@@ -54,11 +54,11 @@ memx = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
+serde = { workspace = true }
 thiserror = { workspace = true }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features=["cranelift"]  }
 yansi = { workspace = true }
-yara-x-fmt = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }
 yara-x-proto = { workspace = true }
@@ -73,9 +73,7 @@ yara-x-proto = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-predicates = { workspace = true }
 pretty_assertions = { workspace = true }
-yaml-rust = { workspace = true }
 yara = { version = "0.16.2", features = ["vendored"] }
 
 [[bench]]

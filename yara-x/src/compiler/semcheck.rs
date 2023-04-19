@@ -895,7 +895,7 @@ fn semcheck_fn_call(
             return Err(Error::CompileError(CompileError::wrong_arguments(
                 ctx.report_builder,
                 ctx.src,
-                (&fn_call.args).span(),
+                fn_call.args_span,
                 Some(format!(
                     "accepted argument combinations:\n\n             {}",
                     expected_args

@@ -3,17 +3,21 @@
 YARA rules must be compiled before they can be used for scanning data. This
 module implements the YARA compiler.
 */
-use aho_corasick::AhoCorasick;
-use rustc_hash::FxHashMap;
+
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, mem};
-use walrus::ir::InstrSeqId;
-use walrus::{FunctionId, Module, ValType};
 
-use crate::compiler::atoms::{Atom, Atoms};
+use aho_corasick::AhoCorasick;
+use bincode::Options;
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
+use walrus::ir::InstrSeqId;
+use walrus::{FunctionId, ValType};
+
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
@@ -22,8 +26,14 @@ use yara_x_parser::types::{Struct, TypeValue};
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{ErrorInfo as ParserError, Parser, SourceCode};
 
+use crate::compiler::atoms::base64::base64_patterns;
+use crate::compiler::atoms::{
+    best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
+    DESIRED_ATOM_SIZE,
+};
 use crate::compiler::emit::emit_rule_code;
 use crate::compiler::semcheck::{semcheck, warn_if_not_bool};
+
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
@@ -111,9 +121,12 @@ pub struct Compiler<'a> {
     /// an index in this vector.
     rules: Vec<RuleInfo>,
 
-    /// A vector with all the patterns from all the rules. A [`PatternId`]
-    /// is an index in this vector.
-    patterns: Vec<Pattern>,
+    /// Next (not unused yet) [`PatternId`].
+    next_pattern_id: i32,
+
+    /// A vector with all the sub-patterns from all the rules. A
+    /// [`SubPatternId`] is an index in this vector.
+    sub_patterns: Vec<(PatternId, SubPattern)>,
 
     /// A vector that contains all the atoms generated for the patterns. Each
     /// atom has an associated [`PatternId`] that indicates the pattern it
@@ -164,10 +177,11 @@ impl<'a> Compiler<'a> {
         Self {
             ident_pool,
             symbol_table,
+            next_pattern_id: 0,
             current_namespace: default_namespace,
             warnings: Vec::new(),
             rules: Vec::new(),
-            patterns: Vec::new(),
+            sub_patterns: Vec::new(),
             atoms: Vec::new(),
             imported_modules: Vec::new(),
             modules_struct: Struct::new(),
@@ -274,7 +288,7 @@ impl<'a> Compiler<'a> {
     /// [`Rules`].
     pub fn build(self) -> Result<Rules, Error> {
         // Finish building the WASM module.
-        let mut wasm_mod = self.wasm_mod.build();
+        let wasm_mod = self.wasm_mod.build().emit_wasm();
 
         // Compile the WASM module for the current platform. This panics
         // if the WASM code is invalid, which should not happen as the code is
@@ -282,7 +296,7 @@ impl<'a> Compiler<'a> {
         // wrong WASM code is being emitted.
         let compiled_wasm_mod = wasmtime::Module::from_binary(
             &crate::wasm::ENGINE,
-            wasm_mod.emit_wasm().as_slice(),
+            wasm_mod.as_slice(),
         )
         .expect("WASM module is not valid");
 
@@ -291,14 +305,15 @@ impl<'a> Compiler<'a> {
         let ac = AhoCorasick::new(self.atoms.iter().map(|x| &x.atom));
 
         Ok(Rules {
-            ac,
-            compiled_wasm_mod,
             wasm_mod,
+            ac: Some(ac),
+            compiled_wasm_mod: Some(compiled_wasm_mod),
+            num_patterns: self.next_pattern_id as usize,
             ident_pool: self.ident_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
             rules: self.rules,
-            patterns: self.patterns,
+            sub_patterns: self.sub_patterns,
             atoms: self.atoms,
         })
     }
@@ -318,6 +333,13 @@ impl<'a> Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
+    #[inline]
+    fn push_sub_pattern(&mut self, sub_pattern: SubPattern) -> SubPatternId {
+        let id = self.sub_patterns.len();
+        self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
+        SubPatternId(id as u32)
+    }
+
     fn process_rule(
         &mut self,
         src: &SourceCode,
@@ -333,47 +355,27 @@ impl<'a> Compiler<'a> {
                 let ident_id =
                     self.ident_pool.get_or_intern(pattern.identifier().name);
 
-                // PatternId is the index of the pattern in `self.patterns`.
-                let pattern_id = self.patterns.len() as PatternId;
-
-                for atom in pattern.atoms() {
-                    self.atoms.push(AtomInfo { pattern_id, atom })
-                }
-
-                let pattern = match pattern {
-                    ast::Pattern::Text(p) => {
-                        let id = self.lit_pool.get_or_intern(p.value.as_ref());
-
-                        if p.modifiers.xor().is_some() {
-                            // `nocase` can't be used together with `xor`.
-                            debug_assert!(p.modifiers.nocase().is_none());
-                            Pattern::Xored(id)
-                        } else if p.modifiers.nocase().is_some() {
-                            Pattern::FixedCaseInsensitive(id)
-                        } else {
-                            Pattern::Fixed(id)
-                        }
+                match pattern {
+                    Pattern::Text(p) => {
+                        self.process_text_pattern(p.as_ref());
                     }
-                    ast::Pattern::Hex(_) => {
+                    Pattern::Hex(_) => {
                         // TODO
-                        Pattern::Regexp
                     }
-                    ast::Pattern::Regexp(_) => {
+                    Pattern::Regexp(_) => {
                         // TODO
-                        Pattern::Regexp
                     }
                 };
 
-                self.patterns.push(pattern);
-
-                pairs.push((ident_id, pattern_id));
+                pairs.push((ident_id, PatternId(self.next_pattern_id)));
+                self.next_pattern_id += 1;
             }
             pairs
         } else {
             Vec::new()
         };
 
-        let rule_id = self.rules.len() as RuleId;
+        let rule_id = RuleId(self.rules.len() as i32);
 
         self.rules.push(RuleInfo {
             ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
@@ -437,6 +439,174 @@ impl<'a> Compiler<'a> {
         assert_eq!(ctx.vars_stack_top, 0);
 
         Ok(())
+    }
+
+    fn process_text_pattern(&mut self, p: &TextPattern) {
+        // The `ascii` modifier is usually implicit, but when `wide` is used
+        // it must be declared explicitly.
+        let mut implicit_ascii = true;
+
+        // Depending on the combination of `ascii` and `wide` modifiers, the
+        // `main_patterns` vector will contain either the pattern's `ascii`
+        // version, the `wide` version, or both. Each item in `main_patterns`
+        // also contains the best atom for the pattern.
+        let mut main_patterns = Vec::new();
+        let wide_pattern;
+
+        if p.modifiers.wide().is_some() {
+            implicit_ascii = false;
+            wide_pattern = make_wide(p.value.as_ref());
+            main_patterns.push((
+                true, // is wide
+                best_atom_from_slice(
+                    wide_pattern.as_slice(),
+                    // For wide patterns let's use atoms twice large as usual.
+                    DESIRED_ATOM_SIZE * 2,
+                ),
+                wide_pattern.as_slice(),
+            ));
+        }
+
+        if implicit_ascii || p.modifiers.ascii().is_some() {
+            main_patterns.push((
+                false, // is not wide
+                best_atom_from_slice(p.value.as_ref(), DESIRED_ATOM_SIZE),
+                p.value.as_ref(),
+            ));
+        }
+
+        for (wide, best_atom, main_pattern) in main_patterns {
+            let full_word = match (p.modifiers.fullword().is_some(), wide) {
+                (true, true) => FullWord::Wide,
+                (true, false) => FullWord::Ascii,
+                _ => FullWord::Disabled,
+            };
+
+            if let Some(PatternModifier::Xor { start, end, .. }) =
+                p.modifiers.xor()
+            {
+                debug_assert!(p.modifiers.base64().is_none());
+                debug_assert!(p.modifiers.base64wide().is_none());
+                debug_assert!(p.modifiers.nocase().is_none());
+
+                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
+                let sub_pattern_id = self.push_sub_pattern(SubPattern::Xor {
+                    pattern: pattern_lit_id,
+                    full_word,
+                });
+
+                self.atoms.reserve((end - start) as usize + 1);
+
+                for atom in XorGenerator::new(&best_atom, *start..=*end) {
+                    self.atoms.push(AtomInfo { sub_pattern_id, atom });
+                }
+            } else if p.modifiers.base64().is_some()
+                || p.modifiers.base64wide().is_some()
+            {
+                debug_assert!(p.modifiers.nocase().is_none());
+                debug_assert!(p.modifiers.xor().is_none());
+                debug_assert!(p.modifiers.fullword().is_none());
+
+                if let Some(PatternModifier::Base64 { alphabet, .. }) =
+                    p.modifiers.base64()
+                {
+                    for (padding, base64_pattern) in
+                        base64_patterns(main_pattern, *alphabet)
+                    {
+                        let sub_pattern = if let Some(alphabet) = *alphabet {
+                            SubPattern::CustomBase64 {
+                                pattern: self
+                                    .lit_pool
+                                    .get_or_intern(main_pattern),
+                                alphabet: self
+                                    .lit_pool
+                                    .get_or_intern(alphabet),
+                                padding,
+                            }
+                        } else {
+                            SubPattern::Base64 {
+                                pattern: self
+                                    .lit_pool
+                                    .get_or_intern(main_pattern),
+                                padding,
+                            }
+                        };
+
+                        let sub_pattern_id =
+                            self.push_sub_pattern(sub_pattern);
+
+                        let atom = best_atom_from_slice(
+                            base64_pattern.as_slice(),
+                            DESIRED_ATOM_SIZE,
+                        );
+
+                        self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                    }
+                }
+
+                if let Some(PatternModifier::Base64Wide { alphabet, .. }) =
+                    p.modifiers.base64wide()
+                {
+                    for (padding, base64_pattern) in
+                        base64_patterns(main_pattern, *alphabet)
+                    {
+                        let sub_pattern = if let Some(alphabet) = *alphabet {
+                            SubPattern::CustomBase64Wide {
+                                pattern: self
+                                    .lit_pool
+                                    .get_or_intern(main_pattern),
+                                alphabet: self
+                                    .lit_pool
+                                    .get_or_intern(alphabet),
+                                padding,
+                            }
+                        } else {
+                            SubPattern::Base64Wide {
+                                pattern: self
+                                    .lit_pool
+                                    .get_or_intern(main_pattern),
+                                padding,
+                            }
+                        };
+
+                        let sub_pattern_id =
+                            self.push_sub_pattern(sub_pattern);
+
+                        let wide = make_wide(base64_pattern.as_slice());
+                        let atom = best_atom_from_slice(
+                            wide.as_slice(),
+                            DESIRED_ATOM_SIZE * 2,
+                        );
+
+                        self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                    }
+                }
+            } else if p.modifiers.nocase().is_some() {
+                debug_assert!(p.modifiers.base64().is_none());
+                debug_assert!(p.modifiers.base64wide().is_none());
+                debug_assert!(p.modifiers.xor().is_none());
+
+                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
+                let sub_pattern_id =
+                    self.push_sub_pattern(SubPattern::FixedCaseInsensitive {
+                        pattern: pattern_lit_id,
+                        full_word,
+                    });
+
+                for atom in CaseGenerator::new(&best_atom) {
+                    self.atoms.push(AtomInfo { sub_pattern_id, atom });
+                }
+            } else {
+                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
+                let sub_pattern_id =
+                    self.push_sub_pattern(SubPattern::Fixed {
+                        pattern: pattern_lit_id,
+                        full_word,
+                    });
+
+                self.atoms.push(AtomInfo { sub_pattern_id, atom: best_atom })
+            }
+        }
     }
 
     fn process_imports(
@@ -563,7 +733,8 @@ impl Default for Compiler<'_> {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 pub(crate) struct IdentId(u32);
 
 impl From<u32> for IdentId {
@@ -579,7 +750,8 @@ impl From<IdentId> for u32 {
 }
 
 /// ID associated to each literal string in the literals pool.
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 pub(crate) struct LiteralId(u32);
 
 impl From<i32> for LiteralId {
@@ -612,11 +784,81 @@ impl From<LiteralId> for u64 {
     }
 }
 
-/// ID associated to each pattern.
-pub(crate) type PatternId = i32;
-
 /// ID associated to each rule.
-pub(crate) type RuleId = i32;
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct RuleId(i32);
+
+impl From<i32> for RuleId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<usize> for RuleId {
+    #[inline]
+    fn from(value: usize) -> Self {
+        Self(value as i32)
+    }
+}
+
+impl From<RuleId> for usize {
+    #[inline]
+    fn from(value: RuleId) -> Self {
+        value.0 as usize
+    }
+}
+
+/// ID associated to each pattern.
+///
+/// For each unique pattern defined in a set of YARA rules there's a PatternId
+/// that identifies it. If two different rules define exactly the same pattern
+/// there's a single instance of the pattern and therefore a single PatternId
+/// shared by both rules. Two patterns are considered equal when the have the
+/// same data and modifiers, but the identifier is not relevant. For example,
+/// if one rule defines `$a = "mz"` and another one `$mz = "mz"`, the pattern
+/// `"mz"` is shared by the two rules. Each rule has a Vec<(IdentId, PatternId)>
+/// that associates identifiers to their corresponding patterns.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
+pub(crate) struct PatternId(i32);
+
+impl From<i32> for PatternId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<PatternId> for i64 {
+    #[inline]
+    fn from(value: PatternId) -> Self {
+        value.0 as i64
+    }
+}
+
+impl From<usize> for PatternId {
+    #[inline]
+    fn from(value: usize) -> Self {
+        Self(value as i32)
+    }
+}
+
+impl From<PatternId> for usize {
+    #[inline]
+    fn from(value: PatternId) -> Self {
+        value.0 as usize
+    }
+}
+
+/// ID associated to each sub-pattern.
+///
+/// For each pattern there's one or more sub-patterns, depending on the pattern
+/// and its modifiers. For example the pattern `"foo" ascii wide` may have one
+/// subpattern for the ascii case and another one for the wide case.
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
+pub(crate) struct SubPatternId(u32);
 
 /// Structure that contains information and data structures required during the
 /// current compilation process.
@@ -780,6 +1022,7 @@ pub(crate) struct Var {
 /// A set of YARA rules in compiled form.
 ///
 /// This is the result from [`Compiler::build`].
+#[derive(Serialize, Deserialize)]
 pub struct Rules {
     /// Pool with identifiers used in the rules. Each identifier has its
     /// own [`IdentId`], which can be used for retrieving the identifier
@@ -791,13 +1034,12 @@ pub struct Rules {
     /// string as `&BStr`.
     lit_pool: BStringPool<LiteralId>,
 
-    /// WebAssembly module containing the code for all rule conditions.
-    #[allow(dead_code)] // TODO: remove when wasm_mod is used
-    wasm_mod: Module,
+    /// Raw data for the WASM module containing the code for rule conditions.
+    wasm_mod: Vec<u8>,
 
-    /// WebAssembly module already compiled into native code for the current
-    /// platform.
-    compiled_wasm_mod: wasmtime::Module,
+    /// WASM module already compiled into native code for the current platform.
+    #[serde(skip)]
+    compiled_wasm_mod: Option<wasmtime::Module>,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -807,31 +1049,90 @@ pub struct Rules {
     /// in this vector.
     rules: Vec<RuleInfo>,
 
-    /// Vector with all the patterns used in the rules. This vector has not
-    /// duplicated items, if two different rules use the "MZ" pattern, it
-    /// appears in this list once. A [`PatternId`] is an index in this
-    /// vector.
-    patterns: Vec<Pattern>,
+    /// Total number of patterns in all rules. This is equal to the last
+    /// [`PatternId`] +  1.
+    num_patterns: usize,
+
+    /// Vector with all the sub-patterns used in the rules. A [`SubPatternId`]
+    /// is an index in this vector.
+    sub_patterns: Vec<(PatternId, SubPattern)>,
 
     /// A vector that contains all the atoms generated for the patterns. Each
-    /// atom has an associated [`PatternId`] that indicates the pattern it
-    /// belongs to.
+    /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
+    /// it belongs to.
     atoms: Vec<AtomInfo>,
 
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
     /// This allows to search for all the atoms in the scanned data at the same
     /// time in an efficient manner.
-    ac: AhoCorasick,
+    #[serde(skip)]
+    ac: Option<AhoCorasick>,
 }
 
 impl Rules {
+    /// Deserializes the rules from a sequence of bytes produced by
+    /// [`Rules::serialize`].
+    pub fn deserialize<B>(bytes: B) -> Result<Self, Error>
+    where
+        B: AsRef<[u8]>,
+    {
+        let bytes = bytes.as_ref();
+
+        if &bytes[0..6] != b"YARA-X" {
+            return Err(Error::InvalidFileFormat);
+        }
+
+        // Skip the header and deserialize the remaining data.
+        let mut rules = bincode::DefaultOptions::new()
+            .with_varint_encoding()
+            .deserialize::<Self>(&bytes[6..])?;
+
+        // The Aho-Corasick automaton is not serialized, it must be rebuilt.
+        rules.ac = Some(AhoCorasick::new(rules.atoms.iter().map(|x| &x.atom)));
+
+        // The WASM module must be compiled for the current platform.
+        rules.compiled_wasm_mod = Some(
+            wasmtime::Module::from_binary(
+                &crate::wasm::ENGINE,
+                rules.wasm_mod.as_slice(),
+            )
+            .expect("WASM module is not valid"),
+        );
+
+        Ok(rules)
+    }
+
+    /// Serializes the rules as a sequence of bytes.
+    ///
+    /// The [`Rules`] can be restored back by passing the bytes to
+    /// [`Rules::deserialize`].
+    pub fn serialize(&self) -> Result<Vec<u8>, Error> {
+        let mut bytes = BufWriter::new(Vec::new());
+        self.serialize_into(&mut bytes)?;
+        Ok(bytes.into_inner().unwrap())
+    }
+
+    /// Serializes the rules and writes the bytes into a `writer`.
+    pub fn serialize_into<W>(&self, mut writer: W) -> Result<(), Error>
+    where
+        W: Write,
+    {
+        // Write file header.
+        writer.write_all(b"YARA-X")?;
+
+        // Serialize rules.
+        Ok(bincode::DefaultOptions::new()
+            .with_varint_encoding()
+            .serialize_into(writer, self)?)
+    }
+
     /// Returns a [`RuleInfo`] given its [`RuleId`].
     ///
     /// # Panics
     ///
     /// If no rule with such [`RuleId`] exists.
     pub(crate) fn get(&self, rule_id: RuleId) -> &RuleInfo {
-        self.rules.get(rule_id as usize).unwrap()
+        self.rules.get(rule_id.0 as usize).unwrap()
     }
 
     /// Returns an slice with the individual rules that were compiled.
@@ -840,10 +1141,13 @@ impl Rules {
         self.rules.as_slice()
     }
 
-    /// Returns an slice with the individual patterns that were compiled.
+    /// Returns a sub-pattern by [`SubPatternId`].
     #[inline]
-    pub(crate) fn patterns(&self) -> &[Pattern] {
-        self.patterns.as_slice()
+    pub(crate) fn get_sub_pattern(
+        &self,
+        sub_pattern_id: SubPatternId,
+    ) -> &(PatternId, SubPattern) {
+        &self.sub_patterns[sub_pattern_id.0 as usize]
     }
 
     #[inline]
@@ -851,11 +1155,16 @@ impl Rules {
         self.atoms.as_slice()
     }
 
+    #[inline]
+    pub(crate) fn num_patterns(&self) -> usize {
+        self.num_patterns
+    }
+
     /// Returns the Aho-Corasick automaton that allows to search for pattern
     /// atoms.
     #[inline]
     pub(crate) fn aho_corasick(&self) -> &AhoCorasick {
-        &self.ac
+        self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
     }
 
     /// An iterator that yields the name of the modules imported by the
@@ -879,7 +1188,7 @@ impl Rules {
 
     #[inline]
     pub(crate) fn compiled_wasm_mod(&self) -> &wasmtime::Module {
-        &self.compiled_wasm_mod
+        self.compiled_wasm_mod.as_ref().expect("WASM module not compiled")
     }
 }
 
@@ -898,6 +1207,7 @@ impl<'a> Iterator for Imports<'a> {
 }
 
 /// Information about each of the individual rules included in [`Rules`].
+#[derive(Serialize, Deserialize)]
 pub(crate) struct RuleInfo {
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident_id: IdentId,
@@ -925,15 +1235,35 @@ impl<'r> Rule<'r> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct AtomInfo {
-    pub pattern_id: PatternId,
+    pub sub_pattern_id: SubPatternId,
     pub atom: Atom,
 }
 
-/// A pattern (a.k.a string) in the compiled rules.
-pub(crate) enum Pattern {
-    Fixed(LiteralId),
-    FixedCaseInsensitive(LiteralId),
-    Xored(LiteralId),
-    Regexp,
+/// A sub-pattern in the compiled rules.
+///
+/// Each pattern in a rule has one ore more associated sub-patterns. For
+/// example, the pattern `$a = "foo" ascii wide` has a sub-pattern for the
+/// ASCII variant of "foo", and another one for the wide variant.
+///
+/// Also, each [`Atom`] is associated to a [`SubPattern`]. When the atom is
+/// found in the scanned data by the Aho-Corasick algorithm, the scanner
+/// verifies that the sub-pattern actually matches.
+#[derive(Serialize, Deserialize)]
+pub(crate) enum SubPattern {
+    Fixed { pattern: LiteralId, full_word: FullWord },
+    FixedCaseInsensitive { pattern: LiteralId, full_word: FullWord },
+    Xor { pattern: LiteralId, full_word: FullWord },
+    Base64 { pattern: LiteralId, padding: u8 },
+    Base64Wide { pattern: LiteralId, padding: u8 },
+    CustomBase64 { pattern: LiteralId, alphabet: LiteralId, padding: u8 },
+    CustomBase64Wide { pattern: LiteralId, alphabet: LiteralId, padding: u8 },
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub(crate) enum FullWord {
+    Disabled,
+    Ascii,
+    Wide,
 }

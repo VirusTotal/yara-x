@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Display, Formatter};
+use std::io;
 
 use thiserror::Error;
 use yara_x_macros::Error as CompileError;
@@ -20,6 +21,15 @@ pub enum Error {
 
     #[error(transparent)]
     EmitError(#[from] anyhow::Error),
+
+    #[error(transparent)]
+    SerializationError(#[from] bincode::Error),
+
+    #[error(transparent)]
+    IoError(#[from] io::Error),
+
+    #[error("not a YARA-X compiled rules file")]
+    InvalidFileFormat,
 }
 
 /// An error occurred during the compilation process.

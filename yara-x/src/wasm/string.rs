@@ -1,4 +1,4 @@
-use bstr::{BStr, ByteSlice};
+use bstr::{BStr, ByteSlice, Utf8Error};
 
 use crate::{LiteralId, RuntimeStringId, ScanContext};
 
@@ -116,6 +116,17 @@ impl RuntimeString {
             }
             Self::Owned(id) => ctx.string_pool.get(*id).unwrap(),
         }
+    }
+
+    /// Safely converts this string to a `&str` if it's valid UTF-8.
+    ///
+    /// If the string is not valid UTF-8, then an error is returned.
+    #[inline]
+    pub(crate) fn to_str<'a>(
+        &self,
+        ctx: &'a ScanContext,
+    ) -> Result<&'a str, Utf8Error> {
+        self.as_bstr(ctx).to_str()
     }
 
     /// Returns this string as a primitive type suitable to be passed to WASM.
