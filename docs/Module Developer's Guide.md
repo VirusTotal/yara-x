@@ -618,11 +618,11 @@ data and stored in that protobuf message.
 Let's go back to our `text` module example, which already exports two fields: 
 `num_lines` and `num_words`. Now suppose that you want to implement a function
 `avg_words_per_line`, that returns the result of `num_words / num_lines`. Of
-course, you could add new field to the module's structure and initialize it with
-the correct value in the main function, so this is not a very realistic example,
-but let's assume that you don't want to resort to a new field and want to use a
-function instead. How do you access the values of `num_words` and `num_lines`
-from the `avg_words_per_line` function? Let's see it:
+course, you could add a new field and initialize it with the correct value in 
+the main function, so this is not a very realistic example, but let's assume 
+that you don't want to resort to using a new field, but want a function instead. 
+How do you access the values of `num_words` and `num_lines` from the 
+`avg_words_per_line` function? Let's see it:
 
 ```rust
 #[module_export]
@@ -633,8 +633,8 @@ fn avg_words_per_line(ctx: &mut ScanContext) -> Option<f64> {
     
     let num_lines = text.num_lines? as f64;
     let num_words = text.num_words? as f64;
-    
-    num_words.checked_div(num_lines)
+
+    Some(num_words / num_lines)
 }
 ```
 
@@ -646,9 +646,9 @@ let text = ctx.module_output::<Text>()?;
 
 The `ScanContext` type has a `module_output` method that is generic over type `T`, 
 while calling this method you must specify the type of the protobuf associated
-to your module (`Text` in this case). This is done using Rust's 
+to your module (`Text` in this case). This is done by using Rust's 
 [turbofish](https://www.youtube.com/watch?v=oQhYb7NgdUU) syntax 
-(i.e: `module_output::<T>()`). Notice that this method returns `Option<&T>`,
+(i.e: `module_output::<T>()`). Notice that this method returns `Option<&T>`.
 
 ## Adding dependencies
 

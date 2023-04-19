@@ -230,7 +230,7 @@ impl<'r> Scanner<'r> {
                 generate_fields_for_enums,
             );
 
-            /// Update the module's output in stored in ScanContext.
+            // Update the module's output in stored in ScanContext.
             ctx.module_outputs.insert(
                 module_output.descriptor_dyn().full_name().to_string(),
                 module_output,
