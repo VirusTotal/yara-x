@@ -263,7 +263,6 @@ impl RuntimeString {
 mod tests {
     use super::RuntimeString;
     use crate::compiler::LiteralId;
-    use crate::ScanContext;
     use pretty_assertions::assert_eq;
 
     #[test]

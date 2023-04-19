@@ -17,11 +17,7 @@ macro_rules! test_condition {
             format!("rule t {{condition: {} }}", $condition).as_str(),
         );
 
-        let rules = crate::compiler::Compiler::new()
-            .add_source(src.as_str())
-            .unwrap()
-            .build()
-            .unwrap();
+        let rules = crate::compile(src.as_str()).unwrap();
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
             .scan($data)
@@ -55,11 +51,7 @@ macro_rules! condition_false {
 
 macro_rules! test_rule {
     ($rule:expr,  $data:expr, $expected_result:expr) => {{
-        let rules = crate::compiler::Compiler::new()
-            .add_source($rule)
-            .unwrap()
-            .build()
-            .unwrap();
+        let rules = crate::compile($rule).unwrap();
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
             .scan($data)
@@ -704,9 +696,8 @@ fn base64() {
 
 #[test]
 fn filesize() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
         rule filesize_0 {
           condition:
             filesize == 0
@@ -716,10 +707,8 @@ fn filesize() {
             filesize == 1
         }
         "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
@@ -729,9 +718,8 @@ fn filesize() {
 
 #[test]
 fn for_of() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
         rule test {
           strings:
             $a = "foo"
@@ -740,10 +728,8 @@ fn for_of() {
             for none of ($a, $b) : ($)
         }
         "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
@@ -752,9 +738,8 @@ fn for_of() {
 
 #[test]
 fn of() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
         rule test_1 {
           condition:
             none of (1 == 0, 2 == 0)
@@ -776,10 +761,8 @@ fn of() {
             none of them
         }
         "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
@@ -788,9 +771,8 @@ fn of() {
 
 #[test]
 fn rule_reuse() {
-    let rules = crate::compiler::Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
         rule rule_1 {
           condition:
             true
@@ -828,10 +810,8 @@ fn rule_reuse() {
             rule_8
         }
         "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 

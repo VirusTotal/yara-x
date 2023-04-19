@@ -1,20 +1,16 @@
-use crate::compiler::Compiler;
 use crate::scanner::Scanner;
 
 #[test]
 fn iterators() {
-    let rules = Compiler::new()
-        .add_source(
-            r#"
+    let rules = crate::compile(
+        r#"
 rule rule_1 { condition: true }
 rule rule_2 { condition: false }
 rule rule_3 { condition: true }
 rule rule_4 { condition: false }
 "#,
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    )
+    .unwrap();
 
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(&[]);
