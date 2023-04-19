@@ -43,6 +43,11 @@ fn get_foo(ctx: &mut ScanContext) -> Option<RuntimeString> {
     Some(RuntimeString::from_bytes(ctx, foo))
 }
 
+fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
+    let string = string.to_str(ctx).ok()?;
+    string.parse::<i64>().ok()
+}
+
 #[module_main]
 fn main(_ctx: &ScanContext) -> TestProto2 {
     let mut test = TestProto2::new();
