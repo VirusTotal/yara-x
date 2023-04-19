@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+import "yara.proto";
+
+option (yara.module_options) = {
+  name : "string"
+  root_message: "String"
+  rust_module: "string"
+};
+
+message String {
+  // This module contains only exported functions, and doesn't return any data
+}

@@ -27,6 +27,8 @@ text-module = [
 # The Time module allows you to retrieve epoch in seconds that can
 # be used in conditions of a rule to check againts other epoch time.
 time-module = []
+# The Strings Module
+string-module = []
 
 # Features that are enabled by default.
 default = [
