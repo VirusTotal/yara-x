@@ -8,14 +8,10 @@ fn main(_ctx: &ScanContext) -> String {
     string_proto
 }
 
-#[module_export(name = "to_int")]
+#[module_export]
 fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
-    let string = string.as_bstr(ctx);
-
-    match string.to_str() {
-        Ok(n) => return Some(n.parse::<i64>().unwrap()),
-        Err(_) => return None,
-    }
+    let string = string.to_str(ctx).ok()?;
+    return string.parse::<i64>().ok();
 }
 
 #[module_export(name = "to_int")]
@@ -24,21 +20,11 @@ fn to_int_base(
     string: RuntimeString,
     base: i64,
 ) -> Option<i64> {
-    let string = string.as_bstr(ctx);
-
     if base < 2 || base > 36 {
         return None;
     }
-    let strobj = match string.to_str() {
-        Ok(n) => n,
-        Err(_) => return None,
-    };
-    match i64::from_str_radix(strobj, base.try_into().unwrap()) {
-        Ok(n) => {
-            return Some(n);
-        }
-        Err(_) => return None,
-    }
+    let string = string.as_bstr(ctx).to_str().ok()?;
+    return i64::from_str_radix(string, base as u32).ok();
 }
 
 #[module_export]
