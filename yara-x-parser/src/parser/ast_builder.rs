@@ -1355,30 +1355,43 @@ fn func_call_expr_from_cst<'src>(
 
     // After the callable expression follows the opening parenthesis
     // enclosing the arguments.
-    expect!(children.next().unwrap(), GrammarRule::LPAREN);
+    let lparen = children.next().unwrap();
+    expect!(lparen, GrammarRule::LPAREN);
 
     let mut args = Vec::new();
+    let mut children = children.peekable();
 
-    // For all CST nodes after the opening parenthesis...
-    for node in children.by_ref() {
+    // For all CST nodes after the opening parenthesis, and before the closing
+    // parenthesis...
+    while let Some(node) =
+        children.next_if(|n| !matches!(n.as_rule(), GrammarRule::RPAREN))
+    {
         match node.as_rule() {
             // ... if the node is an expression, add it to the function
             // arguments.
             GrammarRule::expr => {
                 args.push(expr_from_cst(ctx, node)?);
             }
-            // ... if the node is a comma separating the arguments, or the
-            // closing parenthesis, do nothing and continue.
-            GrammarRule::COMMA | GrammarRule::RPAREN => {}
+            // ... if the node is a comma separating the arguments, do
+            // nothing and continue.
+            GrammarRule::COMMA => {}
             rule => unreachable!("{:?}", rule),
         }
     }
+
+    // The function arguments must be followed by a closing parenthesis
+    let rparen = children.next().unwrap();
+    expect!(rparen, GrammarRule::RPAREN);
+
+    let args_span =
+        Span { start: lparen.as_span().start(), end: rparen.as_span().end() };
 
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
     Ok(Expr::FnCall(Box::new(FnCall {
         span: span.into(),
+        args_span,
         callable,
         args,
         // Function's return type is not known at this stage.

@@ -866,6 +866,7 @@ impl<'src> BinaryExpr<'src> {
 #[derive(Debug, HasSpan)]
 pub struct FnCall<'src> {
     pub span: Span,
+    pub args_span: Span,
     #[doc(hidden)]
     pub type_value: TypeValue,
     pub callable: Expr<'src>,

@@ -750,16 +750,40 @@ rule test {
 }
 "#,
             r#"error: wrong arguments
-   ╭─[line:5:21]
+   ╭─[line:5:20]
    │
  5 │     test_proto2.add(1, "2") == 3
-   ·                     ───┬──  
-   ·                        ╰──── wrong arguments in this call
+   ·                    ────┬───  
+   ·                        ╰───── wrong arguments in this call
    · 
    · Note: accepted argument combinations:
 
              (float, float)
              (integer, integer)
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+import "test_proto2"
+rule test {
+  condition:
+    test_proto2.head() == "foo"
+}
+"#,
+            r#"error: wrong arguments
+   ╭─[line:5:21]
+   │
+ 5 │     test_proto2.head() == "foo"
+   ·                     ─┬  
+   ·                      ╰── wrong arguments in this call
+   · 
+   · Note: accepted argument combinations:
+
+             (integer)
 ───╯
 "#,
         ),
