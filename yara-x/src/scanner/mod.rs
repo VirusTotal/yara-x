@@ -14,6 +14,8 @@ use std::slice::Iter;
 use bitvec::prelude::*;
 use bstr::ByteSlice;
 use fmmap::{MmapFile, MmapFileExt};
+use protobuf::{MessageDyn, MessageFull};
+use rustc_hash::FxHashMap;
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
     Store, TypedFunc, Val, ValType,
@@ -63,6 +65,7 @@ impl<'r> Scanner<'r> {
                 rules_matching: Vec::new(),
                 main_memory: None,
                 vars_stack: Vec::new(),
+                module_outputs: FxHashMap::default(),
                 patterns_found: false,
             },
         ));
@@ -223,8 +226,14 @@ impl<'r> Scanner<'r> {
                 !cfg!(feature = "compile-time-optimization");
 
             let module_struct = Struct::from_proto_msg(
-                module_output,
+                module_output.deref(),
                 generate_fields_for_enums,
+            );
+
+            /// Update the module's output in stored in ScanContext.
+            ctx.module_outputs.insert(
+                module_output.descriptor_dyn().full_name().to_string(),
+                module_output,
             );
 
             // The data structure obtained from the module is added to the
@@ -419,10 +428,14 @@ pub(crate) struct ScanContext<'r> {
     /// description of what is this, and what "host-side" means in this
     /// case.
     pub(crate) vars_stack: Vec<TypeValue>,
+    /// Hash map that contains the protobuf messages returned by YARA modules.
+    /// Keys are the fully qualified protobuf message name, and values are
+    /// the message returned by the corresponding module.
+    pub(crate) module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
 }
 
 impl ScanContext<'_> {
-    /// An slice with the data being scanned.
+    /// Returns a slice with the data being scanned.
     pub(crate) fn scanned_data<'a>(&self) -> &'a [u8] {
         unsafe {
             std::slice::from_raw_parts::<u8>(
@@ -430,6 +443,27 @@ impl ScanContext<'_> {
                 self.scanned_data_len,
             )
         }
+    }
+
+    /// Returns the protobuf struct produced by a module.
+    ///
+    /// The main function of a module returns a protobuf message with data
+    /// produced by the module for the current scan. Accessing this data
+    /// from some other function exported by the module is useful in certain
+    /// cases, and that's the purpose of this function.
+    ///
+    /// This function is generic over `T`, where `T` is some protobuf message
+    /// type.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use crate::modules::protos::my_module::MyModuleProto;
+    /// let module_data: MyModuleProto = ctx.module_data::<MyModuleProto>()
+    /// ```
+    pub(crate) fn module_output<T: MessageFull>(&self) -> Option<&T> {
+        let m = self.module_outputs.get(T::descriptor().full_name())?.as_ref();
+        <dyn MessageDyn>::downcast_ref(m)
     }
 
     /// Called during the scan process when a rule has matched for tracking

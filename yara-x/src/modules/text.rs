@@ -65,6 +65,19 @@ fn get_line(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     }
 }
 
+/// Function that returns `num_words / num_lines`.
+#[module_export]
+fn avg_words_per_line(ctx: &mut ScanContext) -> Option<f64> {
+    // Obtain a reference to the `Text` protobuf that was returned by the
+    // module's main function.
+    let text = ctx.module_output::<Text>()?;
+
+    let num_lines = text.num_lines? as f64;
+    let num_words = text.num_words? as f64;
+
+    num_words.checked_div(num_lines)
+}
+
 /// Function that returns the language in which the text file is written.
 ///
 /// Returns None if the language can't be determined (which in YARA is handled

@@ -36,6 +36,15 @@ fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     Some(RuntimeString::from_bytes(ctx, head))
 }
 
+#[module_export]
+fn get_foo(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let proto = ctx.module_output::<TestProto2>()?;
+    Some(RuntimeString::from_bytes(
+        ctx,
+        proto.string_foo.as_ref()?.to_string(),
+    ))
+}
+
 #[module_main]
 fn main(_ctx: &ScanContext) -> TestProto2 {
     let mut test = TestProto2::new();

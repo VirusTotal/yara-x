@@ -18,6 +18,7 @@ words
 * [Building your module](#building-your-module)
 * [Adding functions to your module](#adding-functions-to-your-module)
 * [String types in module functions](#string-types-in-module-functions)
+* [Accessing module's structure from a function](#accessing-the-modules-structure-from-a-function)
 * [Adding dependencies](#adding-dependencies)
 * [Using enums](#using-enums)
 
@@ -534,7 +535,6 @@ use the `RuntimeString` type. This type is an enum with three variants:
 * `RuntimeString::ScannedDataSlice`
 * `RuntimeString::Owned`
 
-
 `RuntimeString::Literal` is used when the string is a literal in the YARA rule.
 For example, if your rule uses the expression `my_module.my_func("foo")`, `"foo"`
 is a literal and the function `my_func` will receive a `RuntimeString::Literal`
@@ -604,6 +604,51 @@ fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     Some(RuntimeString::from_bytes(ctx, head))
 }
 ```
+
+## Accessing the module's structure from a function
+
+When we discussed [how to implement the module's main function](#implementing-the-modules-main-function),
+we saw that this function returns a protobuf structure with information that 
+is usually extracted away from the data being scanned. The fields in this 
+structure can be used directly in your YARA rules, but sometimes we need to 
+use them from within module functions as well. This is useful for implementing
+functions that rely on information that was already extracted from the scanned 
+data and stored in that protobuf message.
+
+Let's go back to our `text` module example, which already exports two fields: 
+`num_lines` and `num_words`. Now suppose that you want to implement a function
+`avg_words_per_line`, that returns the result of `num_words / num_lines`. Of
+course, you could add new field to the module's structure and initialize it with
+the correct value in the main function, so this is not a very realistic example,
+but let's assume that you don't want to resort to a new field and want to use a
+function instead. How do you access the values of `num_words` and `num_lines`
+from the `avg_words_per_line` function? Let's see it:
+
+```rust
+#[module_export]
+fn avg_words_per_line(ctx: &mut ScanContext) -> Option<f64> {
+    // Obtain a reference to the `Text` protobuf that was returned by the
+    // module's main function.
+    let text = ctx.module_output::<Text>()?;
+    
+    let num_lines = text.num_lines? as f64;
+    let num_words = text.num_words? as f64;
+    
+    num_words.checked_div(num_lines)
+}
+```
+
+The secret is in this line:
+
+```rust
+let text = ctx.module_output::<Text>()?;
+```
+
+The `ScanContext` type has a `module_output` method that is generic over type `T`, 
+while calling this method you must specify the type of the protobuf associated
+to your module (`Text` in this case). This is done using Rust's 
+[turbofish](https://www.youtube.com/watch?v=oQhYb7NgdUU) syntax 
+(i.e: `module_output::<T>()`). Notice that this method returns `Option<&T>`,
 
 ## Adding dependencies
 
