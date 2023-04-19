@@ -11,7 +11,7 @@ fn main(_ctx: &ScanContext) -> String {
 #[module_export]
 fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
     let string = string.to_str(ctx).ok()?;
-    return string.parse::<i64>().ok();
+    string.parse::<i64>().ok()
 }
 
 #[module_export(name = "to_int")]
@@ -24,12 +24,12 @@ fn to_int_base(
         return None;
     }
     let string = string.as_bstr(ctx).to_str().ok()?;
-    return i64::from_str_radix(string, base as u32).ok();
+    i64::from_str_radix(string, base as u32).ok()
 }
 
 #[module_export]
 fn length(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
-    return Some(string.as_bstr(ctx).len().try_into().unwrap());
+    Some(string.as_bstr(ctx).len().try_into().unwrap())
 }
 
 #[cfg(test)]
