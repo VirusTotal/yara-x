@@ -75,7 +75,7 @@ fn avg_words_per_line(ctx: &mut ScanContext) -> Option<f64> {
     let num_lines = text.num_lines? as f64;
     let num_words = text.num_words? as f64;
 
-    num_words.checked_div(num_lines)
+    Some(num_words / num_lines)
 }
 
 /// Function that returns the language in which the text file is written.
