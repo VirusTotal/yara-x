@@ -118,15 +118,21 @@ impl<'r> Scanner<'r> {
         // `compiled_wasm_mod` function and links its imported functions with
         // the implementations that YARA provides (see wasm.rs).
         let wasm_instance = wasm::new_linker()
-            .define("yara_x", "filesize", filesize)
+            .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
             .unwrap()
             .define(
+                wasm_store.as_context(),
                 "yara_x",
                 "matching_patterns_bitmap_base",
                 matching_patterns_bitmap_base,
             )
             .unwrap()
-            .define("yara_x", "main_memory", main_memory)
+            .define(
+                wasm_store.as_context(),
+                "yara_x",
+                "main_memory",
+                main_memory,
+            )
             .unwrap()
             .instantiate(
                 wasm_store.as_context_mut(),
