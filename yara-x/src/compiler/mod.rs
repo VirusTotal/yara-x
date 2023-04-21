@@ -302,7 +302,8 @@ impl<'a> Compiler<'a> {
 
         // Build the Aho-Corasick automaton used while searching for the atoms
         // in the scanned data.
-        let ac = AhoCorasick::new(self.atoms.iter().map(|x| &x.atom));
+        let ac = AhoCorasick::new(self.atoms.iter().map(|x| &x.atom))
+            .expect("failed to build Aho-Corasick automaton");
 
         Ok(Rules {
             wasm_mod,
@@ -1088,7 +1089,10 @@ impl Rules {
             .deserialize::<Self>(&bytes[6..])?;
 
         // The Aho-Corasick automaton is not serialized, it must be rebuilt.
-        rules.ac = Some(AhoCorasick::new(rules.atoms.iter().map(|x| &x.atom)));
+        rules.ac = Some(
+            AhoCorasick::new(rules.atoms.iter().map(|x| &x.atom))
+                .expect("failed to build Aho-Corasick automaton"),
+        );
 
         // The WASM module must be compiled for the current platform.
         rules.compiled_wasm_mod = Some(
