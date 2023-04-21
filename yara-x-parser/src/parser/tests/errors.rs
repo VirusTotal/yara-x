@@ -19,8 +19,8 @@ fn utf8_errors() {
    ╭─[line:1:5]
    │
  1 │ rule� test {condition: true}
-   ·     ┬  
-   ·     ╰── invalid UTF-8 character
+   │     ┬  
+   │     ╰── invalid UTF-8 character
 ───╯
 "
     );
@@ -37,8 +37,8 @@ fn syntax_errors() {
    ╭─[line:1:18]
    │
  1 │ rule test : tag1 tag1 { condition: true }
-   ·                  ──┬─  
-   ·                    ╰─── duplicate tag
+   │                  ──┬─  
+   │                    ╰─── duplicate tag
 ───╯
 "#,
         ),
@@ -50,8 +50,8 @@ fn syntax_errors() {
    ╭─[line:1:6]
    │
  1 │ rule 1_foo { condition: true }
-   ·      │ 
-   ·      ╰─ expected identifier
+   │      │ 
+   │      ╰─ expected identifier
 ───╯
 "#,
         ),
@@ -63,8 +63,8 @@ fn syntax_errors() {
    ╭─[line:2:2]
    │
  2 │     true }
-   ·     │ 
-   ·     ╰─ expected `condition`, `meta`, or `strings`
+   │     │ 
+   │     ╰─ expected `condition`, `meta`, or `strings`
 ───╯
 "#,
         ),
@@ -76,8 +76,8 @@ fn syntax_errors() {
    ╭─[line:1:28]
    │
  1 │ rule test { condition: true
-   ·                            │ 
-   ·                            ╰─ expected closing brace `}` or operator
+   │                            │ 
+   │                            ╰─ expected closing brace `}` or operator
 ───╯
 "#,
         ),
@@ -89,8 +89,8 @@ fn syntax_errors() {
    ╭─[line:1:11]
    │
  1 │ rule test condition: true }
-   ·           │ 
-   ·           ╰─ expected colon `:` or opening brace `{`
+   │           │ 
+   │           ╰─ expected colon `:` or opening brace `{`
 ───╯
 "#,
         ),
@@ -102,8 +102,8 @@ fn syntax_errors() {
    ╭─[line:1:13]
    │
  1 │ rule test : condition: true }
-   ·             │ 
-   ·             ╰─ expected identifier
+   │             │ 
+   │             ╰─ expected identifier
 ───╯
 "#,
         ),
@@ -115,8 +115,8 @@ fn syntax_errors() {
    ╭─[line:1:12]
    │
  1 │ rule test {}
-   ·            │ 
-   ·            ╰─ expected `condition`, `meta`, or `strings`
+   │            │ 
+   │            ╰─ expected `condition`, `meta`, or `strings`
 ───╯
 "#,
         ),
@@ -128,8 +128,8 @@ fn syntax_errors() {
    ╭─[line:1:19]
    │
  1 │ rule test { meta: condition: true }
-   ·                   │ 
-   ·                   ╰─ expected identifier
+   │                   │ 
+   │                   ╰─ expected identifier
 ───╯
 "#,
         ),
@@ -141,8 +141,8 @@ fn syntax_errors() {
    ╭─[line:1:23]
    │
  1 │ rule test { meta: a = condition: true }
-   ·                       │ 
-   ·                       ╰─ expected `false`, `true`, number, or string literal
+   │                       │ 
+   │                       ╰─ expected `false`, `true`, number, or string literal
 ───╯
 "#,
         ),
@@ -154,8 +154,8 @@ fn syntax_errors() {
    ╭─[line:1:22]
    │
  1 │ rule test { strings: condition: true }
-   ·                      │ 
-   ·                      ╰─ expected pattern identifier
+   │                      │ 
+   │                      ╰─ expected pattern identifier
 ───╯
 "#,
         ),
@@ -167,8 +167,8 @@ fn syntax_errors() {
    ╭─[line:1:13]
    │
  1 │ rule test : rule { condition: true }
-   ·             │ 
-   ·             ╰─ expected identifier
+   │             │ 
+   │             ╰─ expected identifier
 ───╯
 "#,
         ),
@@ -180,8 +180,8 @@ fn syntax_errors() {
    ╭─[line:1:24]
    │
  1 │ rule test { condition: }
-   ·                        │ 
-   ·                        ╰─ expected boolean expression
+   │                        │ 
+   │                        ╰─ expected boolean expression
 ───╯
 "#,
         ),
@@ -193,8 +193,8 @@ fn syntax_errors() {
    ╭─[line:1:9]
    │
  1 │ private foo rule test { condition: true }
-   ·         │ 
-   ·         ╰─ expected `global` or `rule`
+   │         │ 
+   │         ╰─ expected `global` or `rule`
 ───╯
 "#,
         ),
@@ -206,8 +206,8 @@ fn syntax_errors() {
    ╭─[line:1:8]
    │
  1 │ global foo rule test { condition: true }
-   ·        │ 
-   ·        ╰─ expected `private` or `rule`
+   │        │ 
+   │        ╰─ expected `private` or `rule`
 ───╯
 "#,
         ),
@@ -219,8 +219,8 @@ fn syntax_errors() {
    ╭─[line:1:8]
    │
  1 │ global global rule test { condition: true }
-   ·        │ 
-   ·        ╰─ expected `private` or `rule`
+   │        │ 
+   │        ╰─ expected `private` or `rule`
 ───╯
 "#,
         ),
@@ -232,8 +232,8 @@ fn syntax_errors() {
    ╭─[line:1:28]
    │
  1 │ rule test { condition: 4 + }
-   ·                            │ 
-   ·                            ╰─ expected expression
+   │                            │ 
+   │                            ╰─ expected expression
 ───╯
 "#,
         ),
@@ -245,8 +245,8 @@ fn syntax_errors() {
    ╭─[line:1:1]
    │
  1 │ foo rule test { condition: true }
-   · │ 
-   · ╰─ expected YARA rules
+   │ │ 
+   │ ╰─ expected YARA rules
 ───╯
 "#,
         ),
@@ -258,8 +258,8 @@ fn syntax_errors() {
    ╭─[line:1:28]
    │
  1 │ rule test { strings: $a = {} condition: true }
-   ·                            │ 
-   ·                            ╰─ unexpected closing brace `}`
+   │                            │ 
+   │                            ╰─ unexpected closing brace `}`
 ───╯
 "#,
         ),
@@ -276,8 +276,8 @@ condition: true
    ╭─[line:4:19]
    │
  4 │   $a = { 00 [0-1] }
-   ·                   │ 
-   ·                   ╰─ expected byte, opening bracket `[`, or opening parenthesis `(`
+   │                   │ 
+   │                   ╰─ expected byte, opening bracket `[`, or opening parenthesis `(`
 ───╯
 "#,
         ),
@@ -294,8 +294,8 @@ condition: true
    ╭─[line:4:10]
    │
  4 │   $a = { [0-1] 00 }
-   ·          │ 
-   ·          ╰─ expected bytes
+   │          │ 
+   │          ╰─ expected bytes
 ───╯
 "#,
         ),
@@ -312,8 +312,8 @@ condition: true
    ╭─[line:4:18]
    │
  4 │   $a = { 00 ( 00 }
-   ·                  │ 
-   ·                  ╰─ expected byte, closing parenthesis `)`, opening bracket `[`, opening parenthesis `(`, or pipe `|`
+   │                  │ 
+   │                  ╰─ expected byte, closing parenthesis `)`, opening bracket `[`, opening parenthesis `(`, or pipe `|`
 ───╯
 "#,
         ),
@@ -330,8 +330,8 @@ condition: true
    ╭─[line:4:13]
    │
  4 │   $a = { 00 ~?? 11 }
-   ·             ─┬─  
-   ·              ╰─── negation of `??` is not allowed
+   │             ─┬─  
+   │              ╰─── negation of `??` is not allowed
 ───╯
 "#,
         ),
@@ -348,8 +348,8 @@ condition: true
    ╭─[line:4:10]
    │
  4 │   $a = { G0 }
-   ·          │ 
-   ·          ╰─ expected bytes
+   │          │ 
+   │          ╰─ expected bytes
 ───╯
 "#,
         ),
@@ -367,8 +367,8 @@ condition:
    ╭─[line:4:16]
    │
  4 │   $a = { 01 02 0 }
-   ·                ┬  
-   ·                ╰── uneven number of nibbles
+   │                ┬  
+   │                ╰── uneven number of nibbles
 ───╯
 "#,
         ),
@@ -384,8 +384,8 @@ condition:
    ╭─[line:4:18]
    │
  4 │   any of (a,b,c) in (0..100)
-   ·                  │ 
-   ·                  ╰─ unexpected `in`
+   │                  │ 
+   │                  ╰─ unexpected `in`
 ───╯
 "#,
         ),
@@ -401,8 +401,8 @@ condition:
    ╭─[line:4:18]
    │
  4 │   any of (a,b,c) at 0
-   ·                  │ 
-   ·                  ╰─ unexpected `at`
+   │                  │ 
+   │                  ╰─ unexpected `at`
 ───╯
 "#,
         ),
@@ -418,8 +418,8 @@ rule test {
    ╭─[line:3:17]
    │
  3 │   condition: 1  1 == 1
-   ·                 │ 
-   ·                 ╰─ expected `of`, closing brace `}`, dot `.`, opening bracket `[`, opening parenthesis `(`, operator, or percent `%`
+   │                 │ 
+   │                 ╰─ expected `of`, closing brace `}`, dot `.`, opening bracket `[`, opening parenthesis `(`, operator, or percent `%`
 ───╯
 "#,
         ),
@@ -439,12 +439,12 @@ rule test {
    ╭─[line:6:6]
    │
  2 │ rule test {
-   ·      ──┬─  
-   ·        ╰─── `test` declared here for the first time
-   · 
+   │      ──┬─  
+   │        ╰─── `test` declared here for the first time
+   │ 
  6 │ rule test {
-   ·      ──┬─  
-   ·        ╰─── duplicate declaration of `test`
+   │      ──┬─  
+   │        ╰─── duplicate declaration of `test`
 ───╯
 "#,
         ),
@@ -465,11 +465,11 @@ rule test {
    ╭─[line:5:6]
    │
  4 │      $a = "foo"
-   ·      ─┬  
-   ·       ╰── `$a` declared here for the first time
+   │      ─┬  
+   │       ╰── `$a` declared here for the first time
  5 │      $a = "bar"
-   ·      ─┬  
-   ·       ╰── duplicate declaration of `$a`
+   │      ─┬  
+   │       ╰── duplicate declaration of `$a`
 ───╯
 "#,
         ),
@@ -490,8 +490,8 @@ rule test {
    ╭─[line:5:6]
    │
  5 │      $b = "bar"
-   ·      ─┬  
-   ·       ╰── this pattern was not used in the condition
+   │      ─┬  
+   │       ╰── this pattern was not used in the condition
 ───╯
 "#,
         ),
@@ -511,8 +511,8 @@ rule test {
    ╭─[line:4:6]
    │
  4 │      $ = "foo"
-   ·      ┬  
-   ·      ╰── this pattern was not used in the condition
+   │      ┬  
+   │      ╰── this pattern was not used in the condition
 ───╯
 "#,
         ),
@@ -533,8 +533,8 @@ rule test {
    ╭─[line:5:6]
    │
  5 │      $  = "bar"
-   ·      ┬  
-   ·      ╰── this pattern was not used in the condition
+   │      ┬  
+   │      ╰── this pattern was not used in the condition
 ───╯
 "#,
         ),
@@ -554,8 +554,8 @@ rule test {
    ╭─[line:6:6]
    │
  6 │      $
-   ·      ┬  
-   ·      ╰── this `$` is outside of the condition of a `for .. of` statement
+   │      ┬  
+   │      ╰── this `$` is outside of the condition of a `for .. of` statement
 ───╯
 "#,
         ),
@@ -571,8 +571,8 @@ rule test {
    ╭─[line:3:15]
    │
  3 │    condition: 99999999999999999999
-   ·               ──────────┬─────────  
-   ·                         ╰─────────── this number is out of the valid range: [-9223372036854775808, 9223372036854775807]
+   │               ──────────┬─────────  
+   │                         ╰─────────── this number is out of the valid range: [-9223372036854775808, 9223372036854775807]
 ───╯
 "#,
         ),
@@ -588,8 +588,8 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: -99999999999999999999
-   ·              ──────────┬──────────  
-   ·                        ╰──────────── this number is out of the valid range: [-9223372036854775808, 9223372036854775807]
+   │              ──────────┬──────────  
+   │                        ╰──────────── this number is out of the valid range: [-9223372036854775808, 9223372036854775807]
 ───╯
 "#,
         ),
@@ -608,8 +608,8 @@ rule test {
    ╭─[line:4:18]
    │
  4 │     $a = { 11 [0-65536] 22 }
-   ·                  ──┬──  
-   ·                    ╰──── this number is out of the valid range: [0, 65535]
+   │                  ──┬──  
+   │                    ╰──── this number is out of the valid range: [0, 65535]
 ───╯
 "#,
         ),
@@ -628,8 +628,8 @@ rule test {
    ╭─[line:4:16]
    │
  4 │     $a = { 11 [-1-65535] 22 }
-   ·                ─┬  
-   ·                 ╰── this number is out of the valid range: [0, 65535]
+   │                ─┬  
+   │                 ╰── this number is out of the valid range: [0, 65535]
 ───╯
 "#,
         ),
@@ -648,8 +648,8 @@ rule test {
    ╭─[line:4:15]
    │
  4 │     $a = { 11 [2-1] 22 }
-   ·               ──┬──  
-   ·                 ╰──── lower bound (2) is greater than upper bound (1)
+   │               ──┬──  
+   │                 ╰──── lower bound (2) is greater than upper bound (1)
 ───╯
 "#,
         ),
@@ -668,10 +668,10 @@ rule test {
    ╭─[line:4:15]
    │
  4 │     $a = { 11 [1-2][40-38] 22 }
-   ·               ──────┬─────  
-   ·                     ╰─────── lower bound (41) is greater than upper bound (40)
-   · 
-   · Note: consecutive jumps were coalesced into a single one
+   │               ──────┬─────  
+   │                     ╰─────── lower bound (41) is greater than upper bound (40)
+   │ 
+   │ Note: consecutive jumps were coalesced into a single one
 ───╯
 "#,
         ),
@@ -687,8 +687,8 @@ rule test {
    ╭─[line:3:15]
    │
  3 │   condition: "\g" == "\g"
-   ·               ─┬  
-   ·                ╰── invalid escape sequence `\g`
+   │               ─┬  
+   │                ╰── invalid escape sequence `\g`
 ───╯
 "#,
         ),
@@ -704,8 +704,8 @@ rule test {
    ╭─[line:3:15]
    │
  3 │   condition: "\x" == "\x"
-   ·               ─┬  
-   ·                ╰── expecting two hex digits after `\x`
+   │               ─┬  
+   │                ╰── expecting two hex digits after `\x`
 ───╯
 "#,
         ),
@@ -721,8 +721,8 @@ rule test {
    ╭─[line:3:17]
    │
  3 │   condition: "\xZZ" == "\xZZ"
-   ·                 ─┬  
-   ·                  ╰── invalid hex value `ZZ` after `\x`
+   │                 ─┬  
+   │                  ╰── invalid hex value `ZZ` after `\x`
 ───╯
 "#,
         ),
@@ -741,8 +741,8 @@ rule test {
    ╭─[line:4:20]
    │
  4 │     $a = "foo" xor(256)
-   ·                    ─┬─  
-   ·                     ╰─── this number is out of the valid range: [0, 255]
+   │                    ─┬─  
+   │                     ╰─── this number is out of the valid range: [0, 255]
 ───╯
 "#,
         ),
@@ -761,8 +761,8 @@ rule test {
    ╭─[line:4:23]
    │
  4 │     $a = "foo" xor(0) xor(1-2)
-   ·                       ─┬─  
-   ·                        ╰─── duplicate modifier
+   │                       ─┬─  
+   │                        ╰─── duplicate modifier
 ───╯
 "#,
         ),
@@ -781,8 +781,8 @@ rule test {
    ╭─[line:4:20]
    │
  4 │     $a = "foo" xor(2-1)
-   ·                    ┬  
-   ·                    ╰── lower bound (2) is greater than upper bound (1)
+   │                    ┬  
+   │                    ╰── lower bound (2) is greater than upper bound (1)
 ───╯
 "#,
         ),
@@ -801,12 +801,12 @@ rule test {
    ╭─[line:4:16]
    │
  4 │     $a = "foo" xor nocase
-   ·                ─┬─ ───┬──  
-   ·                 ╰────────── `xor` modifier used here
-   ·                       │    
-   ·                       ╰──── `nocase` modifier used here
-   · 
-   · Note: these two modifiers can't be used together
+   │                ─┬─ ───┬──  
+   │                 ╰────────── `xor` modifier used here
+   │                       │    
+   │                       ╰──── `nocase` modifier used here
+   │ 
+   │ Note: these two modifiers can't be used together
 ───╯
 "#,
         ),
@@ -825,12 +825,12 @@ rule test {
    ╭─[line:4:29]
    │
  4 │     $a = "foo" nocase ascii base64wide
-   ·                ───┬──       ─────┬────  
-   ·                   ╰───────────────────── `nocase` modifier used here
-   ·                                  │      
-   ·                                  ╰────── `base64wide` modifier used here
-   · 
-   · Note: these two modifiers can't be used together
+   │                ───┬──       ─────┬────  
+   │                   ╰───────────────────── `nocase` modifier used here
+   │                                  │      
+   │                                  ╰────── `base64wide` modifier used here
+   │ 
+   │ Note: these two modifiers can't be used together
 ───╯
 "#,
         ),
@@ -849,8 +849,8 @@ rule test {
    ╭─[line:4:20]
    │
  4 │     $a = { 01 02 } nocase
-   ·                    ───┬──  
-   ·                       ╰──── this modifier can't be applied to a hex pattern
+   │                    ───┬──  
+   │                       ╰──── this modifier can't be applied to a hex pattern
 ───╯
 "#,
         ),
@@ -864,8 +864,8 @@ import "foo\x00"
    ╭─[line:2:8]
    │
  2 │ import "foo\x00"
-   ·        ────┬────  
-   ·            ╰────── escape sequences are not allowed in this string
+   │        ────┬────  
+   │            ╰────── escape sequences are not allowed in this string
 ───╯
 "#,
         ),
@@ -884,8 +884,8 @@ rule test {
    ╭─[line:4:23]
    │
  4 │     $a = "foo" base64("foo\x00")
-   ·                       ────┬────  
-   ·                           ╰────── escape sequences are not allowed in this string
+   │                       ────┬────  
+   │                           ╰────── escape sequences are not allowed in this string
 ───╯
 "#,
         ),
@@ -904,8 +904,8 @@ rule test {
    ╭─[line:4:23]
    │
  4 │     $a = "foo" base64("ff")
-   ·                       ──┬─  
-   ·                         ╰─── invalid length - must be 64 bytes
+   │                       ──┬─  
+   │                         ╰─── invalid length - must be 64 bytes
 ───╯
 "#,
         ),
@@ -924,10 +924,10 @@ rule test {
    ╭─[line:4:10]
    │
  4 │     $a = "aa" base64
-   ·          ──┬─  
-   ·            ╰─── this pattern is too short
-   · 
-   · Note: `base64` requires that pattern is at least 3 bytes long
+   │          ──┬─  
+   │            ╰─── this pattern is too short
+   │ 
+   │ Note: `base64` requires that pattern is at least 3 bytes long
 ───╯
 "#,
         ),
@@ -946,8 +946,8 @@ rule test {
    ╭─[line:4:10]
    │
  4 │     $a = ""
-   ·          ─┬  
-   ·           ╰── this pattern is too short
+   │          ─┬  
+   │           ╰── this pattern is too short
 ───╯
 "#,
         ),
@@ -964,8 +964,8 @@ rule test {
    ╭─[line:4:24]
    │
  4 │     "foo" matches /foo/x
-   ·                        ┬  
-   ·                        ╰── invalid modifier
+   │                        ┬  
+   │                        ╰── invalid modifier
 ───╯
 "#,
         ),

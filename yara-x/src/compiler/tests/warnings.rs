@@ -19,8 +19,8 @@ rule test {
    ╭─[line:4:15]
    │
  4 │     $a = { 01 [1-2][3-4][1-3] 02 }
-   ·               ───────┬───────  
-   ·                      ╰───────── these consecutive jumps will be treated as [5-9]
+   │               ───────┬───────  
+   │                      ╰───────── these consecutive jumps will be treated as [5-9]
 ───╯
 "#,
         ),
@@ -38,8 +38,8 @@ rule test {
    ╭─[line:4:18]
    │
  4 │     $a = { 0F 84 [4] [0-7] 8D }
-   ·                  ────┬────  
-   ·                      ╰────── these consecutive jumps will be treated as [4-11]
+   │                  ────┬────  
+   │                      ╰────── these consecutive jumps will be treated as [4-11]
 ───╯
 "#,
         ),
@@ -58,10 +58,10 @@ rule test {
    ╭─[line:7:5]
    │
  7 │     all of them at 0
-   ·     ─┬─         ──┬─  
-   ·      ╰──────────────── this implies that multiple patterns must match
-   ·                   │   
-   ·                   ╰─── but they must match at the same offset
+   │     ─┬─         ──┬─  
+   │      ╰──────────────── this implies that multiple patterns must match
+   │                   │   
+   │                   ╰─── but they must match at the same offset
 ───╯
 "#,
         ),
@@ -80,10 +80,10 @@ rule test {
    ╭─[line:7:5]
    │
  7 │     all of ($*) at 0
-   ·     ─┬─         ──┬─  
-   ·      ╰──────────────── this implies that multiple patterns must match
-   ·                   │   
-   ·                   ╰─── but they must match at the same offset
+   │     ─┬─         ──┬─  
+   │      ╰──────────────── this implies that multiple patterns must match
+   │                   │   
+   │                   ╰─── but they must match at the same offset
 ───╯
 "#,
         ),
@@ -102,10 +102,10 @@ rule test {
    ╭─[line:7:5]
    │
  7 │     2 of ($*) at 0
-   ·     ┬         ──┬─  
-   ·     ╰─────────────── this implies that multiple patterns must match
-   ·                 │   
-   ·                 ╰─── but they must match at the same offset
+   │     ┬         ──┬─  
+   │     ╰─────────────── this implies that multiple patterns must match
+   │                 │   
+   │                 ╰─── but they must match at the same offset
 ───╯
 "#,
         ),
@@ -125,10 +125,10 @@ rule test {
    ╭─[line:8:5]
    │
  8 │     70% of ($*) at 0
-   ·     ─┬          ──┬─  
-   ·      ╰──────────────── this implies that multiple patterns must match
-   ·                   │   
-   ·                   ╰─── but they must match at the same offset
+   │     ─┬          ──┬─  
+   │      ╰──────────────── this implies that multiple patterns must match
+   │                   │   
+   │                   ╰─── but they must match at the same offset
 ───╯
 "#,
         ),
@@ -147,10 +147,10 @@ rule test {
    ╭─[line:7:5]
    │
  7 │     3 of them
-   ·     ─────┬────  
-   ·          ╰────── this expression is always false
-   · 
-   · Note: the expression requires 3 matching patterns out of 2
+   │     ─────┬────  
+   │          ╰────── this expression is always false
+   │ 
+   │ Note: the expression requires 3 matching patterns out of 2
 ───╯
 "#,
         ),
@@ -166,11 +166,11 @@ import "test_proto2"
    ╭─[line:3:1]
    │
  2 │ import "test_proto2"
-   · ──────────┬─────────  
-   ·           ╰─────────── `test_proto2` imported here for the first time
+   │ ──────────┬─────────  
+   │           ╰─────────── `test_proto2` imported here for the first time
  3 │ import "test_proto2"
-   · ──────────┬─────────  
-   ·           ╰─────────── duplicate import
+   │ ──────────┬─────────  
+   │           ╰─────────── duplicate import
 ───╯
 "#,
         ),
@@ -186,10 +186,10 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: 0
-   ·              ┬  
-   ·              ╰── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │              ┬  
+   │              ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
@@ -205,10 +205,10 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: 2 and 3
-   ·              ┬  
-   ·              ╰── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │              ┬  
+   │              ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
@@ -224,10 +224,10 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: "foo" or "bar"
-   ·              ──┬──  
-   ·                ╰──── this expression is `string` but is being used as `bool`
-   · 
-   · Note: non-empty strings are considered `true`, while the empty string ("") is `false`
+   │              ──┬──  
+   │                ╰──── this expression is `string` but is being used as `bool`
+   │ 
+   │ Note: non-empty strings are considered `true`, while the empty string ("") is `false`
 ───╯
 "#,
         ),
@@ -243,10 +243,10 @@ rule test {
    ╭─[line:3:22]
    │
  3 │   condition: true or "false"
-   ·                      ───┬───  
-   ·                         ╰───── this expression is `string` but is being used as `bool`
-   · 
-   · Note: non-empty strings are considered `true`, while the empty string ("") is `false`
+   │                      ───┬───  
+   │                         ╰───── this expression is `string` but is being used as `bool`
+   │ 
+   │ Note: non-empty strings are considered `true`, while the empty string ("") is `false`
 ───╯
 "#,
         ),
@@ -262,10 +262,10 @@ rule test {
    ╭─[line:3:18]
    │
  3 │   condition: not 2
-   ·                  ┬  
-   ·                  ╰── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │                  ┬  
+   │                  ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
@@ -281,10 +281,10 @@ rule test {
    ╭─[line:3:18]
    │
  3 │   condition: not 2+2
-   ·                  ─┬─  
-   ·                   ╰─── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │                  ─┬─  
+   │                   ╰─── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
@@ -300,10 +300,10 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: !a[1]
-   ·              ──┬──  
-   ·                ╰──── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │              ──┬──  
+   │                ╰──── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
