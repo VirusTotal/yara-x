@@ -757,9 +757,9 @@ rule test {
    │                        ╰───── wrong arguments in this call
    │ 
    │ Note: accepted argument combinations:
-
-             (float, float)
-             (integer, integer)
+   │
+   │       (float, float)
+   │       (integer, integer)
 ───╯
 "#,
         ),
@@ -782,8 +782,8 @@ rule test {
    │                      ╰── wrong arguments in this call
    │ 
    │ Note: accepted argument combinations:
-
-             (integer)
+   │
+   │       (integer)
 ───╯
 "#,
         ),

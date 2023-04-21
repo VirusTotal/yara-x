@@ -897,7 +897,7 @@ fn semcheck_fn_call(
                 ctx.src,
                 fn_call.args_span,
                 Some(format!(
-                    "accepted argument combinations:\n\n             {}",
+                    "accepted argument combinations:\n   │\n   │       {}",
                     expected_args
                         .iter()
                         .map(|v| {
@@ -910,7 +910,7 @@ fn semcheck_fn_call(
                             )
                         })
                         .collect::<Vec<String>>()
-                        .join("\n             ")
+                        .join("\n   │       ")
                 )),
             )));
         }
