@@ -278,6 +278,26 @@ rule test {
   strings:
     $a = "foo"
   condition:
+    $a at -1
+}
+"#,
+            r#"error: unexpected negative number
+   ╭─[line:6:11]
+   │
+ 6 │     $a at -1
+   │           ─┬  
+   │            ╰── this number can not be negative
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition:
     "1" of them
 }
         "#,
