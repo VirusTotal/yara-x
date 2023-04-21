@@ -820,7 +820,7 @@ impl From<RuleId> for usize {
 /// if one rule defines `$a = "mz"` and another one `$mz = "mz"`, the pattern
 /// `"mz"` is shared by the two rules. Each rule has a Vec<(IdentId, PatternId)>
 /// that associates identifiers to their corresponding patterns.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Eq, Copy, Clone, Debug, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct PatternId(i32);
 

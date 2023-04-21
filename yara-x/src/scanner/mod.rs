@@ -5,6 +5,7 @@ The scanner takes the rules produces by the compiler and scans data with them.
 
 use base64::Engine;
 use std::ops::Deref;
+use std::ops::Range;
 use std::path::Path;
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
@@ -66,7 +67,7 @@ impl<'r> Scanner<'r> {
                 main_memory: None,
                 vars_stack: Vec::new(),
                 module_outputs: FxHashMap::default(),
-                patterns_found: false,
+                pattern_matches: FxHashMap::default(),
             },
         ));
 
@@ -278,9 +279,11 @@ impl<'r> Scanner<'r> {
         let num_rules = ctx.compiled_rules.rules().len();
         let num_patterns = ctx.compiled_rules.num_patterns();
 
-        if ctx.patterns_found || !ctx.rules_matching.is_empty() {
+        if !ctx.pattern_matches.is_empty() || !ctx.rules_matching.is_empty() {
             // Clear the list of matching rules.
             ctx.rules_matching.clear();
+            // Clear the hash that contains the matches.
+            ctx.pattern_matches.clear();
             let mem = ctx
                 .main_memory
                 .unwrap()
@@ -409,10 +412,6 @@ pub(crate) struct ScanContext<'r> {
     scanned_data_len: usize,
     /// Vector containing the IDs of the rules that matched.
     pub(crate) rules_matching: Vec<RuleId>,
-    /// True if some pattern has been found. This is simply a flag that
-    /// indicates that the bitmap that tells which patterns has matched
-    /// needs to be cleared.
-    pub(crate) patterns_found: bool,
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -438,6 +437,15 @@ pub(crate) struct ScanContext<'r> {
     /// Keys are the fully qualified protobuf message name, and values are
     /// the message returned by the corresponding module.
     pub(crate) module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
+    /// Hash map that tracks the matches occurred during a scan. The keys
+    /// are the PatternId of the matching pattern, and values are a list
+    pub(crate) pattern_matches: FxHashMap<PatternId, Vec<Match>>,
+}
+
+/// Represents an individual match found in the scanned data.
+pub(crate) struct Match {
+    /// Range within the scanned data where the match was found.
+    pub range: Range<usize>,
 }
 
 impl ScanContext<'_> {
@@ -490,9 +498,11 @@ impl ScanContext<'_> {
 
     /// Called during the scan process when a pattern has matched for tracking
     /// the matching patterns.
-    pub(crate) fn track_pattern_match(&mut self, pattern_id: PatternId) {
-        self.patterns_found = true;
-
+    pub(crate) fn track_pattern_match(
+        &mut self,
+        pattern_id: PatternId,
+        range: Range<usize>,
+    ) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
         let num_rules = self.compiled_rules.rules().len();
@@ -501,6 +511,11 @@ impl ScanContext<'_> {
         let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
 
         bits.set(pattern_id.into(), true);
+
+        self.pattern_matches
+            .entry(pattern_id)
+            .or_default()
+            .push(Match { range })
     }
 
     /// Search for patterns in the data.
@@ -604,7 +619,7 @@ impl ScanContext<'_> {
             };
 
             if match_verified {
-                self.track_pattern_match(*pattern_id);
+                self.track_pattern_match(*pattern_id, atom_match.range());
             }
         }
     }

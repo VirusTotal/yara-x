@@ -355,6 +355,59 @@ fn text_patterns() {
 }
 
 #[test]
+fn match_at() {
+    rule_true!(
+        r#"
+        rule test {
+            strings: 
+                $a = "foo" 
+            condition: 
+                $a at 0
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                $a at 3
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                $a at 3
+        }
+        "#,
+        b"barfoo"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "fofo"
+            condition:
+                $a at 0 and 
+                $a at 2 and
+                $a at 4
+        }
+        "#,
+        b"fofofofo"
+    );
+}
+
+#[test]
 fn xor() {
     pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
     pattern_true!(r#""ssi" xor"#, b"lhrrhrrhqqh");
@@ -718,7 +771,7 @@ fn filesize() {
 
 #[test]
 fn for_of() {
-    let rules = crate::compile(
+    rule_true!(
         r#"
         rule test {
           strings:
@@ -728,12 +781,8 @@ fn for_of() {
             for none of ($a, $b) : ($)
         }
         "#,
-    )
-    .unwrap();
-
-    let mut scanner = crate::scanner::Scanner::new(&rules);
-
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 1);
+        &[]
+    );
 }
 
 #[test]

@@ -580,16 +580,23 @@ pub(crate) fn rule_match(
 /// Invoked from WASM to ask whether a pattern matches at a given file
 /// offset.
 ///
-/// Returns 1 if the pattern identified by `pattern_id` matches at `offset`,
-/// or 0 if otherwise.
+/// Returns true if the pattern identified by `pattern_id` matches at `offset`,
+/// or false if otherwise.
 #[wasm_export]
 pub(crate) fn is_pat_match_at(
-    _caller: Caller<'_, ScanContext>,
-    _pattern_id: PatternId,
-    _offset: i64,
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    offset: i64,
 ) -> bool {
-    // TODO
-    false
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        let offset = &offset.try_into().unwrap();
+        // Matches are sorted by range start in ascending order, so we can use
+        // a binary search for finding some match that start at the requested
+        // offset.
+        matches.binary_search_by(|x| x.range.start.cmp(offset)).is_ok()
+    } else {
+        false
+    }
 }
 
 /// Invoked from WASM to ask whether a pattern at some offset within
