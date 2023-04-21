@@ -23,7 +23,7 @@ fn to_int_base(
     if !(2..=36).contains(&base) {
         return None;
     }
-    let string = string.as_bstr(ctx).to_str().ok()?;
+    let string = string.to_str(ctx).ok()?;
     i64::from_str_radix(string, base).ok()
 }
 
@@ -36,9 +36,8 @@ fn length(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
 mod tests {
     #[test]
     fn end2end() {
-        let rules = crate::compiler::Compiler::new()
-            .add_source(
-                r#"import "string"
+        let rules = crate::compile(
+            r#"import "string"
                 // True
                 rule rule_1 { condition: string.length("AXsx00ERS") == 9 }
                 rule rule_2 { condition: string.length("AXsx00ERS") == 9 }
@@ -60,10 +59,8 @@ mod tests {
                 // False
                 rule rule_10 { condition: string.to_int("-011", 0) == -9 }
                 "#,
-            )
-            .unwrap()
-            .build()
-            .unwrap();
+        )
+        .unwrap();
 
         let mut scanner = crate::scanner::Scanner::new(&rules);
 
