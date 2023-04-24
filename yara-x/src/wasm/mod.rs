@@ -589,8 +589,8 @@ pub(crate) fn is_pat_match_at(
     offset: i64,
 ) -> bool {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
-        let offset = offset.try_into().unwrap();
-        matches.iter().find(|m| m.range.start == offset).is_some()
+        let offset: usize = offset.try_into().unwrap();
+        matches.iter().any(|m| m.range.start == offset)
     } else {
         false
     }
