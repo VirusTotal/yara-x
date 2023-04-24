@@ -151,6 +151,66 @@ rule test {
             line!(),
             r#"
 rule test {
+  strings:
+    $a = "foo"
+  condition: 
+    $a in (-1..0)
+}
+"#,
+            r#"error: unexpected negative number
+   ╭─[line:6:12]
+   │
+ 6 │     $a in (-1..0)
+   │            ─┬  
+   │             ╰── this number can not be negative
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition: 
+    $a in (0..-2)
+}
+"#,
+            r#"error: unexpected negative number
+   ╭─[line:6:15]
+   │
+ 6 │     $a in (0..-2)
+   │               ─┬  
+   │                ╰── this number can not be negative
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition: 
+    $a in (2..1)
+}
+"#,
+            r#"error: invalid range
+   ╭─[line:6:11]
+   │
+ 6 │     $a in (2..1)
+   │           ───┬──  
+   │              ╰──── higher bound must be greater or equal than lower bound
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
   condition: $a at "1"
 }
 "#,

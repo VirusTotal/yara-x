@@ -102,4 +102,8 @@ pub enum CompileError {
     #[error("unknown module `{identifier}`")]
     #[label("module `{identifier}` not found", span)]
     UnknownModule { detailed_report: String, identifier: String, span: Span },
+
+    #[error("invalid range")]
+    #[label("higher bound must be greater or equal than lower bound", span)]
+    InvalidRange { detailed_report: String, span: Span },
 }

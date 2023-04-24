@@ -599,17 +599,24 @@ pub(crate) fn is_pat_match_at(
 /// Invoked from WASM to ask whether a pattern at some offset within
 /// given range.
 ///
-/// Returns 1 if the pattern identified by `pattern_id` matches at some offset
-/// in the range [`lower_bound`, `upper_bound`].
+/// Returns true if the pattern identified by `pattern_id` matches at some
+/// offset in the range [`lower_bound`, `upper_bound`], both inclusive.
 #[wasm_export]
 pub(crate) fn is_pat_match_in(
-    _caller: Caller<'_, ScanContext>,
-    _pattern_id: PatternId,
-    _lower_bound: i64,
-    _upper_bound: i64,
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    lower_bound: i64,
+    upper_bound: i64,
 ) -> bool {
-    // TODO
-    false
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        let lower_bound = lower_bound.try_into().unwrap();
+        let upper_bound = upper_bound.try_into().unwrap();
+        matches
+            .iter()
+            .any(|m| (lower_bound..=upper_bound).contains(&m.range.start))
+    } else {
+        false
+    }
 }
 
 /// Given some local variable containing an array, returns the length of the

@@ -320,11 +320,42 @@ fn for_in() {
     condition_false!("for 11% i in (0..9) : ( i == 0 )");
 
     // If the range's lower bound is greater than the upper bound
-    // the `for` loop is always false.
-    condition_false!("for all i in (5..2) : ( true )");
-    condition_false!("for all i in (5..2) : ( false )");
-    condition_false!("for none i in (5..2) : ( true )");
-    condition_false!("for none i in (5..2) : ( false )");
+    // the `for` loop is always false. The outer loop is only for
+    // being able to write a loop with a range (i+1..i) where
+    // the lower bound is greater than the higher bound, without
+    // using constants. Writing a range like (2..1) is not possible
+    // because it raises an error.
+    condition_false!(
+        "for any i in (1..1) : ( 
+            for all j in (i + 1..i) : ( 
+                true 
+            ) 
+        )"
+    );
+
+    condition_false!(
+        "for any i in (1..1) : (
+            for all j in (i + 1..i) : (
+                false
+            )
+        )"
+    );
+
+    condition_false!(
+        "for any i in (1..1) : (
+            for none j in (i + 1..i) : (
+                true        
+            ) 
+        )"
+    );
+
+    condition_false!(
+        "for any i in (1..1) : (
+            for none j in (i + 1..i) : ( 
+                false 
+            ) 
+        )"
+    );
 
     condition_true!(r#"for any e in (1,2,3) : (e == 3)"#);
     condition_true!(r#"for any e in (1+1,2+2) : (e == 2)"#);
@@ -404,6 +435,95 @@ fn match_at() {
         }
         "#,
         b"fofofofo"
+    );
+}
+
+#[test]
+fn match_in() {
+    rule_true!(
+        r#"
+        rule test {
+            strings: 
+                $a = "foo" 
+            condition: 
+                $a in (0..1)
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                $a in (1..6)
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                $a in (2..6)
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "fofo"
+            condition:
+                $a in (0..1) and 
+                $a in (2..3) and
+                $a in (4..5)
+        }
+        "#,
+        b"fofofofo"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings: 
+                $a = "sippi" 
+            condition: 
+                $a in (0..6)
+        }
+        "#,
+        b"mississippi"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings: 
+                $a = "sippi" 
+            condition: 
+                $a in (6..6)
+        }
+        "#,
+        b"mississippi"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings: 
+                $a = "sippi" 
+            condition: 
+                $a in (7..20)
+        }
+        "#,
+        b"mississippi"
     );
 }
 

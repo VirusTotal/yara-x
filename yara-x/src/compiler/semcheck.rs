@@ -570,7 +570,24 @@ pub(super) fn semcheck_expr(
 fn semcheck_range(ctx: &mut Context, range: &mut Range) -> Result<(), Error> {
     semcheck!(ctx, Type::Integer, &mut range.lower_bound)?;
     semcheck!(ctx, Type::Integer, &mut range.upper_bound)?;
-    // TODO: ensure that upper bound is greater than lower bound.
+
+    check_non_negative_integer!(ctx, &mut range.lower_bound)?;
+    check_non_negative_integer!(ctx, &mut range.upper_bound)?;
+
+    if let (
+        TypeValue::Integer(Some(lower_bound)),
+        TypeValue::Integer(Some(upper_bound)),
+    ) = (range.lower_bound.type_value(), range.upper_bound.type_value())
+    {
+        if lower_bound > upper_bound {
+            return Err(Error::CompileError(CompileError::invalid_range(
+                ctx.report_builder,
+                ctx.src,
+                range.span,
+            )));
+        }
+    }
+
     Ok(())
 }
 
