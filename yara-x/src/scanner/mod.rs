@@ -68,6 +68,7 @@ impl<'r> Scanner<'r> {
                 vars_stack: Vec::new(),
                 module_outputs: FxHashMap::default(),
                 pattern_matches: FxHashMap::default(),
+                pattern_matched: false,
             },
         ));
 
@@ -279,15 +280,31 @@ impl<'r> Scanner<'r> {
         let num_rules = ctx.compiled_rules.rules().len();
         let num_patterns = ctx.compiled_rules.num_patterns();
 
-        if !ctx.pattern_matches.is_empty() || !ctx.rules_matching.is_empty() {
+        // If some pattern or rule matched, clear the matches. Notice that a
+        // rule may match without any pattern being matched, because there
+        // there are rules without patterns, or that match if the pattern is
+        // not found.
+        if ctx.pattern_matched || !ctx.rules_matching.is_empty() {
+            ctx.pattern_matched = false;
+
             // Clear the list of matching rules.
             ctx.rules_matching.clear();
-            // Clear the hash that contains the matches.
-            ctx.pattern_matches.clear();
+
+            // The hash map that tracks the pattern matches is not completely
+            // cleared with pattern_matches.clear() because that would cause
+            // that all the arrays are deallocated. Instead, each of the arrays
+            // are cleared individually, which removes the items in the array
+            // while maintaining the array capacity. This way the array may be
+            // reused in later scans without memory allocations.
+            for (_, matches) in ctx.pattern_matches.iter_mut() {
+                matches.clear()
+            }
+
             let mem = ctx
                 .main_memory
                 .unwrap()
                 .data_mut(self.wasm_store.as_context_mut());
+
             // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
             // were the N-th bit indicates if the rule with ID = N matched or not,
             // If some rule matched in a previous call the bitmap will contain some
@@ -298,6 +315,7 @@ impl<'r> Scanner<'r> {
                     + (num_rules / 8 + 1)
                     + (num_patterns / 8 + 1)],
             );
+
             // Set to zero all bits in the bitmap.
             bitmap.fill(false);
         }
@@ -440,6 +458,8 @@ pub(crate) struct ScanContext<'r> {
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
     pub(crate) pattern_matches: FxHashMap<PatternId, Vec<Match>>,
+    // True if some pattern matched during the scan.
+    pub(crate) pattern_matched: bool,
 }
 
 /// Represents an individual match found in the scanned data.
@@ -512,6 +532,7 @@ impl ScanContext<'_> {
 
         bits.set(pattern_id.into(), true);
 
+        self.pattern_matched = true;
         self.pattern_matches
             .entry(pattern_id)
             .or_default()
