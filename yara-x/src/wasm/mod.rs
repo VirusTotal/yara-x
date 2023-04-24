@@ -589,11 +589,8 @@ pub(crate) fn is_pat_match_at(
     offset: i64,
 ) -> bool {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
-        let offset = &offset.try_into().unwrap();
-        // Matches are sorted by range start in ascending order, so we can use
-        // a binary search for finding some match that start at the requested
-        // offset.
-        matches.binary_search_by(|x| x.range.start.cmp(offset)).is_ok()
+        let offset = offset.try_into().unwrap();
+        matches.iter().find(|m| m.range.start == offset).is_some()
     } else {
         false
     }
