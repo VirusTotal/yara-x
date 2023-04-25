@@ -36,7 +36,7 @@ fn matches() {
         r#"
         rule test {
             strings:
-                $a = "foo"
+                $a = "foobar"
                 $b = "bar"
                 $c = "baz"
             condition:
@@ -56,5 +56,35 @@ fn matches() {
         }
     }
 
-    assert_eq!(matches, [("$a", 0..3), ("$b", 3..6)])
+    assert_eq!(matches, [("$a", 0..6), ("$b", 3..6)])
+}
+
+#[test]
+fn xor_matches() {
+    let rules = crate::compile(
+        r#"
+        rule test {
+            strings:
+                $a = "mississippi" xor
+            condition:
+                $a
+        } 
+        "#,
+    )
+    .unwrap();
+
+    let mut matches = vec![];
+
+    for matching_rules in Scanner::new(&rules).scan(b"lhrrhrrhqqh") {
+        for pattern in matching_rules.patterns() {
+            matches.extend(
+                pattern
+                    .matches()
+                    .map(|x| (pattern.identifier(), x.range, x.xor_key)),
+            )
+        }
+    }
+
+    // The xor key must be 1.
+    assert_eq!(matches, [("$a", 0..11, Some(1))])
 }

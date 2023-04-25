@@ -527,7 +527,10 @@ impl Iterator for Matches<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(iter) = &mut self.iterator {
             let match_info = iter.next()?;
-            Some(Match { range: match_info.range.clone() })
+            Some(Match {
+                range: match_info.range.clone(),
+                xor_key: match_info.xor_key,
+            })
         } else {
             None
         }
@@ -536,7 +539,10 @@ impl Iterator for Matches<'_> {
 
 /// Represents the match of a pattern.
 pub struct Match {
+    /// Offset range where the match was found.
     pub range: Range<usize>,
+    /// The XOR key the data is encrypted with.
+    pub xor_key: Option<u8>,
 }
 
 pub(crate) type RuntimeStringId = u32;
@@ -587,6 +593,10 @@ pub(crate) struct ScanContext<'r> {
 pub(crate) struct MatchInfo {
     /// Range within the scanned data where the match was found.
     pub range: Range<usize>,
+    /// For patterns that have the `xor` modifier this is always `Some(k)`
+    /// where `k` is the XOR key (it may be 0). For any other type of
+    /// pattern this is `None`.
+    pub xor_key: Option<u8>,
 }
 
 impl ScanContext<'_> {
@@ -642,7 +652,7 @@ impl ScanContext<'_> {
     pub(crate) fn track_pattern_match(
         &mut self,
         pattern_id: PatternId,
-        range: Range<usize>,
+        match_info: MatchInfo,
     ) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
@@ -654,10 +664,7 @@ impl ScanContext<'_> {
         bits.set(pattern_id.into(), true);
 
         self.pattern_matched = true;
-        self.pattern_matches
-            .entry(pattern_id)
-            .or_default()
-            .push(MatchInfo { range })
+        self.pattern_matches.entry(pattern_id).or_default().push(match_info)
     }
 
     /// Search for patterns in the data.
@@ -693,7 +700,7 @@ impl ScanContext<'_> {
                 .compiled_rules
                 .get_sub_pattern(matched_atom.sub_pattern_id);
 
-            let match_verified = match sub_pattern {
+            let match_info = match sub_pattern {
                 SubPattern::Fixed { pattern, full_word } => self
                     .verify_fixed_match(
                         match_start,
@@ -759,8 +766,8 @@ impl ScanContext<'_> {
                 }
             };
 
-            if match_verified {
-                self.track_pattern_match(*pattern_id, atom_match.range());
+            if let Some(match_info) = match_info {
+                self.track_pattern_match(*pattern_id, match_info);
             }
         }
     }
@@ -771,7 +778,7 @@ impl ScanContext<'_> {
         pattern_id: LiteralId,
         case_insensitive: bool,
         full_word: FullWord,
-    ) -> bool {
+    ) -> Option<MatchInfo> {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
         let data = self.scanned_data();
 
@@ -780,7 +787,7 @@ impl ScanContext<'_> {
 
         // The match can not end past the end of the scanned data.
         if match_end >= data.len() {
-            return false;
+            return None;
         }
 
         match full_word {
@@ -788,13 +795,13 @@ impl ScanContext<'_> {
                 if match_start >= 1
                     && data[match_start - 1].is_ascii_alphanumeric()
                 {
-                    return false;
+                    return None;
                 }
 
                 if match_end + 1 < data.len()
                     && data[match_end + 1].is_ascii_alphanumeric()
                 {
-                    return false;
+                    return None;
                 }
             }
             FullWord::Wide => {
@@ -802,23 +809,33 @@ impl ScanContext<'_> {
                     && data[match_start - 1] == 0
                     && data[match_start - 2].is_ascii_alphanumeric()
                 {
-                    return false;
+                    return None;
                 }
 
                 if match_end + 2 < data.len()
                     && data[match_end + 2] == 0
                     && data[match_end + 1].is_ascii_alphanumeric()
                 {
-                    return false;
+                    return None;
                 }
             }
             FullWord::Disabled => {}
         }
 
-        if case_insensitive {
+        let match_found = if case_insensitive {
             pattern.eq_ignore_ascii_case(&data[match_start..=match_end])
         } else {
             memx::memeq(&data[match_start..=match_end], pattern.as_bytes())
+        };
+
+        if match_found {
+            Some(MatchInfo {
+                // The end of the range is exclusive.
+                range: match_start..match_end + 1,
+                xor_key: None,
+            })
+        } else {
+            None
         }
     }
 
@@ -828,7 +845,7 @@ impl ScanContext<'_> {
         matched_atom: &AtomInfo,
         pattern_id: LiteralId,
         full_word: FullWord,
-    ) -> bool {
+    ) -> Option<MatchInfo> {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
         let data = self.scanned_data();
 
@@ -837,7 +854,7 @@ impl ScanContext<'_> {
 
         // The match can not end past the end of the scanned data.
         if match_end >= data.len() {
-            return false;
+            return None;
         }
 
         let mut pattern = pattern.to_owned();
@@ -853,13 +870,13 @@ impl ScanContext<'_> {
                 if match_start >= 1
                     && (data[match_start - 1] ^ key).is_ascii_alphanumeric()
                 {
-                    return false;
+                    return None;
                 }
 
                 if match_end + 1 < data.len()
                     && (data[match_end + 1] ^ key).is_ascii_alphanumeric()
                 {
-                    return false;
+                    return None;
                 }
             }
             FullWord::Wide => {
@@ -867,14 +884,14 @@ impl ScanContext<'_> {
                     && (data[match_start - 1] ^ key) == 0
                     && (data[match_start - 2] ^ key).is_ascii_alphanumeric()
                 {
-                    return false;
+                    return None;
                 }
 
                 if match_end + 2 < data.len()
                     && (data[match_end + 2] ^ key) == 0
                     && (data[match_end + 1] ^ key).is_ascii_alphanumeric()
                 {
-                    return false;
+                    return None;
                 }
             }
             FullWord::Disabled => {}
@@ -889,7 +906,14 @@ impl ScanContext<'_> {
             }
         }
 
-        memx::memeq(&data[match_start..=match_end], pattern.as_bytes())
+        if memx::memeq(&data[match_start..=match_end], pattern.as_bytes()) {
+            Some(MatchInfo {
+                range: match_start..match_end + 1,
+                xor_key: Some(key),
+            })
+        } else {
+            None
+        }
     }
 
     fn verify_base64_match(
@@ -899,7 +923,7 @@ impl ScanContext<'_> {
         pattern_id: LiteralId,
         alphabet: Option<base64::alphabet::Alphabet>,
         wide: bool,
-    ) -> bool {
+    ) -> Option<MatchInfo> {
         // The pattern is stored in its original form, not encoded as base64.
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
 
@@ -948,11 +972,11 @@ impl ScanContext<'_> {
         {
             adjusted_start..match_start + len - right_adjustment
         } else {
-            return false;
+            return None;
         };
 
         if range.end > self.scanned_data_len {
-            return false;
+            return None;
         }
 
         let base64_engine = base64::engine::GeneralPurpose::new(
@@ -964,22 +988,30 @@ impl ScanContext<'_> {
             // Collect the ASCII characters at even positions and make sure
             // that bytes at odd positions are zeroes.
             let mut ascii = Vec::with_capacity(len / 2);
-            for (i, b) in self.scanned_data()[range].iter().enumerate() {
+            for (i, b) in self.scanned_data()[range.clone()].iter().enumerate()
+            {
                 if i % 2 == 0 {
                     ascii.push(*b)
                 } else if *b != 0 {
-                    return false;
+                    return None;
                 }
             }
             base64_engine.decode(ascii.as_slice())
         } else {
-            base64_engine.decode(&self.scanned_data()[range])
+            base64_engine.decode(&self.scanned_data()[range.clone()])
         };
 
         if let Ok(decoded) = decoded {
-            pattern.eq(&decoded[padding as usize..])
+            if pattern.eq(&decoded[padding as usize..]) {
+                Some(MatchInfo {
+                    range: range.start + padding as usize..range.end,
+                    xor_key: None,
+                })
+            } else {
+                None
+            }
         } else {
-            false
+            None
         }
     }
 }
