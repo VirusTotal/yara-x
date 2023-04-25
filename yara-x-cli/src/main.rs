@@ -230,9 +230,9 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
             let scan_results = scanner.scan_file(&file_path)?;
 
             let matching_rules: Vec<Rule> = if negate {
-                scan_results.iter_non_matches().collect()
+                scan_results.non_matching_rules().collect()
             } else {
-                scan_results.iter().collect()
+                scan_results.matching_rules().collect()
             };
 
             for matching_rule in matching_rules {
