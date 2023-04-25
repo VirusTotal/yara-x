@@ -474,7 +474,7 @@ pub struct Pattern<'s, 'r> {
     ident_id: IdentId,
 }
 
-impl<'s, 'r> Pattern<'_, 'r> {
+impl<'r> Pattern<'_, 'r> {
     /// Returns the pattern's identifier (e.g: $a, $b).
     pub fn identifier(&self) -> &'r str {
         self.ctx.compiled_rules.ident_pool().get(self.ident_id).unwrap()
