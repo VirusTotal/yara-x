@@ -339,12 +339,12 @@ impl<'s, 'r> ScanResults<'s, 'r> {
     }
 
     /// Returns an iterator that yields the matching rules.
-    pub fn iter(&self) -> MatchingRules<'s, 'r> {
+    pub fn matching_rules(&self) -> MatchingRules<'s, 'r> {
         MatchingRules::new(self.ctx)
     }
 
     /// Returns an iterator that yields the non-matching rules.
-    pub fn iter_non_matches(&self) -> NonMatchingRules<'s, 'r> {
+    pub fn non_matching_rules(&self) -> NonMatchingRules<'s, 'r> {
         NonMatchingRules::new(self.ctx)
     }
 }
@@ -354,7 +354,7 @@ impl<'s, 'r> IntoIterator for ScanResults<'s, 'r> {
     type IntoIter = MatchingRules<'s, 'r>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        self.matching_rules()
     }
 }
 

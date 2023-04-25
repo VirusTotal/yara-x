@@ -1,5 +1,4 @@
 use crate::scanner::Scanner;
-use yara_x_parser::ast::Iterable::Range;
 
 #[test]
 fn iterators() {
@@ -18,13 +17,13 @@ rule rule_4 { condition: false }
 
     assert_eq!(results.num_matching_rules(), 2);
 
-    let mut iter = results.iter();
+    let mut iter = results.matching_rules();
 
     assert_eq!(iter.next().unwrap().name(), "rule_1");
     assert_eq!(iter.next().unwrap().name(), "rule_3");
     assert!(iter.next().is_none());
 
-    let mut iter = results.iter_non_matches();
+    let mut iter = results.non_matching_rules();
 
     assert_eq!(iter.next().unwrap().name(), "rule_2");
     assert_eq!(iter.next().unwrap().name(), "rule_4");
@@ -47,12 +46,9 @@ fn matches() {
     )
     .unwrap();
 
-    let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan(b"foobar");
-
     let mut matches = vec![];
 
-    for matching_rules in results {
+    for matching_rules in Scanner::new(&rules).scan(b"foobar") {
         for pattern in matching_rules.patterns() {
             matches.extend(
                 pattern.matches().map(|x| (pattern.identifier(), x.range)),
