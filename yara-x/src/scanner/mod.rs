@@ -727,7 +727,7 @@ impl ScanContext<'_> {
                 SubPattern::Base64 { pattern, padding }
                 | SubPattern::Base64Wide { pattern, padding } => self
                     .verify_base64_match(
-                        *padding,
+                        (*padding).into(),
                         match_start,
                         *pattern,
                         None,
@@ -755,7 +755,7 @@ impl ScanContext<'_> {
                     assert!(alphabet.is_some());
 
                     self.verify_base64_match(
-                        *padding,
+                        (*padding).into(),
                         match_start,
                         *pattern,
                         alphabet,
@@ -919,7 +919,7 @@ impl ScanContext<'_> {
 
     fn verify_base64_match(
         &self,
-        padding: u8,
+        padding: usize,
         match_start: usize,
         pattern_id: LiteralId,
         alphabet: Option<base64::alphabet::Alphabet>,
@@ -967,20 +967,20 @@ impl ScanContext<'_> {
             match padding {
                 0 => match len % 4 {
                     0 => (0, len, len),
-                    2 => (0, len, len - 1),
-                    3 => (0, len, len - 1),
+                    2 => (0, len + 2, len - 1),
+                    3 => (0, len + 1, len - 1),
                     _ => unreachable!(),
                 },
                 1 => match len % 4 {
-                    0 => (2, len + 2, len - 1),
-                    2 => (2, len + 1, len - 3),
+                    0 => (2, len + 4, len - 1),
+                    2 => (2, len + 2, len - 3),
                     3 => (2, len + 1, len - 3),
                     _ => unreachable!(),
                 },
                 2 => match len % 4 {
-                    0 => (3, len + 3, len - 1),
+                    0 => (3, len + 4, len - 1),
                     2 => (3, len + 2, len - 1),
-                    3 => (3, len + 3, len - 2),
+                    3 => (3, len + 5, len - 2),
                     _ => unreachable!(),
                 },
                 _ => unreachable!(),
@@ -994,7 +994,10 @@ impl ScanContext<'_> {
             match_len *= 2;
         }
 
-        let decode_range = if let (decode_start, false) =
+        // decode_range is the range within the scanned data that we are going
+        // to decode as base64. It starts at match_start - decode_start_delta,
+        // but if match_start < decode_start_delta this is not a real match.
+        let mut decode_range = if let (decode_start, false) =
             match_start.overflowing_sub(decode_start_delta)
         {
             decode_start..decode_start + decode_len
@@ -1002,8 +1005,10 @@ impl ScanContext<'_> {
             return None;
         };
 
+        // If the end of decode_range is past the end of the scanned data
+        // truncate it to scanned_data_len.
         if decode_range.end > self.scanned_data_len {
-            return None;
+            decode_range.end = self.scanned_data_len;
         }
 
         let base64_engine = base64::engine::GeneralPurpose::new(
@@ -1029,7 +1034,12 @@ impl ScanContext<'_> {
         };
 
         if let Ok(decoded) = decoded {
-            if pattern.eq(&decoded[padding as usize..]) {
+            // If the decoding was successful, ignore the padding and compare
+            // to the pattern.
+            let decoded = &decoded[padding..];
+            if decoded.len() >= pattern.len()
+                && pattern.eq(&decoded[0..pattern.len()])
+            {
                 Some(MatchInfo {
                     range: match_start..match_start + match_len,
                     xor_key: None,
