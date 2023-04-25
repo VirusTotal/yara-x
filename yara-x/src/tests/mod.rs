@@ -865,6 +865,46 @@ fn base64() {
             base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
         b"X\x00k\x007\x00t\x00W\x00k\x00D\x00w\x00"
     );
+
+    // TODO: uncomment "and !a == 14" when !a is implemented.
+    rule_true!(
+        r#"
+        rule test {
+            strings: 
+                $a = "mississippi" base64
+            condition: 
+                $a at 6 // and !a == 14
+        }
+        "#,
+        // base64("the mississippi river")
+        b"dGhlIG1pc3Npc3NpcHBpIHJpdmVy"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings: 
+                $a = "mississippi" base64
+            condition: 
+                $a at 7 // and !a == 14
+        }
+        "#,
+        // base64(" the mississippi river")
+        b"IHRoZSBtaXNzaXNzaXBwaSByaXZlcg"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings: 
+                $a = "mississippi" base64
+            condition: 
+                $a at 8 // and !a == 14
+        }
+        "#,
+        // base64("  the mississippi river")
+        b"ICB0aGUgbWlzc2lzc2lwcGkgcml2ZXI"
+    );
 }
 
 #[test]

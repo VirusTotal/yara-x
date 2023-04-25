@@ -505,6 +505,7 @@ impl<'r> Pattern<'_, 'r> {
         self.ctx.compiled_rules.ident_pool().get(self.ident_id).unwrap()
     }
 
+    /// Returns the matches found for this pattern.
     pub fn matches(&self) -> Matches {
         Matches {
             iterator: self
@@ -924,58 +925,84 @@ impl ScanContext<'_> {
         alphabet: Option<base64::alphabet::Alphabet>,
         wide: bool,
     ) -> Option<MatchInfo> {
-        // The pattern is stored in its original form, not encoded as base64.
+        // Get the pattern in its original form, not encoded as base64.
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
 
         // Compute the size of the pattern once it is encoded as base64.
-        let mut len = base64::encoded_len(pattern.len(), false).unwrap();
+        let len = base64::encoded_len(pattern.len(), false).unwrap();
 
-        // The base64 pattern was found at match_start, but decoding the base64
-        // string starting at that position is not ok, as it may not be the
-        // real starting point for the base64 string (remember that some
-        // characters may have been removed from the left and right of the
-        // pattern). Based on the padding and the pattern's length, we decide
-        // where to start decoding and how many characters to use. The starting
-        // point is either at match_start, match_start - 2, or match_start - 3,
-        // depending on the padding. That's ok even if the base64 string in the
-        // scanned data starts way before match_start, we are relying on the
-        // fact that you can partially decode a base64 string starting from a
-        // middle point, provided that this point is at a 4-characters boundary
-        // within the string.
-        let (mut left_adjustment, mut right_adjustment) = match padding {
-            0 => (0, 0),
-            1 => match len % 4 {
-                0 => (2, 0),
-                2 => (2, 1),
-                3 => (2, 1),
+        // A portion of the pattern in base64 form was found at match_start,
+        // but decoding the base64 string starting at that offset is not ok
+        // because some characters may have been removed from both the left
+        // and the right sides of the base64 string that has been found. For
+        // example, for the pattern "foobar" one of the base64 patterns that
+        // are searched for is "Zvb2Jhc", but once this pattern is found in
+        // the scanned data we can't simply decode that string and expect
+        // to find "foobar" in the decoded data.
+        //
+        // What we must do is use two more characters from the left, and one
+        // more from the right of "Zvb2Jhc", like for example "eGZvb2Jhcg",
+        // which is decoded as "xfoobar". The actual number of additional
+        // characters that must be used from the left and right of the pattern
+        // found depends on the padding and the rest of dividing the pattern's
+        // length by 4. The table below covers all possible cases using the
+        // plain text patterns "foobar", "fooba" and "foob".
+        //
+        // padding          base64                      len (mod 4)
+        //    0   foobar    Zm9vYmFy    len(b64(foobar))  8 (0)  [Zm9vYmFy]
+        //    0   fooba     Zm9vYmE     len(b64(fooba))   7 (3)  [Zm9vYm]E
+        //    0   foob      Zm9vYg      len(b64(foob))    6 (2)  [Zm9vY]g
+        //
+        //    1   xfoobar   eGZvb2Jhcg  len(b64(foobar))  8 (0)  eG[Zvb2Jhc]g
+        //    1   xfooba    eGZvb2Jh    len(b64(fooba))   7 (3)  eG[Zvb2]Jh
+        //    1   xfoob     eGZvb2I     len(b64(foob))    6 (2)  eG[Zvb2]I
+        //
+        //    2   xxfoobar  eHhmb29iYXI len(b64(foobar))  8 (0)  eHh[mb29iYX]I
+        //    2   xxfooba   eHhmb29iYQ  len(b64(fooba))   7 (3)  eHh[mb29i]YQ
+        //    2   xxfoob    eHhmb29i    len(b64(foob))    6 (2)  eHh[mb29i]
+        //
+        // In the rightmost column the portion of the base64 pattern that is
+        // searched using the Aho-Corasick algorithm is enclosed in [].
+        let (mut decode_start_delta, mut decode_len, mut match_len) =
+            match padding {
+                0 => match len % 4 {
+                    0 => (0, len, len),
+                    2 => (0, len, len - 1),
+                    3 => (0, len, len - 1),
+                    _ => unreachable!(),
+                },
+                1 => match len % 4 {
+                    0 => (2, len + 2, len - 1),
+                    2 => (2, len + 1, len - 3),
+                    3 => (2, len + 1, len - 3),
+                    _ => unreachable!(),
+                },
+                2 => match len % 4 {
+                    0 => (3, len + 3, len - 1),
+                    2 => (3, len + 2, len - 1),
+                    3 => (3, len + 3, len - 2),
+                    _ => unreachable!(),
+                },
                 _ => unreachable!(),
-            },
-            2 => match len % 4 {
-                0 => (3, 0),
-                2 => (3, 1),
-                3 => (3, 0),
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        };
+            };
 
-        // In wide mode each base64 character is two bytes long, adjust the
-        // length and adjustments accordingly.
+        // In wide mode each base64 character is two bytes long, adjust
+        // decode_start_delta and lengths accordingly.
         if wide {
-            left_adjustment *= 2;
-            right_adjustment *= 2;
-            len *= 2;
+            decode_start_delta *= 2;
+            decode_len *= 2;
+            match_len *= 2;
         }
 
-        let range = if let (adjusted_start, false) =
-            match_start.overflowing_sub(left_adjustment)
+        let decode_range = if let (decode_start, false) =
+            match_start.overflowing_sub(decode_start_delta)
         {
-            adjusted_start..match_start + len - right_adjustment
+            decode_start..decode_start + decode_len
         } else {
             return None;
         };
 
-        if range.end > self.scanned_data_len {
+        if decode_range.end > self.scanned_data_len {
             return None;
         }
 
@@ -987,8 +1014,8 @@ impl ScanContext<'_> {
         let decoded = if wide {
             // Collect the ASCII characters at even positions and make sure
             // that bytes at odd positions are zeroes.
-            let mut ascii = Vec::with_capacity(len / 2);
-            for (i, b) in self.scanned_data()[range.clone()].iter().enumerate()
+            let mut ascii = Vec::with_capacity(decode_range.len() / 2);
+            for (i, b) in self.scanned_data()[decode_range].iter().enumerate()
             {
                 if i % 2 == 0 {
                     ascii.push(*b)
@@ -998,13 +1025,13 @@ impl ScanContext<'_> {
             }
             base64_engine.decode(ascii.as_slice())
         } else {
-            base64_engine.decode(&self.scanned_data()[range.clone()])
+            base64_engine.decode(&self.scanned_data()[decode_range])
         };
 
         if let Ok(decoded) = decoded {
             if pattern.eq(&decoded[padding as usize..]) {
                 Some(MatchInfo {
-                    range: range.start + padding as usize..range.end,
+                    range: match_start..match_start + match_len,
                     xor_key: None,
                 })
             } else {
