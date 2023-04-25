@@ -1218,25 +1218,7 @@ pub(crate) struct RuleInfo {
     /// The ID of the rule namespace in the identifiers pool.
     pub(crate) namespace_id: IdentId,
     /// Vector with all the patterns defined by this rule.
-    patterns: Vec<(IdentId, PatternId)>,
-}
-
-/// A structure that describes a rule.
-pub struct Rule<'r> {
-    pub(crate) rules: &'r Rules,
-    pub(crate) rule_info: &'r RuleInfo,
-}
-
-impl<'r> Rule<'r> {
-    /// Returns the rule's name.
-    pub fn name(&self) -> &str {
-        self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
-    }
-
-    /// Returns the rule's namespace.
-    pub fn namespace(&self) -> &str {
-        self.rules.ident_pool().get(self.rule_info.namespace_id).unwrap()
-    }
+    pub(crate) patterns: Vec<(IdentId, PatternId)>,
 }
 
 #[derive(Serialize, Deserialize)]
