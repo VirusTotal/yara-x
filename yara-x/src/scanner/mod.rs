@@ -36,6 +36,10 @@ use crate::{
 mod tests;
 
 /// Scans data with already compiled YARA rules.
+///
+/// The scanner receives a set of compiled [`Rules`] and scans data with those
+/// rules. The same scanner can be used for scanning multiple files or in-memory
+/// data sequentially, but you need multiple scanners for scanning in parallel.
 pub struct Scanner<'r> {
     wasm_store: Pin<Box<Store<ScanContext<'r>>>>,
     wasm_main_fn: TypedFunc<(), ()>,
@@ -324,6 +328,26 @@ impl<'r> Scanner<'r> {
 }
 
 /// Results of a scan operation.
+///
+/// Allows iterating over both the matching and non-matching rules. For better
+/// ergonomics it implements the [`IntoIterator`] trait, which allows iterating
+/// over the matching rules in a `for` loop like shown below.
+///
+/// ```rust
+/// # use yara_x;
+/// let rules = yara_x::compile(
+///     r#"rule test {
+///         strings:
+///            $a = "foo"
+///         condition:
+///            $a
+///     }"#,
+/// ).unwrap();
+///
+/// for matching_rule in yara_x::Scanner::new(&rules).scan(b"foobar") {
+///     // do something with the matching rule ...
+/// }
+/// ```
 pub struct ScanResults<'s, 'r> {
     ctx: &'s ScanContext<'r>,
 }
@@ -353,12 +377,13 @@ impl<'s, 'r> IntoIterator for ScanResults<'s, 'r> {
     type Item = Rule<'s, 'r>;
     type IntoIter = MatchingRules<'s, 'r>;
 
+    /// Consumes the scan results and returns a [`MatchingRules`] iterator.
     fn into_iter(self) -> Self::IntoIter {
         self.matching_rules()
     }
 }
 
-/// Iterator that yields the rules that matched.
+/// Iterator that yields the rules that matched during a scan.
 pub struct MatchingRules<'s, 'r> {
     ctx: &'s ScanContext<'r>,
     iterator: Iter<'s, RuleId>,
@@ -382,7 +407,7 @@ impl<'s, 'r> Iterator for MatchingRules<'s, 'r> {
     }
 }
 
-/// Iterator that yields the rules that didn't match.
+/// Iterator that yields the rules that didn't match during a scan.
 pub struct NonMatchingRules<'s, 'r> {
     ctx: &'s ScanContext<'r>,
     iterator: bitvec::slice::IterZeros<'s, u8, Lsb0>,
@@ -442,7 +467,7 @@ impl<'s, 'r> Rule<'s, 'r> {
         self.rules.ident_pool().get(self.rule_info.namespace_id).unwrap()
     }
 
-    // Returns the patterns defined by this rule.
+    /// Returns the patterns defined by this rule.
     pub fn patterns(&self) -> Patterns<'s, 'r> {
         Patterns { ctx: self.ctx, iterator: self.rule_info.patterns.iter() }
     }

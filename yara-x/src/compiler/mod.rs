@@ -88,6 +88,31 @@ struct Namespace {
 }
 
 /// Takes YARA source code and produces compiled [`Rules`].
+///
+/// The two most important methods in this type are [`Compiler::add_source`]
+/// and [`Compiler::build`]. The former tells the compiler which YARA source
+/// code must be compiled, and can be called multiple times with different
+/// set of rules. The latter consumes the compiler and produces a set of
+/// compiled [`Rules`].
+///
+/// # Example
+///
+/// ```rust
+/// # use yara_x;
+/// let rules = yara_x::Compiler::new()
+///     .add_source(r#"
+///         rule always_true {
+///             condition: true
+///         }"#)?
+///     .add_source(r#"
+///         rule always_true {
+///             condition: true
+///         }"#)?
+///     .build()?;
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
 pub struct Compiler<'a> {
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
