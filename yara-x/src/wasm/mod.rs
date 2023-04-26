@@ -695,6 +695,27 @@ pub(crate) fn pat_matches_in(
     }
 }
 
+/// Invoked from WASM to ask for the offset where a pattern matched
+///
+/// Returns the offset for the index-th occurrence of the pattern identified
+/// by `pattern_id`. The index is 1-based. Returns `None` if the pattern
+/// has not matched or there are less than `index` matches.
+#[wasm_export]
+pub(crate) fn pat_offset(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    index: i64,
+) -> Option<i64> {
+    // Make sure that index >= 1.
+    debug_assert!(index >= 1);
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        let m = matches.get(index as usize - 1)?;
+        Some(m.range.start as i64)
+    } else {
+        None
+    }
+}
+
 /// Given some local variable containing an array, returns the length of the
 /// array. The local variable is an index within `vars_stack`.
 ///

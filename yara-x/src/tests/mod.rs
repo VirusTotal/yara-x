@@ -628,6 +628,87 @@ fn match_count() {
 }
 
 #[test]
+fn match_offset() {
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                @a == 0 and @b == 3
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                @a[1] == 0 and @b[1] == 3
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                @a[2] == 6 and @b[2] == 9
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                @a[3] == 0 or @b[3] == 0
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                for all of ($a, $b) : ( @ <= 3 )
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                for all of ($a, $b) : ( @[2] >= 6 )
+        }
+        "#,
+        b"foobarfoobar"
+    );
+}
+
+#[test]
 fn xor() {
     pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
     pattern_true!(r#""ssi" xor"#, b"lhrrhrrhqqh");

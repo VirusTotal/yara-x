@@ -434,63 +434,40 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
         Expr::PatternMatch(pattern) => {
             // If the patterns has not been searched yet, do it now.
             emit_lazy_pattern_search(ctx, instr);
-
-            // Push the pattern ID in the stack. Identifier "$" is an special
-            // case, as this is used inside `for` loops and it represents a
-            // different pattern on each iteration. In those cases the pattern
-            // ID is obtained from a loop variable.
-            if pattern.identifier.name == "$" {
-                match ctx.symbol_table.lookup("$").unwrap().kind {
-                    SymbolKind::WasmVar(var) => {
-                        load_var(ctx, instr, var);
-                        // load_var returns a I64, convert it to I32.
-                        instr.unop(UnaryOp::I32WrapI64);
-                    }
-                    _ => unreachable!(),
-                }
-            }
-            // For normal pattern identifiers (e.g: $a, $b, $foo) we find the
-            // corresponding pattern in the current rule, and push its ID.
-            else {
-                instr.i32_const(
-                    ctx.get_pattern_from_current_rule(pattern.identifier.name)
-                        .0,
-                );
-            };
-
+            emit_pattern_identifier(ctx, instr, pattern.identifier.name);
             emit_pattern_match(ctx, instr, pattern.anchor.as_ref());
         }
         Expr::PatternCount(identifier) => {
             // If the patterns has not been searched yet, do it now.
             emit_lazy_pattern_search(ctx, instr);
-
-            // Push the pattern ID in the stack. Identifier "#" is an special
-            // case, as this is used inside `for` loops and it represents a
-            // different pattern on each iteration. In those cases the pattern
-            // ID is obtained from a loop variable.
-            if identifier.name == "#" {
-                match ctx.symbol_table.lookup("$").unwrap().kind {
-                    SymbolKind::WasmVar(var) => {
-                        load_var(ctx, instr, var);
-                        // load_var returns a I64, convert it to I32.
-                        instr.unop(UnaryOp::I32WrapI64);
-                    }
-                    _ => unreachable!(),
-                }
-            } else {
-                instr.i32_const(
-                    ctx.get_pattern_from_current_rule(identifier.name).0,
-                );
-            }
-
+            emit_pattern_identifier(ctx, instr, identifier.name);
             emit_pattern_count(ctx, instr, identifier.range.as_ref());
         }
-        Expr::PatternOffset(_) => {
+        Expr::PatternOffset(identifier) => {
             // If the patterns has not been searched yet, do it now.
             emit_lazy_pattern_search(ctx, instr);
-            // TODO
+            emit_pattern_identifier(ctx, instr, identifier.name);
+
+            match &identifier.index {
+                // The index was specified, like in `@a[2]`
+                Some(index) => {
+                    emit_expr(ctx, instr, index);
+                }
+                // The index was not specified, like in `@a`, which is
+                // equivalent to `@a[1]`.
+                None => {
+                    instr.i64_const(1);
+                }
+            }
+
+            emit_call_and_handle_undef(
+                ctx,
+                instr,
+                ctx.function_id(wasm::export__pat_offset.mangled_name),
+            )
         }
         Expr::PatternLength(_) => {
+            // If the patterns has not been searched yet, do it now.
             emit_lazy_pattern_search(ctx, instr);
             // TODO
         }
@@ -895,6 +872,38 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
                 emit_for_in_expr(ctx, instr, for_in, iterable);
             }
         },
+    }
+}
+
+/// Emits the code that pushes a pattern identifier into the stack.
+///
+/// The identifier is something like `$foo`, `$bar`, `#foo`, `@bar`, etc. It can
+/// start with any of the valid prefixes `$`, `@`, `#`, and `!`. The prefix can
+/// appear alone when used inside a `for .. of` loop. In those cases it refers
+/// to the current loop variable.
+fn emit_pattern_identifier(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    identifier: &str,
+) {
+    if identifier == "$"
+        || identifier == "@"
+        || identifier == "#"
+        || identifier == "!"
+    {
+        // The prefix is used alone in a `for .. of`, in such cases we must
+        // load the loop variable `$`, which contains the PatternId for the
+        // current pattern.
+        match ctx.symbol_table.lookup("$").unwrap().kind {
+            SymbolKind::WasmVar(var) => {
+                load_var(ctx, instr, var);
+                // load_var returns a I64, convert it to I32.
+                instr.unop(UnaryOp::I32WrapI64);
+            }
+            _ => unreachable!(),
+        }
+    } else {
+        instr.i32_const(ctx.get_pattern_from_current_rule(identifier).0);
     }
 }
 
