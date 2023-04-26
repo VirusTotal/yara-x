@@ -604,6 +604,18 @@ fn match_count() {
     rule_true!(
         r#"
         rule test {
+            strings: 
+                $a = "aaa" 
+            condition: 
+                #a in (4..5) == 2
+        }
+        "#,
+        b"xxxaaaaa"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
             strings:
                 $a = "foo"
                 $b = "bar"

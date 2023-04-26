@@ -588,8 +588,7 @@ pub(crate) fn is_pat_match_at(
     offset: i64,
 ) -> bool {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
-        let offset: usize = offset.try_into().unwrap();
-        matches.iter().any(|m| m.range.start == offset)
+        matches.search(offset.try_into().unwrap()).is_ok()
     } else {
         false
     }
@@ -608,11 +607,29 @@ pub(crate) fn is_pat_match_in(
     upper_bound: i64,
 ) -> bool {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        // Convert bounds form i64 to usize.
         let lower_bound = lower_bound.try_into().unwrap();
         let upper_bound = upper_bound.try_into().unwrap();
-        matches
-            .iter()
-            .any(|m| (lower_bound..=upper_bound).contains(&m.range.start))
+        // Search for a match that starts at lower_bound.
+        match matches.search(lower_bound) {
+            // If result is Ok, there's a match exactly at lower_bound. In that
+            // case we already found what we are looking for.
+            Ok(_) => true,
+            // If result is Err, the returned index is the place where a match
+            // starting at lower_bound should be. All matches below that index
+            // start at some offset < lower_bound.
+            Err(index) => {
+                // If there is some match that lies within the
+                // lower_bound..=upper_bound range, it must be the one
+                // at `index`. If that match is outside the bounds, no other
+                // match can be.
+                if let Some(m) = matches.get(index) {
+                    (lower_bound..=upper_bound).contains(&m.range.start)
+                } else {
+                    false
+                }
+            }
+        }
     } else {
         false
     }
@@ -645,14 +662,34 @@ pub(crate) fn pat_matches_in(
     upper_bound: i64,
 ) -> i64 {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        // Convert bounds form i64 to usize.
         let lower_bound = lower_bound.try_into().unwrap();
         let upper_bound = upper_bound.try_into().unwrap();
-        matches
-            .iter()
-            .filter(|m| (lower_bound..=upper_bound).contains(&m.range.start))
-            .count()
-            .try_into()
-            .unwrap()
+        // Find the index of the match that starts at lower_bound, or find the
+        // index where that match should be.
+        match matches.search(lower_bound) {
+            // No matter if the match was found or not, in both cases the
+            // matches that start at the range [lower_bound, upper_bound], if
+            // any, must be at `index`, `index+1`, `index+2`, etc.
+            // Notice that the fact that two matches can't have the same
+            // starting offset is very helpful in this case. Because of this
+            // we don't need to take into account matches at `index-1`,
+            // `index-2`, etc. If matches could have the same starting offset
+            // we would like to take matches before `index` because the
+            // `search` function does not guarantee that it returns the *first*
+            // match with a given offset, but *any* match with that offset.
+            Ok(index) | Err(index) => {
+                let mut count = 0;
+                for m in &matches.as_slice()[index..] {
+                    if (lower_bound..=upper_bound).contains(&m.range.start) {
+                        count += 1;
+                    } else {
+                        break;
+                    }
+                }
+                count
+            }
+        }
     } else {
         0
     }

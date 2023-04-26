@@ -14,7 +14,8 @@ pub struct Match {
 
 /// Represents the list of matches for a pattern.
 ///
-/// The matches are kept sorted by starting offset in ascending order.
+/// The matches are kept sorted by starting offset in ascending order. Two
+/// different matches can't have the same starting offset.
 #[derive(Debug, Default)]
 pub struct MatchList {
     matches: Vec<Match>,
@@ -41,7 +42,13 @@ impl MatchList {
         let mut insertion_index = self.matches.len();
 
         while insertion_index > 0 {
-            if m.range.start >= self.matches[insertion_index - 1].range.start {
+            if m.range.start == self.matches[insertion_index - 1].range.start {
+                panic!(
+                    "another match at the same offset ({}) already exists",
+                    m.range.start
+                );
+            }
+            if m.range.start > self.matches[insertion_index - 1].range.start {
                 break;
             }
             insertion_index -= 1;
@@ -52,6 +59,16 @@ impl MatchList {
         } else {
             self.matches.insert(insertion_index, m);
         }
+    }
+
+    #[inline]
+    pub fn get(&self, i: usize) -> Option<&Match> {
+        self.matches.get(i)
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[Match] {
+        self.matches.as_slice()
     }
 
     #[inline]
@@ -73,6 +90,26 @@ impl MatchList {
     pub fn iter(&self) -> Iter<'_, Match> {
         self.matches.iter()
     }
+
+    /// Searches for a match that starts at the given offset.
+    ///
+    /// If a match starting at `offset` is found, then [`Result::Ok`] is
+    /// returned containing the index of the match. If no match is found,
+    /// then [`Result::Err`] is returned, containing the index where the
+    /// match would be located.
+    ///
+    /// This operation is O(log(N)) because it takes advantage of the fact
+    /// that matches are sorted by starting offset and uses a binary search
+    /// internally.
+    ///
+    /// The list can't contain two matches with the same starting offset,
+    /// but if that would be the case this function doesn't guarantee that
+    /// it returns the *first* match with given offset, but *any* match
+    /// with that offset.
+    #[inline]
+    pub fn search(&self, offset: usize) -> Result<usize, usize> {
+        self.matches.binary_search_by(|x| x.range.start.cmp(&offset))
+    }
 }
 
 #[cfg(test)]
@@ -89,11 +126,19 @@ mod test {
         ml.add(Match { range: (4..10), xor_key: None });
         ml.add(Match { range: (3..10), xor_key: None });
         ml.add(Match { range: (5..10), xor_key: None });
-        ml.add(Match { range: (5..9), xor_key: None });
 
         assert_eq!(
             ml.iter().map(|m| m.range.clone()).collect::<Vec<Range<usize>>>(),
-            vec![(1..10), (2..10), (3..10), (4..10), (5..10), (5..9)]
+            vec![(1..10), (2..10), (3..10), (4..10), (5..10)]
         )
+    }
+
+    #[test]
+    #[should_panic]
+    fn duplicate_match_panic() {
+        let mut ml = MatchList::new();
+
+        ml.add(Match { range: (2..10), xor_key: None });
+        ml.add(Match { range: (2..10), xor_key: None });
     }
 }
