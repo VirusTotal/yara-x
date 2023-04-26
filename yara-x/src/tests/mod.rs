@@ -1104,6 +1104,19 @@ fn for_of() {
         "#,
         &[]
     );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a = "foo"
+            $b = "bar"
+          condition:
+            for all of them : ($)
+        }
+        "#,
+        b"foobar"
+    );
 }
 
 #[test]

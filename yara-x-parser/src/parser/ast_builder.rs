@@ -1499,7 +1499,11 @@ fn for_expr_from_cst<'src>(
         // identifiers.
         let node = children.next().unwrap();
         pattern_set = Some(match node.as_rule() {
-            GrammarRule::k_THEM => PatternSet::Them,
+            GrammarRule::k_THEM => {
+                // `them` was used in the condition, all the patterns are used.
+                ctx.unused_patterns.clear();
+                PatternSet::Them
+            }
             GrammarRule::pattern_ident_tuple => {
                 PatternSet::Set(pattern_ident_tuple(ctx, node)?)
             }
