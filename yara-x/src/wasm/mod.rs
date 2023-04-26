@@ -596,8 +596,8 @@ pub(crate) fn is_pat_match_at(
     }
 }
 
-/// Invoked from WASM to ask whether a pattern at some offset within
-/// given range.
+/// Invoked from WASM to ask whether a pattern matches at some offset within
+/// a given range.
 ///
 /// Returns true if the pattern identified by `pattern_id` matches at some
 /// offset in the range [`lower_bound`, `upper_bound`], both inclusive.
@@ -616,6 +616,46 @@ pub(crate) fn is_pat_match_in(
             .any(|m| (lower_bound..=upper_bound).contains(&m.range.start))
     } else {
         false
+    }
+}
+
+/// Invoked from WASM to ask for the number of matches for a pattern.
+#[wasm_export]
+pub(crate) fn pat_matches(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+) -> i64 {
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        matches.len().try_into().unwrap()
+    } else {
+        0
+    }
+}
+
+/// Invoked from WASM to ask for the number of matches of a given pattern
+/// within some offset range.
+///
+/// Returns the number of matches that the pattern identified by `pattern_id`
+/// matches at some offset in the range [`lower_bound`, `upper_bound`], both
+/// inclusive.
+#[wasm_export]
+pub(crate) fn pat_matches_in(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    lower_bound: i64,
+    upper_bound: i64,
+) -> i64 {
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        let lower_bound = lower_bound.try_into().unwrap();
+        let upper_bound = upper_bound.try_into().unwrap();
+        matches
+            .iter()
+            .filter(|m| (lower_bound..=upper_bound).contains(&m.range.start))
+            .count()
+            .try_into()
+            .unwrap()
+    } else {
+        0
     }
 }
 

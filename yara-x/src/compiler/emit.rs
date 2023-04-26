@@ -286,6 +286,29 @@ fn emit_pattern_match(
     }
 }
 
+/// Emits the code that returns the number of matches for a pattern.
+///
+/// This function assumes that the pattern ID is at the top of the stack.
+fn emit_pattern_count(
+    ctx: &mut Context,
+    instr: &mut InstrSeqBuilder,
+    range: Option<&Range>,
+) {
+    match range {
+        Some(range) => {
+            emit_expr(ctx, instr, &range.lower_bound);
+            emit_expr(ctx, instr, &range.upper_bound);
+            instr.call(
+                ctx.function_id(wasm::export__pat_matches_in.mangled_name),
+            );
+        }
+        None => {
+            instr
+                .call(ctx.function_id(wasm::export__pat_matches.mangled_name));
+        }
+    }
+}
+
 /// Emits WASM code for `expr` into the instruction sequence `instr`.
 fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
     match expr {
@@ -430,16 +453,33 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
             // corresponding pattern in the current rule, and push its ID.
             else {
                 instr.i32_const(
-                    ctx.get_pattern_from_current_rule(&pattern.identifier).0,
+                    ctx.get_pattern_from_current_rule(pattern.identifier.name)
+                        .0,
                 );
             };
 
             emit_pattern_match(ctx, instr, pattern.anchor.as_ref());
         }
-        Expr::PatternCount(_) => {
+        Expr::PatternCount(identifier) => {
             // If the patterns has not been searched yet, do it now.
             emit_lazy_pattern_search(ctx, instr);
-            // TODO
+
+            if identifier.name == "#" {
+                match ctx.symbol_table.lookup("$").unwrap().kind {
+                    SymbolKind::WasmVar(var) => {
+                        load_var(ctx, instr, var);
+                        // load_var returns a I64, convert it to I32.
+                        instr.unop(UnaryOp::I32WrapI64);
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                instr.i32_const(
+                    ctx.get_pattern_from_current_rule(identifier.name).0,
+                );
+            }
+
+            emit_pattern_count(ctx, instr, identifier.range.as_ref());
         }
         Expr::PatternOffset(_) => {
             // If the patterns has not been searched yet, do it now.

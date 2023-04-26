@@ -528,6 +528,81 @@ fn match_in() {
 }
 
 #[test]
+fn match_count() {
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                #a == 1
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo" private
+            condition:
+                #a == 1
+        }
+        "#,
+        b"foobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                #a == 2
+        }
+        "#,
+        b"foobarfoo"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                #a in (0..5) == 1
+        }
+        "#,
+        b"foobarfoo"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                #a in (0..6) == 2
+        }
+        "#,
+        b"foobarfoo"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "aaaa"
+            condition:
+                #a == 3
+        }
+        "#,
+        b"aaaaaa"
+    );
+}
+
+#[test]
 fn xor() {
     pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
     pattern_true!(r#""ssi" xor"#, b"lhrrhrrhqqh");

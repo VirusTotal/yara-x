@@ -1007,22 +1007,35 @@ impl<'a, 'sym> Context<'a, 'sym> {
         self.vars_stack_top = top.index;
     }
 
-    /// Given a pattern identifier (e.g. `$a`) search for it in the current
-    /// rule and return its [`PatternID`].
+    /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
+    /// the current rule and return its [`PatternID`].
+    ///
+    /// Notice that this function accepts identifiers with any of the valid
+    /// prefixes `$`, `#`, `@` and `!`.
     ///
     /// # Panics
     ///
     /// Panics if the current rule does not have the requested pattern.
-    fn get_pattern_from_current_rule(&self, ident: &Ident) -> PatternId {
+    fn get_pattern_from_current_rule(&self, ident: &str) -> PatternId {
+        // Make sure that identifier starts with `$`, `#`, `@` or `!`.
+        debug_assert!("$#@!".contains(
+            ident
+                .chars()
+                .next()
+                .expect("identifier must be at least 1 character long")
+        ));
+
         for (ident_id, pattern_id) in &self.current_rule.patterns {
-            if self.resolve_ident(*ident_id) == ident.name {
+            // Ignore the first character (`$`, `#`, `@` or `!`) while
+            // comparing the identifiers.
+            if self.resolve_ident(*ident_id)[1..] == ident[1..] {
                 return *pattern_id;
             }
         }
         panic!(
             "rule `{}` does not have pattern `{}` ",
             self.resolve_ident(self.current_rule.ident_id),
-            ident.name
+            ident
         );
     }
 
