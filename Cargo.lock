@@ -150,14 +150,13 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.60.1"
+version = "0.64.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "062dddbc1ba4aca46de6338e2bf87771414c335f7b2f2036e8f3e9befebf88e6"
+checksum = "c4243e6031260db77ede97ad86c27e501d646a27ab57b59a574f725d98ab1fb4"
 dependencies = [
  "bitflags",
  "cexpr",
  "clang-sys",
- "env_logger 0.9.3",
  "lazy_static",
  "lazycell",
  "log",
@@ -167,6 +166,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
+ "syn 1.0.107",
  "which",
 ]
 
@@ -727,19 +727,6 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a12e6657c4c97ebab115a42dcee77225f7f482cdd841cf7088c657a42e9e00e7"
-dependencies = [
- "atty",
- "humantime",
- "log",
- "regex",
- "termcolor",
-]
-
-[[package]]
-name = "env_logger"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
@@ -793,7 +780,7 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84f2e425d9790201ba4af4630191feac6dcc98765b118d4d18e91d23c2353866"
 dependencies = [
- "env_logger 0.10.0",
+ "env_logger",
  "log",
 ]
 
@@ -3075,9 +3062,9 @@ checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
 
 [[package]]
 name = "yara"
-version = "0.16.2"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80dc6eb7d7dafadd234d686ad57b098f1485603b59f729c710fef0c82888f493"
+checksum = "c1bd69e7fe497c9761f264f19da12f55df5770e21caadfe5544463c729e49d46"
 dependencies = [
  "bitflags",
  "lazy_static",
@@ -3087,9 +3074,9 @@ dependencies = [
 
 [[package]]
 name = "yara-sys"
-version = "0.16.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c8cb067e7f3be640f0c4ea27e81b7f6a3b2086931d66d7c5785383bcabf8e41"
+checksum = "a2459bdb4d8a8f89311366a298b9ff69b6a3a0e95d7ea40c6780b99abf55e6d9"
 dependencies = [
  "bindgen",
  "cc",
