@@ -464,6 +464,10 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
             // If the patterns has not been searched yet, do it now.
             emit_lazy_pattern_search(ctx, instr);
 
+            // Push the pattern ID in the stack. Identifier "#" is an special
+            // case, as this is used inside `for` loops and it represents a
+            // different pattern on each iteration. In those cases the pattern
+            // ID is obtained from a loop variable.
             if identifier.name == "#" {
                 match ctx.symbol_table.lookup("$").unwrap().kind {
                     SymbolKind::WasmVar(var) => {
