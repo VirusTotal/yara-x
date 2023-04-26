@@ -600,6 +600,19 @@ fn match_count() {
         "#,
         b"aaaaaa"
     );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                for all of them : ( # == 2 )
+        }
+        "#,
+        b"foobarfoobar"
+    );
 }
 
 #[test]
