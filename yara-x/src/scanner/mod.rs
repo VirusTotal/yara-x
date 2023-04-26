@@ -3,15 +3,14 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 
-use base64::Engine;
 use std::ops::Deref;
-use std::ops::Range;
 use std::path::Path;
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
 use std::rc::Rc;
 use std::slice::Iter;
 
+use base64::Engine;
 use bitvec::prelude::*;
 use bstr::ByteSlice;
 use fmmap::{MmapFile, MmapFileExt};
@@ -24,13 +23,16 @@ use wasmtime::{
 
 use yara_x_parser::types::{Struct, TypeValue};
 
-use crate::compiler::{RuleId, Rules};
+use crate::compiler::{
+    AtomInfo, FullWord, IdentId, LiteralId, PatternId, RuleId, RuleInfo,
+    Rules, SubPattern,
+};
+use crate::scanner::matches::{Match, MatchList};
 use crate::string_pool::BStringPool;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{
-    modules, wasm, AtomInfo, FullWord, IdentId, LiteralId, PatternId,
-    RuleInfo, SubPattern,
-};
+use crate::{modules, wasm};
+
+pub(crate) mod matches;
 
 #[cfg(test)]
 mod tests;
@@ -512,14 +514,14 @@ impl<'r> Pattern<'_, 'r> {
                 .ctx
                 .pattern_matches
                 .get(&self.pattern_id)
-                .map(|matches| matches.iter()),
+                .map(|match_list| match_list.iter()),
         }
     }
 }
 
 /// Iterator that returns the matches for a pattern.
 pub struct Matches<'a> {
-    iterator: Option<Iter<'a, MatchInfo>>,
+    iterator: Option<Iter<'a, Match>>,
 }
 
 impl Iterator for Matches<'_> {
@@ -527,23 +529,12 @@ impl Iterator for Matches<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(iter) = &mut self.iterator {
-            let match_info = iter.next()?;
-            Some(Match {
-                range: match_info.range.clone(),
-                xor_key: match_info.xor_key,
-            })
+            let next = iter.next()?;
+            Some(next.clone())
         } else {
             None
         }
     }
-}
-
-/// Represents the match of a pattern.
-pub struct Match {
-    /// Offset range where the match was found.
-    pub range: Range<usize>,
-    /// The XOR key the data is encrypted with.
-    pub xor_key: Option<u8>,
 }
 
 pub(crate) type RuntimeStringId = u32;
@@ -585,19 +576,9 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
-    pub(crate) pattern_matches: FxHashMap<PatternId, Vec<MatchInfo>>,
+    pub(crate) pattern_matches: FxHashMap<PatternId, MatchList>,
     // True if some pattern matched during the scan.
     pub(crate) pattern_matched: bool,
-}
-
-/// Represents an individual match found in the scanned data.
-pub(crate) struct MatchInfo {
-    /// Range within the scanned data where the match was found.
-    pub range: Range<usize>,
-    /// For patterns that have the `xor` modifier this is always `Some(k)`
-    /// where `k` is the XOR key (it may be 0). For any other type of
-    /// pattern this is `None`.
-    pub xor_key: Option<u8>,
 }
 
 impl ScanContext<'_> {
@@ -653,7 +634,7 @@ impl ScanContext<'_> {
     pub(crate) fn track_pattern_match(
         &mut self,
         pattern_id: PatternId,
-        match_info: MatchInfo,
+        match_: Match,
     ) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
@@ -665,7 +646,7 @@ impl ScanContext<'_> {
         bits.set(pattern_id.into(), true);
 
         self.pattern_matched = true;
-        self.pattern_matches.entry(pattern_id).or_default().push(match_info)
+        self.pattern_matches.entry(pattern_id).or_default().add(match_)
     }
 
     /// Search for patterns in the data.
@@ -701,7 +682,7 @@ impl ScanContext<'_> {
                 .compiled_rules
                 .get_sub_pattern(matched_atom.sub_pattern_id);
 
-            let match_info = match sub_pattern {
+            let match_ = match sub_pattern {
                 SubPattern::Fixed { pattern, full_word } => self
                     .verify_fixed_match(
                         match_start,
@@ -767,8 +748,8 @@ impl ScanContext<'_> {
                 }
             };
 
-            if let Some(match_info) = match_info {
-                self.track_pattern_match(*pattern_id, match_info);
+            if let Some(m) = match_ {
+                self.track_pattern_match(*pattern_id, m);
             }
         }
     }
@@ -779,7 +760,7 @@ impl ScanContext<'_> {
         pattern_id: LiteralId,
         case_insensitive: bool,
         full_word: FullWord,
-    ) -> Option<MatchInfo> {
+    ) -> Option<Match> {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
         let data = self.scanned_data();
 
@@ -830,7 +811,7 @@ impl ScanContext<'_> {
         };
 
         if match_found {
-            Some(MatchInfo {
+            Some(Match {
                 // The end of the range is exclusive.
                 range: match_start..match_end + 1,
                 xor_key: None,
@@ -846,7 +827,7 @@ impl ScanContext<'_> {
         matched_atom: &AtomInfo,
         pattern_id: LiteralId,
         full_word: FullWord,
-    ) -> Option<MatchInfo> {
+    ) -> Option<Match> {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
         let data = self.scanned_data();
 
@@ -908,7 +889,7 @@ impl ScanContext<'_> {
         }
 
         if memx::memeq(&data[match_start..=match_end], pattern.as_bytes()) {
-            Some(MatchInfo {
+            Some(Match {
                 range: match_start..match_end + 1,
                 xor_key: Some(key),
             })
@@ -924,7 +905,7 @@ impl ScanContext<'_> {
         pattern_id: LiteralId,
         alphabet: Option<base64::alphabet::Alphabet>,
         wide: bool,
-    ) -> Option<MatchInfo> {
+    ) -> Option<Match> {
         // Get the pattern in its original form, not encoded as base64.
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
 
@@ -1040,7 +1021,7 @@ impl ScanContext<'_> {
             if decoded.len() >= pattern.len()
                 && pattern.eq(&decoded[0..pattern.len()])
             {
-                Some(MatchInfo {
+                Some(Match {
                     range: match_start..match_start + match_len,
                     xor_key: None,
                 })

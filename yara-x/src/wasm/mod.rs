@@ -81,11 +81,10 @@ use wasmtime::{
 use yara_x_macros::wasm_export;
 use yara_x_parser::types::TypeValue;
 
-use crate::compiler::{PatternId, RuleId};
+use crate::compiler::{LiteralId, PatternId, RuleId};
 use crate::modules::BUILTIN_MODULES;
 use crate::scanner::ScanContext;
 use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
-use crate::LiteralId;
 
 pub(crate) mod builder;
 pub(crate) mod string;
