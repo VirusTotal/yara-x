@@ -1124,126 +1124,117 @@ fn base64() {
         b"X\x00k\x007\x00t\x00W\x00k\x00D\x00w\x00"
     );
 
-    // TODO: uncomment "and !a == 14" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississippi" base64
             condition: 
-                $a at 6 // and !a == 14
+                $a at 6 and !a == 14
         }
         "#,
         // base64("the mississippi river")
         b"dGhlIG1pc3Npc3NpcHBpIHJpdmVy"
     );
 
-    // TODO: uncomment "and !a == 14" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississippi" base64
             condition: 
-                $a at 7 // and !a == 14
+                $a at 7 and !a == 14
         }
         "#,
         // base64(" the mississippi river")
         b"IHRoZSBtaXNzaXNzaXBwaSByaXZlcg"
     );
 
-    // TODO: uncomment "and !a == 14" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississippi" base64
             condition: 
-                $a at 8 // and !a == 14
+                $a at 8 and !a == 14
         }
         "#,
         // base64("  the mississippi river")
         b"ICB0aGUgbWlzc2lzc2lwcGkgcml2ZXI"
     );
 
-    // TODO: uncomment "and !a == 12" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississipp" base64
             condition: 
-                $a at 6 // and !a == 12
+                $a at 6 and !a == 12
         }
         "#,
         // base64("the mississippi river")
         b"dGhlIG1pc3Npc3NpcHBpIHJpdmVy"
     );
 
-    // TODO: uncomment "and !a == 13" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississipp" base64
             condition: 
-                $a at 7 // and !a == 13
+                $a at 7 and !a == 13
         }
         "#,
         // base64(" the mississippi river")
         b"IHRoZSBtaXNzaXNzaXBwaSByaXZlcg"
     );
 
-    // TODO: uncomment "and !a == 13" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississipp" base64
             condition: 
-                $a at 8 // and !a == 13
+                $a at 8 and !a == 13
         }
         "#,
         // base64("  the mississippi river")
         b"ICB0aGUgbWlzc2lzc2lwcGkgcml2ZXI"
     );
 
-    // TODO: uncomment "and !a == 11" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississip" base64
             condition: 
-                $a at 6 // and !a == 11
+                $a at 6 and !a == 11
         }
         "#,
         // base64("  the mississippi river")
         b"dGhlIG1pc3Npc3NpcHBpIHJpdmVy"
     );
 
-    // TODO: uncomment "and !a == 11" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississip" base64
             condition: 
-                $a at 7 // and !a == 11
+                $a at 7 and !a == 11
         }
         "#,
         // base64(" the mississippi river")
         b"IHRoZSBtaXNzaXNzaXBwaSByaXZlcg"
     );
 
-    // TODO: uncomment "and !a == 12" when !a is implemented.
     rule_true!(
         r#"
         rule test {
             strings: 
                 $a = "mississip" base64
             condition: 
-                $a at 8 // and !a == 12
+                $a at 8 and !a == 12
         }
         "#,
         // base64("  the mississippi river")

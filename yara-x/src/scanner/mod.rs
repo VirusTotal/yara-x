@@ -935,11 +935,11 @@ impl ScanContext<'_> {
         //    0   foob      Zm9vYg      len(b64(foob))    6 (2)  [Zm9vY]g
         //
         //    1   xfoobar   eGZvb2Jhcg  len(b64(foobar))  8 (0)  eG[Zvb2Jhc]g
-        //    1   xfooba    eGZvb2Jh    len(b64(fooba))   7 (3)  eG[Zvb2]Jh
+        //    1   xfooba    eGZvb2Jh    len(b64(fooba))   7 (3)  eG[Zvb2Jh]
         //    1   xfoob     eGZvb2I     len(b64(foob))    6 (2)  eG[Zvb2]I
         //
         //    2   xxfoobar  eHhmb29iYXI len(b64(foobar))  8 (0)  eHh[mb29iYX]I
-        //    2   xxfooba   eHhmb29iYQ  len(b64(fooba))   7 (3)  eHh[mb29i]YQ
+        //    2   xxfooba   eHhmb29iYQ  len(b64(fooba))   7 (3)  eHh[mb29iY]Q
         //    2   xxfoob    eHhmb29i    len(b64(foob))    6 (2)  eHh[mb29i]
         //
         // In the rightmost column the portion of the base64 pattern that is
@@ -954,14 +954,14 @@ impl ScanContext<'_> {
                 },
                 1 => match len % 4 {
                     0 => (2, len + 4, len - 1),
-                    2 => (2, len + 2, len - 3),
-                    3 => (2, len + 1, len - 3),
+                    2 => (2, len + 2, len - 2),
+                    3 => (2, len + 1, len - 1),
                     _ => unreachable!(),
                 },
                 2 => match len % 4 {
                     0 => (3, len + 4, len - 1),
                     2 => (3, len + 2, len - 1),
-                    3 => (3, len + 5, len - 2),
+                    3 => (3, len + 5, len - 1),
                     _ => unreachable!(),
                 },
                 _ => unreachable!(),
