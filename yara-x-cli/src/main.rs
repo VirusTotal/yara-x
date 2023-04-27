@@ -11,8 +11,8 @@ use clap::{
     arg, command, crate_authors, value_parser, ArgAction, ArgMatches, Command,
 };
 
-use yara_x::Scanner;
 use yara_x::{Compiler, Rule};
+use yara_x::{Error, Rules, Scanner};
 use yara_x_fmt::Formatter;
 use yara_x_parser::{Parser, SourceCode};
 
@@ -79,11 +79,19 @@ fn main() -> anyhow::Result<()> {
         println!("could not enable ANSI support: {}", err)
     }
 
+    let rules_path_arg = arg!(<RULES_PATH>)
+        .help("Path to YARA source file")
+        .value_parser(value_parser!(PathBuf))
+        .action(ArgAction::Append);
+
     let num_threads_arg = arg!(-p --"threads" <NUM_THREADS>)
         .help("Use the given number of threads")
         .long_help(THREADS_LONG_HELP)
         .required(false)
         .value_parser(value_parser!(u8).range(1..));
+
+    let path_as_namespaces_arg =
+        arg!(--"path-as-namespace").help("Use file path as rule namespace");
 
     let args = command!()
         .author(crate_authors!("\n")) // requires `cargo` feature
@@ -94,12 +102,7 @@ fn main() -> anyhow::Result<()> {
                 .about(
                     "Scans a file or directory",
                 )
-                .arg(
-                    arg!(<RULES_PATH>)
-                        .help("Path to YARA source file")
-                        .value_parser(value_parser!(PathBuf))
-                        .action(ArgAction::Append),
-                )
+                .arg(&rules_path_arg)
                 .arg(
                     arg!(<PATH>)
                         .help("Path to the file or directory that will be scanned")
@@ -110,31 +113,39 @@ fn main() -> anyhow::Result<()> {
                         .help("Print rule namespace")
                 )
                 .arg(
-                    arg!(--"path-as-namespace")
-                        .help("Use file path as rule namespace")
-                )
-                .arg(
                     arg!(-n --"negate")
                         .help("Print non-satisfied rules only")
                 )
+                .arg(&path_as_namespaces_arg)
                 .arg(&num_threads_arg),
+
+            command("compile")
+                .about(
+                    "Compiles YARA rules into binary form",
+                )
+                .arg(&rules_path_arg
+                )
+                .arg(
+                    arg!(<OUTPUT_PATH>)
+                        .help("Path to file with compiled results")
+                        .value_parser(value_parser!(PathBuf))
+                )
+                .arg(&path_as_namespaces_arg),
+
             command("ast")
                 .about(
                     "Print Abstract Syntax Tree (AST) for a YARA source file",
                 )
-                .arg(
-                    arg!(<RULES_PATH>)
-                        .help("Path to YARA source file")
-                        .value_parser(value_parser!(PathBuf)),
-                ),
+                .arg(&rules_path_arg),
+
             command("wasm")
                 .about("Emits a .wasm file with the code generated for a YARA source file")
                 .arg(
                     arg!(<RULES_PATH>)
                         .help("Path to YARA source file")
                         .value_parser(value_parser!(PathBuf)),
-                )
-            ,
+                ),
+
             command("check")
                 .about("Check if YARA source files are syntactically correct")
                 .long_about(CHECK_LONG_HELP)
@@ -158,12 +169,10 @@ fn main() -> anyhow::Result<()> {
                         .action(ArgAction::Append)
                 )
                 .arg(&num_threads_arg),
-            command("fmt").about("Format YARA source files").arg(
-                arg!(<RULES_PATH>)
-                    .help("Path to YARA source file")
-                    .action(ArgAction::Append)
-                    .value_parser(value_parser!(PathBuf)),
-            ),
+
+            command("fmt")
+                .about("Format YARA source files")
+                .arg(&rules_path_arg),
         ])
         .get_matches_from(wild::args());
 
@@ -177,6 +186,7 @@ fn main() -> anyhow::Result<()> {
         Some(("check", args)) => cmd_check(args)?,
         Some(("fmt", args)) => cmd_format(args)?,
         Some(("scan", args)) => cmd_scan(args)?,
+        Some(("compile", args)) => cmd_compile(args)?,
         _ => unreachable!(),
     };
 
@@ -198,23 +208,7 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let path_as_namespace = args.get_flag("path-as-namespace");
     let negate = args.get_flag("negate");
 
-    let mut compiler = Compiler::new().colorize_errors(true);
-
-    for path in rules_path {
-        let src = fs::read(path)
-            .with_context(|| format!("can not read `{}`", path.display()))?;
-
-        let src = SourceCode::from(src.as_slice())
-            .origin(path.as_os_str().to_str().unwrap());
-
-        if path_as_namespace {
-            compiler = compiler.new_namespace(path.to_string_lossy().as_ref());
-        }
-
-        compiler = compiler.add_source(src)?;
-    }
-
-    let rules = compiler.build()?;
+    let rules = compile_rules(rules_path, path_as_namespace)?;
     let rules_ref = &rules;
 
     let mut walker = walk::ParallelWalk::new(path);
@@ -254,6 +248,20 @@ fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
             Ok::<(), anyhow::Error>(())
         },
     )
+}
+
+fn cmd_compile(args: &ArgMatches) -> anyhow::Result<()> {
+    let rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
+    let output_path = args.get_one::<PathBuf>("OUTPUT_PATH").unwrap();
+    let path_as_namespace = args.get_flag("path-as-namespace");
+
+    let rules = compile_rules(rules_path, path_as_namespace)?;
+
+    let output_file = File::create(output_path).with_context(|| {
+        format!("can not write `{}`", output_path.display())
+    })?;
+
+    Ok(rules.serialize_into(&output_file)?)
 }
 
 fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
@@ -378,4 +386,30 @@ fn cmd_format(args: &ArgMatches) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn compile_rules<'a, P>(
+    paths: P,
+    path_as_namespace: bool,
+) -> Result<Rules, Error>
+where
+    P: Iterator<Item = &'a PathBuf>,
+{
+    let mut compiler = Compiler::new().colorize_errors(true);
+
+    for path in paths {
+        let src = fs::read(path)
+            .with_context(|| format!("can not read `{}`", path.display()))?;
+
+        let src = SourceCode::from(src.as_slice())
+            .origin(path.as_os_str().to_str().unwrap());
+
+        if path_as_namespace {
+            compiler = compiler.new_namespace(path.to_string_lossy().as_ref());
+        }
+
+        compiler = compiler.add_source(src)?;
+    }
+
+    compiler.build()
 }
