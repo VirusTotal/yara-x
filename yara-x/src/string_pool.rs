@@ -27,6 +27,7 @@ where
     T: From<u32> + Into<u32>,
 {
     pool: intaglio::SymbolTable<HashBuilder>,
+    size: usize,
     phantom: PhantomData<T>,
 }
 
@@ -38,6 +39,7 @@ where
     pub fn new() -> Self {
         Self {
             pool: intaglio::SymbolTable::with_hasher(HashBuilder::default()),
+            size: 0,
             phantom: Default::default(),
         }
     }
@@ -49,6 +51,7 @@ where
         if let Some(s) = self.pool.check_interned(s) {
             T::from(s.id())
         } else {
+            self.size += s.len();
             T::from(self.pool.intern(s.to_string()).unwrap().id())
         }
     }
@@ -58,6 +61,12 @@ where
     #[inline]
     pub fn get(&self, id: T) -> Option<&str> {
         self.pool.get(Symbol::from(id.into()))
+    }
+
+    /// Returns the total size in bytes of all the strings stored in the pool.
+    #[inline]
+    pub fn size(&self) -> usize {
+        self.size
     }
 }
 
@@ -133,6 +142,7 @@ where
     T: From<u32> + Into<u32>,
 {
     pool: intaglio::bytes::SymbolTable<HashBuilder>,
+    size: usize,
     phantom: PhantomData<T>,
 }
 
@@ -146,6 +156,7 @@ where
             pool: intaglio::bytes::SymbolTable::with_hasher(
                 HashBuilder::default(),
             ),
+            size: 0,
             phantom: Default::default(),
         }
     }
@@ -161,6 +172,7 @@ where
         if let Some(s) = self.pool.check_interned(bytes) {
             T::from(s.id())
         } else {
+            self.size += bytes.len();
             T::from(self.pool.intern(bytes.to_owned()).unwrap().id())
         }
     }
@@ -185,6 +197,12 @@ where
                 std::str::from_utf8(s)
                     .expect("using BStringPool::get_str with a string that is not valid UTF-8")
             })
+    }
+
+    /// Returns the total size in bytes of all the strings stored in the pool.
+    #[inline]
+    pub fn size(&self) -> usize {
+        self.size
     }
 }
 
@@ -295,5 +313,25 @@ mod test {
         assert_eq!(deserialized.get(0), Some(BStr::new("foo")));
         assert_eq!(deserialized.get(1), Some(BStr::new("bar")));
         assert_eq!(deserialized.get(2), None);
+    }
+
+    #[test]
+    fn string_pool_size() {
+        let mut pool: StringPool<u32> = StringPool::new();
+
+        pool.get_or_intern("foo");
+        pool.get_or_intern("bar");
+
+        assert_eq!(pool.size(), 6);
+    }
+
+    #[test]
+    fn bstring_pool_size() {
+        let mut pool: BStringPool<u32> = BStringPool::new();
+
+        pool.get_or_intern("foo");
+        pool.get_or_intern("bar");
+
+        assert_eq!(pool.size(), 6);
     }
 }

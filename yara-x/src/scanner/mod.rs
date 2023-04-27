@@ -186,8 +186,14 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = data.as_ptr();
         ctx.scanned_data_len = data.len();
 
-        // TODO: this should be done only if the string pool is too large.
-        ctx.string_pool = BStringPool::new();
+        // If the string pool is too large, destroy it and create a new one
+        // empty. Re-using the same string pool in multiple scans improves
+        // performance, as the pool doesn't need to be destroyed and created
+        // again on every scan. The price to pay the accumulation of strings
+        // in the pool.
+        if ctx.string_pool.size() > 1_000_000 {
+            ctx.string_pool = BStringPool::new();
+        }
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
