@@ -466,10 +466,28 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
                 ctx.function_id(wasm::export__pat_offset.mangled_name),
             )
         }
-        Expr::PatternLength(_) => {
+        Expr::PatternLength(identifier) => {
             // If the patterns has not been searched yet, do it now.
             emit_lazy_pattern_search(ctx, instr);
-            // TODO
+            emit_pattern_identifier(ctx, instr, identifier.name);
+
+            match &identifier.index {
+                // The index was specified, like in `!a[2]`
+                Some(index) => {
+                    emit_expr(ctx, instr, index);
+                }
+                // The index was not specified, like in `!a`, which is
+                // equivalent to `!a[1]`.
+                None => {
+                    instr.i64_const(1);
+                }
+            }
+
+            emit_call_and_handle_undef(
+                ctx,
+                instr,
+                ctx.function_id(wasm::export__pat_length.mangled_name),
+            )
         }
         Expr::Lookup(operands) => {
             emit_const_or_code!(ctx, instr, expr.type_value(), {

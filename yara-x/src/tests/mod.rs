@@ -709,6 +709,83 @@ fn match_offset() {
 }
 
 #[test]
+fn match_legth() {
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                !a == 3
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                !a[1] == 3
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                !a[2] == 3
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                !a[3] == 3
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                for all of ($a, $b) : ( ! == 3 )
+        }
+        "#,
+        b"foobarfoobar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+                $b = "bar"
+            condition:
+                for all of ($a, $b) : ( ![2] == 3 )
+        }
+        "#,
+        b"foobarfoobar"
+    );
+}
+
+#[test]
 fn xor() {
     pattern_true!(r#""mississippi" xor"#, b"lhrrhrrhqqh");
     pattern_true!(r#""ssi" xor"#, b"lhrrhrrhqqh");

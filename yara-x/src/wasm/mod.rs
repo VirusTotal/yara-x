@@ -697,6 +697,27 @@ pub(crate) fn pat_matches_in(
 
 /// Invoked from WASM to ask for the offset where a pattern matched
 ///
+/// Returns the length for the index-th occurrence of the pattern identified
+/// by `pattern_id`. The index is 1-based. Returns `None` if the pattern
+/// has not matched or there are less than `index` matches.
+#[wasm_export]
+pub(crate) fn pat_length(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    index: i64,
+) -> Option<i64> {
+    // Make sure that index >= 1.
+    debug_assert!(index >= 1);
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        let m = matches.get(index as usize - 1)?;
+        Some(ExactSizeIterator::len(&m.range) as i64)
+    } else {
+        None
+    }
+}
+
+/// Invoked from WASM to ask for the length of some pattern match
+///
 /// Returns the offset for the index-th occurrence of the pattern identified
 /// by `pattern_id`. The index is 1-based. Returns `None` if the pattern
 /// has not matched or there are less than `index` matches.
