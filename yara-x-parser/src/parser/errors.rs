@@ -155,6 +155,14 @@ pub enum ErrorInfo {
         pattern_ident_span: Span,
     },
 
+    #[error("unknown pattern `{pattern_ident}`")]
+    #[label("this pattern is not declared in the `strings` section", pattern_ident_span)]
+    UnknownPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        pattern_ident_span: Span,
+    },
+
     #[error("invalid pattern `{pattern_ident}`")]
     #[label("{error_msg}", error_span)]
     #[note(note)]
@@ -245,6 +253,9 @@ impl ErrorInfo {
                 detailed_report.as_str()
             }
             Self::InvalidBase64Alphabet { detailed_report, .. } => {
+                detailed_report.as_str()
+            }
+            Self::UnknownPattern { detailed_report, .. } => {
                 detailed_report.as_str()
             }
             Self::UnusedPattern { detailed_report, .. } => {

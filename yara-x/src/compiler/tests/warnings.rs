@@ -293,15 +293,18 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: !a[1]
+  strings:
+    $a = "foo"
+  condition: 
+    !a[1]
 }
 "#,
             r#"warning: non-boolean expression used as boolean
-   ╭─[line:3:14]
+   ╭─[line:6:5]
    │
- 3 │   condition: !a[1]
-   │              ──┬──  
-   │                ╰──── this expression is `integer` but is being used as `bool`
+ 6 │     !a[1]
+   │     ──┬──  
+   │       ╰──── this expression is `integer` but is being used as `bool`
    │ 
    │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯

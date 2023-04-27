@@ -211,15 +211,18 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: $a at "1"
+  strings:
+    $a = "foo"
+  condition: 
+    $a at "1"
 }
 "#,
             r#"error: wrong type
-   ╭─[line:3:20]
+   ╭─[line:6:11]
    │
- 3 │   condition: $a at "1"
-   │                    ─┬─  
-   │                     ╰─── expression should be `integer`, but is `string`
+ 6 │     $a at "1"
+   │           ─┬─  
+   │            ╰─── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -228,15 +231,18 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: @a["1"] == 0x100
+  strings:
+    $a = "foo"
+  condition: 
+    @a["1"] == 0x100
 }
 "#,
             r#"error: wrong type
-   ╭─[line:3:17]
+   ╭─[line:6:8]
    │
- 3 │   condition: @a["1"] == 0x100
-   │                 ─┬─  
-   │                  ╰─── expression should be `integer`, but is `string`
+ 6 │     @a["1"] == 0x100
+   │        ─┬─  
+   │         ╰─── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -245,15 +251,18 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: @a[0]
+  strings:
+    $a = "foo"
+  condition: 
+    @a[0]
 }
         "#,
             r#"error: number out of range
-   ╭─[line:3:17]
+   ╭─[line:6:8]
    │
- 3 │   condition: @a[0]
-   │                 ┬  
-   │                 ╰── this number is out of the allowed range [1-9223372036854775807]
+ 6 │     @a[0]
+   │        ┬  
+   │        ╰── this number is out of the allowed range [1-9223372036854775807]
 ───╯
 "#,
         ),
@@ -262,14 +271,17 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: !a[-1]
+  strings:
+    $a = "foo"
+  condition: 
+    !a[-1]
 }"#,
             r#"error: number out of range
-   ╭─[line:3:17]
+   ╭─[line:6:8]
    │
- 3 │   condition: !a[-1]
-   │                 ─┬  
-   │                  ╰── this number is out of the allowed range [1-9223372036854775807]
+ 6 │     !a[-1]
+   │        ─┬  
+   │         ╰── this number is out of the allowed range [1-9223372036854775807]
 ───╯
 "#,
         ),
@@ -278,15 +290,18 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: #a in (0.."10")
+  strings:
+    $a = "foo"
+  condition: 
+    #a in (0.."10")
 }
         "#,
             r#"error: wrong type
-   ╭─[line:3:24]
+   ╭─[line:6:15]
    │
- 3 │   condition: #a in (0.."10")
-   │                        ──┬─  
-   │                          ╰─── expression should be `integer`, but is `string`
+ 6 │     #a in (0.."10")
+   │               ──┬─  
+   │                 ╰─── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),

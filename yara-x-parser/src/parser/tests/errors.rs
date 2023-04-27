@@ -478,13 +478,84 @@ rule test {
             line!(),
             r#"
 rule test {
+   condition:
+     $a
+}
+"#,
+            r#"error: unknown pattern `$a`
+   ╭─[line:4:6]
+   │
+ 4 │      $a
+   │      ─┬  
+   │       ╰── this pattern is not declared in the `strings` section
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+   condition:
+     #a == 1
+}
+"#,
+            r#"error: unknown pattern `#a`
+   ╭─[line:4:6]
+   │
+ 4 │      #a == 1
+   │      ─┬  
+   │       ╰── this pattern is not declared in the `strings` section
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+   condition:
+     @a == 1
+}
+"#,
+            r#"error: unknown pattern `@a`
+   ╭─[line:4:6]
+   │
+ 4 │      @a == 1
+   │      ─┬  
+   │       ╰── this pattern is not declared in the `strings` section
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+   condition:
+     !a == 1
+}
+"#,
+            r#"error: unknown pattern `!a`
+   ╭─[line:4:6]
+   │
+ 4 │      !a == 1
+   │      ─┬  
+   │       ╰── this pattern is not declared in the `strings` section
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
    strings:
      $a = "foo"
      $b = "bar"
    condition:
      $a
 }
-
 "#,
             r#"error: unused pattern `$b`
    ╭─[line:5:6]

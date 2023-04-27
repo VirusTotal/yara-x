@@ -1061,6 +1061,14 @@ fn boolean_term_from_cst<'src>(
             // considered used when the `them` keyword is used, or when the
             // pattern `$*` appears in a pattern identifiers tuple.
             if ident_name != "$" {
+                if ctx.declared_patterns.get(&ident_name[1..]).is_none() {
+                    return Err(Error::new(ErrorInfo::unknown_pattern(
+                        ctx.report_builder,
+                        &ctx.src,
+                        ident_name.to_string(),
+                        ident.as_span().into(),
+                    )));
+                }
                 ctx.unused_patterns.remove(&ident_name[1..]);
             }
             // `$` used outside a `for .. of` statement, that's invalid.
@@ -1267,6 +1275,17 @@ fn primary_expr_from_cst<'src>(
 
             let ident_name = node.as_span().as_str();
 
+            if ident_name != "#"
+                && ctx.declared_patterns.get(&ident_name[1..]).is_none()
+            {
+                return Err(Error::new(ErrorInfo::unknown_pattern(
+                    ctx.report_builder,
+                    &ctx.src,
+                    ident_name.to_string(),
+                    node.as_span().into(),
+                )));
+            }
+
             // Remove from ctx.unused_patterns, indicating that the
             // identifier has been used.
             ctx.unused_patterns.remove(&ident_name[1..]);
@@ -1291,6 +1310,7 @@ fn primary_expr_from_cst<'src>(
             } else {
                 None
             };
+
             let expr_type = match rule {
                 GrammarRule::pattern_length => Expr::PatternLength,
                 GrammarRule::pattern_offset => Expr::PatternOffset,
@@ -1298,6 +1318,17 @@ fn primary_expr_from_cst<'src>(
             };
 
             let ident_name = node.as_span().as_str();
+
+            if ident_name.len() > 1
+                && ctx.declared_patterns.get(&ident_name[1..]).is_none()
+            {
+                return Err(Error::new(ErrorInfo::unknown_pattern(
+                    ctx.report_builder,
+                    &ctx.src,
+                    ident_name.to_string(),
+                    node.as_span().into(),
+                )));
+            }
 
             // Remove from ctx.unused_patterns, indicating that the
             // identifier has been used.

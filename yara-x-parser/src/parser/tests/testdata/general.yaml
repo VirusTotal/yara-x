@@ -7,6 +7,8 @@
        comment, which can contain /*
     */
     private global rule test {
+      strings:
+        $a = "foo"
       condition:
         true or /*in-line comment*/ false and not $a // end-of line comment
     }
@@ -14,6 +16,8 @@
     root
     └─ namespace
        └─ private global rule test
+          ├─ strings
+          │  └─ $a = "foo" 
           └─ condition
              └─ or : boolean(unknown)
                 ├─ true
@@ -44,6 +48,8 @@
 
 - rule: |
     rule test {
+      strings:
+        $a = "foo"
       condition:
         $a in (0..100)
     }
@@ -51,6 +57,8 @@
     root
     └─ namespace
        └─ rule test
+          ├─ strings
+          │  └─ $a = "foo" 
           └─ condition
              └─ $a in (<start>, <end>)
                 ├─ <start>
