@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Command;
-use yara_x::{Compiler, Error, Rules};
+use yara_x::{Compiler, Rules};
 use yara_x_parser::SourceCode;
 
 pub fn command(name: &'static str) -> Command {
@@ -34,7 +34,7 @@ pub fn command(name: &'static str) -> Command {
 fn compile_rules<'a, P>(
     paths: P,
     path_as_namespace: bool,
-) -> Result<Rules, Error>
+) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a PathBuf>,
 {
@@ -54,5 +54,5 @@ where
         compiler = compiler.add_source(src)?;
     }
 
-    compiler.build()
+    Ok(compiler.build())
 }

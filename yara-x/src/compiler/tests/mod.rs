@@ -1,4 +1,5 @@
-use crate::{compile, Compiler, Error, Rules, Scanner};
+use crate::compiler::SerializationError;
+use crate::{compile, Compiler, Rules, Scanner};
 
 mod errors;
 mod warnings;
@@ -6,8 +7,13 @@ mod warnings;
 #[test]
 fn serialization() {
     assert!(matches!(
+        Rules::deserialize(&[]).err().unwrap(),
+        SerializationError::InvalidFormat
+    ));
+
+    assert!(matches!(
         Rules::deserialize(b"YARA-X").err().unwrap(),
-        Error::SerializationError(_)
+        SerializationError::InvalidEncoding(_)
     ));
 
     let rules = compile(r#"rule test { strings: $a = "foo" condition: $a }"#)

@@ -18,19 +18,25 @@ pub enum Error {
 
     #[error(transparent)]
     CompileError(#[from] CompileError),
+}
 
-    #[error(transparent)]
-    EmitError(#[from] anyhow::Error),
+/// Errors returned while serializing/deserializing compiled rules.
+#[derive(Error, Debug)]
+pub enum SerializationError {
+    #[error("not a YARA-X compiled rules file")]
+    InvalidFormat,
 
-    #[error(transparent)]
-    SerializationError(#[from] bincode::Error),
+    #[error("invalid YARA-X compiled rules file")]
+    InvalidEncoding(#[from] bincode::Error),
 
     #[error(transparent)]
     IoError(#[from] io::Error),
-
-    #[error("not a YARA-X compiled rules file")]
-    InvalidFileFormat,
 }
+
+#[derive(Error, Debug)]
+#[error(transparent)]
+#[doc(hidden)]
+pub struct EmitError(#[from] anyhow::Error);
 
 /// An error occurred during the compilation process.
 #[derive(CompileError)]

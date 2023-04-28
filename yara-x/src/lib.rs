@@ -28,7 +28,7 @@ let compiler = compiler.add_source(r#"
 "#).unwrap();
 
 // Obtain the compiled YARA rules.
-let rules = compiler.build().unwrap();
+let rules = compiler.build();
 
 // Create a scanner that uses the compiled rules.
 let mut scanner = yara_x::Scanner::new(&rules);
@@ -40,7 +40,9 @@ assert_eq!(results.num_matching_rules(), 1);
 ```
 */
 
-pub use compiler::{compile, CompileError, Compiler, Error, Rules};
+pub use compiler::{
+    compile, Compiler, EmitError, Error, Rules, SerializationError,
+};
 pub use scanner::matches::Match;
 pub use scanner::{
     Matches, MatchingRules, NonMatchingRules, Pattern, Patterns, Rule,

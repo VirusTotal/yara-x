@@ -6,7 +6,7 @@ use yara_x_parser::ast::*;
 use yara_x_parser::types::{Map, Type, TypeValue};
 use yara_x_parser::warnings::Warning;
 
-use crate::compiler::{CompileError, Context, Error, ParserError};
+use crate::compiler::{CompileError, Context, ParserError};
 use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
 
 macro_rules! semcheck {
@@ -16,16 +16,17 @@ macro_rules! semcheck {
             use crate::compiler::semcheck::semcheck_expr;
             let span = (&*$expr).span();
             let ty = semcheck_expr($ctx, $expr)?;
-            if !matches!(ty, $( $accepted_types )|+) {
-                return Err(Error::CompileError(CompileError::wrong_type(
+            if matches!(ty, $( $accepted_types )|+) {
+                Ok::<Type, CompileError>(ty)
+            } else {
+                Err(CompileError::wrong_type(
                     $ctx.report_builder,
                     $ctx.src,
                     ParserError::join_with_or(&[ $( $accepted_types ),+ ], true),
                     ty.to_string(),
                     span,
-                )));
+                ))
             }
-            Ok::<Type, Error>(ty)
         }
     };
 }
@@ -56,17 +57,17 @@ macro_rules! semcheck_operands {
         };
 
         if !types_are_compatible {
-            return Err(Error::CompileError(CompileError::mismatching_types(
+            return Err(CompileError::mismatching_types(
                 $ctx.report_builder,
                 $ctx.src,
                 ty1.to_string(),
                 ty2.to_string(),
                 span1,
                 span2,
-            )));
+            ));
         }
 
-        Ok::<_, Error>((ty1, ty2))
+        Ok::<_, CompileError>((ty1, ty2))
     }};
 }
 
@@ -77,16 +78,14 @@ macro_rules! check_non_negative_integer {
         let type_value = (&*$expr).type_value();
         if let TypeValue::Integer(Some(value)) = type_value {
             if *value < 0 {
-                return Err(Error::CompileError(
-                    CompileError::unexpected_negative_number(
-                        $ctx.report_builder,
-                        $ctx.src,
-                        span,
-                    ),
+                return Err(CompileError::unexpected_negative_number(
+                    $ctx.report_builder,
+                    $ctx.src,
+                    span,
                 ));
             }
         }
-        Ok::<_, Error>(ty)
+        Ok::<_, CompileError>(ty)
     }};
 }
 
@@ -97,18 +96,16 @@ macro_rules! check_integer_in_range {
         let type_value = (&*$expr).type_value();
         if let TypeValue::Integer(Some(value)) = type_value {
             if !($min..=$max).contains(value) {
-                return Err(Error::CompileError(
-                    CompileError::number_out_of_range(
-                        $ctx.report_builder,
-                        $ctx.src,
-                        $min,
-                        $max,
-                        span,
-                    ),
+                return Err(CompileError::number_out_of_range(
+                    $ctx.report_builder,
+                    $ctx.src,
+                    $min,
+                    $max,
+                    span,
                 ));
             }
         }
-        Ok::<_, Error>(ty)
+        Ok::<_, CompileError>(ty)
     }};
 }
 
@@ -117,7 +114,7 @@ macro_rules! gen_semcheck_boolean_op {
         fn $name(
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
-        ) -> Result<Type, Error> {
+        ) -> Result<Type, CompileError> {
             warn_if_not_bool(ctx, &expr.lhs);
             warn_if_not_bool(ctx, &expr.rhs);
 
@@ -151,7 +148,7 @@ macro_rules! gen_semcheck_comparison_op {
         fn $name(
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
-        ) -> Result<Type, Error> {
+        ) -> Result<Type, CompileError> {
             semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
@@ -184,7 +181,7 @@ macro_rules! gen_semcheck_shift_op {
         fn $name(
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
-        ) -> Result<Type, Error> {
+        ) -> Result<Type, CompileError> {
             let span = expr.rhs.span();
 
             semcheck_operands!(
@@ -199,12 +196,10 @@ macro_rules! gen_semcheck_shift_op {
 
             if let TypeValue::Integer(Some(value)) = rhs_type_value {
                 if *value < 0 {
-                    return Err(Error::CompileError(
-                        CompileError::unexpected_negative_number(
-                            ctx.report_builder,
-                            ctx.src,
-                            span,
-                        ),
+                    return Err(CompileError::unexpected_negative_number(
+                        ctx.report_builder,
+                        ctx.src,
+                        span,
                     ));
                 }
             }
@@ -226,7 +221,7 @@ macro_rules! gen_semcheck_bitwise_op {
         fn $name(
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
-        ) -> Result<Type, Error> {
+        ) -> Result<Type, CompileError> {
             semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
@@ -254,7 +249,7 @@ macro_rules! gen_semcheck_string_op {
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
             case_insensitive: bool,
-        ) -> Result<Type, Error> {
+        ) -> Result<Type, CompileError> {
             semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
@@ -286,7 +281,7 @@ macro_rules! gen_semcheck_arithmetic_op {
         fn $name(
             ctx: &mut Context,
             expr: &mut Box<BinaryExpr>,
-        ) -> Result<Type, Error> {
+        ) -> Result<Type, CompileError> {
              semcheck_operands!(
                 ctx,
                 &mut expr.lhs,
@@ -358,7 +353,7 @@ gen_semcheck_arithmetic_op!(semcheck_arithmetic_rem, rem, Type::Integer);
 pub(super) fn semcheck_expr(
     ctx: &mut Context,
     expr: &mut Expr,
-) -> Result<Type, Error> {
+) -> Result<Type, CompileError> {
     match expr {
         Expr::True { .. } | Expr::False { .. } => Ok(Type::Bool),
         Expr::Filesize { .. } | Expr::Entrypoint { .. } => Ok(Type::Integer),
@@ -505,14 +500,12 @@ pub(super) fn semcheck_expr(
                     // The type of the key/index expression should correspond
                     // with the type of the map's keys.
                     if key_ty != ty {
-                        return Err(Error::CompileError(
-                            CompileError::wrong_type(
-                                ctx.report_builder,
-                                ctx.src,
-                                format!("`{}`", key_ty),
-                                ty.to_string(),
-                                expr.index.span(),
-                            ),
+                        return Err(CompileError::wrong_type(
+                            ctx.report_builder,
+                            ctx.src,
+                            format!("`{}`", key_ty),
+                            ty.to_string(),
+                            expr.index.span(),
                         ));
                     }
 
@@ -522,13 +515,13 @@ pub(super) fn semcheck_expr(
 
                     Ok(expr.ty())
                 }
-                _ => Err(Error::CompileError(CompileError::wrong_type(
+                _ => Err(CompileError::wrong_type(
                     ctx.report_builder,
                     ctx.src,
                     format!("`{}` or `{}`", Type::Array, Type::Map),
                     expr.primary.ty().to_string(),
                     expr.primary.span(),
-                ))),
+                )),
             }
         }
         Expr::FieldAccess(expr) => {
@@ -567,7 +560,10 @@ pub(super) fn semcheck_expr(
     }
 }
 
-fn semcheck_range(ctx: &mut Context, range: &mut Range) -> Result<(), Error> {
+fn semcheck_range(
+    ctx: &mut Context,
+    range: &mut Range,
+) -> Result<(), CompileError> {
     semcheck!(ctx, Type::Integer, &mut range.lower_bound)?;
     semcheck!(ctx, Type::Integer, &mut range.upper_bound)?;
 
@@ -580,11 +576,11 @@ fn semcheck_range(ctx: &mut Context, range: &mut Range) -> Result<(), Error> {
     ) = (range.lower_bound.type_value(), range.upper_bound.type_value())
     {
         if lower_bound > upper_bound {
-            return Err(Error::CompileError(CompileError::invalid_range(
+            return Err(CompileError::invalid_range(
                 ctx.report_builder,
                 ctx.src,
                 range.span,
-            )));
+            ));
         }
     }
 
@@ -594,7 +590,7 @@ fn semcheck_range(ctx: &mut Context, range: &mut Range) -> Result<(), Error> {
 fn semcheck_quantifier(
     ctx: &mut Context,
     quantifier: &mut Quantifier,
-) -> Result<Type, Error> {
+) -> Result<Type, CompileError> {
     match quantifier {
         Quantifier::Expr(expr) => {
             check_non_negative_integer!(ctx, expr)?;
@@ -609,7 +605,7 @@ fn semcheck_quantifier(
     Ok(Type::Integer)
 }
 
-fn semcheck_of(ctx: &mut Context, of: &mut Of) -> Result<Type, Error> {
+fn semcheck_of(ctx: &mut Context, of: &mut Of) -> Result<Type, CompileError> {
     semcheck_quantifier(ctx, &mut of.quantifier)?;
     // `x of (<boolean expr>, <boolean expr>, ...)`: make sure that all
     // expressions in the tuple are actually boolean.
@@ -730,7 +726,7 @@ fn semcheck_of(ctx: &mut Context, of: &mut Of) -> Result<Type, Error> {
 fn semcheck_ident(
     ctx: &mut Context,
     ident: &mut Ident,
-) -> Result<Type, Error> {
+) -> Result<Type, CompileError> {
     let current_struct = ctx.current_struct.take();
 
     let symbol = if let Some(structure) = &current_struct {
@@ -742,12 +738,12 @@ fn semcheck_ident(
     let type_value = if let Some(symbol) = symbol {
         symbol.type_value().clone()
     } else {
-        return Err(Error::CompileError(CompileError::unknown_identifier(
+        return Err(CompileError::unknown_identifier(
             ctx.report_builder,
             ctx.src,
             ident.name.to_string(),
             ident.span(),
-        )));
+        ));
     };
 
     let ty = type_value.ty();
@@ -759,7 +755,7 @@ fn semcheck_ident(
 fn semcheck_for_in(
     ctx: &mut Context,
     for_in: &mut ForIn,
-) -> Result<Type, Error> {
+) -> Result<Type, CompileError> {
     semcheck_quantifier(ctx, &mut for_in.quantifier)?;
     semcheck_iterable(ctx, &mut for_in.iterable)?;
 
@@ -798,14 +794,14 @@ fn semcheck_for_in(
     if loop_vars.len() != expected_vars.len() {
         let span = loop_vars.first().unwrap().span();
         let span = span.combine(&loop_vars.last().unwrap().span());
-        return Err(Error::CompileError(CompileError::assignment_mismatch(
+        return Err(CompileError::assignment_mismatch(
             ctx.report_builder,
             ctx.src,
             loop_vars.len() as u8,
             expected_vars.len() as u8,
             for_in.iterable.span(),
             span,
-        )));
+        ));
     }
 
     let mut vars = SymbolTable::new();
@@ -830,7 +826,7 @@ fn semcheck_for_in(
 fn semcheck_iterable(
     ctx: &mut Context,
     iterable: &mut Iterable,
-) -> Result<(), Error> {
+) -> Result<(), CompileError> {
     match iterable {
         Iterable::Range(range) => semcheck_range(ctx, range),
         Iterable::Expr(expr) => {
@@ -850,15 +846,13 @@ fn semcheck_iterable(
                 )?;
                 if let Some((prev_ty, prev_span)) = prev {
                     if prev_ty != ty {
-                        return Err(Error::CompileError(
-                            CompileError::mismatching_types(
-                                ctx.report_builder,
-                                ctx.src,
-                                prev_ty.to_string(),
-                                ty.to_string(),
-                                prev_span,
-                                span,
-                            ),
+                        return Err(CompileError::mismatching_types(
+                            ctx.report_builder,
+                            ctx.src,
+                            prev_ty.to_string(),
+                            ty.to_string(),
+                            prev_span,
+                            span,
                         ));
                     }
                 }
@@ -872,68 +866,67 @@ fn semcheck_iterable(
 fn semcheck_fn_call(
     ctx: &mut Context,
     fn_call: &mut FnCall,
-) -> Result<Type, Error> {
+) -> Result<Type, CompileError> {
     semcheck!(ctx, Type::Func, &mut fn_call.callable)?;
 
-    let type_value = if let TypeValue::Func(func) =
-        fn_call.callable.type_value()
-    {
-        // Validate the expressions passed as arguments to the function, and
-        // collect their types.
-        let provided_arg_types: Vec<Type> = fn_call
-            .args
-            .iter_mut()
-            .map(|arg| semcheck_expr(ctx, arg))
-            .collect::<Result<_, _>>()?;
+    let type_value =
+        if let TypeValue::Func(func) = fn_call.callable.type_value() {
+            // Validate the expressions passed as arguments to the function, and
+            // collect their types.
+            let provided_arg_types: Vec<Type> = fn_call
+                .args
+                .iter_mut()
+                .map(|arg| semcheck_expr(ctx, arg))
+                .collect::<Result<_, _>>()?;
 
-        let mut expected_args = Vec::new();
-        let mut matching_signature = None;
+            let mut expected_args = Vec::new();
+            let mut matching_signature = None;
 
-        // Determine if any of the signatures for the called function matches
-        // the provided arguments.
-        for (i, signature) in func.signatures().iter().enumerate() {
-            let expected_arg_types: Vec<Type> =
-                signature.args.iter().map(|arg| arg.ty()).collect();
+            // Determine if any of the signatures for the called function matches
+            // the provided arguments.
+            for (i, signature) in func.signatures().iter().enumerate() {
+                let expected_arg_types: Vec<Type> =
+                    signature.args.iter().map(|arg| arg.ty()).collect();
 
-            if provided_arg_types == expected_arg_types {
-                fn_call.fn_signature_index = Some(i);
-                matching_signature = Some(signature);
-                break;
+                if provided_arg_types == expected_arg_types {
+                    fn_call.fn_signature_index = Some(i);
+                    matching_signature = Some(signature);
+                    break;
+                }
+
+                expected_args.push(expected_arg_types);
             }
 
-            expected_args.push(expected_arg_types);
-        }
-
-        if let Some(matching_signature) = matching_signature {
-            matching_signature.result.clone()
+            if let Some(matching_signature) = matching_signature {
+                matching_signature.result.clone()
+            } else {
+                // No matching signature was found, that means that the arguments
+                // provided were incorrect.
+                return Err(CompileError::wrong_arguments(
+                    ctx.report_builder,
+                    ctx.src,
+                    fn_call.args_span,
+                    Some(format!(
+                        "accepted argument combinations:\n   │\n   │       {}",
+                        expected_args
+                            .iter()
+                            .map(|v| {
+                                format!(
+                                    "({})",
+                                    v.iter()
+                                        .map(|i| i.to_string())
+                                        .collect::<Vec<String>>()
+                                        .join(", ")
+                                )
+                            })
+                            .collect::<Vec<String>>()
+                            .join("\n   │       ")
+                    )),
+                ));
+            }
         } else {
-            // No matching signature was found, that means that the arguments
-            // provided were incorrect.
-            return Err(Error::CompileError(CompileError::wrong_arguments(
-                ctx.report_builder,
-                ctx.src,
-                fn_call.args_span,
-                Some(format!(
-                    "accepted argument combinations:\n   │\n   │       {}",
-                    expected_args
-                        .iter()
-                        .map(|v| {
-                            format!(
-                                "({})",
-                                v.iter()
-                                    .map(|i| i.to_string())
-                                    .collect::<Vec<String>>()
-                                    .join(", ")
-                            )
-                        })
-                        .collect::<Vec<String>>()
-                        .join("\n   │       ")
-                )),
-            )));
-        }
-    } else {
-        unreachable!()
-    };
+            unreachable!()
+        };
 
     let ty = type_value.ty();
     fn_call.set_type_value(type_value);
