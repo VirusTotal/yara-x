@@ -7,7 +7,7 @@ mod warnings;
 #[test]
 fn serialization() {
     assert!(matches!(
-        Rules::deserialize(&[]).err().unwrap(),
+        Rules::deserialize([]).err().unwrap(),
         SerializationError::InvalidFormat
     ));
 
