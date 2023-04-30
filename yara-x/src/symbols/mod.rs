@@ -16,8 +16,8 @@ pub(crate) trait SymbolLookup {
 
 #[derive(Clone)]
 pub(crate) struct Symbol {
-    pub type_value: TypeValue,
-    pub kind: SymbolKind,
+    type_value: TypeValue,
+    kind: SymbolKind,
 }
 
 /// Kinds of symbol.
@@ -40,13 +40,18 @@ pub(crate) enum SymbolKind {
 }
 
 impl Symbol {
-    pub fn new(type_value: TypeValue) -> Self {
-        Self { type_value, kind: SymbolKind::Unknown }
+    pub fn new(type_value: TypeValue, kind: SymbolKind) -> Self {
+        Self { type_value, kind }
     }
 
     #[inline(always)]
     pub fn type_value(&self) -> &TypeValue {
         &self.type_value
+    }
+
+    #[inline(always)]
+    pub fn kind(&self) -> &SymbolKind {
+        &self.kind
     }
 
     #[cfg(test)]
@@ -99,13 +104,18 @@ impl SymbolLookup for Option<Symbol> {
 impl SymbolLookup for Struct {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let field = self.field_by_name(ident)?;
-        let mut symbol = Symbol::new(field.type_value.clone());
 
-        if let TypeValue::Func(func) = &field.type_value {
-            symbol.kind = SymbolKind::Func(func.clone());
+        let symbol = if let TypeValue::Func(func) = &field.type_value {
+            Symbol::new(
+                field.type_value.clone(),
+                SymbolKind::Func(func.clone()),
+            )
         } else {
-            symbol.kind = SymbolKind::FieldIndex(field.index as i32);
-        }
+            Symbol::new(
+                field.type_value.clone(),
+                SymbolKind::FieldIndex(field.index as i32),
+            )
+        };
 
         Some(symbol)
     }

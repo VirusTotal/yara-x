@@ -357,7 +357,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
                     ctx.symbol_table.lookup(ident.name).unwrap()
                 };
 
-                match symbol.kind {
+                match symbol.kind() {
                     SymbolKind::Unknown => {
                         unreachable!(
                             "symbol kind must be known while emitting code"
@@ -366,17 +366,17 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
                     SymbolKind::Rule(rule_id) => {
                         // Emit code that checks if a rule has matched, leaving
                         // zero or one at the top of the stack.
-                        emit_check_for_rule_match(ctx, instr, rule_id);
+                        emit_check_for_rule_match(ctx, instr, *rule_id);
                     }
                     SymbolKind::WasmVar(var) => {
                         // The symbol represents a variable in WASM memory,
                         // emit code for loading its value into the stack.
-                        load_var(ctx, instr, var);
+                        load_var(ctx, instr, *var);
                     }
                     SymbolKind::HostVar(var) => {
                         // The symbol represents a host-side variable, so it must
                         // be a structure, map or array.
-                        ctx.lookup_start = Some(var);
+                        ctx.lookup_start = Some(*var);
                     }
                     SymbolKind::Func(func) => {
                         let signature =
@@ -399,7 +399,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
                         }
                     }
                     SymbolKind::FieldIndex(index) => {
-                        ctx.lookup_stack.push_back(index);
+                        ctx.lookup_stack.push_back(*index);
 
                         match ident.ty() {
                             Type::Integer => {
@@ -912,9 +912,9 @@ fn emit_pattern_identifier(
         // The prefix is used alone in a `for .. of`, in such cases we must
         // load the loop variable `$`, which contains the PatternId for the
         // current pattern.
-        match ctx.symbol_table.lookup("$").unwrap().kind {
+        match ctx.symbol_table.lookup("$").unwrap().kind() {
             SymbolKind::WasmVar(var) => {
-                load_var(ctx, instr, var);
+                load_var(ctx, instr, *var);
                 // load_var returns a I64, convert it to I32.
                 instr.unop(UnaryOp::I32WrapI64);
             }
@@ -1348,8 +1348,10 @@ fn emit_for_of_pattern_set(
     let mut pattern_ids = pattern_ids.into_iter();
     let next_pattern_id = ctx.new_var(Type::Integer);
 
-    let mut symbol = Symbol::new(TypeValue::Integer(None));
-    symbol.kind = SymbolKind::WasmVar(next_pattern_id);
+    let mut symbol = Symbol::new(
+        TypeValue::Integer(None),
+        SymbolKind::WasmVar(next_pattern_id),
+    );
 
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert("$", symbol);
@@ -1408,13 +1410,12 @@ fn emit_for_in_range(
     // put in the loop variable in the next iteration.
     let next_item = ctx.new_var(Type::Integer);
 
-    // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(TypeValue::Integer(None));
-
-    // Associate the symbol with the memory location where `next_item` is
-    // stored. Everytime that the loop variable is used in the condition,
-    // it will refer to the value stored in `next_item`.
-    symbol.kind = SymbolKind::WasmVar(next_item);
+    // Create a symbol table containing the loop variable. Associate the symbol
+    // with the memory location where `next_item` is stored. Everytime that the
+    // loop variable is used in the condition, it will refer to the value
+    // stored in `next_item`.
+    let symbol =
+        Symbol::new(TypeValue::Integer(None), SymbolKind::WasmVar(next_item));
 
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
@@ -1521,17 +1522,16 @@ fn emit_for_in_array(
     let next_item = ctx.new_var(loop_var.ty());
 
     // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(loop_var);
     let mut loop_vars = SymbolTable::new();
 
     // Associate the symbol with the memory location where `next_item` is
     // stored. Everytime that the loop variable is used in the condition,
     // it will refer to the value stored in `next_item`.
-    if wasm_side_next_item {
-        symbol.kind = SymbolKind::WasmVar(next_item);
+    let symbol = if wasm_side_next_item {
+        Symbol::new(loop_var, SymbolKind::WasmVar(next_item))
     } else {
-        symbol.kind = SymbolKind::HostVar(next_item);
-    }
+        Symbol::new(loop_var, SymbolKind::HostVar(next_item))
+    };
 
     loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
 
@@ -1638,15 +1638,14 @@ fn emit_for_in_map(
     let wasm_side_next_val = !matches!(val.ty(), Type::Struct);
 
     // Create a symbol table containing the loop variables.
-    let mut symbol_key = Symbol::new(key);
-    let mut symbol_val = Symbol::new(val);
-
-    symbol_key.kind = SymbolKind::WasmVar(next_key);
-    symbol_val.kind = match next_val.ty {
+    let symbol_key = Symbol::new(key, SymbolKind::WasmVar(next_key));
+    let symbol_val = match next_val.ty {
         Type::Integer | Type::Float | Type::Bool | Type::String => {
-            SymbolKind::WasmVar(next_val)
+            Symbol::new(val, SymbolKind::WasmVar(next_val))
         }
-        Type::Struct | Type::Array => SymbolKind::HostVar(next_val),
+        Type::Struct | Type::Array => {
+            Symbol::new(val, SymbolKind::HostVar(next_val))
+        }
         _ => unreachable!(),
     };
 
@@ -1739,11 +1738,10 @@ fn emit_for_in_expr_tuple(
     let next_item = ctx.new_var(expressions.first().unwrap().ty());
 
     // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(
+    let symbol = Symbol::new(
         expressions.first().unwrap().type_value().clone_without_value(),
+        SymbolKind::WasmVar(next_item),
     );
-
-    symbol.kind = SymbolKind::WasmVar(next_item);
 
     let mut loop_vars = SymbolTable::new();
     loop_vars.insert(for_in.variables.first().unwrap().name, symbol);

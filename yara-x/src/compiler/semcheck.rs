@@ -7,7 +7,7 @@ use yara_x_parser::types::{Map, Type, TypeValue};
 use yara_x_parser::warnings::Warning;
 
 use crate::compiler::{CompileError, Context, ParserError};
-use crate::symbols::{Symbol, SymbolLookup, SymbolTable};
+use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 
 macro_rules! semcheck {
     ($ctx:expr, $( $accepted_types:path )|+, $expr:expr) => {
@@ -809,7 +809,7 @@ fn semcheck_for_in(
     // TODO: raise warning when the loop identifier (e.g: "i") hides
     // an existing identifier with the same name.
     for (var, type_value) in iter::zip(loop_vars, expected_vars) {
-        vars.insert(var.name, Symbol::new(type_value));
+        vars.insert(var.name, Symbol::new(type_value, SymbolKind::Unknown));
     }
 
     // Put the loop variables into scope.

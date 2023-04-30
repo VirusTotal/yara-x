@@ -185,8 +185,10 @@ impl<'a> Compiler<'a> {
                 export.mangled_name.to_string(),
             )));
 
-            let mut symbol = Symbol::new(TypeValue::Func(func.clone()));
-            symbol.kind = SymbolKind::Func(func);
+            let symbol = Symbol::new(
+                TypeValue::Func(func.clone()),
+                SymbolKind::Func(func),
+            );
 
             global_symbols.borrow_mut().insert(export.name, symbol);
         }
@@ -429,9 +431,8 @@ impl<'a> Compiler<'a> {
 
         // Insert symbol of type boolean for the rule. This allows
         // other rules to make reference to this one.
-        let mut symbol = Symbol::new(TypeValue::Bool(None));
-
-        symbol.kind = SymbolKind::Rule(rule_id);
+        let symbol =
+            Symbol::new(TypeValue::Bool(None), SymbolKind::Rule(rule_id));
 
         self.current_namespace
             .symbols
@@ -713,13 +714,14 @@ impl<'a> Compiler<'a> {
 
                 // Create a symbol for the module and insert it in the symbol
                 // table for this namespace.
-                let mut symbol = Symbol::new(module_struct);
-
-                symbol.kind = SymbolKind::FieldIndex(
-                    self.modules_struct
-                        .field_by_name(module_name)
-                        .unwrap()
-                        .index as i32,
+                let symbol = Symbol::new(
+                    module_struct,
+                    SymbolKind::FieldIndex(
+                        self.modules_struct
+                            .field_by_name(module_name)
+                            .unwrap()
+                            .index as i32,
+                    ),
                 );
 
                 // Insert the symbol in the symbol table for the current
