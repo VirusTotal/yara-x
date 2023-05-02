@@ -87,7 +87,7 @@ struct Namespace {
     symbols: Rc<RefCell<SymbolTable>>,
 }
 
-/// Takes YARA source code and produces compiled [`Rules`].
+/// Compiles YARA source code producing a set of compiled [`Rules`].
 ///
 /// The two most important methods in this type are [`Compiler::add_source`]
 /// and [`Compiler::build`]. The former tells the compiler which YARA source
@@ -105,8 +105,8 @@ struct Namespace {
 ///             condition: true
 ///         }"#)?
 ///     .add_source(r#"
-///         rule always_true {
-///             condition: true
+///         rule always_false {
+///             condition: false
 ///         }"#)?
 ///     .build();
 ///
