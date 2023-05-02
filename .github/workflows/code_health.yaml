@@ -39,5 +39,5 @@ jobs:
     - name: Run cargo-udeps
       uses: aig787/cargo-udeps-action@v1
       with:
-        version: 0.1.35
+        version: v0.1.35
         args: '--all-targets'
