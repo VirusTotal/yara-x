@@ -1347,14 +1347,15 @@ fn emit_for_of_pattern_set(
     let num_patterns = pattern_ids.len();
     let mut pattern_ids = pattern_ids.into_iter();
     let next_pattern_id = ctx.new_var(Type::Integer);
-
-    let mut symbol = Symbol::new(
-        TypeValue::Integer(None),
-        SymbolKind::WasmVar(next_pattern_id),
-    );
-
     let mut loop_vars = SymbolTable::new();
-    loop_vars.insert("$", symbol);
+
+    loop_vars.insert(
+        "$",
+        Symbol::new(
+            TypeValue::Integer(None),
+            SymbolKind::WasmVar(next_pattern_id),
+        ),
+    );
 
     ctx.symbol_table.push(Rc::new(loop_vars));
 
