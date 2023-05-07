@@ -3,6 +3,7 @@ on:
   pull_request_target:
     types:
     - opened
+    - reopened
     - edited
     - synchronize
 
@@ -13,6 +14,5 @@ jobs:
       statuses: write
     steps:
     - uses: aslafy-z/conventional-pr-title-action@v3
-      if: github.base_ref == 'master'
       env:
         GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
