@@ -139,7 +139,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
             format!("bitwise_xor{}", value),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
-        Expr::Modulus(expr) => Node(
+        Expr::Mod(expr) => Node(
             format!("mod{}", value),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),

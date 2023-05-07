@@ -319,9 +319,20 @@ impl TypeValue {
     gen_comparison_op!(eq, ==);
     gen_comparison_op!(ne, !=);
 
+    pub fn has_value(&self) -> bool {
+        match self {
+            Self::Integer(Some(_)) => true,
+            Self::Float(Some(_)) => true,
+            Self::String(Some(_)) => true,
+            Self::Regexp(Some(_)) => true,
+            _ => false,
+        }
+    }
+
     pub fn defined(&self) -> Self {
         match self {
             Self::Unknown => Self::Unknown,
+            Self::Bool(Some(_)) => Self::Bool(Some(true)),
             Self::Integer(Some(_)) => Self::Bool(Some(true)),
             Self::Float(Some(_)) => Self::Bool(Some(true)),
             Self::String(Some(_)) => Self::Bool(Some(true)),
@@ -454,6 +465,16 @@ impl TypeValue {
             map.clone()
         } else {
             panic!("called `as_map` on a TypeValue that is not TypeValue::Map")
+        }
+    }
+
+    pub fn as_func(&self) -> Rc<Func> {
+        if let TypeValue::Func(func) = self {
+            func.clone()
+        } else {
+            panic!(
+                "called `as_func` on a TypeValue that is not TypeValue::Func"
+            )
         }
     }
 
@@ -671,5 +692,19 @@ mod tests {
         assert_eq!(Integer(Some(1)).shr(&Integer(None)), Integer(None));
         assert_eq!(Integer(Some(1)).shr(&Integer(Some(1))), Integer(Some(0)));
         assert_eq!(Integer(Some(2)).shr(&Integer(Some(1))), Integer(Some(1)));
+    }
+
+    #[test]
+    fn defined() {
+        assert_eq!(Unknown.defined(), Unknown);
+        assert_eq!(Bool(Some(true)).defined(), Bool(Some(true)));
+        assert_eq!(Bool(Some(false)).defined(), Bool(Some(true)));
+        assert_eq!(Integer(Some(0)).defined(), Bool(Some(true)));
+        assert_eq!(Float(Some(0.0)).defined(), Bool(Some(true)));
+
+        assert_eq!(
+            String(Some(BString::from(""))).defined(),
+            Bool(Some(true))
+        );
     }
 }

@@ -32,6 +32,7 @@ use crate::compiler::atoms::{
     DESIRED_ATOM_SIZE,
 };
 use crate::compiler::emit::emit_rule_code;
+use crate::compiler::emit2::emit_rule_condition;
 use crate::compiler::semcheck::{semcheck, warn_if_not_bool};
 
 use crate::string_pool::{BStringPool, StringPool};
@@ -45,11 +46,14 @@ use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
+use crate::compiler::ir::expr_from_ast;
 use crate::modules::BUILTIN_MODULES;
 
 mod atoms;
 mod emit;
+mod emit2;
 mod errors;
+mod ir;
 mod semcheck;
 
 #[cfg(test)]
@@ -440,6 +444,7 @@ impl<'a> Compiler<'a> {
             .borrow_mut()
             .insert(rule.identifier.name, symbol);
 
+        /*
         // Verify that the rule's condition is semantically valid. This
         // traverses the condition's AST recursively. The condition can
         // be an expression returning a bool, integer, float or string.
@@ -460,6 +465,16 @@ impl<'a> Compiler<'a> {
             &mut self.wasm_mod.main_fn.func_body(),
             rule_id,
             rule,
+        );
+        */
+
+        let condition = expr_from_ast(&mut ctx, &rule.condition)?;
+
+        emit_rule_condition(
+            &mut ctx,
+            &mut self.wasm_mod.main_fn.func_body(),
+            rule_id,
+            &condition,
         );
 
         // After emitting the whole condition, the stack should be empty.
@@ -761,7 +776,7 @@ impl Default for Compiler<'_> {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Hash, Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct IdentId(u32);
 
@@ -858,17 +873,24 @@ impl From<i32> for PatternId {
     }
 }
 
-impl From<PatternId> for i64 {
-    #[inline]
-    fn from(value: PatternId) -> Self {
-        value.0 as i64
-    }
-}
-
 impl From<usize> for PatternId {
     #[inline]
     fn from(value: usize) -> Self {
         Self(value as i32)
+    }
+}
+
+impl From<PatternId> for i32 {
+    #[inline]
+    fn from(value: PatternId) -> Self {
+        value.0
+    }
+}
+
+impl From<PatternId> for i64 {
+    #[inline]
+    fn from(value: PatternId) -> Self {
+        value.0 as i64
     }
 }
 

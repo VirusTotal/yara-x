@@ -39,9 +39,13 @@ use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
 pub use crate::types::Type;
+use crate::SourceCode;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
+    /// The source code that produced this AST.
+    pub source: SourceCode<'src>,
+    /// The list of namespaces is the root of the AST.
     pub namespaces: Vec<Namespace<'src>>,
     /// Warnings generated while building this AST.
     pub warnings: Vec<Warning>,
@@ -491,16 +495,16 @@ pub enum Expr<'src> {
     /// Identifier (e.g. `some_identifier`).
     Ident(Box<Ident<'src>>),
 
-    /// Pattern match expression (e.g. `$a`, `$a at 0`, `$a in (0..10)`)
+    /// Pattern match expression (e.g. `$`, `$a`, `$a at 0`, `$a in (0..10)`)
     PatternMatch(Box<PatternMatch<'src>>),
 
-    /// Pattern count expression (e.g. `#a`, `#a in (0..10)`)
+    /// Pattern count expression (e.g. `#`, `#a`, `#a in (0..10)`)
     PatternCount(Box<IdentWithRange<'src>>),
 
-    /// Pattern offset expression (e.g. `@a`, `@a[1]`)
+    /// Pattern offset expression (e.g. `@`` `@a`, `@a[1]`)
     PatternOffset(Box<IdentWithIndex<'src>>),
 
-    /// Pattern length expression (e.g. `!a`, `!a[1]`)
+    /// Pattern length expression (e.g. `!`, `!a`, `!a[1]`)
     PatternLength(Box<IdentWithIndex<'src>>),
 
     /// Array or dictionary lookup expression (e.g. `array[1]`, `dict["key"]`)
@@ -540,7 +544,7 @@ pub enum Expr<'src> {
     Div(Box<BinaryExpr<'src>>),
 
     /// Arithmetic modulus (`%`) expression.
-    Modulus(Box<BinaryExpr<'src>>),
+    Mod(Box<BinaryExpr<'src>>),
 
     /// Bitwise not (`~`) expression.
     BitwiseNot(Box<UnaryExpr<'src>>),
@@ -1063,7 +1067,7 @@ impl<'src> Expr<'src> {
             | Expr::Sub(expr)
             | Expr::Mul(expr)
             | Expr::Div(expr)
-            | Expr::Modulus(expr)
+            | Expr::Mod(expr)
             | Expr::Shl(expr)
             | Expr::Shr(expr)
             | Expr::BitwiseAnd(expr)

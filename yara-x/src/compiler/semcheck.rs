@@ -455,7 +455,7 @@ pub(super) fn semcheck_expr(
         Expr::Sub(expr) => semcheck_arithmetic_sub(ctx, expr),
         Expr::Mul(expr) => semcheck_arithmetic_mul(ctx, expr),
         Expr::Div(expr) => semcheck_arithmetic_div(ctx, expr),
-        Expr::Modulus(expr) => semcheck_arithmetic_rem(ctx, expr),
+        Expr::Mod(expr) => semcheck_arithmetic_rem(ctx, expr),
 
         Expr::Contains(expr) => semcheck_string_contains(ctx, expr, false),
         Expr::IContains(expr) => semcheck_string_contains(ctx, expr, true),
@@ -538,6 +538,8 @@ pub(super) fn semcheck_expr(
             // for resolving symbols, instead of using the top-level symbol
             // table.
             let ty = semcheck_expr(ctx, &mut expr.rhs)?;
+
+            ctx.current_struct = None;
 
             // The result of a field access is the result of the right-hand
             // expression (i.e: the field).

@@ -1,3 +1,5 @@
+/*! Functions for converting a CST into an AST. */
+
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::iter::Iterator;
@@ -46,8 +48,7 @@ fn create_unary_expr<'src>(
     op: CSTNode<'src>,
     operand: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
-    let span = Span::from(op.as_span());
-    span.combine(&operand.span());
+    let span = Span::from(op.as_span()).combine(&operand.span());
 
     let expr = match op.as_rule() {
         GrammarRule::BITWISE_NOT => {
@@ -105,7 +106,7 @@ fn create_binary_expr<'src>(
             new_binary_expr!(Expr::Div, div, lhs, rhs)
         }
         GrammarRule::MOD => {
-            new_binary_expr!(Expr::Modulus, rem, lhs, rhs)
+            new_binary_expr!(Expr::Mod, rem, lhs, rhs)
         }
         // Bitwise
         GrammarRule::SHL => {

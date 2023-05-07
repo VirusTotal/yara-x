@@ -219,7 +219,7 @@ ident = @{
   !(keyword ~ !ident_chars) ~ (ASCII_ALPHA | "_") ~ ident_chars*
 }
 
-// Pattern identifier (i.e: $a, $b, $foo, $bar).
+// Pattern identifier (i.e: $, $a, $b, $foo, $bar).
 pattern_ident = @{
   "$" ~ ident_chars*
 }

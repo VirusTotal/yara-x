@@ -140,7 +140,7 @@ fn arithmetic_operations() {
 }
 
 #[test]
-fn test_comparison_operationd() {
+fn test_comparison_operations() {
     condition_true!("2 > 1");
     condition_true!("1 < 2");
     condition_true!("2 >= 1");
@@ -709,7 +709,7 @@ fn match_offset() {
 }
 
 #[test]
-fn match_legth() {
+fn match_length() {
     rule_true!(
         r#"
         rule test {
@@ -1390,7 +1390,6 @@ fn test_defined_1() {
 #[cfg(feature = "test_proto2-module")]
 fn test_defined_2() {
     condition_false!(r#"defined test_proto2.undef_i64()"#);
-    condition_true!(r#"not defined test_proto2.undef_i64()"#);
     condition_true!(r#"not defined test_proto2.undef_i64()"#);
     condition_true!(
         r#"defined (for any x in (0..10) : (test_proto2.undef_i64() == 0))"#
