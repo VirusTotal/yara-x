@@ -17,14 +17,13 @@ example is constant folding, which is done while the IR is being built,
 converting expressions like `2+2+2` into the constant `6`.
 */
 
-mod ascii_tree;
 mod ast2ir;
 
 use crate::symbols::Symbol;
 use yara_x_parser::ast::Span;
 use yara_x_parser::types::{Type, TypeValue};
 
-use crate::compiler::PatternId;
+use crate::compiler::{PatternId, Var};
 pub(in crate::compiler) use ast2ir::expr_from_ast;
 
 /*
@@ -238,44 +237,65 @@ pub(in crate::compiler) enum Expr {
     /// Pattern match expression (e.g. `$a`)
     PatternMatch {
         pattern_id: PatternId,
+        anchor: MatchAnchor,
     },
 
     /// Pattern match expression where the pattern is variable (e.g: `$`).
     PatternMatchVar {
         symbol: Symbol,
+        anchor: MatchAnchor,
     },
 
-    /// Pattern match at a given offset (e.g. `$a at 0`)
-    PatternMatchAt {
+    /// Pattern count expression (e.g. `#a`, `#a in (0..10)`)
+    PatternCount {
         pattern_id: PatternId,
-        offset: Box<Expr>,
+        range: Option<Range>,
     },
 
-    /// Pattern match at a given offset where the pattern is variable
-    /// (e.g. `$ at 0`)
-    PatternMatchAtVar {
+    /// Pattern count expression where the pattern is variable (e.g. `#`, `# in (0..10)`)
+    PatternCountVar {
         symbol: Symbol,
-        offset: Box<Expr>,
+        range: Option<Range>,
     },
 
-    /// Pattern match within a given range (e.g. `$a in (0..100)`)
-    PatternMatchIn {
+    /// Pattern offset expression (e.g. `@a`, `@a[1]`)
+    PatternOffset {
         pattern_id: PatternId,
-        range: Range,
+        index: Option<Box<Expr>>,
     },
 
-    /// Pattern match within a given range where the pattern is variable
-    /// (e.g. `$ in (0..100)`)
-    PatternMatchInVar {
+    /// Pattern count expression where the pattern is variable (e.g. `@`, `@[1]`)
+    PatternOffsetVar {
         symbol: Symbol,
-        range: Range,
+        index: Option<Box<Expr>>,
+    },
+
+    /// Pattern length expression (e.g. `!a`, `!a[1]`)
+    PatternLength {
+        pattern_id: PatternId,
+        index: Option<Box<Expr>>,
+    },
+
+    /// Pattern count expression where the pattern is variable (e.g. `!`, `![1]`)
+    PatternLengthVar {
+        symbol: Symbol,
+        index: Option<Box<Expr>>,
     },
 
     /// Function call.
     FnCall(Box<FnCall>),
 
+    /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`)
+    Of(Box<Of>),
+
+    /// A `for <quantifier> of ...` expression. (e.g. `for any of ($a, $b) : ( ... )`)
+    ForOf(Box<ForOf>),
+
     /// A `for <quantifier> <vars> in ...` expression. (e.g. `for all i in (1..100) : ( ... )`)
     ForIn(Box<ForIn>),
+
+    /// Array or dictionary lookup expression (e.g. `array[1]`, `dict["key"]`)
+    Lookup(Box<Lookup>),
 }
 
 /// A quantifier used in `for` and `of` expressions.
@@ -285,6 +305,40 @@ pub(in crate::compiler) enum Quantifier {
     Any,
     Percentage(Expr),
     Expr(Expr),
+}
+
+/// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
+/// `any of (true, false)`)
+pub(in crate::compiler) struct Of {
+    pub quantifier: Quantifier,
+    pub items: OfItems,
+    pub anchor: MatchAnchor,
+}
+
+/// A `for .. of` expression (e.g `for all of them : (..)`,
+/// `for 1 of ($a,$b) : (..)`)
+pub(in crate::compiler) struct ForOf {
+    pub quantifier: Quantifier,
+    pub pattern_set: Vec<PatternId>,
+    pub condition: Expr,
+}
+
+/// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
+/// anchor (e.g. `at <expr>`, `in <range>`).
+///
+/// The anchor is the part of the expression that restricts the offset range
+/// where the match can occur.
+/// (e.g. `at <expr>`, `in <range>`).
+pub(in crate::compiler) enum MatchAnchor {
+    None,
+    At(Box<Expr>),
+    In(Range),
+}
+
+/// Items in a `of` expression.
+pub(in crate::compiler) enum OfItems {
+    PatternSet(Vec<PatternId>),
+    BoolExprTuple(Vec<Expr>),
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
@@ -298,6 +352,13 @@ pub(in crate::compiler) enum Iterable {
     Range(Range),
     ExprTuple(Vec<Expr>),
     Expr(Expr),
+}
+
+/// A lookup operation in an array or dictionary.
+pub(in crate::compiler) struct Lookup {
+    pub type_value: TypeValue,
+    pub primary: Box<Expr>,
+    pub index: Box<Expr>,
 }
 
 /// An expression representing a function call.
@@ -346,11 +407,9 @@ impl Expr {
             | Expr::IEndsWith { .. }
             | Expr::IEquals { .. }
             | Expr::PatternMatch { .. }
-            | Expr::PatternMatchAt { .. }
-            | Expr::PatternMatchIn { .. }
             | Expr::PatternMatchVar { .. }
-            | Expr::PatternMatchAtVar { .. }
-            | Expr::PatternMatchInVar { .. }
+            | Expr::Of(_)
+            | Expr::ForOf(_)
             | Expr::ForIn(_) => Type::Bool,
 
             Expr::Minus { operand, .. } => match operand.ty() {
@@ -372,6 +431,12 @@ impl Expr {
 
             Expr::Filesize
             | Expr::Entrypoint
+            | Expr::PatternCount { .. }
+            | Expr::PatternCountVar { .. }
+            | Expr::PatternOffset { .. }
+            | Expr::PatternOffsetVar { .. }
+            | Expr::PatternLength { .. }
+            | Expr::PatternLengthVar { .. }
             | Expr::Mod { .. }
             | Expr::BitwiseNot { .. }
             | Expr::BitwiseAnd { .. }
@@ -383,6 +448,7 @@ impl Expr {
             Expr::FieldAccess { rhs, .. } => rhs.ty(),
             Expr::Ident { symbol, .. } => symbol.type_value().ty(),
             Expr::FnCall(fn_call) => fn_call.type_value.ty(),
+            Expr::Lookup(lookup) => lookup.type_value.ty(),
         }
     }
 
@@ -408,11 +474,9 @@ impl Expr {
             | Expr::IEndsWith { .. }
             | Expr::IEquals { .. }
             | Expr::PatternMatch { .. }
-            | Expr::PatternMatchAt { .. }
-            | Expr::PatternMatchIn { .. }
             | Expr::PatternMatchVar { .. }
-            | Expr::PatternMatchAtVar { .. }
-            | Expr::PatternMatchInVar { .. }
+            | Expr::Of(_)
+            | Expr::ForOf(_)
             | Expr::ForIn(_) => TypeValue::Bool(None),
 
             Expr::Minus { operand, .. } => match operand.ty() {
@@ -434,6 +498,12 @@ impl Expr {
 
             Expr::Filesize
             | Expr::Entrypoint
+            | Expr::PatternCount { .. }
+            | Expr::PatternCountVar { .. }
+            | Expr::PatternOffset { .. }
+            | Expr::PatternOffsetVar { .. }
+            | Expr::PatternLength { .. }
+            | Expr::PatternLengthVar { .. }
             | Expr::Mod { .. }
             | Expr::BitwiseNot { .. }
             | Expr::BitwiseAnd { .. }
@@ -445,6 +515,7 @@ impl Expr {
             Expr::FieldAccess { rhs, .. } => rhs.type_value(),
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),
             Expr::FnCall(fn_call) => fn_call.type_value.clone(),
+            Expr::Lookup(lookup) => lookup.type_value.clone(),
         }
     }
 }

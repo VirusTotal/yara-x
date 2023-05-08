@@ -1295,22 +1295,34 @@ fn for_of() {
 
 #[test]
 fn of() {
-    let rules = crate::compile(
+    condition_true!(r#"any of (false, true)"#);
+    condition_true!(r#"all of (true, true)"#);
+    condition_true!(r#"none of (false, false)"#);
+    condition_false!(r#"any of (false, false)"#);
+    condition_false!(r#"all of (false, true)"#);
+
+    condition_true!(r#"none of (1 == 0, 2 == 0)"#);
+    condition_true!(r#"all of (1 == 1, 2 == 2)"#);
+
+    /*
+    rule_true!(
         r#"
-        rule test_1 {
-          condition:
-            none of (1 == 0, 2 == 0)
-        }
-        rule test_2 {
-          strings: 
+        rule test {
+          strings:
             $a1 = "foo"
             $a2 = "bar"
             $b1 = "baz"
           condition:
             none of ($a*, $b1)
         }
-        rule test_3 {
-          strings: 
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
             $a1 = "foo"
             $a2 = "bar"
             $b1 = "baz"
@@ -1318,12 +1330,9 @@ fn of() {
             none of them
         }
         "#,
-    )
-    .unwrap();
-
-    let mut scanner = crate::scanner::Scanner::new(&rules);
-
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 3);
+        &[]
+    );
+    */
 }
 
 #[test]

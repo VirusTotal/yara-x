@@ -24,17 +24,14 @@ use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::types::{Func, FuncSignature};
 use yara_x_parser::types::{Struct, TypeValue};
 use yara_x_parser::warnings::Warning;
-use yara_x_parser::{ErrorInfo as ParserError, Parser, SourceCode};
+use yara_x_parser::{Parser, SourceCode};
 
 use crate::compiler::atoms::base64::base64_patterns;
 use crate::compiler::atoms::{
     best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
     DESIRED_ATOM_SIZE,
 };
-use crate::compiler::emit::emit_rule_code;
-use crate::compiler::emit2::emit_rule_condition;
-use crate::compiler::semcheck::{semcheck, warn_if_not_bool};
-
+use crate::compiler::emit::emit_rule_condition;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
@@ -51,10 +48,8 @@ use crate::modules::BUILTIN_MODULES;
 
 mod atoms;
 mod emit;
-mod emit2;
 mod errors;
 mod ir;
-mod semcheck;
 
 #[cfg(test)]
 mod tests;
@@ -443,30 +438,6 @@ impl<'a> Compiler<'a> {
             .as_ref()
             .borrow_mut()
             .insert(rule.identifier.name, symbol);
-
-        /*
-        // Verify that the rule's condition is semantically valid. This
-        // traverses the condition's AST recursively. The condition can
-        // be an expression returning a bool, integer, float or string.
-        // Integer, float and string results are casted to boolean.
-        semcheck!(
-            &mut ctx,
-            Type::Bool | Type::Integer | Type::Float | Type::String,
-            &mut rule.condition
-        )?;
-
-        // If the condition's result is not a boolean and must be casted,
-        // raise a warning about it.
-        warn_if_not_bool(&mut ctx, &rule.condition);
-
-        // Emit the code for the rule's condition.
-        emit_rule_code(
-            &mut ctx,
-            &mut self.wasm_mod.main_fn.func_body(),
-            rule_id,
-            rule,
-        );
-        */
 
         let condition = expr_from_ast(&mut ctx, &rule.condition)?;
 
