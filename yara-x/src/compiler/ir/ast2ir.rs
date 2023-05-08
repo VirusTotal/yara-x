@@ -331,6 +331,8 @@ fn of_expr_from_ast(
 ) -> Result<Expr, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
 
+    let stack_frame = ctx.vars.new_frame(5);
+
     let (items, num_items) = match &of.items {
         // `x of (<boolean expr>, <boolean expr>, ...)`
         ast::OfItems::BoolExprTuple(tuple) => {
@@ -425,7 +427,9 @@ fn of_expr_from_ast(
 
     let anchor = anchor_from_ast(ctx, &of.anchor)?;
 
-    Ok(Expr::Of(Box::new(Of { quantifier, items, anchor })))
+    ctx.vars.unwind(&stack_frame);
+
+    Ok(Expr::Of(Box::new(Of { quantifier, items, anchor, stack_frame })))
 }
 
 fn for_of_expr_from_ast(
@@ -433,12 +437,35 @@ fn for_of_expr_from_ast(
     for_of: &ast::ForOf,
 ) -> Result<Expr, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
-    let condition = expr_from_ast(ctx, &for_of.condition)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set);
+
+    let mut stack_frame = ctx.vars.new_frame(4);
+    let next_pattern_id = stack_frame.new_var(Type::Integer);
+    let mut loop_vars = SymbolTable::new();
+
+    loop_vars.insert(
+        "$",
+        Symbol::new(
+            TypeValue::Integer(None),
+            SymbolKind::WasmVar(next_pattern_id),
+        ),
+    );
+
+    ctx.symbol_table.push(Rc::new(loop_vars));
+
+    let condition = expr_from_ast(ctx, &for_of.condition)?;
+
+    ctx.symbol_table.pop();
+    ctx.vars.unwind(&stack_frame);
 
     check_type(ctx, condition.ty(), for_of.condition.span(), &[Type::Bool])?;
 
-    Ok(Expr::ForOf(Box::new(ForOf { quantifier, pattern_set, condition })))
+    Ok(Expr::ForOf(Box::new(ForOf {
+        quantifier,
+        pattern_set,
+        condition,
+        stack_frame,
+    })))
 }
 
 fn for_in_expr_from_ast(
@@ -584,9 +611,9 @@ fn anchor_from_ast(
     anchor: &Option<ast::MatchAnchor>,
 ) -> Result<MatchAnchor, CompileError> {
     match anchor {
-        Some(ast::MatchAnchor::At(at_)) => {
-            Ok(MatchAnchor::At(Box::new(expr_from_ast(ctx, &at_.expr)?)))
-        }
+        Some(ast::MatchAnchor::At(at_)) => Ok(MatchAnchor::At(Box::new(
+            non_negative_integer_from_ast(ctx, &at_.expr)?,
+        ))),
         Some(ast::MatchAnchor::In(in_)) => {
             Ok(MatchAnchor::In(range_from_ast(ctx, &in_.range)?))
         }
@@ -643,8 +670,6 @@ fn non_negative_integer_from_ast(
                 span,
             ));
         }
-    } else {
-        unreachable!()
     }
 
     Ok(expr)

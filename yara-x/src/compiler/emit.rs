@@ -15,13 +15,10 @@ use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
-use yara_x_parser::ast::PatternSet;
 use yara_x_parser::types::{Array, Map, Type, TypeValue};
 
-use crate::compiler::ir::{
-    Expr, Iterable, MatchAnchor, Of, OfItems, Quantifier, Range,
-};
-use crate::compiler::{Context, PatternId, RuleId, Var};
+use crate::compiler::ir::{Expr, ForOf, MatchAnchor, Of, OfItems, Quantifier};
+use crate::compiler::{Context, PatternId, RuleId, Var, VarStackFrame};
 use crate::symbols::{SymbolKind, SymbolLookup};
 use crate::wasm;
 use crate::wasm::string::RuntimeString;
@@ -617,7 +614,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
         },
 
         Expr::ForOf(for_of) => {
-            todo!()
+            emit_for_of_pattern_set(ctx, instr, for_of);
         }
 
         Expr::ForIn(for_in) => {
@@ -1199,7 +1196,8 @@ fn emit_of_pattern_set(
 ) {
     let num_patterns = pattern_ids.len();
     let mut pattern_ids = pattern_ids.iter().cloned();
-    let next_pattern_id = ctx.new_var(Type::Integer);
+    let mut stack_frame = of.stack_frame.clone();
+    let next_pattern_id = stack_frame.new_var(Type::Integer);
 
     // Make sure the pattern search phase is executed, as the `of` statement
     // depends on patterns.
@@ -1208,6 +1206,7 @@ fn emit_of_pattern_set(
     emit_for(
         ctx,
         instr,
+        stack_frame,
         &of.quantifier,
         |ctx, instr, n, _| {
             // Set n = number of patterns.
@@ -1259,9 +1258,6 @@ fn emit_of_pattern_set(
         // After each iteration.
         |_, _, _| {},
     );
-
-    // Free loop variables.
-    ctx.free_vars(next_pattern_id);
 }
 
 fn emit_of_expr_tuple(
@@ -1270,16 +1266,15 @@ fn emit_of_expr_tuple(
     of: &Of,
     expressions: &[Expr],
 ) {
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(Type::Bool);
-
+    let mut stack_frame = of.stack_frame.clone();
+    let next_item = stack_frame.new_var(Type::Bool);
     let num_expressions = expressions.len();
     let mut expressions = expressions.iter();
 
     emit_for(
         ctx,
         instr,
+        stack_frame,
         &of.quantifier,
         |ctx, instr, n, _| {
             // Initialize `n` to number of expressions.
@@ -1309,38 +1304,22 @@ fn emit_of_expr_tuple(
         // After each iteration.
         |_, _, _| {},
     );
-
-    // Free loop variables.
-    ctx.free_vars(next_item);
 }
 
-/*
 fn emit_for_of_pattern_set(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
     for_of: &ForOf,
 ) {
-    let pattern_ids: Vec<PatternId> =
-        patterns_matching(ctx, &for_of.pattern_set).collect();
-
-    let num_patterns = pattern_ids.len();
-    let mut pattern_ids = pattern_ids.into_iter();
-    let next_pattern_id = ctx.new_var(Type::Integer);
-    let mut loop_vars = SymbolTable::new();
-
-    loop_vars.insert(
-        "$",
-        Symbol::new(
-            TypeValue::Integer(None),
-            SymbolKind::WasmVar(next_pattern_id),
-        ),
-    );
-
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    let mut stack_frame = for_of.stack_frame.clone();
+    let num_patterns = for_of.pattern_set.len();
+    let mut pattern_ids = for_of.pattern_set.iter();
+    let next_pattern_id = stack_frame.new_var(Type::Integer);
 
     emit_for(
         ctx,
         instr,
+        stack_frame,
         &for_of.quantifier,
         |ctx, instr, n, _| {
             // Set n = number of patterns.
@@ -1355,7 +1334,7 @@ fn emit_for_of_pattern_set(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |_, instr| {
                     if let Some(pattern_id) = pattern_ids.next() {
-                        instr.i64_const(pattern_id.into());
+                        instr.i64_const((*pattern_id).into());
                         return true;
                     }
                     false
@@ -1369,14 +1348,9 @@ fn emit_for_of_pattern_set(
         // After each iteration.
         |_, _, _| {},
     );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_pattern_id);
 }
 
+/*
 fn emit_for_in_range(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
@@ -1388,7 +1362,7 @@ fn emit_for_in_range(
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(Type::Integer);
+    let next_item = ctx.vars.new_var(Type::Integer);
 
     // Create a symbol table containing the loop variable. Associate the symbol
     // with the memory location where `next_item` is stored. Everytime that the
@@ -1499,7 +1473,7 @@ fn emit_for_in_array(
 
     // Create variable `next_item`, which will contain the item that will be
     // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(loop_var.ty());
+    let next_item = ctx.vars.new_var(loop_var.ty());
 
     // Create a symbol table containing the loop variable.
     let mut loop_vars = SymbolTable::new();
@@ -1522,7 +1496,7 @@ fn emit_for_in_array(
     // Emit the expression that lookup the array.
     emit_expr(ctx, instr, array_expr);
 
-    let array_var = ctx.new_var(Type::Array);
+    let array_var = ctx.vars.new_var(Type::Array);
 
     emit_lookup_value(ctx, instr, array_var);
 
@@ -1607,11 +1581,11 @@ fn emit_for_in_map(
 
     // Create variable `next_key`, which will contain the key that will be
     // put in the loop variable in the next iteration.
-    let next_key = ctx.new_var(key.ty());
+    let next_key = ctx.vars.new_var(key.ty());
 
     // Create variable `next_val`, which will contain the value that will be
     // put in the loop variable in the next iteration.
-    let next_val = ctx.new_var(val.ty());
+    let next_val = ctx.vars.new_var(val.ty());
 
     // When values in the map are structs, `next_val` is a host-side variable.
     // For every other type it is a WASM-side variable.
@@ -1796,6 +1770,7 @@ fn emit_for_in_expr_tuple(
 fn emit_for<I, B, C, A>(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
+    mut stack_frame: VarStackFrame,
     quantifier: &Quantifier,
     loop_init: I,
     before_cond: B,
@@ -1808,11 +1783,11 @@ fn emit_for<I, B, C, A>(
     A: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
 {
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.new_var(Type::Integer);
+    let n = stack_frame.new_var(Type::Integer);
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.new_var(Type::Integer);
+    let i = stack_frame.new_var(Type::Integer);
 
     // Function that increments `i` and checks if `i` < `n` after each
     // iteration, repeating the loop while the condition is true.
@@ -1851,10 +1826,10 @@ fn emit_for<I, B, C, A>(
             Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
                 // `max_count` is the number of loop conditions that must return
                 // `true` for the loop to be `true`.
-                let max_count = ctx.new_var(Type::Integer);
+                let max_count = stack_frame.new_var(Type::Integer);
                 // `count` is the number of loop conditions that actually
                 // returned `true`. This is initially zero.
-                let count = ctx.new_var(Type::Integer);
+                let count = stack_frame.new_var(Type::Integer);
 
                 set_var(ctx, instr, max_count, |ctx, instr| {
                     if matches!(quantifier, Quantifier::Percentage(_)) {
@@ -2040,16 +2015,7 @@ fn emit_for<I, B, C, A>(
                 }
             }
         });
-
-        if matches!(
-            quantifier,
-            Quantifier::Percentage(_) | Quantifier::Expr(_)
-        ) {
-            ctx.free_vars(max_count);
-        };
     });
-
-    ctx.free_vars(n);
 }
 
 /// Produces a switch statement by calling a `branch_generator` function

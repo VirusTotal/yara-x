@@ -23,7 +23,7 @@ use crate::symbols::Symbol;
 use yara_x_parser::ast::Span;
 use yara_x_parser::types::{Type, TypeValue};
 
-use crate::compiler::{PatternId, Var};
+use crate::compiler::{PatternId, VarStackFrame};
 pub(in crate::compiler) use ast2ir::expr_from_ast;
 
 /*
@@ -313,6 +313,7 @@ pub(in crate::compiler) struct Of {
     pub quantifier: Quantifier,
     pub items: OfItems,
     pub anchor: MatchAnchor,
+    pub stack_frame: VarStackFrame,
 }
 
 /// A `for .. of` expression (e.g `for all of them : (..)`,
@@ -321,6 +322,7 @@ pub(in crate::compiler) struct ForOf {
     pub quantifier: Quantifier,
     pub pattern_set: Vec<PatternId>,
     pub condition: Expr,
+    pub stack_frame: VarStackFrame,
 }
 
 /// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the

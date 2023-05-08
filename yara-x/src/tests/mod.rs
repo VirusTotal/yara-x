@@ -1304,7 +1304,16 @@ fn of() {
     condition_true!(r#"none of (1 == 0, 2 == 0)"#);
     condition_true!(r#"all of (1 == 1, 2 == 2)"#);
 
-    /*
+    condition_true!(
+        r#"
+        all of (
+            all of (true, true),
+            none of (false, false),
+            any of (false, true)
+        )
+        "#
+    );
+
     rule_true!(
         r#"
         rule test {
@@ -1332,7 +1341,6 @@ fn of() {
         "#,
         &[]
     );
-    */
 }
 
 #[test]
