@@ -68,11 +68,6 @@ impl From<Type> for ValType {
     }
 }
 
-pub(crate) const UNKNOWN_BOOL: TypeValue = TypeValue::Bool(None);
-pub(crate) const UNKNOWN_INT: TypeValue = TypeValue::Integer(None);
-pub(crate) const FALSE: TypeValue = TypeValue::Bool(Some(false));
-pub(crate) const TRUE: TypeValue = TypeValue::Bool(Some(true));
-
 /// A [`TypeValue`] contains information about the type, and possibly the
 /// value of a YARA expression or identifier.
 ///
@@ -320,13 +315,13 @@ impl TypeValue {
     gen_comparison_op!(ne, !=);
 
     pub fn has_value(&self) -> bool {
-        match self {
-            Self::Integer(Some(_)) => true,
-            Self::Float(Some(_)) => true,
-            Self::String(Some(_)) => true,
-            Self::Regexp(Some(_)) => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::Integer(Some(_))
+                | Self::Float(Some(_))
+                | Self::String(Some(_))
+                | Self::Regexp(Some(_))
+        )
     }
 
     pub fn defined(&self) -> Self {

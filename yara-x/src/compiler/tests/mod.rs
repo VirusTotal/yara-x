@@ -1,6 +1,6 @@
 use crate::compiler::{SerializationError, Var, VarStack};
+use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner};
-use yara_x_parser::ast::Type;
 
 mod errors;
 mod warnings;

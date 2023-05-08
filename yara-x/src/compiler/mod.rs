@@ -22,8 +22,6 @@ use walrus::{FunctionId, ValType};
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::types::{Func, FuncSignature};
-use yara_x_parser::types::{Struct, TypeValue};
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
 
@@ -37,7 +35,7 @@ use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
-
+use crate::types::{Func, FuncSignature, Struct, Type, TypeValue};
 use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};

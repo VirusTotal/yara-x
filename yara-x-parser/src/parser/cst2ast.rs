@@ -14,7 +14,6 @@ use pest::pratt_parser::{Assoc, Op, PrattParser};
 use crate::ast::*;
 use crate::cst::*;
 use crate::parser::{Context, Error, ErrorInfo, GrammarRule};
-use crate::types::TypeValue;
 use crate::warnings::Warning;
 
 macro_rules! expect {
@@ -31,16 +30,13 @@ macro_rules! expect {
 
 macro_rules! new_binary_expr {
     ($variant:expr, $op:tt, $lhs:ident, $rhs:ident) => {{
-        let type_value = $lhs.type_value().$op(&$rhs.type_value());
-        Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs, type_value))))
+        Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs))))
     }};
 }
 
 macro_rules! new_string_expr {
-    ($variant:expr,$op:ident, $lhs:ident, $rhs:ident, $case_insensitive:expr) => {{
-        let type_value =
-            $lhs.type_value().$op(&$rhs.type_value(), $case_insensitive);
-        Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs, type_value))))
+    ($variant:expr,$op:ident, $lhs:ident, $rhs:ident) => {{
+        Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs))))
     }};
 }
 
@@ -52,22 +48,16 @@ fn create_unary_expr<'src>(
 
     let expr = match op.as_rule() {
         GrammarRule::BITWISE_NOT => {
-            let type_value = operand.type_value().bitwise_not();
-            Expr::BitwiseNot(Box::new(UnaryExpr::new(
-                operand, span, type_value,
-            )))
+            Expr::BitwiseNot(Box::new(UnaryExpr::new(operand, span)))
         }
         GrammarRule::k_NOT => {
-            let type_value = operand.type_value().not();
-            Expr::Not(Box::new(UnaryExpr::new(operand, span, type_value)))
+            Expr::Not(Box::new(UnaryExpr::new(operand, span)))
         }
         GrammarRule::k_DEFINED => {
-            let type_value = operand.type_value().defined();
-            Expr::Defined(Box::new(UnaryExpr::new(operand, span, type_value)))
+            Expr::Defined(Box::new(UnaryExpr::new(operand, span)))
         }
         GrammarRule::MINUS => {
-            let type_value = operand.type_value().minus();
-            Expr::Minus(Box::new(UnaryExpr::new(operand, span, type_value)))
+            Expr::Minus(Box::new(UnaryExpr::new(operand, span)))
         }
         rule => unreachable!("{:?}", rule),
     };
@@ -80,11 +70,9 @@ fn create_binary_expr<'src>(
     rhs: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
     match op {
-        GrammarRule::DOT => Ok(Expr::FieldAccess(Box::new(BinaryExpr::new(
-            lhs,
-            rhs,
-            TypeValue::Unknown,
-        )))),
+        GrammarRule::DOT => {
+            Ok(Expr::FieldAccess(Box::new(BinaryExpr::new(lhs, rhs))))
+        }
         // Boolean
         GrammarRule::k_OR => {
             new_binary_expr!(Expr::Or, or, lhs, rhs)
@@ -144,37 +132,25 @@ fn create_binary_expr<'src>(
             new_binary_expr!(Expr::Ge, ge, lhs, rhs)
         }
         GrammarRule::k_STARTSWITH => {
-            new_string_expr!(
-                Expr::StartsWith,
-                starts_with_str,
-                lhs,
-                rhs,
-                false
-            )
+            new_string_expr!(Expr::StartsWith, starts_with_str, lhs, rhs)
         }
         GrammarRule::k_ISTARTSWITH => {
-            new_string_expr!(
-                Expr::IStartsWith,
-                starts_with_str,
-                lhs,
-                rhs,
-                true
-            )
+            new_string_expr!(Expr::IStartsWith, starts_with_str, lhs, rhs)
         }
         GrammarRule::k_ENDSWITH => {
-            new_string_expr!(Expr::EndsWith, ends_with_str, lhs, rhs, false)
+            new_string_expr!(Expr::EndsWith, ends_with_str, lhs, rhs)
         }
         GrammarRule::k_IENDSWITH => {
-            new_string_expr!(Expr::IEndsWith, ends_with_str, lhs, rhs, true)
+            new_string_expr!(Expr::IEndsWith, ends_with_str, lhs, rhs)
         }
         GrammarRule::k_CONTAINS => {
-            new_string_expr!(Expr::Contains, contains_str, lhs, rhs, false)
+            new_string_expr!(Expr::Contains, contains_str, lhs, rhs)
         }
         GrammarRule::k_ICONTAINS => {
-            new_string_expr!(Expr::IContains, contains_str, lhs, rhs, true)
+            new_string_expr!(Expr::IContains, contains_str, lhs, rhs)
         }
         GrammarRule::k_IEQUALS => {
-            new_string_expr!(Expr::IEquals, equals_str, lhs, rhs, true)
+            new_string_expr!(Expr::IEquals, equals_str, lhs, rhs)
         }
         GrammarRule::k_MATCHES => {
             new_binary_expr!(Expr::Matches, matches, lhs, rhs)
@@ -703,7 +679,6 @@ fn regexp_from_cst<'src>(
     }
 
     Ok(Regexp {
-        type_value: TypeValue::Regexp(Some(regexp.as_str().to_string())),
         span: regexp.as_span().into(),
         regexp: regexp.as_str(),
         case_insensitive,
@@ -1090,11 +1065,7 @@ fn boolean_term_from_cst<'src>(
                 //   ^^^^^^^^^^^^^^^
                 // The best way is using the anchor's span end.
                 span: boolean_term_span.into(),
-                identifier: Ident::with_type_and_value(
-                    ident_name,
-                    ident.as_span().into(),
-                    TypeValue::Bool(None),
-                ),
+                identifier: Ident::new(ident_name, ident.as_span().into()),
                 anchor,
             }))
         }
@@ -1219,7 +1190,6 @@ fn primary_expr_from_cst<'src>(
                         node.as_str(),
                         node.as_span().into(),
                     ))),
-                    TypeValue::Unknown,
                 )));
             }
 
@@ -1244,23 +1214,27 @@ fn primary_expr_from_cst<'src>(
             expect!(children.next().unwrap(), GrammarRule::RPAREN);
             expr
         }
-        GrammarRule::string_lit => Expr::Literal(Box::new(Literal::new(
-            node.as_span().as_str(),
-            node.as_span().into(),
-            TypeValue::String(Some(
-                string_lit_from_cst(ctx, node, true)?.into_owned(),
-            )),
-        ))),
-        GrammarRule::float_lit => Expr::Literal(Box::new(Literal::new(
-            node.as_span().as_str(),
-            node.as_span().into(),
-            TypeValue::Float(Some(float_lit_from_cst(ctx, node)?)),
-        ))),
-        GrammarRule::integer_lit => Expr::Literal(Box::new(Literal::new(
-            node.as_span().as_str(),
-            node.as_span().into(),
-            TypeValue::Integer(Some(integer_lit_from_cst(ctx, node)?)),
-        ))),
+        GrammarRule::string_lit => {
+            Expr::LiteralString(Box::new(LiteralString::new(
+                node.as_span().as_str(),
+                node.as_span().into(),
+                string_lit_from_cst(ctx, node, true)?,
+            )))
+        }
+        GrammarRule::float_lit => {
+            Expr::LiteralFloat(Box::new(LiteralFloat::new(
+                node.as_span().as_str(),
+                node.as_span().into(),
+                float_lit_from_cst(ctx, node)?,
+            )))
+        }
+        GrammarRule::integer_lit => {
+            Expr::LiteralInteger(Box::new(LiteralInteger::new(
+                node.as_span().as_str(),
+                node.as_span().into(),
+                integer_lit_from_cst(ctx, node)?,
+            )))
+        }
         GrammarRule::regexp => {
             Expr::Regexp(Box::new(regexp_from_cst(ctx, node)?))
         }
@@ -1366,12 +1340,7 @@ fn indexing_expr_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::RBRACKET);
 
-    Ok(Expr::Lookup(Box::new(Lookup::new(
-        primary,
-        index,
-        span.into(),
-        TypeValue::Unknown,
-    ))))
+    Ok(Expr::Lookup(Box::new(Lookup::new(primary, index, span.into()))))
 }
 
 fn func_call_expr_from_cst<'src>(
@@ -1426,13 +1395,6 @@ fn func_call_expr_from_cst<'src>(
         args_span,
         callable,
         args,
-        // Function's return type is not known at this stage.
-        type_value: TypeValue::Unknown,
-        // Function's signature index is not known at this stage. This is set
-        // during the semantic check, when we are able to know the actual
-        // type of arguments and choose one signature among the multiple
-        // ones that may exist for overloaded functions.
-        fn_signature_index: None,
     })))
 }
 

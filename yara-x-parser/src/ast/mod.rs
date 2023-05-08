@@ -34,11 +34,9 @@ use bstr::BStr;
 use yara_x_macros::*;
 
 use crate::cst::CSTNode;
-use crate::types::*;
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
-pub use crate::types::Type;
 use crate::SourceCode;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
@@ -486,8 +484,14 @@ pub enum Expr<'src> {
         span: Span,
     },
 
-    /// A literal, (e.g: `1`, `2.0`, `"abcd"`)
-    Literal(Box<Literal<'src>>),
+    /// A literal string, (e.g: `"abcd"`)
+    LiteralString(Box<LiteralString<'src>>),
+
+    /// A literal integer, (e.g: `1`, `0xAB`)
+    LiteralInteger(Box<LiteralInteger<'src>>),
+
+    /// A literal float, (e.g: `2.0`, `3.14`)
+    LiteralFloat(Box<LiteralFloat<'src>>),
 
     /// A regular expression (e.g: `/ab.*cd/i`)
     Regexp(Box<Regexp<'src>>),
@@ -665,52 +669,19 @@ pub struct In<'src> {
 pub struct Ident<'src> {
     pub span: Span,
     #[doc(hidden)]
-    pub type_value: TypeValue,
     pub name: &'src str,
 }
 
 impl<'src> Ident<'src> {
     pub(crate) fn new(name: &'src str, span: Span) -> Self {
-        Self { name, span, type_value: TypeValue::Unknown }
-    }
-
-    pub(crate) fn with_type_and_value(
-        name: &'src str,
-        span: Span,
-        type_value: TypeValue,
-    ) -> Self {
-        Self { name, span, type_value }
-    }
-
-    /// Returns the identifier's type.
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
+        Self { name, span }
     }
 }
 
 /// Creates an [`Ident`] directly from a [`CSTNode`].
 impl<'src> From<CSTNode<'src>> for Ident<'src> {
     fn from(node: CSTNode<'src>) -> Self {
-        Self {
-            type_value: TypeValue::Unknown,
-            span: node.as_span().into(),
-            name: node.as_str(),
-        }
+        Self { span: node.as_span().into(), name: node.as_str() }
     }
 }
 
@@ -745,8 +716,6 @@ pub struct IdentWithIndex<'src> {
 #[derive(Debug, HasSpan)]
 pub struct Regexp<'src> {
     pub span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     pub regexp: &'src str,
     pub case_insensitive: bool,
     pub dotall: bool,
@@ -760,29 +729,56 @@ impl Hash for Regexp<'_> {
     }
 }
 
-/// A literal value of any type (e.g: `1`, `2.0`, `"abcd"`, `true`).
+/// A literal string (e.g: `"abcd"`).
 #[derive(Debug, HasSpan)]
-pub struct Literal<'src> {
+pub struct LiteralString<'src> {
     pub span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
-    /// The literal value as it appears in the source code.
+    /// The literal string as it appears in the source code.
     pub literal: &'src str,
+    /// The value of the string literal. Escaped characters, if any, are
+    /// unescaped.
+    pub value: Cow<'src, BStr>,
 }
 
-impl<'src> Literal<'src> {
+impl<'src> LiteralString<'src> {
     pub(crate) fn new(
         literal: &'src str,
         span: Span,
-        type_value: TypeValue,
+        value: Cow<'src, BStr>,
     ) -> Self {
-        Self { literal, span, type_value }
+        Self { literal, span, value }
     }
+}
 
-    /// Returns the literal's type
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
+/// A literal integer (e.g: `1`, `0xAB`).
+#[derive(Debug, HasSpan)]
+pub struct LiteralInteger<'src> {
+    pub span: Span,
+    /// The literal value as it appears in the source code.
+    pub literal: &'src str,
+    /// The value of the integer literal.
+    pub value: i64,
+}
+
+impl<'src> LiteralInteger<'src> {
+    pub(crate) fn new(literal: &'src str, span: Span, value: i64) -> Self {
+        Self { literal, span, value }
+    }
+}
+
+/// A literal float (e.g: `2.0`, `3.14`).
+#[derive(Debug, HasSpan)]
+pub struct LiteralFloat<'src> {
+    pub span: Span,
+    /// The literal value as it appears in the source code.
+    pub literal: &'src str,
+    /// The value of the integer literal.
+    pub value: f64,
+}
+
+impl<'src> LiteralFloat<'src> {
+    pub(crate) fn new(literal: &'src str, span: Span, value: f64) -> Self {
+        Self { literal, span, value }
     }
 }
 
@@ -790,46 +786,18 @@ impl<'src> Literal<'src> {
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
     pub span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     pub operand: Expr<'src>,
 }
 
 impl<'src> UnaryExpr<'src> {
-    pub(crate) fn new(
-        operand: Expr<'src>,
-        span: Span,
-        type_value: TypeValue,
-    ) -> Self {
-        Self { operand, span, type_value }
-    }
-
-    /// Returns the expression's type
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
+    pub(crate) fn new(operand: Expr<'src>, span: Span) -> Self {
+        Self { operand, span }
     }
 }
 
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
@@ -837,32 +805,8 @@ pub struct BinaryExpr<'src> {
 }
 
 impl<'src> BinaryExpr<'src> {
-    pub(crate) fn new(
-        lhs: Expr<'src>,
-        rhs: Expr<'src>,
-        type_value: TypeValue,
-    ) -> Self {
-        Self { lhs, rhs, type_value }
-    }
-
-    /// Returns the expression's type
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
+    pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
+        Self { lhs, rhs }
     }
 }
 
@@ -871,42 +815,14 @@ impl<'src> BinaryExpr<'src> {
 pub struct FnCall<'src> {
     pub span: Span,
     pub args_span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     pub callable: Expr<'src>,
     pub args: Vec<Expr<'src>>,
-    #[doc(hidden)]
-    pub fn_signature_index: Option<usize>,
-}
-
-impl<'src> FnCall<'src> {
-    // Returns the function's return type.
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
-    }
 }
 
 /// A lookup operation in an array or dictionary.
 #[derive(Debug, HasSpan)]
 pub struct Lookup<'src> {
     pub span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
 }
@@ -916,29 +832,8 @@ impl<'src> Lookup<'src> {
         primary: Expr<'src>,
         index: Expr<'src>,
         span: Span,
-        type_value: TypeValue,
     ) -> Self {
-        Self { primary, index, span, type_value }
-    }
-
-    /// Returns the expression's type
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
+        Self { primary, index, span }
     }
 }
 
@@ -1033,71 +928,6 @@ impl PatternSetItem<'_> {
             ident.starts_with(prefix)
         } else {
             ident == self.identifier
-        }
-    }
-}
-
-impl<'src> Expr<'src> {
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value().ty()
-    }
-
-    #[doc(hidden)]
-    pub fn type_value(&self) -> &TypeValue {
-        match self {
-            Expr::FieldAccess(expr)
-            | Expr::And(expr)
-            | Expr::Or(expr)
-            | Expr::Eq(expr)
-            | Expr::Ne(expr)
-            | Expr::Lt(expr)
-            | Expr::Gt(expr)
-            | Expr::Le(expr)
-            | Expr::Ge(expr)
-            | Expr::Contains(expr)
-            | Expr::IContains(expr)
-            | Expr::StartsWith(expr)
-            | Expr::IStartsWith(expr)
-            | Expr::EndsWith(expr)
-            | Expr::IEndsWith(expr)
-            | Expr::IEquals(expr)
-            | Expr::Matches(expr)
-            | Expr::Add(expr)
-            | Expr::Sub(expr)
-            | Expr::Mul(expr)
-            | Expr::Div(expr)
-            | Expr::Mod(expr)
-            | Expr::Shl(expr)
-            | Expr::Shr(expr)
-            | Expr::BitwiseAnd(expr)
-            | Expr::BitwiseOr(expr)
-            | Expr::BitwiseXor(expr) => &expr.type_value,
-
-            Expr::Lookup(expr) => &expr.type_value,
-            Expr::Ident(ident) => &ident.type_value,
-            Expr::Regexp(regexp) => &regexp.type_value,
-            Expr::FnCall(fn_call) => &fn_call.type_value,
-
-            Expr::Literal(l) => &l.type_value,
-            Expr::True { .. } => &TRUE,
-            Expr::False { .. } => &FALSE,
-
-            Expr::PatternMatch(_)
-            | Expr::Of(_)
-            | Expr::ForOf(_)
-            | Expr::ForIn(_) => &UNKNOWN_BOOL,
-
-            Expr::Filesize { .. }
-            | Expr::Entrypoint { .. }
-            | Expr::PatternCount(_)
-            | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => &UNKNOWN_INT,
-
-            Expr::Defined(expr)
-            | Expr::Not(expr)
-            | Expr::BitwiseNot(expr)
-            | Expr::Minus(expr) => &expr.type_value,
         }
     }
 }

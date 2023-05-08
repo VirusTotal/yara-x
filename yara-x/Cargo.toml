@@ -43,6 +43,7 @@ bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true }
 fmmap = { workspace = true }
+indexmap = { workspace = true }
 intaglio = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }

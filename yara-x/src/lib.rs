@@ -54,6 +54,7 @@ mod modules;
 mod scanner;
 mod string_pool;
 mod symbols;
+mod types;
 mod wasm;
 
 #[cfg(test)]

@@ -19,11 +19,12 @@ converting expressions like `2+2+2` into the constant `6`.
 
 mod ast2ir;
 
-use crate::symbols::Symbol;
 use yara_x_parser::ast::Span;
-use yara_x_parser::types::{Type, TypeValue};
 
 use crate::compiler::{PatternId, VarStackFrame};
+use crate::symbols::Symbol;
+use crate::types::{Type, TypeValue};
+
 pub(in crate::compiler) use ast2ir::expr_from_ast;
 
 /*

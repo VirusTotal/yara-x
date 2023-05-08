@@ -15,11 +15,11 @@ use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
-use yara_x_parser::types::{Array, Map, Type, TypeValue};
 
 use crate::compiler::ir::{Expr, ForOf, MatchAnchor, Of, OfItems, Quantifier};
 use crate::compiler::{Context, PatternId, RuleId, Var, VarStackFrame};
 use crate::symbols::{SymbolKind, SymbolLookup};
+use crate::types::{Array, Map, Type, TypeValue};
 use crate::wasm;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{

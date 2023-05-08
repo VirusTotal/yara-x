@@ -2,10 +2,10 @@
 
 use std::borrow::Borrow;
 use std::iter;
-use std::ops::RangeInclusive;
+use std::ops::{Deref, RangeInclusive};
 use std::rc::Rc;
+
 use yara_x_parser::ast::{HasSpan, Span};
-use yara_x_parser::types::{Map, Type, TypeValue};
 use yara_x_parser::{ast, ErrorInfo, Warning};
 
 use crate::compiler::ir::{
@@ -14,6 +14,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::{CompileError, Context, PatternId};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
+use crate::types::{Map, Type, TypeValue};
 
 /// Given the AST for some expression, creates its IR.
 pub(in crate::compiler) fn expr_from_ast(
@@ -32,9 +33,19 @@ pub(in crate::compiler) fn expr_from_ast(
             Ok(Expr::Const { type_value: TypeValue::Bool(Some(false)) })
         }
 
-        ast::Expr::Literal(literal) => {
-            Ok(Expr::Const { type_value: literal.type_value.clone() })
-        }
+        ast::Expr::LiteralInteger(literal) => Ok(Expr::Const {
+            type_value: TypeValue::Integer(Some(literal.value)),
+        }),
+
+        ast::Expr::LiteralFloat(literal) => Ok(Expr::Const {
+            type_value: TypeValue::Float(Some(literal.value)),
+        }),
+
+        ast::Expr::LiteralString(literal) => Ok(Expr::Const {
+            type_value: TypeValue::String(Some(
+                literal.value.deref().to_owned(),
+            )),
+        }),
 
         ast::Expr::Defined(expr) => defined_expr_from_ast(ctx, expr),
 
@@ -391,28 +402,26 @@ fn of_expr_from_ast(
     // Raise a warning in those cases that are probably wrong.
     //
     if matches!(of.anchor, Some(ast::MatchAnchor::At(_))) {
-        let raise_warning = match &of.quantifier {
+        let raise_warning = match &quantifier {
             // `all of <items> at <expr>`: the warning is raised only if there
             // are more than one item. `all of ($a) at 0` doesn't raise a
             // warning.
-            ast::Quantifier::All { .. } => num_items > 1,
+            Quantifier::All { .. } => num_items > 1,
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
-            ast::Quantifier::Expr(expr) => match expr.type_value() {
-                TypeValue::Integer(Some(value)) => *value >= 2,
+            Quantifier::Expr(expr) => match expr.type_value() {
+                TypeValue::Integer(Some(value)) => value >= 2,
                 _ => false,
             },
             // `<expr>% of <items> at <expr>: the warning is raised if the
             // <expr> percent of the items is 2 or more.
-            ast::Quantifier::Percentage(expr) => match expr.type_value() {
+            Quantifier::Percentage(expr) => match expr.type_value() {
                 TypeValue::Integer(Some(percentage)) => {
-                    num_items as f64 * (*percentage) as f64 / 100.0 >= 2.0
+                    num_items as f64 * percentage as f64 / 100.0 >= 2.0
                 }
                 _ => false,
             },
-            ast::Quantifier::None { .. } | ast::Quantifier::Any { .. } => {
-                false
-            }
+            Quantifier::None { .. } | Quantifier::Any { .. } => false,
         };
 
         if raise_warning {
@@ -906,7 +915,7 @@ fn warn_if_not_bool(ctx: &mut Context, ty: Type, span: Span) {
         ctx.warnings.push(Warning::non_boolean_as_boolean(
             ctx.report_builder,
             ctx.src,
-            ty,
+            ty.to_string(),
             span,
             note,
         ));
