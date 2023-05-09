@@ -10,7 +10,6 @@ use std::mem::size_of;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
-
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
@@ -1166,10 +1165,9 @@ fn emit_of_pattern_set(
     instr: &mut InstrSeqBuilder,
     of: &mut Of,
 ) {
-    let pattern_ids = if let OfItems::PatternSet(pattern_ids) = &of.items {
-        pattern_ids.as_slice()
-    } else {
-        unreachable!()
+    let pattern_ids = match &mut of.items {
+        OfItems::PatternSet(pattern_ids) => pattern_ids,
+        _ => unreachable!(),
     };
 
     let num_patterns = pattern_ids.len();
@@ -1241,12 +1239,10 @@ fn emit_of_expr_tuple(
     instr: &mut InstrSeqBuilder,
     of: &mut Of,
 ) {
-    let expressions =
-        if let OfItems::BoolExprTuple(expressions) = &mut of.items {
-            expressions.as_mut_slice()
-        } else {
-            unreachable!()
-        };
+    let expressions = match &mut of.items {
+        OfItems::BoolExprTuple(expressions) => expressions,
+        _ => unreachable!(),
+    };
 
     let next_item = of.stack_frame.new_var(Type::Bool);
     let num_expressions = expressions.len();
@@ -1335,10 +1331,9 @@ fn emit_for_in_range(
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
-    let range = if let Iterable::Range(range) = &mut for_in.iterable {
-        range
-    } else {
-        unreachable!()
+    let range = match &mut for_in.iterable {
+        Iterable::Range(range) => range,
+        _ => unreachable!(),
     };
 
     // A `for` loop in a range has exactly one variable.
@@ -1402,10 +1397,9 @@ fn emit_for_in_expr(
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
-    let expr = if let Iterable::Expr(expr) = &mut for_in.iterable {
-        expr
-    } else {
-        unreachable!()
+    let expr = match &mut for_in.iterable {
+        Iterable::Expr(expr) => expr,
+        _ => unreachable!(),
     };
 
     match expr.ty() {
@@ -1427,10 +1421,9 @@ fn emit_for_in_array(
     // A `for` loop in an array has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    let expr = if let Iterable::Expr(expr) = &mut for_in.iterable {
-        expr
-    } else {
-        unreachable!()
+    let expr = match &mut for_in.iterable {
+        Iterable::Expr(expr) => expr,
+        _ => unreachable!(),
     };
 
     let array = expr.type_value().as_array();
@@ -1512,10 +1505,9 @@ fn emit_for_in_map(
     // A `for` loop in an map has exactly two variables.
     assert_eq!(for_in.variables.len(), 2);
 
-    let expr = if let Iterable::Expr(expr) = &mut for_in.iterable {
-        expr
-    } else {
-        unreachable!()
+    let expr = match &mut for_in.iterable {
+        Iterable::Expr(expr) => expr,
+        _ => unreachable!(),
     };
 
     let map = expr.type_value().as_map();
@@ -1596,15 +1588,13 @@ fn emit_for_in_expr_tuple(
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
-    let expressions =
-        if let Iterable::ExprTuple(expressions) = &mut for_in.iterable {
-            expressions
-        } else {
-            unreachable!()
-        };
-
     // A `for` in a tuple of expressions has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
+
+    let expressions = match &mut for_in.iterable {
+        Iterable::ExprTuple(expressions) => expressions,
+        _ => unreachable!(),
+    };
 
     // The only variable contains the loop's next item.
     let next_item = for_in.variables[0];
