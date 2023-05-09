@@ -3099,7 +3099,6 @@ dependencies = [
  "bstr",
  "criterion",
  "fmmap",
- "indenter",
  "indexmap",
  "intaglio",
  "itertools",
@@ -3117,7 +3116,6 @@ dependencies = [
  "thiserror",
  "walrus",
  "wasmtime",
- "yaml-rust",
  "yansi",
  "yara",
  "yara-x-macros",
@@ -3174,7 +3172,6 @@ dependencies = [
 name = "yara-x-parser"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "ariadne",
  "ascii_tree",
  "base64",
@@ -3187,14 +3184,10 @@ dependencies = [
  "pest",
  "pest_derive",
  "pretty_assertions",
- "protobuf",
- "rustc-hash",
  "thiserror",
- "walrus",
  "yaml-rust",
  "yansi",
  "yara-x-macros",
- "yara-x-proto",
 ]
 
 [[package]]
