@@ -1,4 +1,5 @@
-use crate::compiler::SerializationError;
+use crate::compiler::{SerializationError, Var, VarStack};
+use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner};
 
 mod errors;
@@ -45,4 +46,38 @@ fn namespaces() {
         .new_namespace("bar")
         .add_source("rule bar {condition: foo}")
         .is_err());
+}
+
+#[test]
+fn var_stack() {
+    let mut stack = VarStack::new();
+
+    let mut frame1 = stack.new_frame(4);
+    let mut frame2 = stack.new_frame(4);
+
+    assert_eq!(
+        frame1.new_var(Type::Integer),
+        Var { ty: Type::Integer, index: 0 }
+    );
+
+    assert_eq!(
+        frame1.new_var(Type::String),
+        Var { ty: Type::String, index: 1 }
+    );
+
+    // The first variable in the frame goes after the first two variables
+    // already allocated in the stack.
+    assert_eq!(
+        frame2.new_var(Type::Integer),
+        Var { ty: Type::Integer, index: 4 }
+    );
+
+    assert_eq!(
+        frame2.new_var(Type::Integer),
+        Var { ty: Type::Integer, index: 5 }
+    );
+
+    stack.unwind(&frame1);
+
+    assert_eq!(stack.used, 0);
 }

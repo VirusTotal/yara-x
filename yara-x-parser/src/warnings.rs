@@ -4,7 +4,6 @@ use yara_x_macros::Error;
 use crate::ast::Span;
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
-use crate::types::Type;
 use crate::SourceCode;
 
 /// A warning raised while parsing or compiling YARA rules.
@@ -44,7 +43,7 @@ pub enum Warning {
     #[note(note)]
     NonBooleanAsBoolean {
         detailed_report: String,
-        expression_type: Type,
+        expression_type: String,
         span: Span,
         note: Option<String>,
     },

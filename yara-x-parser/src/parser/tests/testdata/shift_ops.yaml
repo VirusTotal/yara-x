@@ -10,14 +10,14 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and : boolean(true)
-                ├─ eq : boolean(true)
-                │  ├─ shr : integer(1)
+             └─ and
+                ├─ eq
+                │  ├─ shr
                 │  │  ├─ 2
                 │  │  └─ 1
                 │  └─ 1
-                └─ eq : boolean(true)
-                   ├─ shl : integer(4)
+                └─ eq
+                   ├─ shl
                    │  ├─ 1
                    │  └─ 2
                    └─ 4
@@ -34,14 +34,14 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and : boolean(true)
-                ├─ eq : boolean(true)
-                │  ├─ shl : integer(-2)
+             └─ and
+                ├─ eq
+                │  ├─ shl
                 │  │  ├─ -1
                 │  │  └─ 1
                 │  └─ -2
-                └─ eq : boolean(true)
-                   ├─ shr : integer(-1)
+                └─ eq
+                   ├─ shr
                    │  ├─ -1
                    │  └─ 1
                    └─ -1
@@ -64,26 +64,26 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and : boolean(true)
-                ├─ and : boolean(true)
-                │  ├─ and : boolean(true)
-                │  │  ├─ eq : boolean(true)
-                │  │  │  ├─ shr : integer(0)
+             └─ and
+                ├─ and
+                │  ├─ and
+                │  │  ├─ eq
+                │  │  │  ├─ shr
                 │  │  │  │  ├─ 1
                 │  │  │  │  └─ 65
                 │  │  │  └─ 0
-                │  │  └─ eq : boolean(true)
-                │  │     ├─ shl : integer(0)
+                │  │  └─ eq
+                │  │     ├─ shl
                 │  │     │  ├─ 1
                 │  │     │  └─ 65
                 │  │     └─ 0
-                │  └─ eq : boolean(true)
-                │     ├─ shr : integer(0)
+                │  └─ eq
+                │     ├─ shr
                 │     │  ├─ 1
                 │     │  └─ 0x1FFFFFFFF
                 │     └─ 0
-                └─ eq : boolean(true)
-                   ├─ shr : integer(0)
+                └─ eq
+                   ├─ shr
                    │  ├─ 1
                    │  └─ 0x1FFFFFFFF
                    └─ 0

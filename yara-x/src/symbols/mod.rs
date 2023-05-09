@@ -5,9 +5,8 @@ use std::rc::Rc;
 #[cfg(test)]
 use bstr::{BStr, ByteSlice};
 
-use yara_x_parser::types::{Func, Struct, TypeValue};
-
 use crate::compiler::{RuleId, Var};
+use crate::types::{Func, Struct, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -26,7 +25,6 @@ pub(crate) struct Symbol {
 /// accesses the symbol.
 #[derive(Clone)]
 pub(crate) enum SymbolKind {
-    Unknown,
     /// The symbol refers to a variable stored in WASM memory.
     WasmVar(Var),
     /// The symbol refers to a variable stored in the host.
@@ -247,9 +245,10 @@ impl<'a> SymbolLookup for StackedSymbolTable<'a> {
 #[cfg(test)]
 #[cfg(feature = "test_proto2-module")]
 mod tests {
-    use crate::symbols::SymbolLookup;
     use bstr::BStr;
-    use yara_x_parser::types::{Struct, Type};
+
+    use crate::symbols::SymbolLookup;
+    use crate::types::{Struct, Type};
 
     #[test]
     fn message_lookup() {

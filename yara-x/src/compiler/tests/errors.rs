@@ -2,6 +2,7 @@ use pretty_assertions::assert_eq;
 
 use crate::compiler::Compiler;
 
+#[rustfmt::skip]
 #[test]
 fn errors() {
     let tests = vec![

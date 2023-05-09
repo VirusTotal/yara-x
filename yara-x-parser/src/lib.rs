@@ -38,6 +38,4 @@ mod parser;
 #[doc(hidden)]
 pub mod report;
 #[doc(hidden)]
-pub mod types;
-#[doc(hidden)]
 pub mod warnings;

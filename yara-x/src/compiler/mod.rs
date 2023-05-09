@@ -6,10 +6,11 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::fmt;
 use std::io::{BufWriter, Write};
+use std::mem::size_of;
 use std::path::Path;
 use std::rc::Rc;
-use std::{fmt, mem};
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
@@ -21,36 +22,33 @@ use walrus::{FunctionId, ValType};
 use yara_x_parser::ast;
 use yara_x_parser::ast::*;
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::types::{Func, FuncSignature};
-use yara_x_parser::types::{Struct, TypeValue};
 use yara_x_parser::warnings::Warning;
-use yara_x_parser::{ErrorInfo as ParserError, Parser, SourceCode};
+use yara_x_parser::{Parser, SourceCode};
 
 use crate::compiler::atoms::base64::base64_patterns;
 use crate::compiler::atoms::{
     best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
     DESIRED_ATOM_SIZE,
 };
-use crate::compiler::emit::emit_rule_code;
-use crate::compiler::semcheck::{semcheck, warn_if_not_bool};
-
+use crate::compiler::emit::emit_rule_condition;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
-
+use crate::types::{Func, FuncSignature, Struct, Type, TypeValue};
 use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
+use crate::compiler::ir::{expr_from_ast, warn_if_not_bool};
 use crate::modules::BUILTIN_MODULES;
 
 mod atoms;
 mod emit;
 mod errors;
-mod semcheck;
+mod ir;
 
 #[cfg(test)]
 mod tests;
@@ -424,9 +422,9 @@ impl<'a> Compiler<'a> {
             wasm_funcs: &self.wasm_mod.wasm_funcs,
             warnings: &mut self.warnings,
             exception_handler_stack: Vec::new(),
-            vars_stack_top: 0,
             lookup_start: None,
             lookup_stack: VecDeque::new(),
+            vars: VarStack::new(),
         };
 
         // Insert symbol of type boolean for the rule. This allows
@@ -440,30 +438,20 @@ impl<'a> Compiler<'a> {
             .borrow_mut()
             .insert(rule.identifier.name, symbol);
 
-        // Verify that the rule's condition is semantically valid. This
-        // traverses the condition's AST recursively. The condition can
-        // be an expression returning a bool, integer, float or string.
-        // Integer, float and string results are casted to boolean.
-        semcheck!(
-            &mut ctx,
-            Type::Bool | Type::Integer | Type::Float | Type::String,
-            &mut rule.condition
-        )?;
+        let mut condition = expr_from_ast(&mut ctx, &rule.condition)?;
 
-        // If the condition's result is not a boolean and must be casted,
-        // raise a warning about it.
-        warn_if_not_bool(&mut ctx, &rule.condition);
+        warn_if_not_bool(&mut ctx, condition.ty(), rule.condition.span());
 
-        // Emit the code for the rule's condition.
-        emit_rule_code(
+        emit_rule_condition(
             &mut ctx,
             &mut self.wasm_mod.main_fn.func_body(),
             rule_id,
-            rule,
+            &mut condition,
         );
 
-        // After emitting the whole condition, the stack should be empty.
-        assert_eq!(ctx.vars_stack_top, 0);
+        // After emitting the whole condition, the stack of variables should
+        // be empty.
+        assert_eq!(ctx.vars.used, 0);
 
         Ok(())
     }
@@ -761,7 +749,7 @@ impl Default for Compiler<'_> {
 }
 
 /// ID associated to each identifier in the identifiers pool.
-#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Hash, Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct IdentId(u32);
 
@@ -858,17 +846,24 @@ impl From<i32> for PatternId {
     }
 }
 
-impl From<PatternId> for i64 {
-    #[inline]
-    fn from(value: PatternId) -> Self {
-        value.0 as i64
-    }
-}
-
 impl From<usize> for PatternId {
     #[inline]
     fn from(value: usize) -> Self {
         Self(value as i32)
+    }
+}
+
+impl From<PatternId> for i32 {
+    #[inline]
+    fn from(value: PatternId) -> Self {
+        value.0
+    }
+}
+
+impl From<PatternId> for i64 {
+    #[inline]
+    fn from(value: PatternId) -> Self {
+        value.0 as i64
     }
 }
 
@@ -932,9 +927,8 @@ struct Context<'a, 'sym> {
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
 
-    /// Top of the variables stack. Starts at 0 and gets incremented by 1
-    /// with each call to [`Context::new_var`].
-    vars_stack_top: i32,
+    /// Stack of variables.
+    vars: VarStack,
 
     lookup_start: Option<Var>,
     lookup_stack: VecDeque<i32>,
@@ -949,64 +943,6 @@ impl<'a, 'sym> Context<'a, 'sym> {
     #[inline]
     fn resolve_ident(&self, ident_id: IdentId) -> &str {
         self.ident_pool.get(ident_id).unwrap()
-    }
-
-    /// Allocates space for a new variable in the stack of local variables.
-    ///
-    /// Do not confuse this stack with the WASM runtime stack (where WASM
-    /// instructions take their operands from and put their results into).
-    /// This is a completely unrelated stack used mainly for storing loop
-    /// variables.
-    ///
-    /// This stack is stored in WASM main memory, in a memory region that goes
-    /// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`]. The stack
-    /// is also mirrored at host-side (with host-side we refer to Rust code
-    /// called from WASM code), because values like structures, maps, and
-    /// arrays can't be handled by WASM code directly, and they must be
-    /// accessible to Rust functions called from WASM. These two stacks (the
-    /// WASM-side stack and the host-side stack) could be fully independent,
-    /// but they are mirrored for simplicity. This means that calls to this
-    /// function reserves space in both stacks at the same time, and therefore
-    /// their sizes are always the same.
-    ///
-    /// However, each stack slot is used either by WASM-side code or by
-    /// host-side code, but not by both. The slots that are used by WASM-side
-    /// remain with empty values in the host-side stack, while the slots that
-    /// are used by host-side code remain unused and undefined in WASM
-    /// memory.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the stack grows past [`wasm::VARS_STACK_END`]
-    #[inline]
-    fn new_var(&mut self, ty: Type) -> Var {
-        let top = self.vars_stack_top;
-        self.vars_stack_top += 1;
-        if self.vars_stack_top * mem::size_of::<i64>() as i32
-            > wasm::VARS_STACK_END - wasm::VARS_STACK_START
-        {
-            panic!("too many nested loops");
-        }
-        Var { ty, index: top }
-    }
-
-    /// Frees stack space previously allocated with [`Context::new_var`].
-    ///
-    /// This function restores the top of the stack to the value provided in
-    /// the argument, effectively releasing all the stack space after that
-    /// offset. For example:
-    ///
-    /// ```text
-    /// let var1 = ctx.new_var()
-    /// let var2 = ctx.new_var()
-    /// let var3 = ctx.new_var()
-    ///
-    /// // Frees both var2 and var3, because var3 was allocated after var2
-    /// ctx.free_vars(var2)
-    /// ```
-    #[inline]
-    fn free_vars(&mut self, top: Var) {
-        self.vars_stack_top = top.index;
     }
 
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
@@ -1053,10 +989,101 @@ impl<'a, 'sym> Context<'a, 'sym> {
     }
 }
 
-/// Represents a local variable returned by [`Context::new_var`].
-#[derive(Clone, Copy, Debug)]
+/// Represents a stack of variables.
+///
+/// The variables stack is composed of frames that are stacked one at the
+/// top of another. Each frame can contain one or more variables.
+///
+/// This stack is stored in WASM main memory, in a memory region that goes
+/// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`]. The stack
+/// is also mirrored at host-side (with host-side we refer to Rust code
+/// called from WASM code), because values like structures, maps, and
+/// arrays can't be handled by WASM code directly, and they must be
+/// accessible to Rust functions called from WASM. These two stacks (the
+/// WASM-side stack and the host-side stack) could be fully independent,
+/// but they are mirrored for simplicity. This means that calls to this
+/// function reserves space in both stacks at the same time, and therefore
+/// their sizes are always the same.
+///
+/// However, each stack slot is used either by WASM-side code or by
+/// host-side code, but not by both. The slots that are used by WASM-side
+/// remain with empty values in the host-side stack, while the slots that
+/// are used by host-side code remain unused and undefined in WASM
+/// memory.
+pub(crate) struct VarStack {
+    used: i32,
+}
+
+impl VarStack {
+    /// Creates a stack of variables.
+    pub fn new() -> Self {
+        Self { used: 0 }
+    }
+
+    /// Creates a new stack frame with the given capacity on top of the
+    /// existing ones. The returned stack frame can hold the specified
+    /// number of variables, but not more.
+    ///
+    /// Use [`VarStackFrame::new_var`] of allocating individual variables
+    /// within a frame.
+    pub fn new_frame(&mut self, capacity: i32) -> VarStackFrame {
+        let start = self.used;
+        self.used += capacity;
+
+        if self.used * size_of::<i64>() as i32
+            > wasm::VARS_STACK_END - wasm::VARS_STACK_START
+        {
+            panic!("variables stack overflow");
+        }
+
+        VarStackFrame { start, capacity, used: 0 }
+    }
+
+    /// Unwinds the stack freeing all frames that were allocated after the
+    /// given one, the given frame inclusive.
+    pub fn unwind(&mut self, frame: &VarStackFrame) {
+        if self.used < frame.start {
+            panic!("double-free in VarStack")
+        }
+        self.used = frame.start;
+    }
+}
+
+/// Represents a frame in the stack of variables.
+///
+/// Frames are stacked one in top of another, individual variables are
+/// allocated within a frame.
+#[derive(Clone)]
+pub(crate) struct VarStackFrame {
+    start: i32,
+    used: i32,
+    capacity: i32,
+}
+
+impl VarStackFrame {
+    /// Allocates space for a new variable in the stack.
+    ///
+    /// # Panics
+    ///
+    /// Panics if trying to allocate more variables than the frame capacity.
+    pub fn new_var(&mut self, ty: Type) -> Var {
+        let index = self.used + self.start;
+        self.used += 1;
+        if self.used > self.capacity {
+            panic!("VarStack exceeding its capacity: {}", self.capacity);
+        }
+        Var { ty, index }
+    }
+}
+
+/// Represents a variable in the stack.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Var {
+    /// The type of the variable
     ty: Type,
+    /// The index corresponding to this variable. This index is used for
+    /// locating the variable's value in WASM memory. The variable resides at
+    /// [`wasm::VARS_STACK_START`] + index * sizeof(i64).
     index: i32,
 }
 

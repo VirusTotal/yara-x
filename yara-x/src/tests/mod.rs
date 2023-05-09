@@ -140,7 +140,7 @@ fn arithmetic_operations() {
 }
 
 #[test]
-fn test_comparison_operationd() {
+fn test_comparison_operations() {
     condition_true!("2 > 1");
     condition_true!("1 < 2");
     condition_true!("2 >= 1");
@@ -709,7 +709,7 @@ fn match_offset() {
 }
 
 #[test]
-fn match_legth() {
+fn match_length() {
     rule_true!(
         r#"
         rule test {
@@ -1295,22 +1295,43 @@ fn for_of() {
 
 #[test]
 fn of() {
-    let rules = crate::compile(
+    condition_true!(r#"any of (false, true)"#);
+    condition_true!(r#"all of (true, true)"#);
+    condition_true!(r#"none of (false, false)"#);
+    condition_false!(r#"any of (false, false)"#);
+    condition_false!(r#"all of (false, true)"#);
+
+    condition_true!(r#"none of (1 == 0, 2 == 0)"#);
+    condition_true!(r#"all of (1 == 1, 2 == 2)"#);
+
+    condition_true!(
         r#"
-        rule test_1 {
-          condition:
-            none of (1 == 0, 2 == 0)
-        }
-        rule test_2 {
-          strings: 
+        all of (
+            all of (true, true),
+            none of (false, false),
+            any of (false, true)
+        )
+        "#
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
             $a1 = "foo"
             $a2 = "bar"
             $b1 = "baz"
           condition:
             none of ($a*, $b1)
         }
-        rule test_3 {
-          strings: 
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
             $a1 = "foo"
             $a2 = "bar"
             $b1 = "baz"
@@ -1318,12 +1339,50 @@ fn of() {
             none of them
         }
         "#,
-    )
-    .unwrap();
+        &[]
+    );
 
-    let mut scanner = crate::scanner::Scanner::new(&rules);
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            all of ($a*, $b*)
+        }
+        "#,
+        b"foobarbaz"
+    );
 
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 3);
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"foobarbaz"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            100% of them
+        }
+        "#,
+        b"barbaz"
+    );
 }
 
 #[test]
@@ -1390,7 +1449,6 @@ fn test_defined_1() {
 #[cfg(feature = "test_proto2-module")]
 fn test_defined_2() {
     condition_false!(r#"defined test_proto2.undef_i64()"#);
-    condition_true!(r#"not defined test_proto2.undef_i64()"#);
     condition_true!(r#"not defined test_proto2.undef_i64()"#);
     condition_true!(
         r#"defined (for any x in (0..10) : (test_proto2.undef_i64() == 0))"#

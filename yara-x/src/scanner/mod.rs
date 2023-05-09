@@ -21,14 +21,13 @@ use wasmtime::{
     Store, TypedFunc, Val, ValType,
 };
 
-use yara_x_parser::types::{Struct, TypeValue};
-
 use crate::compiler::{
     AtomInfo, FullWord, IdentId, LiteralId, PatternId, RuleId, RuleInfo,
     Rules, SubPattern,
 };
 use crate::scanner::matches::{Match, MatchList};
 use crate::string_pool::BStringPool;
+use crate::types::{Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::{modules, wasm};
 

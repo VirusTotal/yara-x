@@ -9,12 +9,11 @@ license.workspace = true
 homepage.workspace = true
 
 [features]
-# Controls whether compile-time optimizations are applied or not.
-# If this feature is enabled, expressions like `2+2+2` and
-# `true or false`, whose value can be determined at compile time,
-# will be reduced to its final value, instead of producing code
-# that actually computes the expression.
-compile-time-optimization = []
+# Enables constant folding. When costant folding is enabled, expressions
+# like `2+2+2` and `true or false`, whose value can be determined at compile
+# time, will be reduced to its final value, instead of producing cod that
+# actually computes the expression.
+constant-folding = []
 
 # Features for enabling/disabling modules.
 test_proto2-module = []
@@ -27,7 +26,7 @@ text-module = [
 
 # Features that are enabled by default.
 default = [
-    "compile-time-optimization",
+    "constant-folding",
     "test_proto2-module",
     "test_proto3-module",
 ]
@@ -36,13 +35,14 @@ default = [
 aho-corasick = { workspace = true }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
-ascii_tree = { workspace = true }
+ascii_tree = { workspace = true}
 base64 = { workspace = true }
 bincode = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true }
 fmmap = { workspace = true }
+indexmap = { workspace = true }
 intaglio = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }

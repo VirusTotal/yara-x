@@ -68,11 +68,6 @@ impl From<Type> for ValType {
     }
 }
 
-pub(crate) const UNKNOWN_BOOL: TypeValue = TypeValue::Bool(None);
-pub(crate) const UNKNOWN_INT: TypeValue = TypeValue::Integer(None);
-pub(crate) const FALSE: TypeValue = TypeValue::Bool(Some(false));
-pub(crate) const TRUE: TypeValue = TypeValue::Bool(Some(true));
-
 /// A [`TypeValue`] contains information about the type, and possibly the
 /// value of a YARA expression or identifier.
 ///
@@ -319,9 +314,20 @@ impl TypeValue {
     gen_comparison_op!(eq, ==);
     gen_comparison_op!(ne, !=);
 
+    pub fn has_value(&self) -> bool {
+        matches!(
+            self,
+            Self::Integer(Some(_))
+                | Self::Float(Some(_))
+                | Self::String(Some(_))
+                | Self::Regexp(Some(_))
+        )
+    }
+
     pub fn defined(&self) -> Self {
         match self {
             Self::Unknown => Self::Unknown,
+            Self::Bool(Some(_)) => Self::Bool(Some(true)),
             Self::Integer(Some(_)) => Self::Bool(Some(true)),
             Self::Float(Some(_)) => Self::Bool(Some(true)),
             Self::String(Some(_)) => Self::Bool(Some(true)),
@@ -454,6 +460,16 @@ impl TypeValue {
             map.clone()
         } else {
             panic!("called `as_map` on a TypeValue that is not TypeValue::Map")
+        }
+    }
+
+    pub fn as_func(&self) -> Rc<Func> {
+        if let TypeValue::Func(func) = self {
+            func.clone()
+        } else {
+            panic!(
+                "called `as_func` on a TypeValue that is not TypeValue::Func"
+            )
         }
     }
 
@@ -671,5 +687,19 @@ mod tests {
         assert_eq!(Integer(Some(1)).shr(&Integer(None)), Integer(None));
         assert_eq!(Integer(Some(1)).shr(&Integer(Some(1))), Integer(Some(0)));
         assert_eq!(Integer(Some(2)).shr(&Integer(Some(1))), Integer(Some(1)));
+    }
+
+    #[test]
+    fn defined() {
+        assert_eq!(Unknown.defined(), Unknown);
+        assert_eq!(Bool(Some(true)).defined(), Bool(Some(true)));
+        assert_eq!(Bool(Some(false)).defined(), Bool(Some(true)));
+        assert_eq!(Integer(Some(0)).defined(), Bool(Some(true)));
+        assert_eq!(Float(Some(0.0)).defined(), Bool(Some(true)));
+
+        assert_eq!(
+            String(Some(BString::from(""))).defined(),
+            Bool(Some(true))
+        );
     }
 }

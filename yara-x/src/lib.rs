@@ -1,6 +1,7 @@
-/*! This crate implements a YARA compiler and scanner completely written in
-Rust from scratch. It is 99% compatible with existing YARA rules and intends to
-be a safer, more efficient implementation of YARA.
+/*! A YARA compiler and scanner completely written in Rust from scratch.
+
+It is 99% compatible with existing YARA rules and intends to be a safer, more
+efficient implementation of YARA.
 
 There are two main types in this crate: [`Compiler`] and [`Scanner`]. A compiler
 takes YARA source code and produces compiled [`Rules`] that are passed to the
@@ -54,6 +55,7 @@ mod modules;
 mod scanner;
 mod string_pool;
 mod symbols;
+mod types;
 mod wasm;
 
 #[cfg(test)]

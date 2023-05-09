@@ -7,12 +7,12 @@ use pest::Parser as PestParser;
 pub use crate::parser::errors::*;
 pub use crate::parser::grammar::Rule as GrammarRule;
 
-pub(crate) use crate::parser::ast_builder::*;
 pub(crate) use crate::parser::context::*;
+pub(crate) use crate::parser::cst2ast::*;
 pub(crate) use crate::report::*;
 
-mod ast_builder;
 mod context;
+mod cst2ast;
 mod errors;
 
 #[cfg(test)]
@@ -170,12 +170,12 @@ impl<'a> Parser<'a> {
         let root = cst.into_iter().next().unwrap();
         assert_eq!(root.as_rule(), GrammarRule::source_file);
 
-        let mut ctx = Context::new(src, self.get_report_builder());
+        let mut ctx = Context::new(src.clone(), self.get_report_builder());
 
         let namespace = namespace_from_cst(&mut ctx, root.into_inner())?;
         let namespaces = vec![namespace];
 
-        Ok(AST { namespaces, warnings: ctx.warnings })
+        Ok(AST { source: src, namespaces, warnings: ctx.warnings })
     }
 
     /// Build the Concrete Syntax Tree (CST) for a YARA source.
