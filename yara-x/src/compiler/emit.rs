@@ -1532,7 +1532,7 @@ fn emit_for_in_map(
         &mut for_in.stack_frame,
         &mut for_in.quantifier,
         |ctx, instr, n, loop_end| {
-            // Initialize `n` to the maps's length.
+            // Initialize `n` to the map's length.
             set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(map_var.index);
                 instr
@@ -2248,6 +2248,41 @@ fn emit_call_and_handle_undef(
     );
 }
 
+/// Emits the code that prepares the arguments for any of the lookup functions
+/// like [`wasm::lookup_integer`], [`wasm::lookup_string`], etc.
+///
+/// This function takes all the values in `ctx.lookup_stack` and put them in
+/// WASM memory starting at offset [`LOOKUP_INDEXES_START`], then it pushes the
+/// number of values in the WASM stack. These values are the indexes of fields
+/// within some structure. For example, suppose we have the following structure:
+///
+/// ```text
+/// Struct {
+///     some_integer_field: Integer,
+///     some_struct_field: Struct {
+///        inner_field_1: String,
+///        inner_field_2: String,
+///        inner_field_3: String,
+///     }
+/// }
+/// ```
+///
+/// Field indexes are relative to the structure where they are contained, and
+/// start at 0, so the index for `some_integer_field` is 0, while the index for
+/// `some_struct_field` is 1. If we want to locate `inner_field_3` starting at
+/// the outer struct, we must lookup `some_struct_field` first (index 1) and
+/// then lookup `inner_field_3` (index 2), so `ctx.lookup_stack` will contain
+/// the values `0` and `3`. These two values are copied to WASM memory and then
+/// the number of values (2) will be pushed into the WASM stack. These way the
+/// lookup function can know how many values to read from WASM memory.
+///
+/// This function also pushes in the stack the index of the host-side variable
+/// that contains the structure where the lookup operation will start. For
+/// example, of the outer structure in the example above is stored in a
+/// host-side variable at index 5, then this function will push a 5, indicating
+/// the starting point of the lookup operation. If the pushed value is -1
+/// it will start the lookup operation in the current structure, if any, or
+/// in the root structure as a last resort.
 fn emit_lookup_common(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
     let num_lookup_indexes = ctx.lookup_stack.len();
     let main_memory = ctx.wasm_symbols.main_memory;

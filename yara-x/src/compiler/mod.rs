@@ -927,11 +927,18 @@ struct Context<'a, 'sym> {
     /// Stack of installed exception handlers for catching undefined values.
     exception_handler_stack: Vec<(ValType, InstrSeqId)>,
 
-    /// Stack of variables.
+    /// Stack of variables. These are local variables used during the
+    /// evaluation of rule conditions, for example for storing loop variables.
     vars: VarStack,
 
-    lookup_start: Option<Var>,
+    /// The lookup_stack contains a sequence of field IDs that will be used
+    /// in the next field lookup operation. See [`emit::emit_lookup_common`]
+    /// for details.
     lookup_stack: VecDeque<i32>,
+
+    /// The index of the host-side variable that contains the structure where
+    /// the lookup operation will be performed.
+    lookup_start: Option<Var>,
 }
 
 impl<'a, 'sym> Context<'a, 'sym> {

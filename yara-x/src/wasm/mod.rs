@@ -788,7 +788,8 @@ pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
 /// The initial structure is the one stored in the variable `struct_var`
 /// (`struct_var` is actually an index within `vars_stack`, so, the structure is
 /// stored in `vars_stack[struct_var]`). If `struct_var` is -1 the initial
-/// structure will be `ScanContext.current_struct`.
+/// structure will be the current structure (`ScanContext.current_struct`), or
+/// the root structure (`ScanContext.root_struct`) as a last resort.
 ///
 /// The sequence of indexes is stored in WASM main memory, starting at
 /// `LOOKUP_INDEXES_START`, and the number of indexes is indicated by the
@@ -812,11 +813,7 @@ fn lookup_field(
     };
 
     let type_value = if !lookup_indexes.is_empty() {
-        let mut structure = if let Some(current_structure) =
-            &store_ctx.data().current_struct
-        {
-            current_structure.as_ref()
-        } else if struct_var != -1 {
+        let mut structure = if struct_var != -1 {
             let var = &store_ctx.data().vars_stack[struct_var as usize];
 
             if let TypeValue::Struct(s) = var {
@@ -827,6 +824,10 @@ fn lookup_field(
                     var, struct_var
                 )
             }
+        } else if let Some(current_structure) =
+            &store_ctx.data().current_struct
+        {
+            current_structure.as_ref()
         } else {
             &store_ctx.data().root_struct
         };
