@@ -438,7 +438,7 @@ impl<'a> Compiler<'a> {
             .borrow_mut()
             .insert(rule.identifier.name, symbol);
 
-        let condition = expr_from_ast(&mut ctx, &rule.condition)?;
+        let mut condition = expr_from_ast(&mut ctx, &rule.condition)?;
 
         warn_if_not_bool(&mut ctx, condition.ty(), rule.condition.span());
 
@@ -446,7 +446,7 @@ impl<'a> Compiler<'a> {
             &mut ctx,
             &mut self.wasm_mod.main_fn.func_body(),
             rule_id,
-            &condition,
+            &mut condition,
         );
 
         // After emitting the whole condition, the stack of variables should

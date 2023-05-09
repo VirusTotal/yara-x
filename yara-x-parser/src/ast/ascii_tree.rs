@@ -74,119 +74,120 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
         Expr::Ident(ident) => Leaf(vec![ident.name.to_string()]),
         Expr::Regexp(regexp) => Leaf(vec![regexp.regexp.to_string()]),
         Expr::Defined(expr) => {
-            Node(format!("defined"), vec![expr_ascii_tree(&expr.operand)])
+            Node("defined".to_string(), vec![expr_ascii_tree(&expr.operand)])
         }
         Expr::Not(expr) => {
-            Node(format!("not"), vec![expr_ascii_tree(&expr.operand)])
+            Node("not".to_string(), vec![expr_ascii_tree(&expr.operand)])
         }
         Expr::And(expr) => Node(
-            format!("and"),
+            "and".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Or(expr) => Node(
-            format!("or"),
+            "or".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Minus(expr) => {
-            Node(format!("minus"), vec![expr_ascii_tree(&expr.operand)])
+            Node("minus".to_string(), vec![expr_ascii_tree(&expr.operand)])
         }
         Expr::Add(expr) => Node(
-            format!("add"),
+            "add".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Sub(expr) => Node(
-            format!("sub"),
+            "sub".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Mul(expr) => Node(
-            format!("mul"),
+            "mul".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Div(expr) => Node(
-            format!("div"),
+            "div".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Shl(expr) => Node(
-            format!("shl",),
+            "shl".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Shr(expr) => Node(
-            format!("shr"),
+            "shr".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
-        Expr::BitwiseNot(expr) => {
-            Node(format!("bitwise_not"), vec![expr_ascii_tree(&expr.operand)])
-        }
+        Expr::BitwiseNot(expr) => Node(
+            "bitwise_not".to_string(),
+            vec![expr_ascii_tree(&expr.operand)],
+        ),
         Expr::BitwiseAnd(expr) => Node(
-            format!("bitwise_and"),
+            "bitwise_and".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::BitwiseOr(expr) => Node(
-            format!("bitwise_or"),
+            "bitwise_or".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::BitwiseXor(expr) => Node(
-            format!("bitwise_xor"),
+            "bitwise_xor".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Mod(expr) => Node(
-            format!("mod"),
+            "mod".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Eq(expr) => Node(
-            format!("eq"),
+            "eq".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Ne(expr) => Node(
-            format!("ne"),
+            "ne".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Lt(expr) => Node(
-            format!("lt"),
+            "lt".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Le(expr) => Node(
-            format!("le"),
+            "le".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Gt(expr) => Node(
-            format!("gt"),
+            "gt".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Ge(expr) => Node(
-            format!("ge"),
+            "ge".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Contains(expr) => Node(
-            format!("contains"),
+            "contains".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::IContains(expr) => Node(
-            format!("icontains"),
+            "icontains".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::StartsWith(expr) => Node(
-            format!("startswith"),
+            "startswith".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::IStartsWith(expr) => Node(
-            format!("istartswith"),
+            "istartswith".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::EndsWith(expr) => Node(
-            format!("endswith"),
+            "endswith".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::IEndsWith(expr) => Node(
-            format!("iendswith"),
+            "iendswith".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::IEquals(expr) => Node(
-            format!("iequals"),
+            "iequals".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::Matches(expr) => Node(
-            format!("matches"),
+            "matches".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
         Expr::PatternMatch(s) => {
