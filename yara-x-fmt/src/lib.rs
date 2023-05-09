@@ -1,5 +1,7 @@
-/*! This crate implements a code formatter for YARA rules, in the spirit of
-other tools like `rustfmt` and `gofmt`.
+/*! A code formatter for YARA rules
+
+This crate implements a code format for YARA in the spirit of other tools like
+`rustfmt` and `gofmt`.
 
 # Usage
 

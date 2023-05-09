@@ -1143,7 +1143,7 @@ fn term_from_cst<'src>(
 
     let expr = match node.as_rule() {
         GrammarRule::indexing_expr => indexing_expr_from_cst(ctx, node)?,
-        GrammarRule::func_call_expr => func_call_expr_from_cst(ctx, node)?,
+        GrammarRule::func_call_expr => func_call_from_cst(ctx, node)?,
         GrammarRule::primary_expr => primary_expr_from_cst(ctx, node)?,
         rule => unreachable!("{:?}", rule),
     };
@@ -1343,7 +1343,7 @@ fn indexing_expr_from_cst<'src>(
     Ok(Expr::Lookup(Box::new(Lookup::new(primary, index, span.into()))))
 }
 
-fn func_call_expr_from_cst<'src>(
+fn func_call_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     func_call_expr: CSTNode<'src>,
 ) -> Result<Expr<'src>, Error> {
@@ -1390,7 +1390,7 @@ fn func_call_expr_from_cst<'src>(
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
-    Ok(Expr::FnCall(Box::new(FnCall {
+    Ok(Expr::FuncCall(Box::new(FuncCall {
         span: span.into(),
         args_span,
         callable,

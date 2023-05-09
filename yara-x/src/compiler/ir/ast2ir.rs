@@ -9,7 +9,7 @@ use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::{ast, ErrorInfo, Warning};
 
 use crate::compiler::ir::{
-    Expr, FnCall, ForOf, Iterable, Lookup, MatchAnchor, Of, OfItems,
+    Expr, ForIn, ForOf, FuncCall, Iterable, Lookup, MatchAnchor, Of, OfItems,
     Quantifier, Range,
 };
 use crate::compiler::{CompileError, Context, PatternId};
@@ -92,7 +92,7 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Of(of) => of_expr_from_ast(ctx, of),
         ast::Expr::ForOf(for_of) => for_of_expr_from_ast(ctx, for_of),
         ast::Expr::ForIn(for_in) => for_in_expr_from_ast(ctx, for_in),
-        ast::Expr::FnCall(fn_call) => fn_call_expr_from_ast(ctx, fn_call),
+        ast::Expr::FuncCall(fn_call) => func_call_from_ast(ctx, fn_call),
 
         ast::Expr::FieldAccess(expr) => {
             let lhs = expr_from_ast(ctx, &expr.lhs)?;
@@ -113,8 +113,16 @@ pub(in crate::compiler) fn expr_from_ast(
 
             // If the right-side expression is constant, the result is also
             // constant.
-            if let Expr::Const { type_value, .. } = rhs {
-                Ok(Expr::Const { type_value })
+
+            if cfg!(feature = "constant-folding") {
+                if let Expr::Const { type_value, .. } = rhs {
+                    Ok(Expr::Const { type_value })
+                } else {
+                    Ok(Expr::FieldAccess {
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                    })
+                }
             } else {
                 Ok(Expr::FieldAccess {
                     lhs: Box::new(lhs),
@@ -144,8 +152,6 @@ pub(in crate::compiler) fn expr_from_ast(
             let symbol = symbol.unwrap();
             let type_value = symbol.type_value();
 
-            // If the identifier has a known value at compile time then it is
-            // a constant.
             if type_value.has_value() {
                 Ok(Expr::Const { type_value: type_value.clone() })
             } else {
@@ -533,33 +539,64 @@ fn for_in_expr_from_ast(
         ));
     }
 
-    let mut vars = SymbolTable::new();
+    // Create stack frame with capacity for the loop variables, plus 4
+    // temporary variables used for controlling the loop.
+    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 4);
+    let mut symbols = SymbolTable::new();
+    let mut variables = Vec::new();
 
     // TODO: raise warning when the loop identifier (e.g: "i") hides
     // an existing identifier with the same name.
     for (var, type_value) in iter::zip(loop_vars, expected_vars) {
-        vars.insert(var.name, Symbol::new(type_value, SymbolKind::Unknown));
+        let symbol_kind = match type_value {
+            TypeValue::Integer(_) => {
+                let var = stack_frame.new_var(Type::Integer);
+                variables.push(var);
+                SymbolKind::WasmVar(var)
+            }
+            TypeValue::Bool(_) => {
+                let var = stack_frame.new_var(Type::Bool);
+                variables.push(var);
+                SymbolKind::WasmVar(var)
+            }
+            TypeValue::String(_) => {
+                let var = stack_frame.new_var(Type::String);
+                variables.push(var);
+                SymbolKind::WasmVar(var)
+            }
+            TypeValue::Float(_) => {
+                let var = stack_frame.new_var(Type::Float);
+                variables.push(var);
+                SymbolKind::WasmVar(var)
+            }
+            TypeValue::Struct(_) => {
+                let var = stack_frame.new_var(Type::Struct);
+                variables.push(var);
+                SymbolKind::HostVar(var)
+            }
+            _ => unreachable!(),
+        };
+
+        symbols.insert(var.name, Symbol::new(type_value, symbol_kind));
     }
 
     // Put the loop variables into scope.
-    ctx.symbol_table.push(Rc::new(vars));
+    ctx.symbol_table.push(Rc::new(symbols));
 
     let condition = expr_from_ast(ctx, &for_in.condition)?;
 
     // Leaving the condition's scope. Remove loop variables.
     ctx.symbol_table.pop();
 
-    todo!()
+    ctx.vars.unwind(&stack_frame);
 
-    /*
     Ok(Expr::ForIn(Box::new(ForIn {
-        span: for_in.span(),
         quantifier,
+        variables,
         iterable,
         condition,
+        stack_frame,
     })))
-
-     */
 }
 
 fn iterable_from_ast(
@@ -762,16 +799,21 @@ fn pattern_set_from_ast(
     }
 }
 
-fn fn_call_expr_from_ast(
+fn func_call_from_ast(
     ctx: &mut Context,
-    fn_call: &ast::FnCall,
+    func_call: &ast::FuncCall,
 ) -> Result<Expr, CompileError> {
-    let callable = expr_from_ast(ctx, &fn_call.callable)?;
+    let callable = expr_from_ast(ctx, &func_call.callable)?;
     let type_value = callable.type_value();
 
-    check_type(ctx, type_value.ty(), fn_call.callable.span(), &[Type::Func])?;
+    check_type(
+        ctx,
+        type_value.ty(),
+        func_call.callable.span(),
+        &[Type::Func],
+    )?;
 
-    let args = fn_call
+    let args = func_call
         .args
         .iter()
         .map(|arg| expr_from_ast(ctx, arg))
@@ -803,7 +845,7 @@ fn fn_call_expr_from_ast(
         return Err(CompileError::wrong_arguments(
             ctx.report_builder,
             ctx.src,
-            fn_call.args_span,
+            func_call.args_span,
             Some(format!(
                 "accepted argument combinations:\n   │\n   │       {}",
                 expected_args
@@ -825,7 +867,7 @@ fn fn_call_expr_from_ast(
 
     let (signature_index, type_value) = matching_signature.unwrap();
 
-    Ok(Expr::FnCall(Box::new(FnCall {
+    Ok(Expr::FuncCall(Box::new(FuncCall {
         callable,
         type_value,
         signature_index,
@@ -894,7 +936,11 @@ fn check_operands(
 }
 
 /// Produce a warning if the expression is not boolean.
-fn warn_if_not_bool(ctx: &mut Context, ty: Type, span: Span) {
+pub(in crate::compiler) fn warn_if_not_bool(
+    ctx: &mut Context,
+    ty: Type,
+    span: Span,
+) {
     let note = match ty {
         Type::Integer => Some(
             "non-zero integers are considered `true`, while zero is `false`"
@@ -928,7 +974,6 @@ macro_rules! gen_unary_op {
             ctx: &mut Context,
             expr: &ast::UnaryExpr,
         ) -> Result<Expr, CompileError> {
-            let span = expr.span();
             let operand = Box::new(expr_from_ast(ctx, &expr.operand)?);
 
             // The `not` operator accepts integers, floats and strings because
@@ -945,12 +990,16 @@ macro_rules! gen_unary_op {
                 = $check_fn;
 
             if let Some(check_fn) = check_fn {
-                check_fn(ctx, &operand, span)?;
+                check_fn(ctx, &operand, expr.operand.span())?;
             }
 
             // If the operand is constant, the result is also constant.
-            if let Expr::Const { type_value, .. } = operand.as_ref() {
-                Ok(Expr::Const {type_value: type_value.$op()})
+            if cfg!(feature = "constant-folding") {
+                if let Expr::Const { type_value, .. } = operand.as_ref() {
+                    Ok(Expr::Const {type_value: type_value.$op()})
+                } else {
+                    Ok(Expr::$variant { operand })
+                }
             } else {
                 Ok(Expr::$variant { operand })
             }
@@ -988,14 +1037,18 @@ macro_rules! gen_binary_op {
                 check_fn(ctx, &lhs, &rhs, lhs_span, rhs_span)?;
             }
 
-            match (lhs.as_ref(), rhs.as_ref()) {
-                (
-                    Expr::Const { type_value: lhs, .. },
-                    Expr::Const { type_value: rhs, .. },
-                ) => Ok(Expr::Const {
-                    type_value: lhs.$op(&rhs),
-                }),
-                _ => Ok(Expr::$variant { lhs, rhs }),
+            if cfg!(feature = "constant-folding") {
+                match (lhs.as_ref(), rhs.as_ref()) {
+                    (
+                        Expr::Const { type_value: lhs, .. },
+                        Expr::Const { type_value: rhs, .. },
+                    ) => Ok(Expr::Const {
+                        type_value: lhs.$op(&rhs),
+                    }),
+                    _ => Ok(Expr::$variant { lhs, rhs }),
+                }
+            } else {
+                Ok(Expr::$variant { lhs, rhs })
             }
         }
     };
@@ -1023,14 +1076,18 @@ macro_rules! gen_string_op {
                 &[Type::String],
             )?;
 
-            match (lhs.as_ref(), rhs.as_ref()) {
-                (
-                    Expr::Const { type_value: lhs, .. },
-                    Expr::Const { type_value: rhs, .. },
-                ) => Ok(Expr::Const {
-                    type_value: lhs.$op(&rhs, $case_insensitive),
-                }),
-                _ => Ok(Expr::$variant { lhs, rhs }),
+            if cfg!(feature = "constant-folding") {
+                match (lhs.as_ref(), rhs.as_ref()) {
+                    (
+                        Expr::Const { type_value: lhs, .. },
+                        Expr::Const { type_value: rhs, .. },
+                    ) => Ok(Expr::Const {
+                        type_value: lhs.$op(&rhs, $case_insensitive),
+                    }),
+                    _ => Ok(Expr::$variant { lhs, rhs }),
+                }
+            } else {
+                Ok(Expr::$variant { lhs, rhs })
             }
         }
     };

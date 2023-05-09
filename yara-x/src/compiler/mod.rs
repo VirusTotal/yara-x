@@ -42,7 +42,7 @@ use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::compiler::ir::expr_from_ast;
+use crate::compiler::ir::{expr_from_ast, warn_if_not_bool};
 use crate::modules::BUILTIN_MODULES;
 
 mod atoms;
@@ -439,6 +439,8 @@ impl<'a> Compiler<'a> {
             .insert(rule.identifier.name, symbol);
 
         let condition = expr_from_ast(&mut ctx, &rule.condition)?;
+
+        warn_if_not_bool(&mut ctx, condition.ty(), rule.condition.span());
 
         emit_rule_condition(
             &mut ctx,

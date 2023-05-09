@@ -1341,6 +1341,48 @@ fn of() {
         "#,
         &[]
     );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a1 = "foo"
+            $a2 = "bar"
+            $b1 = "baz"
+          condition:
+            all of ($a*, $b*)
+        }
+        "#,
+        b"foobarbaz"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            all of them
+        }
+        "#,
+        b"foobarbaz"
+    );
+
+    rule_false!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            100% of them
+        }
+        "#,
+        b"barbaz"
+    );
 }
 
 #[test]

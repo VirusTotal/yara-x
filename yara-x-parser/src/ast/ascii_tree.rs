@@ -264,7 +264,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
                 Node("<field>".to_string(), vec![expr_ascii_tree(&expr.rhs)]),
             ],
         ),
-        Expr::FnCall(expr) => {
+        Expr::FuncCall(expr) => {
             // Create a vector where each argument is accompanied by a label
             // "<arg0>", "<arg1>", "<arg2>", and so on.
             let labelled_args: Vec<(String, &Expr)> = expr

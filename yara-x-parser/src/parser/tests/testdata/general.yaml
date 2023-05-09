@@ -19,11 +19,11 @@
           ├─ strings
           │  └─ $a = "foo" 
           └─ condition
-             └─ or : boolean(unknown)
+             └─ or
                 ├─ true
-                └─ and : boolean(unknown)
+                └─ and
                    ├─ false
-                   └─ not : boolean(unknown)
+                   └─ not
                       └─ $a
 ###############################################################################
 
@@ -37,11 +37,11 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and : boolean(true)
-                ├─ or : boolean(true)
+             └─ and
+                ├─ or
                 │  ├─ true
                 │  └─ false
-                └─ not : boolean(true)
+                └─ not
                    └─ false
 
 ###############################################################################
@@ -84,7 +84,7 @@
           └─ condition
              └─ $a at <expr>
                 └─ <expr>
-                   └─ add : integer(300)
+                   └─ add
                       ├─ 100
                       └─ 200
 
@@ -104,10 +104,10 @@
           ├─ strings
           │  └─ $a = "foo" 
           └─ condition
-             └─ eq : boolean(unknown)
+             └─ eq
                 ├─ #a in <range>
                 │  └─ <range>
-                │     ├─ add : integer(200)
+                │     ├─ add
                 │     │  ├─ 100
                 │     │  └─ 100
                 │     └─ 400
@@ -129,7 +129,7 @@
           ├─ strings
           │  └─ $a = "foo" 
           └─ condition
-             └─ eq : boolean(unknown)
+             └─ eq
                 ├─ @a[<index>]
                 │  └─ <index>
                 │     └─ 2
@@ -147,9 +147,9 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq : boolean(unknown)
+             └─ eq
                 ├─ entrypoint
-                └─ add : integer(3000)
+                └─ add
                    ├─ 1000
                    └─ 2000
 
@@ -165,23 +165,23 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ and : boolean(true)
-                ├─ and : boolean(true)
-                │  ├─ and : boolean(true)
-                │  │  ├─ and : boolean(true)
-                │  │  │  ├─ gt : boolean(true)
+             └─ and
+                ├─ and
+                │  ├─ and
+                │  │  ├─ and
+                │  │  │  ├─ gt
                 │  │  │  │  ├─ 2
                 │  │  │  │  └─ 1
-                │  │  │  └─ lt : boolean(true)
+                │  │  │  └─ lt
                 │  │  │     ├─ 1.0
                 │  │  │     └─ 3
-                │  │  └─ le : boolean(true)
+                │  │  └─ le
                 │  │     ├─ 4
                 │  │     └─ 4.0
-                │  └─ gt : boolean(true)
+                │  └─ gt
                 │     ├─ 5
                 │     └─ 4.9
-                └─ ge : boolean(true)
+                └─ ge
                    ├─ 5
                    └─ 5.0
 
@@ -197,7 +197,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ eq : unknown(unknown)
+             └─ eq
                 ├─ <struct>.<field>
                 │  ├─ <struct>
                 │  │  └─ <expr>[<index>]

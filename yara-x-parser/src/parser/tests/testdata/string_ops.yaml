@@ -10,7 +10,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ contains : boolean(true)
+             └─ contains
                 ├─ "mississippi"
                 └─ "ssi"
 
@@ -26,7 +26,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ contains : boolean(false)
+             └─ contains
                 ├─ "mississippi"
                 └─ "SSI"
 
@@ -43,7 +43,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ icontains : boolean(true)
+             └─ icontains
                 ├─ "mississippi"
                 └─ "SSI"
 
@@ -59,7 +59,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ startswith : boolean(true)
+             └─ startswith
                 ├─ "mississippi"
                 └─ "miss"
 
@@ -75,7 +75,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ startswith : boolean(false)
+             └─ startswith
                 ├─ "mississippi"
                 └─ "Miss"
 
@@ -91,7 +91,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ istartswith : boolean(true)
+             └─ istartswith
                 ├─ "mississippi"
                 └─ "Miss"
 
@@ -107,7 +107,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ endswith : boolean(true)
+             └─ endswith
                 ├─ "mississippi"
                 └─ "ippi"
 
@@ -123,7 +123,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ endswith : boolean(false)
+             └─ endswith
                 ├─ "mississippi"
                 └─ "iPPI"
 
@@ -139,7 +139,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ iendswith : boolean(true)
+             └─ iendswith
                 ├─ "mississippi"
                 └─ "iPPI"
 
@@ -155,7 +155,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ iequals : boolean(true)
+             └─ iequals
                 ├─ "foo"
                 └─ "FOO"
 
@@ -171,7 +171,7 @@
     └─ namespace
        └─ rule test
           └─ condition
-             └─ matches : boolean(unknown)
+             └─ matches
                 ├─ "foo"
                 └─ /foo/i
 

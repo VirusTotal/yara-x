@@ -19,13 +19,12 @@ converting expressions like `2+2+2` into the constant `6`.
 
 mod ast2ir;
 
-use yara_x_parser::ast::Span;
-
-use crate::compiler::{PatternId, VarStackFrame};
+use crate::compiler::{PatternId, Var, VarStackFrame};
 use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue};
 
 pub(in crate::compiler) use ast2ir::expr_from_ast;
+pub(in crate::compiler) use ast2ir::warn_if_not_bool;
 
 /*
 /// This type represents the intermediate representation (IR) for a set
@@ -221,6 +220,7 @@ pub(in crate::compiler) enum Expr {
         lhs: Box<Expr>,
     },
 
+    /// Field access expression (e.g. `foo.bar`)
     FieldAccess {
         rhs: Box<Expr>,
         lhs: Box<Expr>,
@@ -284,7 +284,7 @@ pub(in crate::compiler) enum Expr {
     },
 
     /// Function call.
-    FnCall(Box<FnCall>),
+    FuncCall(Box<FuncCall>),
 
     /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`)
     Of(Box<Of>),
@@ -299,13 +299,25 @@ pub(in crate::compiler) enum Expr {
     Lookup(Box<Lookup>),
 }
 
-/// A quantifier used in `for` and `of` expressions.
-pub(in crate::compiler) enum Quantifier {
-    None,
-    All,
-    Any,
-    Percentage(Expr),
-    Expr(Expr),
+/// A lookup operation in an array or dictionary.
+pub(in crate::compiler) struct Lookup {
+    pub type_value: TypeValue,
+    pub primary: Box<Expr>,
+    pub index: Box<Expr>,
+}
+
+/// An expression representing a function call.
+pub(in crate::compiler) struct FuncCall {
+    // The callable expression, which must resolve in some function identifier.
+    pub callable: Expr,
+    // The arguments passed to the function in this call.
+    pub args: Vec<Expr>,
+    // Type and value for the function's result.
+    pub type_value: TypeValue,
+    // Due to function overloading, the same function may have multiple
+    // signatures. This field indicates the index of the signature that
+    // matched the provided arguments.
+    pub signature_index: usize,
 }
 
 /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
@@ -324,6 +336,24 @@ pub(in crate::compiler) struct ForOf {
     pub pattern_set: Vec<PatternId>,
     pub condition: Expr,
     pub stack_frame: VarStackFrame,
+}
+
+/// A `for .. in` expression (e.g `for all x in iterator : (..)`)
+pub(in crate::compiler) struct ForIn {
+    pub quantifier: Quantifier,
+    pub variables: Vec<Var>,
+    pub iterable: Iterable,
+    pub condition: Expr,
+    pub stack_frame: VarStackFrame,
+}
+
+/// A quantifier used in `for` and `of` expressions.
+pub(in crate::compiler) enum Quantifier {
+    None,
+    All,
+    Any,
+    Percentage(Expr),
+    Expr(Expr),
 }
 
 /// In expressions like `$a at 0` and `$b in (0..10)`, this type represents the
@@ -355,36 +385,6 @@ pub(in crate::compiler) enum Iterable {
     Range(Range),
     ExprTuple(Vec<Expr>),
     Expr(Expr),
-}
-
-/// A lookup operation in an array or dictionary.
-pub(in crate::compiler) struct Lookup {
-    pub type_value: TypeValue,
-    pub primary: Box<Expr>,
-    pub index: Box<Expr>,
-}
-
-/// An expression representing a function call.
-pub(in crate::compiler) struct FnCall {
-    // The callable expression, which must resolve in some function identifier.
-    pub callable: Expr,
-    // The arguments passed to the function in this call.
-    pub args: Vec<Expr>,
-    // Type and value for the function's result.
-    pub type_value: TypeValue,
-    // Due to function overloading, the same function may have multiple
-    // signatures. This field indicates the index of the signature that
-    // matched the provided arguments.
-    pub signature_index: usize,
-}
-
-/// A `for .. in` expression (e.g `for all x in iterator : (..)`)
-pub(in crate::compiler) struct ForIn {
-    pub span: Span,
-    pub quantifier: Quantifier,
-    pub variables: Vec<Symbol>,
-    pub iterable: Iterable,
-    pub condition: Expr,
 }
 
 impl Expr {
@@ -450,7 +450,7 @@ impl Expr {
 
             Expr::FieldAccess { rhs, .. } => rhs.ty(),
             Expr::Ident { symbol, .. } => symbol.type_value().ty(),
-            Expr::FnCall(fn_call) => fn_call.type_value.ty(),
+            Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
         }
     }
@@ -517,7 +517,7 @@ impl Expr {
 
             Expr::FieldAccess { rhs, .. } => rhs.type_value(),
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),
-            Expr::FnCall(fn_call) => fn_call.type_value.clone(),
+            Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
         }
     }

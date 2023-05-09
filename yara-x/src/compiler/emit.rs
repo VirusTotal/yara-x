@@ -16,9 +16,11 @@ use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
 
-use crate::compiler::ir::{Expr, ForOf, MatchAnchor, Of, OfItems, Quantifier};
+use crate::compiler::ir::{
+    Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, Quantifier, Range,
+};
 use crate::compiler::{Context, PatternId, RuleId, Var, VarStackFrame};
-use crate::symbols::{SymbolKind, SymbolLookup};
+use crate::symbols::SymbolKind;
 use crate::types::{Array, Map, Type, TypeValue};
 use crate::wasm;
 use crate::wasm::string::RuntimeString;
@@ -196,11 +198,6 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
         }
         Expr::Ident { symbol } => {
             match symbol.kind() {
-                SymbolKind::Unknown => {
-                    unreachable!(
-                        "symbol kind must be known while emitting code"
-                    )
-                }
                 SymbolKind::Rule(rule_id) => {
                     // Emit code that checks if a rule has matched, leaving
                     // zero or one at the top of the stack.
@@ -617,11 +614,19 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
             emit_for_of_pattern_set(ctx, instr, for_of);
         }
 
-        Expr::ForIn(for_in) => {
-            todo!()
-        }
+        Expr::ForIn(for_in) => match &for_in.iterable {
+            Iterable::Range(range) => {
+                emit_for_in_range(ctx, instr, for_in, range);
+            }
+            Iterable::ExprTuple(expressions) => {
+                emit_for_in_expr_tuple(ctx, instr, for_in, expressions);
+            }
+            Iterable::Expr(iterable) => {
+                emit_for_in_expr(ctx, instr, for_in, iterable);
+            }
+        },
 
-        Expr::FnCall(fn_call) => {
+        Expr::FuncCall(fn_call) => {
             // Emit the arguments first.
             for expr in fn_call.args.iter() {
                 emit_expr(ctx, instr, expr);
@@ -851,38 +856,6 @@ fn emit_pattern_length(
         instr,
         ctx.function_id(wasm::export__pat_length.mangled_name),
     )
-}
-
-/// Emits the code that pushes a pattern identifier into the stack.
-///
-/// The identifier is something like `$foo`, `$bar`, `#foo`, `@bar`, etc. It can
-/// start with any of the valid prefixes `$`, `@`, `#`, and `!`. The prefix can
-/// appear alone when used inside a `for .. of` loop. In those cases it refers
-/// to the current loop variable.
-fn emit_pattern_identifier(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
-    identifier: &str,
-) {
-    if identifier == "$"
-        || identifier == "@"
-        || identifier == "#"
-        || identifier == "!"
-    {
-        // The prefix is used alone in a `for .. of`, in such cases we must
-        // load the loop variable `$`, which contains the PatternId for the
-        // current pattern.
-        match ctx.symbol_table.lookup("$").unwrap().kind() {
-            SymbolKind::WasmVar(var) => {
-                load_var(ctx, instr, *var);
-                // load_var returns a I64, convert it to I32.
-                instr.unop(UnaryOp::I32WrapI64);
-            }
-            _ => unreachable!(),
-        }
-    } else {
-        instr.i32_const(ctx.get_pattern_from_current_rule(identifier).0);
-    }
 }
 
 /// Emits the code that checks if rule has matched.
@@ -1220,7 +1193,6 @@ fn emit_of_pattern_set(
             set_var(ctx, instr, next_pattern_id, |ctx, instr| {
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |_, instr| {
-                    let x = pattern_ids.next();
                     if let Some(pattern_id) = pattern_ids.next() {
                         instr.i64_const(pattern_id.into());
                         return true;
@@ -1350,7 +1322,6 @@ fn emit_for_of_pattern_set(
     );
 }
 
-/*
 fn emit_for_in_range(
     ctx: &mut Context,
     instr: &mut InstrSeqBuilder,
@@ -1360,27 +1331,15 @@ fn emit_for_in_range(
     // A `for` loop in a range has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.vars.new_var(Type::Integer);
+    let stack_frame = for_in.stack_frame.clone();
 
-    // Create a symbol table containing the loop variable. Associate the symbol
-    // with the memory location where `next_item` is stored. Everytime that the
-    // loop variable is used in the condition, it will refer to the value
-    // stored in `next_item`.
-    let symbol =
-        Symbol::new(TypeValue::Integer(None), SymbolKind::WasmVar(next_item));
-
-    let mut loop_vars = SymbolTable::new();
-    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    // The only variable contains the loop's next item.
+    let next_item = for_in.variables[0];
 
     emit_for(
         ctx,
         instr,
+        stack_frame,
         &for_in.quantifier,
         |ctx, instr, n, loop_end| {
             // Set n = upper_bound - lower_bound + 1;
@@ -1425,12 +1384,6 @@ fn emit_for_in_range(
             incr_var(ctx, instr, next_item);
         },
     );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_item);
 }
 
 fn emit_for_in_expr(
@@ -1459,50 +1412,28 @@ fn emit_for_in_array(
     // A `for` loop in an array has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
+    let mut stack_frame = for_in.stack_frame.clone();
+
     let array = array_expr.type_value().as_array();
 
-    // The type of the loop variable must be the type of the items in the array,
-    // except for arrays of struct, for which we don't need to create a variable.
-    let (wasm_side_next_item, loop_var) = match array.as_ref() {
-        Array::Integers(_) => (true, TypeValue::Integer(None)),
-        Array::Floats(_) => (true, TypeValue::Float(None)),
-        Array::Bools(_) => (true, TypeValue::Bool(None)),
-        Array::Strings(_) => (true, TypeValue::String(None)),
-        Array::Structs(_) => (false, TypeValue::Unknown),
-    };
+    // The only variable contains the loop's next item.
+    let next_item = for_in.variables[0];
 
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.vars.new_var(loop_var.ty());
-
-    // Create a symbol table containing the loop variable.
-    let mut loop_vars = SymbolTable::new();
-
-    // Associate the symbol with the memory location where `next_item` is
-    // stored. Everytime that the loop variable is used in the condition,
-    // it will refer to the value stored in `next_item`.
-    let symbol = if wasm_side_next_item {
-        Symbol::new(loop_var, SymbolKind::WasmVar(next_item))
-    } else {
-        Symbol::new(loop_var, SymbolKind::HostVar(next_item))
-    };
-
-    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    // When values in the array are structs, `next_item` is a host-side
+    // variable. For every other type it is a WASM-side variable.
+    let wasm_side_next_item = !matches!(next_item.ty, Type::Struct);
 
     // Emit the expression that lookup the array.
     emit_expr(ctx, instr, array_expr);
 
-    let array_var = ctx.vars.new_var(Type::Array);
+    let array_var = stack_frame.new_var(Type::Array);
 
     emit_lookup_value(ctx, instr, array_var);
 
     emit_for(
         ctx,
         instr,
+        stack_frame,
         &for_in.quantifier,
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the array's length.
@@ -1552,9 +1483,6 @@ fn emit_for_in_array(
         // After each iteration.
         |_, _, _| {},
     );
-
-    ctx.symbol_table.pop();
-    ctx.free_vars(next_item);
 }
 
 fn emit_for_in_map(
@@ -1566,62 +1494,28 @@ fn emit_for_in_map(
     // A `for` loop in an map has exactly two variables.
     assert_eq!(for_in.variables.len(), 2);
 
+    let mut stack_frame = for_in.stack_frame.clone();
+
     let map = map_expr.type_value().as_map();
 
-    let (key, val) = match map.as_ref() {
-        Map::IntegerKeys { deputy, .. } => (
-            TypeValue::Integer(None),                       // key
-            deputy.as_ref().unwrap().clone_without_value(), // value
-        ),
-        Map::StringKeys { deputy, .. } => (
-            TypeValue::String(None),                        // key
-            deputy.as_ref().unwrap().clone_without_value(), // value
-        ),
-    };
-
-    // Create variable `next_key`, which will contain the key that will be
-    // put in the loop variable in the next iteration.
-    let next_key = ctx.vars.new_var(key.ty());
-
-    // Create variable `next_val`, which will contain the value that will be
-    // put in the loop variable in the next iteration.
-    let next_val = ctx.vars.new_var(val.ty());
+    let next_key = for_in.variables[0];
+    let next_val = for_in.variables[1];
 
     // When values in the map are structs, `next_val` is a host-side variable.
     // For every other type it is a WASM-side variable.
-    let wasm_side_next_val = !matches!(val.ty(), Type::Struct);
-
-    // Create a symbol table containing the loop variables.
-    let symbol_key = Symbol::new(key, SymbolKind::WasmVar(next_key));
-    let symbol_val = match next_val.ty {
-        Type::Integer | Type::Float | Type::Bool | Type::String => {
-            Symbol::new(val, SymbolKind::WasmVar(next_val))
-        }
-        Type::Struct | Type::Array => {
-            Symbol::new(val, SymbolKind::HostVar(next_val))
-        }
-        _ => unreachable!(),
-    };
-
-    let mut loop_vars = SymbolTable::new();
-
-    loop_vars.insert(for_in.variables[0].name, symbol_key);
-    loop_vars.insert(for_in.variables[1].name, symbol_val);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    let wasm_side_next_val = !matches!(next_val.ty, Type::Struct);
 
     // Emit the expression that lookup the map.
     emit_expr(ctx, instr, map_expr);
 
-    let map_var = ctx.new_var(Type::Map);
+    let map_var = stack_frame.new_var(Type::Map);
 
     emit_lookup_value(ctx, instr, map_var);
 
     emit_for(
         ctx,
         instr,
+        stack_frame,
         &for_in.quantifier,
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the maps's length.
@@ -1673,9 +1567,6 @@ fn emit_for_in_map(
         // After each iteration.
         |_, _, _| {},
     );
-
-    ctx.symbol_table.pop();
-    ctx.free_vars(next_key);
 }
 
 fn emit_for_in_expr_tuple(
@@ -1687,22 +1578,10 @@ fn emit_for_in_expr_tuple(
     // A `for` in a tuple of expressions has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(expressions.first().unwrap().ty());
+    let stack_frame = for_in.stack_frame.clone();
 
-    // Create a symbol table containing the loop variable.
-    let symbol = Symbol::new(
-        expressions.first().unwrap().type_value().clone_without_value(),
-        SymbolKind::WasmVar(next_item),
-    );
-
-    let mut loop_vars = SymbolTable::new();
-    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    // The only variable contains the loop's next item.
+    let next_item = for_in.variables[0];
 
     let num_expressions = expressions.len();
     let mut expressions = expressions.iter();
@@ -1710,6 +1589,7 @@ fn emit_for_in_expr_tuple(
     emit_for(
         ctx,
         instr,
+        stack_frame,
         &for_in.quantifier,
         |ctx, instr, n, _| {
             // Initialize `n` to number of expressions.
@@ -1738,14 +1618,8 @@ fn emit_for_in_expr_tuple(
         // After each iteration.
         |_, _, _| {},
     );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_item);
 }
-*/
+
 /// Emits a `for` loop.
 ///
 /// This function allows creating different types of `for` loops by receiving

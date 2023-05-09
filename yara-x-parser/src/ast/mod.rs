@@ -505,7 +505,7 @@ pub enum Expr<'src> {
     /// Pattern count expression (e.g. `#`, `#a`, `#a in (0..10)`)
     PatternCount(Box<IdentWithRange<'src>>),
 
-    /// Pattern offset expression (e.g. `@`` `@a`, `@a[1]`)
+    /// Pattern offset expression (e.g. `@` `@a`, `@a[1]`)
     PatternOffset(Box<IdentWithIndex<'src>>),
 
     /// Pattern length expression (e.g. `!`, `!a`, `!a[1]`)
@@ -518,7 +518,7 @@ pub enum Expr<'src> {
     FieldAccess(Box<BinaryExpr<'src>>),
 
     /// A function call expression (e.g. `foo()`, `bar(1,2)`)
-    FnCall(Box<FnCall<'src>>),
+    FuncCall(Box<FuncCall<'src>>),
 
     /// A `defined` expression (e.g. `defined foo`)
     Defined(Box<UnaryExpr<'src>>),
@@ -812,7 +812,7 @@ impl<'src> BinaryExpr<'src> {
 
 /// An expression representing a function call.
 #[derive(Debug, HasSpan)]
-pub struct FnCall<'src> {
+pub struct FuncCall<'src> {
     pub span: Span,
     pub args_span: Span,
     pub callable: Expr<'src>,

@@ -25,7 +25,6 @@ pub(crate) struct Symbol {
 /// accesses the symbol.
 #[derive(Clone)]
 pub(crate) enum SymbolKind {
-    Unknown,
     /// The symbol refers to a variable stored in WASM memory.
     WasmVar(Var),
     /// The symbol refers to a variable stored in the host.
