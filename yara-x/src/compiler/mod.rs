@@ -115,8 +115,18 @@ pub struct Compiler<'a> {
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
 
-    /// The main symbol table used by the compiler.
+    /// The main symbol table used by the compiler. This is actually a stack of
+    /// symbol tables where the bottom-most table is the one that contains
+    /// global identifiers like built-in functions and user-defined global
+    /// identifiers.
     symbol_table: StackedSymbolTable<'a>,
+
+    /// Symbol table that contains the global identifiers, including built-in
+    /// functions like `uint8`, `uint16`, etc. This symbol table is at the
+    /// bottom of the `symbol_table`'s stack. This field is used when we
+    /// need to access the global symbol table directly, for example for
+    /// defining new global variables.
+    global_symbols: Rc<RefCell<SymbolTable>>,
 
     /// Information about the current namespace (i.e: the namespace that will
     /// contain any new rules added via a call to `add_sources`.
@@ -165,6 +175,9 @@ pub struct Compiler<'a> {
     /// module.
     modules_struct: Struct,
 
+    /// Structure where each field corresponds to some global identifier.
+    globals_struct: Struct,
+
     /// Warnings generated while compiling the rules.
     warnings: Vec<Warning>,
 }
@@ -199,8 +212,15 @@ impl<'a> Compiler<'a> {
             symbols: symbol_table.push_new(),
         };
 
+        // At this point the symbol table (which is a stacked symbol table) has
+        // two layers, the global symbols at the bottom, and the default
+        // namespace on top of it. Calls to `Compiler::new_namespace` replace
+        // the top layer (default namespace) with a new one, but the bottom
+        // layer remains, so the global symbols are shared by all namespaces.
+
         Self {
             ident_pool,
+            global_symbols,
             symbol_table,
             next_pattern_id: 0,
             current_namespace: default_namespace,
@@ -210,6 +230,7 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             imported_modules: Vec::new(),
             modules_struct: Struct::new(),
+            globals_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
             wasm_mod: ModuleBuilder::new(),
@@ -321,8 +342,24 @@ impl<'a> Compiler<'a> {
         let ac = AhoCorasick::new(self.atoms.iter().map(|x| &x.atom))
             .expect("failed to build Aho-Corasick automaton");
 
+        // The structure that contains the global variables is serialized before
+        // being passed to the `Rules` struct. This is because we want `Rules`
+        // to be `Send`, so that it can be shared with scanners running in
+        // different threads. In order for `Rules` to be `Send`, it can't
+        // contain fields that are not `Send`. As `Struct` is not `Send` we
+        // can't have a `Struct` field in `Rules`, so what we have a `Vec<u8>`
+        // with a serialized version of the struct.
+        //
+        // An alternative is changing the `Rc` in some variants of `TypeValue`
+        // to `Arc`, as the root cause that prevents `Struct` from being `Send`
+        // is the use of `Rc` in `TypeValue`.
+        let serialized_globals = bincode::DefaultOptions::new()
+            .serialize(&self.globals_struct)
+            .expect("failed to serialize global variables");
+
         Rules {
             wasm_mod,
+            serialized_globals,
             ac: Some(ac),
             compiled_wasm_mod: Some(compiled_wasm_mod),
             num_patterns: self.next_pattern_id as usize,
@@ -708,7 +745,7 @@ impl<'a> Compiler<'a> {
                         self.modules_struct
                             .field_by_name(module_name)
                             .unwrap()
-                            .index as i32,
+                            .index,
                     ),
                 );
 
@@ -1266,6 +1303,13 @@ impl Rules {
     #[inline]
     pub(crate) fn ident_pool(&self) -> &StringPool<IdentId> {
         &self.ident_pool
+    }
+
+    #[inline]
+    pub(crate) fn globals(&self) -> Struct {
+        bincode::DefaultOptions::new()
+            .deserialize::<Struct>(self.serialized_globals.as_slice())
+            .expect("error deserializing global variables")
     }
 
     #[inline]

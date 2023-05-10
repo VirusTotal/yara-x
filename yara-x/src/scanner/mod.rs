@@ -66,7 +66,9 @@ impl<'r> Scanner<'r> {
                 compiled_rules: rules,
                 string_pool: BStringPool::new(),
                 current_struct: None,
-                root_struct: Struct::new(),
+                // TODO: prevent this initialization calling .globals() which is
+                // not necessary as .globals() is called before each scan.
+                root_struct: rules.globals(),
                 scanned_data: null(),
                 scanned_data_len: 0,
                 rules_matching: Vec::new(),
@@ -185,6 +187,11 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = data.as_ptr();
         ctx.scanned_data_len = data.len();
 
+        // The root structure is initialized with the global variables defined
+        // during the compilation of the rules. The data obtained from modules
+        // will be later added to this struct.
+        ctx.root_struct = ctx.compiled_rules.globals();
+
         // If the string pool is too large, destroy it and create a new one
         // empty. Re-using the same string pool in multiple scans improves
         // performance, as the pool doesn't need to be destroyed and created
@@ -257,7 +264,7 @@ impl<'r> Scanner<'r> {
             );
 
             // The data structure obtained from the module is added to the
-            // symbol table (data from previous scans is replaced). This
+            // symbol table. This
             // structure implements the SymbolLookup trait, which is used
             // by the runtime for obtaining the values of individual fields
             // in the data structure, as they are used in the rule conditions.

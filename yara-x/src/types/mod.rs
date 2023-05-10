@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use bstr::ByteSlice;
 use bstr::{BStr, BString};
+use serde::{Deserialize, Serialize};
 use walrus::ValType;
 
 mod array;
@@ -78,7 +79,7 @@ impl From<Type> for ValType {
 /// structures, arrays and maps don't contain actual values at compile time,
 /// they only provide details about the type, like for example, which are
 /// the fields in a struct, or what's the type of the items in an array.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum TypeValue {
     Unknown,
     Integer(Option<i64>),
@@ -89,6 +90,9 @@ pub enum TypeValue {
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
+
+    // A TypeValue that contains a function is not serialized.
+    #[serde(skip)]
     Func(Rc<Func>),
 }
 

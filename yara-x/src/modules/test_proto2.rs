@@ -50,7 +50,7 @@ fn to_int(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
 }
 
 #[module_main]
-fn main(_ctx: &ScanContext) -> TestProto2 {
+fn main(ctx: &ScanContext) -> TestProto2 {
     let mut test = TestProto2::new();
 
     test.set_int32_zero(0);
@@ -125,6 +125,8 @@ fn main(_ctx: &ScanContext) -> TestProto2 {
     test.map_int64_bool.insert(100, true);
 
     test.set_bool_proto(true);
+
+    test.set_file_size(ctx.scanned_data().len() as u64);
 
     test
 }

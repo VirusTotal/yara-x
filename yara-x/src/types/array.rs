@@ -1,7 +1,11 @@
-use crate::types::{Struct, TypeValue};
-use bstr::BString;
 use std::rc::Rc;
 
+use bstr::BString;
+use serde::{Deserialize, Serialize};
+
+use crate::types::{Struct, TypeValue};
+
+#[derive(Serialize, Deserialize)]
 pub enum Array {
     Integers(Vec<i64>),
     Floats(Vec<f64>),

@@ -229,7 +229,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
                     }
                 }
                 SymbolKind::FieldIndex(index) => {
-                    ctx.lookup_stack.push_back(*index);
+                    ctx.lookup_stack.push_back((*index).try_into().unwrap());
 
                     match symbol.type_value().ty() {
                         Type::Integer => {

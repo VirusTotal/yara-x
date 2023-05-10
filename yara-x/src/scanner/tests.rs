@@ -88,3 +88,23 @@ fn xor_matches() {
     // The xor key must be 1.
     assert_eq!(matches, [("$a", 0..11, Some(1))])
 }
+
+#[test]
+fn reuse_scanner() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.file_size == 3
+        } 
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(b"").num_matching_rules(), 0);
+    assert_eq!(scanner.scan(b"123").num_matching_rules(), 1);
+    assert_eq!(scanner.scan(b"").num_matching_rules(), 0);
+}

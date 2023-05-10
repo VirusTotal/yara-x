@@ -10,6 +10,7 @@ use protobuf::reflect::{
 };
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
 use yara_x_proto::exts::enum_options as yara_enum_options;
 use yara_x_proto::exts::field_options as yara_field_options;
@@ -18,7 +19,7 @@ use yara_x_proto::exts::module_options as yara_module_options;
 use crate::types::{Array, Map, TypeValue};
 
 /// A field in a [`Struct`].
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StructField {
     /// Field name.
     pub name: String,
@@ -45,7 +46,7 @@ pub struct StructField {
 /// The structures that represent a YARA module are created from the protobuf
 /// associated to that module. Functions [`Struct::from_proto_msg`] and
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Struct {
     /// Fields in this structure. The index of each field is the index that it
     /// has in this vector. Fields are sorted by field number, which means that

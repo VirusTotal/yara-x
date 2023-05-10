@@ -30,7 +30,7 @@ pub(crate) enum SymbolKind {
     /// The symbol refers to a variable stored in the host.
     HostVar(Var),
     /// The symbol refers to some field in a structure.
-    FieldIndex(i32),
+    FieldIndex(usize),
     /// The symbol refers to a rule.
     Rule(RuleId),
     /// The symbol refers to a function.
@@ -111,7 +111,7 @@ impl SymbolLookup for Struct {
         } else {
             Symbol::new(
                 field.type_value.clone(),
-                SymbolKind::FieldIndex(field.index as i32),
+                SymbolKind::FieldIndex(field.index),
             )
         };
 

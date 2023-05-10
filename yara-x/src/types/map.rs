@@ -1,7 +1,10 @@
-use crate::types::TypeValue;
 use bstr::BString;
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
+use crate::types::TypeValue;
+
+#[derive(Serialize, Deserialize)]
 pub enum Map {
     /// A map that has integer keys.
     IntegerKeys {

@@ -40,7 +40,7 @@ base64 = { workspace = true }
 bincode = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
-bstr = { workspace = true }
+bstr = { workspace = true, features=["serde"] }
 fmmap = { workspace = true }
 indexmap = { workspace = true }
 intaglio = { workspace = true }
@@ -51,7 +51,7 @@ memx = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features=["rc"] }
 thiserror = { workspace = true }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features=["cranelift"]  }

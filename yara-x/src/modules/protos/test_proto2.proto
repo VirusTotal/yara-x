@@ -171,6 +171,8 @@ message TestProto2 {
     ITEM_0 = 0;
     ITEM_1 = 1;
   }
+
+  optional uint64 file_size = 400;
 }
 
 enum TopLevelEnumeration {
