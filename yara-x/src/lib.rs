@@ -49,6 +49,7 @@ pub use scanner::{
     Matches, MatchingRules, NonMatchingRules, Pattern, Patterns, Rule,
     ScanResults, Scanner,
 };
+pub use variables::Variable;
 
 mod compiler;
 mod modules;
@@ -56,6 +57,7 @@ mod scanner;
 mod string_pool;
 mod symbols;
 mod types;
+mod variables;
 mod wasm;
 
 #[cfg(test)]

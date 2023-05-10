@@ -81,3 +81,54 @@ fn var_stack() {
 
     assert_eq!(stack.used, 0);
 }
+
+#[test]
+fn globals() {
+    let rules = Compiler::new()
+        .define_global("bool_true", true)
+        .add_source("rule foo {condition: bool_true}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("int_1", 1)
+        .add_source("rule foo {condition: int_1 == 1}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("float_1", 1)
+        .add_source("rule foo {condition: float_1 == 1.0}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("str_foo", "foo")
+        .add_source(r#"rule foo {condition: str_foo == "foo"}"#)
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("bstr_foo", b"\0\0".as_slice())
+        .add_source(r#"rule foo {condition: bstr_foo == "\0\0"}"#)
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("str_foo", "foo".to_string())
+        .add_source(r#"rule foo {condition: str_foo == "foo"}"#)
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+}

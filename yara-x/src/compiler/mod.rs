@@ -36,12 +36,14 @@ use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
 use crate::types::{Func, FuncSignature, Struct, Type, TypeValue};
+use crate::variables::Variable;
 use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
+
 use crate::compiler::ir::{expr_from_ast, warn_if_not_bool};
 use crate::modules::BUILTIN_MODULES;
 
@@ -274,7 +276,33 @@ impl<'a> Compiler<'a> {
         Ok(self)
     }
 
-    /// Creates a new namespace with a given name.
+    /// Defines a global variable and sets its initial value.
+    ///
+    /// Global variables must be defined before calling [`Compiler::add_source`]
+    /// with a YARA rule that uses the variable. The variable type in YARA will
+    /// depend on `T`.
+    pub fn define_global<T: Into<Variable>>(
+        mut self,
+        ident: &str,
+        value: T,
+    ) -> Self {
+        let var: Variable = value.into();
+        let type_value: TypeValue = var.into();
+        // TODO: handle duplicate identifiers
+        self.globals_struct.add_field(ident, type_value.clone());
+        self.global_symbols.borrow_mut().insert(
+            ident,
+            Symbol::new(
+                type_value,
+                SymbolKind::FieldIndex(
+                    self.globals_struct.field_by_name(ident).unwrap().index,
+                ),
+            ),
+        );
+        self
+    }
+
+    /// Creates a new namespace.
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the
     /// newly created namespace.
@@ -1173,6 +1201,9 @@ pub struct Rules {
     /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
     /// it belongs to.
     atoms: Vec<AtomInfo>,
+
+    /// TODO
+    serialized_globals: Vec<u8>,
 
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
     /// This allows to search for all the atoms in the scanned data at the same
