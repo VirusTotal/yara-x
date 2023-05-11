@@ -1403,11 +1403,9 @@ macro_rules! gen_uint_fn {
 gen_uint_fn!(uint8, u8, from_le_bytes);
 gen_uint_fn!(uint16, u16, from_le_bytes);
 gen_uint_fn!(uint32, u32, from_le_bytes);
-gen_uint_fn!(uint64, u64, from_le_bytes);
 gen_uint_fn!(uint8be, u8, from_be_bytes);
 gen_uint_fn!(uint16be, u16, from_be_bytes);
 gen_uint_fn!(uint32be, u32, from_be_bytes);
-gen_uint_fn!(uint64be, u64, from_be_bytes);
 
 #[cfg(test)]
 mod tests {
