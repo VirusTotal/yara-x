@@ -278,13 +278,16 @@ impl<'a> Compiler<'a> {
 
     /// Defines a global variable and sets its initial value.
     ///
+    /// `V` can be any type that implements [`Into<Variable>`], which includes:
+    /// `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`, `bool`,
+    /// `&str` and `String`.
+    ///
     /// Global variables must be defined before calling [`Compiler::add_source`]
-    /// with a YARA rule that uses the variable. The variable type in YARA will
-    /// depend on `T`.
-    pub fn define_global<T: Into<Variable>>(
+    /// with a YARA rule that uses the variable.
+    pub fn define_global<V: Into<Variable>>(
         mut self,
         ident: &str,
-        value: T,
+        value: V,
     ) -> Self {
         let var: Variable = value.into();
         let type_value: TypeValue = var.into();
