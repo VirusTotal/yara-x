@@ -93,7 +93,7 @@ fn globals() {
     assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
 
     let rules = Compiler::new()
-        .define_global("int_1", 1)
+        .define_global("int_1", 1u8)
         .add_source("rule foo {condition: int_1 == 1}")
         .unwrap()
         .build();
@@ -101,7 +101,63 @@ fn globals() {
     assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
 
     let rules = Compiler::new()
-        .define_global("float_1", 1)
+        .define_global("int_1", 1u16)
+        .add_source("rule foo {condition: int_1 == 1}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("int_1", 1u32)
+        .add_source("rule foo {condition: int_1 == 1}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("int_1", 1i8)
+        .add_source("rule foo {condition: int_1 == 1}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("int_1", 1i16)
+        .add_source("rule foo {condition: int_1 == 1}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("int_1", 1i32)
+        .add_source("rule foo {condition: int_1 == 1}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("int_1", 1i64)
+        .add_source("rule foo {condition: int_1 == 1}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("float_1", 1_f32)
+        .add_source("rule foo {condition: float_1 == 1.0}")
+        .unwrap()
+        .build();
+
+    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+
+    let rules = Compiler::new()
+        .define_global("float_1", 1_f64)
         .add_source("rule foo {condition: float_1 == 1.0}")
         .unwrap()
         .build();
