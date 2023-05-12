@@ -191,37 +191,37 @@ impl<'src> PatternModifiers<'src> {
     }
 
     #[inline]
-    pub fn ascii(&self) -> Option<&PatternModifier> {
+    pub fn ascii(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("ascii")
     }
 
     #[inline]
-    pub fn wide(&self) -> Option<&PatternModifier> {
+    pub fn wide(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("wide")
     }
 
     #[inline]
-    pub fn base64(&self) -> Option<&PatternModifier> {
+    pub fn base64(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("base64")
     }
 
     #[inline]
-    pub fn base64wide(&self) -> Option<&PatternModifier> {
+    pub fn base64wide(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("base64wide")
     }
 
     #[inline]
-    pub fn fullword(&self) -> Option<&PatternModifier> {
+    pub fn fullword(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("fullword")
     }
 
     #[inline]
-    pub fn nocase(&self) -> Option<&PatternModifier> {
+    pub fn nocase(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("nocase")
     }
 
     #[inline]
-    pub fn xor(&self) -> Option<&PatternModifier> {
+    pub fn xor(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("xor")
     }
 }

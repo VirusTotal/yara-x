@@ -9,12 +9,90 @@ use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::{ast, ErrorInfo, Warning};
 
 use crate::compiler::ir::{
-    Expr, ForIn, ForOf, FuncCall, Iterable, Lookup, MatchAnchor, Of, OfItems,
-    Quantifier, Range,
+    Expr, ForIn, ForOf, FuncCall, HexPattern, Iterable, Lookup, MatchAnchor,
+    Of, OfItems, Pattern, PatternFlagSet, PatternFlags, Quantifier, Range,
+    RegexpPattern, TextPattern,
 };
 use crate::compiler::{CompileError, Context, PatternId};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Type, TypeValue};
+
+pub(in crate::compiler) fn patterns_from_ast(
+    patterns: Option<Vec<ast::Pattern>>,
+) -> Result<Vec<Pattern>, CompileError> {
+    patterns
+        .into_iter()
+        .flatten()
+        .map(pattern_from_ast)
+        .collect::<Result<Vec<Pattern>, CompileError>>()
+}
+
+fn pattern_from_ast(pattern: ast::Pattern) -> Result<Pattern, CompileError> {
+    match pattern {
+        ast::Pattern::Text(pattern) => {
+            let mut flags = PatternFlagSet::none();
+
+            if pattern.modifiers.ascii().is_some() {
+                flags |= PatternFlags::Ascii;
+            }
+
+            if pattern.modifiers.wide().is_some() {
+                flags |= PatternFlags::Wide;
+            }
+
+            if pattern.modifiers.nocase().is_some() {
+                flags |= PatternFlags::Nocase;
+            }
+
+            if pattern.modifiers.fullword().is_some() {
+                flags |= PatternFlags::Fullword;
+            }
+
+            let xor_range = match pattern.modifiers.xor() {
+                Some(ast::PatternModifier::Xor { start, end, .. }) => {
+                    flags |= PatternFlags::Xor;
+                    Some(*start..=*end)
+                }
+                _ => None,
+            };
+
+            let base64_alphabet = match pattern.modifiers.base64() {
+                Some(ast::PatternModifier::Base64 { alphabet, .. }) => {
+                    flags |= PatternFlags::Base64;
+                    *alphabet
+                }
+                _ => None,
+            };
+
+            let base64wide_alphabet = match pattern.modifiers.base64wide() {
+                Some(ast::PatternModifier::Base64Wide {
+                    alphabet, ..
+                }) => {
+                    flags |= PatternFlags::Base64Wide;
+                    *alphabet
+                }
+                _ => None,
+            };
+
+            Ok(Pattern::Text(TextPattern {
+                ident: pattern.identifier.name,
+                flags,
+                text: pattern.value,
+                xor_range,
+                base64_alphabet,
+                base64wide_alphabet,
+            }))
+        }
+        ast::Pattern::Hex(pattern) => Ok(Pattern::Hex(HexPattern {
+            ident: pattern.identifier.name,
+            flags: PatternFlagSet::none(),
+        })),
+        ast::Pattern::Regexp(pattern) => Ok(Pattern::Regexp(RegexpPattern {
+            ident: pattern.identifier.name,
+            flags: PatternFlagSet::none(),
+        })),
+    }
+}
 
 /// Given the AST for some expression, creates its IR.
 pub(in crate::compiler) fn expr_from_ast(

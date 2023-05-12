@@ -312,8 +312,8 @@ pub(super) struct XorGenerator {
 }
 
 impl XorGenerator {
-    pub fn new(atom: &Atom, range: RangeInclusive<u8>) -> Self {
-        Self { atom: atom.clone(), range }
+    pub fn new(atom: Atom, range: RangeInclusive<u8>) -> Self {
+        Self { atom, range }
     }
 }
 
@@ -386,7 +386,7 @@ mod test {
     #[test]
     fn xor_generator() {
         let atom = Atom::from([0x00, 0x01, 0x02]);
-        let mut c = XorGenerator::new(&atom, 0..=1);
+        let mut c = XorGenerator::new(atom, 0..=1);
 
         assert_eq!(c.next(), Some(Atom::from([0x00, 0x01, 0x02])));
         assert_eq!(c.next(), Some(Atom::from([0x01, 0x00, 0x03])));

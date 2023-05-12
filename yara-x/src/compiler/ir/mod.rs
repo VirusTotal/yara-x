@@ -17,35 +17,76 @@ example is constant folding, which is done while the IR is being built,
 converting expressions like `2+2+2` into the constant `6`.
 */
 
-mod ast2ir;
+use bitmask::bitmask;
+use std::borrow::Cow;
+use std::ops::RangeInclusive;
+
+use bstr::BStr;
 
 use crate::compiler::{PatternId, Var, VarStackFrame};
 use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue};
 
 pub(in crate::compiler) use ast2ir::expr_from_ast;
+pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::warn_if_not_bool;
 
-/*
-/// This type represents the intermediate representation (IR) for a set
-/// of YARA rules.
-pub(crate) struct IR {
-    ident_pool: StringPool<IdentId>,
-    rules: Vec<Rule>,
+mod ast2ir;
+
+bitmask! {
+    #[derive(Debug)]
+    pub mask PatternFlagSet: u16 where flags PatternFlags  {
+        Ascii                = 0x01,
+        Wide                 = 0x02,
+        Nocase               = 0x04,
+        Base64               = 0x08,
+        Base64Wide           = 0x10,
+        Xor                  = 0x20,
+        Fullword             = 0x40,
+        Private              = 0x80,
+    }
 }
 
-pub(crate) struct Rule {
-    ident_span: Span,
-    /// ID of the rule identifier in the identifiers pool.
-    pub(crate) ident_id: IdentId,
-    /// ID of the rule namespace in the identifiers pool.
-    pub(crate) namespace_id: IdentId,
-    /// Rule's condition.
-    pub(crate) condition: Expr,
+/// Intermediate representation (IR) for a pattern.
+pub(in crate::compiler) enum Pattern<'src> {
+    Text(TextPattern<'src>),
+    Hex(HexPattern<'src>),
+    Regexp(RegexpPattern<'src>),
 }
 
- */
+impl<'src> Pattern<'src> {
+    pub fn identifier(&self) -> &'src str {
+        match self {
+            Pattern::Text(pattern) => pattern.ident,
+            Pattern::Hex(pattern) => pattern.ident,
+            Pattern::Regexp(pattern) => pattern.ident,
+        }
+    }
+}
 
+/// Intermediate representation (IR) for a text pattern.
+pub(in crate::compiler) struct TextPattern<'src> {
+    pub ident: &'src str,
+    pub flags: PatternFlagSet,
+    pub text: Cow<'src, BStr>,
+    pub xor_range: Option<RangeInclusive<u8>>,
+    pub base64_alphabet: Option<&'src str>,
+    pub base64wide_alphabet: Option<&'src str>,
+}
+
+/// Intermediate representation (IR) for a hex pattern.
+pub(in crate::compiler) struct HexPattern<'src> {
+    pub ident: &'src str,
+    pub flags: PatternFlagSet,
+}
+
+/// Intermediate representation (IR) for a regular expression.
+pub(in crate::compiler) struct RegexpPattern<'src> {
+    pub ident: &'src str,
+    pub flags: PatternFlagSet,
+}
+
+/// Intermediate representation (IR) for an expression.
 pub(in crate::compiler) enum Expr {
     /// Constant value (i.e: the value is known at compile time)
     Const {
