@@ -15,6 +15,7 @@ use std::rc::Rc;
 use aho_corasick::AhoCorasick;
 use bincode::Options;
 use bstr::ByteSlice;
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::ir::InstrSeqId;
@@ -37,7 +38,7 @@ use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
 use crate::types::{Func, FuncSignature, Struct, Type, TypeValue};
-use crate::variables::Variable;
+use crate::variables::{is_valid_identifier, Variable};
 use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};
@@ -289,21 +290,28 @@ impl<'a> Compiler<'a> {
         mut self,
         ident: &str,
         value: V,
-    ) -> Self {
+    ) -> Result<Self, VariableError> {
+        if !is_valid_identifier(ident) {
+            return Err(VariableError::InvalidIdentifier);
+        }
+
+        if self.globals_struct.field_by_name(ident).is_some() {
+            return Err(VariableError::AlreadyExists);
+        }
+
         let var: Variable = value.into();
         let type_value: TypeValue = var.into();
-        // TODO: handle duplicate identifiers
+
         self.globals_struct.add_field(ident, type_value.clone());
         self.global_symbols.borrow_mut().insert(
             ident,
             Symbol::new(
                 type_value,
-                SymbolKind::FieldIndex(
-                    self.globals_struct.field_by_name(ident).unwrap().index,
-                ),
+                SymbolKind::FieldIndex(self.globals_struct.index_of(ident)),
             ),
         );
-        self
+
+        Ok(self)
     }
 
     /// Creates a new namespace.
@@ -713,8 +721,13 @@ impl<'a> Compiler<'a> {
         src: &SourceCode,
         imports: &[ast::Import],
     ) -> Result<(), Error> {
+        // Remove duplicate imports. Duplicate imports raise a warning, but
+        // they are allowed for backward-compatibility. We don't want to
+        // process the same import twice.
+        let imports = imports.iter().unique_by(|m| &m.module_name);
+
         // Iterate over the list of imported modules.
-        for import in imports.iter() {
+        for import in imports {
             // Does the imported module actually exist? ...
             if let Some(module) =
                 BUILTIN_MODULES.get(import.module_name.as_str())
@@ -789,10 +802,7 @@ impl<'a> Compiler<'a> {
                 let symbol = Symbol::new(
                     module_struct,
                     SymbolKind::FieldIndex(
-                        self.modules_struct
-                            .field_by_name(module_name)
-                            .unwrap()
-                            .index,
+                        self.modules_struct.index_of(module_name),
                     ),
                 );
 
@@ -804,7 +814,7 @@ impl<'a> Compiler<'a> {
                     .borrow_mut()
                     .insert(module_name, symbol);
             } else {
-                // ... if no, that's an error.
+                // The module does not exist, that's an error.
                 return Err(Error::CompileError(
                     CompileError::unknown_module(
                         &self.report_builder,

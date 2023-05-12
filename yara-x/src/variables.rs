@@ -101,3 +101,42 @@ impl From<Variable> for TypeValue {
         value.0
     }
 }
+
+/// Returns true if the given identifier is a valid one.
+///
+/// Valid identifiers are composed of letters, digits, and the underscore (_)
+/// character, but they can't start with a digit.
+pub fn is_valid_identifier(ident: &str) -> bool {
+    let mut chars = ident.chars();
+
+    if let Some(first) = chars.next() {
+        // The first character must be a letter or underscore.
+        if !first.is_alphabetic() && first != '_' {
+            return false;
+        }
+    } else {
+        // No first char, ident is empty.
+        return false;
+    }
+
+    // The the remaining characters must be letters, numbers, or underscores.
+    chars.all(|c| c.is_alphanumeric() || c == '_')
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn is_valid_identifier() {
+        // Valid identifiers
+        assert!(super::is_valid_identifier("a"));
+        assert!(super::is_valid_identifier("_"));
+        assert!(super::is_valid_identifier("foo"));
+        assert!(super::is_valid_identifier("_foo"));
+
+        // Invalid identifiers
+        assert!(!super::is_valid_identifier("123"));
+        assert!(!super::is_valid_identifier("1foo"));
+        assert!(!super::is_valid_identifier("foo|"));
+        assert!(!super::is_valid_identifier("foo.bar"));
+    }
+}

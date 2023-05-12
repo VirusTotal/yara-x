@@ -9,7 +9,6 @@ use protobuf::reflect::{
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
 };
 use protobuf::MessageDyn;
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use yara_x_proto::exts::enum_options as yara_enum_options;
@@ -26,8 +25,6 @@ pub struct StructField {
     /// For structures derived from a protobuf this contains the field number
     /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
-    /// Index that occupies the field in the structure it belongs to.
-    pub index: usize,
     /// Field type and value.
     pub type_value: TypeValue,
 }
@@ -48,16 +45,14 @@ pub struct StructField {
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Struct {
-    /// Fields in this structure. The index of each field is the index that it
-    /// has in this vector. Fields are sorted by field number, which means that
-    /// for protobuf-derived structures the order of the fields  doesn't depend
-    /// on the order in which they appear in the source .proto file. For
-    /// structures that are not created from a protobuf, the order of fields is
-    /// the order in which they were inserted.
-    fields: Vec<StructField>,
-    /// Map where keys are field names and values are their corresponding index
-    /// in the `fields` vector.
-    field_index: FxHashMap<String, usize>,
+    /// Fields in this structure.
+    ///
+    /// An `IndexMap` is used instead of a `HashMap` because we want to be able
+    /// to maintain the field insertion order and retrieve fields according to
+    /// this order. For protobuf-derived structures fields are inserted in the
+    /// order determined by their tag numbers, the order in which they appear
+    /// in the .proto source file is irrelevant.
+    fields: IndexMap<String, StructField>,
 }
 
 impl Default for Struct {
@@ -68,7 +63,7 @@ impl Default for Struct {
 
 impl Struct {
     pub fn new() -> Self {
-        Self { fields: Vec::new(), field_index: FxHashMap::default() }
+        Self { fields: IndexMap::new() }
     }
 
     /// Adds a new field to the structure.
@@ -80,14 +75,16 @@ impl Struct {
     ///
     /// # Panics
     ///
+    /// If a field with the same name already exists in the structure.
+    ///
     /// If the name is a dot-separated sequence of field names but some of
     /// the fields don't exist or is not a structure. For example if field
     /// name is "foo.bar.baz" but the field "foo" doesn't exist or is not
     /// a structure.
     ///
-    /// Also panics if there is some [`Rc`] or [`Weak`] pointer pointing to
-    /// any of the intermediate structures (e.g: the structures in the "foo"
-    /// and "bar" fields).
+    /// If there is some [`Rc`] or [`Weak`] pointer pointing to any of the
+    /// intermediate structures (e.g: the structures in the "foo" and "bar"
+    /// fields).
     pub fn add_field(&mut self, name: &str, value: TypeValue) -> &mut Self {
         if let Some(dot) = name.find('.') {
             let field =
@@ -107,46 +104,54 @@ impl Struct {
             } else {
                 panic!("field `{}` is not a struct", &name[0..dot])
             }
-        } else {
-            let index = self.fields.len();
-            self.fields.push(StructField {
+        } else if let Some(existing) = self.fields.insert(
+            name.to_owned(),
+            StructField {
                 type_value: value,
                 name: name.to_owned(),
                 number: 0,
-                index,
-            });
-            self.field_index.insert(name.to_owned(), index);
+            },
+        ) {
+            panic!("field `{}` already exists", existing.name)
         }
 
         self
     }
 
+    /// Get a field by index.
     #[inline]
     pub fn field_by_index(&self, index: usize) -> Option<&StructField> {
-        self.fields.get(index)
+        self.fields.get_index(index).map(|(k, v)| v)
     }
 
+    /// Get a field by name.
     #[inline]
     pub fn field_by_name(&self, name: &str) -> Option<&StructField> {
-        let index = self.field_index.get(name)?;
-        self.field_by_index(*index)
+        self.fields.get(name)
     }
 
+    /// Get a mutable field by index.
     #[inline]
     pub fn field_by_index_mut(
         &mut self,
         index: usize,
     ) -> Option<&mut StructField> {
-        self.fields.get_mut(index)
+        self.fields.get_index_mut(index).map(|(k, v)| v)
     }
 
+    /// Get a mutable field by name.
     #[inline]
     pub fn field_by_name_mut(
         &mut self,
         name: &str,
     ) -> Option<&mut StructField> {
-        let index = self.field_index.get(name)?;
-        self.field_by_index_mut(*index)
+        self.fields.get_mut(name)
+    }
+
+    /// Returns the index of a field.
+    #[inline]
+    pub fn index_of(&self, name: &str) -> usize {
+        self.fields.get_index_of(name).unwrap()
     }
 
     /// Creates a [`Struct`] from a protobuf message.
@@ -279,7 +284,6 @@ impl Struct {
 
             fields.push(StructField {
                 // Index is initially zero, will be adjusted later.
-                index: 0,
                 type_value: value,
                 number,
                 name,
@@ -318,7 +322,6 @@ impl Struct {
                 }
 
                 fields.push(StructField {
-                    index: fields.len(),
                     type_value: TypeValue::Struct(Rc::new(enum_struct)),
                     number: 0,
                     name: Self::enum_name(&enum_),
@@ -326,23 +329,21 @@ impl Struct {
             }
         }
 
-        // Update index numbers, so that each field has an index that
-        // corresponds to its position in the vector. Also create the
-        // map that correlates field names to field indexes.
-        let mut field_index = FxHashMap::default();
+        let mut field_index = IndexMap::new();
 
-        for (index, field) in fields.iter_mut().enumerate() {
-            field.index = index;
-            if field_index.insert(field.name.clone(), index).is_some() {
+        for field in fields {
+            if let Some(existing_field) =
+                field_index.insert(field.name.clone(), field)
+            {
                 panic!(
                     "duplicate field name `{}` in `{}`",
-                    field.name,
+                    existing_field.name,
                     msg_descriptor.name()
                 )
             }
         }
 
-        Self { fields, field_index }
+        Self { fields: field_index }
     }
 
     /// Returns true if the given message is the YARA module's root message.
@@ -825,11 +826,19 @@ mod tests {
     fn test_struct() {
         let mut root = Struct::default();
         let foo = Struct::default();
+        let bar = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
+        root.add_field("bar", TypeValue::Integer(Some(1)));
+
+        let foo_index = root.index_of("foo");
+        let bar_index = root.index_of("bar");
+
+        assert_eq!(foo_index, 0);
+        assert_eq!(bar_index, 1);
 
         let field1 = root.field_by_name("foo").unwrap();
-        let field2 = root.field_by_index(field1.index).unwrap();
+        let field2 = root.field_by_index(foo_index).unwrap();
 
         assert_eq!(field1.name, "foo");
         assert_eq!(field1.name, field2.name);

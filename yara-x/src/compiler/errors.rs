@@ -33,6 +33,15 @@ pub enum SerializationError {
     IoError(#[from] io::Error),
 }
 
+#[derive(Error, Debug, PartialEq)]
+pub enum VariableError {
+    #[error("invalid variable identifier")]
+    InvalidIdentifier,
+
+    #[error("variable with that name already exists")]
+    AlreadyExists,
+}
+
 #[derive(Error, Debug)]
 #[error(transparent)]
 #[doc(hidden)]

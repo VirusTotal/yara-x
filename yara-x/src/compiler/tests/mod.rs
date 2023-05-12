@@ -1,4 +1,4 @@
-use crate::compiler::{SerializationError, Var, VarStack};
+use crate::compiler::{SerializationError, Var, VarStack, VariableError};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner};
 
@@ -84,16 +84,24 @@ fn var_stack() {
 
 #[test]
 fn globals() {
-    let rules = Compiler::new()
-        .define_global("bool_true", true)
-        .add_source("rule foo {condition: bool_true}")
-        .unwrap()
-        .build();
+    assert_eq!(
+        Compiler::new().define_global("#invalid", true).err().unwrap(),
+        VariableError::InvalidIdentifier
+    );
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(
+        Compiler::new()
+            .define_global("a", true)
+            .unwrap()
+            .define_global("a", false)
+            .err()
+            .unwrap(),
+        VariableError::AlreadyExists
+    );
 
     let rules = Compiler::new()
         .define_global("int_1", 1u8)
+        .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
         .unwrap()
         .build();
@@ -102,6 +110,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("int_1", 1u16)
+        .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
         .unwrap()
         .build();
@@ -110,6 +119,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("int_1", 1u32)
+        .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
         .unwrap()
         .build();
@@ -118,6 +128,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("int_1", 1i8)
+        .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
         .unwrap()
         .build();
@@ -126,6 +137,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("int_1", 1i16)
+        .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
         .unwrap()
         .build();
@@ -134,6 +146,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("int_1", 1i32)
+        .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
         .unwrap()
         .build();
@@ -142,6 +155,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("int_1", 1i64)
+        .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
         .unwrap()
         .build();
@@ -150,6 +164,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("float_1", 1_f32)
+        .unwrap()
         .add_source("rule foo {condition: float_1 == 1.0}")
         .unwrap()
         .build();
@@ -158,6 +173,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("float_1", 1_f64)
+        .unwrap()
         .add_source("rule foo {condition: float_1 == 1.0}")
         .unwrap()
         .build();
@@ -166,6 +182,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("str_foo", "foo")
+        .unwrap()
         .add_source(r#"rule foo {condition: str_foo == "foo"}"#)
         .unwrap()
         .build();
@@ -174,6 +191,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("bstr_foo", b"\0\0".as_slice())
+        .unwrap()
         .add_source(r#"rule foo {condition: bstr_foo == "\0\0"}"#)
         .unwrap()
         .build();
@@ -182,6 +200,7 @@ fn globals() {
 
     let rules = Compiler::new()
         .define_global("str_foo", "foo".to_string())
+        .unwrap()
         .add_source(r#"rule foo {condition: str_foo == "foo"}"#)
         .unwrap()
         .build();

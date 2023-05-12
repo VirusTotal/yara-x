@@ -111,7 +111,7 @@ impl SymbolLookup for Struct {
         } else {
             Symbol::new(
                 field.type_value.clone(),
-                SymbolKind::FieldIndex(field.index),
+                SymbolKind::FieldIndex(self.index_of(ident)),
             )
         };
 
