@@ -601,8 +601,30 @@ impl<'a> Compiler<'a> {
                 for atom in XorGenerator::new(best_atom, xor_range) {
                     self.atoms.push(AtomInfo { sub_pattern_id, atom });
                 }
-            } else if p.flags.contains(PatternFlags::Base64)
-                | p.flags.contains(PatternFlags::Base64Wide)
+            } else if p.flags.contains(PatternFlags::Nocase) {
+                // When `nocase` is used, `base64`, `base64wide` and `xor` are
+                // not accepted.
+                debug_assert!(!p.flags.contains(
+                    PatternFlags::Base64
+                        | PatternFlags::Base64Wide
+                        | PatternFlags::Xor,
+                ));
+
+                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
+                let sub_pattern_id =
+                    self.push_sub_pattern(SubPattern::FixedCaseInsensitive {
+                        pattern: pattern_lit_id,
+                        full_word,
+                    });
+
+                for atom in CaseGenerator::new(&best_atom) {
+                    self.atoms.push(AtomInfo { sub_pattern_id, atom });
+                }
+            }
+            // Used `base64`, or `base64wide`, or both.
+            else if p
+                .flags
+                .intersects(PatternFlags::Base64 | PatternFlags::Base64Wide)
             {
                 // When `base64` or `base64wide` are used, `xor`, `fullword`
                 // and `nocase` are not accepted.
@@ -683,25 +705,6 @@ impl<'a> Compiler<'a> {
 
                         self.atoms.push(AtomInfo { sub_pattern_id, atom })
                     }
-                }
-            } else if p.flags.contains(PatternFlags::Nocase) {
-                // When `nocase` is used, `base64`, `base64wide` and `xor` are
-                // not accepted.
-                debug_assert!(!p.flags.contains(
-                    PatternFlags::Base64
-                        | PatternFlags::Base64Wide
-                        | PatternFlags::Xor,
-                ));
-
-                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
-                let sub_pattern_id =
-                    self.push_sub_pattern(SubPattern::FixedCaseInsensitive {
-                        pattern: pattern_lit_id,
-                        full_word,
-                    });
-
-                for atom in CaseGenerator::new(&best_atom) {
-                    self.atoms.push(AtomInfo { sub_pattern_id, atom });
                 }
             } else {
                 let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
