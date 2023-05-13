@@ -817,7 +817,6 @@ mod tests {
     fn test_struct() {
         let mut root = Struct::default();
         let foo = Struct::default();
-        let bar = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
         root.add_field("bar", TypeValue::Integer(Some(1)));
