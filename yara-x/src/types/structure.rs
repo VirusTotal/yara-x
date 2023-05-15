@@ -136,15 +136,6 @@ impl Struct {
         self.fields.get(name)
     }
 
-    /// Get a mutable field by index.
-    #[inline]
-    pub fn field_by_index_mut(
-        &mut self,
-        index: usize,
-    ) -> Option<&mut StructField> {
-        self.fields.get_index_mut(index).map(|(_, v)| v)
-    }
-
     /// Get a mutable field by name.
     #[inline]
     pub fn field_by_name_mut(
