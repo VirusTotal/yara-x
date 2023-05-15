@@ -53,7 +53,7 @@ smallvec = "1.10.0"
 serde = "1.0.156"
 thiserror = "1.0.40"
 walrus = "0.19.0"
-wasmtime = "8.0.0"
+wasmtime = "8.0.1"
 yaml-rust = "0.4.5"
 yansi = "0.5.1"
 yara-x = { path = "yara-x" }
