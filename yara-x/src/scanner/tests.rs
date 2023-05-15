@@ -1,4 +1,5 @@
 use crate::scanner::Scanner;
+use crate::variables::VariableError;
 
 #[test]
 fn iterators() {
@@ -107,4 +108,47 @@ fn reuse_scanner() {
     assert_eq!(scanner.scan(b"").num_matching_rules(), 0);
     assert_eq!(scanner.scan(b"123").num_matching_rules(), 1);
     assert_eq!(scanner.scan(b"").num_matching_rules(), 0);
+}
+
+#[test]
+fn variables() {
+    let rules = crate::Compiler::new()
+        .define_global("bool_var", false)
+        .unwrap()
+        .add_source(
+            r#"
+        rule test {
+            condition:
+            bool_var
+        } 
+        "#,
+        )
+        .unwrap()
+        .build();
+
+    let mut scanner = Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(&[]).num_matching_rules(), 0);
+
+    scanner.set_global("bool_var", true).unwrap();
+
+    assert_eq!(scanner.scan(&[]).num_matching_rules(), 1);
+
+    scanner.set_global("bool_var", false).unwrap();
+
+    assert_eq!(scanner.scan(&[]).num_matching_rules(), 0);
+
+    assert_eq!(
+        scanner.set_global("bool_var", 2).err().unwrap(),
+        VariableError::InvalidType {
+            variable: "bool_var".to_string(),
+            expected_type: "boolean".to_string(),
+            actual_type: "integer".to_string()
+        }
+    );
+
+    assert_eq!(
+        scanner.set_global("undeclared", false).err().unwrap(),
+        VariableError::Undeclared("undeclared".to_string())
+    );
 }

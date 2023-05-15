@@ -1,3 +1,4 @@
+use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -73,9 +74,12 @@ impl Struct {
     /// "foo", which must be another struct with a field named "bar", which
     /// must be a structure where the field "baz" will be finally inserted.
     ///
-    /// # Panics
+    /// If the field was not present in the structure, it is added and the
+    /// function returns `None`. If it was already present, it is replaced
+    /// with the new field and the function returns `Some(StructField)` with
+    /// the previous field.
     ///
-    /// If a field with the same name already exists in the structure.
+    /// # Panics
     ///
     /// If the name is a dot-separated sequence of field names but some of
     /// the fields don't exist or is not a structure. For example if field
@@ -85,7 +89,11 @@ impl Struct {
     /// If there is some [`Rc`] or [`Weak`] pointer pointing to any of the
     /// intermediate structures (e.g: the structures in the "foo" and "bar"
     /// fields).
-    pub fn add_field(&mut self, name: &str, value: TypeValue) -> &mut Self {
+    pub fn add_field(
+        &mut self,
+        name: &str,
+        value: TypeValue,
+    ) -> Option<StructField> {
         if let Some(dot) = name.find('.') {
             let field =
                 self.field_by_name_mut(&name[0..dot]).unwrap_or_else(|| {
@@ -100,22 +108,20 @@ impl Struct {
                     )
                 });
 
-                s.add_field(&name[dot + 1..], value);
+                s.add_field(&name[dot + 1..], value)
             } else {
                 panic!("field `{}` is not a struct", &name[0..dot])
             }
-        } else if let Some(existing) = self.fields.insert(
-            name.to_owned(),
-            StructField {
-                type_value: value,
-                name: name.to_owned(),
-                number: 0,
-            },
-        ) {
-            panic!("field `{}` already exists", existing.name)
+        } else {
+            self.fields.insert(
+                name.to_owned(),
+                StructField {
+                    type_value: value,
+                    name: name.to_owned(),
+                    number: 0,
+                },
+            )
         }
-
-        self
     }
 
     /// Get a field by index.
@@ -315,10 +321,15 @@ impl Struct {
                 let mut enum_struct = Struct::new();
 
                 for item in enum_.values() {
-                    enum_struct.add_field(
+                    if let Some(existing_field) = enum_struct.add_field(
                         item.name(),
                         TypeValue::Integer(Some(item.value() as i64)),
-                    );
+                    ) {
+                        panic!(
+                            "field '{}' already exists",
+                            existing_field.name
+                        );
+                    }
                 }
 
                 fields.push(StructField {
@@ -816,17 +827,41 @@ impl Struct {
     }
 }
 
+impl PartialEq for Struct {
+    /// Compares two structs for equality.
+    ///
+    /// Structs are equal if they have the same number of fields, fields have
+    /// the same names and types, and appear in the same order. Field values
+    /// are not taken into account.
+    fn eq(&self, other: &Self) -> bool {
+        // Both structs must have the same number of fields.
+        if self.fields.len() != other.fields.len() {
+            return false;
+        }
+        for (a, b) in iter::zip(&self.fields, &other.fields) {
+            // Field names must match.
+            if a.0 != b.0 {
+                return false;
+            };
+            // Field types must match.
+            if !a.1.type_value.eq_type(&b.1.type_value) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Struct;
-    use crate::types::TypeValue;
+    use crate::types::{Array, TypeValue};
     use std::rc::Rc;
 
     #[test]
     fn test_struct() {
         let mut root = Struct::default();
         let foo = Struct::default();
-        let bar = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
         root.add_field("bar", TypeValue::Integer(Some(1)));
@@ -844,5 +879,48 @@ mod tests {
         assert_eq!(field1.name, field2.name);
 
         root.add_field("foo.bar", TypeValue::Integer(Some(1)));
+    }
+
+    #[test]
+    fn struct_eq() {
+        let mut sub: Struct = Struct::default();
+
+        sub.add_field("integer", TypeValue::Integer(None));
+        sub.add_field("string", TypeValue::String(None));
+        sub.add_field("boolean", TypeValue::Bool(None));
+
+        let sub = Rc::new(sub);
+
+        let mut a = Struct::default();
+        let mut b = Struct::default();
+
+        a.add_field("boolean", TypeValue::Bool(Some(true)));
+        a.add_field("integer", TypeValue::Integer(Some(1)));
+        a.add_field("structure", TypeValue::Struct(sub.clone()));
+        a.add_field(
+            "floats_array",
+            TypeValue::Array(Rc::new(Array::Floats(vec![]))),
+        );
+
+        // At this point a != b because b is still empty.
+        assert_ne!(a, b);
+
+        b.add_field("boolean", TypeValue::Bool(Some(false)));
+        b.add_field("integer", TypeValue::Integer(Some(1)));
+        b.add_field("structure", TypeValue::Struct(sub));
+        b.add_field(
+            "floats_array",
+            TypeValue::Array(Rc::new(Array::Floats(vec![]))),
+        );
+
+        // At this point a == b.
+        assert_eq!(a, b);
+
+        a.add_field("foo", TypeValue::Bool(Some(false)));
+        b.add_field("foo", TypeValue::Integer(None));
+
+        // At this point a != b again because field "foo" have a different type
+        // on each structure.
+        assert_ne!(a, b);
     }
 }

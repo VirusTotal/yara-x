@@ -9,6 +9,7 @@ implement the [`Into<Variable>`] trait. This module implements the trait for
 multiple commonly used types like `bool`, `i64`, `&str`, etc.
  */
 use bstr::BString;
+use thiserror::Error;
 
 use crate::types::TypeValue;
 
@@ -17,6 +18,28 @@ use crate::types::TypeValue;
 /// Functions like [`crate::Compiler::define_global`] expect types that
 /// implement [`Into<Variable>`].
 pub struct Variable(TypeValue);
+
+/// Errors returned while defining or setting variables.
+#[derive(Error, Debug, PartialEq)]
+pub enum VariableError {
+    #[error("variable `{0}` not declared")]
+    Undeclared(String),
+
+    #[error("variable `{0}` already exists")]
+    AlreadyExists(String),
+
+    #[error("invalid variable identifier `{0}`")]
+    InvalidIdentifier(String),
+
+    #[error(
+        "invalid type for `{variable}`, expecting `{expected_type}`, got `{actual_type}"
+    )]
+    InvalidType {
+        variable: String,
+        expected_type: String,
+        actual_type: String,
+    },
+}
 
 impl From<bool> for Variable {
     fn from(value: bool) -> Self {

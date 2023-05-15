@@ -28,8 +28,9 @@ use crate::compiler::{
 use crate::scanner::matches::{Match, MatchList};
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
+use crate::variables::VariableError;
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::{modules, wasm};
+use crate::{modules, wasm, Variable};
 
 pub(crate) mod matches;
 
@@ -66,8 +67,6 @@ impl<'r> Scanner<'r> {
                 compiled_rules: rules,
                 string_pool: BStringPool::new(),
                 current_struct: None,
-                // TODO: prevent this initialization calling .globals() which is
-                // not necessary as .globals() is called before each scan.
                 root_struct: rules.globals(),
                 scanned_data: null(),
                 scanned_data_len: 0,
@@ -187,11 +186,6 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = data.as_ptr();
         ctx.scanned_data_len = data.len();
 
-        // The root structure is initialized with the global variables defined
-        // during the compilation of the rules. The data obtained from modules
-        // will be later added to this struct.
-        ctx.root_struct = ctx.compiled_rules.globals();
-
         // If the string pool is too large, destroy it and create a new one
         // empty. Re-using the same string pool in multiple scans improves
         // performance, as the pool doesn't need to be destroyed and created
@@ -264,10 +258,8 @@ impl<'r> Scanner<'r> {
             );
 
             // The data structure obtained from the module is added to the
-            // symbol table. This
-            // structure implements the SymbolLookup trait, which is used
-            // by the runtime for obtaining the values of individual fields
-            // in the data structure, as they are used in the rule conditions.
+            // root structure. Any data from previous scans will be replaced
+            // with the new data structure.
             ctx.root_struct.add_field(
                 module_name,
                 TypeValue::Struct(Rc::new(module_struct)),
@@ -291,6 +283,41 @@ impl<'r> Scanner<'r> {
         ctx.current_struct = None;
 
         ScanResults::new(ctx)
+    }
+
+    /// Sets the value of a global variable.
+    ///
+    /// The variable must has been previously defined by calling
+    /// [`crate::Compiler::define_global`], and the type it has during the definition
+    /// must match the type of the new value (`T`).
+    ///
+    /// The variable will retain the new value in subsequent scans, unless this
+    /// function is called again for setting a new value.
+    pub fn set_global<T: Into<Variable>>(
+        &mut self,
+        ident: &str,
+        value: T,
+    ) -> Result<&mut Self, VariableError> {
+        let ctx = self.wasm_store.data_mut();
+
+        if let Some(field) = ctx.root_struct.field_by_name_mut(ident) {
+            let variable: Variable = value.into();
+            let type_value: TypeValue = variable.into();
+            // The new type must match the the old one.
+            if type_value.eq_type(&field.type_value) {
+                field.type_value = type_value;
+            } else {
+                return Err(VariableError::InvalidType {
+                    variable: ident.to_string(),
+                    expected_type: field.type_value.ty().to_string(),
+                    actual_type: type_value.ty().to_string(),
+                });
+            }
+        } else {
+            return Err(VariableError::Undeclared(ident.to_string()));
+        }
+
+        Ok(self)
     }
 
     // Clear information about previous matches.

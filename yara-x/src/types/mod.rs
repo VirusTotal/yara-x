@@ -369,6 +369,35 @@ impl TypeValue {
         }
     }
 
+    /// Compares the types of two [`TypeValue`] instances, returning true if
+    /// they are equal. The values can differ, only the types are taken into
+    /// account.
+    ///
+    /// Instances of [`TypeValue::Struct`] are equal if both structures have
+    /// the same fields and the type of each field matches.
+    pub fn eq_type(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Integer(_), Self::Integer(_)) => true,
+            (Self::Float(_), Self::Float(_)) => true,
+            (Self::String(_), Self::String(_)) => true,
+            (Self::Bool(_), Self::Bool(_)) => true,
+            (Self::Array(a), Self::Array(b)) => {
+                a.deputy().eq_type(&b.deputy())
+            }
+            (Self::Map(a), Self::Map(b)) => match (a.as_ref(), b.as_ref()) {
+                (Map::StringKeys { .. }, Map::StringKeys { .. }) => {
+                    a.deputy().eq_type(&b.deputy())
+                }
+                (Map::IntegerKeys { .. }, Map::IntegerKeys { .. }) => {
+                    a.deputy().eq_type(&b.deputy())
+                }
+                _ => false,
+            },
+            (Self::Struct(a), Self::Struct(b)) => a.eq(b),
+            _ => false,
+        }
+    }
+
     pub fn matches(&self, rhs: &Self) -> Self {
         match (self, rhs) {
             (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,

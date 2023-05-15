@@ -86,7 +86,7 @@ fn var_stack() {
 fn globals() {
     assert_eq!(
         Compiler::new().define_global("#invalid", true).err().unwrap(),
-        VariableError::InvalidIdentifier
+        VariableError::InvalidIdentifier("#invalid".to_string())
     );
 
     assert_eq!(
@@ -96,7 +96,7 @@ fn globals() {
             .define_global("a", false)
             .err()
             .unwrap(),
-        VariableError::AlreadyExists
+        VariableError::AlreadyExists("a".to_string())
     );
 
     let rules = Compiler::new()

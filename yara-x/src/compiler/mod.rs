@@ -38,7 +38,7 @@ use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
 use crate::types::{Func, FuncSignature, Struct, Type, TypeValue};
-use crate::variables::{is_valid_identifier, Variable};
+use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm;
 use crate::wasm::builder::ModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};
@@ -280,29 +280,31 @@ impl<'a> Compiler<'a> {
 
     /// Defines a global variable and sets its initial value.
     ///
-    /// `V` can be any type that implements [`Into<Variable>`], which includes:
+    /// `T` can be any type that implements [`Into<Variable>`], which includes:
     /// `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`, `bool`,
     /// `&str` and `String`.
     ///
     /// Global variables must be defined before calling [`Compiler::add_source`]
-    /// with a YARA rule that uses the variable.
-    pub fn define_global<V: Into<Variable>>(
+    /// with some YARA rule that uses the variable. The variable will retain its
+    /// initial value when the [`Rules`] are used for scanning data, however
+    /// each scanner can change the variable's value by calling
+    /// [`crate::Scanner::set_global`].
+    pub fn define_global<T: Into<Variable>>(
         mut self,
         ident: &str,
-        value: V,
+        value: T,
     ) -> Result<Self, VariableError> {
         if !is_valid_identifier(ident) {
-            return Err(VariableError::InvalidIdentifier);
-        }
-
-        if self.globals_struct.field_by_name(ident).is_some() {
-            return Err(VariableError::AlreadyExists);
+            return Err(VariableError::InvalidIdentifier(ident.to_string()));
         }
 
         let var: Variable = value.into();
         let type_value: TypeValue = var.into();
 
-        self.globals_struct.add_field(ident, type_value.clone());
+        if self.globals_struct.add_field(ident, type_value.clone()).is_some() {
+            return Err(VariableError::AlreadyExists(ident.to_string()));
+        }
+
         self.global_symbols.borrow_mut().insert(
             ident,
             Symbol::new(
@@ -787,8 +789,12 @@ impl<'a> Compiler<'a> {
 
                     // Insert the functions in the module's struct.
                     for (name, export) in functions.drain() {
-                        module_struct
-                            .add_field(name, TypeValue::Func(Rc::new(export)));
+                        if module_struct
+                            .add_field(name, TypeValue::Func(Rc::new(export)))
+                            .is_some()
+                        {
+                            panic!("duplicate function `{}`", name)
+                        }
                     }
                 }
 
@@ -796,9 +802,14 @@ impl<'a> Compiler<'a> {
 
                 // Insert the module in the struct that contains all imported
                 // modules. This struct contains all modules imported, from
-                // all namespaces.
-                self.modules_struct
-                    .add_field(module_name, module_struct.clone());
+                // all namespaces. Panic if the module was already in the struct.
+                if self
+                    .modules_struct
+                    .add_field(module_name, module_struct.clone())
+                    .is_some()
+                {
+                    panic!("duplicate module `{}`", module_name)
+                }
 
                 // Create a symbol for the module and insert it in the symbol
                 // table for this namespace.

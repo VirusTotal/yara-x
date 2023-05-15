@@ -41,15 +41,18 @@ assert_eq!(results.num_matching_rules(), 1);
 ```
 */
 
-pub use compiler::{
-    compile, Compiler, EmitError, Error, Rules, SerializationError,
-};
+pub use compiler::compile;
+pub use compiler::Compiler;
+pub use compiler::EmitError;
+pub use compiler::Error;
+pub use compiler::Rules;
+pub use compiler::SerializationError;
+
 pub use scanner::matches::Match;
-pub use scanner::{
-    Matches, MatchingRules, NonMatchingRules, Pattern, Patterns, Rule,
-    ScanResults, Scanner,
-};
+pub use scanner::*;
+
 pub use variables::Variable;
+pub use variables::VariableError;
 
 mod compiler;
 mod modules;
