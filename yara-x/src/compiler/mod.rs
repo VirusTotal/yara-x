@@ -22,7 +22,7 @@ use walrus::ir::InstrSeqId;
 use walrus::{FunctionId, ValType};
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::HasSpan;
+use yara_x_parser::ast::{HasSpan, RuleFlag};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
@@ -40,7 +40,7 @@ use crate::symbols::{
 use crate::types::{Func, FuncSignature, Struct, Type, TypeValue};
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm;
-use crate::wasm::builder::ModuleBuilder;
+use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
 #[doc(inline)]
@@ -81,10 +81,11 @@ where
 
 /// Structure that contains information about a rule namespace.
 ///
-/// Includes the IdentId corresponding to the namespace's identifier
-/// and the symbol table that contains the symbols defined in the
-/// namespace.
+/// Includes NamespaceId, the IdentId corresponding to the namespace's
+/// identifier, and the symbol table that contains the symbols defined
+/// in the namespace.
 struct Namespace {
+    id: NamespaceId,
     ident_id: IdentId,
     symbols: Rc<RefCell<SymbolTable>>,
 }
@@ -152,7 +153,17 @@ pub struct Compiler<'a> {
 
     /// Builder for creating the WebAssembly module that contains the code
     /// for all rule conditions.
-    wasm_mod: ModuleBuilder,
+    wasm_mod: WasmModuleBuilder,
+
+    /// Struct that contains the IDs for WASM memories, global and local
+    /// variables, etc.
+    wasm_symbols: WasmSymbols,
+
+    /// Map that contains the functions that are callable from WASM code. These
+    /// are the same functions in [`WASM_EXPORTS`]. This map allows to retrieve
+    /// the WASM [`FunctionId`] from the fully qualified mangled function name
+    /// (e.g: `my_module.my_struct.my_func@ii@i`)
+    wasm_exports: FxHashMap<String, FunctionId>,
 
     /// A vector with all the rules that has been compiled. A [`RuleId`] is
     /// an index in this vector.
@@ -212,6 +223,7 @@ impl<'a> Compiler<'a> {
         // namespace, unless the user defines some namespace explicitly by calling
         // `Compiler::new_namespace`.
         let default_namespace = Namespace {
+            id: NamespaceId(0),
             ident_id: ident_pool.get_or_intern("default"),
             symbols: symbol_table.push_new(),
         };
@@ -222,10 +234,20 @@ impl<'a> Compiler<'a> {
         // the top layer (default namespace) with a new one, but the bottom
         // layer remains, so the global symbols are shared by all namespaces.
 
+        // Create a WASM module builder. This object is used for building the
+        // WASM module that will execute the rule conditions.
+        let wasm_mod = WasmModuleBuilder::new();
+
+        let wasm_symbols = wasm_mod.wasm_symbols();
+        let wasm_exports = wasm_mod.wasm_exports();
+
         Self {
             ident_pool,
             global_symbols,
             symbol_table,
+            wasm_mod,
+            wasm_symbols,
+            wasm_exports,
             next_pattern_id: 0,
             current_namespace: default_namespace,
             warnings: Vec::new(),
@@ -237,7 +259,6 @@ impl<'a> Compiler<'a> {
             globals_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
-            wasm_mod: ModuleBuilder::new(),
         }
     }
 
@@ -353,11 +374,14 @@ impl<'a> Compiler<'a> {
     pub fn new_namespace(mut self, namespace: &str) -> Self {
         // Remove the symbol table corresponding to the previous namespace.
         self.symbol_table.pop().expect("expecting a namespace");
-        // Create a new namespace.
+        // Create a new namespace. The NamespaceId is simply the ID of the
+        // previous namespace + 1.
         self.current_namespace = Namespace {
+            id: NamespaceId(self.current_namespace.id.0 + 1),
             ident_id: self.ident_pool.get_or_intern(namespace),
             symbols: self.symbol_table.push_new(),
         };
+        self.wasm_mod.new_namespace();
         self
     }
 
@@ -484,9 +508,11 @@ impl<'a> Compiler<'a> {
         let rule_id = RuleId(self.rules.len() as i32);
 
         self.rules.push(RuleInfo {
+            namespace_id: self.current_namespace.id,
+            namespace_ident_id: self.current_namespace.ident_id,
             ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
-            namespace_id: self.current_namespace.ident_id,
             patterns: ident_and_pattern,
+            is_global: rule.flags.contains(RuleFlag::Global),
         });
 
         let mut ctx = Context {
@@ -498,8 +524,8 @@ impl<'a> Compiler<'a> {
             lit_pool: &mut self.lit_pool,
             report_builder: &self.report_builder,
             current_rule: self.rules.last().unwrap(),
-            wasm_symbols: self.wasm_mod.wasm_symbols(),
-            wasm_funcs: &self.wasm_mod.wasm_funcs,
+            wasm_symbols: &self.wasm_symbols,
+            wasm_exports: &self.wasm_exports,
             warnings: &mut self.warnings,
             exception_handler_stack: Vec::new(),
             lookup_start: None,
@@ -524,8 +550,9 @@ impl<'a> Compiler<'a> {
 
         emit_rule_condition(
             &mut ctx,
-            &mut self.wasm_mod.main_fn.func_body(),
+            &mut self.wasm_mod,
             rule_id,
+            rule.flags,
             &mut condition,
         );
 
@@ -908,6 +935,11 @@ impl From<LiteralId> for u64 {
     }
 }
 
+/// ID associated to each namespace.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub(crate) struct NamespaceId(i32);
+
 /// ID associated to each rule.
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct RuleId(i32);
@@ -1011,11 +1043,11 @@ struct Context<'a, 'sym> {
     current_signature: Option<usize>,
 
     /// Table with all the symbols (functions, variables) used by WASM.
-    wasm_symbols: WasmSymbols,
+    wasm_symbols: &'a WasmSymbols,
 
     /// Map where keys are fully qualified and mangled function names, and
     /// values are the function's ID in the WASM module.
-    wasm_funcs: &'a FxHashMap<String, FunctionId>,
+    wasm_exports: &'a FxHashMap<String, FunctionId>,
 
     /// Source code that is being compiled.
     src: &'a SourceCode<'a>,
@@ -1098,7 +1130,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
     ///
     /// If a no function with the given name exists.
     pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
-        *self.wasm_funcs.get(fn_mangled_name).unwrap_or_else(|| {
+        *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
             panic!("can't find function `{}`", fn_mangled_name)
         })
     }
@@ -1409,12 +1441,16 @@ impl<'a> Iterator for Imports<'a> {
 /// Information about each of the individual rules included in [`Rules`].
 #[derive(Serialize, Deserialize)]
 pub(crate) struct RuleInfo {
+    /// The ID of the namespace the rule belongs to.
+    pub(crate) namespace_id: NamespaceId,
+    /// The ID of the rule namespace in the identifiers pool.
+    pub(crate) namespace_ident_id: IdentId,
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident_id: IdentId,
-    /// The ID of the rule namespace in the identifiers pool.
-    pub(crate) namespace_id: IdentId,
     /// Vector with all the patterns defined by this rule.
     pub(crate) patterns: Vec<(IdentId, PatternId)>,
+    /// True if the rule is global.
+    pub(crate) is_global: bool,
 }
 
 #[derive(Serialize, Deserialize)]

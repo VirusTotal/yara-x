@@ -152,3 +152,61 @@ fn variables() {
         VariableError::Undeclared("undeclared".to_string())
     );
 }
+
+#[test]
+fn global_rules() {
+    let rules = crate::Compiler::new()
+        .add_source(
+            r#"
+        // This global rule doesn't affect the results because it's true.
+        global rule global_true {
+            condition:
+                true
+        }
+        // Even if the condition is true, this rule doesn't match because of
+        // the false global rule that follows.
+        rule non_matching {
+            condition:
+                true
+        }
+        // A false global rule that prevents all rules in the same namespace
+        // from matching.
+        global rule global_false {
+            condition:
+                false
+        }
+        "#,
+        )
+        .unwrap()
+        .new_namespace("matching")
+        .add_source(
+            r#"
+            // This rule matches because it is in separate namespace not 
+            // which is not affected by the global rule.
+            rule matching {
+                condition:
+                    true
+            }"#,
+        )
+        .unwrap()
+        .build();
+
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(&[]);
+
+    assert_eq!(results.num_matching_rules(), 1);
+
+    let mut matching = results.matching_rules();
+    assert_eq!(matching.next().unwrap().name(), "matching");
+    assert!(matching.next().is_none());
+
+    let mut non_matching = results.non_matching_rules();
+
+    // `global_true` and `non_matching` don't match because they are in the
+    // namespace as `global_false`.
+    assert_eq!(non_matching.next().unwrap().name(), "global_true");
+    assert_eq!(non_matching.next().unwrap().name(), "non_matching");
+    assert_eq!(non_matching.next().unwrap().name(), "global_false");
+
+    assert!(non_matching.next().is_none());
+}

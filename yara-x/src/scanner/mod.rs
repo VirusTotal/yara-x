@@ -22,8 +22,8 @@ use wasmtime::{
 };
 
 use crate::compiler::{
-    AtomInfo, FullWord, IdentId, LiteralId, PatternId, RuleId, RuleInfo,
-    Rules, SubPattern,
+    AtomInfo, FullWord, IdentId, LiteralId, NamespaceId, PatternId, RuleId,
+    RuleInfo, Rules, SubPattern,
 };
 use crate::scanner::matches::{Match, MatchList};
 use crate::string_pool::BStringPool;
@@ -71,6 +71,7 @@ impl<'r> Scanner<'r> {
                 scanned_data: null(),
                 scanned_data_len: 0,
                 rules_matching: Vec::new(),
+                global_rules_matching: FxHashMap::default(),
                 main_memory: None,
                 vars_stack: Vec::new(),
                 module_outputs: FxHashMap::default(),
@@ -282,6 +283,11 @@ impl<'r> Scanner<'r> {
         // to some struct.
         ctx.current_struct = None;
 
+        // Move all the rules in `global_rules_matching` to `rules_matching`.
+        for rules in ctx.global_rules_matching.values_mut() {
+            ctx.rules_matching.append(rules)
+        }
+
         ScanResults::new(ctx)
     }
 
@@ -330,21 +336,29 @@ impl<'r> Scanner<'r> {
         // rule may match without any pattern being matched, because there
         // there are rules without patterns, or that match if the pattern is
         // not found.
-        if ctx.pattern_matched || !ctx.rules_matching.is_empty() {
+        if ctx.pattern_matched
+            || !ctx.rules_matching.is_empty()
+            || !ctx.global_rules_matching.is_empty()
+        {
             ctx.pattern_matched = false;
-
-            // Clear the list of matching rules.
-            ctx.rules_matching.clear();
 
             // The hash map that tracks the pattern matches is not completely
             // cleared with pattern_matches.clear() because that would cause
-            // that all the arrays are deallocated. Instead, each of the arrays
-            // are cleared individually, which removes the items in the array
-            // while maintaining the array capacity. This way the array may be
-            // reused in later scans without memory allocations.
+            // that all the vectors are deallocated. Instead, each of the
+            // vectors are cleared individually, which removes the items
+            // while maintaining the vector capacity. This way the vector may
+            // be reused in later scans without memory allocations.
             for (_, matches) in ctx.pattern_matches.iter_mut() {
                 matches.clear()
             }
+
+            // See comment above.
+            for (_, rules) in ctx.global_rules_matching.iter_mut() {
+                rules.clear();
+            }
+
+            // Clear the list of matching rules.
+            ctx.rules_matching.clear();
 
             let mem = ctx
                 .main_memory
@@ -505,7 +519,7 @@ impl<'s, 'r> Rule<'s, 'r> {
 
     /// Returns the rule's namespace.
     pub fn namespace(&self) -> &str {
-        self.rules.ident_pool().get(self.rule_info.namespace_id).unwrap()
+        self.rules.ident_pool().get(self.rule_info.namespace_ident_id).unwrap()
     }
 
     /// Returns the patterns defined by this rule.
@@ -586,8 +600,11 @@ pub(crate) struct ScanContext<'r> {
     scanned_data: *const u8,
     /// Length of data being scanned.
     scanned_data_len: usize,
-    /// Vector containing the IDs of the rules that matched.
+    /// Vector containing the IDs of the non-global rules that matched. Global
+    /// rules are added to the `global_rules_matching` map instead.
     pub(crate) rules_matching: Vec<RuleId>,
+    /// Map containing the IDs of the global rules that matched.
+    pub(crate) global_rules_matching: FxHashMap<NamespaceId, Vec<RuleId>>,
     /// Compiled rules for this scan.
     pub(crate) compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -616,7 +633,7 @@ pub(crate) struct ScanContext<'r> {
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
     pub(crate) pattern_matches: FxHashMap<PatternId, MatchList>,
-    // True if some pattern matched during the scan.
+    /// True if some pattern matched during the scan.
     pub(crate) pattern_matched: bool,
 }
 
@@ -652,11 +669,49 @@ impl ScanContext<'_> {
         <dyn MessageDyn>::downcast_ref(m)
     }
 
+    /// Called during the scan process when a global rule didn't match.
+    ///
+    /// When this happen, any other global rule that matched previously is
+    pub(crate) fn track_global_rule_no_match(&mut self, rule_id: RuleId) {
+        let wasm_store = unsafe { self.wasm_store.as_mut() };
+        let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
+
+        let base = MATCHING_RULES_BITMAP_BASE as usize;
+        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
+
+        let rule = self.compiled_rules.get(rule_id);
+
+        // This function must be called only for global rules.
+        debug_assert!(rule.is_global);
+
+        // All the global rules that matched previously, and are in the same
+        // namespace than the non-matching rule, must be removed from the
+        // `global_rules_matching` map. Also, their corresponding bits in
+        // the matching rules bitmap must be cleared.
+        if let Some(rules) =
+            self.global_rules_matching.get_mut(&rule.namespace_id)
+        {
+            for rule_id in rules.iter() {
+                bits.set((*rule_id).into(), false);
+            }
+
+            rules.clear()
+        }
+    }
+
     /// Called during the scan process when a rule has matched for tracking
     /// the matching rules.
     pub(crate) fn track_rule_match(&mut self, rule_id: RuleId) {
-        // Store the RuleId in the vector of matching rules.
-        self.rules_matching.push(rule_id);
+        let rule = self.compiled_rules.get(rule_id);
+
+        if rule.is_global {
+            self.global_rules_matching
+                .entry(rule.namespace_id)
+                .or_default()
+                .push(rule_id);
+        } else {
+            self.rules_matching.push(rule_id);
+        }
 
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let main_mem = self.main_memory.unwrap().data_mut(wasm_store);

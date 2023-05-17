@@ -14,6 +14,7 @@ use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
 use walrus::{InstrSeqBuilder, ValType};
+use yara_x_parser::ast::{RuleFlag, RuleFlags};
 
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, Quantifier,
@@ -22,6 +23,7 @@ use crate::compiler::{Context, RuleId, Var, VarStackFrame};
 use crate::symbols::SymbolKind;
 use crate::types::{Array, Map, Type, TypeValue};
 use crate::wasm;
+use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
     LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
@@ -143,27 +145,72 @@ macro_rules! emit_bitwise_op {
 /// Emits WASM code of a rule.
 pub(super) fn emit_rule_condition(
     ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
+    builder: &mut WasmModuleBuilder,
     rule_id: RuleId,
+    rule_flags: RuleFlags,
     condition: &mut Expr,
 ) {
+    // Get the InstrSeqId corresponding to the code block that contains the
+    // current namespace.
+    let namespace_block = builder.current_namespace();
+
+    // Global and non-global rules are put into two independent instruction
+    // sequences. The global rules are put into the instruction sequence that
+    // gets executed first, which means that global rules will be executed
+    // before any non-global rule, regardless of their order in the source
+    // code. Within the same group (global and non-global) rules maintain their
+    // relative order, though.
+    //
+    // TODO: guarantee that global rules don't invoke non-global rule. As
+    // global rules will always run before non-global ones, the former can't
+    // rely on the result of the later.
+    let mut instr = if rule_flags.contains(RuleFlag::Global) {
+        builder.instr_seq_1()
+    } else {
+        builder.instr_seq_2()
+    };
+
     // Emit WASM code for the rule's condition.
-    instr.block(None, |block| {
-        catch_undef(ctx, block, |ctx, instr| {
-            emit_bool_expr(ctx, instr, condition);
-        });
-
-        // If the condition's result is 0, jump out of the block
-        // and don't call the `rule_match` function.
-        block.unop(UnaryOp::I32Eqz);
-        block.br_if(block.id());
-
-        // RuleId is the argument to `rule_match`.
-        block.i32_const(rule_id.0);
-
-        // Emit call instruction for calling `rule_match`.
-        block.call(ctx.function_id(wasm::export__rule_match.mangled_name));
+    catch_undef(ctx, &mut instr, |ctx, instr| {
+        emit_bool_expr(ctx, instr, condition);
     });
+
+    // Check if the result from the condition is zero (false).
+    instr.unop(UnaryOp::I32Eqz);
+    instr.if_else(
+        None,
+        |then_| {
+            // The condition is false. For normal rules we don't do anything,
+            // but for global rules we must call `global_rule_no_match` and
+            // jump out of the namespace's code block.
+            //
+            // By jumping out of the code block that contains all the rules
+            // in the current namespace, we are effectively preventing that
+            // any other rule (both global and non-global) in the namespace
+            // is executed, and therefore they will remain false.
+            //
+            // This guarantees that any global rule that returns false, forces
+            // the non-global rules in the same namespace to be false. There
+            // may be some global rules that matched before, though. The
+            // purpose of `global_rule_no_match` is reverting those previous
+            // matches.
+            if rule_flags.contains(RuleFlag::Global) {
+                // Call `global_rule_no_match`.
+                then_.i32_const(rule_id.0);
+                then_.call(ctx.function_id(
+                    wasm::export__global_rule_no_match.mangled_name,
+                ));
+                // Jump out of the namespace block, which prevents any other
+                // rule in the same namespace from being executed at all.
+                then_.br(namespace_block);
+            }
+        },
+        |else_| {
+            // The condition is true, call `rule_match`.
+            else_.i32_const(rule_id.0);
+            else_.call(ctx.function_id(wasm::export__rule_match.mangled_name));
+        },
+    );
 }
 
 /// Emits WASM code for `expr` into the instruction sequence `instr`.

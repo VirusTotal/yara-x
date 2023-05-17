@@ -1,15 +1,59 @@
 use rustc_hash::FxHashMap;
-use walrus::FunctionId;
+use walrus::ir::{Block, InstrSeqId};
 use walrus::ValType::{F64, I32, I64};
+use walrus::{FunctionId, InstrSeqBuilder};
 
 use super::WasmSymbols;
 
-/// Builds the WebAssembly module for a set of compiled rules.
-pub(crate) struct ModuleBuilder {
+/// Builds the WASM module for a set of compiled rules.
+///
+/// The produced WASM module exports a `main` function that contains the logic
+/// for the rule conditions in the set of compiled rules. The overall structure
+/// of the `main` function is:
+///
+///  ```text
+///  ;; namespace 0
+///  block
+///    block
+///      ;; instr_seq_1 goes here
+///    end
+///    block
+///      ;; instr_seq_2 goes here
+///    end
+///  end
+///  ;; namespace 1
+///  block
+///    block
+///      ;; instr_seq_1 goes here
+///    end
+///    block
+///      ;; instr_seq_2 goes here
+///    end    
+///  end
+///  ;; more namespaces ...
+/// ```
+///
+/// There's a WASM code block for each namespace (at least one), and each of
+/// those blocks contain two other blocks: one for `instr_seq_1` and the other
+/// one for `instr_seq_2`.
+///
+/// Instruction sequences `instr_seq_1` and `instr_seq_2` grow independently
+/// as you add WASM instructions to them. They are finalized when either
+/// [`WasmModuleBuilder::new_namespace`] or [`WasmModuleBuilder::build`] are
+/// called. `new_namespace` finalizes the current instruction sequences, put
+/// them into a namespace code block, and creates a new pair of `instr_seq_1`
+/// and `instr_seq_2` that will be empty. In the other hand `build` does
+/// the same than `new_namespace` but instead of creating a new pair of
+/// instruction sequences it consumes the builder and produces the final
+/// WASM module.
+pub(crate) struct WasmModuleBuilder {
     module: walrus::Module,
     wasm_symbols: WasmSymbols,
-    pub(crate) wasm_funcs: FxHashMap<String, FunctionId>,
-    pub(crate) main_fn: walrus::FunctionBuilder,
+    builder: walrus::FunctionBuilder,
+    namespace: InstrSeqId,
+    instr_seq_1: InstrSeqId,
+    instr_seq_2: InstrSeqId,
+    wasm_exports: FxHashMap<String, FunctionId>,
 }
 
 macro_rules! global_var {
@@ -26,12 +70,12 @@ macro_rules! global_const {
     };
 }
 
-impl ModuleBuilder {
+impl WasmModuleBuilder {
     /// Creates a new module builder.
     pub fn new() -> Self {
         let config = walrus::ModuleConfig::new();
         let mut module = walrus::Module::with_config(config);
-        let mut wasm_funcs = FxHashMap::default();
+        let mut wasm_exports = FxHashMap::default();
 
         for export in super::WASM_EXPORTS {
             let ty = module.types.add(
@@ -44,7 +88,7 @@ impl ModuleBuilder {
                 fully_qualified_name.as_str(),
                 ty,
             );
-            wasm_funcs.insert(fully_qualified_name, func_id);
+            wasm_exports.insert(fully_qualified_name, func_id);
         }
 
         global_const!(module, matching_patterns_bitmap_base, I32);
@@ -63,20 +107,65 @@ impl ModuleBuilder {
             f64_tmp: module.locals.add(F64),
         };
 
-        let main_fn =
+        let mut builder =
             walrus::FunctionBuilder::new(&mut module.types, &[], &[]);
 
-        Self { module, wasm_symbols, wasm_funcs, main_fn }
+        let namespace = builder.dangling_instr_seq(None).id();
+        let instr_seq_1 = builder.dangling_instr_seq(None).id();
+        let instr_seq_2 = builder.dangling_instr_seq(None).id();
+
+        Self {
+            module,
+            wasm_symbols,
+            wasm_exports,
+            builder,
+            namespace,
+            instr_seq_1,
+            instr_seq_2,
+        }
     }
 
-    /// Returns the symbols imported by the module.
     pub fn wasm_symbols(&self) -> WasmSymbols {
         self.wasm_symbols.clone()
     }
 
-    /// Builds the module and consumes the builder.
+    pub fn wasm_exports(&self) -> FxHashMap<String, FunctionId> {
+        self.wasm_exports.clone()
+    }
+
+    pub fn current_namespace(&mut self) -> InstrSeqId {
+        self.namespace
+    }
+
+    pub fn instr_seq_1(&mut self) -> InstrSeqBuilder {
+        self.builder.instr_seq(self.instr_seq_1)
+    }
+
+    pub fn instr_seq_2(&mut self) -> InstrSeqBuilder {
+        self.builder.instr_seq(self.instr_seq_2)
+    }
+
+    pub fn new_namespace(&mut self) {
+        self.finalize_namespace();
+        self.namespace = self.builder.dangling_instr_seq(None).id();
+        self.instr_seq_1 = self.builder.dangling_instr_seq(None).id();
+        self.instr_seq_2 = self.builder.dangling_instr_seq(None).id();
+    }
+
+    fn finalize_namespace(&mut self) {
+        let mut ns = self.builder.instr_seq(self.namespace);
+
+        ns.instr(Block { seq: self.instr_seq_1 });
+        ns.instr(Block { seq: self.instr_seq_2 });
+
+        self.builder.func_body().instr(Block { seq: self.namespace });
+    }
+
+    /// Builds the WASM module and consumes the builder.
     pub fn build(mut self) -> walrus::Module {
-        let main_fn = self.main_fn.finish(Vec::new(), &mut self.module.funcs);
+        self.finalize_namespace();
+
+        let main_fn = self.builder.finish(Vec::new(), &mut self.module.funcs);
         self.module.exports.add("main", main_fn);
         self.module
     }

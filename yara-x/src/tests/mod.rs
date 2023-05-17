@@ -1250,14 +1250,19 @@ fn filesize() {
           condition:
             filesize == 1
         }
+        rule filesize_2 {
+          condition:
+            filesize == 2
+        }
         "#,
     )
     .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 1);
-    assert_eq!(scanner.scan(&[1]).num_matching_rules(), 1);
+    assert_eq!(scanner.scan(b"").num_matching_rules(), 1);
+    assert_eq!(scanner.scan(b"a").num_matching_rules(), 1);
+    assert_eq!(scanner.scan(b"ab").num_matching_rules(), 1);
 }
 
 #[test]
