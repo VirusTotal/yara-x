@@ -283,7 +283,8 @@ impl<'r> Scanner<'r> {
         // to some struct.
         ctx.current_struct = None;
 
-        // Move all the rules in `global_rules_matching` to `rules_matching`.
+        // Move all the rules in `global_rules_matching` to `rules_matching`,
+        // leaving `global_rules_matching` empty.
         for rules in ctx.global_rules_matching.values_mut() {
             ctx.rules_matching.append(rules)
         }
@@ -336,10 +337,7 @@ impl<'r> Scanner<'r> {
         // rule may match without any pattern being matched, because there
         // there are rules without patterns, or that match if the pattern is
         // not found.
-        if ctx.pattern_matched
-            || !ctx.rules_matching.is_empty()
-            || !ctx.global_rules_matching.is_empty()
-        {
+        if ctx.pattern_matched || !ctx.rules_matching.is_empty() {
             ctx.pattern_matched = false;
 
             // The hash map that tracks the pattern matches is not completely
@@ -350,11 +348,6 @@ impl<'r> Scanner<'r> {
             // be reused in later scans without memory allocations.
             for (_, matches) in ctx.pattern_matches.iter_mut() {
                 matches.clear()
-            }
-
-            // See comment above.
-            for (_, rules) in ctx.global_rules_matching.iter_mut() {
-                rules.clear();
             }
 
             // Clear the list of matching rules.
@@ -417,12 +410,12 @@ impl<'s, 'r> ScanResults<'s, 'r> {
         self.ctx.rules_matching.len()
     }
 
-    /// Returns an iterator that yields the matching rules.
+    /// Returns an iterator that yields the matching rules in arbitrary order.
     pub fn matching_rules(&self) -> MatchingRules<'s, 'r> {
         MatchingRules::new(self.ctx)
     }
 
-    /// Returns an iterator that yields the non-matching rules.
+    /// Returns an iterator that yields the non-matching rules in arbitrary order.
     pub fn non_matching_rules(&self) -> NonMatchingRules<'s, 'r> {
         NonMatchingRules::new(self.ctx)
     }
