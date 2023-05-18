@@ -5,6 +5,8 @@ on:
 jobs:
   test:
     name: test
+    env:
+      CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

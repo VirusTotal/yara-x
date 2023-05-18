@@ -16,24 +16,19 @@ jobs:
           - nightly
           - windows
           - macos
-
         include:
           - build: msrv
             os: ubuntu-latest
             rust: 1.66.1
-
           - build: stable
             os: ubuntu-latest
             rust: stable
-
           - build: nigthly
             os: ubuntu-latest
             rust: nightly
-
           - build: windows
             os: windows-latest
             rust: stable
-
           - build: macos
             os: macos-latest
             rust: stable
