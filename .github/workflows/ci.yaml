@@ -1,0 +1,63 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: "00 01 * * *"
+jobs:
+  test:
+    name: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build:
+          - pinned
+          - stable
+          - stable-32
+          - stable-mips
+          - beta
+          - nightly
+          - macos
+          - win-msvc
+          - win-gnu
+        include:
+          - build: pinned
+            os: ubuntu-latest
+            rust: 1.60.0
+          - build: stable
+            os: ubuntu-latest
+            rust: stable
+          - build: stable-32
+            os: ubuntu-latest
+            rust: stable
+            target: i686-unknown-linux-gnu
+          - build: stable-mips
+            os: ubuntu-latest
+            rust: stable
+            target: mips64-unknown-linux-gnuabi64
+          - build: beta
+            os: ubuntu-latest
+            rust: beta
+          - build: nightly
+            os: ubuntu-latest
+            rust: nightly
+          - build: macos
+            os: macos-latest
+            rust: stable
+          - build: win-msvc
+            os: windows-latest
+            rust: stable
+          - build: win-gnu
+            os: windows-latest
+            rust: stable-x86_64-gnu
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
