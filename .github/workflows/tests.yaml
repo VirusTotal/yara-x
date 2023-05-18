@@ -23,26 +23,32 @@ jobs:
             os: ubuntu-latest
             rust: 1.66.1
             args: ""
+
           - build: stable
             os: ubuntu-latest
             rust: stable
             args: ""
+
           - build: nightly
             os: ubuntu-latest
             rust: nightly
             args: ""
+
           - build: macos
             os: macos-latest
             rust: stable
             args: ""
+
           - build: win-msvc
             os: windows-latest
             rust: stable
             args: ""
+
           - build: win-gnu
             os: windows-latest
             rust: stable-x86_64-gnu
             args: ""
+
           - build: constant-folding-off
             os: ubuntu-latest
             rust: stable
