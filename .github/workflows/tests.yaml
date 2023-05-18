@@ -1,10 +1,10 @@
-name: Test suite
-
-on: [push, pull_request]
-
+name: Tests
+on:
+  pull_request:
+  push:
 jobs:
-  tests:
-    name: Run tests
+  test:
+    name: test
     env:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
@@ -14,8 +14,8 @@ jobs:
           - msrv
           - stable
           - nightly
-          - windows
           - macos
+          - win-msvc
         include:
           - build: msrv
             os: ubuntu-latest
@@ -23,16 +23,15 @@ jobs:
           - build: stable
             os: ubuntu-latest
             rust: stable
-          - build: nigthly
+          - build: nightly
             os: ubuntu-latest
             rust: nightly
-          - build: windows
-            os: windows-latest
-            rust: stable
           - build: macos
             os: macos-latest
             rust: stable
-
+          - build: win-msvc
+            os: windows-latest
+            rust: stable
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
