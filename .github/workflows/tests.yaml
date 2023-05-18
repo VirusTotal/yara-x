@@ -20,27 +20,27 @@ jobs:
         - build: msrv
           os: ubuntu-latest
           rust: 1.66.1  # Minimum Supported Rust Version (MSRV)
-          args:
+          args: ""
 
         - build: stable
           os: ubuntu-latest
           rust: stable
-          args:
+          args: ""
 
         - build: nigthly
           os: ubuntu-latest
           rust: nightly
-          args:
+          args: ""
 
         - build: windows
           os: windows-latest
           rust: stable
-          args:
+          args: ""
 
         - build: macOS
           os: macOS-latest
           rust: stable
-          args:
+          args: ""
 
         - build: constant-folding-off
           os: ubuntu-latest
