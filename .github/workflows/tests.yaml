@@ -4,7 +4,7 @@ on:
   push:
 jobs:
   test:
-    name: test
+    name: Test
     env:
       CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}

@@ -10,9 +10,9 @@ homepage.workspace = true
 rust-version.workspace = true
 
 [features]
-# Enables constant folding. When costant folding is enabled, expressions
+# Enables constant folding. When constant folding is enabled, expressions
 # like `2+2+2` and `true or false`, whose value can be determined at compile
-# time, will be reduced to its final value, instead of producing cod that
+# time, will be reduced to its final value, instead of producing code that
 # actually computes the expression.
 constant-folding = []
 
