@@ -161,9 +161,9 @@ pub(super) fn emit_rule_condition(
     // code. Within the same group (global and non-global) rules maintain their
     // relative order, though.
     //
-    // TODO: guarantee that global rules don't invoke non-global rule. As
-    // global rules will always run before non-global ones, the former can't
-    // rely on the result of the later.
+    // Global rules can not invoke non-global rule. As global rules will always
+    // run before non-global ones, the former can't rely on the result of the
+    // latter.
     let mut instr = if rule_flags.contains(RuleFlag::Global) {
         builder.instr_seq_1()
     } else {

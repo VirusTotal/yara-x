@@ -603,6 +603,29 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test_1 {
+  condition:
+    true
+}
+
+global rule test_2 {
+  condition:
+    test_1    
+}
+"#,
+            r#"error: global rule `test_2` depends on non-global rule `test_1`
+   ╭─[line:9:5]
+   │
+ 9 │     test_1
+   │     ───┬──  
+   │        ╰──── non-global rule `test_1` used here
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
         #[cfg(feature = "test_proto2-module")]
         (
             line!(),

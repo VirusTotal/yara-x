@@ -17,17 +17,19 @@ use crate::compiler::{CompileError, Context, PatternId};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Type, TypeValue};
 
-pub(in crate::compiler) fn patterns_from_ast(
-    patterns: Option<Vec<ast::Pattern>>,
-) -> Result<Vec<Pattern>, CompileError> {
+pub(in crate::compiler) fn patterns_from_ast<'src>(
+    patterns: Option<&Vec<ast::Pattern<'src>>>,
+) -> Result<Vec<Pattern<'src>>, CompileError> {
     patterns
         .into_iter()
         .flatten()
         .map(pattern_from_ast)
-        .collect::<Result<Vec<Pattern>, CompileError>>()
+        .collect::<Result<Vec<Pattern<'src>>, CompileError>>()
 }
 
-fn pattern_from_ast(pattern: ast::Pattern) -> Result<Pattern, CompileError> {
+fn pattern_from_ast<'src>(
+    pattern: &ast::Pattern<'src>,
+) -> Result<Pattern<'src>, CompileError> {
     match pattern {
         ast::Pattern::Text(pattern) => {
             let mut flags = PatternFlagSet::none();
@@ -77,7 +79,7 @@ fn pattern_from_ast(pattern: ast::Pattern) -> Result<Pattern, CompileError> {
             Ok(Pattern::Text(TextPattern {
                 ident: pattern.identifier.name,
                 flags,
-                text: pattern.value,
+                text: pattern.value.clone(),
                 xor_range,
                 base64_alphabet,
                 base64wide_alphabet,
@@ -228,6 +230,30 @@ pub(in crate::compiler) fn expr_from_ast(
             }
 
             let symbol = symbol.unwrap();
+
+            // Return error if a global rule depends on a non-global rule. This
+            // is an error because global rules are evaluated before non-global
+            // rules, even if the global rule appears after the non-global one
+            // in the source code. This means that by the time the global rule
+            // is being evaluated we can't know if the non-global rule matched
+            // or not.
+            // A global rule can depend on another global rule. And non-global
+            // rules can depend both on global rules and non-global ones.
+            if let SymbolKind::Rule(rule_id) = symbol.kind() {
+                if ctx.current_rule.is_global && !ctx.get(*rule_id).is_global {
+                    return Err(CompileError::wrong_rule_dependency(
+                        ctx.report_builder,
+                        ctx.src,
+                        ctx.ident_pool
+                            .get(ctx.current_rule.ident_id)
+                            .unwrap()
+                            .to_string(),
+                        ident.name.to_string(),
+                        ident.span(),
+                    ));
+                }
+            }
+
             let type_value = symbol.type_value();
 
             if type_value.has_value() {

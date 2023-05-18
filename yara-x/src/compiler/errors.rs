@@ -113,17 +113,29 @@ pub enum CompileError {
     #[label("higher bound must be greater or equal than lower bound", span)]
     InvalidRange { detailed_report: String, span: Span },
 
-    #[error("duplicate rule `{rule_ident}`")]
-    #[label("duplicate declaration of `{rule_ident}`", new_rule_name_span)]
+    #[error("duplicate rule `{new_rule}`")]
+    #[label("duplicate declaration of `{new_rule}`", new_rule_span)]
     #[label(
-        "`{rule_ident}` declared here for the first time",
-        existing_rule_name_span,
+        "`{new_rule}` declared here for the first time",
+        existing_rule_span,
         style = "note"
     )]
     DuplicateRule {
         detailed_report: String,
-        rule_ident: String,
-        new_rule_name_span: Span,
-        existing_rule_name_span: Span,
+        new_rule: String,
+        new_rule_span: Span,
+        existing_rule_span: Span,
+    },
+
+    #[error("global rule `{global_rule}` depends on non-global rule `{non_global_rule}`")]
+    #[label(
+        "non-global rule `{non_global_rule}` used here",
+        non_global_rule_span
+    )]
+    WrongRuleDependency {
+        detailed_report: String,
+        global_rule: String,
+        non_global_rule: String,
+        non_global_rule_span: Span,
     },
 }
