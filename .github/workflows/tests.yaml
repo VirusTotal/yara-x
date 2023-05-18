@@ -16,7 +16,7 @@ jobs:
           - nightly
           - macos
           - win-msvc
-          - win-gnu
+          # - win-gnu
           - constant-folding-off
         include:
           - build: msrv
@@ -44,10 +44,13 @@ jobs:
             rust: stable
             args: ""
 
-          - build: win-gnu
-            os: windows-latest
-            rust: stable-x86_64-gnu
-            args: ""
+          # Tests for the `stable-x86_64-pc-windows-gnu` toolchain disabled
+          # due to https://github.com/VirusTotal/yara-x/issues/29
+          #
+          # - build: win-gnu
+          #   os: windows-latest
+          #   rust: stable-x86_64-gnu
+          #   args: ""
 
           - build: constant-folding-off
             os: ubuntu-latest
