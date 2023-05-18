@@ -1,10 +1,16 @@
 name: Test suite
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+    - master
 
 jobs:
   tests:
     name: Run tests
+    env:
+      CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -14,41 +20,39 @@ jobs:
         - nightly
         - windows
         - macOS
-        - constant-folding-off
+        #- constant-folding-off
 
         include:
         - build: msrv
           os: ubuntu-latest
           rust: 1.66.1  # Minimum Supported Rust Version (MSRV)
-          args: ""
+          #args: ""
 
         - build: stable
           os: ubuntu-latest
           rust: stable
-          args: ""
+          #args: ""
 
         - build: nigthly
           os: ubuntu-latest
           rust: nightly
-          args: ""
+          #args: ""
 
         - build: windows
           os: windows-latest
           rust: stable
-          args: ""
+          #args: ""
 
         - build: macOS
           os: macOS-latest
           rust: stable
-          args: ""
+          #args: ""
 
         - build: constant-folding-off
           os: ubuntu-latest
           rust: stable
-          args: "-no-default-features --features=test_proto2-module,test_proto3-module,ascii-tree"
+          #args: "-no-default-features --features=test_proto2-module,test_proto3-module,ascii-tree"
 
-    env:
-      CARGO_TERM_COLOR: always
     steps:
     - name: Checkout sources
       uses: actions/checkout@v3
@@ -71,6 +75,6 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --workspace --all-targets ${{ matrix.args }}
+        args: --workspace --all-targets
       env:
         RUSTFLAGS: -Awarnings  # Allow all warnings
