@@ -29,9 +29,9 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Install Rust toolchain
-      uses: hecrj/setup-rust-action@v1
+      uses: dtolnay/rust-toolchain@master
       with:
-        rust-version: ${{ matrix.rust }}
+        toolchain: ${{ matrix.rust }}
 
     - name: Run cargo test
       uses: actions-rs/cargo@v1
