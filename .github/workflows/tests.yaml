@@ -8,14 +8,45 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest, macOS-latest ]
-        rust:
+        build:
+        - msrv
         - stable
         - nightly
-        - 1.66.1  # Minimum Supported Rust Version (MSRV)
-        cargo-test-args:
-        - "--features=test_proto2-module,test_proto3-module,ascii-tree"
-        - "--features=constant-folding,test_proto2-module,test_proto3-module,ascii-tree"
+        - windows
+        - macOS
+        - constant-folding-off
+
+        include:
+        - build: msrv
+          os: ubuntu-latest
+          rust: 1.66.1  # Minimum Supported Rust Version (MSRV)
+          args:
+
+        - build: stable
+          os: ubuntu-latest
+          rust: stable
+          args:
+
+        - build: nigthly
+          os: ubuntu-latest
+          rust: nightly
+          args:
+
+        - build: windows
+          os: windows-latest
+          rust: stable
+          args:
+
+        - build: macOS
+          os: macOS-latest
+          rust: stable
+          args:
+
+        - build: constant-folding-off
+          os: ubuntu-latest
+          rust: stable
+          args: "-no-default-features --features=test_proto2-module,test_proto3-module,ascii-tree"
+
     env:
       CARGO_TERM_COLOR: always
     steps:
@@ -40,6 +71,6 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --workspace --all-targets --no-default-features ${{ matrix.cargo-test-args }}
+        args: --workspace --all-targets ${{ matrix.args }}
       env:
         RUSTFLAGS: -Awarnings  # Allow all warnings
