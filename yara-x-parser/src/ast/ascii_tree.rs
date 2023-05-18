@@ -6,14 +6,6 @@ use itertools::Itertools;
 
 use crate::ast::*;
 
-/// Returns a representation of the namespace as an ASCII tree.
-pub(crate) fn namespace_ascii_tree(namespace: &Namespace) -> Tree {
-    Node(
-        "namespace".to_string(),
-        namespace.rules.iter().map(rule_ascii_tree).collect(),
-    )
-}
-
 /// Returns a representation of the rule as an ASCII tree.
 pub(crate) fn rule_ascii_tree(rule: &Rule) -> Tree {
     let mut rule_children = Vec::new();

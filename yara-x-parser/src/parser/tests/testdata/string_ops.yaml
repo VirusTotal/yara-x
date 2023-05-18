@@ -7,12 +7,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ contains
-                ├─ "mississippi"
-                └─ "ssi"
+    └─ rule test
+       └─ condition
+          └─ contains
+             ├─ "mississippi"
+             └─ "ssi"
 
 ###############################################################################
 
@@ -23,12 +22,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ contains
-                ├─ "mississippi"
-                └─ "SSI"
+    └─ rule test
+       └─ condition
+          └─ contains
+             ├─ "mississippi"
+             └─ "SSI"
 
 
 ###############################################################################
@@ -40,12 +38,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ icontains
-                ├─ "mississippi"
-                └─ "SSI"
+    └─ rule test
+       └─ condition
+          └─ icontains
+             ├─ "mississippi"
+             └─ "SSI"
 
 ###############################################################################
 
@@ -56,12 +53,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ startswith
-                ├─ "mississippi"
-                └─ "miss"
+    └─ rule test
+       └─ condition
+          └─ startswith
+             ├─ "mississippi"
+             └─ "miss"
 
 ###############################################################################
 
@@ -72,12 +68,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ startswith
-                ├─ "mississippi"
-                └─ "Miss"
+    └─ rule test
+       └─ condition
+          └─ startswith
+             ├─ "mississippi"
+             └─ "Miss"
 
 ###############################################################################
 
@@ -88,12 +83,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ istartswith
-                ├─ "mississippi"
-                └─ "Miss"
+    └─ rule test
+       └─ condition
+          └─ istartswith
+             ├─ "mississippi"
+             └─ "Miss"
 
 ###############################################################################
 
@@ -104,12 +98,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ endswith
-                ├─ "mississippi"
-                └─ "ippi"
+    └─ rule test
+       └─ condition
+          └─ endswith
+             ├─ "mississippi"
+             └─ "ippi"
 
 ###############################################################################
 
@@ -120,12 +113,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ endswith
-                ├─ "mississippi"
-                └─ "iPPI"
+    └─ rule test
+       └─ condition
+          └─ endswith
+             ├─ "mississippi"
+             └─ "iPPI"
 
 ###############################################################################
 
@@ -136,12 +128,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ iendswith
-                ├─ "mississippi"
-                └─ "iPPI"
+    └─ rule test
+       └─ condition
+          └─ iendswith
+             ├─ "mississippi"
+             └─ "iPPI"
 
 ###############################################################################
 
@@ -152,12 +143,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ iequals
-                ├─ "foo"
-                └─ "FOO"
+    └─ rule test
+       └─ condition
+          └─ iequals
+             ├─ "foo"
+             └─ "FOO"
 
 ###############################################################################
 
@@ -168,11 +158,10 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ matches
-                ├─ "foo"
-                └─ /foo/i
+    └─ rule test
+       └─ condition
+          └─ matches
+             ├─ "foo"
+             └─ /foo/i
 
 ###############################################################################

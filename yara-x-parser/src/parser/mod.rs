@@ -172,10 +172,9 @@ impl<'a> Parser<'a> {
 
         let mut ctx = Context::new(src.clone(), self.get_report_builder());
 
-        let namespace = namespace_from_cst(&mut ctx, root.into_inner())?;
-        let namespaces = vec![namespace];
+        let (imports, rules) = ast_from_cst(&mut ctx, root.into_inner())?;
 
-        Ok(AST { source: src, namespaces, warnings: ctx.warnings })
+        Ok(AST { source: src, imports, rules, warnings: ctx.warnings })
     }
 
     /// Build the Concrete Syntax Tree (CST) for a YARA source.

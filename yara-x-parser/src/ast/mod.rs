@@ -43,8 +43,10 @@ use crate::SourceCode;
 pub struct AST<'src> {
     /// The source code that produced this AST.
     pub source: SourceCode<'src>,
-    /// The list of namespaces is the root of the AST.
-    pub namespaces: Vec<Namespace<'src>>,
+    /// The list of imports.
+    pub imports: Vec<Import>,
+    /// The list of rules in the AST.
+    pub rules: Vec<Rule<'src>>,
     /// Warnings generated while building this AST.
     pub warnings: Vec<Warning>,
 }
@@ -68,21 +70,12 @@ impl<'src> Debug for AST<'src> {
 impl<'src> AST<'src> {
     /// Returns a printable ASCII tree representing the AST.
     pub fn ascii_tree(&self) -> ::ascii_tree::Tree {
-        use crate::ast::ascii_tree::namespace_ascii_tree;
+        use crate::ast::ascii_tree::rule_ascii_tree;
         ::ascii_tree::Tree::Node(
             "root".to_string(),
-            self.namespaces.iter().map(namespace_ascii_tree).collect(),
+            self.rules.iter().map(rule_ascii_tree).collect(),
         )
     }
-}
-
-/// A namespace containing YARA rules.
-///
-/// Within each namespace rule identifiers are unique.
-#[derive(Debug)]
-pub struct Namespace<'src> {
-    pub rules: Vec<Rule<'src>>,
-    pub imports: Vec<Import>,
 }
 
 bitmask! {

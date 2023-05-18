@@ -8,17 +8,16 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ for <quantifier> of <items> : ( <condition> )
-                ├─ <quantifier>
-                │  └─ all
-                ├─ <items>
-                │  └─ $a
-                │     $b*
-                └─ <condition>
-                   └─ $
+    └─ rule test
+       └─ condition
+          └─ for <quantifier> of <items> : ( <condition> )
+             ├─ <quantifier>
+             │  └─ all
+             ├─ <items>
+             │  └─ $a
+             │     $b*
+             └─ <condition>
+                └─ $
 
 ###############################################################################
 
@@ -29,17 +28,16 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ for <quantifier> of <items> : ( <condition> )
-                ├─ <quantifier>
-                │  └─ percentage
-                │     └─ 10
-                ├─ <items>
-                │  └─ them
-                └─ <condition>
-                   └─ $
+    └─ rule test
+       └─ condition
+          └─ for <quantifier> of <items> : ( <condition> )
+             ├─ <quantifier>
+             │  └─ percentage
+             │     └─ 10
+             ├─ <items>
+             │  └─ them
+             └─ <condition>
+                └─ $
 
 ###############################################################################
 
@@ -53,20 +51,19 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ for <quantifier> <vars> in (<start>..<end>) : ( <condition> )
-                ├─ <quantifier>
-                │  └─ any
-                ├─ <vars>
-                │  └─ i
-                ├─ <start>
-                │  └─ 1
-                ├─ <end>
-                │  └─ 10
-                └─ <condition>
-                   └─ true
+    └─ rule test
+       └─ condition
+          └─ for <quantifier> <vars> in (<start>..<end>) : ( <condition> )
+             ├─ <quantifier>
+             │  └─ any
+             ├─ <vars>
+             │  └─ i
+             ├─ <start>
+             │  └─ 1
+             ├─ <end>
+             │  └─ 10
+             └─ <condition>
+                └─ true
 
 ###############################################################################
 
@@ -77,19 +74,18 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ for <quantifier> <vars> in <expr> : ( <condition> )
-                ├─ <quantifier>
-                │  └─ any
-                ├─ <vars>
-                │  └─ key
-                │     value
-                ├─ <expr>
-                │  └─ some_dic
-                └─ <condition>
-                   └─ true
+    └─ rule test
+       └─ condition
+          └─ for <quantifier> <vars> in <expr> : ( <condition> )
+             ├─ <quantifier>
+             │  └─ any
+             ├─ <vars>
+             │  └─ key
+             │     value
+             ├─ <expr>
+             │  └─ some_dic
+             └─ <condition>
+                └─ true
 
 ###############################################################################
 
@@ -100,21 +96,20 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ for <quantifier> <vars> in (<expr0>, <expr1>, <expr2>) : ( <condition> )
-                ├─ <quantifier>
-                │  └─ any
-                ├─ <vars>
-                │  └─ v
-                ├─ <expr0>
-                │  └─ 1
-                ├─ <expr1>
-                │  └─ 2
-                ├─ <expr2>
-                │  └─ 3
-                └─ <condition>
-                   └─ true
+    └─ rule test
+       └─ condition
+          └─ for <quantifier> <vars> in (<expr0>, <expr1>, <expr2>) : ( <condition> )
+             ├─ <quantifier>
+             │  └─ any
+             ├─ <vars>
+             │  └─ v
+             ├─ <expr0>
+             │  └─ 1
+             ├─ <expr1>
+             │  └─ 2
+             ├─ <expr2>
+             │  └─ 3
+             └─ <condition>
+                └─ true
 
 ###############################################################################

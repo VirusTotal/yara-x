@@ -247,10 +247,10 @@ fn check_pattern_modifiers(
     Ok(())
 }
 
-pub(crate) fn namespace_from_cst<'src>(
+pub(crate) fn ast_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     cst: CST<'src>,
-) -> Result<Namespace<'src>, Error> {
+) -> Result<(Vec<Import>, Vec<Rule<'src>>), Error> {
     let mut imports: Vec<Import> = Vec::new();
     let mut rules: Vec<Rule> = Vec::new();
     let mut rules_index: HashMap<&str, usize> = HashMap::new();
@@ -313,7 +313,7 @@ pub(crate) fn namespace_from_cst<'src>(
             rule => unreachable!("unexpected grammar rule: `{:?}`", rule),
         }
     }
-    Ok(Namespace { rules, imports })
+    Ok((imports, rules))
 }
 
 /// Given a CST node corresponding to the grammar rule` rule_decl`, returns a

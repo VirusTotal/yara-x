@@ -9,17 +9,16 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a
-          │     └─ hex
-          │        ├─ 0x01 mask: 0xFF
-          │        ├─ 0x10 mask: 0xFF
-          │        ├─ 0xAB mask: 0xFF
-          │        └─ 0xFF mask: 0xFF
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a
+       │     └─ hex
+       │        ├─ 0x01 mask: 0xFF
+       │        ├─ 0x10 mask: 0xFF
+       │        ├─ 0xAB mask: 0xFF
+       │        └─ 0xFF mask: 0xFF
+       └─ condition
+          └─ $a
 
 ###############################################################################
 
@@ -32,16 +31,15 @@
       }
   ast: |
      root
-     └─ namespace
-        └─ rule test
-           ├─ strings
-           │  └─ $a
-           │     └─ hex
-           │        ├─ 0x01 mask: 0x0F
-           │        ├─ 0x10 mask: 0xF0
-           │        └─ 0x00 mask: 0x00
-           └─ condition
-              └─ $a
+     └─ rule test
+        ├─ strings
+        │  └─ $a
+        │     └─ hex
+        │        ├─ 0x01 mask: 0x0F
+        │        ├─ 0x10 mask: 0xF0
+        │        └─ 0x00 mask: 0x00
+        └─ condition
+           └─ $a
 
 ###############################################################################
 
@@ -54,17 +52,16 @@
       }
   ast: |
       root
-      └─ namespace
-         └─ rule test
-            ├─ strings
-            │  └─ $a
-            │     └─ hex
-            │        ├─ ~ 0x00 mask: 0xFF
-            │        ├─ ~ 0x11 mask: 0xFF
-            │        ├─ ~ 0x10 mask: 0xF0
-            │        └─ ~ 0x01 mask: 0x0F
-            └─ condition
-               └─ $a
+      └─ rule test
+         ├─ strings
+         │  └─ $a
+         │     └─ hex
+         │        ├─ ~ 0x00 mask: 0xFF
+         │        ├─ ~ 0x11 mask: 0xFF
+         │        ├─ ~ 0x10 mask: 0xF0
+         │        └─ ~ 0x01 mask: 0x0F
+         └─ condition
+            └─ $a
 
 ###############################################################################
 
@@ -77,19 +74,18 @@
       }
   ast: |
       root
-      └─ namespace
-         └─ rule test
-            ├─ strings
-            │  └─ $a
-            │     └─ hex
-            │        ├─ alt
-            │        │  ├─ hex
-            │        │  │  └─ 0x11 mask: 0xFF
-            │        │  └─ hex
-            │        │     └─ 0x22 mask: 0xFF
-            │        └─ 0x33 mask: 0xFF
-            └─ condition
-               └─ $a
+      └─ rule test
+         ├─ strings
+         │  └─ $a
+         │     └─ hex
+         │        ├─ alt
+         │        │  ├─ hex
+         │        │  │  └─ 0x11 mask: 0xFF
+         │        │  └─ hex
+         │        │     └─ 0x22 mask: 0xFF
+         │        └─ 0x33 mask: 0xFF
+         └─ condition
+            └─ $a
 
 ###############################################################################
 
@@ -102,22 +98,21 @@
       }
   ast: |
      root
-     └─ namespace
-        └─ rule test
-           ├─ strings
-           │  └─ $a
-           │     └─ hex
-           │        ├─ 0x11 mask: 0xFF
-           │        ├─ alt
-           │        │  ├─ hex
-           │        │  │  ├─ 0x22 mask: 0xFF
-           │        │  │  └─ 0x22 mask: 0xFF
-           │        │  └─ hex
-           │        │     ├─ 0x33 mask: 0xFF
-           │        │     └─ 0x33 mask: 0xFF
-           │        └─ 0x44 mask: 0xFF
-           └─ condition
-              └─ $a
+     └─ rule test
+        ├─ strings
+        │  └─ $a
+        │     └─ hex
+        │        ├─ 0x11 mask: 0xFF
+        │        ├─ alt
+        │        │  ├─ hex
+        │        │  │  ├─ 0x22 mask: 0xFF
+        │        │  │  └─ 0x22 mask: 0xFF
+        │        │  └─ hex
+        │        │     ├─ 0x33 mask: 0xFF
+        │        │     └─ 0x33 mask: 0xFF
+        │        └─ 0x44 mask: 0xFF
+        └─ condition
+           └─ $a
 ###############################################################################
 
 - rule: |
@@ -129,16 +124,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a
-          │     └─ hex
-          │        ├─ 0x11 mask: 0xFF
-          │        ├─ [1-2]
-          │        └─ 0x22 mask: 0xFF
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a
+       │     └─ hex
+       │        ├─ 0x11 mask: 0xFF
+       │        ├─ [1-2]
+       │        └─ 0x22 mask: 0xFF
+       └─ condition
+          └─ $a
 
 ###############################################################################
 
@@ -151,16 +145,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a
-          │     └─ hex
-          │        ├─ 0x11 mask: 0xFF
-          │        ├─ [-]
-          │        └─ 0x22 mask: 0xFF
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a
+       │     └─ hex
+       │        ├─ 0x11 mask: 0xFF
+       │        ├─ [-]
+       │        └─ 0x22 mask: 0xFF
+       └─ condition
+          └─ $a
 
 ###############################################################################
 
@@ -173,16 +166,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a
-          │     └─ hex
-          │        ├─ 0x11 mask: 0xFF
-          │        ├─ [4-6]
-          │        └─ 0x22 mask: 0xFF
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a
+       │     └─ hex
+       │        ├─ 0x11 mask: 0xFF
+       │        ├─ [4-6]
+       │        └─ 0x22 mask: 0xFF
+       └─ condition
+          └─ $a
 
 ###############################################################################
 
@@ -195,16 +187,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a
-          │     └─ hex
-          │        ├─ 0x11 mask: 0xFF
-          │        ├─ [4-]
-          │        └─ 0x22 mask: 0xFF
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a
+       │     └─ hex
+       │        ├─ 0x11 mask: 0xFF
+       │        ├─ [4-]
+       │        └─ 0x22 mask: 0xFF
+       └─ condition
+          └─ $a
 
 ###############################################################################
 
@@ -217,15 +208,14 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a
-          │     └─ hex
-          │        ├─ 0x11 mask: 0xFF
-          │        ├─ [2-]
-          │        └─ 0x22 mask: 0xFF
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a
+       │     └─ hex
+       │        ├─ 0x11 mask: 0xFF
+       │        ├─ [2-]
+       │        └─ 0x22 mask: 0xFF
+       └─ condition
+          └─ $a
 
 ###############################################################################

@@ -104,7 +104,7 @@ fn pattern_hashes() {
         )
         .unwrap();
 
-    let patterns = ast.namespaces[0].rules[0].patterns.as_ref().unwrap();
+    let patterns = ast.rules[0].patterns.as_ref().unwrap();
 
     // "abc" == "abc"
     assert_eq!(hash(&patterns[0]), hash(&patterns[1]));
