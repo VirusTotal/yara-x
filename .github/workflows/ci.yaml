@@ -49,11 +49,18 @@ jobs:
             os: windows-latest
             rust: stable-x86_64-gnu
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v1
-        with:
-          fetch-depth: 1
-      - name: Install Rust
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --all-targets
+        env:
+          RUSTFLAGS: -Awarnings # Allow all warnings
