@@ -9,33 +9,18 @@ jobs:
     strategy:
       matrix:
         build:
-          - pinned
+          - msrv
           - stable
-          - stable-32
-          - stable-mips
-          - beta
           - nightly
           - macos
           - win-msvc
-          - win-gnu
         include:
-          - build: pinned
+          - build: msrv
             os: ubuntu-latest
-            rust: 1.60.0
+            rust: 1.66.1
           - build: stable
             os: ubuntu-latest
             rust: stable
-          - build: stable-32
-            os: ubuntu-latest
-            rust: stable
-            target: i686-unknown-linux-gnu
-          - build: stable-mips
-            os: ubuntu-latest
-            rust: stable
-            target: mips64-unknown-linux-gnuabi64
-          - build: beta
-            os: ubuntu-latest
-            rust: beta
           - build: nightly
             os: ubuntu-latest
             rust: nightly
@@ -45,9 +30,6 @@ jobs:
           - build: win-msvc
             os: windows-latest
             rust: stable
-          - build: win-gnu
-            os: windows-latest
-            rust: stable-x86_64-gnu
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
