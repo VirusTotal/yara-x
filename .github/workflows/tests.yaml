@@ -11,66 +11,46 @@ jobs:
     strategy:
       matrix:
         build:
-        - msrv
-        - stable
-        - nightly
-        - windows
-        - macos
-        #- constant-folding-off
+          - msrv
+          - stable
+          - nightly
+          - windows
+          - macos
 
         include:
-        - build: msrv
-          os: ubuntu-latest
-          rust: 1.66.1  # Minimum Supported Rust Version (MSRV)
-          #args: ""
+          - build: msrv
+            os: ubuntu-latest
+            rust: 1.66.1
 
-        - build: stable
-          os: ubuntu-latest
-          rust: stable
-          #args: ""
+          - build: stable
+            os: ubuntu-latest
+            rust: stable
 
-        - build: nigthly
-          os: ubuntu-latest
-          rust: nightly
-          #args: ""
+          - build: nigthly
+            os: ubuntu-latest
+            rust: nightly
 
-        - build: windows
-          os: windows-latest
-          rust: stable
-          #args: ""
+          - build: windows
+            os: windows-latest
+            rust: stable
 
-        - build: macos
-          os: macos-latest
-          rust: stable
-          #args: ""
-
-        #- build: constant-folding-off
-        #  os: ubuntu-latest
-        #  rust: stable
-        #  #args: "-no-default-features --features=test_proto2-module,test_proto3-module,ascii-tree"
+          - build: macos
+            os: macos-latest
+            rust: stable
 
     steps:
-    - name: Checkout sources
-      uses: actions/checkout@v3
+      - name: Checkout sources
+        uses: actions/checkout@v3
 
-    - name: Setup cache
-      uses: actions/cache@v3
-      with:
-        path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
 
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: ${{ matrix.rust }}
-
-    - name: Run cargo test
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --workspace --all-targets
-      env:
-        RUSTFLAGS: -Awarnings  # Allow all warnings
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --all-targets
+        env:
+          RUSTFLAGS: -Awarnings # Allow all warnings
