@@ -2,6 +2,7 @@
 name = "yara-x-macros"
 edition.workspace = true
 version.workspace = true
+rust-version.workspace = true
 
 [lib]
 name = "yara_x_macros"

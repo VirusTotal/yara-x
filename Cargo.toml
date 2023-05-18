@@ -7,6 +7,9 @@ homepage = "https://github.com/VirusTotal/yara-x"
 readme = "README.md"
 license = "MIT"
 
+# When updating rust-version also update MSRV in .github/workflows/tests.yaml
+rust-version = "1.66.1"
+
 [workspace]
 members = [
     "yara-x",

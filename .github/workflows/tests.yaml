@@ -9,7 +9,10 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, macOS-latest ]
-        rust: [ stable ]
+        rust:
+        - stable
+        - nightly
+        - 1.66.1  # Minimum Supported Rust Version (MSRV)
         cargo-test-args:
         - "--features=test_proto2-module,test_proto3-module,ascii-tree"
         - "--features=constant-folding,test_proto2-module,test_proto3-module,ascii-tree"
