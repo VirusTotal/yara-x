@@ -40,6 +40,7 @@ pub struct EmitError(#[from] anyhow::Error);
 
 /// An error occurred during the compilation process.
 #[derive(CompileError)]
+#[non_exhaustive]
 pub enum CompileError {
     #[error("wrong type")]
     #[label(
