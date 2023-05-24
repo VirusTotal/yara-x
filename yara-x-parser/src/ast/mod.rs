@@ -25,9 +25,8 @@ mod span;
 use std::borrow::Cow;
 use std::collections::btree_map::Values;
 use std::collections::{BTreeMap, HashSet};
+use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
-use std::{fmt, mem};
 
 use bitmask::bitmask;
 use bstr::BStr;
@@ -137,17 +136,7 @@ impl<'src> Display for MetaValue<'src> {
 /// Types of patterns (a.k.a strings) that can appear in a YARA rule.
 ///
 /// Possible types are: text patterns, hex patterns and regular expressions.
-///
-/// This type implements the [`Hash`] trait, which produces the same hash for
-/// patterns that are equal and have the same modifiers. The pattern identifier
-/// or the rule it belongs to is not taken into account while computing the
-/// hash, which allows identifying patterns that are defined in more than one
-/// YARA rule in an identical way. Notice however that some patterns may be
-/// semantically equivalent, but their hashes may differ due to being declared
-/// in different ways. For example: `{ 01 [-] 02 }` is equivalent to
-/// `{ 01 [0-] 03 }` but they don't have the same hash because their
-/// definitions are not identical.
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub enum Pattern<'src> {
     Text(Box<TextPattern<'src>>),
     Hex(Box<HexPattern<'src>>),
@@ -262,25 +251,6 @@ impl PatternModifier<'_> {
     }
 }
 
-impl Hash for PatternModifier<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        mem::discriminant(self).hash(state);
-        match self {
-            PatternModifier::Base64 { alphabet, .. } => {
-                alphabet.hash(state);
-            }
-            PatternModifier::Base64Wide { alphabet, .. } => {
-                alphabet.hash(state);
-            }
-            PatternModifier::Xor { start, end, .. } => {
-                start.hash(state);
-                end.hash(state);
-            }
-            _ => {}
-        }
-    }
-}
-
 impl Display for PatternModifier<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
@@ -335,15 +305,6 @@ pub struct TextPattern<'src> {
     pub modifiers: PatternModifiers<'src>,
 }
 
-impl Hash for TextPattern<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state);
-        for modifier in self.modifiers.iter() {
-            modifier.hash(state);
-        }
-    }
-}
-
 /// A regular expression pattern in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct RegexpPattern<'src> {
@@ -351,15 +312,6 @@ pub struct RegexpPattern<'src> {
     pub identifier: Ident<'src>,
     pub regexp: Regexp<'src>,
     pub modifiers: PatternModifiers<'src>,
-}
-
-impl Hash for RegexpPattern<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.regexp.hash(state);
-        for modifier in self.modifiers.iter() {
-            modifier.hash(state);
-        }
-    }
 }
 
 /// A hex pattern (a.k.a hex string) in a YARA rule.
@@ -371,17 +323,8 @@ pub struct HexPattern<'src> {
     pub modifiers: PatternModifiers<'src>,
 }
 
-impl Hash for HexPattern<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.tokens.hash(state);
-        for modifier in self.modifiers.iter() {
-            modifier.hash(state);
-        }
-    }
-}
-
 /// A sequence of tokens that conform a hex pattern (a.k.a hex string).
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct HexTokens {
     pub tokens: Vec<HexToken>,
 }
@@ -390,7 +333,7 @@ pub struct HexTokens {
 ///
 /// A token can be a single byte, a negated byte (e.g. `~XX`), an
 /// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub enum HexToken {
     Byte(Box<HexByte>),
     NotByte(Box<HexByte>),
@@ -401,7 +344,7 @@ pub enum HexToken {
 /// A single byte in a hex pattern (a.k.a hex string).
 ///
 /// The byte is accompanied by a mask which will be 0xFF for non-masked bytes.
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct HexByte {
     pub value: u8,
     pub mask: u8,
@@ -410,13 +353,13 @@ pub struct HexByte {
 /// An alternative in a hex pattern (a.k.a hex string).
 ///
 /// Alternatives are sequences of hex tokens separated by `|`.
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct HexAlternative {
     pub alternatives: Vec<HexTokens>,
 }
 
 /// A jump in a hex pattern (a.k.a hex string).
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct HexJump {
     pub start: Option<u16>,
     pub end: Option<u16>,
@@ -712,14 +655,6 @@ pub struct Regexp<'src> {
     pub regexp: &'src str,
     pub case_insensitive: bool,
     pub dotall: bool,
-}
-
-impl Hash for Regexp<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.regexp.hash(state);
-        self.case_insensitive.hash(state);
-        self.dotall.hash(state);
-    }
 }
 
 /// A literal string (e.g: `"abcd"`).
