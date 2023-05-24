@@ -241,6 +241,8 @@ pub(in crate::compiler) fn expr_from_ast(
             // rules can depend both on global rules and non-global ones.
             if let SymbolKind::Rule(rule_id) = symbol.kind() {
                 if ctx.current_rule.is_global && !ctx.get(*rule_id).is_global {
+                    // TODO: improve this error with details about the place
+                    // where the non-global rule was defined.
                     return Err(CompileError::wrong_rule_dependency(
                         ctx.report_builder,
                         ctx.src,

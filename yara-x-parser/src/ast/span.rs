@@ -1,14 +1,19 @@
 use crate::ast::{BinaryExpr, Expr};
 
 pub trait HasSpan {
-    /// Returns the starting and ending position of some AST node within the source code.
+    /// Returns the starting and ending position within the source code for
+    /// some node in the AST.
     fn span(&self) -> Span;
 }
 
-/// Contains the starting and ending position for a piece of source code.
+/// Span contains the starting and ending position for some node in the AST.
+///
+/// Positions are absolute byte offsets within the original source code.
 #[derive(Debug, Default, Hash, Eq, PartialEq, Copy, Clone)]
 pub struct Span {
+    /// Starting byte offset.
     pub(crate) start: usize,
+    /// Ending byte offset.
     pub(crate) end: usize,
 }
 

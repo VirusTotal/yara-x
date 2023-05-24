@@ -1289,12 +1289,17 @@ pub struct Rules {
     /// it belongs to.
     atoms: Vec<AtomInfo>,
 
-    /// TODO
+    /// A [`Struct`] in serialized form that contains all the global variables.
+    /// Each field in the structure corresponds to a global variable defined
+    /// at compile time using [`Compiler::define_global].
     serialized_globals: Vec<u8>,
 
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
     /// This allows to search for all the atoms in the scanned data at the same
-    /// time in an efficient manner.
+    /// time in an efficient manner. The automaton is not serialized during when
+    /// [`Rules::serialize`] is called, it needs to be wrapped in [`Option`] so
+    /// that we can use `#[serde(skip)]` on it because [`AhoCorasick`] doesn't
+    /// implement the [`Default`] trait.
     #[serde(skip)]
     ac: Option<AhoCorasick>,
 }
