@@ -301,7 +301,7 @@ impl Display for PatternModifier<'_> {
 pub struct TextPattern<'src> {
     pub span: Span,
     pub identifier: Ident<'src>,
-    pub value: Cow<'src, BStr>,
+    pub text: Cow<'src, BStr>,
     pub modifiers: PatternModifiers<'src>,
 }
 
@@ -652,7 +652,7 @@ pub struct IdentWithIndex<'src> {
 #[derive(Debug, HasSpan)]
 pub struct Regexp<'src> {
     pub span: Span,
-    pub regexp: &'src str,
+    pub src: &'src str,
     pub case_insensitive: bool,
     pub dotall: bool,
 }

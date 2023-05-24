@@ -64,7 +64,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
         Expr::LiteralFloat(lit) => Leaf(vec![lit.literal.to_string()]),
         Expr::LiteralInteger(lit) => Leaf(vec![lit.literal.to_string()]),
         Expr::Ident(ident) => Leaf(vec![ident.name.to_string()]),
-        Expr::Regexp(regexp) => Leaf(vec![regexp.regexp.to_string()]),
+        Expr::Regexp(regexp) => Leaf(vec![regexp.src.to_string()]),
         Expr::Defined(expr) => {
             Node("defined".to_string(), vec![expr_ascii_tree(&expr.operand)])
         }
@@ -448,7 +448,7 @@ pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
         Pattern::Text(s) => Leaf(vec![format!(
             "{} = \"{}\" {}",
             s.identifier.name,
-            s.value,
+            s.text,
             s.modifiers.iter().map(|m| m.to_string()).join(" ")
         )]),
         Pattern::Hex(h) => Node(

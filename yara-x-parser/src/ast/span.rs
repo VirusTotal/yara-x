@@ -29,6 +29,16 @@ impl Span {
     pub fn combine(&self, span: &Span) -> Span {
         Span { start: self.start, end: span.end }
     }
+
+    /// Returns a new [`Span`] that is a subspan of the original one.
+    ///
+    /// `start` and `end` are the starting and ending offset of the subspan,
+    /// relative to the start of the original span.
+    pub fn subspan(&self, start: usize, end: usize) -> Span {
+        assert!(start <= self.end - self.start);
+        assert!(end <= self.end - self.start);
+        Span { start: self.start + start, end: self.start + end }
+    }
 }
 
 #[doc(hidden)]

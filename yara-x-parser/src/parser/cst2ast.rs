@@ -576,7 +576,7 @@ fn pattern_from_cst<'src>(
         }
         GrammarRule::string_lit => {
             let span = node.as_span().into();
-            let value = string_lit_from_cst(ctx, node, true)?;
+            let text = string_lit_from_cst(ctx, node, true)?;
             let modifiers = if let Some(modifiers) = children.next() {
                 pattern_mods_from_cst(ctx, GrammarRule::string_lit, modifiers)?
             } else {
@@ -591,7 +591,7 @@ fn pattern_from_cst<'src>(
                 (1, None)
             };
 
-            if value.len() < min_len {
+            if text.len() < min_len {
                 return Err(Error::new(ErrorInfo::invalid_pattern(
                     ctx.report_builder,
                     &ctx.src,
@@ -608,7 +608,7 @@ fn pattern_from_cst<'src>(
 
             Pattern::Text(Box::new(TextPattern {
                 identifier,
-                value,
+                text,
                 span,
                 modifiers,
             }))
@@ -680,7 +680,7 @@ fn regexp_from_cst<'src>(
 
     Ok(Regexp {
         span: regexp.as_span().into(),
-        regexp: regexp.as_str(),
+        src: regexp.as_str(),
         case_insensitive,
         dotall,
     })

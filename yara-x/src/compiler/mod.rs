@@ -473,7 +473,11 @@ impl<'a> Compiler<'a> {
         rule: &ast::Rule,
     ) -> Result<(), CompileError> {
         // Convert the patterns from AST to IR.
-        let patterns = ir::patterns_from_ast(rule.patterns.as_ref())?;
+        let patterns = ir::patterns_from_ast(
+            &self.report_builder,
+            src,
+            rule.patterns.as_ref(),
+        )?;
 
         // Create array with pairs (IdentId, PatternId) that describe
         // the patterns in a compiled rule.

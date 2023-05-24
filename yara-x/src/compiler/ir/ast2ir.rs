@@ -5,8 +5,10 @@ use std::iter;
 use std::ops::{Deref, RangeInclusive};
 use std::rc::Rc;
 
+use regex_syntax;
 use yara_x_parser::ast::{HasSpan, Span};
-use yara_x_parser::{ast, ErrorInfo, Warning};
+use yara_x_parser::report::ReportBuilder;
+use yara_x_parser::{ast, ErrorInfo, SourceCode, Warning};
 
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, FuncCall, HexPattern, Iterable, Lookup, MatchAnchor,
@@ -18,82 +20,141 @@ use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Type, TypeValue};
 
 pub(in crate::compiler) fn patterns_from_ast<'src>(
+    report_builder: &ReportBuilder,
+    src: &SourceCode<'src>,
     patterns: Option<&Vec<ast::Pattern<'src>>>,
 ) -> Result<Vec<Pattern<'src>>, CompileError> {
     patterns
         .into_iter()
         .flatten()
-        .map(pattern_from_ast)
+        .map(|p| pattern_from_ast(report_builder, src, p))
         .collect::<Result<Vec<Pattern<'src>>, CompileError>>()
 }
 
 fn pattern_from_ast<'src>(
+    report_builder: &ReportBuilder,
+    src: &SourceCode<'src>,
     pattern: &ast::Pattern<'src>,
 ) -> Result<Pattern<'src>, CompileError> {
     match pattern {
-        ast::Pattern::Text(pattern) => {
-            let mut flags = PatternFlagSet::none();
-
-            if pattern.modifiers.ascii().is_some() {
-                flags |= PatternFlags::Ascii;
-            }
-
-            if pattern.modifiers.wide().is_some() {
-                flags |= PatternFlags::Wide;
-            }
-
-            if pattern.modifiers.nocase().is_some() {
-                flags |= PatternFlags::Nocase;
-            }
-
-            if pattern.modifiers.fullword().is_some() {
-                flags |= PatternFlags::Fullword;
-            }
-
-            let xor_range = match pattern.modifiers.xor() {
-                Some(ast::PatternModifier::Xor { start, end, .. }) => {
-                    flags |= PatternFlags::Xor;
-                    Some(*start..=*end)
-                }
-                _ => None,
-            };
-
-            let base64_alphabet = match pattern.modifiers.base64() {
-                Some(ast::PatternModifier::Base64 { alphabet, .. }) => {
-                    flags |= PatternFlags::Base64;
-                    *alphabet
-                }
-                _ => None,
-            };
-
-            let base64wide_alphabet = match pattern.modifiers.base64wide() {
-                Some(ast::PatternModifier::Base64Wide {
-                    alphabet, ..
-                }) => {
-                    flags |= PatternFlags::Base64Wide;
-                    *alphabet
-                }
-                _ => None,
-            };
-
-            Ok(Pattern::Text(TextPattern {
-                ident: pattern.identifier.name,
-                flags,
-                text: pattern.value.clone(),
-                xor_range,
-                base64_alphabet,
-                base64wide_alphabet,
-            }))
-        }
-        ast::Pattern::Hex(pattern) => Ok(Pattern::Hex(HexPattern {
-            ident: pattern.identifier.name,
-            flags: PatternFlagSet::none(),
-        })),
-        ast::Pattern::Regexp(pattern) => Ok(Pattern::Regexp(RegexpPattern {
-            ident: pattern.identifier.name,
-            flags: PatternFlagSet::none(),
-        })),
+        ast::Pattern::Text(pattern) => Ok(Pattern::Text(
+            text_pattern_from_ast(report_builder, src, pattern)?,
+        )),
+        ast::Pattern::Hex(pattern) => Ok(Pattern::Hex(hex_pattern_from_ast(
+            report_builder,
+            src,
+            pattern,
+        )?)),
+        ast::Pattern::Regexp(pattern) => Ok(Pattern::Regexp(
+            regexp_pattern_from_ast(report_builder, src, pattern)?,
+        )),
     }
+}
+
+pub(in crate::compiler) fn text_pattern_from_ast<'src>(
+    _report_builder: &ReportBuilder,
+    _src: &SourceCode<'src>,
+    pattern: &ast::TextPattern<'src>,
+) -> Result<TextPattern<'src>, CompileError> {
+    let mut flags = PatternFlagSet::none();
+
+    if pattern.modifiers.ascii().is_some() {
+        flags |= PatternFlags::Ascii;
+    }
+
+    if pattern.modifiers.wide().is_some() {
+        flags |= PatternFlags::Wide;
+    }
+
+    if pattern.modifiers.nocase().is_some() {
+        flags |= PatternFlags::Nocase;
+    }
+
+    if pattern.modifiers.fullword().is_some() {
+        flags |= PatternFlags::Fullword;
+    }
+
+    let xor_range = match pattern.modifiers.xor() {
+        Some(ast::PatternModifier::Xor { start, end, .. }) => {
+            flags |= PatternFlags::Xor;
+            Some(*start..=*end)
+        }
+        _ => None,
+    };
+
+    let base64_alphabet = match pattern.modifiers.base64() {
+        Some(ast::PatternModifier::Base64 { alphabet, .. }) => {
+            flags |= PatternFlags::Base64;
+            *alphabet
+        }
+        _ => None,
+    };
+
+    let base64wide_alphabet = match pattern.modifiers.base64wide() {
+        Some(ast::PatternModifier::Base64Wide { alphabet, .. }) => {
+            flags |= PatternFlags::Base64Wide;
+            *alphabet
+        }
+        _ => None,
+    };
+
+    Ok(TextPattern {
+        ident: pattern.identifier.name,
+        flags,
+        text: pattern.text.clone(),
+        xor_range,
+        base64_alphabet,
+        base64wide_alphabet,
+    })
+}
+
+pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
+    _report_builder: &ReportBuilder,
+    _src: &SourceCode<'src>,
+    pattern: &ast::HexPattern<'src>,
+) -> Result<HexPattern<'src>, CompileError> {
+    Ok(HexPattern {
+        ident: pattern.identifier.name,
+        flags: PatternFlagSet::none(),
+    })
+}
+
+pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
+    report_builder: &ReportBuilder,
+    src: &SourceCode<'src>,
+    pattern: &ast::RegexpPattern<'src>,
+) -> Result<RegexpPattern<'src>, CompileError> {
+    let mut parser = regex_syntax::Parser::new();
+
+    match parser.parse(pattern.regexp.src) {
+        Ok(_) => {}
+        Err(err) => {
+            let (err_span, err_msg) = match err {
+                regex_syntax::Error::Parse(ref err) => {
+                    (err.span(), err.kind().to_string())
+                }
+                regex_syntax::Error::Translate(ref err) => {
+                    (err.span(), err.kind().to_string())
+                }
+                _ => panic!(),
+            };
+            return Err(CompileError::invalid_regexp(
+                report_builder,
+                src,
+                err_msg,
+                // err_span is relative to the regexp, not the whole source
+                // file, here we make it relative to the source code.
+                pattern
+                    .span
+                    .subspan(err_span.start.offset, err_span.end.offset),
+            ));
+        }
+    };
+
+    Ok(RegexpPattern {
+        ident: pattern.identifier.name,
+        flags: PatternFlagSet::none(),
+    })
 }
 
 /// Given the AST for some expression, creates its IR.

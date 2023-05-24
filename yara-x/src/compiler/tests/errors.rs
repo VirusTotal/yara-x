@@ -626,6 +626,46 @@ global rule test_2 {
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test_1 {
+  strings:
+    $a = /abc[xyz/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:14]
+   │
+ 4 │     $a = /abc[xyz/
+   │              ┬  
+   │              ╰── unclosed character class
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test_1 {
+  strings:
+    $a = /abc.{-100}xyz/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:16]
+   │
+ 4 │     $a = /abc.{-100}xyz/
+   │                │ 
+   │                ╰─ repetition quantifier expects a valid decimal
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
         #[cfg(feature = "test_proto2-module")]
         (
             line!(),

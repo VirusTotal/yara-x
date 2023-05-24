@@ -139,4 +139,8 @@ pub enum CompileError {
         non_global_rule: String,
         non_global_rule_span: Span,
     },
+
+    #[error("invalid regular expression")]
+    #[label("{error}", span)]
+    InvalidRegexp { detailed_report: String, error: String, span: Span },
 }
