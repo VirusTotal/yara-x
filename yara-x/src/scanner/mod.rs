@@ -187,11 +187,10 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = data.as_ptr();
         ctx.scanned_data_len = data.len();
 
-        // If the string pool is too large, destroy it and create a new one
-        // empty. Re-using the same string pool in multiple scans improves
-        // performance, as the pool doesn't need to be destroyed and created
-        // again on every scan. The price to pay the accumulation of strings
-        // in the pool.
+        // If the string pool is too large, destroy it and create a new empty
+        // one. Re-using the same string pool across multiple scans improves
+        // performance, but the price to pay is the accumulation of strings in
+        // the pool.
         if ctx.string_pool.size() > 1_000_000 {
             ctx.string_pool = BStringPool::new();
         }
@@ -200,7 +199,7 @@ impl<'r> Scanner<'r> {
             // Lookup the module in the list of built-in modules.
             let module = modules::BUILTIN_MODULES.get(module_name).unwrap();
 
-            // Call the module's main function if any. This function returns
+            // Call the module's main function, if any. This function returns
             // a data structure serialized as a protocol buffer. The format of
             // the data is specified by the .proto file associated to the
             // module.
@@ -225,7 +224,8 @@ impl<'r> Scanner<'r> {
             );
 
             // Make sure that the module is returning a protobuf message where
-            // all required fields are initialized.
+            // all required fields are initialized. This only applies to proto2,
+            // proto3 doesn't have "required" fields, all fields are optional.
             debug_assert!(
                 module_output.is_initialized_dyn(),
                 "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
@@ -233,19 +233,19 @@ impl<'r> Scanner<'r> {
                 module.root_struct_descriptor.full_name()
             );
 
-            // When compile-time optimizations are enabled we don't need to
-            // generate structure fields for enums. This is because during the
+            // When constant folding is enabled we don't need to generate
+            // structure fields for enums. This is because during the
             // optimization process symbols like MyEnum.ENUM_ITEM are resolved
             // to their constant values at compile time. In other words, the
             // compiler determines that MyEnum.ENUM_ITEM is equal to some value
             // X, and uses that value in the generated code.
             //
-            // However, without optimizations, enums are treated as any other
-            // field in a struct, and its value is determined at scan time.
-            // For that reason these fields must be generated for enums when
-            // optimizations are disabled.
+            // However, without constant folding, enums are treated as any
+            // other field in a struct, and their values are determined at scan
+            // time. For that reason these fields must be generated for enums
+            // when constant folding is disabled.
             let generate_fields_for_enums =
-                !cfg!(feature = "compile-time-optimization");
+                !cfg!(feature = "constant-folding");
 
             let module_struct = Struct::from_proto_msg(
                 module_output.deref(),

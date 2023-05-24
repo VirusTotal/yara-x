@@ -354,10 +354,10 @@ text-module = []
 
 # Features that are enabled by default.
 default = [
-    "compile-time-optimization",
+    "constant-folding",
     "test_proto2-module",
     "test_proto3-module",
-    "text-module"             # The text module will be included by default
+    "text-module"  # The text module will be included by default
 ]
 ```
 
