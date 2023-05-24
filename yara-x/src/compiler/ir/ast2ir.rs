@@ -5,7 +5,6 @@ use std::iter;
 use std::ops::{Deref, RangeInclusive};
 use std::rc::Rc;
 
-use regex_syntax;
 use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::{ast, ErrorInfo, SourceCode, Warning};
