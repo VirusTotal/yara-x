@@ -42,11 +42,10 @@ impl Iterator for ByteMaskCombinator {
         // For example if mask is 0b1110_1110 and the initial value of i is
         // zero, on each iteration the value of i changes like:
         //
-        //  1)  0           | 0b1110_1110 + 1  = 0b1110_1111
-        //  2)  0b1110_1111 | 0b1110_1110 + 1  = 0b1110_0000
-        //  3)  0b1110_0000 | 0b1110_1110 + 1  = 0b1110_1111
-        //  4)  0b1110_1111 | 0b1110_1110 + 1  = 0b1111_1111
-        //  5)  0b1111_1111 | 0b1110_1110 + 1  -> overflow
+        //  1)  (0           | 0b1110_1110) + 1  = 0b1110_1111
+        //  2)  (0b1110_1111 | 0b1110_1110) + 1  = 0b1111_0000
+        //  3)  (0b1111_0000 | 0b1110_1110) + 1  = 0b1111_1111
+        //  4)  (0b1111_1111 | 0b1110_1110) + 1  -> overflow
         //
         (self.i, self.done) = (self.i | self.mask).overflowing_add(1);
 
