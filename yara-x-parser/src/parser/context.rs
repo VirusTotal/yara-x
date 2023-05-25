@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast::{Ident, Span};
+use crate::cst::CSTNode;
 use crate::report::ReportBuilder;
 use crate::warnings::Warning;
 
@@ -57,14 +58,18 @@ impl<'src, 'rb> Context<'src, 'rb> {
     ///
     /// # Panics
     ///
-    /// Panics if called at some point where a string is not being parsed,
-    /// so it should be called only from `pattern_from_cst` or any other
-    /// function under `pattern_from_cst` in the call tree.
+    /// Panics if called at some point where a pattern is not being parsed,
+    /// which means that should be called only from `pattern_from_cst` or any
+    /// other function under `pattern_from_cst` in the call tree.
     pub(crate) fn current_pattern_ident(&self) -> String {
         self.current_pattern.as_ref().unwrap().name.to_string()
     }
 
-    pub(crate) fn span(&self, span: pest::Span<'_>) -> Span {
-        Span::new(self.report_builder.current_source_id().unwrap(), span)
+    /// Creates a new [`Span`] from [`CSTNode`].
+    pub(crate) fn span(&self, node: &CSTNode) -> Span {
+        Span::new(
+            self.report_builder.current_source_id().unwrap(),
+            node.as_span(),
+        )
     }
 }
