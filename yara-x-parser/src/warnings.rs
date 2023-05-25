@@ -5,7 +5,7 @@ use crate::ast::Span;
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
 
-/// A warning raised while parsing or compiling YARA rules.
+/// A warning raised while parsing YARA rules.
 #[rustfmt::skip]
 #[derive(Error)]
 pub enum Warning {

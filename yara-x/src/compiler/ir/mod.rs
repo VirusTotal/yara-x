@@ -349,15 +349,15 @@ pub(in crate::compiler) struct Lookup {
 
 /// An expression representing a function call.
 pub(in crate::compiler) struct FuncCall {
-    // The callable expression, which must resolve in some function identifier.
+    /// The callable expression, which must resolve in some function identifier.
     pub callable: Expr,
-    // The arguments passed to the function in this call.
+    /// The arguments passed to the function in this call.
     pub args: Vec<Expr>,
-    // Type and value for the function's result.
+    /// Type and value for the function's result.
     pub type_value: TypeValue,
-    // Due to function overloading, the same function may have multiple
-    // signatures. This field indicates the index of the signature that
-    // matched the provided arguments.
+    /// Due to function overloading, the same function may have multiple
+    /// signatures. This field indicates the index of the signature that
+    /// matched the provided arguments.
     pub signature_index: usize,
 }
 

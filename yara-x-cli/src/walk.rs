@@ -10,9 +10,10 @@ use walkdir::WalkDir;
 /// can be used for processing only those files whose path matches certain
 /// patterns.
 ///
-/// A custom initialization function is executed when each thread is started,
-/// and the result of that function is passed to the function that processes
-/// individual files.
+/// A custom initialization function is executed when each thread is started.
+/// If the result of that function is `T`, the function that processes
+/// individual files receive a `&mut T` as the first argument, and a file path
+/// as the second argument.
 ///
 /// # Examples
 ///
@@ -26,7 +27,7 @@ use walkdir::WalkDir;
 ///     },
 ///     |scanner, file_path| {
 ///         // This is called for each file, `scanner` is a mutable reference
-///         // to the
+///         // to the scanner created by the initialization function.
 ///         scanner.scan_file(file_path)?;
 ///         Ok(())
 ///     }
