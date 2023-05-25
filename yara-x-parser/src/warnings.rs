@@ -4,7 +4,6 @@ use yara_x_macros::Error;
 use crate::ast::Span;
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
-use crate::SourceCode;
 
 /// A warning raised while parsing or compiling YARA rules.
 #[rustfmt::skip]

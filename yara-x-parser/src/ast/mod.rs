@@ -32,7 +32,6 @@ use bitmask::bitmask;
 use bstr::BStr;
 use yara_x_macros::*;
 
-use crate::cst::CSTNode;
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
@@ -611,13 +610,6 @@ pub struct Ident<'src> {
 impl<'src> Ident<'src> {
     pub(crate) fn new(name: &'src str, span: Span) -> Self {
         Self { name, span }
-    }
-}
-
-/// Creates an [`Ident`] directly from a [`CSTNode`].
-impl<'src> From<CSTNode<'src>> for Ident<'src> {
-    fn from(node: CSTNode<'src>) -> Self {
-        Self { span: node.as_span().into(), name: node.as_str() }
     }
 }
 

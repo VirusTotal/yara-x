@@ -1,4 +1,5 @@
 use crate::ast::{BinaryExpr, Expr};
+use crate::parser::SourceId;
 
 pub trait HasSpan {
     /// Returns the starting and ending position within the source code for
@@ -6,11 +7,13 @@ pub trait HasSpan {
     fn span(&self) -> Span;
 }
 
-/// Span contains the starting and ending position for some node in the AST.
+/// Span indicates the starting and ending position for some node in the AST.
 ///
 /// Positions are absolute byte offsets within the original source code.
-#[derive(Debug, Default, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub struct Span {
+    /// The [`SourceId`] associated to the source file that contains this span.
+    pub(crate) source_id: SourceId,
     /// Starting byte offset.
     pub(crate) start: usize,
     /// Ending byte offset.
@@ -18,16 +21,23 @@ pub struct Span {
 }
 
 impl Span {
+    pub(crate) fn new(source_id: SourceId, span: pest::Span<'_>) -> Self {
+        Self { source_id, start: span.start(), end: span.end() }
+    }
+
+    /// Byte offset where the span starts.
     pub fn start(&self) -> usize {
         self.start
     }
 
+    /// Byte offset where the span ends.
     pub fn end(&self) -> usize {
         self.end
     }
 
     pub fn combine(&self, span: &Span) -> Span {
-        Span { start: self.start, end: span.end }
+        assert_eq!(self.source_id, span.source_id);
+        Span { source_id: self.source_id, start: self.start, end: span.end }
     }
 
     /// Returns a new [`Span`] that is a subspan of the original one.
@@ -37,14 +47,11 @@ impl Span {
     pub fn subspan(&self, start: usize, end: usize) -> Span {
         assert!(start <= self.end - self.start);
         assert!(end <= self.end - self.start);
-        Span { start: self.start + start, end: self.start + end }
-    }
-}
-
-#[doc(hidden)]
-impl From<pest::Span<'_>> for Span {
-    fn from(span: pest::Span) -> Self {
-        Self { start: span.start(), end: span.end() }
+        Span {
+            source_id: self.source_id,
+            start: self.start + start,
+            end: self.start + end,
+        }
     }
 }
 

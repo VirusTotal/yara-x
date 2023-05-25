@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::iter::Iterator;
 use std::str;
 
+use crate::ast;
 use bstr::{BStr, BString, ByteSlice};
 use lazy_static::lazy_static;
 use num::{Bounded, CheckedMul, FromPrimitive, Integer};
@@ -41,10 +42,11 @@ macro_rules! new_string_expr {
 }
 
 fn create_unary_expr<'src>(
+    ctx: &mut Context<'_, '_>,
     op: CSTNode<'src>,
     operand: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
-    let span = Span::from(op.as_span()).combine(&operand.span());
+    let span = ctx.span(op.as_span()).combine(&operand.span());
 
     let expr = match op.as_rule() {
         GrammarRule::BITWISE_NOT => {
@@ -213,7 +215,6 @@ fn check_pattern_modifiers(
 
             return Err(Error::new(ErrorInfo::invalid_modifier(
                 ctx.report_builder,
-                &ctx.src,
                 error_detail.to_string(),
                 modifier.span(),
             )));
@@ -234,7 +235,6 @@ fn check_pattern_modifiers(
         if let (Some(modifier1), Some(modifier2)) = (modifier1, modifier2) {
             return Err(Error::new(ErrorInfo::invalid_modifier_combination(
                 ctx.report_builder,
-                &ctx.src,
                 name1.to_string(),
                 name2.to_string(),
                 modifier1.span(),
@@ -253,13 +253,12 @@ pub(crate) fn ast_from_cst<'src>(
 ) -> Result<(Vec<Import>, Vec<Rule<'src>>), Error> {
     let mut imports: Vec<Import> = Vec::new();
     let mut rules: Vec<Rule> = Vec::new();
-    let mut rules_index: HashMap<&str, usize> = HashMap::new();
 
     for node in cst {
         match node.as_rule() {
             // Top level rules are either import statements...
             GrammarRule::import_stmt => {
-                let span = node.as_span();
+                let span = ctx.span(node.as_span());
                 let mut children = node.into_inner();
                 expect!(children.next().unwrap(), GrammarRule::k_IMPORT);
 
@@ -275,35 +274,20 @@ pub(crate) fn ast_from_cst<'src>(
                 if let Some(already_imported) = already_imported {
                     ctx.warnings.push(Warning::duplicate_import(
                         ctx.report_builder,
-                        &ctx.src,
                         module_name.to_string(),
-                        span.into(),
+                        span,
                         already_imported.span(),
                     ));
                 }
 
                 imports.push(Import {
-                    span: span.into(),
+                    span,
                     module_name: module_name.to_string(),
                 });
             }
             // .. or rule declarations.
             GrammarRule::rule_decl => {
                 let new_rule = rule_from_cst(ctx, node)?;
-                // Check if another rule was already defined with the same name.
-                if let Some(index) = rules_index.get(new_rule.identifier.name)
-                {
-                    let existing_rule = &rules[*index];
-
-                    return Err(Error::new(ErrorInfo::duplicate_rule(
-                        ctx.report_builder,
-                        &ctx.src,
-                        new_rule.identifier.name.to_string(),
-                        new_rule.identifier.span,
-                        existing_rule.identifier.span,
-                    )));
-                }
-                rules_index.insert(new_rule.identifier.name, rules.len());
                 rules.push(new_rule);
             }
             // The End Of Input (EOI) rule is ignored.
@@ -356,7 +340,8 @@ fn rule_from_cst<'src>(
     // The rule identifier should be right after the `rule` keyword.
     expect!(node, GrammarRule::ident);
 
-    let identifier = Ident::from(node);
+    let identifier = ident_from_cst(ctx, node);
+
     node = children.next().unwrap();
 
     // Process rule tags, if any. The CST looks like:
@@ -380,12 +365,8 @@ fn rule_from_cst<'src>(
             if !tags.insert(ident.as_str()) {
                 return Err(Error::new(ErrorInfo::duplicate_tag(
                     ctx.report_builder,
-                    &ctx.src,
                     ident.as_str().to_string(),
-                    Span {
-                        start: ident.as_span().start(),
-                        end: ident.as_span().end(),
-                    },
+                    ctx.span(ident.as_span()),
                 )));
             }
         }
@@ -441,7 +422,6 @@ fn rule_from_cst<'src>(
         let ident = ctx.declared_patterns.get(ident).unwrap();
         return Err(Error::new(ErrorInfo::unused_pattern(
             ctx.report_builder,
-            &ctx.src,
             ident.name.to_string(),
             ident.span,
         )));
@@ -490,7 +470,6 @@ fn patterns_from_cst<'src>(
             {
                 return Err(Error::new(ErrorInfo::duplicate_pattern(
                     ctx.report_builder,
-                    &ctx.src,
                     new_pattern_ident.name.to_string(),
                     new_pattern_ident.span,
                     existing_pattern_ident.span,
@@ -525,10 +504,11 @@ fn pattern_from_cst<'src>(
     expect!(pattern_def, GrammarRule::pattern_def);
 
     let mut children = pattern_def.into_inner();
+    let identifier = ident_from_cst(ctx, children.next().unwrap());
 
     // The first child of the `pattern_def` rule is the pattern identifier,
     // let's store it in ctx.current_pattern.
-    ctx.current_pattern = Some(Ident::from(children.next().unwrap()));
+    ctx.current_pattern = Some(identifier);
 
     // The identifier must be followed by the equal sign.
     expect!(children.next().unwrap(), GrammarRule::EQUAL);
@@ -539,7 +519,7 @@ fn pattern_from_cst<'src>(
     // vary depending on the type of pattern.
     let pattern = match node.as_rule() {
         GrammarRule::hex_pattern => {
-            let span = node.as_span();
+            let span = ctx.span(node.as_span());
             let mut hex_pattern = node.into_inner();
 
             // Hex strings start with a left brace `{`.
@@ -568,14 +548,14 @@ fn pattern_from_cst<'src>(
             };
 
             Pattern::Hex(Box::new(HexPattern {
-                span: span.into(),
+                span,
                 identifier,
                 tokens: pattern,
                 modifiers,
             }))
         }
         GrammarRule::string_lit => {
-            let span = node.as_span().into();
+            let span = ctx.span(node.as_span());
             let text = string_lit_from_cst(ctx, node, true)?;
             let modifiers = if let Some(modifiers) = children.next() {
                 pattern_mods_from_cst(ctx, GrammarRule::string_lit, modifiers)?
@@ -594,7 +574,6 @@ fn pattern_from_cst<'src>(
             if text.len() < min_len {
                 return Err(Error::new(ErrorInfo::invalid_pattern(
                     ctx.report_builder,
-                    &ctx.src,
                     ctx.current_pattern_ident(),
                     "this pattern is too short".to_string(),
                     span,
@@ -626,7 +605,7 @@ fn pattern_from_cst<'src>(
             Pattern::Regexp(Box::new(RegexpPattern {
                 identifier,
                 modifiers,
-                span: node.as_span().into(),
+                span: ctx.span(node.as_span()),
                 regexp: regexp_from_cst(ctx, node)?,
             }))
         }
@@ -660,26 +639,22 @@ fn regexp_from_cst<'src>(
             'i' => case_insensitive = true,
             's' => dotall = true,
             c => {
-                let span = regexp.as_span();
+                let span = ctx.span(regexp.as_span()).subspan(
+                    after_closing_slash + i,
+                    after_closing_slash + i + c.len_utf8(),
+                );
 
                 return Err(Error::new(ErrorInfo::invalid_regexp_modifier(
                     ctx.report_builder,
-                    &ctx.src,
                     format!("{}", c),
-                    Span {
-                        start: span.start() + after_closing_slash + i,
-                        end: span.start()
-                            + after_closing_slash
-                            + i
-                            + c.len_utf8(),
-                    },
+                    span,
                 )));
             }
         }
     }
 
     Ok(Regexp {
-        span: regexp.as_span().into(),
+        span: ctx.span(regexp.as_span()),
         src: regexp.as_str(),
         case_insensitive,
         dotall,
@@ -701,19 +676,19 @@ fn pattern_mods_from_cst<'src>(
     while let Some(node) = children.next() {
         let modifier = match node.as_rule() {
             GrammarRule::k_ASCII => {
-                PatternModifier::Ascii { span: node.as_span().into() }
+                PatternModifier::Ascii { span: ctx.span(node.as_span()) }
             }
             GrammarRule::k_WIDE => {
-                PatternModifier::Wide { span: node.as_span().into() }
+                PatternModifier::Wide { span: ctx.span(node.as_span()) }
             }
             GrammarRule::k_PRIVATE => {
-                PatternModifier::Private { span: node.as_span().into() }
+                PatternModifier::Private { span: ctx.span(node.as_span()) }
             }
             GrammarRule::k_FULLWORD => {
-                PatternModifier::Fullword { span: node.as_span().into() }
+                PatternModifier::Fullword { span: ctx.span(node.as_span()) }
             }
             GrammarRule::k_NOCASE => {
-                PatternModifier::Nocase { span: node.as_span().into() }
+                PatternModifier::Nocase { span: ctx.span(node.as_span()) }
             }
             GrammarRule::k_XOR => {
                 let mut lower_bound = 0;
@@ -726,7 +701,7 @@ fn pattern_mods_from_cst<'src>(
                         children.next().unwrap();
 
                         let node = children.next().unwrap();
-                        let lower_bound_span = node.as_span().into();
+                        let lower_bound_span = ctx.span(node.as_span());
 
                         // Parse the integer after the opening parenthesis `(`.
                         lower_bound = integer_lit_from_cst::<u8>(ctx, node)?;
@@ -757,7 +732,6 @@ fn pattern_mods_from_cst<'src>(
                         if lower_bound > upper_bound {
                             return Err(Error::new(ErrorInfo::invalid_range(
                                ctx.report_builder,
-                               &ctx.src,
                                format!(
                                    "lower bound ({}) is greater than upper bound ({})",
                                    lower_bound, upper_bound),
@@ -768,7 +742,7 @@ fn pattern_mods_from_cst<'src>(
                 }
 
                 PatternModifier::Xor {
-                    span: node.as_span().into(),
+                    span: ctx.span(node.as_span()),
                     end: upper_bound,
                     start: lower_bound,
                 }
@@ -779,7 +753,7 @@ fn pattern_mods_from_cst<'src>(
                     if node.as_rule() == GrammarRule::LPAREN {
                         children.next().unwrap();
                         let node = children.next().unwrap();
-                        let span = node.as_span().into();
+                        let span = ctx.span(node.as_span());
                         let lit = utf8_string_lit_from_cst(ctx, node)?;
 
                         // Make sure the base64 alphabet is a valid one.
@@ -787,7 +761,6 @@ fn pattern_mods_from_cst<'src>(
                             return Err(Error::new(
                                 ErrorInfo::invalid_base_64_alphabet(
                                     ctx.report_builder,
-                                    &ctx.src,
                                     e.to_string().to_lowercase(),
                                     span,
                                 ),
@@ -801,11 +774,11 @@ fn pattern_mods_from_cst<'src>(
                 }
                 match rule {
                     GrammarRule::k_BASE64 => PatternModifier::Base64 {
-                        span: node.as_span().into(),
+                        span: ctx.span(node.as_span()),
                         alphabet,
                     },
                     GrammarRule::k_BASE64WIDE => PatternModifier::Base64Wide {
-                        span: node.as_span().into(),
+                        span: ctx.span(node.as_span()),
                         alphabet,
                     },
                     _ => unreachable!(),
@@ -818,7 +791,6 @@ fn pattern_mods_from_cst<'src>(
         if modifiers.insert(node.as_str(), modifier).is_some() {
             return Err(Error::new(ErrorInfo::duplicate_modifier(
                 ctx.report_builder,
-                &ctx.src,
                 span,
             )));
         }
@@ -853,7 +825,7 @@ fn meta_from_cst<'src>(
         expect!(meta_def, GrammarRule::meta_def);
 
         let mut nodes = meta_def.into_inner();
-        let identifier = Ident::from(nodes.next().unwrap());
+        let identifier = ident_from_cst(ctx, nodes.next().unwrap());
 
         expect!(nodes.next().unwrap(), GrammarRule::EQUAL);
 
@@ -982,17 +954,17 @@ fn boolean_term_from_cst<'src>(
 ) -> Result<Expr<'src>, Error> {
     expect!(boolean_term, GrammarRule::boolean_term);
 
-    let boolean_term_span = boolean_term.as_span();
+    let boolean_term_span = ctx.span(boolean_term.as_span());
     let mut children = boolean_term.into_inner().peekable();
 
     // Based on the first child we decide what to do next, but the first child
     // is not consumed from the iterator at this moment.
     let expr = match children.peek().unwrap().as_rule() {
         GrammarRule::k_TRUE => {
-            Expr::True { span: children.next().unwrap().as_span().into() }
+            Expr::True { span: ctx.span(children.next().unwrap().as_span()) }
         }
         GrammarRule::k_FALSE => {
-            Expr::False { span: children.next().unwrap().as_span().into() }
+            Expr::False { span: ctx.span(children.next().unwrap().as_span()) }
         }
         GrammarRule::k_NOT => {
             // Consume the first child, corresponding to the `not` keyword.
@@ -1002,7 +974,7 @@ fn boolean_term_from_cst<'src>(
             let term = children.next().unwrap();
             let expr = boolean_term_from_cst(ctx, term)?;
 
-            create_unary_expr(not, expr)?
+            create_unary_expr(ctx, not, expr)?
         }
         GrammarRule::k_DEFINED => {
             // Consume the first child, corresponding to the `defined` keyword.
@@ -1012,7 +984,7 @@ fn boolean_term_from_cst<'src>(
             let term = children.next().unwrap();
             let expr = boolean_term_from_cst(ctx, term)?;
 
-            create_unary_expr(defined, expr)?
+            create_unary_expr(ctx, defined, expr)?
         }
         GrammarRule::LPAREN => {
             // Consume the opening parenthesis.
@@ -1040,9 +1012,8 @@ fn boolean_term_from_cst<'src>(
                 if ctx.declared_patterns.get(&ident_name[1..]).is_none() {
                     return Err(Error::new(ErrorInfo::unknown_pattern(
                         ctx.report_builder,
-                        &ctx.src,
                         ident_name.to_string(),
-                        ident.as_span().into(),
+                        ctx.span(ident.as_span()),
                     )));
                 }
                 ctx.unused_patterns.remove(&ident_name[1..]);
@@ -1051,9 +1022,8 @@ fn boolean_term_from_cst<'src>(
             else if !ctx.inside_for_of {
                 return Err(Error::new(ErrorInfo::syntax_error(
                     ctx.report_builder,
-                    &ctx.src,
                     "this `$` is outside of the condition of a `for .. of` statement".to_string(),
-                    ident.as_span().into(),
+                    ctx.span(ident.as_span()),
                 )));
             }
 
@@ -1064,8 +1034,8 @@ fn boolean_term_from_cst<'src>(
                 //   $a in (0..100)
                 //   ^^^^^^^^^^^^^^^
                 // The best way is using the anchor's span end.
-                span: boolean_term_span.into(),
-                identifier: Ident::new(ident_name, ident.as_span().into()),
+                span: boolean_term_span,
+                identifier: ident_from_cst(ctx, ident),
                 anchor,
             }))
         }
@@ -1164,16 +1134,14 @@ fn primary_expr_from_cst<'src>(
     // expression.
     expect!(primary_expr, GrammarRule::primary_expr);
 
-    let term_span = primary_expr.as_span();
+    let term_span = ctx.span(primary_expr.as_span());
     let mut children = primary_expr.into_inner();
     let node = children.next().unwrap();
 
     let expr = match node.as_rule() {
         GrammarRule::ident => {
-            let mut expr = Expr::Ident(Box::new(Ident::new(
-                node.as_str(),
-                node.as_span().into(),
-            )));
+            let ident = ident_from_cst(ctx, node);
+            let mut expr = Expr::Ident(Box::new(ident));
 
             // The identifier can be followed by a field access operator,
             // (e.g. `foo.bar.baz`).
@@ -1186,29 +1154,26 @@ fn primary_expr_from_cst<'src>(
 
                 expr = Expr::FieldAccess(Box::new(BinaryExpr::new(
                     expr,
-                    Expr::Ident(Box::new(Ident::new(
-                        node.as_str(),
-                        node.as_span().into(),
-                    ))),
+                    Expr::Ident(Box::new(ident_from_cst(ctx, node))),
                 )));
             }
 
             expr
         }
         GrammarRule::k_FILESIZE => {
-            Expr::Filesize { span: node.as_span().into() }
+            Expr::Filesize { span: ctx.span(node.as_span()) }
         }
         GrammarRule::k_ENTRYPOINT => {
-            Expr::Entrypoint { span: node.as_span().into() }
+            Expr::Entrypoint { span: ctx.span(node.as_span()) }
         }
-        GrammarRule::MINUS => create_unary_expr(
-            node,
-            term_from_cst(ctx, children.next().unwrap())?,
-        )?,
-        GrammarRule::BITWISE_NOT => create_unary_expr(
-            node,
-            term_from_cst(ctx, children.next().unwrap())?,
-        )?,
+        GrammarRule::MINUS => {
+            let operand = term_from_cst(ctx, children.next().unwrap())?;
+            create_unary_expr(ctx, node, operand)?
+        }
+        GrammarRule::BITWISE_NOT => {
+            let operand = term_from_cst(ctx, children.next().unwrap())?;
+            create_unary_expr(ctx, node, operand)?
+        }
         GrammarRule::LPAREN => {
             let expr = expr_from_cst(ctx, children.next().unwrap())?;
             expect!(children.next().unwrap(), GrammarRule::RPAREN);
@@ -1217,21 +1182,21 @@ fn primary_expr_from_cst<'src>(
         GrammarRule::string_lit => {
             Expr::LiteralString(Box::new(LiteralString::new(
                 node.as_span().as_str(),
-                node.as_span().into(),
+                ctx.span(node.as_span()),
                 string_lit_from_cst(ctx, node, true)?,
             )))
         }
         GrammarRule::float_lit => {
             Expr::LiteralFloat(Box::new(LiteralFloat::new(
                 node.as_span().as_str(),
-                node.as_span().into(),
+                ctx.span(node.as_span()),
                 float_lit_from_cst(ctx, node)?,
             )))
         }
         GrammarRule::integer_lit => {
             Expr::LiteralInteger(Box::new(LiteralInteger::new(
                 node.as_span().as_str(),
-                node.as_span().into(),
+                ctx.span(node.as_span()),
                 integer_lit_from_cst(ctx, node)?,
             )))
         }
@@ -1255,9 +1220,8 @@ fn primary_expr_from_cst<'src>(
             {
                 return Err(Error::new(ErrorInfo::unknown_pattern(
                     ctx.report_builder,
-                    &ctx.src,
                     ident_name.to_string(),
-                    node.as_span().into(),
+                    ctx.span(node.as_span()),
                 )));
             }
 
@@ -1266,7 +1230,7 @@ fn primary_expr_from_cst<'src>(
             ctx.unused_patterns.remove(&ident_name[1..]);
 
             Expr::PatternCount(Box::new(IdentWithRange {
-                span: term_span.into(),
+                span: term_span,
                 name: ident_name,
                 range,
             }))
@@ -1299,9 +1263,8 @@ fn primary_expr_from_cst<'src>(
             {
                 return Err(Error::new(ErrorInfo::unknown_pattern(
                     ctx.report_builder,
-                    &ctx.src,
                     ident_name.to_string(),
-                    node.as_span().into(),
+                    ctx.span(node.as_span()),
                 )));
             }
 
@@ -1310,7 +1273,7 @@ fn primary_expr_from_cst<'src>(
             ctx.unused_patterns.remove(&ident_name[1..]);
 
             expr_type(Box::new(IdentWithIndex {
-                span: term_span.into(),
+                span: term_span,
                 name: ident_name,
                 index,
             }))
@@ -1329,7 +1292,7 @@ fn indexing_expr_from_cst<'src>(
 ) -> Result<Expr<'src>, Error> {
     expect!(indexing_expr, GrammarRule::indexing_expr);
 
-    let span = indexing_expr.as_span();
+    let span = ctx.span(indexing_expr.as_span());
     let mut children = indexing_expr.into_inner();
 
     let primary = primary_expr_from_cst(ctx, children.next().unwrap())?;
@@ -1340,7 +1303,7 @@ fn indexing_expr_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::RBRACKET);
 
-    Ok(Expr::Lookup(Box::new(Lookup::new(primary, index, span.into()))))
+    Ok(Expr::Lookup(Box::new(Lookup::new(primary, index, span))))
 }
 
 fn func_call_from_cst<'src>(
@@ -1349,7 +1312,7 @@ fn func_call_from_cst<'src>(
 ) -> Result<Expr<'src>, Error> {
     expect!(func_call_expr, GrammarRule::func_call_expr);
 
-    let span = func_call_expr.as_span();
+    let span = ctx.span(func_call_expr.as_span());
     let mut children = func_call_expr.into_inner();
 
     let callable = primary_expr_from_cst(ctx, children.next().unwrap())?;
@@ -1384,18 +1347,16 @@ fn func_call_from_cst<'src>(
     let rparen = children.next().unwrap();
     expect!(rparen, GrammarRule::RPAREN);
 
-    let args_span =
-        Span { start: lparen.as_span().start(), end: rparen.as_span().end() };
+    let args_span = Span {
+        source_id: ctx.report_builder.current_source_id().unwrap(),
+        start: lparen.as_span().start(),
+        end: rparen.as_span().end(),
+    };
 
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
-    Ok(Expr::FuncCall(Box::new(FuncCall {
-        span: span.into(),
-        args_span,
-        callable,
-        args,
-    })))
+    Ok(Expr::FuncCall(Box::new(FuncCall { span, args_span, callable, args })))
 }
 
 /// From a CST node corresponding to the grammar rule `range`, returns a
@@ -1406,7 +1367,7 @@ fn range_from_cst<'src>(
 ) -> Result<Range<'src>, Error> {
     expect!(range, GrammarRule::range);
 
-    let range_span = range.as_span();
+    let span = ctx.span(range.as_span());
     let mut children = range.into_inner();
 
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
@@ -1422,7 +1383,7 @@ fn range_from_cst<'src>(
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
-    Ok(Range { span: range_span.into(), lower_bound, upper_bound })
+    Ok(Range { span, lower_bound, upper_bound })
 }
 
 /// From a CST node corresponding to the grammar rule `of_expr`, returns
@@ -1433,7 +1394,7 @@ fn of_expr_from_cst<'src>(
 ) -> Result<Expr<'src>, Error> {
     expect!(of_expr, GrammarRule::of_expr);
 
-    let span = of_expr.as_span();
+    let span = ctx.span(of_expr.as_span());
     let mut children = of_expr.into_inner();
 
     let quantifier = quantifier_from_cst(ctx, children.next().unwrap())?;
@@ -1462,7 +1423,7 @@ fn of_expr_from_cst<'src>(
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
 
-    Ok(Expr::Of(Box::new(Of { span: span.into(), quantifier, items, anchor })))
+    Ok(Expr::Of(Box::new(Of { span, quantifier, items, anchor })))
 }
 
 /// From a CST node corresponding to the grammar rule `for_expr`, returns
@@ -1473,7 +1434,7 @@ fn for_expr_from_cst<'src>(
 ) -> Result<Expr<'src>, Error> {
     expect!(for_expr, GrammarRule::for_expr);
 
-    let span = for_expr.as_span();
+    let span = ctx.span(for_expr.as_span());
     let mut children = for_expr.into_inner().peekable();
 
     // The statement starts with the `for` keyword...
@@ -1516,7 +1477,7 @@ fn for_expr_from_cst<'src>(
                 GrammarRule::ident => {
                     variables.push(Ident::new(
                         node.as_str(),
-                        node.as_span().into(),
+                        ctx.span(node.as_span()),
                     ));
                 }
                 GrammarRule::COMMA => {}
@@ -1541,14 +1502,14 @@ fn for_expr_from_cst<'src>(
 
     let expr = if let Some(pattern_set) = pattern_set {
         Expr::ForOf(Box::new(ForOf {
-            span: span.into(),
+            span,
             quantifier,
             pattern_set,
             condition,
         }))
     } else if let Some(iterator) = iterator {
         Expr::ForIn(Box::new(ForIn {
-            span: span.into(),
+            span,
             quantifier,
             variables,
             iterable: iterator,
@@ -1571,14 +1532,14 @@ fn anchor_from_cst<'src>(
                 let expr = expr_from_cst(ctx, iter.next().unwrap())?;
                 // The span of `at <expr>` is the span of `at` combined with
                 // the span of `<expr>`.
-                let span = Span::from(node.as_span()).combine(&expr.span());
+                let span = ctx.span(node.as_span()).combine(&expr.span());
                 Some(MatchAnchor::At(Box::new(At { span, expr })))
             }
             GrammarRule::k_IN => {
                 let range = range_from_cst(ctx, iter.next().unwrap())?;
                 // The span of `in <range>` is the span of `in` combined with
                 // the span of `<range>`.
-                let span = Span::from(node.as_span()).combine(&range.span());
+                let span = ctx.span(node.as_span()).combine(&range.span());
                 Some(MatchAnchor::In(Box::new(In { span, range })))
             }
             rule => unreachable!("{:?}", rule),
@@ -1601,10 +1562,14 @@ fn quantifier_from_cst<'src>(
     let node = children.next().unwrap();
 
     let quantifier = match node.as_rule() {
-        GrammarRule::k_ALL => Quantifier::All { span: node.as_span().into() },
-        GrammarRule::k_ANY => Quantifier::Any { span: node.as_span().into() },
+        GrammarRule::k_ALL => {
+            Quantifier::All { span: ctx.span(node.as_span()) }
+        }
+        GrammarRule::k_ANY => {
+            Quantifier::Any { span: ctx.span(node.as_span()) }
+        }
         GrammarRule::k_NONE => {
-            Quantifier::None { span: node.as_span().into() }
+            Quantifier::None { span: ctx.span(node.as_span()) }
         }
         GrammarRule::primary_expr => {
             let expr = primary_expr_from_cst(ctx, node)?;
@@ -1661,7 +1626,7 @@ fn pattern_ident_tuple<'src>(
                 }
 
                 result.push(PatternSetItem {
-                    span: node.as_span().into(),
+                    span: ctx.span(node.as_span()),
                     identifier: node.as_str(),
                 });
             }
@@ -1780,7 +1745,7 @@ where
 {
     expect!(integer_lit, GrammarRule::integer_lit);
 
-    let span = integer_lit.as_span();
+    let span = ctx.span(integer_lit.as_span());
     let mut literal = integer_lit.as_str();
     let mut multiplier = 1;
 
@@ -1810,13 +1775,12 @@ where
     let build_error = || {
         Error::new(ErrorInfo::invalid_integer(
             ctx.report_builder,
-            &ctx.src,
             format!(
                 "this number is out of the valid range: [{}, {}]",
                 T::min_value(),
                 T::max_value()
             ),
-            span.into(),
+            span,
         ))
     };
 
@@ -1845,12 +1809,11 @@ fn float_lit_from_cst<'src>(
     expect!(float_lit, GrammarRule::float_lit);
 
     let literal = float_lit.as_str();
-    let span = float_lit.as_span().into();
+    let span = ctx.span(float_lit.as_span());
 
     literal.parse::<f64>().map_err(|err| {
         Error::new(ErrorInfo::invalid_float(
             ctx.report_builder,
-            &ctx.src,
             err.to_string(),
             span,
         ))
@@ -1898,14 +1861,11 @@ fn string_lit_from_cst<'src>(
     } else if !allow_escape_char {
         return Err(Error::new(ErrorInfo::unexpected_escape_sequence(
             ctx.report_builder,
-            &ctx.src,
-            string_lit.as_span().into(),
+            ctx.span(string_lit.as_span()),
         )));
     }
 
-    // The point in the source code where the literal starts, skipping the
-    // opening double quote.
-    let literal_start = string_lit.as_span().start() + 1;
+    let string_span = ctx.span(string_lit.as_span());
 
     // TODO: with some unsafe code we could use the position of the backslash
     // returned by find for copying the chunk of literal that doesn't contain
@@ -1927,12 +1887,9 @@ fn string_lit_from_cst<'src>(
                     return Err(Error::new(
                         ErrorInfo::invalid_escape_sequence(
                             ctx.report_builder,
-                            &ctx.src,
                             r"missing escape sequence after `\`".to_string(),
-                            Span {
-                                start: literal_start + backslash_pos,
-                                end: literal_start + backslash_pos + 1,
-                            },
+                            string_span
+                                .subspan(backslash_pos + 1, backslash_pos + 2),
                         ),
                     ));
                 }
@@ -1957,15 +1914,12 @@ fn string_lit_from_cst<'src>(
                                 return Err(Error::new(
                                     ErrorInfo::invalid_escape_sequence(
                                         ctx.report_builder,
-                                        &ctx.src,
                                         format!(
                                             r"invalid hex value `{}` after `\x`",
                                             &literal[start..=end]
                                         ),
-                                        Span {
-                                            start: literal_start + start,
-                                            end: literal_start + end + 1,
-                                        },
+                                        string_span
+                                            .subspan(start + 1, end + 2),
                                     ),
                                 ));
                             }
@@ -1974,13 +1928,12 @@ fn string_lit_from_cst<'src>(
                             return Err(Error::new(
                                 ErrorInfo::invalid_escape_sequence(
                                     ctx.report_builder,
-                                    &ctx.src,
                                     r"expecting two hex digits after `\x`"
                                         .to_string(),
-                                    Span {
-                                        start: literal_start + backslash_pos,
-                                        end: literal_start + backslash_pos + 2,
-                                    },
+                                    string_span.subspan(
+                                        backslash_pos + 1,
+                                        backslash_pos + 3,
+                                    ),
                                 ),
                             ));
                         }
@@ -1989,15 +1942,14 @@ fn string_lit_from_cst<'src>(
                         return Err(Error::new(
                             ErrorInfo::invalid_escape_sequence(
                                 ctx.report_builder,
-                                &ctx.src,
                                 format!(
                                     "invalid escape sequence `{}`",
                                     &literal[backslash_pos..backslash_pos + 2]
                                 ),
-                                Span {
-                                    start: literal_start + backslash_pos,
-                                    end: literal_start + backslash_pos + 2,
-                                },
+                                string_span.subspan(
+                                    backslash_pos + 1,
+                                    backslash_pos + 3,
+                                ),
                             ),
                         ));
                     }
@@ -2076,10 +2028,9 @@ fn hex_pattern_from_cst<'src>(
                     // it here and providing a meaningful error message.
                     return Err(Error::new(ErrorInfo::invalid_pattern(
                         ctx.report_builder,
-                        &ctx.src,
                         ctx.current_pattern_ident(),
                         "uneven number of nibbles".to_string(),
-                        node.as_span().into(),
+                        ctx.span(node.as_span()),
                         None,
                     )));
                 }
@@ -2088,10 +2039,9 @@ fn hex_pattern_from_cst<'src>(
                 if negated && mask == 0x00 {
                     return Err(Error::new(ErrorInfo::invalid_pattern(
                         ctx.report_builder,
-                        &ctx.src,
                         ctx.current_pattern_ident(),
                         "negation of `??` is not allowed".to_string(),
-                        node.as_span().into(),
+                        ctx.span(node.as_span()),
                         None,
                     )));
                 }
@@ -2105,7 +2055,7 @@ fn hex_pattern_from_cst<'src>(
                 hex_alternative_from_cst(ctx, node)?,
             )),
             GrammarRule::hex_jump => {
-                let mut jump_span: Span = node.as_span().into();
+                let mut jump_span = ctx.span(node.as_span());
                 let mut jump = hex_jump_from_cst(ctx, node)?;
                 let mut consecutive_jumps = false;
 
@@ -2115,19 +2065,18 @@ fn hex_pattern_from_cst<'src>(
                     if node.as_rule() != GrammarRule::hex_jump {
                         break;
                     }
-                    let span = node.as_span();
+                    let span = ctx.span(node.as_span());
                     jump.coalesce(hex_jump_from_cst(
                         ctx,
                         children.next().unwrap(),
                     )?);
-                    jump_span = jump_span.combine(&span.into());
+                    jump_span = jump_span.combine(&span);
                     consecutive_jumps = true;
                 }
 
                 if consecutive_jumps {
                     ctx.warnings.push(Warning::consecutive_jumps(
                         ctx.report_builder,
-                        &ctx.src,
                         ctx.current_pattern_ident(),
                         format!("{}", jump),
                         jump_span,
@@ -2138,7 +2087,6 @@ fn hex_pattern_from_cst<'src>(
                     if start > end {
                         return Err(Error::new(ErrorInfo::invalid_pattern(
                             ctx.report_builder,
-                            &ctx.src,
                             ctx.current_pattern_ident(),
                             format!(
                                 "lower bound ({}) is greater than upper bound ({})",
@@ -2227,4 +2175,11 @@ fn hex_alternative_from_cst<'src>(
     }
 
     Ok(hex_alt)
+}
+
+fn ident_from_cst<'src>(
+    ctx: &mut Context<'src, '_>,
+    ident: CSTNode<'src>,
+) -> ast::Ident<'src> {
+    ast::Ident { span: ctx.span(ident.as_span()), name: ident.as_str() }
 }

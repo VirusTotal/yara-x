@@ -7,7 +7,6 @@ use yara_x_macros::Error as CompileError;
 use yara_x_parser::ast::Span;
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::report::ReportType;
-use yara_x_parser::SourceCode;
 
 /// Errors returned by the compiler.
 #[derive(Error, Debug)]
@@ -115,17 +114,25 @@ pub enum CompileError {
     InvalidRange { detailed_report: String, span: Span },
 
     #[error("duplicate rule `{new_rule}`")]
-    #[label("duplicate declaration of `{new_rule}`", new_rule_span)]
     #[label(
         "`{new_rule}` declared here for the first time",
         existing_rule_span,
         style = "note"
     )]
+    #[label("duplicate declaration of `{new_rule}`", new_rule_span)]
     DuplicateRule {
         detailed_report: String,
         new_rule: String,
         new_rule_span: Span,
         existing_rule_span: Span,
+    },
+
+    #[error("duplicate identifier `{ident}`")]
+    #[label("duplicate declaration of `{ident}`", ident_span)]
+    DuplicateIdentifier {
+        detailed_report: String,
+        ident: String,
+        ident_span: Span,
     },
 
     #[error("global rule `{global_rule}` depends on non-global rule `{non_global_rule}`")]

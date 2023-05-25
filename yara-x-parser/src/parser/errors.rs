@@ -4,7 +4,6 @@ use yara_x_macros::Error as Err;
 use crate::ast::Span;
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
-use crate::SourceCode;
 
 use super::GrammarRule;
 
@@ -75,24 +74,7 @@ pub enum ErrorInfo {
         tag: String,
         tag_span: Span,
     },
-
-    #[error("duplicate rule `{rule_ident}`")]
-    #[label(
-        "duplicate declaration of `{rule_ident}`",
-        new_rule_name_span
-    )]
-    #[label(
-        "`{rule_ident}` declared here for the first time",
-        existing_rule_name_span,
-        style="note"
-    )]
-    DuplicateRule {
-        detailed_report: String,
-        rule_ident: String,
-        new_rule_name_span: Span,
-        existing_rule_name_span: Span,
-    },
-
+    
     #[error("duplicate pattern `{pattern_ident}`")]
     #[label(
         "duplicate declaration of `{pattern_ident}`",
@@ -235,9 +217,6 @@ impl ErrorInfo {
                 detailed_report.as_str()
             }
             Self::DuplicateTag { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::DuplicateRule { detailed_report, .. } => {
                 detailed_report.as_str()
             }
             Self::DuplicatePattern { detailed_report, .. } => {
