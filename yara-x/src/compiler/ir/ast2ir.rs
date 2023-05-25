@@ -293,9 +293,8 @@ pub(in crate::compiler) fn expr_from_ast(
             // A global rule can depend on another global rule. And non-global
             // rules can depend both on global rules and non-global ones.
             if let SymbolKind::Rule(rule_id) = symbol.kind() {
-                if ctx.current_rule.is_global && !ctx.get(*rule_id).is_global {
-                    // TODO: improve this error with details about the place
-                    // where the non-global rule was defined.
+                let used_rule = ctx.get_rule(*rule_id);
+                if ctx.current_rule.is_global && !used_rule.is_global {
                     return Err(CompileError::from(
                         CompileErrorInfo::wrong_rule_dependency(
                             ctx.report_builder,
@@ -304,7 +303,9 @@ pub(in crate::compiler) fn expr_from_ast(
                                 .unwrap()
                                 .to_string(),
                             ident.name.to_string(),
-                            ident.span(),
+                            ctx.current_rule.ident_span,
+                            used_rule.ident_span,
+                            ident.span,
                         ),
                     ));
                 }

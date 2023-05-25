@@ -638,15 +638,23 @@ rule test_1 {
 
 global rule test_2 {
   condition:
-    test_1    
+    test_1
 }
 "#,
             r#"error: global rule `test_2` depends on non-global rule `test_1`
    ╭─[line:9:5]
    │
+ 2 │ rule test_1 {
+   │      ───┬──  
+   │         ╰──── non-global rule `test_1` declared here
+   │ 
+ 7 │ global rule test_2 {
+   │             ───┬──  
+   │                ╰──── global rule `test_2` declared here
+   │ 
  9 │     test_1
    │     ───┬──  
-   │        ╰──── non-global rule `test_1` used here
+   │        ╰──── `test_1` is used in the condition of `test_2`
 ───╯
 "#,
         ),

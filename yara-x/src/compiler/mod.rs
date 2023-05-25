@@ -169,15 +169,6 @@ pub struct Compiler<'a> {
     /// an index in this vector.
     rules: Vec<RuleInfo>,
 
-    /// A vector containing a [`Span`] that covers the identifier of each
-    /// declared rule. A [`RuleId`] is an index in this vector.
-    ///
-    /// The [`Span`] could be stored [`RuleInfo`], consolidating all the
-    /// information in the `rules` vector instead of using a separate vector
-    /// only for spans. However, the `rules` vector is later passed to the
-    /// [`Rules`] object, and spans are not needed there.
-    rule_ident_spans: Vec<Span>,
-
     /// Next (not used yet) [`PatternId`].
     next_pattern_id: i32,
 
@@ -261,7 +252,6 @@ impl<'a> Compiler<'a> {
             current_namespace: default_namespace,
             warnings: Vec::new(),
             rules: Vec::new(),
-            rule_ident_spans: Vec::new(),
             sub_patterns: Vec::new(),
             atoms: Vec::new(),
             imported_modules: Vec::new(),
@@ -487,10 +477,7 @@ impl<'a> Compiler<'a> {
                         &self.report_builder,
                         rule.identifier.name.to_string(),
                         rule.identifier.span,
-                        *self
-                            .rule_ident_spans
-                            .get(rule_id.0 as usize)
-                            .unwrap(),
+                        self.rules.get(rule_id.0 as usize).unwrap().ident_span,
                     )))
                 }
                 _ => Err(CompileError::from(
@@ -543,11 +530,10 @@ impl<'a> Compiler<'a> {
             namespace_id: self.current_namespace.id,
             namespace_ident_id: self.current_namespace.ident_id,
             ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
+            ident_span: rule.identifier.span,
             patterns: ident_and_pattern,
             is_global: rule.flags.contains(RuleFlag::Global),
         });
-
-        self.rule_ident_spans.push(rule.identifier.span);
 
         // Create a new symbol of bool type for the rule.
         let new_symbol =
@@ -1135,7 +1121,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
     ///
     /// If no rule with such [`RuleId`] exists.
     #[inline]
-    pub(crate) fn get(&self, rule_id: RuleId) -> &RuleInfo {
+    pub(crate) fn get_rule(&self, rule_id: RuleId) -> &RuleInfo {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
@@ -1164,6 +1150,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
                 return *pattern_id;
             }
         }
+
         panic!(
             "rule `{}` does not have pattern `{}` ",
             self.resolve_ident(self.current_rule.ident_id),
@@ -1499,6 +1486,11 @@ pub(crate) struct RuleInfo {
     pub(crate) namespace_ident_id: IdentId,
     /// The ID of the rule identifier in the identifiers pool.
     pub(crate) ident_id: IdentId,
+    /// Span of the rule identifier. This field is ignored while serializing
+    /// and deserializing compiles rules, as it is used only during the
+    /// compilation phase, but not during the scan phase.
+    #[serde(skip)]
+    pub(crate) ident_span: Span,
     /// Vector with all the patterns defined by this rule.
     pub(crate) patterns: Vec<(IdentId, PatternId)>,
     /// True if the rule is global.

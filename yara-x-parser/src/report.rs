@@ -30,7 +30,7 @@ pub enum ReportType {
 ///
 /// [register_source]: ReportBuilder::register_source
 /// [create_report]: ReportBuilder::create_report
-#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug, Default)]
 pub struct SourceId(u32);
 
 /// Builds error and warning reports.

@@ -10,7 +10,7 @@ pub trait HasSpan {
 /// Span indicates the starting and ending position for some node in the AST.
 ///
 /// Positions are absolute byte offsets within the original source code.
-#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Default)]
 pub struct Span {
     /// The [`SourceId`] associated to the source file that contains this span.
     pub(crate) source_id: SourceId,
