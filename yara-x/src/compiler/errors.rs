@@ -158,9 +158,12 @@ pub enum CompileErrorInfo {
         existing_rule_span: Span,
     },
 
-    #[error("duplicate identifier `{ident}`")]
-    #[label("duplicate declaration of `{ident}`", ident_span)]
-    DuplicateIdentifier {
+    #[error("rule `{ident}` conflicts with an existing identifier")]
+    #[label(
+        "identifier already in use by a module or global variable",
+        ident_span
+    )]
+    ConflictingRuleIdentifier {
         detailed_report: String,
         ident: String,
         ident_span: Span,

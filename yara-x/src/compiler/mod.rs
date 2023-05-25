@@ -481,7 +481,7 @@ impl<'a> Compiler<'a> {
                     )))
                 }
                 _ => Err(CompileError::from(
-                    CompileErrorInfo::duplicate_identifier(
+                    CompileErrorInfo::conflicting_rule_identifier(
                         &self.report_builder,
                         rule.identifier.name.to_string(),
                         rule.identifier.span,

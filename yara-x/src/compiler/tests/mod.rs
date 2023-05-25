@@ -48,46 +48,6 @@ fn namespaces() {
         .new_namespace("bar")
         .add_source("rule bar {condition: foo}")
         .is_err());
-
-    assert_eq!(
-        Compiler::new()
-            .define_global("foo", 1)
-            .unwrap()
-            .add_source("rule foo  {condition: true}")
-            .unwrap_err()
-            .to_string(),
-        "error: duplicate identifier `foo`
-   ╭─[line:1:6]
-   │
- 1 │ rule foo  {condition: true}
-   │      ─┬─  
-   │       ╰─── duplicate declaration of `foo`
-───╯
-"
-    );
-
-    assert_eq!(
-        Compiler::new()
-            .add_source("rule foo : first {condition: true}")
-            .unwrap()
-            .add_source("rule foo : second {condition: true}")
-            .unwrap_err()
-            .to_string(),
-        "error: duplicate rule `foo`
-   ╭─[line:1:6]
-   │
- 1 │ rule foo : first {condition: true}
-   │      ─┬─  
-   │       ╰─── `foo` declared here for the first time
-   │
-   ├─[line:1:6]
-   │
- 1 │ rule foo : second {condition: true}
-   │      ─┬─  
-   │       ╰─── duplicate declaration of `foo`
-───╯
-"
-    );
 }
 
 #[test]

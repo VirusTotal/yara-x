@@ -4,7 +4,7 @@ use crate::compiler::Compiler;
 
 #[rustfmt::skip]
 #[test]
-fn errors() {
+fn errors_1() {
     let tests = vec![
         ////////////////////////////////////////////////////////////
         (
@@ -993,4 +993,47 @@ rule test {
         "test at line {}", t.0
     )
     }
+}
+
+#[test]
+fn errors_2() {
+    assert_eq!(
+        Compiler::new()
+            .define_global("foo", 1)
+            .unwrap()
+            .add_source("rule foo  {condition: true}")
+            .unwrap_err()
+            .to_string(),
+        "error: rule `foo` conflicts with an existing identifier
+   ╭─[line:1:6]
+   │
+ 1 │ rule foo  {condition: true}
+   │      ─┬─  
+   │       ╰─── identifier already in use by a module or global variable
+───╯
+"
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_source("rule foo : first {condition: true}")
+            .unwrap()
+            .add_source("rule foo : second {condition: true}")
+            .unwrap_err()
+            .to_string(),
+        "error: duplicate rule `foo`
+   ╭─[line:1:6]
+   │
+ 1 │ rule foo : first {condition: true}
+   │      ─┬─  
+   │       ╰─── `foo` declared here for the first time
+   │
+   ├─[line:1:6]
+   │
+ 1 │ rule foo : second {condition: true}
+   │      ─┬─  
+   │       ╰─── duplicate declaration of `foo`
+───╯
+"
+    );
 }
