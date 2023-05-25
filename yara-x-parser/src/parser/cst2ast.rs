@@ -213,7 +213,7 @@ fn check_pattern_modifiers(
                 _ => unreachable!(),
             };
 
-            return Err(Error::new(ErrorInfo::invalid_modifier(
+            return Err(Error::from(ErrorInfo::invalid_modifier(
                 ctx.report_builder,
                 error_detail.to_string(),
                 modifier.span(),
@@ -233,7 +233,7 @@ fn check_pattern_modifiers(
 
     for (name1, modifier1, name2, modifier2) in invalid_combinations {
         if let (Some(modifier1), Some(modifier2)) = (modifier1, modifier2) {
-            return Err(Error::new(ErrorInfo::invalid_modifier_combination(
+            return Err(Error::from(ErrorInfo::invalid_modifier_combination(
                 ctx.report_builder,
                 name1.to_string(),
                 name2.to_string(),
@@ -363,7 +363,7 @@ fn rule_from_cst<'src>(
 
         for ident in idents {
             if !tags.insert(ident.as_str()) {
-                return Err(Error::new(ErrorInfo::duplicate_tag(
+                return Err(Error::from(ErrorInfo::duplicate_tag(
                     ctx.report_builder,
                     ident.as_str().to_string(),
                     ctx.span(ident.as_span()),
@@ -420,7 +420,7 @@ fn rule_from_cst<'src>(
 
     if let Some(ident) = unused_pattern {
         let ident = ctx.declared_patterns.get(ident).unwrap();
-        return Err(Error::new(ErrorInfo::unused_pattern(
+        return Err(Error::from(ErrorInfo::unused_pattern(
             ctx.report_builder,
             ident.name.to_string(),
             ident.span,
@@ -468,7 +468,7 @@ fn patterns_from_cst<'src>(
             if let Some(existing_pattern_ident) =
                 ctx.declared_patterns.get(&new_pattern_ident.name[1..])
             {
-                return Err(Error::new(ErrorInfo::duplicate_pattern(
+                return Err(Error::from(ErrorInfo::duplicate_pattern(
                     ctx.report_builder,
                     new_pattern_ident.name.to_string(),
                     new_pattern_ident.span,
@@ -572,7 +572,7 @@ fn pattern_from_cst<'src>(
             };
 
             if text.len() < min_len {
-                return Err(Error::new(ErrorInfo::invalid_pattern(
+                return Err(Error::from(ErrorInfo::invalid_pattern(
                     ctx.report_builder,
                     ctx.current_pattern_ident(),
                     "this pattern is too short".to_string(),
@@ -644,7 +644,7 @@ fn regexp_from_cst<'src>(
                     after_closing_slash + i + c.len_utf8(),
                 );
 
-                return Err(Error::new(ErrorInfo::invalid_regexp_modifier(
+                return Err(Error::from(ErrorInfo::invalid_regexp_modifier(
                     ctx.report_builder,
                     format!("{}", c),
                     span,
@@ -730,7 +730,7 @@ fn pattern_mods_from_cst<'src>(
                         };
 
                         if lower_bound > upper_bound {
-                            return Err(Error::new(ErrorInfo::invalid_range(
+                            return Err(Error::from(ErrorInfo::invalid_range(
                                ctx.report_builder,
                                format!(
                                    "lower bound ({}) is greater than upper bound ({})",
@@ -758,7 +758,7 @@ fn pattern_mods_from_cst<'src>(
 
                         // Make sure the base64 alphabet is a valid one.
                         if let Err(e) = base64::alphabet::Alphabet::new(lit) {
-                            return Err(Error::new(
+                            return Err(Error::from(
                                 ErrorInfo::invalid_base_64_alphabet(
                                     ctx.report_builder,
                                     e.to_string().to_lowercase(),
@@ -789,7 +789,7 @@ fn pattern_mods_from_cst<'src>(
 
         let span = modifier.span();
         if modifiers.insert(node.as_str(), modifier).is_some() {
-            return Err(Error::new(ErrorInfo::duplicate_modifier(
+            return Err(Error::from(ErrorInfo::duplicate_modifier(
                 ctx.report_builder,
                 span,
             )));
@@ -1010,7 +1010,7 @@ fn boolean_term_from_cst<'src>(
             // pattern `$*` appears in a pattern identifiers tuple.
             if ident_name != "$" {
                 if ctx.declared_patterns.get(&ident_name[1..]).is_none() {
-                    return Err(Error::new(ErrorInfo::unknown_pattern(
+                    return Err(Error::from(ErrorInfo::unknown_pattern(
                         ctx.report_builder,
                         ident_name.to_string(),
                         ctx.span(ident.as_span()),
@@ -1020,7 +1020,7 @@ fn boolean_term_from_cst<'src>(
             }
             // `$` used outside a `for .. of` statement, that's invalid.
             else if !ctx.inside_for_of {
-                return Err(Error::new(ErrorInfo::syntax_error(
+                return Err(Error::from(ErrorInfo::syntax_error(
                     ctx.report_builder,
                     "this `$` is outside of the condition of a `for .. of` statement".to_string(),
                     ctx.span(ident.as_span()),
@@ -1218,7 +1218,7 @@ fn primary_expr_from_cst<'src>(
             if ident_name != "#"
                 && ctx.declared_patterns.get(&ident_name[1..]).is_none()
             {
-                return Err(Error::new(ErrorInfo::unknown_pattern(
+                return Err(Error::from(ErrorInfo::unknown_pattern(
                     ctx.report_builder,
                     ident_name.to_string(),
                     ctx.span(node.as_span()),
@@ -1261,7 +1261,7 @@ fn primary_expr_from_cst<'src>(
             if ident_name.len() > 1
                 && ctx.declared_patterns.get(&ident_name[1..]).is_none()
             {
-                return Err(Error::new(ErrorInfo::unknown_pattern(
+                return Err(Error::from(ErrorInfo::unknown_pattern(
                     ctx.report_builder,
                     ident_name.to_string(),
                     ctx.span(node.as_span()),
@@ -1773,7 +1773,7 @@ where
     };
 
     let build_error = || {
-        Error::new(ErrorInfo::invalid_integer(
+        Error::from(ErrorInfo::invalid_integer(
             ctx.report_builder,
             format!(
                 "this number is out of the valid range: [{}, {}]",
@@ -1812,7 +1812,7 @@ fn float_lit_from_cst<'src>(
     let span = ctx.span(float_lit.as_span());
 
     literal.parse::<f64>().map_err(|err| {
-        Error::new(ErrorInfo::invalid_float(
+        Error::from(ErrorInfo::invalid_float(
             ctx.report_builder,
             err.to_string(),
             span,
@@ -1859,7 +1859,7 @@ fn string_lit_from_cst<'src>(
     if literal.find('\\').is_none() {
         return Ok(Cow::from(BStr::new(literal)));
     } else if !allow_escape_char {
-        return Err(Error::new(ErrorInfo::unexpected_escape_sequence(
+        return Err(Error::from(ErrorInfo::unexpected_escape_sequence(
             ctx.report_builder,
             ctx.span(string_lit.as_span()),
         )));
@@ -1884,7 +1884,7 @@ fn string_lit_from_cst<'src>(
                 // No more bytes following the backslash, this is an invalid
                 // escape sequence.
                 if next_byte.is_none() {
-                    return Err(Error::new(
+                    return Err(Error::from(
                         ErrorInfo::invalid_escape_sequence(
                             ctx.report_builder,
                             r"missing escape sequence after `\`".to_string(),
@@ -1911,7 +1911,7 @@ fn string_lit_from_cst<'src>(
                             {
                                 result.push(hex_value);
                             } else {
-                                return Err(Error::new(
+                                return Err(Error::from(
                                     ErrorInfo::invalid_escape_sequence(
                                         ctx.report_builder,
                                         format!(
@@ -1925,7 +1925,7 @@ fn string_lit_from_cst<'src>(
                             }
                         }
                         _ => {
-                            return Err(Error::new(
+                            return Err(Error::from(
                                 ErrorInfo::invalid_escape_sequence(
                                     ctx.report_builder,
                                     r"expecting two hex digits after `\x`"
@@ -1939,7 +1939,7 @@ fn string_lit_from_cst<'src>(
                         }
                     },
                     _ => {
-                        return Err(Error::new(
+                        return Err(Error::from(
                             ErrorInfo::invalid_escape_sequence(
                                 ctx.report_builder,
                                 format!(
@@ -2026,7 +2026,7 @@ fn hex_pattern_from_cst<'src>(
                     // nibbles in a byte sequence (e.g. { 000 }). The grammar
                     // allows this case, even if invalid, precisely for detecting
                     // it here and providing a meaningful error message.
-                    return Err(Error::new(ErrorInfo::invalid_pattern(
+                    return Err(Error::from(ErrorInfo::invalid_pattern(
                         ctx.report_builder,
                         ctx.current_pattern_ident(),
                         "uneven number of nibbles".to_string(),
@@ -2037,7 +2037,7 @@ fn hex_pattern_from_cst<'src>(
 
                 // ~?? is not allowed.
                 if negated && mask == 0x00 {
-                    return Err(Error::new(ErrorInfo::invalid_pattern(
+                    return Err(Error::from(ErrorInfo::invalid_pattern(
                         ctx.report_builder,
                         ctx.current_pattern_ident(),
                         "negation of `??` is not allowed".to_string(),
@@ -2085,7 +2085,7 @@ fn hex_pattern_from_cst<'src>(
 
                 if let (Some(start), Some(end)) = (jump.start, jump.end) {
                     if start > end {
-                        return Err(Error::new(ErrorInfo::invalid_pattern(
+                        return Err(Error::from(ErrorInfo::invalid_pattern(
                             ctx.report_builder,
                             ctx.current_pattern_ident(),
                             format!(

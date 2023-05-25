@@ -250,7 +250,7 @@ impl ReportBuilder {
             None,
         );
 
-        Error::new(ErrorInfo::SyntaxError {
+        Error::from(ErrorInfo::SyntaxError {
             detailed_report,
             error_msg,
             error_span,

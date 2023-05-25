@@ -460,7 +460,7 @@ impl<'a> Compiler<'a> {
     /// This file can be inspected and converted to WASM text format by using
     /// third-party [tooling](https://github.com/WebAssembly/wabt). This is
     /// useful for debugging issues with incorrectly emitted WASM code.
-    pub fn emit_wasm_file<P>(self, path: P) -> Result<(), EmitError>
+    pub fn emit_wasm_file<P>(self, path: P) -> Result<(), EmitWasmError>
     where
         P: AsRef<Path>,
     {
@@ -483,7 +483,7 @@ impl<'a> Compiler<'a> {
         if let Some(symbol) = self.symbol_table.lookup(rule.identifier.name) {
             return match symbol.kind() {
                 SymbolKind::Rule(rule_id) => {
-                    Err(CompileError::duplicate_rule(
+                    Err(CompileError::from(CompileErrorInfo::duplicate_rule(
                         &self.report_builder,
                         rule.identifier.name.to_string(),
                         rule.identifier.span,
@@ -491,12 +491,14 @@ impl<'a> Compiler<'a> {
                             .rule_ident_spans
                             .get(rule_id.0 as usize)
                             .unwrap(),
-                    ))
+                    )))
                 }
-                _ => Err(CompileError::duplicate_identifier(
-                    &self.report_builder,
-                    rule.identifier.name.to_string(),
-                    rule.identifier.span,
+                _ => Err(CompileError::from(
+                    CompileErrorInfo::duplicate_identifier(
+                        &self.report_builder,
+                        rule.identifier.name.to_string(),
+                        rule.identifier.span,
+                    ),
                 )),
             };
         }
@@ -788,7 +790,7 @@ impl<'a> Compiler<'a> {
     fn process_imports(
         &mut self,
         imports: &[ast::Import],
-    ) -> Result<(), Error> {
+    ) -> Result<(), CompileError> {
         // Remove duplicate imports. Duplicate imports raise a warning, but
         // they are allowed for backward-compatibility. We don't want to
         // process the same import twice.
@@ -892,8 +894,8 @@ impl<'a> Compiler<'a> {
                     .insert(module_name, symbol);
             } else {
                 // The module does not exist, that's an error.
-                return Err(Error::CompileError(
-                    CompileError::unknown_module(
+                return Err(CompileError::from(
+                    CompileErrorInfo::unknown_module(
                         &self.report_builder,
                         import.module_name.to_string(),
                         import.span(),

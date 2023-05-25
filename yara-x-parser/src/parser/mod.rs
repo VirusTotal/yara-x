@@ -250,7 +250,7 @@ impl<'a> Parser<'a> {
             } else {
                 span_start
             };
-            return Err(Error::new(ErrorInfo::invalid_utf_8(
+            return Err(Error::from(ErrorInfo::invalid_utf_8(
                 report_builder,
                 Span {
                     source_id: report_builder.current_source_id().unwrap(),
