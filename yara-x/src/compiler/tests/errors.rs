@@ -11,6 +11,31 @@ fn errors() {
             line!(),
             r#"
 rule test {
+   condition: true
+}
+
+rule test {
+   condition: false
+}
+"#,
+            r#"error: duplicate rule `test`
+   ╭─[line:2:6]
+   │
+ 2 │ rule test {
+   │      ──┬─  
+   │        ╰─── `test` declared here for the first time
+   │ 
+ 6 │ rule test {
+   │      ──┬─  
+   │        ╰─── duplicate declaration of `test`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
   condition: "foo" == 2
 }
     "#,

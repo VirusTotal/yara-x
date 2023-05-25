@@ -170,7 +170,9 @@ impl<'a> Parser<'a> {
         let root = cst.into_iter().next().unwrap();
         assert_eq!(root.as_rule(), GrammarRule::source_file);
 
-        let mut ctx = Context::new(src.clone(), self.get_report_builder());
+        let report_builder = self.get_report_builder();
+
+        let mut ctx = Context::new(report_builder);
 
         let (imports, rules) = ast_from_cst(&mut ctx, root.into_inner())?;
 
@@ -248,16 +250,19 @@ impl<'a> Parser<'a> {
             } else {
                 span_start
             };
-            return Err(Error::new(ErrorInfo::invalid_utf_8(
+            return Err(Error::from(ErrorInfo::invalid_utf_8(
                 report_builder,
-                &src,
-                Span { start: span_start, end: span_end },
+                Span {
+                    source_id: report_builder.current_source_id().unwrap(),
+                    start: span_start,
+                    end: span_end,
+                },
             )));
         }
 
         let pairs = grammar::ParserImpl::parse(rule, src.valid.unwrap())
             .map_err(|pest_error| {
-                report_builder.convert_pest_error(&src, pest_error)
+                report_builder.convert_pest_error(pest_error)
             })?;
 
         Ok(CST { comments: false, whitespaces: false, pairs: Box::new(pairs) })

@@ -2,23 +2,12 @@ use std::fmt::{Debug, Display, Formatter};
 use std::io;
 
 use thiserror::Error;
-use yara_x_macros::Error as CompileError;
+use yara_x_macros::Error as DeriveError;
 
 use yara_x_parser::ast::Span;
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::report::ReportType;
-use yara_x_parser::SourceCode;
-
-/// Errors returned by the compiler.
-#[derive(Error, Debug)]
-#[allow(clippy::large_enum_variant)]
-pub enum Error {
-    #[error(transparent)]
-    ParseError(#[from] yara_x_parser::Error),
-
-    #[error(transparent)]
-    CompileError(#[from] CompileError),
-}
+use yara_x_parser::Error as ParseError;
 
 /// Errors returned while serializing/deserializing compiled rules.
 #[derive(Error, Debug)]
@@ -33,15 +22,56 @@ pub enum SerializationError {
     IoError(#[from] io::Error),
 }
 
+/// Error returned by [`crate::Compiler::emit_wasm_file`].
 #[derive(Error, Debug)]
 #[error(transparent)]
 #[doc(hidden)]
-pub struct EmitError(#[from] anyhow::Error);
+pub struct EmitWasmError(#[from] anyhow::Error);
+
+/// Errors returned by the compiler.
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error(transparent)]
+    ParseError(#[from] ParseError),
+
+    #[error(transparent)]
+    CompileError(#[from] CompileError),
+}
+
+/// Error produced while compiling rules.
+pub struct CompileError(Box<CompileErrorInfo>);
+
+impl CompileError {
+    /// Returns additional information about the error.
+    pub fn info(&self) -> &CompileErrorInfo {
+        self.0.as_ref()
+    }
+}
+
+impl Debug for CompileError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl Display for CompileError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<CompileErrorInfo> for CompileError {
+    fn from(value: CompileErrorInfo) -> Self {
+        Self(Box::new(value))
+    }
+}
+
+impl std::error::Error for CompileError {}
 
 /// An error occurred during the compilation process.
-#[derive(CompileError)]
+#[derive(DeriveError)]
 #[non_exhaustive]
-pub enum CompileError {
+pub enum CompileErrorInfo {
     #[error("wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",
@@ -115,17 +145,25 @@ pub enum CompileError {
     InvalidRange { detailed_report: String, span: Span },
 
     #[error("duplicate rule `{new_rule}`")]
-    #[label("duplicate declaration of `{new_rule}`", new_rule_span)]
     #[label(
         "`{new_rule}` declared here for the first time",
         existing_rule_span,
         style = "note"
     )]
+    #[label("duplicate declaration of `{new_rule}`", new_rule_span)]
     DuplicateRule {
         detailed_report: String,
         new_rule: String,
         new_rule_span: Span,
         existing_rule_span: Span,
+    },
+
+    #[error("duplicate identifier `{ident}`")]
+    #[label("duplicate declaration of `{ident}`", ident_span)]
+    DuplicateIdentifier {
+        detailed_report: String,
+        ident: String,
+        ident_span: Span,
     },
 
     #[error("global rule `{global_rule}` depends on non-global rule `{non_global_rule}`")]

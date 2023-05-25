@@ -4,7 +4,6 @@ use yara_x_macros::Error as Err;
 use crate::ast::Span;
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
-use crate::SourceCode;
 
 use super::GrammarRule;
 
@@ -17,25 +16,6 @@ use super::GrammarRule;
 pub struct Error(Box<ErrorInfo>);
 
 impl Error {
-    pub(crate) fn new(info: ErrorInfo) -> Self {
-        Self(Box::new(info))
-    }
-
-    /// Returns a string with a detailed text-mode report like this one ...
-    ///
-    /// ```text
-    /// error: duplicate tag `tag1`
-    ///    ╭─[line:1:18]
-    ///    │
-    ///  1 │ rule test : tag1 tag1 { condition: true }
-    ///    ·                  ──┬─
-    ///    ·                    ╰─── duplicate tag
-    /// ───╯
-    /// ```
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-
     /// Returns additional information about the error.
     pub fn info(&self) -> &ErrorInfo {
         self.0.as_ref()
@@ -75,24 +55,7 @@ pub enum ErrorInfo {
         tag: String,
         tag_span: Span,
     },
-
-    #[error("duplicate rule `{rule_ident}`")]
-    #[label(
-        "duplicate declaration of `{rule_ident}`",
-        new_rule_name_span
-    )]
-    #[label(
-        "`{rule_ident}` declared here for the first time",
-        existing_rule_name_span,
-        style="note"
-    )]
-    DuplicateRule {
-        detailed_report: String,
-        rule_ident: String,
-        new_rule_name_span: Span,
-        existing_rule_name_span: Span,
-    },
-
+    
     #[error("duplicate pattern `{pattern_ident}`")]
     #[label(
         "duplicate declaration of `{pattern_ident}`",
@@ -228,64 +191,9 @@ pub enum ErrorInfo {
         error_span: Span},
 }
 
-impl ErrorInfo {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Self::SyntaxError { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::DuplicateTag { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::DuplicateRule { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::DuplicatePattern { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidModifier { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::DuplicateModifier { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidModifierCombination { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidBase64Alphabet { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::UnknownPattern { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::UnusedPattern { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidPattern { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidRange { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidInteger { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidFloat { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidEscapeSequence { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::UnexpectedEscapeSequence { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidRegexpModifier { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-            Self::InvalidUTF8 { detailed_report, .. } => {
-                detailed_report.as_str()
-            }
-        }
+impl From<ErrorInfo> for Error {
+    fn from(value: ErrorInfo) -> Self {
+        Self(Box::new(value))
     }
 }
 
