@@ -22,7 +22,6 @@ members = [
 
 [workspace.dependencies]
 aho-corasick = "1.0.0"
-ansi_term = "0.12.1"
 anyhow = "1.0.65"
 ariadne = "0.2.0"
 ascii_tree = "0.1.1"

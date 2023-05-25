@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
 
-use ansi_term::Color::{Green, Red, Yellow};
 use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use yansi::Color::{Green, Red, Yellow};
 use yara_x_parser::{Parser, SourceCode};
 
 use crate::{help, walk};

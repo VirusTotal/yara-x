@@ -20,7 +20,6 @@ profiling = ["pprof"]
 
 [dependencies]
 ascii_tree = { workspace = true }
-ansi_term = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features=["cargo"] }
 enable-ansi-support = { workspace = true }
