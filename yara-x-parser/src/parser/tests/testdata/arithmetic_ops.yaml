@@ -94,7 +94,7 @@
     rule test {
       condition:
         // The result of integer division and modulo where divisor is zero is
-        // undefined, therefore their value at compile time will be unkown.
+        // undefined, therefore their value at compile time will be unknown.
         10 \ 0 == 10 % 0
     }
   ast: |

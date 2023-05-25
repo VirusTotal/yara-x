@@ -325,7 +325,7 @@ fn get_labels(
                     return Err(syn::Error::new_spanned(
                         value,
                         format!(
-                            "unkown argument {}",
+                            "unknown argument {}",
                             value.path.get_ident().unwrap()
                         ),
                     ));
