@@ -16,6 +16,7 @@ use bstr::ByteSlice;
 use fmmap::{MmapFile, MmapFileExt};
 use protobuf::{MessageDyn, MessageFull};
 use rustc_hash::FxHashMap;
+use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
     Store, TypedFunc, Val, ValType,
@@ -36,6 +37,11 @@ pub(crate) mod matches;
 
 #[cfg(test)]
 mod tests;
+
+/// Error returned by [`Scanner::scan_file`].
+#[derive(Error, Debug)]
+#[error(transparent)]
+pub struct ScanError(#[from] fmmap::error::Error);
 
 /// Scans data with already compiled YARA rules.
 ///
@@ -164,11 +170,11 @@ impl<'r> Scanner<'r> {
     pub fn scan_file<'s, P>(
         &'s mut self,
         path: P,
-    ) -> std::io::Result<ScanResults<'s, 'r>>
+    ) -> Result<ScanResults<'s, 'r>, ScanError>
     where
         P: AsRef<Path>,
     {
-        let file = MmapFile::open(path).unwrap();
+        let file = MmapFile::open(path)?;
         Ok(self.scan(file.as_slice()))
     }
 
