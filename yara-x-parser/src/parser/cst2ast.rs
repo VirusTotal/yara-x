@@ -2055,7 +2055,7 @@ fn hex_pattern_from_cst<'src>(
                     if node.as_rule() != GrammarRule::hex_jump {
                         break;
                     }
-                    let span = ctx.span(&node);
+                    let span = ctx.span(node);
                     jump.coalesce(hex_jump_from_cst(
                         ctx,
                         children.next().unwrap(),
