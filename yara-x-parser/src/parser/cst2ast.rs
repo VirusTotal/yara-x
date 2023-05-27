@@ -287,8 +287,7 @@ pub(crate) fn ast_from_cst<'src>(
             }
             // .. or rule declarations.
             GrammarRule::rule_decl => {
-                let new_rule = rule_from_cst(ctx, node)?;
-                rules.push(new_rule);
+                rules.push(rule_from_cst(ctx, node)?);
             }
             // The End Of Input (EOI) rule is ignored.
             GrammarRule::EOI => {}
@@ -441,7 +440,7 @@ fn rule_from_cst<'src>(
 }
 
 /// Given a CST node corresponding to the grammar rule` pattern_defs`, returns
-/// a vector of [`Pattern`] structs describing the defined strings.
+/// a vector of [`Pattern`] structs describing the defined patterns.
 fn patterns_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     pattern_defs: CSTNode<'src>,
@@ -598,6 +597,7 @@ fn pattern_from_cst<'src>(
             } else {
                 PatternModifiers::default()
             };
+
             // Take the identifier and set ctx.current_pattern
             // to None.
             let identifier = ctx.current_pattern.take().unwrap();
@@ -757,11 +757,12 @@ fn pattern_mods_from_cst<'src>(
                         let lit = utf8_string_lit_from_cst(ctx, node)?;
 
                         // Make sure the base64 alphabet is a valid one.
-                        if let Err(e) = base64::alphabet::Alphabet::new(lit) {
+                        if let Err(err) = base64::alphabet::Alphabet::new(lit)
+                        {
                             return Err(Error::from(
                                 ErrorInfo::invalid_base_64_alphabet(
                                     ctx.report_builder,
-                                    e.to_string().to_lowercase(),
+                                    err.to_string().to_lowercase(),
                                     span,
                                 ),
                             ));

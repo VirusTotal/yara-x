@@ -192,9 +192,8 @@ impl SymbolLookup for RefCell<SymbolTable> {
 /// symbol is found, or the bottom of the stack is reached.
 ///
 /// If the symbol table at the top of the stack contains an identifier "foo",
-/// it hides any other identifier "foo" that may exists on a symbol table
-/// that is deeper in the stack.
-///
+/// it hides any other identifier "foo" that may exist on a symbol table that
+/// is deeper in the stack.
 pub(crate) struct StackedSymbolTable<'a> {
     stack: VecDeque<Rc<dyn SymbolLookup + 'a>>,
 }
