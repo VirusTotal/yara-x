@@ -411,11 +411,6 @@ impl<'s, 'r> ScanResults<'s, 'r> {
         Self { ctx }
     }
 
-    /// Returns the number of rules that matched.
-    pub fn num_matching_rules(&self) -> usize {
-        self.ctx.rules_matching.len()
-    }
-
     /// Returns an iterator that yields the matching rules in arbitrary order.
     pub fn matching_rules(&self) -> MatchingRules<'s, 'r> {
         MatchingRules::new(self.ctx)
@@ -458,6 +453,12 @@ impl<'s, 'r> Iterator for MatchingRules<'s, 'r> {
         let rule_info = rules.get(rule_id);
 
         Some(Rule { rule_info, rules, ctx: self.ctx })
+    }
+}
+
+impl<'s, 'r> ExactSizeIterator for MatchingRules<'s, 'r> {
+    fn len(&self) -> usize {
+        self.iterator.len()
     }
 }
 

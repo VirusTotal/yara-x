@@ -37,7 +37,7 @@ let mut scanner = yara_x::Scanner::new(&rules);
 // Scan some data.
 let results = scanner.scan("Lorem ipsum".as_bytes());
 
-assert_eq!(results.num_matching_rules(), 1);
+assert_eq!(results.matching_rules().len(), 1);
 ```
 */
 

@@ -16,7 +16,7 @@ rule rule_4 { condition: false }
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(&[]);
 
-    assert_eq!(results.num_matching_rules(), 2);
+    assert_eq!(results.matching_rules().len(), 2);
 
     let mut iter = results.matching_rules();
 
@@ -105,9 +105,9 @@ fn reuse_scanner() {
 
     let mut scanner = Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(b"").num_matching_rules(), 0);
-    assert_eq!(scanner.scan(b"123").num_matching_rules(), 1);
-    assert_eq!(scanner.scan(b"").num_matching_rules(), 0);
+    assert_eq!(scanner.scan(b"").matching_rules().len(), 0);
+    assert_eq!(scanner.scan(b"123").matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"").matching_rules().len(), 0);
 }
 
 #[test]
@@ -128,15 +128,15 @@ fn variables() {
 
     let mut scanner = Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 0);
+    assert_eq!(scanner.scan(&[]).matching_rules().len(), 0);
 
     scanner.set_global("bool_var", true).unwrap();
 
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 1);
+    assert_eq!(scanner.scan(&[]).matching_rules().len(), 1);
 
     scanner.set_global("bool_var", false).unwrap();
 
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 0);
+    assert_eq!(scanner.scan(&[]).matching_rules().len(), 0);
 
     assert_eq!(
         scanner.set_global("bool_var", 2).err().unwrap(),
@@ -194,7 +194,7 @@ fn global_rules() {
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(&[]);
 
-    assert_eq!(results.num_matching_rules(), 1);
+    assert_eq!(results.matching_rules().len(), 1);
 
     let mut matching = results.matching_rules();
     assert_eq!(matching.next().unwrap().name(), "matching");

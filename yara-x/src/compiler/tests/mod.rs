@@ -27,7 +27,7 @@ fn serialization() {
     let rules = Rules::deserialize(rules).unwrap();
 
     let mut scanner = Scanner::new(&rules);
-    assert_eq!(scanner.scan(b"foo").num_matching_rules(), 1);
+    assert_eq!(scanner.scan(b"foo").matching_rules().len(), 1);
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("int_1", 1u16)
@@ -117,7 +117,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("int_1", 1u32)
@@ -126,7 +126,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("int_1", 1i8)
@@ -135,7 +135,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("int_1", 1i16)
@@ -144,7 +144,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("int_1", 1i32)
@@ -153,7 +153,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("int_1", 1i64)
@@ -162,7 +162,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("float_1", 1_f32)
@@ -171,7 +171,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("float_1", 1_f64)
@@ -180,7 +180,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("str_foo", "foo")
@@ -189,7 +189,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("bstr_foo", b"\0\0".as_slice())
@@ -198,7 +198,7 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 
     let rules = Compiler::new()
         .define_global("str_foo", "foo".to_string())
@@ -207,5 +207,5 @@ fn globals() {
         .unwrap()
         .build();
 
-    assert_eq!(Scanner::new(&rules).scan(&[]).num_matching_rules(), 1);
+    assert_eq!(Scanner::new(&rules).scan(&[]).matching_rules().len(), 1);
 }

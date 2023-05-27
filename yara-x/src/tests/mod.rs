@@ -21,7 +21,8 @@ macro_rules! test_condition {
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
             .scan($data)
-            .num_matching_rules();
+            .matching_rules()
+            .len();
 
         assert_eq!(
             num_matching_rules, $expected_result as usize,
@@ -55,7 +56,8 @@ macro_rules! test_rule {
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
             .scan($data)
-            .num_matching_rules();
+            .matching_rules()
+            .len();
 
         assert_eq!(
             num_matching_rules, $expected_result as usize,
@@ -1260,9 +1262,9 @@ fn filesize() {
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(b"").num_matching_rules(), 1);
-    assert_eq!(scanner.scan(b"a").num_matching_rules(), 1);
-    assert_eq!(scanner.scan(b"ab").num_matching_rules(), 1);
+    assert_eq!(scanner.scan(b"").matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"a").matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"ab").matching_rules().len(), 1);
 }
 
 #[test]
@@ -1432,7 +1434,7 @@ fn rule_reuse() {
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(&[]).num_matching_rules(), 9);
+    assert_eq!(scanner.scan(&[]).matching_rules().len(), 9);
 }
 
 #[test]
