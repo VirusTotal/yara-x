@@ -457,6 +457,7 @@ impl<'s, 'r> Iterator for MatchingRules<'s, 'r> {
 }
 
 impl<'s, 'r> ExactSizeIterator for MatchingRules<'s, 'r> {
+    #[inline]
     fn len(&self) -> usize {
         self.iterator.len()
     }
