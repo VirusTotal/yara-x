@@ -3,8 +3,10 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 
+use std::fs;
+use std::io::Read;
 use std::ops::Deref;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
 use std::rc::Rc;
@@ -40,8 +42,12 @@ mod tests;
 
 /// Error returned by [`Scanner::scan_file`].
 #[derive(Error, Debug)]
-#[error(transparent)]
-pub struct ScanError(#[from] fmmap::error::Error);
+pub enum ScanError {
+    #[error("can not open `{path}`: {source}")]
+    OpenError { path: PathBuf, source: std::io::Error },
+    #[error("can not map `{path}`: {source}")]
+    MapError { path: PathBuf, source: fmmap::error::Error },
+}
 
 /// Scans data with already compiled YARA rules.
 ///
@@ -174,8 +180,33 @@ impl<'r> Scanner<'r> {
     where
         P: AsRef<Path>,
     {
-        let file = MmapFile::open(path)?;
-        Ok(self.scan(file.as_slice()))
+        let path = path.as_ref();
+
+        let mut file = fs::File::open(path).map_err(|err| {
+            ScanError::OpenError { path: path.to_path_buf(), source: err }
+        })?;
+
+        let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+
+        let mut buffered_file;
+        let mapped_file;
+
+        // For files smaller than ~500MB reading the whole file is faster than
+        // using a memory-mapped file.
+        let data = if size < 500_000_000 {
+            buffered_file = Vec::with_capacity(size as usize);
+            file.read_to_end(&mut buffered_file).map_err(|err| {
+                ScanError::OpenError { path: path.to_path_buf(), source: err }
+            })?;
+            buffered_file.as_slice()
+        } else {
+            mapped_file = MmapFile::open(path).map_err(|err| {
+                ScanError::MapError { path: path.to_path_buf(), source: err }
+            })?;
+            mapped_file.as_slice()
+        };
+
+        Ok(self.scan(data))
     }
 
     /// Scans in-memory data.
