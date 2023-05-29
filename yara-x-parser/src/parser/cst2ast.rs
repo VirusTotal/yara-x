@@ -1871,18 +1871,9 @@ fn string_lit_from_cst<'src>(
                 // Consume the backslash and see what's next.
                 let next_byte = bytes.next();
 
-                // No more bytes following the backslash, this is an invalid
-                // escape sequence.
-                if next_byte.is_none() {
-                    return Err(Error::from(
-                        ErrorInfo::invalid_escape_sequence(
-                            ctx.report_builder,
-                            r"missing escape sequence after `\`".to_string(),
-                            string_span
-                                .subspan(backslash_pos + 1, backslash_pos + 2),
-                        ),
-                    ));
-                }
+                // A character must follow the backslash. This is guaranteed by
+                // the grammar itself.
+                assert!(next_byte.is_some());
 
                 let next_byte = next_byte.unwrap();
 
