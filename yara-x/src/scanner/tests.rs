@@ -25,8 +25,6 @@ rule rule_4 { condition: false }
     assert_eq!(iter.len(), 0);
     assert!(iter.next().is_none());
 
-    assert_eq!(results.non_matching_rules().len(), 2);
-
     let mut iter = results.non_matching_rules();
 
     assert_eq!(iter.len(), 2);
