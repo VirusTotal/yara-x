@@ -131,7 +131,6 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
 }
 
 struct CheckState {
-    start: Instant,
     files_passed: AtomicUsize,
     warnings: AtomicUsize,
     errors: AtomicUsize,
@@ -140,7 +139,6 @@ struct CheckState {
 impl CheckState {
     fn new() -> Self {
         Self {
-            start: Instant::now(),
             files_passed: AtomicUsize::new(0),
             warnings: AtomicUsize::new(0),
             errors: AtomicUsize::new(0),
