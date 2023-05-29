@@ -498,6 +498,7 @@ impl<'s, 'r> ExactSizeIterator for MatchingRules<'s, 'r> {
 pub struct NonMatchingRules<'s, 'r> {
     ctx: &'s ScanContext<'r>,
     iterator: bitvec::slice::IterZeros<'s, u8, Lsb0>,
+    len: usize,
 }
 
 impl<'s, 'r> NonMatchingRules<'s, 'r> {
@@ -520,7 +521,13 @@ impl<'s, 'r> NonMatchingRules<'s, 'r> {
         // the BitSlice has exactly as many bits as existing rules.
         let matching_rules_bitmap = &matching_rules_bitmap[0..num_rules];
 
-        Self { ctx, iterator: matching_rules_bitmap.iter_zeros() }
+        Self {
+            ctx,
+            iterator: matching_rules_bitmap.iter_zeros(),
+            // The number of non-matching rules is the total minus the number of
+            // matching rules.
+            len: ctx.compiled_rules.rules().len() - ctx.rules_matching.len(),
+        }
     }
 }
 
@@ -528,11 +535,19 @@ impl<'s, 'r> Iterator for NonMatchingRules<'s, 'r> {
     type Item = Rule<'s, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.len = self.len.saturating_sub(1);
         let rule_id = RuleId::from(self.iterator.next()?);
         let rules = self.ctx.compiled_rules;
         let rule_info = rules.get(rule_id);
 
         Some(Rule { rule_info, rules, ctx: self.ctx })
+    }
+}
+
+impl<'s, 'r> ExactSizeIterator for NonMatchingRules<'s, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
     }
 }
 

@@ -16,18 +16,24 @@ rule rule_4 { condition: false }
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(&[]);
 
-    assert_eq!(results.matching_rules().len(), 2);
-
     let mut iter = results.matching_rules();
 
+    assert_eq!(iter.len(), 2);
     assert_eq!(iter.next().unwrap().name(), "rule_1");
+    assert_eq!(iter.len(), 1);
     assert_eq!(iter.next().unwrap().name(), "rule_3");
+    assert_eq!(iter.len(), 0);
     assert!(iter.next().is_none());
+
+    assert_eq!(results.non_matching_rules().len(), 2);
 
     let mut iter = results.non_matching_rules();
 
+    assert_eq!(iter.len(), 2);
     assert_eq!(iter.next().unwrap().name(), "rule_2");
+    assert_eq!(iter.len(), 1);
     assert_eq!(iter.next().unwrap().name(), "rule_4");
+    assert_eq!(iter.len(), 0);
     assert!(iter.next().is_none());
 }
 
