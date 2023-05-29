@@ -13,10 +13,12 @@ pub use scan::*;
 pub use wasm::*;
 
 use std::fs;
+use std::io::stdout;
 use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Command;
+use crossterm::tty::IsTty;
 use yara_x::{Compiler, Rules};
 use yara_x_parser::SourceCode;
 
@@ -38,7 +40,7 @@ fn compile_rules<'a, P>(
 where
     P: Iterator<Item = &'a PathBuf>,
 {
-    let mut compiler = Compiler::new().colorize_errors(true);
+    let mut compiler = Compiler::new().colorize_errors(stdout().is_tty());
 
     for path in paths {
         let src = fs::read(path)

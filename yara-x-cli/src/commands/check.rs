@@ -1,11 +1,16 @@
-use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Instant;
+use std::{fs, io};
 
 use anyhow::Context;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use crossterm::tty::IsTty;
+use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
 use yara_x_parser::{Parser, SourceCode};
 
+use crate::walk::Message;
 use crate::{help, walk};
 
 pub fn check() -> Command {
@@ -63,46 +68,119 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
         walker = walker.filter("**/*.yar").filter("**/*.yara");
     }
 
-    walker.run(
-        || {},
-        |_, file_path| {
-            let src = fs::read(file_path.clone()).with_context(|| {
-                format!("can not read `{}`", file_path.display())
-            })?;
+    walker
+        .run(
+            CheckState::new(),
+            || {},
+            |file_path, state, output, _| {
+                let src = fs::read(file_path.clone())
+                    .with_context(|| {
+                        format!("can not read `{}`", file_path.display())
+                    })
+                    .unwrap();
 
-            let src = SourceCode::from(src.as_slice())
-                .origin(file_path.as_os_str().to_str().unwrap());
+                let src = SourceCode::from(src.as_slice())
+                    .origin(file_path.as_os_str().to_str().unwrap());
 
-            match Parser::new().colorize_errors(true).build_ast(src) {
-                Ok(ast) => {
-                    if ast.warnings.is_empty() {
-                        println!(
-                            "[{}] {}",
-                            Green.paint("PASS"),
-                            file_path.display()
-                        );
-                    } else {
-                        println!(
-                            "[{}] {}\n",
-                            Yellow.paint("WARN"),
-                            file_path.display()
-                        );
-                        for warning in ast.warnings {
-                            println!("{}\n", warning);
+                let mut lines = Vec::new();
+
+                match Parser::new()
+                    .colorize_errors(io::stdout().is_tty())
+                    .build_ast(src)
+                {
+                    Ok(ast) => {
+                        if ast.warnings.is_empty() {
+                            state.files_passed.fetch_add(1, Ordering::Relaxed);
+                            lines.push(format!(
+                                "[{}] {}",
+                                Green.paint("PASS").bold(),
+                                file_path.display()
+                            ));
+                        } else {
+                            state.warnings.fetch_add(
+                                ast.warnings.len(),
+                                Ordering::Relaxed,
+                            );
+                            lines.push(format!(
+                                "[{}] {}",
+                                Yellow.paint("WARN").bold(),
+                                file_path.display()
+                            ));
+                            for warning in ast.warnings {
+                                lines.push(warning.to_string());
+                            }
                         }
                     }
-                }
-                Err(err) => {
-                    println!(
-                        "[{}] {}\n",
-                        Red.paint("ERROR"),
-                        file_path.display()
-                    );
-                    println!("{}", err);
-                }
-            };
+                    Err(err) => {
+                        state.errors.fetch_add(1, Ordering::Relaxed);
+                        lines.push(format!(
+                            "[{}] {}\n{}",
+                            Red.paint("ERROR").bold(),
+                            file_path.display(),
+                            err,
+                        ));
+                    }
+                };
 
-            Ok::<(), anyhow::Error>(())
-        },
-    )
+                output.send(Message::Info(lines.join("\n"))).unwrap();
+            },
+        )
+        .unwrap();
+
+    Ok(())
+}
+
+struct CheckState {
+    start: Instant,
+    files_passed: AtomicUsize,
+    warnings: AtomicUsize,
+    errors: AtomicUsize,
+}
+
+impl CheckState {
+    fn new() -> Self {
+        Self {
+            start: Instant::now(),
+            files_passed: AtomicUsize::new(0),
+            warnings: AtomicUsize::new(0),
+            errors: AtomicUsize::new(0),
+        }
+    }
+}
+
+impl Component for CheckState {
+    fn draw_unchecked(
+        &self,
+        _dimensions: superconsole::Dimensions,
+        mode: superconsole::DrawMode,
+    ) -> anyhow::Result<superconsole::Lines> {
+        let res = match mode {
+            superconsole::DrawMode::Normal | superconsole::DrawMode::Final => {
+                let ok = Green
+                    .paint(format!(
+                        "{} file(s) ok. ",
+                        self.files_passed.load(Ordering::Relaxed)
+                    ))
+                    .bold();
+                let warnings = Yellow
+                    .paint(format!(
+                        "warnings: {}. ",
+                        self.warnings.load(Ordering::Relaxed)
+                    ))
+                    .bold();
+                let errors = Red
+                    .paint(format!(
+                        "errors: {}.",
+                        self.errors.load(Ordering::Relaxed)
+                    ))
+                    .bold();
+                Line::from_iter([
+                    Span::new_unstyled(ok)?,
+                    Span::new_unstyled(warnings)?,
+                    Span::new_unstyled(errors)?,
+                ])
+            }
+        };
+        Ok(Lines(vec![res]))
+    }
 }

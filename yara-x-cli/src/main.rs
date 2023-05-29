@@ -3,7 +3,10 @@ mod help;
 mod walk;
 
 use clap::{command, crate_authors};
-use yansi::Color::{Default, Red};
+use crossterm::tty::IsTty;
+use std::io;
+use yansi::Color::Red;
+use yansi::Paint;
 
 const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
 {author-with-newline}
@@ -18,6 +21,13 @@ fn main() -> anyhow::Result<()> {
     // this is a no-op.
     if let Err(err) = enable_ansi_support::enable_ansi_support() {
         println!("could not enable ANSI support: {}", err)
+    }
+
+    // If stdout is not a tty (for example, because it was redirected to a
+    // file) turn off colors. This way you can redirect the output to a file
+    // without ANSI escape codes messing up the file content.
+    if !io::stdout().is_tty() {
+        Paint::disable();
     }
 
     let args = command!()
@@ -63,14 +73,16 @@ fn main() -> anyhow::Result<()> {
         if err.is::<yara_x::Error>() {
             eprintln!("{}", err);
         } else {
-            eprintln!(
-                "{} {}",
-                Red.paint("error:"),
-                Default.style().bold().paint(err.to_string())
-            );
-            err.chain().skip(1).for_each(|cause| {
-                eprintln!("\n{}\n    {}", Red.paint("caused by:"), cause)
-            });
+            if let Some(source) = err.source() {
+                eprintln!(
+                    "{} {}: {}",
+                    Red.paint("error:").bold(),
+                    err,
+                    source
+                );
+            } else {
+                eprintln!("{} {}", Red.paint("error:").bold(), err);
+            }
             std::process::exit(1);
         }
     }
