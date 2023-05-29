@@ -288,8 +288,8 @@ pub enum Message {
 impl Message {
     pub fn as_str(&self) -> &str {
         match self {
-            Message::Info(s) => &s,
-            Message::Error(s) => &s,
+            Message::Info(s) => s,
+            Message::Error(s) => s,
         }
     }
 }
