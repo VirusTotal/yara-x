@@ -104,9 +104,9 @@ mod tests {
     fn hex_tokens_to_hir() {
         let tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(Box::new(HexByte { value: b'a', mask: 0xff })),
-                HexToken::Byte(Box::new(HexByte { value: b'b', mask: 0xff })),
-                HexToken::Byte(Box::new(HexByte { value: b'c', mask: 0xff })),
+                HexToken::Byte(HexByte { value: b'a', mask: 0xff }),
+                HexToken::Byte(HexByte { value: b'b', mask: 0xff }),
+                HexToken::Byte(HexByte { value: b'c', mask: 0xff }),
             ],
         };
 
@@ -117,9 +117,9 @@ mod tests {
 
         let tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(Box::new(HexByte { value: 0x01, mask: 0xff })),
-                HexToken::Byte(Box::new(HexByte { value: 0x02, mask: 0xff })),
-                HexToken::Byte(Box::new(HexByte { value: 0x03, mask: 0xff })),
+                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
             ],
         };
 
@@ -130,12 +130,12 @@ mod tests {
 
         let tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(Box::new(HexByte { value: 0x01, mask: 0xff })),
-                HexToken::Byte(Box::new(HexByte { value: 0x02, mask: 0xff })),
-                HexToken::Byte(Box::new(HexByte { value: 0x03, mask: 0xff })),
-                HexToken::Byte(Box::new(HexByte { value: 0x00, mask: 0x00 })),
-                HexToken::Byte(Box::new(HexByte { value: 0x05, mask: 0xff })),
-                HexToken::Byte(Box::new(HexByte { value: 0x06, mask: 0xff })),
+                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x00, mask: 0x00 }),
+                HexToken::Byte(HexByte { value: 0x05, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x06, mask: 0xff }),
             ],
         };
 
@@ -152,12 +152,9 @@ mod tests {
 
         let tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(Box::new(HexByte { value: 0x01, mask: 0xff })),
-                HexToken::NotByte(Box::new(HexByte {
-                    value: 0x02,
-                    mask: 0xff,
-                })),
-                HexToken::Byte(Box::new(HexByte { value: 0x03, mask: 0xff })),
+                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
+                HexToken::NotByte(HexByte { value: 0x02, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
             ],
         };
 
@@ -175,12 +172,9 @@ mod tests {
 
         let tokens = HexTokens {
             tokens: vec![
-                HexToken::Byte(Box::new(HexByte { value: 0x01, mask: 0xff })),
-                HexToken::NotByte(Box::new(HexByte {
-                    value: 0x40,
-                    mask: 0xfe,
-                })),
-                HexToken::Byte(Box::new(HexByte { value: 0x03, mask: 0xff })),
+                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
+                HexToken::NotByte(HexByte { value: 0x40, mask: 0xfe }),
+                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
             ],
         };
 
@@ -200,16 +194,16 @@ mod tests {
             tokens: vec![HexToken::Alternative(Box::new(HexAlternative {
                 alternatives: vec![
                     HexTokens {
-                        tokens: vec![HexToken::Byte(Box::new(HexByte {
+                        tokens: vec![HexToken::Byte(HexByte {
                             value: 0x01,
                             mask: 0xff,
-                        }))],
+                        })],
                     },
                     HexTokens {
-                        tokens: vec![HexToken::Byte(Box::new(HexByte {
+                        tokens: vec![HexToken::Byte(HexByte {
                             value: 0x02,
                             mask: 0xff,
-                        }))],
+                        })],
                     },
                 ],
             }))],

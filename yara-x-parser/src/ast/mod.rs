@@ -334,8 +334,8 @@ pub struct HexTokens {
 /// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
 #[derive(Debug)]
 pub enum HexToken {
-    Byte(Box<HexByte>),
-    NotByte(Box<HexByte>),
+    Byte(HexByte),
+    NotByte(HexByte),
     Alternative(Box<HexAlternative>),
     Jump(Box<HexJump>),
 }

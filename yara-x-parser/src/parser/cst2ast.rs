@@ -2026,7 +2026,7 @@ fn hex_pattern_from_cst<'src>(
                 let token =
                     if negated { HexToken::NotByte } else { HexToken::Byte };
 
-                token(Box::new(HexByte { value, mask }))
+                token(HexByte { value, mask })
             }
             GrammarRule::hex_alternative => HexToken::Alternative(Box::new(
                 hex_alternative_from_cst(ctx, node)?,
