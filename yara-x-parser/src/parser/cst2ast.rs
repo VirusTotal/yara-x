@@ -629,19 +629,19 @@ fn regexp_from_cst<'src>(
     // It must contain a closing slash too, but not necessarily at the end
     // because the closing slash may be follow by a regexp modifier like "i"
     // and "s" (e.g. /foo/i)
-    let after_closing_slash = re.rfind('/').unwrap() + 1;
+    let closing_slash = re.rfind('/').unwrap();
 
     let mut case_insensitive = false;
     let mut dotall = false;
 
-    for (i, modifier) in re[after_closing_slash..].char_indices() {
+    for (i, modifier) in re[closing_slash + 1..].char_indices() {
         match modifier {
             'i' => case_insensitive = true,
             's' => dotall = true,
             c => {
                 let span = ctx.span(&regexp).subspan(
-                    after_closing_slash + i,
-                    after_closing_slash + i + c.len_utf8(),
+                    closing_slash + 1 + i,
+                    closing_slash + 1 + i + c.len_utf8(),
                 );
 
                 return Err(Error::from(ErrorInfo::invalid_regexp_modifier(
@@ -653,12 +653,10 @@ fn regexp_from_cst<'src>(
         }
     }
 
-    Ok(Regexp {
-        span: ctx.span(&regexp),
-        src: regexp.as_str(),
-        case_insensitive,
-        dotall,
-    })
+    // The regexp span without the opening and closing `/`.
+    let span = ctx.span(&regexp).subspan(1, closing_slash);
+
+    Ok(Regexp { span, src: &re[1..closing_slash], case_insensitive, dotall })
 }
 
 /// Given a CST node corresponding to the grammar rule `pattern_mods`, returns
@@ -1839,6 +1837,9 @@ fn string_lit_from_cst<'src>(
     debug_assert!(literal.starts_with('\"'));
     debug_assert!(literal.ends_with('\"'));
 
+    // The span doesn't include the quotes.
+    let string_span = ctx.span(&string_lit).subspan(1, literal.len() - 1);
+
     // From now on ignore the quotes.
     let literal = &literal[1..literal.len() - 1];
 
@@ -1854,8 +1855,6 @@ fn string_lit_from_cst<'src>(
             ctx.span(&string_lit),
         )));
     }
-
-    let string_span = ctx.span(&string_lit);
 
     // TODO: with some unsafe code we could use the position of the backslash
     // returned by find for copying the chunk of literal that doesn't contain
@@ -1899,8 +1898,7 @@ fn string_lit_from_cst<'src>(
                                             r"invalid hex value `{}` after `\x`",
                                             &literal[start..=end]
                                         ),
-                                        string_span
-                                            .subspan(start + 1, end + 2),
+                                        string_span.subspan(start, end + 1),
                                     ),
                                 ));
                             }
@@ -1912,8 +1910,8 @@ fn string_lit_from_cst<'src>(
                                     r"expecting two hex digits after `\x`"
                                         .to_string(),
                                     string_span.subspan(
-                                        backslash_pos + 1,
-                                        backslash_pos + 3,
+                                        backslash_pos,
+                                        backslash_pos + 2,
                                     ),
                                 ),
                             ));
@@ -1927,10 +1925,8 @@ fn string_lit_from_cst<'src>(
                                     "invalid escape sequence `{}`",
                                     &literal[backslash_pos..backslash_pos + 2]
                                 ),
-                                string_span.subspan(
-                                    backslash_pos + 1,
-                                    backslash_pos + 3,
-                                ),
+                                string_span
+                                    .subspan(backslash_pos, backslash_pos + 2),
                             ),
                         ));
                     }

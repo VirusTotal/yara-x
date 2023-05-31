@@ -643,7 +643,9 @@ pub struct IdentWithIndex<'src> {
 /// of a `matches` operator.
 #[derive(Debug, HasSpan)]
 pub struct Regexp<'src> {
+    /// The span that covers the regexp's source code.
     pub span: Span,
+    /// The regexp source code. Doesn't include the opening and closing `/`.
     pub src: &'src str,
     pub case_insensitive: bool,
     pub dotall: bool,
@@ -652,8 +654,10 @@ pub struct Regexp<'src> {
 /// A literal string (e.g: `"abcd"`).
 #[derive(Debug, HasSpan)]
 pub struct LiteralString<'src> {
+    /// The span that covers the literal string.
     pub span: Span,
-    /// The literal string as it appears in the source code.
+    /// The literal string as it appears in the source code. Doesn't include
+    /// the opening and closing `"`.
     pub literal: &'src str,
     /// The value of the string literal. Escaped characters, if any, are
     /// unescaped.

@@ -2,25 +2,37 @@
 
 The IR is a tree representing a set of YARA rules. This tree is similar to the
 AST, but it contains type information for expressions and identifiers, something
-that the AST doesn't have. The IR is generated using the AST as input, and the
-code emission phase uses the IR as input. This means that the IR is further
-away from the original source code than the AST, and closer to the emitted
-code. The build process goes like:
+that the AST doesn't have. The IR is generated from the AST, and the compiled
+[Rules] are generated from the IR. This means that the IR is further away from
+the original source code than the AST, and closer to the emitted code. The build
+process goes like:
 
-  `source code -> CST -> AST -> IR -> code emission`
+  `source code -> CST -> AST -> IR -> compiled rules`
 
-Contrary to the AST, the IR doesn't have a one to one correspondence to the
+Contrary to the AST, the IR doesn't have an one-to-one correspondence to the
 original source code, the compiler is free to transform the IR in ways that
 maintain the semantics of the original source code but doesn't match the code
 exactly. This could be done for example for optimization purposes. Another
 example is constant folding, which is done while the IR is being built,
 converting expressions like `2+2+2` into the constant `6`.
+
+The portions of the IR representing regular expressions and hex patterns
+are entrusted to the [regex_syntax] crate, particularly to its [Hir] type. This
+crate parses regular expressions and produce the corresponding [Hir]. For hex
+patterns the [Hir] is generated from the AST by the [`hex2hir`] module.
+
+Using a common representation for both regular expressions and hex patterns
+allows using the same regexp engine for matching both types of patterns.
+
+[Rules]: crate::compiler::Rules
+[regex_syntax]: https://docs.rs/regex-syntax/latest/regex_syntax/
+[Hir]: regex_syntax::hir::Hir
 */
 
-use bitmask::bitmask;
 use std::borrow::Cow;
 use std::ops::RangeInclusive;
 
+use bitmask::bitmask;
 use bstr::BStr;
 
 use crate::compiler::{PatternId, Var, VarStackFrame};
@@ -32,6 +44,7 @@ pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::warn_if_not_bool;
 
 mod ast2ir;
+mod hex2hir;
 
 bitmask! {
     #[derive(Debug)]
@@ -74,16 +87,24 @@ pub(in crate::compiler) struct TextPattern<'src> {
     pub base64wide_alphabet: Option<&'src str>,
 }
 
-/// Intermediate representation (IR) for a hex pattern.
-pub(in crate::compiler) struct HexPattern<'src> {
-    pub ident: &'src str,
-    pub flags: PatternFlagSet,
-}
-
 /// Intermediate representation (IR) for a regular expression.
+///
+/// The IR for a regular expression is entrusted to the `regex_syntax` crate,
+/// particularly to its [`regex_syntax::hir::Hir`] type.
 pub(in crate::compiler) struct RegexpPattern<'src> {
     pub ident: &'src str,
     pub flags: PatternFlagSet,
+    pub hir: regex_syntax::hir::Hir,
+}
+
+/// Intermediate representation (IR) for a hex pattern.
+///
+/// An hex pattern is simply a regexp expressed in a different syntax, so they
+/// are represented by using [`regex_syntax::hir::Hir`].
+pub(in crate::compiler) struct HexPattern<'src> {
+    pub ident: &'src str,
+    pub flags: PatternFlagSet,
+    pub hir: regex_syntax::hir::Hir,
 }
 
 /// Intermediate representation (IR) for an expression.

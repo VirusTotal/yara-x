@@ -1,0 +1,50 @@
+###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = /abcd/
+      condition:
+        $a
+    }
+  ast: |
+    root
+    └─ rule test
+       ├─ strings
+       │  └─ $a = /abcd/ 
+       └─ condition
+          └─ $a
+
+###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = /abcd/ nocase
+      condition:
+        $a
+    }
+  ast: |
+    root
+    └─ rule test
+       ├─ strings
+       │  └─ $a = /abcd/ nocase
+       └─ condition
+          └─ $a
+
+###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = /abcd/i
+      condition:
+        $a
+    }
+  ast: |
+    root
+    └─ rule test
+       ├─ strings
+       │  └─ $a = /abcd/i 
+       └─ condition
+          └─ $a
