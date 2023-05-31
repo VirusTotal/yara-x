@@ -509,11 +509,11 @@ impl<'a> Compiler<'a> {
                 ir::Pattern::Text(pattern) => {
                     self.process_text_pattern(pattern);
                 }
-                ir::Pattern::Hex { .. } => {
-                    // TODO
+                ir::Pattern::Hex(pattern) => {
+                    self.process_hex_pattern(pattern);
                 }
-                ir::Pattern::Regexp { .. } => {
-                    // TODO
+                ir::Pattern::Regexp(pattern) => {
+                    self.process_regexp_pattern(pattern);
                 }
             };
 
@@ -769,6 +769,37 @@ impl<'a> Compiler<'a> {
                     });
 
                 self.atoms.push(AtomInfo { sub_pattern_id, atom: best_atom })
+            }
+        }
+    }
+
+    fn process_hex_pattern(&mut self, p: ir::HexPattern) {
+        // TODO
+    }
+
+    fn process_regexp_pattern(&mut self, p: ir::RegexpPattern) {
+        let mut literal_extractor =
+            regex_syntax::hir::literal::Extractor::new();
+
+        literal_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
+
+        let prefixes = literal_extractor
+            .kind(regex_syntax::hir::literal::ExtractKind::Prefix)
+            .extract(&p.hir);
+
+        let postfixes = literal_extractor
+            .kind(regex_syntax::hir::literal::ExtractKind::Suffix)
+            .extract(&p.hir);
+
+        if let Some(prefixes) = prefixes.literals() {
+            for prefix in prefixes {
+                dbg!(prefix);
+            }
+        }
+
+        if let Some(postfixes) = postfixes.literals() {
+            for postfix in postfixes {
+                dbg!(postfix);
             }
         }
     }

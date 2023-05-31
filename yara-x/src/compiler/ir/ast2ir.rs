@@ -9,6 +9,7 @@ use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::{ast, ErrorInfo, Warning};
 
+use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, FuncCall, HexPattern, Iterable, Lookup, MatchAnchor,
     Of, OfItems, Pattern, PatternFlagSet, PatternFlags, Quantifier, Range,
@@ -109,6 +110,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     Ok(HexPattern {
         ident: pattern.identifier.name,
         flags: PatternFlagSet::none(),
+        hir: hex_pattern_hir_from_ast(pattern),
     })
 }
 
@@ -116,10 +118,22 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     report_builder: &ReportBuilder,
     pattern: &ast::RegexpPattern<'src>,
 ) -> Result<RegexpPattern<'src>, CompileError> {
-    let mut parser = regex_syntax::Parser::new();
+    let mut parser_builder = regex_syntax::ParserBuilder::new();
+    let mut flags = PatternFlagSet::none();
 
-    match parser.parse(pattern.regexp.src) {
-        Ok(_) => {}
+    // A regexp pattern use either the `nocase` modifier or the `/i` modifier.
+    // In both cases it means the same thing.
+    // TODO: raise a warning if both are used.
+    if pattern.modifiers.nocase().is_some() || pattern.regexp.case_insensitive
+    {
+        flags.set(PatternFlags::Nocase);
+        parser_builder.case_insensitive(true);
+    }
+
+    let mut parser = parser_builder.build();
+
+    let hir = match parser.parse(pattern.regexp.src) {
+        Ok(hir) => hir,
         Err(err) => {
             let (err_span, err_msg) = match err {
                 regex_syntax::Error::Parse(ref err) => {
@@ -136,16 +150,14 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
                 // err_span is relative to the regexp, not the whole source
                 // file, here we make it relative to the source code.
                 pattern
+                    .regexp
                     .span
                     .subspan(err_span.start.offset, err_span.end.offset),
             )));
         }
     };
 
-    Ok(RegexpPattern {
-        ident: pattern.identifier.name,
-        flags: PatternFlagSet::none(),
-    })
+    Ok(RegexpPattern { ident: pattern.identifier.name, flags, hir })
 }
 
 /// Given the AST for some expression, creates its IR.
