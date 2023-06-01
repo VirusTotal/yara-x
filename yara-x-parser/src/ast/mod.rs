@@ -337,7 +337,7 @@ pub enum HexToken {
     Byte(HexByte),
     NotByte(HexByte),
     Alternative(Box<HexAlternative>),
-    Jump(Box<HexJump>),
+    Jump(HexJump),
 }
 
 /// A single byte in a hex pattern (a.k.a hex string).

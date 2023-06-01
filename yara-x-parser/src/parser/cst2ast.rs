@@ -2078,7 +2078,7 @@ fn hex_pattern_from_cst<'src>(
                     }
                 }
 
-                HexToken::Jump(Box::new(jump))
+                HexToken::Jump(jump)
             }
             rule => unreachable!("{:?}", rule),
         };
@@ -2128,7 +2128,7 @@ fn hex_jump_from_cst<'src>(
 }
 
 /// From a CST node corresponding to the grammar rule `hex_alternative`, returns
-/// the [`HexAlternative`] representing it.
+/// the [`HexAlternative`] where each item is an alternative.
 fn hex_alternative_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     hex_alternative: CSTNode<'src>,
@@ -2139,19 +2139,19 @@ fn hex_alternative_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
 
-    let mut hex_alt = HexAlternative { alternatives: Vec::new() };
+    let mut alternatives = Vec::new();
 
     for node in children {
         match node.as_rule() {
             GrammarRule::hex_tokens => {
-                hex_alt.alternatives.push(hex_pattern_from_cst(ctx, node)?);
+                alternatives.push(hex_pattern_from_cst(ctx, node)?);
             }
             GrammarRule::PIPE | GrammarRule::RPAREN => {}
             rule => unreachable!("{:?}", rule),
         }
     }
 
-    Ok(hex_alt)
+    Ok(HexAlternative { alternatives })
 }
 
 fn ident_from_cst<'src>(
