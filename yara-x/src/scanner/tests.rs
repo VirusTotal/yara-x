@@ -94,6 +94,7 @@ fn xor_matches() {
     assert_eq!(matches, [("$a", 0..11, Some(1))])
 }
 
+#[cfg(feature = "test_proto2-module")]
 #[test]
 fn reuse_scanner() {
     let rules = crate::compile(

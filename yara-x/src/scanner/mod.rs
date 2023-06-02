@@ -17,6 +17,7 @@ use bitvec::prelude::*;
 use bstr::ByteSlice;
 use fmmap::{MmapFile, MmapFileExt};
 use protobuf::{MessageDyn, MessageFull};
+use regex::bytes::Regex;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
 use wasmtime::{
@@ -25,8 +26,8 @@ use wasmtime::{
 };
 
 use crate::compiler::{
-    AtomInfo, FullWord, IdentId, LiteralId, NamespaceId, PatternId, RuleId,
-    RuleInfo, Rules, SubPattern,
+    AtomInfo, FullWord, IdentId, LiteralId, NamespaceId, PatternId, RegexpId,
+    RuleId, RuleInfo, Rules, SubPattern,
 };
 use crate::scanner::matches::{Match, MatchList};
 use crate::string_pool::BStringPool;
@@ -693,6 +694,13 @@ impl ScanContext<'_> {
                 self.scanned_data_len,
             )
         }
+    }
+
+    /// Returns a regular expression given its [`RegexpId`].
+    pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
+        // TODO: put the regular expressions in a cache and call
+        // `compiled_rules.get_regexp` only if not found in the cache.
+        self.compiled_rules.get_regexp(regexp_id)
     }
 
     /// Returns the protobuf struct produced by a module.

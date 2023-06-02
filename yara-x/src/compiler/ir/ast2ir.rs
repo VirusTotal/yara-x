@@ -1,5 +1,6 @@
 /*! Functions for converting an AST into an IR. */
 
+use regex_syntax::hir;
 use std::borrow::Borrow;
 use std::iter;
 use std::ops::{Deref, RangeInclusive};
@@ -17,7 +18,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::{CompileError, CompileErrorInfo, Context, PatternId};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
-use crate::types::{Map, Type, TypeValue};
+use crate::types::{Map, Regexp, Type, TypeValue};
 
 pub(in crate::compiler) fn patterns_from_ast<'src>(
     report_builder: &ReportBuilder,
@@ -118,44 +119,21 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     report_builder: &ReportBuilder,
     pattern: &ast::RegexpPattern<'src>,
 ) -> Result<RegexpPattern<'src>, CompileError> {
-    let mut parser_builder = regex_syntax::ParserBuilder::new();
     let mut flags = PatternFlagSet::none();
 
-    // A regexp pattern use either the `nocase` modifier or the `/i` modifier.
-    // In both cases it means the same thing.
+    // A regexp pattern can use either the `nocase` modifier or the `/i`
+    // modifier (e.g: /foobar/i). In both cases it means the same thing.
     // TODO: raise a warning if both are used.
     if pattern.modifiers.nocase().is_some() || pattern.regexp.case_insensitive
     {
         flags.set(PatternFlags::Nocase);
-        parser_builder.case_insensitive(true);
     }
 
-    let mut parser = parser_builder.build();
-
-    let hir = match parser.parse(pattern.regexp.src) {
-        Ok(hir) => hir,
-        Err(err) => {
-            let (err_span, err_msg) = match err {
-                regex_syntax::Error::Parse(ref err) => {
-                    (err.span(), err.kind().to_string())
-                }
-                regex_syntax::Error::Translate(ref err) => {
-                    (err.span(), err.kind().to_string())
-                }
-                _ => panic!(),
-            };
-            return Err(CompileError::from(CompileErrorInfo::invalid_regexp(
-                report_builder,
-                err_msg,
-                // err_span is relative to the regexp, not the whole source
-                // file, here we make it relative to the source code.
-                pattern
-                    .regexp
-                    .span
-                    .subspan(err_span.start.offset, err_span.end.offset),
-            )));
-        }
-    };
+    let hir = parse_regexp(
+        report_builder,
+        &pattern.regexp,
+        flags.contains(PatternFlags::Nocase),
+    )?;
 
     Ok(RegexpPattern { ident: pattern.identifier.name, flags, hir })
 }
@@ -190,6 +168,16 @@ pub(in crate::compiler) fn expr_from_ast(
                 literal.value.deref().to_owned(),
             )),
         }),
+
+        ast::Expr::Regexp(regexp) => {
+            parse_regexp(ctx.report_builder, regexp, false)?;
+
+            Ok(Expr::Const {
+                type_value: TypeValue::Regexp(Some(Regexp::new(
+                    regexp.literal,
+                ))),
+            })
+        }
 
         ast::Expr::Defined(expr) => defined_expr_from_ast(ctx, expr),
 
@@ -232,7 +220,7 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::EndsWith(expr) => endswith_expr_from_ast(ctx, expr),
         ast::Expr::IEndsWith(expr) => iendswith_expr_from_ast(ctx, expr),
         ast::Expr::IEquals(expr) => iequals_expr_from_ast(ctx, expr),
-
+        ast::Expr::Matches(expr) => matches_expr_from_ast(ctx, expr),
         ast::Expr::Of(of) => of_expr_from_ast(ctx, of),
         ast::Expr::ForOf(for_of) => for_of_expr_from_ast(ctx, for_of),
         ast::Expr::ForIn(for_in) => for_in_expr_from_ast(ctx, for_in),
@@ -509,10 +497,6 @@ pub(in crate::compiler) fn expr_from_ast(
                     )))
                 }
             }
-        }
-
-        expr => {
-            unimplemented!("{:?}", expr);
         }
     }
 }
@@ -1050,6 +1034,32 @@ fn func_call_from_ast(
     })))
 }
 
+fn matches_expr_from_ast(
+    ctx: &mut Context,
+    expr: &ast::BinaryExpr,
+) -> Result<Expr, CompileError> {
+    let lhs_span = expr.lhs.span();
+    let rhs_span = expr.rhs.span();
+
+    let lhs = Box::new(expr_from_ast(ctx, &expr.lhs)?);
+    let rhs = Box::new(expr_from_ast(ctx, &expr.rhs)?);
+
+    check_type(ctx, lhs.ty(), lhs_span, &[Type::String])?;
+    check_type(ctx, rhs.ty(), rhs_span, &[Type::Regexp])?;
+
+    if cfg!(feature = "constant-folding") {
+        match (lhs.as_ref(), rhs.as_ref()) {
+            (
+                Expr::Const { type_value: lhs, .. },
+                Expr::Const { type_value: rhs, .. },
+            ) => Ok(Expr::Const { type_value: lhs.matches(rhs) }),
+            _ => Ok(Expr::Matches { lhs, rhs }),
+        }
+    } else {
+        Ok(Expr::Matches { lhs, rhs })
+    }
+}
+
 fn check_type(
     ctx: &Context,
     ty: Type,
@@ -1106,6 +1116,41 @@ fn check_operands(
     }
 
     Ok(())
+}
+
+fn parse_regexp(
+    report_builder: &ReportBuilder,
+    regexp: &ast::Regexp,
+    force_case_insensitive: bool,
+) -> Result<hir::Hir, CompileError> {
+    let mut parser = regex_syntax::ParserBuilder::new()
+        .case_insensitive(force_case_insensitive || regexp.case_insensitive)
+        .dot_matches_new_line(regexp.dot_matches_new_line)
+        .build();
+
+    match parser.parse(regexp.src) {
+        Ok(hir) => Ok(hir),
+        Err(err) => {
+            let (err_span, err_msg) = match err {
+                regex_syntax::Error::Parse(ref err) => {
+                    (err.span(), err.kind().to_string())
+                }
+                regex_syntax::Error::Translate(ref err) => {
+                    (err.span(), err.kind().to_string())
+                }
+                _ => panic!(),
+            };
+            Err(CompileError::from(CompileErrorInfo::invalid_regexp(
+                report_builder,
+                err_msg,
+                // err_span is relative to the regexp, not the whole source
+                // file, here we make it relative to the source code.
+                regexp
+                    .span
+                    .subspan(err_span.start.offset, err_span.end.offset),
+            )))
+        }
+    }
 }
 
 /// Produce a warning if the expression is not boolean.

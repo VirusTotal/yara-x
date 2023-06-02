@@ -282,6 +282,12 @@ pub(in crate::compiler) enum Expr {
         lhs: Box<Expr>,
     },
 
+    /// `matches` expression.
+    Matches {
+        rhs: Box<Expr>,
+        lhs: Box<Expr>,
+    },
+
     /// Field access expression (e.g. `foo.bar`)
     FieldAccess {
         rhs: Box<Expr>,
@@ -471,6 +477,7 @@ impl Expr {
             | Expr::EndsWith { .. }
             | Expr::IEndsWith { .. }
             | Expr::IEquals { .. }
+            | Expr::Matches { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
             | Expr::Of(_)
@@ -538,6 +545,7 @@ impl Expr {
             | Expr::EndsWith { .. }
             | Expr::IEndsWith { .. }
             | Expr::IEquals { .. }
+            | Expr::Matches { .. }
             | Expr::PatternMatch { .. }
             | Expr::PatternMatchVar { .. }
             | Expr::Of(_)

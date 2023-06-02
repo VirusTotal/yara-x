@@ -35,6 +35,7 @@ impl<'ast> FuncSignatureParser<'ast> {
             "f32" | "f64" => Ok(Cow::Borrowed("f")),
             "bool" => Ok(Cow::Borrowed("b")),
             "PatternId" | "RuleId" => Ok(Cow::Borrowed("i")),
+            "RegexpId" => Ok(Cow::Borrowed("r")),
             "RuntimeString" => Ok(Cow::Borrowed("s")),
             type_ident => Err(syn::Error::new_spanned(
                 type_path,

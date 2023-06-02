@@ -2,6 +2,7 @@ use pretty_assertions::assert_eq;
 
 use crate::parser::Parser;
 
+#[cfg(feature = "ascii-tree")]
 #[test]
 fn newlines_and_spaces() {
     let cst = Parser::new()
