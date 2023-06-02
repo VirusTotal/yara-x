@@ -233,6 +233,11 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
 
                 instr.i64_const(RuntimeString::Literal(literal_id).as_wasm());
             }
+            TypeValue::Regexp(Some(regexp)) => {
+                let re_id = ctx.regexp_pool.get_or_intern(regexp.as_str());
+
+                instr.i32_const(re_id.into());
+            }
             t => unreachable!("{:?}", t),
         },
 
@@ -619,6 +624,12 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
             emit_operands!(ctx, instr, lhs, rhs);
             instr
                 .call(ctx.function_id(wasm::export__str_iequals.mangled_name));
+        }
+
+        Expr::Matches { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr
+                .call(ctx.function_id(wasm::export__str_matches.mangled_name));
         }
 
         Expr::Lookup(lookup) => {

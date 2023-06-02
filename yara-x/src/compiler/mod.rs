@@ -16,6 +16,7 @@ use aho_corasick::AhoCorasick;
 use bincode::Options;
 use bstr::ByteSlice;
 use itertools::Itertools;
+use regex::bytes::{Regex, RegexBuilder};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::ir::InstrSeqId;
@@ -37,7 +38,7 @@ use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
-use crate::types::{Func, FuncSignature, Struct, Type, TypeValue};
+use crate::types::{Func, FuncSignature, Regexp, Struct, Type, TypeValue};
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
@@ -143,6 +144,10 @@ pub struct Compiler<'a> {
     /// identifier `$a`. Each identifier have an unique 32-bits [`IdentId`]
     /// that can be used for retrieving the identifier from the pool.
     ident_pool: StringPool<IdentId>,
+
+    /// Similar to `ident_pool` but for regular expressions found in rule
+    /// conditions.
+    regexp_pool: StringPool<RegexpId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
@@ -259,6 +264,7 @@ impl<'a> Compiler<'a> {
             globals_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
+            regexp_pool: StringPool::new(),
         }
     }
 
@@ -428,6 +434,7 @@ impl<'a> Compiler<'a> {
             compiled_wasm_mod: Some(compiled_wasm_mod),
             num_patterns: self.next_pattern_id as usize,
             ident_pool: self.ident_pool,
+            regexp_pool: self.regexp_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
             rules: self.rules,
@@ -557,6 +564,7 @@ impl<'a> Compiler<'a> {
             symbol_table: &mut self.symbol_table,
             ident_pool: &mut self.ident_pool,
             lit_pool: &mut self.lit_pool,
+            regexp_pool: &mut self.regexp_pool,
             report_builder: &self.report_builder,
             rules: &self.rules,
             current_rule: self.rules.last().unwrap(),
@@ -1009,7 +1017,7 @@ impl From<i32> for RuleId {
 impl From<usize> for RuleId {
     #[inline]
     fn from(value: usize) -> Self {
-        Self(value as i32)
+        Self(value.try_into().unwrap())
     }
 }
 
@@ -1017,6 +1025,52 @@ impl From<RuleId> for usize {
     #[inline]
     fn from(value: RuleId) -> Self {
         value.0 as usize
+    }
+}
+
+/// ID associated to each regexp used in a rule condition.
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct RegexpId(i32);
+
+impl From<i32> for RegexpId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<u32> for RegexpId {
+    #[inline]
+    fn from(value: u32) -> Self {
+        Self(value.try_into().unwrap())
+    }
+}
+
+impl From<i64> for RegexpId {
+    #[inline]
+    fn from(value: i64) -> Self {
+        Self(value.try_into().unwrap())
+    }
+}
+
+impl From<RegexpId> for usize {
+    #[inline]
+    fn from(value: RegexpId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<RegexpId> for i32 {
+    #[inline]
+    fn from(value: RegexpId) -> Self {
+        value.0
+    }
+}
+
+impl From<RegexpId> for u32 {
+    #[inline]
+    fn from(value: RegexpId) -> Self {
+        value.0.try_into().unwrap()
     }
 }
 
@@ -1115,6 +1169,9 @@ struct Context<'a, 'sym> {
 
     /// Pool with identifiers used in the rules.
     ident_pool: &'a mut StringPool<IdentId>,
+
+    /// Pool with regular expressions used in rule conditons.
+    regexp_pool: &'a mut StringPool<RegexpId>,
 
     /// Pool with literal strings used in the rules.
     lit_pool: &'a mut BStringPool<LiteralId>,
@@ -1310,6 +1367,12 @@ pub struct Rules {
     /// from the pool as a `&str`.
     ident_pool: StringPool<IdentId>,
 
+    /// Pool with the regular expressions used in the rules conditions. Each
+    /// regular expression has its own [`RegexpId`]. Regular expressions
+    /// include the starting and ending slashes (`/`), and the modifiers
+    /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
+    regexp_pool: StringPool<RegexpId>,
+
     /// Pool with literal strings used in the rules. Each literal has its
     /// own [`LiteralId`], which can be used for retrieving the literal
     /// string as `&BStr`.
@@ -1435,6 +1498,21 @@ impl Rules {
     #[inline]
     pub(crate) fn rules(&self) -> &[RuleInfo] {
         self.rules.as_slice()
+    }
+
+    /// Returns a regular expression by [`RegexpId`].
+    ///
+    /// # Panics
+    ///
+    /// If no regular expression with such [`RegexpId`] exists.
+    #[inline]
+    pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
+        let re = Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
+        RegexBuilder::new(re.naked())
+            .case_insensitive(re.case_insensitive())
+            .dot_matches_new_line(re.dot_matches_new_line())
+            .build()
+            .unwrap()
     }
 
     /// Returns a sub-pattern by [`SubPatternId`].

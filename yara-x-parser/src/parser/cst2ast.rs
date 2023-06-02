@@ -632,12 +632,12 @@ fn regexp_from_cst<'src>(
     let closing_slash = re.rfind('/').unwrap();
 
     let mut case_insensitive = false;
-    let mut dotall = false;
+    let mut dot_matches_new_line = false;
 
     for (i, modifier) in re[closing_slash + 1..].char_indices() {
         match modifier {
             'i' => case_insensitive = true,
-            's' => dotall = true,
+            's' => dot_matches_new_line = true,
             c => {
                 let span = ctx.span(&regexp).subspan(
                     closing_slash + 1 + i,
@@ -656,7 +656,13 @@ fn regexp_from_cst<'src>(
     // The regexp span without the opening and closing `/`.
     let span = ctx.span(&regexp).subspan(1, closing_slash);
 
-    Ok(Regexp { span, src: &re[1..closing_slash], case_insensitive, dotall })
+    Ok(Regexp {
+        span,
+        literal: re,
+        src: &re[1..closing_slash],
+        case_insensitive,
+        dot_matches_new_line,
+    })
 }
 
 /// Given a CST node corresponding to the grammar rule `pattern_mods`, returns

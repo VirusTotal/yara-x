@@ -157,6 +157,57 @@ rule test {
             line!(),
             r#"
 rule test {
+  condition: "foobar" matches "foobar"
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:3:31]
+   │
+ 3 │   condition: "foobar" matches "foobar"
+   │                               ────┬───  
+   │                                   ╰───── expression should be `regexp`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: 1 matches /foobar/
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:3:14]
+   │
+ 3 │   condition: 1 matches /foobar/
+   │              ┬  
+   │              ╰── expression should be `string`, but is `integer`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: "foobar" matches /foo[bar/
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:3:35]
+   │
+ 3 │   condition: "foobar" matches /foo[bar/
+   │                                   ┬  
+   │                                   ╰── unclosed character class
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
   strings:
     $a = "foo"
   condition: 

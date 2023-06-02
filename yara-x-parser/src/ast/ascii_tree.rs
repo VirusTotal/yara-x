@@ -65,7 +65,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
         Expr::LiteralInteger(lit) => Leaf(vec![lit.literal.to_string()]),
         Expr::Ident(ident) => Leaf(vec![ident.name.to_string()]),
         Expr::Regexp(regexp) => {
-            match (regexp.case_insensitive, regexp.dotall) {
+            match (regexp.case_insensitive, regexp.dot_matches_new_line) {
                 (true, true) => Leaf(vec![format!("/{}/is", regexp.src)]),
                 (true, false) => Leaf(vec![format!("/{}/i", regexp.src)]),
                 (false, true) => Leaf(vec![format!("/{}/s", regexp.src)]),
@@ -467,7 +467,7 @@ pub(crate) fn pattern_ascii_tree(pattern: &Pattern) -> Tree {
             r.identifier.name,
             r.regexp.src,
             if r.regexp.case_insensitive { "i" } else { "" },
-            if r.regexp.dotall { "s" } else { "" },
+            if r.regexp.dot_matches_new_line { "s" } else { "" },
             r.modifiers.iter().map(|m| m.to_string()).join(" ")
         )]),
     }

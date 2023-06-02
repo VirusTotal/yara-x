@@ -207,6 +207,18 @@ fn string_operations() {
     condition_true!(r#""foo" iequals "FOO""#);
     condition_true!(r#""foo" iequals "FoO""#);
     condition_false!(r#""foo" iequals "bar""#);
+
+    condition_true!(r#""foo" matches /foo/"#);
+    condition_true!(r#""foo" matches /FOO/i"#);
+    condition_false!(r#""foo" matches /bar/"#);
+    condition_true!(r#""xxFoOxx" matches /fOo/i"#);
+    condition_false!(r#""xxFoOxx" matches /^fOo/i"#);
+    condition_false!(r#""xxFoOxx" matches /fOo$/i"#);
+    condition_true!(r#""foobar" matches /^foo/"#);
+    condition_true!(r#""foobar" matches /bar$/"#);
+    condition_true!(r#""foobar" matches /^foobar$/"#);
+    condition_true!(r#""foo\nbar" matches /foo.*bar/s"#);
+    condition_false!(r#""foo\nbar" matches /foo.*bar/"#);
 }
 
 #[test]
