@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Instant;
 use std::{fs, io};
 
 use anyhow::Context;
