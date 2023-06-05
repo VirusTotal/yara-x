@@ -33,6 +33,11 @@ pub fn scan() -> Command {
                 .help("Use file path as rule namespace"),
         )
         .arg(
+            arg!(-z --"skip-larger" <FILE_SIZE>)
+                .help("Skip files larger than the given size")
+                .value_parser(value_parser!(u64)),
+        )
+        .arg(
             arg!(-p --"threads" <NUM_THREADS>)
                 .help("Use the given number of threads")
                 .long_help(help::THREADS_LONG_HELP)
@@ -47,6 +52,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let num_threads = args.get_one::<u8>("threads");
     let print_namespace = args.get_flag("print-namespace");
     let path_as_namespace = args.get_flag("path-as-namespace");
+    let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
 
     let rules = compile_rules(rules_path, path_as_namespace)?;
@@ -62,7 +68,14 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         .run(
             ScanState::new(),
             || Scanner::new(rules_ref),
-            |file_path, state, output, scanner| {
+            |file_path, file_metadata, state, output, scanner| {
+                // Skip files larger than the size specified by `--skip-larger`
+                if let Some(max_file_size) = skip_larger {
+                    if file_metadata.len() > *max_file_size {
+                        return;
+                    }
+                }
+
                 let scan_results = scanner.scan_file(&file_path);
 
                 if let Err(err) = scan_results {

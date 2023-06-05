@@ -71,7 +71,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
         .run(
             CheckState::new(),
             || {},
-            |file_path, state, output, _| {
+            |file_path, _, state, output, _| {
                 let src = fs::read(file_path.clone())
                     .with_context(|| {
                         format!("can not read `{}`", file_path.display())

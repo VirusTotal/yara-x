@@ -1,6 +1,7 @@
 use crossbeam::channel::{Sender, TryRecvError};
 use crossterm::tty::IsTty;
 use globset::{GlobBuilder, GlobMatcher};
+use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread::sleep;
@@ -14,11 +15,11 @@ use yansi::Color::Red;
 ///
 /// <br>
 ///
-/// The function receives four arguments: the file's path, a state of some type
-/// `S` that implements the [`Component`] trait, an output channel that the
-/// function can use for writing messages to the console (its type is
-/// &[`Sender<Message>`]), and a mutable reference to some type `T` returned by
-/// the thread initialization function.
+/// The function receives five arguments: the file's path, the file's metadata
+/// a state of some type `S` that implements the [`Component`] trait, an output
+/// channel that the function can use for writing messages to the console (its
+/// type is &[`Sender<Message>`]), and a mutable reference to some type `T`
+/// returned by the thread initialization function.
 ///
 /// <br>
 ///
@@ -54,7 +55,7 @@ use yansi::Color::Red;
 ///     // This function is called for each file, `state` is a reference to
 ///     // the initial state (it's type is `&S`), `output` is of type
 ///     // `Sender<Message>`.
-///     |file_path, state, output, scanner| {
+///     |file_path, file_metadata, state, output, scanner| {
 ///         scanner.scan_file(file_path);
 ///     }
 /// ).unwrap();
@@ -152,7 +153,10 @@ impl ParallelWalk {
     where
         S: Component + Send + Sync,
         I: Fn() -> T + Send + Copy,
-        F: Fn(PathBuf, &S, &Sender<Message>, &mut T) + Send + Sync + Copy,
+        F: Fn(PathBuf, Metadata, &S, &Sender<Message>, &mut T)
+            + Send
+            + Sync
+            + Copy,
     {
         // Use the given num_threads or compute it based on available
         // parallelism.
@@ -168,7 +172,7 @@ impl ParallelWalk {
             // Channel that will contain the paths of the files that need to
             // be processed by `func`.
             let (paths_send, paths_recv) =
-                crossbeam::channel::bounded::<PathBuf>(128);
+                crossbeam::channel::bounded::<(PathBuf, Metadata)>(128);
 
             // Channel where `func` will put the lines that it wants to show
             // in the console.
@@ -185,9 +189,10 @@ impl ParallelWalk {
                 let state = state.clone();
                 threads.push(s.spawn(move |_| {
                     let mut per_thread_obj = init();
-                    for path in paths_recv {
+                    for (path, metadata) in paths_recv {
                         func(
                             path.to_path_buf(),
+                            metadata,
                             &state,
                             &msg_sender,
                             &mut per_thread_obj,
@@ -231,7 +236,10 @@ impl ParallelWalk {
                         if let Ok(metadata) = entry.metadata() {
                             if metadata.is_file() {
                                 paths_send
-                                    .send(entry.path().to_path_buf())
+                                    .send((
+                                        entry.path().to_path_buf(),
+                                        metadata,
+                                    ))
                                     .unwrap();
                             }
                         }
