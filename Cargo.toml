@@ -18,6 +18,7 @@ members = [
     "yara-x-macros",
     "yara-x-parser",
     "yara-x-proto",
+    "yara-x-py",
 ]
 
 [workspace.dependencies]
