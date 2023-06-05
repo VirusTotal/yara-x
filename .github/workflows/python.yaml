@@ -3,7 +3,7 @@
 #
 #    maturin generate-ci github
 #
-name: CI
+name: Python extension
 
 on:
   push:
@@ -33,6 +33,7 @@ jobs:
       with:
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
+        working-directory: yara-x-py
         sccache: 'true'
         manylinux: auto
     - name: Upload wheels
@@ -57,6 +58,7 @@ jobs:
       with:
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
+        working-directory: yara-x-py
         sccache: 'true'
     - name: Upload wheels
       uses: actions/upload-artifact@v3
@@ -79,6 +81,7 @@ jobs:
       with:
         target: ${{ matrix.target }}
         args: --release --out dist --find-interpreter
+        working-directory: yara-x-py
         sccache: 'true'
     - name: Upload wheels
       uses: actions/upload-artifact@v3
@@ -95,6 +98,7 @@ jobs:
       with:
         command: sdist
         args: --out dist
+        working-directory: yara-x-py
     - name: Upload sdist
       uses: actions/upload-artifact@v3
       with:
@@ -117,3 +121,4 @@ jobs:
       with:
         command: upload
         args: --skip-existing *
+        working-directory: yara-x-py
