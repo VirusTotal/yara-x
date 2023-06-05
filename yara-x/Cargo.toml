@@ -51,6 +51,7 @@ linkme = { workspace = true }
 memx = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
+regex = { workspace = true }
 regex-syntax = { workspace = true }
 smallvec = { workspace = true }
 serde = { workspace = true, features=["rc"] }

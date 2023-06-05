@@ -629,19 +629,19 @@ fn regexp_from_cst<'src>(
     // It must contain a closing slash too, but not necessarily at the end
     // because the closing slash may be follow by a regexp modifier like "i"
     // and "s" (e.g. /foo/i)
-    let after_closing_slash = re.rfind('/').unwrap() + 1;
+    let closing_slash = re.rfind('/').unwrap();
 
     let mut case_insensitive = false;
-    let mut dotall = false;
+    let mut dot_matches_new_line = false;
 
-    for (i, modifier) in re[after_closing_slash..].char_indices() {
+    for (i, modifier) in re[closing_slash + 1..].char_indices() {
         match modifier {
             'i' => case_insensitive = true,
-            's' => dotall = true,
+            's' => dot_matches_new_line = true,
             c => {
                 let span = ctx.span(&regexp).subspan(
-                    after_closing_slash + i,
-                    after_closing_slash + i + c.len_utf8(),
+                    closing_slash + 1 + i,
+                    closing_slash + 1 + i + c.len_utf8(),
                 );
 
                 return Err(Error::from(ErrorInfo::invalid_regexp_modifier(
@@ -653,11 +653,15 @@ fn regexp_from_cst<'src>(
         }
     }
 
+    // The regexp span without the opening and closing `/`.
+    let span = ctx.span(&regexp).subspan(1, closing_slash);
+
     Ok(Regexp {
-        span: ctx.span(&regexp),
-        src: regexp.as_str(),
+        span,
+        literal: re,
+        src: &re[1..closing_slash],
         case_insensitive,
-        dotall,
+        dot_matches_new_line,
     })
 }
 
@@ -1839,6 +1843,9 @@ fn string_lit_from_cst<'src>(
     debug_assert!(literal.starts_with('\"'));
     debug_assert!(literal.ends_with('\"'));
 
+    // The span doesn't include the quotes.
+    let string_span = ctx.span(&string_lit).subspan(1, literal.len() - 1);
+
     // From now on ignore the quotes.
     let literal = &literal[1..literal.len() - 1];
 
@@ -1854,8 +1861,6 @@ fn string_lit_from_cst<'src>(
             ctx.span(&string_lit),
         )));
     }
-
-    let string_span = ctx.span(&string_lit);
 
     // TODO: with some unsafe code we could use the position of the backslash
     // returned by find for copying the chunk of literal that doesn't contain
@@ -1899,8 +1904,7 @@ fn string_lit_from_cst<'src>(
                                             r"invalid hex value `{}` after `\x`",
                                             &literal[start..=end]
                                         ),
-                                        string_span
-                                            .subspan(start + 1, end + 2),
+                                        string_span.subspan(start, end + 1),
                                     ),
                                 ));
                             }
@@ -1912,8 +1916,8 @@ fn string_lit_from_cst<'src>(
                                     r"expecting two hex digits after `\x`"
                                         .to_string(),
                                     string_span.subspan(
-                                        backslash_pos + 1,
-                                        backslash_pos + 3,
+                                        backslash_pos,
+                                        backslash_pos + 2,
                                     ),
                                 ),
                             ));
@@ -1927,10 +1931,8 @@ fn string_lit_from_cst<'src>(
                                     "invalid escape sequence `{}`",
                                     &literal[backslash_pos..backslash_pos + 2]
                                 ),
-                                string_span.subspan(
-                                    backslash_pos + 1,
-                                    backslash_pos + 3,
-                                ),
+                                string_span
+                                    .subspan(backslash_pos, backslash_pos + 2),
                             ),
                         ));
                     }
@@ -2030,7 +2032,7 @@ fn hex_pattern_from_cst<'src>(
                 let token =
                     if negated { HexToken::NotByte } else { HexToken::Byte };
 
-                token(Box::new(HexByte { value, mask }))
+                token(HexByte { value, mask })
             }
             GrammarRule::hex_alternative => HexToken::Alternative(Box::new(
                 hex_alternative_from_cst(ctx, node)?,
@@ -2082,7 +2084,7 @@ fn hex_pattern_from_cst<'src>(
                     }
                 }
 
-                HexToken::Jump(Box::new(jump))
+                HexToken::Jump(jump)
             }
             rule => unreachable!("{:?}", rule),
         };
@@ -2132,7 +2134,7 @@ fn hex_jump_from_cst<'src>(
 }
 
 /// From a CST node corresponding to the grammar rule `hex_alternative`, returns
-/// the [`HexAlternative`] representing it.
+/// the [`HexAlternative`] where each item is an alternative.
 fn hex_alternative_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     hex_alternative: CSTNode<'src>,
@@ -2143,19 +2145,19 @@ fn hex_alternative_from_cst<'src>(
 
     expect!(children.next().unwrap(), GrammarRule::LPAREN);
 
-    let mut hex_alt = HexAlternative { alternatives: Vec::new() };
+    let mut alternatives = Vec::new();
 
     for node in children {
         match node.as_rule() {
             GrammarRule::hex_tokens => {
-                hex_alt.alternatives.push(hex_pattern_from_cst(ctx, node)?);
+                alternatives.push(hex_pattern_from_cst(ctx, node)?);
             }
             GrammarRule::PIPE | GrammarRule::RPAREN => {}
             rule => unreachable!("{:?}", rule),
         }
     }
 
-    Ok(hex_alt)
+    Ok(HexAlternative { alternatives })
 }
 
 fn ident_from_cst<'src>(

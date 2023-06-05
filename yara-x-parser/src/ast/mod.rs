@@ -334,10 +334,10 @@ pub struct HexTokens {
 /// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
 #[derive(Debug)]
 pub enum HexToken {
-    Byte(Box<HexByte>),
-    NotByte(Box<HexByte>),
+    Byte(HexByte),
+    NotByte(HexByte),
     Alternative(Box<HexAlternative>),
-    Jump(Box<HexJump>),
+    Jump(HexJump),
 }
 
 /// A single byte in a hex pattern (a.k.a hex string).
@@ -643,20 +643,30 @@ pub struct IdentWithIndex<'src> {
 /// of a `matches` operator.
 #[derive(Debug, HasSpan)]
 pub struct Regexp<'src> {
+    /// The span that covers the regexp's source code.
     pub span: Span,
+    /// The regular expressions as it appears in the source code, including
+    /// the opening and closing slashes (`/`), and the modifiers `i` and `s`,
+    /// if they are present.
+    pub literal: &'src str,
+    /// The regexp source code. Doesn't include the opening and closing `/`.
     pub src: &'src str,
+    /// True if the regular expression was followed by /i
     pub case_insensitive: bool,
-    pub dotall: bool,
+    /// True if the regular expression was followed by /s
+    pub dot_matches_new_line: bool,
 }
 
 /// A literal string (e.g: `"abcd"`).
 #[derive(Debug, HasSpan)]
 pub struct LiteralString<'src> {
+    /// The span that covers the literal string, including the quotes.
     pub span: Span,
-    /// The literal string as it appears in the source code.
+    /// The literal string as it appears in the source code, including the
+    /// quotes.
     pub literal: &'src str,
     /// The value of the string literal. Escaped characters, if any, are
-    /// unescaped.
+    /// unescaped. Doesn't include the quotes.
     pub value: Cow<'src, BStr>,
 }
 

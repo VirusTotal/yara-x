@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use bstr::ByteSlice;
 use bstr::{BStr, BString};
+use regex::bytes::RegexBuilder;
 use serde::{Deserialize, Serialize};
 use walrus::ValType;
 
@@ -86,7 +87,7 @@ pub enum TypeValue {
     Float(Option<f64>),
     Bool(Option<bool>),
     String(Option<BString>),
-    Regexp(Option<String>),
+    Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
@@ -94,6 +95,52 @@ pub enum TypeValue {
     // A TypeValue that contains a function is not serialized.
     #[serde(skip)]
     Func(Rc<Func>),
+}
+
+/// A simple wrapper around [`String`] that represents a regular expression.
+///
+/// The string must be enclosed in slashes (`/`), optionally followed by the
+/// `i` or `s` modifiers, or both. Some example of valid strings are:
+///
+/// ```text
+/// /foobar/
+/// /foobar/i
+/// /foobar/s
+/// /foobar/is
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Regexp(String);
+
+impl Regexp {
+    pub fn new<R: AsRef<str>>(regexp: R) -> Self {
+        let regexp = regexp.as_ref();
+
+        assert!(regexp.starts_with('/'));
+        assert!(regexp[1..].contains('/'));
+
+        Self(regexp.to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Returns the portion of the regexp within the starting and ending slashes.
+    ///
+    /// For example, for `/foobar/` returns `foobar`.
+    pub fn naked(&self) -> &str {
+        &self.0[1..self.0.rfind('/').unwrap()]
+    }
+
+    pub fn case_insensitive(&self) -> bool {
+        let modifiers = &self.0[self.0.rfind('/').unwrap()..];
+        modifiers.contains('i')
+    }
+
+    pub fn dot_matches_new_line(&self) -> bool {
+        let modifiers = &self.0[self.0.rfind('/').unwrap()..];
+        modifiers.contains('s')
+    }
 }
 
 macro_rules! gen_boolean_op {
@@ -401,11 +448,17 @@ impl TypeValue {
     pub fn matches(&self, rhs: &Self) -> Self {
         match (self, rhs) {
             (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
-            (Self::String(_), Self::Regexp(_)) => {
-                // The result of a `matches` operation is never computed at
-                // compile time.
-                Self::Bool(None)
+            (Self::String(Some(s)), Self::Regexp(Some(regexp))) => {
+                let matches = RegexBuilder::new(regexp.naked())
+                    .case_insensitive(regexp.case_insensitive())
+                    .dot_matches_new_line(regexp.dot_matches_new_line())
+                    .build()
+                    .unwrap()
+                    .is_match(s);
+
+                Self::Bool(Some(matches))
             }
+            (Self::String(_), Self::Regexp(_)) => Self::Bool(None),
             _ => Self::Unknown,
         }
     }

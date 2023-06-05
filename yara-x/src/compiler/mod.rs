@@ -16,6 +16,7 @@ use aho_corasick::AhoCorasick;
 use bincode::Options;
 use bstr::ByteSlice;
 use itertools::Itertools;
+use regex::bytes::{Regex, RegexBuilder};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::ir::InstrSeqId;
@@ -37,7 +38,7 @@ use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
-use crate::types::{Func, FuncSignature, Struct, Type, TypeValue};
+use crate::types::{Func, FuncSignature, Regexp, Struct, Type, TypeValue};
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
@@ -143,6 +144,10 @@ pub struct Compiler<'a> {
     /// identifier `$a`. Each identifier have an unique 32-bits [`IdentId`]
     /// that can be used for retrieving the identifier from the pool.
     ident_pool: StringPool<IdentId>,
+
+    /// Similar to `ident_pool` but for regular expressions found in rule
+    /// conditions.
+    regexp_pool: StringPool<RegexpId>,
 
     /// Similar to `ident_pool` but for string literals found in the source
     /// code. As literal strings in YARA can contain arbitrary bytes, a pool
@@ -259,6 +264,7 @@ impl<'a> Compiler<'a> {
             globals_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
+            regexp_pool: StringPool::new(),
         }
     }
 
@@ -428,6 +434,7 @@ impl<'a> Compiler<'a> {
             compiled_wasm_mod: Some(compiled_wasm_mod),
             num_patterns: self.next_pattern_id as usize,
             ident_pool: self.ident_pool,
+            regexp_pool: self.regexp_pool,
             lit_pool: self.lit_pool,
             imported_modules: self.imported_modules,
             rules: self.rules,
@@ -509,11 +516,11 @@ impl<'a> Compiler<'a> {
                 ir::Pattern::Text(pattern) => {
                     self.process_text_pattern(pattern);
                 }
-                ir::Pattern::Hex { .. } => {
-                    // TODO
+                ir::Pattern::Hex(pattern) => {
+                    self.process_hex_pattern(pattern);
                 }
-                ir::Pattern::Regexp { .. } => {
-                    // TODO
+                ir::Pattern::Regexp(pattern) => {
+                    self.process_regexp_pattern(pattern);
                 }
             };
 
@@ -557,6 +564,7 @@ impl<'a> Compiler<'a> {
             symbol_table: &mut self.symbol_table,
             ident_pool: &mut self.ident_pool,
             lit_pool: &mut self.lit_pool,
+            regexp_pool: &mut self.regexp_pool,
             report_builder: &self.report_builder,
             rules: &self.rules,
             current_rule: self.rules.last().unwrap(),
@@ -773,6 +781,37 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    fn process_hex_pattern(&mut self, p: ir::HexPattern) {
+        // TODO
+    }
+
+    fn process_regexp_pattern(&mut self, p: ir::RegexpPattern) {
+        let mut literal_extractor =
+            regex_syntax::hir::literal::Extractor::new();
+
+        literal_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
+
+        let prefixes = literal_extractor
+            .kind(regex_syntax::hir::literal::ExtractKind::Prefix)
+            .extract(&p.hir);
+
+        let postfixes = literal_extractor
+            .kind(regex_syntax::hir::literal::ExtractKind::Suffix)
+            .extract(&p.hir);
+
+        if let Some(prefixes) = prefixes.literals() {
+            for prefix in prefixes {
+                dbg!(prefix);
+            }
+        }
+
+        if let Some(postfixes) = postfixes.literals() {
+            for postfix in postfixes {
+                dbg!(postfix);
+            }
+        }
+    }
+
     fn process_imports(
         &mut self,
         imports: &[ast::Import],
@@ -784,101 +823,10 @@ impl<'a> Compiler<'a> {
 
         // Iterate over the list of imported modules.
         for import in imports {
+            let module = BUILTIN_MODULES.get(import.module_name.as_str());
+
             // Does the imported module actually exist? ...
-            if let Some(module) =
-                BUILTIN_MODULES.get(import.module_name.as_str())
-            {
-                // ... if yes, add the module to the list of imported modules
-                // and the symbol table.
-                let module_name = import.module_name.as_str();
-
-                self.imported_modules
-                    .push(self.ident_pool.get_or_intern(module_name));
-
-                // Create the structure that describes the module.
-                let mut module_struct = Struct::from_proto_descriptor_and_msg(
-                    &module.root_struct_descriptor,
-                    None,
-                    true,
-                );
-
-                // Does the YARA module has an associated Rust module? If
-                // yes, search for functions exported by the module.
-                if let Some(mod_name) = module.rust_module_name {
-                    // This map will contain all the functions exported by the
-                    // YARA module. Keys are the function names, and values
-                    // are `Func` objects.
-                    let mut functions: FxHashMap<&'static str, Func> =
-                        FxHashMap::default();
-
-                    // Iterate over public functions in WASM_EXPORTS looking
-                    // for those that were exported by the current YARA module.
-                    // Add them to `functions` map, or update the `Func` object
-                    // an additional signature if the function is overloaded.
-                    for export in WASM_EXPORTS.iter().filter(|e| e.public) {
-                        if export.rust_module_path.contains(mod_name) {
-                            let signature = FuncSignature::from(format!(
-                                "{}.{}",
-                                module_name, export.mangled_name
-                            ));
-                            // If the function was already present in the map
-                            // is because it has multiple signatures. If that's
-                            // the case, add more signatures to the existing
-                            // `Func` object.
-                            if let Some(function) =
-                                functions.get_mut(export.name)
-                            {
-                                function.add_signature(signature)
-                            } else {
-                                functions.insert(
-                                    export.name,
-                                    Func::with_signature(signature),
-                                );
-                            }
-                        }
-                    }
-
-                    // Insert the functions in the module's struct.
-                    for (name, export) in functions.drain() {
-                        if module_struct
-                            .add_field(name, TypeValue::Func(Rc::new(export)))
-                            .is_some()
-                        {
-                            panic!("duplicate function `{}`", name)
-                        }
-                    }
-                }
-
-                let module_struct = TypeValue::Struct(Rc::new(module_struct));
-
-                // Insert the module in the struct that contains all imported
-                // modules. This struct contains all modules imported, from
-                // all namespaces. Panic if the module was already in the struct.
-                if self
-                    .modules_struct
-                    .add_field(module_name, module_struct.clone())
-                    .is_some()
-                {
-                    panic!("duplicate module `{}`", module_name)
-                }
-
-                // Create a symbol for the module and insert it in the symbol
-                // table for this namespace.
-                let symbol = Symbol::new(
-                    module_struct,
-                    SymbolKind::FieldIndex(
-                        self.modules_struct.index_of(module_name),
-                    ),
-                );
-
-                // Insert the symbol in the symbol table for the current
-                // namespace.
-                self.current_namespace
-                    .symbols
-                    .as_ref()
-                    .borrow_mut()
-                    .insert(module_name, symbol);
-            } else {
+            if module.is_none() {
                 // The module does not exist, that's an error.
                 return Err(CompileError::from(
                     CompileErrorInfo::unknown_module(
@@ -888,6 +836,98 @@ impl<'a> Compiler<'a> {
                     ),
                 ));
             }
+
+            let module = module.unwrap();
+
+            // Yes, the module exists, add it module to the list of imported
+            // modules and the symbol table.
+            let module_name = import.module_name.as_str();
+
+            self.imported_modules
+                .push(self.ident_pool.get_or_intern(module_name));
+
+            // Create the structure that describes the module.
+            let mut module_struct = Struct::from_proto_descriptor_and_msg(
+                &module.root_struct_descriptor,
+                None,
+                true,
+            );
+
+            // Does the YARA module has an associated Rust module? If
+            // yes, search for functions exported by the module.
+            if let Some(mod_name) = module.rust_module_name {
+                // This map will contain all the functions exported by the
+                // YARA module. Keys are the function names, and values
+                // are `Func` objects.
+                let mut functions: FxHashMap<&'static str, Func> =
+                    FxHashMap::default();
+
+                // Iterate over public functions in WASM_EXPORTS looking
+                // for those that were exported by the current YARA module.
+                // Add them to `functions` map, or update the `Func` object
+                // an additional signature if the function is overloaded.
+                for export in WASM_EXPORTS.iter().filter(|e| e.public) {
+                    if export.rust_module_path.contains(mod_name) {
+                        let signature = FuncSignature::from(format!(
+                            "{}.{}",
+                            module_name, export.mangled_name
+                        ));
+                        // If the function was already present in the map
+                        // is because it has multiple signatures. If that's
+                        // the case, add more signatures to the existing
+                        // `Func` object.
+                        if let Some(function) = functions.get_mut(export.name)
+                        {
+                            function.add_signature(signature)
+                        } else {
+                            functions.insert(
+                                export.name,
+                                Func::with_signature(signature),
+                            );
+                        }
+                    }
+                }
+
+                // Insert the functions in the module's struct.
+                for (name, export) in functions.drain() {
+                    if module_struct
+                        .add_field(name, TypeValue::Func(Rc::new(export)))
+                        .is_some()
+                    {
+                        panic!("duplicate function `{}`", name)
+                    }
+                }
+            }
+
+            let module_struct = TypeValue::Struct(Rc::new(module_struct));
+
+            // Insert the module in the struct that contains all imported
+            // modules. This struct contains all modules imported, from
+            // all namespaces. Panic if the module was already in the struct.
+            if self
+                .modules_struct
+                .add_field(module_name, module_struct.clone())
+                .is_some()
+            {
+                panic!("duplicate module `{}`", module_name)
+            }
+
+            // Create a symbol for the module and insert it in the symbol
+            // table for this namespace.
+            let symbol = Symbol::new(
+                module_struct,
+                SymbolKind::FieldIndex(
+                    self.modules_struct.index_of(module_name),
+                ),
+            );
+
+            // Insert the symbol in the symbol table for the current
+            // namespace.
+            self.current_namespace
+                .symbols
+                .as_ref()
+                .borrow_mut()
+                .insert(module_name, symbol);
         }
 
         Ok(())
@@ -977,7 +1017,7 @@ impl From<i32> for RuleId {
 impl From<usize> for RuleId {
     #[inline]
     fn from(value: usize) -> Self {
-        Self(value as i32)
+        Self(value.try_into().unwrap())
     }
 }
 
@@ -985,6 +1025,52 @@ impl From<RuleId> for usize {
     #[inline]
     fn from(value: RuleId) -> Self {
         value.0 as usize
+    }
+}
+
+/// ID associated to each regexp used in a rule condition.
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct RegexpId(i32);
+
+impl From<i32> for RegexpId {
+    #[inline]
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<u32> for RegexpId {
+    #[inline]
+    fn from(value: u32) -> Self {
+        Self(value.try_into().unwrap())
+    }
+}
+
+impl From<i64> for RegexpId {
+    #[inline]
+    fn from(value: i64) -> Self {
+        Self(value.try_into().unwrap())
+    }
+}
+
+impl From<RegexpId> for usize {
+    #[inline]
+    fn from(value: RegexpId) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<RegexpId> for i32 {
+    #[inline]
+    fn from(value: RegexpId) -> Self {
+        value.0
+    }
+}
+
+impl From<RegexpId> for u32 {
+    #[inline]
+    fn from(value: RegexpId) -> Self {
+        value.0.try_into().unwrap()
     }
 }
 
@@ -1083,6 +1169,9 @@ struct Context<'a, 'sym> {
 
     /// Pool with identifiers used in the rules.
     ident_pool: &'a mut StringPool<IdentId>,
+
+    /// Pool with regular expressions used in rule conditons.
+    regexp_pool: &'a mut StringPool<RegexpId>,
 
     /// Pool with literal strings used in the rules.
     lit_pool: &'a mut BStringPool<LiteralId>,
@@ -1278,6 +1367,12 @@ pub struct Rules {
     /// from the pool as a `&str`.
     ident_pool: StringPool<IdentId>,
 
+    /// Pool with the regular expressions used in the rules conditions. Each
+    /// regular expression has its own [`RegexpId`]. Regular expressions
+    /// include the starting and ending slashes (`/`), and the modifiers
+    /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
+    regexp_pool: StringPool<RegexpId>,
+
     /// Pool with literal strings used in the rules. Each literal has its
     /// own [`LiteralId`], which can be used for retrieving the literal
     /// string as `&BStr`.
@@ -1403,6 +1498,21 @@ impl Rules {
     #[inline]
     pub(crate) fn rules(&self) -> &[RuleInfo] {
         self.rules.as_slice()
+    }
+
+    /// Returns a regular expression by [`RegexpId`].
+    ///
+    /// # Panics
+    ///
+    /// If no regular expression with such [`RegexpId`] exists.
+    #[inline]
+    pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
+        let re = Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
+        RegexBuilder::new(re.naked())
+            .case_insensitive(re.case_insensitive())
+            .dot_matches_new_line(re.dot_matches_new_line())
+            .build()
+            .unwrap()
     }
 
     /// Returns a sub-pattern by [`SubPatternId`].

@@ -80,7 +80,7 @@ use wasmtime::{
 
 use yara_x_macros::wasm_export;
 
-use crate::compiler::{LiteralId, PatternId, RuleId};
+use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
 use crate::scanner::ScanContext;
 use crate::types::TypeValue;
@@ -240,6 +240,12 @@ impl From<WasmArg> for PatternId {
 impl From<WasmArg> for LiteralId {
     fn from(value: WasmArg) -> Self {
         LiteralId::from(value.0.get_i32())
+    }
+}
+
+impl From<WasmArg> for RegexpId {
+    fn from(value: WasmArg) -> Self {
+        RegexpId::from(value.0.get_i32())
     }
 }
 
@@ -406,6 +412,8 @@ fn type_id_to_wasmtime(
     } else if type_id == TypeId::of::<PatternId>() {
         return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<RuleId>() {
+        return &[wasmtime::ValType::I32];
+    } else if type_id == TypeId::of::<RegexpId>() {
         return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<()>() {
         return &[];
@@ -1386,6 +1394,16 @@ pub(crate) fn str_len(
     s: RuntimeString,
 ) -> i64 {
     s.len(caller.data()) as i64
+}
+
+#[wasm_export]
+pub(crate) fn str_matches(
+    caller: Caller<'_, ScanContext>,
+    lhs: RuntimeString,
+    rhs: RegexpId,
+) -> bool {
+    let ctx = caller.data();
+    ctx.get_regexp(rhs).is_match(lhs.as_bstr(ctx))
 }
 
 macro_rules! gen_uint_fn {

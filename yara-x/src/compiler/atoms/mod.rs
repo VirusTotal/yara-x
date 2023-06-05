@@ -66,8 +66,9 @@ use std::vec::IntoIter;
 use itertools::{Itertools, MultiProduct};
 use serde::{Deserialize, Serialize};
 
-use crate::compiler::atoms::mask::ByteMaskCombinator;
 use crate::compiler::atoms::quality::{atom_quality, masked_atom_quality};
+
+pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
 
 /// The number of bytes that every atom *should* have. Some atoms may be
 /// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,
