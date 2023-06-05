@@ -267,7 +267,7 @@ impl ErrorInfo {
     /// ```
     ///
     pub fn join_with_or<S: ToString>(s: &[S], quotes: bool) -> String {
-        let mut strings: _ = if quotes {
+        let mut strings = if quotes {
             s.iter()
                 .map(|s| format!("`{}`", s.to_string()))
                 .collect::<Vec<String>>()
