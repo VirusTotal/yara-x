@@ -32,6 +32,6 @@ yara-x-fmt = { workspace = true }
 crossbeam = "0.8.2"
 crossterm = "0.26.1"
 pprof = { version = "0.11", features = ["flamegraph"], optional=true }
-superconsole = { git = "https://github.com/facebookincubator/superconsole", rev = "6009570" }
+superconsole = "0.2.0"
 walkdir = "2.3.2"
 wild = "2.1.0"

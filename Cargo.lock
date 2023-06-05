@@ -2683,8 +2683,9 @@ dependencies = [
 
 [[package]]
 name = "superconsole"
-version = "0.1.0"
-source = "git+https://github.com/facebookincubator/superconsole?rev=6009570#6009570af27f1bed60e18fa848e3497216717915"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20777fe7e41fb5125474b25d165835c59acd7d756454beae8ad27bbc585896b6"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
