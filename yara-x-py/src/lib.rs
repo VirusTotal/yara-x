@@ -46,6 +46,7 @@ fn compile(src: &str) -> Result<Rules, CompileError> {
     })
 }
 
+/// Compiles YARA source code producing a set of compiled [`Rules`].
 #[pyclass(unsendable)]
 struct Compiler {
     inner: Option<yrx::Compiler<'static>>,
@@ -53,22 +54,36 @@ struct Compiler {
 
 #[pymethods]
 impl Compiler {
+    /// Creates a new [`Compiler`].
     #[new]
     fn new() -> Self {
         Self { inner: Some(yrx::Compiler::new()) }
     }
 
+    /// Adds a YARA source code to be compiled.
+    ///
+    /// This function can be used multiple times before calling [`Compiler::build`].
     fn add_source(&mut self, src: &str) -> Result<(), CompileError> {
         let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
         self.inner = Some(compiler.add_source(src)?);
         Ok(())
     }
 
+    /// Creates a new namespace.
+    ///
+    /// Further calls to [`Compiler::add_source`] will put the rules under the
+    /// newly created namespace.
     fn new_namespace(&mut self, namespace: &str) {
         let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
         self.inner = Some(compiler.new_namespace(namespace));
     }
 
+    /// Builds the source code previously added to the compiler.
+    ///
+    /// This function returns an instance of [`Rules`] containing all the rules
+    /// previously added with [`Compiler::add_source`] and sets the compiler
+    /// to its initial empty state. The compiler can be re-used by adding more
+    /// rules and calling this function again.
     fn build(&mut self) -> Rules {
         let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
         Rules {
@@ -80,26 +95,44 @@ impl Compiler {
     }
 }
 
+/// Scans data with already compiled YARA rules.
+///
+/// The scanner receives a set of compiled Rules and scans data with those
+/// rules. The same scanner can be used for scanning multiple files or
+/// in-memory data sequentially, but you need multiple scanners for scanning
+/// in parallel.
 #[pyclass(unsendable)]
 struct Scanner {
+    // The only purpose of this field is making sure that the `Rules` object
+    // is not freed while the `Scanner` object is still around. This reference
+    // to the `Rules` object will keep it alive during the scanner lifetime.
+    //
+    // We need the `Rules` object alive because the `yrx::Scanner` holds a
+    // reference to the `yrx::Rules` contained in `Rules`. This reference
+    // is obtained in an unsafe manner from a pointer, for that reason the
+    // `yrx::Rules` are pinned, so that they are not moved from their
+    // original location and the reference remains valid.
     _rules: Py<Rules>,
     inner: yrx::Scanner<'static>,
 }
 
 #[pymethods]
 impl Scanner {
+    /// Creates a new [`Scanner`] with a given set of [`Rules`].
     #[new]
     fn new(rules: Py<Rules>) -> Self {
         Python::with_gil(|py| {
-            let rr: &'static yrx::Rules = {
-                let r = rules.borrow(py);
-                let p: *const yrx::Rules = &r.deref().inner.rules;
-                unsafe { &*p }
+            let rules_ref: &'static yrx::Rules = {
+                let rules = rules.borrow(py);
+                let rules_ptr: *const yrx::Rules = &rules.deref().inner.rules;
+                unsafe { &*rules_ptr }
             };
-            Self { _rules: rules, inner: yrx::Scanner::new(rr) }
+            Self { _rules: rules, inner: yrx::Scanner::new(rules_ref) }
         })
     }
 
+    /// Scans in-memory data.
+    #[pyo3(signature = (data))]
     fn scan(&mut self, data: &[u8]) -> Py<PyTuple> {
         let matches: Vec<String> = self
             .inner
@@ -112,6 +145,9 @@ impl Scanner {
     }
 }
 
+/// A set of YARA rules in compiled form.
+///
+/// This is the result of [`Compiler::build`].
 #[pyclass]
 struct Rules {
     inner: Pin<Box<PinnedRules>>,
@@ -124,6 +160,7 @@ struct PinnedRules {
 
 #[pymethods]
 impl Rules {
+    /// Scans in-memory data with these rules.
     #[pyo3(signature = (data))]
     fn scan(&self, data: &[u8]) -> Py<PyTuple> {
         let matches: Vec<String> = yrx::Scanner::new(&self.inner.rules)
@@ -136,6 +173,14 @@ impl Rules {
     }
 }
 
+/// Python module for compiling YARA rules and scanning data with them.
+///
+/// Usage:
+///
+/// >>> import yara_x
+/// >>> rules = yara_x.compile('rule test {strings: $a = "dummy" condition: $a}')
+/// >>> matches = rules.scan(b'some dummy data')
+/// ```
 #[pymodule]
 fn yara_x(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compile, m)?)?;
