@@ -16,31 +16,18 @@ use std::marker::PhantomPinned;
 use std::ops::Deref;
 use std::pin::Pin;
 
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PySyntaxError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyBool, PyBytes, PyFloat, PyInt, PyString, PyTuple};
 
-use ::yara_x as yrx;
-
-struct CompileError(yrx::Error);
-
-impl From<CompileError> for PyErr {
-    fn from(error: CompileError) -> Self {
-        PyValueError::new_err(error.0.to_string())
-    }
-}
-
-impl From<yrx::Error> for CompileError {
-    fn from(other: yrx::Error) -> Self {
-        Self(other)
-    }
-}
+use yara_x as yrx;
 
 #[pyfunction]
-fn compile(src: &str) -> Result<Rules, CompileError> {
+fn compile(src: &str) -> PyResult<Rules> {
     Ok(Rules {
         inner: Box::pin(PinnedRules {
-            rules: yrx::compile(src)?,
+            rules: yrx::compile(src)
+                .map_err(|err| PyValueError::new_err(err.to_string()))?,
             _pinned: PhantomPinned,
         }),
     })
@@ -63,9 +50,47 @@ impl Compiler {
     /// Adds a YARA source code to be compiled.
     ///
     /// This function can be used multiple times before calling [`Compiler::build`].
-    fn add_source(&mut self, src: &str) -> Result<(), CompileError> {
+    fn add_source(&mut self, src: &str) -> PyResult<()> {
         let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
-        self.inner = Some(compiler.add_source(src)?);
+        self.inner = Some(
+            compiler
+                .add_source(src)
+                .map_err(|err| PySyntaxError::new_err(err.to_string()))?,
+        );
+        Ok(())
+    }
+
+    /// Defines a global variable and sets its initial value.
+    ///
+    /// Global variables must be defined before calling [`Compiler::add_source`]
+    /// with some YARA rule that uses the variable. The variable will retain its
+    /// initial value when the [`Rules`] are used for scanning data, however
+    /// each scanner can change the variable's value by calling
+    /// [`crate::Scanner::set_global`].
+    fn define_global(&mut self, ident: &str, value: &PyAny) -> PyResult<()> {
+        let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
+
+        let compiler = if value.is_exact_instance_of::<PyBool>() {
+            compiler.define_global(ident, value.extract::<bool>()?)
+        } else if value.is_exact_instance_of::<PyString>() {
+            compiler.define_global(ident, value.extract::<String>()?)
+        } else if value.is_exact_instance_of::<PyBytes>() {
+            compiler.define_global(ident, value.extract::<&[u8]>()?)
+        } else if value.is_exact_instance_of::<PyInt>() {
+            compiler.define_global(ident, value.extract::<i64>()?)
+        } else if value.is_exact_instance_of::<PyFloat>() {
+            compiler.define_global(ident, value.extract::<f64>()?)
+        } else {
+            return Err(PyTypeError::new_err(format!(
+                "unsupported variable type `{}`",
+                value.get_type()
+            )));
+        };
+
+        self.inner = Some(
+            compiler.map_err(|err| PyValueError::new_err(err.to_string()))?,
+        );
+
         Ok(())
     }
 
