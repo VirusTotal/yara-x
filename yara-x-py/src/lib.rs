@@ -20,7 +20,7 @@ use pyo3::exceptions::{PySyntaxError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyBytes, PyFloat, PyInt, PyString, PyTuple};
 
-use yara_x as yrx;
+use ::yara_x as yrx;
 
 #[pyfunction]
 fn compile(src: &str) -> PyResult<Rules> {
@@ -154,6 +154,37 @@ impl Scanner {
             };
             Self { _rules: rules, inner: yrx::Scanner::new(rules_ref) }
         })
+    }
+
+    /// Sets the value of a global variable.
+    ///
+    /// The variable must has been previously defined by calling
+    /// [`Compiler::define_global`], and the type it has during the definition
+    /// must match the type of the new value.
+    ///
+    /// The variable will retain the new value in subsequent scans, unless this
+    /// function is called again for setting a new value.
+    fn set_global(&mut self, ident: &str, value: &PyAny) -> PyResult<()> {
+        let result = if value.is_exact_instance_of::<PyBool>() {
+            self.inner.set_global(ident, value.extract::<bool>()?)
+        } else if value.is_exact_instance_of::<PyString>() {
+            self.inner.set_global(ident, value.extract::<String>()?)
+        } else if value.is_exact_instance_of::<PyBytes>() {
+            self.inner.set_global(ident, value.extract::<&[u8]>()?)
+        } else if value.is_exact_instance_of::<PyInt>() {
+            self.inner.set_global(ident, value.extract::<i64>()?)
+        } else if value.is_exact_instance_of::<PyFloat>() {
+            self.inner.set_global(ident, value.extract::<f64>()?)
+        } else {
+            return Err(PyTypeError::new_err(format!(
+                "unsupported variable type `{}`",
+                value.get_type()
+            )));
+        };
+
+        result.map_err(|err| PyValueError::new_err(err.to_string()))?;
+
+        Ok(())
     }
 
     /// Scans in-memory data.

@@ -11,6 +11,18 @@ def test_bad_variable_type():
   with pytest.raises(TypeError):
     compiler.define_global()
 
+def test_globals():
+  compiler = yara_x.Compiler()
+  compiler.define_global('some_int', 1);
+  compiler.add_source('rule test {condition: some_int == 1}')
+  rules = compiler.build()
+  scanner = yara_x.Scanner(rules)
+  matches = scanner.scan(b'')
+  assert len(matches) == 1
+  scanner.set_global('some_int', 2)
+  matches = scanner.scan(b'')
+  assert len(matches) == 0
+
 def test_compile_and_scan():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
   matches = rules.scan(b"foobar")
