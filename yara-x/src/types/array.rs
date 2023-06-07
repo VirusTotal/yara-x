@@ -3,7 +3,7 @@ use std::rc::Rc;
 use bstr::BString;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{Struct, TypeValue};
+use crate::types::{Struct, TypeValue, Value};
 
 #[derive(Serialize, Deserialize)]
 pub enum Array {
@@ -17,10 +17,10 @@ pub enum Array {
 impl Array {
     pub fn deputy(&self) -> TypeValue {
         match self {
-            Array::Integers(_) => TypeValue::Integer(None),
-            Array::Floats(_) => TypeValue::Float(None),
-            Array::Bools(_) => TypeValue::Bool(None),
-            Array::Strings(_) => TypeValue::String(None),
+            Array::Integers(_) => TypeValue::Integer(Value::Unknown),
+            Array::Floats(_) => TypeValue::Float(Value::Unknown),
+            Array::Bools(_) => TypeValue::Bool(Value::Unknown),
+            Array::Strings(_) => TypeValue::String(Value::Unknown),
             Array::Structs(s) => TypeValue::Struct(s.first().unwrap().clone()),
         }
     }

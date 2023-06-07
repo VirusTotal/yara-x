@@ -18,7 +18,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::{CompileError, CompileErrorInfo, Context, PatternId};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
-use crate::types::{Map, Regexp, Type, TypeValue};
+use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
 pub(in crate::compiler) fn patterns_from_ast<'src>(
     report_builder: &ReportBuilder,
@@ -148,23 +148,23 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
 
         ast::Expr::True { .. } => {
-            Ok(Expr::Const { type_value: TypeValue::Bool(Some(true)) })
+            Ok(Expr::Const { type_value: TypeValue::Bool(Value::Const(true)) })
         }
 
-        ast::Expr::False { .. } => {
-            Ok(Expr::Const { type_value: TypeValue::Bool(Some(false)) })
-        }
+        ast::Expr::False { .. } => Ok(Expr::Const {
+            type_value: TypeValue::Bool(Value::Const(false)),
+        }),
 
         ast::Expr::LiteralInteger(literal) => Ok(Expr::Const {
-            type_value: TypeValue::Integer(Some(literal.value)),
+            type_value: TypeValue::Integer(Value::Const(literal.value)),
         }),
 
         ast::Expr::LiteralFloat(literal) => Ok(Expr::Const {
-            type_value: TypeValue::Float(Some(literal.value)),
+            type_value: TypeValue::Float(Value::Const(literal.value)),
         }),
 
         ast::Expr::LiteralString(literal) => Ok(Expr::Const {
-            type_value: TypeValue::String(Some(
+            type_value: TypeValue::String(Value::Const(
                 literal.value.deref().to_owned(),
             )),
         }),
@@ -248,6 +248,8 @@ pub(in crate::compiler) fn expr_from_ast(
 
             if cfg!(feature = "constant-folding") {
                 if let Expr::Const { type_value, .. } = rhs {
+                    // A constant always have a defined value.
+                    assert!(type_value.is_const());
                     Ok(Expr::Const { type_value })
                 } else {
                     Ok(Expr::FieldAccess {
@@ -313,7 +315,7 @@ pub(in crate::compiler) fn expr_from_ast(
 
             let type_value = symbol.type_value();
 
-            if type_value.has_value() {
+            if type_value.is_const() {
                 Ok(Expr::Const { type_value: type_value.clone() })
             } else {
                 Ok(Expr::Ident { symbol })
@@ -535,7 +537,7 @@ fn of_expr_from_ast(
     // If the quantifier expression is greater than the number of items,
     // the `of` expression is always false.
     if let Quantifier::Expr(expr) = &quantifier {
-        if let TypeValue::Integer(Some(value)) = expr.type_value() {
+        if let TypeValue::Integer(Value::Const(value)) = expr.type_value() {
             if value > num_items.try_into().unwrap() {
                 ctx.warnings.push(Warning::invariant_boolean_expression(
                     ctx.report_builder,
@@ -574,13 +576,13 @@ fn of_expr_from_ast(
             // `<expr> of <items> at <expr>: the warning is raised if <expr> is
             // 2 or more.
             Quantifier::Expr(expr) => match expr.type_value() {
-                TypeValue::Integer(Some(value)) => value >= 2,
+                TypeValue::Integer(Value::Const(value)) => value >= 2,
                 _ => false,
             },
             // `<expr>% of <items> at <expr>: the warning is raised if the
             // <expr> percent of the items is 2 or more.
             Quantifier::Percentage(expr) => match expr.type_value() {
-                TypeValue::Integer(Some(percentage)) => {
+                TypeValue::Integer(Value::Const(percentage)) => {
                     num_items as f64 * percentage as f64 / 100.0 >= 2.0
                 }
                 _ => false,
@@ -618,7 +620,7 @@ fn for_of_expr_from_ast(
     loop_vars.insert(
         "$",
         Symbol::new(
-            TypeValue::Integer(None),
+            TypeValue::Integer(Value::Unknown),
             SymbolKind::WasmVar(next_pattern_id),
         ),
     );
@@ -648,7 +650,7 @@ fn for_in_expr_from_ast(
     let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
 
     let expected_vars = match &iterable {
-        Iterable::Range(_) => vec![TypeValue::Integer(None)],
+        Iterable::Range(_) => vec![TypeValue::Integer(Value::Unknown)],
         Iterable::ExprTuple(expressions) => {
             // All expressions in the tuple have the same type, we can use
             // the type of the first item in the tuple as the type of the
@@ -667,10 +669,10 @@ fn for_in_expr_from_ast(
             TypeValue::Array(array) => vec![array.deputy()],
             TypeValue::Map(map) => match map.as_ref() {
                 Map::IntegerKeys { .. } => {
-                    vec![TypeValue::Integer(None), map.deputy()]
+                    vec![TypeValue::Integer(Value::Unknown), map.deputy()]
                 }
                 Map::StringKeys { .. } => {
-                    vec![TypeValue::String(None), map.deputy()]
+                    vec![TypeValue::String(Value::Unknown), map.deputy()]
                 }
             },
             _ => unreachable!(),
@@ -841,8 +843,8 @@ fn range_from_ast(
     // variables, for example) we can't raise an error at compile time but it
     // will be handled at scan time.
     if let (
-        TypeValue::Integer(Some(lower_bound)),
-        TypeValue::Integer(Some(upper_bound)),
+        TypeValue::Integer(Value::Const(lower_bound)),
+        TypeValue::Integer(Value::Const(upper_bound)),
     ) = (lower_bound.type_value(), upper_bound.type_value())
     {
         if lower_bound > upper_bound {
@@ -866,7 +868,7 @@ fn non_negative_integer_from_ast(
 
     check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
 
-    if let TypeValue::Integer(Some(value)) = type_value {
+    if let TypeValue::Integer(Value::Const(value)) = type_value {
         if value < 0 {
             return Err(CompileError::from(
                 CompileErrorInfo::unexpected_negative_number(
@@ -891,7 +893,7 @@ fn integer_in_range_from_ast(
 
     check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
 
-    if let TypeValue::Integer(Some(value)) = type_value {
+    if let TypeValue::Integer(Value::Const(value)) = type_value {
         if !range.contains(&value) {
             return Err(CompileError::from(
                 CompileErrorInfo::number_out_of_range(
@@ -1259,9 +1261,11 @@ macro_rules! gen_binary_op {
                     (
                         Expr::Const { type_value: lhs, .. },
                         Expr::Const { type_value: rhs, .. },
-                    ) => Ok(Expr::Const {
-                        type_value: lhs.$op(&rhs),
-                    }),
+                    ) => {
+                        let type_value = lhs.$op(&rhs);
+                        assert!(type_value.is_const());
+                        Ok(Expr::Const { type_value })
+                    },
                     _ => Ok(Expr::$variant { lhs, rhs }),
                 }
             } else {
@@ -1428,7 +1432,7 @@ gen_binary_op!(
     Type::Integer,
     Type::Integer,
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-        if let TypeValue::Integer(Some(value)) = rhs.type_value() {
+        if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
             if value < 0 {
                 return Err(CompileError::from(
                     CompileErrorInfo::unexpected_negative_number(
@@ -1449,7 +1453,7 @@ gen_binary_op!(
     Type::Integer,
     Type::Integer,
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-        if let TypeValue::Integer(Some(value)) = rhs.type_value() {
+        if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
             if value < 0 {
                 return Err(CompileError::from(
                     CompileErrorInfo::unexpected_negative_number(

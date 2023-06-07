@@ -116,7 +116,7 @@ fn reuse_scanner() {
 }
 
 #[test]
-fn variables() {
+fn variables_1() {
     let rules = crate::Compiler::new()
         .define_global("bool_var", false)
         .unwrap()
@@ -156,6 +156,32 @@ fn variables() {
         scanner.set_global("undeclared", false).err().unwrap(),
         VariableError::Undeclared("undeclared".to_string())
     );
+}
+
+#[test]
+fn variables_2() {
+    let rules = crate::Compiler::new()
+        .define_global("some_int", 0)
+        .unwrap()
+        .add_source(
+            r#"
+        rule test {
+            condition:
+                some_int == 1
+        } 
+        "#,
+        )
+        .unwrap()
+        .build();
+
+    let mut scanner = Scanner::new(&rules);
+    assert_eq!(scanner.scan(&[]).matching_rules().len(), 0);
+
+    scanner.set_global("some_int", 1).unwrap();
+    assert_eq!(scanner.scan(&[]).matching_rules().len(), 1);
+
+    scanner.set_global("some_int", 2).unwrap();
+    assert_eq!(scanner.scan(&[]).matching_rules().len(), 0);
 }
 
 #[test]

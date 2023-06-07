@@ -37,7 +37,7 @@ use bstr::BStr;
 
 use crate::compiler::{PatternId, Var, VarStackFrame};
 use crate::symbols::Symbol;
-use crate::types::{Type, TypeValue};
+use crate::types::{Type, TypeValue, Value};
 
 pub(in crate::compiler) use ast2ir::expr_from_ast;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
@@ -109,7 +109,8 @@ pub(in crate::compiler) struct HexPattern<'src> {
 
 /// Intermediate representation (IR) for an expression.
 pub(in crate::compiler) enum Expr {
-    /// Constant value (i.e: the value is known at compile time)
+    /// Constant value (i.e: the value is known at compile time). The value
+    /// in `type_value` is not `None`.
     Const {
         type_value: TypeValue,
     },
@@ -550,11 +551,11 @@ impl Expr {
             | Expr::PatternMatchVar { .. }
             | Expr::Of(_)
             | Expr::ForOf(_)
-            | Expr::ForIn(_) => TypeValue::Bool(None),
+            | Expr::ForIn(_) => TypeValue::Bool(Value::Unknown),
 
             Expr::Minus { operand, .. } => match operand.ty() {
-                Type::Integer => TypeValue::Integer(None),
-                _ => TypeValue::Float(None),
+                Type::Integer => TypeValue::Integer(Value::Unknown),
+                _ => TypeValue::Float(Value::Unknown),
             },
 
             Expr::Add { lhs, rhs, .. }
@@ -563,10 +564,12 @@ impl Expr {
             | Expr::Div { lhs, rhs, .. } => match (lhs.ty(), rhs.ty()) {
                 // If both operands are integer, the expression's type is
                 // integer.
-                (Type::Integer, Type::Integer) => TypeValue::Integer(None),
+                (Type::Integer, Type::Integer) => {
+                    TypeValue::Integer(Value::Unknown)
+                }
                 // In all the remaining cases at least one of the operands
                 // is float, therefore the result is float.
-                _ => TypeValue::Float(None),
+                _ => TypeValue::Float(Value::Unknown),
             },
 
             Expr::Filesize
@@ -583,7 +586,7 @@ impl Expr {
             | Expr::BitwiseOr { .. }
             | Expr::BitwiseXor { .. }
             | Expr::Shl { .. }
-            | Expr::Shr { .. } => TypeValue::Integer(None),
+            | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
 
             Expr::FieldAccess { rhs, .. } => rhs.type_value(),
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),

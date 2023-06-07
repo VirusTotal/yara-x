@@ -54,8 +54,8 @@ impl Symbol {
 
     #[cfg(test)]
     fn as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer(value) = self.type_value {
-            value
+        if let TypeValue::Integer(value) = &self.type_value {
+            value.extract().cloned()
         } else {
             None
         }
@@ -63,8 +63,12 @@ impl Symbol {
 
     #[cfg(test)]
     fn as_bstr(&self) -> Option<&BStr> {
-        if let TypeValue::String(Some(s)) = &self.type_value {
-            Some(s.as_bstr())
+        if let TypeValue::String(value) = &self.type_value {
+            if let Some(s) = value.extract() {
+                Some(s.as_bstr())
+            } else {
+                None
+            }
         } else {
             None
         }

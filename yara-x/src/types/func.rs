@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use std::cmp::Ordering;
 
-use crate::types::TypeValue;
+use crate::types::{TypeValue, Value};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 /// Represents a mangled function name.
@@ -66,10 +66,10 @@ impl MangledFnName {
 
         for t in arg_types.chars() {
             match t {
-                'i' => args.push(TypeValue::Integer(None)),
-                'f' => args.push(TypeValue::Float(None)),
-                'b' => args.push(TypeValue::Bool(None)),
-                's' => args.push(TypeValue::String(None)),
+                'i' => args.push(TypeValue::Integer(Value::Unknown)),
+                'f' => args.push(TypeValue::Float(Value::Unknown)),
+                'b' => args.push(TypeValue::Bool(Value::Unknown)),
+                's' => args.push(TypeValue::String(Value::Unknown)),
                 'r' => args.push(TypeValue::Regexp(None)),
                 _ => panic!("unexpected argument type: `{}`", t),
             }
@@ -77,10 +77,10 @@ impl MangledFnName {
 
         let result = if let Some(ret) = ret.get(0..1) {
             match ret.get(0..1).unwrap() {
-                "i" => TypeValue::Integer(None),
-                "f" => TypeValue::Float(None),
-                "b" => TypeValue::Bool(None),
-                "s" => TypeValue::String(None),
+                "i" => TypeValue::Integer(Value::Unknown),
+                "f" => TypeValue::Float(Value::Unknown),
+                "b" => TypeValue::Bool(Value::Unknown),
+                "s" => TypeValue::String(Value::Unknown),
                 "u" => TypeValue::Unknown,
                 _ => panic!("unexpected return type: `{}`", ret),
             }
@@ -178,34 +178,46 @@ impl Func {
 
 #[cfg(test)]
 mod test {
-    use crate::types::{MangledFnName, TypeValue};
+    use crate::types::{MangledFnName, TypeValue, Value};
     use pretty_assertions::assert_eq;
 
     #[test]
     fn mangled_name() {
         assert_eq!(
             MangledFnName::from("foo@@i").unmangle(),
-            (vec![], TypeValue::Integer(None))
+            (vec![], TypeValue::Integer(Value::Unknown))
         );
 
         assert_eq!(
             MangledFnName::from("foo@i@i").unmangle(),
-            (vec![TypeValue::Integer(None)], TypeValue::Integer(None))
+            (
+                vec![TypeValue::Integer(Value::Unknown)],
+                TypeValue::Integer(Value::Unknown)
+            )
         );
 
         assert_eq!(
             MangledFnName::from("foo@f@f").unmangle(),
-            (vec![TypeValue::Float(None)], TypeValue::Float(None))
+            (
+                vec![TypeValue::Float(Value::Unknown)],
+                TypeValue::Float(Value::Unknown)
+            )
         );
 
         assert_eq!(
             MangledFnName::from("foo@b@b").unmangle(),
-            (vec![TypeValue::Bool(None)], TypeValue::Bool(None))
+            (
+                vec![TypeValue::Bool(Value::Unknown)],
+                TypeValue::Bool(Value::Unknown)
+            )
         );
 
         assert_eq!(
             MangledFnName::from("foo@s@s").unmangle(),
-            (vec![TypeValue::String(None)], TypeValue::String(None))
+            (
+                vec![TypeValue::String(Value::Unknown)],
+                TypeValue::String(Value::Unknown)
+            )
         );
 
         assert!(!MangledFnName::from("foo@i@i").result_may_be_undef());

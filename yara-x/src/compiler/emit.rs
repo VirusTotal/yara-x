@@ -21,7 +21,7 @@ use crate::compiler::ir::{
 };
 use crate::compiler::{Context, RuleId, Var, VarStackFrame};
 use crate::symbols::SymbolKind;
-use crate::types::{Array, Map, Type, TypeValue};
+use crate::types::{Array, Map, Type, TypeValue, Value};
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
@@ -217,16 +217,16 @@ pub(super) fn emit_rule_condition(
 fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
     match expr {
         Expr::Const { type_value } => match type_value {
-            TypeValue::Integer(Some(value)) => {
+            TypeValue::Integer(Value::Const(value)) => {
                 instr.i64_const(*value);
             }
-            TypeValue::Float(Some(value)) => {
+            TypeValue::Float(Value::Const(value)) => {
                 instr.f64_const(*value);
             }
-            TypeValue::Bool(Some(value)) => {
+            TypeValue::Bool(Value::Const(value)) => {
                 instr.i32_const((*value).into());
             }
-            TypeValue::String(Some(value)) => {
+            TypeValue::String(Value::Const(value)) => {
                 // Put the literal string in the pool, or get its ID if it was
                 // already there.
                 let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());

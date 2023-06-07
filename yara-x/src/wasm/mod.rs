@@ -83,7 +83,7 @@ use yara_x_macros::wasm_export;
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
 use crate::scanner::ScanContext;
-use crate::types::TypeValue;
+use crate::types::{TypeValue, Value};
 use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
 
 pub(crate) mod builder;
@@ -884,10 +884,13 @@ pub(crate) fn lookup_string(
     struct_var: i32,
 ) -> Option<RuntimeString> {
     match lookup_field(&mut caller, num_lookup_indexes, struct_var) {
-        TypeValue::String(Some(value)) => Some(RuntimeString::Owned(
+        TypeValue::String(Value::Var(value)) => Some(RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(value),
         )),
-        TypeValue::String(None) => None,
+        TypeValue::String(Value::Const(value)) => Some(RuntimeString::Owned(
+            caller.data_mut().string_pool.get_or_intern(value),
+        )),
+        TypeValue::String(Value::Unknown) => None,
         _ => unreachable!(),
     }
 }
@@ -921,10 +924,10 @@ macro_rules! gen_lookup_fn {
             num_lookup_indexes: i32,
             struct_var: i32,
         ) -> Option<$return_type> {
-            if let $type(Some(value)) =
+            if let $type(value) =
                 lookup_field(&mut caller, num_lookup_indexes, struct_var)
             {
-                Some(value as $return_type)
+                value.extract().cloned()
             } else {
                 None
             }

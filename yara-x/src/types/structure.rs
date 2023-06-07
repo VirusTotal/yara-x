@@ -16,7 +16,7 @@ use yara_x_proto::exts::enum_options as yara_enum_options;
 use yara_x_proto::exts::field_options as yara_field_options;
 use yara_x_proto::exts::module_options as yara_module_options;
 
-use crate::types::{Array, Map, TypeValue};
+use crate::types::{Array, Map, TypeValue, Value};
 
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
@@ -314,7 +314,7 @@ impl Struct {
                 for item in enum_.values() {
                     if let Some(existing_field) = enum_struct.add_field(
                         item.name(),
-                        TypeValue::Integer(Some(item.value() as i64)),
+                        TypeValue::Integer(Value::Const(item.value() as i64)),
                     ) {
                         panic!(
                             "field '{}' already exists",
@@ -463,44 +463,46 @@ impl Struct {
             | RuntimeType::I64
             | RuntimeType::U32
             | RuntimeType::U64
-            | RuntimeType::Enum(_) => TypeValue::Integer(
-                value.map(Self::value_as_i64).or_else(|| {
-                    // None values are translated to their default values,
-                    // in proto3. In proto2 they are left as None.
-                    if syntax == Syntax::Proto3 {
-                        Some(0)
-                    } else {
-                        None
-                    }
-                }),
-            ),
+            | RuntimeType::Enum(_) => {
+                if let Some(v) = value {
+                    TypeValue::Integer(Value::Var(Self::value_as_i64(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default values.
+                    TypeValue::Integer(Value::Var(0))
+                } else {
+                    TypeValue::Integer(Value::Unknown)
+                }
+            }
             RuntimeType::F32 | RuntimeType::F64 => {
-                TypeValue::Float(value.map(Self::value_as_f64).or_else(|| {
-                    if syntax == Syntax::Proto3 {
-                        Some(0_f64)
-                    } else {
-                        None
-                    }
-                }))
+                if let Some(v) = value {
+                    TypeValue::Float(Value::Var(Self::value_as_f64(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default values.
+                    TypeValue::Float(Value::Var(0_f64))
+                } else {
+                    TypeValue::Float(Value::Unknown)
+                }
             }
             RuntimeType::Bool => {
-                TypeValue::Bool(value.map(Self::value_as_bool).or_else(|| {
-                    if syntax == Syntax::Proto3 {
-                        Some(false)
-                    } else {
-                        None
-                    }
-                }))
+                if let Some(v) = value {
+                    TypeValue::Bool(Value::Var(Self::value_as_bool(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default values.
+                    TypeValue::Bool(Value::Var(false))
+                } else {
+                    TypeValue::Bool(Value::Unknown)
+                }
             }
-            RuntimeType::String | RuntimeType::VecU8 => TypeValue::String(
-                value.map(Self::value_as_bstring).or_else(|| {
-                    if syntax == Syntax::Proto3 {
-                        Some(BString::default())
-                    } else {
-                        None
-                    }
-                }),
-            ),
+            RuntimeType::String | RuntimeType::VecU8 => {
+                if let Some(v) = value {
+                    TypeValue::String(Value::Var(Self::value_as_bstring(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default values.
+                    TypeValue::String(Value::Var(BString::default()))
+                } else {
+                    TypeValue::String(Value::Unknown)
+                }
+            }
             RuntimeType::Message(msg_descriptor) => {
                 let structure = if let Some(value) = value {
                     Self::from_proto_descriptor_and_value(
@@ -846,7 +848,7 @@ impl PartialEq for Struct {
 #[cfg(test)]
 mod tests {
     use super::Struct;
-    use crate::types::{Array, TypeValue};
+    use crate::types::{Array, TypeValue, Value};
     use std::rc::Rc;
 
     #[test]
@@ -855,7 +857,7 @@ mod tests {
         let foo = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
-        root.add_field("bar", TypeValue::Integer(Some(1)));
+        root.add_field("bar", TypeValue::Integer(Value::Var(1)));
 
         let foo_index = root.index_of("foo");
         let bar_index = root.index_of("bar");
@@ -869,24 +871,24 @@ mod tests {
         assert_eq!(field1.name, "foo");
         assert_eq!(field1.name, field2.name);
 
-        root.add_field("foo.bar", TypeValue::Integer(Some(1)));
+        root.add_field("foo.bar", TypeValue::Integer(Value::Var(1)));
     }
 
     #[test]
     fn struct_eq() {
         let mut sub: Struct = Struct::default();
 
-        sub.add_field("integer", TypeValue::Integer(None));
-        sub.add_field("string", TypeValue::String(None));
-        sub.add_field("boolean", TypeValue::Bool(None));
+        sub.add_field("integer", TypeValue::Integer(Value::Unknown));
+        sub.add_field("string", TypeValue::String(Value::Unknown));
+        sub.add_field("boolean", TypeValue::Bool(Value::Unknown));
 
         let sub = Rc::new(sub);
 
         let mut a = Struct::default();
         let mut b = Struct::default();
 
-        a.add_field("boolean", TypeValue::Bool(Some(true)));
-        a.add_field("integer", TypeValue::Integer(Some(1)));
+        a.add_field("boolean", TypeValue::Bool(Value::Var(true)));
+        a.add_field("integer", TypeValue::Integer(Value::Var(1)));
         a.add_field("structure", TypeValue::Struct(sub.clone()));
         a.add_field(
             "floats_array",
@@ -896,8 +898,8 @@ mod tests {
         // At this point a != b because b is still empty.
         assert_ne!(a, b);
 
-        b.add_field("boolean", TypeValue::Bool(Some(false)));
-        b.add_field("integer", TypeValue::Integer(Some(1)));
+        b.add_field("boolean", TypeValue::Bool(Value::Var(false)));
+        b.add_field("integer", TypeValue::Integer(Value::Var(1)));
         b.add_field("structure", TypeValue::Struct(sub));
         b.add_field(
             "floats_array",
@@ -907,8 +909,8 @@ mod tests {
         // At this point a == b.
         assert_eq!(a, b);
 
-        a.add_field("foo", TypeValue::Bool(Some(false)));
-        b.add_field("foo", TypeValue::Integer(None));
+        a.add_field("foo", TypeValue::Bool(Value::Var(false)));
+        b.add_field("foo", TypeValue::Integer(Value::Unknown));
 
         // At this point a != b again because field "foo" have a different type
         // on each structure.

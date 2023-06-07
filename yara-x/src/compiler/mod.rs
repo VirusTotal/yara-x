@@ -38,7 +38,9 @@ use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
-use crate::types::{Func, FuncSignature, Regexp, Struct, Type, TypeValue};
+use crate::types::{
+    Func, FuncSignature, Regexp, Struct, Type, TypeValue, Value,
+};
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
@@ -543,8 +545,10 @@ impl<'a> Compiler<'a> {
         });
 
         // Create a new symbol of bool type for the rule.
-        let new_symbol =
-            Symbol::new(TypeValue::Bool(None), SymbolKind::Rule(rule_id));
+        let new_symbol = Symbol::new(
+            TypeValue::Bool(Value::Unknown),
+            SymbolKind::Rule(rule_id),
+        );
 
         // Insert the symbol in the symbol table corresponding to the
         // current namespace.

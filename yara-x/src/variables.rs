@@ -11,7 +11,7 @@ multiple commonly used types like `bool`, `i64`, `&str`, etc.
 use bstr::BString;
 use thiserror::Error;
 
-use crate::types::TypeValue;
+use crate::types::{TypeValue, Value};
 
 /// Represents a YARA variable.
 ///
@@ -43,79 +43,79 @@ pub enum VariableError {
 
 impl From<bool> for Variable {
     fn from(value: bool) -> Self {
-        Variable(TypeValue::Bool(Some(value)))
+        Variable(TypeValue::Bool(Value::Var(value)))
     }
 }
 
 impl From<i64> for Variable {
     fn from(value: i64) -> Self {
-        Variable(TypeValue::Integer(Some(value)))
+        Variable(TypeValue::Integer(Value::Var(value)))
     }
 }
 
 impl From<i32> for Variable {
     fn from(value: i32) -> Self {
-        Variable(TypeValue::Integer(Some(value.into())))
+        Variable(TypeValue::Integer(Value::Var(value.into())))
     }
 }
 
 impl From<i16> for Variable {
     fn from(value: i16) -> Self {
-        Variable(TypeValue::Integer(Some(value.into())))
+        Variable(TypeValue::Integer(Value::Var(value.into())))
     }
 }
 
 impl From<i8> for Variable {
     fn from(value: i8) -> Self {
-        Variable(TypeValue::Integer(Some(value.into())))
+        Variable(TypeValue::Integer(Value::Var(value.into())))
     }
 }
 
 impl From<u32> for Variable {
     fn from(value: u32) -> Self {
-        Variable(TypeValue::Integer(Some(value.into())))
+        Variable(TypeValue::Integer(Value::Var(value.into())))
     }
 }
 
 impl From<u16> for Variable {
     fn from(value: u16) -> Self {
-        Variable(TypeValue::Integer(Some(value.into())))
+        Variable(TypeValue::Integer(Value::Var(value.into())))
     }
 }
 
 impl From<u8> for Variable {
     fn from(value: u8) -> Self {
-        Variable(TypeValue::Integer(Some(value.into())))
+        Variable(TypeValue::Integer(Value::Var(value.into())))
     }
 }
 
 impl From<f64> for Variable {
     fn from(value: f64) -> Self {
-        Variable(TypeValue::Float(Some(value)))
+        Variable(TypeValue::Float(Value::Var(value)))
     }
 }
 
 impl From<f32> for Variable {
     fn from(value: f32) -> Self {
-        Variable(TypeValue::Float(Some(value.into())))
+        Variable(TypeValue::Float(Value::Var(value.into())))
     }
 }
 
 impl From<&str> for Variable {
     fn from(value: &str) -> Self {
-        Variable(TypeValue::String(Some(BString::from(value))))
+        Variable(TypeValue::String(Value::Var(BString::from(value))))
     }
 }
 
 impl From<&[u8]> for Variable {
     fn from(value: &[u8]) -> Self {
-        Variable(TypeValue::String(Some(BString::from(value))))
+        Variable(TypeValue::String(Value::Var(BString::from(value))))
     }
 }
 
 impl From<String> for Variable {
     fn from(value: String) -> Self {
-        Variable(TypeValue::String(Some(BString::from(value))))
+        Variable(TypeValue::String(Value::Var(BString::from(value))))
     }
 }
 
