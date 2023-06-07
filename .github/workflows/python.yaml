@@ -39,7 +39,10 @@ jobs:
         sccache: 'true'
         manylinux: auto
     - name: Run tests
-      run: pytest
+      run: | 
+        cd yara-x-py
+        maturin develop
+        pytest
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
