@@ -106,7 +106,6 @@ jobs:
         path: dist
 
   release:
-    name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [linux, windows, macos, sdist]
@@ -124,7 +123,6 @@ jobs:
         working-directory: yara-x-py
 
   test:
-    name: Test
     strategy:
       fail-fast: false
       matrix:
@@ -144,7 +142,7 @@ jobs:
         virtualenv vEnv; source vEnv/bin/activate
         python -m pip install --upgrade pip maturin
         python -m pip install pytest
-        maturin develop
+        maturin develop --manifest-path yara-x-py/Cargo.toml
         pytest
     - name: Test Python - Windows
       if: runner.os == 'Windows'
@@ -155,5 +153,5 @@ jobs:
         pwd
         python -m pip install --upgrade pip maturin
         python -m pip install pytest
-        maturin develop
+        maturin develop --manifest-path yara-x-py/Cargo.toml
         pytest
