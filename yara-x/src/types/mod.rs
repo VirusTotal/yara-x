@@ -70,33 +70,6 @@ impl From<Type> for ValType {
     }
 }
 
-/// A [`TypeValue`] contains information about the type, and possibly the
-/// value of a YARA expression or identifier.
-///
-/// In the case of primitive types (integer, float, bool and string), the
-/// value can be constant, variable, or unknown. Structs, arrays and maps
-/// always have a reference to a [`Struct`], [`Array`] or [`Map`] respectively,
-/// but those structures, arrays and maps don't contain actual values at
-/// compile time, they only provide details about the type, like for example,
-/// which are the fields in a struct, or what's the type of the items in an
-/// array.
-#[derive(Clone, Serialize, Deserialize)]
-pub enum TypeValue {
-    Unknown,
-    Integer(Value<i64>),
-    Float(Value<f64>),
-    Bool(Value<bool>),
-    String(Value<BString>),
-    Regexp(Option<Regexp>),
-    Struct(Rc<Struct>),
-    Array(Rc<Array>),
-    Map(Rc<Map>),
-
-    // A TypeValue that contains a function is not serialized.
-    #[serde(skip)]
-    Func(Rc<Func>),
-}
-
 /// Contains information about a value.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub enum Value<T> {
@@ -210,6 +183,33 @@ impl Regexp {
         let modifiers = &self.0[self.0.rfind('/').unwrap()..];
         modifiers.contains('s')
     }
+}
+
+/// A [`TypeValue`] contains information about the type, and possibly the
+/// value of a YARA expression or identifier.
+///
+/// In the case of primitive types (integer, float, bool and string), the
+/// value can be constant, variable, or unknown. Structs, arrays and maps
+/// always have a reference to a [`Struct`], [`Array`] or [`Map`] respectively,
+/// but those structures, arrays and maps don't contain actual values at
+/// compile time, they only provide details about the type, like for example,
+/// which are the fields in a struct, or what's the type of the items in an
+/// array.
+#[derive(Clone, Serialize, Deserialize)]
+pub enum TypeValue {
+    Unknown,
+    Integer(Value<i64>),
+    Float(Value<f64>),
+    Bool(Value<bool>),
+    String(Value<BString>),
+    Regexp(Option<Regexp>),
+    Struct(Rc<Struct>),
+    Array(Rc<Array>),
+    Map(Rc<Map>),
+
+    // A TypeValue that contains a function is not serialized.
+    #[serde(skip)]
+    Func(Rc<Func>),
 }
 
 macro_rules! gen_boolean_op {
