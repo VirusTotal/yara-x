@@ -1,7 +1,8 @@
 /*! Functions for converting an AST into an IR. */
 
+use bstr::BString;
 use regex_syntax::hir;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::iter;
 use std::ops::{Deref, RangeInclusive};
 use std::rc::Rc;
@@ -12,9 +13,9 @@ use yara_x_parser::{ast, ErrorInfo, Warning};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
-    Expr, ForIn, ForOf, FuncCall, HexPattern, Iterable, Lookup, MatchAnchor,
-    Of, OfItems, Pattern, PatternFlagSet, PatternFlags, Quantifier, Range,
-    RegexpPattern, TextPattern,
+    Expr, ForIn, ForOf, FuncCall, Iterable, LiteralPattern, Lookup,
+    MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
+    Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::{CompileError, CompileErrorInfo, Context, PatternId};
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
@@ -37,42 +38,42 @@ fn pattern_from_ast<'src>(
 ) -> Result<Pattern<'src>, CompileError> {
     match pattern {
         ast::Pattern::Text(pattern) => {
-            Ok(Pattern::Text(text_pattern_from_ast(report_builder, pattern)?))
+            Ok(text_pattern_from_ast(report_builder, pattern)?)
         }
         ast::Pattern::Hex(pattern) => {
-            Ok(Pattern::Hex(hex_pattern_from_ast(report_builder, pattern)?))
+            Ok(hex_pattern_from_ast(report_builder, pattern)?)
         }
-        ast::Pattern::Regexp(pattern) => Ok(Pattern::Regexp(
-            regexp_pattern_from_ast(report_builder, pattern)?,
-        )),
+        ast::Pattern::Regexp(pattern) => {
+            Ok(regexp_pattern_from_ast(report_builder, pattern)?)
+        }
     }
 }
 
 pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     _report_builder: &ReportBuilder,
     pattern: &ast::TextPattern<'src>,
-) -> Result<TextPattern<'src>, CompileError> {
+) -> Result<Pattern<'src>, CompileError> {
     let mut flags = PatternFlagSet::none();
 
     if pattern.modifiers.ascii().is_some() {
-        flags |= PatternFlags::Ascii;
+        flags.set(PatternFlags::Ascii);
     }
 
     if pattern.modifiers.wide().is_some() {
-        flags |= PatternFlags::Wide;
+        flags.set(PatternFlags::Wide);
     }
 
     if pattern.modifiers.nocase().is_some() {
-        flags |= PatternFlags::Nocase;
+        flags.set(PatternFlags::Nocase);
     }
 
     if pattern.modifiers.fullword().is_some() {
-        flags |= PatternFlags::Fullword;
+        flags.set(PatternFlags::Fullword);
     }
 
     let xor_range = match pattern.modifiers.xor() {
         Some(ast::PatternModifier::Xor { start, end, .. }) => {
-            flags |= PatternFlags::Xor;
+            flags.set(PatternFlags::Xor);
             Some(*start..=*end)
         }
         _ => None,
@@ -80,7 +81,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 
     let base64_alphabet = match pattern.modifiers.base64() {
         Some(ast::PatternModifier::Base64 { alphabet, .. }) => {
-            flags |= PatternFlags::Base64;
+            flags.set(PatternFlags::Base64);
             *alphabet
         }
         _ => None,
@@ -88,38 +89,66 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 
     let base64wide_alphabet = match pattern.modifiers.base64wide() {
         Some(ast::PatternModifier::Base64Wide { alphabet, .. }) => {
-            flags |= PatternFlags::Base64Wide;
+            flags.set(PatternFlags::Base64Wide);
             *alphabet
         }
         _ => None,
     };
 
-    Ok(TextPattern {
+    Ok(Pattern::Literal(LiteralPattern {
         ident: pattern.identifier.name,
         flags,
         text: pattern.text.clone(),
         xor_range,
         base64_alphabet,
         base64wide_alphabet,
-    })
+    }))
 }
 
 pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     _report_builder: &ReportBuilder,
     pattern: &ast::HexPattern<'src>,
-) -> Result<HexPattern<'src>, CompileError> {
-    Ok(HexPattern {
-        ident: pattern.identifier.name,
-        flags: PatternFlagSet::none(),
-        hir: hex_pattern_hir_from_ast(pattern),
-    })
+) -> Result<Pattern<'src>, CompileError> {
+    let hir = hex_pattern_hir_from_ast(pattern);
+
+    // If the hex pattern doesn't contain any wildcard, jump, or alternative
+    // (e.g: { 01 02 03 04 }) is handled as a literal, if not, it is handled
+    // as a regular expression.
+    if let hir::HirKind::Literal(literal) = hir.kind() {
+        Ok(Pattern::Literal(LiteralPattern {
+            ident: pattern.identifier.name,
+            flags: PatternFlagSet::none(),
+            text: Cow::Owned(BString::from(literal.0.as_ref())),
+            xor_range: None,
+            base64_alphabet: None,
+            base64wide_alphabet: None,
+        }))
+    } else {
+        Ok(Pattern::Regexp(RegexpPattern {
+            ident: pattern.identifier.name,
+            flags: PatternFlagSet::none(),
+            hir,
+        }))
+    }
 }
 
 pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     report_builder: &ReportBuilder,
     pattern: &ast::RegexpPattern<'src>,
-) -> Result<RegexpPattern<'src>, CompileError> {
+) -> Result<Pattern<'src>, CompileError> {
     let mut flags = PatternFlagSet::none();
+
+    if pattern.modifiers.ascii().is_some() {
+        flags.set(PatternFlags::Ascii);
+    }
+
+    if pattern.modifiers.wide().is_some() {
+        flags.set(PatternFlags::Wide);
+    }
+
+    if pattern.modifiers.fullword().is_some() {
+        flags.set(PatternFlags::Fullword);
+    }
 
     // A regexp pattern can use either the `nocase` modifier or the `/i`
     // modifier (e.g: /foobar/i). In both cases it means the same thing.
@@ -135,7 +164,24 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         flags.contains(PatternFlags::Nocase),
     )?;
 
-    Ok(RegexpPattern { ident: pattern.identifier.name, flags, hir })
+    // If the regular expression is a literal (e.g: /foobar/) it will be
+    // handled as a literal.
+    if let hir::HirKind::Literal(literal) = hir.kind() {
+        Ok(Pattern::Literal(LiteralPattern {
+            ident: pattern.identifier.name,
+            flags,
+            text: Cow::Owned(BString::from(literal.0.as_ref())),
+            xor_range: None,
+            base64_alphabet: None,
+            base64wide_alphabet: None,
+        }))
+    } else {
+        Ok(Pattern::Regexp(RegexpPattern {
+            ident: pattern.identifier.name,
+            flags,
+            hir,
+        }))
+    }
 }
 
 /// Given the AST for some expression, creates its IR.

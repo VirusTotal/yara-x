@@ -396,6 +396,17 @@ fn text_patterns() {
 }
 
 #[test]
+fn hex_patterns() {
+    pattern_true!(r#"{ 01 }"#, b"\x01");
+    pattern_true!(r#"{ 01 02 03 04 }"#, b"\x01\x02\x03\x04");
+}
+
+#[test]
+fn regexp_patterns() {
+    pattern_true!(r#"/abcde/"#, b"abcde");
+}
+
+#[test]
 fn match_at() {
     rule_true!(
         r#"
@@ -890,6 +901,16 @@ fn fullword() {
     pattern_false!(r#""miss" fullword"#, b"mississippi");
     pattern_false!(r#""ippi" fullword"#, b"mississippi");
     pattern_false!(r#""issi" fullword"#, b"mississippi");
+
+    pattern_true!(r#"/mississippi/ fullword"#, b"mississippi");
+    pattern_true!(r#"/mississippi/ fullword"#, b"mississippi ");
+    pattern_true!(r#"/mississippi/ fullword"#, b" mississippi");
+    pattern_true!(r#"/mississippi/ fullword"#, b" mississippi ");
+    pattern_true!(r#"/mississippi/ fullword"#, b"\x00mississippi\x00");
+    pattern_true!(r#"/mississippi/ fullword"#, b"\x01mississippi\x02");
+    pattern_false!(r#"/miss/ fullword"#, b"mississippi");
+    pattern_false!(r#"/issi/ fullword"#, b"mississippi");
+    pattern_false!(r#"/issi/ fullword"#, b"mississippi");
 
     pattern_true!(
         r#""mississippi" wide fullword"#,

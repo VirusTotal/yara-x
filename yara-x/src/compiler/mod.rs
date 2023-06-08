@@ -17,13 +17,14 @@ use bincode::Options;
 use bstr::ByteSlice;
 use itertools::Itertools;
 use regex::bytes::{Regex, RegexBuilder};
+use regex_syntax::hir;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::ir::InstrSeqId;
 use walrus::{FunctionId, ValType};
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{HasSpan, RuleFlag, Span};
+use yara_x_parser::ast::{HasSpan, Ident, RuleFlag, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
@@ -34,6 +35,8 @@ use crate::compiler::atoms::{
     DESIRED_ATOM_SIZE,
 };
 use crate::compiler::emit::emit_rule_condition;
+use crate::compiler::ir::PatternFlags;
+use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
@@ -48,9 +51,6 @@ use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
-use crate::compiler::ir::PatternFlags;
-
-use crate::modules::BUILTIN_MODULES;
 
 mod atoms;
 mod emit;
@@ -476,28 +476,38 @@ impl<'a> Compiler<'a> {
         SubPatternId(id as u32)
     }
 
-    fn process_rule(&mut self, rule: &ast::Rule) -> Result<(), CompileError> {
-        // Check if another rule, module or variable has the same identifier
-        // and return an error in that case.
-        if let Some(symbol) = self.symbol_table.lookup(rule.identifier.name) {
+    /// Check if another rule, module or variable has the given identifier and
+    /// return an error in that case.
+    fn check_for_existing_identifier(
+        &self,
+        ident: &Ident,
+    ) -> Result<(), CompileError> {
+        if let Some(symbol) = self.symbol_table.lookup(ident.name) {
             return match symbol.kind() {
                 SymbolKind::Rule(rule_id) => {
                     Err(CompileError::from(CompileErrorInfo::duplicate_rule(
                         &self.report_builder,
-                        rule.identifier.name.to_string(),
-                        rule.identifier.span,
+                        ident.name.to_string(),
+                        ident.span,
                         self.rules.get(rule_id.0 as usize).unwrap().ident_span,
                     )))
                 }
                 _ => Err(CompileError::from(
                     CompileErrorInfo::conflicting_rule_identifier(
                         &self.report_builder,
-                        rule.identifier.name.to_string(),
-                        rule.identifier.span,
+                        ident.name.to_string(),
+                        ident.span,
                     ),
                 )),
             };
         }
+        Ok(())
+    }
+
+    fn process_rule(&mut self, rule: &ast::Rule) -> Result<(), CompileError> {
+        // Check if another rule, module or variable has the same identifier
+        // and return an error in that case.
+        self.check_for_existing_identifier(&rule.identifier)?;
 
         // Convert the patterns from AST to IR.
         let patterns = ir::patterns_from_ast(
@@ -515,11 +525,8 @@ impl<'a> Compiler<'a> {
             let ident_id = self.ident_pool.get_or_intern(pattern.identifier());
 
             match pattern {
-                ir::Pattern::Text(pattern) => {
-                    self.process_text_pattern(pattern);
-                }
-                ir::Pattern::Hex(pattern) => {
-                    self.process_hex_pattern(pattern);
+                ir::Pattern::Literal(pattern) => {
+                    self.process_literal_pattern(pattern);
                 }
                 ir::Pattern::Regexp(pattern) => {
                     self.process_regexp_pattern(pattern);
@@ -600,7 +607,7 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn process_text_pattern(&mut self, p: ir::TextPattern) {
+    fn process_literal_pattern(&mut self, p: ir::LiteralPattern) {
         // The `ascii` modifier is usually implicit, but when `wide` is used
         // it must be declared explicitly.
         let mut implicit_ascii = true;
@@ -616,34 +623,34 @@ impl<'a> Compiler<'a> {
             implicit_ascii = false;
             wide_pattern = make_wide(p.text.as_bytes());
             main_patterns.push((
-                true, // is wide
+                wide_pattern.as_slice(),
                 best_atom_from_slice(
                     wide_pattern.as_slice(),
                     // For wide patterns let's use atoms twice large as usual.
                     DESIRED_ATOM_SIZE * 2,
                 ),
-                wide_pattern.as_slice(),
+                if p.flags.contains(PatternFlags::Fullword) {
+                    FullWord::Wide
+                } else {
+                    FullWord::Disabled
+                },
             ));
         }
 
         if implicit_ascii || p.flags.contains(PatternFlags::Ascii) {
             main_patterns.push((
-                false, // is not wide
-                best_atom_from_slice(p.text.as_bytes(), DESIRED_ATOM_SIZE),
                 p.text.as_bytes(),
+                best_atom_from_slice(p.text.as_bytes(), DESIRED_ATOM_SIZE),
+                if p.flags.contains(PatternFlags::Fullword) {
+                    FullWord::Ascii
+                } else {
+                    FullWord::Disabled
+                },
             ));
         }
 
-        for (wide, best_atom, main_pattern) in main_patterns {
-            let full_word =
-                match (p.flags.contains(PatternFlags::Fullword), wide) {
-                    // fullword and wide
-                    (true, true) => FullWord::Wide,
-                    // fullword but not wide
-                    (true, false) => FullWord::Ascii,
-                    // no fullword
-                    _ => FullWord::Disabled,
-                };
+        for (main_pattern, best_atom, full_word) in main_patterns {
+            let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
 
             if p.flags.contains(PatternFlags::Xor) {
                 // When `xor` is used, `base64`, `base64wide` and `nocase` are
@@ -654,14 +661,12 @@ impl<'a> Compiler<'a> {
                         | PatternFlags::Nocase,
                 ));
 
-                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
                 let sub_pattern_id = self.push_sub_pattern(SubPattern::Xor {
                     pattern: pattern_lit_id,
                     full_word,
                 });
 
                 let xor_range = p.xor_range.clone().unwrap();
-
                 self.atoms.reserve(xor_range.len());
 
                 for atom in XorGenerator::new(best_atom, xor_range) {
@@ -676,7 +681,6 @@ impl<'a> Compiler<'a> {
                         | PatternFlags::Xor,
                 ));
 
-                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
                 let sub_pattern_id =
                     self.push_sub_pattern(SubPattern::FixedCaseInsensitive {
                         pattern: pattern_lit_id,
@@ -707,9 +711,7 @@ impl<'a> Compiler<'a> {
                         let sub_pattern =
                             if let Some(alphabet) = p.base64_alphabet {
                                 SubPattern::CustomBase64 {
-                                    pattern: self
-                                        .lit_pool
-                                        .get_or_intern(main_pattern),
+                                    pattern: pattern_lit_id,
                                     alphabet: self
                                         .lit_pool
                                         .get_or_intern(alphabet),
@@ -717,9 +719,7 @@ impl<'a> Compiler<'a> {
                                 }
                             } else {
                                 SubPattern::Base64 {
-                                    pattern: self
-                                        .lit_pool
-                                        .get_or_intern(main_pattern),
+                                    pattern: pattern_lit_id,
                                     padding,
                                 }
                             };
@@ -743,9 +743,7 @@ impl<'a> Compiler<'a> {
                         let sub_pattern =
                             if let Some(alphabet) = p.base64wide_alphabet {
                                 SubPattern::CustomBase64Wide {
-                                    pattern: self
-                                        .lit_pool
-                                        .get_or_intern(main_pattern),
+                                    pattern: pattern_lit_id,
                                     alphabet: self
                                         .lit_pool
                                         .get_or_intern(alphabet),
@@ -753,9 +751,7 @@ impl<'a> Compiler<'a> {
                                 }
                             } else {
                                 SubPattern::Base64Wide {
-                                    pattern: self
-                                        .lit_pool
-                                        .get_or_intern(main_pattern),
+                                    pattern: pattern_lit_id,
                                     padding,
                                 }
                             };
@@ -773,7 +769,6 @@ impl<'a> Compiler<'a> {
                     }
                 }
             } else {
-                let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
                 let sub_pattern_id =
                     self.push_sub_pattern(SubPattern::Fixed {
                         pattern: pattern_lit_id,
@@ -785,13 +780,8 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn process_hex_pattern(&mut self, p: ir::HexPattern) {
-        // TODO
-    }
-
     fn process_regexp_pattern(&mut self, p: ir::RegexpPattern) {
-        let mut literal_extractor =
-            regex_syntax::hir::literal::Extractor::new();
+        let mut literal_extractor = hir::literal::Extractor::new();
 
         literal_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
 

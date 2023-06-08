@@ -62,23 +62,27 @@ bitmask! {
 
 /// Intermediate representation (IR) for a pattern.
 pub(in crate::compiler) enum Pattern<'src> {
-    Text(TextPattern<'src>),
-    Hex(HexPattern<'src>),
+    /// A literal pattern is one the doesn't contain wildcards, alternatives,
+    /// or any kind of variable content. For example, the text pattern `"foo"`,
+    /// the regular expression `/foo/`, and the hex pattern `{01 02 03}` are
+    /// all literal.
+    Literal(LiteralPattern<'src>),
+    /// A regexp pattern is one that contains wildcards and/or alternatives,
+    /// like regular expression `/foo.*bar/` and hex pattern `{01 ?? 03}`.
     Regexp(RegexpPattern<'src>),
 }
 
 impl<'src> Pattern<'src> {
     pub fn identifier(&self) -> &'src str {
         match self {
-            Pattern::Text(pattern) => pattern.ident,
-            Pattern::Hex(pattern) => pattern.ident,
+            Pattern::Literal(pattern) => pattern.ident,
             Pattern::Regexp(pattern) => pattern.ident,
         }
     }
 }
 
 /// Intermediate representation (IR) for a text pattern.
-pub(in crate::compiler) struct TextPattern<'src> {
+pub(in crate::compiler) struct LiteralPattern<'src> {
     pub ident: &'src str,
     pub flags: PatternFlagSet,
     pub text: Cow<'src, BStr>,
@@ -92,16 +96,6 @@ pub(in crate::compiler) struct TextPattern<'src> {
 /// The IR for a regular expression is entrusted to the `regex_syntax` crate,
 /// particularly to its [`regex_syntax::hir::Hir`] type.
 pub(in crate::compiler) struct RegexpPattern<'src> {
-    pub ident: &'src str,
-    pub flags: PatternFlagSet,
-    pub hir: regex_syntax::hir::Hir,
-}
-
-/// Intermediate representation (IR) for a hex pattern.
-///
-/// An hex pattern is simply a regexp expressed in a different syntax, so they
-/// are represented by using [`regex_syntax::hir::Hir`].
-pub(in crate::compiler) struct HexPattern<'src> {
     pub ident: &'src str,
     pub flags: PatternFlagSet,
     pub hir: regex_syntax::hir::Hir,
