@@ -66,6 +66,17 @@ def test_str_globals():
   assert len(matches) == 1
 
 
+def test_namespaces():
+  compiler = yara_x.Compiler()
+  compiler.new_namespace('foo')
+  compiler.add_source('rule foo {strings: $a = "foo" condition: $a}')
+  compiler.new_namespace('bar')
+  compiler.add_source('rule bar {strings: $a = "bar" condition: $a}')
+  scanner = yara_x.Scanner(compiler.build())
+  matches = scanner.scan(b"foobar")
+  assert len(matches) == 2
+
+
 def test_compile_and_scan():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
   matches = rules.scan(b"foobar")

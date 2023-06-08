@@ -201,6 +201,25 @@ impl Scanner {
     }
 }
 
+#[pyclass]
+struct MatchingRule {
+    name: String,
+    namespace: String,
+}
+
+#[pymethods]
+impl MatchingRule {
+    #[getter]
+    fn name(&self) -> PyResult<&str> {
+        Ok(self.name.as_str())
+    }
+
+    #[getter]
+    fn namespace(&self) -> PyResult<&str> {
+        Ok(self.namespace.as_str())
+    }
+}
+
 /// A set of YARA rules in compiled form.
 ///
 /// This is the result of [`Compiler::build`].
@@ -219,13 +238,22 @@ impl Rules {
     /// Scans in-memory data with these rules.
     #[pyo3(signature = (data))]
     fn scan(&self, data: &[u8]) -> Py<PyTuple> {
-        let matches: Vec<String> = yrx::Scanner::new(&self.inner.rules)
-            .scan(data)
-            .matching_rules()
-            .map(|rule| rule.name().to_string())
-            .collect();
+        let mut scanner = yrx::Scanner::new(&self.inner.rules);
+        let matches = scanner.scan(data).matching_rules();
 
-        Python::with_gil(|py| PyTuple::new(py, matches).into())
+        Python::with_gil(|py| {
+            PyTuple::new(
+                py,
+                matches.map(|rule| {
+                    MatchingRule {
+                        name: rule.name().to_string(),
+                        namespace: rule.namespace().to_string(),
+                    }
+                    .into_py(py)
+                }),
+            )
+            .into()
+        })
     }
 }
 
@@ -243,5 +271,6 @@ fn yara_x(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
     m.add_class::<Compiler>()?;
+    m.add_class::<MatchingRule>()?;
     Ok(())
 }
