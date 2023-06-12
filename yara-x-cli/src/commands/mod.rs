@@ -56,5 +56,9 @@ where
         compiler = compiler.add_source(src)?;
     }
 
+    for warning in compiler.warnings() {
+        println!("{}", warning);
+    }
+
     Ok(compiler.build())
 }

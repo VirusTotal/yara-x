@@ -391,6 +391,11 @@ impl<'a> Compiler<'a> {
         self
     }
 
+    /// Returns the warnings produced while compiling the rules.
+    pub fn warnings(&self) -> &[Warning] {
+        &self.warnings
+    }
+
     /// Builds the source code previously added to the compiler.
     ///
     /// This function consumes the compiler and returns an instance of
