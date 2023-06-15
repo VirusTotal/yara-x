@@ -1,5 +1,8 @@
 /*! End-to-end tests.*/
+use bstr::ByteSlice;
 use pretty_assertions::assert_eq;
+
+const JUMPS_DATA: &[u8; 1664] = include_bytes!("testdata/jumps.bin");
 
 macro_rules! test_condition {
     ($condition:literal, $data:expr, $expected_result:expr) => {{
@@ -404,6 +407,113 @@ fn hex_patterns() {
 #[test]
 fn regexp_patterns() {
     pattern_true!(r#"/abcde/"#, b"abcde");
+}
+
+#[test]
+fn hex_large_jumps() {
+    rule_true!(
+        r#"rule test {
+            strings: 
+                $a = { 61 61 61 61 [-] 62 62 62 62 [-] 63 63 63 63 [-] 64 64 64 64 }
+            condition:
+                #a == 4 and 
+                @a[1] == 0x4 and !a[1] == 0x604 and
+                @a[2] == 0x24 and !a[2] == 0x5e4 and 
+                @a[3] == 0x44 and !a[3] == 0x5c4 and
+                @a[4] == 0x324 and !a[4] == 0x2e4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = { 61 61 61 61 [0-0x1fc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+            condition:
+                #a == 4 and
+                @a[1] == 0x4 and !a[1] == 0x604 and
+                @a[2] == 0x24 and !a[2] == 0x5e4 and
+                @a[3] == 0x44 and !a[3] == 0x5c4 and
+                @a[4] == 0x324 and !a[4] == 0x2e4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = { 61 61 61 61 [0-0x1dc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+            condition:
+                #a == 3 and
+                @a[1] == 0x24 and !a[1] == 0x5e4 and
+                @a[2] == 0x44 and !a[2] == 0x5c4 and
+                @a[3] == 0x324 and !a[3] == 0x2e4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = { 61 61 61 61 [0-0x1dc] 62 62 62 62 [0-0x1dc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+            condition:
+                #a == 2 and
+                @a[1] == 0x44 and !a[1] == 0x5c4 and
+                @a[2] == 0x324 and !a[2] == 0x2e4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+            condition:
+                #a == 2 and
+                @a[1] == 0x44 and !a[1] == 0x5c4 and
+                @a[2] == 0x324 and !a[2] == 0x2e4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0x1d-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+            condition:
+                #a == 1 and @a[1] == 0x44 and !a[1] == 0x5c4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0-0x1dc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+            condition:
+                #a == 1 and @a[1] == 0x324 and !a[1] == 0x2e4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = { 61 61 61 61 [-] 00 00 00 00 [-] 63 63 63 63 }
+            condition:
+                #a == 4 and
+                @a[1] == 0x4 and !a[1] == 0x404 and
+                @a[2] == 0x24 and !a[2] == 0x3e4 and
+                @a[3] == 0x44 and !a[3] == 0x3c4 and
+                @a[4] == 0x324 and !a[4] == 0xe4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    pattern_false!(
+        "{ 61 61 61 61 [0-0x17b] 62 62 62 62 [-] 63 63 63 63 [-] 64 64 64 64 }",
+        JUMPS_DATA.as_bytes()
+    );
 }
 
 #[test]

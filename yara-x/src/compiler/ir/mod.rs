@@ -42,21 +42,23 @@ use crate::types::{Type, TypeValue, Value};
 pub(in crate::compiler) use ast2ir::expr_from_ast;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::warn_if_not_bool;
+pub(in crate::compiler) use utils::split_at_chaining_points;
 
 mod ast2ir;
 mod hex2hir;
+mod utils;
 
 bitmask! {
     #[derive(Debug)]
     pub mask PatternFlagSet: u16 where flags PatternFlags  {
-        Ascii                = 0x01,
-        Wide                 = 0x02,
-        Nocase               = 0x04,
-        Base64               = 0x08,
-        Base64Wide           = 0x10,
-        Xor                  = 0x20,
-        Fullword             = 0x40,
-        Private              = 0x80,
+        Ascii                = 0x0001,
+        Wide                 = 0x0002,
+        Nocase               = 0x0004,
+        Base64               = 0x0008,
+        Base64Wide           = 0x0010,
+        Xor                  = 0x0020,
+        Fullword             = 0x0040,
+        Private              = 0x0080,
     }
 }
 

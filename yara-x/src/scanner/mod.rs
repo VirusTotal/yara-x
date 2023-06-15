@@ -3,9 +3,10 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 
+use std::collections::VecDeque;
 use std::fs;
 use std::io::Read;
-use std::ops::Deref;
+use std::ops::{Deref, Range, RangeInclusive};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
@@ -27,9 +28,9 @@ use wasmtime::{
 
 use crate::compiler::{
     AtomInfo, FullWord, IdentId, LiteralId, NamespaceId, PatternId, RegexpId,
-    RuleId, RuleInfo, Rules, SubPattern,
+    RuleId, RuleInfo, Rules, SubPattern, SubPatternId,
 };
-use crate::scanner::matches::{Match, MatchList};
+use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -89,7 +90,7 @@ impl<'r> Scanner<'r> {
                 vars_stack: Vec::new(),
                 module_outputs: FxHashMap::default(),
                 pattern_matches: FxHashMap::default(),
-                pattern_matched: false,
+                unconfirmed_matches: FxHashMap::default(),
             },
         ));
 
@@ -371,13 +372,16 @@ impl<'r> Scanner<'r> {
         let num_rules = ctx.compiled_rules.rules().len();
         let num_patterns = ctx.compiled_rules.num_patterns();
 
+        // Clear the unconfirmed matches.
+        for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
+            matches.clear()
+        }
+
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
         // there are rules without patterns, or that match if the pattern is
         // not found.
-        if ctx.pattern_matched || !ctx.rules_matching.is_empty() {
-            ctx.pattern_matched = false;
-
+        if !ctx.pattern_matches.is_empty() || !ctx.rules_matching.is_empty() {
             // The hash map that tracks the pattern matches is not completely
             // cleared with pattern_matches.clear() because that would cause
             // that all the vectors are deallocated. Instead, each of the
@@ -680,9 +684,15 @@ pub(crate) struct ScanContext<'r> {
     pub(crate) module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
+    /// of matches.
     pub(crate) pattern_matches: FxHashMap<PatternId, MatchList>,
-    /// True if some pattern matched during the scan.
-    pub(crate) pattern_matched: bool,
+    /// Hash map that tracks the unconfirmed matches for chained patterns. When
+    /// a pattern is split into multiple chained pieces, each piece is handled
+    /// as an individual pattern, but the match of one of the pieces doesn't
+    /// imply that the whole pattern matches. This partial matches are stored
+    /// here until they can be confirmed or discarded.
+    pub(crate) unconfirmed_matches:
+        FxHashMap<SubPatternId, VecDeque<UnconfirmedMatch>>,
 }
 
 impl ScanContext<'_> {
@@ -726,7 +736,8 @@ impl ScanContext<'_> {
 
     /// Called during the scan process when a global rule didn't match.
     ///
-    /// When this happen, any other global rule that matched previously is
+    /// When this happen any other global rule in the same namespace that
+    /// matched previously is reset to a non-matching state.
     pub(crate) fn track_global_rule_no_match(&mut self, rule_id: RuleId) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
@@ -794,7 +805,6 @@ impl ScanContext<'_> {
 
         bits.set(pattern_id.into(), true);
 
-        self.pattern_matched = true;
         self.pattern_matches.entry(pattern_id).or_default().add(match_)
     }
 
@@ -831,38 +841,137 @@ impl ScanContext<'_> {
                 .compiled_rules
                 .get_sub_pattern(matched_atom.sub_pattern_id);
 
-            let match_ = match sub_pattern {
-                SubPattern::Fixed { pattern, full_word } => self
-                    .verify_fixed_match(
+            match sub_pattern {
+                SubPattern::Fixed { pattern, full_word } => {
+                    if let Some(verified_match) = self.verify_fixed_match(
                         match_start,
                         *pattern,
                         false,
                         *full_word,
-                    ),
+                    ) {
+                        self.track_pattern_match(*pattern_id, verified_match);
+                    };
+                }
+                // TODO: handle full word
+                SubPattern::FixedChainHead { pattern, .. } => {
+                    if let Some(m) = self.verify_fixed_match(
+                        match_start,
+                        *pattern,
+                        false,
+                        FullWord::Disabled,
+                    ) {
+                        // This is the head of a set of chained sub-patterns.
+                        // Verifying that the head matches doesn't mean that
+                        // the whole sub-pattern matches, the rest of the chain
+                        // must be found as well. For the time being this is
+                        // just an unconfirmed match.
+                        self.unconfirmed_matches
+                            .entry(matched_atom.sub_pattern_id)
+                            .or_default()
+                            .push_back(UnconfirmedMatch {
+                                range: m.range.clone(),
+                                chain_length: 0,
+                            })
+                    }
+                }
+
+                SubPattern::FixedChainMiddle { pattern, chained_to, gap } => {
+                    if let Some(m) = self.verify_fixed_match(
+                        match_start,
+                        *pattern,
+                        false,
+                        FullWord::Disabled,
+                    ) {
+                        // This is some sub-pattern in the middle of a chain.
+                        // After verifying that the sub-pattern matches we need
+                        // to make sure that matches at a correct offset
+                        // relative to the end of the previous sub-pattern in
+                        // the chain. If this sub-pattern is too close, or too
+                        // far from the previous one, this is not a match.
+                        if self.within_valid_distance(
+                            matched_atom.sub_pattern_id,
+                            *chained_to,
+                            match_start,
+                            gap,
+                        ) {
+                            // Even if the sub-pattern was found at the correct
+                            // distance from the previous one this is not a
+                            // confirmed match. We need to find the sub-patterns
+                            // that follow in the chain.
+                            self.unconfirmed_matches
+                                .entry(matched_atom.sub_pattern_id)
+                                .or_default()
+                                .push_back(UnconfirmedMatch {
+                                    range: m.range.clone(),
+                                    chain_length: 0,
+                                });
+                        }
+                    }
+                }
+
+                SubPattern::FixedChainTail { pattern, chained_to, gap } => {
+                    if let Some(m) = self.verify_fixed_match(
+                        match_start,
+                        *pattern,
+                        false,
+                        FullWord::Disabled,
+                    ) {
+                        // This sub-pattern is the tail of a chain. This case
+                        // is similar to `FixedChainMiddle`, the difference is
+                        // that once we validate that the sub-pattern matched
+                        // at the correct distance relative to the previous one
+                        // in the chain, we can proceed to verify the whole
+                        // chain and determine if the chain matched or not.
+                        if self.within_valid_distance(
+                            matched_atom.sub_pattern_id,
+                            *chained_to,
+                            m.range.start,
+                            gap,
+                        ) {
+                            self.verify_chain_of_matches(
+                                *pattern_id,
+                                matched_atom.sub_pattern_id,
+                                m.range,
+                            );
+                        }
+                    }
+                }
+
                 SubPattern::FixedCaseInsensitive { pattern, full_word } => {
-                    self.verify_fixed_match(
+                    if let Some(m) = self.verify_fixed_match(
                         match_start,
                         *pattern,
                         true,
                         *full_word,
-                    )
+                    ) {
+                        self.track_pattern_match(*pattern_id, m);
+                    }
                 }
-                SubPattern::Xor { pattern, full_word } => self
-                    .verify_xor_match(
+
+                SubPattern::Xor { pattern, full_word } => {
+                    if let Some(m) = self.verify_xor_match(
                         match_start,
                         matched_atom,
                         *pattern,
                         *full_word,
-                    ),
+                    ) {
+                        self.track_pattern_match(*pattern_id, m);
+                    }
+                }
+
                 SubPattern::Base64 { pattern, padding }
-                | SubPattern::Base64Wide { pattern, padding } => self
-                    .verify_base64_match(
+                | SubPattern::Base64Wide { pattern, padding } => {
+                    if let Some(m) = self.verify_base64_match(
                         (*padding).into(),
                         match_start,
                         *pattern,
                         None,
                         matches!(sub_pattern, SubPattern::Base64Wide { .. }),
-                    ),
+                    ) {
+                        self.track_pattern_match(*pattern_id, m);
+                    }
+                }
+
                 SubPattern::CustomBase64 { pattern, alphabet, padding }
                 | SubPattern::CustomBase64Wide {
                     pattern,
@@ -884,7 +993,7 @@ impl ScanContext<'_> {
 
                     assert!(alphabet.is_some());
 
-                    self.verify_base64_match(
+                    if let Some(m) = self.verify_base64_match(
                         (*padding).into(),
                         match_start,
                         *pattern,
@@ -893,14 +1002,129 @@ impl ScanContext<'_> {
                             sub_pattern,
                             SubPattern::CustomBase64Wide { .. }
                         ),
-                    )
+                    ) {
+                        self.track_pattern_match(*pattern_id, m);
+                    }
                 }
             };
+        }
+    }
 
-            if let Some(m) = match_ {
-                self.track_pattern_match(*pattern_id, m);
+    fn within_valid_distance(
+        &mut self,
+        sub_pattern_id: SubPatternId,
+        chained_to: SubPatternId,
+        match_start: usize,
+        gap: &RangeInclusive<u32>,
+    ) -> bool {
+        // The lowest possible offset where the current sub-pattern can match
+        // is the offset of the first unconfirmed match, or the offset of the
+        // current match if no previous unconfirmed match exists.
+        let lowest_offset = self
+            .unconfirmed_matches
+            .get(&sub_pattern_id)
+            .and_then(|unconfirmed_matches| unconfirmed_matches.front())
+            .map_or(match_start, |first_match| first_match.range.start);
+
+        if let Some(unconfirmed_matches) =
+            self.unconfirmed_matches.get_mut(&chained_to)
+        {
+            let min_gap = *gap.start() as usize;
+            let max_gap = *gap.end() as usize;
+
+            // Retain the unconfirmed matches that can possibly match, but
+            // discard those that are so far away from the current match that
+            // there's no possibility for them to match.
+            unconfirmed_matches
+                .retain(|m| m.range.end + max_gap >= lowest_offset);
+
+            for m in unconfirmed_matches {
+                let valid_range =
+                    m.range.end + min_gap..=m.range.end + max_gap;
+                if valid_range.contains(&match_start) {
+                    return true;
+                }
             }
         }
+
+        false
+    }
+
+    fn verify_chain_of_matches(
+        &mut self,
+        pattern_id: PatternId,
+        sub_pattern_id: SubPatternId,
+        match_range: Range<usize>,
+    ) -> Option<Match> {
+        let mut queue = VecDeque::new();
+
+        queue.push_back((sub_pattern_id, match_range, 1));
+
+        let mut tail_match_range: Option<Range<usize>> = None;
+
+        while let Some((id, match_range, chain_length)) = queue.pop_front() {
+            match &self.compiled_rules.get_sub_pattern(id).1 {
+                SubPattern::FixedChainHead { .. } => {
+                    // The chain head is reached and we know the range where
+                    // the tail matches. This indicates that the whole chain is
+                    // valid and we have a full match.
+                    if let Some(tail_match_range) = &tail_match_range {
+                        self.track_pattern_match(
+                            pattern_id,
+                            Match {
+                                range: match_range.start..tail_match_range.end,
+                                xor_key: None,
+                            },
+                        );
+                    }
+                }
+                p @ (SubPattern::FixedChainMiddle {
+                    chained_to, gap, ..
+                }
+                | SubPattern::FixedChainTail {
+                    chained_to, gap, ..
+                }) => {
+                    // Iterate over the list of unconfirmed matches of the
+                    // sub-pattern that comes before in the chain. For example,
+                    // if the chain is P1 <- P2 and we just found a match for
+                    // P2, iterate over the unconfirmed matches for P1.
+                    if let Some(unconfirmed_matches) =
+                        self.unconfirmed_matches.get_mut(chained_to)
+                    {
+                        let min_gap = *gap.start() as usize;
+                        let max_gap = *gap.end() as usize;
+
+                        // Check whether the current match is at a correct
+                        // distance from each of the unconfirmed matches.
+                        for m in unconfirmed_matches {
+                            let valid_range =
+                                m.range.end + min_gap..=m.range.end + max_gap;
+
+                            if valid_range.contains(&match_range.start)
+                                && m.chain_length <= chain_length
+                            {
+                                m.chain_length = chain_length + 1;
+                                queue.push_back((
+                                    *chained_to,
+                                    m.range.clone(),
+                                    m.chain_length,
+                                ));
+                            }
+                        }
+                    }
+
+                    if matches!(p, SubPattern::FixedChainTail { .. }) {
+                        // Take note of the range where the tail matched. This
+                        // is reached only when this function is called with a
+                        // sub-pattern ID that corresponds to chain tail.
+                        tail_match_range = Some(match_range.clone());
+                    }
+                }
+                _ => unreachable!(),
+            };
+        }
+
+        None
     }
 
     fn verify_fixed_match(

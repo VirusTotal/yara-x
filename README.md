@@ -115,3 +115,13 @@ if they are alphanumeric, therefore `{lhrrhrrhqqh}` becomes `zmississippiz`,
 which doesn't match `"mississippi" xor(1) fullword`. In other words, YARA-X 
 searches for full words contained inside a longer XORed string, which is 
 the intended behavior in most cases.
+
+### Jump bounds in hex patterns can be written in hex, octal, etc
+
+In YARA 4.x the following hex pattern is invalid:
+
+`{ 01 02 03 [0x00-0x100] 04 05 06 }`
+
+This is because the jump's upper and lower bounds can be expressed in base 10
+only, `0x00` and `0x100` are not valid bounds. In YARA-X hex and octal values 
+are accepted.

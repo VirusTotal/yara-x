@@ -62,8 +62,18 @@ impl MatchList {
     }
 
     #[inline]
+    pub fn remove(&mut self, i: usize) -> Match {
+        self.matches.remove(i)
+    }
+
+    #[inline]
     pub fn get(&self, i: usize) -> Option<&Match> {
         self.matches.get(i)
+    }
+
+    #[inline]
+    pub fn first(&self) -> Option<&Match> {
+        self.matches.first()
     }
 
     #[inline]
@@ -110,6 +120,20 @@ impl MatchList {
     pub fn search(&self, offset: usize) -> Result<usize, usize> {
         self.matches.binary_search_by(|x| x.range.start.cmp(&offset))
     }
+}
+
+impl<'a> IntoIterator for &'a MatchList {
+    type Item = &'a Match;
+    type IntoIter = Iter<'a, Match>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+pub struct UnconfirmedMatch {
+    pub range: Range<usize>,
+    pub chain_length: usize,
 }
 
 #[cfg(test)]

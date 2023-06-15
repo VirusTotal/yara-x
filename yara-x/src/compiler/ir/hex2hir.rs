@@ -79,8 +79,12 @@ fn hex_byte_hir_from_ast(byte: &ast::HexByte) -> hir::Hir {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use regex_syntax::hir::{Class, ClassBytes, ClassBytesRange, Hir};
-    use yara_x_parser::ast::{HexAlternative, HexByte, HexToken, HexTokens};
+    use regex_syntax::hir::{
+        Class, ClassBytes, ClassBytesRange, Dot, Hir, Repetition,
+    };
+    use yara_x_parser::ast::{
+        HexAlternative, HexByte, HexJump, HexToken, HexTokens,
+    };
 
     #[test]
     fn hex_byte_to_hir() {
@@ -143,9 +147,7 @@ mod tests {
             super::hex_tokens_hir_from_ast(&tokens),
             Hir::concat(vec![
                 Hir::literal([0x01, 0x02, 0x03]),
-                Hir::class(Class::Bytes(ClassBytes::new(vec![
-                    ClassBytesRange::new(0, 255)
-                ]))),
+                Hir::dot(Dot::AnyByte),
                 Hir::literal([0x05, 0x06]),
             ])
         );
@@ -214,6 +216,31 @@ mod tests {
             Hir::alternation(
                 vec![Hir::literal([0x01]), Hir::literal([0x02]),]
             )
+        );
+
+        let tokens = HexTokens {
+            tokens: vec![
+                HexToken::Byte(HexByte { value: 0x01, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x02, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x03, mask: 0xff }),
+                HexToken::Jump(HexJump { start: None, end: None }),
+                HexToken::Byte(HexByte { value: 0x05, mask: 0xff }),
+                HexToken::Byte(HexByte { value: 0x06, mask: 0xff }),
+            ],
+        };
+
+        assert_eq!(
+            super::hex_tokens_hir_from_ast(&tokens),
+            Hir::concat(vec![
+                Hir::literal([0x01, 0x02, 0x03]),
+                Hir::repetition(Repetition {
+                    min: 0,
+                    max: None,
+                    greedy: false,
+                    sub: Box::new(Hir::dot(Dot::AnyByte)),
+                }),
+                Hir::literal([0x05, 0x06]),
+            ])
         );
     }
 }

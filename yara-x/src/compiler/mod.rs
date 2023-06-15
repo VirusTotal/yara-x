@@ -6,11 +6,12 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::fmt;
 use std::io::{BufWriter, Write};
 use std::mem::size_of;
+use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
+use std::{fmt, u32};
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
@@ -35,7 +36,7 @@ use crate::compiler::atoms::{
     DESIRED_ATOM_SIZE,
 };
 use crate::compiler::emit::emit_rule_condition;
-use crate::compiler::ir::PatternFlags;
+use crate::compiler::ir::{split_at_chaining_points, PatternFlags};
 use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
@@ -612,7 +613,7 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn process_literal_pattern(&mut self, p: ir::LiteralPattern) {
+    fn process_literal_pattern(&mut self, pattern: ir::LiteralPattern) {
         // The `ascii` modifier is usually implicit, but when `wide` is used
         // it must be declared explicitly.
         let mut implicit_ascii = true;
@@ -624,9 +625,9 @@ impl<'a> Compiler<'a> {
         let mut main_patterns = Vec::new();
         let wide_pattern;
 
-        if p.flags.contains(PatternFlags::Wide) {
+        if pattern.flags.contains(PatternFlags::Wide) {
             implicit_ascii = false;
-            wide_pattern = make_wide(p.text.as_bytes());
+            wide_pattern = make_wide(pattern.text.as_bytes());
             main_patterns.push((
                 wide_pattern.as_slice(),
                 best_atom_from_slice(
@@ -634,7 +635,7 @@ impl<'a> Compiler<'a> {
                     // For wide patterns let's use atoms twice large as usual.
                     DESIRED_ATOM_SIZE * 2,
                 ),
-                if p.flags.contains(PatternFlags::Fullword) {
+                if pattern.flags.contains(PatternFlags::Fullword) {
                     FullWord::Wide
                 } else {
                     FullWord::Disabled
@@ -642,11 +643,14 @@ impl<'a> Compiler<'a> {
             ));
         }
 
-        if implicit_ascii || p.flags.contains(PatternFlags::Ascii) {
+        if implicit_ascii || pattern.flags.contains(PatternFlags::Ascii) {
             main_patterns.push((
-                p.text.as_bytes(),
-                best_atom_from_slice(p.text.as_bytes(), DESIRED_ATOM_SIZE),
-                if p.flags.contains(PatternFlags::Fullword) {
+                pattern.text.as_bytes(),
+                best_atom_from_slice(
+                    pattern.text.as_bytes(),
+                    DESIRED_ATOM_SIZE,
+                ),
+                if pattern.flags.contains(PatternFlags::Fullword) {
                     FullWord::Ascii
                 } else {
                     FullWord::Disabled
@@ -657,10 +661,10 @@ impl<'a> Compiler<'a> {
         for (main_pattern, best_atom, full_word) in main_patterns {
             let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
 
-            if p.flags.contains(PatternFlags::Xor) {
+            if pattern.flags.contains(PatternFlags::Xor) {
                 // When `xor` is used, `base64`, `base64wide` and `nocase` are
                 // not accepted.
-                debug_assert!(!p.flags.contains(
+                debug_assert!(!pattern.flags.contains(
                     PatternFlags::Base64
                         | PatternFlags::Base64Wide
                         | PatternFlags::Nocase,
@@ -671,16 +675,16 @@ impl<'a> Compiler<'a> {
                     full_word,
                 });
 
-                let xor_range = p.xor_range.clone().unwrap();
+                let xor_range = pattern.xor_range.clone().unwrap();
                 self.atoms.reserve(xor_range.len());
 
                 for atom in XorGenerator::new(best_atom, xor_range) {
                     self.atoms.push(AtomInfo { sub_pattern_id, atom });
                 }
-            } else if p.flags.contains(PatternFlags::Nocase) {
+            } else if pattern.flags.contains(PatternFlags::Nocase) {
                 // When `nocase` is used, `base64`, `base64wide` and `xor` are
                 // not accepted.
-                debug_assert!(!p.flags.contains(
+                debug_assert!(!pattern.flags.contains(
                     PatternFlags::Base64
                         | PatternFlags::Base64Wide
                         | PatternFlags::Xor,
@@ -697,24 +701,24 @@ impl<'a> Compiler<'a> {
                 }
             }
             // Used `base64`, or `base64wide`, or both.
-            else if p
+            else if pattern
                 .flags
                 .intersects(PatternFlags::Base64 | PatternFlags::Base64Wide)
             {
                 // When `base64` or `base64wide` are used, `xor`, `fullword`
                 // and `nocase` are not accepted.
-                debug_assert!(!p.flags.contains(
+                debug_assert!(!pattern.flags.contains(
                     PatternFlags::Xor
                         | PatternFlags::Fullword
                         | PatternFlags::Nocase,
                 ));
 
-                if p.flags.contains(PatternFlags::Base64) {
+                if pattern.flags.contains(PatternFlags::Base64) {
                     for (padding, base64_pattern) in
-                        base64_patterns(main_pattern, p.base64_alphabet)
+                        base64_patterns(main_pattern, pattern.base64_alphabet)
                     {
                         let sub_pattern =
-                            if let Some(alphabet) = p.base64_alphabet {
+                            if let Some(alphabet) = pattern.base64_alphabet {
                                 SubPattern::CustomBase64 {
                                     pattern: pattern_lit_id,
                                     alphabet: self
@@ -741,25 +745,27 @@ impl<'a> Compiler<'a> {
                     }
                 }
 
-                if p.flags.contains(PatternFlags::Base64Wide) {
-                    for (padding, base64_pattern) in
-                        base64_patterns(main_pattern, p.base64wide_alphabet)
-                    {
-                        let sub_pattern =
-                            if let Some(alphabet) = p.base64wide_alphabet {
-                                SubPattern::CustomBase64Wide {
-                                    pattern: pattern_lit_id,
-                                    alphabet: self
-                                        .lit_pool
-                                        .get_or_intern(alphabet),
-                                    padding,
-                                }
-                            } else {
-                                SubPattern::Base64Wide {
-                                    pattern: pattern_lit_id,
-                                    padding,
-                                }
-                            };
+                if pattern.flags.contains(PatternFlags::Base64Wide) {
+                    for (padding, base64_pattern) in base64_patterns(
+                        main_pattern,
+                        pattern.base64wide_alphabet,
+                    ) {
+                        let sub_pattern = if let Some(alphabet) =
+                            pattern.base64wide_alphabet
+                        {
+                            SubPattern::CustomBase64Wide {
+                                pattern: pattern_lit_id,
+                                alphabet: self
+                                    .lit_pool
+                                    .get_or_intern(alphabet),
+                                padding,
+                            }
+                        } else {
+                            SubPattern::Base64Wide {
+                                pattern: pattern_lit_id,
+                                padding,
+                            }
+                        };
 
                         let sub_pattern_id =
                             self.push_sub_pattern(sub_pattern);
@@ -785,28 +791,62 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn process_regexp_pattern(&mut self, p: ir::RegexpPattern) {
-        let mut literal_extractor = hir::literal::Extractor::new();
+    fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
+        let (leading, trailing) = split_at_chaining_points(pattern.hir);
 
-        literal_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
+        let mut prev_sub_pattern_id;
 
-        let prefixes = literal_extractor
-            .kind(regex_syntax::hir::literal::ExtractKind::Prefix)
-            .extract(&p.hir);
+        if let hir::HirKind::Literal(literal) = leading.kind() {
+            let pattern_lit_id = self.lit_pool.get_or_intern(&literal.0);
 
-        let postfixes = literal_extractor
-            .kind(regex_syntax::hir::literal::ExtractKind::Suffix)
-            .extract(&p.hir);
-
-        if let Some(prefixes) = prefixes.literals() {
-            for prefix in prefixes {
-                dbg!(prefix);
+            if trailing.is_empty() {
+                prev_sub_pattern_id =
+                    self.push_sub_pattern(SubPattern::Fixed {
+                        pattern: pattern_lit_id,
+                        full_word: FullWord::Disabled,
+                    });
+            } else {
+                prev_sub_pattern_id =
+                    self.push_sub_pattern(SubPattern::FixedChainHead {
+                        pattern: pattern_lit_id,
+                    });
             }
+
+            self.atoms.push(AtomInfo {
+                sub_pattern_id: prev_sub_pattern_id,
+                atom: best_atom_from_slice(&literal.0, DESIRED_ATOM_SIZE),
+            });
+        } else {
+            // TODO
+            prev_sub_pattern_id = SubPatternId(0);
         }
 
-        if let Some(postfixes) = postfixes.literals() {
-            for postfix in postfixes {
-                dbg!(postfix);
+        for (i, p) in trailing.iter().enumerate() {
+            let is_last = i == trailing.len() - 1;
+
+            if let hir::HirKind::Literal(literal) = p.hir.kind() {
+                let pattern_lit_id = self.lit_pool.get_or_intern(&literal.0);
+
+                prev_sub_pattern_id = if is_last {
+                    self.push_sub_pattern(SubPattern::FixedChainTail {
+                        chained_to: prev_sub_pattern_id,
+                        gap: p.gap.clone(),
+                        pattern: pattern_lit_id,
+                    })
+                } else {
+                    self.push_sub_pattern(SubPattern::FixedChainMiddle {
+                        chained_to: prev_sub_pattern_id,
+                        gap: p.gap.clone(),
+                        pattern: pattern_lit_id,
+                    })
+                };
+
+                self.atoms.push(AtomInfo {
+                    sub_pattern_id: prev_sub_pattern_id,
+                    atom: best_atom_from_slice(&literal.0, DESIRED_ATOM_SIZE),
+                });
+            } else {
+                // TODO
             }
         }
     }
@@ -1083,7 +1123,7 @@ impl From<RegexpId> for u32 {
 /// if one rule defines `$a = "mz"` and another one `$mz = "mz"`, the pattern
 /// `"mz"` is shared by the two rules. Each rule has a Vec<(IdentId, PatternId)>
 /// that associates identifiers to their corresponding patterns.
-#[derive(Eq, Copy, Clone, Debug, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct PatternId(i32);
 
@@ -1127,7 +1167,7 @@ impl From<PatternId> for usize {
 /// For each pattern there's one or more sub-patterns, depending on the pattern
 /// and its modifiers. For example the pattern `"foo" ascii wide` may have one
 /// subpattern for the ascii case and another one for the wide case.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct SubPatternId(u32);
 
@@ -1392,12 +1432,20 @@ pub struct Rules {
     /// in this vector.
     rules: Vec<RuleInfo>,
 
-    /// Total number of patterns in all rules. This is equal to the last
+    /// Total number of patterns across all rules. This is equal to the last
     /// [`PatternId`] +  1.
     num_patterns: usize,
 
-    /// Vector with all the sub-patterns used in the rules. A [`SubPatternId`]
-    /// is an index in this vector.
+    /// Vector with all the sub-patterns from all rules. A [`SubPatternId`]
+    /// is an index in this vector. Each pattern is composed of one or more
+    /// sub-patterns, if any of the sub-patterns matches, the pattern matches.
+    ///
+    /// For example, when a text pattern is accompanied by both the `ascii`
+    /// and `wide` modifiers, two sub-patterns are generated for it: one for
+    /// the ascii variant, and the other for the wide variant.
+    ///
+    /// Each sub-pattern in this vector is accompanied by the [`PatternId`]
+    /// where the sub-pattern belongs to.
     sub_patterns: Vec<(PatternId, SubPattern)>,
 
     /// A vector that contains all the atoms generated for the patterns. Each
@@ -1623,13 +1671,54 @@ pub(crate) struct AtomInfo {
 /// verifies that the sub-pattern actually matches.
 #[derive(Serialize, Deserialize)]
 pub(crate) enum SubPattern {
-    Fixed { pattern: LiteralId, full_word: FullWord },
-    FixedCaseInsensitive { pattern: LiteralId, full_word: FullWord },
-    Xor { pattern: LiteralId, full_word: FullWord },
-    Base64 { pattern: LiteralId, padding: u8 },
-    Base64Wide { pattern: LiteralId, padding: u8 },
-    CustomBase64 { pattern: LiteralId, alphabet: LiteralId, padding: u8 },
-    CustomBase64Wide { pattern: LiteralId, alphabet: LiteralId, padding: u8 },
+    Fixed {
+        pattern: LiteralId,
+        full_word: FullWord,
+    },
+
+    FixedChainHead {
+        pattern: LiteralId,
+    },
+
+    FixedChainMiddle {
+        chained_to: SubPatternId,
+        gap: RangeInclusive<u32>,
+        pattern: LiteralId,
+    },
+
+    FixedChainTail {
+        chained_to: SubPatternId,
+        gap: RangeInclusive<u32>,
+        pattern: LiteralId,
+    },
+
+    FixedCaseInsensitive {
+        pattern: LiteralId,
+        full_word: FullWord,
+    },
+
+    Xor {
+        pattern: LiteralId,
+        full_word: FullWord,
+    },
+    Base64 {
+        pattern: LiteralId,
+        padding: u8,
+    },
+    Base64Wide {
+        pattern: LiteralId,
+        padding: u8,
+    },
+    CustomBase64 {
+        pattern: LiteralId,
+        alphabet: LiteralId,
+        padding: u8,
+    },
+    CustomBase64Wide {
+        pattern: LiteralId,
+        alphabet: LiteralId,
+        padding: u8,
+    },
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
