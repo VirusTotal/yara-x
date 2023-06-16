@@ -69,15 +69,33 @@ mod wasm;
 mod tests;
 
 mod utils {
+    /// Tries to match `target` as an the enum variant `pat`. Returns the
+    /// inner value contained in the variant, or panics if `target` does
+    /// not match `pat`.
+    ///
+    /// For example...
+    ///
+    /// ```ignore
+    /// cast!(target, pat)
+    /// ```
+    ///
+    /// expands to...
+    ///
+    /// ```ignore
+    /// if let pat(inner) = target {
+    ///     inner
+    /// } else {
+    ///     panic!("mismatch variant when cast to {}", stringify!($pat));     ///
+    /// }
+    /// ```
     #[macro_export]
     macro_rules! cast {
-    ($target: expr, $pat: path) => {{
-        if let $pat(a) = $target {
-            // #1
-            a
-        } else {
-            panic!("mismatch variant when cast to {}", stringify!($pat)); // #2
-        }
-    }};
-}
+        ($target: expr, $pat: path) => {{
+            if let $pat(inner) = $target {
+                inner
+            } else {
+                panic!("mismatch variant when cast to {}", stringify!($pat));
+            }
+        }};
+    }
 }

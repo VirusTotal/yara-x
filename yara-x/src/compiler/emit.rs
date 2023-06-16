@@ -22,13 +22,13 @@ use crate::compiler::ir::{
 use crate::compiler::{Context, RuleId, Var, VarStackFrame};
 use crate::symbols::SymbolKind;
 use crate::types::{Array, Map, Type, TypeValue, Value};
-use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
     LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
     VARS_STACK_START,
 };
+use crate::{cast, wasm};
 
 /// This macro emits the code for the left and right operands of some
 /// operation, converting integer operands to float if the other operand
@@ -1223,10 +1223,7 @@ fn emit_of_pattern_set(
     instr: &mut InstrSeqBuilder,
     of: &mut Of,
 ) {
-    let pattern_ids = match &mut of.items {
-        OfItems::PatternSet(pattern_ids) => pattern_ids,
-        _ => unreachable!(),
-    };
+    let pattern_ids = cast!(&mut of.items, OfItems::PatternSet);
 
     let num_patterns = pattern_ids.len();
     let mut pattern_ids = pattern_ids.iter().cloned();
@@ -1297,10 +1294,7 @@ fn emit_of_expr_tuple(
     instr: &mut InstrSeqBuilder,
     of: &mut Of,
 ) {
-    let expressions = match &mut of.items {
-        OfItems::BoolExprTuple(expressions) => expressions,
-        _ => unreachable!(),
-    };
+    let expressions = cast!(&mut of.items, OfItems::BoolExprTuple);
 
     let next_item = of.stack_frame.new_var(Type::Bool);
     let num_expressions = expressions.len();
@@ -1389,10 +1383,7 @@ fn emit_for_in_range(
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
-    let range = match &mut for_in.iterable {
-        Iterable::Range(range) => range,
-        _ => unreachable!(),
-    };
+    let range = cast!(&mut for_in.iterable, Iterable::Range);
 
     // A `for` loop in a range has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
@@ -1455,10 +1446,7 @@ fn emit_for_in_expr(
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
-    let expr = match &mut for_in.iterable {
-        Iterable::Expr(expr) => expr,
-        _ => unreachable!(),
-    };
+    let expr = cast!(&mut for_in.iterable, Iterable::Expr);
 
     match expr.ty() {
         Type::Array => {
@@ -1479,11 +1467,7 @@ fn emit_for_in_array(
     // A `for` loop in an array has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    let expr = match &mut for_in.iterable {
-        Iterable::Expr(expr) => expr,
-        _ => unreachable!(),
-    };
-
+    let expr = cast!(&mut for_in.iterable, Iterable::Expr);
     let array = expr.type_value().as_array();
 
     // The only variable contains the loop's next item.
@@ -1563,11 +1547,7 @@ fn emit_for_in_map(
     // A `for` loop in an map has exactly two variables.
     assert_eq!(for_in.variables.len(), 2);
 
-    let expr = match &mut for_in.iterable {
-        Iterable::Expr(expr) => expr,
-        _ => unreachable!(),
-    };
-
+    let expr = cast!(&mut for_in.iterable, Iterable::Expr);
     let map = expr.type_value().as_map();
 
     let next_key = for_in.variables[0];
@@ -1649,10 +1629,7 @@ fn emit_for_in_expr_tuple(
     // A `for` in a tuple of expressions has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    let expressions = match &mut for_in.iterable {
-        Iterable::ExprTuple(expressions) => expressions,
-        _ => unreachable!(),
-    };
+    let expressions = cast!(&mut for_in.iterable, Iterable::ExprTuple);
 
     // The only variable contains the loop's next item.
     let next_item = for_in.variables[0];

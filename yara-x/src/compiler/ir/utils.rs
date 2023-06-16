@@ -1,3 +1,4 @@
+use crate::cast;
 use regex_syntax::hir::HirKind::Concat;
 use regex_syntax::hir::{Class, Hir, HirKind};
 use std::ops::RangeInclusive;
@@ -64,11 +65,7 @@ pub(in crate::compiler) fn split_at_large_gaps(
         }
     };
 
-    let items = if let Concat(items) = hir.into_kind() {
-        items
-    } else {
-        unreachable!()
-    };
+    let items = cast!(hir.into_kind(), Concat);
 
     let mut prev_gap = None;
     let mut pattern_chunk = Vec::new();

@@ -78,6 +78,7 @@ use wasmtime::{
     AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
 
+use crate::cast;
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
@@ -831,16 +832,10 @@ fn lookup_field(
 
     let type_value = if !lookup_indexes.is_empty() {
         let mut structure = if struct_var != -1 {
-            let var = &store_ctx.data().vars_stack[struct_var as usize];
-
-            if let TypeValue::Struct(s) = var {
-                s
-            } else {
-                unreachable!(
-                    "expecting struct, got `{:?}` at variable with index {}",
-                    var, struct_var
-                )
-            }
+            cast!(
+                &store_ctx.data().vars_stack[struct_var as usize],
+                TypeValue::Struct
+            )
         } else if let Some(current_structure) =
             &store_ctx.data().current_struct
         {
