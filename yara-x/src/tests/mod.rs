@@ -407,12 +407,30 @@ fn text_patterns() {
 fn hex_patterns() {
     pattern_true!(r#"{ 01 }"#, b"\x01");
     pattern_true!(r#"{ 01 02 03 04 }"#, b"\x01\x02\x03\x04");
+    pattern_true!(r#"{ (01 02 03 04 | 05 06 07 08) }"#, b"\x01\x02\x03\x04");
 }
 
 #[test]
 fn regexp_patterns() {
-    pattern_true!(r#"/abcde/"#, b"abcde");
-    pattern_true!(r#"/ABCDE/i"#, b"abcde");
+    pattern_true!(r#"/foo/"#, b"foo");
+    pattern_true!(r#"/bar/i"#, b"bar");
+
+    pattern_true!(r#"/foo|bar|baz/"#, b"foo");
+    pattern_true!(r#"/foo|bar|baz/"#, b"bar");
+    pattern_true!(r#"/foo|bar|baz/"#, b"baz");
+
+    pattern_false!(r#"/foo|bar|baz/"#, b"FOO");
+    pattern_false!(r#"/foo|bar|baz/"#, b"BAR");
+    pattern_false!(r#"/foo|bar|baz/"#, b"BAZ");
+
+    pattern_true!(r#"/foo|bar|baz/i"#, b"foo");
+    pattern_true!(r#"/foo|bar|baz/i"#, b"bar");
+    pattern_true!(r#"/foo|bar|baz/i"#, b"baz");
+
+    pattern_true!(r#"/foo|bar|baz/i"#, b"FOO");
+    pattern_true!(r#"/foo|bar|baz/i"#, b"BAR");
+    pattern_true!(r#"/foo|bar|baz/i"#, b"BAZ");
+
     pattern_true!(
         r#"/🙈🙉🙊/i"#,
         b"\xF0\x9F\x99\x88\xF0\x9F\x99\x89\xF0\x9F\x99\x8A"

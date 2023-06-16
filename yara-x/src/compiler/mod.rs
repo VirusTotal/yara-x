@@ -30,13 +30,16 @@ use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
 
+use crate::cast;
 use crate::compiler::atoms::base64::base64_patterns;
 use crate::compiler::atoms::{
     best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
     DESIRED_ATOM_SIZE,
 };
 use crate::compiler::emit::emit_rule_condition;
-use crate::compiler::ir::{split_at_large_gaps, PatternFlags};
+use crate::compiler::ir::{
+    split_at_large_gaps, PatternFlagSet, PatternFlags, TrailingPattern,
+};
 use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
@@ -795,6 +798,71 @@ impl<'a> Compiler<'a> {
     fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
         let case_insensitive = pattern.flags.contains(PatternFlags::Nocase);
 
+        // Try splitting the regexp into multiple chained sub-patterns if it
+        // contains large gaps. If the regexp can't be split the leading part
+        // is the whole regexp.
+        let (leading, trailing) = split_at_large_gaps(pattern.hir);
+
+        if trailing.is_empty() {
+            if leading.properties().is_alternation_literal() {
+                // The pattern is either a literal, or an alternation of literals,
+                // examples:
+                //      /foo/                       literal
+                //      /foo|bar|baz/               alternation of literals
+                //      { 01 02 03 }                literal
+                //      { (01 02 03 | 04 05 06 )}   alternation of literals
+
+                let mut process_literal = |literal: hir::Literal| {
+                    let pattern_lit_id =
+                        self.lit_pool.get_or_intern(&literal.0);
+                    let best_atom = best_atom_from_slice(
+                        literal.0.as_bytes(),
+                        DESIRED_ATOM_SIZE,
+                    );
+                    self.push_sub_pattern(
+                        SubPattern::Fixed {
+                            pattern: pattern_lit_id,
+                            case_insensitive,
+                            full_word: FullWord::Disabled,
+                        },
+                        if case_insensitive {
+                            Box::new(CaseGenerator::new(&best_atom))
+                        } else {
+                            Box::new(iter::once(best_atom))
+                        },
+                    );
+                };
+
+                match leading.into_kind() {
+                    hir::HirKind::Literal(literal) => process_literal(literal),
+                    hir::HirKind::Alternation(literals) => {
+                        let literals = literals.into_iter().map({
+                            |l| cast!(l.into_kind(), hir::HirKind::Literal)
+                        });
+                        for literal in literals {
+                            process_literal(literal);
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                // todo
+            }
+        } else {
+            // The pattern was split into multiple chained patterns,
+            // process the chain.
+            self.process_chain(leading, trailing, pattern.flags);
+        }
+    }
+
+    fn process_chain(
+        &mut self,
+        leading: hir::Hir,
+        trailing: Vec<TrailingPattern>,
+        flags: PatternFlagSet,
+    ) {
+        let case_insensitive = flags.contains(PatternFlags::Nocase);
+
         // Utility function that returns the best atom from a literal, it
         // returns a single atom if the literal is case sensitive, or
         // multiple atoms if its case insensitive.
@@ -813,26 +881,12 @@ impl<'a> Compiler<'a> {
 
         let mut prev_sub_pattern_id;
 
-        // Try splitting the regexp into multiple chained sub-patterns if it
-        // contains large gaps. If the regexp can't be split the leading part
-        // is the whole regexp.
-        let (leading, trailing) = split_at_large_gaps(pattern.hir);
-
-        // Is the leading part actually a literal?
         if let hir::HirKind::Literal(literal) = leading.kind() {
             let pattern_lit_id = self.lit_pool.get_or_intern(&literal.0);
             prev_sub_pattern_id = self.push_sub_pattern(
-                if trailing.is_empty() {
-                    SubPattern::Fixed {
-                        pattern: pattern_lit_id,
-                        case_insensitive,
-                        full_word: FullWord::Disabled,
-                    }
-                } else {
-                    SubPattern::FixedChainHead {
-                        pattern: pattern_lit_id,
-                        case_insensitive,
-                    }
+                SubPattern::FixedChainHead {
+                    pattern: pattern_lit_id,
+                    case_insensitive,
                 },
                 extract_atoms(literal),
             );
