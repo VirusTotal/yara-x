@@ -11,7 +11,7 @@ use std::mem::size_of;
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
-use std::{fmt, u32};
+use std::{fmt, iter, u32};
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
@@ -36,7 +36,7 @@ use crate::compiler::atoms::{
     DESIRED_ATOM_SIZE,
 };
 use crate::compiler::emit::emit_rule_condition;
-use crate::compiler::ir::{split_at_chaining_points, PatternFlags};
+use crate::compiler::ir::{split_at_large_gaps, PatternFlags};
 use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
@@ -475,11 +475,19 @@ impl<'a> Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    #[inline]
-    fn push_sub_pattern(&mut self, sub_pattern: SubPattern) -> SubPatternId {
-        let id = self.sub_patterns.len();
+    fn push_sub_pattern(
+        &mut self,
+        sub_pattern: SubPattern,
+        atoms: Box<dyn Iterator<Item = Atom>>,
+    ) -> SubPatternId {
+        let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
         self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
-        SubPatternId(id as u32)
+
+        for atom in atoms.into_iter() {
+            self.atoms.push(AtomInfo { sub_pattern_id, atom })
+        }
+
+        sub_pattern_id
     }
 
     /// Check if another rule, module or variable has the given identifier and
@@ -670,17 +678,13 @@ impl<'a> Compiler<'a> {
                         | PatternFlags::Nocase,
                 ));
 
-                let sub_pattern_id = self.push_sub_pattern(SubPattern::Xor {
-                    pattern: pattern_lit_id,
-                    full_word,
-                });
-
-                let xor_range = pattern.xor_range.clone().unwrap();
-                self.atoms.reserve(xor_range.len());
-
-                for atom in XorGenerator::new(best_atom, xor_range) {
-                    self.atoms.push(AtomInfo { sub_pattern_id, atom });
-                }
+                self.push_sub_pattern(
+                    SubPattern::Xor { pattern: pattern_lit_id, full_word },
+                    Box::new(XorGenerator::new(
+                        best_atom,
+                        pattern.xor_range.clone().unwrap(),
+                    )),
+                );
             } else if pattern.flags.contains(PatternFlags::Nocase) {
                 // When `nocase` is used, `base64`, `base64wide` and `xor` are
                 // not accepted.
@@ -690,15 +694,14 @@ impl<'a> Compiler<'a> {
                         | PatternFlags::Xor,
                 ));
 
-                let sub_pattern_id =
-                    self.push_sub_pattern(SubPattern::FixedCaseInsensitive {
+                self.push_sub_pattern(
+                    SubPattern::Fixed {
                         pattern: pattern_lit_id,
+                        case_insensitive: true,
                         full_word,
-                    });
-
-                for atom in CaseGenerator::new(&best_atom) {
-                    self.atoms.push(AtomInfo { sub_pattern_id, atom });
-                }
+                    },
+                    Box::new(CaseGenerator::new(&best_atom)),
+                );
             }
             // Used `base64`, or `base64wide`, or both.
             else if pattern
@@ -733,15 +736,13 @@ impl<'a> Compiler<'a> {
                                 }
                             };
 
-                        let sub_pattern_id =
-                            self.push_sub_pattern(sub_pattern);
-
-                        let atom = best_atom_from_slice(
-                            base64_pattern.as_slice(),
-                            DESIRED_ATOM_SIZE,
+                        self.push_sub_pattern(
+                            sub_pattern,
+                            Box::new(iter::once(best_atom_from_slice(
+                                base64_pattern.as_slice(),
+                                DESIRED_ATOM_SIZE,
+                            ))),
                         );
-
-                        self.atoms.push(AtomInfo { sub_pattern_id, atom })
                     }
                 }
 
@@ -767,55 +768,74 @@ impl<'a> Compiler<'a> {
                             }
                         };
 
-                        let sub_pattern_id =
-                            self.push_sub_pattern(sub_pattern);
-
                         let wide = make_wide(base64_pattern.as_slice());
-                        let atom = best_atom_from_slice(
-                            wide.as_slice(),
-                            DESIRED_ATOM_SIZE * 2,
-                        );
 
-                        self.atoms.push(AtomInfo { sub_pattern_id, atom })
+                        self.push_sub_pattern(
+                            sub_pattern,
+                            Box::new(iter::once(best_atom_from_slice(
+                                wide.as_slice(),
+                                DESIRED_ATOM_SIZE * 2,
+                            ))),
+                        );
                     }
                 }
             } else {
-                let sub_pattern_id =
-                    self.push_sub_pattern(SubPattern::Fixed {
+                self.push_sub_pattern(
+                    SubPattern::Fixed {
                         pattern: pattern_lit_id,
+                        case_insensitive: false,
                         full_word,
-                    });
-
-                self.atoms.push(AtomInfo { sub_pattern_id, atom: best_atom })
+                    },
+                    Box::new(iter::once(best_atom)),
+                );
             }
         }
     }
 
     fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
-        let (leading, trailing) = split_at_chaining_points(pattern.hir);
+        let case_insensitive = pattern.flags.contains(PatternFlags::Nocase);
+
+        // Utility function that returns the best atom from a literal, it
+        // returns a single atom if the literal is case sensitive, or
+        // multiple atoms if its case insensitive.
+        let extract_atoms =
+            |literal: &hir::Literal| -> Box<dyn Iterator<Item = Atom>> {
+                let best_atom = best_atom_from_slice(
+                    literal.0.as_bytes(),
+                    DESIRED_ATOM_SIZE,
+                );
+                if case_insensitive {
+                    Box::new(CaseGenerator::new(&best_atom))
+                } else {
+                    Box::new(iter::once(best_atom))
+                }
+            };
 
         let mut prev_sub_pattern_id;
 
+        // Try splitting the regexp into multiple chained sub-patterns if it
+        // contains large gaps. If the regexp can't be split the leading part
+        // is the whole regexp.
+        let (leading, trailing) = split_at_large_gaps(pattern.hir);
+
+        // Is the leading part actually a literal?
         if let hir::HirKind::Literal(literal) = leading.kind() {
             let pattern_lit_id = self.lit_pool.get_or_intern(&literal.0);
-
-            if trailing.is_empty() {
-                prev_sub_pattern_id =
-                    self.push_sub_pattern(SubPattern::Fixed {
+            prev_sub_pattern_id = self.push_sub_pattern(
+                if trailing.is_empty() {
+                    SubPattern::Fixed {
                         pattern: pattern_lit_id,
+                        case_insensitive,
                         full_word: FullWord::Disabled,
-                    });
-            } else {
-                prev_sub_pattern_id =
-                    self.push_sub_pattern(SubPattern::FixedChainHead {
+                    }
+                } else {
+                    SubPattern::FixedChainHead {
                         pattern: pattern_lit_id,
-                    });
-            }
-
-            self.atoms.push(AtomInfo {
-                sub_pattern_id: prev_sub_pattern_id,
-                atom: best_atom_from_slice(&literal.0, DESIRED_ATOM_SIZE),
-            });
+                        case_insensitive,
+                    }
+                },
+                extract_atoms(literal),
+            );
         } else {
             // TODO
             prev_sub_pattern_id = SubPatternId(0);
@@ -823,28 +843,26 @@ impl<'a> Compiler<'a> {
 
         for (i, p) in trailing.iter().enumerate() {
             let is_last = i == trailing.len() - 1;
-
             if let hir::HirKind::Literal(literal) = p.hir.kind() {
                 let pattern_lit_id = self.lit_pool.get_or_intern(&literal.0);
-
-                prev_sub_pattern_id = if is_last {
-                    self.push_sub_pattern(SubPattern::FixedChainTail {
-                        chained_to: prev_sub_pattern_id,
-                        gap: p.gap.clone(),
-                        pattern: pattern_lit_id,
-                    })
-                } else {
-                    self.push_sub_pattern(SubPattern::FixedChainMiddle {
-                        chained_to: prev_sub_pattern_id,
-                        gap: p.gap.clone(),
-                        pattern: pattern_lit_id,
-                    })
-                };
-
-                self.atoms.push(AtomInfo {
-                    sub_pattern_id: prev_sub_pattern_id,
-                    atom: best_atom_from_slice(&literal.0, DESIRED_ATOM_SIZE),
-                });
+                prev_sub_pattern_id = self.push_sub_pattern(
+                    if is_last {
+                        SubPattern::FixedChainTail {
+                            chained_to: prev_sub_pattern_id,
+                            gap: p.gap.clone(),
+                            pattern: pattern_lit_id,
+                            case_insensitive,
+                        }
+                    } else {
+                        SubPattern::FixedChainMiddle {
+                            chained_to: prev_sub_pattern_id,
+                            gap: p.gap.clone(),
+                            pattern: pattern_lit_id,
+                            case_insensitive,
+                        }
+                    },
+                    extract_atoms(literal),
+                );
             } else {
                 // TODO
             }
@@ -1674,46 +1692,49 @@ pub(crate) enum SubPattern {
     Fixed {
         pattern: LiteralId,
         full_word: FullWord,
+        case_insensitive: bool,
     },
 
     FixedChainHead {
         pattern: LiteralId,
+        case_insensitive: bool,
     },
 
     FixedChainMiddle {
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
         pattern: LiteralId,
+        case_insensitive: bool,
     },
 
     FixedChainTail {
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
         pattern: LiteralId,
-    },
-
-    FixedCaseInsensitive {
-        pattern: LiteralId,
-        full_word: FullWord,
+        case_insensitive: bool,
     },
 
     Xor {
         pattern: LiteralId,
         full_word: FullWord,
     },
+
     Base64 {
         pattern: LiteralId,
         padding: u8,
     },
+
     Base64Wide {
         pattern: LiteralId,
         padding: u8,
     },
+
     CustomBase64 {
         pattern: LiteralId,
         alphabet: LiteralId,
         padding: u8,
     },
+
     CustomBase64Wide {
         pattern: LiteralId,
         alphabet: LiteralId,

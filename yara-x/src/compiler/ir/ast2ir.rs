@@ -158,11 +158,13 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         flags.set(PatternFlags::Nocase);
     }
 
-    let hir = parse_regexp(
-        report_builder,
-        &pattern.regexp,
-        flags.contains(PatternFlags::Nocase),
-    )?;
+    // Notice that the regexp pattern is parsed as case sensitive, even if it
+    // has the `nocase` or the `/i` modifiers. This is because the HIR for
+    // case-insensitive regexps don't have any literals, they are converted to
+    // concatenations of byte classes that have the lowercase and uppercase
+    // variants of each letter. We want the HIR to maintain the literals, as
+    // we use them for extracting atoms
+    let hir = parse_regexp(report_builder, &pattern.regexp, false)?;
 
     // If the regular expression is a literal (e.g: /foobar/) it will be
     // handled as a literal.
@@ -216,7 +218,7 @@ pub(in crate::compiler) fn expr_from_ast(
         }),
 
         ast::Expr::Regexp(regexp) => {
-            parse_regexp(ctx.report_builder, regexp, false)?;
+            parse_regexp(ctx.report_builder, regexp, regexp.case_insensitive)?;
 
             Ok(Expr::Const {
                 type_value: TypeValue::Regexp(Some(Regexp::new(
@@ -1169,11 +1171,12 @@ fn check_operands(
 fn parse_regexp(
     report_builder: &ReportBuilder,
     regexp: &ast::Regexp,
-    force_case_insensitive: bool,
+    case_insensitive: bool,
 ) -> Result<hir::Hir, CompileError> {
     let mut parser = regex_syntax::ParserBuilder::new()
-        .case_insensitive(force_case_insensitive || regexp.case_insensitive)
+        .case_insensitive(case_insensitive)
         .dot_matches_new_line(regexp.dot_matches_new_line)
+        .utf8(false)
         .build();
 
     match parser.parse(regexp.src) {

@@ -842,22 +842,23 @@ impl ScanContext<'_> {
                 .get_sub_pattern(matched_atom.sub_pattern_id);
 
             match sub_pattern {
-                SubPattern::Fixed { pattern, full_word } => {
+                SubPattern::Fixed { pattern, full_word, case_insensitive } => {
                     if let Some(verified_match) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        false,
+                        *case_insensitive,
                         *full_word,
                     ) {
                         self.track_pattern_match(*pattern_id, verified_match);
                     };
                 }
+
                 // TODO: handle full word
-                SubPattern::FixedChainHead { pattern, .. } => {
+                SubPattern::FixedChainHead { pattern, case_insensitive } => {
                     if let Some(m) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        false,
+                        *case_insensitive,
                         FullWord::Disabled,
                     ) {
                         // This is the head of a set of chained sub-patterns.
@@ -875,11 +876,16 @@ impl ScanContext<'_> {
                     }
                 }
 
-                SubPattern::FixedChainMiddle { pattern, chained_to, gap } => {
+                SubPattern::FixedChainMiddle {
+                    pattern,
+                    chained_to,
+                    gap,
+                    case_insensitive,
+                } => {
                     if let Some(m) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        false,
+                        *case_insensitive,
                         FullWord::Disabled,
                     ) {
                         // This is some sub-pattern in the middle of a chain.
@@ -909,11 +915,16 @@ impl ScanContext<'_> {
                     }
                 }
 
-                SubPattern::FixedChainTail { pattern, chained_to, gap } => {
+                SubPattern::FixedChainTail {
+                    pattern,
+                    chained_to,
+                    gap,
+                    case_insensitive,
+                } => {
                     if let Some(m) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        false,
+                        *case_insensitive,
                         FullWord::Disabled,
                     ) {
                         // This sub-pattern is the tail of a chain. This case
@@ -934,17 +945,6 @@ impl ScanContext<'_> {
                                 m.range,
                             );
                         }
-                    }
-                }
-
-                SubPattern::FixedCaseInsensitive { pattern, full_word } => {
-                    if let Some(m) = self.verify_fixed_match(
-                        match_start,
-                        *pattern,
-                        true,
-                        *full_word,
-                    ) {
-                        self.track_pattern_match(*pattern_id, m);
                     }
                 }
 

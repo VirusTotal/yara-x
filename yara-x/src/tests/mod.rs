@@ -396,6 +396,11 @@ fn text_patterns() {
         r#""issi" ascii wide"#,
         b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
     );
+
+    pattern_true!(
+        r#""🙈🙉🙊""#,
+        b"\xF0\x9F\x99\x88\xF0\x9F\x99\x89\xF0\x9F\x99\x8A"
+    );
 }
 
 #[test]
@@ -407,18 +412,23 @@ fn hex_patterns() {
 #[test]
 fn regexp_patterns() {
     pattern_true!(r#"/abcde/"#, b"abcde");
+    pattern_true!(r#"/ABCDE/i"#, b"abcde");
+    pattern_true!(
+        r#"/🙈🙉🙊/i"#,
+        b"\xF0\x9F\x99\x88\xF0\x9F\x99\x89\xF0\x9F\x99\x8A"
+    );
 }
 
 #[test]
 fn hex_large_jumps() {
     rule_true!(
         r#"rule test {
-            strings: 
+            strings:
                 $a = { 61 61 61 61 [-] 62 62 62 62 [-] 63 63 63 63 [-] 64 64 64 64 }
             condition:
-                #a == 4 and 
+                #a == 4 and
                 @a[1] == 0x4 and !a[1] == 0x604 and
-                @a[2] == 0x24 and !a[2] == 0x5e4 and 
+                @a[2] == 0x24 and !a[2] == 0x5e4 and
                 @a[3] == 0x44 and !a[3] == 0x5c4 and
                 @a[4] == 0x324 and !a[4] == 0x2e4
         }"#,
@@ -512,6 +522,34 @@ fn hex_large_jumps() {
 
     pattern_false!(
         "{ 61 61 61 61 [0-0x17b] 62 62 62 62 [-] 63 63 63 63 [-] 64 64 64 64 }",
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /aaaa.*?bbbb.*?cccc.*?dddd/s
+            condition:
+                #a == 4 and
+                @a[1] == 0x4 and !a[1] == 0x604 and
+                @a[2] == 0x24 and !a[2] == 0x5e4 and
+                @a[3] == 0x44 and !a[3] == 0x5c4 and
+                @a[4] == 0x324 and !a[4] == 0x2e4
+        }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+                strings:
+                    $a = /AAAA.*?bbbb.*?CCCC.*?DdDd/si
+                condition:
+                    #a == 4 and
+                    @a[1] == 0x4 and !a[1] == 0x604 and
+                    @a[2] == 0x24 and !a[2] == 0x5e4 and
+                    @a[3] == 0x44 and !a[3] == 0x5c4 and
+                    @a[4] == 0x324 and !a[4] == 0x2e4
+            }"#,
         JUMPS_DATA.as_bytes()
     );
 }

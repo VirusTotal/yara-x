@@ -27,8 +27,11 @@ const PATTERN_CHAINING_THRESHOLD: u32 = 200;
 
 /// Splits a pattern into multiple pieces if it contains gaps that are larger
 /// than [`PATTERN_CHAINING_THRESHOLD`]. Notice that these gaps must be
-/// non-greedy, so it doesn't apply to regexps like `abc.*xyz`, because `.*`
-/// is greedy, but it applies to the non-greedy `abc.*?xyz`.
+/// non-greedy, so it doesn't apply to regexps like `/abc.*xyz/s` because `.*`
+/// is greedy, but it applies to the non-greedy `/abc.*?xyz/s`. Also notice
+/// that only regexps with the `/s` modifier (i.e: `dot_matches_new_line` is
+/// true) will be split. In regexps without this modifier `.*?` can not contain
+/// newlines, and therefore is not a real gap that contain anything.
 ///
 /// Receives the HIR for the original pattern and returns a tuple where the
 /// first item corresponds to the leading piece of the original pattern, and
@@ -43,7 +46,7 @@ const PATTERN_CHAINING_THRESHOLD: u32 = 200;
 /// If the pattern doesn't contain any gap that is long enough, the pattern
 /// won't be split, and the leading piece will contain the whole pattern
 /// while the vector will be empty.
-pub(in crate::compiler) fn split_at_chaining_points(
+pub(in crate::compiler) fn split_at_large_gaps(
     hir: Hir,
 ) -> (Hir, Vec<TrailingPattern>) {
     if !matches!(hir.kind(), Concat(_)) {
@@ -73,7 +76,6 @@ pub(in crate::compiler) fn split_at_chaining_points(
     for item in items {
         if let HirKind::Repetition(repetition) = item.kind() {
             let max_gap = repetition.max.unwrap_or(u32::MAX) - repetition.min;
-
             if max_gap > PATTERN_CHAINING_THRESHOLD
                 && !repetition.greedy
                 && any_byte(repetition.sub.as_ref())
@@ -102,14 +104,20 @@ pub(in crate::compiler) fn split_at_chaining_points(
 /// modifier (i.e: `dot_matches_new_line` is true).
 fn any_byte(hir: &Hir) -> bool {
     match hir.kind() {
-        HirKind::Class(Class::Bytes(bytes)) => {
-            if let Some(range) = bytes.ranges().first() {
-                range.start() == 0 && range.end() == 0xff
+        HirKind::Class(Class::Bytes(class)) => {
+            if let Some(range) = class.ranges().first() {
+                range.start() == 0 && range.end() == u8::MAX
             } else {
                 false
             }
         }
-        HirKind::Class(Class::Unicode(_)) => unreachable!(),
+        HirKind::Class(Class::Unicode(class)) => {
+            if let Some(range) = class.ranges().first() {
+                range.start() == 0 as char && range.end() == char::MAX
+            } else {
+                false
+            }
+        }
         _ => false,
     }
 }
@@ -125,12 +133,12 @@ mod tests {
     #[test]
     fn split() {
         assert_eq!(
-            super::split_at_chaining_points(Hir::literal([0x01, 0x02, 0x03])),
+            super::split_at_large_gaps(Hir::literal([0x01, 0x02, 0x03])),
             (Hir::literal([0x01, 0x02, 0x03]), vec![])
         );
 
         assert_eq!(
-            super::split_at_chaining_points(Hir::concat(vec![
+            super::split_at_large_gaps(Hir::concat(vec![
                 // Input
                 Hir::literal([0x01, 0x02, 0x03]),
                 Hir::literal([0x06, 0x07]),
@@ -147,7 +155,7 @@ mod tests {
 
         // Check that the pattern is not split when the jump is small.
         assert_eq!(
-            super::split_at_chaining_points(Hir::concat(vec![
+            super::split_at_large_gaps(Hir::concat(vec![
                 // Input
                 Hir::literal([0x01]),
                 Hir::repetition(Repetition {
@@ -177,7 +185,7 @@ mod tests {
 
         // Check that the pattern is not split when the jump is greedy.
         assert_eq!(
-            super::split_at_chaining_points(Hir::concat(vec![
+            super::split_at_large_gaps(Hir::concat(vec![
                 // Input
                 Hir::literal([0x01]),
                 Hir::repetition(Repetition {
@@ -207,7 +215,7 @@ mod tests {
 
         // Check that the pattern is split when the jump is large.
         assert_eq!(
-            super::split_at_chaining_points(Hir::concat(vec![
+            super::split_at_large_gaps(Hir::concat(vec![
                 // Input
                 Hir::literal([0x01, 0x02, 0x03]),
                 Hir::repetition(Repetition {

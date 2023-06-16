@@ -42,7 +42,7 @@ use crate::types::{Type, TypeValue, Value};
 pub(in crate::compiler) use ast2ir::expr_from_ast;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::warn_if_not_bool;
-pub(in crate::compiler) use utils::split_at_chaining_points;
+pub(in crate::compiler) use utils::split_at_large_gaps;
 
 mod ast2ir;
 mod hex2hir;
