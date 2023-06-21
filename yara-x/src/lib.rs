@@ -50,8 +50,15 @@ pub use compiler::Error;
 pub use compiler::Rules;
 pub use compiler::SerializationError;
 
-pub use scanner::matches::Match;
-pub use scanner::*;
+pub use scanner::Match;
+pub use scanner::Matches;
+pub use scanner::MatchingRules;
+pub use scanner::NonMatchingRules;
+pub use scanner::Pattern;
+pub use scanner::Patterns;
+pub use scanner::Rule;
+pub use scanner::ScanResults;
+pub use scanner::Scanner;
 
 pub use variables::Variable;
 pub use variables::VariableError;
