@@ -37,9 +37,7 @@ use crate::compiler::atoms::{
     DESIRED_ATOM_SIZE,
 };
 use crate::compiler::emit::emit_rule_condition;
-use crate::compiler::ir::{
-    split_at_large_gaps, PatternFlagSet, PatternFlags, TrailingPattern,
-};
+use crate::compiler::ir::{split_at_large_gaps, TrailingPattern};
 use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
@@ -52,6 +50,8 @@ use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};
+
+pub(crate) use crate::compiler::ir::{PatternFlagSet, PatternFlags};
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
@@ -625,10 +625,6 @@ impl<'a> Compiler<'a> {
     }
 
     fn process_literal_pattern(&mut self, pattern: ir::LiteralPattern) {
-        // The `ascii` modifier is usually implicit, but when `wide` is used
-        // it must be declared explicitly.
-        let mut implicit_ascii = true;
-
         // Depending on the combination of `ascii` and `wide` modifiers, the
         // `main_patterns` vector will contain either the pattern's `ascii`
         // version, the `wide` version, or both. Each item in `main_patterns`
@@ -637,7 +633,6 @@ impl<'a> Compiler<'a> {
         let wide_pattern;
 
         if pattern.flags.contains(PatternFlags::Wide) {
-            implicit_ascii = false;
             wide_pattern = make_wide(pattern.text.as_bytes());
             main_patterns.push((
                 wide_pattern.as_slice(),
@@ -646,30 +641,22 @@ impl<'a> Compiler<'a> {
                     // For wide patterns let's use atoms twice large as usual.
                     DESIRED_ATOM_SIZE * 2,
                 ),
-                if pattern.flags.contains(PatternFlags::Fullword) {
-                    FullWord::Wide
-                } else {
-                    FullWord::Disabled
-                },
+                PatternFlags::Wide | (pattern.flags & PatternFlags::Fullword),
             ));
         }
 
-        if implicit_ascii || pattern.flags.contains(PatternFlags::Ascii) {
+        if pattern.flags.contains(PatternFlags::Ascii) {
             main_patterns.push((
                 pattern.text.as_bytes(),
                 best_atom_from_slice(
                     pattern.text.as_bytes(),
                     DESIRED_ATOM_SIZE,
                 ),
-                if pattern.flags.contains(PatternFlags::Fullword) {
-                    FullWord::Ascii
-                } else {
-                    FullWord::Disabled
-                },
+                PatternFlags::Ascii | (pattern.flags & PatternFlags::Fullword),
             ));
         }
 
-        for (main_pattern, best_atom, full_word) in main_patterns {
+        for (main_pattern, best_atom, flags) in main_patterns {
             let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
 
             if pattern.flags.contains(PatternFlags::Xor) {
@@ -682,7 +669,7 @@ impl<'a> Compiler<'a> {
                 ));
 
                 self.push_sub_pattern(
-                    SubPattern::Xor { pattern: pattern_lit_id, full_word },
+                    SubPattern::Xor { pattern: pattern_lit_id, flags },
                     Box::new(XorGenerator::new(
                         best_atom,
                         pattern.xor_range.clone().unwrap(),
@@ -700,8 +687,7 @@ impl<'a> Compiler<'a> {
                 self.push_sub_pattern(
                     SubPattern::Fixed {
                         pattern: pattern_lit_id,
-                        case_insensitive: true,
-                        full_word,
+                        flags: flags | PatternFlags::Nocase,
                     },
                     Box::new(CaseGenerator::new(&best_atom)),
                 );
@@ -784,70 +770,97 @@ impl<'a> Compiler<'a> {
                 }
             } else {
                 self.push_sub_pattern(
-                    SubPattern::Fixed {
-                        pattern: pattern_lit_id,
-                        case_insensitive: false,
-                        full_word,
-                    },
+                    SubPattern::Fixed { pattern: pattern_lit_id, flags },
                     Box::new(iter::once(best_atom)),
                 );
             }
         }
     }
 
+    /// Interns a literal in the literals pool.
+    ///
+    /// If `wide` is true the literal is converted to before being interned.
+    fn intern_literal(&mut self, literal: &[u8], wide: bool) -> LiteralId {
+        let wide_pattern;
+        let literal_bytes = if wide {
+            wide_pattern = make_wide(literal);
+            wide_pattern.as_bytes()
+        } else {
+            literal
+        };
+        self.lit_pool.get_or_intern(literal_bytes)
+    }
+
     fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
         let case_insensitive = pattern.flags.contains(PatternFlags::Nocase);
+        let wide = pattern.flags.contains(PatternFlags::Wide);
+        let ascii = pattern.flags.contains(PatternFlags::Ascii);
 
         // Try splitting the regexp into multiple chained sub-patterns if it
         // contains large gaps. If the regexp can't be split the leading part
         // is the whole regexp.
         let (leading, trailing) = split_at_large_gaps(pattern.hir);
 
-        if trailing.is_empty() {
-            if leading.properties().is_alternation_literal() {
-                // The pattern is either a literal, or an alternation of literals,
-                // examples:
-                //      /foo/                       literal
-                //      /foo|bar|baz/               alternation of literals
-                //      { 01 02 03 }                literal
-                //      { (01 02 03 | 04 05 06 )}   alternation of literals
+        if trailing.is_empty() && leading.properties().is_alternation_literal()
+        {
+            // The pattern is either a literal, or an alternation of literals,
+            // examples:
+            //      /foo/                       literal
+            //      /foo|bar|baz/               alternation of literals
+            //      { 01 02 03 }                literal
+            //      { (01 02 03 | 04 05 06 )}   alternation of literals
+            let mut process_literal = |literal: &hir::Literal, wide: bool| {
+                let pattern_lit_id =
+                    self.intern_literal(literal.0.as_bytes(), wide);
 
-                let mut process_literal = |literal: hir::Literal| {
-                    let pattern_lit_id =
-                        self.lit_pool.get_or_intern(&literal.0);
-                    let best_atom = best_atom_from_slice(
-                        literal.0.as_bytes(),
-                        DESIRED_ATOM_SIZE,
-                    );
-                    self.push_sub_pattern(
-                        SubPattern::Fixed {
-                            pattern: pattern_lit_id,
-                            case_insensitive,
-                            full_word: FullWord::Disabled,
-                        },
-                        if case_insensitive {
-                            Box::new(CaseGenerator::new(&best_atom))
-                        } else {
-                            Box::new(iter::once(best_atom))
-                        },
-                    );
-                };
+                let best_atom = best_atom_from_slice(
+                    self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                    if wide {
+                        DESIRED_ATOM_SIZE * 2
+                    } else {
+                        DESIRED_ATOM_SIZE
+                    },
+                );
 
-                match leading.into_kind() {
-                    hir::HirKind::Literal(literal) => process_literal(literal),
-                    hir::HirKind::Alternation(literals) => {
-                        let literals = literals.into_iter().map({
-                            |l| cast!(l.into_kind(), hir::HirKind::Literal)
-                        });
-                        for literal in literals {
-                            process_literal(literal);
+                self.push_sub_pattern(
+                    SubPattern::Fixed {
+                        pattern: pattern_lit_id,
+                        flags: pattern.flags,
+                    },
+                    if case_insensitive {
+                        Box::new(CaseGenerator::new(&best_atom))
+                    } else {
+                        Box::new(iter::once(best_atom))
+                    },
+                );
+            };
+
+            match leading.into_kind() {
+                hir::HirKind::Literal(literal) => {
+                    if ascii {
+                        process_literal(&literal, false);
+                    }
+                    if wide {
+                        process_literal(&literal, true);
+                    }
+                }
+                hir::HirKind::Alternation(literals) => {
+                    let literals = literals.into_iter().map({
+                        |l| cast!(l.into_kind(), hir::HirKind::Literal)
+                    });
+                    for literal in literals {
+                        if ascii {
+                            process_literal(&literal, false);
+                        }
+                        if wide {
+                            process_literal(&literal, true);
                         }
                     }
-                    _ => unreachable!(),
                 }
-            } else {
-                // todo
+                _ => unreachable!(),
             }
+        } else if trailing.is_empty() {
+            // todo
         } else {
             // The pattern was split into multiple chained patterns,
             // process the chain.
@@ -861,16 +874,35 @@ impl<'a> Compiler<'a> {
         trailing: Vec<TrailingPattern>,
         flags: PatternFlagSet,
     ) {
+        if flags.contains(PatternFlags::Ascii) {
+            self.process_chain_impl(&leading, &trailing, flags, false);
+        }
+        if flags.contains(PatternFlags::Wide) {
+            self.process_chain_impl(&leading, &trailing, flags, true);
+        }
+    }
+
+    fn process_chain_impl(
+        &mut self,
+        leading: &hir::Hir,
+        trailing: &[TrailingPattern],
+        flags: PatternFlagSet,
+        wide: bool,
+    ) {
         let case_insensitive = flags.contains(PatternFlags::Nocase);
 
         // Utility function that returns the best atom from a literal, it
         // returns a single atom if the literal is case sensitive, or
         // multiple atoms if its case insensitive.
         let extract_atoms =
-            |literal: &hir::Literal| -> Box<dyn Iterator<Item = Atom>> {
+            |literal_bytes: &[u8]| -> Box<dyn Iterator<Item = Atom>> {
                 let best_atom = best_atom_from_slice(
-                    literal.0.as_bytes(),
-                    DESIRED_ATOM_SIZE,
+                    literal_bytes,
+                    if wide {
+                        DESIRED_ATOM_SIZE * 2
+                    } else {
+                        DESIRED_ATOM_SIZE
+                    },
                 );
                 if case_insensitive {
                     Box::new(CaseGenerator::new(&best_atom))
@@ -882,14 +914,15 @@ impl<'a> Compiler<'a> {
         let mut prev_sub_pattern_id;
 
         if let hir::HirKind::Literal(literal) = leading.kind() {
-            let pattern_lit_id = self.lit_pool.get_or_intern(&literal.0);
+            let pattern_lit_id =
+                self.intern_literal(literal.0.as_bytes(), wide);
+
             prev_sub_pattern_id = self.push_sub_pattern(
-                SubPattern::FixedChainHead {
-                    pattern: pattern_lit_id,
-                    case_insensitive,
-                },
-                extract_atoms(literal),
-            );
+                SubPattern::FixedChainHead { pattern: pattern_lit_id, flags },
+                extract_atoms(
+                    self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                ),
+            )
         } else {
             // TODO
             prev_sub_pattern_id = SubPatternId(0);
@@ -898,7 +931,9 @@ impl<'a> Compiler<'a> {
         for (i, p) in trailing.iter().enumerate() {
             let is_last = i == trailing.len() - 1;
             if let hir::HirKind::Literal(literal) = p.hir.kind() {
-                let pattern_lit_id = self.lit_pool.get_or_intern(&literal.0);
+                let pattern_lit_id =
+                    self.intern_literal(literal.0.as_bytes(), wide);
+
                 prev_sub_pattern_id = self.push_sub_pattern(
                     if is_last {
                         SubPattern::FixedChainTail {
@@ -915,7 +950,9 @@ impl<'a> Compiler<'a> {
                             case_insensitive,
                         }
                     },
-                    extract_atoms(literal),
+                    extract_atoms(
+                        self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                    ),
                 );
             } else {
                 // TODO
@@ -1745,13 +1782,12 @@ pub(crate) struct AtomInfo {
 pub(crate) enum SubPattern {
     Fixed {
         pattern: LiteralId,
-        full_word: FullWord,
-        case_insensitive: bool,
+        flags: PatternFlagSet,
     },
 
     FixedChainHead {
         pattern: LiteralId,
-        case_insensitive: bool,
+        flags: PatternFlagSet,
     },
 
     FixedChainMiddle {
@@ -1770,7 +1806,7 @@ pub(crate) enum SubPattern {
 
     Xor {
         pattern: LiteralId,
-        full_word: FullWord,
+        flags: PatternFlagSet,
     },
 
     Base64 {
@@ -1794,11 +1830,4 @@ pub(crate) enum SubPattern {
         alphabet: LiteralId,
         padding: u8,
     },
-}
-
-#[derive(Clone, Copy, Serialize, Deserialize)]
-pub(crate) enum FullWord {
-    Disabled,
-    Ascii,
-    Wide,
 }

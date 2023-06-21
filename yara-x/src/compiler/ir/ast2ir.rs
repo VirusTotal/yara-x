@@ -1,11 +1,11 @@
 /*! Functions for converting an AST into an IR. */
 
-use bstr::BString;
-use regex_syntax::hir;
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::iter;
 use std::ops::{Deref, RangeInclusive};
 use std::rc::Rc;
+
+use regex_syntax::hir;
 
 use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
@@ -55,7 +55,9 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 ) -> Result<Pattern<'src>, CompileError> {
     let mut flags = PatternFlagSet::none();
 
-    if pattern.modifiers.ascii().is_some() {
+    if pattern.modifiers.ascii().is_some()
+        || pattern.modifiers.wide().is_none()
+    {
         flags.set(PatternFlags::Ascii);
     }
 
@@ -111,25 +113,11 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
 ) -> Result<Pattern<'src>, CompileError> {
     let hir = hex_pattern_hir_from_ast(pattern);
 
-    // If the hex pattern doesn't contain any wildcard, jump, or alternative
-    // (e.g: { 01 02 03 04 }) is handled as a literal, if not, it is handled
-    // as a regular expression.
-    if let hir::HirKind::Literal(literal) = hir.kind() {
-        Ok(Pattern::Literal(LiteralPattern {
-            ident: pattern.identifier.name,
-            flags: PatternFlagSet::none(),
-            text: Cow::Owned(BString::from(literal.0.as_ref())),
-            xor_range: None,
-            base64_alphabet: None,
-            base64wide_alphabet: None,
-        }))
-    } else {
-        Ok(Pattern::Regexp(RegexpPattern {
-            ident: pattern.identifier.name,
-            flags: PatternFlagSet::none(),
-            hir,
-        }))
-    }
+    Ok(Pattern::Regexp(RegexpPattern {
+        ident: pattern.identifier.name,
+        flags: PatternFlagSet::none() | PatternFlags::Ascii,
+        hir,
+    }))
 }
 
 pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
@@ -138,7 +126,9 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 ) -> Result<Pattern<'src>, CompileError> {
     let mut flags = PatternFlagSet::none();
 
-    if pattern.modifiers.ascii().is_some() {
+    if pattern.modifiers.ascii().is_some()
+        || pattern.modifiers.wide().is_none()
+    {
         flags.set(PatternFlags::Ascii);
     }
 
@@ -166,24 +156,14 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     // we use them for extracting atoms
     let hir = parse_regexp(report_builder, &pattern.regexp, false)?;
 
-    // If the regular expression is a literal (e.g: /foobar/) it will be
-    // handled as a literal.
-    if let hir::HirKind::Literal(literal) = hir.kind() {
-        Ok(Pattern::Literal(LiteralPattern {
-            ident: pattern.identifier.name,
-            flags,
-            text: Cow::Owned(BString::from(literal.0.as_ref())),
-            xor_range: None,
-            base64_alphabet: None,
-            base64wide_alphabet: None,
-        }))
-    } else {
-        Ok(Pattern::Regexp(RegexpPattern {
-            ident: pattern.identifier.name,
-            flags,
-            hir,
-        }))
-    }
+    // TODO: raise warning when .* used, propose using the non-greedy
+    // variant .*?
+
+    Ok(Pattern::Regexp(RegexpPattern {
+        ident: pattern.identifier.name,
+        flags,
+        hir,
+    }))
 }
 
 /// Given the AST for some expression, creates its IR.

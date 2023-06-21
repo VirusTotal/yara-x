@@ -34,6 +34,7 @@ use std::ops::RangeInclusive;
 
 use bitmask::bitmask;
 use bstr::BStr;
+use serde::{Deserialize, Serialize};
 
 use crate::compiler::{PatternId, Var, VarStackFrame};
 use crate::symbols::Symbol;
@@ -50,7 +51,7 @@ mod hex2hir;
 mod utils;
 
 bitmask! {
-    #[derive(Debug)]
+    #[derive(Debug, Serialize, Deserialize)]
     pub mask PatternFlagSet: u16 where flags PatternFlags  {
         Ascii                = 0x0001,
         Wide                 = 0x0002,

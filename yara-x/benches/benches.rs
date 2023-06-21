@@ -66,9 +66,25 @@ gen_bench!(
     "fabadafabafabadafabafabafafabadafabafabadafabafabafafabadafabafabadafabafabafa".as_bytes()
 );
 
+const JUMPS_DATA: &[u8; 1664] =
+    include_bytes!("../src/tests/testdata/jumps.bin");
+
+gen_bench!(
+    bench_jumps,
+    500,
+    "Jumps",
+    r#"rule test {
+        strings:
+            $a = { 00 00 00 00 [0-476] 00 00 00 00 [0-476] 00 00 00 00 [0-508] 00 00 00 00 }
+        condition:
+            $a
+    }"#,
+    JUMPS_DATA
+);
+
 criterion_group!(
     name = benches; 
     config = Criterion::default(); 
-    targets = bench_loop_1, bench_loop_2, bench_loop_3, bench_simple_pattern);
+    targets = bench_jumps, /*bench_loop_1, bench_loop_2, bench_loop_3, bench_simple_pattern*/);
 
 criterion_main!(benches);

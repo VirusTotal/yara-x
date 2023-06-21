@@ -27,8 +27,8 @@ use wasmtime::{
 };
 
 use crate::compiler::{
-    AtomInfo, FullWord, IdentId, LiteralId, NamespaceId, PatternId, RegexpId,
-    RuleId, RuleInfo, Rules, SubPattern, SubPatternId,
+    AtomInfo, IdentId, LiteralId, NamespaceId, PatternFlagSet, PatternFlags,
+    PatternId, RegexpId, RuleId, RuleInfo, Rules, SubPattern, SubPatternId,
 };
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
 use crate::string_pool::BStringPool;
@@ -842,24 +842,30 @@ impl ScanContext<'_> {
                 .get_sub_pattern(matched_atom.sub_pattern_id);
 
             match sub_pattern {
-                SubPattern::Fixed { pattern, full_word, case_insensitive } => {
+                SubPattern::Fixed { pattern, flags } => {
                     if let Some(verified_match) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        *case_insensitive,
-                        *full_word,
+                        flags.contains(PatternFlags::Nocase),
                     ) {
-                        self.track_pattern_match(*pattern_id, verified_match);
+                        if self.verify_full_word(
+                            verified_match.range.clone(),
+                            *flags,
+                            None,
+                        ) {
+                            self.track_pattern_match(
+                                *pattern_id,
+                                verified_match,
+                            );
+                        }
                     };
                 }
 
-                // TODO: handle full word
-                SubPattern::FixedChainHead { pattern, case_insensitive } => {
+                SubPattern::FixedChainHead { pattern, flags, .. } => {
                     if let Some(m) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        *case_insensitive,
-                        FullWord::Disabled,
+                        flags.contains(PatternFlags::Nocase),
                     ) {
                         // This is the head of a set of chained sub-patterns.
                         // Verifying that the head matches doesn't mean that
@@ -886,7 +892,6 @@ impl ScanContext<'_> {
                         match_start,
                         *pattern,
                         *case_insensitive,
-                        FullWord::Disabled,
                     ) {
                         // This is some sub-pattern in the middle of a chain.
                         // After verifying that the sub-pattern matches we need
@@ -925,7 +930,6 @@ impl ScanContext<'_> {
                         match_start,
                         *pattern,
                         *case_insensitive,
-                        FullWord::Disabled,
                     ) {
                         // This sub-pattern is the tail of a chain. This case
                         // is similar to `FixedChainMiddle`, the difference is
@@ -948,14 +952,19 @@ impl ScanContext<'_> {
                     }
                 }
 
-                SubPattern::Xor { pattern, full_word } => {
+                SubPattern::Xor { pattern, flags } => {
                     if let Some(m) = self.verify_xor_match(
                         match_start,
                         matched_atom,
                         *pattern,
-                        *full_word,
                     ) {
-                        self.track_pattern_match(*pattern_id, m);
+                        if self.verify_full_word(
+                            m.range.clone(),
+                            *flags,
+                            m.xor_key,
+                        ) {
+                            self.track_pattern_match(*pattern_id, m);
+                        }
                     }
                 }
 
@@ -1050,6 +1059,54 @@ impl ScanContext<'_> {
         false
     }
 
+    fn verify_full_word(
+        &self,
+        match_range: Range<usize>,
+        flags: PatternFlagSet,
+        xor_key: Option<u8>,
+    ) -> bool {
+        let data = self.scanned_data();
+        let xor_key = xor_key.unwrap_or(0);
+
+        if !flags.contains(PatternFlags::Fullword) {
+            return true;
+        }
+
+        if flags.contains(PatternFlags::Wide) {
+            if match_range.start >= 2
+                && (data[match_range.start - 1] ^ xor_key) == 0
+                && (data[match_range.start - 2] ^ xor_key)
+                    .is_ascii_alphanumeric()
+            {
+                return false;
+            }
+
+            if match_range.end + 1 < data.len()
+                && (data[match_range.end + 1] ^ xor_key) == 0
+                && (data[match_range.end] ^ xor_key).is_ascii_alphanumeric()
+            {
+                return false;
+            }
+        } else if flags.contains(PatternFlags::Ascii) {
+            if match_range.start >= 1
+                && (data[match_range.start - 1] ^ xor_key)
+                    .is_ascii_alphanumeric()
+            {
+                return false;
+            }
+
+            if match_range.end < data.len()
+                && (data[match_range.end] ^ xor_key).is_ascii_alphanumeric()
+            {
+                return false;
+            }
+        } else {
+            unreachable!()
+        }
+
+        true
+    }
+
     fn verify_chain_of_matches(
         &mut self,
         pattern_id: PatternId,
@@ -1132,61 +1189,28 @@ impl ScanContext<'_> {
         match_start: usize,
         pattern_id: LiteralId,
         case_insensitive: bool,
-        full_word: FullWord,
     ) -> Option<Match> {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
         let data = self.scanned_data();
 
-        // Offset where the match should end (inclusive).
-        let match_end = match_start + pattern.len() - 1;
+        // Offset where the match should end (exclusive).
+        let match_end = match_start + pattern.len();
 
         // The match can not end past the end of the scanned data.
-        if match_end >= data.len() {
+        if match_end > data.len() {
             return None;
         }
 
-        match full_word {
-            FullWord::Ascii => {
-                if match_start >= 1
-                    && data[match_start - 1].is_ascii_alphanumeric()
-                {
-                    return None;
-                }
-
-                if match_end + 1 < data.len()
-                    && data[match_end + 1].is_ascii_alphanumeric()
-                {
-                    return None;
-                }
-            }
-            FullWord::Wide => {
-                if match_start >= 2
-                    && data[match_start - 1] == 0
-                    && data[match_start - 2].is_ascii_alphanumeric()
-                {
-                    return None;
-                }
-
-                if match_end + 2 < data.len()
-                    && data[match_end + 2] == 0
-                    && data[match_end + 1].is_ascii_alphanumeric()
-                {
-                    return None;
-                }
-            }
-            FullWord::Disabled => {}
-        }
-
         let match_found = if case_insensitive {
-            pattern.eq_ignore_ascii_case(&data[match_start..=match_end])
+            pattern.eq_ignore_ascii_case(&data[match_start..match_end])
         } else {
-            memx::memeq(&data[match_start..=match_end], pattern.as_bytes())
+            memx::memeq(&data[match_start..match_end], pattern.as_bytes())
         };
 
         if match_found {
             Some(Match {
                 // The end of the range is exclusive.
-                range: match_start..match_end + 1,
+                range: match_start..match_end,
                 xor_key: None,
             })
         } else {
@@ -1199,16 +1223,15 @@ impl ScanContext<'_> {
         match_start: usize,
         matched_atom: &AtomInfo,
         pattern_id: LiteralId,
-        full_word: FullWord,
     ) -> Option<Match> {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
         let data = self.scanned_data();
 
-        // Offset where the match should end (inclusive).
-        let match_end = match_start + pattern.len() - 1;
+        // Offset where the match should end (exclusive).
+        let match_end = match_start + pattern.len();
 
         // The match can not end past the end of the scanned data.
-        if match_end >= data.len() {
+        if match_end > data.len() {
             return None;
         }
 
@@ -1220,38 +1243,6 @@ impl ScanContext<'_> {
         let key = matched_atom.atom.as_ref()[0]
             ^ pattern[matched_atom.atom.backtrack as usize];
 
-        match full_word {
-            FullWord::Ascii => {
-                if match_start >= 1
-                    && (data[match_start - 1] ^ key).is_ascii_alphanumeric()
-                {
-                    return None;
-                }
-
-                if match_end + 1 < data.len()
-                    && (data[match_end + 1] ^ key).is_ascii_alphanumeric()
-                {
-                    return None;
-                }
-            }
-            FullWord::Wide => {
-                if match_start >= 2
-                    && (data[match_start - 1] ^ key) == 0
-                    && (data[match_start - 2] ^ key).is_ascii_alphanumeric()
-                {
-                    return None;
-                }
-
-                if match_end + 2 < data.len()
-                    && (data[match_end + 2] ^ key) == 0
-                    && (data[match_end + 1] ^ key).is_ascii_alphanumeric()
-                {
-                    return None;
-                }
-            }
-            FullWord::Disabled => {}
-        }
-
         // Now we can XOR the whole pattern with the obtained key and make sure
         // that it matches the data. This only makes sense if the key is not
         // zero.
@@ -1261,11 +1252,8 @@ impl ScanContext<'_> {
             }
         }
 
-        if memx::memeq(&data[match_start..=match_end], pattern.as_bytes()) {
-            Some(Match {
-                range: match_start..match_end + 1,
-                xor_key: Some(key),
-            })
+        if memx::memeq(&data[match_start..match_end], pattern.as_bytes()) {
+            Some(Match { range: match_start..match_end, xor_key: Some(key) })
         } else {
             None
         }

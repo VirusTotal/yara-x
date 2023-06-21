@@ -181,7 +181,13 @@ where
     /// interned. If not returns [`None`].
     #[inline]
     pub fn get(&self, id: T) -> Option<&BStr> {
-        self.pool.get(Symbol::from(id.into())).map(BStr::new)
+        self.get_bytes(id).map(BStr::new)
+    }
+
+    /// Similar to [`BStringPool::get`], but returns the string as `&[u8]`.
+    #[inline]
+    pub fn get_bytes(&self, id: T) -> Option<&[u8]> {
+        self.pool.get(Symbol::from(id.into()))
     }
 
     /// Similar to [`BStringPool::get`], but returns the string as `&str`.
@@ -191,8 +197,7 @@ where
     /// If the interned string is not valid UTF-8.
     #[inline]
     pub fn get_str(&self, id: T) -> Option<&str> {
-        self.pool
-            .get(Symbol::from(id.into()))
+        self.get_bytes(id)
             .map(|s| {
                 std::str::from_utf8(s)
                     .expect("using BStringPool::get_str with a string that is not valid UTF-8")

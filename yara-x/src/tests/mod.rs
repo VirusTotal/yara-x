@@ -415,9 +415,42 @@ fn regexp_patterns() {
     pattern_true!(r#"/foo/"#, b"foo");
     pattern_true!(r#"/bar/i"#, b"bar");
 
+    pattern_true!(r#"/bar/ wide nocase"#, b"B\x00A\x00R\x00");
+    pattern_true!(r#"/bar/ wide"#, b"b\x00a\x00r\x00");
+    pattern_false!(r#"/bar/ wide"#, b"bar");
+
+    pattern_true!(r#"/foo.*?bar/s ascii wide nocase"#, b"FOOBAR");
+    pattern_true!(r#"/foo.*?bar/s ascii wide nocase"#, b"foobar");
+
+    pattern_true!(
+        r#"/foo.*?bar/s ascii wide nocase"#,
+        b"F\x00O\x00O\x00B\x00A\x00R\x00"
+    );
+
+    pattern_true!(
+        r#"/foo.*?bar/s ascii wide nocase"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_true!(
+        r#"/foo.*?bar/s wide nocase"#,
+        b"F\x00O\x00O\x00B\x00A\x00R\x00"
+    );
+
+    pattern_true!(
+        r#"/foo.*?bar/s ascii wide nocase"#,
+        b"F\x00O\x00O\x00B\x00A\x00R\x00"
+    );
+
+    pattern_true!(r#"/foo.*?bar/s wide"#, b"f\x00o\x00o\x00b\x00a\x00r\x00");
+
     pattern_true!(r#"/foo|bar|baz/"#, b"foo");
     pattern_true!(r#"/foo|bar|baz/"#, b"bar");
     pattern_true!(r#"/foo|bar|baz/"#, b"baz");
+
+    pattern_true!(r#"/foo|bar|baz/ wide"#, b"f\x00o\x00o\x00");
+    pattern_true!(r#"/foo|bar|baz/ wide"#, b"\x00b\x00a\x00r\x00");
+    pattern_true!(r#"/foo|bar|baz/ wide"#, b"b\x00a\x00z\x00");
 
     pattern_false!(r#"/foo|bar|baz/"#, b"FOO");
     pattern_false!(r#"/foo|bar|baz/"#, b"BAR");
@@ -1074,9 +1107,16 @@ fn fullword() {
     pattern_true!(r#"/mississippi/ fullword"#, b" mississippi ");
     pattern_true!(r#"/mississippi/ fullword"#, b"\x00mississippi\x00");
     pattern_true!(r#"/mississippi/ fullword"#, b"\x01mississippi\x02");
+    pattern_true!(r#"/mississippi|missouri/ fullword"#, b"mississippi");
+    pattern_true!(r#"/mis.*?ppi/s fullword"#, b"mississippi");
+
     pattern_false!(r#"/miss/ fullword"#, b"mississippi");
     pattern_false!(r#"/issi/ fullword"#, b"mississippi");
     pattern_false!(r#"/issi/ fullword"#, b"mississippi");
+    pattern_false!(r#"/miss|ippi/ fullword"#, b"mississippi");
+
+    pattern_true!(r#"/miss|ippi/ fullword"#, b"miss issippi");
+    pattern_true!(r#"/miss|ippi/ fullword"#, b"mississ ippi");
 
     pattern_true!(
         r#""mississippi" wide fullword"#,

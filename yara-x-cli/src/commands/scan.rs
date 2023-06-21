@@ -119,6 +119,19 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                         )
                     };
                     output.send(Message::Info(line)).unwrap();
+
+                    for p in matching_rule.patterns() {
+                        for m in p.matches() {
+                            output
+                                .send(Message::Info(format!(
+                                    "{:#x}:{}:{}:",
+                                    m.range.start,
+                                    m.range.len(),
+                                    p.identifier(),
+                                )))
+                                .unwrap();
+                        }
+                    }
                 }
             },
         )
