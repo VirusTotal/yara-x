@@ -36,7 +36,8 @@ use bitmask::bitmask;
 use bstr::BStr;
 use serde::{Deserialize, Serialize};
 
-use crate::compiler::{PatternId, Var, VarStackFrame};
+use crate::compiler::context::{Var, VarStackFrame};
+use crate::compiler::PatternId;
 use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue, Value};
 

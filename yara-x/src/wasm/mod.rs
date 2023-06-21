@@ -78,7 +78,7 @@ use wasmtime::{
     AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
 
-use crate::cast;
+use crate::utils::cast;
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};

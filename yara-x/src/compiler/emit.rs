@@ -22,13 +22,14 @@ use crate::compiler::ir::{
 use crate::compiler::{Context, RuleId, Var, VarStackFrame};
 use crate::symbols::SymbolKind;
 use crate::types::{Array, Map, Type, TypeValue, Value};
+use crate::utils::cast;
+use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
     LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
     VARS_STACK_START,
 };
-use crate::{cast, wasm};
 
 /// This macro emits the code for the left and right operands of some
 /// operation, converting integer operands to float if the other operand

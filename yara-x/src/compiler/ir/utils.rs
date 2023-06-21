@@ -1,4 +1,4 @@
-use crate::cast;
+use crate::utils::cast;
 use regex_syntax::hir::HirKind::Concat;
 use regex_syntax::hir::{Class, Hir, HirKind};
 use std::ops::RangeInclusive;

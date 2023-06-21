@@ -6,8 +6,6 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::io::{BufWriter, Write};
-use std::mem::size_of;
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
@@ -17,20 +15,17 @@ use aho_corasick::AhoCorasick;
 use bincode::Options;
 use bstr::ByteSlice;
 use itertools::Itertools;
-use regex::bytes::{Regex, RegexBuilder};
 use regex_syntax::hir;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use walrus::ir::InstrSeqId;
-use walrus::{FunctionId, ValType};
+use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{HasSpan, Ident, RuleFlag, Span};
+use yara_x_parser::ast::{HasSpan, Ident, RuleFlag};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
 
-use crate::cast;
 use crate::compiler::atoms::base64::base64_patterns;
 use crate::compiler::atoms::{
     best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
@@ -38,28 +33,33 @@ use crate::compiler::atoms::{
 };
 use crate::compiler::emit::emit_rule_condition;
 use crate::compiler::ir::{split_at_large_gaps, TrailingPattern};
+use crate::compiler::{Context, VarStack};
 use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
-use crate::types::{
-    Func, FuncSignature, Regexp, Struct, Type, TypeValue, Value,
-};
+use crate::types::{Func, FuncSignature, Struct, TypeValue, Value};
+use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
-use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
-pub(crate) use crate::compiler::ir::{PatternFlagSet, PatternFlags};
+pub(crate) use crate::compiler::context::*;
+pub(crate) use crate::compiler::ir::*;
 
 #[doc(inline)]
 pub use crate::compiler::errors::*;
 
+#[doc(inline)]
+pub use crate::compiler::rules::*;
+
 mod atoms;
+mod context;
 mod emit;
 mod errors;
 mod ir;
+mod rules;
 
 #[cfg(test)]
 mod tests;
@@ -521,6 +521,20 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
+    /// Interns a literal in the literals pool.
+    ///
+    /// If `wide` is true the literal is converted to before being interned.
+    fn intern_literal(&mut self, literal: &[u8], wide: bool) -> LiteralId {
+        let wide_pattern;
+        let literal_bytes = if wide {
+            wide_pattern = make_wide(literal);
+            wide_pattern.as_bytes()
+        } else {
+            literal
+        };
+        self.lit_pool.get_or_intern(literal_bytes)
+    }
+
     fn process_rule(&mut self, rule: &ast::Rule) -> Result<(), CompileError> {
         // Check if another rule, module or variable has the same identifier
         // and return an error in that case.
@@ -775,20 +789,6 @@ impl<'a> Compiler<'a> {
                 );
             }
         }
-    }
-
-    /// Interns a literal in the literals pool.
-    ///
-    /// If `wide` is true the literal is converted to before being interned.
-    fn intern_literal(&mut self, literal: &[u8], wide: bool) -> LiteralId {
-        let wide_pattern;
-        let literal_bytes = if wide {
-            wide_pattern = make_wide(literal);
-            wide_pattern.as_bytes()
-        } else {
-            literal
-        };
-        self.lit_pool.get_or_intern(literal_bytes)
     }
 
     fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
@@ -1280,455 +1280,6 @@ impl From<PatternId> for usize {
 #[serde(transparent)]
 pub(crate) struct SubPatternId(u32);
 
-/// Structure that contains information and data structures required during the
-/// current compilation process.
-struct Context<'a, 'sym> {
-    /// Builder for creating error and warning reports.
-    report_builder: &'a ReportBuilder,
-
-    /// Symbol table that contains the currently defined identifiers, modules,
-    /// functions, etc.
-    symbol_table: &'a mut StackedSymbolTable<'sym>,
-
-    /// Symbol table for the currently active structure. When this contains
-    /// some value, symbols are looked up in this table and the main symbol
-    /// table (i.e: `symbol_table`) is ignored.
-    current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
-
-    /// Used during code emitting for tracking the function signature
-    /// associated to a function call.
-    current_signature: Option<usize>,
-
-    /// Table with all the symbols (functions, variables) used by WASM.
-    wasm_symbols: &'a WasmSymbols,
-
-    /// Map where keys are fully qualified and mangled function names, and
-    /// values are the function's ID in the WASM module.
-    wasm_exports: &'a FxHashMap<String, FunctionId>,
-
-    /// Information about the rules compiled so far.
-    rules: &'a Vec<RuleInfo>,
-
-    /// Rule that is being compiled.
-    current_rule: &'a RuleInfo,
-
-    /// Warnings generated during the compilation.
-    warnings: &'a mut Vec<Warning>,
-
-    /// Pool with identifiers used in the rules.
-    ident_pool: &'a mut StringPool<IdentId>,
-
-    /// Pool with regular expressions used in rule conditons.
-    regexp_pool: &'a mut StringPool<RegexpId>,
-
-    /// Pool with literal strings used in the rules.
-    lit_pool: &'a mut BStringPool<LiteralId>,
-
-    /// Stack of installed exception handlers for catching undefined values.
-    exception_handler_stack: Vec<(ValType, InstrSeqId)>,
-
-    /// Stack of variables. These are local variables used during the
-    /// evaluation of rule conditions, for example for storing loop variables.
-    vars: VarStack,
-
-    /// The lookup_stack contains a sequence of field IDs that will be used
-    /// in the next field lookup operation. See [`emit::emit_lookup_common`]
-    /// for details.
-    lookup_stack: VecDeque<i32>,
-
-    /// The index of the host-side variable that contains the structure where
-    /// the lookup operation will be performed.
-    lookup_start: Option<Var>,
-}
-
-impl<'a, 'sym> Context<'a, 'sym> {
-    /// Given an [`IdentId`] returns the identifier as `&str`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no identifier has the provided [`IdentId`].
-    #[inline]
-    fn resolve_ident(&self, ident_id: IdentId) -> &str {
-        self.ident_pool.get(ident_id).unwrap()
-    }
-
-    /// Returns a [`RuleInfo`] given its [`RuleId`].
-    ///
-    /// # Panics
-    ///
-    /// If no rule with such [`RuleId`] exists.
-    #[inline]
-    pub(crate) fn get_rule(&self, rule_id: RuleId) -> &RuleInfo {
-        self.rules.get(rule_id.0 as usize).unwrap()
-    }
-
-    /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
-    /// the current rule and return its [`PatternID`].
-    ///
-    /// Notice that this function accepts identifiers with any of the valid
-    /// prefixes `$`, `#`, `@` and `!`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the current rule does not have the requested pattern.
-    fn get_pattern_from_current_rule(&self, ident: &str) -> PatternId {
-        // Make sure that identifier starts with `$`, `#`, `@` or `!`.
-        debug_assert!("$#@!".contains(
-            ident
-                .chars()
-                .next()
-                .expect("identifier must be at least 1 character long")
-        ));
-
-        for (ident_id, pattern_id) in &self.current_rule.patterns {
-            // Ignore the first character (`$`, `#`, `@` or `!`) while
-            // comparing the identifiers.
-            if self.resolve_ident(*ident_id)[1..] == ident[1..] {
-                return *pattern_id;
-            }
-        }
-
-        panic!(
-            "rule `{}` does not have pattern `{}` ",
-            self.resolve_ident(self.current_rule.ident_id),
-            ident
-        );
-    }
-
-    /// Given a function mangled name returns its id.
-    ///
-    /// # Panics
-    ///
-    /// If a no function with the given name exists.
-    pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
-        *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
-            panic!("can't find function `{}`", fn_mangled_name)
-        })
-    }
-}
-
-/// Represents a stack of variables.
-///
-/// The variables stack is composed of frames that are stacked one at the
-/// top of another. Each frame can contain one or more variables.
-///
-/// This stack is stored in WASM main memory, in a memory region that goes
-/// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`]. The stack
-/// is also mirrored at host-side (with host-side we refer to Rust code
-/// called from WASM code), because values like structures, maps, and
-/// arrays can't be handled by WASM code directly, and they must be
-/// accessible to Rust functions called from WASM. These two stacks (the
-/// WASM-side stack and the host-side stack) could be fully independent,
-/// but they are mirrored for simplicity. This means that calls to this
-/// function reserves space in both stacks at the same time, and therefore
-/// their sizes are always the same.
-///
-/// However, each stack slot is used either by WASM-side code or by
-/// host-side code, but not by both. The slots that are used by WASM-side
-/// remain with empty values in the host-side stack, while the slots that
-/// are used by host-side code remain unused and undefined in WASM
-/// memory.
-pub(crate) struct VarStack {
-    used: i32,
-}
-
-impl VarStack {
-    /// Creates a stack of variables.
-    pub fn new() -> Self {
-        Self { used: 0 }
-    }
-
-    /// Creates a new stack frame with the given capacity on top of the
-    /// existing ones. The returned stack frame can hold the specified
-    /// number of variables, but not more.
-    ///
-    /// Use [`VarStackFrame::new_var`] of allocating individual variables
-    /// within a frame.
-    pub fn new_frame(&mut self, capacity: i32) -> VarStackFrame {
-        let start = self.used;
-        self.used += capacity;
-
-        if self.used * size_of::<i64>() as i32
-            > wasm::VARS_STACK_END - wasm::VARS_STACK_START
-        {
-            panic!("variables stack overflow");
-        }
-
-        VarStackFrame { start, capacity, used: 0 }
-    }
-
-    /// Unwinds the stack freeing all frames that were allocated after the
-    /// given one, the given frame inclusive.
-    pub fn unwind(&mut self, frame: &VarStackFrame) {
-        if self.used < frame.start {
-            panic!("double-free in VarStack")
-        }
-        self.used = frame.start;
-    }
-}
-
-/// Represents a frame in the stack of variables.
-///
-/// Frames are stacked one in top of another, individual variables are
-/// allocated within a frame.
-#[derive(Clone)]
-pub(crate) struct VarStackFrame {
-    start: i32,
-    used: i32,
-    capacity: i32,
-}
-
-impl VarStackFrame {
-    /// Allocates space for a new variable in the stack.
-    ///
-    /// # Panics
-    ///
-    /// Panics if trying to allocate more variables than the frame capacity.
-    pub fn new_var(&mut self, ty: Type) -> Var {
-        let index = self.used + self.start;
-        self.used += 1;
-        if self.used > self.capacity {
-            panic!("VarStack exceeding its capacity: {}", self.capacity);
-        }
-        Var { ty, index }
-    }
-}
-
-/// Represents a variable in the stack.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Var {
-    /// The type of the variable
-    ty: Type,
-    /// The index corresponding to this variable. This index is used for
-    /// locating the variable's value in WASM memory. The variable resides at
-    /// [`wasm::VARS_STACK_START`] + index * sizeof(i64).
-    index: i32,
-}
-
-/// A set of YARA rules in compiled form.
-///
-/// This is the result from [`Compiler::build`].
-#[derive(Serialize, Deserialize)]
-pub struct Rules {
-    /// Pool with identifiers used in the rules. Each identifier has its
-    /// own [`IdentId`], which can be used for retrieving the identifier
-    /// from the pool as a `&str`.
-    ident_pool: StringPool<IdentId>,
-
-    /// Pool with the regular expressions used in the rules conditions. Each
-    /// regular expression has its own [`RegexpId`]. Regular expressions
-    /// include the starting and ending slashes (`/`), and the modifiers
-    /// `i` and `s` if present (e.g: `/foobar/`, `/foo/i`, `/bar/s`).
-    regexp_pool: StringPool<RegexpId>,
-
-    /// Pool with literal strings used in the rules. Each literal has its
-    /// own [`LiteralId`], which can be used for retrieving the literal
-    /// string as `&BStr`.
-    lit_pool: BStringPool<LiteralId>,
-
-    /// Raw data for the WASM module containing the code for rule conditions.
-    wasm_mod: Vec<u8>,
-
-    /// WASM module already compiled into native code for the current platform.
-    #[serde(skip)]
-    compiled_wasm_mod: Option<wasmtime::Module>,
-
-    /// Vector with the names of all the imported modules. The vector contains
-    /// the [`IdentId`] corresponding to the module's identifier.
-    imported_modules: Vec<IdentId>,
-
-    /// Vector containing all the compiled rules. A [`RuleId`] is an index
-    /// in this vector.
-    rules: Vec<RuleInfo>,
-
-    /// Total number of patterns across all rules. This is equal to the last
-    /// [`PatternId`] +  1.
-    num_patterns: usize,
-
-    /// Vector with all the sub-patterns from all rules. A [`SubPatternId`]
-    /// is an index in this vector. Each pattern is composed of one or more
-    /// sub-patterns, if any of the sub-patterns matches, the pattern matches.
-    ///
-    /// For example, when a text pattern is accompanied by both the `ascii`
-    /// and `wide` modifiers, two sub-patterns are generated for it: one for
-    /// the ascii variant, and the other for the wide variant.
-    ///
-    /// Each sub-pattern in this vector is accompanied by the [`PatternId`]
-    /// where the sub-pattern belongs to.
-    sub_patterns: Vec<(PatternId, SubPattern)>,
-
-    /// A vector that contains all the atoms generated for the patterns. Each
-    /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
-    /// it belongs to.
-    atoms: Vec<AtomInfo>,
-
-    /// A [`Struct`] in serialized form that contains all the global variables.
-    /// Each field in the structure corresponds to a global variable defined
-    /// at compile time using [`Compiler::define_global].
-    serialized_globals: Vec<u8>,
-
-    /// Aho-Corasick automaton containing the atoms extracted from the patterns.
-    /// This allows to search for all the atoms in the scanned data at the same
-    /// time in an efficient manner. The automaton is not serialized during when
-    /// [`Rules::serialize`] is called, it needs to be wrapped in [`Option`] so
-    /// that we can use `#[serde(skip)]` on it because [`AhoCorasick`] doesn't
-    /// implement the [`Default`] trait.
-    #[serde(skip)]
-    ac: Option<AhoCorasick>,
-}
-
-impl Rules {
-    /// Deserializes the rules from a sequence of bytes produced by
-    /// [`Rules::serialize`].
-    pub fn deserialize<B>(bytes: B) -> Result<Self, SerializationError>
-    where
-        B: AsRef<[u8]>,
-    {
-        let bytes = bytes.as_ref();
-        let magic = b"YARA-X";
-
-        if bytes.len() < magic.len() || &bytes[0..magic.len()] != magic {
-            return Err(SerializationError::InvalidFormat);
-        }
-
-        // Skip the magic and deserialize the remaining data.
-        let mut rules = bincode::DefaultOptions::new()
-            .with_varint_encoding()
-            .deserialize::<Self>(&bytes[magic.len()..])?;
-
-        // The Aho-Corasick automaton is not serialized, it must be rebuilt.
-        rules.ac = Some(
-            AhoCorasick::new(rules.atoms.iter().map(|x| &x.atom))
-                .expect("failed to build Aho-Corasick automaton"),
-        );
-
-        // The WASM module must be compiled for the current platform.
-        rules.compiled_wasm_mod = Some(
-            wasmtime::Module::from_binary(
-                &crate::wasm::ENGINE,
-                rules.wasm_mod.as_slice(),
-            )
-            .expect("WASM module is not valid"),
-        );
-
-        Ok(rules)
-    }
-
-    /// Serializes the rules as a sequence of bytes.
-    ///
-    /// The [`Rules`] can be restored back by passing the bytes to
-    /// [`Rules::deserialize`].
-    pub fn serialize(&self) -> Result<Vec<u8>, SerializationError> {
-        let mut bytes = BufWriter::new(Vec::new());
-        self.serialize_into(&mut bytes)?;
-        Ok(bytes.into_inner().unwrap())
-    }
-
-    /// Serializes the rules and writes the bytes into a `writer`.
-    pub fn serialize_into<W>(
-        &self,
-        mut writer: W,
-    ) -> Result<(), SerializationError>
-    where
-        W: Write,
-    {
-        // Write file header.
-        writer.write_all(b"YARA-X")?;
-
-        // Serialize rules.
-        Ok(bincode::DefaultOptions::new()
-            .with_varint_encoding()
-            .serialize_into(writer, self)?)
-    }
-
-    /// Returns a [`RuleInfo`] given its [`RuleId`].
-    ///
-    /// # Panics
-    ///
-    /// If no rule with such [`RuleId`] exists.
-    pub(crate) fn get(&self, rule_id: RuleId) -> &RuleInfo {
-        self.rules.get(rule_id.0 as usize).unwrap()
-    }
-
-    /// Returns an slice with the individual rules that were compiled.
-    #[inline]
-    pub(crate) fn rules(&self) -> &[RuleInfo] {
-        self.rules.as_slice()
-    }
-
-    /// Returns a regular expression by [`RegexpId`].
-    ///
-    /// # Panics
-    ///
-    /// If no regular expression with such [`RegexpId`] exists.
-    #[inline]
-    pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
-        let re = Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
-        RegexBuilder::new(re.naked())
-            .case_insensitive(re.case_insensitive())
-            .dot_matches_new_line(re.dot_matches_new_line())
-            .build()
-            .unwrap()
-    }
-
-    /// Returns a sub-pattern by [`SubPatternId`].
-    #[inline]
-    pub(crate) fn get_sub_pattern(
-        &self,
-        sub_pattern_id: SubPatternId,
-    ) -> &(PatternId, SubPattern) {
-        &self.sub_patterns[sub_pattern_id.0 as usize]
-    }
-
-    #[inline]
-    pub(crate) fn atoms(&self) -> &[AtomInfo] {
-        self.atoms.as_slice()
-    }
-
-    #[inline]
-    pub(crate) fn num_patterns(&self) -> usize {
-        self.num_patterns
-    }
-
-    /// Returns the Aho-Corasick automaton that allows to search for pattern
-    /// atoms.
-    #[inline]
-    pub(crate) fn aho_corasick(&self) -> &AhoCorasick {
-        self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
-    }
-
-    /// An iterator that yields the name of the modules imported by the
-    /// rules.
-    pub fn imports(&self) -> Imports {
-        Imports {
-            iter: self.imported_modules.iter(),
-            ident_pool: &self.ident_pool,
-        }
-    }
-
-    #[inline]
-    pub(crate) fn lit_pool(&self) -> &BStringPool<LiteralId> {
-        &self.lit_pool
-    }
-
-    #[inline]
-    pub(crate) fn ident_pool(&self) -> &StringPool<IdentId> {
-        &self.ident_pool
-    }
-
-    #[inline]
-    pub(crate) fn globals(&self) -> Struct {
-        bincode::DefaultOptions::new()
-            .deserialize::<Struct>(self.serialized_globals.as_slice())
-            .expect("error deserializing global variables")
-    }
-
-    #[inline]
-    pub(crate) fn compiled_wasm_mod(&self) -> &wasmtime::Module {
-        self.compiled_wasm_mod.as_ref().expect("WASM module not compiled")
-    }
-}
-
 /// Iterator that yields the names of the modules imported by the rules.
 pub struct Imports<'a> {
     iter: std::slice::Iter<'a, IdentId>,
@@ -1741,32 +1292,6 @@ impl<'a> Iterator for Imports<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|id| self.ident_pool.get(*id).unwrap())
     }
-}
-
-/// Information about each of the individual rules included in [`Rules`].
-#[derive(Serialize, Deserialize)]
-pub(crate) struct RuleInfo {
-    /// The ID of the namespace the rule belongs to.
-    pub(crate) namespace_id: NamespaceId,
-    /// The ID of the rule namespace in the identifiers pool.
-    pub(crate) namespace_ident_id: IdentId,
-    /// The ID of the rule identifier in the identifiers pool.
-    pub(crate) ident_id: IdentId,
-    /// Span of the rule identifier. This field is ignored while serializing
-    /// and deserializing compiles rules, as it is used only during the
-    /// compilation phase, but not during the scan phase.
-    #[serde(skip)]
-    pub(crate) ident_span: Span,
-    /// Vector with all the patterns defined by this rule.
-    pub(crate) patterns: Vec<(IdentId, PatternId)>,
-    /// True if the rule is global.
-    pub(crate) is_global: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct AtomInfo {
-    pub sub_pattern_id: SubPatternId,
-    pub atom: Atom,
 }
 
 /// A sub-pattern in the compiled rules.
@@ -1791,16 +1316,16 @@ pub(crate) enum SubPattern {
     },
 
     FixedChainMiddle {
+        pattern: LiteralId,
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
-        pattern: LiteralId,
         case_insensitive: bool,
     },
 
     FixedChainTail {
+        pattern: LiteralId,
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
-        pattern: LiteralId,
         case_insensitive: bool,
     },
 
