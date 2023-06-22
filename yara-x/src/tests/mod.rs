@@ -1109,6 +1109,8 @@ fn fullword() {
     pattern_true!(r#"/mississippi/ fullword"#, b"\x01mississippi\x02");
     pattern_true!(r#"/mississippi|missouri/ fullword"#, b"mississippi");
     pattern_true!(r#"/mis.*?ppi/s fullword"#, b"mississippi");
+    pattern_false!(r#"/mis.*?ppi/s fullword"#, b"xmississippi");
+    pattern_false!(r#"/mis.*?ppi/s fullword"#, b"mississippix");
 
     pattern_false!(r#"/miss/ fullword"#, b"mississippi");
     pattern_false!(r#"/issi/ fullword"#, b"mississippi");

@@ -650,7 +650,8 @@ impl<'a> Compiler<'a> {
         let mut flags = SubPatternFlagSet::none();
 
         if pattern.flags.contains(PatternFlags::Fullword) {
-            flags.set(SubPatternFlags::Fullword)
+            flags.set(SubPatternFlags::FullwordLeft);
+            flags.set(SubPatternFlags::FullwordRight);
         }
 
         if pattern.flags.contains(PatternFlags::Wide) {
@@ -673,7 +674,7 @@ impl<'a> Compiler<'a> {
                     pattern.text.as_bytes(),
                     DESIRED_ATOM_SIZE,
                 ),
-                flags | SubPatternFlags::Ascii,
+                flags,
             ));
         }
 
@@ -800,8 +801,17 @@ impl<'a> Compiler<'a> {
 
     fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
         let case_insensitive = pattern.flags.contains(PatternFlags::Nocase);
-        let wide = pattern.flags.contains(PatternFlags::Wide);
-        let ascii = pattern.flags.contains(PatternFlags::Ascii);
+
+        let mut flags = SubPatternFlagSet::none();
+
+        if case_insensitive {
+            flags.set(SubPatternFlags::Nocase);
+        }
+
+        if pattern.flags.contains(PatternFlags::Fullword) {
+            flags.set(SubPatternFlags::FullwordLeft);
+            flags.set(SubPatternFlags::FullwordRight);
+        }
 
         // Try splitting the regexp into multiple chained sub-patterns if it
         // contains large gaps. If the regexp can't be split the leading part
@@ -832,7 +842,11 @@ impl<'a> Compiler<'a> {
                 self.push_sub_pattern(
                     SubPattern::Fixed {
                         pattern: pattern_lit_id,
-                        flags: SubPatternFlagSet::from(pattern.flags),
+                        flags: if wide {
+                            flags | SubPatternFlags::Wide
+                        } else {
+                            flags
+                        },
                     },
                     if case_insensitive {
                         Box::new(CaseGenerator::new(&best_atom))
@@ -844,10 +858,10 @@ impl<'a> Compiler<'a> {
 
             match leading.into_kind() {
                 hir::HirKind::Literal(literal) => {
-                    if ascii {
+                    if pattern.flags.contains(PatternFlags::Ascii) {
                         process_literal(&literal, false);
                     }
-                    if wide {
+                    if pattern.flags.contains(PatternFlags::Wide) {
                         process_literal(&literal, true);
                     }
                 }
@@ -856,10 +870,10 @@ impl<'a> Compiler<'a> {
                         |l| cast!(l.into_kind(), hir::HirKind::Literal)
                     });
                     for literal in literals {
-                        if ascii {
+                        if pattern.flags.contains(PatternFlags::Ascii) {
                             process_literal(&literal, false);
                         }
-                        if wide {
+                        if pattern.flags.contains(PatternFlags::Wide) {
                             process_literal(&literal, true);
                         }
                     }
@@ -896,7 +910,21 @@ impl<'a> Compiler<'a> {
         flags: PatternFlagSet,
         wide: bool,
     ) {
+        // This function assumes that trailing is not empty.
+        assert!(!trailing.is_empty());
+
         let case_insensitive = flags.contains(PatternFlags::Nocase);
+        let full_word = flags.contains(PatternFlags::Fullword);
+
+        let mut base_flags = SubPatternFlagSet::none();
+
+        if case_insensitive {
+            base_flags.set(SubPatternFlags::Nocase);
+        }
+
+        if wide {
+            base_flags.set(SubPatternFlags::Wide);
+        }
 
         // Utility function that returns the best atom from a literal, it
         // returns a single atom if the literal is case sensitive, or
@@ -927,7 +955,11 @@ impl<'a> Compiler<'a> {
             prev_sub_pattern_id = self.push_sub_pattern(
                 SubPattern::FixedChainHead {
                     pattern: pattern_lit_id,
-                    flags: SubPatternFlagSet::from(flags),
+                    flags: if full_word {
+                        base_flags | SubPatternFlags::FullwordLeft
+                    } else {
+                        base_flags
+                    },
                 },
                 extract_atoms(
                     self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
@@ -939,10 +971,19 @@ impl<'a> Compiler<'a> {
         }
 
         for (i, p) in trailing.iter().enumerate() {
-            let mut flags = SubPatternFlagSet::from(flags);
+            let mut flags = base_flags;
+
+            // The last pattern in the chain has the `LastInChain` flag and
+            // the `FullwordRight` if the original pattern was `Fullword`.
+            // Patterns in the middle of the chain won't have neither of these
+            // flags.
             if i == trailing.len() - 1 {
                 flags.set(SubPatternFlags::LastInChain);
+                if full_word {
+                    flags.set(SubPatternFlags::FullwordRight);
+                }
             }
+
             if let hir::HirKind::Literal(literal) = p.hir.kind() {
                 let pattern_lit_id =
                     self.intern_literal(literal.0.as_bytes(), wide);
@@ -1302,38 +1343,11 @@ bitmask! {
     /// Flags associated to some kinds of [`SubPattern`].
     #[derive(Debug, Serialize, Deserialize)]
     pub mask SubPatternFlagSet: u8 where flags SubPatternFlags  {
-        Ascii                = 0x01,
-        Wide                 = 0x02,
-        Nocase               = 0x04,
-        Fullword             = 0x08,
-        LastInChain          = 0x10,
-    }
-}
-
-impl From<PatternFlagSet> for SubPatternFlagSet {
-    /// Creates a [`SubPatternFlagSet`] from a [`PatternFlagSet`].
-    ///
-    /// Only copies the bits that are
-    fn from(value: PatternFlagSet) -> Self {
-        let mut result = SubPatternFlagSet::none();
-
-        if value.contains(PatternFlags::Ascii) {
-            result.set(SubPatternFlags::Ascii)
-        }
-
-        if value.contains(PatternFlags::Wide) {
-            result.set(SubPatternFlags::Wide)
-        }
-
-        if value.contains(PatternFlags::Nocase) {
-            result.set(SubPatternFlags::Nocase)
-        }
-
-        if value.contains(PatternFlags::Fullword) {
-            result.set(SubPatternFlags::Fullword)
-        }
-
-        result
+        Wide                 = 0x01,
+        Nocase               = 0x02,
+        LastInChain          = 0x04,
+        FullwordLeft         = 0x08,
+        FullwordRight        = 0x10,
     }
 }
 

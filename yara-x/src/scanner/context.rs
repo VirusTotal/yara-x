@@ -222,30 +222,17 @@ impl ScanContext<'_> {
 
             match sub_pattern {
                 SubPattern::Fixed { pattern, flags } => {
-                    if let Some(verified_match) = self.verify_fixed_match(
-                        match_start,
-                        *pattern,
-                        flags.contains(SubPatternFlags::Nocase),
-                    ) {
-                        if self.verify_full_word(
-                            verified_match.range.clone(),
-                            *flags,
-                            None,
-                        ) {
-                            self.track_pattern_match(
-                                *pattern_id,
-                                verified_match,
-                            );
-                        }
+                    if let Some(verified_match) =
+                        self.verify_fixed_match(match_start, *pattern, *flags)
+                    {
+                        self.track_pattern_match(*pattern_id, verified_match);
                     };
                 }
 
                 SubPattern::FixedChainHead { pattern, flags, .. } => {
-                    if let Some(m) = self.verify_fixed_match(
-                        match_start,
-                        *pattern,
-                        flags.contains(SubPatternFlags::Nocase),
-                    ) {
+                    if let Some(m) =
+                        self.verify_fixed_match(match_start, *pattern, *flags)
+                    {
                         // This is the head of a set of chained sub-patterns.
                         // Verifying that the head matches doesn't mean that
                         // the whole sub-pattern matches, the rest of the chain
@@ -267,11 +254,9 @@ impl ScanContext<'_> {
                     gap,
                     flags,
                 } => {
-                    if let Some(m) = self.verify_fixed_match(
-                        match_start,
-                        *pattern,
-                        flags.contains(SubPatternFlags::Nocase),
-                    ) {
+                    if let Some(m) =
+                        self.verify_fixed_match(match_start, *pattern, *flags)
+                    {
                         if self.within_valid_distance(
                             matched_atom.sub_pattern_id,
                             *chained_to,
@@ -286,6 +271,7 @@ impl ScanContext<'_> {
                                     *pattern_id,
                                     matched_atom.sub_pattern_id,
                                     m.range,
+                                    *flags,
                                 );
                             } else {
                                 // This sub-pattern in in the middle of the
@@ -309,14 +295,9 @@ impl ScanContext<'_> {
                         match_start,
                         matched_atom,
                         *pattern,
+                        *flags,
                     ) {
-                        if self.verify_full_word(
-                            m.range.clone(),
-                            *flags,
-                            m.xor_key,
-                        ) {
-                            self.track_pattern_match(*pattern_id, m);
-                        }
+                        self.track_pattern_match(*pattern_id, m);
                     }
                 }
 
@@ -420,40 +401,36 @@ impl ScanContext<'_> {
         let data = self.scanned_data();
         let xor_key = xor_key.unwrap_or(0);
 
-        if !flags.contains(SubPatternFlags::Fullword) {
-            return true;
-        }
-
         if flags.contains(SubPatternFlags::Wide) {
-            if match_range.start >= 2
+            if flags.contains(SubPatternFlags::FullwordLeft)
+                && match_range.start >= 2
                 && (data[match_range.start - 1] ^ xor_key) == 0
                 && (data[match_range.start - 2] ^ xor_key)
                     .is_ascii_alphanumeric()
             {
                 return false;
             }
-
-            if match_range.end + 1 < data.len()
+            if flags.contains(SubPatternFlags::FullwordRight)
+                && match_range.end + 1 < data.len()
                 && (data[match_range.end + 1] ^ xor_key) == 0
                 && (data[match_range.end] ^ xor_key).is_ascii_alphanumeric()
             {
                 return false;
             }
-        } else if flags.contains(SubPatternFlags::Ascii) {
-            if match_range.start >= 1
+        } else {
+            if flags.contains(SubPatternFlags::FullwordLeft)
+                && match_range.start >= 1
                 && (data[match_range.start - 1] ^ xor_key)
                     .is_ascii_alphanumeric()
             {
                 return false;
             }
-
-            if match_range.end < data.len()
+            if flags.contains(SubPatternFlags::FullwordRight)
+                && match_range.end < data.len()
                 && (data[match_range.end] ^ xor_key).is_ascii_alphanumeric()
             {
                 return false;
             }
-        } else {
-            unreachable!()
         }
 
         true
@@ -464,6 +441,7 @@ impl ScanContext<'_> {
         pattern_id: PatternId,
         sub_pattern_id: SubPatternId,
         match_range: Range<usize>,
+        flags: SubPatternFlagSet,
     ) -> Option<Match> {
         let mut queue = VecDeque::new();
 
@@ -478,13 +456,20 @@ impl ScanContext<'_> {
                     // the tail matches. This indicates that the whole chain is
                     // valid and we have a full match.
                     if let Some(tail_match_range) = &tail_match_range {
-                        self.track_pattern_match(
-                            pattern_id,
-                            Match {
-                                range: match_range.start..tail_match_range.end,
-                                xor_key: None,
-                            },
-                        );
+                        if self.verify_full_word(
+                            match_range.start..tail_match_range.end,
+                            flags,
+                            None,
+                        ) {
+                            self.track_pattern_match(
+                                pattern_id,
+                                Match {
+                                    range: match_range.start
+                                        ..tail_match_range.end,
+                                    xor_key: None,
+                                },
+                            );
+                        }
                     }
                 }
                 SubPattern::FixedChainTail {
@@ -537,7 +522,7 @@ impl ScanContext<'_> {
         &self,
         match_start: usize,
         pattern_id: LiteralId,
-        case_insensitive: bool,
+        flags: SubPatternFlagSet,
     ) -> Option<Match> {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
         let data = self.scanned_data();
@@ -550,7 +535,11 @@ impl ScanContext<'_> {
             return None;
         }
 
-        let match_found = if case_insensitive {
+        if !self.verify_full_word(match_start..match_end, flags, None) {
+            return None;
+        }
+
+        let match_found = if flags.contains(SubPatternFlags::Nocase) {
             pattern.eq_ignore_ascii_case(&data[match_start..match_end])
         } else {
             memx::memeq(&data[match_start..match_end], pattern.as_bytes())
@@ -572,6 +561,7 @@ impl ScanContext<'_> {
         match_start: usize,
         matched_atom: &AtomInfo,
         pattern_id: LiteralId,
+        flags: SubPatternFlagSet,
     ) -> Option<Match> {
         let pattern = self.compiled_rules.lit_pool().get(pattern_id).unwrap();
         let data = self.scanned_data();
@@ -591,6 +581,10 @@ impl ScanContext<'_> {
         // the corresponding byte in the pattern.
         let key = matched_atom.atom.as_ref()[0]
             ^ pattern[matched_atom.atom.backtrack as usize];
+
+        if !self.verify_full_word(match_start..match_end, flags, Some(key)) {
+            return None;
+        }
 
         // Now we can XOR the whole pattern with the obtained key and make sure
         // that it matches the data. This only makes sense if the key is not
