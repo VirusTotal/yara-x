@@ -221,18 +221,22 @@ impl ScanContext<'_> {
                 .get_sub_pattern(matched_atom.sub_pattern_id);
 
             match sub_pattern {
-                SubPattern::Fixed { pattern, flags } => {
-                    if let Some(verified_match) =
-                        self.verify_fixed_match(match_start, *pattern, *flags)
-                    {
+                SubPattern::Literal { pattern, flags } => {
+                    if let Some(verified_match) = self.verify_literal_match(
+                        match_start,
+                        *pattern,
+                        *flags,
+                    ) {
                         self.track_pattern_match(*pattern_id, verified_match);
                     };
                 }
 
-                SubPattern::FixedChainHead { pattern, flags, .. } => {
-                    if let Some(m) =
-                        self.verify_fixed_match(match_start, *pattern, *flags)
-                    {
+                SubPattern::LiteralChainHead { pattern, flags, .. } => {
+                    if let Some(m) = self.verify_literal_match(
+                        match_start,
+                        *pattern,
+                        *flags,
+                    ) {
                         // This is the head of a set of chained sub-patterns.
                         // Verifying that the head matches doesn't mean that
                         // the whole sub-pattern matches, the rest of the chain
@@ -248,15 +252,17 @@ impl ScanContext<'_> {
                     }
                 }
 
-                SubPattern::FixedChainTail {
+                SubPattern::LiteralChainTail {
                     pattern,
                     chained_to,
                     gap,
                     flags,
                 } => {
-                    if let Some(m) =
-                        self.verify_fixed_match(match_start, *pattern, *flags)
-                    {
+                    if let Some(m) = self.verify_literal_match(
+                        match_start,
+                        *pattern,
+                        *flags,
+                    ) {
                         if self.within_valid_distance(
                             matched_atom.sub_pattern_id,
                             *chained_to,
@@ -435,21 +441,35 @@ impl ScanContext<'_> {
         true
     }
 
+    /// Given the [`SubPatternId`] associated to the last sub-pattern in a
+    /// chain, and a range where this sub-pattern matched, verifies that the
+    /// whole chain actually matches.
+    ///
+    /// The `tail_sub_pattern_id` argument must identify the last sub-pattern
+    /// in a chain. For example, if the chain is `S1 <- S2 <- S3`, this function
+    /// must receive the [`SubPatternId`] for `S3`, and a range where `S3`
+    /// matched. Then the function traverses the chain from the tail to the
+    /// head, making sure that each intermediate sub-pattern has unconfirmed
+    /// matches that has the correct distance between them, so that the whole
+    /// chain matches from head to tail.
+    ///
+    /// If the whole chain matches, the corresponding match is added to the
+    /// list of confirmed matches for pattern identified by `pattern_id`.
     fn verify_chain_of_matches(
         &mut self,
         pattern_id: PatternId,
-        sub_pattern_id: SubPatternId,
-        match_range: Range<usize>,
-    ) -> Option<Match> {
+        tail_sub_pattern_id: SubPatternId,
+        tail_match_range: Range<usize>,
+    ) {
         let mut queue = VecDeque::new();
 
-        queue.push_back((sub_pattern_id, match_range, 1));
+        queue.push_back((tail_sub_pattern_id, tail_match_range, 1));
 
         let mut tail_match_range: Option<Range<usize>> = None;
 
         while let Some((id, match_range, chain_length)) = queue.pop_front() {
             match &self.compiled_rules.get_sub_pattern(id).1 {
-                SubPattern::FixedChainHead { .. } => {
+                SubPattern::LiteralChainHead { .. } => {
                     // The chain head is reached and we know the range where
                     // the tail matches. This indicates that the whole chain is
                     // valid and we have a full match.
@@ -463,8 +483,11 @@ impl ScanContext<'_> {
                         );
                     }
                 }
-                SubPattern::FixedChainTail {
-                    chained_to, gap, flags, ..
+                SubPattern::LiteralChainTail {
+                    chained_to,
+                    gap,
+                    flags,
+                    ..
                 } => {
                     // Iterate over the list of unconfirmed matches of the
                     // sub-pattern that comes before in the chain. For example,
@@ -505,11 +528,12 @@ impl ScanContext<'_> {
                 _ => unreachable!(),
             };
         }
-
-        None
     }
 
-    fn verify_fixed_match(
+    /// Verifies that a literal sub-pattern actually matches at `match_start`.
+    ///
+    /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
+    fn verify_literal_match(
         &self,
         match_start: usize,
         pattern_id: LiteralId,
@@ -547,6 +571,10 @@ impl ScanContext<'_> {
         }
     }
 
+    /// Verifies that a literal sub-pattern actually matches at `match_start`
+    /// in XORed form.
+    ///
+    /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
     fn verify_xor_match(
         &self,
         match_start: usize,
@@ -593,6 +621,10 @@ impl ScanContext<'_> {
         }
     }
 
+    /// Verifies that a literal sub-pattern actually matches at `match_start`
+    /// in base64 form.
+    ///
+    /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
     fn verify_base64_match(
         &self,
         padding: usize,

@@ -707,7 +707,7 @@ impl<'a> Compiler<'a> {
                 ));
 
                 self.push_sub_pattern(
-                    SubPattern::Fixed {
+                    SubPattern::Literal {
                         pattern: pattern_lit_id,
                         flags: flags | SubPatternFlags::Nocase,
                     },
@@ -792,7 +792,7 @@ impl<'a> Compiler<'a> {
                 }
             } else {
                 self.push_sub_pattern(
-                    SubPattern::Fixed { pattern: pattern_lit_id, flags },
+                    SubPattern::Literal { pattern: pattern_lit_id, flags },
                     Box::new(iter::once(best_atom)),
                 );
             }
@@ -840,7 +840,7 @@ impl<'a> Compiler<'a> {
                 );
 
                 self.push_sub_pattern(
-                    SubPattern::Fixed {
+                    SubPattern::Literal {
                         pattern: pattern_lit_id,
                         flags: if wide {
                             flags | SubPatternFlags::Wide
@@ -953,7 +953,7 @@ impl<'a> Compiler<'a> {
                 self.intern_literal(literal.0.as_bytes(), wide);
 
             prev_sub_pattern_id = self.push_sub_pattern(
-                SubPattern::FixedChainHead {
+                SubPattern::LiteralChainHead {
                     pattern: pattern_lit_id,
                     flags: if full_word {
                         base_flags | SubPatternFlags::FullwordLeft
@@ -989,7 +989,7 @@ impl<'a> Compiler<'a> {
                     self.intern_literal(literal.0.as_bytes(), wide);
 
                 prev_sub_pattern_id = self.push_sub_pattern(
-                    SubPattern::FixedChainTail {
+                    SubPattern::LiteralChainTail {
                         chained_to: prev_sub_pattern_id,
                         gap: p.gap.clone(),
                         pattern: pattern_lit_id,
@@ -1362,17 +1362,17 @@ bitmask! {
 /// verifies that the sub-pattern actually matches.
 #[derive(Serialize, Deserialize)]
 pub(crate) enum SubPattern {
-    Fixed {
+    Literal {
         pattern: LiteralId,
         flags: SubPatternFlagSet,
     },
 
-    FixedChainHead {
+    LiteralChainHead {
         pattern: LiteralId,
         flags: SubPatternFlagSet,
     },
 
-    FixedChainTail {
+    LiteralChainTail {
         pattern: LiteralId,
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
