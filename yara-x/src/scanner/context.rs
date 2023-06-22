@@ -271,7 +271,6 @@ impl ScanContext<'_> {
                                     *pattern_id,
                                     matched_atom.sub_pattern_id,
                                     m.range,
-                                    *flags,
                                 );
                             } else {
                                 // This sub-pattern in in the middle of the
@@ -441,7 +440,6 @@ impl ScanContext<'_> {
         pattern_id: PatternId,
         sub_pattern_id: SubPatternId,
         match_range: Range<usize>,
-        flags: SubPatternFlagSet,
     ) -> Option<Match> {
         let mut queue = VecDeque::new();
 
@@ -456,20 +454,13 @@ impl ScanContext<'_> {
                     // the tail matches. This indicates that the whole chain is
                     // valid and we have a full match.
                     if let Some(tail_match_range) = &tail_match_range {
-                        if self.verify_full_word(
-                            match_range.start..tail_match_range.end,
-                            flags,
-                            None,
-                        ) {
-                            self.track_pattern_match(
-                                pattern_id,
-                                Match {
-                                    range: match_range.start
-                                        ..tail_match_range.end,
-                                    xor_key: None,
-                                },
-                            );
-                        }
+                        self.track_pattern_match(
+                            pattern_id,
+                            Match {
+                                range: match_range.start..tail_match_range.end,
+                                xor_key: None,
+                            },
+                        );
                     }
                 }
                 SubPattern::FixedChainTail {
