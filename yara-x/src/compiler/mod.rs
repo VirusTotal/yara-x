@@ -13,6 +13,7 @@ use std::{fmt, iter, u32};
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
+use bitmask::bitmask;
 use bstr::ByteSlice;
 use itertools::Itertools;
 use regex_syntax::hir;
@@ -646,6 +647,12 @@ impl<'a> Compiler<'a> {
         let mut main_patterns = Vec::new();
         let wide_pattern;
 
+        let mut flags = SubPatternFlagSet::none();
+
+        if pattern.flags.contains(PatternFlags::Fullword) {
+            flags.set(SubPatternFlags::Fullword)
+        }
+
         if pattern.flags.contains(PatternFlags::Wide) {
             wide_pattern = make_wide(pattern.text.as_bytes());
             main_patterns.push((
@@ -655,7 +662,7 @@ impl<'a> Compiler<'a> {
                     // For wide patterns let's use atoms twice large as usual.
                     DESIRED_ATOM_SIZE * 2,
                 ),
-                PatternFlags::Wide | (pattern.flags & PatternFlags::Fullword),
+                flags | SubPatternFlags::Wide,
             ));
         }
 
@@ -666,7 +673,7 @@ impl<'a> Compiler<'a> {
                     pattern.text.as_bytes(),
                     DESIRED_ATOM_SIZE,
                 ),
-                PatternFlags::Ascii | (pattern.flags & PatternFlags::Fullword),
+                flags | SubPatternFlags::Ascii,
             ));
         }
 
@@ -701,7 +708,7 @@ impl<'a> Compiler<'a> {
                 self.push_sub_pattern(
                     SubPattern::Fixed {
                         pattern: pattern_lit_id,
-                        flags: flags | PatternFlags::Nocase,
+                        flags: flags | SubPatternFlags::Nocase,
                     },
                     Box::new(CaseGenerator::new(&best_atom)),
                 );
@@ -825,7 +832,7 @@ impl<'a> Compiler<'a> {
                 self.push_sub_pattern(
                     SubPattern::Fixed {
                         pattern: pattern_lit_id,
-                        flags: pattern.flags,
+                        flags: SubPatternFlagSet::from(pattern.flags),
                     },
                     if case_insensitive {
                         Box::new(CaseGenerator::new(&best_atom))
@@ -918,7 +925,10 @@ impl<'a> Compiler<'a> {
                 self.intern_literal(literal.0.as_bytes(), wide);
 
             prev_sub_pattern_id = self.push_sub_pattern(
-                SubPattern::FixedChainHead { pattern: pattern_lit_id, flags },
+                SubPattern::FixedChainHead {
+                    pattern: pattern_lit_id,
+                    flags: SubPatternFlagSet::from(flags),
+                },
                 extract_atoms(
                     self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
                 ),
@@ -929,26 +939,20 @@ impl<'a> Compiler<'a> {
         }
 
         for (i, p) in trailing.iter().enumerate() {
-            let is_last = i == trailing.len() - 1;
+            let mut flags = SubPatternFlagSet::from(flags);
+            if i == trailing.len() - 1 {
+                flags.set(SubPatternFlags::LastInChain);
+            }
             if let hir::HirKind::Literal(literal) = p.hir.kind() {
                 let pattern_lit_id =
                     self.intern_literal(literal.0.as_bytes(), wide);
 
                 prev_sub_pattern_id = self.push_sub_pattern(
-                    if is_last {
-                        SubPattern::FixedChainTail {
-                            chained_to: prev_sub_pattern_id,
-                            gap: p.gap.clone(),
-                            pattern: pattern_lit_id,
-                            case_insensitive,
-                        }
-                    } else {
-                        SubPattern::FixedChainMiddle {
-                            chained_to: prev_sub_pattern_id,
-                            gap: p.gap.clone(),
-                            pattern: pattern_lit_id,
-                            case_insensitive,
-                        }
+                    SubPattern::FixedChainTail {
+                        chained_to: prev_sub_pattern_id,
+                        gap: p.gap.clone(),
+                        pattern: pattern_lit_id,
+                        flags,
                     },
                     extract_atoms(
                         self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
@@ -1294,6 +1298,45 @@ impl<'a> Iterator for Imports<'a> {
     }
 }
 
+bitmask! {
+    /// Flags associated to some kinds of [`SubPattern`].
+    #[derive(Debug, Serialize, Deserialize)]
+    pub mask SubPatternFlagSet: u8 where flags SubPatternFlags  {
+        Ascii                = 0x01,
+        Wide                 = 0x02,
+        Nocase               = 0x04,
+        Fullword             = 0x08,
+        LastInChain          = 0x10,
+    }
+}
+
+impl From<PatternFlagSet> for SubPatternFlagSet {
+    /// Creates a [`SubPatternFlagSet`] from a [`PatternFlagSet`].
+    ///
+    /// Only copies the bits that are
+    fn from(value: PatternFlagSet) -> Self {
+        let mut result = SubPatternFlagSet::none();
+
+        if value.contains(PatternFlags::Ascii) {
+            result.set(SubPatternFlags::Ascii)
+        }
+
+        if value.contains(PatternFlags::Wide) {
+            result.set(SubPatternFlags::Wide)
+        }
+
+        if value.contains(PatternFlags::Nocase) {
+            result.set(SubPatternFlags::Nocase)
+        }
+
+        if value.contains(PatternFlags::Fullword) {
+            result.set(SubPatternFlags::Fullword)
+        }
+
+        result
+    }
+}
+
 /// A sub-pattern in the compiled rules.
 ///
 /// Each pattern in a rule has one ore more associated sub-patterns. For
@@ -1307,31 +1350,24 @@ impl<'a> Iterator for Imports<'a> {
 pub(crate) enum SubPattern {
     Fixed {
         pattern: LiteralId,
-        flags: PatternFlagSet,
+        flags: SubPatternFlagSet,
     },
 
     FixedChainHead {
         pattern: LiteralId,
-        flags: PatternFlagSet,
-    },
-
-    FixedChainMiddle {
-        pattern: LiteralId,
-        chained_to: SubPatternId,
-        gap: RangeInclusive<u32>,
-        case_insensitive: bool,
+        flags: SubPatternFlagSet,
     },
 
     FixedChainTail {
         pattern: LiteralId,
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
-        case_insensitive: bool,
+        flags: SubPatternFlagSet,
     },
 
     Xor {
         pattern: LiteralId,
-        flags: PatternFlagSet,
+        flags: SubPatternFlagSet,
     },
 
     Base64 {

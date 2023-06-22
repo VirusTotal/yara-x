@@ -1,6 +1,9 @@
 use pretty_assertions::assert_eq;
+use std::mem::size_of;
 
-use crate::compiler::{SerializationError, Var, VarStack, VariableError};
+use crate::compiler::{
+    SerializationError, SubPattern, Var, VarStack, VariableError,
+};
 use crate::types::Type;
 use crate::{compile, Compiler, Rules, Scanner};
 
@@ -28,6 +31,8 @@ fn serialization() {
 
     let mut scanner = Scanner::new(&rules);
     assert_eq!(scanner.scan(b"foo").matching_rules().len(), 1);
+
+    assert_eq!(size_of::<SubPattern>(), 24);
 }
 
 #[test]

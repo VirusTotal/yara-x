@@ -13,8 +13,8 @@ use rustc_hash::FxHashMap;
 use wasmtime::Store;
 
 use crate::compiler::{
-    AtomInfo, LiteralId, NamespaceId, PatternFlagSet, PatternFlags, PatternId,
-    RegexpId, RuleId, Rules, SubPattern, SubPatternId,
+    AtomInfo, LiteralId, NamespaceId, PatternId, RegexpId, RuleId, Rules,
+    SubPattern, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
 use crate::scanner::matches::{MatchList, UnconfirmedMatch};
 use crate::scanner::RuntimeStringId;
@@ -225,7 +225,7 @@ impl ScanContext<'_> {
                     if let Some(verified_match) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        flags.contains(PatternFlags::Nocase),
+                        flags.contains(SubPatternFlags::Nocase),
                     ) {
                         if self.verify_full_word(
                             verified_match.range.clone(),
@@ -244,7 +244,7 @@ impl ScanContext<'_> {
                     if let Some(m) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        flags.contains(PatternFlags::Nocase),
+                        flags.contains(SubPatternFlags::Nocase),
                     ) {
                         // This is the head of a set of chained sub-patterns.
                         // Verifying that the head matches doesn't mean that
@@ -261,72 +261,45 @@ impl ScanContext<'_> {
                     }
                 }
 
-                SubPattern::FixedChainMiddle {
-                    pattern,
-                    chained_to,
-                    gap,
-                    case_insensitive,
-                } => {
-                    if let Some(m) = self.verify_fixed_match(
-                        match_start,
-                        *pattern,
-                        *case_insensitive,
-                    ) {
-                        // This is some sub-pattern in the middle of a chain.
-                        // After verifying that the sub-pattern matches we need
-                        // to make sure that matches at a correct offset
-                        // relative to the end of the previous sub-pattern in
-                        // the chain. If this sub-pattern is too close, or too
-                        // far from the previous one, this is not a match.
-                        if self.within_valid_distance(
-                            matched_atom.sub_pattern_id,
-                            *chained_to,
-                            match_start,
-                            gap,
-                        ) {
-                            // Even if the sub-pattern was found at the correct
-                            // distance from the previous one this is not a
-                            // confirmed match. We need to find the sub-patterns
-                            // that follow in the chain.
-                            self.unconfirmed_matches
-                                .entry(matched_atom.sub_pattern_id)
-                                .or_default()
-                                .push_back(UnconfirmedMatch {
-                                    range: m.range.clone(),
-                                    chain_length: 0,
-                                });
-                        }
-                    }
-                }
-
                 SubPattern::FixedChainTail {
                     pattern,
                     chained_to,
                     gap,
-                    case_insensitive,
+                    flags,
                 } => {
                     if let Some(m) = self.verify_fixed_match(
                         match_start,
                         *pattern,
-                        *case_insensitive,
+                        flags.contains(SubPatternFlags::Nocase),
                     ) {
-                        // This sub-pattern is the tail of a chain. This case
-                        // is similar to `FixedChainMiddle`, the difference is
-                        // that once we validate that the sub-pattern matched
-                        // at the correct distance relative to the previous one
-                        // in the chain, we can proceed to verify the whole
-                        // chain and determine if the chain matched or not.
                         if self.within_valid_distance(
                             matched_atom.sub_pattern_id,
                             *chained_to,
                             m.range.start,
                             gap,
                         ) {
-                            self.verify_chain_of_matches(
-                                *pattern_id,
-                                matched_atom.sub_pattern_id,
-                                m.range,
-                            );
+                            if flags.contains(SubPatternFlags::LastInChain) {
+                                // This sub-pattern is the last one in the
+                                // chain. We can proceed to verify the whole
+                                // chain and determine if it matched or not.
+                                self.verify_chain_of_matches(
+                                    *pattern_id,
+                                    matched_atom.sub_pattern_id,
+                                    m.range,
+                                );
+                            } else {
+                                // This sub-pattern in in the middle of the
+                                // chain. We need to find the sub-patterns that
+                                // follow, so for the time being this only an
+                                // unconfirmed match.
+                                self.unconfirmed_matches
+                                    .entry(matched_atom.sub_pattern_id)
+                                    .or_default()
+                                    .push_back(UnconfirmedMatch {
+                                        range: m.range.clone(),
+                                        chain_length: 0,
+                                    });
+                            }
                         }
                     }
                 }
@@ -441,17 +414,17 @@ impl ScanContext<'_> {
     fn verify_full_word(
         &self,
         match_range: Range<usize>,
-        flags: PatternFlagSet,
+        flags: SubPatternFlagSet,
         xor_key: Option<u8>,
     ) -> bool {
         let data = self.scanned_data();
         let xor_key = xor_key.unwrap_or(0);
 
-        if !flags.contains(PatternFlags::Fullword) {
+        if !flags.contains(SubPatternFlags::Fullword) {
             return true;
         }
 
-        if flags.contains(PatternFlags::Wide) {
+        if flags.contains(SubPatternFlags::Wide) {
             if match_range.start >= 2
                 && (data[match_range.start - 1] ^ xor_key) == 0
                 && (data[match_range.start - 2] ^ xor_key)
@@ -466,7 +439,7 @@ impl ScanContext<'_> {
             {
                 return false;
             }
-        } else if flags.contains(PatternFlags::Ascii) {
+        } else if flags.contains(SubPatternFlags::Ascii) {
             if match_range.start >= 1
                 && (data[match_range.start - 1] ^ xor_key)
                     .is_ascii_alphanumeric()
@@ -514,12 +487,9 @@ impl ScanContext<'_> {
                         );
                     }
                 }
-                p @ (SubPattern::FixedChainMiddle {
-                    chained_to, gap, ..
-                }
-                | SubPattern::FixedChainTail {
-                    chained_to, gap, ..
-                }) => {
+                SubPattern::FixedChainTail {
+                    chained_to, gap, flags, ..
+                } => {
                     // Iterate over the list of unconfirmed matches of the
                     // sub-pattern that comes before in the chain. For example,
                     // if the chain is P1 <- P2 and we just found a match for
@@ -549,7 +519,7 @@ impl ScanContext<'_> {
                         }
                     }
 
-                    if matches!(p, SubPattern::FixedChainTail { .. }) {
+                    if flags.contains(SubPatternFlags::LastInChain) {
                         // Take note of the range where the tail matched. This
                         // is reached only when this function is called with a
                         // sub-pattern ID that corresponds to chain tail.
