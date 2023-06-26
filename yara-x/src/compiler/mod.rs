@@ -440,10 +440,9 @@ impl<'a> Compiler<'a> {
             .expect("failed to serialize global variables");
 
         Rules {
-            wasm_mod,
             serialized_globals,
+            wasm_mod: compiled_wasm_mod,
             ac: Some(ac),
-            compiled_wasm_mod: Some(compiled_wasm_mod),
             num_patterns: self.next_pattern_id as usize,
             ident_pool: self.ident_pool,
             regexp_pool: self.regexp_pool,

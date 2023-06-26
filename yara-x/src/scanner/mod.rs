@@ -153,10 +153,7 @@ impl<'r> Scanner<'r> {
                 main_memory,
             )
             .unwrap()
-            .instantiate(
-                wasm_store.as_context_mut(),
-                rules.compiled_wasm_mod(),
-            )
+            .instantiate(wasm_store.as_context_mut(), rules.wasm_mod())
             .unwrap();
 
         // Obtain a reference to the "main" function exported by the module.

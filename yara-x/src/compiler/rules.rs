@@ -3,7 +3,7 @@ use std::io::{BufWriter, Write};
 use aho_corasick::AhoCorasick;
 use bincode::Options;
 use regex::bytes::{Regex, RegexBuilder};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use yara_x_parser::ast::Span;
 
@@ -37,12 +37,12 @@ pub struct Rules {
     /// string as `&BStr`.
     pub(in crate::compiler) lit_pool: BStringPool<LiteralId>,
 
-    /// Raw data for the WASM module containing the code for rule conditions.
-    pub(in crate::compiler) wasm_mod: Vec<u8>,
-
     /// WASM module already compiled into native code for the current platform.
-    #[serde(skip)]
-    pub(in crate::compiler) compiled_wasm_mod: Option<wasmtime::Module>,
+    #[serde(
+        serialize_with = "serialize_wasm_mod",
+        deserialize_with = "deserialize_wasm_mod"
+    )]
+    pub(in crate::compiler) wasm_mod: wasmtime::Module,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -111,15 +111,6 @@ impl Rules {
         rules.ac = Some(
             AhoCorasick::new(rules.atoms.iter().map(|x| &x.atom))
                 .expect("failed to build Aho-Corasick automaton"),
-        );
-
-        // The WASM module must be compiled for the current platform.
-        rules.compiled_wasm_mod = Some(
-            wasmtime::Module::from_binary(
-                &crate::wasm::ENGINE,
-                rules.wasm_mod.as_slice(),
-            )
-            .expect("WASM module is not valid"),
         );
 
         Ok(rules)
@@ -235,8 +226,36 @@ impl Rules {
     }
 
     #[inline]
-    pub(crate) fn compiled_wasm_mod(&self) -> &wasmtime::Module {
-        self.compiled_wasm_mod.as_ref().expect("WASM module not compiled")
+    pub(crate) fn wasm_mod(&self) -> &wasmtime::Module {
+        &self.wasm_mod
+    }
+}
+
+fn serialize_wasm_mod<S>(
+    wasm_mod: &wasmtime::Module,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let bytes = wasm_mod
+        .serialize()
+        .map_err(|err| serde::ser::Error::custom(err.to_string()))?;
+
+    serializer.serialize_bytes(bytes.as_slice())
+}
+
+pub fn deserialize_wasm_mod<'de, D>(
+    deserializer: D,
+) -> Result<wasmtime::Module, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let bytes: &[u8] = Deserialize::deserialize(deserializer)?;
+
+    unsafe {
+        wasmtime::Module::deserialize(&crate::wasm::ENGINE, bytes)
+            .map_err(|err| serde::de::Error::custom(err.to_string()))
     }
 }
 
