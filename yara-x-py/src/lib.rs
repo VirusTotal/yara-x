@@ -239,7 +239,8 @@ impl Rules {
     #[pyo3(signature = (data))]
     fn scan(&self, data: &[u8]) -> Py<PyTuple> {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
-        let matches = scanner.scan(data).matching_rules();
+        let scan_results = scanner.scan(data);
+        let matches = scan_results.matching_rules();
 
         Python::with_gil(|py| {
             PyTuple::new(

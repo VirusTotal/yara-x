@@ -52,16 +52,23 @@ fn matches() {
     .unwrap();
 
     let mut matches = vec![];
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"foobar");
 
-    for matching_rules in Scanner::new(&rules).scan(b"foobar") {
+    for matching_rules in results.matching_rules() {
         for pattern in matching_rules.patterns() {
             matches.extend(
-                pattern.matches().map(|x| (pattern.identifier(), x.range)),
+                pattern
+                    .matches()
+                    .map(|x| (pattern.identifier(), x.range, x.data)),
             )
         }
     }
 
-    assert_eq!(matches, [("$a", 0..6), ("$b", 3..6)])
+    assert_eq!(
+        matches,
+        [("$a", 0..6, b"foobar".as_slice()), ("$b", 3..6, b"bar".as_slice())]
+    )
 }
 
 #[test]
@@ -80,7 +87,9 @@ fn xor_matches() {
 
     let mut matches = vec![];
 
-    for matching_rules in Scanner::new(&rules).scan(b"lhrrhrrhqqh") {
+    for matching_rules in
+        Scanner::new(&rules).scan(b"lhrrhrrhqqh").matching_rules()
+    {
         for pattern in matching_rules.patterns() {
             matches.extend(
                 pattern

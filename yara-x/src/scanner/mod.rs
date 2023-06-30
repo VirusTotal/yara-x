@@ -5,7 +5,7 @@ The scanner takes the rules produces by the compiler and scans data with them.
 
 use std::fs;
 use std::io::Read;
-use std::ops::Deref;
+use std::ops::{Deref, Range};
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::ptr::{null, NonNull};
@@ -44,6 +44,22 @@ pub enum ScanError {
     OpenError { path: PathBuf, source: std::io::Error },
     #[error("can not map `{path}`: {source}")]
     MapError { path: PathBuf, source: fmmap::error::Error },
+}
+
+enum ScannedData<'a> {
+    Slice(&'a [u8]),
+    Vec(Vec<u8>),
+    Mmap(MmapFile),
+}
+
+impl<'a> AsRef<[u8]> for ScannedData<'a> {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            ScannedData::Slice(s) => s,
+            ScannedData::Vec(v) => v.as_ref(),
+            ScannedData::Mmap(m) => m.as_slice(),
+        }
+    }
 }
 
 /// Scans data with already compiled YARA rules.
@@ -167,10 +183,10 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans a file.
-    pub fn scan_file<'s, P>(
-        &'s mut self,
+    pub fn scan_file<'a, P>(
+        &'a mut self,
         path: P,
-    ) -> Result<ScanResults<'s, 'r>, ScanError>
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
     where
         P: AsRef<Path>,
     {
@@ -192,19 +208,27 @@ impl<'r> Scanner<'r> {
             file.read_to_end(&mut buffered_file).map_err(|err| {
                 ScanError::OpenError { path: path.to_path_buf(), source: err }
             })?;
-            buffered_file.as_slice()
+            ScannedData::Vec(buffered_file)
         } else {
             mapped_file = MmapFile::open(path).map_err(|err| {
                 ScanError::MapError { path: path.to_path_buf(), source: err }
             })?;
-            mapped_file.as_slice()
+            ScannedData::Mmap(mapped_file)
         };
 
-        Ok(self.scan(data))
+        self.scan_impl(data.as_ref());
+
+        Ok(ScanResults::new(self.wasm_store.data(), data))
     }
 
     /// Scans in-memory data.
-    pub fn scan<'s>(&'s mut self, data: &[u8]) -> ScanResults<'s, 'r> {
+    pub fn scan<'a>(&'a mut self, data: &'a [u8]) -> ScanResults<'a, 'r> {
+        let data = ScannedData::Slice(data);
+        self.scan_impl(data.as_ref());
+        ScanResults::new(self.wasm_store.data(), data)
+    }
+
+    fn scan_impl(&mut self, data: &[u8]) {
         // Clear information about matches found in a previous scan, if any.
         self.clear_matches();
 
@@ -319,8 +343,6 @@ impl<'r> Scanner<'r> {
         for rules in ctx.global_rules_matching.values_mut() {
             ctx.rules_matching.append(rules)
         }
-
-        ScanResults::new(ctx)
     }
 
     /// Sets the value of a global variable.
@@ -411,80 +433,54 @@ impl<'r> Scanner<'r> {
 
 /// Results of a scan operation.
 ///
-/// Allows iterating over both the matching and non-matching rules. For better
-/// ergonomics it implements the [`IntoIterator`] trait, which allows iterating
-/// over the matching rules in a `for` loop like shown below.
-///
-/// ```rust
-/// # use yara_x;
-/// let rules = yara_x::compile(
-///     r#"rule test {
-///         strings:
-///            $a = "foo"
-///         condition:
-///            $a
-///     }"#,
-/// ).unwrap();
-///
-/// for matching_rule in yara_x::Scanner::new(&rules).scan(b"foobar") {
-///     // do something with the matching rule ...
-/// }
-/// ```
-pub struct ScanResults<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
+/// Allows iterating over both the matching and non-matching rules.
+pub struct ScanResults<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    data: ScannedData<'a>,
 }
 
-impl<'s, 'r> ScanResults<'s, 'r> {
-    fn new(ctx: &'s ScanContext<'r>) -> Self {
-        Self { ctx }
+impl<'a, 'r> ScanResults<'a, 'r> {
+    fn new(ctx: &'a ScanContext<'r>, data: ScannedData<'a>) -> Self {
+        Self { ctx, data }
     }
 
     /// Returns an iterator that yields the matching rules in arbitrary order.
-    pub fn matching_rules(&self) -> MatchingRules<'s, 'r> {
-        MatchingRules::new(self.ctx)
+    pub fn matching_rules(&'a self) -> MatchingRules<'a, 'r> {
+        MatchingRules::new(self.ctx, &self.data)
     }
 
     /// Returns an iterator that yields the non-matching rules in arbitrary order.
-    pub fn non_matching_rules(&self) -> NonMatchingRules<'s, 'r> {
-        NonMatchingRules::new(self.ctx)
-    }
-}
-
-impl<'s, 'r> IntoIterator for ScanResults<'s, 'r> {
-    type Item = Rule<'s, 'r>;
-    type IntoIter = MatchingRules<'s, 'r>;
-
-    /// Consumes the scan results and returns a [`MatchingRules`] iterator.
-    fn into_iter(self) -> Self::IntoIter {
-        self.matching_rules()
+    pub fn non_matching_rules(&'a self) -> NonMatchingRules<'a, 'r> {
+        NonMatchingRules::new(self.ctx, &self.data)
     }
 }
 
 /// Iterator that yields the rules that matched during a scan.
-pub struct MatchingRules<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
-    iterator: Iter<'s, RuleId>,
+pub struct MatchingRules<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    data: &'a ScannedData<'a>,
+    iterator: Iter<'a, RuleId>,
 }
 
-impl<'s, 'r> MatchingRules<'s, 'r> {
-    fn new(ctx: &'s ScanContext<'r>) -> Self {
-        Self { ctx, iterator: ctx.rules_matching.iter() }
+impl<'a, 'r> MatchingRules<'a, 'r> {
+    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
+        Self { ctx, data, iterator: ctx.rules_matching.iter() }
     }
 }
 
-impl<'s, 'r> Iterator for MatchingRules<'s, 'r> {
-    type Item = Rule<'s, 'r>;
+impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
+    type Item = Rule<'a, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let rule_id = *self.iterator.next()?;
         let rules = self.ctx.compiled_rules;
         let rule_info = rules.get(rule_id);
 
-        Some(Rule { rule_info, rules, ctx: self.ctx })
+        Some(Rule { rule_info, rules, ctx: self.ctx, data: self.data })
     }
 }
 
-impl<'s, 'r> ExactSizeIterator for MatchingRules<'s, 'r> {
+impl<'a, 'r> ExactSizeIterator for MatchingRules<'a, 'r> {
     #[inline]
     fn len(&self) -> usize {
         self.iterator.len()
@@ -492,14 +488,15 @@ impl<'s, 'r> ExactSizeIterator for MatchingRules<'s, 'r> {
 }
 
 /// Iterator that yields the rules that didn't match during a scan.
-pub struct NonMatchingRules<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
-    iterator: bitvec::slice::IterZeros<'s, u8, Lsb0>,
+pub struct NonMatchingRules<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    data: &'a ScannedData<'a>,
+    iterator: bitvec::slice::IterZeros<'a, u8, Lsb0>,
     len: usize,
 }
 
-impl<'s, 'r> NonMatchingRules<'s, 'r> {
-    fn new(ctx: &'s ScanContext<'r>) -> Self {
+impl<'a, 'r> NonMatchingRules<'a, 'r> {
+    fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
         let num_rules = ctx.compiled_rules.rules().len();
         let main_memory =
             ctx.main_memory.unwrap().data(unsafe { ctx.wasm_store.as_ref() });
@@ -520,6 +517,7 @@ impl<'s, 'r> NonMatchingRules<'s, 'r> {
 
         Self {
             ctx,
+            data,
             iterator: matching_rules_bitmap.iter_zeros(),
             // The number of non-matching rules is the total minus the number of
             // matching rules.
@@ -528,8 +526,8 @@ impl<'s, 'r> NonMatchingRules<'s, 'r> {
     }
 }
 
-impl<'s, 'r> Iterator for NonMatchingRules<'s, 'r> {
-    type Item = Rule<'s, 'r>;
+impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
+    type Item = Rule<'a, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.len = self.len.saturating_sub(1);
@@ -537,11 +535,11 @@ impl<'s, 'r> Iterator for NonMatchingRules<'s, 'r> {
         let rules = self.ctx.compiled_rules;
         let rule_info = rules.get(rule_id);
 
-        Some(Rule { rule_info, rules, ctx: self.ctx })
+        Some(Rule { rule_info, rules, ctx: self.ctx, data: self.data })
     }
 }
 
-impl<'s, 'r> ExactSizeIterator for NonMatchingRules<'s, 'r> {
+impl<'a, 'r> ExactSizeIterator for NonMatchingRules<'a, 'r> {
     #[inline]
     fn len(&self) -> usize {
         self.len
@@ -549,13 +547,14 @@ impl<'s, 'r> ExactSizeIterator for NonMatchingRules<'s, 'r> {
 }
 
 /// A structure that describes a rule.
-pub struct Rule<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
+pub struct Rule<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    data: &'a ScannedData<'a>,
     pub(crate) rules: &'r Rules,
     pub(crate) rule_info: &'r RuleInfo,
 }
 
-impl<'s, 'r> Rule<'s, 'r> {
+impl<'a, 'r> Rule<'a, 'r> {
     /// Returns the rule's name.
     pub fn name(&self) -> &str {
         self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
@@ -567,24 +566,30 @@ impl<'s, 'r> Rule<'s, 'r> {
     }
 
     /// Returns the patterns defined by this rule.
-    pub fn patterns(&self) -> Patterns<'s, 'r> {
-        Patterns { ctx: self.ctx, iterator: self.rule_info.patterns.iter() }
+    pub fn patterns(&self) -> Patterns<'a, 'r> {
+        Patterns {
+            ctx: self.ctx,
+            data: self.data,
+            iterator: self.rule_info.patterns.iter(),
+        }
     }
 }
 
 /// An iterator that returns the patterns defined by a rule.
-pub struct Patterns<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
-    iterator: Iter<'s, (IdentId, PatternId)>,
+pub struct Patterns<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    data: &'a ScannedData<'a>,
+    iterator: Iter<'a, (IdentId, PatternId)>,
 }
 
-impl<'s, 'r> Iterator for Patterns<'s, 'r> {
-    type Item = Pattern<'s, 'r>;
+impl<'a, 'r> Iterator for Patterns<'a, 'r> {
+    type Item = Pattern<'a, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (ident_id, pattern_id) = self.iterator.next()?;
         Some(Pattern {
             ctx: self.ctx,
+            data: self.data,
             pattern_id: *pattern_id,
             ident_id: *ident_id,
         })
@@ -592,21 +597,23 @@ impl<'s, 'r> Iterator for Patterns<'s, 'r> {
 }
 
 /// Represents a pattern defined by a rule.
-pub struct Pattern<'s, 'r> {
-    ctx: &'s ScanContext<'r>,
+pub struct Pattern<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    data: &'a ScannedData<'a>,
     pattern_id: PatternId,
     ident_id: IdentId,
 }
 
-impl<'r> Pattern<'_, 'r> {
+impl<'a, 'r> Pattern<'a, 'r> {
     /// Returns the pattern's identifier (e.g: $a, $b).
     pub fn identifier(&self) -> &'r str {
         self.ctx.compiled_rules.ident_pool().get(self.ident_id).unwrap()
     }
 
     /// Returns the matches found for this pattern.
-    pub fn matches(&self) -> Matches {
+    pub fn matches(&self) -> Matches<'a> {
         Matches {
+            data: self.data,
             iterator: self
                 .ctx
                 .pattern_matches
@@ -618,20 +625,37 @@ impl<'r> Pattern<'_, 'r> {
 
 /// Iterator that returns the matches for a pattern.
 pub struct Matches<'a> {
-    iterator: Option<Iter<'a, Match>>,
+    data: &'a ScannedData<'a>,
+    iterator: Option<Iter<'a, matches::Match>>,
 }
 
-impl Iterator for Matches<'_> {
-    type Item = Match;
+impl<'a> Iterator for Matches<'a> {
+    type Item = Match<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(iter) = &mut self.iterator {
-            let next = iter.next()?;
-            Some(next.clone())
+            let match_ = iter.next()?;
+            Some(Match {
+                range: match_.range.clone(),
+                data: &self.data.as_ref()
+                    [match_.range.start..match_.range.end],
+                xor_key: match_.xor_key,
+            })
         } else {
             None
         }
     }
+}
+
+/// Represents a match.
+pub struct Match<'a> {
+    /// Range within the original data where the match occurred.
+    pub range: Range<usize>,
+    /// Slice containing the data that matched.
+    pub data: &'a [u8],
+    /// XOR key used for decrypting the data if the pattern had the `xor`
+    /// modifier, or `None` if otherwise.
+    pub xor_key: Option<u8>,
 }
 
 pub(crate) type RuntimeStringId = u32;

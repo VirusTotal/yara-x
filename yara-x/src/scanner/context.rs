@@ -16,12 +16,11 @@ use crate::compiler::{
     AtomInfo, LiteralId, NamespaceId, PatternId, RegexpId, RuleId, Rules,
     SubPattern, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
-use crate::scanner::matches::{MatchList, UnconfirmedMatch};
+use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
 use crate::scanner::RuntimeStringId;
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::Match;
 
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r> {
