@@ -27,6 +27,7 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(PathBuf)),
         )
         .arg(arg!(-e - -"print-namespace").help("Print rule namespace"))
+        .arg(arg!(-s - -"print-strings").help("Print matching patterns"))
         .arg(arg!(-n - -"negate").help("Print non-satisfied rules only"))
         .arg(
             arg!(--"path-as-namespace")
@@ -51,6 +52,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let path = args.get_one::<PathBuf>("PATH").unwrap();
     let num_threads = args.get_one::<u8>("threads");
     let print_namespace = args.get_flag("print-namespace");
+    let print_strings = args.get_flag("print-strings");
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
@@ -118,18 +120,22 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                             file_path.display()
                         )
                     };
+
                     output.send(Message::Info(line)).unwrap();
 
-                    for p in matching_rule.patterns() {
-                        for m in p.matches() {
-                            output
-                                .send(Message::Info(format!(
-                                    "{:#x}:{}:{}:",
-                                    m.range.start,
-                                    m.range.len(),
-                                    p.identifier(),
-                                )))
-                                .unwrap();
+                    if print_strings {
+                        for p in matching_rule.patterns() {
+                            for m in p.matches() {
+                                output
+                                    .send(Message::Info(format!(
+                                        "{:#x}:{}:{}: {:02X?}",
+                                        m.range.start,
+                                        m.range.len(),
+                                        p.identifier(),
+                                        m.data,
+                                    )))
+                                    .unwrap();
+                            }
                         }
                     }
                 }
