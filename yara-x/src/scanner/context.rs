@@ -597,7 +597,7 @@ impl ScanContext<'_> {
         // The atom that matched is the result of XORing the pattern with some
         // key. The key can be obtained by XORing some byte in the atom with
         // the corresponding byte in the pattern.
-        let key = matched_atom.atom.as_ref()[0]
+        let key = matched_atom.atom.as_slice()[0]
             ^ pattern[matched_atom.atom.backtrack as usize];
 
         if !self.verify_full_word(match_start..match_end, flags, Some(key)) {

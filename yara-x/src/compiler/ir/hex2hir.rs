@@ -1,6 +1,6 @@
 /*! Functions for converting a hex pattern AST into a HIR. */
 
-use crate::compiler::atoms;
+use crate::compiler::ir::utils::hex_byte_to_class;
 use regex_syntax::hir;
 use yara_x_parser::ast;
 
@@ -64,15 +64,7 @@ fn hex_byte_hir_from_ast(byte: &ast::HexByte) -> hir::Hir {
     match byte.mask {
         0xff => hir::Hir::literal([byte.value]),
         0x00 => hir::Hir::dot(hir::Dot::AnyByte),
-        _ => {
-            let mut class = hir::ClassBytes::empty();
-
-            for b in atoms::ByteMaskCombinator::new(byte.value, byte.mask) {
-                class.push(hir::ClassBytesRange::new(b, b));
-            }
-
-            hir::Hir::class(hir::Class::Bytes(class))
-        }
+        _ => hir::Hir::class(hir::Class::Bytes(hex_byte_to_class(*byte))),
     }
 }
 

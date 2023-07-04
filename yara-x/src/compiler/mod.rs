@@ -28,10 +28,6 @@ use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
 
 use crate::compiler::atoms::base64::base64_patterns;
-use crate::compiler::atoms::{
-    best_atom_from_slice, make_wide, Atom, CaseGenerator, XorGenerator,
-    DESIRED_ATOM_SIZE,
-};
 use crate::compiler::emit::emit_rule_condition;
 use crate::compiler::ir::{split_at_large_gaps, TrailingPattern};
 use crate::compiler::{Context, VarStack};
@@ -46,6 +42,7 @@ use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::{WasmSymbols, WASM_EXPORTS};
 
+pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
 pub(crate) use crate::compiler::ir::*;
 
@@ -421,8 +418,9 @@ impl<'a> Compiler<'a> {
 
         // Build the Aho-Corasick automaton used while searching for the atoms
         // in the scanned data.
-        let ac = AhoCorasick::new(self.atoms.iter().map(|x| &x.atom))
-            .expect("failed to build Aho-Corasick automaton");
+        let ac =
+            AhoCorasick::new(self.atoms.iter().map(|x| x.atom.as_slice()))
+                .expect("failed to build Aho-Corasick automaton");
 
         // The structure that contains the global variables is serialized before
         // being passed to the `Rules` struct. This is because we want `Rules`

@@ -448,6 +448,10 @@ fn regexp_patterns() {
     pattern_true!(r#"/foo|bar|baz/"#, b"bar");
     pattern_true!(r#"/foo|bar|baz/"#, b"baz");
 
+    // TODO: this should be equivalent to /foo|bar|baz/, and should be
+    // interpreted as an alternation of literals.
+    //pattern_true!(r#"/(foo|bar|baz)/"#, b"foo");
+
     pattern_true!(r#"/foo|bar|baz/ wide"#, b"f\x00o\x00o\x00");
     pattern_true!(r#"/foo|bar|baz/ wide"#, b"\x00b\x00a\x00r\x00");
     pattern_true!(r#"/foo|bar|baz/ wide"#, b"b\x00a\x00z\x00");

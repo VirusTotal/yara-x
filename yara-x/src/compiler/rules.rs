@@ -109,7 +109,7 @@ impl Rules {
 
         // The Aho-Corasick automaton is not serialized, it must be rebuilt.
         rules.ac = Some(
-            AhoCorasick::new(rules.atoms.iter().map(|x| &x.atom))
+            AhoCorasick::new(rules.atoms.iter().map(|x| x.atom.as_slice()))
                 .expect("failed to build Aho-Corasick automaton"),
         );
 
