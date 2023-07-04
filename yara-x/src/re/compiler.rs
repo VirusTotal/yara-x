@@ -18,10 +18,10 @@ use crate::re::instr::{Instr, InstrSeq, NumAlternatives};
 use crate::{compiler, re};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default)]
-struct Location {
-    fwd: u64,
-    bck_seq_id: u64,
-    bck: u64,
+pub(crate) struct Location {
+    pub fwd: u64,
+    pub bck_seq_id: u64,
+    pub bck: u64,
 }
 
 impl Location {
@@ -37,32 +37,48 @@ impl Location {
     }
 }
 
-struct Offset {
+pub(crate) struct Offset {
     fwd: re::instr::Offset,
     bck: re::instr::Offset,
 }
 
 #[derive(Eq, PartialEq, Debug)]
-struct RegexpAtom {
-    atom: Atom,
-    code_loc: Location,
+pub(crate) struct RegexpAtom {
+    pub atom: Atom,
+    pub code_loc: Location,
 }
 
 /// Compiles a regular expression.
-struct Compiler {
+#[derive(Default)]
+pub(crate) struct Compiler {
+    /// Code for the Pike VM that matches the regexp left-to-right.
     forward_code: InstrSeq,
+
+    /// Code for the Pike VM that matches the regexp right-to-left.
     backward_code: InstrSeq,
+
+    /// Stack that stores the locations that the compiler needs to remember.
+    /// For example, when some instruction that jumps forward in the code is
+    /// emitted, the destination address is not yet known. The compiler needs
+    /// to save the jump's address in order to patch the instruction and adjust
+    /// the destination address once its known.
     bookmarks: Vec<Location>,
+
+    /// Best atoms found so far. This is a stack where each entry is a list of
+    /// atoms. Each entry also has an `i32` that indicates the quality of the
+    /// list of atoms, which corresponds to the quality of the lowest quality
+    /// atom in the list.
     best_atoms: Vec<(i32, Vec<RegexpAtom>)>,
 
     /// When writing the backward code for a `HirKind::Concat` node we can't
     /// simply write the code directly to `backward_code` because the children
     /// of `Concat` are visited left-to-right, and we need them right-to-left.
-    /// Instead, the code produced by each child of `Concat` are stored in
-    /// temporary instruction streams, and once all the children are processed
-    /// the final code is written into `backward_code` by copying the temporary
-    /// streams one by one in reverse order. Each of these temporary streams
-    /// is called a chunk, and they are stored in this stack of chunks.
+    /// Instead, the code produced by each child of `Concat` is stored in a
+    /// temporary [`InstrSeq`], and once all the children are processed the
+    /// final code is written into `backward_code` by copying the temporary
+    /// [`InstrSeq`]s one by one in reverse order. Each of these temporary
+    /// [`InstrSeq`] is called a chunk, and they are stored in this stack of
+    /// chunks.
     backward_code_chunks: Vec<InstrSeq>,
 
     /// Literal extractor.
@@ -184,6 +200,9 @@ impl hir::Visitor for &mut Compiler {
         match hir.kind() {
             HirKind::Literal(_) => {}
             HirKind::Class(_) => {}
+            HirKind::Capture(_) => {
+                self.bookmarks.push(self.location());
+            }
             HirKind::Concat(_) => {
                 self.bookmarks.push(self.location());
 
@@ -241,7 +260,7 @@ impl hir::Visitor for &mut Compiler {
                     _ => {}
                 }
             }
-            _ => unreachable!(),
+            kind @ _ => unreachable!("{:?}", kind),
         }
 
         Ok(())
@@ -251,6 +270,9 @@ impl hir::Visitor for &mut Compiler {
         let mut loc;
 
         match hir.kind() {
+            HirKind::Capture(_) => {
+                loc = self.bookmarks.pop().unwrap();
+            }
             HirKind::Literal(literal) => {
                 loc = self.emit_literal(literal);
                 // TODO: replace with function that returns the length of the
@@ -472,314 +494,5 @@ impl hir::Visitor for &mut Compiler {
             .push(InstrSeq::new(self.backward_code().seq_id() + 1));
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::compiler::{hex_byte_to_class, Atom};
-    use crate::re::compiler::{Compiler, Location, RegexpAtom};
-    use pretty_assertions::assert_eq;
-    use regex_syntax::hir::{Class, Dot, Hir, Repetition};
-    use yara_x_parser::ast::HexByte;
-
-    #[test]
-    fn re_code_1() {
-        let (forward_code, backward_code, atoms) =
-            Compiler::new().compile(&Hir::concat(vec![
-                // Input
-                Hir::literal([0x01]),
-                Hir::repetition(Repetition {
-                    min: 0,
-                    max: None,
-                    greedy: true,
-                    sub: Box::new(Hir::concat(vec![
-                        Hir::literal([0x11, 0x12]),
-                        Hir::repetition(Repetition {
-                            min: 1,
-                            max: None,
-                            greedy: true,
-                            sub: Box::new(Hir::dot(Dot::AnyByte)),
-                        }),
-                        Hir::literal([0x13, 0x14]),
-                    ])),
-                }),
-                Hir::literal([0x02, 0x03]),
-            ]));
-
-        assert_eq!(
-            forward_code.to_string(),
-            r#"
-00000: LIT 0x01 (1)
-00001: SPLIT 00005, 00013
-00005: LIT 0x11 (17)
-00006: LIT 0x12 (18)
-00007: ANY_BYTE
-00009: SPLIT 00007, 0000d
-0000d: LIT 0x13 (19)
-0000e: LIT 0x14 (20)
-0000f: JUMP 00001
-00013: LIT 0x02 (2)
-00014: LIT 0x03 (3)
-"#
-        );
-
-        assert_eq!(
-            backward_code.to_string(),
-            r#"
-00000: LIT 0x03 (3)
-00001: LIT 0x02 (2)
-00002: SPLIT 00006, 00014
-00006: LIT 0x14 (20)
-00007: LIT 0x13 (19)
-00008: ANY_BYTE
-0000a: SPLIT 00008, 0000e
-0000e: LIT 0x12 (18)
-0000f: LIT 0x11 (17)
-00010: JUMP 00002
-00014: LIT 0x01 (1)
-"#
-        );
-
-        assert_eq!(
-            atoms,
-            vec![
-                RegexpAtom {
-                    atom: Atom::from([0x01, 0x11, 0x12]),
-                    code_loc: Location { bck: 0, fwd: 0, bck_seq_id: 0 }
-                },
-                RegexpAtom {
-                    atom: Atom::from([0x01, 0x02, 0x03]),
-                    code_loc: Location { bck: 0, fwd: 0, bck_seq_id: 0 }
-                }
-            ]
-        );
-    }
-
-    #[test]
-    fn re_code_2() {
-        let (forward_code, backward_code, atoms) =
-            Compiler::new().compile(&Hir::concat(vec![
-                // Input
-                Hir::literal([0x01, 0x02]),
-                Hir::repetition(Repetition {
-                    min: 0,
-                    max: None,
-                    greedy: false,
-                    sub: Box::new(Hir::concat(vec![
-                        Hir::literal([0x11, 0x12]),
-                        Hir::repetition(Repetition {
-                            min: 1,
-                            max: None,
-                            greedy: false,
-                            sub: Box::new(Hir::dot(Dot::AnyByte)),
-                        }),
-                        Hir::literal([0x13, 0x14]),
-                    ])),
-                }),
-                Hir::literal([0x04, 0x05]),
-            ]));
-
-        assert_eq!(
-            r#"
-00000: LIT 0x01 (1)
-00001: LIT 0x02 (2)
-00002: SPLIT 00014, 00006
-00006: LIT 0x11 (17)
-00007: LIT 0x12 (18)
-00008: ANY_BYTE
-0000a: SPLIT 0000e, 00008
-0000e: LIT 0x13 (19)
-0000f: LIT 0x14 (20)
-00010: JUMP 00002
-00014: LIT 0x04 (4)
-00015: LIT 0x05 (5)
-"#,
-            forward_code.to_string(),
-        );
-
-        assert_eq!(
-            r#"
-00000: LIT 0x05 (5)
-00001: LIT 0x04 (4)
-00002: SPLIT 00014, 00006
-00006: LIT 0x14 (20)
-00007: LIT 0x13 (19)
-00008: ANY_BYTE
-0000a: SPLIT 0000e, 00008
-0000e: LIT 0x12 (18)
-0000f: LIT 0x11 (17)
-00010: JUMP 00002
-00014: LIT 0x02 (2)
-00015: LIT 0x01 (1)
-"#,
-            backward_code.to_string(),
-        );
-
-        assert_eq!(
-            atoms,
-            vec![
-                RegexpAtom {
-                    atom: Atom::from([0x01, 0x02, 0x04, 0x05]),
-                    code_loc: Location { fwd: 0, bck: 0, bck_seq_id: 0 }
-                },
-                RegexpAtom {
-                    atom: Atom::from([0x01, 0x02, 0x11, 0x12]),
-                    code_loc: Location { fwd: 0, bck: 0, bck_seq_id: 0 }
-                }
-            ]
-        );
-    }
-
-    #[test]
-    fn re_code_3() {
-        let (forward_code, backward_code, atoms) =
-            Compiler::new().compile(&Hir::alternation(vec![
-                Hir::literal([0x01, 0x02]),
-                Hir::literal([0x03, 0x04]),
-                Hir::literal([0x05, 0x06]),
-            ]));
-
-        assert_eq!(
-            r#"
-00000: SPLIT_N 00009 0000f 00015
-00009: LIT 0x01 (1)
-0000a: LIT 0x02 (2)
-0000b: JUMP 00017
-0000f: LIT 0x03 (3)
-00010: LIT 0x04 (4)
-00011: JUMP 00017
-00015: LIT 0x05 (5)
-00016: LIT 0x06 (6)
-"#,
-            forward_code.to_string(),
-        );
-
-        assert_eq!(
-            r#"
-00000: SPLIT_N 00009 0000f 00015
-00009: LIT 0x02 (2)
-0000a: LIT 0x01 (1)
-0000b: JUMP 00017
-0000f: LIT 0x04 (4)
-00010: LIT 0x03 (3)
-00011: JUMP 00017
-00015: LIT 0x06 (6)
-00016: LIT 0x05 (5)
-"#,
-            backward_code.to_string(),
-        );
-
-        assert_eq!(
-            atoms,
-            vec![
-                RegexpAtom {
-                    atom: Atom::from([0x01, 0x02]),
-                    code_loc: Location { fwd: 0x09, bck: 0x0b, bck_seq_id: 0 }
-                },
-                RegexpAtom {
-                    atom: Atom::from([0x03, 0x04]),
-                    code_loc: Location { fwd: 0x0f, bck: 0x11, bck_seq_id: 0 }
-                },
-                RegexpAtom {
-                    atom: Atom::from([0x05, 0x06]),
-                    code_loc: Location { fwd: 0x15, bck: 0x17, bck_seq_id: 0 }
-                }
-            ]
-        );
-    }
-
-    #[test]
-    fn re_code_4() {
-        let (forward_code, backward_code, atoms) =
-            Compiler::new().compile(&Hir::concat(vec![
-                Hir::literal([0x01, 0x02]),
-                Hir::class(Class::Bytes(hex_byte_to_class(HexByte {
-                    value: 0x10,
-                    mask: 0xF0,
-                }))),
-                Hir::literal([0x03, 0x04]),
-            ]));
-
-        assert_eq!(
-            r#"
-00000: LIT 0x01 (1)
-00001: LIT 0x02 (2)
-00002: MASKED_BYTE 0x10 0xf0
-00006: LIT 0x03 (3)
-00007: LIT 0x04 (4)
-"#,
-            forward_code.to_string(),
-        );
-
-        assert_eq!(
-            r#"
-00000: LIT 0x04 (4)
-00001: LIT 0x03 (3)
-00002: MASKED_BYTE 0x10 0xf0
-00006: LIT 0x02 (2)
-00007: LIT 0x01 (1)
-"#,
-            backward_code.to_string(),
-        );
-
-        assert_eq!(
-            atoms,
-            vec![RegexpAtom {
-                atom: Atom::from([0x01, 0x02]),
-                code_loc: Location { fwd: 0x00, bck: 0x08, bck_seq_id: 0 }
-            },]
-        );
-    }
-
-    #[test]
-    fn re_code_5() {
-        let (forward_code, backward_code, atoms) =
-            Compiler::new().compile(&Hir::concat(vec![
-                Hir::literal([0x01, 0x02]),
-                Hir::class(Class::Bytes(hex_byte_to_class(HexByte {
-                    value: 0x10,
-                    mask: 0xF0,
-                }))),
-                Hir::literal([0x03, 0x04, 0x05, 0x06, 0x07, 0x08]),
-            ]));
-
-        assert_eq!(
-            r#"
-00000: LIT 0x01 (1)
-00001: LIT 0x02 (2)
-00002: MASKED_BYTE 0x10 0xf0
-00006: LIT 0x03 (3)
-00007: LIT 0x04 (4)
-00008: LIT 0x05 (5)
-00009: LIT 0x06 (6)
-0000a: LIT 0x07 (7)
-0000b: LIT 0x08 (8)
-"#,
-            forward_code.to_string(),
-        );
-
-        assert_eq!(
-            r#"
-00000: LIT 0x08 (8)
-00001: LIT 0x07 (7)
-00002: LIT 0x06 (6)
-00003: LIT 0x05 (5)
-00004: LIT 0x04 (4)
-00005: LIT 0x03 (3)
-00006: MASKED_BYTE 0x10 0xf0
-0000a: LIT 0x02 (2)
-0000b: LIT 0x01 (1)
-"#,
-            backward_code.to_string(),
-        );
-
-        assert_eq!(
-            atoms,
-            vec![RegexpAtom {
-                atom: Atom::from([0x03, 0x04, 0x05, 0x06]),
-                code_loc: Location { fwd: 0x06, bck: 0x06, bck_seq_id: 0 }
-            },]
-        );
     }
 }
