@@ -47,6 +47,10 @@ pub(in crate::compiler) use ast2ir::warn_if_not_bool;
 pub(in crate::compiler) use utils::split_at_large_gaps;
 pub(in crate::compiler) use utils::TrailingPattern;
 
+pub(crate) use utils::any_byte;
+pub(crate) use utils::class_to_hex_byte;
+pub(crate) use utils::hex_byte_to_class;
+
 mod ast2ir;
 mod hex2hir;
 mod utils;

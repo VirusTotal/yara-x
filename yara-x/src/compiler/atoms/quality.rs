@@ -100,6 +100,68 @@ where
     q
 }
 
+pub fn atom_quality2(bytes: &[u8]) -> i32 {
+    // Create a bit array with 256 bits, where all bits are initially 0.
+    // Bit N is set to 1 (true) if the atom contains the non-masked byte N.
+    let mut bytes_present = bitarr![0; 256];
+
+    let atom_len = bytes.len();
+    let mut q: i32 = 0;
+
+    for b in bytes.iter() {
+        // The increment depends on the byte value. Common values like 0x00,
+        // 0xff, 0xcc (opcode using of functions padding in PE files), 0x20
+        // (whitespace) the increment is a bit lower than for other bytes.
+
+        bytes_present.set(*b as usize, true);
+
+        match b {
+            // Common values contribute less to the quality than the
+            // rest of values.
+            0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
+                q += 12;
+            }
+            // Bytes in the ASCII ranges a-z and A-Z have a slightly
+            // lower quality than the rest. We want to favor atoms that
+            // don't contain too many letters, as they generate less
+            // additional atoms when the `nocase` modifier is used in
+            // the pattern.
+            b'a'..=b'z' | b'A'..=b'Z' => {
+                q += 18;
+            }
+            // General case.
+            _ => {
+                q += 20;
+            }
+        }
+    }
+
+    // The number of unique bytes is the number of ones in bytes_present.
+    let unique_bytes = bytes_present.count_ones();
+
+    // If all the bytes in the atom are equal and very common, let's
+    // penalize it heavily.
+    if unique_bytes == 1 {
+        // As the number of unique bytes is 1, the first one in
+        // bytes_present corresponds to that unique byte.
+        match bytes_present.first_one().unwrap() {
+            0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
+                q -= 10 * atom_len as i32;
+            }
+            _ => {
+                q += 2;
+            }
+        }
+    }
+    // In general, atoms with more unique bytes have better quality,
+    // let's boost the quality proportionally to the number of unique bytes.
+    else {
+        q += 2 * unique_bytes as i32;
+    }
+
+    q
+}
+
 /// Compute the quality of an atom.
 pub fn atom_quality<B>(bytes: B) -> i32
 where

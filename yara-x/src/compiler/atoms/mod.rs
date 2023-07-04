@@ -66,9 +66,10 @@ use std::vec::IntoIter;
 use itertools::{Itertools, MultiProduct};
 use serde::{Deserialize, Serialize};
 
-use crate::compiler::atoms::quality::{atom_quality, masked_atom_quality};
-
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
+pub(crate) use crate::compiler::atoms::quality::{
+    atom_quality, atom_quality2, masked_atom_quality,
+};
 
 /// The number of bytes that every atom *should* have. Some atoms may be
 /// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,
@@ -91,12 +92,6 @@ pub(crate) struct Atom {
     // TODO: use tinyvec or smallvec?
     bytes: Vec<u8>,
     pub backtrack: u16,
-}
-
-impl AsRef<[u8]> for Atom {
-    fn as_ref(&self) -> &[u8] {
-        self.bytes.as_ref()
-    }
 }
 
 impl<T> From<T> for Atom
@@ -138,6 +133,11 @@ impl Atom {
         let s: &[u8] = &s[range];
 
         Self { bytes: s.to_vec(), backtrack }
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[u8] {
+        self.bytes.as_ref()
     }
 
     /// Compute the atom's quality
@@ -191,7 +191,7 @@ impl MaskedAtom {
 ///
 /// The returned atom will have the `desired_size` if possible, but it can be
 /// shorter if the slice is shorter.
-pub(super) fn best_atom_from_slice(s: &[u8], desired_size: usize) -> Atom {
+pub(crate) fn best_atom_from_slice(s: &[u8], desired_size: usize) -> Atom {
     let mut best_quality = 0;
     let mut best_atom = None;
 
@@ -336,6 +336,7 @@ mod test {
     use crate::compiler::atoms::{
         Atom, CaseGenerator, MaskedAtom, XorGenerator,
     };
+    use bstr::ByteSlice;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -343,7 +344,7 @@ mod test {
         let mut atoms = MaskedAtom::new().push((0x10, 0xF0)).expand();
 
         for i in 0x10..=0x1F_u8 {
-            assert_eq!(atoms.next(), Some(Atom::from([i].into_iter())));
+            assert_eq!(atoms.next(), Some(Atom::from([i].bytes())));
         }
 
         assert_eq!(atoms.next(), None);
@@ -353,7 +354,7 @@ mod test {
 
         for i in 0x10..=0x1F_u8 {
             for j in (0x02..=0xF2_u8).step_by(0x10) {
-                assert_eq!(atoms.next(), Some(Atom::from([i, j].into_iter())));
+                assert_eq!(atoms.next(), Some(Atom::from([i, j].bytes())));
             }
         }
 

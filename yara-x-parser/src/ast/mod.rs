@@ -342,8 +342,15 @@ pub enum HexToken {
 
 /// A single byte in a hex pattern (a.k.a hex string).
 ///
-/// The byte is accompanied by a mask which will be 0xFF for non-masked bytes.
-#[derive(Debug)]
+/// The byte's value is accompanied by a mask that indicates which bits in the
+/// value are taken into account during matching, and which are ignored. A bit
+/// set to 1 in the mask indicates that the corresponding bit in the value is
+/// taken into account, while a bit set to 0 indicates that the corresponding
+/// bit in the value is ignored. Ignored bits are always set to 0 in the value.
+///
+/// For example, for pattern `A?` the value is `A0` and the mask is `F0`, and
+/// for pattern `?1` the value is `01` and the mask is `0F`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct HexByte {
     pub value: u8,
     pub mask: u8,

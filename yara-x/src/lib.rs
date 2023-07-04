@@ -65,6 +65,7 @@ pub use variables::VariableError;
 
 mod compiler;
 mod modules;
+mod re;
 mod scanner;
 mod string_pool;
 mod symbols;
