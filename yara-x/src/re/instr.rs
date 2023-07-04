@@ -1,5 +1,5 @@
 /*!
-This module introduces the instructions utilized by Pike's VM, along with various
+This module defines the instructions utilized by Pike's VM, along with various
 types that aid in generating and executing sequences of VM instructions.
 
 Instruction encoding format
@@ -85,6 +85,7 @@ pub type NumAlternatives = u8;
 pub type Offset = i16;
 
 /// A sequence of instructions for the regexp VM.
+#[derive(Default)]
 pub struct InstrSeq {
     seq_id: u64,
     seq: Cursor<Vec<u8>>,
@@ -101,18 +102,27 @@ impl InstrSeq {
     }
 
     /// Returns the current location within the instruction sequence.
+    ///
+    /// The location is an offset relative to the sequence's starting point,
+    /// the first instruction is at location 0. This function always returns
+    /// the location where the next instruction will be put.
     #[inline]
     pub fn location(&self) -> u64 {
         self.seq.position()
     }
 
+    /// Returns the unique ID associated to the instruction sequence.
+    ///
+    /// While emitting the backward code for regexp the compiler can create
+    /// multiple [`InstrSeq`], but each of them has an unique ID that is
+    /// returned by this function.
     #[inline]
     pub fn seq_id(&self) -> u64 {
         self.seq_id
     }
 
     /// Adds some instruction at the end of the sequence and returns the
-    /// location of the newly added instruction.
+    /// location where the newly added instruction resides.
     pub fn emit_instr(&mut self, instr: Instr) -> u64 {
         // Store the position where the instruction will be written, which will
         // the result for this function.
@@ -133,7 +143,7 @@ impl InstrSeq {
     }
 
     /// Adds a [`Instr::SplitN`] instruction at the end of the sequence and
-    /// returns the location of the newly added instruction.
+    /// returns the location where the newly added instruction resides.
     pub fn emit_split_n(&mut self, n: NumAlternatives) -> u64 {
         let location = self.location();
         self.seq.write_all(&[OPCODE_MARKER, Instr::SPLIT_N]).unwrap();
@@ -147,7 +157,7 @@ impl InstrSeq {
     }
 
     /// Adds a [`Instr::MaskedByte`] instruction at the end of the sequence and
-    /// returns the location of the newly added instruction.
+    /// returns the location where the newly added instruction resides.
     pub fn emit_masked_byte(&mut self, b: HexByte) -> u64 {
         let location = self.location();
         self.seq
@@ -298,8 +308,8 @@ impl Display for InstrSeq {
                             OPCODE_MARKER => {
                                 writeln!(
                                     f,
-                                    "{:05x}: LIT {:#04x} ({})",
-                                    addr, opcode[0], opcode[0]
+                                    "{:05x}: LIT {:#04x}",
+                                    addr, opcode[0]
                                 )?;
                             }
                             Instr::SPLIT_A => {
@@ -360,11 +370,7 @@ impl Display for InstrSeq {
                     }
                 }
                 _ => {
-                    writeln!(
-                        f,
-                        "{:05x}: LIT {:#04x} ({})",
-                        addr, opcode[0], opcode[0]
-                    )?;
+                    writeln!(f, "{:05x}: LIT {:#04x}", addr, opcode[0])?;
                 }
             }
         }
