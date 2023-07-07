@@ -64,11 +64,12 @@ use std::slice::SliceIndex;
 use std::vec::IntoIter;
 
 use itertools::{Itertools, MultiProduct};
+use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
 pub(crate) use crate::compiler::atoms::quality::{
-    atom_quality, atom_quality2, masked_atom_quality,
+    atom_quality, masked_atom_quality,
 };
 
 /// The number of bytes that every atom *should* have. Some atoms may be
@@ -87,23 +88,41 @@ pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 /// patterns, where the atom position within the pattern is known beforehand.
 /// In such cases, once the atom is found we can go back to the offset where
 /// the pattern should match and verify the match from there.
+///
+/// `exact` is true if finding the atom means that the whole pattern matches
+/// For instance, in the regexp `/ab(cd|ef)/` we can extract two atoms: `abcd`
+/// and `abef`. If any of the atoms is found the regexp matches. Both of these
+/// atoms are exact.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Atom {
     // TODO: use tinyvec or smallvec?
     bytes: Vec<u8>,
+    exact: bool,
     pub backtrack: u16,
 }
 
-impl<T> From<T> for Atom
-where
-    T: IntoIterator<Item = u8>,
-{
-    /// Creates an atom from any type that can be converted into an iterator of
-    /// bytes.
-    ///
-    /// The atom's backtrack will be 0.
-    fn from(value: T) -> Self {
-        Self { bytes: value.into_iter().collect(), backtrack: 0 }
+impl From<&[u8]> for Atom {
+    #[inline]
+    fn from(value: &[u8]) -> Self {
+        Self { bytes: value.to_vec(), backtrack: 0, exact: true }
+    }
+}
+
+impl From<Vec<u8>> for Atom {
+    #[inline]
+    fn from(value: Vec<u8>) -> Self {
+        Self { bytes: value, backtrack: 0, exact: true }
+    }
+}
+
+impl From<&Literal> for Atom {
+    #[inline]
+    fn from(value: &Literal) -> Self {
+        Self {
+            bytes: value.as_bytes().to_vec(),
+            backtrack: 0,
+            exact: value.is_exact(),
+        }
     }
 }
 
@@ -117,8 +136,9 @@ impl Atom {
     ///
     /// ```ignore
     /// let atom = Atom::from_slice_range(&[0x00, 0x01, 0x02, 0x03], 1..=2);
-    /// assert_eq!(atom.as_ref(), &[0x01, 0x02])
+    /// assert_eq!(atom.as_ref(), &[0x01, 0x02]);
     /// assert_eq!(atom.backtrack, 1)
+    /// assert(!atom.is_exact);
     /// ```
     ///
     pub fn from_slice_range<R>(s: &[u8], range: R) -> Self
@@ -130,9 +150,21 @@ impl Atom {
             Bound::Excluded(b) => (*b + 1) as u16,
             Bound::Unbounded => 0,
         };
-        let s: &[u8] = &s[range];
 
-        Self { bytes: s.to_vec(), backtrack }
+        let atom: &[u8] = &s[range];
+
+        Self { bytes: atom.to_vec(), backtrack, exact: atom.len() == s.len() }
+    }
+
+    #[inline]
+    pub fn make_inexact(mut self) -> Self {
+        self.exact = false;
+        self
+    }
+
+    #[inline]
+    pub fn is_exact(&self) -> bool {
+        self.exact
     }
 
     #[inline]
@@ -140,9 +172,26 @@ impl Atom {
         self.bytes.as_ref()
     }
 
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
     /// Compute the atom's quality
     pub fn quality(&self) -> i32 {
         atom_quality(self.bytes.clone())
+    }
+
+    pub fn exact<T: AsRef<[u8]>>(v: T) -> Self {
+        let mut atom = Self::from(v.as_ref().to_vec());
+        atom.exact = true;
+        atom
+    }
+
+    pub fn inexact<T: AsRef<[u8]>>(v: T) -> Self {
+        let mut atom = Self::from(v.as_ref().to_vec());
+        atom.exact = false;
+        atom
     }
 }
 
@@ -161,11 +210,12 @@ pub(super) struct MaskedAtom {
     bytes: Vec<(u8, u8)>,
     // See the documentation for Atom.
     pub backtrack: u16,
+    pub exact: bool,
 }
 
 impl MaskedAtom {
     pub fn new() -> Self {
-        Self { bytes: Vec::new(), backtrack: 0 }
+        Self { bytes: Vec::new(), backtrack: 0, exact: true }
     }
 
     #[inline]
@@ -233,12 +283,14 @@ pub(super) fn make_wide(s: &[u8]) -> Vec<u8> {
 pub(super) struct MaskedAtomExpander {
     cartesian_product: MultiProduct<ByteMaskCombinator>,
     backtrack: u16,
+    exact: bool,
 }
 
 impl MaskedAtomExpander {
     pub fn new(atom: &MaskedAtom) -> Self {
         Self {
             backtrack: atom.backtrack,
+            exact: atom.exact,
             cartesian_product: atom
                 .bytes
                 .iter()
@@ -252,8 +304,9 @@ impl Iterator for MaskedAtomExpander {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut atom = Atom::from(self.cartesian_product.next()?.into_iter());
+        let mut atom = Atom::from(self.cartesian_product.next()?);
         atom.backtrack = self.backtrack;
+        atom.exact = self.exact;
         Some(atom)
     }
 }
@@ -268,11 +321,13 @@ impl Iterator for MaskedAtomExpander {
 pub(super) struct CaseGenerator {
     cartesian_product: MultiProduct<IntoIter<u8>>,
     backtrack: u16,
+    exact: bool,
 }
 
 impl CaseGenerator {
     pub fn new(atom: &Atom) -> Self {
         Self {
+            exact: atom.exact,
             backtrack: atom.backtrack,
             cartesian_product: atom
                 .bytes
@@ -298,8 +353,9 @@ impl Iterator for CaseGenerator {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut atom = Atom::from(self.cartesian_product.next()?.into_iter());
+        let mut atom = Atom::from(self.cartesian_product.next()?);
         atom.backtrack = self.backtrack;
+        atom.exact = self.exact;
         Some(atom)
     }
 }
@@ -324,27 +380,30 @@ impl Iterator for XorGenerator {
     fn next(&mut self) -> Option<Self::Item> {
         let i = self.range.next()?;
         // XOR all bytes in the atom with the current value i.
-        let mut atom = Atom::from(self.atom.bytes.iter().map(|b| *b ^ i));
+        let mut atom = Atom::from(
+            self.atom.bytes.iter().map(|b| b ^ i).collect::<Vec<u8>>(),
+        );
         atom.backtrack = self.atom.backtrack;
+        atom.exact = self.atom.exact;
         Some(atom)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use pretty_assertions::assert_eq;
+
     use crate::compiler::atoms;
     use crate::compiler::atoms::{
         Atom, CaseGenerator, MaskedAtom, XorGenerator,
     };
-    use bstr::ByteSlice;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn atom_expander() {
         let mut atoms = MaskedAtom::new().push((0x10, 0xF0)).expand();
 
         for i in 0x10..=0x1F_u8 {
-            assert_eq!(atoms.next(), Some(Atom::from([i].bytes())));
+            assert_eq!(atoms.next(), Some(Atom::exact([i])));
         }
 
         assert_eq!(atoms.next(), None);
@@ -354,7 +413,7 @@ mod test {
 
         for i in 0x10..=0x1F_u8 {
             for j in (0x02..=0xF2_u8).step_by(0x10) {
-                assert_eq!(atoms.next(), Some(Atom::from([i, j].bytes())));
+                assert_eq!(atoms.next(), Some(Atom::exact([i, j])));
             }
         }
 
@@ -363,20 +422,20 @@ mod test {
 
     #[test]
     fn case_generator() {
-        let atom = Atom::from("a1B2c".bytes());
+        let atom = Atom::exact(b"a1B2c");
         let mut c = CaseGenerator::new(&atom);
 
-        assert_eq!(c.next(), Some(Atom::from("a1b2c".bytes())));
-        assert_eq!(c.next(), Some(Atom::from("a1b2C".bytes())));
-        assert_eq!(c.next(), Some(Atom::from("a1B2c".bytes())));
-        assert_eq!(c.next(), Some(Atom::from("a1B2C".bytes())));
-        assert_eq!(c.next(), Some(Atom::from("A1b2c".bytes())));
-        assert_eq!(c.next(), Some(Atom::from("A1b2C".bytes())));
-        assert_eq!(c.next(), Some(Atom::from("A1B2c".bytes())));
-        assert_eq!(c.next(), Some(Atom::from("A1B2C".bytes())));
+        assert_eq!(c.next(), Some(Atom::exact(b"a1b2c")));
+        assert_eq!(c.next(), Some(Atom::exact(b"a1b2C")));
+        assert_eq!(c.next(), Some(Atom::exact(b"a1B2c")));
+        assert_eq!(c.next(), Some(Atom::exact(b"a1B2C")));
+        assert_eq!(c.next(), Some(Atom::exact(b"A1b2c")));
+        assert_eq!(c.next(), Some(Atom::exact(b"A1b2C")));
+        assert_eq!(c.next(), Some(Atom::exact(b"A1B2c")));
+        assert_eq!(c.next(), Some(Atom::exact(b"A1B2C")));
         assert_eq!(c.next(), None);
 
-        let mut atom = Atom::from([0x00_u8, 0x01, 0x02]);
+        let mut atom = Atom::exact(&[0x00_u8, 0x01, 0x02]);
         atom.backtrack = 2;
 
         let mut c = CaseGenerator::new(&atom);
@@ -387,11 +446,11 @@ mod test {
 
     #[test]
     fn xor_generator() {
-        let atom = Atom::from([0x00, 0x01, 0x02]);
+        let atom = Atom::exact(&[0x00_u8, 0x01, 0x02]);
         let mut c = XorGenerator::new(atom, 0..=1);
 
-        assert_eq!(c.next(), Some(Atom::from([0x00, 0x01, 0x02])));
-        assert_eq!(c.next(), Some(Atom::from([0x01, 0x00, 0x03])));
+        assert_eq!(c.next(), Some(Atom::exact(&[0x00_u8, 0x01, 0x02])));
+        assert_eq!(c.next(), Some(Atom::exact(&[0x01_u8, 0x00, 0x03])));
         assert_eq!(c.next(), None);
     }
 

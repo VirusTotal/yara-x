@@ -281,6 +281,38 @@ pub(crate) struct RuleInfo {
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct AtomInfo {
-    pub sub_pattern_id: SubPatternId,
-    pub atom: Atom,
+    sub_pattern_id: SubPatternId,
+    atom: Atom,
+}
+
+impl AtomInfo {
+    #[inline]
+    pub(crate) fn new(sub_pattern_id: SubPatternId, atom: Atom) -> Self {
+        Self { sub_pattern_id, atom }
+    }
+
+    #[inline]
+    pub(crate) fn sub_pattern_id(&self) -> SubPatternId {
+        self.sub_pattern_id
+    }
+
+    #[inline]
+    pub(crate) fn is_exact(&self) -> bool {
+        self.atom.is_exact()
+    }
+
+    #[inline]
+    pub(crate) fn len(&self) -> usize {
+        self.atom.len()
+    }
+
+    #[inline]
+    pub(crate) fn backtrack(&self) -> usize {
+        self.atom.backtrack as usize
+    }
+
+    #[inline]
+    pub(crate) fn as_slice(&self) -> &[u8] {
+        self.atom.as_slice()
+    }
 }
