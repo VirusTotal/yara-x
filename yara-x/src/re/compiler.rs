@@ -6,16 +6,20 @@ https://swtch.com/~rsc/regexp/regexp2.html
 More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
 */
-use bstr::ByteSlice;
-use regex_syntax::hir;
-use regex_syntax::hir::{visit, Class, Hir, HirKind, Literal};
+
 use std::cmp::min;
 use std::collections::HashMap;
+
+use regex_syntax::hir;
+use regex_syntax::hir::{visit, Class, ClassBytes, Hir, HirKind, Literal};
+
 use yara_x_parser::ast::HexByte;
 
-use crate::compiler::{any_byte, class_to_hex_byte, Atom, DESIRED_ATOM_SIZE};
-use crate::re::instr::{Instr, InstrSeq, NumAlternatives};
-use crate::{compiler, re};
+use crate::compiler::{
+    any_byte, best_atom_from_slice, class_to_hex_byte, Atom, DESIRED_ATOM_SIZE,
+};
+use crate::re;
+use crate::re::instr::{Instr, InstrSeq, NumAlt};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default)]
 pub(crate) struct Location {
@@ -76,18 +80,23 @@ pub(crate) struct Compiler {
     /// Instead, the code produced by each child of `Concat` is stored in a
     /// temporary [`InstrSeq`], and once all the children are processed the
     /// final code is written into `backward_code` by copying the temporary
-    /// [`InstrSeq`]s one by one in reverse order. Each of these temporary
-    /// [`InstrSeq`] is called a chunk, and they are stored in this stack of
-    /// chunks.
+    /// [`InstrSeq`]s in reverse order. Each of these temporary [`InstrSeq`]
+    /// is called a chunk, and they are stored in this stack.
     backward_code_chunks: Vec<InstrSeq>,
 
     /// Literal extractor.
     lit_extractor: hir::literal::Extractor,
+
+    /// How deep in the HIR we currently are. `depth` is 1 for the top-level
+    /// node in the HIR.
+    depth: u32,
 }
 
 impl Compiler {
     pub fn new() -> Self {
         let mut lit_extractor = hir::literal::Extractor::new();
+
+        lit_extractor.limit_class(256);
         lit_extractor.limit_total(256);
         lit_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
 
@@ -98,6 +107,7 @@ impl Compiler {
             backward_code_chunks: Vec::new(),
             bookmarks: Vec::new(),
             best_atoms: vec![(i32::MIN, Vec::new())],
+            depth: 0,
         }
     }
 
@@ -133,7 +143,7 @@ impl Compiler {
         }
     }
 
-    fn emit_instr(&mut self, instr: Instr) -> Location {
+    fn emit_instr(&mut self, instr: u8) -> Location {
         Location {
             fwd: self.forward_code.emit_instr(instr),
             bck_seq_id: self.backward_code().seq_id(),
@@ -141,7 +151,7 @@ impl Compiler {
         }
     }
 
-    fn emit_split_n(&mut self, n: NumAlternatives) -> Location {
+    fn emit_split_n(&mut self, n: NumAlt) -> Location {
         Location {
             fwd: self.forward_code.emit_split_n(n),
             bck_seq_id: self.backward_code().seq_id(),
@@ -154,6 +164,14 @@ impl Compiler {
             fwd: self.forward_code.emit_masked_byte(b),
             bck_seq_id: self.backward_code.seq_id(),
             bck: self.backward_code_mut().emit_masked_byte(b),
+        }
+    }
+
+    fn emit_class(&mut self, c: &ClassBytes) -> Location {
+        Location {
+            fwd: self.forward_code.emit_class(c),
+            bck_seq_id: self.backward_code.seq_id(),
+            bck: self.backward_code_mut().emit_class(c),
         }
     }
 
@@ -185,6 +203,20 @@ impl Compiler {
 
         self.forward_code.patch_split_n(location.fwd, fwd.into_iter());
         self.backward_code_mut().patch_split_n(location.bck, bck.into_iter());
+    }
+
+    fn best_atoms_from_hir(&mut self, hir: &Hir) -> Option<Vec<Atom>> {
+        match hir.kind() {
+            HirKind::Literal(literal) => Some(vec![best_atom_from_slice(
+                literal.0.as_ref(),
+                DESIRED_ATOM_SIZE,
+            )]),
+            _ => self
+                .lit_extractor
+                .extract(hir)
+                .literals()
+                .map(|literals| literals.iter().map(Atom::from).collect()),
+        }
     }
 }
 
@@ -236,22 +268,22 @@ impl hir::Visitor for &mut Compiler {
                 match (rep.min, rep.max, rep.greedy) {
                     // e* and e*?
                     //
-                    // l1: split l1,l3  ( l3,l1 for the non-greedy e*? )
+                    // l1: split_a l3  ( split_b for the non-greedy e*? )
                     //     ... code for e ...
                     // l2: jump l1
                     // l3:
                     (0, None, greedy) => {
                         let l1 = self.emit_instr(if greedy {
-                            Instr::SplitA
+                            Instr::SPLIT_A
                         } else {
-                            Instr::SplitB
+                            Instr::SPLIT_B
                         });
                         self.bookmarks.push(l1);
                     }
                     // e+ and e+?
                     //
                     // l1: ... code for e ...
-                    // l2: split l1,l3  ( l3,l1 for the non-greedy e+? )
+                    // l2: split_b l1  ( split_a for the non-greedy e+? )
                     // l3:
                     (1, None, _) => {
                         let l1 = self.location();
@@ -260,51 +292,58 @@ impl hir::Visitor for &mut Compiler {
                     _ => {}
                 }
             }
-            kind @ _ => unreachable!("{:?}", kind),
+            kind => unreachable!("{:?}", kind),
         }
+
+        self.depth += 1;
 
         Ok(())
     }
 
     fn visit_post(&mut self, hir: &Hir) -> Result<(), Self::Err> {
-        let mut loc;
+        let mut code_loc;
 
         match hir.kind() {
             HirKind::Capture(_) => {
-                loc = self.bookmarks.pop().unwrap();
+                code_loc = self.bookmarks.pop().unwrap();
             }
             HirKind::Literal(literal) => {
-                loc = self.emit_literal(literal);
-                // TODO: replace with function that returns the length of the
-                // code produced by literal, taking into account that 0xAA is
-                // two bytes.
-                loc.bck += literal.0.len() as u64;
+                code_loc = self.emit_literal(literal);
             }
             hir_kind @ HirKind::Class(class) => {
-                loc = self.location();
+                code_loc = self.location();
+
                 if any_byte(hir_kind) {
-                    self.emit_instr(Instr::AnyByte);
+                    self.emit_instr(Instr::ANY_BYTE);
                 } else {
                     match class {
                         Class::Bytes(class) => {
                             if let Some(byte) = class_to_hex_byte(class) {
                                 self.emit_masked_byte(byte);
                             } else {
-                                todo!()
+                                self.emit_class(class);
                             }
                         }
-                        Class::Unicode(_) => {}
+                        Class::Unicode(class) => {
+                            if let Some(class) = class.to_byte_class() {
+                                self.emit_class(&class);
+                            } else {
+                                // TODO: properly handle this
+                                panic!("unicode classes not supported")
+                            }
+                        }
                     }
                 }
             }
             HirKind::Concat(exprs) => {
-                loc = self.bookmarks.pop().unwrap();
+                code_loc = self.bookmarks.pop().unwrap();
+
                 // We are here because all the children of a `Concat` node have
                 // been processed. The last N chunks in `backward_code_chunks`
                 // contain the code produced for each of the N children, but
                 // the nodes where processed left-to-right, and we want the
-                // chunks right-to-left, so these last N chunks must be
-                // reversed while copied.
+                // chunks right-to-left, so these last N chunks must be copied
+                // into backward code in reverse order.
                 let n = exprs.len();
                 let len = self.backward_code_chunks.len();
 
@@ -326,7 +365,7 @@ impl hir::Visitor for &mut Compiler {
 
                 // All chunks in `last_n_chucks` will be appended to the
                 // backward code in reverse order. The offset where each chunk
-                // resides in the backward code is stored in map.
+                // resides in the backward code is stored in the hash map.
                 for chunk in last_n_chunks.iter().rev() {
                     chunk_locations
                         .insert(chunk.seq_id(), backward_code.location());
@@ -335,15 +374,16 @@ impl hir::Visitor for &mut Compiler {
 
                 let (_, atoms) = self.best_atoms.last_mut().unwrap();
 
-                // Atoms may be pointing to some code located in one of
-                // the chunks, the backward code location for those atoms need
-                // to be adjusted accordingly.
+                // Atoms may be pointing to some code located in one of the
+                // chunks that were written to backward code in a different
+                // order, the backward code location for those atoms needs to
+                // be adjusted accordingly.
                 for atom in atoms {
-                    if let Some(delta) =
+                    if let Some(adjustment) =
                         chunk_locations.get(&atom.code_loc.bck_seq_id)
                     {
                         atom.code_loc.bck_seq_id = backward_code.seq_id();
-                        atom.code_loc.bck += delta;
+                        atom.code_loc.bck += adjustment;
                     }
                 }
             }
@@ -374,7 +414,7 @@ impl hir::Visitor for &mut Compiler {
                 expr_locs.push(self.bookmarks.pop().unwrap());
 
                 let split_loc = self.bookmarks.pop().unwrap();
-                loc = split_loc;
+                code_loc = split_loc;
 
                 let offsets =
                     expr_locs.into_iter().rev().map(|loc| loc.sub(&split_loc));
@@ -409,34 +449,34 @@ impl hir::Visitor for &mut Compiler {
                 match (rep.min, rep.max, rep.greedy) {
                     // e* and e*?
                     //
-                    // l1: split l1,l3  ( l3,l1 for the non-greedy e*? )
+                    // l1: split_a l3  ( split_b for the non-greedy e*? )
                     //     ... code for e ...
                     // l2: jump l1
                     // l3:
                     (0, None, _) => {
                         let l1 = self.bookmarks.pop().unwrap();
-                        let l2 = self.emit_instr(Instr::Jump);
+                        let l2 = self.emit_instr(Instr::JUMP);
                         let l3 = self.location();
                         self.patch_instr(&l1, l3.sub(&l1));
                         self.patch_instr(&l2, l1.sub(&l2));
 
-                        loc = l1;
+                        code_loc = l1;
                     }
                     // e+ and e+?
                     //
                     // l1: ... code for e ...
-                    // l2: split l1,l3  ( l3,l1 for the non-greedy e+? )
+                    // l2: split_b l1  ( split_a for the non-greedy e+? )
                     // l3:
                     (1, None, greedy) => {
                         let l1 = self.bookmarks.pop().unwrap();
                         let l2 = self.emit_instr(if greedy {
-                            Instr::SplitB
+                            Instr::SPLIT_B
                         } else {
-                            Instr::SplitA
+                            Instr::SPLIT_A
                         });
                         self.patch_instr(&l2, l1.sub(&l2));
 
-                        loc = l1;
+                        code_loc = l1;
                     }
                     _ => unreachable!(),
                 }
@@ -444,29 +484,35 @@ impl hir::Visitor for &mut Compiler {
             _ => unreachable!(),
         }
 
-        if let Some(literals) = self.lit_extractor.extract(hir).literals() {
-            // Compute the minimum quality of all the literals
-            let min_quality = literals
-                .iter()
-                .map(|l| compiler::atom_quality2(l.as_bytes()))
-                .min();
+        if let Some(atoms) = self.best_atoms_from_hir(hir) {
+            // Compute the minimum quality of all the atoms
+            let min_quality = atoms.iter().map(|a| a.quality()).min();
 
             if let Some(quality) = min_quality {
+                code_loc.bck_seq_id = self.backward_code().seq_id();
+                code_loc.bck = self.backward_code().location();
+
                 let (best_quality, best_atoms) =
                     self.best_atoms.last_mut().unwrap();
 
                 if quality > *best_quality {
                     *best_quality = quality;
-                    *best_atoms = literals
-                        .iter()
-                        .map(|l| RegexpAtom {
-                            atom: Atom::from(l.as_bytes().bytes()),
-                            code_loc: loc,
+                    *best_atoms = atoms
+                        .into_iter()
+                        .map(|atom| RegexpAtom {
+                            atom: if self.depth != 1 {
+                                atom.make_inexact()
+                            } else {
+                                atom
+                            },
+                            code_loc,
                         })
                         .collect();
                 }
             }
         }
+
+        self.depth -= 1;
 
         Ok(())
     }
@@ -474,7 +520,7 @@ impl hir::Visitor for &mut Compiler {
     fn visit_alternation_in(&mut self) -> Result<(), Self::Err> {
         // Emit the jump that appears between alternatives and jump to
         // the end.
-        let l = self.emit_instr(Instr::Jump);
+        let l = self.emit_instr(Instr::JUMP);
         // The jump's destination is not known yet, so save the jump's
         // address in order to patch the destination later.
         self.bookmarks.push(l);

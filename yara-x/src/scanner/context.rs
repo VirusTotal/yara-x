@@ -207,90 +207,104 @@ impl ScanContext<'_> {
             // Subtract the backtrack value from the offset where the atom
             // matched. If the result is negative the atom can't be inside
             // the scanned data and therefore is not a possible match.
-            let (match_start, overflow) = atom_match
-                .start()
-                .overflowing_sub(matched_atom.atom.backtrack as usize);
+            let (match_start, overflow) =
+                atom_match.start().overflowing_sub(matched_atom.backtrack());
 
             if overflow {
                 continue;
             }
 
-            let (pattern_id, sub_pattern) = &self
-                .compiled_rules
-                .get_sub_pattern(matched_atom.sub_pattern_id);
+            let sub_pattern_id = matched_atom.sub_pattern_id();
+
+            let (pattern_id, sub_pattern) =
+                &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
             match sub_pattern {
-                SubPattern::Literal { pattern, flags } => {
-                    if let Some(verified_match) = self.verify_literal_match(
-                        match_start,
-                        *pattern,
-                        *flags,
-                    ) {
-                        self.track_pattern_match(*pattern_id, verified_match);
-                    };
-                }
-
-                SubPattern::LiteralChainHead { pattern, flags, .. } => {
-                    if let Some(m) = self.verify_literal_match(
-                        match_start,
-                        *pattern,
-                        *flags,
-                    ) {
-                        // This is the head of a set of chained sub-patterns.
-                        // Verifying that the head matches doesn't mean that
-                        // the whole sub-pattern matches, the rest of the chain
-                        // must be found as well. For the time being this is
-                        // just an unconfirmed match.
-                        self.unconfirmed_matches
-                            .entry(matched_atom.sub_pattern_id)
-                            .or_default()
-                            .push_back(UnconfirmedMatch {
-                                range: m.range.clone(),
-                                chain_length: 0,
-                            })
+                SubPattern::Literal { pattern, flags }
+                | SubPattern::LiteralChainHead { pattern, flags, .. }
+                | SubPattern::LiteralChainTail { pattern, flags, .. } => {
+                    // If the atom is exact no further verification is needed,
+                    // finding an exact atom is enough to guarantee that the
+                    // whole sub-pattern matched.
+                    let m = if matched_atom.is_exact() {
+                        Match {
+                            range: match_start
+                                ..match_start + matched_atom.len(),
+                            xor_key: None,
+                        }
                     }
-                }
-
-                SubPattern::LiteralChainTail {
-                    pattern,
-                    chained_to,
-                    gap,
-                    flags,
-                } => {
-                    if let Some(m) = self.verify_literal_match(
-                        match_start,
-                        *pattern,
-                        *flags,
-                    ) {
-                        if self.within_valid_distance(
-                            matched_atom.sub_pattern_id,
-                            *chained_to,
-                            m.range.start,
-                            gap,
+                    // If the atom is not exact we need to verify that the
+                    // sub-pattern actually matches. The only thing we know so
+                    // far is that a portion of the sub-pattern matched.
+                    else {
+                        match self.verify_literal_match(
+                            match_start,
+                            *pattern,
+                            *flags,
                         ) {
-                            if flags.contains(SubPatternFlags::LastInChain) {
-                                // This sub-pattern is the last one in the
-                                // chain. We can proceed to verify the whole
-                                // chain and determine if it matched or not.
-                                self.verify_chain_of_matches(
-                                    *pattern_id,
-                                    matched_atom.sub_pattern_id,
-                                    m.range,
-                                );
-                            } else {
-                                // This sub-pattern in in the middle of the
-                                // chain. We need to find the sub-patterns that
-                                // follow, so for the time being this only an
-                                // unconfirmed match.
-                                self.unconfirmed_matches
-                                    .entry(matched_atom.sub_pattern_id)
-                                    .or_default()
-                                    .push_back(UnconfirmedMatch {
-                                        range: m.range.clone(),
-                                        chain_length: 0,
-                                    });
+                            Some(m) => m,
+                            // If the sub-pattern didn't match continue with
+                            // the Aho-Corasick loop.
+                            None => continue,
+                        }
+                    };
+
+                    // This is reached only if the match was verified.
+                    match sub_pattern {
+                        SubPattern::Literal { .. } => {
+                            self.track_pattern_match(*pattern_id, m);
+                        }
+                        SubPattern::LiteralChainHead { .. } => {
+                            // This is the head of a set of chained sub-patterns.
+                            // Verifying that the head matches doesn't mean that
+                            // the whole sub-pattern matches, the rest of the chain
+                            // must be found as well. For the time being this is
+                            // just an unconfirmed match.
+                            self.unconfirmed_matches
+                                .entry(sub_pattern_id)
+                                .or_default()
+                                .push_back(UnconfirmedMatch {
+                                    range: m.range.clone(),
+                                    chain_length: 0,
+                                })
+                        }
+                        SubPattern::LiteralChainTail {
+                            chained_to,
+                            gap,
+                            ..
+                        } => {
+                            if self.within_valid_distance(
+                                sub_pattern_id,
+                                *chained_to,
+                                m.range.start,
+                                gap,
+                            ) {
+                                if flags.contains(SubPatternFlags::LastInChain)
+                                {
+                                    // This sub-pattern is the last one in the
+                                    // chain. We can proceed to verify the whole
+                                    // chain and determine if it matched or not.
+                                    self.verify_chain_of_matches(
+                                        *pattern_id,
+                                        sub_pattern_id,
+                                        m.range,
+                                    );
+                                } else {
+                                    // This sub-pattern is in the middle of the
+                                    // chain. We need to find the sub-patterns that
+                                    // follow, so for the time being this only an
+                                    // unconfirmed match.
+                                    self.unconfirmed_matches
+                                        .entry(sub_pattern_id)
+                                        .or_default()
+                                        .push_back(UnconfirmedMatch {
+                                            range: m.range.clone(),
+                                            chain_length: 0,
+                                        });
+                                }
                             }
                         }
+                        _ => unreachable!(),
                     }
                 }
 
@@ -597,8 +611,8 @@ impl ScanContext<'_> {
         // The atom that matched is the result of XORing the pattern with some
         // key. The key can be obtained by XORing some byte in the atom with
         // the corresponding byte in the pattern.
-        let key = matched_atom.atom.as_slice()[0]
-            ^ pattern[matched_atom.atom.backtrack as usize];
+        let key =
+            matched_atom.as_slice()[0] ^ pattern[matched_atom.backtrack()];
 
         if !self.verify_full_word(match_start..match_end, flags, Some(key)) {
             return None;

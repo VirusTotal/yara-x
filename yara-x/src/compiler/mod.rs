@@ -186,8 +186,8 @@ pub struct Compiler<'a> {
     sub_patterns: Vec<(PatternId, SubPattern)>,
 
     /// A vector that contains all the atoms generated for the patterns. Each
-    /// atom has an associated [`PatternId`] that indicates the pattern it
-    /// belongs to.
+    /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
+    /// it belongs to.
     atoms: Vec<AtomInfo>,
 
     /// Vector with the names of all the imported modules. The vector contains
@@ -418,9 +418,8 @@ impl<'a> Compiler<'a> {
 
         // Build the Aho-Corasick automaton used while searching for the atoms
         // in the scanned data.
-        let ac =
-            AhoCorasick::new(self.atoms.iter().map(|x| x.atom.as_slice()))
-                .expect("failed to build Aho-Corasick automaton");
+        let ac = AhoCorasick::new(self.atoms.iter().map(|a| a.as_slice()))
+            .expect("failed to build Aho-Corasick automaton");
 
         // The structure that contains the global variables is serialized before
         // being passed to the `Rules` struct. This is because we want `Rules`
@@ -485,7 +484,7 @@ impl<'a> Compiler<'a> {
         self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
 
         for atom in atoms.into_iter() {
-            self.atoms.push(AtomInfo { sub_pattern_id, atom })
+            self.atoms.push(AtomInfo::new(sub_pattern_id, atom))
         }
 
         sub_pattern_id
@@ -637,19 +636,20 @@ impl<'a> Compiler<'a> {
     }
 
     fn process_literal_pattern(&mut self, pattern: ir::LiteralPattern) {
+        let full_word = pattern.flags.contains(PatternFlags::Fullword);
+        let mut flags = SubPatternFlagSet::none();
+
+        if full_word {
+            flags.set(SubPatternFlags::FullwordLeft);
+            flags.set(SubPatternFlags::FullwordRight);
+        }
+
         // Depending on the combination of `ascii` and `wide` modifiers, the
         // `main_patterns` vector will contain either the pattern's `ascii`
         // version, the `wide` version, or both. Each item in `main_patterns`
         // also contains the best atom for the pattern.
         let mut main_patterns = Vec::new();
         let wide_pattern;
-
-        let mut flags = SubPatternFlagSet::none();
-
-        if pattern.flags.contains(PatternFlags::Fullword) {
-            flags.set(SubPatternFlags::FullwordLeft);
-            flags.set(SubPatternFlags::FullwordRight);
-        }
 
         if pattern.flags.contains(PatternFlags::Wide) {
             wide_pattern = make_wide(pattern.text.as_bytes());
@@ -676,6 +676,17 @@ impl<'a> Compiler<'a> {
         }
 
         for (main_pattern, best_atom, flags) in main_patterns {
+            // If the pattern has the `fullword` flag the atom can't be exact.
+            // An exact atom means that once it is found by the Aho-Corasick
+            // algorithm we can assume that its associated sub-pattern matches
+            // without further verification. However, `fullword` requires
+            // verifying that the bytes surrounding the match are not
+            // alphanumeric.
+            let best_atom = match full_word {
+                true => best_atom.make_inexact(),
+                false => best_atom,
+            };
+
             let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
 
             if pattern.flags.contains(PatternFlags::Xor) {
@@ -746,10 +757,15 @@ impl<'a> Compiler<'a> {
 
                         self.push_sub_pattern(
                             sub_pattern,
-                            Box::new(iter::once(best_atom_from_slice(
-                                base64_pattern.as_slice(),
-                                DESIRED_ATOM_SIZE,
-                            ))),
+                            Box::new(iter::once(
+                                best_atom_from_slice(
+                                    base64_pattern.as_slice(),
+                                    DESIRED_ATOM_SIZE,
+                                )
+                                // Atoms for base64 patterns are always
+                                // inexact, they require verification.
+                                .make_inexact(),
+                            )),
                         );
                     }
                 }
@@ -780,10 +796,15 @@ impl<'a> Compiler<'a> {
 
                         self.push_sub_pattern(
                             sub_pattern,
-                            Box::new(iter::once(best_atom_from_slice(
-                                wide.as_slice(),
-                                DESIRED_ATOM_SIZE * 2,
-                            ))),
+                            Box::new(iter::once(
+                                best_atom_from_slice(
+                                    wide.as_slice(),
+                                    DESIRED_ATOM_SIZE * 2,
+                                )
+                                // Atoms for base64 patterns are always
+                                // inexact, they require verification.
+                                .make_inexact(),
+                            )),
                         );
                     }
                 }
@@ -798,6 +819,7 @@ impl<'a> Compiler<'a> {
 
     fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
         let case_insensitive = pattern.flags.contains(PatternFlags::Nocase);
+        let full_word = pattern.flags.contains(PatternFlags::Fullword);
 
         let mut flags = SubPatternFlagSet::none();
 
@@ -805,7 +827,7 @@ impl<'a> Compiler<'a> {
             flags.set(SubPatternFlags::Nocase);
         }
 
-        if pattern.flags.contains(PatternFlags::Fullword) {
+        if full_word {
             flags.set(SubPatternFlags::FullwordLeft);
             flags.set(SubPatternFlags::FullwordRight);
         }
@@ -835,6 +857,13 @@ impl<'a> Compiler<'a> {
                         DESIRED_ATOM_SIZE
                     },
                 );
+
+                // If the pattern has the `fullword` flag the atom can't be
+                // exact.
+                let best_atom = match full_word {
+                    true => best_atom.make_inexact(),
+                    false => best_atom,
+                };
 
                 self.push_sub_pattern(
                     SubPattern::Literal {
@@ -880,8 +909,8 @@ impl<'a> Compiler<'a> {
         } else if trailing.is_empty() {
             // todo
         } else {
-            // The pattern was split into multiple chained patterns,
-            // process the chain.
+            // The pattern was split into multiple chained patterns, process
+            // the chain.
             self.process_chain(leading, trailing, pattern.flags);
         }
     }
@@ -936,6 +965,16 @@ impl<'a> Compiler<'a> {
                         DESIRED_ATOM_SIZE
                     },
                 );
+
+                // TODO: this is making all atoms in the chain inexact, even
+                // those that are in the middle of a chain and therefore don't
+                // have FullwordRight nor FullwordLeft. This logic could be
+                // improved.
+                let best_atom = match full_word {
+                    true => best_atom.make_inexact(),
+                    false => best_atom,
+                };
+
                 if case_insensitive {
                     Box::new(CaseGenerator::new(&best_atom))
                 } else {
@@ -1345,6 +1384,14 @@ bitmask! {
         LastInChain          = 0x04,
         FullwordLeft         = 0x08,
         FullwordRight        = 0x10,
+    }
+}
+
+impl SubPatternFlagSet {
+    pub(crate) fn fullword(&self) -> bool {
+        self.intersects(
+            SubPatternFlags::FullwordLeft | SubPatternFlags::FullwordRight,
+        )
     }
 }
 
