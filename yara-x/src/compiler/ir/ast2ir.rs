@@ -1156,6 +1156,7 @@ fn parse_regexp(
     let mut parser = regex_syntax::ParserBuilder::new()
         .case_insensitive(case_insensitive)
         .dot_matches_new_line(regexp.dot_matches_new_line)
+        .unicode(false)
         .utf8(false)
         .build();
 

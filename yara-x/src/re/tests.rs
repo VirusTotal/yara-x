@@ -1,6 +1,5 @@
 use pretty_assertions::assert_eq;
 use regex_syntax::hir::{Class, Hir};
-use regex_syntax::parse;
 
 use yara_x_parser::ast::HexByte;
 
@@ -9,8 +8,13 @@ use crate::compiler::{hex_byte_to_class, Atom};
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr) => {{
+        let mut parser = regex_syntax::ParserBuilder::new()
+            .utf8(false)
+            .unicode(false)
+            .build();
+
         let (forward_code, backward_code, atoms) =
-            Compiler::new().compile(&parse($re).unwrap());
+            Compiler::new().compile(&parser.parse($re).unwrap());
 
         assert_eq!(forward_code.to_string(), $fwd);
         assert_eq!(backward_code.to_string(), $bck);
@@ -72,21 +76,46 @@ fn re_code_2() {
     );
 }
 
-/* TODO
 #[test]
 fn re_code_3() {
     assert_re_code!(
-        "(?s)abcde123",
+        "(?s)abc.",
         // Forward code
         r#"
 00000: LIT 0x61
 00001: LIT 0x62
 00002: LIT 0x63
-00003: LIT 0x64
-00004: LIT 0x65
-00005: LIT 0x31
-00006: LIT 0x32
-00007: LIT 0x33
+00003: ANY_BYTE
+"#,
+        // Backward code
+        r#"
+00000: ANY_BYTE
+00002: LIT 0x63
+00003: LIT 0x62
+00004: LIT 0x61
+"#,
+        // Atoms
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
+            code_loc: Location { fwd: 0x00, bck: 0x05, bck_seq_id: 0 }
+        }]
+    );
+}
+
+#[test]
+fn re_code_4() {
+    assert_re_code!(
+        r"(?s)a\xAAcde123",
+        // Forward code
+        r#"
+00000: LIT 0x61
+00001: LIT 0xaa
+00003: LIT 0x63
+00004: LIT 0x64
+00005: LIT 0x65
+00006: LIT 0x31
+00007: LIT 0x32
+00008: LIT 0x33
 "#,
         // Backward code
         r#"
@@ -96,19 +125,19 @@ fn re_code_3() {
 00003: LIT 0x65
 00004: LIT 0x64
 00005: LIT 0x63
-00006: LIT 0x62
-00007: LIT 0x61
+00006: LIT 0xaa
+00008: LIT 0x61
 "#,
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x65, 0x31, 0x32, 0x33]),
-            code_loc: Location { fwd: 0x04, bck: 0x08, bck_seq_id: 0 }
+            code_loc: Location { fwd: 0x05, bck: 0x04, bck_seq_id: 0 }
         }]
     );
-}*/
+}
 
 #[test]
-fn re_code_4() {
+fn re_code_5() {
     assert_re_code!(
         "(?s)ab|cd|ef",
         // Forward code
@@ -154,7 +183,7 @@ fn re_code_4() {
 }
 
 #[test]
-fn re_code_5() {
+fn re_code_6() {
     assert_re_code!(
         "(?s)1(ab|cd|ef)",
         // Forward code
@@ -202,18 +231,18 @@ fn re_code_5() {
 }
 
 #[test]
-fn re_code_6() {
+fn re_code_7() {
     assert_re_code!(
-        "(?s)a(bc.+de)*fg",
+        "(?s)a(bcd.+e)*fg",
         // Forward code
         r#"
 00000: LIT 0x61
 00001: SPLIT_A 00013
 00005: LIT 0x62
 00006: LIT 0x63
-00007: ANY_BYTE
-00009: SPLIT_B 00007
-0000d: LIT 0x64
+00007: LIT 0x64
+00008: ANY_BYTE
+0000a: SPLIT_B 00008
 0000e: LIT 0x65
 0000f: JUMP 00001
 00013: LIT 0x66
@@ -225,55 +254,9 @@ fn re_code_6() {
 00001: LIT 0x66
 00002: SPLIT_A 00014
 00006: LIT 0x65
-00007: LIT 0x64
-00008: ANY_BYTE
-0000a: SPLIT_B 00008
-0000e: LIT 0x63
-0000f: LIT 0x62
-00010: JUMP 00002
-00014: LIT 0x61
-"#,
-        // Atoms
-        vec![
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
-                code_loc: Location { bck: 0x15, fwd: 0, bck_seq_id: 0 }
-            },
-            RegexpAtom {
-                atom: Atom::exact(vec![0x61, 0x66, 0x67]),
-                code_loc: Location { bck: 0x15, fwd: 0, bck_seq_id: 0 }
-            }
-        ]
-    );
-}
-
-#[test]
-fn re_code_7() {
-    assert_re_code!(
-        "(?s)a(bc.+?de)*?fg",
-        // Forward code
-        r#"
-00000: LIT 0x61
-00001: SPLIT_B 00013
-00005: LIT 0x62
-00006: LIT 0x63
 00007: ANY_BYTE
-00009: SPLIT_A 00007
+00009: SPLIT_B 00007
 0000d: LIT 0x64
-0000e: LIT 0x65
-0000f: JUMP 00001
-00013: LIT 0x66
-00014: LIT 0x67
-"#,
-        // Backward code
-        r#"
-00000: LIT 0x67
-00001: LIT 0x66
-00002: SPLIT_B 00014
-00006: LIT 0x65
-00007: LIT 0x64
-00008: ANY_BYTE
-0000a: SPLIT_A 00008
 0000e: LIT 0x63
 0000f: LIT 0x62
 00010: JUMP 00002
@@ -282,12 +265,12 @@ fn re_code_7() {
         // Atoms
         vec![
             RegexpAtom {
-                atom: Atom::exact(vec![0x61, 0x66, 0x67]),
-                code_loc: Location { bck: 0x15, fwd: 0, bck_seq_id: 0 }
+                atom: Atom::inexact(vec![97, 98, 99, 100]),
+                code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x15 },
             },
             RegexpAtom {
-                atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
-                code_loc: Location { bck: 0x15, fwd: 0, bck_seq_id: 0 }
+                atom: Atom::exact(vec![97, 102, 103]),
+                code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x15 },
             },
         ]
     );
@@ -295,6 +278,54 @@ fn re_code_7() {
 
 #[test]
 fn re_code_8() {
+    assert_re_code!(
+        "(?s)a(bcd.+?de)*?fg",
+        // Forward code
+        r#"
+00000: LIT 0x61
+00001: SPLIT_B 00014
+00005: LIT 0x62
+00006: LIT 0x63
+00007: LIT 0x64
+00008: ANY_BYTE
+0000a: SPLIT_A 00008
+0000e: LIT 0x64
+0000f: LIT 0x65
+00010: JUMP 00001
+00014: LIT 0x66
+00015: LIT 0x67
+"#,
+        // Backward code
+        r#"
+00000: LIT 0x67
+00001: LIT 0x66
+00002: SPLIT_B 00015
+00006: LIT 0x65
+00007: LIT 0x64
+00008: ANY_BYTE
+0000a: SPLIT_A 00008
+0000e: LIT 0x64
+0000f: LIT 0x63
+00010: LIT 0x62
+00011: JUMP 00002
+00015: LIT 0x61
+"#,
+        // Atoms
+        vec![
+            RegexpAtom {
+                atom: Atom::exact(vec![97, 102, 103]),
+                code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x16 },
+            },
+            RegexpAtom {
+                atom: Atom::inexact(vec![97, 98, 99, 100]),
+                code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x16 },
+            },
+        ]
+    );
+}
+
+#[test]
+fn re_code_9() {
     assert_re_code!(
         "(?s)abc[0-2x-y]def",
         // Forward code
@@ -344,7 +375,7 @@ fn re_code_8() {
 }
 
 #[test]
-fn re_code_9() {
+fn re_code_10() {
     assert_re_code!(
         "(?s)abcd[acegikmoqsuwy024]ef",
         // Forward code
@@ -376,7 +407,7 @@ fn re_code_9() {
 }
 
 #[test]
-fn re_code_10() {
+fn re_code_11() {
     let (forward_code, backward_code, atoms) =
         Compiler::new().compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
@@ -431,7 +462,7 @@ fn re_code_10() {
 }
 
 #[test]
-fn re_code_11() {
+fn re_code_12() {
     let (forward_code, backward_code, atoms) =
         Compiler::new().compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
