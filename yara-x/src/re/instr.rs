@@ -588,3 +588,20 @@ impl<'a> ClassBitmap<'a> {
         BitSlice::<_, Lsb0>::from_slice(self.0).iter_ones()
     }
 }
+
+/// Returns the length of the code emitted for the given literal.
+///
+/// Usually the code emitted for a literal has the same length than the literal
+/// itself, because each byte in the literal corresponds to one byte in the
+/// code. However, this is not true if the literal contains one or more bytes
+/// equal to [`OPCODE_PREFIX`]. In such cases the code is longer than the
+/// literal.
+pub fn literal_code_length(literal: &[u8]) -> usize {
+    let mut length = literal.len();
+    for b in literal {
+        if *b == OPCODE_PREFIX {
+            length += 1;
+        }
+    }
+    length
+}
