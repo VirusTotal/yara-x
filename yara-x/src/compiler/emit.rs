@@ -944,8 +944,7 @@ fn emit_check_for_rule_match(
             offset: MATCHING_RULES_BITMAP_BASE as u32,
         },
     );
-    // This is the first operator for the I32ShrU operation.
-    instr.i32_const(rule_id.0 % 8);
+
     // Compute byte & (1 << (rule_id % 8)), which clears all
     // bits except the one we are interested in.
     instr.i32_const(1 << (rule_id.0 % 8));
@@ -953,6 +952,7 @@ fn emit_check_for_rule_match(
     // Now shift the byte to the right, leaving the
     // interesting bit as the LSB. So the result is either
     // 1 or 0.
+    instr.i32_const(rule_id.0 % 8);
     instr.binop(BinaryOp::I32ShrU);
 }
 

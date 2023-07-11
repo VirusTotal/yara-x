@@ -1683,6 +1683,31 @@ fn rule_reuse() {
 }
 
 #[test]
+fn rule_reuse_2() {
+    let rules = crate::compile(
+        r#"
+        rule rule_1 {
+          condition:
+            true
+        }
+        rule rule_2 {
+          condition:
+            false
+        }
+        rule rule_3 {
+          condition:
+            rule_1 and not rule_2
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(scanner.scan(&[]).matching_rules().len(), 2);
+}
+
+#[test]
 fn test_defined_1() {
     condition_true!(r#"defined 1"#);
     condition_true!(r#"defined 1.0"#);
