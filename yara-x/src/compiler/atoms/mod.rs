@@ -449,8 +449,8 @@ mod test {
         let atom = Atom::exact(&[0x00_u8, 0x01, 0x02]);
         let mut c = XorGenerator::new(atom, 0..=1);
 
-        assert_eq!(c.next(), Some(Atom::exact([0x00_u8, 0x01, 0x02])));
-        assert_eq!(c.next(), Some(Atom::exact([0x01_u8, 0x00, 0x03])));
+        assert_eq!(c.next(), Some(Atom::from([0x00, 0x01, 0x02])));
+        assert_eq!(c.next(), Some(Atom::from([0x01, 0x00, 0x03])));
         assert_eq!(c.next(), None);
     }
 
