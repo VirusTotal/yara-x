@@ -63,7 +63,7 @@ use std::u8;
 use yara_x_parser::ast::HexByte;
 
 /// Marker that indicates the start of some VM opcode.
-const OPCODE_PREFIX: u8 = 0xAA;
+pub const OPCODE_PREFIX: u8 = 0xAA;
 
 /// Number of alternatives in regular expressions (e.g: /foo|bar|baz/ have 3
 /// alternatives)
@@ -156,8 +156,8 @@ impl InstrSeq {
     /// the first instruction is at location 0. This function always returns
     /// the location where the next instruction will be put.
     #[inline]
-    pub fn location(&self) -> u64 {
-        self.seq.position()
+    pub fn location(&self) -> usize {
+        self.seq.position() as usize
     }
 
     /// Returns the unique ID associated to the instruction sequence.
@@ -172,7 +172,7 @@ impl InstrSeq {
 
     /// Adds some instruction at the end of the sequence and returns the
     /// location where the newly added instruction resides.
-    pub fn emit_instr(&mut self, instr: u8) -> u64 {
+    pub fn emit_instr(&mut self, instr: u8) -> usize {
         // Store the position where the instruction will be written, which will
         // the result for this function.
         let location = self.location();
@@ -194,7 +194,7 @@ impl InstrSeq {
 
     /// Adds a [`Instr::SplitN`] instruction at the end of the sequence and
     /// returns the location where the newly added instruction resides.
-    pub fn emit_split_n(&mut self, n: NumAlt) -> u64 {
+    pub fn emit_split_n(&mut self, n: NumAlt) -> usize {
         let location = self.location();
         self.seq.write_all(&[OPCODE_PREFIX, Instr::SPLIT_N]).unwrap();
         self.seq.write_all(NumAlt::to_le_bytes(n).as_slice()).unwrap();
@@ -206,7 +206,7 @@ impl InstrSeq {
 
     /// Adds a [`Instr::MaskedByte`] instruction at the end of the sequence and
     /// returns the location where the newly added instruction resides.
-    pub fn emit_masked_byte(&mut self, b: HexByte) -> u64 {
+    pub fn emit_masked_byte(&mut self, b: HexByte) -> usize {
         let location = self.location();
         self.seq
             .write_all(&[OPCODE_PREFIX, Instr::MASKED_BYTE, b.value, b.mask])
@@ -217,7 +217,7 @@ impl InstrSeq {
     /// Adds a [`Instr::ClassBitmap`] or [`Instr::ClassRanges`] instruction at
     /// the end of the sequence and returns the location where the newly added
     /// instruction resides.
-    pub fn emit_class(&mut self, c: &ClassBytes) -> u64 {
+    pub fn emit_class(&mut self, c: &ClassBytes) -> usize {
         let location = self.location();
         // When the number of ranges is <= 15 `Instr::ClassRanges` is
         // preferred over `Instr::ClassBitmap` because of its more compact
@@ -253,7 +253,7 @@ impl InstrSeq {
     pub fn emit_literal<'a, I: IntoIterator<Item = &'a u8>>(
         &mut self,
         literal: I,
-    ) -> u64 {
+    ) -> usize {
         let location = self.location();
         for b in literal {
             // If the literal contains a byte that is equal to the opcode
@@ -268,19 +268,26 @@ impl InstrSeq {
         location
     }
 
+    pub fn emit_clone(&mut self, start: usize, end: usize) -> usize {
+        let location = self.location();
+        self.seq.get_mut().extend_from_within(start..end);
+        self.seq.seek(SeekFrom::Current(end as i64 - start as i64)).unwrap();
+        location
+    }
+
     /// Patches the offset of the instruction that starts at the given location.
     ///
     /// # Panics
     ///
     /// If the instruction at `location` is not one that have an offset as its
     /// argument, like [`Instr::Jump`], [`Instr::SplitA`] or [`Instr::SplitB`].
-    pub fn patch_instr(&mut self, location: u64, offset: Offset) {
+    pub fn patch_instr(&mut self, location: usize, offset: Offset) {
         // Save the current position for the forward code in order to restore
         // it later.
         let saved_loc = self.location();
 
         // Seek to the position indicated by `location`.
-        self.seq.seek(SeekFrom::Start(location)).unwrap();
+        self.seq.seek(SeekFrom::Start(location as u64)).unwrap();
 
         let mut buf = [0; 2];
         self.seq.read_exact(&mut buf).unwrap();
@@ -299,7 +306,7 @@ impl InstrSeq {
         self.seq.write_all(Offset::to_le_bytes(offset).as_slice()).unwrap();
 
         // Restore to the previous current position.
-        self.seq.seek(SeekFrom::Start(saved_loc)).unwrap();
+        self.seq.seek(SeekFrom::Start(saved_loc as u64)).unwrap();
     }
 
     /// Patches the offsets of the [`Instr::SplitN`] instruction at the given
@@ -311,7 +318,7 @@ impl InstrSeq {
     /// of offsets provided are not the one that the instruction expects.
     pub fn patch_split_n<I: ExactSizeIterator<Item = Offset>>(
         &mut self,
-        location: u64,
+        location: usize,
         mut offsets: I,
     ) {
         // Save the current location for the forward code in order to restore
@@ -319,7 +326,7 @@ impl InstrSeq {
         let saved_loc = self.location();
 
         // Seek to the position indicated by `location`.
-        self.seq.seek(SeekFrom::Start(location)).unwrap();
+        self.seq.seek(SeekFrom::Start(location as u64)).unwrap();
 
         let mut opcode = [0; 2];
         self.seq.read_exact(&mut opcode).unwrap();
@@ -350,7 +357,7 @@ impl InstrSeq {
         }
 
         // Restore to the previous current position.
-        self.seq.seek(SeekFrom::Start(saved_loc)).unwrap();
+        self.seq.seek(SeekFrom::Start(saved_loc as u64)).unwrap();
     }
 }
 

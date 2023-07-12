@@ -9,6 +9,7 @@ matches the regexp left-to-right, and another one that matches right-to-left.
 
 use std::cmp::min;
 use std::collections::HashMap;
+use std::mem::{size_of, size_of_val};
 
 use regex_syntax::hir;
 use regex_syntax::hir::{
@@ -21,22 +22,25 @@ use crate::compiler::{
     any_byte, best_atom_from_slice, class_to_hex_byte, Atom, DESIRED_ATOM_SIZE,
 };
 use crate::re;
-use crate::re::instr::{literal_code_length, Instr, InstrSeq, NumAlt};
+use crate::re::instr;
+use crate::re::instr::{
+    literal_code_length, Instr, InstrSeq, NumAlt, OPCODE_PREFIX,
+};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default)]
 pub(crate) struct Location {
-    pub fwd: u64,
+    pub fwd: usize,
     pub bck_seq_id: u64,
-    pub bck: u64,
+    pub bck: usize,
 }
 
 impl Location {
     fn sub(&self, rhs: &Self) -> Offset {
         Offset {
-            fwd: (self.fwd as i64 - rhs.fwd as i64)
+            fwd: (self.fwd as isize - rhs.fwd as isize)
                 .try_into()
                 .expect("regexp too large"),
-            bck: (self.bck as i64 - rhs.bck as i64)
+            bck: (self.bck as isize - rhs.bck as isize)
                 .try_into()
                 .expect("regexp too large"),
         }
@@ -125,6 +129,7 @@ impl Compiler {
         lit_extractor.limit_class(256);
         lit_extractor.limit_total(512);
         lit_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
+        lit_extractor.limit_repeat(256);
 
         Self {
             lit_extractor,
@@ -207,6 +212,14 @@ impl Compiler {
             fwd: self.forward_code.emit_literal(literal.0.iter()),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_literal(literal.0.iter().rev()),
+        }
+    }
+
+    fn emit_clone(&mut self, start: Location, end: Location) -> Location {
+        Location {
+            fwd: self.forward_code.emit_clone(start.fwd, end.fwd),
+            bck_seq_id: self.backward_code().seq_id(),
+            bck: self.backward_code_mut().emit_clone(start.bck, end.bck),
         }
     }
 
@@ -416,8 +429,6 @@ impl Compiler {
     }
 
     fn visit_pre_repetition(&mut self, rep: &Repetition) {
-        self.bookmarks.push(self.location());
-
         match (rep.min, rep.max, rep.greedy) {
             // e* and e*?
             //
@@ -443,7 +454,32 @@ impl Compiler {
                 let l1 = self.location();
                 self.bookmarks.push(l1);
             }
-            _ => {}
+            // e{min,}   min > 1
+            //
+            // ... code for e repeated min times
+            //
+            (_, None, _) => {
+                self.bookmarks.push(self.location());
+            }
+            // e{min,max}
+            //
+            //     ... code for e ...     repeated min times
+            //     split end            | repeated max-min times
+            //     ... code for e ...   |
+            // end:
+            //
+            (min, Some(_), greedy) => {
+                if min == 0 {
+                    let split = self.emit_instr(if greedy {
+                        Instr::SPLIT_A
+                    } else {
+                        Instr::SPLIT_B
+                    });
+                    self.bookmarks.push(split);
+                    self.zero_rep_depth += 1;
+                }
+                self.bookmarks.push(self.location());
+            }
         }
     }
 
@@ -461,6 +497,8 @@ impl Compiler {
                 let l3 = self.location();
                 self.patch_instr(&l1, l3.sub(&l1));
                 self.patch_instr(&l2, l1.sub(&l2));
+                self.zero_rep_depth -= 1;
+                l1
             }
             // e+ and e+?
             //
@@ -475,11 +513,128 @@ impl Compiler {
                     Instr::SPLIT_A
                 });
                 self.patch_instr(&l2, l1.sub(&l2));
-            }
-            _ => unreachable!(),
-        }
 
-        self.bookmarks.pop().unwrap()
+                l1
+            }
+            // e{min,}   n > 1
+            //
+            //     ... code for e repeated min - 2 times
+            // l1: ... code for e ...
+            // l2: split_b l1 ( split_a for the non-greedy e{min,}? )
+            //     ... code for e
+            (min, None, greedy) => {
+                assert!(min >= 2); // min == 0 and min == 1 handled above.
+
+                // `start` and `end` are the locations where the code for `e`
+                // starts and ends.
+                let start = self.bookmarks.pop().unwrap();
+                let end = self.location();
+
+                // The first copy of `e` was already emitted when the children
+                // of the repetition node was visited. Clone the code for `e`
+                // n - 3 times, which result in n - 2 copies.
+                for _ in 0..min.saturating_sub(3) {
+                    self.emit_clone(start, end);
+                }
+
+                let l1;
+                if min > 2 {
+                    l1 = self.location();
+                    self.emit_clone(start, end);
+                } else {
+                    l1 = start;
+                };
+
+                let l2 = self.emit_instr(if greedy {
+                    Instr::SPLIT_B
+                } else {
+                    Instr::SPLIT_A
+                });
+
+                self.patch_instr(&l2, l1.sub(&l2));
+                self.emit_clone(start, end);
+
+                // If the best atoms were extracted from the expression inside
+                // the repetition, the backward code location for those atoms
+                // must be adjusted taking into account the code that has been
+                // added after the atoms were extracted. For instance, in the
+                // regexp /abcd{2}/, the atom 'abcd' is generated while
+                // the 'abcd' literal is processed, and the backward code points
+                // to the point right after the final 'd'. However, when the
+                // repetition node is handled, the code becomes 'abcdabcd', but
+                // the atom's backward code still points to the second 'a', and
+                // it should point after the second 'd'.
+                //
+                // The adjustment is the size of the code generated for the
+                // expression `e` multiplied by min - 1, plus the size of the
+                // split instruction.
+                let adjustment = (min - 1) as usize * (end.bck - start.bck)
+                    + size_of_val(&OPCODE_PREFIX)
+                    + size_of_val(&Instr::SPLIT_A)
+                    + size_of::<instr::Offset>();
+
+                let (_, atoms) = self.best_atoms.last_mut().unwrap();
+
+                for atom in atoms.iter_mut() {
+                    if atom.code_loc.bck_seq_id == start.bck_seq_id
+                        && atom.code_loc.bck >= start.bck
+                    {
+                        atom.code_loc.bck += adjustment;
+                    }
+                }
+
+                start
+            }
+            // e{min,max}
+            //
+            //     ... code for e ... -+
+            //     ... code for e ...  |  min times
+            //     ... code for e ... -+
+            //     split end          -+
+            //     ... code for e ...  |  max-min times
+            //     split end           |
+            //     ... code for e ... -+
+            // end:
+            //
+            (min, Some(max), greedy) => {
+                // `start` and `end` are the locations where the code for `e`
+                // starts and ends.
+                let start = self.bookmarks.pop().unwrap();
+                let end = self.location();
+
+                for _ in 0..min {
+                    self.emit_clone(start, end);
+                }
+
+                // If min == 0 the first split and `e` are already emitted (the
+                // split was emitted during the call to `visit_post_repetition`
+                // and `e` was emitted while visiting the child node. In such
+                // case the loop goes only to max - 1. If min > 0, we need to
+                // emit max - min splits.
+                for _ in 0..if min == 0 { max - 1 } else { max - min } {
+                    let split = self.emit_instr(if greedy {
+                        Instr::SPLIT_A
+                    } else {
+                        Instr::SPLIT_B
+                    });
+                    self.bookmarks.push(split);
+                    self.emit_clone(start, end);
+                }
+
+                let end = self.location();
+
+                for _ in 0..max - min {
+                    let split = self.bookmarks.pop().unwrap();
+                    self.patch_instr(&split, end.sub(&split));
+                }
+
+                if min == 0 {
+                    self.zero_rep_depth -= 1;
+                }
+
+                start
+            }
+        }
     }
 }
 
@@ -516,8 +671,6 @@ impl hir::Visitor for &mut Compiler {
     }
 
     fn visit_post(&mut self, hir: &Hir) -> Result<(), Self::Err> {
-        let mut dec_zero_len_rep = false;
-
         let mut code_loc = match hir.kind() {
             HirKind::Capture(_) => self.bookmarks.pop().unwrap(),
             HirKind::Literal(literal) => self.emit_literal(literal),
@@ -534,9 +687,8 @@ impl hir::Visitor for &mut Compiler {
             HirKind::Alternation(expressions) => {
                 self.visit_post_alternation(expressions)
             }
-            HirKind::Repetition(rep) => {
-                dec_zero_len_rep = rep.min == 0;
-                self.visit_post_repetition(rep)
+            HirKind::Repetition(repeated) => {
+                self.visit_post_repetition(repeated)
             }
             _ => unreachable!(),
         };
@@ -571,8 +723,8 @@ impl hir::Visitor for &mut Compiler {
                         &literal[0..best_atom.backtrack as usize],
                     );
 
-                    code_loc.fwd += adjustment as u64;
-                    code_loc.bck -= adjustment as u64;
+                    code_loc.fwd += adjustment;
+                    code_loc.bck -= adjustment;
                     best_atom.backtrack = 0;
 
                     Some(vec![best_atom])
@@ -603,10 +755,6 @@ impl hir::Visitor for &mut Compiler {
                     }
                 }
             }
-        }
-
-        if dec_zero_len_rep {
-            self.zero_rep_depth -= 1;
         }
 
         self.depth -= 1;

@@ -1647,7 +1647,7 @@ fn of() {
 }
 
 #[test]
-fn rule_reuse() {
+fn rule_reuse_1() {
     let rules = crate::compile(
         r#"
         rule rule_1 {

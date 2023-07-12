@@ -408,6 +408,216 @@ fn re_code_10() {
 
 #[test]
 fn re_code_11() {
+    assert_re_code!(
+        "(?s)(abc){2,}",
+        // Forward code
+        r#"
+00000: LIT 0x61
+00001: LIT 0x62
+00002: LIT 0x63
+00003: SPLIT_B 00000
+00007: LIT 0x61
+00008: LIT 0x62
+00009: LIT 0x63
+"#,
+        // Backward code
+        r#"
+00000: LIT 0x63
+00001: LIT 0x62
+00002: LIT 0x61
+00003: SPLIT_B 00000
+00007: LIT 0x63
+00008: LIT 0x62
+00009: LIT 0x61
+"#,
+        // Atoms
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x61]),
+            code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x0a }
+        }]
+    );
+}
+
+#[test]
+fn re_code_12() {
+    assert_re_code!(
+        "(?s)(abc123){3,}",
+        // Forward code
+        r#"
+00000: LIT 0x61
+00001: LIT 0x62
+00002: LIT 0x63
+00003: LIT 0x31
+00004: LIT 0x32
+00005: LIT 0x33
+00006: LIT 0x61
+00007: LIT 0x62
+00008: LIT 0x63
+00009: LIT 0x31
+0000a: LIT 0x32
+0000b: LIT 0x33
+0000c: SPLIT_B 00006
+00010: LIT 0x61
+00011: LIT 0x62
+00012: LIT 0x63
+00013: LIT 0x31
+00014: LIT 0x32
+00015: LIT 0x33
+"#,
+        // Backward code
+        r#"
+00000: LIT 0x33
+00001: LIT 0x32
+00002: LIT 0x31
+00003: LIT 0x63
+00004: LIT 0x62
+00005: LIT 0x61
+00006: LIT 0x33
+00007: LIT 0x32
+00008: LIT 0x31
+00009: LIT 0x63
+0000a: LIT 0x62
+0000b: LIT 0x61
+0000c: SPLIT_B 00006
+00010: LIT 0x33
+00011: LIT 0x32
+00012: LIT 0x31
+00013: LIT 0x63
+00014: LIT 0x62
+00015: LIT 0x61
+"#,
+        // Atoms
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![0x63, 0x31, 0x32, 0x33]),
+            code_loc: Location { fwd: 2, bck_seq_id: 0, bck: 0x14 }
+        }]
+    );
+}
+
+#[test]
+fn re_code_13() {
+    assert_re_code!(
+        "(?s)(abcdef|ghijkl){2,}",
+        // Forward code
+        r#"
+00000: SPLIT_N 00007 00011
+00007: LIT 0x61
+00008: LIT 0x62
+00009: LIT 0x63
+0000a: LIT 0x64
+0000b: LIT 0x65
+0000c: LIT 0x66
+0000d: JUMP 00017
+00011: LIT 0x67
+00012: LIT 0x68
+00013: LIT 0x69
+00014: LIT 0x6a
+00015: LIT 0x6b
+00016: LIT 0x6c
+00017: SPLIT_B 00000
+0001b: SPLIT_N 00022 0002c
+00022: LIT 0x61
+00023: LIT 0x62
+00024: LIT 0x63
+00025: LIT 0x64
+00026: LIT 0x65
+00027: LIT 0x66
+00028: JUMP 00032
+0002c: LIT 0x67
+0002d: LIT 0x68
+0002e: LIT 0x69
+0002f: LIT 0x6a
+00030: LIT 0x6b
+00031: LIT 0x6c
+"#,
+        // Backward code
+        r#"
+00000: SPLIT_N 00007 00011
+00007: LIT 0x66
+00008: LIT 0x65
+00009: LIT 0x64
+0000a: LIT 0x63
+0000b: LIT 0x62
+0000c: LIT 0x61
+0000d: JUMP 00017
+00011: LIT 0x6c
+00012: LIT 0x6b
+00013: LIT 0x6a
+00014: LIT 0x69
+00015: LIT 0x68
+00016: LIT 0x67
+00017: SPLIT_B 00000
+0001b: SPLIT_N 00022 0002c
+00022: LIT 0x66
+00023: LIT 0x65
+00024: LIT 0x64
+00025: LIT 0x63
+00026: LIT 0x62
+00027: LIT 0x61
+00028: JUMP 00032
+0002c: LIT 0x6c
+0002d: LIT 0x6b
+0002e: LIT 0x6a
+0002f: LIT 0x69
+00030: LIT 0x68
+00031: LIT 0x67
+"#,
+        // Atoms
+        vec![
+            RegexpAtom {
+                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
+                code_loc: Location { fwd: 0x7, bck_seq_id: 0, bck: 0x28 }
+            },
+            RegexpAtom {
+                atom: Atom::inexact(vec![0x67, 0x68, 0x69, 0x6a]),
+                code_loc: Location { fwd: 0x11, bck_seq_id: 0, bck: 0x32 }
+            }
+        ]
+    );
+}
+
+#[test]
+fn re_code_14() {
+    assert_re_code!(
+        "(?s)(abc){0,2}",
+        // Forward code
+        r#"
+00000: SPLIT_A 0000e
+00004: LIT 0x61
+00005: LIT 0x62
+00006: LIT 0x63
+00007: SPLIT_A 0000e
+0000b: LIT 0x61
+0000c: LIT 0x62
+0000d: LIT 0x63
+"#,
+        // Backward code
+        r#"
+00000: SPLIT_A 0000e
+00004: LIT 0x63
+00005: LIT 0x62
+00006: LIT 0x61
+00007: SPLIT_A 0000e
+0000b: LIT 0x63
+0000c: LIT 0x62
+0000d: LIT 0x61
+"#,
+        // Atoms
+        vec![
+            RegexpAtom {
+                atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
+                code_loc: Location { fwd: 0x04, bck_seq_id: 0, bck: 0x0e }
+            },
+            RegexpAtom {
+                atom: Atom::exact(vec![]),
+                code_loc: Location { fwd: 0x04, bck_seq_id: 0, bck: 0x0e }
+            }
+        ]
+    );
+}
+
+#[test]
+fn re_code_15() {
     let (forward_code, backward_code, atoms) =
         Compiler::new().compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
@@ -462,7 +672,7 @@ fn re_code_11() {
 }
 
 #[test]
-fn re_code_12() {
+fn re_code_16() {
     let (forward_code, backward_code, atoms) =
         Compiler::new().compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
