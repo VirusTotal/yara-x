@@ -13,9 +13,10 @@ use rustc_hash::FxHashMap;
 use wasmtime::Store;
 
 use crate::compiler::{
-    AtomInfo, LiteralId, NamespaceId, PatternId, RegexpId, RuleId, Rules,
-    SubPattern, SubPatternFlagSet, SubPatternFlags, SubPatternId,
+    LiteralId, NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
+    SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
+use crate::re::pikevm::PikeVM;
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
 use crate::scanner::RuntimeStringId;
 use crate::string_pool::BStringPool;
@@ -200,6 +201,8 @@ impl ScanContext<'_> {
     pub(crate) fn search_for_patterns(&mut self) {
         let ac = self.compiled_rules.aho_corasick();
 
+        let mut pike_vm = PikeVM::new();
+
         for atom_match in ac.find_overlapping_iter(self.scanned_data()) {
             let matched_atom =
                 &self.compiled_rules.atoms()[atom_match.pattern()];
@@ -305,6 +308,32 @@ impl ScanContext<'_> {
                             }
                         }
                         _ => unreachable!(),
+                    }
+                }
+
+                SubPattern::Regexp { flags } => {
+                    let re_code = self.compiled_rules.re_code();
+                    let data = self.scanned_data();
+
+                    if let Some(fwd_match_len) = pike_vm.try_match(
+                        re_code,
+                        matched_atom.fwd_code(),
+                        data[match_start..].iter(),
+                    ) {
+                        if let Some(bck_match_len) = pike_vm.try_match(
+                            re_code,
+                            matched_atom.bck_code(),
+                            data[..match_start].iter().rev(),
+                        ) {
+                            self.track_pattern_match(
+                                *pattern_id,
+                                Match {
+                                    range: match_start - bck_match_len
+                                        ..match_start + fwd_match_len,
+                                    xor_key: None,
+                                },
+                            )
+                        }
                     }
                 }
 
@@ -591,7 +620,7 @@ impl ScanContext<'_> {
     fn verify_xor_match(
         &self,
         match_start: usize,
-        matched_atom: &AtomInfo,
+        matched_atom: &SubPatternAtom,
         pattern_id: LiteralId,
         flags: SubPatternFlagSet,
     ) -> Option<Match> {

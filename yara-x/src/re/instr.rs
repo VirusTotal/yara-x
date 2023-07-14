@@ -55,10 +55,12 @@ use bitvec::array::BitArray;
 use bitvec::order::Lsb0;
 use bitvec::slice::{BitSlice, IterOnes};
 use regex_syntax::hir::ClassBytes;
+use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::mem::size_of;
-use std::u8;
+use std::ops::Deref;
+use std::{mem, u8};
 
 use yara_x_parser::ast::HexByte;
 
@@ -79,7 +81,7 @@ pub enum Instr<'a> {
     AnyByte,
 
     /// Matches a byte.
-    Match(u8),
+    Byte(u8),
 
     /// Matches a masked byte. The opcode is followed by two `u8` operands:
     /// the byte and the mask.
@@ -119,7 +121,12 @@ pub enum Instr<'a> {
     /// location of the jump opcode.
     Jump(Offset),
 
-    End,
+    /// Match for the regexp has been found.
+    Match,
+
+    /// Not really an instruction, is just a marker that indicates the end
+    /// of a instruction sequence.
+    EOI,
 }
 
 impl<'a> Instr<'a> {
@@ -131,6 +138,7 @@ impl<'a> Instr<'a> {
     pub const MASKED_BYTE: u8 = 0x05;
     pub const CLASS_BITMAP: u8 = 0x06;
     pub const CLASS_RANGES: u8 = 0x07;
+    pub const MATCH: u8 = 0x08;
 }
 
 /// A sequence of instructions for the regexp VM.
@@ -140,9 +148,21 @@ pub struct InstrSeq {
     seq: Cursor<Vec<u8>>,
 }
 
+impl AsRef<[u8]> for InstrSeq {
+    fn as_ref(&self) -> &[u8] {
+        self.seq.get_ref().as_slice()
+    }
+}
+
 impl InstrSeq {
     pub fn new(seq_id: u64) -> Self {
         Self { seq_id, seq: Cursor::new(Vec::new()) }
+    }
+
+    /// Consumes the [`InstrSeq`] and returns the inner vector that contains
+    /// the code.
+    pub fn into_inner(self) -> Vec<u8> {
+        self.seq.into_inner()
     }
 
     /// Appends another sequence to this one.
@@ -185,7 +205,7 @@ impl InstrSeq {
                 // offset that is relative to the start of the instruction.
                 self.seq.write_all(&[0x00; size_of::<Offset>()]).unwrap();
             }
-            Instr::ANY_BYTE => {}
+            Instr::ANY_BYTE | Instr::MATCH => {}
             _ => unreachable!(),
         }
 
@@ -423,10 +443,13 @@ impl Display for InstrSeq {
                     }
                     writeln!(f)?;
                 }
-                Instr::Match(byte) => {
+                Instr::Byte(byte) => {
                     writeln!(f, "{:05x}: LIT {:#04x}", addr, byte)?;
                 }
-                Instr::End => {
+                Instr::Match => {
+                    writeln!(f, "{:05x}: MATCH", addr)?;
+                }
+                Instr::EOI => {
                     break;
                 }
             };
@@ -451,90 +474,123 @@ impl<'a> InstrParser<'a> {
     }
 
     pub fn next(&mut self) -> Instr {
-        match self.code[self.ip..] {
-            [OPCODE_PREFIX, OPCODE_PREFIX, ..] => {
-                self.ip += 2;
-                Instr::Match(OPCODE_PREFIX)
-            }
-            [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => {
-                self.ip += 2;
-                Instr::AnyByte
-            }
-            [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
-                self.ip += 4;
-                Instr::MaskedByte(byte, mask)
-            }
-            [OPCODE_PREFIX, Instr::JUMP, ..] => {
-                self.ip += 2;
-                let offset = Offset::from_le_bytes(
-                    (&self.code[self.ip..self.ip + size_of::<Offset>()])
-                        .try_into()
-                        .unwrap(),
-                );
-                self.ip += size_of::<Offset>();
-                Instr::Jump(offset)
-            }
-            [OPCODE_PREFIX, Instr::SPLIT_A, ..] => {
-                self.ip += 2;
-                let offset = Offset::from_le_bytes(
-                    (&self.code[self.ip..self.ip + size_of::<Offset>()])
-                        .try_into()
-                        .unwrap(),
-                );
-                self.ip += size_of::<Offset>();
-                Instr::SplitA(offset)
-            }
-            [OPCODE_PREFIX, Instr::SPLIT_B, ..] => {
-                self.ip += 2;
-                let offset = Offset::from_le_bytes(
-                    (&self.code[self.ip..self.ip + size_of::<Offset>()])
-                        .try_into()
-                        .unwrap(),
-                );
-                self.ip += size_of::<Offset>();
-                Instr::SplitB(offset)
-            }
-            [OPCODE_PREFIX, Instr::SPLIT_N, ..] => {
-                self.ip += 2;
+        let (instr, size) = decode_instr(&self.code[self.ip..]);
+        self.ip += size;
+        instr
+    }
+}
 
-                let n = NumAlt::from_le_bytes(
-                    (&self.code[self.ip..self.ip + size_of::<NumAlt>()])
-                        .try_into()
-                        .unwrap(),
-                );
+#[inline(always)]
+pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
+    match code[..] {
+        [OPCODE_PREFIX, OPCODE_PREFIX, ..] => (Instr::Byte(OPCODE_PREFIX), 2),
+        [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => (Instr::AnyByte, 2),
+        [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
+            (Instr::MaskedByte(byte, mask), 4)
+        }
+        [OPCODE_PREFIX, Instr::JUMP, ..] => {
+            let offset = Offset::from_le_bytes(
+                (&code[2..2 + size_of::<Offset>()]).try_into().unwrap(),
+            );
+            (Instr::Jump(offset), 2 + size_of::<Offset>())
+        }
+        [OPCODE_PREFIX, Instr::SPLIT_A, ..] => {
+            let offset = Offset::from_le_bytes(
+                (&code[2..2 + size_of::<Offset>()]).try_into().unwrap(),
+            );
+            (Instr::SplitA(offset), 2 + size_of::<Offset>())
+        }
+        [OPCODE_PREFIX, Instr::SPLIT_B, ..] => {
+            let offset = Offset::from_le_bytes(
+                (&code[2..2 + size_of::<Offset>()]).try_into().unwrap(),
+            );
+            (Instr::SplitB(offset), 2 + size_of::<Offset>())
+        }
+        [OPCODE_PREFIX, Instr::SPLIT_N, ..] => {
+            let n = NumAlt::from_le_bytes(
+                (&code[2..2 + size_of::<NumAlt>()]).try_into().unwrap(),
+            );
 
-                self.ip += size_of::<NumAlt>();
+            let offsets = &code[2 + size_of::<NumAlt>()
+                ..2 + size_of::<NumAlt>() + size_of::<Offset>() * n as usize];
 
-                let offsets = &self.code
-                    [self.ip..self.ip + size_of::<Offset>() * n as usize];
+            (
+                Instr::SplitN(SplitN(offsets)),
+                2 + size_of::<NumAlt>() + size_of::<Offset>() * n as usize,
+            )
+        }
+        [OPCODE_PREFIX, Instr::CLASS_RANGES, ..] => {
+            let n = code[2];
 
-                self.ip += size_of::<Offset>() * n as usize;
+            let ranges = &code[3..3 + size_of::<i16>() * n as usize];
 
-                Instr::SplitN(SplitN(offsets))
+            (
+                Instr::ClassRanges(ClassRanges(ranges)),
+                3 + size_of::<i16>() * n as usize,
+            )
+        }
+        [OPCODE_PREFIX, Instr::CLASS_BITMAP, ..] => {
+            let bitmap = &code[2..2 + 32];
+            (Instr::ClassBitmap(ClassBitmap(bitmap)), 2 + bitmap.len())
+        }
+        [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
+        [b, ..] => (Instr::Byte(b), 1),
+        [] => (Instr::EOI, 0),
+    }
+}
+
+#[inline(always)]
+pub fn epsilon_closure(code: &[u8], start: usize, closure: &mut Vec<usize>) {
+    let mut fibers = vec![start];
+    let mut executed_splits = vec![];
+
+    while let Some(fiber) = fibers.pop() {
+        let (instr, size) = decode_instr(&code[fiber..]);
+        let next = fiber + size;
+        match instr {
+            Instr::AnyByte
+            | Instr::Byte(_)
+            | Instr::MaskedByte(_, _)
+            | Instr::ClassBitmap(_)
+            | Instr::ClassRanges(_) => {
+                closure.push(fiber);
             }
-            [OPCODE_PREFIX, Instr::CLASS_RANGES, ..] => {
-                let n = self.code[self.ip + 2];
-                self.ip += 3;
-
-                let ranges = &self.code
-                    [self.ip..self.ip + size_of::<i16>() * n as usize];
-
-                self.ip += size_of::<i16>() * n as usize;
-
-                Instr::ClassRanges(ClassRanges(ranges))
+            Instr::SplitA(offset) => {
+                if !executed_splits.contains(&fiber) {
+                    executed_splits.push(fiber);
+                    fibers.push(
+                        (fiber as i64 + offset as i64).try_into().unwrap(),
+                    );
+                    fibers.push(next);
+                }
             }
-            [OPCODE_PREFIX, Instr::CLASS_BITMAP, ..] => {
-                self.ip += 2;
-                let bitmap = &self.code[self.ip..self.ip + 32];
-                self.ip += bitmap.len();
-
-                Instr::ClassBitmap(ClassBitmap(bitmap))
+            Instr::SplitB(offset) => {
+                if !executed_splits.contains(&fiber) {
+                    executed_splits.push(fiber);
+                    fibers.push(next);
+                    fibers.push(
+                        (fiber as i64 + offset as i64).try_into().unwrap(),
+                    );
+                }
             }
-            [b, ..] => {
-                self.ip += 1;
-                Instr::Match(b)
+            Instr::SplitN(split) => {
+                if !executed_splits.contains(&fiber) {
+                    executed_splits.push(fiber);
+                    for offset in split.offsets().rev() {
+                        fibers.push(
+                            (fiber as i64 + offset as i64).try_into().unwrap(),
+                        );
+                    }
+                }
             }
-            [] => Instr::End,
+            Instr::Jump(offset) => {
+                fibers
+                    .push((fiber as i64 + offset as i64).try_into().unwrap());
+            }
+            Instr::Match => {
+                closure.push(fiber);
+            }
+            Instr::EOI => {}
         }
     }
 }
@@ -553,7 +609,7 @@ impl<'a> Iterator for SplitOffsets<'a> {
     type Item = Offset;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.0.len() < 2 {
+        if self.0.len() < size_of::<Offset>() {
             return None;
         }
         let next = Offset::from_le_bytes(
@@ -564,11 +620,36 @@ impl<'a> Iterator for SplitOffsets<'a> {
     }
 }
 
+impl<'a> DoubleEndedIterator for SplitOffsets<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let len = self.0.len();
+        if len < size_of::<Offset>() {
+            return None;
+        }
+        let next = Offset::from_le_bytes(
+            (&self.0[len - size_of::<Offset>()..len]).try_into().unwrap(),
+        );
+        self.0 = &self.0[..len - size_of::<Offset>()];
+        Some(next)
+    }
+}
+
 pub struct ClassRanges<'a>(&'a [u8]);
 
 impl<'a> ClassRanges<'a> {
+    /// Returns an iterator over the ranges of bytes contained in the class.
     pub fn ranges(&self) -> Ranges<'a> {
         Ranges(self.0)
+    }
+
+    /// Returns true if the class contains the given byte.
+    pub fn contains(&self, byte: u8) -> bool {
+        for range in self.ranges() {
+            if (range.0..=range.1).contains(&byte) {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -591,8 +672,17 @@ impl<'a> Iterator for Ranges<'a> {
 pub struct ClassBitmap<'a>(&'a [u8]);
 
 impl<'a> ClassBitmap<'a> {
+    /// Returns an iterator over the bytes contained in the class.
     pub fn bytes(&self) -> IterOnes<'a, u8, Lsb0> {
         BitSlice::<_, Lsb0>::from_slice(self.0).iter_ones()
+    }
+
+    /// Returns true if the class contains the given byte.
+    pub fn contains(&self, byte: u8) -> bool {
+        unsafe {
+            *BitSlice::<_, Lsb0>::from_slice(self.0)
+                .get_unchecked(byte as usize)
+        }
     }
 }
 

@@ -98,7 +98,7 @@ pub(crate) struct Atom {
     // TODO: use tinyvec or smallvec?
     bytes: Vec<u8>,
     exact: bool,
-    pub backtrack: u16,
+    backtrack: u16,
 }
 
 impl From<&[u8]> for Atom {
@@ -157,17 +157,6 @@ impl Atom {
     }
 
     #[inline]
-    pub fn make_inexact(mut self) -> Self {
-        self.exact = false;
-        self
-    }
-
-    #[inline]
-    pub fn is_exact(&self) -> bool {
-        self.exact
-    }
-
-    #[inline]
     pub fn as_slice(&self) -> &[u8] {
         self.bytes.as_ref()
     }
@@ -177,9 +166,30 @@ impl Atom {
         self.bytes.len()
     }
 
+    #[inline]
+    pub fn backtrack(&self) -> u16 {
+        self.backtrack
+    }
+
+    #[inline]
+    pub fn set_backtrack(&mut self, b: u16) {
+        self.backtrack = b;
+    }
+
     /// Compute the atom's quality
     pub fn quality(&self) -> i32 {
         atom_quality(self.bytes.clone())
+    }
+
+    #[inline]
+    pub fn is_exact(&self) -> bool {
+        self.exact
+    }
+
+    #[inline]
+    pub fn make_inexact(mut self) -> Self {
+        self.exact = false;
+        self
     }
 
     pub fn exact<T: AsRef<[u8]>>(v: T) -> Self {

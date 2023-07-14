@@ -1,4 +1,5 @@
 use std::io::{BufWriter, Write};
+use std::num::{NonZeroI32, NonZeroU32};
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
@@ -68,10 +69,17 @@ pub struct Rules {
     /// where the sub-pattern belongs to.
     pub(in crate::compiler) sub_patterns: Vec<(PatternId, SubPattern)>,
 
-    /// A vector that contains all the atoms generated for the patterns. Each
+    /// A vector that contains all the atoms extracted from the patterns. Each
     /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
     /// it belongs to.
-    pub(in crate::compiler) atoms: Vec<AtomInfo>,
+    pub(in crate::compiler) atoms: Vec<SubPatternAtom>,
+
+    /// A vector that contains the code for all regexp patterns (this includes
+    /// hex patterns which are just an special case of regexp). The code for
+    /// each regexp is appended to the vector, during the compilation process
+    /// and the atoms extracted from the regexp contain offsets within this
+    /// vector. This vector contains both forward and backward code.
+    pub(in crate::compiler) re_code: Vec<u8>,
 
     /// A [`Struct`] in serialized form that contains all the global variables.
     /// Each field in the structure corresponds to a global variable defined
@@ -183,8 +191,13 @@ impl Rules {
     }
 
     #[inline]
-    pub(crate) fn atoms(&self) -> &[AtomInfo] {
+    pub(crate) fn atoms(&self) -> &[SubPatternAtom] {
         self.atoms.as_slice()
+    }
+
+    #[inline]
+    pub(crate) fn re_code(&self) -> &[u8] {
+        self.re_code.as_slice()
     }
 
     #[inline]
@@ -279,16 +292,29 @@ pub(crate) struct RuleInfo {
     pub(crate) is_global: bool,
 }
 
+/// Represents an atom extracted from a pattern and added to the Aho-Corasick
+/// automata.
+///
+/// Each time the Aho-Corasick finds one of these atoms, it proceeds to verify
+/// if the corresponding sub-pattern actually matches or not. The verification
+/// process depend on the type of sub-pattern.
 #[derive(Serialize, Deserialize)]
-pub(crate) struct AtomInfo {
+pub(crate) struct SubPatternAtom {
+    /// The [`SubPatternId`] that identifies the sub-pattern this atom
+    /// belongs to.
     sub_pattern_id: SubPatternId,
+    /// The atom itself.
     atom: Atom,
+    /// The index within `re_code` where the forward code for this atom starts.
+    fwd_code: Option<NonZeroU32>,
+    /// The index within `re_code` where the backward code for this atom starts.
+    bck_code: Option<NonZeroU32>,
 }
 
-impl AtomInfo {
+impl SubPatternAtom {
     #[inline]
     pub(crate) fn new(sub_pattern_id: SubPatternId, atom: Atom) -> Self {
-        Self { sub_pattern_id, atom }
+        Self { sub_pattern_id, atom, bck_code: None, fwd_code: None }
     }
 
     #[inline]
@@ -308,11 +334,43 @@ impl AtomInfo {
 
     #[inline]
     pub(crate) fn backtrack(&self) -> usize {
-        self.atom.backtrack as usize
+        self.atom.backtrack() as usize
     }
 
     #[inline]
     pub(crate) fn as_slice(&self) -> &[u8] {
         self.atom.as_slice()
     }
+
+    #[inline]
+    pub(crate) fn fwd_code(&self) -> usize {
+        self.fwd_code.unwrap().get() as usize - 1
+    }
+
+    #[inline]
+    pub(crate) fn bck_code(&self) -> usize {
+        self.bck_code.unwrap().get() as usize - 1
+    }
+
+    #[inline]
+    pub(crate) fn set_fwd_code(&mut self, o: usize) {
+        // TODO: return error
+        let x: u32 = o.try_into().unwrap();
+        self.fwd_code = Some(NonZeroU32::new(x + 1).unwrap());
+    }
+
+    #[inline]
+    pub(crate) fn set_bck_code(&mut self, o: usize) {
+        // TODO: return error
+        let x: u32 = o.try_into().unwrap();
+        self.bck_code = Some(NonZeroU32::new(x + 1).unwrap());
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct RegexpAtom {
+    atom: Vec<u8>,
+    exact: bool,
+    fwd_code: Option<NonZeroI32>,
+    bck_code: Option<NonZeroI32>,
 }

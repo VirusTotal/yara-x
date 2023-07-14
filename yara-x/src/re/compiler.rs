@@ -148,6 +148,10 @@ impl Compiler {
         hir: &Hir,
     ) -> (InstrSeq, InstrSeq, Vec<RegexpAtom>) {
         visit(hir, &mut self).unwrap();
+
+        self.forward_code.emit_instr(Instr::MATCH);
+        self.backward_code.emit_instr(Instr::MATCH);
+
         (
             self.forward_code,
             self.backward_code,
@@ -366,7 +370,7 @@ impl Compiler {
         self.bookmarks.push(l0);
         self.bookmarks.push(self.location());
 
-        self.best_atoms.push((0, Vec::new()));
+        self.best_atoms.push((i32::MIN, Vec::new()));
     }
 
     fn visit_post_alternation(&mut self, expressions: &Vec<Hir>) -> Location {
@@ -463,9 +467,13 @@ impl Compiler {
             }
             // e{min,max}
             //
-            //     ... code for e ...     repeated min times
-            //     split end            | repeated max-min times
-            //     ... code for e ...   |
+            //     ... code for e ... -+
+            //     ... code for e ...  |  min times
+            //     ... code for e ... -+
+            //     split end          -+
+            //     ... code for e ...  |  max-min times
+            //     split end           |
+            //     ... code for e ... -+
             // end:
             //
             (min, Some(_), greedy) => {
@@ -602,7 +610,9 @@ impl Compiler {
                 let start = self.bookmarks.pop().unwrap();
                 let end = self.location();
 
-                for _ in 0..min {
+                // The first copy of `e` has already been emitted while
+                // visiting the child nodes. Make min - 1 clones of `e`.
+                for _ in 0..min.saturating_sub(1) {
                     self.emit_clone(start, end);
                 }
 
@@ -720,12 +730,12 @@ impl hir::Visitor for &mut Compiler {
                     // non zero and the locations where forward and backward
                     // code start must be adjusted accordingly.
                     let adjustment = literal_code_length(
-                        &literal[0..best_atom.backtrack as usize],
+                        &literal[0..best_atom.backtrack() as usize],
                     );
 
                     code_loc.fwd += adjustment;
                     code_loc.bck -= adjustment;
-                    best_atom.backtrack = 0;
+                    best_atom.set_backtrack(0);
 
                     Some(vec![best_atom])
                 }
@@ -774,7 +784,7 @@ impl hir::Visitor for &mut Compiler {
         self.bookmarks.push(self.location());
         // The best atoms for this alternative are independent from the
         // other alternatives.
-        self.best_atoms.push((0, Vec::new()));
+        self.best_atoms.push((i32::MIN, Vec::new()));
         Ok(())
     }
 

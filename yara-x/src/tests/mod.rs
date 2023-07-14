@@ -111,6 +111,35 @@ macro_rules! pattern_false {
     }};
 }
 
+macro_rules! pattern_match {
+    ($pattern:literal, $data:literal, $expected_result:expr) => {{
+        let src =
+            format!("rule test {{ strings: $a = {} condition: $a}}", $pattern);
+
+        let rules = crate::compile(src.as_str()).unwrap();
+
+        let mut scanner = crate::scanner::Scanner::new(&rules);
+        let scan_results = scanner.scan($data);
+        let matching_data = scan_results
+            .matching_rules()
+            .next()
+            .expect(format!("pattern `{}` should match `{:?}`", $pattern, $data).as_str())
+            .patterns()
+            .next()
+            .unwrap()
+            .matches()
+            .next()
+            .unwrap()
+            .data;
+
+        assert_eq!(
+            matching_data, $expected_result,
+            "\n\n`{}` applied to data `{:?}` should match `{:?}`, but it is matching `{:?}`",
+            $pattern, $data, $expected_result, matching_data
+        );
+    }};
+}
+
 #[test]
 fn arithmetic_operations() {
     condition_true!("1 == 1");
@@ -412,63 +441,144 @@ fn hex_patterns() {
 
 #[test]
 fn regexp_patterns() {
-    pattern_true!(r#"/foo/"#, b"foo");
-    pattern_true!(r#"/bar/i"#, b"bar");
+    pattern_match!(r#"/abc/"#, b"abc", b"abc");
+    pattern_false!(r#"/abc/"#, b"xbc");
+    pattern_match!(r#"/abc/"#, b"xabcx", b"abc");
+    pattern_match!(r#"/abc/"#, b"ababc", b"abc");
+    pattern_match!(r#"/a.c/"#, b"abc", b"abc");
+    pattern_false!(r#"/a.{4,5}b/"#, b"acc\nccb");
+    pattern_match!(r#"/a.b/"#, b"a\rb", b"a\rb");
+    pattern_match!(r#"/ab*c/"#, b"abc", b"abc");
+    pattern_match!(r#"/ab*c/"#, b"ac", b"ac");
+    pattern_match!(r#"/ab*bc/"#, b"abc", b"abc");
+    pattern_match!(r#"/ab*bc/"#, b"abbc", b"abbc");
+    pattern_match!(r#"/a.*bb/"#, b"abbbb", b"abbbb");
 
-    pattern_true!(r#"/bar/ wide nocase"#, b"B\x00A\x00R\x00");
-    pattern_true!(r#"/bar/ wide"#, b"b\x00a\x00r\x00");
+    // TODO: Fix this.
+    //pattern_match!(r#"/a.*?bbb/"#, b"abbbbbb", b"abbb");
+
+    pattern_match!(r#"/a.*c/"#, b"ac", b"ac");
+    pattern_match!(r#"/a.*c/"#, b"axyzc", b"axyzc");
+    pattern_match!(r#"/ab+c/"#, b"abbc", b"abbc");
+    pattern_false!(r#"/ab+c/"#, b"ac");
+    pattern_match!(r#"/ab+/"#, b"abbbb", b"abbbb");
+    pattern_match!(r#"/ab+?/"#, b"abbbb", b"ab");
+    pattern_false!(r#"/ab+bc/"#, b"abc");
+    pattern_false!(r#"/ab+bc/"#, b"abq");
+    pattern_match!(r#"/a+b+c/"#, b"aabbabc", b"abc");
+    pattern_false!(r#"/ab?bc/"#, b"abbbbc");
+    pattern_match!(r#"/ab?c/"#, b"abc", b"abc");
+    pattern_match!(r#"/ab?c/"#, b"ac", b"ac");
+    pattern_match!(r#"/ab*?/"#, b"abbb", b"a");
+    pattern_match!(r#"/ab??/"#, b"ab", b"a");
+
+    pattern_match!(r#"/a(b|x)c/"#, b"abc", b"abc");
+    pattern_match!(r#"/a(b|x)c/"#, b"axc", b"axc");
+    pattern_match!(r#"/a(b|.)c/"#, b"axc", b"axc");
+    pattern_match!(r#"/a(b|x|y)c/"#, b"ayc", b"ayc");
+    pattern_match!(r#"/(a+|b)*/"#, b"a", b"a");
+    pattern_match!(r#"/(a+|b)*/"#, b"aa", b"aa");
+    pattern_match!(r#"/(a+|b)*/"#, b"ab", b"ab");
+    pattern_match!(r#"/(a+|b)*/"#, b"aab", b"aab");
+    pattern_match!(r#"/a|b|c|d|e/"#, b"e", b"e");
+    pattern_match!(r#"/(a|b|c|d|e)f/"#, b"ef", b"ef");
+    pattern_match!(r#"/a|b/"#, b"a", b"a");
+    pattern_match!(r#"/.b{2}/"#, b"abb", b"abb");
+    pattern_match!(r#"/.b{2,3}/"#, b"abb", b"abb");
+    pattern_match!(r#"/.b{2,3}/"#, b"abbb", b"abbb");
+    pattern_match!(r#"/.b{2,3}?/"#, b"abbb", b"abb");
+    pattern_match!(r#"/ab{2,3}?c/"#, b"abbbc", b"abbbc");
+    pattern_match!(r#"/.b{2,3}cccc/"#, b"abbbcccc", b"abbbcccc");
+    pattern_match!(r#"/.b{2,3}?cccc/"#, b"abbbcccc", b"bbbcccc");
+    pattern_match!(r#"/a.b{2,3}cccc/"#, b"aabbbcccc", b"aabbbcccc");
+
+    pattern_false!(r#"/a.b/"#, b"a\nb");
+    pattern_false!(r#"/a.*b/"#, b"acc\nccb");
+
+    pattern_match!(r#"/foo/"#, b"foo", b"foo");
+    pattern_match!(r#"/bar/i"#, b"bar", b"bar");
+
+    pattern_match!(
+        r#"/bar/ wide nocase"#,
+        b"B\x00A\x00R\x00",
+        b"B\x00A\x00R\x00"
+    );
+
+    pattern_match!(r#"/bar/ wide"#, b"b\x00a\x00r\x00", b"b\x00a\x00r\x00");
     pattern_false!(r#"/bar/ wide"#, b"bar");
 
-    pattern_true!(r#"/foo.*?bar/s ascii wide nocase"#, b"FOOBAR");
-    pattern_true!(r#"/foo.*?bar/s ascii wide nocase"#, b"foobar");
+    pattern_match!(r#"/foo.*?bar/s ascii wide nocase"#, b"FOOBAR", b"FOOBAR");
+    pattern_match!(r#"/foo.*?bar/s ascii wide nocase"#, b"foobar", b"foobar");
 
-    pattern_true!(
+    pattern_match!(
         r#"/foo.*?bar/s ascii wide nocase"#,
+        b"F\x00O\x00O\x00B\x00A\x00R\x00",
         b"F\x00O\x00O\x00B\x00A\x00R\x00"
     );
 
-    pattern_true!(
+    pattern_match!(
         r#"/foo.*?bar/s ascii wide nocase"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00",
         b"f\x00o\x00o\x00b\x00a\x00r\x00"
     );
 
-    pattern_true!(
+    pattern_match!(
         r#"/foo.*?bar/s wide nocase"#,
+        b"F\x00O\x00O\x00B\x00A\x00R\x00",
         b"F\x00O\x00O\x00B\x00A\x00R\x00"
     );
 
-    pattern_true!(
+    pattern_match!(
         r#"/foo.*?bar/s ascii wide nocase"#,
+        b"F\x00O\x00O\x00B\x00A\x00R\x00",
         b"F\x00O\x00O\x00B\x00A\x00R\x00"
     );
 
-    pattern_true!(r#"/foo.*?bar/s wide"#, b"f\x00o\x00o\x00b\x00a\x00r\x00");
+    pattern_match!(
+        r#"/foo.*?bar/s wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
 
-    pattern_true!(r#"/foo|bar|baz/"#, b"foo");
-    pattern_true!(r#"/foo|bar|baz/"#, b"bar");
-    pattern_true!(r#"/foo|bar|baz/"#, b"baz");
+    pattern_match!(r#"/foo|bar|baz/"#, b"foo", b"foo");
+    pattern_match!(r#"/foo|bar|baz/"#, b"bar", b"bar");
+    pattern_match!(r#"/foo|bar|baz/"#, b"baz", b"baz");
 
     // TODO: this should be equivalent to /foo|bar|baz/, and should be
     // interpreted as an alternation of literals.
     //pattern_true!(r#"/(foo|bar|baz)/"#, b"foo");
 
-    pattern_true!(r#"/foo|bar|baz/ wide"#, b"f\x00o\x00o\x00");
-    pattern_true!(r#"/foo|bar|baz/ wide"#, b"\x00b\x00a\x00r\x00");
-    pattern_true!(r#"/foo|bar|baz/ wide"#, b"b\x00a\x00z\x00");
+    pattern_match!(
+        r#"/foo|bar|baz/ wide"#,
+        b"f\x00o\x00o\x00",
+        b"f\x00o\x00o\x00"
+    );
+
+    pattern_match!(
+        r#"/foo|bar|baz/ wide"#,
+        b"\x00b\x00a\x00r\x00",
+        b"b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/foo|bar|baz/ wide"#,
+        b"b\x00a\x00z\x00",
+        b"b\x00a\x00z\x00"
+    );
 
     pattern_false!(r#"/foo|bar|baz/"#, b"FOO");
     pattern_false!(r#"/foo|bar|baz/"#, b"BAR");
     pattern_false!(r#"/foo|bar|baz/"#, b"BAZ");
 
-    pattern_true!(r#"/foo|bar|baz/i"#, b"foo");
-    pattern_true!(r#"/foo|bar|baz/i"#, b"bar");
-    pattern_true!(r#"/foo|bar|baz/i"#, b"baz");
+    pattern_match!(r#"/foo|bar|baz/i"#, b"foo", b"foo");
+    pattern_match!(r#"/foo|bar|baz/i"#, b"bar", b"bar");
+    pattern_match!(r#"/foo|bar|baz/i"#, b"baz", b"baz");
 
-    pattern_true!(r#"/foo|bar|baz/i"#, b"FOO");
-    pattern_true!(r#"/foo|bar|baz/i"#, b"BAR");
-    pattern_true!(r#"/foo|bar|baz/i"#, b"BAZ");
+    pattern_match!(r#"/foo|bar|baz/i"#, b"FOO", b"FOO");
+    pattern_match!(r#"/foo|bar|baz/i"#, b"BAR", b"BAR");
+    pattern_match!(r#"/foo|bar|baz/i"#, b"BAZ", b"BAZ");
 
-    pattern_true!(r#"/foo\x01bar/"#, b"foo\x01bar");
+    pattern_match!(r#"/foo\x01bar/"#, b"foo\x01bar", b"foo\x01bar");
 
     /*
     TODO: YARA accepts unicode characters in regexps but regexp_syntax either

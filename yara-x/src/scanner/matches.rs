@@ -1,3 +1,4 @@
+use ariadne::Span;
 use core::slice::Iter;
 use std::ops::Range;
 
@@ -43,11 +44,22 @@ impl MatchList {
 
         while insertion_index > 0 {
             if m.range.start == self.matches[insertion_index - 1].range.start {
-                panic!(
-                    "another match at the same offset ({}) already exists",
-                    m.range.start
+                // We have found another match that start at same offset, than
+                // the new match. Such cases the new match should be longer than
+                // the existing one, and we simply update the ending offset of
+                // the existing match instead of adding a new one.
+                // TODO: review this. In YARA the existing match is not updated
+                // in all cases, only when the pattern is flagged as
+                // STRING_FLAGS_GREEDY_REGEXP. Why?
+                assert!(
+                    m.range.end >= self.matches[insertion_index - 1].range.end
                 );
+                self.matches[insertion_index - 1].range.end = m.range.end;
+                return;
             }
+            // The match just before `insertion_index` starts at some offset
+            // that is lower than the match being inserted, so this is the
+            // final insertion index.
             if m.range.start > self.matches[insertion_index - 1].range.start {
                 break;
             }
@@ -155,14 +167,5 @@ mod test {
             ml.iter().map(|m| m.range.clone()).collect::<Vec<Range<usize>>>(),
             vec![(1..10), (2..10), (3..10), (4..10), (5..10)]
         )
-    }
-
-    #[test]
-    #[should_panic]
-    fn duplicate_match_panic() {
-        let mut ml = MatchList::new();
-
-        ml.add(Match { range: (2..10), xor_key: None });
-        ml.add(Match { range: (2..10), xor_key: None });
     }
 }

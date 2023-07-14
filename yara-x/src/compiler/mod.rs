@@ -51,6 +51,7 @@ pub use crate::compiler::errors::*;
 
 #[doc(inline)]
 pub use crate::compiler::rules::*;
+use crate::re;
 
 mod atoms;
 mod context;
@@ -185,10 +186,17 @@ pub struct Compiler<'a> {
     /// [`SubPatternId`] is an index in this vector.
     sub_patterns: Vec<(PatternId, SubPattern)>,
 
-    /// A vector that contains all the atoms generated for the patterns. Each
-    /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
-    /// it belongs to.
-    atoms: Vec<AtomInfo>,
+    /// A vector that contains all the atoms generated for literal patterns.
+    /// Each atom has an associated [`SubPatternId`] that indicates the
+    /// sub-pattern it belongs to.
+    atoms: Vec<SubPatternAtom>,
+
+    /// A vector that contains the code for all regexp patterns (this includes
+    /// hex patterns which are just an special case of regexp). The code for
+    /// each regexp is appended to the vector, during the compilation process
+    /// and the atoms extracted from the regexp contain offsets within this
+    /// vector. This vector contains both forward and backward code.
+    re_code: Vec<u8>,
 
     /// Vector with the names of all the imported modules. The vector contains
     /// the [`IdentId`] corresponding to the module's identifier.
@@ -263,6 +271,7 @@ impl<'a> Compiler<'a> {
             rules: Vec::new(),
             sub_patterns: Vec::new(),
             atoms: Vec::new(),
+            re_code: Vec::new(),
             imported_modules: Vec::new(),
             modules_struct: Struct::new(),
             globals_struct: Struct::new(),
@@ -448,6 +457,7 @@ impl<'a> Compiler<'a> {
             rules: self.rules,
             sub_patterns: self.sub_patterns,
             atoms: self.atoms,
+            re_code: self.re_code,
         }
     }
 
@@ -484,7 +494,7 @@ impl<'a> Compiler<'a> {
         self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
 
         for atom in atoms.into_iter() {
-            self.atoms.push(AtomInfo::new(sub_pattern_id, atom))
+            self.atoms.push(SubPatternAtom::new(sub_pattern_id, atom))
         }
 
         sub_pattern_id
@@ -907,7 +917,34 @@ impl<'a> Compiler<'a> {
                 _ => unreachable!(),
             }
         } else if trailing.is_empty() {
-            // todo
+            let re_compiler = re::compiler::Compiler::new();
+
+            let (forward_code, backward_code, atoms) =
+                re_compiler.compile(&leading);
+
+            let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
+
+            self.sub_patterns.push((
+                PatternId(self.next_pattern_id),
+                SubPattern::Regexp { flags },
+            ));
+
+            // `fwd_code` will contain the offset within the `re_code` vector
+            // where the forward code resides.
+            let fwd_code = self.re_code.len();
+            self.re_code.append(&mut forward_code.into_inner());
+
+            // `bck_code` will contain the offset within the `re_code` vector
+            // where the backward code resides.
+            let bck_code = self.re_code.len();
+            self.re_code.append(&mut backward_code.into_inner());
+
+            for a in atoms.into_iter() {
+                let mut atom = SubPatternAtom::new(sub_pattern_id, a.atom);
+                atom.set_fwd_code(fwd_code + a.code_loc.fwd);
+                atom.set_bck_code(bck_code + a.code_loc.bck);
+                self.atoms.push(atom)
+            }
         } else {
             // The pattern was split into multiple chained patterns, process
             // the chain.
@@ -1420,6 +1457,10 @@ pub(crate) enum SubPattern {
         pattern: LiteralId,
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
+        flags: SubPatternFlagSet,
+    },
+
+    Regexp {
         flags: SubPatternFlagSet,
     },
 
