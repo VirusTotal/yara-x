@@ -55,12 +55,10 @@ use bitvec::array::BitArray;
 use bitvec::order::Lsb0;
 use bitvec::slice::{BitSlice, IterOnes};
 use regex_syntax::hir::ClassBytes;
-use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::mem::size_of;
-use std::ops::Deref;
-use std::{mem, u8};
+use std::u8;
 
 use yara_x_parser::ast::HexByte;
 

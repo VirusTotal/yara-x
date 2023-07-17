@@ -713,7 +713,7 @@ global rule test_2 {
         (
             line!(),
             r#"
-rule test_1 {
+rule test {
   strings:
     $a = /abc[xyz/
   condition:
@@ -733,7 +733,7 @@ rule test_1 {
         (
             line!(),
             r#"
-rule test_1 {
+rule test {
   strings:
     $a = /abc.{-100}xyz/
   condition:
@@ -749,6 +749,67 @@ rule test_1 {
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /abc[b-a]/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:15]
+   │
+ 4 │     $a = /abc[b-a]/
+   │               ─┬─  
+   │                ╰─── invalid character class range, the start must be <= the end
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /(abc/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:11]
+   │
+ 4 │     $a = /(abc/
+   │           ┬  
+   │           ╰── unclosed group
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /a[]b/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:12]
+   │
+ 4 │     $a = /a[]b/
+   │            ─┬  
+   │             ╰── unclosed character class
+───╯
+"#,
+        ),
+        
         ////////////////////////////////////////////////////////////
         #[cfg(feature = "test_proto2-module")]
         (

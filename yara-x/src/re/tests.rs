@@ -758,7 +758,7 @@ fn re_code_15() {
 }
 
 #[test]
-fn re_code_15a() {
+fn re_code_16() {
     assert_re_code!(
         "(?s).b{2}",
         // Forward code
@@ -788,7 +788,47 @@ fn re_code_15a() {
 }
 
 #[test]
-fn re_code_16() {
+fn re_code_17() {
+    assert_re_code!(
+        "(?s)a.(bc.){2}",
+        // Forward code
+        r#"
+00000: LIT 0x61
+00001: ANY_BYTE
+00003: LIT 0x62
+00004: LIT 0x63
+00005: ANY_BYTE
+00007: LIT 0x62
+00008: LIT 0x63
+00009: ANY_BYTE
+0000b: MATCH
+"#,
+        // Backward code
+        r#"
+00000: ANY_BYTE
+00002: LIT 0x63
+00003: LIT 0x62
+00004: ANY_BYTE
+00006: LIT 0x63
+00007: LIT 0x62
+00008: ANY_BYTE
+0000a: LIT 0x61
+0000b: MATCH
+"#,
+        // Atoms
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![0x62, 0x63]),
+            code_loc: Location { fwd: 0x03, bck_seq_id: 0, bck: 0x08 }
+        },],
+        // Epsilon closure starting at forward code 0.
+        vec![0x00],
+        // Epsilon closure starting at backward code 0.
+        vec![0x00]
+    );
+}
+
+#[test]
+fn re_code_18() {
     let (forward_code, backward_code, atoms) =
         Compiler::new().compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
@@ -845,7 +885,7 @@ fn re_code_16() {
 }
 
 #[test]
-fn re_code_17() {
+fn re_code_19() {
     let (forward_code, backward_code, atoms) =
         Compiler::new().compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),

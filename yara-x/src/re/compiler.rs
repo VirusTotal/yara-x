@@ -524,7 +524,7 @@ impl Compiler {
 
                 l1
             }
-            // e{min,}   n > 1
+            // e{min,}   min > 1
             //
             //     ... code for e repeated min - 2 times
             // l1: ... code for e ...
@@ -629,6 +629,21 @@ impl Compiler {
                     });
                     self.bookmarks.push(split);
                     self.emit_clone(start, end);
+                }
+
+                if min > 1 {
+                    let adjustment =
+                        (min - 1) as usize * (end.bck - start.bck);
+
+                    let (_, atoms) = self.best_atoms.last_mut().unwrap();
+
+                    for atom in atoms.iter_mut() {
+                        if atom.code_loc.bck_seq_id == start.bck_seq_id
+                            && atom.code_loc.bck >= start.bck
+                        {
+                            atom.code_loc.bck += adjustment;
+                        }
+                    }
                 }
 
                 let end = self.location();

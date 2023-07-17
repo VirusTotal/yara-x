@@ -139,7 +139,19 @@ pub fn class_to_hex_byte(c: &ClassBytes) -> Option<HexByte> {
     let smallest_byte = c.ranges().first().unwrap().start();
     let largest_byte = c.ranges().last().unwrap().end();
 
+    // In a class that represents a masked hex byte, we can compute the mask
+    // by XORing the largest byte and the smallest one. The smallest byte
+    // corresponds to the byte with all the masked bits set to 0, and the
+    // largest byte is the byte with all the masked bits set to 1. For
+    // example, in `3?`, the smallest byte is `30` and the largest one is
+    // `3F`, by xoring the two we get `0x0F`.
     let neg_mask = largest_byte ^ smallest_byte;
+
+    // Make sure that a bitwise and between the largest and the smallest
+    // bytes is equal to the smallest one.
+    if largest_byte & smallest_byte != smallest_byte {
+        return None;
+    }
 
     // Compute the number of bytes in the class.
     let mut num_bytes: u32 = 0;

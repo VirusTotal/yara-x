@@ -1,4 +1,3 @@
-use ariadne::Span;
 use core::slice::Iter;
 use std::ops::Range;
 

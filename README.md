@@ -125,3 +125,10 @@ In YARA 4.x the following hex pattern is invalid:
 This is because the jump's upper and lower bounds can be expressed in base 10
 only, `0x00` and `0x100` are not valid bounds. In YARA-X hex and octal values 
 are accepted.
+
+### Repetition quantifiers in regexps need an explicit minimum
+
+In YARA 4.x this is a valid regexp `/ab{,2}c`, which is equivalent to `/ab{0,2}c`.
+Most regular expression engines don't support this syntax, including the popular
+ones PCRE and RE2, as far as I know only Python does it. YARA-X uses the 
+`regex-syntax` crate for parsing regexps and therefore this is not supported.
