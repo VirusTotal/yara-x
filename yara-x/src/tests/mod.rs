@@ -614,6 +614,29 @@ fn regexp_patterns() {
         b"a \t\r\n\x0b\x0cb",
         b"a \t\r\n\x0b\x0cb"
     );
+    pattern_match!(r#"/foo[^\s]*/"#, b"foobar\n", b"foobar");
+    pattern_match!(r#"/foo[^\s]*/"#, b"foobar\r\n", b"foobar");
+    pattern_match!(r#"/\n\r\t\f\a/"#, b"\n\r\t\x0c\x07", b"\n\r\t\x0c\x07");
+    pattern_match!(
+        r#"/[\n][\r][\t][\f][\a]/"#,
+        b"\n\r\t\x0c\x07",
+        b"\n\r\t\x0c\x07"
+    );
+    pattern_match!(r#"/\x01\x02\x03/"#, b"\x01\x02\x03", b"\x01\x02\x03");
+    pattern_match!(r#"/[\x01-\x03]+/"#, b"\x01\x02\x03", b"\x01\x02\x03");
+    pattern_false!(r#"/[\x00-\x02]+/"#, b"\x03\x04\x05");
+    pattern_match!(r#"/[\x5D]/"#, b"]", b"]");
+    pattern_match!(r#"/a\wc/"#, b"abc", b"abc");
+    pattern_match!(r#"/a\wc/"#, b"a_c", b"a_c");
+    pattern_match!(r#"/a\wc/"#, b"a0c", b"a0c");
+    pattern_false!(r#"/a\wc/"#, b"a*c");
+    pattern_match!(r#"/\w+/"#, b"--ab_cd0123--", b"ab_cd0123");
+    pattern_match!(r#"/[\w]+/"#, b"--ab_cd0123--", b"ab_cd0123");
+    pattern_match!(r#"/\D+/"#, b"1234abc5678", b"abc");
+    pattern_match!(r#"/[\d]+/"#, b"0123456789", b"0123456789");
+    pattern_match!(r#"/[\D]+/"#, b"1234abc5678", b"abc");
+    pattern_match!(r#"/[\da-fA-F]+/"#, b"123abcDEF", b"123abcDEF");
+    //pattern_false!(r#"/^(ab|cd)e/"#, b"abcde");
 
     pattern_false!(r#"/a.b/"#, b"a\nb");
     pattern_false!(r#"/a.*b/"#, b"acc\nccb");
