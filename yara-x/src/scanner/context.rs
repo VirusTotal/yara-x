@@ -72,6 +72,8 @@ pub(crate) struct ScanContext<'r> {
     /// here until they can be confirmed or discarded.
     pub unconfirmed_matches:
         FxHashMap<SubPatternId, VecDeque<UnconfirmedMatch>>,
+    /// PikeVM used for matching regular expressions.
+    pub pike_vm: PikeVM,
 }
 
 impl ScanContext<'_> {
@@ -201,8 +203,6 @@ impl ScanContext<'_> {
     pub(crate) fn search_for_patterns(&mut self) {
         let ac = self.compiled_rules.aho_corasick();
 
-        let mut pike_vm = PikeVM::new();
-
         for atom_match in ac.find_overlapping_iter(self.scanned_data()) {
             let matched_atom =
                 &self.compiled_rules.atoms()[atom_match.pattern()];
@@ -315,12 +315,12 @@ impl ScanContext<'_> {
                     let re_code = self.compiled_rules.re_code();
                     let data = self.scanned_data();
 
-                    if let Some(fwd_match_len) = pike_vm.try_match(
+                    if let Some(fwd_match_len) = self.pike_vm.try_match(
                         re_code,
                         matched_atom.fwd_code(),
                         data[match_start..].iter(),
                     ) {
-                        if let Some(bck_match_len) = pike_vm.try_match(
+                        if let Some(bck_match_len) = self.pike_vm.try_match(
                             re_code,
                             matched_atom.bck_code(),
                             data[..match_start].iter().rev(),

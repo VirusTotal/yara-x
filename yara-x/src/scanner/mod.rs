@@ -22,6 +22,7 @@ use wasmtime::{
 };
 
 use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
+use crate::re::pikevm::PikeVM;
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -102,6 +103,7 @@ impl<'r> Scanner<'r> {
                 module_outputs: FxHashMap::default(),
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
+                pike_vm: PikeVM::new(),
             },
         ));
 

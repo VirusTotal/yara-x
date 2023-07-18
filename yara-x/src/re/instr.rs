@@ -124,7 +124,7 @@ pub enum Instr<'a> {
 
     /// Not really an instruction, is just a marker that indicates the end
     /// of a instruction sequence.
-    EOI,
+    Eoi,
 }
 
 impl<'a> Instr<'a> {
@@ -139,7 +139,7 @@ impl<'a> Instr<'a> {
     pub const MATCH: u8 = 0x08;
 }
 
-/// A sequence of instructions for the regexp VM.
+/// A sequence of instructions for the Pike VM.
 #[derive(Default)]
 pub struct InstrSeq {
     seq_id: u64,
@@ -153,6 +153,9 @@ impl AsRef<[u8]> for InstrSeq {
 }
 
 impl InstrSeq {
+    /// Creates a new [`InstrSeq`]  with the given ID. The caller must guarantee
+    /// that each [`InstrSeq`] has a unique ID, not shared with other sequences
+    /// from the same regular expression.
     pub fn new(seq_id: u64) -> Self {
         Self { seq_id, seq: Cursor::new(Vec::new()) }
     }
@@ -286,6 +289,8 @@ impl InstrSeq {
         location
     }
 
+    /// Emits a clone of the code that goes from `start` to `end`, both
+    /// inclusive.
     pub fn emit_clone(&mut self, start: usize, end: usize) -> usize {
         let location = self.location();
         self.seq.get_mut().extend_from_within(start..end);
@@ -447,7 +452,7 @@ impl Display for InstrSeq {
                 Instr::Match => {
                     writeln!(f, "{:05x}: MATCH", addr)?;
                 }
-                Instr::EOI => {
+                Instr::Eoi => {
                     break;
                 }
             };
@@ -457,6 +462,8 @@ impl Display for InstrSeq {
     }
 }
 
+/// Parses a slice of bytes that contains Pike VM instructions, returning
+/// individual instructions and their arguments.
 pub struct InstrParser<'a> {
     code: &'a [u8],
     ip: usize,
@@ -533,16 +540,32 @@ pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
         }
         [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
         [b, ..] => (Instr::Byte(b), 1),
-        [] => (Instr::EOI, 0),
+        [] => (Instr::Eoi, 0),
+    }
+}
+
+pub struct Cache {
+    fibers: Vec<usize>,
+    executed_splits: Vec<usize>,
+}
+
+impl Cache {
+    pub fn new() -> Self {
+        Self { fibers: Vec::new(), executed_splits: Vec::new() }
     }
 }
 
 #[inline(always)]
-pub fn epsilon_closure(code: &[u8], start: usize, closure: &mut Vec<usize>) {
-    let mut fibers = vec![start];
-    let mut executed_splits = vec![];
+pub fn epsilon_closure(
+    code: &[u8],
+    start: usize,
+    cache: &mut Cache,
+    closure: &mut Vec<usize>,
+) {
+    cache.fibers.push(start);
+    cache.executed_splits.clear();
 
-    while let Some(fiber) = fibers.pop() {
+    while let Some(fiber) = cache.fibers.pop() {
         let (instr, size) = decode_instr(&code[fiber..]);
         let next = fiber + size;
         match instr {
@@ -554,41 +577,42 @@ pub fn epsilon_closure(code: &[u8], start: usize, closure: &mut Vec<usize>) {
                 closure.push(fiber);
             }
             Instr::SplitA(offset) => {
-                if !executed_splits.contains(&fiber) {
-                    executed_splits.push(fiber);
-                    fibers.push(
+                if !cache.executed_splits.contains(&fiber) {
+                    cache.executed_splits.push(fiber);
+                    cache.fibers.push(
                         (fiber as i64 + offset as i64).try_into().unwrap(),
                     );
-                    fibers.push(next);
+                    cache.fibers.push(next);
                 }
             }
             Instr::SplitB(offset) => {
-                if !executed_splits.contains(&fiber) {
-                    executed_splits.push(fiber);
-                    fibers.push(next);
-                    fibers.push(
+                if !cache.executed_splits.contains(&fiber) {
+                    cache.executed_splits.push(fiber);
+                    cache.fibers.push(next);
+                    cache.fibers.push(
                         (fiber as i64 + offset as i64).try_into().unwrap(),
                     );
                 }
             }
             Instr::SplitN(split) => {
-                if !executed_splits.contains(&fiber) {
-                    executed_splits.push(fiber);
+                if !cache.executed_splits.contains(&fiber) {
+                    cache.executed_splits.push(fiber);
                     for offset in split.offsets().rev() {
-                        fibers.push(
+                        cache.fibers.push(
                             (fiber as i64 + offset as i64).try_into().unwrap(),
                         );
                     }
                 }
             }
             Instr::Jump(offset) => {
-                fibers
+                cache
+                    .fibers
                     .push((fiber as i64 + offset as i64).try_into().unwrap());
             }
             Instr::Match => {
                 closure.push(fiber);
             }
-            Instr::EOI => {}
+            Instr::Eoi => {}
         }
     }
 }

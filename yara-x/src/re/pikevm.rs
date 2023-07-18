@@ -1,16 +1,20 @@
-use crate::re::instr::{decode_instr, epsilon_closure, Instr};
+use crate::re::instr::{decode_instr, epsilon_closure, Cache, Instr};
 use std::mem;
 
-///
 pub struct PikeVM {
     fibers: Vec<usize>,
     next_fibers: Vec<usize>,
+    cache: Cache,
 }
 
 impl PikeVM {
     /// Creates a new [`PikeVM`].
     pub fn new() -> Self {
-        Self { fibers: Vec::new(), next_fibers: Vec::new() }
+        Self {
+            fibers: Vec::new(),
+            next_fibers: Vec::new(),
+            cache: Cache::new(),
+        }
     }
 
     /// Returns `None` the [`PikeVM`] can't match the given data or
@@ -26,15 +30,13 @@ impl PikeVM {
         T: Iterator<Item = &'a u8>,
     {
         let step = 1;
-        let mut at = 0;
+        let mut matched_bytes = 0;
         let mut result = None;
-        let mut byte = None;
 
-        epsilon_closure(code, start, &mut self.fibers);
+        epsilon_closure(code, start, &mut self.cache, &mut self.fibers);
 
         while !self.fibers.is_empty() {
-            byte = data.next();
-
+            let byte = data.next();
             for fiber in self.fibers.iter() {
                 let (instr, size) = decode_instr(&code[*fiber..]);
                 let next_instr = *fiber + size;
@@ -44,6 +46,7 @@ impl PikeVM {
                             epsilon_closure(
                                 code,
                                 next_instr,
+                                &mut self.cache,
                                 &mut self.next_fibers,
                             );
                         }
@@ -54,6 +57,7 @@ impl PikeVM {
                                 epsilon_closure(
                                     code,
                                     next_instr,
+                                    &mut self.cache,
                                     &mut self.next_fibers,
                                 );
                             }
@@ -65,6 +69,7 @@ impl PikeVM {
                                 epsilon_closure(
                                     code,
                                     next_instr,
+                                    &mut self.cache,
                                     &mut self.next_fibers,
                                 );
                             }
@@ -76,6 +81,7 @@ impl PikeVM {
                                 epsilon_closure(
                                     code,
                                     next_instr,
+                                    &mut self.cache,
                                     &mut self.next_fibers,
                                 );
                             }
@@ -87,16 +93,17 @@ impl PikeVM {
                                 epsilon_closure(
                                     code,
                                     next_instr,
+                                    &mut self.cache,
                                     &mut self.next_fibers,
                                 );
                             }
                         }
                     }
                     Instr::Match => {
-                        result = Some(at);
+                        result = Some(matched_bytes);
                         break;
                     }
-                    Instr::EOI => {
+                    Instr::Eoi => {
                         // TODO: is this correct?
                         break;
                     }
@@ -104,7 +111,7 @@ impl PikeVM {
                 }
             }
 
-            at += step;
+            matched_bytes += step;
             mem::swap(&mut self.fibers, &mut self.next_fibers);
             self.next_fibers.clear();
         }
