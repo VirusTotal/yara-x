@@ -270,7 +270,8 @@ fn syntax_errors() {
 rule test {
 strings:
   $a = { 00 [0-1] }
-condition: true
+condition: 
+  $a
 }"#,
             r#"error: syntax error
    ╭─[line:4:19]
@@ -288,7 +289,8 @@ condition: true
 rule test {
 strings:
   $a = { [0-1] 00 }
-condition: true
+condition: 
+  $a
 }"#,
             r#"error: syntax error
    ╭─[line:4:10]
@@ -306,7 +308,8 @@ condition: true
 rule test {
 strings:
   $a = { 00 ( 00 }
-condition: true
+condition: 
+  $a
 }"#,
             r#"error: syntax error
    ╭─[line:4:18]
@@ -323,8 +326,28 @@ condition: true
             r#"
 rule test {
 strings:
+  $a = { [-] 01 02 }
+condition: 
+  $a
+}"#,
+            r#"error: syntax error
+   ╭─[line:4:10]
+   │
+ 4 │   $a = { [-] 01 02 }
+   │          │ 
+   │          ╰─ expected bytes
+───╯
+"#,
+        ),
+        /////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+strings:
   $a = { 00 ~?? 11 }
-condition: true
+condition:
+  $a
 }"#,
             r#"error: invalid pattern `$a`
    ╭─[line:4:13]
@@ -342,7 +365,8 @@ condition: true
 rule test {
 strings:
   $a = { G0 }
-condition: true
+condition: 
+  $a
 }"#,
             r#"error: syntax error
    ╭─[line:4:10]
@@ -369,6 +393,25 @@ condition:
  4 │   $a = { 01 02 0 }
    │                ┬  
    │                ╰── uneven number of nibbles
+───╯
+"#,
+        ),
+        /////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+strings:
+  $a = { 01 ~0 11 }
+condition:
+  $a
+}"#,
+            r#"error: invalid pattern `$a`
+   ╭─[line:4:13]
+   │
+ 4 │   $a = { 01 ~0 11 }
+   │             ─┬  
+   │              ╰── uneven number of nibbles
 ───╯
 "#,
         ),
@@ -718,6 +761,25 @@ rule test {
    │                     ╰─────── lower bound (41) is greater than upper bound (40)
    │ 
    │ Note: consecutive jumps were coalesced into a single one
+───╯
+"#,
+        ),
+        /////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+strings:
+  $a = { 01 [0] 02 }
+condition: 
+  $a
+}"#,
+            r#"error: invalid pattern `$a`
+   ╭─[line:4:13]
+   │
+ 4 │   $a = { 01 [0] 02 }
+   │             ─┬─  
+   │              ╰─── zero-length jumps are useless, remove it
 ───╯
 "#,
         ),

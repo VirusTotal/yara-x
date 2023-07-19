@@ -2066,8 +2066,18 @@ fn hex_pattern_from_cst<'src>(
                     ));
                 }
 
-                if let (Some(start), Some(end)) = (jump.start, jump.end) {
-                    if start > end {
+                match (jump.start, jump.end) {
+                    (Some(0), Some(0)) => {
+                        return Err(Error::from(ErrorInfo::invalid_pattern(
+                            ctx.report_builder,
+                            ctx.current_pattern_ident(),
+                            "zero-length jumps are useless, remove it"
+                                .to_string(),
+                            jump_span,
+                            None,
+                        )));
+                    }
+                    (Some(start), Some(end)) if start > end => {
                         return Err(Error::from(ErrorInfo::invalid_pattern(
                             ctx.report_builder,
                             ctx.current_pattern_ident(),
@@ -2082,6 +2092,7 @@ fn hex_pattern_from_cst<'src>(
                             },
                         )));
                     }
+                    _ => {}
                 }
 
                 HexToken::Jump(jump)
