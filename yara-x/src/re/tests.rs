@@ -5,7 +5,9 @@ use yara_x_parser::ast::HexByte;
 
 use super::compiler::{Compiler, Location, RegexpAtom};
 use crate::compiler::{hex_byte_to_class, Atom};
-use crate::re::instr::{epsilon_closure, Cache};
+use crate::re::instr::{
+    epsilon_closure, BckCodeLoc, EpsilonClosureState, FwdCodeLoc,
+};
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{
@@ -26,8 +28,7 @@ macro_rules! assert_re_code {
 
         epsilon_closure(
             fwd_code.as_ref(),
-            0,
-            false,
+            FwdCodeLoc::try_from(0_usize).unwrap(),
             None,
             None,
             &mut cache,
@@ -38,8 +39,7 @@ macro_rules! assert_re_code {
         let mut bck_closure = vec![];
         epsilon_closure(
             bck_code.as_ref(),
-            0,
-            true,
+            BckCodeLoc::try_from(0_usize).unwrap(),
             None,
             None,
             &mut cache,

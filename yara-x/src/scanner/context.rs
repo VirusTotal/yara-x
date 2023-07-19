@@ -203,21 +203,20 @@ impl ScanContext<'_> {
     pub(crate) fn search_for_patterns(&mut self) {
         let ac = self.compiled_rules.aho_corasick();
 
-        for atom_match in ac.find_overlapping_iter(self.scanned_data()) {
-            let matched_atom =
-                &self.compiled_rules.atoms()[atom_match.pattern()];
+        for ac_match in ac.find_overlapping_iter(self.scanned_data()) {
+            let atom = &self.compiled_rules.atoms()[ac_match.pattern()];
 
             // Subtract the backtrack value from the offset where the atom
             // matched. If the result is negative the atom can't be inside
             // the scanned data and therefore is not a possible match.
-            let (match_start, overflow) =
-                atom_match.start().overflowing_sub(matched_atom.backtrack());
+            let (atom_pos, overflow) =
+                ac_match.start().overflowing_sub(atom.backtrack());
 
             if overflow {
                 continue;
             }
 
-            let sub_pattern_id = matched_atom.sub_pattern_id();
+            let sub_pattern_id = atom.sub_pattern_id();
 
             let (pattern_id, sub_pattern) =
                 &self.compiled_rules.get_sub_pattern(sub_pattern_id);
@@ -229,10 +228,9 @@ impl ScanContext<'_> {
                     // If the atom is exact no further verification is needed,
                     // finding an exact atom is enough to guarantee that the
                     // whole sub-pattern matched.
-                    let m = if matched_atom.is_exact() {
+                    let m = if atom.is_exact() {
                         Match {
-                            range: match_start
-                                ..match_start + matched_atom.len(),
+                            range: atom_pos..atom_pos + atom.len(),
                             xor_key: None,
                         }
                     }
@@ -240,11 +238,9 @@ impl ScanContext<'_> {
                     // sub-pattern actually matches. The only thing we know so
                     // far is that a portion of the sub-pattern matched.
                     else {
-                        match self.verify_literal_match(
-                            match_start,
-                            *pattern,
-                            *flags,
-                        ) {
+                        match self
+                            .verify_literal_match(atom_pos, *pattern, *flags)
+                        {
                             Some(m) => m,
                             // If the sub-pattern didn't match continue with
                             // the Aho-Corasick loop.
@@ -315,24 +311,26 @@ impl ScanContext<'_> {
                     let re_code = self.compiled_rules.re_code();
                     let data = self.scanned_data();
 
+                    // Try matching from the point where the atom was found
+                    // going forward (left-to-right).
                     let fwd_match_len = self.pike_vm.try_match(
                         re_code,
-                        matched_atom.fwd_code(),
-                        false,
-                        data[match_start..].iter(),
-                        data[..match_start].iter().rev(),
+                        atom.fwd_code(),
+                        data[atom_pos..].iter(),
+                        data[..atom_pos].iter().rev(),
                     );
 
                     if fwd_match_len.is_none() {
                         continue;
                     }
 
+                    // Try matching from the point where the atom was found
+                    // going backward (right-to-left).
                     let bck_match_len = self.pike_vm.try_match(
                         re_code,
-                        matched_atom.bck_code(),
-                        true,
-                        data[..match_start].iter().rev(),
-                        data[match_start..].iter(),
+                        atom.bck_code(),
+                        data[..atom_pos].iter().rev(),
+                        data[atom_pos..].iter(),
                     );
 
                     if bck_match_len.is_none() {
@@ -342,20 +340,17 @@ impl ScanContext<'_> {
                     self.track_pattern_match(
                         *pattern_id,
                         Match {
-                            range: match_start - bck_match_len.unwrap()
-                                ..match_start + fwd_match_len.unwrap(),
+                            range: atom_pos - bck_match_len.unwrap()
+                                ..atom_pos + fwd_match_len.unwrap(),
                             xor_key: None,
                         },
                     )
                 }
 
                 SubPattern::Xor { pattern, flags } => {
-                    if let Some(m) = self.verify_xor_match(
-                        match_start,
-                        matched_atom,
-                        *pattern,
-                        *flags,
-                    ) {
+                    if let Some(m) =
+                        self.verify_xor_match(atom_pos, atom, *pattern, *flags)
+                    {
                         self.track_pattern_match(*pattern_id, m);
                     }
                 }
@@ -364,7 +359,7 @@ impl ScanContext<'_> {
                 | SubPattern::Base64Wide { pattern, padding } => {
                     if let Some(m) = self.verify_base64_match(
                         (*padding).into(),
-                        match_start,
+                        atom_pos,
                         *pattern,
                         None,
                         matches!(sub_pattern, SubPattern::Base64Wide { .. }),
@@ -396,7 +391,7 @@ impl ScanContext<'_> {
 
                     if let Some(m) = self.verify_base64_match(
                         (*padding).into(),
-                        match_start,
+                        atom_pos,
                         *pattern,
                         alphabet,
                         matches!(

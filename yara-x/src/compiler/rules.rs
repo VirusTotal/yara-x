@@ -1,5 +1,5 @@
 use std::io::{BufWriter, Write};
-use std::num::{NonZeroI32, NonZeroU32};
+use std::num::NonZeroI32;
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
@@ -13,6 +13,7 @@ use crate::compiler::{
     IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
     SubPattern, SubPatternId,
 };
+use crate::re::instr::{BckCodeLoc, FwdCodeLoc};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::types::{Regexp, Struct};
 use crate::SerializationError;
@@ -306,9 +307,15 @@ pub(crate) struct SubPatternAtom {
     /// The atom itself.
     atom: Atom,
     /// The index within `re_code` where the forward code for this atom starts.
-    fwd_code: Option<NonZeroU32>,
+    /// This index is represented by `NonZeroU32`, allowing the `None` case to
+    /// be represented as zero, which saves the extra space that the `Option`
+    /// enum would require otherwise. However, as indexes can be actually zero,
+    /// they are incremented by in one. So, index 0 becomes 1, 1 becomes 2, and
+    /// so on. The [`SubPatternAtom::fwd_code`] method takes this into account
+    /// and subtract 1 before returning the index value.
+    fwd_code: Option<FwdCodeLoc>,
     /// The index within `re_code` where the backward code for this atom starts.
-    bck_code: Option<NonZeroU32>,
+    bck_code: Option<BckCodeLoc>,
 }
 
 impl SubPatternAtom {
@@ -343,27 +350,23 @@ impl SubPatternAtom {
     }
 
     #[inline]
-    pub(crate) fn fwd_code(&self) -> usize {
-        self.fwd_code.unwrap().get() as usize - 1
+    pub(crate) fn fwd_code(&self) -> FwdCodeLoc {
+        self.fwd_code.unwrap()
     }
 
     #[inline]
-    pub(crate) fn bck_code(&self) -> usize {
-        self.bck_code.unwrap().get() as usize - 1
+    pub(crate) fn bck_code(&self) -> BckCodeLoc {
+        self.bck_code.unwrap()
     }
 
     #[inline]
     pub(crate) fn set_fwd_code(&mut self, o: usize) {
-        // TODO: return error
-        let x: u32 = o.try_into().unwrap();
-        self.fwd_code = Some(NonZeroU32::new(x + 1).unwrap());
+        self.fwd_code = Some(o.try_into().unwrap());
     }
 
     #[inline]
     pub(crate) fn set_bck_code(&mut self, o: usize) {
-        // TODO: return error
-        let x: u32 = o.try_into().unwrap();
-        self.bck_code = Some(NonZeroU32::new(x + 1).unwrap());
+        self.bck_code = Some(o.try_into().unwrap());
     }
 }
 

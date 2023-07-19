@@ -1,58 +1,85 @@
-use crate::re::instr::{decode_instr, epsilon_closure, Cache, Instr};
 use std::mem;
 
-pub struct PikeVM {
-    fibers: Vec<usize>,
-    next_fibers: Vec<usize>,
-    cache: Cache,
+use crate::re::instr::{
+    decode_instr, epsilon_closure, CodeLoc, EpsilonClosureState, Instr,
+};
+
+/// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
+/// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
+pub(crate) struct PikeVM {
+    /// The list of currently active threads. Each item in this list is a
+    /// position within the VM code, pointing to some VM instruction. Each item
+    /// in the list is unique, the VM guarantees that there aren't two active
+    /// threads at the same VM instruction.
+    threads: Vec<usize>,
+    /// The list of threads that will become the active threads when the next
+    /// byte is read from the input.
+    next_threads: Vec<usize>,
+    cache: EpsilonClosureState,
 }
 
 impl PikeVM {
     /// Creates a new [`PikeVM`].
     pub fn new() -> Self {
         Self {
-            fibers: Vec::new(),
-            next_fibers: Vec::new(),
-            cache: Cache::new(),
+            threads: Vec::new(),
+            next_threads: Vec::new(),
+            cache: EpsilonClosureState::new(),
         }
     }
 
-    /// Returns `None` the [`PikeVM`] can't match the given data or
-    /// the length of the matched data. Notice the length can be zero
-    /// if the regexp matches the empty string.
-    pub fn try_match<'a, F, B>(
+    /// Executes VM code starting at the `start` location and returns the
+    /// number of bytes from `fwd_input` that matched. The number of bytes
+    /// returned can be zero if the VM matches a zero-length string. Returns
+    /// `None` if the data read from input don't match the regexp.
+    ///
+    /// `bck_input` is an iterator that returns the bytes that were before
+    /// the stating point of `fwd_input`, in reverse order. For instance,
+    /// suppose we have the string `a b c e f g h i`, and `fwd_input` starts
+    /// at the `f` character and returns `f`, `g`, `h` and `i` in that order.
+    /// In such case `bck_input` will return `e`, `c`, `b` and `a`.
+    ///
+    /// ```text
+    ///       a  b  c  e  f   g   h   i
+    ///                   |  
+    ///      <- bck_input | fwd_input ->
+    /// ```
+    ///
+    /// The purpose of `bck_input` is allowing the function to access the bytes
+    /// that appear right before the start of `fwd_input` for matching some
+    /// look-around assertions that need information about the surrounding
+    /// bytes.
+    pub(crate) fn try_match<'a, C, F, B>(
         &mut self,
         code: &[u8],
-        start: usize,
-        backwards: bool,
-        mut fwd_data: F,
-        mut bck_data: B,
+        start: C,
+        mut fwd_input: F,
+        mut bck_input: B,
     ) -> Option<usize>
     where
+        C: CodeLoc,
         F: Iterator<Item = &'a u8>,
         B: Iterator<Item = &'a u8>,
     {
         let step = 1;
-        let mut matched_bytes = 0;
-        let mut result = None;
-        let mut byte = fwd_data.next();
+        let mut matched_bytes = None;
+        let mut current_pos = 0;
+        let mut byte = fwd_input.next();
 
         epsilon_closure(
             code,
             start,
-            backwards,
             byte,
-            bck_data.next(),
+            bck_input.next(),
             &mut self.cache,
-            &mut self.fibers,
+            &mut self.threads,
         );
 
-        while !self.fibers.is_empty() {
-            let next_byte = fwd_data.next();
+        while !self.threads.is_empty() {
+            let next_byte = fwd_input.next();
 
-            for fiber in self.fibers.iter() {
-                let (instr, size) = decode_instr(&code[*fiber..]);
-                let next_instr = *fiber + size;
+            for ip in self.threads.iter() {
+                let (instr, size) = decode_instr(&code[*ip..]);
 
                 let is_match = match instr {
                     Instr::AnyByte => byte.is_some(),
@@ -69,7 +96,7 @@ impl PikeVM {
                         matches!(byte, Some(byte) if class.contains(*byte))
                     }
                     Instr::Match => {
-                        result = Some(matched_bytes);
+                        matched_bytes = Some(current_pos);
                         // if non-greedy break
                         break;
                     }
@@ -83,22 +110,21 @@ impl PikeVM {
                 if is_match {
                     epsilon_closure(
                         code,
-                        next_instr,
-                        backwards,
+                        C::from(*ip + size),
                         next_byte,
                         byte,
                         &mut self.cache,
-                        &mut self.next_fibers,
+                        &mut self.next_threads,
                     );
                 }
             }
 
             byte = next_byte;
-            matched_bytes += step;
-            mem::swap(&mut self.fibers, &mut self.next_fibers);
-            self.next_fibers.clear();
+            current_pos += step;
+            mem::swap(&mut self.threads, &mut self.next_threads);
+            self.next_threads.clear();
         }
 
-        result
+        matched_bytes
     }
 }
