@@ -24,7 +24,7 @@ macro_rules! assert_re_code {
         assert_eq!(atoms, $atoms);
 
         let mut fwd_closure = vec![];
-        let mut cache = Cache::new();
+        let mut cache = EpsilonClosureState::new();
 
         epsilon_closure(
             fwd_code.as_ref(),
