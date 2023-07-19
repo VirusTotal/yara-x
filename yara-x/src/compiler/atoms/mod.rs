@@ -205,48 +205,6 @@ impl Atom {
     }
 }
 
-/// An atom where some of bits are masked. The masked bits can adopt any value,
-/// which means that these atoms can't be fed into the Aho-Corasick automaton.
-/// Masked atoms must be expanded into multiple non-masked atoms.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(super) struct MaskedAtom {
-    // Each item in this vector is composed of a byte value and its associated
-    // mask. The mask indicates which bits in the value are actually relevant.
-    // For example, the pattern 1A is expressed as (0x1A, 0xFF), where 0x1A is
-    // the value and 0xFF is the mask. The pattern 1? is expressed as
-    // (0x10, 0xF0). The non-relevant bits are set to zero both in the value
-    // and the mask.
-    // TODO: use tinyvec or smallvec?
-    bytes: Vec<(u8, u8)>,
-    // See the documentation for Atom.
-    pub backtrack: u16,
-    pub exact: bool,
-}
-
-impl MaskedAtom {
-    pub fn new() -> Self {
-        Self { bytes: Vec::new(), backtrack: 0, exact: true }
-    }
-
-    #[inline]
-    pub fn push(&mut self, byte_and_mask: (u8, u8)) -> &mut Self {
-        self.bytes.push(byte_and_mask);
-        self
-    }
-
-    /// Compute the atom's quality
-    pub fn quality(&self) -> i32 {
-        let (bytes, masks): (Vec<_>, Vec<_>) =
-            self.bytes.iter().cloned().unzip();
-
-        masked_atom_quality(bytes, masks)
-    }
-
-    pub fn expand(&self) -> MaskedAtomExpander {
-        MaskedAtomExpander::new(self)
-    }
-}
-
 /// Returns the best possible atom from a slice.
 ///
 /// The returned atom will have the `desired_size` if possible, but it can be
@@ -285,40 +243,6 @@ pub(super) fn make_wide(s: &[u8]) -> Vec<u8> {
         itertools::repeat_n(0_u8, s.len()),
     )
     .collect()
-}
-
-/// Expands a [`MaskedAtom`] into multiple [`Atom`] by trying all the possible
-/// combinations for the masked bits. The backtrack value for all the produced
-/// atoms are the same than the one in the masked atom.
-pub(super) struct MaskedAtomExpander {
-    cartesian_product: MultiProduct<ByteMaskCombinator>,
-    backtrack: u16,
-    exact: bool,
-}
-
-impl MaskedAtomExpander {
-    pub fn new(atom: &MaskedAtom) -> Self {
-        Self {
-            backtrack: atom.backtrack,
-            exact: atom.exact,
-            cartesian_product: atom
-                .bytes
-                .iter()
-                .map(|(atom, mask)| ByteMaskCombinator::new(*atom, *mask))
-                .multi_cartesian_product(),
-        }
-    }
-}
-
-impl Iterator for MaskedAtomExpander {
-    type Item = Atom;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut atom = Atom::from(self.cartesian_product.next()?);
-        atom.backtrack = self.backtrack;
-        atom.exact = self.exact;
-        Some(atom)
-    }
 }
 
 /// Given an [`Atom`] produces a sequence of atoms that covers all the possible
@@ -404,31 +328,7 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use crate::compiler::atoms;
-    use crate::compiler::atoms::{
-        Atom, CaseGenerator, MaskedAtom, XorGenerator,
-    };
-
-    #[test]
-    fn atom_expander() {
-        let mut atoms = MaskedAtom::new().push((0x10, 0xF0)).expand();
-
-        for i in 0x10..=0x1F_u8 {
-            assert_eq!(atoms.next(), Some(Atom::exact([i])));
-        }
-
-        assert_eq!(atoms.next(), None);
-
-        let mut atoms =
-            MaskedAtom::new().push((0x10, 0xF0)).push((0x02, 0x0F)).expand();
-
-        for i in 0x10..=0x1F_u8 {
-            for j in (0x02..=0xF2_u8).step_by(0x10) {
-                assert_eq!(atoms.next(), Some(Atom::exact([i, j])));
-            }
-        }
-
-        assert_eq!(atoms.next(), None);
-    }
+    use crate::compiler::atoms::{Atom, CaseGenerator, XorGenerator};
 
     #[test]
     fn case_generator() {
