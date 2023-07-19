@@ -75,6 +75,9 @@ pub type Offset = i16;
 
 /// Instructions supported by the Pike VM.
 pub enum Instr<'a> {
+    /// Match for the regexp has been found.
+    Match,
+
     /// Matches any byte.
     AnyByte,
 
@@ -119,8 +122,20 @@ pub enum Instr<'a> {
     /// location of the jump opcode.
     Jump(Offset),
 
-    /// Match for the regexp has been found.
-    Match,
+    /// Matches the start of the scanned data (^)
+    Start,
+
+    /// Matches the end of the scanned data ($)
+    End,
+
+    /// Matches a word boundary (i.e: characters that are not part of the
+    /// \w class). Used for \b look-around assertions. This is a zero-length
+    /// match.
+    WordBoundary,
+
+    /// The negation of WordBoundary. Used for \B look-around assertions. This
+    /// is a zero-length match.
+    WordBoundaryNeg,
 
     /// Not really an instruction, is just a marker that indicates the end
     /// of a instruction sequence.
@@ -128,15 +143,19 @@ pub enum Instr<'a> {
 }
 
 impl<'a> Instr<'a> {
-    pub const SPLIT_A: u8 = 0x00;
-    pub const SPLIT_B: u8 = 0x01;
-    pub const SPLIT_N: u8 = 0x02;
-    pub const JUMP: u8 = 0x03;
-    pub const ANY_BYTE: u8 = 0x04;
-    pub const MASKED_BYTE: u8 = 0x05;
-    pub const CLASS_BITMAP: u8 = 0x06;
-    pub const CLASS_RANGES: u8 = 0x07;
-    pub const MATCH: u8 = 0x08;
+    pub const MATCH: u8 = 0x00;
+    pub const SPLIT_A: u8 = 0x01;
+    pub const SPLIT_B: u8 = 0x02;
+    pub const SPLIT_N: u8 = 0x03;
+    pub const JUMP: u8 = 0x04;
+    pub const ANY_BYTE: u8 = 0x05;
+    pub const MASKED_BYTE: u8 = 0x06;
+    pub const CLASS_BITMAP: u8 = 0x07;
+    pub const CLASS_RANGES: u8 = 0x08;
+    pub const START: u8 = 0x09;
+    pub const END: u8 = 0x0A;
+    pub const WORD_BOUNDARY: u8 = 0x0B;
+    pub const WORD_BOUNDARY_NEG: u8 = 0x0C;
 }
 
 /// A sequence of instructions for the Pike VM.
@@ -206,8 +225,7 @@ impl InstrSeq {
                 // offset that is relative to the start of the instruction.
                 self.seq.write_all(&[0x00; size_of::<Offset>()]).unwrap();
             }
-            Instr::ANY_BYTE | Instr::MATCH => {}
-            _ => unreachable!(),
+            _ => {}
         }
 
         location
@@ -394,6 +412,9 @@ impl Display for InstrSeq {
                 Instr::AnyByte => {
                     writeln!(f, "{:05x}: ANY_BYTE", addr)?;
                 }
+                Instr::Byte(byte) => {
+                    writeln!(f, "{:05x}: LIT {:#04x}", addr, byte)?;
+                }
                 Instr::MaskedByte(byte, mask) => {
                     writeln!(
                         f,
@@ -446,8 +467,17 @@ impl Display for InstrSeq {
                     }
                     writeln!(f)?;
                 }
-                Instr::Byte(byte) => {
-                    writeln!(f, "{:05x}: LIT {:#04x}", addr, byte)?;
+                Instr::Start => {
+                    writeln!(f, "{:05x}: START", addr)?;
+                }
+                Instr::End => {
+                    writeln!(f, "{:05x}: END", addr)?;
+                }
+                Instr::WordBoundary => {
+                    writeln!(f, "{:05x}: WORD_BOUNDARY", addr)?;
+                }
+                Instr::WordBoundaryNeg => {
+                    writeln!(f, "{:05x}: WORD_BOUNDARY_NEG", addr)?;
                 }
                 Instr::Match => {
                     writeln!(f, "{:05x}: MATCH", addr)?;
@@ -538,6 +568,13 @@ pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
             let bitmap = &code[2..2 + 32];
             (Instr::ClassBitmap(ClassBitmap(bitmap)), 2 + bitmap.len())
         }
+        [OPCODE_PREFIX, Instr::START, ..] => (Instr::Start, 2),
+        [OPCODE_PREFIX, Instr::END, ..] => (Instr::End, 2),
+        [OPCODE_PREFIX, Instr::WORD_BOUNDARY, ..] => (Instr::WordBoundary, 2),
+        [OPCODE_PREFIX, Instr::WORD_BOUNDARY_NEG, ..] => {
+            (Instr::WordBoundaryNeg, 2)
+        }
+
         [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
         [b, ..] => (Instr::Byte(b), 1),
         [] => (Instr::Eoi, 0),
@@ -559,6 +596,9 @@ impl Cache {
 pub fn epsilon_closure(
     code: &[u8],
     start: usize,
+    backwards: bool,
+    curr_byte: Option<&u8>,
+    prev_byte: Option<&u8>,
     cache: &mut Cache,
     closure: &mut Vec<usize>,
 ) {
@@ -608,6 +648,43 @@ pub fn epsilon_closure(
                 cache
                     .fibers
                     .push((fiber as i64 + offset as i64).try_into().unwrap());
+            }
+            Instr::Start => {
+                if backwards {
+                    if curr_byte.is_none() {
+                        cache.fibers.push(next);
+                    }
+                } else if prev_byte.is_none() {
+                    cache.fibers.push(next);
+                }
+            }
+            Instr::End => {
+                if backwards {
+                    if prev_byte.is_none() {
+                        cache.fibers.push(next);
+                    }
+                } else if curr_byte.is_none() {
+                    cache.fibers.push(next);
+                }
+            }
+            Instr::WordBoundary | Instr::WordBoundaryNeg => {
+                let mut is_match = match (prev_byte, curr_byte) {
+                    (Some(p), Some(c)) => {
+                        p.is_ascii_alphanumeric() != c.is_ascii_alphanumeric()
+                    }
+                    (None, Some(b)) | (Some(b), None) => {
+                        b.is_ascii_alphanumeric()
+                    }
+                    _ => false,
+                };
+
+                if matches!(instr, Instr::WordBoundaryNeg) {
+                    is_match = !is_match;
+                }
+
+                if is_match {
+                    cache.fibers.push(next)
+                }
             }
             Instr::Match => {
                 closure.push(fiber);

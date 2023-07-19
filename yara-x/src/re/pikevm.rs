@@ -20,87 +20,57 @@ impl PikeVM {
     /// Returns `None` the [`PikeVM`] can't match the given data or
     /// the length of the matched data. Notice the length can be zero
     /// if the regexp matches the empty string.
-    pub fn try_match<'a, T>(
+    pub fn try_match<'a, F, B>(
         &mut self,
         code: &[u8],
         start: usize,
-        mut data: T,
+        backwards: bool,
+        mut fwd_data: F,
+        mut bck_data: B,
     ) -> Option<usize>
     where
-        T: Iterator<Item = &'a u8>,
+        F: Iterator<Item = &'a u8>,
+        B: Iterator<Item = &'a u8>,
     {
         let step = 1;
         let mut matched_bytes = 0;
         let mut result = None;
+        let mut byte = fwd_data.next();
 
-        epsilon_closure(code, start, &mut self.cache, &mut self.fibers);
+        epsilon_closure(
+            code,
+            start,
+            backwards,
+            byte,
+            bck_data.next(),
+            &mut self.cache,
+            &mut self.fibers,
+        );
 
         while !self.fibers.is_empty() {
-            let byte = data.next();
+            let next_byte = fwd_data.next();
+
             for fiber in self.fibers.iter() {
                 let (instr, size) = decode_instr(&code[*fiber..]);
                 let next_instr = *fiber + size;
-                match instr {
-                    Instr::AnyByte => {
-                        if byte.is_some() {
-                            epsilon_closure(
-                                code,
-                                next_instr,
-                                &mut self.cache,
-                                &mut self.next_fibers,
-                            );
-                        }
-                    }
+
+                let is_match = match instr {
+                    Instr::AnyByte => byte.is_some(),
                     Instr::Byte(expected) => {
-                        if let Some(byte) = byte {
-                            if *byte == expected {
-                                epsilon_closure(
-                                    code,
-                                    next_instr,
-                                    &mut self.cache,
-                                    &mut self.next_fibers,
-                                );
-                            }
-                        }
+                        matches!(byte, Some(byte) if *byte == expected)
                     }
                     Instr::MaskedByte(expected, mask) => {
-                        if let Some(byte) = byte {
-                            if byte & mask == expected {
-                                epsilon_closure(
-                                    code,
-                                    next_instr,
-                                    &mut self.cache,
-                                    &mut self.next_fibers,
-                                );
-                            }
-                        }
+                        matches!(byte, Some(byte) if *byte & mask == expected)
                     }
                     Instr::ClassBitmap(class) => {
-                        if let Some(byte) = byte {
-                            if class.contains(*byte) {
-                                epsilon_closure(
-                                    code,
-                                    next_instr,
-                                    &mut self.cache,
-                                    &mut self.next_fibers,
-                                );
-                            }
-                        }
+                        matches!(byte, Some(byte) if class.contains(*byte))
                     }
                     Instr::ClassRanges(class) => {
-                        if let Some(byte) = byte {
-                            if class.contains(*byte) {
-                                epsilon_closure(
-                                    code,
-                                    next_instr,
-                                    &mut self.cache,
-                                    &mut self.next_fibers,
-                                );
-                            }
-                        }
+                        matches!(byte, Some(byte) if class.contains(*byte))
                     }
                     Instr::Match => {
                         result = Some(matched_bytes);
+                        // if non-greedy break
                         break;
                     }
                     Instr::Eoi => {
@@ -108,39 +78,27 @@ impl PikeVM {
                         break;
                     }
                     _ => unreachable!(),
+                };
+
+                if is_match {
+                    epsilon_closure(
+                        code,
+                        next_instr,
+                        backwards,
+                        next_byte,
+                        byte,
+                        &mut self.cache,
+                        &mut self.next_fibers,
+                    );
                 }
             }
 
+            byte = next_byte;
             matched_bytes += step;
             mem::swap(&mut self.fibers, &mut self.next_fibers);
             self.next_fibers.clear();
         }
 
         result
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::re::compiler::Compiler;
-    use crate::re::pikevm::PikeVM;
-
-    #[test]
-    fn pike_vm_1() {
-        let mut parser = regex_syntax::ParserBuilder::new()
-            .utf8(false)
-            .unicode(false)
-            .build();
-
-        let (forward_code, backward_code, atoms) =
-            Compiler::new().compile(&parser.parse("(?s)a*?").unwrap());
-
-        let forward_code = forward_code.into_inner();
-        let mut pike_vm = PikeVM::new();
-
-        assert_eq!(
-            pike_vm.try_match(forward_code.as_slice(), 0, b"aaa".iter()),
-            Some(0)
-        );
     }
 }

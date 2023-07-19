@@ -315,26 +315,38 @@ impl ScanContext<'_> {
                     let re_code = self.compiled_rules.re_code();
                     let data = self.scanned_data();
 
-                    if let Some(fwd_match_len) = self.pike_vm.try_match(
+                    let fwd_match_len = self.pike_vm.try_match(
                         re_code,
                         matched_atom.fwd_code(),
+                        false,
                         data[match_start..].iter(),
-                    ) {
-                        if let Some(bck_match_len) = self.pike_vm.try_match(
-                            re_code,
-                            matched_atom.bck_code(),
-                            data[..match_start].iter().rev(),
-                        ) {
-                            self.track_pattern_match(
-                                *pattern_id,
-                                Match {
-                                    range: match_start - bck_match_len
-                                        ..match_start + fwd_match_len,
-                                    xor_key: None,
-                                },
-                            )
-                        }
+                        data[..match_start].iter().rev(),
+                    );
+
+                    if fwd_match_len.is_none() {
+                        continue;
                     }
+
+                    let bck_match_len = self.pike_vm.try_match(
+                        re_code,
+                        matched_atom.bck_code(),
+                        true,
+                        data[..match_start].iter().rev(),
+                        data[match_start..].iter(),
+                    );
+
+                    if bck_match_len.is_none() {
+                        continue;
+                    }
+
+                    self.track_pattern_match(
+                        *pattern_id,
+                        Match {
+                            range: match_start - bck_match_len.unwrap()
+                                ..match_start + fwd_match_len.unwrap(),
+                            xor_key: None,
+                        },
+                    )
                 }
 
                 SubPattern::Xor { pattern, flags } => {

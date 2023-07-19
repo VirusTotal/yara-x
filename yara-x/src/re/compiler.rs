@@ -13,7 +13,7 @@ use std::mem::{size_of, size_of_val};
 
 use regex_syntax::hir;
 use regex_syntax::hir::{
-    visit, Class, ClassBytes, Hir, HirKind, Literal, Repetition,
+    visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition,
 };
 
 use yara_x_parser::ast::HexByte;
@@ -290,6 +290,16 @@ impl Compiler {
                     panic!("unicode classes not supported")
                 }
             }
+        }
+    }
+
+    fn visit_post_look(&mut self, look: &Look) -> Location {
+        match look {
+            Look::Start => self.emit_instr(Instr::START),
+            Look::End => self.emit_instr(Instr::END),
+            Look::WordAscii => self.emit_instr(Instr::WORD_BOUNDARY),
+            Look::WordAsciiNegate => self.emit_instr(Instr::WORD_BOUNDARY_NEG),
+            _ => unreachable!(),
         }
     }
 
@@ -673,8 +683,10 @@ impl hir::Visitor for &mut Compiler {
 
     fn visit_pre(&mut self, hir: &Hir) -> Result<(), Self::Err> {
         match hir.kind() {
+            HirKind::Empty => {}
             HirKind::Literal(_) => {}
             HirKind::Class(_) => {}
+            HirKind::Look(_) => {}
             HirKind::Capture(_) => {
                 self.bookmarks.push(self.location());
             }
@@ -687,7 +699,6 @@ impl hir::Visitor for &mut Compiler {
             HirKind::Repetition(rep) => {
                 self.visit_pre_repetition(rep);
             }
-            kind => unreachable!("{:?}", kind),
         }
 
         self.depth += 1;
@@ -697,8 +708,10 @@ impl hir::Visitor for &mut Compiler {
 
     fn visit_post(&mut self, hir: &Hir) -> Result<(), Self::Err> {
         let mut code_loc = match hir.kind() {
-            HirKind::Capture(_) => self.bookmarks.pop().unwrap(),
+            HirKind::Empty => self.location(),
             HirKind::Literal(literal) => self.emit_literal(literal),
+            HirKind::Capture(_) => self.bookmarks.pop().unwrap(),
+            HirKind::Look(look) => self.visit_post_look(look),
             hir_kind @ HirKind::Class(class) => {
                 if any_byte(hir_kind) {
                     self.emit_instr(Instr::ANY_BYTE)
@@ -715,7 +728,6 @@ impl hir::Visitor for &mut Compiler {
             HirKind::Repetition(repeated) => {
                 self.visit_post_repetition(repeated)
             }
-            _ => unreachable!(),
         };
 
         // If `zero_rep_depth` > 0 we are currently at a HIR node that is

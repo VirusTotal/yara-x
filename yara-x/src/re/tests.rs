@@ -24,11 +24,27 @@ macro_rules! assert_re_code {
         let mut fwd_closure = vec![];
         let mut cache = Cache::new();
 
-        epsilon_closure(fwd_code.as_ref(), 0, &mut cache, &mut fwd_closure);
+        epsilon_closure(
+            fwd_code.as_ref(),
+            0,
+            false,
+            None,
+            None,
+            &mut cache,
+            &mut fwd_closure,
+        );
         assert_eq!(fwd_closure, $fwd_closure);
 
         let mut bck_closure = vec![];
-        epsilon_closure(bck_code.as_ref(), 0, &mut cache, &mut bck_closure);
+        epsilon_closure(
+            bck_code.as_ref(),
+            0,
+            true,
+            None,
+            None,
+            &mut cache,
+            &mut bck_closure,
+        );
         assert_eq!(bck_closure, $bck_closure);
     }};
 }
@@ -756,6 +772,44 @@ fn re_code_15() {
         vec![0x0b, 0x14, 0x19],
         // Epsilon closure starting at backward code 0.
         vec![0x0b, 0x14, 0x19]
+    );
+}
+
+#[test]
+fn re_code_16() {
+    assert_re_code!(
+        "(?s)(|abc)de",
+        // Forward code
+        r#"
+00000: SPLIT_N 00007 0000b
+00007: JUMP 0000e
+0000b: LIT 0x61
+0000c: LIT 0x62
+0000d: LIT 0x63
+0000e: LIT 0x64
+0000f: LIT 0x65
+00010: MATCH
+"#,
+        // Backward code
+        r#"
+00000: LIT 0x65
+00001: LIT 0x64
+00002: SPLIT_N 00009 0000d
+00009: JUMP 00010
+0000d: LIT 0x63
+0000e: LIT 0x62
+0000f: LIT 0x61
+00010: MATCH
+"#,
+        // Atoms
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![0x64, 0x65]),
+            code_loc: Location { fwd: 0x0e, bck_seq_id: 0, bck: 0x02 }
+        },],
+        // Epsilon closure starting at forward code 0.
+        vec![0x0e, 0x0b],
+        // Epsilon closure starting at backward code 0.
+        vec![0x00]
     );
 }
 
