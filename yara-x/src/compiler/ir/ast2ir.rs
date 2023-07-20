@@ -921,6 +921,8 @@ fn integer_in_range_from_ast(
 
     check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
 
+    // If the value is known at compile time make sure that it is within
+    // the given range.
     if let TypeValue::Integer(Value::Const(value)) = type_value {
         if !range.contains(&value) {
             return Err(CompileError::from(
@@ -932,8 +934,6 @@ fn integer_in_range_from_ast(
                 ),
             ));
         }
-    } else {
-        unreachable!()
     }
 
     Ok(expr)

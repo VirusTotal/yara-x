@@ -1323,6 +1323,18 @@ fn match_offset() {
         "#,
         b"foobarfoobar"
     );
+
+    rule_true!(
+        r#"
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                for any i in (1..#a) : ( @a[i] >= 6 )
+        }
+        "#,
+        b"foobarfoobar"
+    );
 }
 
 #[test]
