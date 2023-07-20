@@ -222,13 +222,16 @@ impl ScanContext<'_> {
                 &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
             match sub_pattern {
-                SubPattern::Literal { pattern, flags }
-                | SubPattern::LiteralChainHead { pattern, flags, .. }
-                | SubPattern::LiteralChainTail { pattern, flags, .. } => {
+                SubPattern::Literal { .. }
+                | SubPattern::LiteralChainHead { .. }
+                | SubPattern::LiteralChainTail { .. }
+                | SubPattern::Regexp { .. }
+                | SubPattern::RegexpChainHead { .. }
+                | SubPattern::RegexpChainTail { .. } => {
                     // If the atom is exact no further verification is needed,
                     // finding an exact atom is enough to guarantee that the
                     // whole sub-pattern matched.
-                    let m = if atom.is_exact() {
+                    let verified_match = if atom.is_exact() {
                         Match {
                             range: atom_pos..atom_pos + atom.len(),
                             xor_key: None,
@@ -238,22 +241,45 @@ impl ScanContext<'_> {
                     // sub-pattern actually matches. The only thing we know so
                     // far is that a portion of the sub-pattern matched.
                     else {
-                        match self
-                            .verify_literal_match(atom_pos, *pattern, *flags)
-                        {
-                            Some(m) => m,
-                            // If the sub-pattern didn't match continue with
-                            // the Aho-Corasick loop.
-                            None => continue,
+                        let m = match sub_pattern {
+                            SubPattern::Literal { pattern, flags, .. }
+                            | SubPattern::LiteralChainHead {
+                                pattern,
+                                flags,
+                                ..
+                            }
+                            | SubPattern::LiteralChainTail {
+                                pattern,
+                                flags,
+                                ..
+                            } => self.verify_literal_match(
+                                atom_pos, *pattern, *flags,
+                            ),
+                            SubPattern::Regexp { .. }
+                            | SubPattern::RegexpChainHead { .. } => {
+                                self.verify_regexp_match(atom_pos, atom)
+                            }
+                            _ => unreachable!(),
+                        };
+
+                        if m.is_none() {
+                            continue;
                         }
+
+                        m.unwrap()
                     };
 
                     // This is reached only if the match was verified.
                     match sub_pattern {
-                        SubPattern::Literal { .. } => {
-                            self.track_pattern_match(*pattern_id, m);
+                        SubPattern::Literal { .. }
+                        | SubPattern::Regexp { .. } => {
+                            self.track_pattern_match(
+                                *pattern_id,
+                                verified_match,
+                            );
                         }
-                        SubPattern::LiteralChainHead { .. } => {
+                        SubPattern::LiteralChainHead { .. }
+                        | SubPattern::RegexpChainHead { .. } => {
                             // This is the head of a set of chained sub-patterns.
                             // Verifying that the head matches doesn't mean that
                             // the whole sub-pattern matches, the rest of the chain
@@ -263,19 +289,26 @@ impl ScanContext<'_> {
                                 .entry(sub_pattern_id)
                                 .or_default()
                                 .push_back(UnconfirmedMatch {
-                                    range: m.range.clone(),
+                                    range: verified_match.range,
                                     chain_length: 0,
                                 })
                         }
                         SubPattern::LiteralChainTail {
                             chained_to,
                             gap,
+                            flags,
+                            ..
+                        }
+                        | SubPattern::RegexpChainTail {
+                            chained_to,
+                            gap,
+                            flags,
                             ..
                         } => {
                             if self.within_valid_distance(
                                 sub_pattern_id,
                                 *chained_to,
-                                m.range.start,
+                                verified_match.range.start,
                                 gap,
                             ) {
                                 if flags.contains(SubPatternFlags::LastInChain)
@@ -286,7 +319,7 @@ impl ScanContext<'_> {
                                     self.verify_chain_of_matches(
                                         *pattern_id,
                                         sub_pattern_id,
-                                        m.range,
+                                        verified_match.range,
                                     );
                                 } else {
                                     // This sub-pattern is in the middle of the
@@ -297,7 +330,9 @@ impl ScanContext<'_> {
                                         .entry(sub_pattern_id)
                                         .or_default()
                                         .push_back(UnconfirmedMatch {
-                                            range: m.range.clone(),
+                                            range: verified_match
+                                                .range
+                                                .clone(),
                                             chain_length: 0,
                                         });
                                 }
@@ -305,46 +340,6 @@ impl ScanContext<'_> {
                         }
                         _ => unreachable!(),
                     }
-                }
-
-                SubPattern::Regexp { flags } => {
-                    let re_code = self.compiled_rules.re_code();
-                    let data = self.scanned_data();
-
-                    // Try matching from the point where the atom was found
-                    // going forward (left-to-right).
-                    let fwd_match_len = self.pike_vm.try_match(
-                        re_code,
-                        atom.fwd_code(),
-                        data[atom_pos..].iter(),
-                        data[..atom_pos].iter().rev(),
-                    );
-
-                    if fwd_match_len.is_none() {
-                        continue;
-                    }
-
-                    // Try matching from the point where the atom was found
-                    // going backward (right-to-left).
-                    let bck_match_len = self.pike_vm.try_match(
-                        re_code,
-                        atom.bck_code(),
-                        data[..atom_pos].iter().rev(),
-                        data[atom_pos..].iter(),
-                    );
-
-                    if bck_match_len.is_none() {
-                        continue;
-                    }
-
-                    self.track_pattern_match(
-                        *pattern_id,
-                        Match {
-                            range: atom_pos - bck_match_len.unwrap()
-                                ..atom_pos + fwd_match_len.unwrap(),
-                            xor_key: None,
-                        },
-                    )
                 }
 
                 SubPattern::Xor { pattern, flags } => {
@@ -518,7 +513,8 @@ impl ScanContext<'_> {
 
         while let Some((id, match_range, chain_length)) = queue.pop_front() {
             match &self.compiled_rules.get_sub_pattern(id).1 {
-                SubPattern::LiteralChainHead { .. } => {
+                SubPattern::LiteralChainHead { .. }
+                | SubPattern::RegexpChainHead { .. } => {
                     // The chain head is reached and we know the range where
                     // the tail matches. This indicates that the whole chain is
                     // valid and we have a full match.
@@ -537,6 +533,9 @@ impl ScanContext<'_> {
                     gap,
                     flags,
                     ..
+                }
+                | SubPattern::RegexpChainTail {
+                    chained_to, gap, flags, ..
                 } => {
                     // Iterate over the list of unconfirmed matches of the
                     // sub-pattern that comes before in the chain. For example,
@@ -579,12 +578,13 @@ impl ScanContext<'_> {
         }
     }
 
-    /// Verifies that a literal sub-pattern actually matches at `match_start`.
+    /// Verifies that a literal sub-pattern actually matches at the position
+    /// where an atom was found.
     ///
     /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
     fn verify_literal_match(
         &self,
-        match_start: usize,
+        atom_pos: usize,
         pattern_id: LiteralId,
         flags: SubPatternFlagSet,
     ) -> Option<Match> {
@@ -592,27 +592,27 @@ impl ScanContext<'_> {
         let data = self.scanned_data();
 
         // Offset where the match should end (exclusive).
-        let match_end = match_start + pattern.len();
+        let match_end = atom_pos + pattern.len();
 
         // The match can not end past the end of the scanned data.
         if match_end > data.len() {
             return None;
         }
 
-        if !self.verify_full_word(match_start..match_end, flags, None) {
+        if !self.verify_full_word(atom_pos..match_end, flags, None) {
             return None;
         }
 
         let match_found = if flags.contains(SubPatternFlags::Nocase) {
-            pattern.eq_ignore_ascii_case(&data[match_start..match_end])
+            pattern.eq_ignore_ascii_case(&data[atom_pos..match_end])
         } else {
-            memx::memeq(&data[match_start..match_end], pattern.as_bytes())
+            memx::memeq(&data[atom_pos..match_end], pattern.as_bytes())
         };
 
         if match_found {
             Some(Match {
                 // The end of the range is exclusive.
-                range: match_start..match_end,
+                range: atom_pos..match_end,
                 xor_key: None,
             })
         } else {
@@ -620,14 +620,14 @@ impl ScanContext<'_> {
         }
     }
 
-    /// Verifies that a literal sub-pattern actually matches at `match_start`
-    /// in XORed form.
+    /// Verifies that a literal sub-pattern actually matches in XORed form
+    /// at the position where an atom was found.
     ///
     /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
     fn verify_xor_match(
         &self,
-        match_start: usize,
-        matched_atom: &SubPatternAtom,
+        atom_pos: usize,
+        atom: &SubPatternAtom,
         pattern_id: LiteralId,
         flags: SubPatternFlagSet,
     ) -> Option<Match> {
@@ -635,7 +635,7 @@ impl ScanContext<'_> {
         let data = self.scanned_data();
 
         // Offset where the match should end (exclusive).
-        let match_end = match_start + pattern.len();
+        let match_end = atom_pos + pattern.len();
 
         // The match can not end past the end of the scanned data.
         if match_end > data.len() {
@@ -647,10 +647,9 @@ impl ScanContext<'_> {
         // The atom that matched is the result of XORing the pattern with some
         // key. The key can be obtained by XORing some byte in the atom with
         // the corresponding byte in the pattern.
-        let key =
-            matched_atom.as_slice()[0] ^ pattern[matched_atom.backtrack()];
+        let key = atom.as_slice()[0] ^ pattern[atom.backtrack()];
 
-        if !self.verify_full_word(match_start..match_end, flags, Some(key)) {
+        if !self.verify_full_word(atom_pos..match_end, flags, Some(key)) {
             return None;
         }
 
@@ -663,21 +662,57 @@ impl ScanContext<'_> {
             }
         }
 
-        if memx::memeq(&data[match_start..match_end], pattern.as_bytes()) {
-            Some(Match { range: match_start..match_end, xor_key: Some(key) })
+        if memx::memeq(&data[atom_pos..match_end], pattern.as_bytes()) {
+            Some(Match { range: atom_pos..match_end, xor_key: Some(key) })
         } else {
             None
         }
     }
 
-    /// Verifies that a literal sub-pattern actually matches at `match_start`
-    /// in base64 form.
+    /// Verifies that a regexp sub-pattern actually matches at the position
+    /// where an atom was found.
+    ///
+    /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
+    fn verify_regexp_match(
+        &mut self,
+        atom_pos: usize,
+        atom: &SubPatternAtom,
+    ) -> Option<Match> {
+        let re_code = self.compiled_rules.re_code();
+        let data = self.scanned_data();
+
+        // Try matching from the point where the atom was found
+        // going forward (left-to-right).
+        let fwd_match_len = self.pike_vm.try_match(
+            re_code,
+            atom.fwd_code(),
+            data[atom_pos..].iter(),
+            data[..atom_pos].iter().rev(),
+        )?;
+
+        // Try matching from the point where the atom was found
+        // going backward (right-to-left).
+        let bck_match_len = self.pike_vm.try_match(
+            re_code,
+            atom.bck_code(),
+            data[..atom_pos].iter().rev(),
+            data[atom_pos..].iter(),
+        )?;
+
+        Some(Match {
+            range: atom_pos - bck_match_len..atom_pos + fwd_match_len,
+            xor_key: None,
+        })
+    }
+
+    /// Verifies that a literal sub-pattern actually matches in base64 form at
+    /// the offset where some atom.
     ///
     /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
     fn verify_base64_match(
         &self,
         padding: usize,
-        match_start: usize,
+        atom_pos: usize,
         pattern_id: LiteralId,
         alphabet: Option<base64::alphabet::Alphabet>,
         wide: bool,
@@ -688,7 +723,7 @@ impl ScanContext<'_> {
         // Compute the size of the pattern once it is encoded as base64.
         let len = base64::encoded_len(pattern.len(), false).unwrap();
 
-        // A portion of the pattern in base64 form was found at match_start,
+        // A portion of the pattern in base64 form was found at `atom_pos`,
         // but decoding the base64 string starting at that offset is not ok
         // because some characters may have been removed from both the left
         // and the right sides of the base64 string that has been found. For
@@ -752,10 +787,10 @@ impl ScanContext<'_> {
         }
 
         // decode_range is the range within the scanned data that we are going
-        // to decode as base64. It starts at match_start - decode_start_delta,
-        // but if match_start < decode_start_delta this is not a real match.
+        // to decode as base64. It starts at atom_pos - decode_start_delta,
+        // but if atom_pos < decode_start_delta this is not a real match.
         let mut decode_range = if let (decode_start, false) =
-            match_start.overflowing_sub(decode_start_delta)
+            atom_pos.overflowing_sub(decode_start_delta)
         {
             decode_start..decode_start + decode_len
         } else {
@@ -798,7 +833,7 @@ impl ScanContext<'_> {
                 && pattern.eq(&decoded[0..pattern.len()])
             {
                 Some(Match {
-                    range: match_start..match_start + match_len,
+                    range: atom_pos..atom_pos + match_len,
                     xor_key: None,
                 })
             } else {

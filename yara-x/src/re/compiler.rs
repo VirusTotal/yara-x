@@ -777,11 +777,47 @@ impl hir::Visitor for &mut Compiler {
                         self.best_atoms.last_mut().unwrap();
 
                     if quality > *best_quality {
+                        // An atom is "exact" when it covers the whole pattern,
+                        // which means that finding the atom during a scan is
+                        // enough to guarantee that the pattern matches. Atoms
+                        // extracted from children of the current HIR node may
+                        // be flagged as "exact" because they cover a whole HIR
+                        // sub-tree. They are "exact" with respect to some sub-
+                        // pattern, but not necessarily with respect to the
+                        // whole pattern. So, atoms that are flagged as "exact"
+                        // are converted to "inexact" unless they were extracted
+                        // from the top-level HIR node.
+                        //
+                        // Also, atoms extracted from HIR nodes that contain
+                        // look-around assertions are also considered "inexact",
+                        // regardless of whether they are flagged as "exact",
+                        // because the atom extractor can produce "exact" atoms
+                        // that can't be trusted, this what the documentation
+                        // says:
+                        //
+                        // "Literal extraction treats all look-around assertions
+                        // as-if they match every empty string. So for example,
+                        // the regex \bquux\b will yield a sequence containing
+                        // a single exact literal quux. However, not all
+                        // occurrences of quux correspond to a match a of the
+                        // regex. For example, \bquux\b does not match ZquuxZ
+                        // anywhere because quux does not fall on a word
+                        // boundary.
+                        //
+                        // In effect, if your regex contains look-around
+                        // assertions, then a match of an exact literal does not
+                        // necessarily mean the regex overall matches. So you
+                        // may still need to run the regex engine in such cases
+                        // to confirm the match." (end of quote)
+                        //
+                        let can_be_exact = self.depth == 1
+                            && hir.properties().look_set().is_empty();
+
                         *best_quality = quality;
                         *best_atoms = atoms
                             .into_iter()
                             .map(|atom| RegexpAtom {
-                                atom: if self.depth != 1 {
+                                atom: if !can_be_exact {
                                     atom.make_inexact()
                                 } else {
                                     atom

@@ -485,11 +485,14 @@ impl<'a> Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    fn push_sub_pattern(
+    fn push_sub_pattern<A>(
         &mut self,
         sub_pattern: SubPattern,
-        atoms: Box<dyn Iterator<Item = Atom>>,
-    ) -> SubPatternId {
+        atoms: A,
+    ) -> SubPatternId
+    where
+        A: Iterator<Item = Atom>,
+    {
         let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
         self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
 
@@ -710,10 +713,10 @@ impl<'a> Compiler<'a> {
 
                 self.push_sub_pattern(
                     SubPattern::Xor { pattern: pattern_lit_id, flags },
-                    Box::new(XorGenerator::new(
+                    XorGenerator::new(
                         best_atom,
                         pattern.xor_range.clone().unwrap(),
-                    )),
+                    ),
                 );
             } else if pattern.flags.contains(PatternFlags::Nocase) {
                 // When `nocase` is used, `base64`, `base64wide` and `xor` are
@@ -729,7 +732,7 @@ impl<'a> Compiler<'a> {
                         pattern: pattern_lit_id,
                         flags: flags | SubPatternFlags::Nocase,
                     },
-                    Box::new(CaseGenerator::new(&best_atom)),
+                    CaseGenerator::new(&best_atom),
                 );
             }
             // Used `base64`, or `base64wide`, or both.
@@ -767,7 +770,7 @@ impl<'a> Compiler<'a> {
 
                         self.push_sub_pattern(
                             sub_pattern,
-                            Box::new(iter::once(
+                            iter::once(
                                 best_atom_from_slice(
                                     base64_pattern.as_slice(),
                                     DESIRED_ATOM_SIZE,
@@ -775,7 +778,7 @@ impl<'a> Compiler<'a> {
                                 // Atoms for base64 patterns are always
                                 // inexact, they require verification.
                                 .make_inexact(),
-                            )),
+                            ),
                         );
                     }
                 }
@@ -806,7 +809,7 @@ impl<'a> Compiler<'a> {
 
                         self.push_sub_pattern(
                             sub_pattern,
-                            Box::new(iter::once(
+                            iter::once(
                                 best_atom_from_slice(
                                     wide.as_slice(),
                                     DESIRED_ATOM_SIZE * 2,
@@ -814,14 +817,14 @@ impl<'a> Compiler<'a> {
                                 // Atoms for base64 patterns are always
                                 // inexact, they require verification.
                                 .make_inexact(),
-                            )),
+                            ),
                         );
                     }
                 }
             } else {
                 self.push_sub_pattern(
                     SubPattern::Literal { pattern: pattern_lit_id, flags },
-                    Box::new(iter::once(best_atom)),
+                    iter::once(best_atom),
                 );
             }
         }
@@ -875,21 +878,20 @@ impl<'a> Compiler<'a> {
                     false => best_atom,
                 };
 
-                self.push_sub_pattern(
-                    SubPattern::Literal {
-                        pattern: pattern_lit_id,
-                        flags: if wide {
-                            flags | SubPatternFlags::Wide
-                        } else {
-                            flags
-                        },
-                    },
-                    if case_insensitive {
-                        Box::new(CaseGenerator::new(&best_atom))
+                let sp = SubPattern::Literal {
+                    pattern: pattern_lit_id,
+                    flags: if wide {
+                        flags | SubPatternFlags::Wide
                     } else {
-                        Box::new(iter::once(best_atom))
+                        flags
                     },
-                );
+                };
+
+                if case_insensitive {
+                    self.push_sub_pattern(sp, CaseGenerator::new(&best_atom));
+                } else {
+                    self.push_sub_pattern(sp, iter::once(best_atom));
+                }
             };
 
             match leading.into_kind() {
@@ -917,39 +919,44 @@ impl<'a> Compiler<'a> {
                 _ => unreachable!(),
             }
         } else if trailing.is_empty() {
-            let re_compiler = re::compiler::Compiler::new();
-
-            let (forward_code, backward_code, atoms) =
-                re_compiler.compile(&leading);
-
-            let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
-
-            self.sub_patterns.push((
-                PatternId(self.next_pattern_id),
-                SubPattern::Regexp { flags },
-            ));
-
-            // `fwd_code` will contain the offset within the `re_code` vector
-            // where the forward code resides.
-            let fwd_code = self.re_code.len();
-            self.re_code.append(&mut forward_code.into_inner());
-
-            // `bck_code` will contain the offset within the `re_code` vector
-            // where the backward code resides.
-            let bck_code = self.re_code.len();
-            self.re_code.append(&mut backward_code.into_inner());
-
-            for a in atoms.into_iter() {
-                let mut atom = SubPatternAtom::new(sub_pattern_id, a.atom);
-                atom.set_fwd_code(fwd_code + a.code_loc.fwd);
-                atom.set_bck_code(bck_code + a.code_loc.bck);
-                self.atoms.push(atom)
-            }
+            self.process_regexp(&leading, SubPattern::Regexp { flags });
         } else {
             // The pattern was split into multiple chained patterns, process
             // the chain.
             self.process_chain(leading, trailing, pattern.flags);
         }
+    }
+
+    fn process_regexp(
+        &mut self,
+        regexp: &hir::Hir,
+        sub_pattern: SubPattern,
+    ) -> SubPatternId {
+        let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
+
+        self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
+
+        let re_compiler = re::compiler::Compiler::new();
+        let (forward_code, backward_code, atoms) = re_compiler.compile(regexp);
+
+        // `fwd_code` will contain the offset within the `re_code` vector
+        // where the forward code resides.
+        let fwd_code = self.re_code.len();
+        self.re_code.append(&mut forward_code.into_inner());
+
+        // `bck_code` will contain the offset within the `re_code` vector
+        // where the backward code resides.
+        let bck_code = self.re_code.len();
+        self.re_code.append(&mut backward_code.into_inner());
+
+        for a in atoms.into_iter() {
+            let mut atom = SubPatternAtom::new(sub_pattern_id, a.atom);
+            atom.set_fwd_code(fwd_code + a.code_loc.fwd);
+            atom.set_bck_code(bck_code + a.code_loc.bck);
+            self.atoms.push(atom)
+        }
+
+        sub_pattern_id
     }
 
     fn process_chain(
@@ -1039,8 +1046,16 @@ impl<'a> Compiler<'a> {
                 ),
             )
         } else {
-            // TODO
-            prev_sub_pattern_id = SubPatternId(0);
+            prev_sub_pattern_id = self.process_regexp(
+                leading,
+                SubPattern::RegexpChainHead {
+                    flags: if full_word {
+                        base_flags | SubPatternFlags::FullwordLeft
+                    } else {
+                        base_flags
+                    },
+                },
+            );
         }
 
         for (i, p) in trailing.iter().enumerate() {
@@ -1073,7 +1088,14 @@ impl<'a> Compiler<'a> {
                     ),
                 );
             } else {
-                // TODO
+                prev_sub_pattern_id = self.process_regexp(
+                    leading,
+                    SubPattern::RegexpChainTail {
+                        chained_to: prev_sub_pattern_id,
+                        gap: p.gap.clone(),
+                        flags,
+                    },
+                );
             }
         }
     }
@@ -1461,6 +1483,16 @@ pub(crate) enum SubPattern {
     },
 
     Regexp {
+        flags: SubPatternFlagSet,
+    },
+
+    RegexpChainHead {
+        flags: SubPatternFlagSet,
+    },
+
+    RegexpChainTail {
+        chained_to: SubPatternId,
+        gap: RangeInclusive<u32>,
         flags: SubPatternFlagSet,
     },
 
