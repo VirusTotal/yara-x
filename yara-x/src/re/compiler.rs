@@ -587,7 +587,7 @@ impl Compiler {
                 let adjustment = (min - 1) as usize * (end.bck - start.bck)
                     + size_of_val(&OPCODE_PREFIX)
                     + size_of_val(&Instr::SPLIT_A)
-                    + size_of::<instr::Offset>();
+                    + size_of::<re::instr::Offset>();
 
                 let (_, atoms) = self.best_atoms.last_mut().unwrap();
 
