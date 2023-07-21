@@ -29,7 +29,6 @@ use yara_x_parser::{Parser, SourceCode};
 
 use crate::compiler::atoms::base64::base64_patterns;
 use crate::compiler::emit::emit_rule_condition;
-use crate::compiler::ir::{split_at_large_gaps, TrailingPattern};
 use crate::compiler::{Context, VarStack};
 use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::{BStringPool, StringPool};
@@ -52,6 +51,7 @@ pub use crate::compiler::errors::*;
 #[doc(inline)]
 pub use crate::compiler::rules::*;
 use crate::re;
+use crate::re::hir::TrailingPattern;
 
 mod atoms;
 mod context;
@@ -848,10 +848,9 @@ impl<'a> Compiler<'a> {
         // Try splitting the regexp into multiple chained sub-patterns if it
         // contains large gaps. If the regexp can't be split the leading part
         // is the whole regexp.
-        let (leading, trailing) = split_at_large_gaps(pattern.hir);
+        let (leading, trailing) = pattern.hir.split_at_large_gaps();
 
-        if trailing.is_empty() && leading.properties().is_alternation_literal()
-        {
+        if trailing.is_empty() && leading.is_alternation_literal() {
             // The pattern is either a literal, or an alternation of literals,
             // examples:
             //      /foo/                       literal
@@ -919,6 +918,9 @@ impl<'a> Compiler<'a> {
                 _ => unreachable!(),
             }
         } else if trailing.is_empty() {
+            if matches!(leading.is_greedy(), Some(true)) {
+                flags.set(SubPatternFlags::Greedy);
+            }
             self.process_regexp(&leading, SubPattern::Regexp { flags });
         } else {
             // The pattern was split into multiple chained patterns, process
@@ -929,7 +931,7 @@ impl<'a> Compiler<'a> {
 
     fn process_regexp(
         &mut self,
-        regexp: &hir::Hir,
+        regexp: &re::hir::Hir,
         sub_pattern: SubPattern,
     ) -> SubPatternId {
         let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
@@ -961,7 +963,7 @@ impl<'a> Compiler<'a> {
 
     fn process_chain(
         &mut self,
-        leading: hir::Hir,
+        leading: re::hir::Hir,
         trailing: Vec<TrailingPattern>,
         flags: PatternFlagSet,
     ) {
@@ -975,7 +977,7 @@ impl<'a> Compiler<'a> {
 
     fn process_chain_impl(
         &mut self,
-        leading: &hir::Hir,
+        leading: &re::hir::Hir,
         trailing: &[TrailingPattern],
         flags: PatternFlagSet,
         wide: bool,
@@ -1046,15 +1048,19 @@ impl<'a> Compiler<'a> {
                 ),
             )
         } else {
+            let mut flags = if full_word {
+                base_flags | SubPatternFlags::FullwordLeft
+            } else {
+                base_flags
+            };
+
+            if matches!(leading.is_greedy(), Some(true)) {
+                flags.set(SubPatternFlags::Greedy);
+            }
+
             prev_sub_pattern_id = self.process_regexp(
                 leading,
-                SubPattern::RegexpChainHead {
-                    flags: if full_word {
-                        base_flags | SubPatternFlags::FullwordLeft
-                    } else {
-                        base_flags
-                    },
-                },
+                SubPattern::RegexpChainHead { flags },
             );
         }
 
@@ -1088,6 +1094,10 @@ impl<'a> Compiler<'a> {
                     ),
                 );
             } else {
+                if matches!(leading.is_greedy(), Some(true)) {
+                    flags.set(SubPatternFlags::Greedy);
+                }
+
                 prev_sub_pattern_id = self.process_regexp(
                     leading,
                     SubPattern::RegexpChainTail {
@@ -1443,6 +1453,7 @@ bitmask! {
         LastInChain          = 0x04,
         FullwordLeft         = 0x08,
         FullwordRight        = 0x10,
+        Greedy               = 0x20,
     }
 }
 

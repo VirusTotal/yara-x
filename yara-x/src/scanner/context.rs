@@ -176,6 +176,7 @@ impl ScanContext<'_> {
         &mut self,
         pattern_id: PatternId,
         match_: Match,
+        replace: bool,
     ) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
@@ -186,7 +187,10 @@ impl ScanContext<'_> {
 
         bits.set(pattern_id.into(), true);
 
-        self.pattern_matches.entry(pattern_id).or_default().add(match_)
+        self.pattern_matches
+            .entry(pattern_id)
+            .or_default()
+            .add(match_, replace)
     }
 
     /// Search for patterns in the data.
@@ -255,9 +259,11 @@ impl ScanContext<'_> {
                             } => self.verify_literal_match(
                                 atom_pos, *pattern, *flags,
                             ),
-                            SubPattern::Regexp { .. }
-                            | SubPattern::RegexpChainHead { .. } => {
-                                self.verify_regexp_match(atom_pos, atom)
+                            SubPattern::Regexp { flags, .. }
+                            | SubPattern::RegexpChainHead { flags, .. } => {
+                                self.verify_regexp_match(
+                                    atom_pos, atom, *flags,
+                                )
                             }
                             _ => unreachable!(),
                         };
@@ -271,11 +277,12 @@ impl ScanContext<'_> {
 
                     // This is reached only if the match was verified.
                     match sub_pattern {
-                        SubPattern::Literal { .. }
-                        | SubPattern::Regexp { .. } => {
+                        SubPattern::Literal { flags, .. }
+                        | SubPattern::Regexp { flags, .. } => {
                             self.track_pattern_match(
                                 *pattern_id,
                                 verified_match,
+                                flags.contains(SubPatternFlags::Greedy),
                             );
                         }
                         SubPattern::LiteralChainHead { .. }
@@ -346,7 +353,7 @@ impl ScanContext<'_> {
                     if let Some(m) =
                         self.verify_xor_match(atom_pos, atom, *pattern, *flags)
                     {
-                        self.track_pattern_match(*pattern_id, m);
+                        self.track_pattern_match(*pattern_id, m, false);
                     }
                 }
 
@@ -359,7 +366,7 @@ impl ScanContext<'_> {
                         None,
                         matches!(sub_pattern, SubPattern::Base64Wide { .. }),
                     ) {
-                        self.track_pattern_match(*pattern_id, m);
+                        self.track_pattern_match(*pattern_id, m, false);
                     }
                 }
 
@@ -394,7 +401,7 @@ impl ScanContext<'_> {
                             SubPattern::CustomBase64Wide { .. }
                         ),
                     ) {
-                        self.track_pattern_match(*pattern_id, m);
+                        self.track_pattern_match(*pattern_id, m, false);
                     }
                 }
             };
@@ -513,8 +520,8 @@ impl ScanContext<'_> {
 
         while let Some((id, match_range, chain_length)) = queue.pop_front() {
             match &self.compiled_rules.get_sub_pattern(id).1 {
-                SubPattern::LiteralChainHead { .. }
-                | SubPattern::RegexpChainHead { .. } => {
+                SubPattern::LiteralChainHead { flags, .. }
+                | SubPattern::RegexpChainHead { flags, .. } => {
                     // The chain head is reached and we know the range where
                     // the tail matches. This indicates that the whole chain is
                     // valid and we have a full match.
@@ -525,6 +532,7 @@ impl ScanContext<'_> {
                                 range: match_range.start..tail_match_range.end,
                                 xor_key: None,
                             },
+                            flags.contains(SubPatternFlags::Greedy),
                         );
                     }
                 }
@@ -677,6 +685,7 @@ impl ScanContext<'_> {
         &mut self,
         atom_pos: usize,
         atom: &SubPatternAtom,
+        flags: SubPatternFlagSet,
     ) -> Option<Match> {
         let re_code = self.compiled_rules.re_code();
         let data = self.scanned_data();
@@ -688,6 +697,7 @@ impl ScanContext<'_> {
             atom.fwd_code(),
             data[atom_pos..].iter(),
             data[..atom_pos].iter().rev(),
+            flags.contains(SubPatternFlags::Greedy),
         )?;
 
         // Try matching from the point where the atom was found
@@ -697,6 +707,7 @@ impl ScanContext<'_> {
             atom.bck_code(),
             data[..atom_pos].iter().rev(),
             data[atom_pos..].iter(),
+            flags.contains(SubPatternFlags::Greedy),
         )?;
 
         Some(Match {

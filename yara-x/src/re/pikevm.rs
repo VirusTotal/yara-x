@@ -55,6 +55,7 @@ impl PikeVM {
         start: C,
         mut fwd_input: F,
         mut bck_input: B,
+        greedy: bool,
     ) -> Option<usize>
     where
         C: CodeLoc,
@@ -97,8 +98,11 @@ impl PikeVM {
                     }
                     Instr::Match => {
                         matched_bytes = Some(current_pos);
-                        // if non-greedy break
-                        break;
+                        if greedy {
+                            false
+                        } else {
+                            break;
+                        }
                     }
                     Instr::Eoi => {
                         // TODO: is this correct?

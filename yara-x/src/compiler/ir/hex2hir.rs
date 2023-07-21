@@ -1,8 +1,10 @@
 /*! Functions for converting a hex pattern AST into a HIR. */
 
-use crate::compiler::ir::utils::hex_byte_to_class;
 use regex_syntax::hir;
+
 use yara_x_parser::ast;
+
+use crate::re::hir::hex_byte_to_class;
 
 pub(in crate::compiler) fn hex_pattern_hir_from_ast(
     pattern: &ast::HexPattern,

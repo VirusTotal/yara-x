@@ -16,7 +16,9 @@ article [Regular Expression Matching: the Virtual Machine Approach][1].
 */
 
 pub mod compiler;
+pub mod hir;
 pub mod instr;
+pub mod parser;
 pub mod pikevm;
 
 #[cfg(test)]

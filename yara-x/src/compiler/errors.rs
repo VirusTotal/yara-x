@@ -2,8 +2,8 @@ use std::fmt::{Debug, Display, Formatter};
 use std::io;
 
 use thiserror::Error;
-use yara_x_macros::Error as DeriveError;
 
+use yara_x_macros::Error as DeriveError;
 use yara_x_parser::ast::Span;
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::report::ReportType;
@@ -196,4 +196,15 @@ pub enum CompileErrorInfo {
     #[error("invalid regular expression")]
     #[label("{error}", span)]
     InvalidRegexp { detailed_report: String, error: String, span: Span },
+
+    #[error("mixing greedy and non-greedy quantifiers in regular expression")]
+    #[label("this is {quantifier1_greediness}", quantifier1_span)]
+    #[label("this is {quantifier2_greediness}", quantifier2_span)]
+    MixedGreediness {
+        detailed_report: String,
+        quantifier1_greediness: String,
+        quantifier2_greediness: String,
+        quantifier1_span: Span,
+        quantifier2_span: Span,
+    },
 }

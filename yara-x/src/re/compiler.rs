@@ -18,11 +18,9 @@ use regex_syntax::hir::{
 
 use yara_x_parser::ast::HexByte;
 
-use crate::compiler::{
-    any_byte, best_atom_from_slice, class_to_hex_byte, Atom, DESIRED_ATOM_SIZE,
-};
+use crate::compiler::{best_atom_from_slice, Atom, DESIRED_ATOM_SIZE};
 use crate::re;
-use crate::re::instr;
+use crate::re::hir::class_to_hex_byte;
 use crate::re::instr::{
     literal_code_length, Instr, InstrSeq, NumAlt, OPCODE_PREFIX,
 };
@@ -145,9 +143,9 @@ impl Compiler {
 
     pub fn compile(
         mut self,
-        hir: &Hir,
+        hir: &re::hir::Hir,
     ) -> (InstrSeq, InstrSeq, Vec<RegexpAtom>) {
-        visit(hir, &mut self).unwrap();
+        visit(&hir.inner, &mut self).unwrap();
 
         self.forward_code.emit_instr(Instr::MATCH);
         self.backward_code.emit_instr(Instr::MATCH);
@@ -713,7 +711,7 @@ impl hir::Visitor for &mut Compiler {
             HirKind::Capture(_) => self.bookmarks.pop().unwrap(),
             HirKind::Look(look) => self.visit_post_look(look),
             hir_kind @ HirKind::Class(class) => {
-                if any_byte(hir_kind) {
+                if re::hir::any_byte(hir_kind) {
                     self.emit_instr(Instr::ANY_BYTE)
                 } else {
                     self.visit_post_class(class)

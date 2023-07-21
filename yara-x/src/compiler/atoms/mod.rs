@@ -68,9 +68,7 @@ use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
-pub(crate) use crate::compiler::atoms::quality::{
-    atom_quality, masked_atom_quality,
-};
+pub(crate) use crate::compiler::atoms::quality::atom_quality;
 
 /// The number of bytes that every atom *should* have. Some atoms may be
 /// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,

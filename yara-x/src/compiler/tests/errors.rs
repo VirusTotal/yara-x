@@ -809,7 +809,28 @@ rule test {
 ───╯
 "#,
         ),
-        
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /a.*b.*?c/
+  condition:
+    $a
+}
+"#,
+            r#"error: mixing greedy and non-greedy quantifiers in regular expression
+   ╭─[line:4:15]
+   │
+ 4 │     $a = /a.*b.*?c/
+   │            ─┬ ─┬─  
+   │             ╰────── this is greedy
+   │                │   
+   │                ╰─── this is non-greedy
+───╯
+"#,
+        ),
         ////////////////////////////////////////////////////////////
         #[cfg(feature = "test_proto2-module")]
         (

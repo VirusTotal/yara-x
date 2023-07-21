@@ -246,7 +246,9 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
             instr.global_get(ctx.wasm_symbols.filesize);
         }
         Expr::Entrypoint { .. } => {
-            todo!()
+            // TODO
+            // todo!()
+            instr.i64_const(0);
         }
         Expr::Ident { symbol } => {
             match symbol.kind() {

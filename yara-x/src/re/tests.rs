@@ -1,23 +1,33 @@
 use pretty_assertions::assert_eq;
-use regex_syntax::hir::{Class, Hir};
+use regex_syntax::hir::Class;
 
+use yara_x_parser::ast;
 use yara_x_parser::ast::HexByte;
 
 use super::compiler::{Compiler, Location, RegexpAtom};
-use crate::compiler::{hex_byte_to_class, Atom};
+use crate::compiler::Atom;
+use crate::re;
+use crate::re::hir::hex_byte_to_class;
+use crate::re::hir::Hir;
 use crate::re::instr::{
     epsilon_closure, BckCodeLoc, EpsilonClosureState, FwdCodeLoc,
 };
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{
-        let mut parser = regex_syntax::ParserBuilder::new()
-            .utf8(false)
-            .unicode(false)
-            .build();
+        let parser = re::parser::Parser::new();
 
-        let (fwd_code, bck_code, atoms) =
-            Compiler::new().compile(&parser.parse($re).unwrap());
+        let (fwd_code, bck_code, atoms) = Compiler::new().compile(
+            &parser
+                .parse(&ast::Regexp {
+                    literal: format!("/{}/", $re).as_str(),
+                    src: $re,
+                    case_insensitive: false,
+                    dot_matches_new_line: true,
+                    span: ast::Span::default(),
+                })
+                .unwrap(),
+        );
 
         assert_eq!(fwd_code.to_string(), $fwd);
         assert_eq!(bck_code.to_string(), $bck);

@@ -44,16 +44,11 @@ use crate::types::{Type, TypeValue, Value};
 pub(in crate::compiler) use ast2ir::expr_from_ast;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
 pub(in crate::compiler) use ast2ir::warn_if_not_bool;
-pub(in crate::compiler) use utils::split_at_large_gaps;
-pub(in crate::compiler) use utils::TrailingPattern;
 
-pub(crate) use utils::any_byte;
-pub(crate) use utils::class_to_hex_byte;
-pub(crate) use utils::hex_byte_to_class;
+use crate::re;
 
 mod ast2ir;
 mod hex2hir;
-mod utils;
 
 bitmask! {
     #[derive(Debug, Serialize, Deserialize)]
@@ -107,7 +102,7 @@ pub(in crate::compiler) struct LiteralPattern<'src> {
 pub(in crate::compiler) struct RegexpPattern<'src> {
     pub ident: &'src str,
     pub flags: PatternFlagSet,
-    pub hir: regex_syntax::hir::Hir,
+    pub hir: re::hir::Hir,
 }
 
 /// Intermediate representation (IR) for an expression.

@@ -27,7 +27,9 @@ impl MatchList {
     }
 
     /// Adds a new match to the list while keeping the matches sorted by
-    /// start offset in ascending order.
+    /// start offset in ascending order. If a match at the same offset already
+    /// exits, the old match will be replaced if `replace` is true. The length
+    /// of the match being replaced must be shorter than the new match.
     ///
     /// This operation is O(n), where the worst case is adding a new match
     /// with a start offset that is lower than all the other matches in the
@@ -38,22 +40,22 @@ impl MatchList {
     /// order, which means that the operation will be the best possible case,
     /// when the new match has a start offset larger or equal than the last
     /// match in the list.
-    pub fn add(&mut self, m: Match) {
+    pub fn add(&mut self, m: Match, replace: bool) {
         let mut insertion_index = self.matches.len();
 
         while insertion_index > 0 {
             if m.range.start == self.matches[insertion_index - 1].range.start {
                 // We have found another match that start at same offset, than
-                // the new match. Such cases the new match should be longer than
-                // the existing one, and we simply update the ending offset of
-                // the existing match instead of adding a new one.
-                // TODO: review this. In YARA the existing match is not updated
-                // in all cases, only when the pattern is flagged as
-                // STRING_FLAGS_GREEDY_REGEXP. Why?
-                assert!(
-                    m.range.end >= self.matches[insertion_index - 1].range.end
-                );
-                self.matches[insertion_index - 1].range.end = m.range.end;
+                // the new match. Such cases the new match should replace the
+                // existing one if `replace` is true. In that case the new
+                // match must be longer than the existing one.
+                if replace {
+                    assert!(
+                        m.range.end
+                            >= self.matches[insertion_index - 1].range.end
+                    );
+                    self.matches[insertion_index - 1].range.end = m.range.end;
+                }
                 return;
             }
             // The match just before `insertion_index` starts at some offset
@@ -114,10 +116,9 @@ impl MatchList {
 
     /// Searches for a match that starts at the given offset.
     ///
-    /// If a match starting at `offset` is found, then [`Result::Ok`] is
-    /// returned containing the index of the match. If no match is found,
-    /// then [`Result::Err`] is returned, containing the index where the
-    /// match would be located.
+    /// If a match starting at `offset` is found, then [`Ok`] is returned
+    /// containing the index of the match. If no match is found, then [`Err`]
+    /// is returned, containing the index where the match would be located.
     ///
     /// This operation is O(log(N)) because it takes advantage of the fact
     /// that matches are sorted by starting offset and uses a binary search
@@ -156,11 +157,11 @@ mod test {
     fn match_list() {
         let mut ml = MatchList::new();
 
-        ml.add(Match { range: (2..10), xor_key: None });
-        ml.add(Match { range: (1..10), xor_key: None });
-        ml.add(Match { range: (4..10), xor_key: None });
-        ml.add(Match { range: (3..10), xor_key: None });
-        ml.add(Match { range: (5..10), xor_key: None });
+        ml.add(Match { range: (2..10), xor_key: None }, false);
+        ml.add(Match { range: (1..10), xor_key: None }, false);
+        ml.add(Match { range: (4..10), xor_key: None }, false);
+        ml.add(Match { range: (3..10), xor_key: None }, false);
+        ml.add(Match { range: (5..10), xor_key: None }, false);
 
         assert_eq!(
             ml.iter().map(|m| m.range.clone()).collect::<Vec<Range<usize>>>(),

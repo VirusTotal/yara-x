@@ -5,8 +5,6 @@ use std::iter;
 use std::ops::{Deref, RangeInclusive};
 use std::rc::Rc;
 
-use regex_syntax::hir;
-
 use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::{ast, ErrorInfo, Warning};
@@ -18,6 +16,8 @@ use crate::compiler::ir::{
     Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::{CompileError, CompileErrorInfo, Context, PatternId};
+use crate::re;
+use crate::re::parser::Error;
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
@@ -111,12 +111,10 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     _report_builder: &ReportBuilder,
     pattern: &ast::HexPattern<'src>,
 ) -> Result<Pattern<'src>, CompileError> {
-    let hir = hex_pattern_hir_from_ast(pattern);
-
     Ok(Pattern::Regexp(RegexpPattern {
         ident: pattern.identifier.name,
         flags: PatternFlagSet::none() | PatternFlags::Ascii,
-        hir,
+        hir: re::hir::Hir::from(hex_pattern_hir_from_ast(pattern)),
     }))
 }
 
@@ -148,13 +146,46 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         flags.set(PatternFlags::Nocase);
     }
 
-    // Notice that the regexp pattern is parsed as case sensitive, even if it
-    // has the `nocase` or the `/i` modifiers. This is because the HIR for
-    // case-insensitive regexps don't have any literals, they are converted to
+    // The regexp pattern is parsed as case sensitive, even if it has the
+    // `nocase` or the `/i` modifiers. This is because the HIR for case-
+    // insensitive regexps don't have any literals, they are converted to
     // concatenations of byte classes that have the lowercase and uppercase
     // variants of each letter. We want the HIR to maintain the literals, as
-    // we use them for extracting atoms
-    let hir = parse_regexp(report_builder, &pattern.regexp, false)?;
+    // we use them for extracting atoms.
+    //
+    // Also notice that regexp patterns can't mix greedy and non-greedy
+    // repetitions, like in `/ab.*cd.*?ef/`. All repetitions must have the
+    // same greediness. In order to explain why this restriction is necessary
+    // consider the regexp /a.*?bbbb/. The atom extracted from this regexp is
+    // "bbbb", and once it is found, the rest of the regexp is matched
+    // backwards. Now consider the string "abbbbbbbb", there are multiple
+    // occurrences of the "bbbb" atom in this string, and every time the atom
+    // is found we need to verify if the regexp actually matches. In all cases
+    // the regexp matches, but the length of the match is different each time,
+    // the first time it finds the match "abbbb", the second time it finds
+    // "abbbbb", the third time "abbbbbb", and so on. All these matches occur
+    // at the same offset within the string (offset 0), but they have different
+    // lengths, which length should we report to the user? Should we report a
+    // match at offset 0 with length 6 ("abbbbb")? Or should we report a match
+    // at offset 0 with length 9 "abbbbbbbb"? Well, that depends on the
+    // greediness of the regexp. In this case the regexp contains a non-greedy
+    // repetition (i.e: .*?), therefore the match should be "abbbbb", not
+    // "abbbbbbbb". If we replace .*? with .*, then the match should be the
+    // longest one, "abbbbbbbb".
+    //
+    // As long as repetitions in the regexp are all greedy or all non-greedy,
+    // we can know the overall greediness of the regexp, and decide whether we
+    // should aim for the longest, or the shortest possible match when multiple
+    // matches that start at the same offset are found while scanning backwards
+    // (right-to-left). However, if the regexp contains a mix of greedy an
+    // non-greedy repetitions the decision becomes impossible.
+    let hir = re::parser::Parser::new()
+        .force_case_sensitive(true)
+        .allow_mixed_greediness(false)
+        .parse(&pattern.regexp)
+        .map_err(|err| {
+            re_error_to_compile_error(report_builder, &pattern.regexp, err)
+        })?;
 
     // TODO: raise warning when .* used, propose using the non-greedy
     // variant .*?
@@ -198,7 +229,9 @@ pub(in crate::compiler) fn expr_from_ast(
         }),
 
         ast::Expr::Regexp(regexp) => {
-            parse_regexp(ctx.report_builder, regexp, regexp.case_insensitive)?;
+            re::parser::Parser::new().parse(regexp).map_err(|err| {
+                re_error_to_compile_error(ctx.report_builder, regexp, err)
+            })?;
 
             Ok(Expr::Const {
                 type_value: TypeValue::Regexp(Some(Regexp::new(
@@ -1148,40 +1181,34 @@ fn check_operands(
     Ok(())
 }
 
-fn parse_regexp(
+fn re_error_to_compile_error(
     report_builder: &ReportBuilder,
     regexp: &ast::Regexp,
-    case_insensitive: bool,
-) -> Result<hir::Hir, CompileError> {
-    let mut parser = regex_syntax::ParserBuilder::new()
-        .case_insensitive(case_insensitive)
-        .dot_matches_new_line(regexp.dot_matches_new_line)
-        .unicode(false)
-        .utf8(false)
-        .build();
-
-    match parser.parse(regexp.src) {
-        Ok(hir) => Ok(hir),
-        Err(err) => {
-            let (err_span, err_msg) = match err {
-                regex_syntax::Error::Parse(ref err) => {
-                    (err.span(), err.kind().to_string())
-                }
-                regex_syntax::Error::Translate(ref err) => {
-                    (err.span(), err.kind().to_string())
-                }
-                _ => panic!(),
-            };
-            Err(CompileError::from(CompileErrorInfo::invalid_regexp(
+    err: re::parser::Error,
+) -> CompileError {
+    match err {
+        Error::SyntaxError { msg, span } => {
+            CompileError::from(CompileErrorInfo::invalid_regexp(
                 report_builder,
-                err_msg,
-                // err_span is relative to the regexp, not the whole source
-                // file, here we make it relative to the source code.
-                regexp
-                    .span
-                    .subspan(err_span.start.offset, err_span.end.offset),
-            )))
+                msg,
+                // the error span is relative to the start of the regexp, not to
+                // the start of the source file, here we make it relative to the
+                // source file.
+                regexp.span.subspan(span.start.offset, span.end.offset),
+            ))
         }
+        Error::MixedGreediness {
+            is_greedy_1,
+            is_greedy_2,
+            span_1,
+            span_2,
+        } => CompileError::from(CompileErrorInfo::mixed_greediness(
+            report_builder,
+            if is_greedy_1 { "greedy" } else { "non-greedy" }.to_string(),
+            if is_greedy_2 { "greedy" } else { "non-greedy" }.to_string(),
+            regexp.span.subspan(span_1.start.offset, span_1.end.offset),
+            regexp.span.subspan(span_2.start.offset, span_2.end.offset),
+        )),
     }
 }
 
