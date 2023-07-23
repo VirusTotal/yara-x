@@ -103,7 +103,6 @@ impl<'r> Scanner<'r> {
                 module_outputs: FxHashMap::default(),
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
-                pike_vm: PikeVM::new(),
             },
         ));
 

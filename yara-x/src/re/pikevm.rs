@@ -4,9 +4,15 @@ use crate::re::instr::{
     decode_instr, epsilon_closure, CodeLoc, EpsilonClosureState, Instr,
 };
 
+pub(crate) enum Match {
+    Continue,
+    Stop,
+}
+
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
-pub(crate) struct PikeVM {
+pub(crate) struct PikeVM<'r> {
+    code: &'r [u8],
     /// The list of currently active threads. Each item in this list is a
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the list is unique, the VM guarantees that there aren't two active
@@ -18,10 +24,11 @@ pub(crate) struct PikeVM {
     cache: EpsilonClosureState,
 }
 
-impl PikeVM {
+impl<'r> PikeVM<'r> {
     /// Creates a new [`PikeVM`].
-    pub fn new() -> Self {
+    pub fn new(code: &'r [u8]) -> Self {
         Self {
+            code,
             threads: Vec::new(),
             next_threads: Vec::new(),
             cache: EpsilonClosureState::new(),
@@ -51,24 +58,21 @@ impl PikeVM {
     /// bytes.
     pub(crate) fn try_match<'a, C, F, B>(
         &mut self,
-        code: &[u8],
         start: C,
         mut fwd_input: F,
         mut bck_input: B,
-        greedy: bool,
-    ) -> Option<usize>
-    where
+        mut f: impl FnMut(usize) -> Match,
+    ) where
         C: CodeLoc,
         F: Iterator<Item = &'a u8>,
         B: Iterator<Item = &'a u8>,
     {
         let step = 1;
-        let mut matched_bytes = None;
         let mut current_pos = 0;
         let mut byte = fwd_input.next();
 
         epsilon_closure(
-            code,
+            self.code,
             start,
             byte,
             bck_input.next(),
@@ -80,10 +84,12 @@ impl PikeVM {
             let next_byte = fwd_input.next();
 
             for ip in self.threads.iter() {
-                let (instr, size) = decode_instr(&code[*ip..]);
+                let (instr, size) = decode_instr(&self.code[*ip..]);
 
                 let is_match = match instr {
-                    Instr::AnyByte => byte.is_some(),
+                    Instr::AnyByte => {
+                        matches!(byte, Some(_))
+                    }
                     Instr::Byte(expected) => {
                         matches!(byte, Some(byte) if *byte == expected)
                     }
@@ -96,14 +102,10 @@ impl PikeVM {
                     Instr::ClassRanges(class) => {
                         matches!(byte, Some(byte) if class.contains(*byte))
                     }
-                    Instr::Match => {
-                        matched_bytes = Some(current_pos);
-                        if greedy {
-                            false
-                        } else {
-                            break;
-                        }
-                    }
+                    Instr::Match => match f(current_pos) {
+                        Match::Stop => break,
+                        Match::Continue => false,
+                    },
                     Instr::Eoi => {
                         // TODO: is this correct?
                         break;
@@ -113,7 +115,7 @@ impl PikeVM {
 
                 if is_match {
                     epsilon_closure(
-                        code,
+                        self.code,
                         C::from(*ip + size),
                         next_byte,
                         byte,
@@ -128,7 +130,5 @@ impl PikeVM {
             mem::swap(&mut self.threads, &mut self.next_threads);
             self.next_threads.clear();
         }
-
-        matched_bytes
     }
 }

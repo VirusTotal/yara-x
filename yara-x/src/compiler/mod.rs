@@ -1450,10 +1450,10 @@ bitmask! {
     pub mask SubPatternFlagSet: u8 where flags SubPatternFlags  {
         Wide                 = 0x01,
         Nocase               = 0x02,
-        LastInChain          = 0x04,
+        LastInChain          = 0x04, // Apply only to chained sub-patterns.
         FullwordLeft         = 0x08,
         FullwordRight        = 0x10,
-        Greedy               = 0x20,
+        Greedy               = 0x20, // Apply only to regexp sub-patterns.
     }
 }
 

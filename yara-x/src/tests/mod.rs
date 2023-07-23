@@ -545,7 +545,7 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/.b{2,3}?/"#, b"abbb", b"abb");
     pattern_match!(r#"/ab{2,3}?c/"#, b"abbbc", b"abbbc");
     pattern_match!(r#"/.b{2,3}cccc/"#, b"abbbcccc", b"abbbcccc");
-    pattern_match!(r#"/.b{2,3}?cccc/"#, b"abbbcccc", b"bbbcccc");
+    pattern_match!(r#"/.b{2,3}?cccc/"#, b"abbbcccc", b"abbbcccc");
     pattern_match!(r#"/a.b{2,3}cccc/"#, b"aabbbcccc", b"aabbbcccc");
     pattern_match!(r#"/ab{2,3}c/"#, b"abbbc", b"abbbc");
     pattern_match!(r#"/ab{2,3}?c/"#, b"abbbc", b"abbbc");
@@ -554,7 +554,8 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/ab{0,}c/"#, b"ac", b"ac");
     pattern_match!(r#"/ab{0,}c/"#, b"abc", b"abc");
     pattern_match!(r#"/ab{0,}c/"#, b"abbbc", b"abbbc");
-    pattern_match!(r#"/a{0,1}?bc/"#, b"abc", b"bc");
+    pattern_match!(r#"/a{0,1}?bc/"#, b"abc", b"abc");
+    pattern_match!(r#"/a{0,1}?bc/"#, b"bc", b"bc");
     pattern_match!(r#"/aa{0,1}?bc/"#, b"abc", b"abc");
     pattern_match!(r#"/aa{0,1}bc/"#, b"abc", b"abc");
     pattern_match!(r#"/ab{1}c/"#, b"abc", b"abc");
@@ -697,8 +698,7 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/(abc|)ef/"#, b"abcdef", b"ef");
     pattern_match!(r#"/(abc|)ef/"#, b"abcef", b"abcef");
     pattern_match!(r#"/(abc|)ef/"#, b"abcef", b"abcef");
-    // TODO
-    //pattern_match!(r#"/(|abc)ef/"#, b"abcef", b"abcef");
+    pattern_match!(r#"/(|abc)ef/"#, b"abcef", b"abcef");
     pattern_match!(r#"/((a)(b)c)(d)/"#, b"abcd", b"abcd");
     pattern_match!(r#"/(a|b)c*d/"#, b"abcd", b"bcd");
     pattern_match!(r#"/(ab|ab*)bc/"#, b"abc", b"abc");
@@ -847,6 +847,32 @@ fn regexp_patterns_2() {
         b"\xF0\x9F\x99\x88\xF0\x9F\x99\x89\xF0\x9F\x99\x8A"
     );
     */
+}
+
+#[test]
+fn regexp_patterns_3() {
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /a{1,}/
+            condition:
+                #a == 5
+        }"#,
+        b"aaaaa"
+    );
+
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = /.b{2,3}?cccc/
+
+            condition:
+                #a == 2 and
+                @a[1] == 0 and
+                @a[2] == 1
+        }"#,
+        b"abbbcccc"
+    );
 }
 
 #[test]
@@ -2348,4 +2374,27 @@ fn test_proto2_module() {
     //   [(yara.field_options).name = "bool_yara"];
     //
     condition_true!(r#"test_proto2.bool_yara"#);
+}
+
+#[test]
+fn te() {
+    let src = r#"rule test { strings: $a = /.b{2,3}?cccc/ condition: $a}"#;
+
+    let rules = crate::compile(src).unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+    let scan_results = scanner.scan(b"abbbcccc");
+    let matching_data = scan_results
+        .matching_rules()
+        .next()
+        .expect("foo")
+        .patterns()
+        .next()
+        .unwrap()
+        .matches()
+        .next()
+        .unwrap()
+        .data;
+
+    assert_eq!(matching_data, b"abbbcccc");
 }

@@ -696,6 +696,10 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 closure.push(ip);
             }
             Instr::SplitA(offset) => {
+                // TODO: here we are relying on `contains` which is O(n), this
+                // can be improved by using a set. We can even remove
+                // `executed_splits` and rely on `closure`, which must be
+                // a set that maintains the insertion order.
                 if !state.executed_splits.contains(&ip) {
                     state.executed_splits.push(ip);
                     state
