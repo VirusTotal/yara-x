@@ -1524,8 +1524,17 @@ fn fullword() {
     pattern_true!(r#"/mississippi/ fullword"#, b" mississippi ");
     pattern_true!(r#"/mississippi/ fullword"#, b"\x00mississippi\x00");
     pattern_true!(r#"/mississippi/ fullword"#, b"\x01mississippi\x02");
+    pattern_true!(r#"/mi.*pi/ fullword"#, b"mississippi");
+    pattern_true!(r#"/mi.*pi/ fullword"#, b"mississippi ");
+    pattern_true!(r#"/mi.*pi/ fullword"#, b" mississippi");
+    pattern_true!(r#"/mi.*pi/ fullword"#, b" mississippi ");
+    pattern_true!(r#"/mi.*pi/ fullword"#, b"\x00mississippi\x00");
+    pattern_true!(r#"/mi.*pi/ fullword"#, b"\x01mississippi\x02");
+
     pattern_true!(r#"/mississippi|missouri/ fullword"#, b"mississippi");
     pattern_false!(r#"/mississippi|missouri/ fullword"#, b"xmississippix");
+    pattern_false!(r#"/ssissi/ fullword"#, b"mississippi");
+    pattern_false!(r#"/ss.ssi/ fullword"#, b"mississippi");
 
     pattern_true!(r#"/mis.*?ppi/s fullword"#, b"mississippi");
     pattern_true!(r#"/mis.*?ss.*?ppi/s fullword"#, b"x mississippi x");
@@ -1540,6 +1549,8 @@ fn fullword() {
 
     pattern_true!(r#"/miss|ippi/ fullword"#, b"miss issippi");
     pattern_true!(r#"/miss|ippi/ fullword"#, b"mississ ippi");
+
+    pattern_true!("/^mississippi/ fullword", b"mississippi\tmississippi");
 
     pattern_true!(
         r#""mississippi" wide fullword"#,

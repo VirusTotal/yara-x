@@ -264,22 +264,25 @@ impl ScanContext<'_> {
                         );
                     }
                 }
-                SubPattern::Regexp { .. }
-                | SubPattern::RegexpChainHead { .. }
-                | SubPattern::RegexpChainTail { .. } => verify_regexp_match(
-                    &mut pike_vm,
-                    scanned_data,
-                    atom_pos,
-                    atom,
-                    |match_| {
-                        self.handle_sub_pattern_match(
-                            sub_pattern_id,
-                            sub_pattern,
-                            *pattern_id,
-                            match_,
-                        );
-                    },
-                ),
+                SubPattern::Regexp { flags, .. }
+                | SubPattern::RegexpChainHead { flags, .. }
+                | SubPattern::RegexpChainTail { flags, .. } => {
+                    verify_regexp_match(
+                        &mut pike_vm,
+                        scanned_data,
+                        atom_pos,
+                        atom,
+                        *flags,
+                        |match_| {
+                            self.handle_sub_pattern_match(
+                                sub_pattern_id,
+                                sub_pattern,
+                                *pattern_id,
+                                match_,
+                            );
+                        },
+                    )
+                }
 
                 SubPattern::Xor { pattern, flags } => {
                     if let Some(match_) = verify_xor_match(
@@ -667,6 +670,7 @@ fn verify_regexp_match(
     scanned_data: &[u8],
     atom_pos: usize,
     atom: &SubPatternAtom,
+    flags: SubPatternFlagSet,
     mut f: impl FnMut(Match),
 ) {
     // Try matching from the point where the atom was found
@@ -693,10 +697,10 @@ fn verify_regexp_match(
         scanned_data[..atom_pos].iter().rev(),
         scanned_data[atom_pos..].iter(),
         |bck_match_len| {
-            f(Match {
-                range: atom_pos - bck_match_len..atom_pos + fwd_match_len,
-                xor_key: None,
-            });
+            let range = atom_pos - bck_match_len..atom_pos + fwd_match_len;
+            if verify_full_word(scanned_data, range.clone(), flags, None) {
+                f(Match { range, xor_key: None });
+            }
             pikevm::Match::Continue
         },
     );

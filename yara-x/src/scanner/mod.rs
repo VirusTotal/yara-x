@@ -22,7 +22,6 @@ use wasmtime::{
 };
 
 use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
-use crate::re::pikevm::PikeVM;
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
