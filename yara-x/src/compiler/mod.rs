@@ -1094,12 +1094,12 @@ impl<'a> Compiler<'a> {
                     ),
                 );
             } else {
-                if matches!(leading.is_greedy(), Some(true)) {
+                if matches!(p.hir.is_greedy(), Some(true)) {
                     flags.set(SubPatternFlags::Greedy);
                 }
 
                 prev_sub_pattern_id = self.process_regexp(
-                    leading,
+                    &p.hir,
                     SubPattern::RegexpChainTail {
                         chained_to: prev_sub_pattern_id,
                         gap: p.gap.clone(),
