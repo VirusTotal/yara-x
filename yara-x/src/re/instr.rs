@@ -692,8 +692,11 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             | Instr::Byte(_)
             | Instr::MaskedByte(_, _)
             | Instr::ClassBitmap(_)
-            | Instr::ClassRanges(_) => {
-                closure.push(ip);
+            | Instr::ClassRanges(_)
+            | Instr::Match => {
+                if !closure.contains(&ip) {
+                    closure.push(ip);
+                }
             }
             Instr::SplitA(offset) => {
                 // TODO: here we are relying on `contains` which is O(n), this
@@ -768,9 +771,6 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 if is_match {
                     state.threads.push(next)
                 }
-            }
-            Instr::Match => {
-                closure.push(ip);
             }
             Instr::Eoi => {}
         }
