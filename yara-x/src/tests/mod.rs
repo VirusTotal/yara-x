@@ -882,6 +882,29 @@ fn regexp_patterns_3() {
 }
 
 #[test]
+fn regexp_wide() {
+    pattern_match!(
+        r#"/foo.*?bar/s wide"#,
+        b"f\0o\0o\0b\0a\0r\0",
+        b"f\0o\0o\0b\0a\0r\0"
+    );
+
+    pattern_match!(
+        r#"/fo.bar/ wide"#,
+        b"f\0o\0o\0b\0a\0r\0",
+        b"f\0o\0o\0b\0a\0r\0"
+    );
+
+    pattern_match!(
+        r#"/(foo|bar)+/ wide"#,
+        b"f\0o\0o\0b\0a\0r\0",
+        b"f\0o\0o\0b\0a\0r\0"
+    );
+
+    pattern_match!(r#"/foo(a|b)/ wide"#, b"f\0o\0o\0b\0", b"f\0o\0o\0b\0");
+}
+
+#[test]
 fn hex_large_jumps() {
     rule_true!(
         r#"rule test {
@@ -1625,6 +1648,16 @@ fn fullword() {
 
     pattern_false!(
         r#""issi" wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_false!(
+        r#"/mis{2}/ wide fullword"#,
+        b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
+    );
+
+    pattern_false!(
+        r#"/ip{2}i/ wide fullword"#,
         b"m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00"
     );
 }
@@ -2391,27 +2424,4 @@ fn test_proto2_module() {
     //   [(yara.field_options).name = "bool_yara"];
     //
     condition_true!(r#"test_proto2.bool_yara"#);
-}
-
-#[test]
-fn te() {
-    let src = r#"rule test { strings: $a = /.b{2,3}?cccc/ condition: $a}"#;
-
-    let rules = crate::compile(src).unwrap();
-
-    let mut scanner = crate::scanner::Scanner::new(&rules);
-    let scan_results = scanner.scan(b"abbbcccc");
-    let matching_data = scan_results
-        .matching_rules()
-        .next()
-        .expect("foo")
-        .patterns()
-        .next()
-        .unwrap()
-        .matches()
-        .next()
-        .unwrap()
-        .data;
-
-    assert_eq!(matching_data, b"abbbcccc");
 }

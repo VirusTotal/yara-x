@@ -51,6 +51,17 @@ mod ast2ir;
 mod hex2hir;
 
 bitmask! {
+    /// Flags associated to rule patterns.
+    ///
+    /// Each of these flags correspond to one of the allowed YARA pattern
+    /// modifiers, and generally they are set if the corresponding modifier
+    /// appears alongside the pattern in the source code. The only exception is
+    /// the `Ascii` flag, which will be set when `Wide` is not set regardless
+    /// of what the source code says. This follows the semantics of YARA
+    /// pattern modifiers, in which a pattern is considered `ascii` by default
+    /// when neither `ascii` or `wide` modifiers are used.
+    ///
+    /// In resume either the `Ascii` or the `Wide` flags (or both) will be set.
     #[derive(Debug, Serialize, Deserialize)]
     pub mask PatternFlagSet: u16 where flags PatternFlags  {
         Ascii                = 0x0001,

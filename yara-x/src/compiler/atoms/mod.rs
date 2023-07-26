@@ -57,11 +57,11 @@ pub mod base64;
 mod mask;
 mod quality;
 
-use std::cmp;
 use std::collections::Bound;
 use std::ops::{RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
 use std::vec::IntoIter;
+use std::{cmp, iter};
 
 use itertools::{Itertools, MultiProduct};
 use regex_syntax::hir::literal::Literal;
@@ -69,6 +69,7 @@ use serde::{Deserialize, Serialize};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
 pub(crate) use crate::compiler::atoms::quality::atom_quality;
+use crate::compiler::{SubPatternFlagSet, SubPatternFlags};
 
 /// The number of bytes that every atom *should* have. Some atoms may be
 /// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,
@@ -185,6 +186,11 @@ impl Atom {
     }
 
     #[inline]
+    pub fn set_exact(&mut self, exact: bool) {
+        self.exact = exact;
+    }
+
+    #[inline]
     pub fn make_inexact(mut self) -> Self {
         self.exact = false;
         self
@@ -222,6 +228,37 @@ pub(crate) fn best_atom_from_slice(s: &[u8], desired_size: usize) -> Atom {
     }
 
     best_atom.expect("at least one atom should be generated")
+}
+
+pub(crate) fn extract_atoms(
+    literal_bytes: &[u8],
+    flags: SubPatternFlagSet,
+) -> Box<dyn Iterator<Item = Atom>> {
+    let best_atom = best_atom_from_slice(
+        literal_bytes,
+        if flags.contains(SubPatternFlags::Wide) {
+            DESIRED_ATOM_SIZE * 2
+        } else {
+            DESIRED_ATOM_SIZE
+        },
+    );
+
+    // TODO: this is making all atoms in the chain inexact, even
+    // those that are in the middle of a chain and therefore don't
+    // have FullwordRight nor FullwordLeft. This logic could be
+    // improved.
+    let best_atom = match flags.intersects(
+        SubPatternFlags::FullwordLeft | SubPatternFlags::FullwordRight,
+    ) {
+        true => best_atom.make_inexact(),
+        false => best_atom,
+    };
+
+    if flags.contains(SubPatternFlags::Nocase) {
+        Box::new(CaseGenerator::new(&best_atom))
+    } else {
+        Box::new(iter::once(best_atom))
+    }
 }
 
 /// Given a slice of bytes, returns a vector where each byte is followed by
@@ -295,6 +332,9 @@ impl Iterator for CaseGenerator {
 /// Given an [`Atom`] and a inclusive range (e.g. 0..=255, 10..=20), returns
 /// as many atoms as values are in the range. Each returned atom is the result
 /// of XORing the original one with one of the values in the range.
+///
+/// The resulting atoms are all inexact, regardless of whether the original
+/// was exact or not.
 pub(super) struct XorGenerator {
     atom: Atom,
     range: RangeInclusive<u8>,
@@ -316,7 +356,7 @@ impl Iterator for XorGenerator {
             self.atom.bytes.iter().map(|b| b ^ i).collect::<Vec<u8>>(),
         );
         atom.backtrack = self.atom.backtrack;
-        atom.exact = self.atom.exact;
+        atom.exact = false;
         Some(atom)
     }
 }
@@ -357,8 +397,8 @@ mod test {
         let atom = Atom::exact([0x00_u8, 0x01, 0x02]);
         let mut c = XorGenerator::new(atom, 0..=1);
 
-        assert_eq!(c.next(), Some(Atom::exact([0x00, 0x01, 0x02])));
-        assert_eq!(c.next(), Some(Atom::exact([0x01, 0x00, 0x03])));
+        assert_eq!(c.next(), Some(Atom::inexact([0x00, 0x01, 0x02])));
+        assert_eq!(c.next(), Some(Atom::inexact([0x01, 0x00, 0x03])));
         assert_eq!(c.next(), None);
     }
 

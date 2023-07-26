@@ -13,7 +13,7 @@ use rustc_hash::FxHashMap;
 use wasmtime::Store;
 
 use crate::compiler::{
-    LiteralId, NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
+    NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
 use crate::re::pikevm;
@@ -229,20 +229,34 @@ impl ScanContext<'_> {
             let (pattern_id, sub_pattern) =
                 &self.compiled_rules.get_sub_pattern(sub_pattern_id);
 
-            // If the atom is exact no further verification is needed, finding
-            // an exact atom is enough to guarantee that the whole sub-pattern
-            // matched.
+            // If the atom is exact no further verification is needed, except
+            // for making sure that the fullword requirements are met. An exact
+            // atom is enough to guarantee that the whole sub-pattern matched.
             if atom.is_exact() {
-                self.handle_sub_pattern_match(
-                    sub_pattern_id,
-                    sub_pattern,
-                    *pattern_id,
-                    Match {
-                        range: atom_pos..atom_pos + atom.len(),
-                        // TODO: exact atom for SubPattern::Xor
-                        xor_key: None,
-                    },
-                );
+                // Not all sub-pattern types can have exact atoms. In debug mode
+                // verify that the sub-pattern type is one that can have exact
+                // atoms.
+                let flags = match sub_pattern {
+                    SubPattern::Literal { flags, .. }
+                    | SubPattern::LiteralChainHead { flags, .. }
+                    | SubPattern::LiteralChainTail { flags, .. }
+                    | SubPattern::Regexp { flags, .. }
+                    | SubPattern::RegexpChainHead { flags, .. }
+                    | SubPattern::RegexpChainTail { flags, .. } => flags,
+                    _ => unreachable!(),
+                };
+
+                let match_range = atom_pos..atom_pos + atom.len();
+
+                if verify_full_word(scanned_data, &match_range, *flags, None) {
+                    self.handle_sub_pattern_match(
+                        sub_pattern_id,
+                        sub_pattern,
+                        *pattern_id,
+                        Match { range: match_range, xor_key: None },
+                    );
+                }
+
                 continue;
             }
 
@@ -591,7 +605,7 @@ fn verify_literal_match(
         return None;
     }
 
-    if !verify_full_word(scanned_data, atom_pos..match_end, flags, None) {
+    if !verify_full_word(scanned_data, &(atom_pos..match_end), flags, None) {
         return None;
     }
 
@@ -617,7 +631,7 @@ fn verify_literal_match(
 /// end are both non-alphanumeric.
 fn verify_full_word(
     scanned_data: &[u8],
-    match_range: Range<usize>,
+    match_range: &Range<usize>,
     flags: SubPatternFlagSet,
     xor_key: Option<u8>,
 ) -> bool {
@@ -677,33 +691,61 @@ fn verify_regexp_match(
     // going forward (left-to-right).
     let mut fwd_match_len = None;
 
-    pike_vm.try_match(
-        atom.fwd_code(),
-        scanned_data[atom_pos..].iter(),
-        scanned_data[..atom_pos].iter().rev(),
-        |match_len| {
-            fwd_match_len = Some(match_len);
-            pikevm::Match::Stop
-        },
-    );
+    if flags.contains(SubPatternFlags::Wide) {
+        pike_vm.try_match(
+            atom.fwd_code(),
+            scanned_data[atom_pos..].iter().step_by(2),
+            scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
+            |match_len| {
+                fwd_match_len = Some(match_len * 2);
+                pikevm::Match::Stop
+            },
+        );
+    } else {
+        pike_vm.try_match(
+            atom.fwd_code(),
+            scanned_data[atom_pos..].iter(),
+            scanned_data[..atom_pos].iter().rev(),
+            |match_len| {
+                fwd_match_len = Some(match_len);
+                pikevm::Match::Stop
+            },
+        );
+    }
 
     let fwd_match_len = match fwd_match_len {
         Some(len) => len,
         None => return,
     };
 
-    pike_vm.try_match(
-        atom.bck_code(),
-        scanned_data[..atom_pos].iter().rev(),
-        scanned_data[atom_pos..].iter(),
-        |bck_match_len| {
-            let range = atom_pos - bck_match_len..atom_pos + fwd_match_len;
-            if verify_full_word(scanned_data, range.clone(), flags, None) {
-                f(Match { range, xor_key: None });
-            }
-            pikevm::Match::Continue
-        },
-    );
+    if flags.contains(SubPatternFlags::Wide) {
+        pike_vm.try_match(
+            atom.bck_code(),
+            scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
+            scanned_data[atom_pos..].iter().step_by(2),
+            |bck_match_len| {
+                let range =
+                    atom_pos - bck_match_len * 2..atom_pos + fwd_match_len;
+                if verify_full_word(scanned_data, &range, flags, None) {
+                    f(Match { range, xor_key: None });
+                }
+                pikevm::Match::Continue
+            },
+        );
+    } else {
+        pike_vm.try_match(
+            atom.bck_code(),
+            scanned_data[..atom_pos].iter().rev(),
+            scanned_data[atom_pos..].iter(),
+            |bck_match_len| {
+                let range = atom_pos - bck_match_len..atom_pos + fwd_match_len;
+                if verify_full_word(scanned_data, &range, flags, None) {
+                    f(Match { range, xor_key: None });
+                }
+                pikevm::Match::Continue
+            },
+        );
+    }
 }
 
 /// Verifies that a literal sub-pattern actually matches in XORed form
@@ -732,7 +774,9 @@ fn verify_xor_match(
     // the corresponding byte in the pattern.
     let key = atom.as_slice()[0] ^ pattern[atom.backtrack()];
 
-    if !verify_full_word(scanned_data, atom_pos..match_end, flags, Some(key)) {
+    let match_range = atom_pos..match_end;
+
+    if !verify_full_word(scanned_data, &match_range, flags, Some(key)) {
         return None;
     }
 
@@ -745,8 +789,8 @@ fn verify_xor_match(
         }
     }
 
-    if memx::memeq(&scanned_data[atom_pos..match_end], pattern.as_bytes()) {
-        Some(Match { range: atom_pos..match_end, xor_key: Some(key) })
+    if memx::memeq(&scanned_data[match_range.clone()], pattern.as_bytes()) {
+        Some(Match { range: match_range, xor_key: Some(key) })
     } else {
         None
     }

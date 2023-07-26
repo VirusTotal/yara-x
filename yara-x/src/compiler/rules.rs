@@ -1,5 +1,4 @@
 use std::io::{BufWriter, Write};
-use std::num::NonZeroI32;
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
@@ -8,11 +7,12 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use yara_x_parser::ast::Span;
 
-use crate::compiler::atoms::Atom;
+use crate::compiler::atoms::{make_wide, Atom};
 use crate::compiler::{
     IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
     SubPattern, SubPatternId,
 };
+use crate::re::compiler::RegexpAtom;
 use crate::re::instr::{BckCodeLoc, FwdCodeLoc};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::types::{Regexp, Struct};
@@ -320,8 +320,36 @@ pub(crate) struct SubPatternAtom {
 
 impl SubPatternAtom {
     #[inline]
-    pub(crate) fn new(sub_pattern_id: SubPatternId, atom: Atom) -> Self {
+    pub(crate) fn from_atom(sub_pattern_id: SubPatternId, atom: Atom) -> Self {
         Self { sub_pattern_id, atom, bck_code: None, fwd_code: None }
+    }
+
+    pub(crate) fn from_regexp_atom_wide(
+        sub_pattern_id: SubPatternId,
+        value: &RegexpAtom,
+    ) -> Self {
+        let mut atom = Atom::from(make_wide(value.atom.as_slice()));
+
+        atom.set_exact(value.atom.is_exact());
+
+        Self {
+            sub_pattern_id,
+            atom,
+            fwd_code: Some(FwdCodeLoc::from(value.code_loc.fwd)),
+            bck_code: Some(BckCodeLoc::from(value.code_loc.bck)),
+        }
+    }
+
+    pub(crate) fn from_regexp_atom(
+        sub_pattern_id: SubPatternId,
+        value: RegexpAtom,
+    ) -> Self {
+        Self {
+            sub_pattern_id,
+            atom: value.atom,
+            fwd_code: Some(FwdCodeLoc::from(value.code_loc.fwd)),
+            bck_code: Some(BckCodeLoc::from(value.code_loc.bck)),
+        }
     }
 
     #[inline]
@@ -368,12 +396,4 @@ impl SubPatternAtom {
     pub(crate) fn set_bck_code(&mut self, o: usize) {
         self.bck_code = Some(o.try_into().unwrap());
     }
-}
-
-#[derive(Serialize, Deserialize)]
-pub(crate) struct RegexpAtom {
-    atom: Vec<u8>,
-    exact: bool,
-    fwd_code: Option<NonZeroI32>,
-    bck_code: Option<NonZeroI32>,
 }

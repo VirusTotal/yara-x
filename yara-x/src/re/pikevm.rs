@@ -38,10 +38,10 @@ impl<'r> PikeVM<'r> {
     /// Executes VM code starting at the `start` location and returns the
     /// number of bytes from `fwd_input` that matched. The number of bytes
     /// returned can be zero if the VM matches a zero-length string. Returns
-    /// `None` if the data read from input don't match the regexp.
+    /// `None` if the data doesn't match the regexp.
     ///
-    /// `bck_input` is an iterator that returns the bytes that were before
-    /// the stating point of `fwd_input`, in reverse order. For instance,
+    /// `bck_input` is an iterator that returns the bytes that are before
+    /// the starting point of `fwd_input`, in reverse order. For instance,
     /// suppose we have the string `a b c e f g h i`, and `fwd_input` starts
     /// at the `f` character and returns `f`, `g`, `h` and `i` in that order.
     /// In such case `bck_input` will return `e`, `c`, `b` and `a`.

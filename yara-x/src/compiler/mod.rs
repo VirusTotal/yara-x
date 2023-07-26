@@ -17,6 +17,7 @@ use bitmask::bitmask;
 use bstr::ByteSlice;
 use itertools::Itertools;
 use regex_syntax::hir;
+use regex_syntax::hir::Literal;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
@@ -50,6 +51,7 @@ pub use crate::compiler::errors::*;
 
 #[doc(inline)]
 pub use crate::compiler::rules::*;
+use crate::compiler::SubPattern::{Regexp, RegexpChainHead, RegexpChainTail};
 use crate::re;
 use crate::re::hir::TrailingPattern;
 
@@ -485,24 +487,6 @@ impl<'a> Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    fn push_sub_pattern<A>(
-        &mut self,
-        sub_pattern: SubPattern,
-        atoms: A,
-    ) -> SubPatternId
-    where
-        A: Iterator<Item = Atom>,
-    {
-        let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
-        self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
-
-        for atom in atoms.into_iter() {
-            self.atoms.push(SubPatternAtom::new(sub_pattern_id, atom))
-        }
-
-        sub_pattern_id
-    }
-
     /// Check if another rule, module or variable has the given identifier and
     /// return an error in that case.
     fn check_for_existing_identifier(
@@ -533,7 +517,8 @@ impl<'a> Compiler<'a> {
 
     /// Interns a literal in the literals pool.
     ///
-    /// If `wide` is true the literal is converted to before being interned.
+    /// If `wide` is true the literal gets zeroes interleaved between each byte
+    /// before being interned.
     fn intern_literal(&mut self, literal: &[u8], wide: bool) -> LiteralId {
         let wide_pattern;
         let literal_bytes = if wide {
@@ -689,17 +674,6 @@ impl<'a> Compiler<'a> {
         }
 
         for (main_pattern, best_atom, flags) in main_patterns {
-            // If the pattern has the `fullword` flag the atom can't be exact.
-            // An exact atom means that once it is found by the Aho-Corasick
-            // algorithm we can assume that its associated sub-pattern matches
-            // without further verification. However, `fullword` requires
-            // verifying that the bytes surrounding the match are not
-            // alphanumeric.
-            let best_atom = match full_word {
-                true => best_atom.make_inexact(),
-                false => best_atom,
-            };
-
             let pattern_lit_id = self.lit_pool.get_or_intern(main_pattern);
 
             if pattern.flags.contains(PatternFlags::Xor) {
@@ -711,12 +685,13 @@ impl<'a> Compiler<'a> {
                         | PatternFlags::Nocase,
                 ));
 
-                self.push_sub_pattern(
+                self.add_sub_pattern(
                     SubPattern::Xor { pattern: pattern_lit_id, flags },
                     XorGenerator::new(
                         best_atom,
                         pattern.xor_range.clone().unwrap(),
                     ),
+                    SubPatternAtom::from_atom,
                 );
             } else if pattern.flags.contains(PatternFlags::Nocase) {
                 // When `nocase` is used, `base64`, `base64wide` and `xor` are
@@ -727,12 +702,13 @@ impl<'a> Compiler<'a> {
                         | PatternFlags::Xor,
                 ));
 
-                self.push_sub_pattern(
+                self.add_sub_pattern(
                     SubPattern::Literal {
                         pattern: pattern_lit_id,
                         flags: flags | SubPatternFlags::Nocase,
                     },
                     CaseGenerator::new(&best_atom),
+                    SubPatternAtom::from_atom,
                 );
             }
             // Used `base64`, or `base64wide`, or both.
@@ -768,7 +744,7 @@ impl<'a> Compiler<'a> {
                                 }
                             };
 
-                        self.push_sub_pattern(
+                        self.add_sub_pattern(
                             sub_pattern,
                             iter::once(
                                 best_atom_from_slice(
@@ -779,6 +755,7 @@ impl<'a> Compiler<'a> {
                                 // inexact, they require verification.
                                 .make_inexact(),
                             ),
+                            SubPatternAtom::from_atom,
                         );
                     }
                 }
@@ -807,7 +784,7 @@ impl<'a> Compiler<'a> {
 
                         let wide = make_wide(base64_pattern.as_slice());
 
-                        self.push_sub_pattern(
+                        self.add_sub_pattern(
                             sub_pattern,
                             iter::once(
                                 best_atom_from_slice(
@@ -818,19 +795,23 @@ impl<'a> Compiler<'a> {
                                 // inexact, they require verification.
                                 .make_inexact(),
                             ),
+                            SubPatternAtom::from_atom,
                         );
                     }
                 }
             } else {
-                self.push_sub_pattern(
+                self.add_sub_pattern(
                     SubPattern::Literal { pattern: pattern_lit_id, flags },
                     iter::once(best_atom),
+                    SubPatternAtom::from_atom,
                 );
             }
         }
     }
 
     fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
+        let ascii = pattern.flags.contains(PatternFlags::Ascii);
+        let wide = pattern.flags.contains(PatternFlags::Wide);
         let case_insensitive = pattern.flags.contains(PatternFlags::Nocase);
         let full_word = pattern.flags.contains(PatternFlags::Fullword);
 
@@ -870,13 +851,6 @@ impl<'a> Compiler<'a> {
                     },
                 );
 
-                // If the pattern has the `fullword` flag the atom can't be
-                // exact.
-                let best_atom = match full_word {
-                    true => best_atom.make_inexact(),
-                    false => best_atom,
-                };
-
                 let sp = SubPattern::Literal {
                     pattern: pattern_lit_id,
                     flags: if wide {
@@ -887,18 +861,26 @@ impl<'a> Compiler<'a> {
                 };
 
                 if case_insensitive {
-                    self.push_sub_pattern(sp, CaseGenerator::new(&best_atom));
+                    self.add_sub_pattern(
+                        sp,
+                        CaseGenerator::new(&best_atom),
+                        SubPatternAtom::from_atom,
+                    );
                 } else {
-                    self.push_sub_pattern(sp, iter::once(best_atom));
+                    self.add_sub_pattern(
+                        sp,
+                        iter::once(best_atom),
+                        SubPatternAtom::from_atom,
+                    );
                 }
             };
 
             match leading.into_kind() {
                 hir::HirKind::Literal(literal) => {
-                    if pattern.flags.contains(PatternFlags::Ascii) {
+                    if ascii {
                         process_literal(&literal, false);
                     }
-                    if pattern.flags.contains(PatternFlags::Wide) {
+                    if wide {
                         process_literal(&literal, true);
                     }
                 }
@@ -907,10 +889,10 @@ impl<'a> Compiler<'a> {
                         |l| cast!(l.into_kind(), hir::HirKind::Literal)
                     });
                     for literal in literals {
-                        if pattern.flags.contains(PatternFlags::Ascii) {
+                        if ascii {
                             process_literal(&literal, false);
                         }
-                        if pattern.flags.contains(PatternFlags::Wide) {
+                        if wide {
                             process_literal(&literal, true);
                         }
                     }
@@ -918,155 +900,103 @@ impl<'a> Compiler<'a> {
                 _ => unreachable!(),
             }
         } else if trailing.is_empty() {
+            // The pattern is a regexp that can't be converted into a literal
+            // or alternation of literals, and can't be split into multiple
+            // regexps.
+            let atoms = self.compile_regexp(&leading);
+
             if matches!(leading.is_greedy(), Some(true)) {
                 flags.set(SubPatternFlags::Greedy);
             }
-            self.process_regexp(&leading, SubPattern::Regexp { flags });
+
+            if wide {
+                self.add_sub_pattern(
+                    Regexp { flags: flags | SubPatternFlags::Wide },
+                    atoms.iter(),
+                    SubPatternAtom::from_regexp_atom_wide,
+                );
+            }
+
+            if ascii {
+                self.add_sub_pattern(
+                    Regexp { flags },
+                    atoms.into_iter(),
+                    SubPatternAtom::from_regexp_atom,
+                );
+            }
         } else {
-            // The pattern was split into multiple chained patterns, process
-            // the chain.
-            self.process_chain(leading, trailing, pattern.flags);
+            // The pattern is a regexp that was split into multiple chained
+            // regexps.
+            self.process_chain(&leading, &trailing, pattern.flags);
         }
-    }
-
-    fn process_regexp(
-        &mut self,
-        regexp: &re::hir::Hir,
-        sub_pattern: SubPattern,
-    ) -> SubPatternId {
-        let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
-
-        self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
-
-        let re_compiler = re::compiler::Compiler::new();
-        let (forward_code, backward_code, atoms) = re_compiler.compile(regexp);
-
-        // `fwd_code` will contain the offset within the `re_code` vector
-        // where the forward code resides.
-        let fwd_code = self.re_code.len();
-        self.re_code.append(&mut forward_code.into_inner());
-
-        // `bck_code` will contain the offset within the `re_code` vector
-        // where the backward code resides.
-        let bck_code = self.re_code.len();
-        self.re_code.append(&mut backward_code.into_inner());
-
-        for a in atoms.into_iter() {
-            let mut atom = SubPatternAtom::new(sub_pattern_id, a.atom);
-            atom.set_fwd_code(fwd_code + a.code_loc.fwd);
-            atom.set_bck_code(bck_code + a.code_loc.bck);
-            self.atoms.push(atom)
-        }
-
-        sub_pattern_id
     }
 
     fn process_chain(
         &mut self,
-        leading: re::hir::Hir,
-        trailing: Vec<TrailingPattern>,
-        flags: PatternFlagSet,
-    ) {
-        if flags.contains(PatternFlags::Ascii) {
-            self.process_chain_impl(&leading, &trailing, flags, false);
-        }
-        if flags.contains(PatternFlags::Wide) {
-            self.process_chain_impl(&leading, &trailing, flags, true);
-        }
-    }
-
-    fn process_chain_impl(
-        &mut self,
         leading: &re::hir::Hir,
         trailing: &[TrailingPattern],
         flags: PatternFlagSet,
-        wide: bool,
     ) {
-        // This function assumes that trailing is not empty.
-        assert!(!trailing.is_empty());
-
-        let case_insensitive = flags.contains(PatternFlags::Nocase);
+        let ascii = flags.contains(PatternFlags::Ascii);
+        let wide = flags.contains(PatternFlags::Wide);
+        let nocase = flags.contains(PatternFlags::Nocase);
         let full_word = flags.contains(PatternFlags::Fullword);
 
-        let mut base_flags = SubPatternFlagSet::none();
+        let mut flags = SubPatternFlagSet::none();
 
-        if case_insensitive {
-            base_flags.set(SubPatternFlags::Nocase);
+        if nocase {
+            flags.set(SubPatternFlags::Nocase);
         }
 
-        if wide {
-            base_flags.set(SubPatternFlags::Wide);
+        if full_word {
+            flags.set(SubPatternFlags::FullwordLeft);
         }
 
-        // Utility function that returns the best atom from a literal, it
-        // returns a single atom if the literal is case sensitive, or
-        // multiple atoms if its case insensitive.
-        let extract_atoms =
-            |literal_bytes: &[u8]| -> Box<dyn Iterator<Item = Atom>> {
-                let best_atom = best_atom_from_slice(
-                    literal_bytes,
-                    if wide {
-                        DESIRED_ATOM_SIZE * 2
-                    } else {
-                        DESIRED_ATOM_SIZE
-                    },
-                );
-
-                // TODO: this is making all atoms in the chain inexact, even
-                // those that are in the middle of a chain and therefore don't
-                // have FullwordRight nor FullwordLeft. This logic could be
-                // improved.
-                let best_atom = match full_word {
-                    true => best_atom.make_inexact(),
-                    false => best_atom,
-                };
-
-                if case_insensitive {
-                    Box::new(CaseGenerator::new(&best_atom))
-                } else {
-                    Box::new(iter::once(best_atom))
-                }
-            };
-
-        let mut prev_sub_pattern_id;
+        let mut prev_sub_pattern_ascii = SubPatternId(0);
+        let mut prev_sub_pattern_wide = SubPatternId(0);
 
         if let hir::HirKind::Literal(literal) = leading.kind() {
-            let pattern_lit_id =
-                self.intern_literal(literal.0.as_bytes(), wide);
-
-            prev_sub_pattern_id = self.push_sub_pattern(
-                SubPattern::LiteralChainHead {
-                    pattern: pattern_lit_id,
-                    flags: if full_word {
-                        base_flags | SubPatternFlags::FullwordLeft
-                    } else {
-                        base_flags
-                    },
-                },
-                extract_atoms(
-                    self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
-                ),
-            )
-        } else {
-            let mut flags = if full_word {
-                base_flags | SubPatternFlags::FullwordLeft
-            } else {
-                base_flags
+            if ascii {
+                prev_sub_pattern_ascii =
+                    self.process_literal_chain_head(literal, flags);
+            }
+            if wide {
+                prev_sub_pattern_wide = self.process_literal_chain_head(
+                    literal,
+                    flags | SubPatternFlags::Wide,
+                );
             };
-
+        } else {
             if matches!(leading.is_greedy(), Some(true)) {
                 flags.set(SubPatternFlags::Greedy);
             }
 
-            prev_sub_pattern_id = self.process_regexp(
-                leading,
-                SubPattern::RegexpChainHead { flags },
-            );
+            let atoms = self.compile_regexp(leading);
+
+            if wide {
+                prev_sub_pattern_wide = self.add_sub_pattern(
+                    RegexpChainHead { flags: flags | SubPatternFlags::Wide },
+                    atoms.iter(),
+                    SubPatternAtom::from_regexp_atom_wide,
+                );
+            }
+
+            if ascii {
+                prev_sub_pattern_ascii = self.add_sub_pattern(
+                    RegexpChainHead { flags },
+                    atoms.into_iter(),
+                    SubPatternAtom::from_regexp_atom,
+                );
+            }
+        }
+
+        // The head of the chain is the only one that has the `FullwordLeft`
+        // flag, now that the head has been processed we must unset this flag.
+        if full_word {
+            flags.unset(SubPatternFlags::FullwordLeft);
         }
 
         for (i, p) in trailing.iter().enumerate() {
-            let mut flags = base_flags;
-
             // The last pattern in the chain has the `LastInChain` flag and
             // the `FullwordRight` if the original pattern was `Fullword`.
             // Patterns in the middle of the chain won't have neither of these
@@ -1079,35 +1009,128 @@ impl<'a> Compiler<'a> {
             }
 
             if let hir::HirKind::Literal(literal) = p.hir.kind() {
-                let pattern_lit_id =
-                    self.intern_literal(literal.0.as_bytes(), wide);
-
-                prev_sub_pattern_id = self.push_sub_pattern(
-                    SubPattern::LiteralChainTail {
-                        chained_to: prev_sub_pattern_id,
-                        gap: p.gap.clone(),
-                        pattern: pattern_lit_id,
+                if wide {
+                    prev_sub_pattern_wide = self.process_literal_chain_tail(
+                        literal,
+                        prev_sub_pattern_wide,
+                        p.gap.clone(),
+                        flags | SubPatternFlags::Wide,
+                    );
+                };
+                if ascii {
+                    prev_sub_pattern_ascii = self.process_literal_chain_tail(
+                        literal,
+                        prev_sub_pattern_ascii,
+                        p.gap.clone(),
                         flags,
-                    },
-                    extract_atoms(
-                        self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
-                    ),
-                );
+                    );
+                }
             } else {
                 if matches!(p.hir.is_greedy(), Some(true)) {
                     flags.set(SubPatternFlags::Greedy);
                 }
 
-                prev_sub_pattern_id = self.process_regexp(
-                    &p.hir,
-                    SubPattern::RegexpChainTail {
-                        chained_to: prev_sub_pattern_id,
-                        gap: p.gap.clone(),
-                        flags,
-                    },
-                );
+                let atoms = self.compile_regexp(&p.hir);
+
+                if wide {
+                    prev_sub_pattern_wide = self.add_sub_pattern(
+                        RegexpChainTail {
+                            chained_to: prev_sub_pattern_wide,
+                            gap: p.gap.clone(),
+                            flags: flags | SubPatternFlags::Wide,
+                        },
+                        atoms.iter(),
+                        SubPatternAtom::from_regexp_atom_wide,
+                    )
+                }
+
+                if ascii {
+                    prev_sub_pattern_ascii = self.add_sub_pattern(
+                        RegexpChainTail {
+                            chained_to: prev_sub_pattern_ascii,
+                            gap: p.gap.clone(),
+                            flags,
+                        },
+                        atoms.into_iter(),
+                        SubPatternAtom::from_regexp_atom,
+                    );
+                }
             }
         }
+    }
+
+    fn compile_regexp(
+        &mut self,
+        hir: &re::hir::Hir,
+    ) -> Vec<re::compiler::RegexpAtom> {
+        let re_compiler = re::compiler::Compiler::new();
+        let (forward_code, backward_code, mut atoms) =
+            re_compiler.compile(hir);
+
+        // `fwd_code` will contain the offset within the `re_code` vector
+        // where the forward code resides.
+        let fwd_code = self.re_code.len();
+        self.re_code.append(&mut forward_code.into_inner());
+
+        // `bck_code` will contain the offset within the `re_code` vector
+        // where the backward code resides.
+        let bck_code = self.re_code.len();
+        self.re_code.append(&mut backward_code.into_inner());
+
+        // The forward and backward code locations in each atom are relative
+        // to the start of the code generated for this regexp. Here we make
+        // them relative to the start of `re_code`.
+        for atom in atoms.iter_mut() {
+            atom.code_loc.fwd += fwd_code;
+            atom.code_loc.bck += bck_code;
+        }
+
+        atoms
+    }
+
+    fn process_literal_chain_head(
+        &mut self,
+        literal: &Literal,
+        flags: SubPatternFlagSet,
+    ) -> SubPatternId {
+        let pattern_lit_id = self.intern_literal(
+            literal.0.as_bytes(),
+            flags.contains(SubPatternFlags::Wide),
+        );
+        self.add_sub_pattern(
+            SubPattern::LiteralChainHead { pattern: pattern_lit_id, flags },
+            extract_atoms(
+                self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                flags,
+            ),
+            SubPatternAtom::from_atom,
+        )
+    }
+
+    fn process_literal_chain_tail(
+        &mut self,
+        literal: &Literal,
+        chained_to: SubPatternId,
+        gap: RangeInclusive<u32>,
+        flags: SubPatternFlagSet,
+    ) -> SubPatternId {
+        let pattern_lit_id = self.intern_literal(
+            literal.0.as_bytes(),
+            flags.contains(SubPatternFlags::Wide),
+        );
+        self.add_sub_pattern(
+            SubPattern::LiteralChainTail {
+                pattern: pattern_lit_id,
+                chained_to,
+                gap,
+                flags,
+            },
+            extract_atoms(
+                self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                flags,
+            ),
+            SubPatternAtom::from_atom,
+        )
     }
 
     fn process_imports(
@@ -1229,6 +1252,26 @@ impl<'a> Compiler<'a> {
         }
 
         Ok(())
+    }
+
+    fn add_sub_pattern<I, F, A>(
+        &mut self,
+        sub_pattern: SubPattern,
+        atoms: I,
+        f: F,
+    ) -> SubPatternId
+    where
+        I: Iterator<Item = A>,
+        F: Fn(SubPatternId, A) -> SubPatternAtom,
+    {
+        let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
+        self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
+
+        for atom in atoms.into_iter() {
+            self.atoms.push(f(sub_pattern_id, atom))
+        }
+
+        sub_pattern_id
     }
 }
 
