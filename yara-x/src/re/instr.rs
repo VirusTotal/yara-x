@@ -84,12 +84,12 @@ pub enum Instr<'a> {
     /// Matches any byte.
     AnyByte,
 
-    /// Matches a byte.
+    /// Matches a specific byte.
     Byte(u8),
 
     /// Matches a masked byte. The opcode is followed by two `u8` operands:
     /// the byte and the mask.
-    MaskedByte(u8, u8),
+    MaskedByte { byte: u8, mask: u8 },
 
     /// Matches a byte class. The class is represented by a 256-bits bitmap,
     /// one per byte. If the N-th bit is set, the byte N is part of the class
@@ -109,10 +109,17 @@ pub enum Instr<'a> {
     /// is preferred.
     ClassRanges(ClassRanges<'a>),
 
-    /// Continues executing the code at two different locations. The current
-    /// thread continues at the first location, and a newly created thread
-    /// continues at the second location.
+    /// Creates a new thread that starts at the current instruction pointer
+    /// + offset while the current thread continues at the next instruction.
+    /// The name comes from the fact that this instruction splits the execution
+    /// flow in two.
     SplitA(Offset),
+
+    /// Similar to SplitA, but the current thread continues at instruction
+    /// pointer + offset while the new thread continues at the next instruction.
+    /// This difference is important because the newly created thread has lower
+    /// priority than the existing one, and priority affects the greediness of
+    /// the regular expression.
     SplitB(Offset),
 
     /// Continues executing the code at N different locations. The current
@@ -418,7 +425,7 @@ impl Display for InstrSeq {
                 Instr::Byte(byte) => {
                     writeln!(f, "{:05x}: LIT {:#04x}", addr, byte)?;
                 }
-                Instr::MaskedByte(byte, mask) => {
+                Instr::MaskedByte { byte, mask } => {
                     writeln!(
                         f,
                         "{:05x}: MASKED_BYTE {:#04x} {:#04x}",
@@ -573,7 +580,7 @@ pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
         [OPCODE_PREFIX, OPCODE_PREFIX, ..] => (Instr::Byte(OPCODE_PREFIX), 2),
         [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => (Instr::AnyByte, 2),
         [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
-            (Instr::MaskedByte(byte, mask), 4)
+            (Instr::MaskedByte { byte, mask }, 4)
         }
         [OPCODE_PREFIX, Instr::JUMP, ..] => {
             let offset = Offset::from_le_bytes(
@@ -656,8 +663,8 @@ impl EpsilonClosureState {
 /// produced for a regexp is simply another way of representing a NFA where
 /// each instruction is a state. The NFA jumps from one state to the other by
 /// following the instruction flow. Instructions like `jump` and `split`, which
-/// jump from one state to another unconditionally, without consuming a byte
-/// from the input, are epsilon transitions in this context.
+/// jump from one state to another (or others) unconditionally, without
+/// consuming a byte from the input, are epsilon transitions in this context.
 ///
 /// This function starts at the instruction in the `start` location, and from
 /// there explore all the possible transitions that don't depend on the next
@@ -690,7 +697,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
         match instr {
             Instr::AnyByte
             | Instr::Byte(_)
-            | Instr::MaskedByte(_, _)
+            | Instr::MaskedByte { .. }
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {

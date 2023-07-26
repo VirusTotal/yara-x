@@ -69,12 +69,12 @@ impl<'r> PikeVM<'r> {
     {
         let step = 1;
         let mut current_pos = 0;
-        let mut byte = fwd_input.next();
+        let mut curr_byte = fwd_input.next();
 
         epsilon_closure(
             self.code,
             start,
-            byte,
+            curr_byte,
             bck_input.next(),
             &mut self.cache,
             &mut self.threads,
@@ -88,19 +88,19 @@ impl<'r> PikeVM<'r> {
 
                 let is_match = match instr {
                     Instr::AnyByte => {
-                        matches!(byte, Some(_))
+                        matches!(curr_byte, Some(_))
                     }
-                    Instr::Byte(expected) => {
-                        matches!(byte, Some(byte) if *byte == expected)
+                    Instr::Byte(byte) => {
+                        matches!(curr_byte, Some(b) if *b == byte)
                     }
-                    Instr::MaskedByte(expected, mask) => {
-                        matches!(byte, Some(byte) if *byte & mask == expected)
+                    Instr::MaskedByte { byte, mask } => {
+                        matches!(curr_byte, Some(b) if *b & mask == byte)
                     }
                     Instr::ClassBitmap(class) => {
-                        matches!(byte, Some(byte) if class.contains(*byte))
+                        matches!(curr_byte, Some(b) if class.contains(*b))
                     }
                     Instr::ClassRanges(class) => {
-                        matches!(byte, Some(byte) if class.contains(*byte))
+                        matches!(curr_byte, Some(b) if class.contains(*b))
                     }
                     Instr::Match => match f(current_pos) {
                         Match::Stop => break,
@@ -118,14 +118,14 @@ impl<'r> PikeVM<'r> {
                         self.code,
                         C::from(*ip + size),
                         next_byte,
-                        byte,
+                        curr_byte,
                         &mut self.cache,
                         &mut self.next_threads,
                     );
                 }
             }
 
-            byte = next_byte;
+            curr_byte = next_byte;
             current_pos += step;
             mem::swap(&mut self.threads, &mut self.next_threads);
             self.next_threads.clear();
