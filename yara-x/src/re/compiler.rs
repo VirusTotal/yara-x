@@ -18,7 +18,9 @@ use regex_syntax::hir::{
 
 use yara_x_parser::ast::HexByte;
 
-use crate::compiler::{best_atom_from_slice, Atom, DESIRED_ATOM_SIZE};
+use crate::compiler::{
+    best_atom_from_slice, Atom, CaseGenerator, DESIRED_ATOM_SIZE,
+};
 use crate::re;
 use crate::re::hir::class_to_hex_byte;
 use crate::re::instr::{
@@ -116,8 +118,11 @@ pub(crate) struct Compiler {
     /// This used for determining whether to extract atoms from certain nodes
     /// in the HIR or not. Extracting atoms from a sub-tree under a zero-length
     /// repetition doesn't make sense, atoms must be extracted from portions of
-    /// the pattern that are required to be present any matching string.
+    /// the pattern that are required to be present in any matching string.
     zero_rep_depth: u32,
+
+    /// Whether the regexp should be compiled in case-insensitive mode.
+    case_insensitive: bool,
 }
 
 impl Compiler {
@@ -138,13 +143,17 @@ impl Compiler {
             best_atoms: vec![(i32::MIN, Vec::new())],
             depth: 0,
             zero_rep_depth: 0,
+            case_insensitive: false,
         }
     }
 
     pub fn compile(
         mut self,
         hir: &re::hir::Hir,
+        case_insensitive: bool,
     ) -> (InstrSeq, InstrSeq, Vec<RegexpAtom>) {
+        self.case_insensitive = case_insensitive;
+
         visit(&hir.inner, &mut self).unwrap();
 
         self.forward_code.emit_instr(Instr::MATCH);
@@ -209,11 +218,19 @@ impl Compiler {
         }
     }
 
-    fn emit_literal(&mut self, literal: &Literal) -> Location {
+    fn emit_literal(
+        &mut self,
+        literal: &Literal,
+        case_insensitive: bool,
+    ) -> Location {
         Location {
-            fwd: self.forward_code.emit_literal(literal.0.iter()),
+            fwd: self
+                .forward_code
+                .emit_literal(literal.0.iter(), case_insensitive),
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_literal(literal.0.iter().rev()),
+            bck: self
+                .backward_code_mut()
+                .emit_literal(literal.0.iter().rev(), case_insensitive),
         }
     }
 
@@ -274,14 +291,21 @@ impl Compiler {
     fn visit_post_class(&mut self, class: &Class) -> Location {
         match class {
             Class::Bytes(class) => {
-                if let Some(byte) = class_to_hex_byte(class) {
+                if let Some(byte) = class_to_hex_byte(&class) {
                     self.emit_masked_byte(byte)
+                } else if self.case_insensitive {
+                    let mut class = class.clone();
+                    class.case_fold_simple();
+                    self.emit_class(&class)
                 } else {
-                    self.emit_class(class)
+                    self.emit_class(&class)
                 }
             }
             Class::Unicode(class) => {
-                if let Some(class) = class.to_byte_class() {
+                if let Some(mut class) = class.to_byte_class() {
+                    if self.case_insensitive {
+                        class.case_fold_simple();
+                    }
                     self.emit_class(&class)
                 } else {
                     // TODO: properly handle this
@@ -334,9 +358,9 @@ impl Compiler {
 
         let mut chunk_locations = HashMap::new();
 
-        // All chunks in `last_n_chucks` will be appended to the
-        // backward code in reverse order. The offset where each chunk
-        // resides in the backward code is stored in the hash map.
+        // All chunks in `last_n_chucks` will be appended to the backward
+        // code in reverse order. The offset where each chunk resides in the
+        // backward code is stored in the hash map.
         for chunk in last_n_chunks.iter().rev() {
             chunk_locations.insert(chunk.seq_id(), backward_code.location());
             backward_code.append(chunk);
@@ -344,10 +368,10 @@ impl Compiler {
 
         let (_, atoms) = self.best_atoms.last_mut().unwrap();
 
-        // Atoms may be pointing to some code located in one of the
-        // chunks that were written to backward code in a different
-        // order, the backward code location for those atoms needs to
-        // be adjusted accordingly.
+        // Atoms may be pointing to some code located in one of the chunks
+        // that were written to backward code in a different order, the
+        // backward code location for those atoms needs to be adjusted
+        // accordingly.
         for atom in atoms {
             if let Some(adjustment) =
                 chunk_locations.get(&atom.code_loc.bck_seq_id)
@@ -707,7 +731,9 @@ impl hir::Visitor for &mut Compiler {
     fn visit_post(&mut self, hir: &Hir) -> Result<(), Self::Err> {
         let mut code_loc = match hir.kind() {
             HirKind::Empty => self.location(),
-            HirKind::Literal(literal) => self.emit_literal(literal),
+            HirKind::Literal(literal) => {
+                self.emit_literal(literal, self.case_insensitive)
+            }
             HirKind::Capture(_) => self.bookmarks.pop().unwrap(),
             HirKind::Look(look) => self.visit_post_look(look),
             hir_kind @ HirKind::Class(class) => {
@@ -811,18 +837,29 @@ impl hir::Visitor for &mut Compiler {
                         let can_be_exact = self.depth == 1
                             && hir.properties().look_set().is_empty();
 
+                        let atom_to_regexp_atom = |atom: Atom| RegexpAtom {
+                            atom: if !can_be_exact {
+                                atom.make_inexact()
+                            } else {
+                                atom
+                            },
+                            code_loc,
+                        };
+
                         *best_quality = quality;
-                        *best_atoms = atoms
-                            .into_iter()
-                            .map(|atom| RegexpAtom {
-                                atom: if !can_be_exact {
-                                    atom.make_inexact()
-                                } else {
-                                    atom
-                                },
-                                code_loc,
-                            })
-                            .collect();
+
+                        if self.case_insensitive {
+                            *best_atoms = atoms
+                                .iter()
+                                .flat_map(CaseGenerator::new)
+                                .map(atom_to_regexp_atom)
+                                .collect();
+                        } else {
+                            *best_atoms = atoms
+                                .into_iter()
+                                .map(atom_to_regexp_atom)
+                                .collect();
+                        }
                     }
                 }
             }

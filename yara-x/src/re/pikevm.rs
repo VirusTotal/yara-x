@@ -96,6 +96,9 @@ impl<'r> PikeVM<'r> {
                     Instr::MaskedByte { byte, mask } => {
                         matches!(curr_byte, Some(b) if *b & mask == byte)
                     }
+                    Instr::CaseInsensitiveChar(byte) => {
+                        matches!(curr_byte, Some(b) if b.to_ascii_lowercase() == byte)
+                    }
                     Instr::ClassBitmap(class) => {
                         matches!(curr_byte, Some(b) if class.contains(*b))
                     }

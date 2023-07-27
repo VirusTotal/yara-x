@@ -287,7 +287,7 @@ pub(super) fn make_wide(s: &[u8]) -> Vec<u8> {
 ///
 ///  "1abc2", "1abC2", "1aBc2", "1aBC2", "1Abc2", "1AbC2", "1ABc2", "1ABC2"
 ///
-pub(super) struct CaseGenerator {
+pub(crate) struct CaseGenerator {
     cartesian_product: MultiProduct<IntoIter<u8>>,
     backtrack: u16,
     exact: bool,

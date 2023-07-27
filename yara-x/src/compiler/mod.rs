@@ -900,14 +900,14 @@ impl<'a> Compiler<'a> {
                 _ => unreachable!(),
             }
         } else if trailing.is_empty() {
-            // The pattern is a regexp that can't be converted into a literal
-            // or alternation of literals, and can't be split into multiple
-            // regexps.
-            let atoms = self.compile_regexp(&leading);
-
             if matches!(leading.is_greedy(), Some(true)) {
                 flags.set(SubPatternFlags::Greedy);
             }
+
+            // The pattern is a regexp that can't be converted into a literal
+            // or alternation of literals, and can't be split into multiple
+            // regexps.
+            let atoms = self.compile_regexp(&leading, case_insensitive);
 
             if wide {
                 self.add_sub_pattern(
@@ -939,12 +939,12 @@ impl<'a> Compiler<'a> {
     ) {
         let ascii = flags.contains(PatternFlags::Ascii);
         let wide = flags.contains(PatternFlags::Wide);
-        let nocase = flags.contains(PatternFlags::Nocase);
+        let case_insensitive = flags.contains(PatternFlags::Nocase);
         let full_word = flags.contains(PatternFlags::Fullword);
 
         let mut flags = SubPatternFlagSet::none();
 
-        if nocase {
+        if case_insensitive {
             flags.set(SubPatternFlags::Nocase);
         }
 
@@ -971,7 +971,7 @@ impl<'a> Compiler<'a> {
                 flags.set(SubPatternFlags::Greedy);
             }
 
-            let atoms = self.compile_regexp(leading);
+            let atoms = self.compile_regexp(leading, case_insensitive);
 
             if wide {
                 prev_sub_pattern_wide = self.add_sub_pattern(
@@ -1030,7 +1030,7 @@ impl<'a> Compiler<'a> {
                     flags.set(SubPatternFlags::Greedy);
                 }
 
-                let atoms = self.compile_regexp(&p.hir);
+                let atoms = self.compile_regexp(&p.hir, case_insensitive);
 
                 if wide {
                     prev_sub_pattern_wide = self.add_sub_pattern(
@@ -1062,10 +1062,11 @@ impl<'a> Compiler<'a> {
     fn compile_regexp(
         &mut self,
         hir: &re::hir::Hir,
+        case_insensitive: bool,
     ) -> Vec<re::compiler::RegexpAtom> {
         let re_compiler = re::compiler::Compiler::new();
         let (forward_code, backward_code, mut atoms) =
-            re_compiler.compile(hir);
+            re_compiler.compile(hir, case_insensitive);
 
         // `fwd_code` will contain the offset within the `re_code` vector
         // where the forward code resides.

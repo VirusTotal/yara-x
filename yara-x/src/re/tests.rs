@@ -27,6 +27,7 @@ macro_rules! assert_re_code {
                     span: ast::Span::default(),
                 })
                 .unwrap(),
+            false,
         );
 
         assert_eq!(fwd_code.to_string(), $fwd);
@@ -897,15 +898,17 @@ fn re_code_17() {
 
 #[test]
 fn re_code_18() {
-    let (forward_code, backward_code, atoms) =
-        Compiler::new().compile(&Hir::concat(vec![
+    let (forward_code, backward_code, atoms) = Compiler::new().compile(
+        &Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
             Hir::class(Class::Bytes(hex_byte_to_class(HexByte {
                 value: 0x00,
                 mask: 0xFC,
             }))),
             Hir::literal([0x03]),
-        ]));
+        ]),
+        false,
+    );
 
     assert_eq!(
         r#"
@@ -954,15 +957,17 @@ fn re_code_18() {
 
 #[test]
 fn re_code_19() {
-    let (forward_code, backward_code, atoms) =
-        Compiler::new().compile(&Hir::concat(vec![
+    let (forward_code, backward_code, atoms) = Compiler::new().compile(
+        &Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
             Hir::class(Class::Bytes(hex_byte_to_class(HexByte {
                 value: 0x10,
                 mask: 0xF0,
             }))),
             Hir::literal([0x03, 0x04, 0x05, 0x06, 0x07, 0x08]),
-        ]));
+        ]),
+        false,
+    );
 
     assert_eq!(
         r#"

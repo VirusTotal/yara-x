@@ -87,6 +87,10 @@ pub enum Instr<'a> {
     /// Matches a specific byte.
     Byte(u8),
 
+    /// Matches a case-insensitive character. The value of `u8` is in the
+    /// range a-z.
+    CaseInsensitiveChar(u8),
+
     /// Matches a masked byte. The opcode is followed by two `u8` operands:
     /// the byte and the mask.
     MaskedByte { byte: u8, mask: u8 },
@@ -160,12 +164,13 @@ impl<'a> Instr<'a> {
     pub const JUMP: u8 = 0x04;
     pub const ANY_BYTE: u8 = 0x05;
     pub const MASKED_BYTE: u8 = 0x06;
-    pub const CLASS_BITMAP: u8 = 0x07;
-    pub const CLASS_RANGES: u8 = 0x08;
-    pub const START: u8 = 0x09;
-    pub const END: u8 = 0x0A;
-    pub const WORD_BOUNDARY: u8 = 0x0B;
-    pub const WORD_BOUNDARY_NEG: u8 = 0x0C;
+    pub const CASE_INSENSITIVE_CHAR: u8 = 0x07;
+    pub const CLASS_BITMAP: u8 = 0x08;
+    pub const CLASS_RANGES: u8 = 0x09;
+    pub const START: u8 = 0x0A;
+    pub const END: u8 = 0x0B;
+    pub const WORD_BOUNDARY: u8 = 0x0C;
+    pub const WORD_BOUNDARY_NEG: u8 = 0x0D;
 }
 
 /// A sequence of instructions for the Pike VM.
@@ -302,16 +307,27 @@ impl InstrSeq {
     pub fn emit_literal<'a, I: IntoIterator<Item = &'a u8>>(
         &mut self,
         literal: I,
+        case_insensitive: bool,
     ) -> usize {
         let location = self.location();
         for b in literal {
-            // If the literal contains a byte that is equal to the opcode
-            // prefix it is duplicated. This allows the VM to interpret this
-            // byte as part of the literal, not as an instruction.
-            if *b == OPCODE_PREFIX {
-                self.seq.write_all(&[*b, *b]).unwrap();
+            if case_insensitive && b.is_ascii_alphabetic() {
+                self.seq
+                    .write_all(&[
+                        OPCODE_PREFIX,
+                        Instr::CASE_INSENSITIVE_CHAR,
+                        b.to_ascii_lowercase(),
+                    ])
+                    .unwrap();
             } else {
-                self.seq.write_all(&[*b]).unwrap();
+                // If the literal contains a byte that is equal to the opcode
+                // prefix it is duplicated. This allows the VM to interpret this
+                // byte as part of the literal, not as an instruction.
+                if *b == OPCODE_PREFIX {
+                    self.seq.write_all(&[*b, *b]).unwrap();
+                } else {
+                    self.seq.write_all(&[*b]).unwrap();
+                }
             }
         }
         location
@@ -431,6 +447,9 @@ impl Display for InstrSeq {
                         "{:05x}: MASKED_BYTE {:#04x} {:#04x}",
                         addr, byte, mask
                     )?;
+                }
+                Instr::CaseInsensitiveChar(c) => {
+                    writeln!(f, "{:05x}: CASE_INSENSITIVE {:#04x}", addr, c)?;
                 }
                 Instr::ClassRanges(class) => {
                     write!(f, "{:05x}: CLASS_RANGES ", addr)?;
@@ -582,6 +601,9 @@ pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
         [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
             (Instr::MaskedByte { byte, mask }, 4)
         }
+        [OPCODE_PREFIX, Instr::CASE_INSENSITIVE_CHAR, byte, ..] => {
+            (Instr::CaseInsensitiveChar(byte), 3)
+        }
         [OPCODE_PREFIX, Instr::JUMP, ..] => {
             let offset = Offset::from_le_bytes(
                 (&code[2..2 + size_of::<Offset>()]).try_into().unwrap(),
@@ -698,6 +720,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             Instr::AnyByte
             | Instr::Byte(_)
             | Instr::MaskedByte { .. }
+            | Instr::CaseInsensitiveChar(_)
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
