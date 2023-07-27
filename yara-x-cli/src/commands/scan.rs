@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
@@ -27,7 +28,16 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(PathBuf)),
         )
         .arg(arg!(-e - -"print-namespace").help("Print rule namespace"))
-        .arg(arg!(-s - -"print-strings").help("Print matching patterns"))
+        .arg(
+            arg!(-s - -"print-strings").help(
+                "Print matching patterns, limited to the first 120 bytes",
+            ),
+        )
+        .arg(
+            arg!(--"print-strings-limit" <N>)
+                .help("Print matching patterns, limited to the first N bytes")
+                .value_parser(value_parser!(usize)),
+        )
         .arg(arg!(-n - -"negate").help("Print non-satisfied rules only"))
         .arg(
             arg!(--"path-as-namespace")
@@ -53,6 +63,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let num_threads = args.get_one::<u8>("threads");
     let print_namespace = args.get_flag("print-namespace");
     let print_strings = args.get_flag("print-strings");
+    let print_strings_limit = args.get_one::<usize>("print-strings-limit");
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
@@ -123,18 +134,26 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
                     output.send(Message::Info(line)).unwrap();
 
-                    if print_strings {
+                    if print_strings || print_strings_limit.is_some() {
+                        let limit = print_strings_limit.unwrap_or(&120);
                         for p in matching_rule.patterns() {
                             for m in p.matches() {
-                                output
-                                    .send(Message::Info(format!(
-                                        "{:#x}:{}:{}: {:02X?}",
-                                        m.range.start,
-                                        m.range.len(),
-                                        p.identifier(),
-                                        m.data,
-                                    )))
-                                    .unwrap();
+                                let mut msg = format!(
+                                    "{:#x}:{}:{}: ",
+                                    m.range.start,
+                                    m.range.len(),
+                                    p.identifier(),
+                                );
+
+                                for b in &m.data[..min(m.data.len(), *limit)] {
+                                    for c in b.escape_ascii() {
+                                        msg.push_str(
+                                            format!("{}", c as char).as_str(),
+                                        );
+                                    }
+                                }
+
+                                output.send(Message::Info(msg)).unwrap();
                             }
                         }
                     }
