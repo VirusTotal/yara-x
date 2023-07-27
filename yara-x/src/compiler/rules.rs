@@ -386,14 +386,4 @@ impl SubPatternAtom {
     pub(crate) fn bck_code(&self) -> BckCodeLoc {
         self.bck_code.unwrap()
     }
-
-    #[inline]
-    pub(crate) fn set_fwd_code(&mut self, o: usize) {
-        self.fwd_code = Some(o.try_into().unwrap());
-    }
-
-    #[inline]
-    pub(crate) fn set_bck_code(&mut self, o: usize) {
-        self.bck_code = Some(o.try_into().unwrap());
-    }
 }
