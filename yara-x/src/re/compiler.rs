@@ -291,14 +291,14 @@ impl Compiler {
     fn visit_post_class(&mut self, class: &Class) -> Location {
         match class {
             Class::Bytes(class) => {
-                if let Some(byte) = class_to_hex_byte(&class) {
+                if let Some(byte) = class_to_hex_byte(class) {
                     self.emit_masked_byte(byte)
                 } else if self.case_insensitive {
                     let mut class = class.clone();
                     class.case_fold_simple();
                     self.emit_class(&class)
                 } else {
-                    self.emit_class(&class)
+                    self.emit_class(class)
                 }
             }
             Class::Unicode(class) => {
