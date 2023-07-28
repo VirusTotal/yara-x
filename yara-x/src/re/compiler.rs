@@ -18,9 +18,7 @@ use regex_syntax::hir::{
 
 use yara_x_parser::ast::HexByte;
 
-use crate::compiler::{
-    best_atom_from_slice, Atom, CaseGenerator, DESIRED_ATOM_SIZE,
-};
+use crate::compiler::{best_atom_from_slice, Atom, DESIRED_ATOM_SIZE};
 use crate::re;
 use crate::re::hir::class_to_hex_byte;
 use crate::re::instr::{
@@ -120,9 +118,6 @@ pub(crate) struct Compiler {
     /// repetition doesn't make sense, atoms must be extracted from portions of
     /// the pattern that are required to be present in any matching string.
     zero_rep_depth: u32,
-
-    /// Whether the regexp should be compiled in case-insensitive mode.
-    case_insensitive: bool,
 }
 
 impl Compiler {
@@ -143,17 +138,13 @@ impl Compiler {
             best_atoms: vec![(i32::MIN, Vec::new())],
             depth: 0,
             zero_rep_depth: 0,
-            case_insensitive: false,
         }
     }
 
     pub fn compile(
         mut self,
         hir: &re::hir::Hir,
-        case_insensitive: bool,
     ) -> (InstrSeq, InstrSeq, Vec<RegexpAtom>) {
-        self.case_insensitive = case_insensitive;
-
         visit(&hir.inner, &mut self).unwrap();
 
         self.forward_code.emit_instr(Instr::MATCH);
@@ -218,19 +209,11 @@ impl Compiler {
         }
     }
 
-    fn emit_literal(
-        &mut self,
-        literal: &Literal,
-        case_insensitive: bool,
-    ) -> Location {
+    fn emit_literal(&mut self, literal: &Literal) -> Location {
         Location {
-            fwd: self
-                .forward_code
-                .emit_literal(literal.0.iter(), case_insensitive),
+            fwd: self.forward_code.emit_literal(literal.0.iter()),
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self
-                .backward_code_mut()
-                .emit_literal(literal.0.iter().rev(), case_insensitive),
+            bck: self.backward_code_mut().emit_literal(literal.0.iter().rev()),
         }
     }
 
@@ -293,19 +276,12 @@ impl Compiler {
             Class::Bytes(class) => {
                 if let Some(byte) = class_to_hex_byte(class) {
                     self.emit_masked_byte(byte)
-                } else if self.case_insensitive {
-                    let mut class = class.clone();
-                    class.case_fold_simple();
-                    self.emit_class(&class)
                 } else {
                     self.emit_class(class)
                 }
             }
             Class::Unicode(class) => {
-                if let Some(mut class) = class.to_byte_class() {
-                    if self.case_insensitive {
-                        class.case_fold_simple();
-                    }
+                if let Some(class) = class.to_byte_class() {
                     self.emit_class(&class)
                 } else {
                     // TODO: properly handle this
@@ -731,9 +707,7 @@ impl hir::Visitor for &mut Compiler {
     fn visit_post(&mut self, hir: &Hir) -> Result<(), Self::Err> {
         let mut code_loc = match hir.kind() {
             HirKind::Empty => self.location(),
-            HirKind::Literal(literal) => {
-                self.emit_literal(literal, self.case_insensitive)
-            }
+            HirKind::Literal(literal) => self.emit_literal(literal),
             HirKind::Capture(_) => self.bookmarks.pop().unwrap(),
             HirKind::Look(look) => self.visit_post_look(look),
             hir_kind @ HirKind::Class(class) => {
@@ -847,19 +821,10 @@ impl hir::Visitor for &mut Compiler {
                         };
 
                         *best_quality = quality;
-
-                        if self.case_insensitive {
-                            *best_atoms = atoms
-                                .iter()
-                                .flat_map(CaseGenerator::new)
-                                .map(atom_to_regexp_atom)
-                                .collect();
-                        } else {
-                            *best_atoms = atoms
-                                .into_iter()
-                                .map(atom_to_regexp_atom)
-                                .collect();
-                        }
+                        *best_atoms = atoms
+                            .into_iter()
+                            .map(atom_to_regexp_atom)
+                            .collect();
                     }
                 }
             }

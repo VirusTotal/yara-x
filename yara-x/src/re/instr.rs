@@ -307,27 +307,16 @@ impl InstrSeq {
     pub fn emit_literal<'a, I: IntoIterator<Item = &'a u8>>(
         &mut self,
         literal: I,
-        case_insensitive: bool,
     ) -> usize {
         let location = self.location();
         for b in literal {
-            if case_insensitive && b.is_ascii_alphabetic() {
-                self.seq
-                    .write_all(&[
-                        OPCODE_PREFIX,
-                        Instr::CASE_INSENSITIVE_CHAR,
-                        b.to_ascii_lowercase(),
-                    ])
-                    .unwrap();
+            // If the literal contains a byte that is equal to the opcode
+            // prefix it is duplicated. This allows the VM to interpret this
+            // byte as part of the literal, not as an instruction.
+            if *b == OPCODE_PREFIX {
+                self.seq.write_all(&[*b, *b]).unwrap();
             } else {
-                // If the literal contains a byte that is equal to the opcode
-                // prefix it is duplicated. This allows the VM to interpret this
-                // byte as part of the literal, not as an instruction.
-                if *b == OPCODE_PREFIX {
-                    self.seq.write_all(&[*b, *b]).unwrap();
-                } else {
-                    self.seq.write_all(&[*b]).unwrap();
-                }
+                self.seq.write_all(&[*b]).unwrap();
             }
         }
         location

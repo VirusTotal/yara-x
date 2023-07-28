@@ -31,22 +31,20 @@ impl Display for Error {
 
 /// A regular expression parser
 pub(crate) struct Parser {
-    force_case_sensitive: bool,
+    force_case_insensitive: bool,
     allow_mixed_greediness: bool,
 }
 
 impl Parser {
     pub fn new() -> Self {
-        Self { force_case_sensitive: false, allow_mixed_greediness: true }
+        Self { force_case_insensitive: false, allow_mixed_greediness: true }
     }
 
-    /// Parses the regexp as a case-sensitive one, no matter whether the regexp
+    /// Parses the regexp as a case-insensitive one, no matter whether the regexp
     /// was actually flagged as case-insensitive or not.
-    pub fn force_case_sensitive(self, yes: bool) -> Self {
-        Self {
-            force_case_sensitive: yes,
-            allow_mixed_greediness: self.allow_mixed_greediness,
-        }
+    pub fn force_case_insensitive(mut self, yes: bool) -> Self {
+        self.force_case_insensitive = yes;
+        self
     }
 
     /// If true, allows regular expressions that mixes greedy and non-greedy
@@ -54,11 +52,9 @@ impl Parser {
     /// [`Parser::parse`] returns an error if the regular expression contains
     /// both greedy and non-greedy quantifiers. By default mixed greediness is
     /// allowed.
-    pub fn allow_mixed_greediness(self, yes: bool) -> Self {
-        Self {
-            force_case_sensitive: self.force_case_sensitive,
-            allow_mixed_greediness: yes,
-        }
+    pub fn allow_mixed_greediness(mut self, yes: bool) -> Self {
+        self.allow_mixed_greediness = yes;
+        self
     }
 
     pub fn parse(&self, regexp: &ast::Regexp) -> Result<Hir, Error> {
@@ -77,8 +73,8 @@ impl Parser {
             greedy?
         };
 
-        let case_insensitive = if self.force_case_sensitive {
-            false
+        let case_insensitive = if self.force_case_insensitive {
+            true
         } else {
             regexp.case_insensitive
         };

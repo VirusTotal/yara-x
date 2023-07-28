@@ -840,12 +840,10 @@ fn regexp_nocase() {
     pattern_match!(r#"/(abc|xyz)+/ nocase"#, b"AbCxYz", b"AbCxYz");
     pattern_match!(r#"/(a|x)bc/ nocase"#, b"ABC", b"ABC");
     pattern_match!(r#"/(a|x)bc/ nocase"#, b"XBC", b"XBC");
-
-    // TODO
-    //pattern_match!(r#"/abc[^d]/ nocase"#, b"abce", b"abce");
-    //pattern_match!(r#"/abc[^d]/ nocase"#, b"ABCE", b"ABCE");
-    //pattern_false!(r#"/abc[^d]/ nocase"#, b"abcd");
-    //pattern_false!(r#"/abc[^d]/ nocase"#, b"ABCD");
+    pattern_match!(r#"/abc[^d]/ nocase"#, b"abce", b"abce");
+    pattern_match!(r#"/abc[^d]/ nocase"#, b"ABCE", b"ABCE");
+    pattern_false!(r#"/abc[^d]/ nocase"#, b"abcd");
+    pattern_false!(r#"/abc[^d]/ nocase"#, b"ABCD");
 }
 
 #[test]

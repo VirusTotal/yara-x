@@ -907,7 +907,7 @@ impl<'a> Compiler<'a> {
             // The pattern is a regexp that can't be converted into a literal
             // or alternation of literals, and can't be split into multiple
             // regexps.
-            let atoms = self.compile_regexp(&leading, case_insensitive);
+            let atoms = self.compile_regexp(&leading);
 
             if wide {
                 self.add_sub_pattern(
@@ -971,7 +971,7 @@ impl<'a> Compiler<'a> {
                 flags.set(SubPatternFlags::Greedy);
             }
 
-            let atoms = self.compile_regexp(leading, case_insensitive);
+            let atoms = self.compile_regexp(leading);
 
             if wide {
                 prev_sub_pattern_wide = self.add_sub_pattern(
@@ -1030,7 +1030,7 @@ impl<'a> Compiler<'a> {
                     flags.set(SubPatternFlags::Greedy);
                 }
 
-                let atoms = self.compile_regexp(&p.hir, case_insensitive);
+                let atoms = self.compile_regexp(&p.hir);
 
                 if wide {
                     prev_sub_pattern_wide = self.add_sub_pattern(
@@ -1062,11 +1062,10 @@ impl<'a> Compiler<'a> {
     fn compile_regexp(
         &mut self,
         hir: &re::hir::Hir,
-        case_insensitive: bool,
     ) -> Vec<re::compiler::RegexpAtom> {
         let re_compiler = re::compiler::Compiler::new();
         let (forward_code, backward_code, mut atoms) =
-            re_compiler.compile(hir, case_insensitive);
+            re_compiler.compile(hir);
 
         // `fwd_code` will contain the offset within the `re_code` vector
         // where the forward code resides.

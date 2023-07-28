@@ -146,32 +146,25 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         flags.set(PatternFlags::Nocase);
     }
 
-    // The regexp pattern is parsed as case sensitive, even if it has the
-    // `nocase` or the `/i` modifiers. This is because the HIR for case-
-    // insensitive regexps don't have any literals, they are converted to
-    // concatenations of byte classes that have the lowercase and uppercase
-    // variants of each letter. We want the HIR to maintain the literals, as
-    // we use them for extracting atoms.
-    //
-    // Also notice that regexp patterns can't mix greedy and non-greedy
-    // repetitions, like in `/ab.*cd.*?ef/`. All repetitions must have the
-    // same greediness. In order to explain why this restriction is necessary
-    // consider the regexp /a.*?bbbb/. The atom extracted from this regexp is
-    // "bbbb", and once it is found, the rest of the regexp is matched
-    // backwards. Now consider the string "abbbbbbbb", there are multiple
-    // occurrences of the "bbbb" atom in this string, and every time the atom
-    // is found we need to verify if the regexp actually matches. In all cases
-    // the regexp matches, but the length of the match is different each time,
-    // the first time it finds the match "abbbb", the second time it finds
-    // "abbbbb", the third time "abbbbbb", and so on. All these matches occur
-    // at the same offset within the string (offset 0), but they have different
-    // lengths, which length should we report to the user? Should we report a
-    // match at offset 0 with length 6 ("abbbbb")? Or should we report a match
-    // at offset 0 with length 9 "abbbbbbbb"? Well, that depends on the
-    // greediness of the regexp. In this case the regexp contains a non-greedy
-    // repetition (i.e: .*?), therefore the match should be "abbbbb", not
-    // "abbbbbbbb". If we replace .*? with .*, then the match should be the
-    // longest one, "abbbbbbbb".
+    // Notice that regexp patterns can't mix greedy and non-greedy repetitions,
+    // like in `/ab.*cd.*?ef/`. All repetitions must have the same greediness.
+    // In order to explain why this restriction is necessary consider the
+    // regexp /a.*?bbbb/. The atom extracted from this regexp is "bbbb", and
+    // once it is found, the rest of the regexp is matched backwards. Now
+    // consider the string "abbbbbbbb", there are multiple occurrences of the
+    // "bbbb" atom in this string, and every time the atom is found we need to
+    // verify if the regexp actually matches. In all cases the regexp matches,
+    // but the length of the match is different each time, the first time it
+    // finds the match "abbbb", the second time it finds "abbbbb", the third
+    // time "abbbbbb", and so on. All these matches occur at the same offset
+    // within the string (offset 0), but they have different lengths, which
+    // length should we report to the user? Should we report a match at offset
+    // 0 with length 6 ("abbbbb")? Or should we report a match at offset 0 with
+    // length 9 "abbbbbbbb"? Well, that depends on the greediness of the
+    // regexp. In this case the regexp contains a non-greedy repetition
+    // (i.e: .*?), therefore the match should be "abbbbb", not "abbbbbbbb". If
+    // we replace .*? with .*, then the match should be the longest one,
+    // "abbbbbbbb".
     //
     // As long as repetitions in the regexp are all greedy or all non-greedy,
     // we can know the overall greediness of the regexp, and decide whether we
@@ -180,7 +173,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     // (right-to-left). However, if the regexp contains a mix of greedy an
     // non-greedy repetitions the decision becomes impossible.
     let hir = re::parser::Parser::new()
-        .force_case_sensitive(true)
+        .force_case_insensitive(flags.contains(PatternFlags::Nocase))
         .allow_mixed_greediness(false)
         .parse(&pattern.regexp)
         .map_err(|err| {

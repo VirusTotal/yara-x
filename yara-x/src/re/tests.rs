@@ -27,7 +27,6 @@ macro_rules! assert_re_code {
                     span: ast::Span::default(),
                 })
                 .unwrap(),
-            false,
         );
 
         assert_eq!(fwd_code.to_string(), $fwd);
@@ -898,17 +897,51 @@ fn re_code_17() {
 
 #[test]
 fn re_code_18() {
-    let (forward_code, backward_code, atoms) = Compiler::new().compile(
-        &Hir::concat(vec![
+    assert_re_code!(
+        "(?is)a12",
+        // Forward code
+        r#"
+00000: MASKED_BYTE 0x41 0xdf
+00004: LIT 0x31
+00005: LIT 0x32
+00006: MATCH
+"#,
+        // Backward code
+        r#"
+00000: LIT 0x32
+00001: LIT 0x31
+00002: MASKED_BYTE 0x41 0xdf
+00006: MATCH
+"#,
+        // Atoms
+        vec![
+            RegexpAtom {
+                atom: Atom::exact(vec![0x41, 0x31, 0x32]),
+                code_loc: Location { fwd: 0x00, bck_seq_id: 0, bck: 0x06 }
+            },
+            RegexpAtom {
+                atom: Atom::exact(vec![0x61, 0x31, 0x32]),
+                code_loc: Location { fwd: 0x00, bck_seq_id: 0, bck: 0x06 }
+            },
+        ],
+        // Epsilon closure starting at forward code 0.
+        vec![0x00],
+        // Epsilon closure starting at backward code 0.
+        vec![0x00]
+    );
+}
+
+#[test]
+fn re_code_19() {
+    let (forward_code, backward_code, atoms) =
+        Compiler::new().compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
             Hir::class(Class::Bytes(hex_byte_to_class(HexByte {
                 value: 0x00,
                 mask: 0xFC,
             }))),
             Hir::literal([0x03]),
-        ]),
-        false,
-    );
+        ]));
 
     assert_eq!(
         r#"
@@ -956,18 +989,16 @@ fn re_code_18() {
 }
 
 #[test]
-fn re_code_19() {
-    let (forward_code, backward_code, atoms) = Compiler::new().compile(
-        &Hir::concat(vec![
+fn re_code_20() {
+    let (forward_code, backward_code, atoms) =
+        Compiler::new().compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
             Hir::class(Class::Bytes(hex_byte_to_class(HexByte {
                 value: 0x10,
                 mask: 0xF0,
             }))),
             Hir::literal([0x03, 0x04, 0x05, 0x06, 0x07, 0x08]),
-        ]),
-        false,
-    );
+        ]));
 
     assert_eq!(
         r#"
