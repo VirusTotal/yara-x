@@ -66,6 +66,7 @@ use std::{cmp, iter};
 use itertools::{Itertools, MultiProduct};
 use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, ToSmallVec};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
 pub(crate) use crate::compiler::atoms::quality::atom_quality;
@@ -94,8 +95,7 @@ pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 /// atoms are exact.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Atom {
-    // TODO: use tinyvec or smallvec?
-    bytes: Vec<u8>,
+    bytes: SmallVec<[u8; DESIRED_ATOM_SIZE * 2]>,
     exact: bool,
     backtrack: u16,
 }
@@ -103,13 +103,20 @@ pub(crate) struct Atom {
 impl From<&[u8]> for Atom {
     #[inline]
     fn from(value: &[u8]) -> Self {
-        Self { bytes: value.to_vec(), backtrack: 0, exact: true }
+        Self { bytes: value.to_smallvec(), backtrack: 0, exact: true }
     }
 }
 
 impl From<Vec<u8>> for Atom {
     #[inline]
     fn from(value: Vec<u8>) -> Self {
+        Self { bytes: value.to_smallvec(), backtrack: 0, exact: true }
+    }
+}
+
+impl From<SmallVec<[u8; DESIRED_ATOM_SIZE * 2]>> for Atom {
+    #[inline]
+    fn from(value: SmallVec<[u8; DESIRED_ATOM_SIZE * 2]>) -> Self {
         Self { bytes: value, backtrack: 0, exact: true }
     }
 }
@@ -118,7 +125,7 @@ impl From<&Literal> for Atom {
     #[inline]
     fn from(value: &Literal) -> Self {
         Self {
-            bytes: value.as_bytes().to_vec(),
+            bytes: value.as_bytes().to_smallvec(),
             backtrack: 0,
             exact: value.is_exact(),
         }
@@ -152,7 +159,11 @@ impl Atom {
 
         let atom: &[u8] = &s[range];
 
-        Self { bytes: atom.to_vec(), backtrack, exact: atom.len() == s.len() }
+        Self {
+            bytes: atom.to_smallvec(),
+            backtrack,
+            exact: atom.len() == s.len(),
+        }
     }
 
     #[inline]

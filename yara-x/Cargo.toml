@@ -53,7 +53,7 @@ protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 regex = { workspace = true }
 regex-syntax = { workspace = true }
-smallvec = { workspace = true }
+smallvec = { workspace = true, features=["serde"] }
 serde = { workspace = true, features=["rc"] }
 thiserror = { workspace = true }
 walrus = { workspace = true }
