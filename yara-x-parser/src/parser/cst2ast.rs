@@ -602,12 +602,27 @@ fn pattern_from_cst<'src>(
             // to None.
             let identifier = ctx.current_pattern.take().unwrap();
 
-            Pattern::Regexp(Box::new(RegexpPattern {
+            let pattern = Box::new(RegexpPattern {
                 identifier,
                 modifiers,
                 span: ctx.span(&node),
                 regexp: regexp_from_cst(ctx, node)?,
-            }))
+            });
+
+            // Raise a warning when the regexp has both the `nocase`
+            // modifier and the `/i` suffix indicating case insensitiveness.
+            if pattern.regexp.case_insensitive
+                && pattern.modifiers.nocase().is_some()
+            {
+                let i_pos = pattern.regexp.literal.rfind('i').unwrap();
+                ctx.warnings.push(Warning::redundant_case_modifier(
+                    ctx.report_builder,
+                    pattern.modifiers.nocase().unwrap().span(),
+                    pattern.span().subspan(i_pos, i_pos + 1),
+                ));
+            }
+
+            Pattern::Regexp(pattern)
         }
         rule => unreachable!("{:?}", rule),
     };

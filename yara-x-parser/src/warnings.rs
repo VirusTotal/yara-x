@@ -63,4 +63,13 @@ pub enum Warning {
         new_import_span: Span,
         existing_import_span: Span,
     },
+
+    #[warning("redundant case-insensitive modifier")]
+    #[label("the `i` postfix indicates that the pattern is case-insensitive", i_span)]
+    #[label("the `nocase` modifier does the same", nocase_span)]
+    RedundantCaseModifier {
+        detailed_report: String,
+        nocase_span: Span,
+        i_span: Span,
+    },
 }

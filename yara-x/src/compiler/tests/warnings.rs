@@ -138,6 +138,28 @@ rule test {
             r#"
 rule test {
   strings:
+    $a = /foo/i nocase
+  condition: 
+    $a
+}
+"#,
+            r#"warning: redundant case-insensitive modifier
+   ╭─[line:4:15]
+   │
+ 4 │     $a = /foo/i nocase
+   │               ┬ ───┬──  
+   │               ╰───────── the `i` postfix indicates that the pattern is case-insensitive
+   │                    │    
+   │                    ╰──── the `nocase` modifier does the same
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
     $a = "foo"
     $b = "bar"
   condition:

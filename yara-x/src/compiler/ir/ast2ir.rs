@@ -140,7 +140,6 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 
     // A regexp pattern can use either the `nocase` modifier or the `/i`
     // modifier (e.g: /foobar/i). In both cases it means the same thing.
-    // TODO: raise a warning if both are used.
     if pattern.modifiers.nocase().is_some() || pattern.regexp.case_insensitive
     {
         flags.set(PatternFlags::Nocase);
