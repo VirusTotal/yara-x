@@ -53,7 +53,7 @@ pub use crate::compiler::errors::*;
 pub use crate::compiler::rules::*;
 use crate::compiler::SubPattern::{Regexp, RegexpChainHead, RegexpChainTail};
 use crate::re;
-use crate::re::hir::TrailingPattern;
+use crate::re::hir::ChainedPattern;
 
 mod atoms;
 mod context;
@@ -810,10 +810,77 @@ impl<'a> Compiler<'a> {
     }
 
     fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
-        let ascii = pattern.flags.contains(PatternFlags::Ascii);
-        let wide = pattern.flags.contains(PatternFlags::Wide);
-        let case_insensitive = pattern.flags.contains(PatternFlags::Nocase);
-        let full_word = pattern.flags.contains(PatternFlags::Fullword);
+        // Try splitting the regexp into multiple chained sub-patterns if it
+        // contains large gaps. For example, `{ 01 02 03 [-] 04 05 06 }` is
+        // split into `{ 01 02 03 }` and `{ 04 05 06 }`, where `{ 04 05 06 }`
+        // is chained to `{ 01 02 03 }`.
+        //
+        // If the regexp can't be split then `head` is the whole regexp.
+        let (head, tail) = pattern.hir.split_at_large_gaps();
+
+        if !tail.is_empty() {
+            // The pattern was split into multiple chained regexps.
+            self.process_chain(&head, &tail, pattern.flags);
+            return;
+        }
+
+        if head.is_alternation_literal() {
+            // The pattern is either a literal, or an alternation of literals.
+            // Examples:
+            //   /foo/
+            //   /foo|bar|baz/
+            //   { 01 02 03 }
+            //   { (01 02 03 | 04 05 06 ) }
+            self.process_alternation_literal(head, pattern.flags);
+            return;
+        }
+
+        // This is a standard, a pattern that can't be split into
+        // multiple chained patterns, and is neither a literal or
+        // alternation of literals.
+        let mut flags = SubPatternFlagSet::none();
+
+        if pattern.flags.contains(PatternFlags::Nocase) {
+            flags.set(SubPatternFlags::Nocase);
+        }
+
+        if pattern.flags.contains(PatternFlags::Fullword) {
+            flags.set(SubPatternFlags::FullwordLeft);
+            flags.set(SubPatternFlags::FullwordRight);
+        }
+
+        if matches!(head.is_greedy(), Some(true)) {
+            flags.set(SubPatternFlags::Greedy);
+        }
+
+        let atoms = self.compile_regexp(&head);
+
+        if pattern.flags.contains(PatternFlags::Wide) {
+            self.add_sub_pattern(
+                Regexp { flags: flags | SubPatternFlags::Wide },
+                atoms.iter(),
+                SubPatternAtom::from_regexp_atom_wide,
+            );
+        }
+
+        if pattern.flags.contains(PatternFlags::Ascii) {
+            self.add_sub_pattern(
+                Regexp { flags },
+                atoms.into_iter(),
+                SubPatternAtom::from_regexp_atom,
+            );
+        }
+    }
+
+    fn process_alternation_literal(
+        &mut self,
+        hir: re::hir::Hir,
+        flags: PatternFlagSet,
+    ) {
+        let ascii = flags.contains(PatternFlags::Ascii);
+        let wide = flags.contains(PatternFlags::Wide);
+        let case_insensitive = flags.contains(PatternFlags::Nocase);
+        let full_word = flags.contains(PatternFlags::Fullword);
 
         let mut flags = SubPatternFlagSet::none();
 
@@ -826,115 +893,78 @@ impl<'a> Compiler<'a> {
             flags.set(SubPatternFlags::FullwordRight);
         }
 
-        // Try splitting the regexp into multiple chained sub-patterns if it
-        // contains large gaps. If the regexp can't be split the leading part
-        // is the whole regexp.
-        let (leading, trailing) = pattern.hir.split_at_large_gaps();
+        let mut process_literal = |literal: &hir::Literal, wide: bool| {
+            let pattern_lit_id =
+                self.intern_literal(literal.0.as_bytes(), wide);
 
-        if trailing.is_empty() && leading.is_alternation_literal() {
-            // The pattern is either a literal, or an alternation of literals,
-            // examples:
-            //      /foo/                       literal
-            //      /foo|bar|baz/               alternation of literals
-            //      { 01 02 03 }                literal
-            //      { (01 02 03 | 04 05 06 )}   alternation of literals
-            let mut process_literal = |literal: &hir::Literal, wide: bool| {
-                let pattern_lit_id =
-                    self.intern_literal(literal.0.as_bytes(), wide);
+            let best_atom = best_atom_from_slice(
+                self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
+                if wide { DESIRED_ATOM_SIZE * 2 } else { DESIRED_ATOM_SIZE },
+            );
 
-                let best_atom = best_atom_from_slice(
-                    self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
-                    if wide {
-                        DESIRED_ATOM_SIZE * 2
-                    } else {
-                        DESIRED_ATOM_SIZE
-                    },
-                );
-
-                let sp = SubPattern::Literal {
-                    pattern: pattern_lit_id,
-                    flags: if wide {
-                        flags | SubPatternFlags::Wide
-                    } else {
-                        flags
-                    },
-                };
-
-                if case_insensitive {
-                    self.add_sub_pattern(
-                        sp,
-                        CaseGenerator::new(&best_atom),
-                        SubPatternAtom::from_atom,
-                    );
+            let sp = SubPattern::Literal {
+                pattern: pattern_lit_id,
+                flags: if wide {
+                    flags | SubPatternFlags::Wide
                 } else {
-                    self.add_sub_pattern(
-                        sp,
-                        iter::once(best_atom),
-                        SubPatternAtom::from_atom,
-                    );
-                }
+                    flags
+                },
             };
 
-            match leading.into_kind() {
-                hir::HirKind::Literal(literal) => {
+            if case_insensitive {
+                self.add_sub_pattern(
+                    sp,
+                    CaseGenerator::new(&best_atom),
+                    SubPatternAtom::from_atom,
+                );
+            } else {
+                self.add_sub_pattern(
+                    sp,
+                    iter::once(best_atom),
+                    SubPatternAtom::from_atom,
+                );
+            }
+        };
+
+        let inner;
+
+        let hir = if let hir::HirKind::Capture(group) = hir.kind() {
+            group.sub.as_ref()
+        } else {
+            inner = hir.into_inner();
+            &inner
+        };
+
+        match hir.kind() {
+            hir::HirKind::Literal(literal) => {
+                if ascii {
+                    process_literal(literal, false);
+                }
+                if wide {
+                    process_literal(literal, true);
+                }
+            }
+            hir::HirKind::Alternation(literals) => {
+                let literals = literals
+                    .iter()
+                    .map(|l| cast!(l.kind(), hir::HirKind::Literal));
+                for literal in literals {
                     if ascii {
-                        process_literal(&literal, false);
+                        process_literal(literal, false);
                     }
                     if wide {
-                        process_literal(&literal, true);
+                        process_literal(literal, true);
                     }
                 }
-                hir::HirKind::Alternation(literals) => {
-                    let literals = literals.into_iter().map({
-                        |l| cast!(l.into_kind(), hir::HirKind::Literal)
-                    });
-                    for literal in literals {
-                        if ascii {
-                            process_literal(&literal, false);
-                        }
-                        if wide {
-                            process_literal(&literal, true);
-                        }
-                    }
-                }
-                _ => unreachable!(),
             }
-        } else if trailing.is_empty() {
-            if matches!(leading.is_greedy(), Some(true)) {
-                flags.set(SubPatternFlags::Greedy);
-            }
-
-            // The pattern is a regexp that can't be converted into a literal
-            // or alternation of literals, and can't be split into multiple
-            // regexps.
-            let atoms = self.compile_regexp(&leading);
-
-            if wide {
-                self.add_sub_pattern(
-                    Regexp { flags: flags | SubPatternFlags::Wide },
-                    atoms.iter(),
-                    SubPatternAtom::from_regexp_atom_wide,
-                );
-            }
-
-            if ascii {
-                self.add_sub_pattern(
-                    Regexp { flags },
-                    atoms.into_iter(),
-                    SubPatternAtom::from_regexp_atom,
-                );
-            }
-        } else {
-            // The pattern is a regexp that was split into multiple chained
-            // regexps.
-            self.process_chain(&leading, &trailing, pattern.flags);
+            _ => unreachable!(),
         }
     }
 
     fn process_chain(
         &mut self,
         leading: &re::hir::Hir,
-        trailing: &[TrailingPattern],
+        trailing: &[ChainedPattern],
         flags: PatternFlagSet,
     ) {
         let ascii = flags.contains(PatternFlags::Ascii);

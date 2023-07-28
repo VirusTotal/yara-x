@@ -772,10 +772,7 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/foo|bar|baz/"#, b"foo", b"foo");
     pattern_match!(r#"/foo|bar|baz/"#, b"bar", b"bar");
     pattern_match!(r#"/foo|bar|baz/"#, b"baz", b"baz");
-
-    // TODO: this should be equivalent to /foo|bar|baz/, and should be
-    // interpreted as an alternation of literals.
-    //pattern_true!(r#"/(foo|bar|baz)/"#, b"foo");
+    pattern_true!(r#"/(foo|bar|baz)/"#, b"foo");
 
     pattern_false!(r#"/foo|bar|baz/"#, b"FOO");
     pattern_false!(r#"/foo|bar|baz/"#, b"BAR");

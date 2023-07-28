@@ -7,7 +7,7 @@ use std::ops::RangeInclusive;
 use yara_x_parser::ast::HexByte;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct TrailingPattern {
+pub(crate) struct ChainedPattern {
     pub gap: RangeInclusive<u32>,
     pub hir: Hir,
 }
@@ -67,7 +67,7 @@ impl Hir {
     /// If the pattern doesn't contain any gap that is long enough, the pattern
     /// won't be split, and the leading piece will contain the whole pattern
     /// while the vector will be empty.
-    pub fn split_at_large_gaps(self) -> (Self, Vec<TrailingPattern>) {
+    pub fn split_at_large_gaps(self) -> (Self, Vec<ChainedPattern>) {
         if !matches!(self.kind(), HirKind::Concat(_)) {
             return (self, vec![]);
         }
@@ -78,7 +78,7 @@ impl Hir {
 
         let mut push = |gap: Option<RangeInclusive<u32>>, fragment| {
             if let Some(gap) = gap {
-                trailing.push(TrailingPattern {
+                trailing.push(ChainedPattern {
                     gap,
                     hir: Hir::from(regex_syntax::hir::Hir::concat(fragment))
                         .set_greedy(greedy),
@@ -144,8 +144,28 @@ impl Hir {
     }
 
     #[inline]
+    pub fn into_inner(self) -> regex_syntax::hir::Hir {
+        self.inner
+    }
+
+    /// Returns true if this HIR is either a simple literal or an alternation
+    /// of simple literals.
+    ///
+    /// For example, `f`, `foo`, `(a|b|c)` and `(foo|bar|baz)` are alternation
+    /// literals. This also includes capture groups that contain a literal or
+    /// alternation of literals, like for example `(f)`, `(foo)`, `(a|b|c)`,
+    /// and `(foo|bar|baz)`.
+    #[inline]
     pub fn is_alternation_literal(&self) -> bool {
-        self.inner.properties().is_alternation_literal()
+        if self.inner.properties().is_alternation_literal() {
+            return true;
+        }
+        match self.inner.kind() {
+            HirKind::Capture(cap) => {
+                cap.sub.properties().is_alternation_literal()
+            }
+            _ => false,
+        }
     }
 }
 
@@ -275,7 +295,7 @@ mod tests {
 
     use super::Hir;
     use crate::re::hir::{
-        class_to_hex_byte, hex_byte_to_class, TrailingPattern,
+        class_to_hex_byte, hex_byte_to_class, ChainedPattern,
     };
 
     #[test]
@@ -389,11 +409,11 @@ mod tests {
             (
                 Hir::literal([0x01, 0x02, 0x03]),
                 vec![
-                    TrailingPattern {
+                    ChainedPattern {
                         gap: 0..=u32::MAX,
                         hir: Hir::literal([0x05])
                     },
-                    TrailingPattern {
+                    ChainedPattern {
                         gap: 10..=11 + Hir::PATTERN_CHAINING_THRESHOLD,
                         hir: Hir::literal([0x06, 0x07])
                     }
