@@ -157,12 +157,18 @@ impl Hir {
     /// and `(foo|bar|baz)`.
     #[inline]
     pub fn is_alternation_literal(&self) -> bool {
-        if self.inner.properties().is_alternation_literal() {
+        // self.inner.properties().is_alternation_literal() can return true
+        // when the HIR is a concat of literals or alternation of literals,
+        // but that's not what we want and return false in those cases.
+        if self.inner.properties().is_alternation_literal()
+            && !matches!(self.inner.kind(), HirKind::Concat(_))
+        {
             return true;
         }
         match self.inner.kind() {
             HirKind::Capture(cap) => {
                 cap.sub.properties().is_alternation_literal()
+                    && !matches!(cap.sub.kind(), HirKind::Concat(_))
             }
             _ => false,
         }
