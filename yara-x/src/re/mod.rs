@@ -6,7 +6,7 @@ regular expression, as outputted by the [`regex-syntax`][1] crate, and produces
 VM code for the matching engine, and a list of atoms extracted from the regular
 expression. These atoms are simply literal sub-patterns contained in the regexp
 that are used for speeding up searches using the Aho-Corasick algorithm. See
-[`crate::compiler::atoms`] for details.
+`compiler::atoms` for details.
 
 The matching engine is based on a Virtual Machine described in Russ Cox's
 article [Regular Expression Matching: the Virtual Machine Approach][1].

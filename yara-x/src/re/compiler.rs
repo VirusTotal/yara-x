@@ -1,7 +1,7 @@
 /*!
 This module provides a compiler that takes a regex's [`Hir`] and produces a
 sequence of instructions for a Pike's VM similar to the one described in
-https://swtch.com/~rsc/regexp/regexp2.html
+<https://swtch.com/~rsc/regexp/regexp2.html>
 
 More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
