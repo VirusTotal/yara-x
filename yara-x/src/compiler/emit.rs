@@ -714,15 +714,27 @@ fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
             // do here.
         },
         |_else| {
-            // Search for patterns.
+            // Call `search_for_patterns`.
             _else.call(
                 ctx.function_id(
                     wasm::export__search_for_patterns.mangled_name,
                 ),
             );
-            // Set pattern_search_done to true.
-            _else.i32_const(1);
-            _else.local_set(ctx.wasm_symbols.pattern_search_done);
+            // `search_for_patterns` returns `true` when everything went ok, and
+            // `false` when a timeout occurs.
+            _else.if_else(
+                None,
+                |_then| {
+                    // Everything ok, set pattern_search_done to true.
+                    _then.i32_const(1);
+                    _then.local_set(ctx.wasm_symbols.pattern_search_done);
+                },
+                |_else| {
+                    // A timeout occurred.
+                    _else.i32_const(0);
+                    _else.return_();
+                },
+            );
         },
     );
 }

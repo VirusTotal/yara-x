@@ -15,7 +15,9 @@ matches = rules.scan(b'some dummy data')
 use std::marker::PhantomPinned;
 use std::ops::Deref;
 use std::pin::Pin;
+use std::time::Duration;
 
+use pyo3::exceptions::PyException;
 use pyo3::exceptions::{PySyntaxError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyBytes, PyFloat, PyInt, PyString, PyTuple};
@@ -187,17 +189,25 @@ impl Scanner {
         Ok(())
     }
 
+    /// Sets a timeout for each scan.
+    ///
+    /// After setting a timeout scans will abort after the specified `seconds`.
+    fn set_timeout(&mut self, seconds: u64) {
+        self.inner.set_timeout(Duration::from_secs(seconds));
+    }
+
     /// Scans in-memory data.
     #[pyo3(signature = (data))]
-    fn scan(&mut self, data: &[u8]) -> Py<PyTuple> {
+    fn scan(&mut self, data: &[u8]) -> PyResult<Py<PyTuple>> {
         let matches: Vec<String> = self
             .inner
             .scan(data)
+            .map_err(|err| PyException::new_err(err.to_string()))?
             .matching_rules()
             .map(|rule| rule.name().to_string())
             .collect();
 
-        Python::with_gil(|py| PyTuple::new(py, matches).into())
+        Ok(Python::with_gil(|py| PyTuple::new(py, matches).into()))
     }
 }
 
@@ -210,13 +220,13 @@ struct MatchingRule {
 #[pymethods]
 impl MatchingRule {
     #[getter]
-    fn name(&self) -> PyResult<&str> {
-        Ok(self.name.as_str())
+    fn name(&self) -> &str {
+        self.name.as_str()
     }
 
     #[getter]
-    fn namespace(&self) -> PyResult<&str> {
-        Ok(self.namespace.as_str())
+    fn namespace(&self) -> &str {
+        self.namespace.as_str()
     }
 }
 
@@ -237,12 +247,14 @@ struct PinnedRules {
 impl Rules {
     /// Scans in-memory data with these rules.
     #[pyo3(signature = (data))]
-    fn scan(&self, data: &[u8]) -> Py<PyTuple> {
+    fn scan(&self, data: &[u8]) -> PyResult<Py<PyTuple>> {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
-        let scan_results = scanner.scan(data);
+        let scan_results = scanner
+            .scan(data)
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
         let matches = scan_results.matching_rules();
 
-        Python::with_gil(|py| {
+        Ok(Python::with_gil(|py| {
             PyTuple::new(
                 py,
                 matches.map(|rule| {
@@ -254,7 +266,7 @@ impl Rules {
                 }),
             )
             .into()
-        })
+        }))
     }
 }
 

@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::ops::{Range, RangeInclusive};
 use std::ptr::NonNull;
 use std::rc::Rc;
+use std::sync::atomic::Ordering;
 
 use base64::Engine;
 use bitvec::order::Lsb0;
@@ -19,10 +20,11 @@ use crate::compiler::{
 use crate::re::pikevm;
 use crate::re::pikevm::PikeVM;
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
-use crate::scanner::RuntimeStringId;
+use crate::scanner::{RuntimeStringId, HEARTBEAT_COUNTER};
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::ScanError;
 
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r> {
@@ -73,6 +75,9 @@ pub(crate) struct ScanContext<'r> {
     /// here until they can be confirmed or discarded.
     pub unconfirmed_matches:
         FxHashMap<SubPatternId, VecDeque<UnconfirmedMatch>>,
+    /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
+    /// aborted due to a timeout.
+    pub deadline: u64,
 }
 
 impl ScanContext<'_> {
@@ -203,13 +208,17 @@ impl ScanContext<'_> {
     /// This function won't be called if the conditions can be fully evaluated
     /// without looking for any of the patterns. If it must be called, it will be
     /// called only once.
-    pub(crate) fn search_for_patterns(&mut self) {
+    pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
         let scanned_data = self.scanned_data();
         let ac = self.compiled_rules.aho_corasick();
 
         let mut pike_vm = PikeVM::new(self.compiled_rules.re_code());
 
         for ac_match in ac.find_overlapping_iter(scanned_data) {
+            if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
+                return Err(ScanError::Timeout);
+            }
+
             let atom = &self.compiled_rules.atoms()[ac_match.pattern()];
 
             // Subtract the backtrack value from the offset where the atom
@@ -376,6 +385,8 @@ impl ScanContext<'_> {
                 }
             };
         }
+
+        Ok(())
     }
 
     fn handle_sub_pattern_match(

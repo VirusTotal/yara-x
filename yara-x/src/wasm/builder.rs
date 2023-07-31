@@ -8,8 +8,9 @@ use super::WasmSymbols;
 /// Builds the WASM module for a set of compiled rules.
 ///
 /// The produced WASM module exports a `main` function that contains the logic
-/// for the rule conditions in the set of compiled rules. The overall structure
-/// of the `main` function is:
+/// for the rule conditions in the set of compiled rules. This function returns
+/// an `i32` with two possible values, `0` if everything was ok, or `1` if a
+/// timeout occurred. The overall structure of the `main` function is:
 ///
 ///  ```text
 ///  ;; namespace 0
@@ -31,6 +32,7 @@ use super::WasmSymbols;
 ///    end    
 ///  end
 ///  ;; more namespaces ...
+///  return 0
 /// ```
 ///
 /// There's a WASM code block for each namespace (at least one), and each of
@@ -107,8 +109,9 @@ impl WasmModuleBuilder {
             f64_tmp: module.locals.add(F64),
         };
 
+        // The main function receives no arguments and returns an `i32`.
         let mut builder =
-            walrus::FunctionBuilder::new(&mut module.types, &[], &[]);
+            walrus::FunctionBuilder::new(&mut module.types, &[], &[I32]);
 
         let namespace = builder.dangling_instr_seq(None).id();
         let instr_seq_1 = builder.dangling_instr_seq(None).id();
@@ -164,6 +167,10 @@ impl WasmModuleBuilder {
     /// Builds the WASM module and consumes the builder.
     pub fn build(mut self) -> walrus::Module {
         self.finalize_namespace();
+
+        // Emit the final return statement.
+        self.builder.func_body().i32_const(1);
+        self.builder.func_body().return_();
 
         let main_fn = self.builder.finish(Vec::new(), &mut self.module.funcs);
         self.module.exports.add("main", main_fn);

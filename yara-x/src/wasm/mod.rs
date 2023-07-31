@@ -86,6 +86,7 @@ use crate::modules::BUILTIN_MODULES;
 use crate::scanner::ScanContext;
 use crate::types::{TypeValue, Value};
 use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
+use crate::ScanError;
 
 pub(crate) mod builder;
 pub(crate) mod string;
@@ -540,6 +541,7 @@ lazy_static! {
     pub(crate) static ref CONFIG: Config = {
         let mut config = Config::default();
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+        config.epoch_interruption(true);
         config
     };
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
@@ -571,9 +573,17 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
 }
 
 /// Invoked from WASM for triggering the pattern search phase.
+///
+/// Returns `true` on success and `false` when a timeout occurs.
 #[wasm_export]
-pub(crate) fn search_for_patterns(mut caller: Caller<'_, ScanContext>) {
-    caller.data_mut().search_for_patterns();
+pub(crate) fn search_for_patterns(
+    mut caller: Caller<'_, ScanContext>,
+) -> bool {
+    match caller.data_mut().search_for_patterns() {
+        Ok(_) => true,
+        Err(ScanError::Timeout) => false,
+        Err(_) => unreachable!(),
+    }
 }
 
 /// Invoked from WASM to notify when a rule matches.

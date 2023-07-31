@@ -24,6 +24,7 @@ macro_rules! test_condition {
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
             .scan($data)
+            .expect("scan should not fail")
             .matching_rules()
             .len();
 
@@ -59,6 +60,7 @@ macro_rules! test_rule {
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
             .scan($data)
+            .expect("scan should not fail")
             .matching_rules()
             .len();
 
@@ -119,7 +121,7 @@ macro_rules! pattern_match {
         let rules = crate::compile(src.as_str()).unwrap();
 
         let mut scanner = crate::scanner::Scanner::new(&rules);
-        let scan_results = scanner.scan($data);
+        let scan_results = scanner.scan($data).expect("scan should not fail");
         let matching_data = scan_results
             .matching_rules()
             .next()
@@ -1993,9 +1995,30 @@ fn filesize() {
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(b"").matching_rules().len(), 1);
-    assert_eq!(scanner.scan(b"a").matching_rules().len(), 1);
-    assert_eq!(scanner.scan(b"ab").matching_rules().len(), 1);
+    assert_eq!(
+        scanner
+            .scan(b"")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+    assert_eq!(
+        scanner
+            .scan(b"a")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+    assert_eq!(
+        scanner
+            .scan(b"ab")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
 }
 
 #[test]
@@ -2165,7 +2188,14 @@ fn rule_reuse_1() {
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(&[]).matching_rules().len(), 9);
+    assert_eq!(
+        scanner
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        9
+    );
 }
 
 #[test]
@@ -2190,7 +2220,14 @@ fn rule_reuse_2() {
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
 
-    assert_eq!(scanner.scan(&[]).matching_rules().len(), 2);
+    assert_eq!(
+        scanner
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        2
+    );
 }
 
 #[test]

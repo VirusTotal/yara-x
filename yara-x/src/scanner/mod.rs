@@ -3,7 +3,6 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 
-use std::fs;
 use std::io::Read;
 use std::ops::{Deref, Range};
 use std::path::{Path, PathBuf};
@@ -11,6 +10,10 @@ use std::pin::Pin;
 use std::ptr::{null, NonNull};
 use std::rc::Rc;
 use std::slice::Iter;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Once;
+use std::time::Duration;
+use std::{fs, thread};
 
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
@@ -25,7 +28,7 @@ use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
-use crate::wasm::MATCHING_RULES_BITMAP_BASE;
+use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
 use crate::{modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::*;
@@ -37,16 +40,29 @@ mod matches;
 #[cfg(test)]
 mod tests;
 
-/// Error returned by [`Scanner::scan_file`].
+/// Error returned by [`Scanner::scan`] and [`Scanner::scan_file`].
 #[derive(Error, Debug)]
 pub enum ScanError {
+    /// The scan was aborted after the timeout period.
+    #[error("timeout")]
+    Timeout,
+    /// Could not open the scanned file.
     #[error("can not open `{path}`: {source}")]
     OpenError { path: PathBuf, source: std::io::Error },
+    /// Could not map the scanned file into memory.
     #[error("can not map `{path}`: {source}")]
     MapError { path: PathBuf, source: fmmap::error::Error },
 }
 
-enum ScannedData<'a> {
+/// Global counter that gets incremented every 1 second by a dedicated thread.
+///
+/// This counter is used for determining the when a scan operation has timed out.
+static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
+static INIT_HEARTBEAT: Once = Once::new();
+
+pub enum ScannedData<'a> {
     Slice(&'a [u8]),
     Vec(Vec<u8>),
     Mmap(MmapFile),
@@ -69,8 +85,9 @@ impl<'a> AsRef<[u8]> for ScannedData<'a> {
 /// data sequentially, but you need multiple scanners for scanning in parallel.
 pub struct Scanner<'r> {
     wasm_store: Pin<Box<Store<ScanContext<'r>>>>,
-    wasm_main_fn: TypedFunc<(), ()>,
+    wasm_main_fn: TypedFunc<(), i32>,
     filesize: Global,
+    timeout: Option<Duration>,
 }
 
 impl<'r> Scanner<'r> {
@@ -102,6 +119,7 @@ impl<'r> Scanner<'r> {
                 module_outputs: FxHashMap::default(),
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
+                deadline: 0,
             },
         ));
 
@@ -174,12 +192,26 @@ impl<'r> Scanner<'r> {
 
         // Obtain a reference to the "main" function exported by the module.
         let wasm_main_fn = wasm_instance
-            .get_typed_func::<(), ()>(wasm_store.as_context_mut(), "main")
+            .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
             .unwrap();
 
         wasm_store.data_mut().main_memory = Some(main_memory);
 
-        Self { wasm_store, wasm_main_fn, filesize }
+        Self { wasm_store, wasm_main_fn, filesize, timeout: None }
+    }
+
+    /// Sets a timeout for scan operations.
+    ///
+    /// The scan functions will return an [ScanError::Timeout] once the
+    /// provided timeout duration has elapsed. It's important to note that the
+    /// timeout might not be entirely precise, the scanner will make every
+    /// effort to stop promptly after the designated timeout duration. However,
+    /// in some cases, particularly with rules containing only a few patterns,
+    /// the scanner could potentially continue running for a longer period than
+    /// the specified timeout.
+    pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.timeout = Some(timeout);
+        self
     }
 
     /// Scans a file.
@@ -216,31 +248,109 @@ impl<'r> Scanner<'r> {
             ScannedData::Mmap(mapped_file)
         };
 
-        self.scan_impl(data.as_ref());
-
-        Ok(ScanResults::new(self.wasm_store.data(), data))
+        self.scan_impl(data)
     }
 
     /// Scans in-memory data.
-    pub fn scan<'a>(&'a mut self, data: &'a [u8]) -> ScanResults<'a, 'r> {
-        let data = ScannedData::Slice(data);
-        self.scan_impl(data.as_ref());
-        ScanResults::new(self.wasm_store.data(), data)
+    pub fn scan<'a>(
+        &'a mut self,
+        data: &'a [u8],
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        self.scan_impl(ScannedData::Slice(data))
     }
 
-    fn scan_impl(&mut self, data: &[u8]) {
+    /// Sets the value of a global variable.
+    ///
+    /// The variable must has been previously defined by calling
+    /// [`crate::Compiler::define_global`], and the type it has during the definition
+    /// must match the type of the new value (`T`).
+    ///
+    /// The variable will retain the new value in subsequent scans, unless this
+    /// function is called again for setting a new value.
+    pub fn set_global<T: Into<Variable>>(
+        &mut self,
+        ident: &str,
+        value: T,
+    ) -> Result<&mut Self, VariableError> {
+        let ctx = self.wasm_store.data_mut();
+
+        if let Some(field) = ctx.root_struct.field_by_name_mut(ident) {
+            let variable: Variable = value.into();
+            let type_value: TypeValue = variable.into();
+            // The new type must match the the old one.
+            if type_value.eq_type(&field.type_value) {
+                field.type_value = type_value;
+            } else {
+                return Err(VariableError::InvalidType {
+                    variable: ident.to_string(),
+                    expected_type: field.type_value.ty().to_string(),
+                    actual_type: type_value.ty().to_string(),
+                });
+            }
+        } else {
+            return Err(VariableError::Undeclared(ident.to_string()));
+        }
+
+        Ok(self)
+    }
+}
+
+impl<'r> Scanner<'r> {
+    fn scan_impl<'a>(
+        &'a mut self,
+        data: ScannedData<'a>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.clear_matches();
 
+        // If the user specified some timeout, start the heartbeat thread, if
+        // not previously started. The heartbeat thread increments the WASM
+        // engine epoch and HEARTBEAT_COUNTER every second. There's a single
+        // instance of this thread, independently of the number of concurrent
+        // scans.
+        if self.timeout.is_some() {
+            INIT_HEARTBEAT.call_once(|| {
+                thread::spawn(|| loop {
+                    loop {
+                        thread::sleep(Duration::from_secs(1));
+                        ENGINE.increment_epoch();
+                        HEARTBEAT_COUNTER
+                            .fetch_update(
+                                Ordering::SeqCst,
+                                Ordering::SeqCst,
+                                |x| Some(x + 1),
+                            )
+                            .unwrap();
+                    }
+                });
+            });
+        }
+
+        // Timeout in seconds, this is either the value provided by the user or
+        // u64::MAX.
+        let timeout_secs = self.timeout.map_or(u64::MAX, |t| t.as_secs());
+
+        // Sets the deadline for the WASM store. The WASM main function will
+        // abort if the deadline is reached while the function is being
+        // executed.
+        self.wasm_store.set_epoch_deadline(timeout_secs);
+        self.wasm_store
+            .epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
+
         // Set the global variable `filesize` to the size of the scanned data.
         self.filesize
-            .set(self.wasm_store.as_context_mut(), Val::I64(data.len() as i64))
+            .set(
+                self.wasm_store.as_context_mut(),
+                Val::I64(data.as_ref().len() as i64),
+            )
             .unwrap();
 
         let ctx = self.wasm_store.data_mut();
 
-        ctx.scanned_data = data.as_ptr();
-        ctx.scanned_data_len = data.len();
+        ctx.deadline =
+            HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
+        ctx.scanned_data = data.as_ref().as_ptr();
+        ctx.scanned_data_len = data.as_ref().len();
 
         // If the string pool is too large, destroy it and create a new empty
         // one. Re-using the same string pool across multiple scans improves
@@ -323,9 +433,14 @@ impl<'r> Scanner<'r> {
         }
 
         // Invoke the main function, which evaluates the rules' conditions. It
-        // triggers the Aho-Corasick scanning phase only if necessary. See
-        // ScanContext::search_for_patterns.
-        self.wasm_main_fn.call(self.wasm_store.as_context_mut(), ()).unwrap();
+        // calls ScanContext::search_for_patterns (which does the Aho-Corasick
+        // scanning) only if necessary.
+        //
+        // This will return Err(ScanError::Timeout), when the scan timeout is
+        // reached while WASM code is being executed. If the timeout occurs
+        // while ScanContext::search_for_patterns is being executed, the result
+        // will be Ok(0). If the scan completes successfully the result is Ok(1).
+        let res = self.wasm_main_fn.call(self.wasm_store.as_context_mut(), ());
 
         let ctx = self.wasm_store.data_mut();
 
@@ -343,41 +458,22 @@ impl<'r> Scanner<'r> {
         for rules in ctx.global_rules_matching.values_mut() {
             ctx.rules_matching.append(rules)
         }
-    }
 
-    /// Sets the value of a global variable.
-    ///
-    /// The variable must has been previously defined by calling
-    /// [`crate::Compiler::define_global`], and the type it has during the definition
-    /// must match the type of the new value (`T`).
-    ///
-    /// The variable will retain the new value in subsequent scans, unless this
-    /// function is called again for setting a new value.
-    pub fn set_global<T: Into<Variable>>(
-        &mut self,
-        ident: &str,
-        value: T,
-    ) -> Result<&mut Self, VariableError> {
-        let ctx = self.wasm_store.data_mut();
-
-        if let Some(field) = ctx.root_struct.field_by_name_mut(ident) {
-            let variable: Variable = value.into();
-            let type_value: TypeValue = variable.into();
-            // The new type must match the the old one.
-            if type_value.eq_type(&field.type_value) {
-                field.type_value = type_value;
-            } else {
-                return Err(VariableError::InvalidType {
-                    variable: ident.to_string(),
-                    expected_type: field.type_value.ty().to_string(),
-                    actual_type: type_value.ty().to_string(),
-                });
+        match res {
+            Ok(1) => Ok(ScanResults::new(self.wasm_store.data(), data)),
+            Ok(0) => Err(ScanError::Timeout),
+            Ok(res) => panic!(
+                "unexpected return value from WASM main function: {}",
+                res
+            ),
+            Err(err) if err.is::<ScanError>() => {
+                Err(err.downcast::<ScanError>().unwrap())
             }
-        } else {
-            return Err(VariableError::Undeclared(ident.to_string()));
+            Err(err) => panic!(
+                "unexpected error while executing WASM main function: {}",
+                err
+            ),
         }
-
-        Ok(self)
     }
 
     // Clear information about previous matches.
