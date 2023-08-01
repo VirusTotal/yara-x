@@ -399,13 +399,13 @@ boolean_expr = {
 
 boolean_term = {
   pattern_ident ~ (k_AT ~ expr | k_IN ~ range)?        |
+  for_expr                                             |
+  of_expr                                              |
+  expr ~ ((comparison_op | string_op) ~ expr)*         |
   k_TRUE                                               |
   k_FALSE                                              |
   k_NOT ~ boolean_term                                 |
   k_DEFINED ~ boolean_term                             |
-  for_expr                                             |
-  of_expr                                              |
-  expr ~ ((comparison_op | string_op) ~ expr)*         |
   LPAREN ~ boolean_expr ~ RPAREN
 }
 
