@@ -2100,6 +2100,32 @@ fn for_of() {
         "#,
         b"foobar"
     );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a = "foo"
+            $b = "bar"
+          condition:
+            for 1 of them : ( # == 2 )
+        }
+        "#,
+        b"foobarbar"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $a = "foo"
+            $b = "bar"
+          condition:
+            for 1 of them : ( @ > 0 )
+        }
+        "#,
+        b"foobarbar"
+    );
 }
 
 #[test]

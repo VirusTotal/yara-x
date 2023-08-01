@@ -561,7 +561,9 @@ fn of_expr_from_ast(
     of: &ast::Of,
 ) -> Result<Expr, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
-
+    // Create new stack frame with 5 slots:
+    //   1 slot for the loop variable, a bool in this case.
+    //   4 up to slots used for loop control variables (see: emit::emit_for)
     let stack_frame = ctx.vars.new_frame(5);
 
     let (items, num_items) = match &of.items {
@@ -665,8 +667,10 @@ fn for_of_expr_from_ast(
 ) -> Result<Expr, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
     let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set);
-
-    let mut stack_frame = ctx.vars.new_frame(4);
+    // Create new stack frame with 5 slots:
+    //   1 slot for the loop variable, a pattern ID in this case
+    //   4 up to slots used for loop control variables (see: emit::emit_for)
+    let mut stack_frame = ctx.vars.new_frame(5);
     let next_pattern_id = stack_frame.new_var(Type::Integer);
     let mut loop_vars = SymbolTable::new();
 
@@ -692,6 +696,7 @@ fn for_of_expr_from_ast(
         pattern_set,
         condition,
         stack_frame,
+        variable: next_pattern_id,
     })))
 }
 

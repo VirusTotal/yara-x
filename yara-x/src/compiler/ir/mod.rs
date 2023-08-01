@@ -411,6 +411,7 @@ pub(in crate::compiler) struct Of {
 /// `for 1 of ($a,$b) : (..)`)
 pub(in crate::compiler) struct ForOf {
     pub quantifier: Quantifier,
+    pub variable: Var,
     pub pattern_set: Vec<PatternId>,
     pub condition: Expr,
     pub stack_frame: VarStackFrame,

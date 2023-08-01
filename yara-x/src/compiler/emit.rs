@@ -1310,7 +1310,6 @@ fn emit_of_expr_tuple(
     of: &mut Of,
 ) {
     let expressions = cast!(&mut of.items, OfItems::BoolExprTuple);
-
     let next_item = of.stack_frame.new_var(Type::Bool);
     let num_expressions = expressions.len();
     let mut expressions = expressions.iter_mut();
@@ -1357,7 +1356,7 @@ fn emit_for_of_pattern_set(
 ) {
     let num_patterns = for_of.pattern_set.len();
     let mut pattern_ids = for_of.pattern_set.iter();
-    let next_pattern_id = for_of.stack_frame.new_var(Type::Integer);
+    let next_pattern_id = for_of.variable;
 
     emit_for(
         ctx,
