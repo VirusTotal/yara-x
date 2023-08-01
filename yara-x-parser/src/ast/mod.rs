@@ -52,8 +52,7 @@ pub struct AST<'src> {
 #[cfg(feature = "ascii-tree")]
 impl<'src> Debug for AST<'src> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use std::borrow::Borrow;
-        ::ascii_tree::write_tree(f, self.ascii_tree().borrow())
+        ::ascii_tree::write_tree(f, &self.ascii_tree())
     }
 }
 
