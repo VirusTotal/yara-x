@@ -327,6 +327,46 @@ fn uintxx() {
 }
 
 #[test]
+fn intxx() {
+    let data = [
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    ];
+
+    condition_true!("int8(0) == 0x01", &data);
+    condition_true!("int8(1) == 0x02", &data);
+    condition_true!("int8(2) == 0x03", &data);
+    condition_true!("int8(10) == -1", &data);
+
+    condition_true!("int16(0) == 0x0201", &data);
+    condition_true!("int16(1) == 0x0302", &data);
+    condition_true!("int16(2) == 0x0403", &data);
+    condition_true!("int16(10) == -1", &data);
+
+    condition_true!("int32(0) == 0x04030201", &data);
+    condition_true!("int32(1) == 0x05040302", &data);
+    condition_true!("int32(2) == 0x06050403", &data);
+    condition_true!("int32(10) == -1", &data);
+
+    condition_true!("int16be(0) == 0x0102", &data);
+    condition_true!("int16be(1) == 0x0203", &data);
+    condition_true!("int16be(2) == 0x0304", &data);
+    condition_true!("int16be(10) == -1", &data);
+
+    condition_true!("int32be(0) == 0x01020304", &data);
+    condition_true!("int32be(1) == 0x02030405", &data);
+    condition_true!("int32be(2) == 0x03040506", &data);
+    condition_true!("int32be(10) == -1", &data);
+
+    condition_false!("int8(20) == 0", &data);
+    condition_false!("int8(20) != 0", &data);
+    condition_false!("int16(19) == 0", &data);
+    condition_false!("int16(19) != 0", &data);
+    condition_false!("int32(17) == 0", &data);
+    condition_false!("int32(17) != 0", &data);
+}
+
+#[test]
 fn for_in() {
     condition_true!("for all i in (0..0) : ( true )");
     condition_false!("for all i in (0..0) : ( false )");

@@ -1414,7 +1414,7 @@ pub(crate) fn str_matches(
     ctx.get_regexp(rhs).is_match(lhs.as_bstr(ctx))
 }
 
-macro_rules! gen_uint_fn {
+macro_rules! gen_xint_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {
         #[wasm_export(public = true)]
         pub(crate) fn $name(
@@ -1435,12 +1435,19 @@ macro_rules! gen_uint_fn {
     };
 }
 
-gen_uint_fn!(uint8, u8, from_le_bytes);
-gen_uint_fn!(uint16, u16, from_le_bytes);
-gen_uint_fn!(uint32, u32, from_le_bytes);
-gen_uint_fn!(uint8be, u8, from_be_bytes);
-gen_uint_fn!(uint16be, u16, from_be_bytes);
-gen_uint_fn!(uint32be, u32, from_be_bytes);
+gen_xint_fn!(uint8, u8, from_le_bytes);
+gen_xint_fn!(uint16, u16, from_le_bytes);
+gen_xint_fn!(uint32, u32, from_le_bytes);
+gen_xint_fn!(uint8be, u8, from_be_bytes);
+gen_xint_fn!(uint16be, u16, from_be_bytes);
+gen_xint_fn!(uint32be, u32, from_be_bytes);
+
+gen_xint_fn!(int8, i8, from_le_bytes);
+gen_xint_fn!(int16, i16, from_le_bytes);
+gen_xint_fn!(int32, i32, from_le_bytes);
+gen_xint_fn!(int8be, i8, from_be_bytes);
+gen_xint_fn!(int16be, i16, from_be_bytes);
+gen_xint_fn!(int32be, i32, from_be_bytes);
 
 #[cfg(test)]
 mod tests {
