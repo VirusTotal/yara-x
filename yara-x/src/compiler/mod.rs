@@ -77,7 +77,7 @@ mod tests;
 /// # use yara_x;
 /// let rules = yara_x::compile("rule test { condition: true }").unwrap();
 /// let mut scanner = yara_x::Scanner::new(&rules);
-/// let results = scanner.scan("Lorem ipsum".as_bytes());
+/// let results = scanner.scan("Lorem ipsum".as_bytes()).unwrap();
 /// assert_eq!(results.matching_rules().len(), 1);
 /// ```
 pub fn compile<'src, S>(src: S) -> Result<Rules, Error>

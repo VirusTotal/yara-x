@@ -35,7 +35,7 @@ let rules = compiler.build();
 let mut scanner = yara_x::Scanner::new(&rules);
 
 // Scan some data.
-let results = scanner.scan("Lorem ipsum".as_bytes());
+let results = scanner.scan("Lorem ipsum".as_bytes()).unwrap();
 
 assert_eq!(results.matching_rules().len(), 1);
 ```
