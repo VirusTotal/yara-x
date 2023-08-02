@@ -74,7 +74,7 @@ pub type NumAlt = u8;
 
 /// Offset for jump and split instructions. The offset is always relative to
 /// the address where the instruction starts.
-pub type Offset = i16;
+pub type Offset = i32;
 
 /// Instructions supported by the Pike VM.
 pub enum Instr<'a> {
