@@ -149,6 +149,14 @@ impl<'src> Pattern<'src> {
             Pattern::Hex(p) => &p.identifier,
         }
     }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Pattern::Text(p) => p.span,
+            Pattern::Hex(p) => p.span,
+            Pattern::Regexp(p) => p.span,
+        }
+    }
 }
 
 /// A set of modifiers associated to a pattern.

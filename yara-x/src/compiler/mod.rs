@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{HasSpan, Ident, RuleFlag};
+use yara_x_parser::ast::{HasSpan, Ident, RuleFlag, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
@@ -545,7 +545,12 @@ impl<'a> Compiler<'a> {
         // the patterns in a compiled rule.
         let mut ident_and_pattern = Vec::with_capacity(patterns.len());
 
-        for pattern in patterns.into_iter() {
+        let patterns_with_span = iter::zip(
+            patterns,
+            rule.patterns.iter().flatten().map(|p| p.span()),
+        );
+
+        for (pattern, span) in patterns_with_span {
             // Save pattern identifier (e.g: $a) in the pool of identifiers
             // or reuse the IdentId if the identifier has been used already.
             let ident_id = self.ident_pool.get_or_intern(pattern.identifier());
@@ -555,7 +560,7 @@ impl<'a> Compiler<'a> {
                     self.process_literal_pattern(pattern);
                 }
                 ir::Pattern::Regexp(pattern) => {
-                    self.process_regexp_pattern(pattern);
+                    self.process_regexp_pattern(pattern, span)?;
                 }
             };
 
@@ -809,7 +814,11 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn process_regexp_pattern(&mut self, pattern: ir::RegexpPattern) {
+    fn process_regexp_pattern(
+        &mut self,
+        pattern: RegexpPattern,
+        span: Span,
+    ) -> Result<(), CompileError> {
         // Try splitting the regexp into multiple chained sub-patterns if it
         // contains large gaps. For example, `{ 01 02 03 [-] 04 05 06 }` is
         // split into `{ 01 02 03 }` and `{ 04 05 06 }`, where `{ 04 05 06 }`
@@ -820,8 +829,7 @@ impl<'a> Compiler<'a> {
 
         if !tail.is_empty() {
             // The pattern was split into multiple chained regexps.
-            self.process_chain(&head, &tail, pattern.flags);
-            return;
+            return self.process_chain(&head, &tail, pattern.flags, span);
         }
 
         if head.is_alternation_literal() {
@@ -832,7 +840,7 @@ impl<'a> Compiler<'a> {
             //   { 01 02 03 }
             //   { (01 02 03 | 04 05 06 ) }
             self.process_alternation_literal(head, pattern.flags);
-            return;
+            return Ok(());
         }
 
         // This is a standard, a pattern that can't be split into
@@ -853,7 +861,7 @@ impl<'a> Compiler<'a> {
             flags.set(SubPatternFlags::Greedy);
         }
 
-        let atoms = self.compile_regexp(&head);
+        let atoms = self.compile_regexp(&head, span)?;
 
         if pattern.flags.contains(PatternFlags::Wide) {
             self.add_sub_pattern(
@@ -870,6 +878,8 @@ impl<'a> Compiler<'a> {
                 SubPatternAtom::from_regexp_atom,
             );
         }
+
+        Ok(())
     }
 
     fn process_alternation_literal(
@@ -966,7 +976,8 @@ impl<'a> Compiler<'a> {
         leading: &re::hir::Hir,
         trailing: &[ChainedPattern],
         flags: PatternFlagSet,
-    ) {
+        span: Span,
+    ) -> Result<(), CompileError> {
         let ascii = flags.contains(PatternFlags::Ascii);
         let wide = flags.contains(PatternFlags::Wide);
         let case_insensitive = flags.contains(PatternFlags::Nocase);
@@ -1001,7 +1012,7 @@ impl<'a> Compiler<'a> {
                 flags.set(SubPatternFlags::Greedy);
             }
 
-            let atoms = self.compile_regexp(leading);
+            let atoms = self.compile_regexp(leading, span)?;
 
             if wide {
                 prev_sub_pattern_wide = self.add_sub_pattern(
@@ -1060,7 +1071,7 @@ impl<'a> Compiler<'a> {
                     flags.set(SubPatternFlags::Greedy);
                 }
 
-                let atoms = self.compile_regexp(&p.hir);
+                let atoms = self.compile_regexp(&p.hir, span)?;
 
                 if wide {
                     prev_sub_pattern_wide = self.add_sub_pattern(
@@ -1087,15 +1098,31 @@ impl<'a> Compiler<'a> {
                 }
             }
         }
+
+        Ok(())
     }
 
     fn compile_regexp(
         &mut self,
         hir: &re::hir::Hir,
-    ) -> Vec<re::compiler::RegexpAtom> {
+        span: Span,
+    ) -> Result<Vec<re::compiler::RegexpAtom>, CompileError> {
         let re_compiler = re::compiler::Compiler::new();
-        let (forward_code, backward_code, mut atoms) =
-            re_compiler.compile(hir);
+
+        let r = match re_compiler.compile(hir) {
+            Ok(r) => r,
+            Err(re::compiler::Error::TooLarge) => {
+                return Err(CompileError::from(
+                    CompileErrorInfo::invalid_regexp(
+                        &self.report_builder,
+                        "regexp is too large".to_string(),
+                        span,
+                    ),
+                ))
+            }
+        };
+
+        let (forward_code, backward_code, mut atoms) = r;
 
         // `fwd_code` will contain the offset within the `re_code` vector
         // where the forward code resides.
@@ -1115,7 +1142,7 @@ impl<'a> Compiler<'a> {
             atom.code_loc.bck += bck_code;
         }
 
-        atoms
+        Ok(atoms)
     }
 
     fn process_literal_chain_head(

@@ -209,6 +209,26 @@ rule test {
             r#"
 rule test {
   strings:
+    $a = /a.{0,32000}b/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:10]
+   │
+ 4 │     $a = /a.{0,32000}b/
+   │          ───────┬──────  
+   │                 ╰──────── regexp is too large
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
     $a = "foo"
   condition: 
     #a in (0.."10") == 0

@@ -15,6 +15,7 @@ use regex_syntax::hir;
 use regex_syntax::hir::{
     visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition,
 };
+use thiserror::Error;
 
 use yara_x_parser::ast::HexByte;
 
@@ -25,6 +26,12 @@ use crate::re::instr::{
     literal_code_length, Instr, InstrSeq, NumAlt, OPCODE_PREFIX,
 };
 
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("regexp too large")]
+    TooLarge,
+}
+
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default)]
 pub(crate) struct Location {
     pub fwd: usize,
@@ -33,15 +40,15 @@ pub(crate) struct Location {
 }
 
 impl Location {
-    fn sub(&self, rhs: &Self) -> Offset {
-        Offset {
+    fn sub(&self, rhs: &Self) -> Result<Offset, Error> {
+        Ok(Offset {
             fwd: (self.fwd as isize - rhs.fwd as isize)
                 .try_into()
-                .expect("regexp too large"),
+                .map_err(|_| Error::TooLarge)?,
             bck: (self.bck as isize - rhs.bck as isize)
                 .try_into()
-                .expect("regexp too large"),
-        }
+                .map_err(|_| Error::TooLarge)?,
+        })
     }
 }
 
@@ -144,17 +151,17 @@ impl Compiler {
     pub fn compile(
         mut self,
         hir: &re::hir::Hir,
-    ) -> (InstrSeq, InstrSeq, Vec<RegexpAtom>) {
-        visit(&hir.inner, &mut self).unwrap();
+    ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
+        visit(&hir.inner, &mut self)?;
 
         self.forward_code.emit_instr(Instr::MATCH);
         self.backward_code.emit_instr(Instr::MATCH);
 
-        (
+        Ok((
             self.forward_code,
             self.backward_code,
             self.best_atoms.pop().unwrap().1,
-        )
+        ))
     }
 }
 
@@ -381,7 +388,10 @@ impl Compiler {
         self.best_atoms.push((i32::MIN, Vec::new()));
     }
 
-    fn visit_post_alternation(&mut self, expressions: &Vec<Hir>) -> Location {
+    fn visit_post_alternation(
+        &mut self,
+        expressions: &Vec<Hir>,
+    ) -> Result<Location, Error> {
         // e1|e2|....|eN
         //
         //         split_n l1,l2,l3
@@ -402,17 +412,20 @@ impl Compiler {
         for _ in 0..n - 1 {
             expr_locs.push(self.bookmarks.pop().unwrap());
             let ln_j = self.bookmarks.pop().unwrap();
-            self.patch_instr(&ln_j, l_end.sub(&ln_j));
+            self.patch_instr(&ln_j, l_end.sub(&ln_j)?);
         }
 
         expr_locs.push(self.bookmarks.pop().unwrap());
 
         let split_loc = self.bookmarks.pop().unwrap();
 
-        let offsets =
-            expr_locs.into_iter().rev().map(|loc| loc.sub(&split_loc));
+        let offsets: Vec<Offset> = expr_locs
+            .into_iter()
+            .rev()
+            .map(|loc| loc.sub(&split_loc))
+            .collect::<Result<Vec<Offset>, Error>>()?;
 
-        self.patch_split_n(&split_loc, offsets);
+        self.patch_split_n(&split_loc, offsets.into_iter());
 
         // Remove the last N items from best atoms and put them in
         // `last_n`. These last N items correspond to each of the N
@@ -437,7 +450,7 @@ impl Compiler {
             *best_atoms = alternative_atoms;
         }
 
-        split_loc
+        Ok(split_loc)
     }
 
     fn visit_pre_repetition(&mut self, rep: &Repetition) {
@@ -499,7 +512,10 @@ impl Compiler {
         }
     }
 
-    fn visit_post_repetition(&mut self, rep: &Repetition) -> Location {
+    fn visit_post_repetition(
+        &mut self,
+        rep: &Repetition,
+    ) -> Result<Location, Error> {
         match (rep.min, rep.max, rep.greedy) {
             // e* and e*?
             //
@@ -511,10 +527,11 @@ impl Compiler {
                 let l1 = self.bookmarks.pop().unwrap();
                 let l2 = self.emit_instr(Instr::JUMP);
                 let l3 = self.location();
-                self.patch_instr(&l1, l3.sub(&l1));
-                self.patch_instr(&l2, l1.sub(&l2));
+                self.patch_instr(&l1, l3.sub(&l1)?);
+                self.patch_instr(&l2, l1.sub(&l2)?);
                 self.zero_rep_depth -= 1;
-                l1
+
+                Ok(l1)
             }
             // e+ and e+?
             //
@@ -528,9 +545,9 @@ impl Compiler {
                 } else {
                     Instr::SPLIT_A
                 });
-                self.patch_instr(&l2, l1.sub(&l2));
+                self.patch_instr(&l2, l1.sub(&l2)?);
 
-                l1
+                Ok(l1)
             }
             // e{min,}   min > 1
             //
@@ -567,7 +584,7 @@ impl Compiler {
                     Instr::SPLIT_A
                 });
 
-                self.patch_instr(&l2, l1.sub(&l2));
+                self.patch_instr(&l2, l1.sub(&l2)?);
                 self.emit_clone(start, end);
 
                 // If the best atoms were extracted from the expression inside
@@ -599,7 +616,7 @@ impl Compiler {
                     }
                 }
 
-                start
+                Ok(start)
             }
             // e{min,max}
             //
@@ -658,14 +675,14 @@ impl Compiler {
 
                 for _ in 0..max - min {
                     let split = self.bookmarks.pop().unwrap();
-                    self.patch_instr(&split, end.sub(&split));
+                    self.patch_instr(&split, end.sub(&split)?);
                 }
 
                 if min == 0 {
                     self.zero_rep_depth -= 1;
                 }
 
-                start
+                Ok(start)
             }
         }
     }
@@ -673,7 +690,7 @@ impl Compiler {
 
 impl hir::Visitor for &mut Compiler {
     type Output = ();
-    type Err = std::io::Error;
+    type Err = Error;
 
     fn finish(self) -> Result<Self::Output, Self::Err> {
         Ok(())
@@ -721,10 +738,10 @@ impl hir::Visitor for &mut Compiler {
                 self.visit_post_concat(expressions)
             }
             HirKind::Alternation(expressions) => {
-                self.visit_post_alternation(expressions)
+                self.visit_post_alternation(expressions)?
             }
             HirKind::Repetition(repeated) => {
-                self.visit_post_repetition(repeated)
+                self.visit_post_repetition(repeated)?
             }
         };
 
@@ -848,6 +865,7 @@ impl hir::Visitor for &mut Compiler {
         // The best atoms for this alternative are independent from the
         // other alternatives.
         self.best_atoms.push((i32::MIN, Vec::new()));
+
         Ok(())
     }
 
