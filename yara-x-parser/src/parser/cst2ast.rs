@@ -30,13 +30,13 @@ macro_rules! expect {
 }
 
 macro_rules! new_binary_expr {
-    ($variant:expr, $op:tt, $lhs:ident, $rhs:ident) => {{
+    ($variant:expr, $lhs:ident, $rhs:ident) => {{
         Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs))))
     }};
 }
 
 macro_rules! new_string_expr {
-    ($variant:expr,$op:ident, $lhs:ident, $rhs:ident) => {{
+    ($variant:expr, $lhs:ident, $rhs:ident) => {{
         Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs))))
     }};
 }
@@ -77,85 +77,85 @@ fn create_binary_expr<'src>(
         }
         // Boolean
         GrammarRule::k_OR => {
-            new_binary_expr!(Expr::Or, or, lhs, rhs)
+            new_binary_expr!(Expr::Or, lhs, rhs)
         }
         GrammarRule::k_AND => {
-            new_binary_expr!(Expr::And, and, lhs, rhs)
+            new_binary_expr!(Expr::And, lhs, rhs)
         }
         // Arithmetic
         GrammarRule::ADD => {
-            new_binary_expr!(Expr::Add, add, lhs, rhs)
+            new_binary_expr!(Expr::Add, lhs, rhs)
         }
         GrammarRule::SUB => {
-            new_binary_expr!(Expr::Sub, sub, lhs, rhs)
+            new_binary_expr!(Expr::Sub, lhs, rhs)
         }
         GrammarRule::MUL => {
-            new_binary_expr!(Expr::Mul, mul, lhs, rhs)
+            new_binary_expr!(Expr::Mul, lhs, rhs)
         }
         GrammarRule::DIV => {
-            new_binary_expr!(Expr::Div, div, lhs, rhs)
+            new_binary_expr!(Expr::Div, lhs, rhs)
         }
         GrammarRule::MOD => {
-            new_binary_expr!(Expr::Mod, rem, lhs, rhs)
+            new_binary_expr!(Expr::Mod, lhs, rhs)
         }
         // Bitwise
         GrammarRule::SHL => {
-            new_binary_expr!(Expr::Shl, shl, lhs, rhs)
+            new_binary_expr!(Expr::Shl, lhs, rhs)
         }
         GrammarRule::SHR => {
-            new_binary_expr!(Expr::Shr, shr, lhs, rhs)
+            new_binary_expr!(Expr::Shr, lhs, rhs)
         }
         GrammarRule::BITWISE_AND => {
-            new_binary_expr!(Expr::BitwiseAnd, bitwise_and, lhs, rhs)
+            new_binary_expr!(Expr::BitwiseAnd, lhs, rhs)
         }
         GrammarRule::BITWISE_OR => {
-            new_binary_expr!(Expr::BitwiseOr, bitwise_or, lhs, rhs)
+            new_binary_expr!(Expr::BitwiseOr, lhs, rhs)
         }
         GrammarRule::BITWISE_XOR => {
-            new_binary_expr!(Expr::BitwiseXor, bitwise_xor, lhs, rhs)
+            new_binary_expr!(Expr::BitwiseXor, lhs, rhs)
         }
         // Comparison
         GrammarRule::EQ => {
-            new_binary_expr!(Expr::Eq, eq, lhs, rhs)
+            new_binary_expr!(Expr::Eq, lhs, rhs)
         }
         GrammarRule::NE => {
-            new_binary_expr!(Expr::Ne, ne, lhs, rhs)
+            new_binary_expr!(Expr::Ne, lhs, rhs)
         }
         GrammarRule::LT => {
-            new_binary_expr!(Expr::Lt, lt, lhs, rhs)
+            new_binary_expr!(Expr::Lt, lhs, rhs)
         }
         GrammarRule::LE => {
-            new_binary_expr!(Expr::Le, le, lhs, rhs)
+            new_binary_expr!(Expr::Le, lhs, rhs)
         }
         GrammarRule::GT => {
-            new_binary_expr!(Expr::Gt, gt, lhs, rhs)
+            new_binary_expr!(Expr::Gt, lhs, rhs)
         }
         GrammarRule::GE => {
-            new_binary_expr!(Expr::Ge, ge, lhs, rhs)
+            new_binary_expr!(Expr::Ge, lhs, rhs)
         }
         GrammarRule::k_STARTSWITH => {
-            new_string_expr!(Expr::StartsWith, starts_with_str, lhs, rhs)
+            new_string_expr!(Expr::StartsWith, lhs, rhs)
         }
         GrammarRule::k_ISTARTSWITH => {
-            new_string_expr!(Expr::IStartsWith, starts_with_str, lhs, rhs)
+            new_string_expr!(Expr::IStartsWith, lhs, rhs)
         }
         GrammarRule::k_ENDSWITH => {
-            new_string_expr!(Expr::EndsWith, ends_with_str, lhs, rhs)
+            new_string_expr!(Expr::EndsWith, lhs, rhs)
         }
         GrammarRule::k_IENDSWITH => {
-            new_string_expr!(Expr::IEndsWith, ends_with_str, lhs, rhs)
+            new_string_expr!(Expr::IEndsWith, lhs, rhs)
         }
         GrammarRule::k_CONTAINS => {
-            new_string_expr!(Expr::Contains, contains_str, lhs, rhs)
+            new_string_expr!(Expr::Contains, lhs, rhs)
         }
         GrammarRule::k_ICONTAINS => {
-            new_string_expr!(Expr::IContains, contains_str, lhs, rhs)
+            new_string_expr!(Expr::IContains, lhs, rhs)
         }
         GrammarRule::k_IEQUALS => {
-            new_string_expr!(Expr::IEquals, equals_str, lhs, rhs)
+            new_string_expr!(Expr::IEquals, lhs, rhs)
         }
         GrammarRule::k_MATCHES => {
-            new_binary_expr!(Expr::Matches, matches, lhs, rhs)
+            new_binary_expr!(Expr::Matches, lhs, rhs)
         }
 
         rule => unreachable!("{:?}", rule),
