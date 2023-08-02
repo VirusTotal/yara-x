@@ -30,13 +30,7 @@ macro_rules! expect {
 }
 
 macro_rules! new_binary_expr {
-    ($variant:expr, $lhs:ident, $rhs:ident) => {{
-        Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs))))
-    }};
-}
-
-macro_rules! new_string_expr {
-    ($variant:expr, $lhs:ident, $rhs:ident) => {{
+    ($variant:path, $lhs:ident, $rhs:ident) => {{
         Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs))))
     }};
 }
@@ -134,25 +128,25 @@ fn create_binary_expr<'src>(
             new_binary_expr!(Expr::Ge, lhs, rhs)
         }
         GrammarRule::k_STARTSWITH => {
-            new_string_expr!(Expr::StartsWith, lhs, rhs)
+            new_binary_expr!(Expr::StartsWith, lhs, rhs)
         }
         GrammarRule::k_ISTARTSWITH => {
-            new_string_expr!(Expr::IStartsWith, lhs, rhs)
+            new_binary_expr!(Expr::IStartsWith, lhs, rhs)
         }
         GrammarRule::k_ENDSWITH => {
-            new_string_expr!(Expr::EndsWith, lhs, rhs)
+            new_binary_expr!(Expr::EndsWith, lhs, rhs)
         }
         GrammarRule::k_IENDSWITH => {
-            new_string_expr!(Expr::IEndsWith, lhs, rhs)
+            new_binary_expr!(Expr::IEndsWith, lhs, rhs)
         }
         GrammarRule::k_CONTAINS => {
-            new_string_expr!(Expr::Contains, lhs, rhs)
+            new_binary_expr!(Expr::Contains, lhs, rhs)
         }
         GrammarRule::k_ICONTAINS => {
-            new_string_expr!(Expr::IContains, lhs, rhs)
+            new_binary_expr!(Expr::IContains, lhs, rhs)
         }
         GrammarRule::k_IEQUALS => {
-            new_string_expr!(Expr::IEquals, lhs, rhs)
+            new_binary_expr!(Expr::IEquals, lhs, rhs)
         }
         GrammarRule::k_MATCHES => {
             new_binary_expr!(Expr::Matches, lhs, rhs)
