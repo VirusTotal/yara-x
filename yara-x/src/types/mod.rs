@@ -212,36 +212,6 @@ pub enum TypeValue {
     Func(Rc<Func>),
 }
 
-macro_rules! gen_boolean_op {
-    ($name:ident, $op:tt) => {
-        pub fn $name(&self, rhs: &Self) -> Self {
-            match (self, rhs) {
-                (Self::Unknown, _) | (_, Self::Unknown) => Self::Unknown,
-                _ => {
-                    match (self.cast_to_bool(), rhs.cast_to_bool()) {
-                        (Self::Bool(lhs), Self::Bool(rhs)) => {
-                            let is_const = lhs.is_const() && rhs.is_const();
-                            match (lhs.extract(), rhs.extract()) {
-                                (Some(lhs), Some(rhs)) => {
-                                    if is_const {
-                                        Self::Bool(Value::Const(*lhs $op *rhs))
-                                    } else {
-                                        Self::Bool(Value::Var(*lhs $op *rhs))
-                                    }
-                                }
-                                _ => Self::Bool(Value::Unknown)
-                            }
-                        },
-                        _ => {
-                             Self::Bool(Value::Unknown)
-                        },
-                    }
-                }
-            }
-        }
-    };
-}
-
 macro_rules! gen_arithmetic_op {
     ($name:ident, $op:tt, $checked_op:ident) => {
         pub fn $name(&self, rhs: &Self) -> Self {
@@ -483,9 +453,6 @@ macro_rules! gen_comparison_op {
 }
 
 impl TypeValue {
-    gen_boolean_op!(and, &&);
-    gen_boolean_op!(or, ||);
-
     gen_arithmetic_op!(add, +, checked_add);
     gen_arithmetic_op!(sub, -, checked_sub);
     gen_arithmetic_op!(mul, *, checked_mul);
@@ -669,7 +636,7 @@ impl TypeValue {
     /// # Panics
     ///
     /// If the [`TypeValue`] has a type that can't be casted to bool. Only
-    /// integers, floats, and strings can be casted to bool.
+    /// integers, floats, and strings and bools can be casted to bool.
     pub fn cast_to_bool(&self) -> Self {
         match self {
             Self::Integer(Value::Unknown) => Self::Bool(Value::Unknown),
@@ -776,6 +743,14 @@ impl TypeValue {
             panic!(
                 "called `as_bool` on a TypeValue that is not TypeValue::Bool"
             )
+        }
+    }
+
+    pub fn try_as_bool(&self) -> Option<bool> {
+        if let TypeValue::Bool(value) = self {
+            value.extract().cloned()
+        } else {
+            None
         }
     }
 }
@@ -983,36 +958,6 @@ mod tests {
         assert_eq!(Integer(Var(5)).rem(&Float(Var(2.0))), Float(Var(1.0)));
         assert_eq!(Float(Var(3.0)).rem(&Float(Var(2.0))), Float(Var(1.0)));
         assert_eq!(Integer(Var(2)).rem(&Integer(Var(0))), Integer(Unknown));
-    }
-
-    #[test]
-    fn and() {
-        assert_eq!(
-            TypeValue::Unknown.and(&Bool(Var(true))),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(
-            Bool(Var(true)).and(&TypeValue::Unknown),
-            TypeValue::Unknown
-        );
-
-        assert_eq!(Bool(Var(true)).and(&Bool(Unknown)), Bool(Unknown));
-        assert_eq!(Bool(Unknown).and(&Bool(Var(true))), Bool(Unknown));
-
-        assert_eq!(Bool(Var(true)).and(&Bool(Var(false))), Bool(Var(false)));
-
-        assert_eq!(Bool(Var(true)).and(&Bool(Var(true))), Bool(Var(true)));
-        assert_eq!(Integer(Var(1)).and(&Bool(Var(true))), Bool(Var(true)));
-        assert_eq!(Integer(Var(0)).and(&Bool(Var(true))), Bool(Var(false)));
-
-        assert_eq!(
-            Integer(Var(1)).and(&String(Var(BString::from("foo")))),
-            Bool(Var(true))
-        );
-
-        assert_eq!(Float(Var(1.0)).and(&Float(Var(2.0))), Bool(Var(true)));
-        assert_eq!(Float(Var(0.0)).and(&Float(Var(2.0))), Bool(Var(false)));
     }
 
     #[test]

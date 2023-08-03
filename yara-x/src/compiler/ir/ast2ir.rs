@@ -1,5 +1,6 @@
 /*! Functions for converting an AST into an IR. */
 
+use itertools::Itertools;
 use std::borrow::Borrow;
 use std::iter;
 use std::ops::{Deref, RangeInclusive};
@@ -236,8 +237,8 @@ pub(in crate::compiler) fn expr_from_ast(
 
         // Boolean operations
         ast::Expr::Not(expr) => not_expr_from_ast(ctx, expr),
-        ast::Expr::And(expr) => and_expr_from_ast(ctx, expr),
-        ast::Expr::Or(expr) => or_expr_from_ast(ctx, expr),
+        ast::Expr::And(operands) => and_expr_from_ast(ctx, operands),
+        ast::Expr::Or(operands) => or_expr_from_ast(ctx, operands),
 
         // Arithmetic operations
         ast::Expr::Minus(expr) => minus_expr_from_ast(ctx, expr),
@@ -1138,6 +1139,24 @@ fn check_type(
     }
 }
 
+fn check_type2(
+    ctx: &Context,
+    expr: &ast::Expr,
+    ty: Type,
+    accepted_types: &[Type],
+) -> Result<(), CompileError> {
+    if accepted_types.contains(&ty) {
+        Ok(())
+    } else {
+        Err(CompileError::from(CompileErrorInfo::wrong_type(
+            ctx.report_builder,
+            ErrorInfo::join_with_or(accepted_types, true),
+            ty.to_string(),
+            expr.span(),
+        )))
+    }
+}
+
 fn check_operands(
     ctx: &Context,
     lhs_ty: Type,
@@ -1368,6 +1387,75 @@ macro_rules! gen_string_op {
     };
 }
 
+macro_rules! gen_n_ary_operation {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
+        fn $name(
+            ctx: &mut Context,
+            operands: &ast::Operands,
+        ) -> Result<Expr, CompileError> {
+            let accepted_types = &[$( $accepted_types ),+];
+            let compatible_types = &[$( $compatible_types ),+];
+
+            let operands_hir: Vec<Expr> = operands
+                .iter()
+                .map(|expr| expr_from_ast(ctx, expr))
+                .collect::<Result<Vec<Expr>, CompileError>>()?;
+
+            let check_fn:
+                Option<fn(&mut Context, &Expr, Span) -> Result<(), CompileError>>
+                = $check_fn;
+
+            // Make sure that all operands have one of the accepted types.
+            for (hir, ast) in iter::zip(operands_hir.iter(), operands.iter()) {
+                check_type2(ctx, ast, hir.ty(), accepted_types)?;
+                if let Some(check_fn) = check_fn {
+                    check_fn(ctx, hir, ast.span())?;
+                }
+            }
+
+            // Iterate the operands in pairs (first, second), (second, third),
+            // (third, fourth), etc.
+            for ((lhs_hir, rhs_ast), (rhs_hir, lhs_ast)) in
+                iter::zip(operands_hir.iter(), operands.iter()).tuple_windows()
+            {
+                let lhs_ty = lhs_hir.ty();
+                let rhs_ty = rhs_hir.ty();
+
+                let types_are_compatible = {
+                    // If the types are the same, they are compatible.
+                    (lhs_ty == rhs_ty)
+                        // If both types are in the list of compatible types,
+                        // they are compatible too.
+                        || (
+                        compatible_types.contains(&lhs_ty)
+                            && compatible_types.contains(&rhs_ty)
+                    )
+                };
+
+                if !types_are_compatible {
+                    return Err(CompileError::from(
+                        CompileErrorInfo::mismatching_types(
+                            ctx.report_builder,
+                            lhs_ty.to_string(),
+                            rhs_ty.to_string(),
+                            operands.first().span().combine(&lhs_ast.span()),
+                            rhs_ast.span(),
+                        ),
+                    ));
+                }
+            }
+
+            let expr = Expr::$variant { operands: operands_hir };
+
+            if cfg!(feature = "constant-folding") {
+                Ok(expr.fold())
+            } else {
+                Ok(expr)
+            }
+        }
+    };
+}
+
 gen_unary_op!(
     defined_expr_from_ast,
     Defined,
@@ -1390,38 +1478,32 @@ gen_unary_op!(
     })
 );
 
-gen_binary_op!(
+gen_n_ary_operation!(
     and_expr_from_ast,
     And,
-    and,
     // Boolean operations accept integer, float and string operands.
     // If operands are not boolean they are casted to boolean.
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // All operand types can be mixed in a boolean operation, as they
     // are casted to boolean anyways.
     Type::Bool | Type::Integer | Type::Float | Type::String,
-    // Raise warning if some of the operands is not bool.
-    Some(|ctx, lhs, rhs, lhs_span, rhs_span| {
-        warn_if_not_bool(ctx, lhs.ty(), lhs_span);
-        warn_if_not_bool(ctx, rhs.ty(), rhs_span);
+    Some(|ctx, operand, span| {
+        warn_if_not_bool(ctx, operand.ty(), span);
         Ok(())
     })
 );
 
-gen_binary_op!(
+gen_n_ary_operation!(
     or_expr_from_ast,
     Or,
-    or,
     // Boolean operations accept integer, float and string operands.
     // If operands are not boolean they are casted to boolean.
     Type::Bool | Type::Integer | Type::Float | Type::String,
     // All operand types can be mixed in a boolean operation, as they
     // are casted to boolean anyways.
     Type::Bool | Type::Integer | Type::Float | Type::String,
-    // Raise warning if some of the operands is not bool.
-    Some(|ctx, lhs, rhs, lhs_span, rhs_span| {
-        warn_if_not_bool(ctx, lhs.ty(), lhs_span);
-        warn_if_not_bool(ctx, rhs.ty(), rhs_span);
+    Some(|ctx, operand, span| {
+        warn_if_not_bool(ctx, operand.ty(), span);
         Ok(())
     })
 );
@@ -1434,10 +1516,9 @@ gen_unary_op!(
     None
 );
 
-gen_binary_op!(
+gen_n_ary_operation!(
     add_expr_from_ast,
     Add,
-    add,
     Type::Integer | Type::Float,
     Type::Integer | Type::Float,
     None

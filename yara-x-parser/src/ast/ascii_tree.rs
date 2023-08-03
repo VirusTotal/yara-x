@@ -78,20 +78,20 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
         Expr::Not(expr) => {
             Node("not".to_string(), vec![expr_ascii_tree(&expr.operand)])
         }
-        Expr::And(expr) => Node(
+        Expr::And(operands) => Node(
             "and".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
+            operands.iter().map(|expr| expr_ascii_tree(expr)).collect(),
         ),
-        Expr::Or(expr) => Node(
+        Expr::Or(operands) => Node(
             "or".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
+            operands.iter().map(|expr| expr_ascii_tree(expr)).collect(),
         ),
         Expr::Minus(expr) => {
             Node("minus".to_string(), vec![expr_ascii_tree(&expr.operand)])
         }
-        Expr::Add(expr) => Node(
+        Expr::Add(operands) => Node(
             "add".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
+            operands.iter().map(|expr| expr_ascii_tree(expr)).collect(),
         ),
         Expr::Sub(expr) => Node(
             "sub".to_string(),

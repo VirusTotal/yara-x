@@ -27,6 +27,7 @@ use std::collections::btree_map::Values;
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
+use std::slice::Iter;
 
 use bitmask::bitmask;
 use bstr::BStr;
@@ -476,16 +477,16 @@ pub enum Expr<'src> {
     Not(Box<UnaryExpr<'src>>),
 
     /// Boolean `and` expression.
-    And(Box<BinaryExpr<'src>>),
+    And(Operands<'src>),
 
     /// Boolean `or` expression.
-    Or(Box<BinaryExpr<'src>>),
+    Or(Operands<'src>),
 
     /// Arithmetic minus.
     Minus(Box<UnaryExpr<'src>>),
 
     /// Arithmetic add (`+`) expression.
-    Add(Box<BinaryExpr<'src>>),
+    Add(Operands<'src>),
 
     /// Arithmetic subtraction (`-`) expression.
     Sub(Box<BinaryExpr<'src>>),
@@ -751,6 +752,43 @@ pub struct BinaryExpr<'src> {
 impl<'src> BinaryExpr<'src> {
     pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
         Self { lhs, rhs }
+    }
+}
+
+/// An expression with multiple operands.
+#[derive(Debug)]
+pub struct Operands<'src>(Vec<Expr<'src>>);
+
+impl<'src> Operands<'src> {
+    pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
+        Self(vec![lhs, rhs])
+    }
+
+    #[inline]
+    pub fn iter(&self) -> Iter<'_, Expr<'src>> {
+        self.0.iter()
+    }
+
+    #[inline]
+    pub fn add(&mut self, expr: Expr<'src>) {
+        self.0.push(expr);
+    }
+
+    pub fn first(&self) -> &Expr<'src> {
+        self.0
+            .first()
+            .expect("expression is expected to have at least one operand")
+    }
+
+    pub fn last(&self) -> &Expr<'src> {
+        self.0
+            .last()
+            .expect("expression is expected to have at least one operand")
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[Expr<'src>] {
+        self.0.as_slice()
     }
 }
 

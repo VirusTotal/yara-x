@@ -10,17 +10,16 @@
     └─ rule test
        └─ condition
           └─ and
-             ├─ and
-             │  ├─ eq
-             │  │  ├─ bitwise_or
-             │  │  │  ├─ 2
-             │  │  │  └─ 1
-             │  │  └─ 3
-             │  └─ eq
-             │     ├─ bitwise_and
-             │     │  ├─ 3
-             │     │  └─ 2
-             │     └─ 2
+             ├─ eq
+             │  ├─ bitwise_or
+             │  │  ├─ 2
+             │  │  └─ 1
+             │  └─ 3
+             ├─ eq
+             │  ├─ bitwise_and
+             │  │  ├─ 3
+             │  │  └─ 2
+             │  └─ 2
              └─ eq
                 ├─ bitwise_xor
                 │  ├─ 3

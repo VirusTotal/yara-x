@@ -134,14 +134,12 @@ pub(in crate::compiler) enum Expr {
 
     /// Boolean `and` expression
     And {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// Boolean `or` expression
     Or {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// Arithmetic minus.
@@ -151,8 +149,7 @@ pub(in crate::compiler) enum Expr {
 
     /// Arithmetic addition (`+`) expression.
     Add {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// Arithmetic subtraction (`-`) expression.
@@ -500,8 +497,16 @@ impl Expr {
                 _ => Type::Float,
             },
 
-            Expr::Add { lhs, rhs, .. }
-            | Expr::Sub { lhs, rhs, .. }
+            Expr::Add { operands } => {
+                // If any of the operands is float, the result is also float.
+                if operands.iter().any(|op| matches!(op.ty(), Type::Float)) {
+                    Type::Float
+                } else {
+                    Type::Integer
+                }
+            }
+
+            Expr::Sub { lhs, rhs, .. }
             | Expr::Mul { lhs, rhs, .. }
             | Expr::Div { lhs, rhs, .. } => match (lhs.ty(), rhs.ty()) {
                 // If both operands are integer, the expression's type is
@@ -568,8 +573,16 @@ impl Expr {
                 _ => TypeValue::Float(Value::Unknown),
             },
 
-            Expr::Add { lhs, rhs, .. }
-            | Expr::Sub { lhs, rhs, .. }
+            Expr::Add { operands } => {
+                // If any of the operands is float, the expression's type is
+                // float.
+                if operands.iter().any(|op| matches!(op.ty(), Type::Float)) {
+                    TypeValue::Float(Value::Unknown)
+                } else {
+                    TypeValue::Integer(Value::Unknown)
+                }
+            }
+            Expr::Sub { lhs, rhs, .. }
             | Expr::Mul { lhs, rhs, .. }
             | Expr::Div { lhs, rhs, .. } => match (lhs.ty(), rhs.ty()) {
                 // If both operands are integer, the expression's type is
@@ -602,6 +615,108 @@ impl Expr {
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),
             Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
+        }
+    }
+
+    pub fn fold(self) -> Self {
+        match self {
+            Expr::And { mut operands } => {
+                // Retain the operands whose value is unknown or false, and
+                // remove those that are known to be true. True values in
+                // the list of operands don't alter the result of the AND
+                // operation.
+                operands.retain(|op| {
+                    !op.type_value()
+                        .cast_to_bool()
+                        .try_as_bool()
+                        .unwrap_or(false)
+                });
+
+                // No operands left, all were true and therefore the AND is
+                // also true.
+                if operands.is_empty() {
+                    return Expr::Const {
+                        // TODO: create a method in TypeValue for making this simpler?
+                        type_value: TypeValue::Bool(Value::Const(true)),
+                    };
+                }
+
+                // If any of the remaining operands is constant it has to be
+                // false because true values were removed, the result is false
+                // regardless of the operands with unknown values.
+                if operands.iter().any(|op| op.type_value().is_const()) {
+                    return Expr::Const {
+                        // TODO: create a method in TypeValue for making this simpler?
+                        type_value: TypeValue::Bool(Value::Const(false)),
+                    };
+                }
+
+                Expr::And { operands }
+            }
+            Expr::Or { mut operands } => {
+                // Retain the operands whose value is unknown or true, and
+                // remove those that are known to be false. False values in
+                // the list of operands don't alter the result of the OR
+                // operation.
+                operands.retain(|op| {
+                    op.type_value()
+                        .cast_to_bool()
+                        .try_as_bool()
+                        .unwrap_or(true)
+                });
+
+                // No operands left, all were false and therefore the OR is
+                // also false.
+                if operands.is_empty() {
+                    return Expr::Const {
+                        // TODO: create a method in TypeValue for making this simpler?
+                        type_value: TypeValue::Bool(Value::Const(false)),
+                    };
+                }
+
+                // If any of the remaining operands is constant it has to be
+                // true because false values were removed, the result is true
+                // regardless of the operands with unknown values.
+                if operands.iter().any(|op| op.type_value().is_const()) {
+                    return Expr::Const {
+                        // TODO: create a method in TypeValue for making this simpler?
+                        type_value: TypeValue::Bool(Value::Const(true)),
+                    };
+                }
+
+                Expr::Or { operands }
+            }
+
+            Expr::Add { operands } => {
+                return Expr::Add { operands };
+                /*
+                let mut sum = 0.0;
+                let mut is_float = false;
+                for operand in &operands {
+                    match operand.type_value() {
+                        TypeValue::Integer(Value::Const(v)) => {
+                            sum += v as f64;
+                        }
+                        TypeValue::Float(Value::Const(v)) => {
+                            is_float = true;
+                            sum += v;
+                        }
+                        _ => return Expr::Add { operands },
+                    }
+                }
+                if is_float {
+                    Expr::Const {
+                        type_value: TypeValue::Float(Value::Const(sum)),
+                    }
+                } else {
+                    Expr::Const {
+                        type_value: TypeValue::Integer(Value::Const(
+                            sum as i64,
+                        )),
+                    }
+                }*/
+            }
+            _ => self,
         }
     }
 }

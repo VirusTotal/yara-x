@@ -46,6 +46,22 @@
 
 - rule: |
     rule test {
+      condition:
+        foo or bar or baz
+    }
+  ast: |
+    root
+    └─ rule test
+       └─ condition
+          └─ or
+             ├─ foo
+             ├─ bar
+             └─ baz
+
+###############################################################################
+
+- rule: |
+    rule test {
       strings:
         $a = "foo"
       condition:
@@ -158,21 +174,18 @@
     └─ rule test
        └─ condition
           └─ and
-             ├─ and
-             │  ├─ and
-             │  │  ├─ and
-             │  │  │  ├─ gt
-             │  │  │  │  ├─ 2
-             │  │  │  │  └─ 1
-             │  │  │  └─ lt
-             │  │  │     ├─ 1.0
-             │  │  │     └─ 3
-             │  │  └─ le
-             │  │     ├─ 4
-             │  │     └─ 4.0
-             │  └─ gt
-             │     ├─ 5
-             │     └─ 4.9
+             ├─ gt
+             │  ├─ 2
+             │  └─ 1
+             ├─ lt
+             │  ├─ 1.0
+             │  └─ 3
+             ├─ le
+             │  ├─ 4
+             │  └─ 4.0
+             ├─ gt
+             │  ├─ 5
+             │  └─ 4.9
              └─ ge
                 ├─ 5
                 └─ 5.0

@@ -61,6 +61,35 @@ macro_rules! emit_operands {
     }};
 }
 
+macro_rules! emit_arithmetic_op2 {
+    ($ctx:ident, $instr:ident, $operands:expr, $int_op:tt, $float_op:tt) => {{
+        // If any of the operands is float, this is a float operation.
+        let is_float =
+            $operands.iter().any(|op| matches!(op.ty(), Type::Float));
+
+        let mut operands = $operands.iter_mut();
+        let first_operand = operands.next().unwrap();
+
+        emit_expr($ctx, $instr, first_operand);
+
+        if is_float && matches!(first_operand.ty(), Type::Integer) {
+            $instr.unop(UnaryOp::F64ConvertSI64);
+        }
+
+        while let Some(operand) = operands.next() {
+            emit_expr($ctx, $instr, operand);
+            if is_float {
+                if matches!(operand.ty(), Type::Integer) {
+                    $instr.unop(UnaryOp::F64ConvertSI64);
+                }
+                $instr.binop(BinaryOp::$float_op);
+            } else {
+                $instr.binop(BinaryOp::$int_op);
+            }
+        }
+    }};
+}
+
 macro_rules! emit_arithmetic_op {
     ($ctx:ident, $instr:ident, $lhs:expr, $rhs:expr, $int_op:tt, $float_op:tt) => {{
         match emit_operands!($ctx, $instr, $lhs, $rhs) {
@@ -380,69 +409,103 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
                 },
             );
         }
-        Expr::And { lhs, rhs } => {
-            // The `and` expression is emitted as:
+        Expr::And { operands } => {
+            // The `or` expression is emitted as:
             //
+            // block {
             //   try {
-            //     lhs = evaluate_left_operand()
+            //     result = first_operand()
             //   } catch undefined {
-            //     lhs = false
+            //     result = false
             //   }
-            //
-            //   if (lhs) {
-            //     try {
-            //        evaluate_right_operand()
-            //     } catch undefined {
-            //        false
-            //     }
-            //   } else {
-            //     false
+            //   if !result {
+            //     push false
+            //     exit from block
             //   }
-            //
-            catch_undef(ctx, instr, |ctx, instr| {
-                emit_bool_expr(ctx, instr, lhs);
-            });
-
-            instr.if_else(
-                I32,
-                |then_| {
-                    catch_undef(ctx, then_, |ctx, instr| {
-                        emit_bool_expr(ctx, instr, rhs);
-                    });
-                },
-                |else_| {
-                    else_.i32_const(0);
+            //   try {
+            //     result = second_operand()
+            //   } catch undefined {
+            //     result = false
+            //   }
+            //   if !result {
+            //     push false
+            //     exit from block
+            //   }
+            //   ...
+            //   push true
+            // }
+            instr.block(
+                I32, // the block returns a bool
+                |block| {
+                    let block_id = block.id();
+                    for operand in operands {
+                        catch_undef(ctx, block, |ctx, instr| {
+                            emit_bool_expr(ctx, instr, operand);
+                        });
+                        // If the operand is `false`, exit from the block
+                        // with a `false` result.
+                        block.if_else(
+                            None,
+                            |_| {},
+                            |else_| {
+                                else_.i32_const(0);
+                                else_.br(block_id);
+                            },
+                        );
+                    }
+                    // If none of the operands was false, fallback to returning
+                    // true.
+                    block.i32_const(1);
                 },
             );
         }
-        Expr::Or { lhs, rhs } => {
+        Expr::Or { operands } => {
             // The `or` expression is emitted as:
             //
+            // block {
             //   try {
-            //     lhs = evaluate_left_operand()
+            //     result = first_operand()
             //   } catch undefined {
-            //     lhs = false
+            //     result = false
             //   }
-            //
-            //   if (lhs) {
-            //     true
-            //   } else {
-            //     evaluate_right_operand()
+            //   if result {
+            //     push true
+            //     exit from block
             //   }
-            //
-            catch_undef(ctx, instr, |ctx, instr| {
-                emit_bool_expr(ctx, instr, lhs);
-            });
-
-            instr.if_else(
-                I32,
-                |then_| {
-                    then_.i32_const(1);
-                },
-                |else_| {
-                    catch_undef(ctx, else_, |ctx, instr| {
-                        emit_bool_expr(ctx, instr, rhs);
-                    });
+            //   try {
+            //     result = second_operand()
+            //   } catch undefined {
+            //     result = false
+            //   }
+            //   if result {
+            //     push true
+            //     exit from block
+            //   }
+            //   ...
+            //   push false
+            // }
+            instr.block(
+                I32, // the block returns a bool
+                |block| {
+                    let block_id = block.id();
+                    for operand in operands {
+                        catch_undef(ctx, block, |ctx, instr| {
+                            emit_bool_expr(ctx, instr, operand);
+                        });
+                        // If the operand is `true`, exit from the block
+                        // with a `true` result.
+                        block.if_else(
+                            None,
+                            |then_| {
+                                then_.i32_const(1);
+                                then_.br(block_id);
+                            },
+                            |_| {},
+                        );
+                    }
+                    // If none of the operands was true, fallback to returning
+                    // false.
+                    block.i32_const(0);
                 },
             );
         }
@@ -482,8 +545,8 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
             instr.i64_const(-1);
             instr.binop(BinaryOp::I64Xor);
         }
-        Expr::Add { lhs, rhs } => {
-            emit_arithmetic_op!(ctx, instr, lhs, rhs, I64Add, F64Add);
+        Expr::Add { operands } => {
+            emit_arithmetic_op2!(ctx, instr, operands, I64Add, F64Add);
         }
         Expr::Sub { lhs, rhs } => {
             emit_arithmetic_op!(ctx, instr, lhs, rhs, I64Sub, F64Sub);

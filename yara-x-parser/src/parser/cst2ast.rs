@@ -29,6 +29,46 @@ macro_rules! expect {
     }};
 }
 
+// Macro that returns an AST node for a binary operation.
+//
+// If `lhs` represents an operation than is equal to the one being processed,
+// then `rhs` can be added to `lhs` without creating new nodes in the AST tree.
+// For example, if `lhs` is an AST node that represents the expression `a + b`,
+// `rhs` represents the expression `c`, and the new operation is `+`, we don't
+// need to create a new AST node for representing the sum of `a + b` plus `c`,
+// instead, we can simply add `c` to the list of operands of the `lhs` node,
+// which becomes `a + b + c`.
+//
+// This way, instead of having this AST tree:
+//
+//  add (+)
+//  ├ add (+)
+//  │ ├─ a
+//  │ └─ b
+//  └─ c
+//
+// We have this other AST:
+//
+//  add (+)
+//  ├─ a
+//  ├─ b
+//  └─ c
+//
+// The more flat is our AST the better, as it reduces the stack size required
+// for recursive tree traversal and the amount of memory required for storing
+// the AST.
+macro_rules! binary_op {
+    ($variant:path, $lhs:ident, $rhs:ident) => {{
+        match $lhs {
+            $variant(ref mut operands) => {
+                operands.add($rhs);
+                Ok($lhs)
+            }
+            _ => Ok($variant(Operands::new($lhs, $rhs))),
+        }
+    }};
+}
+
 macro_rules! new_binary_expr {
     ($variant:path, $lhs:ident, $rhs:ident) => {{
         Ok($variant(Box::new(BinaryExpr::new($lhs, $rhs))))
@@ -61,7 +101,7 @@ fn create_unary_expr<'src>(
 }
 
 fn create_binary_expr<'src>(
-    lhs: Expr<'src>,
+    mut lhs: Expr<'src>,
     op: GrammarRule,
     rhs: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
@@ -71,14 +111,14 @@ fn create_binary_expr<'src>(
         }
         // Boolean
         GrammarRule::k_OR => {
-            new_binary_expr!(Expr::Or, lhs, rhs)
+            binary_op!(Expr::Or, lhs, rhs)
         }
         GrammarRule::k_AND => {
-            new_binary_expr!(Expr::And, lhs, rhs)
+            binary_op!(Expr::And, lhs, rhs)
         }
         // Arithmetic
         GrammarRule::ADD => {
-            new_binary_expr!(Expr::Add, lhs, rhs)
+            binary_op!(Expr::Add, lhs, rhs)
         }
         GrammarRule::SUB => {
             new_binary_expr!(Expr::Sub, lhs, rhs)
