@@ -220,6 +220,44 @@ rule test {
             line!(),
             r#"
 rule test {
+  condition: for any i in (0..1): ( 1 )
+}
+    "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:37]
+   │
+ 3 │   condition: for any i in (0..1): ( 1 )
+   │                                     ┬  
+   │                                     ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: for any of them: ( 1 )
+}
+    "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:33]
+   │
+ 3 │   condition: for any of them: ( 1 )
+   │                                 ┬  
+   │                                 ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
   condition: 2 and 3
 }
     "#,

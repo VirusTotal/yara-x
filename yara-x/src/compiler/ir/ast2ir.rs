@@ -687,10 +687,10 @@ fn for_of_expr_from_ast(
 
     let condition = expr_from_ast(ctx, &for_of.condition)?;
 
+    warn_if_not_bool(ctx, condition.ty(), for_of.condition.span());
+
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
-
-    check_type(ctx, condition.ty(), for_of.condition.span(), &[Type::Bool])?;
 
     Ok(Expr::ForOf(Box::new(ForOf {
         quantifier,
@@ -803,6 +803,8 @@ fn for_in_expr_from_ast(
     ctx.symbol_table.push(Rc::new(symbols));
 
     let condition = expr_from_ast(ctx, &for_in.condition)?;
+
+    warn_if_not_bool(ctx, condition.ty(), for_in.condition.span());
 
     // Leaving the condition's scope. Remove loop variables.
     ctx.symbol_table.pop();

@@ -368,6 +368,10 @@ fn intxx() {
 
 #[test]
 fn for_in() {
+    condition_true!("for any i in (0..1): ( 1 )");
+    condition_false!("for any i in (0..1): ( 0 )");
+    condition_true!(r#"for any i in (0..1): ( "a" )"#);
+    condition_false!(r#"for any i in (0..1): ( "" )"#);
     condition_true!("for all i in (0..0) : ( true )");
     condition_false!("for all i in (0..0) : ( false )");
     condition_false!("for none i in (0..0) : ( true )");

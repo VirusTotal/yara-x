@@ -1448,7 +1448,7 @@ fn emit_for_of_pattern_set(
         },
         // Condition
         |ctx, instr| {
-            emit_expr(ctx, instr, &mut for_of.condition);
+            emit_bool_expr(ctx, instr, &mut for_of.condition);
         },
         // After each iteration.
         |_, _, _| {},
@@ -1510,7 +1510,9 @@ fn emit_for_in_range(
         // Before each iteration.
         |_, _, _| {},
         // Condition.
-        |ctx, instr| emit_expr(ctx, instr, &mut for_in.condition),
+        |ctx, instr| {
+            emit_bool_expr(ctx, instr, &mut for_in.condition);
+        },
         // After each iteration.
         |ctx, instr, _| {
             incr_var(ctx, instr, next_item);
@@ -1609,7 +1611,7 @@ fn emit_for_in_array(
             }
         },
         |ctx, instr| {
-            emit_expr(ctx, instr, &mut for_in.condition);
+            emit_bool_expr(ctx, instr, &mut for_in.condition);
         },
         // After each iteration.
         |_, _, _| {},
@@ -1691,7 +1693,7 @@ fn emit_for_in_map(
         },
         // Condition.
         |ctx, instr| {
-            emit_expr(ctx, instr, &mut for_in.condition);
+            emit_bool_expr(ctx, instr, &mut for_in.condition);
         },
         // After each iteration.
         |_, _, _| {},
@@ -1741,7 +1743,7 @@ fn emit_for_in_expr_tuple(
         },
         // Condition.
         |ctx, instr| {
-            emit_expr(ctx, instr, &mut for_in.condition);
+            emit_bool_expr(ctx, instr, &mut for_in.condition);
         },
         // After each iteration.
         |_, _, _| {},
