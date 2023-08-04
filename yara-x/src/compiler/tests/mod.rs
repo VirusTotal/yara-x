@@ -46,15 +46,19 @@ fn serialization() {
 fn namespaces() {
     // `foo` and `bar` are both in the default namespace, this compiles
     // correctly.
-    assert!(Compiler::new()
+    let mut compiler = Compiler::new();
+
+    assert!(compiler
         .add_source("rule foo {condition: true}")
         .unwrap()
         .add_source("rule bar {condition: foo}")
         .is_ok());
 
+    let mut compiler = Compiler::new();
+
     // `bar` can't use `foo` because they are in different namespaces, this
     // be a compilation error.
-    assert!(Compiler::new()
+    assert!(compiler
         .add_source("rule foo {condition: true}")
         .unwrap()
         .new_namespace("bar")
@@ -98,13 +102,17 @@ fn var_stack() {
 
 #[test]
 fn globals() {
+    let mut compiler = Compiler::new();
+
     assert_eq!(
-        Compiler::new().define_global("#invalid", true).err().unwrap(),
+        compiler.define_global("#invalid", true).err().unwrap(),
         VariableError::InvalidIdentifier("#invalid".to_string())
     );
 
+    let mut compiler = Compiler::new();
+
     assert_eq!(
-        Compiler::new()
+        compiler
             .define_global("a", true)
             .unwrap()
             .define_global("a", false)
@@ -113,12 +121,15 @@ fn globals() {
         VariableError::AlreadyExists("a".to_string())
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("int_1", 1u8)
         .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -129,12 +140,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("int_1", 1u16)
         .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -145,12 +159,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("int_1", 1u32)
         .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -161,12 +178,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("int_1", 1i8)
         .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -177,12 +197,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("int_1", 1i16)
         .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -193,12 +216,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("int_1", 1i32)
         .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -209,12 +235,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("int_1", 1i64)
         .unwrap()
         .add_source("rule foo {condition: int_1 == 1}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -225,12 +254,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("float_1", 1_f32)
         .unwrap()
         .add_source("rule foo {condition: float_1 == 1.0}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -241,12 +273,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("float_1", 1_f64)
         .unwrap()
         .add_source("rule foo {condition: float_1 == 1.0}")
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -257,12 +292,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("str_foo", "foo")
         .unwrap()
         .add_source(r#"rule foo {condition: str_foo == "foo"}"#)
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -273,12 +311,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("bstr_foo", b"\0\0".as_slice())
         .unwrap()
         .add_source(r#"rule foo {condition: bstr_foo == "\0\0"}"#)
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)
@@ -289,12 +330,15 @@ fn globals() {
         1
     );
 
-    let rules = Compiler::new()
+    let mut compiler = Compiler::new();
+
+    compiler
         .define_global("str_foo", "foo".to_string())
         .unwrap()
         .add_source(r#"rule foo {condition: str_foo == "foo"}"#)
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     assert_eq!(
         Scanner::new(&rules)

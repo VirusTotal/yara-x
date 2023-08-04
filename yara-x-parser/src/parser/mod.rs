@@ -39,7 +39,7 @@ mod tests;
 ///
 /// ```
 /// use yara_x_parser::SourceCode;
-/// let src = SourceCode::from("rule test { condition: true }").origin("some_file.yar");
+/// let src = SourceCode::from("rule test { condition: true }").with_origin("some_file.yar");
 /// ```
 ///
 #[derive(Debug, Clone)]
@@ -61,7 +61,7 @@ impl<'src> SourceCode<'src> {
     /// This is usually the path of the file that contained the source code
     /// but it can be an arbitrary string. The origin appears in error and
     /// warning messages.
-    pub fn origin(self, origin: &str) -> Self {
+    pub fn with_origin(self, origin: &str) -> Self {
         Self {
             raw: self.raw,
             valid: self.valid,
@@ -169,7 +169,7 @@ impl<'a> Parser<'a> {
     ///
     /// ```
     /// use yara_x_parser::{Parser, SourceCode};
-    /// let src = SourceCode::from("rule example { condition: true }").origin("some_rule.yar");
+    /// let src = SourceCode::from("rule example { condition: true }").with_origin("some_rule.yar");
     /// let ast = Parser::new().build_ast(src).unwrap();
     /// ```
     pub fn build_ast<'src, S>(&self, src: S) -> Result<AST<'src>, Error>
@@ -223,7 +223,7 @@ impl<'a> Parser<'a> {
     ///
     /// ```
     /// use yara_x_parser::{Parser, SourceCode};
-    /// let src = SourceCode::from("rule example { condition: true }").origin("some_rule.yar");
+    /// let src = SourceCode::from("rule example { condition: true }").with_origin("some_rule.yar");
     /// let cst = Parser::new().build_cst(src).unwrap();
     /// ```
     #[inline(always)]

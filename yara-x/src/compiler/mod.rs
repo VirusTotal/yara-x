@@ -84,7 +84,9 @@ pub fn compile<'src, S>(src: S) -> Result<Rules, Error>
 where
     S: Into<SourceCode<'src>>,
 {
-    Ok(Compiler::new().add_source(src)?.build())
+    let mut compiler = Compiler::new();
+    compiler.add_source(src)?;
+    Ok(compiler.build())
 }
 
 /// Structure that contains information about a rule namespace.
@@ -110,7 +112,9 @@ struct Namespace {
 ///
 /// ```rust
 /// # use yara_x;
-/// let rules = yara_x::Compiler::new()
+/// let mut compiler = yara_x::Compiler::new();
+///
+/// compiler
 ///     .add_source(r#"
 ///         rule always_true {
 ///             condition: true
@@ -118,8 +122,9 @@ struct Namespace {
 ///     .add_source(r#"
 ///         rule always_false {
 ///             condition: false
-///         }"#)?
-///     .build();
+///         }"#)?;///
+///
+/// let rules = compiler.build();
 ///
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -286,7 +291,7 @@ impl<'a> Compiler<'a> {
     /// Adds a YARA source code to be compiled.
     ///
     /// This function can be called multiple times.
-    pub fn add_source<'src, S>(mut self, src: S) -> Result<Self, Error>
+    pub fn add_source<'src, S>(&mut self, src: S) -> Result<&mut Self, Error>
     where
         S: Into<SourceCode<'src>>,
     {
@@ -330,10 +335,10 @@ impl<'a> Compiler<'a> {
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
     pub fn define_global<T: Into<Variable>>(
-        mut self,
+        &mut self,
         ident: &str,
         value: T,
-    ) -> Result<Self, VariableError> {
+    ) -> Result<&mut Self, VariableError> {
         if !is_valid_identifier(ident) {
             return Err(VariableError::InvalidIdentifier(ident.to_string()));
         }
@@ -390,7 +395,7 @@ impl<'a> Compiler<'a> {
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn new_namespace(mut self, namespace: &str) -> Self {
+    pub fn new_namespace(&mut self, namespace: &str) -> &mut Self {
         // Remove the symbol table corresponding to the previous namespace.
         self.symbol_table.pop().expect("expecting a namespace");
         // Create a new namespace. The NamespaceId is simply the ID of the

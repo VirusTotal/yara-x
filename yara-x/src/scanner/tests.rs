@@ -149,7 +149,9 @@ fn reuse_scanner() {
 
 #[test]
 fn variables_1() {
-    let rules = crate::Compiler::new()
+    let mut compiler = crate::Compiler::new();
+
+    compiler
         .define_global("bool_var", false)
         .unwrap()
         .add_source(
@@ -160,8 +162,9 @@ fn variables_1() {
         } 
         "#,
         )
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     let mut scanner = Scanner::new(&rules);
 
@@ -213,7 +216,9 @@ fn variables_1() {
 
 #[test]
 fn variables_2() {
-    let rules = crate::Compiler::new()
+    let mut compiler = crate::Compiler::new();
+
+    compiler
         .define_global("some_int", 0)
         .unwrap()
         .add_source(
@@ -224,8 +229,9 @@ fn variables_2() {
         } 
         "#,
         )
-        .unwrap()
-        .build();
+        .unwrap();
+
+    let rules = compiler.build();
 
     let mut scanner = Scanner::new(&rules);
     assert_eq!(
@@ -260,7 +266,9 @@ fn variables_2() {
 
 #[test]
 fn global_rules() {
-    let rules = crate::Compiler::new()
+    let mut compiler = crate::Compiler::new();
+
+    compiler
         .add_source(
             r#"
         // This global rule doesn't affect the results because it's true.
@@ -293,9 +301,9 @@ fn global_rules() {
                     true
             }"#,
         )
-        .unwrap()
-        .build();
+        .unwrap();
 
+    let rules = compiler.build();
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(&[]).expect("scan should not fail");
 

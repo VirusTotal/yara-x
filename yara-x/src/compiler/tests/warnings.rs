@@ -373,7 +373,8 @@ rule test {
     ];
 
     for t in tests {
-        let compiler = Compiler::new().add_source(t.1).unwrap();
+        let mut compiler = Compiler::new();
+        compiler.add_source(t.1).unwrap();
         assert!(
             !compiler.warnings.is_empty(),
             "test at line {} didn't produce warnings",
@@ -464,8 +465,8 @@ rule test {
     ];
 
     for t in tests {
-        let compiler = Compiler::new().add_source(t.1).unwrap();
-
+        let mut compiler = Compiler::new();
+        compiler.add_source(t.1).unwrap();
         if !compiler.warnings.is_empty() {
             panic!(
                 "test at line {} raised warning:\n{}",

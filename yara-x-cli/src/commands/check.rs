@@ -79,7 +79,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                     .unwrap();
 
                 let src = SourceCode::from(src.as_slice())
-                    .origin(file_path.as_os_str().to_str().unwrap());
+                    .with_origin(file_path.as_os_str().to_str().unwrap());
 
                 let mut lines = Vec::new();
 

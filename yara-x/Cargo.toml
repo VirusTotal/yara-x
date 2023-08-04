@@ -57,7 +57,7 @@ smallvec = { workspace = true, features=["serde"] }
 serde = { workspace = true, features=["rc"] }
 thiserror = { workspace = true }
 walrus = { workspace = true }
-wasmtime = { workspace = true, features=["cranelift"]  }
+wasmtime = { workspace = true, default-features = false, features=["cranelift", "parallel-compilation"]  }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }

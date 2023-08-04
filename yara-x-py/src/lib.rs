@@ -13,6 +13,7 @@ matches = rules.scan(b'some dummy data')
 ```
  */
 use std::marker::PhantomPinned;
+use std::mem;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::time::Duration;
@@ -38,7 +39,7 @@ fn compile(src: &str) -> PyResult<Rules> {
 /// Compiles YARA source code producing a set of compiled [`Rules`].
 #[pyclass(unsendable)]
 struct Compiler {
-    inner: Option<yrx::Compiler<'static>>,
+    inner: yrx::Compiler<'static>,
 }
 
 #[pymethods]
@@ -46,19 +47,16 @@ impl Compiler {
     /// Creates a new [`Compiler`].
     #[new]
     fn new() -> Self {
-        Self { inner: Some(yrx::Compiler::new()) }
+        Self { inner: yrx::Compiler::new() }
     }
 
     /// Adds a YARA source code to be compiled.
     ///
     /// This function can be used multiple times before calling [`Compiler::build`].
     fn add_source(&mut self, src: &str) -> PyResult<()> {
-        let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
-        self.inner = Some(
-            compiler
-                .add_source(src)
-                .map_err(|err| PySyntaxError::new_err(err.to_string()))?,
-        );
+        self.inner
+            .add_source(src)
+            .map_err(|err| PySyntaxError::new_err(err.to_string()))?;
         Ok(())
     }
 
@@ -70,18 +68,16 @@ impl Compiler {
     /// each scanner can change the variable's value by calling
     /// [`crate::Scanner::set_global`].
     fn define_global(&mut self, ident: &str, value: &PyAny) -> PyResult<()> {
-        let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
-
-        let compiler = if value.is_exact_instance_of::<PyBool>() {
-            compiler.define_global(ident, value.extract::<bool>()?)
+        let result = if value.is_exact_instance_of::<PyBool>() {
+            self.inner.define_global(ident, value.extract::<bool>()?)
         } else if value.is_exact_instance_of::<PyString>() {
-            compiler.define_global(ident, value.extract::<String>()?)
+            self.inner.define_global(ident, value.extract::<String>()?)
         } else if value.is_exact_instance_of::<PyBytes>() {
-            compiler.define_global(ident, value.extract::<&[u8]>()?)
+            self.inner.define_global(ident, value.extract::<&[u8]>()?)
         } else if value.is_exact_instance_of::<PyInt>() {
-            compiler.define_global(ident, value.extract::<i64>()?)
+            self.inner.define_global(ident, value.extract::<i64>()?)
         } else if value.is_exact_instance_of::<PyFloat>() {
-            compiler.define_global(ident, value.extract::<f64>()?)
+            self.inner.define_global(ident, value.extract::<f64>()?)
         } else {
             return Err(PyTypeError::new_err(format!(
                 "unsupported variable type `{}`",
@@ -89,9 +85,7 @@ impl Compiler {
             )));
         };
 
-        self.inner = Some(
-            compiler.map_err(|err| PyValueError::new_err(err.to_string()))?,
-        );
+        result.map_err(|err| PyValueError::new_err(err.to_string()))?;
 
         Ok(())
     }
@@ -101,18 +95,16 @@ impl Compiler {
     /// Further calls to [`Compiler::add_source`] will put the rules under the
     /// newly created namespace.
     fn new_namespace(&mut self, namespace: &str) {
-        let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
-        self.inner = Some(compiler.new_namespace(namespace));
+        self.inner.new_namespace(namespace);
     }
 
     /// Builds the source code previously added to the compiler.
     ///
     /// This function returns an instance of [`Rules`] containing all the rules
     /// previously added with [`Compiler::add_source`] and sets the compiler
-    /// to its initial empty state. The compiler can be re-used by adding more
-    /// rules and calling this function again.
+    /// to its initial empty state.
     fn build(&mut self) -> Rules {
-        let compiler = self.inner.take().unwrap_or_else(yrx::Compiler::new);
+        let compiler = mem::replace(&mut self.inner, yrx::Compiler::new());
         Rules {
             inner: Box::pin(PinnedRules {
                 rules: compiler.build(),

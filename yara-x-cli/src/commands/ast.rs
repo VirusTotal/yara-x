@@ -22,7 +22,7 @@ pub fn exec_ast(args: &ArgMatches) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let src = SourceCode::from(src.as_slice())
-        .origin(rules_path.as_os_str().to_str().unwrap());
+        .with_origin(rules_path.as_os_str().to_str().unwrap());
 
     let ast = Parser::new().colorize_errors(true).build_ast(src)?;
 

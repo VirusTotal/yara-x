@@ -47,13 +47,13 @@ where
             .with_context(|| format!("can not read `{}`", path.display()))?;
 
         let src = SourceCode::from(src.as_slice())
-            .origin(path.as_os_str().to_str().unwrap());
+            .with_origin(path.as_os_str().to_str().unwrap());
 
         if path_as_namespace {
-            compiler = compiler.new_namespace(path.to_string_lossy().as_ref());
+            compiler.new_namespace(path.to_string_lossy().as_ref());
         }
 
-        compiler = compiler.add_source(src)?;
+        compiler.add_source(src)?;
     }
 
     for warning in compiler.warnings() {

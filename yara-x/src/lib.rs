@@ -16,10 +16,10 @@ though.
 ```rust
 # use yara_x;
 // Create a compiler.
-let compiler = yara_x::Compiler::new();
+let mut compiler = yara_x::Compiler::new();
 
 // Add some YARA source code to compile.
-let compiler = compiler.add_source(r#"
+compiler.add_source(r#"
     rule lorem_ipsum {
       strings:
         $ = "Lorem ipsum"

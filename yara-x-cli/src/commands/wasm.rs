@@ -24,14 +24,14 @@ pub fn exec_wasm(args: &ArgMatches) -> anyhow::Result<()> {
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
 
     let src = SourceCode::from(src.as_slice())
-        .origin(rules_path.as_os_str().to_str().unwrap());
+        .with_origin(rules_path.as_os_str().to_str().unwrap());
 
     rules_path.set_extension("wasm");
 
-    Compiler::new()
-        .colorize_errors(true)
-        .add_source(src)?
-        .emit_wasm_file(rules_path.as_path())?;
+    let mut compiler = Compiler::new().colorize_errors(true);
+
+    compiler.add_source(src)?;
+    compiler.emit_wasm_file(rules_path.as_path())?;
 
     Ok(())
 }
