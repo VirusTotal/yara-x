@@ -2,6 +2,7 @@ use crate::ast::{Span, AST};
 use crate::cst::CST;
 use bstr::{BStr, ByteSlice};
 use pest::Parser as PestParser;
+use std::num::NonZeroUsize;
 
 #[doc(inline)]
 pub use crate::parser::errors::*;
@@ -112,6 +113,18 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     /// Creates a new YARA parser.
     pub fn new() -> Self {
+        // This imposes a limit on the number of calls that can be made to some
+        // of the Pest parser's internal functions. The purpose of this limit
+        // is preventing pathological cases from running forever, as certain
+        // expressions, particularly nested parenthesised expressions, exhibit
+        // an exponential behaviour.
+        //
+        // This limit also affects source files that are too large. The current
+        // value has been determined experimentally, it's high enough to cause
+        // errors with very few rules, while at the same time keeping rule
+        // compile time reasonably low (~1 min) with pathological cases.
+        pest::set_call_limit(NonZeroUsize::new(250_000_000));
+
         Self {
             external_report_builder: None,
             own_report_builder: ReportBuilder::new(),

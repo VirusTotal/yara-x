@@ -402,6 +402,13 @@ boolean_term = {
   for_expr                                             |
   of_expr                                              |
   expr ~ ((comparison_op | string_op) ~ expr)*         |
+  // All the rules below must appear *after*
+  // expr ~ ((comparison_op | string_op) ~ expr)*
+  // That's because all of them can be a prefix of `expr`.
+  // For example, an identifier `trueX` has the prefix
+  // `true`, if k_TRUE is evaluated before, the prefix
+  // is matched as the keyword `true`, and the remaining
+  // `X` as an identifier.
   k_TRUE                                               |
   k_FALSE                                              |
   k_NOT ~ boolean_term                                 |

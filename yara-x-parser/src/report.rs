@@ -231,23 +231,43 @@ impl ReportBuilder {
             },
         };
 
-        let error_msg = match &pest_error.variant {
-            CustomError { message } => message.to_owned(),
-            ParsingError { positives, negatives } => {
+        let (title, error_msg, note) = match &pest_error.variant {
+            CustomError { message } => {
+                // 'call limit reached' is the error message returned by Pest
+                // when it reaches the limit set with pest::set_call_limit.
+                // This error message is not useful for final users, here we
+                // replace the message and provide more information.
+                if message == "call limit reached" {
+                    (
+                        "code is too complex or large",
+                        "parser aborted here".to_owned(),
+                        Some(
+                            "reduce the number of nested parenthesis or the \
+                            size of your source code "
+                                .to_owned(),
+                        ),
+                    )
+                } else {
+                    ("syntax error", message.to_owned(), None)
+                }
+            }
+            ParsingError { positives, negatives } => (
+                "syntax error",
                 ErrorInfo::syntax_error_message(
                     positives,
                     negatives,
                     ErrorInfo::printable_string,
-                )
-            }
+                ),
+                None,
+            ),
         };
 
         let detailed_report = self.create_report(
             ReportType::Error,
             error_span,
-            "syntax error".to_string(),
+            title.to_string(),
             vec![(error_span, error_msg.clone(), Color::Red.style().bold())],
-            None,
+            note,
         );
 
         Error::from(ErrorInfo::SyntaxError {

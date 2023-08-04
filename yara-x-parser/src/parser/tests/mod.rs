@@ -47,6 +47,15 @@ fn identifiers() {
     assert!(Parser::new().build_cst("rule _true { condition: true }").is_ok());
 }
 
+#[test]
+fn pathological_case() {
+    // Make sure that pathologically bad rules don't take forever to parse.
+    // Parsing this rule must fail.
+    assert!(Parser::new()
+        .build_cst(r#"rule bug { condition: ((((((((((((false)))))))))))) }"#)
+        .is_err());
+}
+
 mod ast;
 mod cst;
 mod errors;
