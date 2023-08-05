@@ -18,12 +18,27 @@ path = "src/main.rs"
 # information into a flamegraph.svg file when run.
 profiling = ["pprof"]
 
+# When this feature is enabled the CLI program prints debug logs if
+# the RUST_LOG environment variable is set to any of the debug levels:
+#
+#   error
+#   warn
+#   info
+#   debug
+#   trace
+#
+# Example: RUST_LOG=info ./yr scan some_rule.yar some_file
+debug-logs = ["dep:log", "dep:env_logger"]
+
+
 [dependencies]
 ascii_tree = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features=["cargo"] }
 enable-ansi-support = { workspace = true }
+env_logger = { workspace = true , optional = true }
 globset = { workspace = true }
+log = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x = { workspace = true }
 yara-x-parser = { workspace = true, features = ["ascii-tree"] }

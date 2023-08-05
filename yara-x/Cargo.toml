@@ -16,6 +16,9 @@ rust-version.workspace = true
 # actually computes the expression.
 constant-folding = []
 
+# Enables debug logs.
+debug-logs = ["dep:log"]
+
 # Features for enabling/disabling modules.
 test_proto2-module = []
 test_proto3-module = []
@@ -48,6 +51,7 @@ intaglio = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }
+log = { workspace = true, optional = true }
 memx = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
@@ -57,7 +61,7 @@ smallvec = { workspace = true, features=["serde"] }
 serde = { workspace = true, features=["rc"] }
 thiserror = { workspace = true }
 walrus = { workspace = true }
-wasmtime = { workspace = true, default-features = false, features=["cranelift", "parallel-compilation"]  }
+wasmtime = { workspace = true, features=["cranelift", "parallel-compilation"]  }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }

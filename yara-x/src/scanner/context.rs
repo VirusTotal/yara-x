@@ -4,6 +4,11 @@ use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
+#[cfg(feature = "debug-logs")]
+use log::*;
+#[cfg(feature = "debug-logs")]
+use std::time::Instant;
+
 use base64::Engine;
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
@@ -213,13 +218,17 @@ impl ScanContext<'_> {
         let ac = self.compiled_rules.aho_corasick();
 
         let mut pike_vm = PikeVM::new(self.compiled_rules.re_code());
+        let atoms = self.compiled_rules.atoms();
+
+        #[cfg(feature = "debug-logs")]
+        let start = Instant::now();
 
         for ac_match in ac.find_overlapping_iter(scanned_data) {
             if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
                 return Err(ScanError::Timeout);
             }
 
-            let atom = &self.compiled_rules.atoms()[ac_match.pattern()];
+            let atom = &atoms[ac_match.pattern()];
 
             // Subtract the backtrack value from the offset where the atom
             // matched. If the result is negative the atom can't be inside
@@ -385,6 +394,9 @@ impl ScanContext<'_> {
                 }
             };
         }
+
+        #[cfg(feature = "debug-logs")]
+        info!("Scan time: {:?}", Instant::elapsed(&start));
 
         Ok(())
     }

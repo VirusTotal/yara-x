@@ -11,7 +11,12 @@ use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, iter, u32};
 
-use aho_corasick::AhoCorasick;
+#[cfg(feature = "debug-logs")]
+use log::*;
+#[cfg(feature = "debug-logs")]
+use std::time::Instant;
+
+use aho_corasick::{AhoCorasickBuilder, AhoCorasickKind};
 use bincode::Options;
 use bitmask::bitmask;
 use bstr::ByteSlice;
@@ -422,6 +427,27 @@ impl<'a> Compiler<'a> {
         // Finish building the WASM module.
         let wasm_mod = self.wasm_mod.build().emit_wasm();
 
+        #[cfg(feature = "debug-logs")]
+        let start = Instant::now();
+
+        let mut ac_builder = AhoCorasickBuilder::new();
+        ac_builder.kind(Option::from(AhoCorasickKind::DFA));
+
+        // Build the Aho-Corasick automaton used while searching for the atoms
+        // in the scanned data.
+        let ac = ac_builder
+            .build(self.atoms.iter().map(|a| a.as_slice()))
+            .expect("failed to build Aho-Corasick automaton");
+
+        #[cfg(feature = "debug-logs")]
+        info!(
+            "Aho-Corasick automaton build time: {:?}",
+            Instant::elapsed(&start)
+        );
+
+        #[cfg(feature = "debug-logs")]
+        let start = Instant::now();
+
         // Compile the WASM module for the current platform. This panics
         // if the WASM code is invalid, which should not happen as the code is
         // emitted by YARA itself. If this ever happens is probably because
@@ -432,10 +458,8 @@ impl<'a> Compiler<'a> {
         )
         .expect("WASM module is not valid");
 
-        // Build the Aho-Corasick automaton used while searching for the atoms
-        // in the scanned data.
-        let ac = AhoCorasick::new(self.atoms.iter().map(|a| a.as_slice()))
-            .expect("failed to build Aho-Corasick automaton");
+        #[cfg(feature = "debug-logs")]
+        info!("WASM module build time: {:?}", Instant::elapsed(&start));
 
         // The structure that contains the global variables is serialized before
         // being passed to the `Rules` struct. This is because we want `Rules`

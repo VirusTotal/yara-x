@@ -247,10 +247,17 @@ impl ParallelWalk {
                 }
             }));
 
-            // `console` will be `None` if either stdout or stderr is not a tty
-            // (for example when any of them are redirected to a file).
-            let mut console =
-                if io::stdout().is_tty() { SuperConsole::new() } else { None };
+            let mut console = if cfg!(feature = "debug-logs") {
+                None
+            } else {
+                // `console` will be `None` if either stdout or stderr is not a tty
+                // (for example when any of them are redirected to a file).
+                if io::stdout().is_tty() {
+                    SuperConsole::new()
+                } else {
+                    None
+                }
+            };
 
             loop {
                 match msg_recv.try_recv() {
