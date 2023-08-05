@@ -11,9 +11,9 @@ use std::path::Path;
 use std::rc::Rc;
 use std::{fmt, iter, u32};
 
-#[cfg(feature = "debug-logs")]
+#[cfg(feature = "logging")]
 use log::*;
-#[cfg(feature = "debug-logs")]
+#[cfg(feature = "logging")]
 use std::time::Instant;
 
 use aho_corasick::{AhoCorasickBuilder, AhoCorasickKind};
@@ -427,7 +427,7 @@ impl<'a> Compiler<'a> {
         // Finish building the WASM module.
         let wasm_mod = self.wasm_mod.build().emit_wasm();
 
-        #[cfg(feature = "debug-logs")]
+        #[cfg(feature = "logging")]
         let start = Instant::now();
 
         let mut ac_builder = AhoCorasickBuilder::new();
@@ -439,13 +439,13 @@ impl<'a> Compiler<'a> {
             .build(self.atoms.iter().map(|a| a.as_slice()))
             .expect("failed to build Aho-Corasick automaton");
 
-        #[cfg(feature = "debug-logs")]
+        #[cfg(feature = "logging")]
         info!(
             "Aho-Corasick automaton build time: {:?}",
             Instant::elapsed(&start)
         );
 
-        #[cfg(feature = "debug-logs")]
+        #[cfg(feature = "logging")]
         let start = Instant::now();
 
         // Compile the WASM module for the current platform. This panics
@@ -458,7 +458,7 @@ impl<'a> Compiler<'a> {
         )
         .expect("WASM module is not valid");
 
-        #[cfg(feature = "debug-logs")]
+        #[cfg(feature = "logging")]
         info!("WASM module build time: {:?}", Instant::elapsed(&start));
 
         // The structure that contains the global variables is serialized before

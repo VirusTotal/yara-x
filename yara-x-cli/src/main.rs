@@ -8,7 +8,7 @@ use std::io;
 use yansi::Color::Red;
 use yansi::Paint;
 
-#[cfg(feature = "debug-logs")]
+#[cfg(feature = "logging")]
 use env_logger;
 
 const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
@@ -26,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         println!("could not enable ANSI support: {}", err)
     }
 
-    #[cfg(feature = "debug-logs")]
+    #[cfg(feature = "logging")]
     env_logger::init();
 
     // If stdout is not a tty (for example, because it was redirected to a

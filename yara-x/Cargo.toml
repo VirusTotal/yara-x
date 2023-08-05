@@ -17,7 +17,7 @@ rust-version.workspace = true
 constant-folding = []
 
 # Enables debug logs.
-debug-logs = ["dep:log"]
+logging = ["dep:log"]
 
 # Features for enabling/disabling modules.
 test_proto2-module = []
@@ -36,7 +36,7 @@ default = [
 ]
 
 [dependencies]
-aho-corasick = { workspace = true }
+aho-corasick = { workspace = true, features=["logging"] }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
 ascii_tree = { workspace = true}

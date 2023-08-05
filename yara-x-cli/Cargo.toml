@@ -28,7 +28,7 @@ profiling = ["pprof"]
 #   trace
 #
 # Example: RUST_LOG=info ./yr scan some_rule.yar some_file
-debug-logs = ["dep:log", "dep:env_logger"]
+logging = ["dep:log", "dep:env_logger"]
 
 
 [dependencies]

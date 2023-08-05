@@ -247,7 +247,7 @@ impl ParallelWalk {
                 }
             }));
 
-            let mut console = if cfg!(feature = "debug-logs") {
+            let mut console = if cfg!(feature = "logging") {
                 None
             } else {
                 // `console` will be `None` if either stdout or stderr is not a tty

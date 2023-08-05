@@ -4,9 +4,9 @@ use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
-#[cfg(feature = "debug-logs")]
+#[cfg(feature = "logging")]
 use log::*;
-#[cfg(feature = "debug-logs")]
+#[cfg(feature = "logging")]
 use std::time::Instant;
 
 use base64::Engine;
@@ -220,7 +220,7 @@ impl ScanContext<'_> {
         let mut pike_vm = PikeVM::new(self.compiled_rules.re_code());
         let atoms = self.compiled_rules.atoms();
 
-        #[cfg(feature = "debug-logs")]
+        #[cfg(feature = "logging")]
         let start = Instant::now();
 
         for ac_match in ac.find_overlapping_iter(scanned_data) {
@@ -395,7 +395,7 @@ impl ScanContext<'_> {
             };
         }
 
-        #[cfg(feature = "debug-logs")]
+        #[cfg(feature = "logging")]
         info!("Scan time: {:?}", Instant::elapsed(&start));
 
         Ok(())
