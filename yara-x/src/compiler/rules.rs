@@ -188,7 +188,7 @@ impl Rules {
         &self,
         sub_pattern_id: SubPatternId,
     ) -> &(PatternId, SubPattern) {
-        &self.sub_patterns[sub_pattern_id.0 as usize]
+        unsafe { &self.sub_patterns.get_unchecked(sub_pattern_id.0 as usize) }
     }
 
     #[inline]

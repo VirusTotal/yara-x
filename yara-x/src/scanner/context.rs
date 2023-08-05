@@ -283,7 +283,10 @@ impl ScanContext<'_> {
                 | SubPattern::LiteralChainHead { pattern, flags, .. }
                 | SubPattern::LiteralChainTail { pattern, flags, .. } => {
                     if let Some(match_) = verify_literal_match(
-                        self.compiled_rules.lit_pool().get(*pattern).unwrap(),
+                        self.compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap(),
                         scanned_data,
                         atom_pos,
                         *flags,
@@ -318,7 +321,10 @@ impl ScanContext<'_> {
 
                 SubPattern::Xor { pattern, flags } => {
                     if let Some(match_) = verify_xor_match(
-                        self.compiled_rules.lit_pool().get(*pattern).unwrap(),
+                        self.compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap(),
                         scanned_data,
                         atom_pos,
                         atom,
@@ -336,7 +342,10 @@ impl ScanContext<'_> {
                 SubPattern::Base64 { pattern, padding }
                 | SubPattern::Base64Wide { pattern, padding } => {
                     if let Some(match_) = verify_base64_match(
-                        self.compiled_rules.lit_pool().get(*pattern).unwrap(),
+                        self.compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap(),
                         scanned_data,
                         (*padding).into(),
                         atom_pos,
@@ -374,7 +383,10 @@ impl ScanContext<'_> {
                     assert!(alphabet.is_some());
 
                     if let Some(match_) = verify_base64_match(
-                        self.compiled_rules.lit_pool().get(*pattern).unwrap(),
+                        self.compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap(),
                         scanned_data,
                         (*padding).into(),
                         atom_pos,
@@ -615,7 +627,7 @@ impl ScanContext<'_> {
 ///
 /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
 fn verify_literal_match(
-    pattern: &BStr,
+    pattern: &[u8],
     scanned_data: &[u8],
     atom_pos: usize,
     flags: SubPatternFlagSet,
@@ -776,7 +788,7 @@ fn verify_regexp_match(
 ///
 /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
 fn verify_xor_match(
-    pattern: &BStr,
+    pattern: &[u8],
     scanned_data: &[u8],
     atom_pos: usize,
     atom: &SubPatternAtom,
@@ -824,7 +836,7 @@ fn verify_xor_match(
 ///
 /// Returns a [`Match`] if the match was confirmed or [`None`] if otherwise.
 fn verify_base64_match(
-    pattern: &BStr,
+    pattern: &[u8],
     scanned_data: &[u8],
     padding: usize,
     atom_pos: usize,
