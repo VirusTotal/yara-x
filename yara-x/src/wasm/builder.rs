@@ -218,7 +218,7 @@ impl WasmModuleBuilder {
             num_rules: 0,
             num_global_rules: 0,
             num_namespaces: 0,
-            namespaces_per_func: 20,
+            namespaces_per_func: 10,
             rules_per_func: 10,
         }
     }
@@ -294,40 +294,42 @@ impl WasmModuleBuilder {
 
 impl WasmModuleBuilder {
     fn finish_namespace_block(&mut self) {
-        let emit_global_rules = self
+        let empty_global_rules = !self
             .namespace_func
             .instr_seq(self.global_rules_block)
             .instrs()
-            .len()
-            > 0;
+            .is_empty();
 
-        let emit_non_global_rules =
-            self.namespace_func.instr_seq(self.rules_block).instrs().len() > 0;
+        let emtpy_rules = self
+            .namespace_func
+            .instr_seq(self.rules_block)
+            .instrs()
+            .is_empty();
 
-        if emit_global_rules {
+        if !empty_global_rules {
             self.namespace_func
                 .instr_seq(self.namespace_block)
                 .instr(Block { seq: self.global_rules_block });
         }
 
-        if emit_non_global_rules {
+        if !empty_global_rules {
             self.namespace_func
                 .instr_seq(self.namespace_block)
                 .instr(Block { seq: self.rules_block });
         }
 
-        match (emit_global_rules, emit_non_global_rules) {
-            (true, true) | (true, false) => {
+        match (empty_global_rules, emtpy_rules) {
+            (false, false) | (false, true) => {
                 self.namespace_func
                     .func_body()
                     .instr(Block { seq: self.namespace_block });
             }
-            (false, true) => {
+            (true, false) => {
                 self.namespace_func
                     .func_body()
                     .instr(Block { seq: self.rules_block });
             }
-            (false, false) => {}
+            (true, true) => {}
         }
 
         self.namespace_block =
@@ -368,7 +370,7 @@ impl WasmModuleBuilder {
             ),
         );
 
-        if global_rules_func.func_body().instrs().len() > 0 {
+        if !global_rules_func.func_body().instrs().is_empty() {
             // The last instruction in a global rules function leaves a
             // 0 in the stack as its return value. This is reached only
             // when all global rules match. If any global rules doesn't
@@ -398,7 +400,7 @@ impl WasmModuleBuilder {
             ),
         );
 
-        if rule_func.func_body().instrs().len() > 0 {
+        if !rule_func.func_body().instrs().is_empty() {
             let mut block_2 = self.namespace_func.instr_seq(self.rules_block);
 
             block_2.call(
@@ -420,16 +422,6 @@ mod tests {
 
         builder.namespaces_per_func(2);
         builder.rules_per_func(2);
-
-        /*builder.new_rule().i32_const(0);
-                builder.new_rule().i32_const(1);
-                builder.new_rule().i32_const(2);
-                builder.new_global_rule().i32_const(0);
-
-                builder.new_namespace();
-                builder.new_rule().i32_const(3);
-                builder.new_rule().i32_const(4);
-        */
 
         builder.new_namespace();
         builder.new_global_rule();

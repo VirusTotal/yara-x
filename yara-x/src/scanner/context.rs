@@ -826,8 +826,8 @@ fn verify_xor_match(
     // that it matches the data. This only makes sense if the key is not
     // zero.
     if key != 0 {
-        for i in 0..pattern.len() {
-            pattern[i] ^= key;
+        for byte in &mut pattern {
+            *byte ^= key;
         }
     }
 

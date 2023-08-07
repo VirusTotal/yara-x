@@ -265,7 +265,10 @@ impl<'a> Compiler<'a> {
 
         // Create a WASM module builder. This object is used for building the
         // WASM module that will execute the rule conditions.
-        let wasm_mod = WasmModuleBuilder::new();
+        let mut wasm_mod = WasmModuleBuilder::new();
+
+        wasm_mod.namespaces_per_func(20);
+        wasm_mod.rules_per_func(10);
 
         let wasm_symbols = wasm_mod.wasm_symbols();
         let wasm_exports = wasm_mod.wasm_exports();

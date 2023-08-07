@@ -688,8 +688,6 @@ impl Expr {
             }
 
             Expr::Add { operands } => {
-                return Expr::Add { operands };
-                /*
                 let mut sum = 0.0;
                 let mut is_float = false;
                 for operand in &operands {
@@ -714,7 +712,7 @@ impl Expr {
                             sum as i64,
                         )),
                     }
-                }*/
+                }
             }
             _ => self,
         }
