@@ -46,7 +46,7 @@ yara-x-fmt = { workspace = true }
 
 crossbeam = "0.8.2"
 crossterm = "0.26.1"
-pprof = { version = "0.12.0", features = ["flamegraph"], optional=true }
+pprof = { version = "0.12.1", features = ["flamegraph"], optional=true }
 superconsole = "0.2.0"
 walkdir = "2.3.2"
 wild = "2.1.0"
