@@ -294,42 +294,42 @@ impl WasmModuleBuilder {
 
 impl WasmModuleBuilder {
     fn finish_namespace_block(&mut self) {
-        let empty_global_rules = !self
+        let global_rules = !self
             .namespace_func
             .instr_seq(self.global_rules_block)
             .instrs()
             .is_empty();
 
-        let emtpy_rules = self
+        let rules = !self
             .namespace_func
             .instr_seq(self.rules_block)
             .instrs()
             .is_empty();
 
-        if !empty_global_rules {
+        if global_rules {
             self.namespace_func
                 .instr_seq(self.namespace_block)
                 .instr(Block { seq: self.global_rules_block });
         }
 
-        if !empty_global_rules {
+        if rules {
             self.namespace_func
                 .instr_seq(self.namespace_block)
                 .instr(Block { seq: self.rules_block });
         }
 
-        match (empty_global_rules, emtpy_rules) {
-            (false, false) | (false, true) => {
+        match (global_rules, rules) {
+            (true, true) | (true, false) => {
                 self.namespace_func
                     .func_body()
                     .instr(Block { seq: self.namespace_block });
             }
-            (true, false) => {
+            (false, true) => {
                 self.namespace_func
                     .func_body()
                     .instr(Block { seq: self.rules_block });
             }
-            (true, true) => {}
+            (false, false) => {}
         }
 
         self.namespace_block =
@@ -414,7 +414,6 @@ impl WasmModuleBuilder {
 mod tests {
     use crate::wasm::builder::WasmModuleBuilder;
     use pretty_assertions::assert_eq;
-    use wasmprinter;
 
     #[test]
     fn module_builder() {
