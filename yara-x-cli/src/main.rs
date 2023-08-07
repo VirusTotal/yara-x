@@ -48,8 +48,12 @@ fn main() -> anyhow::Result<()> {
         .get_matches_from(wild::args());
 
     #[cfg(feature = "profiling")]
-    let guard =
-        pprof::ProfilerGuardBuilder::default().frequency(1000).build()?;
+    let guard = pprof::ProfilerGuardBuilder::default()
+        .frequency(1000)
+        // Block these libs as advised in `pprof` documentation. Without this
+        // it causes a deadlock in Linux.
+        .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+        .build()?;
 
     let result = match args.subcommand() {
         Some(("ast", args)) => commands::exec_ast(args),

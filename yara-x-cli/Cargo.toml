@@ -15,7 +15,9 @@ path = "src/main.rs"
 
 [features]
 # When this feature is enabled the CLI program saves CPU profiling
-# information into a flamegraph.svg file when run.
+# information into a flamegraph.svg file when run. For unknown reasons
+# the `pprof` crate often causes segfaults in Mac OS X, but it seems
+# to work fine in Linux.
 profiling = ["pprof"]
 
 # When this feature is enabled the CLI program prints debug logs if
