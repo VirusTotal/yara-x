@@ -180,10 +180,6 @@ pub(super) fn emit_rule_condition(
     rule_flags: RuleFlags,
     condition: &mut Expr,
 ) {
-    // Get the InstrSeqId corresponding to the code block that contains the
-    // current namespace.
-    let namespace_block = builder.current_namespace();
-
     // Global and non-global rules are put into two independent instruction
     // sequences. The global rules are put into the instruction sequence that
     // gets executed first, which means that global rules will be executed
@@ -195,9 +191,9 @@ pub(super) fn emit_rule_condition(
     // run before non-global ones, the former can't rely on the result of the
     // latter.
     let mut instr = if rule_flags.contains(RuleFlag::Global) {
-        builder.instr_seq_1()
+        builder.new_global_rule()
     } else {
-        builder.instr_seq_2()
+        builder.new_rule()
     };
 
     // Emit WASM code for the rule's condition.
@@ -212,12 +208,12 @@ pub(super) fn emit_rule_condition(
         |then_| {
             // The condition is false. For normal rules we don't do anything,
             // but for global rules we must call `global_rule_no_match` and
-            // jump out of the namespace's code block.
+            // return 1.
             //
-            // By jumping out of the code block that contains all the rules
-            // in the current namespace, we are effectively preventing that
-            // any other rule (both global and non-global) in the namespace
-            // is executed, and therefore they will remain false.
+            // By returning 1 the function that contains the logic for this
+            // rule exits immediately, preventing any other rule (both global
+            // and non-global) in the same namespace is executed, and therefore
+            // they will remain false.
             //
             // This guarantees that any global rule that returns false, forces
             // the non-global rules in the same namespace to be false. There
@@ -230,9 +226,9 @@ pub(super) fn emit_rule_condition(
                 then_.call(ctx.function_id(
                     wasm::export__global_rule_no_match.mangled_name,
                 ));
-                // Jump out of the namespace block, which prevents any other
-                // rule in the same namespace from being executed at all.
-                then_.br(namespace_block);
+                // Return 1.
+                then_.i32_const(1);
+                then_.return_();
             }
         },
         |else_| {
@@ -769,7 +765,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
 /// Emits code that checks if the pattern search phase has not been executed
 /// yet, and do it in that case.
 fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
-    instr.local_get(ctx.wasm_symbols.pattern_search_done);
+    instr.global_get(ctx.wasm_symbols.pattern_search_done);
     instr.if_else(
         None,
         |_then| {
@@ -790,13 +786,9 @@ fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
                 |_then| {
                     // Everything ok, set pattern_search_done to true.
                     _then.i32_const(1);
-                    _then.local_set(ctx.wasm_symbols.pattern_search_done);
+                    _then.global_set(ctx.wasm_symbols.pattern_search_done);
                 },
-                |_else| {
-                    // A timeout occurred.
-                    _else.i32_const(0);
-                    _else.return_();
-                },
+                |_| {},
             );
         },
     );

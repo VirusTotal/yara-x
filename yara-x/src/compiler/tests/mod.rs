@@ -348,4 +348,26 @@ fn globals() {
             .len(),
         1
     );
+
+    let mut compiler = Compiler::new();
+
+    compiler
+        .new_namespace("test")
+        .add_source(
+            r#"
+            rule foo {strings: $a = "foo" condition: $a} 
+            global rule always_true { condition: true }"#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(b"foo")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        2
+    );
 }

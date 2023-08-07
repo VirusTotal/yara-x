@@ -79,6 +79,7 @@ yara-x-proto = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 pretty_assertions = { workspace = true }
+wasmprinter = "0.2.62"
 yara = { version = "0.19.0", features = ["vendored"] }
 
 [[bench]]

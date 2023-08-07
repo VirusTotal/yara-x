@@ -524,12 +524,12 @@ pub(crate) struct WasmSymbols {
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
 
-    /// Local variable that is set to true after the pattern search phase
+    /// Global variable that is set to true after the pattern search phase
     /// has been executed. In this phase the data is scanned looking for
     /// all the patterns at the same time using the Aho-Corasick algorithm.
     /// However this phase is executed lazily, when rule conditions are
     /// evaluated and some of them needs to know if a pattern matched or not.
-    pub pattern_search_done: walrus::LocalId,
+    pub pattern_search_done: walrus::GlobalId,
 
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,

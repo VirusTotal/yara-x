@@ -12,7 +12,7 @@ use std::time::Instant;
 use base64::Engine;
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
-use bstr::{BStr, ByteSlice};
+use bstr::ByteSlice;
 use protobuf::{MessageDyn, MessageFull};
 use regex::bytes::Regex;
 use rustc_hash::FxHashMap;
@@ -225,10 +225,13 @@ impl ScanContext<'_> {
 
         for ac_match in ac.find_overlapping_iter(scanned_data) {
             if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
+                #[cfg(feature = "logging")]
+                info!("Scan timeout after: {:?}", Instant::elapsed(&start));
                 return Err(ScanError::Timeout);
             }
 
-            let atom = &atoms[ac_match.pattern()];
+            let atom =
+                unsafe { atoms.get_unchecked(ac_match.pattern().as_usize()) };
 
             // Subtract the backtrack value from the offset where the atom
             // matched. If the result is negative the atom can't be inside
@@ -251,9 +254,6 @@ impl ScanContext<'_> {
             // for making sure that the fullword requirements are met. An exact
             // atom is enough to guarantee that the whole sub-pattern matched.
             if atom.is_exact() {
-                // Not all sub-pattern types can have exact atoms. In debug mode
-                // verify that the sub-pattern type is one that can have exact
-                // atoms.
                 let flags = match sub_pattern {
                     SubPattern::Literal { flags, .. }
                     | SubPattern::LiteralChainHead { flags, .. }
@@ -640,7 +640,14 @@ fn verify_literal_match(
         return None;
     }
 
-    if !verify_full_word(scanned_data, &(atom_pos..match_end), flags, None) {
+    if flags.intersects(
+        SubPatternFlags::FullwordLeft | SubPatternFlags::FullwordRight,
+    ) && !verify_full_word(
+        scanned_data,
+        &(atom_pos..match_end),
+        flags,
+        None,
+    ) {
         return None;
     }
 

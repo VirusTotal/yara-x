@@ -85,7 +85,7 @@ impl<'a> AsRef<[u8]> for ScannedData<'a> {
 /// data sequentially, but you need multiple scanners for scanning in parallel.
 pub struct Scanner<'r> {
     wasm_store: Pin<Box<Store<ScanContext<'r>>>>,
-    wasm_main_fn: TypedFunc<(), i32>,
+    wasm_main_func: TypedFunc<(), ()>,
     filesize: Global,
     timeout: Option<Duration>,
 }
@@ -138,6 +138,15 @@ impl<'r> Scanner<'r> {
         )
         .unwrap();
 
+        // Global variable that is set to `true` when the Aho-Corasick pattern
+        // search phase has been executed.
+        let pattern_search_done = Global::new(
+            wasm_store.as_context_mut(),
+            GlobalType::new(ValType::I32, Mutability::Var),
+            Val::I32(0),
+        )
+        .unwrap();
+
         let num_rules = rules.rules().len() as u32;
         let num_patterns = rules.num_patterns() as u32;
 
@@ -147,7 +156,7 @@ impl<'r> Scanner<'r> {
         // bitmap starts right after the bitmap that contains matching
         // information for rules.
         let matching_patterns_bitmap_base =
-            wasm::MATCHING_RULES_BITMAP_BASE as u32 + num_rules / 8 + 1;
+            MATCHING_RULES_BITMAP_BASE as u32 + num_rules / 8 + 1;
 
         // Compute the required memory size in 64KB pages.
         let mem_size =
@@ -168,10 +177,17 @@ impl<'r> Scanner<'r> {
         .unwrap();
 
         // Instantiate the module. This takes the wasm code provided by the
-        // `compiled_wasm_mod` function and links its imported functions with
-        // the implementations that YARA provides (see wasm.rs).
+        // `wasm_mod` function and links its imported functions with the
+        // implementations that YARA provides (see wasm.rs).
         let wasm_instance = wasm::new_linker()
             .define(wasm_store.as_context(), "yara_x", "filesize", filesize)
+            .unwrap()
+            .define(
+                wasm_store.as_context(),
+                "yara_x",
+                "pattern_search_done",
+                pattern_search_done,
+            )
             .unwrap()
             .define(
                 wasm_store.as_context(),
@@ -191,13 +207,13 @@ impl<'r> Scanner<'r> {
             .unwrap();
 
         // Obtain a reference to the "main" function exported by the module.
-        let wasm_main_fn = wasm_instance
-            .get_typed_func::<(), i32>(wasm_store.as_context_mut(), "main")
+        let wasm_main_func = wasm_instance
+            .get_typed_func::<(), ()>(wasm_store.as_context_mut(), "main")
             .unwrap();
 
         wasm_store.data_mut().main_memory = Some(main_memory);
 
-        Self { wasm_store, wasm_main_fn, filesize, timeout: None }
+        Self { wasm_store, wasm_main_func, filesize, timeout: None }
     }
 
     /// Sets a timeout for scan operations.
@@ -439,8 +455,9 @@ impl<'r> Scanner<'r> {
         // This will return Err(ScanError::Timeout), when the scan timeout is
         // reached while WASM code is being executed. If the timeout occurs
         // while ScanContext::search_for_patterns is being executed, the result
-        // will be Ok(0). If the scan completes successfully the result is Ok(1).
-        let res = self.wasm_main_fn.call(self.wasm_store.as_context_mut(), ());
+        // will be Ok(0). If the scan completes successfully the result is Ok(1).`
+        let func_result =
+            self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
 
         let ctx = self.wasm_store.data_mut();
 
@@ -459,13 +476,8 @@ impl<'r> Scanner<'r> {
             ctx.rules_matching.append(rules)
         }
 
-        match res {
-            Ok(1) => Ok(ScanResults::new(self.wasm_store.data(), data)),
-            Ok(0) => Err(ScanError::Timeout),
-            Ok(res) => panic!(
-                "unexpected return value from WASM main function: {}",
-                res
-            ),
+        match func_result {
+            Ok(_) => Ok(ScanResults::new(self.wasm_store.data(), data)),
             Err(err) if err.is::<ScanError>() => {
                 Err(err.downcast::<ScanError>().unwrap())
             }
