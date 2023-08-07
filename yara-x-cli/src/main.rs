@@ -8,9 +8,6 @@ use std::io;
 use yansi::Color::Red;
 use yansi::Paint;
 
-#[cfg(feature = "logging")]
-use env_logger;
-
 const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
 {author-with-newline}
 {before-help}{usage-heading}
