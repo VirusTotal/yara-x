@@ -223,7 +223,15 @@ impl ScanContext<'_> {
         #[cfg(feature = "logging")]
         let start = Instant::now();
 
+        #[cfg(feature = "logging")]
+        let mut atom_matches = 0_usize;
+
         for ac_match in ac.find_overlapping_iter(scanned_data) {
+            #[cfg(feature = "logging")]
+            {
+                atom_matches += 1;
+            }
+
             if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
                 #[cfg(feature = "logging")]
                 info!("Scan timeout after: {:?}", Instant::elapsed(&start));
@@ -408,8 +416,10 @@ impl ScanContext<'_> {
         }
 
         #[cfg(feature = "logging")]
-        info!("Scan time: {:?}", Instant::elapsed(&start));
-
+        {
+            info!("Scan time: {:?}", Instant::elapsed(&start));
+            info!("Atom matches: {}", atom_matches);
+        }
         Ok(())
     }
 

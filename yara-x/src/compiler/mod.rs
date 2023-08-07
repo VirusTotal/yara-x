@@ -461,9 +461,6 @@ impl<'a> Compiler<'a> {
         )
         .expect("WASM module is not valid");
 
-        #[cfg(feature = "logging")]
-        info!("WASM module build time: {:?}", Instant::elapsed(&start));
-
         // The structure that contains the global variables is serialized before
         // being passed to the `Rules` struct. This is because we want `Rules`
         // to be `Send`, so that it can be shared with scanners running in
@@ -478,6 +475,14 @@ impl<'a> Compiler<'a> {
         let serialized_globals = bincode::DefaultOptions::new()
             .serialize(&self.globals_struct)
             .expect("failed to serialize global variables");
+
+        #[cfg(feature = "logging")]
+        {
+            info!("WASM module build time: {:?}", Instant::elapsed(&start));
+            info!("Number of rules: {}", self.rules.len());
+            info!("Number of patterns: {}", self.next_pattern_id);
+            info!("Number of atoms: {}", self.atoms.len());
+        }
 
         Rules {
             serialized_globals,
