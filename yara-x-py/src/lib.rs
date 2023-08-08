@@ -18,10 +18,11 @@ use std::ops::Deref;
 use std::pin::Pin;
 use std::time::Duration;
 
-use pyo3::exceptions::PyException;
+use pyo3::exceptions::{PyException, PyIOError};
 use pyo3::exceptions::{PySyntaxError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyBytes, PyFloat, PyInt, PyString, PyTuple};
+use pyo3_file::PyFileLikeObject;
 
 use ::yara_x as yrx;
 
@@ -259,6 +260,14 @@ impl Rules {
             )
             .into()
         }))
+    }
+
+    fn serialize_into(&self, file: PyObject) -> PyResult<()> {
+        let f = PyFileLikeObject::with_requirements(file, false, true, false)?;
+        self.inner
+            .rules
+            .serialize_into(f)
+            .map_err(|err| PyIOError::new_err(err.to_string()))
     }
 }
 
