@@ -1,4 +1,7 @@
+use anyhow::bail;
 use std::cmp::min;
+use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
@@ -7,7 +10,8 @@ use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red};
-use yara_x::{Rule, Scanner};
+use yansi::Paint;
+use yara_x::{Rule, Rules, Scanner};
 
 use crate::commands::compile_rules;
 use crate::walk::Message;
@@ -44,6 +48,11 @@ pub fn scan() -> Command {
                 .help("Use file path as rule namespace"),
         )
         .arg(
+            arg!(-C - -"compiled-rules")
+                .help("Tells that RULES_PATH is a file with compiled rules")
+                .long_help(help::COMPILED_RULES_HELP),
+        )
+        .arg(
             arg!(-z --"skip-larger" <FILE_SIZE>)
                 .help("Skip files larger than the given size")
                 .value_parser(value_parser!(u64)),
@@ -58,8 +67,9 @@ pub fn scan() -> Command {
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
-    let rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
+    let mut rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
     let path = args.get_one::<PathBuf>("PATH").unwrap();
+    let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
     let print_namespace = args.get_flag("print-namespace");
     let print_strings = args.get_flag("print-strings");
@@ -68,7 +78,23 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
 
-    let rules = compile_rules(rules_path, path_as_namespace)?;
+    let rules = if compiled_rules {
+        if rules_path.len() > 1 {
+            bail!(
+                "can't use '{}' with more than one RULES_PATH",
+                Paint::new("--compiled-rules").bold()
+            );
+        }
+
+        // TODO: implement Rules::deserialize_from reader
+        let mut file = File::open(rules_path.next().unwrap())?;
+        let mut data = Vec::new();
+        File::read_to_end(&mut file, &mut data)?;
+        Rules::deserialize(data.as_slice())?
+    } else {
+        compile_rules(rules_path, path_as_namespace)?
+    };
+
     let rules_ref = &rules;
 
     let mut walker = walk::ParallelWalk::new(path);

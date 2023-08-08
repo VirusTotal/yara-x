@@ -34,3 +34,8 @@ files matching any of the patterns will be checked.
 The absense of this options is equivalent to using this:
 
 --filter='**/*.yara' --filter='**/*.yar'"#;
+
+pub const COMPILED_RULES_HELP: &str = r#"Indicates that <RULES_PATH> is a file containing compiled rules
+
+YARA rules can be compiled with the `yr compile` command. The file produced by
+this command can be passed later to `yr scan` by using this flag."#;
