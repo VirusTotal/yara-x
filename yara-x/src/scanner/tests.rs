@@ -323,3 +323,40 @@ fn global_rules() {
 
     assert!(non_matching.next().is_none());
 }
+
+#[test]
+fn private_rules() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .add_source(
+            r#"
+        global private rule test_1 {
+            condition:
+                true
+        }
+
+        private rule test_2 {
+            condition:
+                true
+        }
+
+        rule test_3 {
+            condition:
+                true
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan(&[]).expect("scan should not fail");
+
+    // Only the matching non-private rule should be reported.
+    assert_eq!(scan_results.matching_rules().len(), 1);
+
+    // Only the non-matching, non-private rules should be reported.
+    assert_eq!(scan_results.non_matching_rules().len(), 0);
+}

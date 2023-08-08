@@ -112,8 +112,9 @@ impl<'r> Scanner<'r> {
                 root_struct: rules.globals(),
                 scanned_data: null(),
                 scanned_data_len: 0,
-                rules_matching: Vec::new(),
-                global_rules_matching: FxHashMap::default(),
+                private_matching_rules: Vec::new(),
+                non_private_matching_rules: Vec::new(),
+                global_matching_rules: FxHashMap::default(),
                 main_memory: None,
                 vars_stack: Vec::new(),
                 module_outputs: FxHashMap::default(),
@@ -470,10 +471,17 @@ impl<'r> Scanner<'r> {
         // to some struct.
         ctx.current_struct = None;
 
-        // Move all the rules in `global_rules_matching` to `rules_matching`,
-        // leaving `global_rules_matching` empty.
-        for rules in ctx.global_rules_matching.values_mut() {
-            ctx.rules_matching.append(rules)
+        // Move all the in `global_matching_rules` to `private_matching_rules`
+        // and `non_private_matching_rules`, leaving `global_matching_rules`
+        // empty.
+        for rules in ctx.global_matching_rules.values_mut() {
+            for rule_id in rules.drain(0..) {
+                if ctx.compiled_rules.get(rule_id).is_private {
+                    ctx.private_matching_rules.push(rule_id);
+                } else {
+                    ctx.non_private_matching_rules.push(rule_id);
+                }
+            }
         }
 
         match func_result {
@@ -503,7 +511,9 @@ impl<'r> Scanner<'r> {
         // rule may match without any pattern being matched, because there
         // there are rules without patterns, or that match if the pattern is
         // not found.
-        if !ctx.pattern_matches.is_empty() || !ctx.rules_matching.is_empty() {
+        if !ctx.pattern_matches.is_empty()
+            || !ctx.non_private_matching_rules.is_empty()
+        {
             // The hash map that tracks the pattern matches is not completely
             // cleared with pattern_matches.clear() because that would cause
             // that all the vectors are deallocated. Instead, each of the
@@ -515,7 +525,7 @@ impl<'r> Scanner<'r> {
             }
 
             // Clear the list of matching rules.
-            ctx.rules_matching.clear();
+            ctx.non_private_matching_rules.clear();
 
             let mem = ctx
                 .main_memory
@@ -572,7 +582,7 @@ pub struct MatchingRules<'a, 'r> {
 
 impl<'a, 'r> MatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
-        Self { ctx, data, iterator: ctx.rules_matching.iter() }
+        Self { ctx, data, iterator: ctx.non_private_matching_rules.iter() }
     }
 }
 
@@ -583,7 +593,6 @@ impl<'a, 'r> Iterator for MatchingRules<'a, 'r> {
         let rule_id = *self.iterator.next()?;
         let rules = self.ctx.compiled_rules;
         let rule_info = rules.get(rule_id);
-
         Some(Rule { rule_info, rules, ctx: self.ctx, data: self.data })
     }
 }
@@ -627,9 +636,11 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
             ctx,
             data,
             iterator: matching_rules_bitmap.iter_zeros(),
-            // The number of non-matching rules is the total minus the number of
-            // matching rules.
-            len: ctx.compiled_rules.rules().len() - ctx.rules_matching.len(),
+            // The number of non-matching rules is the total number of rules
+            // minus the number of matching rules, both private and non-private.
+            len: ctx.compiled_rules.rules().len()
+                - ctx.private_matching_rules.len()
+                - ctx.non_private_matching_rules.len(),
         }
     }
 }
@@ -638,12 +649,22 @@ impl<'a, 'r> Iterator for NonMatchingRules<'a, 'r> {
     type Item = Rule<'a, 'r>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.len = self.len.saturating_sub(1);
-        let rule_id = RuleId::from(self.iterator.next()?);
-        let rules = self.ctx.compiled_rules;
-        let rule_info = rules.get(rule_id);
-
-        Some(Rule { rule_info, rules, ctx: self.ctx, data: self.data })
+        loop {
+            self.len = self.len.saturating_sub(1);
+            let rule_id = RuleId::from(self.iterator.next()?);
+            let rules = self.ctx.compiled_rules;
+            let rule_info = rules.get(rule_id);
+            // Private rules are not returned, if the current rule is private
+            // keep in the loop and try with the next one.
+            if !rule_info.is_private {
+                return Some(Rule {
+                    rule_info,
+                    rules,
+                    ctx: self.ctx,
+                    data: self.data,
+                });
+            }
+        }
     }
 }
 

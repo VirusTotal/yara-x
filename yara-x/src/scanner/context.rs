@@ -39,11 +39,17 @@ pub(crate) struct ScanContext<'r> {
     pub scanned_data: *const u8,
     /// Length of data being scanned.
     pub scanned_data_len: usize,
-    /// Vector containing the IDs of the non-global rules that matched. Global
-    /// rules are added to the `global_rules_matching` map instead.
-    pub rules_matching: Vec<RuleId>,
+    /// Vector containing the IDs of the non-private rules that matched,
+    /// including both global and non-global ones. Global rules are initially
+    /// added to `global_matching_rules`, and once all the rules in the
+    /// namespace are evaluated, the global rules that matched are moved
+    /// to this vector.
+    pub non_private_matching_rules: Vec<RuleId>,
+    // Vector containing the IDs of the private rules that matched, including
+    // both blogan and non-global ones.
+    pub private_matching_rules: Vec<RuleId>,
     /// Map containing the IDs of the global rules that matched.
-    pub global_rules_matching: FxHashMap<NamespaceId, Vec<RuleId>>,
+    pub global_matching_rules: FxHashMap<NamespaceId, Vec<RuleId>>,
     /// Compiled rules for this scan.
     pub compiled_rules: &'r Rules,
     /// Structure that contains top-level symbols, like module names
@@ -142,10 +148,10 @@ impl ScanContext<'_> {
 
         // All the global rules that matched previously, and are in the same
         // namespace than the non-matching rule, must be removed from the
-        // `global_rules_matching` map. Also, their corresponding bits in
+        // `global_matching_rules` map. Also, their corresponding bits in
         // the matching rules bitmap must be cleared.
         if let Some(rules) =
-            self.global_rules_matching.get_mut(&rule.namespace_id)
+            self.global_matching_rules.get_mut(&rule.namespace_id)
         {
             for rule_id in rules.iter() {
                 bits.set((*rule_id).into(), false);
@@ -161,12 +167,14 @@ impl ScanContext<'_> {
         let rule = self.compiled_rules.get(rule_id);
 
         if rule.is_global {
-            self.global_rules_matching
+            self.global_matching_rules
                 .entry(rule.namespace_id)
                 .or_default()
                 .push(rule_id);
+        } else if rule.is_private {
+            self.private_matching_rules.push(rule_id);
         } else {
-            self.rules_matching.push(rule_id);
+            self.non_private_matching_rules.push(rule_id);
         }
 
         let wasm_store = unsafe { self.wasm_store.as_mut() };

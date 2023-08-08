@@ -291,6 +291,8 @@ pub(crate) struct RuleInfo {
     pub(crate) patterns: Vec<(IdentId, PatternId)>,
     /// True if the rule is global.
     pub(crate) is_global: bool,
+    /// True if the rule is private.
+    pub(crate) is_private: bool,
 }
 
 /// Represents an atom extracted from a pattern and added to the Aho-Corasick

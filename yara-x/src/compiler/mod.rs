@@ -617,6 +617,7 @@ impl<'a> Compiler<'a> {
             ident_span: rule.identifier.span,
             patterns: ident_and_pattern,
             is_global: rule.flags.contains(RuleFlag::Global),
+            is_private: rule.flags.contains(RuleFlag::Private),
         });
 
         // Create a new symbol of bool type for the rule.
