@@ -9,18 +9,17 @@ use std::collections::VecDeque;
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
-use std::{fmt, iter, u32};
-
-#[cfg(feature = "logging")]
-use log::*;
 #[cfg(feature = "logging")]
 use std::time::Instant;
+use std::{fmt, iter, u32};
 
 use aho_corasick::{AhoCorasickBuilder, AhoCorasickKind};
 use bincode::Options;
 use bitmask::bitmask;
 use bstr::ByteSlice;
 use itertools::Itertools;
+#[cfg(feature = "logging")]
+use log::*;
 use regex_syntax::hir;
 use regex_syntax::hir::Literal;
 use rustc_hash::FxHashMap;
@@ -433,24 +432,6 @@ impl<'a> Compiler<'a> {
         #[cfg(feature = "logging")]
         let start = Instant::now();
 
-        let mut ac_builder = AhoCorasickBuilder::new();
-        ac_builder.kind(Option::from(AhoCorasickKind::DFA));
-
-        // Build the Aho-Corasick automaton used while searching for the atoms
-        // in the scanned data.
-        let ac = ac_builder
-            .build(self.atoms.iter().map(|a| a.as_slice()))
-            .expect("failed to build Aho-Corasick automaton");
-
-        #[cfg(feature = "logging")]
-        info!(
-            "Aho-Corasick automaton build time: {:?}",
-            Instant::elapsed(&start)
-        );
-
-        #[cfg(feature = "logging")]
-        let start = Instant::now();
-
         // Compile the WASM module for the current platform. This panics
         // if the WASM code is invalid, which should not happen as the code is
         // emitted by YARA itself. If this ever happens is probably because
@@ -460,6 +441,9 @@ impl<'a> Compiler<'a> {
             wasm_mod.as_slice(),
         )
         .expect("WASM module is not valid");
+
+        #[cfg(feature = "logging")]
+        info!("WASM module build time: {:?}", Instant::elapsed(&start));
 
         // The structure that contains the global variables is serialized before
         // being passed to the `Rules` struct. This is because we want `Rules`
@@ -476,18 +460,10 @@ impl<'a> Compiler<'a> {
             .serialize(&self.globals_struct)
             .expect("failed to serialize global variables");
 
-        #[cfg(feature = "logging")]
-        {
-            info!("WASM module build time: {:?}", Instant::elapsed(&start));
-            info!("Number of rules: {}", self.rules.len());
-            info!("Number of patterns: {}", self.next_pattern_id);
-            info!("Number of atoms: {}", self.atoms.len());
-        }
-
-        Rules {
+        let mut rules = Rules {
             serialized_globals,
             wasm_mod: compiled_wasm_mod,
-            ac: Some(ac),
+            ac: None,
             num_patterns: self.next_pattern_id as usize,
             ident_pool: self.ident_pool,
             regexp_pool: self.regexp_pool,
@@ -497,7 +473,11 @@ impl<'a> Compiler<'a> {
             sub_patterns: self.sub_patterns,
             atoms: self.atoms,
             re_code: self.re_code,
-        }
+        };
+
+        rules.build_ac_automaton();
+
+        rules
     }
 
     /// Specifies whether the compiler should produce colorful error messages.

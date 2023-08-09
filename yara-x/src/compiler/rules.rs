@@ -1,7 +1,11 @@
 use std::io::{BufWriter, Write};
+#[cfg(feature = "logging")]
+use std::time::Instant;
 
 use aho_corasick::AhoCorasick;
 use bincode::Options;
+#[cfg(feature = "logging")]
+use log::*;
 use regex::bytes::{Regex, RegexBuilder};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -111,16 +115,18 @@ impl Rules {
             return Err(SerializationError::InvalidFormat);
         }
 
+        #[cfg(feature = "logging")]
+        let start = Instant::now();
+
         // Skip the magic and deserialize the remaining data.
         let mut rules = bincode::DefaultOptions::new()
             .with_varint_encoding()
             .deserialize::<Self>(&bytes[magic.len()..])?;
 
-        // The Aho-Corasick automaton is not serialized, it must be rebuilt.
-        rules.ac = Some(
-            AhoCorasick::new(rules.atoms.iter().map(|x| x.atom.as_slice()))
-                .expect("failed to build Aho-Corasick automaton"),
-        );
+        #[cfg(feature = "logging")]
+        info!("Deserialization time: {:?}", Instant::elapsed(&start));
+
+        rules.build_ac_automaton();
 
         Ok(rules)
     }
@@ -209,8 +215,50 @@ impl Rules {
     /// Returns the Aho-Corasick automaton that allows to search for pattern
     /// atoms.
     #[inline]
-    pub(crate) fn aho_corasick(&self) -> &AhoCorasick {
+    pub(crate) fn ac_automaton(&self) -> &AhoCorasick {
         self.ac.as_ref().expect("Aho-Corasick automaton not compiled")
+    }
+
+    pub(crate) fn build_ac_automaton(&mut self) {
+        if self.ac.is_some() {
+            return;
+        }
+
+        #[cfg(feature = "logging")]
+        let start = Instant::now();
+
+        #[cfg(feature = "logging")]
+        let mut num_atoms = [0_usize; 6];
+
+        self.ac = Some(
+            AhoCorasick::new(self.atoms.iter().map(|x| {
+                #[cfg(feature = "logging")]
+                match x.atom.len() {
+                    atom_len @ 0..=4 => num_atoms[atom_len] += 1,
+                    _ => num_atoms[num_atoms.len() - 1] += 1,
+                }
+                x.atom.as_slice()
+            }))
+            .expect("failed to build Aho-Corasick automaton"),
+        );
+
+        #[cfg(feature = "logging")]
+        {
+            info!(
+                "Aho-Corasick automaton build time: {:?}",
+                Instant::elapsed(&start)
+            );
+
+            info!("Number of rules: {}", self.rules.len());
+            info!("Number of patterns: {}", self.num_patterns);
+            info!("Number of atoms: {}", self.atoms.len());
+            info!("Atoms with len = 0: {}", num_atoms[0]);
+            info!("Atoms with len = 1: {}", num_atoms[1]);
+            info!("Atoms with len = 2: {}", num_atoms[2]);
+            info!("Atoms with len = 3: {}", num_atoms[3]);
+            info!("Atoms with len = 4: {}", num_atoms[4]);
+            info!("Atoms with len > 4: {}", num_atoms[5]);
+        }
     }
 
     /// An iterator that yields the name of the modules imported by the

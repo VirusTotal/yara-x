@@ -223,7 +223,7 @@ impl ScanContext<'_> {
     /// called only once.
     pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
         let scanned_data = self.scanned_data();
-        let ac = self.compiled_rules.aho_corasick();
+        let ac = self.compiled_rules.ac_automaton();
 
         let mut pike_vm = PikeVM::new(self.compiled_rules.re_code());
         let atoms = self.compiled_rules.atoms();
