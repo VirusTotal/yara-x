@@ -13,7 +13,6 @@ use std::rc::Rc;
 use std::time::Instant;
 use std::{fmt, iter, u32};
 
-use aho_corasick::{AhoCorasickBuilder, AhoCorasickKind};
 use bincode::Options;
 use bitmask::bitmask;
 use bstr::ByteSlice;
@@ -416,11 +415,6 @@ impl<'a> Compiler<'a> {
         self
     }
 
-    /// Returns the warnings produced while compiling the rules.
-    pub fn warnings(&self) -> &[Warning] {
-        &self.warnings
-    }
-
     /// Builds the source code previously added to the compiler.
     ///
     /// This function consumes the compiler and returns an instance of
@@ -473,6 +467,7 @@ impl<'a> Compiler<'a> {
             sub_patterns: self.sub_patterns,
             atoms: self.atoms,
             re_code: self.re_code,
+            warnings: self.warnings,
         };
 
         rules.build_ac_automaton();

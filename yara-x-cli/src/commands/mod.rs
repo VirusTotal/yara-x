@@ -56,9 +56,11 @@ where
         compiler.add_source(src)?;
     }
 
-    for warning in compiler.warnings() {
+    let rules = compiler.build();
+
+    for warning in rules.warnings() {
         println!("{}", warning);
     }
 
-    Ok(compiler.build())
+    Ok(rules)
 }

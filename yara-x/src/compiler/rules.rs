@@ -10,6 +10,7 @@ use regex::bytes::{Regex, RegexBuilder};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use yara_x_parser::ast::Span;
+use yara_x_parser::Warning;
 
 use crate::compiler::atoms::{make_wide, Atom};
 use crate::compiler::{
@@ -99,9 +100,29 @@ pub struct Rules {
     /// implement the [`Default`] trait.
     #[serde(skip)]
     pub(in crate::compiler) ac: Option<AhoCorasick>,
+
+    /// Warnings that were produced while compiling these rules. These warnings
+    /// are not serialized, rules that are obtained by deserializing previously
+    /// serialized rules won't have any warnings.
+    #[serde(skip)]
+    pub(in crate::compiler) warnings: Vec<Warning>,
 }
 
 impl Rules {
+    /// An iterator that yields the name of the modules imported by the
+    /// rules.
+    pub fn imports(&self) -> Imports {
+        Imports {
+            iter: self.imported_modules.iter(),
+            ident_pool: &self.ident_pool,
+        }
+    }
+
+    /// Warnings produced while compiling these rules.
+    pub fn warnings(&self) -> &[Warning] {
+        self.warnings.as_slice()
+    }
+
     /// Deserializes the rules from a sequence of bytes produced by
     /// [`Rules::serialize`].
     pub fn deserialize<B>(bytes: B) -> Result<Self, SerializationError>
@@ -258,15 +279,6 @@ impl Rules {
             info!("Atoms with len = 3: {}", num_atoms[3]);
             info!("Atoms with len = 4: {}", num_atoms[4]);
             info!("Atoms with len > 4: {}", num_atoms[5]);
-        }
-    }
-
-    /// An iterator that yields the name of the modules imported by the
-    /// rules.
-    pub fn imports(&self) -> Imports {
-        Imports {
-            iter: self.imported_modules.iter(),
-            ident_pool: &self.ident_pool,
         }
     }
 
