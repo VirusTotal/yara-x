@@ -1158,6 +1158,11 @@ impl<'a> Compiler<'a> {
         for atom in atoms.iter_mut() {
             atom.code_loc.fwd += fwd_code;
             atom.code_loc.bck += bck_code;
+
+            if atom.atom.len() < 2 {
+                self.warnings
+                    .push(Warning::slow_pattern(&self.report_builder, span));
+            }
         }
 
         Ok(atoms)

@@ -11,16 +11,16 @@ fn warnings() {
             r#"
 rule test { 
   strings: 
-    $a = { 01 [1-2][3-4][1-3] 02 } 
+    $a = { 01 02 [1-2][3-4][1-3] 03 04 } 
   condition: 
     $a 
 }"#,
             r#"warning: consecutive jumps in hex pattern `$a`
-   ╭─[line:4:15]
+   ╭─[line:4:18]
    │
- 4 │     $a = { 01 [1-2][3-4][1-3] 02 }
-   │               ───────┬───────  
-   │                      ╰───────── these consecutive jumps will be treated as [5-9]
+ 4 │     $a = { 01 02 [1-2][3-4][1-3] 03 04 }
+   │                  ───────┬───────  
+   │                         ╰───────── these consecutive jumps will be treated as [5-9]
 ───╯
 "#,
         ),
@@ -367,6 +367,26 @@ rule test {
    │       ╰──── this expression is `integer` but is being used as `bool`
    │ 
    │ Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = {00 [1-10] 01}
+  condition: 
+    $a
+}
+"#,
+            r#"warning: slow pattern
+   ╭─[line:4:10]
+   │
+ 4 │     $a = {00 [1-10] 01}
+   │          ───────┬──────  
+   │                 ╰──────── this pattern may slow down the scan
 ───╯
 "#,
         ),

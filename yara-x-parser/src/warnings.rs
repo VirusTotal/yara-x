@@ -72,4 +72,11 @@ pub enum Warning {
         nocase_span: Span,
         i_span: Span,
     },
+
+    #[warning("slow pattern")]
+    #[label("this pattern may slow down the scan", span)]
+    SlowPattern {
+        detailed_report: String,
+        span: Span,
+    }
 }
