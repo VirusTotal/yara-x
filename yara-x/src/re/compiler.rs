@@ -745,109 +745,102 @@ impl hir::Visitor for &mut Compiler {
             }
         };
 
+        self.depth -= 1;
+
         // If `zero_rep_depth` > 0 we are currently at a HIR node that is
         // contained in a `HirKind::Repetition` node that could repeat zero
         // times. Extracting atoms from this node doesn't make sense, atoms
         // must be extracted from portions of the pattern that are required
         // to be in the matching data.
-        if self.zero_rep_depth == 0 {
-            code_loc.bck_seq_id = self.backward_code().seq_id();
-            code_loc.bck = self.backward_code().location();
-
-            // Try to extract atoms from the HIR node. When the node is a
-            // a literal we don't use the literal extractor provided by
-            // `regex_syntax` as it always returns the first bytes in the
-            // literal. Sometimes the best atom is not at the very start of
-            // the literal, our own logic implemented in `best_atom_from_slice`
-            // takes into account a few things, like penalizing common bytes
-            // and prioritizing digits over letters.
-            let atoms = match hir.kind() {
-                HirKind::Literal(literal) => {
-                    let literal = literal.0.as_ref();
-                    let mut best_atom =
-                        best_atom_from_slice(literal, DESIRED_ATOM_SIZE);
-
-                    // If the atom extracted from the literal is not at the
-                    // start of the literal it's `backtrack` value will be
-                    // non zero and the locations where forward and backward
-                    // code start must be adjusted accordingly.
-                    let adjustment = literal_code_length(
-                        &literal[0..best_atom.backtrack() as usize],
-                    );
-
-                    code_loc.fwd += adjustment;
-                    code_loc.bck -= adjustment;
-                    best_atom.set_backtrack(0);
-
-                    Some(vec![best_atom])
-                }
-                _ => self.extract_atoms_from_hir(hir),
-            };
-
-            if let Some(atoms) = atoms {
-                let min_quality = atoms.iter().map(|a| a.quality()).min();
-
-                if let Some(quality) = min_quality {
-                    let (best_quality, best_atoms) =
-                        self.best_atoms.last_mut().unwrap();
-
-                    if quality > *best_quality {
-                        // An atom is "exact" when it covers the whole pattern,
-                        // which means that finding the atom during a scan is
-                        // enough to guarantee that the pattern matches. Atoms
-                        // extracted from children of the current HIR node may
-                        // be flagged as "exact" because they cover a whole HIR
-                        // sub-tree. They are "exact" with respect to some sub-
-                        // pattern, but not necessarily with respect to the
-                        // whole pattern. So, atoms that are flagged as "exact"
-                        // are converted to "inexact" unless they were extracted
-                        // from the top-level HIR node.
-                        //
-                        // Also, atoms extracted from HIR nodes that contain
-                        // look-around assertions are also considered "inexact",
-                        // regardless of whether they are flagged as "exact",
-                        // because the atom extractor can produce "exact" atoms
-                        // that can't be trusted, this what the documentation
-                        // says:
-                        //
-                        // "Literal extraction treats all look-around assertions
-                        // as-if they match every empty string. So for example,
-                        // the regex \bquux\b will yield a sequence containing
-                        // a single exact literal quux. However, not all
-                        // occurrences of quux correspond to a match a of the
-                        // regex. For example, \bquux\b does not match ZquuxZ
-                        // anywhere because quux does not fall on a word
-                        // boundary.
-                        //
-                        // In effect, if your regex contains look-around
-                        // assertions, then a match of an exact literal does not
-                        // necessarily mean the regex overall matches. So you
-                        // may still need to run the regex engine in such cases
-                        // to confirm the match." (end of quote)
-                        //
-                        let can_be_exact = self.depth == 1
-                            && hir.properties().look_set().is_empty();
-
-                        let atom_to_regexp_atom = |atom: Atom| RegexpAtom {
-                            atom: if !can_be_exact {
-                                atom.make_inexact()
-                            } else {
-                                atom
-                            },
-                            code_loc,
-                        };
-
-                        *best_quality = quality;
-                        *best_atoms = atoms
-                            .into_iter()
-                            .map(atom_to_regexp_atom)
-                            .collect();
-                    }
-                }
-            }
+        if self.zero_rep_depth > 0 {
+            return Ok(());
         }
 
-        self.depth -= 1;
+        code_loc.bck_seq_id = self.backward_code().seq_id();
+        code_loc.bck = self.backward_code().location();
+
+        // Try to extract atoms from the HIR node. When the node is a
+        // a literal we don't use the literal extractor provided by
+        // `regex_syntax` as it always returns the first bytes in the
+        // literal. Sometimes the best atom is not at the very start of
+        // the literal, our own logic implemented in `best_atom_from_slice`
+        // takes into account a few things, like penalizing common bytes
+        // and prioritizing digits over letters.
+        let atoms = match hir.kind() {
+            HirKind::Literal(literal) => {
+                let literal = literal.0.as_ref();
+                let mut best_atom =
+                    best_atom_from_slice(literal, DESIRED_ATOM_SIZE);
+
+                // If the atom extracted from the literal is not at the
+                // start of the literal it's `backtrack` value will be
+                // non zero and the locations where forward and backward
+                // code start must be adjusted accordingly.
+                let adjustment = literal_code_length(
+                    &literal[0..best_atom.backtrack() as usize],
+                );
+
+                code_loc.fwd += adjustment;
+                code_loc.bck -= adjustment;
+                best_atom.set_backtrack(0);
+
+                Some(vec![best_atom])
+            }
+            _ => self.extract_atoms_from_hir(hir),
+        };
+
+        // If no atoms where found, nothing more to do.
+        let atoms = match atoms {
+            None => return Ok(()),
+            Some(atoms) if atoms.is_empty() => return Ok(()),
+            Some(atoms) => atoms,
+        };
+
+        // Compute the minimum quality across all atoms. A single low quality
+        // atom in a set good atoms has the potential of slowing down scanning.
+        let min_quality = atoms.iter().map(|a| a.quality()).min().unwrap();
+
+        let (best_quality, best_atoms) = self.best_atoms.last_mut().unwrap();
+
+        if min_quality > *best_quality {
+            // An atom is "exact" when it covers the whole pattern, which means
+            // that finding the atom during a scan is enough to guarantee that
+            // the pattern matches. Atoms extracted from children of the current
+            // HIR node may be flagged as "exact" because they cover a whole HIR
+            // sub-tree. They are "exact" with respect to some sub-pattern, but
+            // not necessarily with respect to the whole pattern. So, atoms that
+            // are flagged as "exact" are converted to "inexact" unless they
+            // were extracted from the top-level HIR node.
+            //
+            // Also, atoms extracted from HIR nodes that contain look-around
+            // assertions are also considered "inexact", regardless of whether
+            // they are flagged as "exact", because the atom extractor can
+            // produce "exact" atoms that can't be trusted, this what the
+            // documentation says:
+            //
+            // "Literal extraction treats all look-around assertions as-if they
+            // match every empty string. So for example, the regex \bquux\b will
+            // yield a sequence containing a single exact literal quux. However,
+            // not all occurrences of quux correspond to a match a of the regex.
+            // For example, \bquux\b does not match ZquuxZ anywhere because quux
+            // does not fall on a word boundary.
+            //
+            // In effect, if your regex contains look-around assertions, then a
+            // match of an exact literal does not necessarily mean the regex
+            // overall matches. So you may still need to run the regex engine
+            // in such cases to confirm the match." (end of quote)
+            //
+            let can_be_exact =
+                self.depth == 0 && hir.properties().look_set().is_empty();
+
+            let atom_to_regexp_atom = |atom: Atom| RegexpAtom {
+                atom: if !can_be_exact { atom.make_inexact() } else { atom },
+                code_loc,
+            };
+
+            *best_quality = min_quality;
+            *best_atoms = atoms.into_iter().map(atom_to_regexp_atom).collect();
+        }
 
         Ok(())
     }
