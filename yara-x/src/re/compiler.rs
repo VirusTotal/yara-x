@@ -9,9 +9,11 @@ matches the regexp left-to-right, and another one that matches right-to-left.
 
 use std::cmp::min;
 use std::collections::HashMap;
+use std::iter::zip;
 use std::mem::{size_of, size_of_val};
 
 use regex_syntax::hir;
+use regex_syntax::hir::literal::Seq;
 use regex_syntax::hir::{
     visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition,
 };
@@ -19,7 +21,9 @@ use thiserror::Error;
 
 use yara_x_parser::ast::HexByte;
 
-use crate::compiler::{best_atom_from_slice, Atom, DESIRED_ATOM_SIZE};
+use crate::compiler::{
+    atom_quality, best_atom_from_slice, Atom, DESIRED_ATOM_SIZE,
+};
 use crate::re;
 use crate::re::hir::class_to_hex_byte;
 use crate::re::instr::{
@@ -134,7 +138,7 @@ impl Compiler {
         lit_extractor.limit_class(256);
         lit_extractor.limit_total(512);
         lit_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
-        lit_extractor.limit_repeat(256);
+        lit_extractor.limit_repeat(DESIRED_ATOM_SIZE);
 
         Self {
             lit_extractor,
@@ -154,8 +158,8 @@ impl Compiler {
     ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
         visit(&hir.inner, &mut self)?;
 
-        self.forward_code.emit_instr(Instr::MATCH);
-        self.backward_code.emit_instr(Instr::MATCH);
+        self.forward_code_mut().emit_instr(Instr::MATCH);
+        self.backward_code_mut().emit_instr(Instr::MATCH);
 
         Ok((
             self.forward_code,
@@ -166,6 +170,16 @@ impl Compiler {
 }
 
 impl Compiler {
+    #[inline]
+    fn forward_code(&self) -> &InstrSeq {
+        &self.forward_code
+    }
+
+    #[inline]
+    fn forward_code_mut(&mut self) -> &mut InstrSeq {
+        &mut self.forward_code
+    }
+
     #[inline]
     fn backward_code(&self) -> &InstrSeq {
         self.backward_code_chunks.last().unwrap_or(&self.backward_code)
@@ -178,7 +192,7 @@ impl Compiler {
 
     fn location(&self) -> Location {
         Location {
-            fwd: self.forward_code.location(),
+            fwd: self.forward_code().location(),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code().location(),
         }
@@ -186,7 +200,7 @@ impl Compiler {
 
     fn emit_instr(&mut self, instr: u8) -> Location {
         Location {
-            fwd: self.forward_code.emit_instr(instr),
+            fwd: self.forward_code_mut().emit_instr(instr),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_instr(instr),
         }
@@ -194,7 +208,7 @@ impl Compiler {
 
     fn emit_split_n(&mut self, n: NumAlt) -> Location {
         Location {
-            fwd: self.forward_code.emit_split_n(n),
+            fwd: self.forward_code_mut().emit_split_n(n),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_split_n(n),
         }
@@ -202,23 +216,23 @@ impl Compiler {
 
     fn emit_masked_byte(&mut self, b: HexByte) -> Location {
         Location {
-            fwd: self.forward_code.emit_masked_byte(b),
-            bck_seq_id: self.backward_code.seq_id(),
+            fwd: self.forward_code_mut().emit_masked_byte(b),
+            bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_masked_byte(b),
         }
     }
 
     fn emit_class(&mut self, c: &ClassBytes) -> Location {
         Location {
-            fwd: self.forward_code.emit_class(c),
-            bck_seq_id: self.backward_code.seq_id(),
+            fwd: self.forward_code_mut().emit_class(c),
+            bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_class(c),
         }
     }
 
     fn emit_literal(&mut self, literal: &Literal) -> Location {
         Location {
-            fwd: self.forward_code.emit_literal(literal.0.iter()),
+            fwd: self.forward_code_mut().emit_literal(literal.0.iter()),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_literal(literal.0.iter().rev()),
         }
@@ -226,14 +240,14 @@ impl Compiler {
 
     fn emit_clone(&mut self, start: Location, end: Location) -> Location {
         Location {
-            fwd: self.forward_code.emit_clone(start.fwd, end.fwd),
+            fwd: self.forward_code_mut().emit_clone(start.fwd, end.fwd),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_clone(start.bck, end.bck),
         }
     }
 
     fn patch_instr(&mut self, location: &Location, offset: Offset) {
-        self.forward_code.patch_instr(location.fwd, offset.fwd);
+        self.forward_code_mut().patch_instr(location.fwd, offset.fwd);
         self.backward_code_mut().patch_instr(location.bck, offset.bck);
     }
 
@@ -250,32 +264,8 @@ impl Compiler {
             bck.push(o.bck);
         }
 
-        self.forward_code.patch_split_n(location.fwd, fwd.into_iter());
+        self.forward_code_mut().patch_split_n(location.fwd, fwd.into_iter());
         self.backward_code_mut().patch_split_n(location.bck, bck.into_iter());
-    }
-
-    fn extract_atoms_from_hir(&self, hir: &Hir) -> Option<Vec<Atom>> {
-        let seq = self.lit_extractor.extract(hir);
-
-        // If the literal extractor produced exactly 256 atoms, and those atoms
-        // have a common prefix that is one byte shorter than the longest atom,
-        // we are in the case where we have 256 atoms that differ only in the
-        // last byte. It doesn't make sense to have 256 atoms of length N, when
-        // we can have 1 atom of length N-1 by discarding the last byte.
-        if let Some(256) = seq.len() {
-            if let Some(max_len) = seq.max_literal_len() {
-                if max_len > 1 {
-                    if let Some(longest_prefix) = seq.longest_common_prefix() {
-                        if longest_prefix.len() == max_len - 1 {
-                            return Some(vec![Atom::inexact(longest_prefix)]);
-                        }
-                    }
-                }
-            }
-        }
-
-        seq.literals()
-            .map(|literals| literals.iter().map(Atom::from).collect())
     }
 
     fn visit_post_class(&mut self, class: &Class) -> Location {
@@ -316,45 +306,58 @@ impl Compiler {
             .push(InstrSeq::new(self.backward_code().seq_id() + 1));
     }
 
-    fn visit_post_concat(&mut self, expressions: &Vec<Hir>) -> Location {
-        // We are here because all the children of a `Concat` node have
-        // been processed. The last N chunks in `backward_code_chunks`
-        // contain the code produced for each of the N children, but
-        // the nodes where processed left-to-right, and we want the
-        // chunks right-to-left, so these last N chunks must be copied
-        // into backward code in reverse order.
+    fn visit_post_concat(&mut self, expressions: &Vec<Hir>) -> Vec<Location> {
+        // We are here because all the children of a `Concat` node have been
+        // processed. The last N chunks in `backward_code_chunks` contain the
+        // code produced for each of the N children, but the nodes where
+        // processed left-to-right, and we want the chunks right-to-left, so
+        // these last N chunks will be copied into backward code in reverse
+        // order.
         let n = expressions.len();
-        let len = self.backward_code_chunks.len();
 
         // Split `backward_code_chunks` in two halves, [0, len-n) and
-        // [len-n, len). The first half stays in `backward_code_chunks`
-        // while the second half is stored in `last_n_chunks`.
-        let last_n_chunks = self.backward_code_chunks.split_off(len - n);
+        // [len-n, len). The first half stays in `backward_code_chunks` while
+        // the second half is stored in `last_n_chunks`.
+        let last_n_chunks = self
+            .backward_code_chunks
+            .split_off(self.backward_code_chunks.len() - n);
 
-        // Obtain a reference to the backward code, which can be either
-        // the chunk at the top of the `backward_code_chunks` stack or
+        // Obtain a reference to the backward code, which can be either the
+        // chunk at the top of the `backward_code_chunks` stack or
         // `self.backward_code` if the stack is empty.
+        //let backward_code = self.backward_code_mut();
         let backward_code = self
             .backward_code_chunks
             .last_mut()
             .unwrap_or(&mut self.backward_code);
 
+        // The top N bookmarks corresponds to the beginning of the code for
+        // each expression in the concatenation.
+        let mut locations = self.bookmarks.split_off(self.bookmarks.len() - n);
+
+        // Both `locations` and `last_n_chunks` have the same length N.
+        debug_assert_eq!(locations.len(), last_n_chunks.len());
+
+        // All chunks in `last_n_chucks` will be appended to the backward code
+        // in reverse order. The offset where each chunk resides in the backward
+        // code is stored in the hash map.
         let mut chunk_locations = HashMap::new();
 
-        // All chunks in `last_n_chucks` will be appended to the backward
-        // code in reverse order. The offset where each chunk resides in the
-        // backward code is stored in the hash map.
-        for chunk in last_n_chunks.iter().rev() {
+        for (location, chunk) in
+            zip(locations.iter_mut(), last_n_chunks.iter()).rev()
+        {
             chunk_locations.insert(chunk.seq_id(), backward_code.location());
             backward_code.append(chunk);
+
+            location.bck_seq_id = backward_code.seq_id();
+            location.bck = backward_code.location();
         }
 
+        // Atoms may be pointing to some code located in one of the chunks that
+        // were written to backward code in a different order, the backward code
+        // location for those atoms needs to be adjusted accordingly.
         let (_, atoms) = self.best_atoms.last_mut().unwrap();
 
-        // Atoms may be pointing to some code located in one of the chunks
-        // that were written to backward code in a different order, the
-        // backward code location for those atoms needs to be adjusted
-        // accordingly.
         for atom in atoms {
             if let Some(adjustment) =
                 chunk_locations.get(&atom.code_loc.bck_seq_id)
@@ -364,7 +367,7 @@ impl Compiler {
             }
         }
 
-        self.bookmarks.pop().unwrap()
+        locations
     }
 
     fn visit_pre_alternation(&mut self, alternatives: &Vec<Hir>) {
@@ -716,59 +719,51 @@ impl hir::Visitor for &mut Compiler {
             }
         }
 
+        // We are about to start processing the children of the current node,
+        // let's increment `depth` indicating that we are one level down the
+        // tree.
         self.depth += 1;
 
         Ok(())
     }
 
     fn visit_post(&mut self, hir: &Hir) -> Result<(), Self::Err> {
-        let mut code_loc = match hir.kind() {
-            HirKind::Empty => self.location(),
-            HirKind::Literal(literal) => self.emit_literal(literal),
-            HirKind::Capture(_) => self.bookmarks.pop().unwrap(),
-            HirKind::Look(look) => self.visit_post_look(look),
-            hir_kind @ HirKind::Class(class) => {
-                if re::hir::any_byte(hir_kind) {
-                    self.emit_instr(Instr::ANY_BYTE)
-                } else {
-                    self.visit_post_class(class)
-                }
-            }
-            HirKind::Concat(expressions) => {
-                self.visit_post_concat(expressions)
-            }
-            HirKind::Alternation(expressions) => {
-                self.visit_post_alternation(expressions)?
-            }
-            HirKind::Repetition(repeated) => {
-                self.visit_post_repetition(repeated)?
-            }
-        };
-
+        // We just finished visiting the children of the current node, let's
+        // decrement `depth` indicating that we are one level up the tree.
         self.depth -= 1;
 
-        // If `zero_rep_depth` > 0 we are currently at a HIR node that is
-        // contained in a `HirKind::Repetition` node that could repeat zero
-        // times. Extracting atoms from this node doesn't make sense, atoms
-        // must be extracted from portions of the pattern that are required
-        // to be in the matching data.
-        if self.zero_rep_depth > 0 {
-            return Ok(());
-        }
+        let (atoms, code_loc) = match hir.kind() {
+            HirKind::Empty => {
+                // If `zero_rep_depth` > 0 we are currently at a HIR node that is
+                // contained in a `HirKind::Repetition` node that could repeat zero
+                // times. Extracting atoms from this node doesn't make sense, atoms
+                // must be extracted from portions of the pattern that are required
+                // to be in the matching data.
+                if self.zero_rep_depth > 0 {
+                    return Ok(());
+                }
 
-        code_loc.bck_seq_id = self.backward_code().seq_id();
-        code_loc.bck = self.backward_code().location();
-
-        // Try to extract atoms from the HIR node. When the node is a
-        // a literal we don't use the literal extractor provided by
-        // `regex_syntax` as it always returns the first bytes in the
-        // literal. Sometimes the best atom is not at the very start of
-        // the literal, our own logic implemented in `best_atom_from_slice`
-        // takes into account a few things, like penalizing common bytes
-        // and prioritizing digits over letters.
-        let atoms = match hir.kind() {
+                (Some(vec![Atom::exact([])]), self.location())
+            }
             HirKind::Literal(literal) => {
+                let mut code_loc = self.emit_literal(literal);
+
+                code_loc.bck_seq_id = self.backward_code().seq_id();
+                code_loc.bck = self.backward_code().location();
+
+                if self.zero_rep_depth > 0 {
+                    return Ok(());
+                }
+
                 let literal = literal.0.as_ref();
+
+                // Try to extract atoms from the HIR node. When the node is a
+                // a literal we don't use the literal extractor provided by
+                // `regex_syntax` as it always returns the first bytes in the
+                // literal. Sometimes the best atom is not at the very start of
+                // the literal, our own logic implemented in `best_atom_from_slice`
+                // takes into account a few things, like penalizing common bytes
+                // and prioritizing digits over letters.
                 let mut best_atom =
                     best_atom_from_slice(literal, DESIRED_ATOM_SIZE);
 
@@ -784,9 +779,128 @@ impl hir::Visitor for &mut Compiler {
                 code_loc.bck -= adjustment;
                 best_atom.set_backtrack(0);
 
-                Some(vec![best_atom])
+                (Some(vec![best_atom]), code_loc)
             }
-            _ => self.extract_atoms_from_hir(hir),
+            HirKind::Capture(_) => {
+                let mut code_loc = self.bookmarks.pop().unwrap();
+
+                code_loc.bck_seq_id = self.backward_code().seq_id();
+                code_loc.bck = self.backward_code().location();
+
+                if self.zero_rep_depth > 0 {
+                    return Ok(());
+                }
+
+                let best_atoms = seq_to_atoms(simplify_seq(
+                    self.lit_extractor.extract(hir),
+                ));
+
+                (best_atoms, code_loc)
+            }
+            HirKind::Look(look) => {
+                let mut code_loc = self.visit_post_look(look);
+
+                code_loc.bck_seq_id = self.backward_code().seq_id();
+                code_loc.bck = self.backward_code().location();
+
+                if self.zero_rep_depth > 0 {
+                    return Ok(());
+                }
+
+                let best_atoms = seq_to_atoms(simplify_seq(
+                    self.lit_extractor.extract(hir),
+                ));
+
+                (best_atoms, code_loc)
+            }
+            hir_kind @ HirKind::Class(class) => {
+                let mut code_loc = if re::hir::any_byte(hir_kind) {
+                    self.emit_instr(Instr::ANY_BYTE)
+                } else {
+                    self.visit_post_class(class)
+                };
+
+                code_loc.bck_seq_id = self.backward_code().seq_id();
+                code_loc.bck = self.backward_code().location();
+
+                if self.zero_rep_depth > 0 {
+                    return Ok(());
+                }
+
+                let best_atoms = seq_to_atoms(simplify_seq(
+                    self.lit_extractor.extract(hir),
+                ));
+
+                (best_atoms, code_loc)
+            }
+            HirKind::Concat(expressions) => {
+                //
+                // fwd code:     expr1 expr2 expr3
+                //                           ^->
+                // bck code:     expr3 expr2 expr1
+                //                     ^->
+                //
+                let locations = self.visit_post_concat(expressions);
+
+                if self.zero_rep_depth > 0 {
+                    return Ok(());
+                }
+
+                let mut best_atoms = None;
+                let mut best_quality = -1;
+                let mut code_loc = Location::default();
+
+                let seqs: Vec<_> = expressions
+                    .iter()
+                    .map(|expr| self.lit_extractor.extract(expr))
+                    .collect();
+
+                for i in 0..seqs.len() {
+                    if let Some(seq) = concat_seq(&seqs[i..]) {
+                        let seq_quality = seq_quality(&seq);
+
+                        if seq_quality > best_quality {
+                            best_quality = seq_quality;
+                            best_atoms = seq_to_atoms(seq);
+                            code_loc = locations[i]
+                        }
+                    }
+                }
+
+                (best_atoms, code_loc)
+            }
+            HirKind::Alternation(expressions) => {
+                let mut code_loc = self.visit_post_alternation(expressions)?;
+
+                code_loc.bck_seq_id = self.backward_code().seq_id();
+                code_loc.bck = self.backward_code().location();
+
+                if self.zero_rep_depth > 0 {
+                    return Ok(());
+                }
+
+                let best_atoms = seq_to_atoms(simplify_seq(
+                    self.lit_extractor.extract(hir),
+                ));
+
+                (best_atoms, code_loc)
+            }
+            HirKind::Repetition(repeated) => {
+                let mut code_loc = self.visit_post_repetition(repeated)?;
+
+                code_loc.bck_seq_id = self.backward_code().seq_id();
+                code_loc.bck = self.backward_code().location();
+
+                if self.zero_rep_depth > 0 {
+                    return Ok(());
+                }
+
+                let best_atoms = seq_to_atoms(simplify_seq(
+                    self.lit_extractor.extract(hir),
+                ));
+
+                (best_atoms, code_loc)
+            }
         };
 
         // If no atoms where found, nothing more to do.
@@ -863,6 +977,7 @@ impl hir::Visitor for &mut Compiler {
     }
 
     fn visit_concat_in(&mut self) -> Result<(), Self::Err> {
+        self.bookmarks.push(self.location());
         // A new child of a `Concat` node is about to be processed,
         // create the chunk that will receive the code for this child.
         self.backward_code_chunks
@@ -870,4 +985,92 @@ impl hir::Visitor for &mut Compiler {
 
         Ok(())
     }
+}
+
+fn seq_quality(seq: &Seq) -> i16 {
+    seq.literals()
+        .unwrap_or(&[])
+        .iter()
+        .map(|lit| atom_quality(lit.as_bytes()))
+        .min()
+        .unwrap_or(-1) as i16
+}
+
+fn simplify_seq(seq: Seq) -> Seq {
+    // If the literal extractor produced exactly 256 atoms, and those atoms
+    // have a common prefix that is one byte shorter than the longest atom,
+    // we are in the case where we have 256 atoms that differ only in the
+    // last byte. It doesn't make sense to have 256 atoms of length N, when
+    // we can have 1 atom of length N-1 by discarding the last byte.
+    if let Some(256) = seq.len() {
+        if let Some(max_len) = seq.max_literal_len() {
+            if max_len > 1 {
+                if let Some(longest_prefix) = seq.longest_common_prefix() {
+                    if longest_prefix.len() == max_len - 1 {
+                        return Seq::singleton(
+                            hir::literal::Literal::inexact(longest_prefix),
+                        );
+                    }
+                }
+            }
+        }
+    }
+    seq
+}
+
+fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
+    let mut result = Seq::singleton(hir::literal::Literal::exact(vec![]));
+
+    let mut seqs_added = 0;
+
+    if let Some(first) = seqs.first() {
+        match first.len() {
+            None => return None,
+            Some(256) => {
+                if matches!(first.max_literal_len(), Some(1) | None) {
+                    return None;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for seq in seqs.iter().take(DESIRED_ATOM_SIZE) {
+        // If the cross product of `result` with `seq` produces too many
+        // literals, stop trying to add more sequences to the result and
+        // return what we have so far.
+        match result.max_cross_len(seq) {
+            None => break,
+            Some(len) if len > 4096 => break,
+            _ => {}
+        }
+
+        // If every element in the sequence is inexact, then a cross
+        // product will always be a no-op. Thus, there is nothing else we
+        // can add to it and can quit early. Note that this also includes
+        // infinite sequences.
+        if result.is_inexact() {
+            break;
+        }
+
+        result.cross_forward(&mut seq.clone());
+        seqs_added += 1;
+    }
+
+    // If there are sequences that were not added to the result, the result
+    // is inexact. This can happen either because the number of sequences
+    // is larger than DESIRED_ATOM_SIZE, or because the number of literals
+    // is already too large we stopped adding more sequences.
+    if seqs_added < seqs.len() {
+        result.make_inexact();
+    }
+
+    result.keep_first_bytes(DESIRED_ATOM_SIZE);
+    result.dedup();
+
+    Some(simplify_seq(result))
+}
+
+fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
+    seq.literals().map(|literals| literals.iter().map(Atom::from).collect())
 }

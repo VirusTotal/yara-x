@@ -187,8 +187,9 @@ impl Atom {
     }
 
     /// Compute the atom's quality
+    #[inline]
     pub fn quality(&self) -> i32 {
-        atom_quality(self.bytes.clone())
+        atom_quality(&self.bytes)
     }
 
     #[inline]

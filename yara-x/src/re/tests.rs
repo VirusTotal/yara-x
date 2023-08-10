@@ -396,11 +396,11 @@ fn re_code_8() {
         // Atoms
         vec![
             RegexpAtom {
-                atom: Atom::exact(vec![97, 102, 103]),
+                atom: Atom::exact(vec![0x61, 0x66, 0x67]),
                 code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x1c },
             },
             RegexpAtom {
-                atom: Atom::inexact(vec![97, 98, 99, 100]),
+                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
                 code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x1c },
             },
         ],
@@ -825,9 +825,8 @@ fn re_code_16() {
     );
 }
 
-/* TODO
 #[test]
-fn re_code_16() {
+fn re_code_17() {
     assert_re_code!(
         "(?s).b{2}",
         // Forward code
@@ -846,19 +845,18 @@ fn re_code_16() {
 "#,
         // Atoms
         vec![RegexpAtom {
-            atom: Atom::inexact(vec![0x61, 0x62]),
-            code_loc: Location { fwd: 0x00, bck_seq_id: 0, bck: 0x19 }
+            atom: Atom::inexact(vec![0x62, 0x62]),
+            code_loc: Location { fwd: 0x02, bck_seq_id: 0, bck: 0x02 }
         },],
         // Epsilon closure starting at forward code 0.
-        vec![0x0b, 0x14, 0x19],
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        vec![0x0b, 0x14, 0x19]
+        vec![0x00]
     );
 }
-*/
 
 #[test]
-fn re_code_17() {
+fn re_code_18() {
     assert_re_code!(
         "(?s)a.(bc.){2}",
         // Forward code
@@ -898,7 +896,7 @@ fn re_code_17() {
 }
 
 #[test]
-fn re_code_18() {
+fn re_code_19() {
     assert_re_code!(
         "(?is)a12",
         // Forward code
@@ -934,7 +932,55 @@ fn re_code_18() {
 }
 
 #[test]
-fn re_code_19() {
+fn re_code_20() {
+    assert_re_code!(
+        r#"(?is)[a-z]{1,2}ab"#,
+        // Forward code
+        r#"
+00000: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
+00007: SPLIT_A 00014
+0000d: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
+00014: MASKED_BYTE 0x41 0xdf
+00018: MASKED_BYTE 0x42 0xdf
+0001c: MATCH
+"#,
+        // Backward code
+        r#"
+00000: MASKED_BYTE 0x42 0xdf
+00004: MASKED_BYTE 0x41 0xdf
+00008: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
+0000f: SPLIT_A 0001c
+00015: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
+0001c: MATCH
+"#,
+        // Atoms
+        vec![
+            RegexpAtom {
+                atom: Atom::exact(vec![0x41, 0x42]),
+                code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
+            },
+            RegexpAtom {
+                atom: Atom::exact(vec![0x41, 0x62]),
+                code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
+            },
+            RegexpAtom {
+                atom: Atom::exact(vec![0x61, 0x42]),
+                code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
+            },
+            RegexpAtom {
+                atom: Atom::exact(vec![0x61, 0x62]),
+                code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
+            },
+        ],
+        // Epsilon closure starting at forward code 0.
+        vec![0x00],
+        // Epsilon closure starting at backward code 0.
+        vec![0x00]
+    );
+}
+
+#[test]
+fn re_code_21() {
     let (forward_code, backward_code, atoms) = Compiler::new()
         .compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
@@ -992,7 +1038,7 @@ fn re_code_19() {
 }
 
 #[test]
-fn re_code_20() {
+fn re_code_22() {
     let (forward_code, backward_code, atoms) = Compiler::new()
         .compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),

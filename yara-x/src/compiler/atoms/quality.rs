@@ -24,10 +24,10 @@ use bitvec::bitarr;
 ///   01 ?? 03      quality = 20 -  8 + 20      + 4 = 36
 ///   01            quality = 20                + 1 = 21
 ///
-pub fn masked_atom_quality<B, M>(bytes: B, masks: M) -> i32
+pub fn masked_atom_quality<'a, B, M>(bytes: B, masks: M) -> i32
 where
-    B: IntoIterator<Item = u8>,
-    M: IntoIterator<Item = u8>,
+    B: IntoIterator<Item = &'a u8>,
+    M: IntoIterator<Item = &'a u8>,
 {
     let mut q: i32 = 0;
 
@@ -35,10 +35,12 @@ where
     // Bit N is set to 1 (true) if the atom contains the non-masked byte N.
     let mut bytes_present = bitarr![0; 256];
 
-    let bytes: Vec<u8> = bytes.into_iter().collect();
-    let atom_len = bytes.len();
+    let bytes = bytes.into_iter();
+    let masks = masks.into_iter();
 
-    for (value, mask) in bytes.into_iter().zip(masks) {
+    let mut atom_len = 0;
+
+    for (byte, mask) in bytes.zip(masks) {
         // If there's any masked bit, the quality is incremented by
         // N * 2 - M, where N is the number of non-masked bits and M is
         // the number of masked bits. For ?? the increment is -8, while
@@ -51,9 +53,9 @@ where
         // padding in PE files), 0x20 (whitespace) the increment is a bit
         // lower than for other bytes.
         else {
-            bytes_present.set(value as usize, true);
+            bytes_present.set(*byte as usize, true);
 
-            match value {
+            match *byte {
                 // Common values contribute less to the quality than the
                 // rest of values.
                 0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
@@ -73,6 +75,7 @@ where
                 }
             }
         }
+        atom_len += 1;
     }
 
     // The number of unique bytes is the number of ones in bytes_present.
@@ -102,11 +105,11 @@ where
 }
 
 /// Compute the quality of an atom.
-pub fn atom_quality<B>(bytes: B) -> i32
+pub fn atom_quality<'a, B>(bytes: B) -> i32
 where
-    B: IntoIterator<Item = u8>,
+    B: IntoIterator<Item = &'a u8>,
 {
-    masked_atom_quality(bytes, iter::repeat(0xFF))
+    masked_atom_quality(bytes, iter::repeat(&0xFF))
 }
 
 #[cfg(test)]
@@ -117,51 +120,53 @@ mod test {
     #[allow(non_snake_case)]
     #[test]
     fn test_atom_quality() {
-        let q_01       = atom_quality([0x01]);
-        let q_0001     = atom_quality([0x00, 0x01]);
-        let q_000001   = atom_quality([0x00, 0x00, 0x01]);
-        let q_0102     = atom_quality([0x01, 0x02]);
-        let q_000102   = atom_quality([0x00, 0x01, 0x02]);
-        let q_010203   = atom_quality([0x01, 0x02, 0x03]);
-        let q_00000000 = atom_quality([0x00, 0x00, 0x00, 0x00]);
-        let q_00000001 = atom_quality([0x00, 0x00, 0x00, 0x01]);
-        let q_00000102 = atom_quality([0x00, 0x00, 0x01, 0x02]);
-        let q_00010203 = atom_quality([0x00, 0x01, 0x02, 0x03]);
-        let q_01020304 = atom_quality([0x01, 0x02, 0x03, 0x04]);
-        let q_01010101 = atom_quality([0x01, 0x01, 0x01, 0x01]);
-        let q_01020102 = atom_quality([0x01, 0x02, 0x01, 0x02]);
-        let q_01020000 = atom_quality([0x01, 0x02, 0x00, 0x00]);
-        let q_ffffffff = atom_quality([0xff, 0xff, 0xff, 0xff]);
-        let q_cccccccc = atom_quality([0xcc, 0xcc, 0xcc, 0xcc]);
-        let q_90909090 = atom_quality([0x90, 0x90, 0x90, 0x90]);
-        let q_20202020 = atom_quality([0x20, 0x20, 0x20, 0x20]);
-        let q_abcd     = atom_quality("abcd".bytes());
-        let q_ABCD     = atom_quality("ABCD".bytes());
-        let q_abc_dot  = atom_quality("abc.".bytes());
+        let q_01       = atom_quality(&[0x01]);
+        let q_0001     = atom_quality(&[0x00, 0x01]);
+        let q_000001   = atom_quality(&[0x00, 0x00, 0x01]);
+        let q_0102     = atom_quality(&[0x01, 0x02]);
+        let q_000102   = atom_quality(&[0x00, 0x01, 0x02]);
+        let q_010203   = atom_quality(&[0x01, 0x02, 0x03]);
+        let q_00000000 = atom_quality(&[0x00, 0x00, 0x00, 0x00]);
+        let q_00000001 = atom_quality(&[0x00, 0x00, 0x00, 0x01]);
+        let q_00000102 = atom_quality(&[0x00, 0x00, 0x01, 0x02]);
+        let q_00010203 = atom_quality(&[0x00, 0x01, 0x02, 0x03]);
+        let q_01020304 = atom_quality(&[0x01, 0x02, 0x03, 0x04]);
+        let q_01010101 = atom_quality(&[0x01, 0x01, 0x01, 0x01]);
+        let q_01020102 = atom_quality(&[0x01, 0x02, 0x01, 0x02]);
+        let q_01020000 = atom_quality(&[0x01, 0x02, 0x00, 0x00]);
+        let q_ffffffff = atom_quality(&[0xff, 0xff, 0xff, 0xff]);
+        let q_cccccccc = atom_quality(&[0xcc, 0xcc, 0xcc, 0xcc]);
+        let q_90909090 = atom_quality(&[0x90, 0x90, 0x90, 0x90]);
+        let q_20202020 = atom_quality(&[0x20, 0x20, 0x20, 0x20]);
+        let q_aa       = atom_quality(b"aa");
+        let q_ab       = atom_quality(b"ab");
+        let q_abcd     = atom_quality(b"abcd");
+        let q_ABCD     = atom_quality(b"ABCD");
+        let q_abc_dot  = atom_quality(b"abc.");
 
         let q_01x203 = masked_atom_quality(
-            [0x01, 0x02, 0x03], 
-            [0xff, 0x0f, 0xff]
+            &[0x01, 0x02, 0x03], 
+            &[0xff, 0x0f, 0xff]
         );
 
         let q_010x03 = masked_atom_quality(
-            [0x01, 0x02, 0x03], 
-            [0xff, 0xf0, 0xff]
+            &[0x01, 0x02, 0x03], 
+            &[0xff, 0xf0, 0xff]
         );
 
         let q_01xx03 = masked_atom_quality(
-            [0x01, 0x02, 0x03], 
-            [0xff, 0x00, 0xff]
+            &[0x01, 0x02, 0x03], 
+            &[0xff, 0x00, 0xff]
         );
 
         let q_010x0x = masked_atom_quality(
-            [0x01, 0x02, 0x03], 
-            [0xff, 0xf0, 0xf0]
+            &[0x01, 0x02, 0x03], 
+            &[0xff, 0xf0, 0xf0]
         );
 
         let q_0102xx04 = masked_atom_quality(
-            [0x01, 0x02, 0x03, 0x04],
-            [0xff, 0xff, 0x00, 0xff],
+            &[0x01, 0x02, 0x03, 0x04],
+            &[0xff, 0xff, 0x00, 0xff],
         );
 
         assert!(q_00000001 > q_00000000);
@@ -195,5 +200,8 @@ mod test {
         assert!(q_010203 < q_abcd);
         assert_eq!(q_abcd, q_ABCD);
         assert!(q_abc_dot > q_abcd);
+        assert!(q_ab > q_01);
+        assert!(q_aa > q_01);
+        assert!(q_ab > q_aa);
     }
 }

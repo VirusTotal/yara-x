@@ -563,6 +563,8 @@ fn hex_patterns() {
         b"123456789",
         b"123456789"
     );
+
+    pattern_match!(r#"{ 61 ?? 6? 6? }"#, b"aaaa", b"aaaa");
 }
 
 #[test]
