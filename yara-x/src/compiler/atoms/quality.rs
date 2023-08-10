@@ -88,7 +88,7 @@ where
         // bytes_present corresponds to that unique byte.
         match bytes_present.first_one().unwrap() {
             0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
-                q -= 10 * atom_len as i32;
+                q -= 10 * atom_len;
             }
             _ => {
                 q += 2;

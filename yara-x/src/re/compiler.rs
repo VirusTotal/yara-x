@@ -1035,7 +1035,9 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
         }
     }
 
-    for seq in seqs.iter().take(DESIRED_ATOM_SIZE) {
+    let mut it = seqs.iter().take(DESIRED_ATOM_SIZE).peekable();
+
+    while let Some(seq) = it.next() {
         // If the cross product of `result` with `seq` produces too many
         // literals, stop trying to add more sequences to the result and
         // return what we have so far.
@@ -1043,6 +1045,19 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
             None => break,
             Some(len) if len > 4096 => break,
             _ => {}
+        }
+
+        // If this is the last sequence, and it is a sequence of exactly
+        // 256 bytes, we better ignore it because the last byte is actually
+        // useless. This is the case with a pattern like { 01 02 ?? }, where
+        // the ?? at the end triggers this condition. In a case like this one
+        // don't want 256 3-bytes literals, we better have a single 2-bytes
+        // literal.
+        if it.peek().is_none()
+            && matches!(seq.len(), Some(256))
+            && matches!(seq.max_literal_len(), Some(1))
+        {
+            break;
         }
 
         // If every element in the sequence is inexact, then a cross
