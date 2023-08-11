@@ -70,6 +70,8 @@ use smallvec::{SmallVec, ToSmallVec};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
 pub(crate) use crate::compiler::atoms::quality::atom_quality;
+pub(crate) use crate::compiler::atoms::quality::seq_quality;
+pub(crate) use crate::compiler::atoms::quality::SeqQuality;
 use crate::compiler::{SubPatternFlagSet, SubPatternFlags};
 
 /// The number of bytes that every atom *should* have. Some atoms may be

@@ -22,7 +22,8 @@ use thiserror::Error;
 use yara_x_parser::ast::HexByte;
 
 use crate::compiler::{
-    atom_quality, best_atom_from_slice, Atom, DESIRED_ATOM_SIZE,
+    atom_quality, best_atom_from_slice, seq_quality, Atom, SeqQuality,
+    DESIRED_ATOM_SIZE,
 };
 use crate::re;
 use crate::re::hir::class_to_hex_byte;
@@ -847,7 +848,7 @@ impl hir::Visitor for &mut Compiler {
                 }
 
                 let mut best_atoms = None;
-                let mut best_quality = -1;
+                let mut best_quality = SeqQuality::min();
                 let mut code_loc = Location::default();
 
                 let seqs: Vec<_> = expressions
@@ -857,12 +858,12 @@ impl hir::Visitor for &mut Compiler {
 
                 for i in 0..seqs.len() {
                     if let Some(seq) = concat_seq(&seqs[i..]) {
-                        let seq_quality = seq_quality(&seq);
-
-                        if seq_quality > best_quality {
-                            best_quality = seq_quality;
-                            best_atoms = seq_to_atoms(seq);
-                            code_loc = locations[i]
+                        if let Some(quality) = seq_quality(&seq) {
+                            if quality > best_quality {
+                                best_quality = quality;
+                                best_atoms = seq_to_atoms(seq);
+                                code_loc = locations[i]
+                            }
                         }
                     }
                 }
@@ -987,7 +988,7 @@ impl hir::Visitor for &mut Compiler {
     }
 }
 
-fn seq_quality(seq: &Seq) -> i16 {
+fn seq_quality2(seq: &Seq) -> i16 {
     seq.literals()
         .unwrap_or(&[])
         .iter()

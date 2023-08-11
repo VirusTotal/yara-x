@@ -3,7 +3,7 @@ This module implements a regexp compiler and matching engine.
 
 The compiler takes a high-level intermediate representation (HIR) of the
 regular expression, as outputted by the [`regex-syntax`][1] crate, and produces
-VM code for the matching engine, and a list of atoms extracted from the regular
+VM code for the matching engine and a list of atoms extracted from the regular
 expression. These atoms are simply literal sub-patterns contained in the regexp
 that are used for speeding up searches using the Aho-Corasick algorithm. See
 `compiler::atoms` for details.
