@@ -1060,4 +1060,9 @@ fn re_atoms() {
             .map(Atom::inexact)
             .collect::<Vec<Atom>>()
     );
+
+    assert_re_atoms!(
+        r#"(?s)a(b.b|c.c|d.d|e.e|f.f|g.g|h.h|i.i|j.j|k.k|l.l|m.m|n.n|o.o|p.p|q.q|r.r)"#,
+        vec![Atom::inexact(b"a")]
+    );
 }

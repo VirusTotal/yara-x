@@ -1138,11 +1138,6 @@ impl<'a> Compiler<'a> {
 
         let (forward_code, backward_code, mut atoms) = r;
 
-        // Make sure the atom extraction logic doesn't go crazy and extract
-        // too many atoms. 4096 is the number of different combinations of
-        // a pattern like { 11 ?? 1? 11 }.
-        assert!(atoms.len() <= 4096);
-
         // `fwd_code` will contain the offset within the `re_code` vector
         // where the forward code resides.
         let fwd_code = self.re_code.len();

@@ -24,6 +24,7 @@ use yara_x_parser::ast::HexByte;
 
 use crate::compiler::{
     best_atom_from_slice, seq_quality, Atom, SeqQuality, DESIRED_ATOM_SIZE,
+    MAX_ATOMS_PER_REGEXP,
 };
 use crate::re;
 use crate::re::hir::class_to_hex_byte;
@@ -160,11 +161,11 @@ impl Compiler {
         self.forward_code_mut().emit_instr(Instr::MATCH);
         self.backward_code_mut().emit_instr(Instr::MATCH);
 
-        Ok((
-            self.forward_code,
-            self.backward_code,
-            self.best_atoms_stack.pop().unwrap().atoms,
-        ))
+        let atoms = self.best_atoms_stack.pop().unwrap().atoms;
+
+        assert!(atoms.len() <= MAX_ATOMS_PER_REGEXP);
+
+        Ok((self.forward_code, self.backward_code, atoms))
     }
 }
 
@@ -446,11 +447,14 @@ impl Compiler {
             })
             .unwrap();
 
-        // Use the atoms extracted from the alternatives if they are
-        // better than the best atoms so far.
         let best_atoms = self.best_atoms_stack.last_mut().unwrap();
 
-        if best_atoms.min_quality < alternative_atoms.min_quality {
+        // Use the atoms extracted from the alternatives if they are
+        // better than the best atoms found so far, and less than
+        // MAX_ATOMS_PER_REGEXP.
+        if alternative_atoms.len() <= MAX_ATOMS_PER_REGEXP
+            && best_atoms.min_quality < alternative_atoms.min_quality
+        {
             *best_atoms = alternative_atoms;
         }
 
@@ -1054,7 +1058,7 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
         // return what we have so far.
         match result.max_cross_len(seq) {
             None => break,
-            Some(len) if len > 4096 => break,
+            Some(len) if len > MAX_ATOMS_PER_REGEXP => break,
             _ => {}
         }
 
@@ -1115,6 +1119,11 @@ impl RegexpAtoms {
     /// Create a new empty empty list of atoms.
     fn empty() -> Self {
         Self { atoms: Vec::new(), min_quality: i32::MIN, exact_atoms: 0 }
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.atoms.len()
     }
 
     /// Make all the atoms in the list inexact.
