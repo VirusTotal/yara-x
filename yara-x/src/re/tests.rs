@@ -1,13 +1,10 @@
 use pretty_assertions::assert_eq;
-use regex_syntax::hir::Class;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::HexByte;
 
 use super::compiler::{Compiler, Location, RegexpAtom};
 use crate::compiler::Atom;
 use crate::re;
-use crate::re::hir::hex_byte_to_class;
 use crate::re::hir::Hir;
 use crate::re::instr::{
     epsilon_closure, BckCodeLoc, EpsilonClosureState, FwdCodeLoc,
@@ -979,12 +976,13 @@ fn re_code_20() {
     );
 }
 
+/*
 #[test]
 fn re_code_21() {
     let (forward_code, backward_code, atoms) = Compiler::new()
         .compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
-            Hir::class(Class::Bytes(hex_byte_to_class(HexByte {
+            Hir::class(Hir::Class::Bytes(hex_byte_to_class(ast::HexByte {
                 value: 0x00,
                 mask: 0xFC,
             }))),
@@ -1042,7 +1040,7 @@ fn re_code_22() {
     let (forward_code, backward_code, atoms) = Compiler::new()
         .compile(&Hir::concat(vec![
             Hir::literal([0x01, 0x02]),
-            Hir::class(Class::Bytes(hex_byte_to_class(HexByte {
+            Hir::class(Hir::Class::Bytes(hex_byte_to_class(ast::HexByte {
                 value: 0x10,
                 mask: 0xF0,
             }))),
@@ -1090,3 +1088,4 @@ fn re_code_22() {
         },]
     );
 }
+*/

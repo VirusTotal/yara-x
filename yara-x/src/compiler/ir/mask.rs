@@ -55,7 +55,7 @@ impl Iterator for ByteMaskCombinator {
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::atoms::mask::ByteMaskCombinator;
+    use super::ByteMaskCombinator;
     use pretty_assertions::assert_eq;
 
     #[test]

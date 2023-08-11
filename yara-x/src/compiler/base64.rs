@@ -135,7 +135,7 @@ pub(crate) fn base64_patterns(
 
 #[cfg(test)]
 mod test {
-    use crate::compiler::atoms::base64::base64_patterns;
+    use super::base64_patterns;
     use bstr::BString;
     use pretty_assertions::assert_eq;
 

@@ -53,8 +53,6 @@ will end up using the `"Look"` atom alone, but in `/a(bcd|efg)h/` atoms `"bcd"`
 and `"efg"` will be used because `"a"` and `"h"` are too short.
  */
 
-pub mod base64;
-mod mask;
 mod quality;
 
 use std::collections::Bound;
@@ -68,10 +66,10 @@ use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, ToSmallVec};
 
-pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
 pub(crate) use crate::compiler::atoms::quality::atom_quality;
 pub(crate) use crate::compiler::atoms::quality::seq_quality;
 pub(crate) use crate::compiler::atoms::quality::SeqQuality;
+
 use crate::compiler::{SubPatternFlagSet, SubPatternFlags};
 
 /// The number of bytes that every atom *should* have. Some atoms may be

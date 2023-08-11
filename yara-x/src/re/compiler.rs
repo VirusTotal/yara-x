@@ -22,8 +22,7 @@ use thiserror::Error;
 use yara_x_parser::ast::HexByte;
 
 use crate::compiler::{
-    atom_quality, best_atom_from_slice, seq_quality, Atom, SeqQuality,
-    DESIRED_ATOM_SIZE,
+    best_atom_from_slice, seq_quality, Atom, SeqQuality, DESIRED_ATOM_SIZE,
 };
 use crate::re;
 use crate::re::hir::class_to_hex_byte;
@@ -986,15 +985,6 @@ impl hir::Visitor for &mut Compiler {
 
         Ok(())
     }
-}
-
-fn seq_quality2(seq: &Seq) -> i16 {
-    seq.literals()
-        .unwrap_or(&[])
-        .iter()
-        .map(|lit| atom_quality(lit.as_bytes()))
-        .min()
-        .unwrap_or(-1) as i16
 }
 
 fn simplify_seq(seq: Seq) -> Seq {

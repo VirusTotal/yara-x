@@ -4,7 +4,7 @@ use regex_syntax::hir;
 
 use yara_x_parser::ast;
 
-use crate::re::hir::hex_byte_to_class;
+use super::mask::ByteMaskCombinator;
 
 pub(in crate::compiler) fn hex_pattern_hir_from_ast(
     pattern: &ast::HexPattern,
@@ -66,15 +66,30 @@ fn hex_byte_hir_from_ast(byte: &ast::HexByte) -> hir::Hir {
     match byte.mask {
         0xff => hir::Hir::literal([byte.value]),
         0x00 => hir::Hir::dot(hir::Dot::AnyByte),
-        _ => hir::Hir::class(hir::Class::Bytes(hex_byte_to_class(*byte))),
+        _ => hir::Hir::class(hir::Class::Bytes(hex_byte_to_class(byte))),
     }
+}
+
+fn hex_byte_to_class(b: &ast::HexByte) -> hir::ClassBytes {
+    // A zero bit in the mask indicates that the corresponding bit in the value
+    // must will be ignored, but those ignored bits should be set to 0.
+    assert_eq!(b.value & !b.mask, 0);
+
+    let mut class = hir::ClassBytes::empty();
+    for b in ByteMaskCombinator::new(b.value, b.mask) {
+        class.push(hir::ClassBytesRange::new(b, b));
+    }
+
+    class
 }
 
 #[cfg(test)]
 mod tests {
+    use super::hex_byte_to_class;
+    use crate::re::hir::class_to_hex_byte;
     use pretty_assertions::assert_eq;
     use regex_syntax::hir::{
-        Class, ClassBytes, ClassBytesRange, Dot, Hir, Repetition,
+        Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
     };
     use yara_x_parser::ast::{
         HexAlternative, HexByte, HexJump, HexToken, HexTokens,
@@ -236,5 +251,60 @@ mod tests {
                 Hir::literal([0x05, 0x06]),
             ])
         );
+    }
+
+    #[test]
+    fn class_to_hex() {
+        assert_eq!(
+            class_to_hex_byte(&hex_byte_to_class(&HexByte {
+                value: 0x30,
+                mask: 0xF0
+            })),
+            Some(HexByte { value: 0x30, mask: 0xF0 })
+        );
+
+        assert_eq!(
+            class_to_hex_byte(&hex_byte_to_class(&HexByte {
+                value: 0x05,
+                mask: 0x0F
+            })),
+            Some(HexByte { value: 0x05, mask: 0x0F })
+        );
+
+        assert_eq!(
+            class_to_hex_byte(&hex_byte_to_class(&HexByte {
+                value: 0x08,
+                mask: 0xAA
+            })),
+            Some(HexByte { value: 0x08, mask: 0xAA })
+        );
+
+        assert_eq!(
+            class_to_hex_byte(&ClassBytes::new(vec![
+                ClassBytesRange::new(3, 4),
+                ClassBytesRange::new(8, 8),
+            ])),
+            None,
+        );
+
+        assert_eq!(
+            class_to_hex_byte(&ClassBytes::new(vec![
+                ClassBytesRange::new(0, 0),
+                ClassBytesRange::new(2, 2),
+                ClassBytesRange::new(4, 4),
+            ])),
+            None,
+        );
+
+        if let HirKind::Class(Class::Bytes(class)) =
+            Hir::dot(Dot::AnyByte).kind()
+        {
+            assert_eq!(
+                class_to_hex_byte(class),
+                Some(HexByte { value: 0x00, mask: 0x00 })
+            );
+        } else {
+            unreachable!()
+        }
     }
 }

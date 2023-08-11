@@ -31,7 +31,7 @@ use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
 
-use crate::compiler::atoms::base64::base64_patterns;
+use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::emit_rule_condition;
 use crate::compiler::{Context, VarStack};
 use crate::modules::BUILTIN_MODULES;
@@ -65,6 +65,7 @@ mod errors;
 mod ir;
 mod rules;
 
+pub mod base64;
 #[cfg(test)]
 mod tests;
 
