@@ -96,12 +96,23 @@ impl PartialOrd for SeqQuality {
         // other if it has exactly 255 atoms less. This covers the case where a
         // single atom of length N is preferred over 256 atoms of length N+1.
         if self.min_atom_len + 1 == other.min_atom_len {
-            return if self.seq_len + 255 == other.seq_len {
+            return if (self.seq_len as usize * 256) <= (other.seq_len as usize)
+            {
                 Some(Ordering::Greater)
             } else {
                 Some(Ordering::Less)
             };
         }
+
+        if self.min_atom_len == other.min_atom_len + 1 {
+            return if (self.seq_len as usize) < (other.seq_len as usize * 256)
+            {
+                Some(Ordering::Greater)
+            } else {
+                Some(Ordering::Less)
+            };
+        }
+
         // In general, this sequence is better than the other only if
         // its minimum atom length is greater.
         if self.min_atom_len > other.min_atom_len {

@@ -11,6 +11,7 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::iter::zip;
 use std::mem::{size_of, size_of_val};
+use std::slice::IterMut;
 
 use regex_syntax::hir;
 use regex_syntax::hir::literal::Seq;
@@ -69,7 +70,7 @@ pub(crate) struct RegexpAtom {
 
 /// Compiles a regular expression.
 ///
-/// Compiling a regexp consists in performing DFS traversal of the HIR tree
+/// Compiling a regexp consists in performing a DFS traversal of the HIR tree
 /// while emitting code for the Pike VM and extracting the atoms that will be
 /// passed to the Aho-Corasick algorithm.
 ///
@@ -97,10 +98,8 @@ pub(crate) struct Compiler {
     bookmarks: Vec<Location>,
 
     /// Best atoms found so far. This is a stack where each entry is a list of
-    /// atoms. Each entry also has an `i32` that indicates the quality of the
-    /// list of atoms, which corresponds to the quality of the lowest quality
-    /// atom in the list.
-    best_atoms: Vec<(i32, Vec<RegexpAtom>)>,
+    /// atoms, represented by [`RegexpAtoms`].
+    best_atoms_stack: Vec<RegexpAtoms>,
 
     /// When writing the backward code for a `HirKind::Concat` node we can't
     /// simply write the code directly to `backward_code` because the children
@@ -146,7 +145,7 @@ impl Compiler {
             backward_code: InstrSeq::new(0),
             backward_code_chunks: Vec::new(),
             bookmarks: Vec::new(),
-            best_atoms: vec![(i32::MIN, Vec::new())],
+            best_atoms_stack: vec![RegexpAtoms::empty()],
             depth: 0,
             zero_rep_depth: 0,
         }
@@ -164,7 +163,7 @@ impl Compiler {
         Ok((
             self.forward_code,
             self.backward_code,
-            self.best_atoms.pop().unwrap().1,
+            self.best_atoms_stack.pop().unwrap().atoms,
         ))
     }
 }
@@ -356,9 +355,9 @@ impl Compiler {
         // Atoms may be pointing to some code located in one of the chunks that
         // were written to backward code in a different order, the backward code
         // location for those atoms needs to be adjusted accordingly.
-        let (_, atoms) = self.best_atoms.last_mut().unwrap();
+        let best_atoms = self.best_atoms_stack.last_mut().unwrap();
 
-        for atom in atoms {
+        for atom in best_atoms.iter_mut() {
             if let Some(adjustment) =
                 chunk_locations.get(&atom.code_loc.bck_seq_id)
             {
@@ -388,7 +387,7 @@ impl Compiler {
         self.bookmarks.push(l0);
         self.bookmarks.push(self.location());
 
-        self.best_atoms.push((i32::MIN, Vec::new()));
+        self.best_atoms_stack.push(RegexpAtoms::empty());
     }
 
     fn visit_post_alternation(
@@ -433,23 +432,25 @@ impl Compiler {
         // Remove the last N items from best atoms and put them in
         // `last_n`. These last N items correspond to each of the N
         // alternatives.
-        let last_n = self.best_atoms.split_off(self.best_atoms.len() - n);
+        let last_n =
+            self.best_atoms_stack.split_off(self.best_atoms_stack.len() - n);
 
         // Join the atoms from all alternatives together. The quality
         // is the quality of the worst alternative.
         let alternative_atoms = last_n
             .into_iter()
-            .reduce(|mut all, (quality, mut atoms)| {
-                all.1.append(&mut atoms);
-                (min(all.0, quality), all.1)
+            .reduce(|mut all, mut atoms| {
+                all.atoms.append(&mut atoms.atoms);
+                all.min_quality = min(all.min_quality, atoms.min_quality);
+                all
             })
             .unwrap();
 
         // Use the atoms extracted from the alternatives if they are
         // better than the best atoms so far.
-        let best_atoms = self.best_atoms.last_mut().unwrap();
+        let best_atoms = self.best_atoms_stack.last_mut().unwrap();
 
-        if best_atoms.0 < alternative_atoms.0 {
+        if best_atoms.min_quality < alternative_atoms.min_quality {
             *best_atoms = alternative_atoms;
         }
 
@@ -609,9 +610,9 @@ impl Compiler {
                     + size_of_val(&Instr::SPLIT_A)
                     + size_of::<re::instr::Offset>();
 
-                let (_, atoms) = self.best_atoms.last_mut().unwrap();
+                let best_atoms = self.best_atoms_stack.last_mut().unwrap();
 
-                for atom in atoms.iter_mut() {
+                for atom in best_atoms.iter_mut() {
                     if atom.code_loc.bck_seq_id == start.bck_seq_id
                         && atom.code_loc.bck >= start.bck
                     {
@@ -663,9 +664,9 @@ impl Compiler {
                     let adjustment =
                         (min - 1) as usize * (end.bck - start.bck);
 
-                    let (_, atoms) = self.best_atoms.last_mut().unwrap();
+                    let best_atoms = self.best_atoms_stack.last_mut().unwrap();
 
-                    for atom in atoms.iter_mut() {
+                    for atom in best_atoms.iter_mut() {
                         if atom.code_loc.bck_seq_id == start.bck_seq_id
                             && atom.code_loc.bck >= start.bck
                         {
@@ -856,9 +857,15 @@ impl hir::Visitor for &mut Compiler {
                     .collect();
 
                 for i in 0..seqs.len() {
-                    if let Some(seq) = concat_seq(&seqs[i..]) {
+                    if let Some(mut seq) = concat_seq(&seqs[i..]) {
                         if let Some(quality) = seq_quality(&seq) {
                             if quality > best_quality {
+                                // If this sequence doesn't start at the first
+                                // expression in the concatenation it must be
+                                // marked as inexact.
+                                if i > 0 {
+                                    seq.make_inexact()
+                                }
                                 best_quality = quality;
                                 best_atoms = seq_to_atoms(seq);
                                 code_loc = locations[i]
@@ -910,50 +917,63 @@ impl hir::Visitor for &mut Compiler {
             Some(atoms) => atoms,
         };
 
+        // An atom is "exact" when it covers the whole pattern, which means
+        // that finding the atom during a scan is enough to guarantee that
+        // the pattern matches. Atoms extracted from children of the current
+        // HIR node may be flagged as "exact" because they cover a whole HIR
+        // sub-tree. They are "exact" with respect to some sub-pattern, but
+        // not necessarily with respect to the whole pattern. So, atoms that
+        // are flagged as "exact" are converted to "inexact" unless they
+        // were extracted from the top-level HIR node.
+        //
+        // Also, atoms extracted from HIR nodes that contain look-around
+        // assertions are also considered "inexact", regardless of whether
+        // they are flagged as "exact", because the atom extractor can
+        // produce "exact" atoms that can't be trusted, this what the
+        // documentation says:
+        //
+        // "Literal extraction treats all look-around assertions as-if they
+        // match every empty string. So for example, the regex \bquux\b will
+        // yield a sequence containing a single exact literal quux. However,
+        // not all occurrences of quux correspond to a match a of the regex.
+        // For example, \bquux\b does not match ZquuxZ anywhere because quux
+        // does not fall on a word boundary.
+        //
+        // In effect, if your regex contains look-around assertions, then a
+        // match of an exact literal does not necessarily mean the regex
+        // overall matches. So you may still need to run the regex engine
+        // in such cases to confirm the match." (end of quote)
+        let can_be_exact =
+            self.depth == 0 && hir.properties().look_set().is_empty();
+
+        let best_atoms = self.best_atoms_stack.last_mut().unwrap();
+
         // Compute the minimum quality across all atoms. A single low quality
         // atom in a set good atoms has the potential of slowing down scanning.
-        let min_quality = atoms.iter().map(|a| a.quality()).min().unwrap();
+        let min_quality =
+            atoms.iter().map(|atom| atom.quality()).min().unwrap();
 
-        let (best_quality, best_atoms) = self.best_atoms.last_mut().unwrap();
+        let exact_atoms = atoms.iter().filter(|atom| atom.is_exact()).count();
 
-        if min_quality > *best_quality {
-            // An atom is "exact" when it covers the whole pattern, which means
-            // that finding the atom during a scan is enough to guarantee that
-            // the pattern matches. Atoms extracted from children of the current
-            // HIR node may be flagged as "exact" because they cover a whole HIR
-            // sub-tree. They are "exact" with respect to some sub-pattern, but
-            // not necessarily with respect to the whole pattern. So, atoms that
-            // are flagged as "exact" are converted to "inexact" unless they
-            // were extracted from the top-level HIR node.
-            //
-            // Also, atoms extracted from HIR nodes that contain look-around
-            // assertions are also considered "inexact", regardless of whether
-            // they are flagged as "exact", because the atom extractor can
-            // produce "exact" atoms that can't be trusted, this what the
-            // documentation says:
-            //
-            // "Literal extraction treats all look-around assertions as-if they
-            // match every empty string. So for example, the regex \bquux\b will
-            // yield a sequence containing a single exact literal quux. However,
-            // not all occurrences of quux correspond to a match a of the regex.
-            // For example, \bquux\b does not match ZquuxZ anywhere because quux
-            // does not fall on a word boundary.
-            //
-            // In effect, if your regex contains look-around assertions, then a
-            // match of an exact literal does not necessarily mean the regex
-            // overall matches. So you may still need to run the regex engine
-            // in such cases to confirm the match." (end of quote)
-            //
-            let can_be_exact =
-                self.depth == 0 && hir.properties().look_set().is_empty();
-
-            let atom_to_regexp_atom = |atom: Atom| RegexpAtom {
-                atom: if !can_be_exact { atom.make_inexact() } else { atom },
-                code_loc,
+        if min_quality > best_atoms.min_quality
+            || (min_quality == best_atoms.min_quality
+                && can_be_exact
+                && exact_atoms > best_atoms.exact_atoms)
+        {
+            let mut atoms = RegexpAtoms {
+                min_quality,
+                exact_atoms,
+                atoms: atoms
+                    .into_iter()
+                    .map(|atom| RegexpAtom { atom, code_loc })
+                    .collect(),
             };
 
-            *best_quality = min_quality;
-            *best_atoms = atoms.into_iter().map(atom_to_regexp_atom).collect();
+            if !can_be_exact {
+                atoms.make_inexact();
+            }
+
+            *best_atoms = atoms;
         }
 
         Ok(())
@@ -971,7 +991,7 @@ impl hir::Visitor for &mut Compiler {
         self.bookmarks.push(self.location());
         // The best atoms for this alternative are independent from the
         // other alternatives.
-        self.best_atoms.push((i32::MIN, Vec::new()));
+        self.best_atoms_stack.push(RegexpAtoms::empty());
 
         Ok(())
     }
@@ -1079,4 +1099,34 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
 
 fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
     seq.literals().map(|literals| literals.iter().map(Atom::from).collect())
+}
+
+/// A list of [`RegexpAtom`] that contains additional information about the
+/// atoms, like the quality of the worst atom.
+struct RegexpAtoms {
+    atoms: Vec<RegexpAtom>,
+    /// Quality of the lowest quality atom.
+    min_quality: i32,
+    /// Number of atoms in the list that are exact.
+    exact_atoms: usize,
+}
+
+impl RegexpAtoms {
+    /// Create a new empty empty list of atoms.
+    fn empty() -> Self {
+        Self { atoms: Vec::new(), min_quality: i32::MIN, exact_atoms: 0 }
+    }
+
+    /// Make all the atoms in the list inexact.
+    fn make_inexact(&mut self) {
+        self.exact_atoms = 0;
+        for atom in self.atoms.iter_mut() {
+            atom.atom.set_exact(false);
+        }
+    }
+
+    #[inline]
+    fn iter_mut(&mut self) -> IterMut<'_, RegexpAtom> {
+        self.atoms.iter_mut()
+    }
 }

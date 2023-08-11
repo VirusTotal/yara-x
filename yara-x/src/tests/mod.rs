@@ -696,6 +696,8 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/[0-9a-f]+/"#, b"0123456789abcdef", b"0123456789abcdef");
     pattern_match!(r#"/[0-9a-f]+/"#, b"xyz0123456789xyz", b"0123456789");
     pattern_false!(r#"/[x-z]+/"#, b"abc");
+    pattern_match!(r#"/[a-z]{1,2}ab/"#, b"xyab", b"xyab");
+    pattern_match!(r#"/[a-z]{1,2}ab/"#, b"xyzab", b"yzab");
     pattern_match!(r#"/a[-]?c/"#, b"ac", b"ac");
     pattern_match!(r#"/a[-b]/"#, b"a-", b"a-");
     pattern_match!(r#"/a[-b]/"#, b"ab", b"ab");

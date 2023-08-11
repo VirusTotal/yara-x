@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use pretty_assertions::assert_eq;
 
 use yara_x_parser::ast;
@@ -5,7 +6,6 @@ use yara_x_parser::ast;
 use super::compiler::{Compiler, Location, RegexpAtom};
 use crate::compiler::Atom;
 use crate::re;
-use crate::re::hir::Hir;
 use crate::re::instr::{
     epsilon_closure, BckCodeLoc, EpsilonClosureState, FwdCodeLoc,
 };
@@ -55,6 +55,31 @@ macro_rules! assert_re_code {
             &mut bck_closure,
         );
         assert_eq!(bck_closure, $bck_closure);
+    }};
+}
+
+macro_rules! assert_re_atoms {
+    ($re:expr, $atoms:expr) => {{
+        let parser = re::parser::Parser::new();
+
+        let (_, _, atoms) = Compiler::new()
+            .compile(
+                &parser
+                    .parse(&ast::Regexp {
+                        literal: format!("/{}/", $re).as_str(),
+                        src: $re,
+                        case_insensitive: false,
+                        dot_matches_new_line: true,
+                        span: ast::Span::default(),
+                    })
+                    .unwrap(),
+            )
+            .unwrap();
+
+        let atoms: Vec<Atom> =
+            atoms.into_iter().map(|re_atom| re_atom.atom).collect();
+
+        assert_eq!(atoms, $atoms);
     }};
 }
 
@@ -229,16 +254,16 @@ fn re_code_5() {
         // Atoms
         vec![
             RegexpAtom {
-                atom: Atom::inexact(vec![0x61, 0x62]),
-                code_loc: Location { fwd: 0x0f, bck: 0x11, bck_seq_id: 0 }
+                atom: Atom::exact(vec![0x61, 0x62]),
+                code_loc: Location { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
             },
             RegexpAtom {
-                atom: Atom::inexact(vec![0x63, 0x64]),
-                code_loc: Location { fwd: 0x17, bck: 0x19, bck_seq_id: 0 }
+                atom: Atom::exact(vec![0x63, 0x64]),
+                code_loc: Location { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
             },
             RegexpAtom {
-                atom: Atom::inexact(vec![0x65, 0x66]),
-                code_loc: Location { fwd: 0x1f, bck: 0x21, bck_seq_id: 0 }
+                atom: Atom::exact(vec![0x65, 0x66]),
+                code_loc: Location { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
             }
         ],
         // Epsilon closure starting at forward code 0.
@@ -953,19 +978,19 @@ fn re_code_20() {
         // Atoms
         vec![
             RegexpAtom {
-                atom: Atom::exact(vec![0x41, 0x42]),
+                atom: Atom::inexact(vec![0x41, 0x42]),
                 code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
-                atom: Atom::exact(vec![0x41, 0x62]),
+                atom: Atom::inexact(vec![0x41, 0x62]),
                 code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
-                atom: Atom::exact(vec![0x61, 0x42]),
+                atom: Atom::inexact(vec![0x61, 0x42]),
                 code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
-                atom: Atom::exact(vec![0x61, 0x62]),
+                atom: Atom::inexact(vec![0x61, 0x62]),
                 code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
             },
         ],
@@ -976,116 +1001,63 @@ fn re_code_20() {
     );
 }
 
-/*
 #[test]
-fn re_code_21() {
-    let (forward_code, backward_code, atoms) = Compiler::new()
-        .compile(&Hir::concat(vec![
-            Hir::literal([0x01, 0x02]),
-            Hir::class(Hir::Class::Bytes(hex_byte_to_class(ast::HexByte {
-                value: 0x00,
-                mask: 0xFC,
-            }))),
-            Hir::literal([0x03]),
-        ]))
-        .unwrap();
+fn re_atoms() {
+    assert_re_atoms!(r#"abcd"#, vec![Atom::exact(b"abcd")]);
+    assert_re_atoms!(r#"abcd1234"#, vec![Atom::inexact(b"1234")]);
+    assert_re_atoms!(r#".abc"#, vec![Atom::inexact(b"abc")]);
+    assert_re_atoms!(r#"abc."#, vec![Atom::inexact(b"abc")]);
+    assert_re_atoms!(r#"a.bcd"#, vec![Atom::inexact(b"bcd")]);
+    assert_re_atoms!(r#"abc.d"#, vec![Atom::inexact(b"abc")]);
 
-    assert_eq!(
-        r#"
-00000: LIT 0x01
-00001: LIT 0x02
-00002: MASKED_BYTE 0x00 0xfc
-00006: LIT 0x03
-00007: MATCH
-"#,
-        forward_code.to_string(),
+    assert_re_atoms!(
+        r#"(ab|cd)"#,
+        vec![Atom::exact(b"ab"), Atom::exact(b"cd")]
     );
 
-    assert_eq!(
-        r#"
-00000: LIT 0x03
-00001: MASKED_BYTE 0x00 0xfc
-00005: LIT 0x02
-00006: LIT 0x01
-00007: MATCH
-"#,
-        backward_code.to_string(),
+    assert_re_atoms!(r#"ab|cd"#, vec![Atom::exact(b"ab"), Atom::exact(b"cd")]);
+
+    assert_re_atoms!(
+        r#"a(b|c)d"#,
+        vec![Atom::exact(b"abd"), Atom::exact(b"acd")]
     );
 
-    assert_eq!(
-        atoms,
+    assert_re_atoms!(r#"ab.*cd"#, vec![Atom::inexact(b"ab")]);
+    assert_re_atoms!(r#"ab.*cde"#, vec![Atom::inexact(b"cde")]);
+
+    assert_re_atoms!(
+        r#"(?i)ab"#,
         vec![
-            RegexpAtom {
-                atom: Atom::exact(vec![0x01, 0x02, 0x00, 0x03]),
-                code_loc: Location { fwd: 0x00, bck: 0x07, bck_seq_id: 0 }
-            },
-            RegexpAtom {
-                atom: Atom::exact(vec![0x01, 0x02, 0x01, 0x03]),
-                code_loc: Location { fwd: 0x00, bck: 0x07, bck_seq_id: 0 }
-            },
-            RegexpAtom {
-                atom: Atom::exact(vec![0x01, 0x02, 0x02, 0x03]),
-                code_loc: Location { fwd: 0x00, bck: 0x07, bck_seq_id: 0 }
-            },
-            RegexpAtom {
-                atom: Atom::exact(vec![0x01, 0x02, 0x03, 0x03]),
-                code_loc: Location { fwd: 0x00, bck: 0x07, bck_seq_id: 0 }
-            },
+            Atom::exact(b"AB"),
+            Atom::exact(b"Ab"),
+            Atom::exact(b"aB"),
+            Atom::exact(b"ab")
         ]
     );
-}
 
-#[test]
-fn re_code_22() {
-    let (forward_code, backward_code, atoms) = Compiler::new()
-        .compile(&Hir::concat(vec![
-            Hir::literal([0x01, 0x02]),
-            Hir::class(Hir::Class::Bytes(hex_byte_to_class(ast::HexByte {
-                value: 0x10,
-                mask: 0xF0,
-            }))),
-            Hir::literal([0x03, 0x04, 0x05, 0x06, 0x07, 0x08]),
-        ]))
-        .unwrap();
-
-    assert_eq!(
-        r#"
-00000: LIT 0x01
-00001: LIT 0x02
-00002: MASKED_BYTE 0x10 0xf0
-00006: LIT 0x03
-00007: LIT 0x04
-00008: LIT 0x05
-00009: LIT 0x06
-0000a: LIT 0x07
-0000b: LIT 0x08
-0000c: MATCH
-"#,
-        forward_code.to_string(),
+    assert_re_atoms!(
+        r#"(?i)a.bcd"#,
+        vec![
+            Atom::inexact(b"BCD"),
+            Atom::inexact(b"BCd"),
+            Atom::inexact(b"BcD"),
+            Atom::inexact(b"Bcd"),
+            Atom::inexact(b"bCD"),
+            Atom::inexact(b"bCd"),
+            Atom::inexact(b"bcD"),
+            Atom::inexact(b"bcd"),
+        ]
     );
 
-    assert_eq!(
-        r#"
-00000: LIT 0x08
-00001: LIT 0x07
-00002: LIT 0x06
-00003: LIT 0x05
-00004: LIT 0x04
-00005: LIT 0x03
-00006: MASKED_BYTE 0x10 0xf0
-0000a: LIT 0x02
-0000b: LIT 0x01
-0000c: MATCH
-"#,
-        backward_code.to_string(),
-    );
+    assert_re_atoms!(r#"(?i)abc.*123"#, vec![Atom::inexact(b"123")]);
 
-    assert_eq!(
-        atoms,
-        vec![RegexpAtom {
-            atom: Atom::inexact(vec![0x03, 0x04, 0x05, 0x06]),
-            code_loc: Location { fwd: 0x06, bck: 0x06, bck_seq_id: 0 }
-        },]
+    assert_re_atoms!(
+        r#"(?s)a.b.c.d"#,
+        // Atoms a\x00b, a\x01b, a\x02b, .... up to a\xffb
+        [(b'a'..=b'a'), (0x00..=0xff), (b'b'..=b'b'),]
+            .into_iter()
+            .multi_cartesian_product()
+            .map(Atom::inexact)
+            .collect::<Vec<Atom>>()
     );
 }
-*/
