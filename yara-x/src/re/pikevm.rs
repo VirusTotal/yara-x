@@ -12,6 +12,7 @@ pub(crate) enum Match {
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
 pub(crate) struct PikeVM<'r> {
+    /// The code for the VM. Produced by [`crate::re::compiler::Compiler`].
     code: &'r [u8],
     /// The list of currently active threads. Each item in this list is a
     /// position within the VM code, pointing to some VM instruction. Each item
@@ -21,10 +22,16 @@ pub(crate) struct PikeVM<'r> {
     /// The list of threads that will become the active threads when the next
     /// byte is read from the input.
     next_threads: Vec<usize>,
+    /// Maximum number of bytes to scan. The VM will abort after ingesting
+    /// this number of bytes from the input.
+    scan_limit: usize,
+    /// State for the [`epsilon_closure`] function.
     cache: EpsilonClosureState,
 }
 
 impl<'r> PikeVM<'r> {
+    pub const DEFAULT_SCAN_LIMIT: usize = 4096;
+
     /// Creates a new [`PikeVM`].
     pub fn new(code: &'r [u8]) -> Self {
         Self {
@@ -32,13 +39,36 @@ impl<'r> PikeVM<'r> {
             threads: Vec::new(),
             next_threads: Vec::new(),
             cache: EpsilonClosureState::new(),
+            scan_limit: Self::DEFAULT_SCAN_LIMIT,
         }
     }
 
-    /// Executes VM code starting at the `start` location and returns the
-    /// number of bytes from `fwd_input` that matched. The number of bytes
-    /// returned can be zero if the VM matches a zero-length string. Returns
-    /// `None` if the data doesn't match the regexp.
+    /// Specifies the maximum number of bytes that will be scanned by the
+    /// VM before aborting.
+    ///
+    /// This sets a limit on the number of bytes that the VM will read from the
+    /// input while trying find a match. Without a limit, the VM will can incurr
+    /// in excesive execution time for regular expressions that are unbounded,
+    /// like `foo.*bar`. For inputs that starts with `foo`, this regexp will
+    /// try to scan the whole input, and that would take a long time if the
+    /// input is excessively large.
+    ///
+    /// The default limit is 4096 bytes.
+    pub fn scan_limit(mut self, limit: usize) -> Self {
+        self.scan_limit = limit;
+        self
+    }
+
+    /// Executes VM code starting at the `start` location and calls `f` for
+    /// each match found. Input bytes are read from the `fwd_input` iterator
+    /// until no more bytes are available or the scan limit is reached. When
+    /// a match is found `f` is called with the number of bytes that matched.
+    /// The number of matching bytes can be zero, as some regexps can match
+    /// a zero-length string.
+    ///
+    /// The `f` function must return either [`Match::Continue`] or
+    /// [`Match::Stop`], the former will cause the VM to keep trying to find
+    /// longer matches, while the latter will stop the scanning.
     ///
     /// `bck_input` is an iterator that returns the bytes that are before
     /// the starting point of `fwd_input`, in reverse order. For instance,
@@ -48,7 +78,7 @@ impl<'r> PikeVM<'r> {
     ///
     /// ```text
     ///       a  b  c  e  f   g   h   i
-    ///                   |  
+    ///                   |
     ///      <- bck_input | fwd_input ->
     /// ```
     ///
@@ -130,6 +160,11 @@ impl<'r> PikeVM<'r> {
 
             curr_byte = next_byte;
             current_pos += step;
+
+            if current_pos > self.scan_limit {
+                break;
+            }
+
             mem::swap(&mut self.threads, &mut self.next_threads);
             self.next_threads.clear();
         }

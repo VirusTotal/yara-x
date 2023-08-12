@@ -225,7 +225,9 @@ impl ScanContext<'_> {
         let scanned_data = self.scanned_data();
         let ac = self.compiled_rules.ac_automaton();
 
-        let mut pike_vm = PikeVM::new(self.compiled_rules.re_code());
+        let mut pike_vm = PikeVM::new(self.compiled_rules.re_code())
+            .scan_limit(PikeVM::DEFAULT_SCAN_LIMIT);
+
         let atoms = self.compiled_rules.atoms();
 
         #[cfg(feature = "logging")]
