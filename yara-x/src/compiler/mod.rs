@@ -1162,6 +1162,8 @@ impl<'a> Compiler<'a> {
         let bck_code = self.re_code.len();
         self.re_code.append(&mut backward_code.into_inner());
 
+        let mut slow_pattern = false;
+
         // The forward and backward code locations in each atom are relative
         // to the start of the code generated for this regexp. Here we make
         // them relative to the start of `re_code`.
@@ -1170,9 +1172,13 @@ impl<'a> Compiler<'a> {
             atom.code_loc.bck += bck_code;
 
             if atom.atom.len() < 2 {
-                self.warnings
-                    .push(Warning::slow_pattern(&self.report_builder, span));
+                slow_pattern = true;
             }
+        }
+
+        if slow_pattern {
+            self.warnings
+                .push(Warning::slow_pattern(&self.report_builder, span));
         }
 
         Ok(atoms)
