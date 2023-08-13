@@ -753,6 +753,14 @@ impl TypeValue {
             None
         }
     }
+
+    pub fn try_as_integer(&self) -> Option<i64> {
+        if let TypeValue::Integer(value) = self {
+            value.extract().cloned()
+        } else {
+            None
+        }
+    }
 }
 
 impl Display for TypeValue {

@@ -445,6 +445,24 @@ pub(in crate::compiler) enum MatchAnchor {
     In(Range),
 }
 
+impl MatchAnchor {
+    /// If this anchor is `at <expr>`, and `<expr>` is a constant value,
+    /// return this value. Otherwise, returns `None`.
+    pub fn at_const_offset(&self) -> Option<i64> {
+        match self {
+            Self::At(expr) => {
+                let value = expr.type_value();
+                if value.is_const() {
+                    value.try_as_integer()
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
 /// Items in a `of` expression.
 pub(in crate::compiler) enum OfItems {
     PatternSet(Vec<PatternId>),

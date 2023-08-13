@@ -377,21 +377,27 @@ pub(in crate::compiler) fn expr_from_ast(
         }
 
         ast::Expr::PatternMatch(p) => {
+            let anchor = anchor_from_ast(ctx, &p.anchor)?;
+
             // If the identifier is just `$` we are inside a loop and we don't
             // know which is the PatternId because `$` refers to a different
             // pattern on each iteration. In those cases the symbol table must
             // contain an entry for `$`, corresponding to the variable that
             // holds the current PatternId for the loop.
-            match (p.identifier.name, &p.anchor) {
-                ("$", anchor) => Ok(Expr::PatternMatchVar {
+            match p.identifier.name {
+                "$" => Ok(Expr::PatternMatchVar {
                     symbol: ctx.symbol_table.lookup("$").unwrap(),
-                    anchor: anchor_from_ast(ctx, anchor)?,
+                    anchor,
                 }),
-                (_, anchor) => Ok(Expr::PatternMatch {
-                    pattern_id: ctx
-                        .get_pattern_from_current_rule(p.identifier.name),
-                    anchor: anchor_from_ast(ctx, anchor)?,
-                }),
+                _ => {
+                    let pattern_id = ctx.get_pattern_id(p.identifier.name);
+
+                    if let Some(offset) = anchor.at_const_offset() {
+                        // TODO
+                    }
+
+                    Ok(Expr::PatternMatch { pattern_id, anchor })
+                }
             }
         }
 
@@ -413,11 +419,11 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `#`.
                 (_, Some(range)) => Ok(Expr::PatternCount {
-                    pattern_id: ctx.get_pattern_from_current_rule(p.name),
+                    pattern_id: ctx.get_pattern_id(p.name),
                     range: Some(range_from_ast(ctx, range)?),
                 }),
                 (_, None) => Ok(Expr::PatternCount {
-                    pattern_id: ctx.get_pattern_from_current_rule(p.name),
+                    pattern_id: ctx.get_pattern_id(p.name),
                     range: None,
                 }),
             }
@@ -445,7 +451,7 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `@`.
                 (_, Some(index)) => Ok(Expr::PatternOffset {
-                    pattern_id: ctx.get_pattern_from_current_rule(p.name),
+                    pattern_id: ctx.get_pattern_id(p.name),
                     index: Some(Box::new(integer_in_range_from_ast(
                         ctx,
                         index,
@@ -453,7 +459,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     )?)),
                 }),
                 (_, None) => Ok(Expr::PatternOffset {
-                    pattern_id: ctx.get_pattern_from_current_rule(p.name),
+                    pattern_id: ctx.get_pattern_id(p.name),
                     index: None,
                 }),
             }
@@ -481,7 +487,7 @@ pub(in crate::compiler) fn expr_from_ast(
                 }),
                 // Cases where the identifier is not `!`.
                 (_, Some(index)) => Ok(Expr::PatternLength {
-                    pattern_id: ctx.get_pattern_from_current_rule(p.name),
+                    pattern_id: ctx.get_pattern_id(p.name),
                     index: Some(Box::new(integer_in_range_from_ast(
                         ctx,
                         index,
@@ -489,7 +495,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     )?)),
                 }),
                 (_, None) => Ok(Expr::PatternLength {
-                    pattern_id: ctx.get_pattern_from_current_rule(p.name),
+                    pattern_id: ctx.get_pattern_id(p.name),
                     index: None,
                 }),
             }

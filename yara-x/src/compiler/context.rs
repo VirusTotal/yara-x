@@ -9,7 +9,7 @@ use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::Warning;
 
 use crate::compiler::{
-    IdentId, LiteralId, PatternId, RegexpId, RuleId, RuleInfo,
+    ir, IdentId, LiteralId, PatternId, RegexpId, RuleId, RuleInfo,
 };
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
@@ -19,7 +19,7 @@ use crate::wasm::WasmSymbols;
 
 /// Structure that contains information and data structures required during the
 /// current compilation process.
-pub(in crate::compiler) struct Context<'a, 'sym> {
+pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
     /// Builder for creating error and warning reports.
     pub report_builder: &'a ReportBuilder,
 
@@ -48,6 +48,9 @@ pub(in crate::compiler) struct Context<'a, 'sym> {
 
     /// Rule that is being compiled.
     pub current_rule: &'a RuleInfo,
+
+    // IR nodes for patterns defined in the rule being compiled.
+    pub current_rule_patterns: &'a mut Vec<ir::Pattern<'src>>,
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Vec<Warning>,
@@ -78,7 +81,7 @@ pub(in crate::compiler) struct Context<'a, 'sym> {
     pub(crate) lookup_start: Option<Var>,
 }
 
-impl<'a, 'sym> Context<'a, 'sym> {
+impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
     /// Given an [`IdentId`] returns the identifier as `&str`.
     ///
     /// # Panics
@@ -108,7 +111,7 @@ impl<'a, 'sym> Context<'a, 'sym> {
     /// # Panics
     ///
     /// Panics if the current rule does not have the requested pattern.
-    pub fn get_pattern_from_current_rule(&self, ident: &str) -> PatternId {
+    pub fn get_pattern_id(&self, ident: &str) -> PatternId {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident
@@ -130,6 +133,33 @@ impl<'a, 'sym> Context<'a, 'sym> {
             self.resolve_ident(self.current_rule.ident_id),
             ident
         );
+    }
+
+    /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
+    /// the current rule and return a mutable reference the [ir::Pattern]
+    /// node in the IR.
+    ///
+    /// Notice that this function accepts identifiers with any of the valid
+    /// prefixes `$`, `#`, `@` and `!`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the current rule does not have the requested pattern.
+    pub fn get_pattern_mut(&mut self, ident: &str) -> &mut ir::Pattern<'src> {
+        // Make sure that identifier starts with `$`, `#`, `@` or `!`.
+        debug_assert!("$#@!".contains(
+            ident
+                .chars()
+                .next()
+                .expect("identifier must be at least 1 character long")
+        ));
+
+        for p in self.current_rule_patterns.iter_mut() {
+            if p.identifier()[1..] == ident[1..] {
+                return p;
+            }
+        }
+        panic!("pattern `{}` not found", ident);
     }
 
     /// Given a function mangled name returns its id.

@@ -191,7 +191,10 @@ pub struct Compiler<'a> {
     rules: Vec<RuleInfo>,
 
     /// Next (not used yet) [`PatternId`].
-    next_pattern_id: i32,
+    next_pattern_id: PatternId,
+
+    /// The [`PatternId`] for the pattern being processed.
+    current_pattern_id: PatternId,
 
     /// A vector with all the sub-patterns from all the rules. A
     /// [`SubPatternId`] is an index in this vector.
@@ -279,7 +282,8 @@ impl<'a> Compiler<'a> {
             wasm_mod,
             wasm_symbols,
             wasm_exports,
-            next_pattern_id: 0,
+            next_pattern_id: PatternId(0),
+            current_pattern_id: PatternId(0),
             current_namespace: default_namespace,
             warnings: Vec::new(),
             rules: Vec::new(),
@@ -459,7 +463,7 @@ impl<'a> Compiler<'a> {
             serialized_globals,
             wasm_mod: compiled_wasm_mod,
             ac: None,
-            num_patterns: self.next_pattern_id as usize,
+            num_patterns: self.next_pattern_id.0 as usize,
             ident_pool: self.ident_pool,
             regexp_pool: self.regexp_pool,
             lit_pool: self.lit_pool,
@@ -549,39 +553,26 @@ impl<'a> Compiler<'a> {
         self.check_for_existing_identifier(&rule.identifier)?;
 
         // Convert the patterns from AST to IR.
-        let patterns = ir::patterns_from_ast(
+        let mut patterns = ir::patterns_from_ast(
             &self.report_builder,
             rule.patterns.as_ref(),
         )?;
 
+        let num_patterns: usize = patterns.len();
+
         // Create array with pairs (IdentId, PatternId) that describe
         // the patterns in a compiled rule.
-        let mut ident_and_pattern = Vec::with_capacity(patterns.len());
+        let mut ident_and_pattern = Vec::with_capacity(num_patterns);
 
-        let patterns_with_span = iter::zip(
-            patterns,
-            rule.patterns.iter().flatten().map(|p| p.span()),
-        );
-
-        for (pattern, span) in patterns_with_span {
+        for (pattern_id, pattern) in
+            iter::zip(self.next_pattern_id.successors(), &patterns)
+        {
             // Save pattern identifier (e.g: $a) in the pool of identifiers
             // or reuse the IdentId if the identifier has been used already.
-            let ident_id = self.ident_pool.get_or_intern(pattern.identifier());
-
-            match pattern {
-                ir::Pattern::Literal(pattern) => {
-                    self.process_literal_pattern(pattern);
-                }
-                ir::Pattern::Regexp(pattern) => {
-                    self.process_regexp_pattern(pattern, span)?;
-                }
-            };
-
-            // Add the pair (IdentId, PatternId).
-            ident_and_pattern
-                .push((ident_id, PatternId(self.next_pattern_id)));
-
-            self.next_pattern_id += 1;
+            ident_and_pattern.push((
+                self.ident_pool.get_or_intern(pattern.identifier()),
+                pattern_id,
+            ));
         }
 
         let rule_id = RuleId(self.rules.len() as i32);
@@ -624,6 +615,7 @@ impl<'a> Compiler<'a> {
             report_builder: &self.report_builder,
             rules: &self.rules,
             current_rule: self.rules.last().unwrap(),
+            current_rule_patterns: &mut patterns,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             warnings: &mut self.warnings,
@@ -648,6 +640,28 @@ impl<'a> Compiler<'a> {
         // After emitting the whole condition, the stack of variables should
         // be empty.
         assert_eq!(ctx.vars.used, 0);
+
+        drop(ctx);
+
+        let patterns_with_span = itertools::multizip((
+            self.next_pattern_id.successors(),
+            patterns,
+            rule.patterns.iter().flatten().map(|p| p.span()),
+        ));
+
+        for (pattern_id, pattern, span) in patterns_with_span {
+            self.current_pattern_id = pattern_id;
+            match pattern {
+                ir::Pattern::Literal(pattern) => {
+                    self.process_literal_pattern(pattern);
+                }
+                ir::Pattern::Regexp(pattern) => {
+                    self.process_regexp_pattern(pattern, span)?;
+                }
+            };
+        }
+
+        self.next_pattern_id.incr(num_patterns);
 
         Ok(())
     }
@@ -1341,7 +1355,7 @@ impl<'a> Compiler<'a> {
         F: Fn(SubPatternId, A) -> SubPatternAtom,
     {
         let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
-        self.sub_patterns.push((PatternId(self.next_pattern_id), sub_pattern));
+        self.sub_patterns.push((self.current_pattern_id, sub_pattern));
 
         for atom in atoms.into_iter() {
             self.atoms.push(f(sub_pattern_id, atom))
@@ -1504,6 +1518,17 @@ impl From<RegexpId> for u32 {
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct PatternId(i32);
+
+impl PatternId {
+    fn successors(&self) -> impl Iterator<Item = PatternId> {
+        iter::successors(Some(self.0), |n| Some(n + 1)).map(PatternId)
+    }
+
+    #[inline]
+    fn incr(&mut self, amount: usize) {
+        self.0 += amount as i32;
+    }
+}
 
 impl From<i32> for PatternId {
     #[inline]
