@@ -73,6 +73,7 @@ bitmask! {
         Xor                  = 0x0020,
         Fullword             = 0x0040,
         Private              = 0x0080,
+        NonAnchorable        = 0x0100,
     }
 }
 
@@ -95,6 +96,57 @@ impl<'src> Pattern<'src> {
             Pattern::Regexp(pattern) => pattern.ident,
         }
     }
+
+    /// Anchor the pattern to a given offset. This means that the pattern can
+    /// match only at that offset and nowhere else. This is a no-op for
+    /// regexp patterns, and for patterns that are flagged as non-anchorable.
+    ///
+    /// Also, if this function is called twice with different offsets, the
+    /// pattern becomes non-anchorable because it can't be anchored to two
+    /// different offsets.
+    ///
+    /// This is used when the condition contains an expression like `$a at 0`
+    /// in order to indicate that the pattern (the `$a` pattern in this case)
+    /// can match only at a fixed offset.
+    pub fn anchor_at(&mut self, offset: usize) {
+        match self {
+            Pattern::Literal(p) => match p.anchored_at {
+                Some(o) if o != offset => {
+                    p.anchored_at = None;
+                    p.flags.set(PatternFlags::NonAnchorable);
+                }
+                None => {
+                    if !p.flags.contains(PatternFlags::NonAnchorable) {
+                        p.anchored_at = Some(offset);
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
+    /// Make the pattern non-anchorable. Any existing anchor is removed and
+    /// future calls to [`Pattern::anchor_at`] are ignored.
+    ///
+    /// This function is used to indicate that a certain pattern can't be
+    /// anchored at any fixed offset because it is used in ways that require
+    /// require finding all the possible matches. For example, in a condition
+    /// condition like `#a > 0 and $a at 0`, the use of `#a` (which returns
+    /// the number of occurrences of `$a`), makes `$a` non-anchorable because
+    /// we need to find all occurrences of `$a`.
+    pub fn make_non_anchorable(&mut self) {
+        match self {
+            Pattern::Literal(p) => {
+                p.flags.set(PatternFlags::NonAnchorable);
+                p.anchored_at = None;
+            }
+            Pattern::Regexp(p) => {
+                p.flags.set(PatternFlags::NonAnchorable);
+                p.anchored_at = None;
+            }
+        }
+    }
 }
 
 /// Intermediate representation (IR) for a text pattern.
@@ -105,6 +157,7 @@ pub(in crate::compiler) struct LiteralPattern<'src> {
     pub xor_range: Option<RangeInclusive<u8>>,
     pub base64_alphabet: Option<&'src str>,
     pub base64wide_alphabet: Option<&'src str>,
+    pub anchored_at: Option<usize>,
 }
 
 /// Intermediate representation (IR) for a regular expression.
@@ -115,6 +168,7 @@ pub(in crate::compiler) struct RegexpPattern<'src> {
     pub ident: &'src str,
     pub flags: PatternFlagSet,
     pub hir: re::hir::Hir,
+    pub anchored_at: Option<usize>,
 }
 
 /// Intermediate representation (IR) for an expression.
@@ -448,7 +502,7 @@ pub(in crate::compiler) enum MatchAnchor {
 impl MatchAnchor {
     /// If this anchor is `at <expr>`, and `<expr>` is a constant value,
     /// return this value. Otherwise, returns `None`.
-    pub fn at_const_offset(&self) -> Option<i64> {
+    pub fn at(&self) -> Option<i64> {
         match self {
             Self::At(expr) => {
                 let value = expr.type_value();

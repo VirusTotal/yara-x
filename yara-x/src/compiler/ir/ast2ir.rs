@@ -105,6 +105,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         xor_range,
         base64_alphabet,
         base64wide_alphabet,
+        anchored_at: None,
     }))
 }
 
@@ -116,6 +117,7 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
         ident: pattern.identifier.name,
         flags: PatternFlagSet::none() | PatternFlags::Ascii,
         hir: re::hir::Hir::from(hex_pattern_hir_from_ast(pattern)),
+        anchored_at: None,
     }))
 }
 
@@ -187,6 +189,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
         ident: pattern.identifier.name,
         flags,
         hir,
+        anchored_at: None,
     }))
 }
 
@@ -390,13 +393,18 @@ pub(in crate::compiler) fn expr_from_ast(
                     anchor,
                 }),
                 _ => {
-                    let pattern_id = ctx.get_pattern_id(p.identifier.name);
+                    let pattern = ctx.get_pattern_mut(p.identifier.name);
 
-                    if let Some(offset) = anchor.at_const_offset() {
-                        // TODO
+                    if let Some(offset) = anchor.at() {
+                        pattern.anchor_at(offset as usize);
+                    } else {
+                        pattern.make_non_anchorable();
                     }
 
-                    Ok(Expr::PatternMatch { pattern_id, anchor })
+                    Ok(Expr::PatternMatch {
+                        pattern_id: ctx.get_pattern_id(p.identifier.name),
+                        anchor,
+                    })
                 }
             }
         }
@@ -418,14 +426,20 @@ pub(in crate::compiler) fn expr_from_ast(
                     range: None,
                 }),
                 // Cases where the identifier is not `#`.
-                (_, Some(range)) => Ok(Expr::PatternCount {
-                    pattern_id: ctx.get_pattern_id(p.name),
-                    range: Some(range_from_ast(ctx, range)?),
-                }),
-                (_, None) => Ok(Expr::PatternCount {
-                    pattern_id: ctx.get_pattern_id(p.name),
-                    range: None,
-                }),
+                (_, Some(range)) => {
+                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    Ok(Expr::PatternCount {
+                        pattern_id: ctx.get_pattern_id(p.name),
+                        range: Some(range_from_ast(ctx, range)?),
+                    })
+                }
+                (_, None) => {
+                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    Ok(Expr::PatternCount {
+                        pattern_id: ctx.get_pattern_id(p.name),
+                        range: None,
+                    })
+                }
             }
         }
 
@@ -450,18 +464,24 @@ pub(in crate::compiler) fn expr_from_ast(
                     index: None,
                 }),
                 // Cases where the identifier is not `@`.
-                (_, Some(index)) => Ok(Expr::PatternOffset {
-                    pattern_id: ctx.get_pattern_id(p.name),
-                    index: Some(Box::new(integer_in_range_from_ast(
-                        ctx,
-                        index,
-                        1..=i64::MAX,
-                    )?)),
-                }),
-                (_, None) => Ok(Expr::PatternOffset {
-                    pattern_id: ctx.get_pattern_id(p.name),
-                    index: None,
-                }),
+                (_, Some(index)) => {
+                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    Ok(Expr::PatternOffset {
+                        pattern_id: ctx.get_pattern_id(p.name),
+                        index: Some(Box::new(integer_in_range_from_ast(
+                            ctx,
+                            index,
+                            1..=i64::MAX,
+                        )?)),
+                    })
+                }
+                (_, None) => {
+                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    Ok(Expr::PatternOffset {
+                        pattern_id: ctx.get_pattern_id(p.name),
+                        index: None,
+                    })
+                }
             }
         }
 
@@ -486,18 +506,24 @@ pub(in crate::compiler) fn expr_from_ast(
                     index: None,
                 }),
                 // Cases where the identifier is not `!`.
-                (_, Some(index)) => Ok(Expr::PatternLength {
-                    pattern_id: ctx.get_pattern_id(p.name),
-                    index: Some(Box::new(integer_in_range_from_ast(
-                        ctx,
-                        index,
-                        1..=i64::MAX,
-                    )?)),
-                }),
-                (_, None) => Ok(Expr::PatternLength {
-                    pattern_id: ctx.get_pattern_id(p.name),
-                    index: None,
-                }),
+                (_, Some(index)) => {
+                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    Ok(Expr::PatternLength {
+                        pattern_id: ctx.get_pattern_id(p.name),
+                        index: Some(Box::new(integer_in_range_from_ast(
+                            ctx,
+                            index,
+                            1..=i64::MAX,
+                        )?)),
+                    })
+                }
+                (_, None) => {
+                    ctx.get_pattern_mut(p.name).make_non_anchorable();
+                    Ok(Expr::PatternLength {
+                        pattern_id: ctx.get_pattern_id(p.name),
+                        index: None,
+                    })
+                }
             }
         }
 

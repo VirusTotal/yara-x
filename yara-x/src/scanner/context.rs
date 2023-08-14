@@ -223,6 +223,9 @@ impl ScanContext<'_> {
     /// called only once.
     pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
         let scanned_data = self.scanned_data();
+
+        self.verify_patterns_anchored_at_0();
+
         let ac = self.compiled_rules.ac_automaton();
 
         let mut pike_vm = PikeVM::new(self.compiled_rules.re_code())
@@ -431,6 +434,37 @@ impl ScanContext<'_> {
             info!("Atom matches: {}", atom_matches);
         }
         Ok(())
+    }
+
+    fn verify_patterns_anchored_at_0(&mut self) {
+        for (sub_pattern_id, (pattern_id, sub_pattern)) in self
+            .compiled_rules
+            .sub_patterns_anchored_at_0()
+            .iter()
+            .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
+        {
+            match sub_pattern {
+                SubPattern::Literal { pattern, flags, .. } => {
+                    if let Some(match_) = verify_literal_match(
+                        self.compiled_rules
+                            .lit_pool()
+                            .get_bytes(*pattern)
+                            .unwrap(),
+                        self.scanned_data(),
+                        0,
+                        *flags,
+                    ) {
+                        self.handle_sub_pattern_match(
+                            *sub_pattern_id,
+                            sub_pattern,
+                            *pattern_id,
+                            match_,
+                        );
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 
     fn handle_sub_pattern_match(

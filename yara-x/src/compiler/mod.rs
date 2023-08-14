@@ -20,7 +20,6 @@ use itertools::Itertools;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
-use regex_syntax::hir::Literal;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
@@ -200,7 +199,12 @@ pub struct Compiler<'a> {
     /// [`SubPatternId`] is an index in this vector.
     sub_patterns: Vec<(PatternId, SubPattern)>,
 
-    /// A vector that contains all the atoms generated for literal patterns.
+    /// Vector that contains the [`SubPatternId`] for sub-patterns that can
+    /// match only at offset 0 within the scanned data. These sub-patterns
+    /// are not added to the Aho-Corasick automaton.
+    sub_patterns_anchored_at_start: Vec<SubPatternId>,
+
+    /// A vector that contains all the atoms generated from the patterns.
     /// Each atom has an associated [`SubPatternId`] that indicates the
     /// sub-pattern it belongs to.
     atoms: Vec<SubPatternAtom>,
@@ -288,6 +292,7 @@ impl<'a> Compiler<'a> {
             warnings: Vec::new(),
             rules: Vec::new(),
             sub_patterns: Vec::new(),
+            sub_patterns_anchored_at_start: Vec::new(),
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
@@ -470,6 +475,7 @@ impl<'a> Compiler<'a> {
             imported_modules: self.imported_modules,
             rules: self.rules,
             sub_patterns: self.sub_patterns,
+            sub_patterns_anchored_at_0: self.sub_patterns_anchored_at_start,
             atoms: self.atoms,
             re_code: self.re_code,
             warnings: self.warnings,
@@ -553,10 +559,8 @@ impl<'a> Compiler<'a> {
         self.check_for_existing_identifier(&rule.identifier)?;
 
         // Convert the patterns from AST to IR.
-        let mut patterns = ir::patterns_from_ast(
-            &self.report_builder,
-            rule.patterns.as_ref(),
-        )?;
+        let mut patterns =
+            patterns_from_ast(&self.report_builder, rule.patterns.as_ref())?;
 
         let num_patterns: usize = patterns.len();
 
@@ -625,9 +629,9 @@ impl<'a> Compiler<'a> {
             vars: VarStack::new(),
         };
 
-        let mut condition = ir::expr_from_ast(&mut ctx, &rule.condition)?;
+        let mut condition = expr_from_ast(&mut ctx, &rule.condition)?;
 
-        ir::warn_if_not_bool(&mut ctx, condition.ty(), rule.condition.span());
+        warn_if_not_bool(&mut ctx, condition.ty(), rule.condition.span());
 
         emit_rule_condition(
             &mut ctx,
@@ -652,10 +656,10 @@ impl<'a> Compiler<'a> {
         for (pattern_id, pattern, span) in patterns_with_span {
             self.current_pattern_id = pattern_id;
             match pattern {
-                ir::Pattern::Literal(pattern) => {
+                Pattern::Literal(pattern) => {
                     self.process_literal_pattern(pattern);
                 }
-                ir::Pattern::Regexp(pattern) => {
+                Pattern::Regexp(pattern) => {
                     self.process_regexp_pattern(pattern, span)?;
                 }
             };
@@ -666,7 +670,7 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn process_literal_pattern(&mut self, pattern: ir::LiteralPattern) {
+    fn process_literal_pattern(&mut self, pattern: LiteralPattern) {
         let full_word = pattern.flags.contains(PatternFlags::Fullword);
         let mut flags = SubPatternFlagSet::none();
 
@@ -834,7 +838,14 @@ impl<'a> Compiler<'a> {
                 }
             } else {
                 self.add_sub_pattern(
-                    SubPattern::Literal { pattern: pattern_lit_id, flags },
+                    SubPattern::Literal {
+                        pattern: pattern_lit_id,
+                        flags: if matches!(pattern.anchored_at, Some(0)) {
+                            flags | SubPatternFlags::AnchoredStart
+                        } else {
+                            flags
+                        },
+                    },
                     iter::once(best_atom),
                     SubPatternAtom::from_atom,
                 );
@@ -1186,7 +1197,7 @@ impl<'a> Compiler<'a> {
 
     fn process_literal_chain_head(
         &mut self,
-        literal: &Literal,
+        literal: &hir::Literal,
         flags: SubPatternFlagSet,
     ) -> SubPatternId {
         let pattern_lit_id = self.intern_literal(
@@ -1205,7 +1216,7 @@ impl<'a> Compiler<'a> {
 
     fn process_literal_chain_tail(
         &mut self,
-        literal: &Literal,
+        literal: &hir::Literal,
         chained_to: SubPatternId,
         gap: RangeInclusive<u32>,
         flags: SubPatternFlagSet,
@@ -1361,11 +1372,27 @@ impl<'a> Compiler<'a> {
         F: Fn(SubPatternId, A) -> SubPatternAtom,
     {
         let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
-        self.sub_patterns.push((self.current_pattern_id, sub_pattern));
 
-        for atom in atoms.into_iter() {
-            self.atoms.push(f(sub_pattern_id, atom))
+        // Literal patterns can be anchored at offset 0.
+        let is_anchored_at_start = match sub_pattern {
+            SubPattern::Literal { flags, .. } => {
+                flags.contains(SubPatternFlags::AnchoredStart)
+            }
+            _ => false,
+        };
+
+        // Sub-patterns that are anchored at the start of the data are not
+        // added to the Aho-Corasick automata. Instead their IDs are added
+        // to the sub_patterns_anchored_at_0 list.
+        if is_anchored_at_start {
+            self.sub_patterns_anchored_at_start.push(sub_pattern_id);
+        } else {
+            for atom in atoms.into_iter() {
+                self.atoms.push(f(sub_pattern_id, atom))
+            }
         }
+
+        self.sub_patterns.push((self.current_pattern_id, sub_pattern));
 
         sub_pattern_id
     }
@@ -1600,10 +1627,18 @@ bitmask! {
     pub mask SubPatternFlagSet: u8 where flags SubPatternFlags  {
         Wide                 = 0x01,
         Nocase               = 0x02,
-        LastInChain          = 0x04, // Apply only to chained sub-patterns.
+        // Indicates that the pattern is the last one in chain. Applies only
+        // to chained sub-patterns.
+        LastInChain          = 0x04,
         FullwordLeft         = 0x08,
         FullwordRight        = 0x10,
-        Greedy               = 0x20, // Apply only to regexp sub-patterns.
+        // Indicates that the pattern is a greedy regexp. Apply only to regexp
+        // sub-patterns.
+        Greedy               = 0x20,
+        // Indicates that the sub-pattern only matches at the start of the
+        // data. Applies only to literal sub-patterns.
+        AnchoredStart        = 0x40,
+
     }
 }
 
