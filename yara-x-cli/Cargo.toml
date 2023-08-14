@@ -39,7 +39,6 @@ anyhow = { workspace = true }
 clap = { workspace = true, features=["cargo"] }
 enable-ansi-support = { workspace = true }
 env_logger = { workspace = true , optional = true }
-globset = { workspace = true }
 log = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x = { workspace = true }
@@ -48,6 +47,7 @@ yara-x-fmt = { workspace = true }
 
 crossbeam = "0.8.2"
 crossterm = "0.26.1"
+globwalk = "0.8.1"
 pprof = { version = "0.12.1", features = ["flamegraph"], optional=true }
 superconsole = "0.2.0"
 walkdir = "2.3.2"

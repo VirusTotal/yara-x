@@ -4009,7 +4009,7 @@ dependencies = [
  "crossterm 0.26.1",
  "enable-ansi-support",
  "env_logger",
- "globset",
+ "globwalk",
  "log",
  "pprof",
  "superconsole",

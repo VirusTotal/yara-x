@@ -48,83 +48,82 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
     let filters = args.get_many::<String>("filter");
     let num_threads = args.get_one::<u8>("threads");
 
-    let mut walker = walk::ParallelWalk::new(rules_path);
+    let mut w = walk::ParDirWalker::new();
 
     if let Some(max_depth) = max_depth {
-        walker = walker.max_depth(*max_depth as usize);
+        w.max_depth(*max_depth as usize);
     }
 
     if let Some(num_threads) = num_threads {
-        walker = walker.num_threads(*num_threads);
+        w.num_threads(*num_threads);
     }
 
     if let Some(filters) = filters {
         for filter in filters {
-            walker = walker.filter(filter);
+            w.filter(filter);
         }
     } else {
         // Default filters are `**/*.yar` and `**/*.yara`.
-        walker = walker.filter("**/*.yar").filter("**/*.yara");
+        w.filter("**/*.yar").filter("**/*.yara");
     }
 
-    walker
-        .run(
-            CheckState::new(),
-            || {},
-            |file_path, _, state, output, _| {
-                let src = fs::read(file_path.clone())
-                    .with_context(|| {
-                        format!("can not read `{}`", file_path.display())
-                    })
-                    .unwrap();
+    w.walk(
+        rules_path,
+        CheckState::new(),
+        || {},
+        |file_path, state, output, _| {
+            let src = fs::read(file_path.clone())
+                .with_context(|| {
+                    format!("can not read `{}`", file_path.display())
+                })
+                .unwrap();
 
-                let src = SourceCode::from(src.as_slice())
-                    .with_origin(file_path.as_os_str().to_str().unwrap());
+            let src = SourceCode::from(src.as_slice())
+                .with_origin(file_path.as_os_str().to_str().unwrap());
 
-                let mut lines = Vec::new();
+            let mut lines = Vec::new();
 
-                match Parser::new()
-                    .colorize_errors(io::stdout().is_tty())
-                    .build_ast(src)
-                {
-                    Ok(ast) => {
-                        if ast.warnings.is_empty() {
-                            state.files_passed.fetch_add(1, Ordering::Relaxed);
-                            lines.push(format!(
-                                "[{}] {}",
-                                Green.paint("PASS").bold(),
-                                file_path.display()
-                            ));
-                        } else {
-                            state.warnings.fetch_add(
-                                ast.warnings.len(),
-                                Ordering::Relaxed,
-                            );
-                            lines.push(format!(
-                                "[{}] {}",
-                                Yellow.paint("WARN").bold(),
-                                file_path.display()
-                            ));
-                            for warning in ast.warnings {
-                                lines.push(warning.to_string());
-                            }
+            match Parser::new()
+                .colorize_errors(io::stdout().is_tty())
+                .build_ast(src)
+            {
+                Ok(ast) => {
+                    if ast.warnings.is_empty() {
+                        state.files_passed.fetch_add(1, Ordering::Relaxed);
+                        lines.push(format!(
+                            "[ {} ] {}",
+                            Green.paint("PASS").bold(),
+                            file_path.display()
+                        ));
+                    } else {
+                        state
+                            .warnings
+                            .fetch_add(ast.warnings.len(), Ordering::Relaxed);
+                        lines.push(format!(
+                            "[{}] {}",
+                            Yellow.paint("WARN").bold(),
+                            file_path.display()
+                        ));
+                        for warning in ast.warnings {
+                            lines.push(warning.to_string());
                         }
                     }
-                    Err(err) => {
-                        state.errors.fetch_add(1, Ordering::Relaxed);
-                        lines.push(format!(
-                            "[{}] {}\n{}",
-                            Red.paint("ERROR").bold(),
-                            file_path.display(),
-                            err,
-                        ));
-                    }
-                };
+                }
+                Err(err) => {
+                    state.errors.fetch_add(1, Ordering::Relaxed);
+                    lines.push(format!(
+                        "[{}] {}\n{}",
+                        Red.paint("FAIL").bold(),
+                        file_path.display(),
+                        err,
+                    ));
+                }
+            };
 
-                output.send(Message::Info(lines.join("\n"))).unwrap();
-            },
-        )
-        .unwrap();
+            output.send(Message::Info(lines.join("\n"))).unwrap();
+        },
+    )
+    .unwrap();
 
     Ok(())
 }

@@ -97,96 +97,93 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     let rules_ref = &rules;
 
-    let mut walker = walk::ParallelWalk::new(path);
+    let mut w = walk::ParDirWalker::new();
 
     if let Some(num_threads) = num_threads {
-        walker = walker.num_threads(*num_threads);
+        w.num_threads(*num_threads);
     }
 
-    walker
-        .run(
-            ScanState::new(),
-            || Scanner::new(rules_ref),
-            |file_path, file_metadata, state, output, scanner| {
-                // Skip files larger than the size specified by `--skip-larger`
-                if let Some(max_file_size) = skip_larger {
-                    if file_metadata.len() > *max_file_size {
-                        return;
-                    }
-                }
+    if let Some(max_file_size) = skip_larger {
+        w.metadata_filter(|metadata| metadata.len() <= *max_file_size);
+    }
 
-                let scan_results = scanner.scan_file(&file_path);
+    w.walk(
+        path,
+        ScanState::new(),
+        || Scanner::new(rules_ref),
+        |file_path, state, output, scanner| {
+            let scan_results = scanner.scan_file(&file_path);
 
-                if let Err(err) = scan_results {
-                    output
-                        .send(Message::Error(format!(
-                            "{} {}",
-                            Red.paint("error:").bold(),
-                            err
-                        )))
-                        .unwrap();
-                    return;
-                }
+            if let Err(err) = scan_results {
+                output
+                    .send(Message::Error(format!(
+                        "{} {}",
+                        Red.paint("error:").bold(),
+                        err
+                    )))
+                    .unwrap();
+                return;
+            }
 
-                let scan_results = scan_results.unwrap();
+            let scan_results = scan_results.unwrap();
 
-                let matching_rules: Vec<Rule> = if negate {
-                    scan_results.non_matching_rules().collect()
+            let matching_rules: Vec<Rule> = if negate {
+                scan_results.non_matching_rules().collect()
+            } else {
+                scan_results.matching_rules().collect()
+            };
+
+            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
+
+            if !matching_rules.is_empty() {
+                state.num_matching_files.fetch_add(1, Ordering::Relaxed);
+            }
+
+            for matching_rule in matching_rules {
+                let line = if print_namespace {
+                    format!(
+                        "{}:{} {}",
+                        Cyan.paint(matching_rule.namespace()).bold(),
+                        Cyan.paint(matching_rule.name()).bold(),
+                        file_path.display(),
+                    )
                 } else {
-                    scan_results.matching_rules().collect()
+                    format!(
+                        "{} {}",
+                        Cyan.paint(matching_rule.name()).bold(),
+                        file_path.display()
+                    )
                 };
 
-                state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
+                output.send(Message::Info(line)).unwrap();
 
-                if !matching_rules.is_empty() {
-                    state.num_matching_files.fetch_add(1, Ordering::Relaxed);
-                }
+                if print_strings || print_strings_limit.is_some() {
+                    let limit = print_strings_limit.unwrap_or(&120);
+                    for p in matching_rule.patterns() {
+                        for m in p.matches() {
+                            let mut msg = format!(
+                                "{:#x}:{}:{}: ",
+                                m.range.start,
+                                m.range.len(),
+                                p.identifier(),
+                            );
 
-                for matching_rule in matching_rules {
-                    let line = if print_namespace {
-                        format!(
-                            "{}:{} {}",
-                            Cyan.paint(matching_rule.namespace()).bold(),
-                            Cyan.paint(matching_rule.name()).bold(),
-                            file_path.display(),
-                        )
-                    } else {
-                        format!(
-                            "{} {}",
-                            Cyan.paint(matching_rule.name()).bold(),
-                            file_path.display()
-                        )
-                    };
-
-                    output.send(Message::Info(line)).unwrap();
-
-                    if print_strings || print_strings_limit.is_some() {
-                        let limit = print_strings_limit.unwrap_or(&120);
-                        for p in matching_rule.patterns() {
-                            for m in p.matches() {
-                                let mut msg = format!(
-                                    "{:#x}:{}:{}: ",
-                                    m.range.start,
-                                    m.range.len(),
-                                    p.identifier(),
-                                );
-
-                                for b in &m.data[..min(m.data.len(), *limit)] {
-                                    for c in b.escape_ascii() {
-                                        msg.push_str(
-                                            format!("{}", c as char).as_str(),
-                                        );
-                                    }
+                            for b in &m.data[..min(m.data.len(), *limit)] {
+                                for c in b.escape_ascii() {
+                                    msg.push_str(
+                                        format!("{}", c as char).as_str(),
+                                    );
                                 }
-
-                                output.send(Message::Info(msg)).unwrap();
                             }
+
+                            output.send(Message::Info(msg)).unwrap();
                         }
                     }
                 }
-            },
-        )
-        .unwrap();
+            }
+        },
+    )
+    .unwrap();
 
     Ok(())
 }
