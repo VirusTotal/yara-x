@@ -97,6 +97,20 @@ impl<'a> DirWalker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error),
     {
+        if path.is_file() {
+            match path.metadata() {
+                Ok(metadata) => {
+                    if self.pass_metadata_filter(metadata) {
+                        if let Err(err) = f(path) {
+                            e(err);
+                        }
+                    }
+                }
+                Err(err) => e(err.into()),
+            }
+            return;
+        }
+
         let mut builder = globwalk::GlobWalkerBuilder::from_patterns(
             path,
             self.filters.iter().as_ref(),
@@ -116,20 +130,21 @@ impl<'a> DirWalker<'a> {
                 }
             };
 
-            if let Ok(metadata) = entry.metadata() {
-                let filter_pass = self
-                    .metadata_filter
-                    .as_ref()
-                    .map(|f| f(metadata))
-                    .unwrap_or(true);
-
-                if filter_pass {
-                    if let Err(err) = f(entry.path()) {
-                        e(err);
+            match entry.metadata() {
+                Ok(metadata) => {
+                    if self.pass_metadata_filter(metadata) {
+                        if let Err(err) = f(entry.path()) {
+                            e(err);
+                        }
                     }
                 }
+                Err(err) => e(err.into()),
             }
         }
+    }
+
+    fn pass_metadata_filter(&self, metadata: Metadata) -> bool {
+        self.metadata_filter.as_ref().map(|f| f(metadata)).unwrap_or(true)
     }
 }
 
