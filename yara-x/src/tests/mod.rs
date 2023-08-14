@@ -1134,6 +1134,19 @@ fn match_at() {
         b"foobar"
     );
 
+    rule_true!(
+        r#"
+        rule test {
+            strings: 
+                $a = "foo" 
+                $b = "bar"
+            condition: 
+                2 of ($a, $b) or $b at 0
+        }
+        "#,
+        b"foobar"
+    );
+
     rule_false!(
         r#"
         rule test {

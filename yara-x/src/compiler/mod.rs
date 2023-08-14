@@ -559,24 +559,29 @@ impl<'a> Compiler<'a> {
         self.check_for_existing_identifier(&rule.identifier)?;
 
         // Convert the patterns from AST to IR.
-        let mut patterns =
+        let patterns =
             patterns_from_ast(&self.report_builder, rule.patterns.as_ref())?;
 
         let num_patterns: usize = patterns.len();
 
-        // Create array with pairs (IdentId, PatternId) that describe
-        // the patterns in a compiled rule.
-        let mut ident_and_pattern = Vec::with_capacity(num_patterns);
+        // Create array with pairs (IdentId, PatternId)
+        let mut ident_and_pattern_ids = Vec::with_capacity(num_patterns);
+
+        // Create a map (IdentId, Pattern).
+        let mut patterns_map: FxHashMap<PatternId, Pattern> =
+            FxHashMap::default();
 
         for (pattern_id, pattern) in
-            iter::zip(self.next_pattern_id.successors(), &patterns)
+            iter::zip(self.next_pattern_id.successors(), patterns)
         {
             // Save pattern identifier (e.g: $a) in the pool of identifiers
             // or reuse the IdentId if the identifier has been used already.
-            ident_and_pattern.push((
+            ident_and_pattern_ids.push((
                 self.ident_pool.get_or_intern(pattern.identifier()),
                 pattern_id,
             ));
+
+            patterns_map.insert(pattern_id, pattern);
         }
 
         let rule_id = RuleId(self.rules.len() as i32);
@@ -586,7 +591,7 @@ impl<'a> Compiler<'a> {
             namespace_ident_id: self.current_namespace.ident_id,
             ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
             ident_span: rule.identifier.span,
-            patterns: ident_and_pattern,
+            patterns: ident_and_pattern_ids,
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),
         });
@@ -619,7 +624,7 @@ impl<'a> Compiler<'a> {
             report_builder: &self.report_builder,
             rules: &self.rules,
             current_rule: self.rules.last().unwrap(),
-            current_rule_patterns: &mut patterns,
+            current_rule_patterns: &mut patterns_map,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             warnings: &mut self.warnings,
@@ -647,13 +652,12 @@ impl<'a> Compiler<'a> {
 
         drop(ctx);
 
-        let patterns_with_span = itertools::multizip((
-            self.next_pattern_id.successors(),
-            patterns,
+        let patterns_with_span = iter::zip(
+            patterns_map,
             rule.patterns.iter().flatten().map(|p| p.span()),
-        ));
+        );
 
-        for (pattern_id, pattern, span) in patterns_with_span {
+        for ((pattern_id, pattern), span) in patterns_with_span {
             self.current_pattern_id = pattern_id;
             match pattern {
                 Pattern::Literal(pattern) => {

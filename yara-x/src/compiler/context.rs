@@ -49,8 +49,8 @@ pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
     /// Rule that is being compiled.
     pub current_rule: &'a RuleInfo,
 
-    // IR nodes for patterns defined in the rule being compiled.
-    pub current_rule_patterns: &'a mut Vec<ir::Pattern<'src>>,
+    /// IR nodes for patterns defined in the rule being compiled.
+    pub current_rule_patterns: &'a mut FxHashMap<PatternId, ir::Pattern<'src>>,
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Vec<Warning>,
@@ -82,16 +82,6 @@ pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
 }
 
 impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
-    /// Given an [`IdentId`] returns the identifier as `&str`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no identifier has the provided [`IdentId`].
-    #[inline]
-    pub fn resolve_ident(&self, ident_id: IdentId) -> &str {
-        self.ident_pool.get(ident_id).unwrap()
-    }
-
     /// Returns a [`RuleInfo`] given its [`RuleId`].
     ///
     /// # Panics
@@ -120,19 +110,15 @@ impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
                 .expect("identifier must be at least 1 character long")
         ));
 
-        for (ident_id, pattern_id) in &self.current_rule.patterns {
+        for (pattern_id, pattern) in self.current_rule_patterns.iter() {
             // Ignore the first character (`$`, `#`, `@` or `!`) while
             // comparing the identifiers.
-            if self.resolve_ident(*ident_id)[1..] == ident[1..] {
+            if pattern.identifier()[1..] == ident[1..] {
                 return *pattern_id;
             }
         }
 
-        panic!(
-            "rule `{}` does not have pattern `{}` ",
-            self.resolve_ident(self.current_rule.ident_id),
-            ident
-        );
+        panic!("pattern `{}` not found", ident);
     }
 
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
@@ -154,11 +140,12 @@ impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
                 .expect("identifier must be at least 1 character long")
         ));
 
-        for p in self.current_rule_patterns.iter_mut() {
-            if p.identifier()[1..] == ident[1..] {
-                return p;
+        for (_, pattern) in self.current_rule_patterns.iter_mut() {
+            if pattern.identifier()[1..] == ident[1..] {
+                return pattern;
             }
         }
+
         panic!("pattern `{}` not found", ident);
     }
 

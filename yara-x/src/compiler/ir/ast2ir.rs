@@ -617,8 +617,8 @@ fn of_expr_from_ast(
         // `x of them`, `x of ($a*, $b)`
         ast::OfItems::PatternSet(pattern_set) => {
             let pattern_ids = pattern_set_from_ast(ctx, pattern_set);
-            let num_items = pattern_ids.len();
-            (OfItems::PatternSet(pattern_ids), num_items)
+            let num_patterns = pattern_ids.len();
+            (OfItems::PatternSet(pattern_ids), num_patterns)
         }
     };
 
@@ -1030,28 +1030,36 @@ fn pattern_set_from_ast(
     ctx: &mut Context,
     pattern_set: &ast::PatternSet,
 ) -> Vec<PatternId> {
-    match pattern_set {
+    let pattern_ids = match pattern_set {
         // `x of them`
         ast::PatternSet::Them => ctx
-            .current_rule
-            .patterns
+            .current_rule_patterns
             .iter()
-            .map(|(_, pattern_id)| *pattern_id)
+            .map(|(pattern_id, _)| *pattern_id)
             .collect(),
         // `x of ($a*, $b)`
-        ast::PatternSet::Set(ref set_patterns) => {
+        ast::PatternSet::Set(ref set) => {
             let mut pattern_ids = Vec::new();
-            for (ident_id, pattern_id) in &ctx.current_rule.patterns {
-                let ident = ctx.resolve_ident(*ident_id);
+            for (pattern_id, pattern) in ctx.current_rule_patterns.iter() {
                 // Iterate over the patterns in the set (e.g: $foo, $foo*) and
                 // check if some of them matches the identifier.
-                if set_patterns.iter().any(|p| p.matches(ident)) {
+                if set.iter().any(|p| p.matches(pattern.identifier())) {
                     pattern_ids.push(*pattern_id);
                 }
             }
             pattern_ids
         }
+    };
+
+    // Make all the patterns in the set non-anchorable.
+    for pattern_id in pattern_ids.iter() {
+        ctx.current_rule_patterns
+            .get_mut(pattern_id)
+            .unwrap()
+            .make_non_anchorable();
     }
+
+    pattern_ids
 }
 
 fn func_call_from_ast(
