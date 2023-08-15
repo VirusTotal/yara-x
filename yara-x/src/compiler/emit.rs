@@ -528,7 +528,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
 
             emit_expr(ctx, instr, first_operand);
 
-            while let Some(operand) = operands.next() {
+            for operand in operands {
                 // The previous operand is not float but this one is float,
                 // we must convert the previous operand to float
                 if !is_float && matches!(operand.ty(), Type::Float) {
@@ -558,7 +558,7 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
 
             emit_expr(ctx, instr, first_operand);
 
-            while let Some(operand) = operands.next() {
+            for operand in operands {
                 emit_expr(ctx, instr, operand);
                 throw_undef_if_zero(ctx, instr);
                 instr.binop(BinaryOp::I64RemS);
@@ -2044,7 +2044,7 @@ fn emit_for<I, B, C, A>(
 ///       block                         ;; block @4
 ///         block                       ;; block @5
 ///           local.get $tmp            ;; put $tmp at the top of the stack
-///           
+///
 ///           ;; Look for the i32 at the top of the stack, and depending on its
 ///           ;; value jumps out of some block...
 ///           br_table
@@ -2052,7 +2052,7 @@ fn emit_for<I, B, C, A>(
 ///                2 (;@3;)   ;; selector == 1 -> jump out of block @3
 ///                1 (;@4;)   ;; selector == 2 -> jump out of block @4
 ///                0 (;@5;)   ;; default       -> jump out of block @5
-///         
+///
 ///         end                         ;; block @5
 ///         unreachable                 ;; if this point is reached is because
 ///                                     ;; the switch selector is out of range
@@ -2061,16 +2061,16 @@ fn emit_for<I, B, C, A>(
 ///         ;; < code expr 2 goes here >
 ///       end
 ///       br 2 (;@1;)                   ;; exits block @1
-///     end                             ;; block @3  
+///     end                             ;; block @3
 ///     block (result i64)
 ///       ;; < code expr 1 goes here >
 ///     end
-///     br 1 (;@1;)                     ;; exits block @1        
+///     br 1 (;@1;)                     ;; exits block @1
 ///   end                               ;; block @2
-///   block (result i64)                
+///   block (result i64)
 ///     ;; < code expr 0 goes here >
-///   end                                 
-///   br 0 (;@1;)                       ;; exits block @1   
+///   end
+///   br 0 (;@1;)                       ;; exits block @1
 /// end                                 ;; block @1
 ///                                     ;; at this point the i64 returned by the
 ///                                     ;; selected expression is at the top of
