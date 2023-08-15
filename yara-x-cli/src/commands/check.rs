@@ -14,7 +14,7 @@ use crate::{help, walk};
 
 pub fn check() -> Command {
     super::command("check")
-        .about("Check if YARA source files are syntactically correct")
+        .about("Check if source files are syntactically correct")
         .long_about(help::CHECK_LONG_HELP)
         .arg(
             arg!(<RULES_PATH>)

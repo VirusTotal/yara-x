@@ -7,7 +7,7 @@ use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use yara_x_fmt::Formatter;
 
 pub fn fmt() -> Command {
-    super::command("fmt").about("Format YARA source files").arg(
+    super::command("fmt").about("Format source files").arg(
         arg!(<RULES_PATH>)
             .help("Path to YARA source file or directory")
             .value_parser(value_parser!(PathBuf))

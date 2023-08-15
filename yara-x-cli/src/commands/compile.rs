@@ -8,7 +8,7 @@ use crate::commands::compile_rules;
 
 pub fn compile() -> Command {
     super::command("compile")
-        .about("Compiles YARA rules into binary form")
+        .about("Compile rules to binary form")
         .arg(
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file")

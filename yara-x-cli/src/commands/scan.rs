@@ -19,7 +19,7 @@ use crate::{help, walk};
 
 pub fn scan() -> Command {
     super::command("scan")
-        .about("Scans a file or directory")
+        .about("Scan a file or directory")
         .arg(
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file")

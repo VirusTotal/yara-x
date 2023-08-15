@@ -40,9 +40,8 @@ fn main() -> anyhow::Result<()> {
         .subcommands(vec![
             commands::scan(),
             commands::compile(),
-            commands::ast(),
-            commands::wasm(),
             commands::check(),
+            commands::debug(),
             commands::fmt(),
         ])
         .get_matches_from(wild::args());
@@ -56,8 +55,7 @@ fn main() -> anyhow::Result<()> {
         .build()?;
 
     let result = match args.subcommand() {
-        Some(("ast", args)) => commands::exec_ast(args),
-        Some(("wasm", args)) => commands::exec_wasm(args),
+        Some(("debug", args)) => commands::exec_debug(args),
         Some(("check", args)) => commands::exec_check(args),
         Some(("fmt", args)) => commands::exec_fmt(args),
         Some(("scan", args)) => commands::exec_scan(args),

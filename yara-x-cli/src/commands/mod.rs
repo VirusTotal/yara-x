@@ -1,16 +1,14 @@
-mod ast;
 mod check;
 mod compile;
+mod debug;
 mod fmt;
 mod scan;
-mod wasm;
 
-pub use ast::*;
 pub use check::*;
 pub use compile::*;
+pub use debug::*;
 pub use fmt::*;
 pub use scan::*;
-pub use wasm::*;
 
 use std::fs;
 use std::io::stdout;
