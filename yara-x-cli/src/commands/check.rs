@@ -100,7 +100,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                             .warnings
                             .fetch_add(ast.warnings.len(), Ordering::Relaxed);
                         lines.push(format!(
-                            "[{}] {}",
+                            "[ {} ] {}",
                             Yellow.paint("WARN").bold(),
                             file_path.display()
                         ));
@@ -112,7 +112,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                 Err(err) => {
                     state.errors.fetch_add(1, Ordering::Relaxed);
                     lines.push(format!(
-                        "[{}] {}\n{}",
+                        "[ {} ] {}\n{}",
                         Red.paint("FAIL").bold(),
                         file_path.display(),
                         err,
