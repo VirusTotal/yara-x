@@ -477,28 +477,28 @@ pub enum Expr<'src> {
     Not(Box<UnaryExpr<'src>>),
 
     /// Boolean `and` expression.
-    And(Operands<'src>),
+    And(Box<NAryExpr<'src>>),
 
     /// Boolean `or` expression.
-    Or(Operands<'src>),
+    Or(Box<NAryExpr<'src>>),
 
     /// Arithmetic minus.
     Minus(Box<UnaryExpr<'src>>),
 
     /// Arithmetic add (`+`) expression.
-    Add(Operands<'src>),
+    Add(Box<NAryExpr<'src>>),
 
     /// Arithmetic subtraction (`-`) expression.
-    Sub(Box<BinaryExpr<'src>>),
+    Sub(Box<NAryExpr<'src>>),
 
     /// Arithmetic multiplication (`*`) expression.
-    Mul(Box<BinaryExpr<'src>>),
+    Mul(Box<NAryExpr<'src>>),
 
     /// Arithmetic division (`\`) expression.
-    Div(Box<BinaryExpr<'src>>),
+    Div(Box<NAryExpr<'src>>),
 
     /// Arithmetic modulus (`%`) expression.
-    Mod(Box<BinaryExpr<'src>>),
+    Mod(Box<NAryExpr<'src>>),
 
     /// Bitwise not (`~`) expression.
     BitwiseNot(Box<UnaryExpr<'src>>),
@@ -757,38 +757,40 @@ impl<'src> BinaryExpr<'src> {
 
 /// An expression with multiple operands.
 #[derive(Debug)]
-pub struct Operands<'src>(Vec<Expr<'src>>);
+pub struct NAryExpr<'src> {
+    pub operands: Vec<Expr<'src>>,
+}
 
-impl<'src> Operands<'src> {
+impl<'src> NAryExpr<'src> {
     pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
-        Self(vec![lhs, rhs])
+        Self { operands: vec![lhs, rhs] }
     }
 
     #[inline]
-    pub fn iter(&self) -> Iter<'_, Expr<'src>> {
-        self.0.iter()
+    pub fn operands(&self) -> Iter<'_, Expr<'src>> {
+        self.operands.iter()
     }
 
     #[inline]
     pub fn add(&mut self, expr: Expr<'src>) {
-        self.0.push(expr);
+        self.operands.push(expr);
     }
 
     pub fn first(&self) -> &Expr<'src> {
-        self.0
+        self.operands
             .first()
             .expect("expression is expected to have at least one operand")
     }
 
     pub fn last(&self) -> &Expr<'src> {
-        self.0
+        self.operands
             .last()
             .expect("expression is expected to have at least one operand")
     }
 
     #[inline]
     pub fn as_slice(&self) -> &[Expr<'src>] {
-        self.0.as_slice()
+        self.operands.as_slice()
     }
 }
 

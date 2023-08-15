@@ -1,4 +1,4 @@
-use crate::ast::{BinaryExpr, Expr, Operands};
+use crate::ast::{BinaryExpr, Expr, NAryExpr};
 use crate::parser::SourceId;
 
 pub trait HasSpan {
@@ -61,7 +61,7 @@ impl<'src> HasSpan for BinaryExpr<'src> {
     }
 }
 
-impl<'src> HasSpan for Operands<'src> {
+impl<'src> HasSpan for NAryExpr<'src> {
     fn span(&self) -> Span {
         self.first().span().combine(&self.last().span())
     }

@@ -78,32 +78,36 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
         Expr::Not(expr) => {
             Node("not".to_string(), vec![expr_ascii_tree(&expr.operand)])
         }
-        Expr::And(operands) => Node(
+        Expr::And(expr) => Node(
             "and".to_string(),
-            operands.iter().map(expr_ascii_tree).collect(),
+            expr.operands().map(expr_ascii_tree).collect(),
         ),
-        Expr::Or(operands) => Node(
+        Expr::Or(expr) => Node(
             "or".to_string(),
-            operands.iter().map(expr_ascii_tree).collect(),
+            expr.operands().map(expr_ascii_tree).collect(),
         ),
         Expr::Minus(expr) => {
             Node("minus".to_string(), vec![expr_ascii_tree(&expr.operand)])
         }
-        Expr::Add(operands) => Node(
+        Expr::Add(expr) => Node(
             "add".to_string(),
-            operands.iter().map(expr_ascii_tree).collect(),
+            expr.operands().map(expr_ascii_tree).collect(),
         ),
         Expr::Sub(expr) => Node(
             "sub".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
+            expr.operands().map(expr_ascii_tree).collect(),
         ),
         Expr::Mul(expr) => Node(
             "mul".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
+            expr.operands().map(expr_ascii_tree).collect(),
         ),
         Expr::Div(expr) => Node(
             "div".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
+            expr.operands().map(expr_ascii_tree).collect(),
+        ),
+        Expr::Mod(expr) => Node(
+            "mod".to_string(),
+            expr.operands().map(expr_ascii_tree).collect(),
         ),
         Expr::Shl(expr) => Node(
             "shl".to_string(),
@@ -129,10 +133,7 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
             "bitwise_xor".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
         ),
-        Expr::Mod(expr) => Node(
-            "mod".to_string(),
-            vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],
-        ),
+
         Expr::Eq(expr) => Node(
             "eq".to_string(),
             vec![expr_ascii_tree(&expr.lhs), expr_ascii_tree(&expr.rhs)],

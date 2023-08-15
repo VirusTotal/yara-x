@@ -61,7 +61,7 @@ macro_rules! emit_operands {
     }};
 }
 
-macro_rules! emit_arithmetic_op2 {
+macro_rules! emit_arithmetic_op {
     ($ctx:ident, $instr:ident, $operands:expr, $int_op:tt, $float_op:tt) => {{
         // If any of the operands is float, this is a float operation.
         let is_float =
@@ -87,22 +87,6 @@ macro_rules! emit_arithmetic_op2 {
                 $instr.binop(BinaryOp::$int_op);
             }
         }
-    }};
-}
-
-macro_rules! emit_arithmetic_op {
-    ($ctx:ident, $instr:ident, $lhs:expr, $rhs:expr, $int_op:tt, $float_op:tt) => {{
-        match emit_operands!($ctx, $instr, $lhs, $rhs) {
-            (Type::Integer, Type::Integer) => {
-                // Both operands are integer, the operation is integer.
-                $instr.binop(BinaryOp::$int_op);
-            }
-            (Type::Float, Type::Float) => {
-                // Both operands are float, the operation is float.
-                $instr.binop(BinaryOp::$float_op);
-            }
-            _ => unreachable!(),
-        };
     }};
 }
 
@@ -521,19 +505,6 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
                 _ => unreachable!(),
             };
         }
-        Expr::Mod { lhs, rhs } => {
-            // emit_arithmetic_op! macro is not used for modulus because this
-            // operation doesn't accept float operands.
-            match emit_operands!(ctx, instr, lhs, rhs) {
-                (Type::Integer, Type::Integer) => {
-                    // Make sure that the divisor is not zero, if that's
-                    // the case the result is undefined.
-                    throw_undef_if_zero(ctx, instr);
-                    instr.binop(BinaryOp::I64RemS);
-                }
-                _ => unreachable!(),
-            };
-        }
         Expr::BitwiseNot { operand } => {
             emit_expr(ctx, instr, operand);
             // WebAssembly does not have an instruction for bitwise not,
@@ -542,28 +513,56 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
             instr.binop(BinaryOp::I64Xor);
         }
         Expr::Add { operands } => {
-            emit_arithmetic_op2!(ctx, instr, operands, I64Add, F64Add);
+            emit_arithmetic_op!(ctx, instr, operands, I64Add, F64Add);
         }
-        Expr::Sub { lhs, rhs } => {
-            emit_arithmetic_op!(ctx, instr, lhs, rhs, I64Sub, F64Sub);
+        Expr::Sub { operands } => {
+            emit_arithmetic_op!(ctx, instr, operands, I64Sub, F64Sub);
         }
-        Expr::Mul { lhs, rhs } => {
-            emit_arithmetic_op!(ctx, instr, lhs, rhs, I64Mul, F64Mul);
+        Expr::Mul { operands } => {
+            emit_arithmetic_op!(ctx, instr, operands, I64Mul, F64Mul);
         }
-        Expr::Div { lhs, rhs } => {
-            match emit_operands!(ctx, instr, lhs, rhs) {
-                (Type::Integer, Type::Integer) => {
-                    // Make sure that the divisor is not zero, if that's
-                    // the case the result is undefined.
+        Expr::Div { operands } => {
+            let mut operands = operands.iter_mut();
+            let first_operand = operands.next().unwrap();
+            let mut is_float = matches!(first_operand.ty(), Type::Float);
+
+            emit_expr(ctx, instr, first_operand);
+
+            while let Some(operand) = operands.next() {
+                // The previous operand is not float but this one is float,
+                // we must convert the previous operand to float
+                if !is_float && matches!(operand.ty(), Type::Float) {
+                    instr.unop(UnaryOp::F64ConvertSI64);
+                    is_float = true;
+                }
+
+                emit_expr(ctx, instr, operand);
+
+                if is_float && matches!(operand.ty(), Type::Integer) {
+                    instr.unop(UnaryOp::F64ConvertSI64);
+                }
+
+                if is_float {
+                    instr.binop(BinaryOp::F64Div);
+                } else {
+                    // In integer division make sure that the divisor is not
+                    // zero, if that's the case the result is undefined.
                     throw_undef_if_zero(ctx, instr);
                     instr.binop(BinaryOp::I64DivS);
                 }
-                (Type::Float, Type::Float) => {
-                    // Both operands are float, the operation is float.
-                    instr.binop(BinaryOp::F64Div);
-                }
-                _ => unreachable!(),
-            };
+            }
+        }
+        Expr::Mod { operands } => {
+            let mut operands = operands.iter_mut();
+            let first_operand = operands.next().unwrap();
+
+            emit_expr(ctx, instr, first_operand);
+
+            while let Some(operand) = operands.next() {
+                emit_expr(ctx, instr, operand);
+                throw_undef_if_zero(ctx, instr);
+                instr.binop(BinaryOp::I64RemS);
+            }
         }
         Expr::Shl { lhs, rhs } => {
             emit_shift_op!(ctx, instr, lhs, rhs, I64Shl);

@@ -208,26 +208,22 @@ pub(in crate::compiler) enum Expr {
 
     /// Arithmetic subtraction (`-`) expression.
     Sub {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// Arithmetic multiplication (`*`) expression.
     Mul {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// Arithmetic division (`\`) expression.
     Div {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// Arithmetic modulus (`%`) expression.
     Mod {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// Bitwise not (`~`) expression.
@@ -569,7 +565,10 @@ impl Expr {
                 _ => Type::Float,
             },
 
-            Expr::Add { operands } => {
+            Expr::Add { operands }
+            | Expr::Sub { operands }
+            | Expr::Mul { operands }
+            | Expr::Div { operands } => {
                 // If any of the operands is float, the result is also float.
                 if operands.iter().any(|op| matches!(op.ty(), Type::Float)) {
                     Type::Float
@@ -577,17 +576,6 @@ impl Expr {
                     Type::Integer
                 }
             }
-
-            Expr::Sub { lhs, rhs, .. }
-            | Expr::Mul { lhs, rhs, .. }
-            | Expr::Div { lhs, rhs, .. } => match (lhs.ty(), rhs.ty()) {
-                // If both operands are integer, the expression's type is
-                // integer.
-                (Type::Integer, Type::Integer) => Type::Integer,
-                // In all the remaining cases at least one of the operands
-                // is float, therefore the result is float.
-                _ => Type::Float,
-            },
 
             Expr::Filesize
             | Expr::Entrypoint
@@ -645,7 +633,10 @@ impl Expr {
                 _ => TypeValue::Float(Value::Unknown),
             },
 
-            Expr::Add { operands } => {
+            Expr::Add { operands }
+            | Expr::Sub { operands }
+            | Expr::Mul { operands }
+            | Expr::Div { operands } => {
                 // If any of the operands is float, the expression's type is
                 // float.
                 if operands.iter().any(|op| matches!(op.ty(), Type::Float)) {
@@ -654,18 +645,6 @@ impl Expr {
                     TypeValue::Integer(Value::Unknown)
                 }
             }
-            Expr::Sub { lhs, rhs, .. }
-            | Expr::Mul { lhs, rhs, .. }
-            | Expr::Div { lhs, rhs, .. } => match (lhs.ty(), rhs.ty()) {
-                // If both operands are integer, the expression's type is
-                // integer.
-                (Type::Integer, Type::Integer) => {
-                    TypeValue::Integer(Value::Unknown)
-                }
-                // In all the remaining cases at least one of the operands
-                // is float, therefore the result is float.
-                _ => TypeValue::Float(Value::Unknown),
-            },
 
             Expr::Filesize
             | Expr::Entrypoint

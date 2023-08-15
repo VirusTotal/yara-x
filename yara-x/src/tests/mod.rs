@@ -173,6 +173,12 @@ fn arithmetic_operations() {
     condition_true!("-0o10 == -8");
     condition_true!("0o100 == 64");
     condition_true!("0o755 == 493");
+    condition_true!("1 + 2 + 3 == 6");
+    condition_true!("2 - 1 - 1 == 0");
+    condition_true!("2 * 3 * 4 == 24");
+    condition_true!("5 \\ 2 \\ 2 == 1");
+    condition_true!("7 \\ 2 \\ 2.0 == 1.5");
+    condition_true!("7 % 4 % 2 == 1");
 }
 
 #[test]

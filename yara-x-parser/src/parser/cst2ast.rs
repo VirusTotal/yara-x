@@ -57,14 +57,14 @@ macro_rules! expect {
 // The more flat is our AST the better, as it reduces the stack size required
 // for recursive tree traversal and the amount of memory required for storing
 // the AST.
-macro_rules! binary_op {
+macro_rules! new_n_ary_expr {
     ($variant:path, $lhs:ident, $rhs:ident) => {{
         match $lhs {
             $variant(ref mut operands) => {
                 operands.add($rhs);
                 Ok($lhs)
             }
-            _ => Ok($variant(Operands::new($lhs, $rhs))),
+            _ => Ok($variant(Box::new(NAryExpr::new($lhs, $rhs)))),
         }
     }};
 }
@@ -111,26 +111,26 @@ fn create_binary_expr<'src>(
         }
         // Boolean
         GrammarRule::k_OR => {
-            binary_op!(Expr::Or, lhs, rhs)
+            new_n_ary_expr!(Expr::Or, lhs, rhs)
         }
         GrammarRule::k_AND => {
-            binary_op!(Expr::And, lhs, rhs)
+            new_n_ary_expr!(Expr::And, lhs, rhs)
         }
         // Arithmetic
         GrammarRule::ADD => {
-            binary_op!(Expr::Add, lhs, rhs)
+            new_n_ary_expr!(Expr::Add, lhs, rhs)
         }
         GrammarRule::SUB => {
-            new_binary_expr!(Expr::Sub, lhs, rhs)
+            new_n_ary_expr!(Expr::Sub, lhs, rhs)
         }
         GrammarRule::MUL => {
-            new_binary_expr!(Expr::Mul, lhs, rhs)
+            new_n_ary_expr!(Expr::Mul, lhs, rhs)
         }
         GrammarRule::DIV => {
-            new_binary_expr!(Expr::Div, lhs, rhs)
+            new_n_ary_expr!(Expr::Div, lhs, rhs)
         }
         GrammarRule::MOD => {
-            new_binary_expr!(Expr::Mod, lhs, rhs)
+            new_n_ary_expr!(Expr::Mod, lhs, rhs)
         }
         // Bitwise
         GrammarRule::SHL => {
