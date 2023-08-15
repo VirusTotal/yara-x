@@ -443,22 +443,3 @@ impl PartialEq for TypeValue {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::TypeValue::{Bool, Float, Integer, String};
-    use crate::types::TypeValue;
-    use crate::types::Value::Var;
-    use bstr::BString;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn defined() {
-        assert_eq!(TypeValue::Unknown.defined(), TypeValue::Unknown);
-        assert_eq!(Bool(Var(true)).defined(), Bool(Var(true)));
-        assert_eq!(Bool(Var(false)).defined(), Bool(Var(true)));
-        assert_eq!(Integer(Var(0)).defined(), Bool(Var(true)));
-        assert_eq!(Float(Var(0.0)).defined(), Bool(Var(true)));
-        assert_eq!(String(Var(BString::from(""))).defined(), Bool(Var(true)));
-    }
-}
