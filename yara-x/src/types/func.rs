@@ -30,7 +30,7 @@ use crate::types::{TypeValue, Value};
 ///
 ///  Additionally, the return type may be followed by a `u` character if
 ///  the returned value may be undefined. For example, a function `foo` that
-///  receives no argument and returns a string that may undefined will have
+///  receives no argument and returns a string that may be undefined will have
 ///  a mangled name: `foo@@su`.
 ///
 /// Both `<arguments>` and `<return type>` can be empty if the function
