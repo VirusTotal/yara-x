@@ -91,7 +91,7 @@ pub struct Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
-    const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 10_000;
+    const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 1_000_000;
 
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
