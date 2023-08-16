@@ -53,6 +53,7 @@ solely matches the `0xAA` byte.
 
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
+use std::mem;
 use std::mem::size_of;
 use std::num::NonZeroU32;
 use std::u8;
@@ -582,6 +583,20 @@ impl CodeLoc for BckCodeLoc {
     }
 }
 
+fn decode_offset(slice: &[u8]) -> Offset {
+    let bytes: &[u8; size_of::<Offset>()] =
+        unsafe { mem::transmute(slice.as_ptr()) };
+
+    Offset::from_le_bytes(*bytes)
+}
+
+fn decode_num_alt(slice: &[u8]) -> NumAlt {
+    let bytes: &[u8; size_of::<NumAlt>()] =
+        unsafe { mem::transmute(slice.as_ptr()) };
+
+    NumAlt::from_le_bytes(*bytes)
+}
+
 #[inline(always)]
 pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
     match code[..] {
@@ -594,27 +609,22 @@ pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
             (Instr::CaseInsensitiveChar(byte), 3)
         }
         [OPCODE_PREFIX, Instr::JUMP, ..] => {
-            let offset = Offset::from_le_bytes(
-                (&code[2..2 + size_of::<Offset>()]).try_into().unwrap(),
-            );
+            let offset = decode_offset(&code[2..]);
+
             (Instr::Jump(offset), 2 + size_of::<Offset>())
         }
         [OPCODE_PREFIX, Instr::SPLIT_A, ..] => {
-            let offset = Offset::from_le_bytes(
-                (&code[2..2 + size_of::<Offset>()]).try_into().unwrap(),
-            );
+            let offset = decode_offset(&code[2..]);
+
             (Instr::SplitA(offset), 2 + size_of::<Offset>())
         }
         [OPCODE_PREFIX, Instr::SPLIT_B, ..] => {
-            let offset = Offset::from_le_bytes(
-                (&code[2..2 + size_of::<Offset>()]).try_into().unwrap(),
-            );
+            let offset = decode_offset(&code[2..]);
+
             (Instr::SplitB(offset), 2 + size_of::<Offset>())
         }
         [OPCODE_PREFIX, Instr::SPLIT_N, ..] => {
-            let n = NumAlt::from_le_bytes(
-                (&code[2..2 + size_of::<NumAlt>()]).try_into().unwrap(),
-            );
+            let n = decode_num_alt(&code[2..]);
 
             let offsets = &code[2 + size_of::<NumAlt>()
                 ..2 + size_of::<NumAlt>() + size_of::<Offset>() * n as usize];
