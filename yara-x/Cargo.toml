@@ -46,7 +46,7 @@ bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true, features=["serde"] }
 fmmap = { workspace = true }
-indexmap = { workspace = true }
+indexmap = { workspace = true, features=["serde"] }
 intaglio = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
