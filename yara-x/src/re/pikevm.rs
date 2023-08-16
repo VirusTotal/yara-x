@@ -110,7 +110,7 @@ impl<'r> PikeVM<'r> {
             &mut self.threads,
         );
 
-        while !self.threads.is_empty() {
+        while !self.threads.is_empty() && current_pos < self.scan_limit {
             let next_byte = fwd_input.next();
 
             for ip in self.threads.iter() {
@@ -160,10 +160,6 @@ impl<'r> PikeVM<'r> {
 
             curr_byte = next_byte;
             current_pos += step;
-
-            if current_pos > self.scan_limit {
-                break;
-            }
 
             mem::swap(&mut self.threads, &mut self.next_threads);
             self.next_threads.clear();
