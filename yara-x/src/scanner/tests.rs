@@ -1,3 +1,7 @@
+use pretty_assertions::assert_eq;
+
+use crate::scanner;
+use crate::scanner::matches::Match;
 use crate::scanner::Scanner;
 use crate::variables::VariableError;
 
@@ -359,4 +363,49 @@ fn private_rules() {
 
     // Only the non-matching, non-private rules should be reported.
     assert_eq!(scan_results.non_matching_rules().len(), 0);
+}
+
+#[test]
+fn max_matches_per_pattern() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .add_source(
+            r#"
+        rule test_3 {
+            strings:
+              $a = "foo"
+            condition:
+              $a
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    scanner.max_matches_per_pattern(1);
+    let scan_results =
+        scanner.scan(b"foofoofoo").expect("scan should not fail");
+
+    assert_eq!(scan_results.matching_rules().len(), 1);
+
+    let mut matches = scan_results
+        .matching_rules()
+        .next()
+        .unwrap()
+        .patterns()
+        .next()
+        .unwrap()
+        .matches();
+
+    // Only one match is returned for pattern $a because the limit has been set
+    // to 1.
+    assert_eq!(
+        matches.next(),
+        Some(scanner::Match { range: (0..3), data: b"foo", xor_key: None })
+    );
+
+    assert_eq!(matches.next(), None);
 }

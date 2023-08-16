@@ -12,6 +12,7 @@ use std::time::Instant;
 use base64::Engine;
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
+use bitvec::vec::BitVec;
 use bstr::ByteSlice;
 use protobuf::{MessageDyn, MessageFull};
 use regex::bytes::Regex;
@@ -45,8 +46,8 @@ pub(crate) struct ScanContext<'r> {
     /// namespace are evaluated, the global rules that matched are moved
     /// to this vector.
     pub non_private_matching_rules: Vec<RuleId>,
-    // Vector containing the IDs of the private rules that matched, including
-    // both blogan and non-global ones.
+    /// Vector containing the IDs of the private rules that matched, including
+    /// both global and non-global ones.
     pub private_matching_rules: Vec<RuleId>,
     /// Map containing the IDs of the global rules that matched.
     pub global_matching_rules: FxHashMap<NamespaceId, Vec<RuleId>>,
@@ -86,6 +87,12 @@ pub(crate) struct ScanContext<'r> {
     /// here until they can be confirmed or discarded.
     pub unconfirmed_matches:
         FxHashMap<SubPatternId, VecDeque<UnconfirmedMatch>>,
+    /// Bit vector that contains one bit per pattern. The N-th bit is set if
+    /// pattern with PatternId = N has reached the maximum number of matches
+    /// indicated by `max_matches_per_pattern`.
+    pub limit_reached: BitVec,
+    /// Maximum number of matches per pattern.
+    pub max_matches_per_pattern: usize,
     /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
     /// aborted due to a timeout.
     pub deadline: u64,
@@ -204,10 +211,13 @@ impl ScanContext<'_> {
 
         bits.set(pattern_id.into(), true);
 
-        self.pattern_matches
-            .entry(pattern_id)
-            .or_default()
-            .add(match_, replace)
+        let matches_list = self.pattern_matches.entry(pattern_id).or_default();
+
+        if matches_list.len() < self.max_matches_per_pattern {
+            matches_list.add(match_, replace)
+        } else {
+            self.limit_reached.set(pattern_id.into(), true);
+        }
     }
 
     /// Search for patterns in the data.
@@ -270,6 +280,19 @@ impl ScanContext<'_> {
             // Each sub-pattern belongs to a pattern.
             let (pattern_id, sub_pattern) =
                 &self.compiled_rules.get_sub_pattern(sub_pattern_id);
+
+            // Check if the potentially matching pattern has reached the
+            // maximum number of allowed matches. In that case continue without
+            // verifying the match. `get_unchecked` is used for performance
+            // reasons, the number of bits in the bit vector is guaranteed to
+            // to be the number of patterns.
+            if unsafe {
+                *self
+                    .limit_reached
+                    .get_unchecked::<usize>((*pattern_id).into())
+            } {
+                continue;
+            }
 
             // If the atom is exact no further verification is needed, except
             // for making sure that the fullword requirements are met. An exact

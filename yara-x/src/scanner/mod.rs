@@ -91,8 +91,13 @@ pub struct Scanner<'r> {
 }
 
 impl<'r> Scanner<'r> {
+    const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 10_000;
+
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
+        let num_rules = rules.rules().len() as u32;
+        let num_patterns = rules.num_patterns() as u32;
+
         // The ScanContext structure belongs to the WASM store, but at the same
         // time it must have a reference to the store because it is required
         // for accessing the WASM memory from code that only has a reference
@@ -121,6 +126,8 @@ impl<'r> Scanner<'r> {
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
+                limit_reached: BitVec::repeat(false, num_patterns as usize),
+                max_matches_per_pattern: Self::DEFAULT_MAX_MATCHES_PER_PATTERN,
             },
         ));
 
@@ -147,9 +154,6 @@ impl<'r> Scanner<'r> {
             Val::I32(0),
         )
         .unwrap();
-
-        let num_rules = rules.rules().len() as u32;
-        let num_patterns = rules.num_patterns() as u32;
 
         // Compute the base offset for the bitmap that contains matching
         // information for patterns. This bitmap has 1 bit per pattern,
@@ -226,8 +230,17 @@ impl<'r> Scanner<'r> {
     /// in some cases, particularly with rules containing only a few patterns,
     /// the scanner could potentially continue running for a longer period than
     /// the specified timeout.
-    pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
+    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
         self.timeout = Some(timeout);
+        self
+    }
+
+    /// Sets the maximum number of matches per pattern.
+    ///
+    /// When some pattern reaches the maximum number of patterns it won't
+    /// produce more matches.
+    pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
+        self.wasm_store.data_mut().max_matches_per_pattern = n;
         self
     }
 
@@ -777,6 +790,7 @@ impl<'a> Iterator for Matches<'a> {
 }
 
 /// Represents a match.
+#[derive(PartialEq, Debug)]
 pub struct Match<'a> {
     /// Range within the original data where the match occurred.
     pub range: Range<usize>,
