@@ -101,6 +101,10 @@ impl<'r> PikeVM<'r> {
         let mut current_pos = 0;
         let mut curr_byte = fwd_input.next();
 
+        // Make sure that the list of threads is empty when this function is
+        // called.
+        debug_assert!(self.threads.is_empty());
+
         epsilon_closure(
             self.code,
             start,
