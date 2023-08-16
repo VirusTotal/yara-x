@@ -269,6 +269,10 @@ impl Rules {
             .serialize_into(f)
             .map_err(|err| PyIOError::new_err(err.to_string()))
     }
+
+    fn warnings(&self) -> Vec<String> {
+        self.inner.rules.warnings().iter().map(|w| w.to_string()).collect()
+    }
 }
 
 /// Python module for compiling YARA rules and scanning data with them.
