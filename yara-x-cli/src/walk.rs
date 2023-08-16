@@ -1,12 +1,14 @@
-use crossbeam::channel::{Sender, TryRecvError};
-use crossterm::tty::IsTty;
-use globwalk::FileType;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 use std::{io, thread};
+
+use anyhow::Context;
+use crossbeam::channel::{Sender, TryRecvError};
+use crossterm::tty::IsTty;
+use globwalk::FileType;
 use superconsole::{Component, Lines, SuperConsole};
 use yansi::Color::Red;
 
@@ -92,13 +94,19 @@ impl<'a> DirWalker<'a> {
         self
     }
 
+    /// Walk the given path recursively, calling `f` for every file found. When
+    /// some error occurs during the walk `e` is called with the error and the
+    /// walk continues. This includes errors returned by `f` itself.
     pub fn walk<F, E>(&self, path: &Path, mut f: F, mut e: E)
     where
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error),
     {
         if path.is_file() {
-            match path.metadata() {
+            match path
+                .metadata()
+                .with_context(|| format!("can't open {}", path.display()))
+            {
                 Ok(metadata) => {
                     if self.pass_metadata_filter(metadata) {
                         if let Err(err) = f(path) {
@@ -106,16 +114,32 @@ impl<'a> DirWalker<'a> {
                         }
                     }
                 }
-                Err(err) => e(err.into()),
+                Err(err) => e(err),
             }
             return;
         }
 
-        let mut builder = globwalk::GlobWalkerBuilder::from_patterns(
-            path,
-            self.filters.iter().as_ref(),
-        )
-        .file_type(FileType::FILE);
+        let path = match path
+            .canonicalize()
+            .with_context(|| format!("can't open {}", path.display()))
+        {
+            Ok(path) => path,
+            Err(err) => {
+                e(err);
+                return;
+            }
+        };
+
+        let mut builder = if self.filters.is_empty() {
+            globwalk::GlobWalkerBuilder::from_patterns(path, &["**"])
+        } else {
+            globwalk::GlobWalkerBuilder::from_patterns(
+                path,
+                self.filters.iter().as_ref(),
+            )
+        };
+
+        builder = builder.file_type(FileType::FILE);
 
         if let Some(max_depth) = self.max_depth {
             builder = builder.max_depth(max_depth + 1);
@@ -314,7 +338,7 @@ impl<'a> ParDirWalker<'a> {
                     |err| {
                         msg_send
                             .send(Message::Error(format!(
-                                "{} {}",
+                                "{} {:?}",
                                 Red.paint("error:").bold(),
                                 err
                             )))
@@ -352,7 +376,7 @@ impl<'a> ParDirWalker<'a> {
                         }
                     }
                     Err(TryRecvError::Empty) => {
-                        sleep(Duration::from_secs_f64(0.2));
+                        sleep(Duration::from_secs_f64(0.3));
                     }
                     Err(TryRecvError::Disconnected) => {
                         break;

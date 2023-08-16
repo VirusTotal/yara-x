@@ -1,4 +1,3 @@
-use anyhow::bail;
 use std::cmp::min;
 use std::fs::File;
 use std::io::Read;
@@ -6,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
+use anyhow::bail;
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
