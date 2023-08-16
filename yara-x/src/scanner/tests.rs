@@ -1,7 +1,6 @@
 use pretty_assertions::assert_eq;
 
 use crate::scanner;
-use crate::scanner::matches::Match;
 use crate::scanner::Scanner;
 use crate::variables::VariableError;
 
