@@ -234,7 +234,7 @@ impl Atom {
 /// The returned atom will have the `desired_size` if possible, but it can be
 /// shorter if the slice is shorter.
 pub(crate) fn best_atom_from_slice(s: &[u8], desired_size: usize) -> Atom {
-    let mut best_quality = 0;
+    let mut best_quality = i32::MIN;
     let mut best_atom = None;
 
     for i in 0..=s.len().saturating_sub(desired_size) {
