@@ -585,14 +585,14 @@ impl CodeLoc for BckCodeLoc {
 
 fn decode_offset(slice: &[u8]) -> Offset {
     let bytes: &[u8; size_of::<Offset>()] =
-        unsafe { mem::transmute(slice.as_ptr()) };
+        unsafe { &*(slice.as_ptr() as *const [u8; size_of::<Offset>()]) };
 
     Offset::from_le_bytes(*bytes)
 }
 
 fn decode_num_alt(slice: &[u8]) -> NumAlt {
     let bytes: &[u8; size_of::<NumAlt>()] =
-        unsafe { mem::transmute(slice.as_ptr()) };
+        unsafe { &*(slice.as_ptr() as *const [u8; size_of::<NumAlt>()]) };
 
     NumAlt::from_le_bytes(*bytes)
 }
