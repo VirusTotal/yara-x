@@ -3,6 +3,7 @@
 The scanner takes the rules produces by the compiler and scans data with them.
 */
 
+use std::cell::RefCell;
 use std::io::Read;
 use std::ops::{Deref, Range};
 use std::path::{Path, PathBuf};
@@ -128,6 +129,7 @@ impl<'r> Scanner<'r> {
                 deadline: 0,
                 limit_reached: BitVec::repeat(false, num_patterns as usize),
                 max_matches_per_pattern: Self::DEFAULT_MAX_MATCHES_PER_PATTERN,
+                regexp_cache: RefCell::new(FxHashMap::default()),
             },
         ));
 

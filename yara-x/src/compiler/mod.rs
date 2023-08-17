@@ -1497,7 +1497,7 @@ impl From<RuleId> for usize {
 }
 
 /// ID associated to each regexp used in a rule condition.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub(crate) struct RegexpId(i32);
 
 impl From<i32> for RegexpId {

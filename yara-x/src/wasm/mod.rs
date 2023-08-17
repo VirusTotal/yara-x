@@ -1367,7 +1367,7 @@ pub(crate) fn str_matches(
     rhs: RegexpId,
 ) -> bool {
     let ctx = caller.data();
-    ctx.get_regexp(rhs).is_match(lhs.as_bstr(ctx))
+    ctx.regexp_matches(rhs, lhs.as_bstr(ctx))
 }
 
 macro_rules! gen_xint_fn {

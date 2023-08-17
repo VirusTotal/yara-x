@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::ops::{Range, RangeInclusive};
 use std::ptr::NonNull;
@@ -96,6 +97,12 @@ pub(crate) struct ScanContext<'r> {
     /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
     /// aborted due to a timeout.
     pub deadline: u64,
+    /// Hash map that serves as a cache for regexps used in expressions like
+    /// `some_var matches /foobar/`. Compiling a regexp is a expensive
+    /// operation. Instead of compiling the regexp each time the expression
+    /// is evaluated, it is compiled the first time and stored in this hash
+    /// map.
+    pub regexp_cache: RefCell<FxHashMap<RegexpId, Regex>>,
 }
 
 impl ScanContext<'_> {
@@ -109,11 +116,18 @@ impl ScanContext<'_> {
         }
     }
 
-    /// Returns a regular expression given its [`RegexpId`].
-    pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
-        // TODO: put the regular expressions in a cache and call
-        // `compiled_rules.get_regexp` only if not found in the cache.
-        self.compiled_rules.get_regexp(regexp_id)
+    /// Returns true of the regexp identified by the given [`RegexpId`]
+    /// matches `haystack`.
+    pub(crate) fn regexp_matches(
+        &self,
+        regexp_id: RegexpId,
+        haystack: &[u8],
+    ) -> bool {
+        self.regexp_cache
+            .borrow_mut()
+            .entry(regexp_id)
+            .or_insert_with(|| self.compiled_rules.get_regexp(regexp_id))
+            .is_match(haystack)
     }
 
     /// Returns the protobuf struct produced by a module.
