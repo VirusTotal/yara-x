@@ -70,6 +70,7 @@ See the [`lookup_field`] function.
 use std::any::{type_name, TypeId};
 use std::mem;
 
+use bitvec::macros::internal::funty::Floating;
 use bstr::ByteSlice;
 use lazy_static::lazy_static;
 use linkme::distributed_slice;
@@ -615,6 +616,10 @@ pub(crate) fn is_pat_match_at(
     pattern_id: PatternId,
     offset: i64,
 ) -> bool {
+    // Matches can't occurr at negative offsets.
+    if offset < 0 {
+        return false;
+    }
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
         matches.search(offset.try_into().unwrap()).is_ok()
     } else {
@@ -635,29 +640,9 @@ pub(crate) fn is_pat_match_in(
     upper_bound: i64,
 ) -> bool {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
-        // Convert bounds form i64 to usize.
-        let lower_bound = lower_bound.try_into().unwrap();
-        let upper_bound = upper_bound.try_into().unwrap();
-        // Search for a match that starts at lower_bound.
-        match matches.search(lower_bound) {
-            // If result is Ok, there's a match exactly at lower_bound. In that
-            // case we already found what we are looking for.
-            Ok(_) => true,
-            // If result is Err, the returned index is the place where a match
-            // starting at lower_bound should be. All matches below that index
-            // start at some offset < lower_bound.
-            Err(index) => {
-                // If there is some match that lies within the
-                // lower_bound..=upper_bound range, it must be the one
-                // at `index`. If that match is outside the bounds, no other
-                // match can be.
-                if let Some(m) = matches.get(index) {
-                    (lower_bound..=upper_bound).contains(&m.range.start)
-                } else {
-                    false
-                }
-            }
-        }
+        matches
+            .matches_in_range(lower_bound as isize..=upper_bound as isize)
+            .is_positive()
     } else {
         false
     }
@@ -679,9 +664,8 @@ pub(crate) fn pat_matches(
 /// Invoked from WASM to ask for the number of matches of a given pattern
 /// within some offset range.
 ///
-/// Returns the number of matches that the pattern identified by `pattern_id`
-/// matches at some offset in the range [`lower_bound`, `upper_bound`], both
-/// inclusive.
+/// Returns the number of matches for the pattern identified by `pattern_id`
+/// that start in the range [`lower_bound`, `upper_bound`], both inclusive.
 #[wasm_export]
 pub(crate) fn pat_matches_in(
     caller: Caller<'_, ScanContext>,
@@ -690,34 +674,7 @@ pub(crate) fn pat_matches_in(
     upper_bound: i64,
 ) -> i64 {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
-        // Convert bounds form i64 to usize.
-        let lower_bound = lower_bound.try_into().unwrap();
-        let upper_bound = upper_bound.try_into().unwrap();
-        // Find the index of the match that starts at lower_bound, or find the
-        // index where that match should be.
-        match matches.search(lower_bound) {
-            // No matter if the match was found or not, in both cases the
-            // matches that start at the range [lower_bound, upper_bound], if
-            // any, must be at `index`, `index+1`, `index+2`, etc.
-            // Notice that the fact that two matches can't have the same
-            // starting offset is very helpful in this case. Because of this
-            // we don't need to take into account matches at `index-1`,
-            // `index-2`, etc. If matches could have the same starting offset
-            // we would like to take matches before `index` because the
-            // `search` function does not guarantee that it returns the *first*
-            // match with a given offset, but *any* match with that offset.
-            Ok(index) | Err(index) => {
-                let mut count = 0;
-                for m in &matches.as_slice()[index..] {
-                    if (lower_bound..=upper_bound).contains(&m.range.start) {
-                        count += 1;
-                    } else {
-                        break;
-                    }
-                }
-                count
-            }
-        }
+        matches.matches_in_range(lower_bound as isize..=upper_bound as isize)
     } else {
         0
     }
@@ -734,9 +691,9 @@ pub(crate) fn pat_length(
     pattern_id: PatternId,
     index: i64,
 ) -> Option<i64> {
-    // Make sure that index >= 1.
-    debug_assert!(index >= 1);
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        // Make sure that index >= 1.
+        debug_assert!(index >= 1);
         let m = matches.get(index as usize - 1)?;
         Some(ExactSizeIterator::len(&m.range) as i64)
     } else {
@@ -755,9 +712,9 @@ pub(crate) fn pat_offset(
     pattern_id: PatternId,
     index: i64,
 ) -> Option<i64> {
-    // Make sure that index >= 1.
-    debug_assert!(index >= 1);
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        // Make sure that index >= 1.
+        debug_assert!(index >= 1);
         let m = matches.get(index as usize - 1)?;
         Some(m.range.start as i64)
     } else {

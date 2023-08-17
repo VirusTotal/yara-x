@@ -1,5 +1,5 @@
 use core::slice::Iter;
-use std::ops::Range;
+use std::ops::{Range, RangeInclusive};
 
 /// Represents the match of a pattern.
 #[derive(Debug, Clone)]
@@ -82,6 +82,44 @@ impl MatchList {
     #[inline]
     pub fn get(&self, i: usize) -> Option<&Match> {
         self.matches.get(i)
+    }
+
+    /// Returns the number of matches that start within the given range.
+    pub fn matches_in_range(&self, range: RangeInclusive<isize>) -> i64 {
+        // If the end of the range is negative there can't be any matches in
+        // that range.
+        if range.end().is_negative() {
+            return 0;
+        }
+
+        let start: usize = (*range.start()).try_into().unwrap_or(0);
+        let end: usize = (*range.end()).try_into().unwrap();
+
+        // Find the index of the match that starts at `start`, or find the
+        // index where that match should be.
+        match self.search(start) {
+            // No matter if the match was found or not, in both cases the
+            // matches that start at the range [lower_bound, upper_bound], if
+            // any, must be at `index`, `index+1`, `index+2`, etc.
+            // Notice that the fact that two matches can't have the same
+            // starting offset is very helpful in this case. Because of this
+            // we don't need to take into account matches at `index-1`,
+            // `index-2`, etc. If matches could have the same starting offset
+            // we would like to take matches before `index` because the
+            // `search` function does not guarantee that it returns the *first*
+            // match with a given offset, but *any* match with that offset.
+            Ok(index) | Err(index) => {
+                let mut count = 0;
+                for m in &self.matches.as_slice()[index..] {
+                    if (start..=end).contains(&m.range.start) {
+                        count += 1;
+                    } else {
+                        break;
+                    }
+                }
+                count
+            }
+        }
     }
 
     #[inline]

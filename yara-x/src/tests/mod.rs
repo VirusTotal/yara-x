@@ -1190,6 +1190,21 @@ fn match_at() {
         "#,
         b"fofofofo"
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_false!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                $a at test_proto2.add(-1,-1)
+        }
+        "#,
+        b"barfoo"
+    );
 }
 
 #[test]
@@ -1279,6 +1294,44 @@ fn match_in() {
         "#,
         b"mississippi"
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_true!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings: 
+                $a = "foo" 
+            condition: 
+                // Use the `add` function to force negative bounds in a range.
+                // We can't use constants as YARA will know that they are 
+                // negative and raise an error. YARA is not smart enough to 
+                // realize that the result of `add` is negative.
+                $a in (test_proto2.add(-1,0)..0)
+        }
+        "#,
+        b"foobar"
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_false!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings: 
+                $a = "foo" 
+            condition: 
+                // Use the `add` function to force negative bounds in a range.
+                // We can't use constants as YARA will know that they are 
+                // negative and raise an error. YARA is not smart enough to 
+                // realize that the result of `add` is negative.
+                $a in (test_proto2.add(-1,-1)..test_proto2.add(-1,0))
+        }
+        "#,
+        b"foobar"
+    );
 }
 
 #[test]
@@ -1362,6 +1415,36 @@ fn match_count() {
                 $a = "aaa" 
             condition: 
                 #a in (4..5) == 2
+        }
+        "#,
+        b"xxxaaaaa"
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_false!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings: 
+                $a = "aaa" 
+            condition: 
+                #a in (0..test_proto2.add(-1,-1)) == 2
+        }
+        "#,
+        b"xxxaaaaa"
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_false!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings: 
+                $a = "aaa" 
+            condition: 
+                #a in (test_proto2.add(-1,-1)..5) == 2
         }
         "#,
         b"xxxaaaaa"
