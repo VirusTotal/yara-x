@@ -185,8 +185,8 @@ impl Scanner {
     /// Sets a timeout for each scan.
     ///
     /// After setting a timeout scans will abort after the specified `seconds`.
-    fn set_timeout(&mut self, seconds: u64) {
-        self.inner.set_timeout(Duration::from_secs(seconds));
+    fn timeout(&mut self, seconds: u64) {
+        self.inner.timeout(Duration::from_secs(seconds));
     }
 
     /// Scans in-memory data.
