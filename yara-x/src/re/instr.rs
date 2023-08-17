@@ -53,7 +53,6 @@ solely matches the `0xAA` byte.
 
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
-use std::mem;
 use std::mem::size_of;
 use std::num::NonZeroU32;
 use std::u8;
