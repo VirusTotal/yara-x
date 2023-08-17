@@ -70,7 +70,6 @@ See the [`lookup_field`] function.
 use std::any::{type_name, TypeId};
 use std::mem;
 
-use bitvec::macros::internal::funty::Floating;
 use bstr::ByteSlice;
 use lazy_static::lazy_static;
 use linkme::distributed_slice;
