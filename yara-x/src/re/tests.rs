@@ -1051,6 +1051,8 @@ fn re_atoms() {
 
     assert_re_atoms!(r#"(?i)abc.*123"#, vec![Atom::inexact(b"123")]);
 
+    assert_re_atoms!("\x00\x00\x00\x00.{2,3}abc", vec![Atom::inexact(b"abc")]);
+
     assert_re_atoms!(
         r#"(?s)a.b.c.d"#,
         // Atoms a\x00b, a\x01b, a\x02b, .... up to a\xffb
@@ -1065,4 +1067,9 @@ fn re_atoms() {
         r#"(?s)a(b.b|c.c|d.d|e.e|f.f|g.g|h.h|i.i|j.j|k.k|l.l|m.m|n.n|o.o|p.p|q.q|r.r)"#,
         vec![Atom::inexact(b"a")]
     );
+}
+
+#[test]
+fn issue() {
+    assert_re_atoms!("\x00\x00\x00\x00.{2,3}abc", vec![Atom::inexact(b"abc")]);
 }

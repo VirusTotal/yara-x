@@ -22,8 +22,12 @@ where
         match *byte {
             // Common values contribute less to the quality than the
             // rest of values.
-            0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
+            0x20 | 0x90 | 0xcc | 0xff => {
                 q += 12;
+            }
+            // Zeroes are specially bad and contribute less.
+            0x00 => {
+                q += 6;
             }
             // Bytes in the ASCII ranges a-z and A-Z have a slightly
             // lower quality than the rest. We want to favor atoms that
@@ -72,23 +76,37 @@ where
 pub(crate) struct SeqQuality {
     seq_len: u32,
     min_atom_len: u32,
+    min_atom_quality: i32,
 }
 
 impl SeqQuality {
     pub fn min() -> Self {
-        Self { seq_len: u32::MAX, min_atom_len: 0 }
+        Self { seq_len: u32::MAX, min_atom_len: 0, min_atom_quality: i32::MIN }
     }
 }
 
 impl PartialOrd for SeqQuality {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // This sequence is better than the other if its worst atom is better
+        // the other's worst atom.
+        if self.min_atom_quality > other.min_atom_quality {
+            return Some(Ordering::Greater);
+        }
         // If the shortest atom in both sequences have the same length, the
-        // best sequence is the shortest one.
+        // best sequence is the one that has the higher min_atom_quality. If
+        // both have the same min_atom_quality, then the shorter sequence is
+        // the best.
         if self.min_atom_len == other.min_atom_len {
-            return if self.seq_len < other.seq_len {
-                Some(Ordering::Greater)
-            } else {
-                Some(Ordering::Less)
+            return match (self.min_atom_quality, other.min_atom_quality) {
+                (q1, q2) if q1 == q2 => {
+                    if self.seq_len < other.seq_len {
+                        Some(Ordering::Greater)
+                    } else {
+                        Some(Ordering::Less)
+                    }
+                }
+                (q1, q2) if q1 > q2 => Some(Ordering::Greater),
+                _ => Some(Ordering::Less),
             };
         }
         // If the minimum atom length for this sequence is exactly one byte
@@ -115,7 +133,9 @@ impl PartialOrd for SeqQuality {
 
         // In general, this sequence is better than the other only if
         // its minimum atom length is greater.
-        if self.min_atom_len > other.min_atom_len {
+        if self.min_atom_quality > other.min_atom_quality
+            || self.min_atom_len > other.min_atom_len
+        {
             Some(Ordering::Greater)
         } else {
             Some(Ordering::Less)
@@ -126,7 +146,14 @@ impl PartialOrd for SeqQuality {
 pub(crate) fn seq_quality(seq: &Seq) -> Option<SeqQuality> {
     seq.len().map(|len| SeqQuality {
         seq_len: len as u32,
-        min_atom_len: seq.min_literal_len().unwrap() as u32,
+        min_atom_len: seq.min_literal_len().unwrap_or(0) as u32,
+        min_atom_quality: seq
+            .literals()
+            .unwrap_or(&[])
+            .iter()
+            .map(|l| atom_quality(l.as_bytes()))
+            .min()
+            .unwrap_or(i32::MIN),
     })
 }
 
@@ -190,6 +217,10 @@ mod test {
         assert!(q_ab > q_01);
         assert!(q_aa > q_01);
         assert!(q_ab > q_aa);
+        dbg!(q_ab);
+        dbg!(q_00000001);
+        
+        assert!(q_ab > q_000001);
     }
 
     #[test]
@@ -226,6 +257,41 @@ mod test {
                 Literal::inexact("cde"),
                 Literal::inexact("fgh")
             ]))
+        );
+
+        assert!(
+            seq_quality(&Seq::new(vec![Literal::inexact("abcd"),]))
+                > seq_quality(&Seq::new(vec![Literal::inexact(
+                    "\x00\x00\x00\x00"
+                ),]))
+        );
+
+        assert!(
+            seq_quality(&Seq::new(vec![Literal::inexact("abc"),]))
+                > seq_quality(&Seq::new(vec![Literal::inexact(
+                    "\x00\x00\x00\x00"
+                ),]))
+        );
+
+        assert!(
+            seq_quality(&Seq::new(vec![Literal::inexact("abc"),]))
+                > seq_quality(&Seq::new(vec![Literal::inexact(
+                    "\x00\x00\x00\x01"
+                ),]))
+        );
+
+        assert!(
+            seq_quality(&Seq::new(vec![Literal::inexact("\x01\0x02\0x03"),]))
+                > seq_quality(&Seq::new(vec![Literal::inexact(
+                    "\x00\x00\x00\x01"
+                ),]))
+        );
+
+        assert!(
+            seq_quality(&Seq::new(vec![Literal::inexact("ab"),]))
+                > seq_quality(&Seq::new(vec![Literal::inexact(
+                    "\x00\x00\x00\x00"
+                ),]))
         );
     }
 }
