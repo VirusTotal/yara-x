@@ -27,6 +27,9 @@ test_proto3-module = []
 text-module = [
     "dep:lingua"
 ]
+# The Time module allows you to retrieve epoch in seconds that can
+# be used in conditions of a rule to check againts other epoch time.
+time-module = []
 
 # Features that are enabled by default.
 default = [
@@ -68,7 +71,6 @@ yara-x-parser = { workspace = true }
 yara-x-proto = { workspace = true }
 
 lingua = { version = "1.4.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
-
 
 [build-dependencies]
 protobuf = { workspace = true }
