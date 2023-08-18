@@ -628,7 +628,7 @@ impl ScanContext<'_> {
     /// must receive the [`SubPatternId`] for `S3`, and a range where `S3`
     /// matched. Then the function traverses the chain from the tail to the
     /// head, making sure that each intermediate sub-pattern has unconfirmed
-    /// matches that has the correct distance between them, so that the whole
+    /// matches that have the correct distance between them, so that the whole
     /// chain matches from head to tail.
     ///
     /// If the whole chain matches, the corresponding match is added to the
