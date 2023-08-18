@@ -451,35 +451,35 @@ mod tests {
         assert_eq!(
             text,
             r#"(module
-  (func (;76;) (type 0)
-    block ;; label = @1
-      call 79
-    end
+  (func (;77;) (type 0)
     block ;; label = @1
       call 80
     end
-  )
-  (func (;77;) (type 0)
-    i32.const 0
-    global.set 2
-    call 76
-    call 78
-  )
-  (func (;78;) (type 0)
     block ;; label = @1
       call 81
     end
   )
+  (func (;78;) (type 0)
+    i32.const 0
+    global.set 2
+    call 77
+    call 79
+  )
   (func (;79;) (type 0)
-    i32.const 4
+    block ;; label = @1
+      call 82
+    end
   )
   (func (;80;) (type 0)
-    i32.const 5
+    i32.const 4
   )
   (func (;81;) (type 0)
+    i32.const 5
+  )
+  (func (;82;) (type 0)
     i32.const 6
   )
-  (export "main" (func 77))
+  (export "main" (func 78))
 )"#
         );
     }
