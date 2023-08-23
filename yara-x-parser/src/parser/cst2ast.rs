@@ -453,7 +453,7 @@ fn rule_from_cst<'src>(
         let ident = ctx.declared_patterns.get(unused_pattern).unwrap();
         // Pattern identifiers that start with underscore (e.g: `$_a`) are
         // allowed to remain unused.
-        if !unused_pattern.starts_with("_") {
+        if !unused_pattern.starts_with('_') {
             return Err(Error::from(ErrorInfo::unused_pattern(
                 ctx.report_builder,
                 ident.name.to_string(),
