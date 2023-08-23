@@ -449,15 +449,17 @@ fn rule_from_cst<'src>(
 
     // Any identifier left in ctx.unused_pattern is not being
     // used in the condition.
-    let unused_pattern = ctx.unused_patterns.drain().next();
-
-    if let Some(ident) = unused_pattern {
-        let ident = ctx.declared_patterns.get(ident).unwrap();
-        return Err(Error::from(ErrorInfo::unused_pattern(
-            ctx.report_builder,
-            ident.name.to_string(),
-            ident.span,
-        )));
+    for unused_pattern in ctx.unused_patterns.drain() {
+        let ident = ctx.declared_patterns.get(unused_pattern).unwrap();
+        // Pattern identifiers that start with underscore (e.g: `$_a`) are
+        // allowed to remain unused.
+        if !unused_pattern.starts_with("_") {
+            return Err(Error::from(ErrorInfo::unused_pattern(
+                ctx.report_builder,
+                ident.name.to_string(),
+                ident.span,
+            )));
+        }
     }
 
     // Clear `declared_patterns` so that the next call to `rule_from_cst`

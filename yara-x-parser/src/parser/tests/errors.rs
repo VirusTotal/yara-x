@@ -570,15 +570,16 @@ rule test {
 rule test {
    strings:
      $a = "foo"
-     $b = "bar"
+     $_b = "bar"  
+     $c = "baz"
    condition:
      $a
 }
 "#,
-            r#"error: unused pattern `$b`
-   ╭─[line:5:6]
+            r#"error: unused pattern `$c`
+   ╭─[line:6:6]
    │
- 5 │      $b = "bar"
+ 6 │      $c = "baz"
    │      ─┬  
    │       ╰── this pattern was not used in the condition
 ───╯
