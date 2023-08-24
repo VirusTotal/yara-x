@@ -531,6 +531,10 @@ pub(crate) struct WasmSymbols {
     /// evaluated and some of them needs to know if a pattern matched or not.
     pub pattern_search_done: walrus::GlobalId,
 
+    /// Global variable that is set to true when a timeout during the scanning
+    /// phase.
+    pub timeout_occurred: walrus::GlobalId,
+
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
     pub i32_tmp: walrus::LocalId,
@@ -615,7 +619,7 @@ pub(crate) fn is_pat_match_at(
     pattern_id: PatternId,
     offset: i64,
 ) -> bool {
-    // Matches can't occurr at negative offsets.
+    // Matches can't occur at negative offsets.
     if offset < 0 {
         return false;
     }

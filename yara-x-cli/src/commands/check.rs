@@ -120,7 +120,18 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                 }
             };
 
-            output.send(Message::Info(lines.join("\n"))).unwrap();
+            output.send(Message::Info(lines.join("\n")))?;
+
+            Ok(())
+        },
+        |err, output| {
+            let _ = output.send(Message::Error(format!(
+                "{} {}",
+                Red.paint("error:").bold(),
+                err
+            )));
+
+            Ok(())
         },
     )
     .unwrap();

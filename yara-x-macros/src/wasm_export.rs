@@ -12,7 +12,7 @@ use syn::{
     ReturnType, Type, TypePath,
 };
 
-/// Parses signature of a Rust function and returns its
+/// Parses signature of a Rust function and returns its mangled named.
 struct FuncSignatureParser<'ast> {
     arg_types: Option<VecDeque<&'ast Type>>,
 }

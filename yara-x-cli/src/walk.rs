@@ -10,7 +10,6 @@ use crossbeam::channel::{Sender, TryRecvError};
 use crossterm::tty::IsTty;
 use globwalk::FileType;
 use superconsole::{Component, Lines, SuperConsole};
-use yansi::Color::Red;
 
 /// Walks a path recursively and runs a given function for each file.
 ///
@@ -27,6 +26,7 @@ use yansi::Color::Red;
 ///     },
 ///     // This function is called with any error found during the walk.
 ///     |err| {
+///         Ok(())
 ///     }
 /// ).unwrap();
 /// ```
@@ -73,7 +73,7 @@ impl<'a> DirWalker<'a> {
 
     /// Sets a filter based in file metadata.
     ///
-    /// The specidifed function receives tha file metadata associated with a
+    /// The specified function receives the file metadata associated with a
     /// file and must return `false` if the file should be ignored or `true``
     /// if otherwise.
     pub fn metadata_filter(
@@ -94,13 +94,15 @@ impl<'a> DirWalker<'a> {
         self
     }
 
-    /// Walk the given path recursively, calling `f` for every file found. When
-    /// some error occurs during the walk `e` is called with the error and the
-    /// walk continues. This includes errors returned by `f` itself.
+    /// Walk the given path recursively, calling `f` for every file.
+    ///
+    /// The `e` function is called with any error that occurs during the walk,
+    /// including errors returned by `f` itself. `e` must return `Ok(())` for
+    /// continuing the walk or `Err` for aborting.
     pub fn walk<F, E>(&self, path: &Path, mut f: F, mut e: E)
     where
         F: FnMut(&Path) -> anyhow::Result<()>,
-        E: FnMut(anyhow::Error),
+        E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
         if path.is_file() {
             match path
@@ -110,12 +112,14 @@ impl<'a> DirWalker<'a> {
                 Ok(metadata) => {
                     if self.pass_metadata_filter(metadata) {
                         if let Err(err) = f(path) {
-                            e(err);
+                            let _ = e(err);
                         }
                     }
                 }
-                Err(err) => e(err),
-            }
+                Err(err) => {
+                    let _ = e(err);
+                }
+            };
             return;
         }
 
@@ -125,7 +129,7 @@ impl<'a> DirWalker<'a> {
         {
             Ok(path) => path,
             Err(err) => {
-                e(err);
+                let _ = e(err);
                 return;
             }
         };
@@ -149,8 +153,11 @@ impl<'a> DirWalker<'a> {
             let entry = match entry {
                 Ok(e) => e,
                 Err(err) => {
-                    e(err.into());
-                    continue;
+                    if matches!(e(err.into()), Err(_)) {
+                        return;
+                    } else {
+                        continue;
+                    }
                 }
             };
 
@@ -158,11 +165,17 @@ impl<'a> DirWalker<'a> {
                 Ok(metadata) => {
                     if self.pass_metadata_filter(metadata) {
                         if let Err(err) = f(entry.path()) {
-                            e(err);
+                            if matches!(e(err), Err(_)) {
+                                return;
+                            }
                         }
                     }
                 }
-                Err(err) => e(err.into()),
+                Err(err) => {
+                    if matches!(e(err.into()), Err(_)) {
+                        return;
+                    }
+                }
             }
         }
     }
@@ -272,24 +285,31 @@ impl<'a> ParDirWalker<'a> {
     /// Runs `func` on every file.
     ///
     /// See [`ParDirWalk`] for details.
-    pub fn walk<S, T, I, F>(
+    pub fn walk<S, T, I, F, E>(
         &mut self,
         path: &Path,
         state: S,
         init: I,
         func: F,
+        e: E,
     ) -> thread::Result<()>
     where
         S: Component + Send + Sync,
-        I: Fn() -> T + Send + Copy,
-        F: Fn(PathBuf, &S, &Sender<Message>, &mut T) + Send + Sync + Copy,
+        I: Fn() -> T + Send + Copy + Sync,
+        F: Fn(PathBuf, &S, &Sender<Message>, &mut T) -> anyhow::Result<()>
+            + Send
+            + Sync
+            + Copy,
+        E: Fn(anyhow::Error, &Sender<Message>) -> anyhow::Result<()>
+            + Send
+            + Copy,
     {
         // Use the given num_threads or compute it based on available
         // parallelism.
         let num_threads = if let Some(num_threads) = self.num_threads {
             num_threads as usize
         } else {
-            std::thread::available_parallelism().map(usize::from).unwrap_or(32)
+            thread::available_parallelism().map(usize::from).unwrap_or(32)
         };
 
         crossbeam::scope(|s| {
@@ -316,12 +336,17 @@ impl<'a> ParDirWalker<'a> {
                 threads.push(s.spawn(move |_| {
                     let mut per_thread_obj = init();
                     for path in paths_recv {
-                        func(
+                        let res = func(
                             path.to_path_buf(),
                             &state,
                             &msg_sender,
                             &mut per_thread_obj,
                         );
+                        if let Err(err) = res {
+                            if matches!(e(err, &msg_sender), Err(_)) {
+                                let _ = msg_sender.send(Message::Abort);
+                            }
+                        }
                     }
                 }));
             }
@@ -331,18 +356,13 @@ impl<'a> ParDirWalker<'a> {
             threads.push(s.spawn(move |_| {
                 self.walker.walk(
                     path,
-                    |file_path| {
-                        paths_send.send(file_path.to_path_buf()).unwrap();
-                        Ok(())
-                    },
+                    |file_path| Ok(paths_send.send(file_path.to_path_buf())?),
                     |err| {
-                        msg_send
-                            .send(Message::Error(format!(
-                                "{} {:?}",
-                                Red.paint("error:").bold(),
-                                err
-                            )))
-                            .unwrap();
+                        if let Err(err) = e(err, &msg_send) {
+                            Err(err)
+                        } else {
+                            Ok(())
+                        }
                     },
                 );
             }));
@@ -361,18 +381,29 @@ impl<'a> ParDirWalker<'a> {
 
             loop {
                 match msg_recv.try_recv() {
-                    Ok(message) => {
+                    Ok(Message::Abort) => {
+                        break;
+                    }
+                    Ok(Message::Info(s)) => {
                         if let Some(console) = console.as_mut() {
                             console.emit(
                                 Lines::from_colored_multiline_string(
-                                    message.as_str(),
+                                    s.as_str(),
                                 ),
                             );
                         } else {
-                            match message {
-                                Message::Info(m) => println!("{}", m),
-                                Message::Error(m) => eprintln!("{}", m),
-                            }
+                            println!("{}", s)
+                        }
+                    }
+                    Ok(Message::Error(s)) => {
+                        if let Some(console) = console.as_mut() {
+                            console.emit(
+                                Lines::from_colored_multiline_string(
+                                    s.as_str(),
+                                ),
+                            );
+                        } else {
+                            eprintln!("{}", s)
                         }
                     }
                     Err(TryRecvError::Empty) => {
@@ -398,6 +429,7 @@ impl<'a> ParDirWalker<'a> {
 pub enum Message {
     Info(String),
     Error(String),
+    Abort,
 }
 
 impl Message {
@@ -405,6 +437,7 @@ impl Message {
         match self {
             Message::Info(s) => s,
             Message::Error(s) => s,
+            Message::Abort => "abort",
         }
     }
 }

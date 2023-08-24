@@ -787,7 +787,12 @@ fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
                     _then.i32_const(1);
                     _then.global_set(ctx.wasm_symbols.pattern_search_done);
                 },
-                |_| {},
+                |_else| {
+                    // A timeout occurred, set the global variable
+                    // `timeout_occurred` to true.
+                    _else.i32_const(1);
+                    _else.global_set(ctx.wasm_symbols.timeout_occurred);
+                },
             );
         },
     );
