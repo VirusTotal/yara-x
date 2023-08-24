@@ -431,13 +431,3 @@ pub enum Message {
     Error(String),
     Abort,
 }
-
-impl Message {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Message::Info(s) => s,
-            Message::Error(s) => s,
-            Message::Abort => "abort",
-        }
-    }
-}
