@@ -29,7 +29,9 @@ impl Display for Error {
     }
 }
 
-/// A regular expression parser
+/// A regular expression parser.
+///
+/// Takes an [`ast::Regexp`] and produces its corresponding [`re::hir::Hir`].
 pub(crate) struct Parser {
     force_case_insensitive: bool,
     allow_mixed_greediness: bool,
@@ -57,6 +59,7 @@ impl Parser {
         self
     }
 
+    /// Parses the regexp and returns its HIR.
     pub fn parse(&self, regexp: &ast::Regexp) -> Result<Hir, Error> {
         let ast = re::ast::parse::Parser::new().parse(regexp.src).map_err(
             |err| Error::SyntaxError {

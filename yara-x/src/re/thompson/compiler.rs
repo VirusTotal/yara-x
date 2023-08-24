@@ -1,7 +1,6 @@
 /*!
 This module provides a compiler that takes a regex's [`Hir`] and produces a
-sequence of instructions for a Pike's VM similar to the one described in
-<https://swtch.com/~rsc/regexp/regexp2.html>
+sequence of instructions for the Pike's VM.
 
 More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
@@ -26,11 +25,13 @@ use crate::compiler::{
     best_atom_from_slice, seq_quality, Atom, SeqQuality, DESIRED_ATOM_SIZE,
     MAX_ATOMS_PER_REGEXP,
 };
-use crate::re;
-use crate::re::hir::class_to_hex_byte;
-use crate::re::instr::{
+
+use super::instr;
+use super::instr::{
     literal_code_length, Instr, InstrSeq, NumAlt, OPCODE_PREFIX,
 };
+
+use crate::re;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -59,8 +60,8 @@ impl Location {
 }
 
 pub(crate) struct Offset {
-    fwd: re::instr::Offset,
-    bck: re::instr::Offset,
+    fwd: instr::Offset,
+    bck: instr::Offset,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -271,7 +272,7 @@ impl Compiler {
     fn visit_post_class(&mut self, class: &Class) -> Location {
         match class {
             Class::Bytes(class) => {
-                if let Some(byte) = class_to_hex_byte(class) {
+                if let Some(byte) = re::hir::class_to_hex_byte(class) {
                     self.emit_masked_byte(byte)
                 } else {
                     self.emit_class(class)
@@ -612,7 +613,7 @@ impl Compiler {
                 let adjustment = (min - 1) as usize * (end.bck - start.bck)
                     + size_of_val(&OPCODE_PREFIX)
                     + size_of_val(&Instr::SPLIT_A)
-                    + size_of::<re::instr::Offset>();
+                    + size_of::<instr::Offset>();
 
                 let best_atoms = self.best_atoms_stack.last_mut().unwrap();
 

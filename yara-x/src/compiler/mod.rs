@@ -1149,12 +1149,12 @@ impl<'a> Compiler<'a> {
         &mut self,
         hir: &re::hir::Hir,
         span: Span,
-    ) -> Result<Vec<re::compiler::RegexpAtom>, CompileError> {
-        let re_compiler = re::compiler::Compiler::new();
+    ) -> Result<Vec<re::thompson::RegexpAtom>, CompileError> {
+        let re_compiler = re::thompson::Compiler::new();
 
         let r = match re_compiler.compile(hir) {
             Ok(r) => r,
-            Err(re::compiler::Error::TooLarge) => {
+            Err(re::thompson::Error::TooLarge) => {
                 return Err(CompileError::from(
                     CompileErrorInfo::invalid_regexp(
                         &self.report_builder,

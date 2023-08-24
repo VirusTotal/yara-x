@@ -3,12 +3,12 @@ use pretty_assertions::assert_eq;
 
 use yara_x_parser::ast;
 
-use super::compiler::{Compiler, Location, RegexpAtom};
 use crate::compiler::Atom;
 use crate::re;
-use crate::re::instr::{
-    epsilon_closure, BckCodeLoc, EpsilonClosureState, FwdCodeLoc,
-};
+
+use super::compiler::{Compiler, Location, RegexpAtom};
+use super::instr::{BckCodeLoc, FwdCodeLoc};
+use super::pikevm::{epsilon_closure, EpsilonClosureState};
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{

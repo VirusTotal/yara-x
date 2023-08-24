@@ -24,8 +24,8 @@ use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
-use crate::re::pikevm;
-use crate::re::pikevm::PikeVM;
+use crate::re::thompson::pikevm;
+use crate::re::thompson::pikevm::PikeVM;
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
 use crate::scanner::{RuntimeStringId, HEARTBEAT_COUNTER};
 use crate::string_pool::BStringPool;
@@ -831,7 +831,7 @@ fn verify_regexp_match(
             scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
             |match_len| {
                 fwd_match_len = Some(match_len * 2);
-                pikevm::Match::Stop
+                pikevm::Action::Stop
             },
         );
     } else {
@@ -841,7 +841,7 @@ fn verify_regexp_match(
             scanned_data[..atom_pos].iter().rev(),
             |match_len| {
                 fwd_match_len = Some(match_len);
-                pikevm::Match::Stop
+                pikevm::Action::Stop
             },
         );
     }
@@ -862,7 +862,7 @@ fn verify_regexp_match(
                 if verify_full_word(scanned_data, &range, flags, None) {
                     f(Match { range, xor_key: None });
                 }
-                pikevm::Match::Continue
+                pikevm::Action::Continue
             },
         );
     } else {
@@ -875,7 +875,7 @@ fn verify_regexp_match(
                 if verify_full_word(scanned_data, &range, flags, None) {
                     f(Match { range, xor_key: None });
                 }
-                pikevm::Match::Continue
+                pikevm::Action::Continue
             },
         );
     }

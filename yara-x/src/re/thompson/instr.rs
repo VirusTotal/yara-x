@@ -533,11 +533,13 @@ impl<'a> InstrParser<'a> {
     }
 }
 
+/// Trait implementing by both [`FwdCodeLoc`] and [`BckCodeLoc`].
 pub(crate) trait CodeLoc: From<usize> {
     fn location(&self) -> usize;
     fn backwards(&self) -> bool;
 }
 
+/// Represents a location within the forward code for a regexp.
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub(crate) struct FwdCodeLoc(NonZeroU32);
 
@@ -560,6 +562,7 @@ impl CodeLoc for FwdCodeLoc {
     }
 }
 
+/// Represents a location within the backward code for a regexp.
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub(crate) struct BckCodeLoc(NonZeroU32);
 
@@ -599,7 +602,6 @@ fn decode_num_alt(slice: &[u8]) -> NumAlt {
 #[inline(always)]
 pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
     match code[..] {
-        [OPCODE_PREFIX, OPCODE_PREFIX, ..] => (Instr::Byte(OPCODE_PREFIX), 2),
         [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => (Instr::AnyByte, 2),
         [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
             (Instr::MaskedByte { byte, mask }, 4)
@@ -653,155 +655,10 @@ pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
         [OPCODE_PREFIX, Instr::WORD_BOUNDARY_NEG, ..] => {
             (Instr::WordBoundaryNeg, 2)
         }
-
         [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
+        [OPCODE_PREFIX, OPCODE_PREFIX, ..] => (Instr::Byte(OPCODE_PREFIX), 2),
         [b, ..] => (Instr::Byte(b), 1),
         [] => (Instr::Eoi, 0),
-    }
-}
-
-/// Structure used by the [`epsilon_closure`] function for maintaining
-/// its state during the computation of an epsilon closure. See the
-/// documentation of [`epsilon_closure`] for details.
-pub struct EpsilonClosureState {
-    threads: Vec<usize>,
-    executed_splits: Vec<usize>,
-}
-
-impl EpsilonClosureState {
-    pub fn new() -> Self {
-        Self { threads: Vec::new(), executed_splits: Vec::new() }
-    }
-}
-
-/// Computes the epsilon closure derived from executing the code starting at
-/// a given position.
-///
-/// In a NFA, the epsilon closure of some state `S`, is the set containing all
-/// the states that can be reached from `S` by following epsilon transitions
-/// (i.e: transitions that don't consume any input symbol). The Pike's VM code
-/// produced for a regexp is simply another way of representing a NFA where
-/// each instruction is a state. The NFA jumps from one state to the other by
-/// following the instruction flow. Instructions like `jump` and `split`, which
-/// jump from one state to another (or others) unconditionally, without
-/// consuming a byte from the input, are epsilon transitions in this context.
-///
-/// This function starts at the instruction in the `start` location, and from
-/// there explore all the possible transitions that don't depend on the next
-/// value from the input. When some instruction that depends on the next
-/// input is found (a non-epsilon transition) the location of that instruction
-/// is added to the closure.
-///
-/// This function expects a mutable reference to a [`EpsilonClosureState`],
-/// which is the structure used for keeping track of the current state while
-/// computing the epsilon closure. Instead of creating a new instance of
-/// [`EpsilonClosureState`] on each call to [`epsilon_closure`], the same
-/// instance should be reused in order to prevent unnecessary allocations.
-/// The function guarantees that the state is empty before returning, and
-/// therefore it can be re-used safely.
-#[inline(always)]
-pub(crate) fn epsilon_closure<C: CodeLoc>(
-    code: &[u8],
-    start: C,
-    curr_byte: Option<&u8>,
-    prev_byte: Option<&u8>,
-    state: &mut EpsilonClosureState,
-    closure: &mut Vec<usize>,
-) {
-    state.threads.push(start.location());
-    state.executed_splits.clear();
-
-    while let Some(ip) = state.threads.pop() {
-        let (instr, size) = decode_instr(&code[ip..]);
-        let next = ip + size;
-        match instr {
-            Instr::AnyByte
-            | Instr::Byte(_)
-            | Instr::MaskedByte { .. }
-            | Instr::CaseInsensitiveChar(_)
-            | Instr::ClassBitmap(_)
-            | Instr::ClassRanges(_)
-            | Instr::Match => {
-                if !closure.contains(&ip) {
-                    closure.push(ip);
-                }
-            }
-            Instr::SplitA(offset) => {
-                // TODO: here we are relying on `contains` which is O(n), this
-                // can be improved by using a set. We can even remove
-                // `executed_splits` and rely on `closure`, which must be
-                // a set that maintains the insertion order.
-                if !state.executed_splits.contains(&ip) {
-                    state.executed_splits.push(ip);
-                    state
-                        .threads
-                        .push((ip as i64 + offset as i64).try_into().unwrap());
-                    state.threads.push(next);
-                }
-            }
-            Instr::SplitB(offset) => {
-                if !state.executed_splits.contains(&ip) {
-                    state.executed_splits.push(ip);
-                    state.threads.push(next);
-                    state
-                        .threads
-                        .push((ip as i64 + offset as i64).try_into().unwrap());
-                }
-            }
-            Instr::SplitN(split) => {
-                if !state.executed_splits.contains(&ip) {
-                    state.executed_splits.push(ip);
-                    for offset in split.offsets().rev() {
-                        state.threads.push(
-                            (ip as i64 + offset as i64).try_into().unwrap(),
-                        );
-                    }
-                }
-            }
-            Instr::Jump(offset) => {
-                state
-                    .threads
-                    .push((ip as i64 + offset as i64).try_into().unwrap());
-            }
-            Instr::Start => {
-                if start.backwards() {
-                    if curr_byte.is_none() {
-                        state.threads.push(next);
-                    }
-                } else if prev_byte.is_none() {
-                    state.threads.push(next);
-                }
-            }
-            Instr::End => {
-                if start.backwards() {
-                    if prev_byte.is_none() {
-                        state.threads.push(next);
-                    }
-                } else if curr_byte.is_none() {
-                    state.threads.push(next);
-                }
-            }
-            Instr::WordBoundary | Instr::WordBoundaryNeg => {
-                let mut is_match = match (prev_byte, curr_byte) {
-                    (Some(p), Some(c)) => {
-                        p.is_ascii_alphanumeric() != c.is_ascii_alphanumeric()
-                    }
-                    (None, Some(b)) | (Some(b), None) => {
-                        b.is_ascii_alphanumeric()
-                    }
-                    _ => false,
-                };
-
-                if matches!(instr, Instr::WordBoundaryNeg) {
-                    is_match = !is_match;
-                }
-
-                if is_match {
-                    state.threads.push(next)
-                }
-            }
-            Instr::Eoi => {}
-        }
     }
 }
 

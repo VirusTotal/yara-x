@@ -17,8 +17,8 @@ use crate::compiler::{
     IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
     SubPattern, SubPatternId,
 };
-use crate::re::compiler::RegexpAtom;
-use crate::re::instr::{BckCodeLoc, FwdCodeLoc};
+use crate::re::thompson::RegexpAtom;
+use crate::re::thompson::{BckCodeLoc, FwdCodeLoc};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::types::{Regexp, Struct};
 use crate::SerializationError;
