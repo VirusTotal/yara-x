@@ -40,6 +40,9 @@ text-module = [
 # The Time module allows you to retrieve epoch in seconds that can
 # be used in conditions of a rule to check againts other epoch time.
 time-module = []
+
+# Macho module allows you to parse Mach-O files
+macho-module = []
 # The Strings Module
 string-module = []
 # The hash module provides functions for computing md5, sha1 and sha-256 hashes
@@ -53,6 +56,7 @@ hash-module = [
 default = [
     "constant-folding",
     "fast-regexp",
+    "macho-module",
     "hash-module",
     "time-module",
     "test_proto2-module",

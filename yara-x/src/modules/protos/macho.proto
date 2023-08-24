@@ -1,0 +1,13 @@
+syntax = "proto2";
+
+import "yara.proto";
+
+option (yara.module_options) = {
+  name : "macho"
+  root_message: "Macho"
+  rust_module: "macho"
+};
+
+message Macho {
+
+}
