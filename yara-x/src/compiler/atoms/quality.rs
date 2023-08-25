@@ -17,7 +17,7 @@ where
     let bytes = bytes.into_iter();
     let mut atom_len = 0;
 
-    for byte in bytes.into_iter() {
+    for byte in bytes {
         bytes_present.set(*byte as usize, true);
         match *byte {
             // Common values contribute less to the quality than the
