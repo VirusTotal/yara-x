@@ -1646,14 +1646,6 @@ bitmask! {
     }
 }
 
-impl SubPatternFlagSet {
-    pub(crate) fn fullword(&self) -> bool {
-        self.intersects(
-            SubPatternFlags::FullwordLeft | SubPatternFlags::FullwordRight,
-        )
-    }
-}
-
 /// A sub-pattern in the compiled rules.
 ///
 /// Each pattern in a rule has one ore more associated sub-patterns. For
