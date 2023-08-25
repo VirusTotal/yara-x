@@ -121,9 +121,7 @@ impl<'r> PikeVM<'r> {
                 let (instr, size) = decode_instr(&self.code[*ip..]);
 
                 let is_match = match instr {
-                    Instr::AnyByte => {
-                        matches!(curr_byte, Some(_))
-                    }
+                    Instr::AnyByte => curr_byte.is_some(),
                     Instr::Byte(byte) => {
                         matches!(curr_byte, Some(b) if *b == byte)
                     }
