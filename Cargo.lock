@@ -4022,6 +4022,7 @@ dependencies = [
  "bitmask",
  "bitvec",
  "bstr",
+ "byteorder",
  "criterion",
  "fmmap",
  "indexmap 2.0.0",

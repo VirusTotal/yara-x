@@ -42,7 +42,9 @@ text-module = [
 time-module = []
 
 # Macho module allows you to parse Mach-O files
-macho-module = []
+macho-module = [
+    "dep:byteorder"
+]
 # The Strings Module
 string-module = []
 # The hash module provides functions for computing md5, sha1 and sha-256 hashes
@@ -102,6 +104,7 @@ yara-x-parser = { workspace = true }
 yara-x-proto = { workspace = true }
 
 lingua = { version = "1.4.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
+byteorder = { version = "1.4", optional = true }
 
 [build-dependencies]
 protobuf = { workspace = true }

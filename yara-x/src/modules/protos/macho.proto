@@ -9,5 +9,12 @@ option (yara.module_options) = {
 };
 
 message Macho {
-
+  optional uint32 magic = 1;
+  optional uint32 cputype = 2;
+  optional uint32 cpusubtype = 3;
+  optional uint32 filetype = 4;
+  optional uint32 ncmds = 5;
+  optional uint32 sizeofcmds = 6;
+  optional uint32 flags = 7;
+  optional uint32 reserved = 8;
 }
