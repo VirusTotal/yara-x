@@ -242,7 +242,7 @@ pub(crate) struct ParDirWalker<'a> {
 }
 
 impl<'a> ParDirWalker<'a> {
-    /// Creates a [`ParallelWalk`].
+    /// Creates a [`ParDirWalker`].
     pub fn new() -> Self {
         Self { walker: DirWalker::new(), num_threads: None }
     }
@@ -284,7 +284,7 @@ impl<'a> ParDirWalker<'a> {
 
     /// Runs `func` on every file.
     ///
-    /// See [`ParDirWalk`] for details.
+    /// See [`ParDirWalker`] for details.
     pub fn walk<S, T, I, F, E>(
         &mut self,
         path: &Path,
