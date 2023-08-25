@@ -153,7 +153,7 @@ impl<'a> DirWalker<'a> {
             let entry = match entry {
                 Ok(e) => e,
                 Err(err) => {
-                    if matches!(e(err.into()), Err(_)) {
+                    if e(err.into()).is_err() {
                         return;
                     } else {
                         continue;
@@ -165,14 +165,14 @@ impl<'a> DirWalker<'a> {
                 Ok(metadata) => {
                     if self.pass_metadata_filter(metadata) {
                         if let Err(err) = f(entry.path()) {
-                            if matches!(e(err), Err(_)) {
+                            if e(err).is_err() {
                                 return;
                             }
                         }
                     }
                 }
                 Err(err) => {
-                    if matches!(e(err.into()), Err(_)) {
+                    if e(err.into()).is_err() {
                         return;
                     }
                 }
@@ -343,7 +343,7 @@ impl<'a> ParDirWalker<'a> {
                             &mut per_thread_obj,
                         );
                         if let Err(err) = res {
-                            if matches!(e(err, &msg_sender), Err(_)) {
+                            if e(err, &msg_sender).is_err() {
                                 let _ = msg_sender.send(Message::Abort);
                             }
                         }
