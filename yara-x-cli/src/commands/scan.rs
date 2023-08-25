@@ -1,7 +1,7 @@
 use std::cmp::min;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
@@ -168,7 +168,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             )));
 
             if err.is::<ScanError>() {
-                Err(Error::from(err))
+                Err(err)
             } else {
                 Ok(())
             }
@@ -181,7 +181,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
 fn print_matching_rules(
     args: &ArgMatches,
-    file_path: &PathBuf,
+    file_path: &Path,
     rules: &[Rule],
     output: &Sender<Message>,
 ) {
