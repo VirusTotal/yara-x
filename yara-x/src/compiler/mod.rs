@@ -1391,7 +1391,7 @@ impl<'a> Compiler<'a> {
         if is_anchored_at_start {
             self.sub_patterns_anchored_at_start.push(sub_pattern_id);
         } else {
-            for atom in atoms.into_iter() {
+            for atom in atoms {
                 self.atoms.push(f(sub_pattern_id, atom))
             }
         }
