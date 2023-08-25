@@ -166,6 +166,7 @@ impl WasmModuleBuilder {
         global_const!(module, matching_patterns_bitmap_base, I32);
         global_var!(module, filesize, I64);
         global_var!(module, pattern_search_done, I32);
+        global_var!(module, timeout_occurred, I32);
 
         let (main_memory, _) =
             module.add_import_memory("yara_x", "main_memory", false, 1, None);
@@ -175,6 +176,7 @@ impl WasmModuleBuilder {
             matching_patterns_bitmap_base,
             filesize,
             pattern_search_done,
+            timeout_occurred,
             i64_tmp: module.locals.add(I64),
             i32_tmp: module.locals.add(I32),
             f64_tmp: module.locals.add(F64),
@@ -195,10 +197,16 @@ impl WasmModuleBuilder {
             &Self::RULES_FUNC_RET,
         );
 
-        let mut main_func = FunctionBuilder::new(&mut module.types, &[], &[]);
+        // The main function receives no arguments and returns an I32.
+        let mut main_func =
+            FunctionBuilder::new(&mut module.types, &[], &[I32]);
 
+        // The first instructions in the main function initialize the global
+        // variables `pattern_search_done` and `timeout_occurred` to 0 (false).
         main_func.func_body().i32_const(0);
         main_func.func_body().global_set(pattern_search_done);
+        main_func.func_body().i32_const(0);
+        main_func.func_body().global_set(timeout_occurred);
 
         let namespace_block = namespace_func.dangling_instr_seq(None).id();
         let global_rules_block = namespace_func.dangling_instr_seq(None).id();
@@ -283,6 +291,13 @@ impl WasmModuleBuilder {
         self.finish_rule_func();
         self.finish_namespace_block();
         self.finish_namespace_func();
+
+        // Emit the last few instructions for main function, which consist in
+        // putting the return value in the stack. The return value is 0 if
+        // everything went ok and 1 if a timeout occurred.
+        self.main_func
+            .func_body()
+            .global_get(self.wasm_symbols.timeout_occurred);
 
         let main_func =
             self.main_func.finish(Vec::new(), &mut self.module.funcs);
@@ -451,19 +466,22 @@ mod tests {
         assert_eq!(
             text,
             r#"(module
-  (func (;77;) (type 0)
+  (func (;77;) (type 1) (result i32)
+    i32.const 0
+    global.set 2
+    i32.const 0
+    global.set 3
+    call 78
+    call 79
+    global.get 3
+  )
+  (func (;78;) (type 0)
     block ;; label = @1
       call 80
     end
     block ;; label = @1
       call 81
     end
-  )
-  (func (;78;) (type 0)
-    i32.const 0
-    global.set 2
-    call 77
-    call 79
   )
   (func (;79;) (type 0)
     block ;; label = @1
@@ -479,7 +497,7 @@ mod tests {
   (func (;82;) (type 0)
     i32.const 6
   )
-  (export "main" (func 78))
+  (export "main" (func 77))
 )"#
         );
     }

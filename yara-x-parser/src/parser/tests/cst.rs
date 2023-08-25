@@ -97,7 +97,7 @@ rule test : foo bar baz {
         (
             line!(),
             GrammarRule::regexp,
-            r#"/ab\/cd/   / "#,
+            r"/ab\/cd/   / ",
             r#"
  regexp "/ab\/cd/"
 "#,
@@ -595,7 +595,7 @@ rule test : foo bar baz {
         (
             line!(),
             GrammarRule::boolean_expr,
-            r#"1 + 2 * 3.2 == 8 - 3 \ 3"#,
+            r"1 + 2 * 3.2 == 8 - 3 \ 3",
             r#"
  boolean_expr
  └─ boolean_term
@@ -630,7 +630,7 @@ rule test : foo bar baz {
         (
             line!(),
             GrammarRule::boolean_expr,
-            r#"(1 + 2) * 3 == (8) - (3 \ 3)"#,
+            r"(1 + 2) * 3 == (8) - (3 \ 3)",
             r#"
  boolean_expr
  └─ boolean_term
@@ -956,7 +956,7 @@ rule test : foo bar baz {
             line!(),
             GrammarRule::expr,
             r#"foo.bar[0].baz()"#,
-            r##"
+            r#"
  expr
  ├─ term
  │  └─ indexing_expr
@@ -977,7 +977,7 @@ rule test : foo bar baz {
        │  └─ ident "baz"
        ├─ LPAREN "("
        └─ RPAREN ")"
-"##,
+"#,
         ),
     ];
 

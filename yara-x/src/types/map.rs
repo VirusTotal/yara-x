@@ -68,9 +68,4 @@ impl Map {
             Map::StringKeys { map, .. } => map.len(),
         }
     }
-
-    /// Returns true if the map is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 }

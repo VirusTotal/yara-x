@@ -68,7 +68,10 @@ where
 
                 Ok(())
             },
-            |err| eprintln!("{}", err),
+            |err| {
+                eprintln!("{}", err);
+                Ok(())
+            },
         );
     }
 
