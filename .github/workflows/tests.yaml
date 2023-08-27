@@ -8,17 +8,6 @@ jobs:
     name: Test
     env:
       CARGO_TERM_COLOR: always
-      # For some builds, we use cross to test on 32-bit and big-endian
-      # systems.
-      CARGO: cargo
-      # When CARGO is set to CROSS, TARGET is set to `--target matrix.target`.
-      # Note that we only use cross on Linux, so setting a target on a
-      # different OS will just use normal cargo.
-      TARGET: ""
-      # Bump this as appropriate. We pin to a version to make sure CI
-      # continues to work as cross releases in the past have broken things
-      # in subtle ways.
-      CROSS_VERSION: v0.2.5
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
