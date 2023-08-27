@@ -818,7 +818,7 @@ fn lookup_field(
 
         let mut final_field = None;
 
-        for field_index in lookup_indexes.into_iter() {
+        for field_index in lookup_indexes {
             // Integers in WASM memory are always stored as little-endian
             // regardless of the endianness of the host platform. If we
             // are in a big-endian platform the integers needs to be swapped
