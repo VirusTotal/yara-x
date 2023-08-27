@@ -789,13 +789,15 @@ fn lookup_field(
 ) -> TypeValue {
     let mut store_ctx = caller.as_context_mut();
 
-    let lookup_indexes_ptr =
+    let mem_ptr =
         store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
+
+    let lookup_indexes_ptr =
+        unsafe { mem_ptr.offset(LOOKUP_INDEXES_START as isize) };
 
     let lookup_indexes = unsafe {
         std::slice::from_raw_parts::<i32>(
-            lookup_indexes_ptr.offset(LOOKUP_INDEXES_START as isize)
-                as *const i32,
+            lookup_indexes_ptr as *const i32,
             num_lookup_indexes as usize,
         )
     };
@@ -816,9 +818,18 @@ fn lookup_field(
 
         let mut final_field = None;
 
-        for field_index in lookup_indexes {
+        for field_index in lookup_indexes.into_iter() {
+            // Integers in WASM memory are always stored as little-endian
+            // regardless of the endianness of the host platform. If we
+            // are in a big-endian platform the integers needs to be swapped
+            // for obtaining the original value.
+            let field_index = if cfg!(target_endian = "big") {
+                field_index.swap_bytes()
+            } else {
+                *field_index
+            };
             let field =
-                structure.field_by_index(*field_index as usize).unwrap();
+                structure.field_by_index(field_index as usize).unwrap();
             final_field = Some(field);
             if let TypeValue::Struct(s) = &field.type_value {
                 structure = s
