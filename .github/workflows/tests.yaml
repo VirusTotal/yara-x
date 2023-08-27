@@ -102,11 +102,8 @@ jobs:
           echo "CARGO=cross" >> $GITHUB_ENV
           echo "TARGET=--target ${{ matrix.target }}" >> $GITHUB_ENV
 
-      - name: Build
-        run: ${{ env.CARGO }} build --verbose $TARGET
-
       - name: Run tests
-        run: ${{ env.CARGO }} test --verbose --workspace --all-targets ${{ matrix.args }} $TARGET
+        run: ${{ env.CARGO }} test --release --verbose --workspace --all-targets ${{ matrix.args }} $TARGET
         env:
           RUSTFLAGS: -Awarnings # Allow all warnings
 
