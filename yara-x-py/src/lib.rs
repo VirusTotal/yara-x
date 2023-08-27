@@ -18,8 +18,7 @@ use std::ops::Deref;
 use std::pin::Pin;
 use std::time::Duration;
 
-use pyo3::exceptions::{PyException, PyIOError};
-use pyo3::exceptions::{PySyntaxError, PyTypeError, PyValueError};
+use pyo3::exceptions::{PyIOError, PySyntaxError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBool, PyBytes, PyFloat, PyInt, PyString, PyTuple};
 use pyo3_file::PyFileLikeObject;
@@ -192,15 +191,12 @@ impl Scanner {
     /// Scans in-memory data.
     #[pyo3(signature = (data))]
     fn scan(&mut self, data: &[u8]) -> PyResult<Py<PyTuple>> {
-        let matches: Vec<String> = self
+        let scan_results = self
             .inner
             .scan(data)
-            .map_err(|err| PyException::new_err(err.to_string()))?
-            .matching_rules()
-            .map(|rule| rule.name().to_string())
-            .collect();
+            .map_err(|err| PyValueError::new_err(err.to_string()))?;
 
-        Ok(Python::with_gil(|py| PyTuple::new(py, matches).into()))
+        Ok(matching_rules_to_py(scan_results.matching_rules()))
     }
 }
 
@@ -242,24 +238,12 @@ impl Rules {
     #[pyo3(signature = (data))]
     fn scan(&self, data: &[u8]) -> PyResult<Py<PyTuple>> {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
+
         let scan_results = scanner
             .scan(data)
             .map_err(|err| PyValueError::new_err(err.to_string()))?;
-        let matches = scan_results.matching_rules();
 
-        Ok(Python::with_gil(|py| {
-            PyTuple::new(
-                py,
-                matches.map(|rule| {
-                    MatchingRule {
-                        name: rule.name().to_string(),
-                        namespace: rule.namespace().to_string(),
-                    }
-                    .into_py(py)
-                }),
-            )
-            .into()
-        }))
+        Ok(matching_rules_to_py(scan_results.matching_rules()))
     }
 
     fn serialize_into(&self, file: PyObject) -> PyResult<()> {
@@ -273,6 +257,22 @@ impl Rules {
     fn warnings(&self) -> Vec<String> {
         self.inner.rules.warnings().iter().map(|w| w.to_string()).collect()
     }
+}
+
+fn matching_rules_to_py(matching_rules: yrx::MatchingRules) -> Py<PyTuple> {
+    Python::with_gil(|py| {
+        PyTuple::new(
+            py,
+            matching_rules.map(|rule| {
+                MatchingRule {
+                    name: rule.name().to_string(),
+                    namespace: rule.namespace().to_string(),
+                }
+                .into_py(py)
+            }),
+        )
+        .into()
+    })
 }
 
 /// Python module for compiling YARA rules and scanning data with them.
