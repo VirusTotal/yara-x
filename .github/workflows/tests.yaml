@@ -1,12 +1,24 @@
 name: Tests
 on:
   pull_request:
+    types: [ opened, reopened ]
   push:
 jobs:
   test:
     name: Test
     env:
       CARGO_TERM_COLOR: always
+      # For some builds, we use cross to test on 32-bit and big-endian
+      # systems.
+      CARGO: cargo
+      # When CARGO is set to CROSS, TARGET is set to `--target matrix.target`.
+      # Note that we only use cross on Linux, so setting a target on a
+      # different OS will just use normal cargo.
+      TARGET: ""
+      # Bump this as appropriate. We pin to a version to make sure CI
+      # continues to work as cross releases in the past have broken things
+      # in subtle ways.
+      CROSS_VERSION: v0.2.5
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -52,6 +64,11 @@ jobs:
           #   rust: stable-x86_64-gnu
           #   args: ""
 
+          - build: stable-s390x
+            os: ubuntu-latest
+            rust: stable
+            target: s390x-unknown-linux-gnu
+
           - build: constant-folding-off
             os: ubuntu-latest
             rust: stable
@@ -74,10 +91,20 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
 
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --all-targets ${{ matrix.args }}
+      - name: Install and configure Cross
+        if: matrix.os == 'ubuntu-latest' && matrix.target != ''
+        run: |
+          dir="$RUNNER_TEMP/cross-download"
+          mkdir "$dir"
+          echo "$dir" >> $GITHUB_PATH
+          cd "$dir"
+          curl -LO "https://github.com/cross-rs/cross/releases/download/$CROSS_VERSION/cross-x86_64-unknown-linux-musl.tar.gz"
+          tar xf cross-x86_64-unknown-linux-musl.tar.gz
+          echo "CARGO=cross" >> $GITHUB_ENV
+          echo "TARGET=--target ${{ matrix.target }}" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: ${{ env.CARGO }} test --release --verbose --workspace --all-targets ${{ matrix.args }} $TARGET
         env:
           RUSTFLAGS: -Awarnings # Allow all warnings
+
