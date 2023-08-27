@@ -1773,15 +1773,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "memx"
-version = "0.1.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "494b592fa2aededee4bae079e13a99a3843d60e19ed8a42cc36b1701061e30c8"
-dependencies = [
- "cpufeatures",
-]
-
-[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3993,7 +3984,6 @@ dependencies = [
  "lingua",
  "linkme",
  "log",
- "memx",
  "pretty_assertions",
  "protobuf",
  "protobuf-codegen",
