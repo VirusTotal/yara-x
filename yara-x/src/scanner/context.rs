@@ -745,7 +745,7 @@ fn verify_literal_match(
     let match_found = if flags.contains(SubPatternFlags::Nocase) {
         pattern.eq_ignore_ascii_case(&scanned_data[atom_pos..match_end])
     } else {
-        memx::memeq(&scanned_data[atom_pos..match_end], pattern.as_bytes())
+        &scanned_data[atom_pos..match_end] == pattern.as_bytes()
     };
 
     if match_found {
@@ -922,7 +922,7 @@ fn verify_xor_match(
         }
     }
 
-    if memx::memeq(&scanned_data[match_range.clone()], pattern.as_bytes()) {
+    if &scanned_data[match_range.clone()] == pattern.as_bytes() {
         Some(Match { range: match_range, xor_key: Some(key) })
     } else {
         None
