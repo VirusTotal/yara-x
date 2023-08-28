@@ -2,7 +2,7 @@ use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
 
 use byteorder::{BigEndian, ByteOrder};
-use std::convert::TryInto;
+use nom::{number::complete::*, IResult};
 
 // Define Mach-O header constats
 // May be moved away later
@@ -42,20 +42,57 @@ struct MachOHeader64 {
     reserved: u32,
 }
 
+// Get magic constant from macho file
+fn parse_magic(input: &[u8]) -> IResult<&[u8], u32> {
+    le_u32(input)
+}
+
+// Parse Mach-O header
+fn parse_macho_header(input: &[u8]) -> IResult<&[u8], MachOHeader64> {
+    let (input, magic) = parse_magic(input)?;
+    let (input, cputype) = le_u32(input)?;
+    let (input, cpusubtype) = le_u32(input)?;
+    let (input, filetype) = le_u32(input)?;
+    let (input, ncmds) = le_u32(input)?;
+    let (input, sizeofcmds) = le_u32(input)?;
+    let (input, flags) = le_u32(input)?;
+
+    // Determine if we should parse the reserved field based on the magic value
+    let (input, reserved) =
+        if !is_32_bit(magic) { le_u32(input)? } else { (input, 0) };
+
+    Ok((
+        input,
+        MachOHeader64 {
+            magic,
+            cputype,
+            cpusubtype,
+            filetype,
+            ncmds,
+            sizeofcmds,
+            flags,
+            reserved,
+        },
+    ))
+}
+
 // Check if given file is basic Mach-O file
 fn is_macho_file_block(data: &[u8]) -> bool {
-    let magic = u32::from_ne_bytes(data[0..4].try_into().unwrap());
-    match magic {
-        MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64 => true,
+    match parse_magic(data) {
+        Ok((_, magic)) => {
+            matches!(magic, MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64)
+        }
         _ => false,
     }
 }
 
 // Check if given file is FAT Mach-O file
 fn is_fat_macho_file_block(data: &[u8]) -> bool {
-    let magic = u32::from_ne_bytes(data[0..4].try_into().unwrap());
-    match magic {
-        FAT_MAGIC | FAT_CIGAM | FAT_MAGIC_64 | FAT_CIGAM_64 => true,
+    match parse_magic(data) {
+        Ok((_, magic)) => matches!(
+            magic,
+            FAT_MAGIC | FAT_CIGAM | FAT_MAGIC_64 | FAT_CIGAM_64
+        ),
         _ => false,
     }
 }
@@ -102,57 +139,48 @@ fn parse_macho_file(data: &[u8], macho_proto: &mut Macho) {
         return;
     }
 
-    // Get header size by determining if file is 32 or 64 bit
-    let header_size =
-        if is_32_bit(u32::from_ne_bytes(data[0..4].try_into().unwrap())) {
-            std::mem::size_of::<MachOHeader32>()
-        } else {
-            std::mem::size_of::<MachOHeader64>()
-        };
+    if let Ok((_, mut header)) = parse_macho_header(data) {
+        // Byte conversion (swap) if necessary
+        if should_swap_bytes(header.magic) {
+            swap_mach_header(&mut header);
+        }
 
-    // Populate Mach-O header struct
-    let mut header: MachOHeader64 = MachOHeader64 {
-        magic: u32::from_ne_bytes(data[0..4].try_into().unwrap()),
-        cputype: u32::from_ne_bytes(data[4..8].try_into().unwrap()),
-        cpusubtype: u32::from_ne_bytes(data[8..12].try_into().unwrap()),
-        filetype: u32::from_ne_bytes(data[12..16].try_into().unwrap()),
-        ncmds: u32::from_ne_bytes(data[16..20].try_into().unwrap()),
-        sizeofcmds: u32::from_ne_bytes(data[20..24].try_into().unwrap()),
-        flags: u32::from_ne_bytes(data[24..28].try_into().unwrap()),
-        reserved: if header_size == std::mem::size_of::<MachOHeader32>() {
-            0 // Default value for 32-bit Mach-O
-        } else {
-            u32::from_ne_bytes(data[28..32].try_into().unwrap())
-        },
-    };
+        // Set protobuf values for Mach-O header
+        macho_proto.set_magic(header.magic);
+        macho_proto.set_cputype(header.cputype);
+        macho_proto.set_cpusubtype(header.cpusubtype);
+        macho_proto.set_filetype(header.filetype);
+        macho_proto.set_ncmds(header.ncmds);
+        macho_proto.set_sizeofcmds(header.sizeofcmds);
+        macho_proto.set_flags(header.flags);
+        if !is_32_bit(header.magic) {
+            macho_proto.set_reserved(header.reserved);
+        }
 
-    if should_swap_bytes(header.magic) {
-        swap_mach_header(&mut header);
+        // Set protobuf values for Mach-O header
+        macho_proto.set_magic(header.magic);
+        macho_proto.set_cputype(header.cputype);
+        macho_proto.set_cpusubtype(header.cpusubtype);
+        macho_proto.set_filetype(header.filetype);
+        macho_proto.set_ncmds(header.ncmds);
+        macho_proto.set_sizeofcmds(header.sizeofcmds);
+        macho_proto.set_flags(header.flags);
+
+        // Only set the reserved field in the protobuf for 64-bit files
+        if !is_32_bit(header.magic) {
+            macho_proto.set_reserved(header.reserved);
+        }
+
+        // Print header fields in hexadecimal format
+        println!("Magic: 0x{:x}", header.magic);
+        println!("CPU Type: {}", header.cputype);
+        println!("CPU Subtype: {}", header.cpusubtype);
+        println!("File Type: {}", header.filetype);
+        println!("Number of Commands: {}", header.ncmds);
+        println!("Size of Commands: {}", header.sizeofcmds);
+        println!("Flags: 0x{:x}", header.flags);
+        println!("Reserved: 0x{:x}", header.reserved);
     }
-
-    // Set protobuf values for Mach-O header
-    macho_proto.set_magic(header.magic);
-    macho_proto.set_cputype(header.cputype);
-    macho_proto.set_cpusubtype(header.cpusubtype);
-    macho_proto.set_filetype(header.filetype);
-    macho_proto.set_ncmds(header.ncmds);
-    macho_proto.set_sizeofcmds(header.sizeofcmds);
-    macho_proto.set_flags(header.flags);
-
-    // Only set the reserved field in the protobuf for 64-bit files
-    if !is_32_bit(header.magic) {
-        macho_proto.set_reserved(header.reserved);
-    }
-
-    // Print header fields in hexadecimal format
-    println!("Magic: 0x{:x}", header.magic);
-    println!("CPU Type: 0x{:x}", header.cputype);
-    println!("CPU Subtype: 0x{:x}", header.cpusubtype);
-    println!("File Type: 0x{:x}", header.filetype);
-    println!("Number of Commands: 0x{:x}", header.ncmds);
-    println!("Size of Commands: 0x{:x}", header.sizeofcmds);
-    println!("Flags: 0x{:x}", header.flags);
-    println!("Reserved: 0x{:x}", header.reserved);
 }
 
 #[module_main]

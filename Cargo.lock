@@ -4035,6 +4035,7 @@ dependencies = [
  "md5",
  "memchr",
  "memx",
+ "nom 7.1.3",
  "num",
  "pretty_assertions",
  "protobuf",
