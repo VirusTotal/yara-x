@@ -17,4 +17,5 @@ message Macho {
   optional uint32 sizeofcmds = 6;
   optional uint32 flags = 7;
   optional uint32 reserved = 8;
+  optional uint64 number_of_segments = 9; 
 }
