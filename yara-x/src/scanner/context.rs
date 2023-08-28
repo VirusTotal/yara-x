@@ -69,7 +69,7 @@ pub(crate) struct ScanContext<'r> {
     pub main_memory: Option<wasmtime::Memory>,
     /// The host-side stack of local variables.
     ///
-    /// See [`crate::compiler::Context::new_var`] for a more detailed
+    /// See [`crate::compiler::context::VarStack`] for a more detailed
     /// description of what is this, and what "host-side" means in this
     /// case.
     pub vars_stack: Vec<TypeValue>,
