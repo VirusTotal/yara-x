@@ -1,8 +1,13 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
 
+use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
-use nom::{number::complete::*, IResult};
+use nom::{bytes::complete::take, number::complete::*, IResult};
+
+// Mach-O file needs to have at least header of size 28 to be considered correct
+// Real minimum size of Mach-O file would be higher
+const VALID_MACHO_LENGTH: usize = 28;
 
 // Define Mach-O header constats
 // May be moved away later
@@ -54,7 +59,39 @@ struct LoadCommand {
     cmdsize: u32,
 }
 
-// Get magic constant from macho file
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct SegmentCommand32 {
+    cmd: u32,
+    cmdsize: u32,
+    segname: [u8; 16],
+    vmaddr: u32,
+    vmsize: u32,
+    fileoff: u32,
+    filesize: u32,
+    maxprot: u32,
+    initprot: u32,
+    nsects: u32,
+    flags: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct Section32 {
+    sectname: [u8; 16],
+    segname: [u8; 16],
+    addr: u32,
+    size: u32,
+    offset: u32,
+    align: u32,
+    reloff: u32,
+    nreloc: u32,
+    flags: u32,
+    reserved1: u32,
+    reserved2: u32,
+}
+
+// Get magic constant from Mach-O file
 fn parse_magic(input: &[u8]) -> IResult<&[u8], u32> {
     le_u32(input)
 }
@@ -66,8 +103,49 @@ fn handle_segment_command(
     seg_count: &mut u64,
     macho_proto: &mut Macho,
 ) {
-    // TODO: Implement the logic for handling the LC_SEGMENT command
-    *seg_count += 1;
+    // Check if segment size is not less than SegmentCommand32 struct size
+    if size < std::mem::size_of::<SegmentCommand32>() {
+        return;
+    }
+
+    // Parse segment command data
+    if let Ok((remaining_data, mut sg)) = parse_segment_command(command_data) {
+        if let Some(magic_value) = macho_proto.magic {
+            if should_swap_bytes(magic_value) {
+                swap_segment_command(&mut sg);
+            }
+        }
+
+        // Print the sg structure in the specified format
+        println!("Command: 0x{:x}", sg.cmd);
+        println!("Command Size: {}", sg.cmdsize);
+        println!(
+            "Segment Name: {}",
+            std::str::from_utf8(&sg.segname).unwrap_or_default()
+        );
+        println!("VM Address: 0x{:x}", sg.vmaddr);
+        println!("VM Size: 0x{:x}", sg.vmsize);
+        println!("File Offset: 0x{:x}", sg.fileoff);
+        println!("File Size: 0x{:x}", sg.filesize);
+        println!("Max Protection: 0x{:x}", sg.maxprot);
+        println!("Init Protection: 0x{:x}", sg.initprot);
+        println!("Number of Sections: {}", sg.nsects);
+        println!("Flags: 0x{:x}", sg.flags);
+
+        // TODO: Set the segment fields in the macho_proto
+        let mut sections_data = remaining_data;
+        for _ in 0..sg.nsects {
+            if let Ok((remaining_sections, sec)) = parse_section(sections_data)
+            {
+                // TODO: Set the section fields in the macho_proto
+                sections_data = remaining_sections;
+            } else {
+                break;
+            }
+        }
+
+        *seg_count += 1;
+    }
 }
 
 // Handle the LC_SEGMENT_64 command
@@ -138,6 +216,19 @@ fn swap_load_command(command: &mut LoadCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+fn swap_segment_command(segment: &mut SegmentCommand32) {
+    segment.cmd = BigEndian::read_u32(&segment.cmd.to_le_bytes());
+    segment.cmdsize = BigEndian::read_u32(&segment.cmdsize.to_le_bytes());
+    segment.vmaddr = BigEndian::read_u32(&segment.vmaddr.to_le_bytes());
+    segment.vmsize = BigEndian::read_u32(&segment.vmsize.to_le_bytes());
+    segment.fileoff = BigEndian::read_u32(&segment.fileoff.to_le_bytes());
+    segment.filesize = BigEndian::read_u32(&segment.filesize.to_le_bytes());
+    segment.maxprot = BigEndian::read_u32(&segment.maxprot.to_le_bytes());
+    segment.initprot = BigEndian::read_u32(&segment.initprot.to_le_bytes());
+    segment.nsects = BigEndian::read_u32(&segment.nsects.to_le_bytes());
+    segment.flags = BigEndian::read_u32(&segment.flags.to_le_bytes());
+}
+
 // Parse Mach-O header
 fn parse_macho_header(input: &[u8]) -> IResult<&[u8], MachOHeader64> {
     let (input, magic) = parse_magic(input)?;
@@ -175,36 +266,113 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
     Ok((input, LoadCommand { cmd, cmdsize }))
 }
 
+// Parsing function for Mach-O 32bit Command segment
+fn parse_segment_command(input: &[u8]) -> IResult<&[u8], SegmentCommand32> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, segname) = take(16usize)(input)?;
+    let (input, vmaddr) = le_u32(input)?;
+    let (input, vmsize) = le_u32(input)?;
+    let (input, fileoff) = le_u32(input)?;
+    let (input, filesize) = le_u32(input)?;
+    let (input, maxprot) = le_u32(input)?;
+    let (input, initprot) = le_u32(input)?;
+    let (input, nsects) = le_u32(input)?;
+    let (input, flags) = le_u32(input)?;
+
+    Ok((
+        input,
+        SegmentCommand32 {
+            cmd,
+            cmdsize,
+            segname: *array_ref![segname, 0, 16],
+            vmaddr,
+            vmsize,
+            fileoff,
+            filesize,
+            maxprot,
+            initprot,
+            nsects,
+            flags,
+        },
+    ))
+}
+
+// Parsing function for Mach-O 32bit Section
+fn parse_section(input: &[u8]) -> IResult<&[u8], Section32> {
+    let (input, sectname) = take(16usize)(input)?;
+    let (input, segname) = take(16usize)(input)?;
+    let (input, addr) = le_u32(input)?;
+    let (input, size) = le_u32(input)?;
+    let (input, offset) = le_u32(input)?;
+    let (input, align) = le_u32(input)?;
+    let (input, reloff) = le_u32(input)?;
+    let (input, nreloc) = le_u32(input)?;
+    let (input, flags) = le_u32(input)?;
+    let (input, reserved1) = le_u32(input)?;
+    let (input, reserved2) = le_u32(input)?;
+
+    Ok((
+        input,
+        Section32 {
+            sectname: *array_ref![sectname, 0, 16],
+            segname: *array_ref![segname, 0, 16],
+            addr,
+            size,
+            offset,
+            align,
+            reloff,
+            nreloc,
+            flags,
+            reserved1,
+            reserved2,
+        },
+    ))
+}
+
 // Parse Mach-O commands
 fn parse_macho_commands(
     data: &[u8],
     header: &MachOHeader64,
     macho_proto: &mut Macho,
 ) -> u64 {
-    // Commands are located after the header so we need to add header size to offset
-    let mut command_offset = if is_32_bit(header.magic) {
+    let header_size = if is_32_bit(header.magic) {
         std::mem::size_of::<MachOHeader32>()
     } else {
         std::mem::size_of::<MachOHeader64>()
     };
 
     let mut seg_count = 0;
+    let mut command_offset = header_size;
 
-    // Loop over load commands and parse them
     for _ in 0..header.ncmds {
-        if let Ok((remaining_data, mut command)) =
-            parse_load_command(&data[command_offset..])
-        {
-            // Swap load command bytes similary as was done for header
+        // Check if remaining data is not less than size of LoadCommand
+        if data.len() - command_offset < std::mem::size_of::<LoadCommand>() {
+            break;
+        }
+
+        // Parse load commands from Mach-O file
+        let command_data = &data[command_offset..];
+        if let Ok((_, mut command)) = parse_load_command(command_data) {
             if should_swap_bytes(header.magic) {
                 swap_load_command(&mut command);
             }
 
-            // For now only LC_SEGMENT and LC_SEGMENT_64 commands are supported
+            // Check if cmdsize is not less than size of LoadCommand
+            if command.cmdsize < std::mem::size_of::<LoadCommand>() as u32 {
+                break;
+            }
+
+            // Check if remaining data is not less than cmdsize
+            if data.len() - command_offset < command.cmdsize as usize {
+                break;
+            }
+
+            // Handle supported commands
             match command.cmd {
                 LC_SEGMENT => {
                     handle_segment_command(
-                        remaining_data,
+                        command_data,
                         command.cmdsize as usize,
                         &mut seg_count,
                         macho_proto,
@@ -212,7 +380,7 @@ fn parse_macho_commands(
                 }
                 LC_SEGMENT_64 => {
                     handle_segment_64_command(
-                        remaining_data,
+                        command_data,
                         command.cmdsize as usize,
                         &mut seg_count,
                         macho_proto,
@@ -221,10 +389,9 @@ fn parse_macho_commands(
                 _ => {}
             }
 
-            // Add command size to offset in order to process next command
+            // Continue to next command offset
             command_offset += command.cmdsize as usize;
         } else {
-            // If parsing fails, break out of the loop
             break;
         }
     }
@@ -287,19 +454,19 @@ fn parse_macho_file(data: &[u8], macho_proto: &mut Macho) {
 
 #[module_main]
 fn main(ctx: &ScanContext) -> Macho {
-    // Create an empty instance of the Macho protobuf
+    // Create an empty instance of the Mach-O protobuf
     let mut macho_proto = Macho::new();
 
     // Get a &[u8] slice with the content of the file being scanned.
     let data = ctx.scanned_data();
 
     // If data is too short to be valid Mach-O file, return empty protobuf
-    if data.len() < 4 {
+    if data.len() < VALID_MACHO_LENGTH {
         println!("Data is too short to be a valid Mach-O file.");
         return macho_proto;
     }
 
-    // parse basic macho file
+    // parse basic Mach-O file
     if is_macho_file_block(data) {
         parse_macho_file(data, &mut macho_proto);
     }

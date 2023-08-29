@@ -142,6 +142,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayref"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b4930d2cb77ce62f89ee5d5289b4ac049559b1c45539271f5ed4fdc7db34545"
+
+[[package]]
 name = "arrayvec"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4016,6 +4022,7 @@ dependencies = [
  "aho-corasick",
  "anyhow",
  "ariadne",
+ "arrayref",
  "ascii_tree",
  "base64 0.21.2",
  "bincode",
