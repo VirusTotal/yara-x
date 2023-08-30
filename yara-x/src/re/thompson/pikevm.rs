@@ -1,7 +1,7 @@
 use std::mem;
 
 use super::instr::{Instr, InstrParser};
-use crate::re::{Action, CodeLoc};
+use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -24,8 +24,6 @@ pub(crate) struct PikeVM<'r> {
 }
 
 impl<'r> PikeVM<'r> {
-    pub const DEFAULT_SCAN_LIMIT: usize = 4096;
-
     /// Creates a new [`PikeVM`].
     pub fn new(code: &'r [u8]) -> Self {
         Self {
@@ -33,7 +31,7 @@ impl<'r> PikeVM<'r> {
             threads: Vec::new(),
             next_threads: Vec::new(),
             cache: EpsilonClosureState::new(),
-            scan_limit: Self::DEFAULT_SCAN_LIMIT,
+            scan_limit: DEFAULT_SCAN_LIMIT,
         }
     }
 

@@ -25,7 +25,6 @@ use crate::compiler::{
     SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
 use crate::re::fast::fastvm::FastVM;
-use crate::re::thompson::pikevm;
 use crate::re::thompson::pikevm::PikeVM;
 use crate::re::Action;
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
@@ -255,8 +254,7 @@ impl ScanContext<'_> {
         let ac = self.compiled_rules.ac_automaton();
 
         let mut vm = VM {
-            pike_vm: PikeVM::new(self.compiled_rules.re_code())
-                .scan_limit(PikeVM::DEFAULT_SCAN_LIMIT),
+            pike_vm: PikeVM::new(self.compiled_rules.re_code()),
             fast_vm: FastVM::new(self.compiled_rules.re_code()),
         };
 

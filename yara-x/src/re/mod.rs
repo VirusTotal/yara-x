@@ -37,6 +37,8 @@ pub mod hir;
 pub mod parser;
 pub mod thompson;
 
+pub const DEFAULT_SCAN_LIMIT: usize = 4096;
+
 #[derive(Error, Debug)]
 pub enum Error {
     /// The regular expression is too large.

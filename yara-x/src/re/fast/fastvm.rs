@@ -1,7 +1,10 @@
-use crate::re::fast::instr::{Instr, InstrParser};
-use crate::re::{Action, CodeLoc};
-use memx::memeq;
+use std::cmp;
 use std::ops::RangeInclusive;
+
+use memx::memeq;
+
+use crate::re::fast::instr::{Instr, InstrParser};
+use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
 
 /// Represents a faster alternative to [crate::re::thompson::pikevm::PikeVM]
 ///
@@ -14,12 +17,15 @@ pub(crate) struct FastVM<'r> {
     code: &'r [u8],
     /// The list of currently active positions.
     threads: Vec<(usize, usize)>,
+    /// Maximum number of bytes to scan. The VM will abort after ingesting
+    /// this number of bytes from the input.
+    scan_limit: usize,
 }
 
 impl<'r> FastVM<'r> {
     /// Creates a new [`FastVM`].
     pub fn new(code: &'r [u8]) -> Self {
-        Self { code, threads: Vec::new() }
+        Self { code, threads: Vec::new(), scan_limit: DEFAULT_SCAN_LIMIT }
     }
 
     pub fn try_match<C>(
@@ -32,6 +38,8 @@ impl<'r> FastVM<'r> {
     {
         let backwards = start.backwards();
         self.threads.push((start.location(), 0));
+
+        let input = &input[..cmp::min(input.len(), self.scan_limit)];
 
         while let Some((mut ip, mut position)) = self.threads.pop() {
             while position <= input.len() {
