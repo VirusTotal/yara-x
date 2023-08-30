@@ -135,36 +135,45 @@ fn handle_segment_command(
     size: usize,
     seg_count: &mut u64,
     macho_proto: &mut Macho,
-) {
+) -> Result<(), &'static str> {
     // Check if segment size is not less than SegmentCommand32 struct size
     if size < std::mem::size_of::<SegmentCommand32>() {
-        return;
+        return Err("File too small to contain segment section");
     }
 
     // Parse segment command data
     if let Ok((remaining_data, mut sg)) = parse_segment_command(command_data) {
-        if let Some(magic_value) = macho_proto.magic {
-            if should_swap_bytes(magic_value) {
-                swap_segment_command(&mut sg);
-            }
+        if should_swap_bytes(
+            macho_proto
+                .header
+                .magic
+                .ok_or("Magic value not present in header")?,
+        ) {
+            swap_segment_command(&mut sg);
         }
 
-        // Print the sg structure in the specified format
-        println!("Segment Commands:");
-        println!("Command: 0x{:x}", sg.cmd);
-        println!("Command Size: {}", sg.cmdsize);
-        println!(
-            "Segment Name: {}",
-            std::str::from_utf8(&sg.segname).unwrap_or_default()
-        );
-        println!("VM Address: 0x{:x}", sg.vmaddr);
-        println!("VM Size: 0x{:x}", sg.vmsize);
-        println!("File Offset: {}", sg.fileoff);
-        println!("File Size: {}", sg.filesize);
-        println!("Max Protection: 0x{:x}", sg.maxprot);
-        println!("Init Protection: 0x{:x}", sg.initprot);
-        println!("Number of Sections: {}", sg.nsects);
-        println!("Flags: 0x{:x}", sg.flags);
+        // Populate protobuf segment section
+        let segment = Segment {
+            cmd: Some(sg.cmd).into(),
+            cmdsize: Some(sg.cmdsize).into(),
+            segname: Some(
+                std::str::from_utf8(&sg.segname)
+                    .unwrap_or_default()
+                    .to_string(),
+            )
+            .into(),
+            vmaddr: Some(sg.vmaddr).into(),
+            vmsize: Some(sg.vmsize).into(),
+            fileoff: Some(sg.fileoff).into(),
+            filesize: Some(sg.filesize).into(),
+            maxprot: Some(sg.maxprot).into(),
+            initprot: Some(sg.initprot).into(),
+            nsects: Some(sg.nsects).into(),
+            flags: Some(sg.flags).into(),
+            ..Default::default()
+        };
+
+        macho_proto.segments.push(segment);
 
         // TODO: Set the segment fields in the macho_proto
         let mut sections_data = remaining_data;
@@ -180,6 +189,7 @@ fn handle_segment_command(
 
         *seg_count += 1;
     }
+    return Ok(());
 }
 
 // Handle the LC_SEGMENT_64 command
@@ -188,38 +198,47 @@ fn handle_segment_command_64(
     size: usize,
     seg_count: &mut u64,
     macho_proto: &mut Macho,
-) {
+) -> Result<(), &'static str> {
     // Check if segment size is not less than SegmentCommand64 struct size
     if size < std::mem::size_of::<SegmentCommand64>() {
-        return;
+        return Err("File too small to contain segment section");
     }
 
     // Parse segment command data
     if let Ok((remaining_data, mut sg)) =
         parse_segment_command_64(command_data)
     {
-        if let Some(magic_value) = macho_proto.magic {
-            if should_swap_bytes(magic_value) {
-                swap_segment_command_64(&mut sg);
-            }
+        if should_swap_bytes(
+            macho_proto
+                .header
+                .magic
+                .ok_or("Magic value not present in header")?,
+        ) {
+            swap_segment_command_64(&mut sg);
         }
 
-        // Print the sg structure in the specified format
-        println!("Segment Commands:");
-        println!("Command: 0x{:x}", sg.cmd);
-        println!("Command Size: {}", sg.cmdsize);
-        println!(
-            "Segment Name: {}",
-            std::str::from_utf8(&sg.segname).unwrap_or_default()
-        );
-        println!("VM Address: 0x{:x}", sg.vmaddr);
-        println!("VM Size: 0x{:x}", sg.vmsize);
-        println!("File Offset: {}", sg.fileoff);
-        println!("File Size: {}", sg.filesize);
-        println!("Max Protection: 0x{:x}", sg.maxprot);
-        println!("Init Protection: 0x{:x}", sg.initprot);
-        println!("Number of Sections: {}", sg.nsects);
-        println!("Flags: 0x{:x}", sg.flags);
+        // Populate protobuf segment section
+        let segment = Segment64 {
+            cmd: Some(sg.cmd).into(),
+            cmdsize: Some(sg.cmdsize).into(),
+            segname: Some(
+                std::str::from_utf8(&sg.segname)
+                    .unwrap_or_default()
+                    .to_string(),
+            )
+            .into(),
+            vmaddr: Some(sg.vmaddr).into(),
+            vmsize: Some(sg.vmsize).into(),
+            fileoff: Some(sg.fileoff).into(),
+            filesize: Some(sg.filesize).into(),
+            maxprot: Some(sg.maxprot).into(),
+            initprot: Some(sg.initprot).into(),
+            nsects: Some(sg.nsects).into(),
+            flags: Some(sg.flags).into(),
+            ..Default::default()
+        };
+
+        macho_proto.segments_64.push(segment);
 
         // TODO: Set the segment fields in the macho_proto
         let mut sections_data = remaining_data;
@@ -236,6 +255,8 @@ fn handle_segment_command_64(
 
         *seg_count += 1;
     }
+
+    return Ok(());
 }
 
 // Check if given file is basic Mach-O file
@@ -493,10 +514,11 @@ fn parse_section_64(input: &[u8]) -> IResult<&[u8], Section64> {
 // Parse Mach-O commands
 fn parse_macho_commands(
     data: &[u8],
-    header: &MachOHeader64,
     macho_proto: &mut Macho,
-) -> u64 {
-    let header_size = if is_32_bit(header.magic) {
+) -> Result<u64, &'static str> {
+    let header_size = if is_32_bit(
+        macho_proto.header.magic.ok_or("Magic value not present in header")?,
+    ) {
         std::mem::size_of::<MachOHeader32>()
     } else {
         std::mem::size_of::<MachOHeader64>()
@@ -505,7 +527,12 @@ fn parse_macho_commands(
     let mut seg_count = 0;
     let mut command_offset = header_size;
 
-    for _ in 0..header.ncmds {
+    // Loop over Mach-O commands
+    for _ in 0..macho_proto
+        .header
+        .ncmds
+        .ok_or("Number of commands not present in header")?
+    {
         // Check if remaining data is not less than size of LoadCommand
         if data.len() - command_offset < std::mem::size_of::<LoadCommand>() {
             break;
@@ -514,7 +541,12 @@ fn parse_macho_commands(
         // Parse load commands from Mach-O file
         let command_data = &data[command_offset..];
         if let Ok((_, mut command)) = parse_load_command(command_data) {
-            if should_swap_bytes(header.magic) {
+            if should_swap_bytes(
+                macho_proto
+                    .header
+                    .magic
+                    .ok_or("Magic value not present in header")?,
+            ) {
                 swap_load_command(&mut command);
             }
 
@@ -531,20 +563,24 @@ fn parse_macho_commands(
             // Handle supported commands
             match command.cmd {
                 LC_SEGMENT => {
-                    handle_segment_command(
+                    if let Err(e) = handle_segment_command(
                         command_data,
                         command.cmdsize as usize,
                         &mut seg_count,
                         macho_proto,
-                    );
+                    ) {
+                        eprintln!("Error handling LC_SEGMENT: {}", e);
+                    }
                 }
                 LC_SEGMENT_64 => {
-                    handle_segment_command_64(
+                    if let Err(e) = handle_segment_command_64(
                         command_data,
                         command.cmdsize as usize,
                         &mut seg_count,
                         macho_proto,
-                    );
+                    ) {
+                        eprintln!("Error handling LC_SEGMENT_64: {}", e);
+                    }
                 }
                 _ => {}
             }
@@ -556,7 +592,7 @@ fn parse_macho_commands(
         }
     }
 
-    seg_count
+    Ok(seg_count)
 }
 
 // Parse basic Mach-O file
@@ -566,52 +602,112 @@ fn parse_macho_file(data: &[u8], macho_proto: &mut Macho) {
         return;
     }
 
-    // Declare the header variable with an Option type to be able to use it later
-    let mut header: Option<MachOHeader64> = None;
-
     if let Ok((_, mut parsed_header)) = parse_macho_header(data) {
         // Byte conversion (swap) if necessary
         if should_swap_bytes(parsed_header.magic) {
             swap_mach_header(&mut parsed_header);
         }
 
-        // Set protobuf values for Mach-O header
-        macho_proto.set_magic(parsed_header.magic);
-        macho_proto.set_cputype(parsed_header.cputype);
-        macho_proto.set_cpusubtype(parsed_header.cpusubtype);
-        macho_proto.set_filetype(parsed_header.filetype);
-        macho_proto.set_ncmds(parsed_header.ncmds);
-        macho_proto.set_sizeofcmds(parsed_header.sizeofcmds);
-        macho_proto.set_flags(parsed_header.flags);
+        // Populate protobuf header section
+        let header = Header {
+            magic: Some(parsed_header.magic).into(),
+            cputype: Some(parsed_header.cputype).into(),
+            cpusubtype: Some(parsed_header.cpusubtype).into(),
+            filetype: Some(parsed_header.filetype).into(),
+            ncmds: Some(parsed_header.ncmds).into(),
+            sizeofcmds: Some(parsed_header.sizeofcmds).into(),
+            flags: Some(parsed_header.flags).into(),
+            reserved: if !is_32_bit(parsed_header.magic) {
+                Some(parsed_header.reserved).into()
+            } else {
+                None
+            },
+            ..Default::default()
+        };
 
-        // Only set the reserved field in the protobuf for 64-bit files
-        if !is_32_bit(parsed_header.magic) {
-            macho_proto.set_reserved(parsed_header.reserved);
+        macho_proto.header = Some(header).into();
+    }
+
+    // Populate number of segments based on return type
+    match parse_macho_commands(data, macho_proto) {
+        Ok(result) => {
+            macho_proto.set_number_of_segments(result);
         }
+        Err(error) => {
+            eprintln!("Error: {}", error);
+        }
+    }
+}
 
-        // Print header fields in hexadecimal format
-        println!("Header:");
-        println!("Magic: 0x{:x}", parsed_header.magic);
-        println!("CPU Type: {}", parsed_header.cputype);
-        println!("CPU Subtype: {}", parsed_header.cpusubtype);
-        println!("File Type: {}", parsed_header.filetype);
-        println!("Number of Commands: {}", parsed_header.ncmds);
-        println!("Size of Commands: {}", parsed_header.sizeofcmds);
-        println!("Flags: 0x{:x}", parsed_header.flags);
-        println!("Reserved: 0x{:x}", parsed_header.reserved);
+// Helper function to print Option values or "NOT PRESENT"
+fn print_option<T: std::fmt::Display>(opt: Option<T>) -> String {
+    match opt {
+        Some(val) => val.to_string(),
+        None => "NOT PRESENT".to_string(),
+    }
+}
+
+// Helper function to print Option values as hex or "NOT PRESENT"
+fn print_option_hex<T: std::fmt::LowerHex>(opt: Option<T>) -> String {
+    match opt {
+        Some(val) => format!("0x{:x}", val),
+        None => "NOT PRESENT".to_string(),
+    }
+}
+
+// Debug printing
+fn print_macho_info(macho_proto: &Macho) {
+    println!("Header:");
+    let header = &macho_proto.header;
+    println!("Magic: {}", print_option_hex(header.magic));
+    println!("CPU Type: {}", print_option(header.cputype));
+    println!("CPU Subtype: {}", print_option(header.cpusubtype));
+    println!("File Type: {}", print_option(header.filetype));
+    println!("Number of Commands: {}", print_option(header.ncmds));
+    println!("Size of Commands: {}", print_option(header.sizeofcmds));
+    println!("Flags: {}", print_option_hex(header.flags));
+    println!("Reserved: {}", print_option_hex(header.reserved));
+    println!();
+
+    // Print 64bit Segment Commands
+    for segment in &macho_proto.segments_64 {
+        println!("Segment Commands:");
+        println!("Command: {}", print_option_hex(segment.cmd));
+        println!("Command Size: {}", print_option(segment.cmdsize));
+        println!("Segment Name: {}", print_option(segment.segname.as_ref()));
+        println!("VM Address: {}", print_option_hex(segment.vmaddr));
+        println!("VM Size: {}", print_option_hex(segment.vmsize));
+        println!("File Offset: {}", print_option(segment.fileoff));
+        println!("File Size: {}", print_option(segment.filesize));
+        println!("Max Protection: {}", print_option_hex(segment.maxprot));
+        println!("Init Protection: {}", print_option_hex(segment.initprot));
+        println!("Number of Sections: {}", print_option(segment.nsects));
+        println!("Flags: {}", print_option_hex(segment.flags));
         println!();
-
-        // Assign the parsed header to the header_option variable
-        header = Some(parsed_header);
     }
 
-    // Check if the header has a value and then parse the commands
-    if let Some(header) = header {
-        let seg_count = parse_macho_commands(data, &header, macho_proto);
-        macho_proto.set_number_of_segments(seg_count);
-
-        println!("Number of segments: {}", seg_count);
+    // Print 32bit Segment Commands
+    for segment in &macho_proto.segments {
+        println!("Segment Commands:");
+        println!("Command: {}", print_option_hex(segment.cmd));
+        println!("Command Size: {}", print_option(segment.cmdsize));
+        println!("Segment Name: {}", print_option(segment.segname.as_ref()));
+        println!("VM Address: {}", print_option_hex(segment.vmaddr));
+        println!("VM Size: {}", print_option_hex(segment.vmsize));
+        println!("File Offset: {}", print_option(segment.fileoff));
+        println!("File Size: {}", print_option(segment.filesize));
+        println!("Max Protection: {}", print_option_hex(segment.maxprot));
+        println!("Init Protection: {}", print_option_hex(segment.initprot));
+        println!("Number of Sections: {}", print_option(segment.nsects));
+        println!("Flags: {}", print_option_hex(segment.flags));
+        println!();
     }
+
+    // Print Number of Segments
+    println!(
+        "Number of segments: {}",
+        print_option(macho_proto.number_of_segments)
+    );
 }
 
 #[module_main]
@@ -624,7 +720,7 @@ fn main(ctx: &ScanContext) -> Macho {
 
     // If data is too short to be valid Mach-O file, return empty protobuf
     if data.len() < VALID_MACHO_LENGTH {
-        println!("Data is too short to be a valid Mach-O file.");
+        eprintln!("Data is too short to be a valid Mach-O file.");
         return macho_proto;
     }
 
@@ -637,5 +733,6 @@ fn main(ctx: &ScanContext) -> Macho {
         //parse_fat_macho_file(data, &mut macho_proto);
     }
 
+    print_macho_info(&macho_proto);
     macho_proto
 }

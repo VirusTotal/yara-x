@@ -8,7 +8,7 @@ option (yara.module_options) = {
   rust_module: "macho"
 };
 
-message Macho {
+message Header {
   optional uint32 magic = 1;
   optional uint32 cputype = 2;
   optional uint32 cpusubtype = 3;
@@ -17,5 +17,39 @@ message Macho {
   optional uint32 sizeofcmds = 6;
   optional uint32 flags = 7;
   optional uint32 reserved = 8;
-  optional uint64 number_of_segments = 9; 
+}
+
+message Segment {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional string segname = 3;
+  optional uint32 vmaddr = 4;
+  optional uint32 vmsize = 5;
+  optional uint32 fileoff = 6;
+  optional uint32 filesize = 7;
+  optional uint32 maxprot = 8;
+  optional uint32 initprot = 9;
+  optional uint32 nsects = 10;
+  optional uint32 flags = 11;
+}
+
+message Segment64 {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional string segname = 3;
+  optional uint64 vmaddr = 4;
+  optional uint64 vmsize = 5;
+  optional uint64 fileoff = 6;
+  optional uint64 filesize = 7;
+  optional uint32 maxprot = 8;
+  optional uint32 initprot = 9;
+  optional uint32 nsects = 10;
+  optional uint32 flags = 11;
+}
+
+message Macho {
+  required Header header = 1;
+  optional uint64 number_of_segments = 2;
+  repeated Segment segments = 3;
+  repeated Segment64 segments_64 = 4;
 }
