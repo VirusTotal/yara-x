@@ -1,6 +1,5 @@
-use crate::compiler::{
-    best_range_in_bytes, best_range_in_masked_bytes, Atom, DESIRED_ATOM_SIZE,
-};
+use crate::compiler::{best_range_in_bytes, best_range_in_masked_bytes, Atom};
+
 use bstr::ByteSlice;
 use regex_syntax::hir::{visit, Class, Hir, HirKind, Visitor};
 use std::mem;
@@ -56,10 +55,8 @@ impl Compiler {
         for (i, piece) in pieces.iter().enumerate() {
             let (bytes, mask, range, quality) = match piece {
                 PatternPiece::Literal(bytes) => {
-                    let (range, quality) = best_range_in_bytes(
-                        bytes.as_slice(),
-                        DESIRED_ATOM_SIZE,
-                    );
+                    let (range, quality) =
+                        best_range_in_bytes(bytes.as_slice());
 
                     (Some(bytes.as_slice()), None, Some(range), quality)
                 }
@@ -67,7 +64,6 @@ impl Compiler {
                     let (range, quality) = best_range_in_masked_bytes(
                         bytes.as_slice(),
                         mask.as_slice(),
-                        DESIRED_ATOM_SIZE,
                     );
                     (
                         Some(bytes.as_slice()),

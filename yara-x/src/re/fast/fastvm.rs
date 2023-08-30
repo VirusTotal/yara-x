@@ -28,6 +28,23 @@ impl<'r> FastVM<'r> {
         Self { code, threads: Vec::new(), scan_limit: DEFAULT_SCAN_LIMIT }
     }
 
+    /// Specifies the maximum number of bytes that will be scanned by the
+    /// VM before aborting.
+    ///
+    /// This sets a limit on the number of bytes that the VM will read from the
+    /// input while trying find a match. Without a limit, the VM will can incur
+    /// in excessive execution time for regular expressions that are unbounded,
+    /// like `foo.*bar`. For inputs that starts with `foo`, this regexp will
+    /// try to scan the whole input, and that would take a long time if the
+    /// input is excessively large.
+    ///
+    /// The default limit is 4096 bytes.
+    #[allow(dead_code)]
+    pub fn scan_limit(mut self, limit: usize) -> Self {
+        self.scan_limit = limit;
+        self
+    }
+
     pub fn try_match<C>(
         &mut self,
         start: C,

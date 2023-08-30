@@ -694,11 +694,7 @@ impl<'a> Compiler<'a> {
             wide_pattern = make_wide(pattern.text.as_bytes());
             main_patterns.push((
                 wide_pattern.as_slice(),
-                best_atom_in_bytes(
-                    wide_pattern.as_slice(),
-                    // For wide patterns let's use atoms twice large as usual.
-                    DESIRED_ATOM_SIZE * 2,
-                ),
+                best_atom_in_bytes(wide_pattern.as_slice()),
                 flags | SubPatternFlags::Wide,
             ));
         }
@@ -706,7 +702,7 @@ impl<'a> Compiler<'a> {
         if pattern.flags.contains(PatternFlags::Ascii) {
             main_patterns.push((
                 pattern.text.as_bytes(),
-                best_atom_in_bytes(pattern.text.as_bytes(), DESIRED_ATOM_SIZE),
+                best_atom_in_bytes(pattern.text.as_bytes()),
                 flags,
             ));
         }
@@ -784,13 +780,10 @@ impl<'a> Compiler<'a> {
                         self.add_sub_pattern(
                             sub_pattern,
                             iter::once(
-                                best_atom_in_bytes(
-                                    base64_pattern.as_slice(),
-                                    DESIRED_ATOM_SIZE,
-                                )
-                                // Atoms for base64 patterns are always
-                                // inexact, they require verification.
-                                .make_inexact(),
+                                best_atom_in_bytes(base64_pattern.as_slice())
+                                    // Atoms for base64 patterns are always
+                                    // inexact, they require verification.
+                                    .make_inexact(),
                             ),
                             SubPatternAtom::from_atom,
                         );
@@ -824,13 +817,10 @@ impl<'a> Compiler<'a> {
                         self.add_sub_pattern(
                             sub_pattern,
                             iter::once(
-                                best_atom_in_bytes(
-                                    wide.as_slice(),
-                                    DESIRED_ATOM_SIZE * 2,
-                                )
-                                // Atoms for base64 patterns are always
-                                // inexact, they require verification.
-                                .make_inexact(),
+                                best_atom_in_bytes(wide.as_slice())
+                                    // Atoms for base64 patterns are always
+                                    // inexact, they require verification.
+                                    .make_inexact(),
                             ),
                             SubPatternAtom::from_atom,
                         );
@@ -952,7 +942,6 @@ impl<'a> Compiler<'a> {
 
             let best_atom = best_atom_in_bytes(
                 self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
-                if wide { DESIRED_ATOM_SIZE * 2 } else { DESIRED_ATOM_SIZE },
             );
 
             let sp = SubPattern::Literal {

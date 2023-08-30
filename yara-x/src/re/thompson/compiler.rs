@@ -805,8 +805,7 @@ impl hir::Visitor for &mut Compiler {
                 // the literal, our own logic implemented in `best_atom_from_slice`
                 // takes into account a few things, like penalizing common bytes
                 // and prioritizing digits over letters.
-                let mut best_atom =
-                    best_atom_in_bytes(literal, DESIRED_ATOM_SIZE);
+                let mut best_atom = best_atom_in_bytes(literal);
 
                 // If the atom extracted from the literal is not at the
                 // start of the literal it's `backtrack` value will be

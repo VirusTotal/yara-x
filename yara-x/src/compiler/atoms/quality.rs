@@ -1,53 +1,61 @@
+use bitvec::array::BitArray;
+use std::cmp;
 use std::cmp::Ordering;
+use std::collections::VecDeque;
 use std::iter;
+use std::iter::zip;
+use std::ops::Range;
 
-use bitvec::bitarr;
 use regex_syntax::hir::literal::Seq;
 
-/// Compute the quality of a masked atom.
-///
-/// Both iterators (`bytes` and `masks`) should have the same number of
-/// elements, if not, the shortest one will determine the length of the atom.
-///
-/// Each byte in the atom contributes a certain amount of points to the   
-/// quality. Bytes [a-zA-Z] contribute 18 points each, the extremely common
-/// byte 0x00 contributes only 6 points, and other common bytes like 0x20
-/// and 0xFF contribute 12 points. The rest of the bytes contribute 20 points
-/// each. Masked bytes adds 2 points for each non-masked bit, and subtracts 1
-/// point for each masked bit. So, the ?? mask subtracts 8 points, and masks X?
-/// and ?X contributes 4 points.
-///
-/// An additional boost consisting in 2x the number of unique bytes in the atom
-/// is added to the quality. This are some examples of the quality of atoms:
-///
-///   01 0? 03      quality = 20 +  4 + 20      + 4 = 48
-///   01 02         quality = 20 + 20           + 4 = 44
-///   01 ?? ?3 04   quality = 20 -  8 +  4 + 20 + 4 = 36
-///   61 62         quality = 18 + 18           + 4 = 40
-///   61 61         quality = 18 + 18           + 2 = 38
-///   01 ?? 03      quality = 20 -  8 + 20      + 4 = 36
-///   00 01         quality =  6 + 20           + 4 = 30
-///   01            quality = 20                + 1 = 21
-///
-pub fn masked_atom_quality<'a, B, M>(bytes: B, masks: M) -> i32
+use crate::compiler::{Atom, DESIRED_ATOM_SIZE};
+
+/// Given an iterator of pairs (byte, mask) finds the best possible atom
+/// that can be extracted from that iterator.
+struct BestAtomFinder<'a, I>
 where
-    B: IntoIterator<Item = &'a u8>,
-    M: IntoIterator<Item = &'a u8>,
+    I: Iterator<Item = (&'a u8, &'a u8)>,
 {
-    let mut q: i32 = 0;
+    index: usize,
+    base_quality: i32,
+    best_quality: i32,
+    best_range: Range<usize>,
+    queue: VecDeque<(usize, u8, u8, i32)>,
+    bytes_present: BitArray<[usize; 256]>,
+    byte_mask_iter: I,
+}
 
-    // Create a bit array with 256 bits, where all bits are initially 0.
-    // Bit N is set to 1 (true) if the atom contains the non-masked byte N.
-    let mut bytes_present = bitarr![0; 256];
+impl<'a, I> BestAtomFinder<'a, I>
+where
+    I: Iterator<Item = (&'a u8, &'a u8)>,
+{
+    pub fn new(byte_mask_iter: I) -> Self {
+        Self {
+            byte_mask_iter,
+            index: 0,
+            base_quality: 0,
+            best_quality: i32::MIN,
+            best_range: 0..0,
+            queue: VecDeque::with_capacity(DESIRED_ATOM_SIZE),
+            bytes_present: Default::default(),
+        }
+    }
 
-    let bytes = bytes.into_iter();
-    let mut atom_len = 0;
+    pub fn find(mut self) -> (Range<usize>, i32) {
+        while let Some((byte, mask)) = self.byte_mask_iter.next() {
+            self.push(*byte, *mask)
+        }
+        (self.best_range, self.best_quality)
+    }
 
-    for (byte, mask) in bytes.zip(masks) {
-        // If there's any masked bit, the quality is incremented by
-        // N * 2 - M, where N is the number of non-masked bits and M is
-        // the number of masked bits. For ?? the increment is -8, while
-        // ?X and X? results in a +4 increment.
+    #[inline]
+    fn push(&mut self, byte: u8, mask: u8) {
+        // The quality of the new byte is initially 0.
+        let mut q = 0;
+        // If there's any masked bit, the quality is incremented by N * 2 - M,
+        // where N is the number of non-masked bits and M is the number of
+        // masked bits. For ?? the increment is -8, while ?X and X? results in
+        // a +4 increment.
         if mask.count_zeros() > 0 {
             q += 2 * mask.count_ones() as i32 - mask.count_zeros() as i32;
         }
@@ -56,9 +64,7 @@ where
         // padding in PE files), 0x20 (whitespace) the increment is a bit
         // lower than for other bytes.
         else {
-            bytes_present.set(*byte as usize, true);
-
-            match *byte {
+            match byte {
                 // Common values contribute less to the quality than the
                 // rest of values.
                 0x20 | 0x90 | 0xcc | 0xff => {
@@ -82,43 +88,76 @@ where
                 }
             }
         }
+        // If the atom already has the desired length, remove the first byte
+        // from the left to make room for the new byte. The base quality is
+        // decremented by the quality of the removed byte.
+        if self.queue.len() == self.queue.capacity() {
+            let (_, _, _, q) = self.queue.pop_front().unwrap();
+            self.base_quality -= q;
+        }
 
-        atom_len += 1;
-    }
+        // After removing the left-most byte (if any), and before the new byte
+        // is added, check if the quality has improved.
+        let quality = self.quality();
+        if quality > self.best_quality {
+            self.best_quality = quality;
+            self.best_range = self.queue.front().unwrap().0
+                ..self.queue.back().unwrap().0 + 1;
+        }
 
-    // The number of unique bytes is the number of ones in bytes_present.
-    let unique_bytes = bytes_present.count_ones();
+        self.queue.push_back((self.index, byte, mask, q));
+        self.base_quality += q;
+        self.index += 1;
 
-    // If all the bytes in the atom are equal and very common, let's
-    // penalize it heavily.
-    if unique_bytes == 1 {
-        // As the number of unique bytes is 1, the first one in
-        // bytes_present corresponds to that unique byte.
-        match bytes_present.first_one().unwrap() {
-            0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
-                q -= 10 * atom_len;
-            }
-            _ => {
-                q += 2;
-            }
+        // After adding the new byte, check again if the quality has improved.
+        let quality = self.quality();
+        if quality > self.best_quality {
+            self.best_quality = quality;
+            self.best_range = self.queue.front().unwrap().0
+                ..self.queue.back().unwrap().0 + 1;
         }
     }
-    // In general, atoms with more unique bytes have better quality,
-    // let's boost the quality proportionally to the number of unique bytes.
-    else {
-        q += 2 * unique_bytes as i32;
+
+    fn quality(&mut self) -> i32 {
+        if self.queue.is_empty() {
+            return i32::MIN;
+        }
+
+        self.bytes_present.fill(false);
+
+        for (_, byte, _, _) in &self.queue {
+            self.bytes_present.set(*byte as usize, true);
+        }
+
+        let unique_bytes = self.bytes_present.count_ones();
+
+        // The base quality is used as the starting point, but it's boosted
+        // or penalized according to the uniqueness of the bytes
+        let mut q = self.base_quality;
+
+        // If all the bytes in the atom are equal and very common, let's
+        // penalize it heavily.
+        if unique_bytes == 1 {
+            // As the number of unique bytes is 1, the first one in
+            // bytes_present corresponds to that unique byte.
+            match self.bytes_present.first_one().unwrap() {
+                0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
+                    q -= 10 * self.queue.len() as i32
+                }
+                _ => {
+                    q += 2;
+                }
+            }
+        }
+        // In general, atoms with more unique bytes have better quality,
+        // let's boost the quality proportionally to the number of unique
+        // bytes.
+        else {
+            q += 2 * unique_bytes as i32;
+        }
+
+        q
     }
-
-    q
-}
-
-/// Compute the quality of an atom.
-#[inline]
-pub fn atom_quality<'a, B>(bytes: B) -> i32
-where
-    B: IntoIterator<Item = &'a u8>,
-{
-    masked_atom_quality(bytes, iter::repeat(&0xff))
 }
 
 #[derive(PartialEq)]
@@ -206,10 +245,71 @@ pub(crate) fn seq_quality(seq: &Seq) -> Option<SeqQuality> {
     })
 }
 
+/// Returns the range for the best possible atom that can be extracted from
+/// the slice and its quality.
+pub(crate) fn best_range_in_bytes(bytes: &[u8]) -> (Range<usize>, i32) {
+    let mut best_quality = i32::MIN;
+    let mut best_range = None;
+
+    for i in 0..=bytes.len().saturating_sub(DESIRED_ATOM_SIZE) {
+        let range = i..cmp::min(bytes.len(), i + DESIRED_ATOM_SIZE);
+        let quality = atom_quality(&bytes[range.clone()]);
+        if quality > best_quality {
+            best_quality = quality;
+            best_range = Some(range);
+        }
+    }
+
+    (best_range.unwrap(), best_quality)
+}
+
+/// Returns the range for the best possible atom that can be extracted from the
+/// masked slice.
+#[allow(dead_code)]
+pub(crate) fn best_range_in_masked_bytes(
+    bytes: &[u8],
+    mask: &[u8],
+) -> (Range<usize>, i32) {
+    BestAtomFinder::new(zip(bytes, mask)).find()
+}
+
+/// Returns the best possible atom from a slice of bytes.
+///
+/// The returned atom will have the have [`DESIRED_ATOM_SIZE`] bytes if
+/// possible, but it can be shorter if the slice is shorter.
+///
+/// The atom's backtrack value will be equal to the position of the atom within
+/// the slice. This means that once the atom is found, the reported offset will
+/// correspond to the start of the slice in the data.
+pub(crate) fn best_atom_in_bytes(bytes: &[u8]) -> Atom {
+    let (range, _) = best_range_in_bytes(bytes);
+    Atom::from_slice_range(bytes, range)
+}
+
+/// Computes the quality of a masked atom.
+#[cfg(test)]
+pub fn masked_atom_quality<'a, B, M>(bytes: B, masks: M) -> i32
+where
+    B: IntoIterator<Item = &'a u8>,
+    M: IntoIterator<Item = &'a u8>,
+{
+    BestAtomFinder::new(zip(bytes, masks)).find().1
+}
+
+/// Compute the quality of an atom.
+#[inline]
+pub fn atom_quality<'a, B>(bytes: B) -> i32
+where
+    B: IntoIterator<Item = &'a u8>,
+{
+    BestAtomFinder::new(zip(bytes, iter::repeat(&0xff))).find().1
+}
+
 #[cfg(test)]
 mod test {
     use super::atom_quality;
     use super::seq_quality;
+    use crate::compiler::atoms;
     use crate::compiler::atoms::quality::masked_atom_quality;
     use regex_syntax::hir::literal::Literal;
     use regex_syntax::hir::literal::Seq;
@@ -290,7 +390,7 @@ mod test {
         assert!(q_01xx03 < q_010203);
         assert!(q_010x0x > q_01);
         assert!(q_010x0x < q_010203);
-        assert_eq!(q_01020000, q_0102xx04);
+        assert!(q_01020000 < q_0102xx04);
         assert!(q_01020102 > q_01020000);
         assert!(q_01020102 > q_01010101);
         assert!(q_01020304 > q_01020102);
@@ -376,6 +476,49 @@ mod test {
                 > seq_quality(&Seq::new(vec![Literal::inexact(
                     "\x00\x00\x00\x00"
                 ),]))
+        );
+    }
+
+    #[test]
+    fn best_range_in_masked_bytes() {
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0x01, 0x02, 0x03, 0x04, 0x05],
+                &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+            ),
+            (0..4, 88),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0x01, 0x02, 0x00, 0x00],
+                &[0xFF, 0xFF, 0x00, 0x00],
+            ),
+            (0..2, 44),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0x01, 0x02, 0x03, 0x04],
+                &[0xFF, 0xFF, 0x0F, 0xFF],
+            ),
+            (0..4, 72),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0x01, 0x02, 0x00, 0x04],
+                &[0xFF, 0xFF, 0x00, 0xFF]
+            ),
+            (0..4, 60),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0x01, 0x02, 0x00, 0x04, 0x05, 0x06, 0x07],
+                &[0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF],
+            ),
+            (3..7, 88),
         );
     }
 }

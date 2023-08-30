@@ -46,6 +46,7 @@ impl<'r> PikeVM<'r> {
     /// input is excessively large.
     ///
     /// The default limit is 4096 bytes.
+    #[allow(dead_code)]
     pub fn scan_limit(mut self, limit: usize) -> Self {
         self.scan_limit = limit;
         self

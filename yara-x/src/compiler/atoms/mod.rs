@@ -1,5 +1,5 @@
 /*! This modules contains the logic for extracting atoms from patterns,
-computing an atom's quality, choosing the best atoms from a pattern, etc.
+computing atom quality, choosing the best atoms from a pattern, etc.
 
 Atoms are undivided substrings found in patterns, for example, let's consider
 this hex string:
@@ -8,27 +8,26 @@ this hex string:
 { 01 02 03 04 05 ?? 06 07 08 [1-2] 09 0A }
 ```
 
-In the above string, byte sequences `01 02 03 04 05`, `06 07 08` and `09 0A`
-are atoms. Similarly, in the regexp below the strings `"abc"`, `"ed"` and
-`"fgh"` are also atoms.
+In this string, byte sequences `01 02 03 04 05`, `06 07 08` and `09 0A` are
+atoms. Similarly, in the regexp below the strings `"abc"`, `"ed"` and `"fgh"`
+are also atoms.
 
 ```text
 /abc.*ed[0-9]+fgh/
 ```
 
-When searching for rule patterns, YARA uses these atoms to find locations
-inside the file where the pattern could match. If the atom `"abc"` is found
-somewhere inside the file, there is a chance for the regexp
-`/abc.*ed[0-9]+fgh/` to match the file, if `"abc"` doesn't appear in the file
-there's no chance for the regexp to match. When the atom is found in the file
-YARA proceeds to fully evaluate the regexp to determine if it's actually a
-match.
+When searching for patterns, YARA uses these atoms to find locations within
+the scanned data where the pattern could match. If the atom `"abc"` is found
+somewhere in the data, there is a chance for the regexp `/abc.*ed[0-9]+fgh/`
+to match. In the other hand, if `"abc"` doesn't appear in the data there's no
+chance for the regexp to match. When the atom is found in the data YARA
+proceeds to fully evaluate the regexp to determine if it's actually a match.
 
-For each regexp/hex string YARA extracts one or more atoms. Sometimes a
+For each regexp/hex pattern YARA extracts one or more atoms. Sometimes a
 single atom is enough (in the previous example `"abc"` is enough for finding
-`/abc.*ed[0-9]+fgh/`), but sometimes a single atom isn't enough like in the
-regexp `/(abc|efg)/`. In this case YARA must search for both `"abc"` AND
-`"efg"` and fully evaluate the regexp whenever one of these atoms is found.
+`/abc.*ed[0-9]+fgh/`), but sometimes a single atom isn't enough like in
+`/(abc|efg)/`. In this case YARA must search for both `"abc"` AND `"efg"` and
+fully evaluate the regexp whenever any of the two is found.
 
 In the regexp `/Look(at|into)this/` YARA can search for `"Look"`, or search for
 `"this"`, or search for both `"at"` and `"into"`. This is what we call an atoms
@@ -57,28 +56,30 @@ mod mask;
 mod quality;
 
 use std::collections::Bound;
+use std::iter;
 use std::iter::zip;
-use std::ops::{Range, RangeBounds, RangeInclusive};
+use std::ops::{RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
 use std::vec::IntoIter;
-use std::{cmp, iter};
 
 use itertools::{Itertools, MultiProduct};
 use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, ToSmallVec};
 
+pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
 pub(crate) use crate::compiler::atoms::quality::atom_quality;
+pub(crate) use crate::compiler::atoms::quality::best_atom_in_bytes;
+pub(crate) use crate::compiler::atoms::quality::best_range_in_bytes;
+pub(crate) use crate::compiler::atoms::quality::best_range_in_masked_bytes;
 pub(crate) use crate::compiler::atoms::quality::seq_quality;
 pub(crate) use crate::compiler::atoms::quality::SeqQuality;
 
-use crate::compiler::atoms::quality::masked_atom_quality;
-use crate::compiler::mask::ByteMaskCombinator;
 use crate::compiler::{SubPatternFlagSet, SubPatternFlags};
 
 /// The number of bytes that every atom *should* have. Some atoms may be
 /// shorter than DESIRED_ATOM_SIZE when it's impossible to extract a longer,
-/// good-quality atom from a string. Similarly, some atoms may be larger.
+/// good-quality atom from a string.
 pub(crate) const DESIRED_ATOM_SIZE: usize = 4;
 
 /// Maximum number of atoms that will be extracted from a regexp. 4096 is the
@@ -107,7 +108,7 @@ pub(crate) const MAX_ATOMS_PER_REGEXP: usize = 4096;
 /// atoms are exact.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Atom {
-    bytes: SmallVec<[u8; DESIRED_ATOM_SIZE * 2]>,
+    bytes: SmallVec<[u8; DESIRED_ATOM_SIZE]>,
     exact: bool,
     backtrack: u16,
 }
@@ -126,9 +127,9 @@ impl From<Vec<u8>> for Atom {
     }
 }
 
-impl From<SmallVec<[u8; DESIRED_ATOM_SIZE * 2]>> for Atom {
+impl From<SmallVec<[u8; DESIRED_ATOM_SIZE]>> for Atom {
     #[inline]
-    fn from(value: SmallVec<[u8; DESIRED_ATOM_SIZE * 2]>) -> Self {
+    fn from(value: SmallVec<[u8; DESIRED_ATOM_SIZE]>) -> Self {
         Self { bytes: value, backtrack: 0, exact: true }
     }
 }
@@ -230,12 +231,14 @@ impl Atom {
         self
     }
 
+    #[allow(dead_code)]
     pub fn exact<T: AsRef<[u8]>>(v: T) -> Self {
         let mut atom = Self::from(v.as_ref().to_vec());
         atom.exact = true;
         atom
     }
 
+    #[allow(dead_code)]
     pub fn inexact<T: AsRef<[u8]>>(v: T) -> Self {
         let mut atom = Self::from(v.as_ref().to_vec());
         atom.exact = false;
@@ -259,96 +262,31 @@ impl Atom {
         CaseCombinations::new(self)
     }
 
-    /// Returns a [`MaskCombinations`] iterator that produces all possible
+    /// Returns a [`MaskCombinations`] iterator which produces all possible
     /// combinations that result from applying a given mask to the atom.
     ///
-    /// The mask should have the same length than the atom. If the mask is
-    /// shorter than the atom, the atoms produced by the iterator will be
-    /// as long as the mask. If the mask is longer, the exceeding bytes are
-    /// simply ignored.
+    /// The mask's length must be identical to the atom's length. In scenarios
+    /// where the mask is shorter than the atom, the iterator will yield atoms
+    /// matching the mask's length. If the mask is longer than the atom, it
+    /// gets truncated to the atom's length.
     ///
-    /// The bits that are set to 1 in the mask are fixed, and their values
-    /// are taken from the corresponding bit in the atom. The bits that are
-    /// set to 0 in the mask are the variable bits, the resulting atoms will
-    /// cover all possible combinations for the variable bits.
+    /// The mask's binary 1 bits are constant, adopting the corresponding bits
+    /// from the atom. Conversely, binary 0 bits within the mask are variable;
+    /// consequently, the resultant atoms encompass all feasible permutations
+    /// for these variable bits.
     #[allow(dead_code)]
     pub fn mask_combinations(self, mask: &[u8]) -> MaskCombinations {
         MaskCombinations::new(self, mask)
     }
 }
 
-/// Returns the range for the best possible atom that can be extracted from
-/// the slice and its quality.
-pub(crate) fn best_range_in_bytes(
-    bytes: &[u8],
-    desired_size: usize,
-) -> (Range<usize>, i32) {
-    let mut best_quality = i32::MIN;
-    let mut best_range = None;
-
-    for i in 0..=bytes.len().saturating_sub(desired_size) {
-        let range = i..cmp::min(bytes.len(), i + desired_size);
-        let quality = atom_quality(&bytes[range.clone()]);
-        if quality > best_quality {
-            best_quality = quality;
-            best_range = Some(range);
-        }
-    }
-
-    (best_range.unwrap(), best_quality)
-}
-
-/// Returns the range for the best possible atom that can be extracted from the
-/// masked slice.
-#[allow(dead_code)]
-pub(crate) fn best_range_in_masked_bytes(
-    bytes: &[u8],
-    mask: &[u8],
-    desired_size: usize,
-) -> (Range<usize>, i32) {
-    assert_eq!(bytes.len(), mask.len());
-
-    let mut best_quality = i32::MIN;
-    let mut best_range = None;
-
-    for i in 0..=bytes.len().saturating_sub(desired_size) {
-        let range = i..cmp::min(bytes.len(), i + desired_size);
-        let quality =
-            masked_atom_quality(&bytes[range.clone()], &mask[range.clone()]);
-        if quality > best_quality {
-            best_quality = quality;
-            best_range = Some(range);
-        }
-    }
-
-    (best_range.unwrap(), best_quality)
-}
-
-/// Returns the best possible atom from a slice of bytes.
-///
-/// The returned atom will have the `desired_size` if possible, but it can be
-/// shorter if the slice is shorter.
-///
-/// The atom's backtrack value will be equal to the position of the atom within
-/// the slice. This means that once the atom is found, the reported offset will
-/// correspond to the start of the slice in the data.
-pub(crate) fn best_atom_in_bytes(bytes: &[u8], desired_size: usize) -> Atom {
-    let (range, _) = best_range_in_bytes(bytes, desired_size);
-    Atom::from_slice_range(bytes, range)
-}
-
+/// Extract the best possible atom from a literal pattern and generates all
+/// case combinations for that atom if the `Nocase` flag is set.
 pub(crate) fn extract_atoms(
     literal_bytes: &[u8],
     flags: SubPatternFlagSet,
 ) -> Box<dyn Iterator<Item = Atom>> {
-    let best_atom = best_atom_in_bytes(
-        literal_bytes,
-        if flags.contains(SubPatternFlags::Wide) {
-            DESIRED_ATOM_SIZE * 2
-        } else {
-            DESIRED_ATOM_SIZE
-        },
-    );
+    let best_atom = best_atom_in_bytes(literal_bytes);
 
     // TODO: this is making all atoms in the chain inexact, even
     // those that are in the middle of a chain and therefore don't

@@ -49,7 +49,6 @@ use crate::re;
 
 mod ast2ir;
 mod hex2hir;
-pub mod mask;
 
 bitmask! {
     /// Flags associated to rule patterns.
