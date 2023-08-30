@@ -1,6 +1,7 @@
 use std::cmp;
 use std::ops::RangeInclusive;
 
+use itertools::izip;
 use memx::memeq;
 
 use crate::re::fast::instr::{Instr, InstrParser};
@@ -91,7 +92,22 @@ impl<'r> FastVM<'r> {
                         position += literal.len();
                     }
                     Instr::MaskedLiteral(literal, mask) => {
-                        debug_assert_eq!(literal.len(), mask.len());
+                        let is_match = if backwards {
+                            self.try_match_masked_literal_bck(
+                                &input[..input.len() - position],
+                                literal,
+                                mask,
+                            )
+                        } else {
+                            self.try_match_masked_literal_fwd(
+                                &input[position..],
+                                literal,
+                                mask,
+                            )
+                        };
+                        if !is_match {
+                            break;
+                        }
                         position += literal.len();
                     }
                     Instr::Jump(jump) => {
@@ -187,6 +203,52 @@ impl FastVM<'_> {
             return false;
         }
         memeq(&input[input.len() - literal.len()..], literal)
+    }
+
+    #[inline]
+    fn try_match_masked_literal_fwd(
+        &mut self,
+        input: &[u8],
+        literal: &[u8],
+        mask: &[u8],
+    ) -> bool {
+        debug_assert_eq!(literal.len(), mask.len());
+
+        if input.len() < literal.len() {
+            return false;
+        }
+
+        for (input, byte, mask) in izip!(input, literal, mask) {
+            if *input & *mask != *byte & *mask {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    #[inline]
+    fn try_match_masked_literal_bck(
+        &mut self,
+        input: &[u8],
+        literal: &[u8],
+        mask: &[u8],
+    ) -> bool {
+        debug_assert_eq!(literal.len(), mask.len());
+
+        if input.len() < literal.len() {
+            return false;
+        }
+
+        for (input, byte, mask) in
+            izip!(input.iter().rev(), literal.iter().rev(), mask.iter().rev())
+        {
+            if *input & *mask != *byte & *mask {
+                return false;
+            }
+        }
+
+        true
     }
 
     #[inline]

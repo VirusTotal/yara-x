@@ -490,6 +490,12 @@ fn text_patterns() {
 fn hex_patterns() {
     pattern_true!(r#"{ 01 }"#, &[0x01]);
     pattern_true!(r#"{ 01 02 03 04 }"#, &[0x01, 0x02, 0x03, 0x04]);
+    pattern_true!(r#"{ 01 ?? 03 04 }"#, &[0x01, 0x02, 0x03, 0x04]);
+
+    pattern_false!(r#"{ 01 1? 03 04 }"#, &[0x01, 0x02, 0x03, 0x04]);
+    pattern_true!(r#"{ 01 0? 03 04 }"#, &[0x01, 0x02, 0x03, 0x04]);
+    pattern_false!(r#"{ 01 ?0 03 04 }"#, &[0x01, 0x02, 0x03, 0x04]);
+    pattern_true!(r#"{ 01 ?2 03 04 }"#, &[0x01, 0x02, 0x03, 0x04]);
 
     pattern_true!(
         r#"{ (01 02 03 04 | 05 06 07 08) }"#,
