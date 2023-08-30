@@ -114,7 +114,7 @@ macro_rules! pattern_false {
 }
 
 macro_rules! pattern_match {
-    ($pattern:literal, $data:literal, $expected_result:expr) => {{
+    ($pattern:literal, $data:expr, $expected_result:expr) => {{
         let src =
             format!("rule test {{ strings: $a = {} condition: $a}}", $pattern);
 
@@ -420,10 +420,10 @@ fn for_in() {
     // using constants. Writing a range like (2..1) is not possible
     // because it raises an error.
     condition_false!(
-        "for any i in (1..1) : ( 
-            for all j in (i + 1..i) : ( 
-                true 
-            ) 
+        "for any i in (1..1) : (
+            for all j in (i + 1..i) : (
+                true
+            )
         )"
     );
 
@@ -438,16 +438,16 @@ fn for_in() {
     condition_false!(
         "for any i in (1..1) : (
             for none j in (i + 1..i) : (
-                true        
-            ) 
+                true
+            )
         )"
     );
 
     condition_false!(
         "for any i in (1..1) : (
-            for none j in (i + 1..i) : ( 
-                false 
-            ) 
+            for none j in (i + 1..i) : (
+                false
+            )
         )"
     );
 
@@ -488,89 +488,270 @@ fn text_patterns() {
 
 #[test]
 fn hex_patterns() {
-    pattern_true!(r#"{ 01 }"#, b"\x01");
-    pattern_true!(r#"{ 01 02 03 04 }"#, b"\x01\x02\x03\x04");
-    pattern_true!(r#"{ (01 02 03 04 | 05 06 07 08) }"#, b"\x01\x02\x03\x04");
-    pattern_match!(r#"{ 31 32 [-] 38 39 }"#, b"123456789", b"123456789");
-    pattern_match!(
-        r#"{ 31 ?? 33 [-]  37 ?? 39 }"#,
-        b"123456789",
-        b"123456789"
+    pattern_true!(r#"{ 01 }"#, &[0x01]);
+    pattern_true!(r#"{ 01 02 03 04 }"#, &[0x01, 0x02, 0x03, 0x04]);
+
+    pattern_true!(
+        r#"{ (01 02 03 04 | 05 06 07 08) }"#,
+        &[0x01, 0x02, 0x03, 0x04]
     );
 
     pattern_match!(
-        r#"{ 31 32 [-] 33 34 [-] 38 39 }"#,
-        b"123456789",
-        b"123456789"
-    );
-    pattern_match!(
-        r#"{ 31 32 [1] 34 35 [2] 38 39 }"#,
-        b"123456789",
-        b"123456789"
-    );
-    pattern_match!(
-        r#"{ 31 32 [1-] 34 35 [1-] 38 39 }"#,
-        b"123456789",
-        b"123456789"
-    );
-    pattern_match!(
-        r#"{ 31 32 [0-3] 34 35 [1-] 38 39 }"#,
-        b"123456789",
-        b"123456789"
-    );
-    pattern_match!(
-        r#"{ 31 32 [0-2] 34 35 [1-] 38 39 }"#,
-        b"123456789",
-        b"123456789"
-    );
-    pattern_match!(r#"{ 31 32 ~32 34 35 }"#, b"123456789", b"12345");
-    pattern_false!(r#"{ 31 32 ~33 34 35 }"#, b"123456789");
-    pattern_match!(
-        r#"{ ( 31 32 ~32 34 35 | 31 32 ~33 34 35 ) }"#,
-        b"123456789",
-        b"12345"
-    );
-    pattern_match!(r#"{ 31 32 ~?2 34 35 }"#, b"123456789", b"12345");
-    pattern_false!(r#"{ 31 32 ~?3 34 35 }"#, b"123456789");
-    pattern_match!(r#"{ 31 32 ~4? 34 35 }"#, b"123456789", b"12345");
-    pattern_false!(r#"{ 31 32 ~3? 34 35 }"#, b"123456789");
-    pattern_match!(
-        r#"{ ( 31 32 ~3? 34 35 | 31 32 ~?2 34 35) }"#,
-        b"123456789",
-        b"12345"
-    );
-    pattern_false!(r#"{ 35 36 [-] 31 32 }"#, b"123456789");
-    pattern_false!(r#"{ 31 32 [2-] 34 35 }"#, b"123456789");
-    pattern_match!(
-        r#"{ 31 32 [0-1] 34 35 [0-2] 36 37 }"#,
-        b"123456789",
-        b"1234567"
-    );
-    pattern_match!(r#"{ 31 32 [0-5] 38 39 }"#, b"123456789", b"123456789");
-    pattern_false!(r#"{ 31 32 [0-3] 37 38 }"#, b"123456789");
-    pattern_match!(r#"{ 31 32 [0-2] 34 [0-2] 34 }"#, b"1244", b"1244");
-    pattern_match!(r#"{ 31 32 [0-2] 34 [0-2] 34 }"#, b"12344", b"12344");
-    pattern_match!(
-        r#"{ 31 32 [0-2] 34 [0-2] 34 [2-3] 34 }"#,
-        b"123440004",
-        b"123440004"
-    );
-    pattern_match!(r#"{ 31[-][8-][-]30 }"#, b"1234567890", b"1234567890");
-    pattern_false!(r#"{ 31[-][9-][-]30 }"#, b"1234567890");
-
-    pattern_match!(
-        r#"{ (31|61) (32|62) (33|63) (34|64) (35|65) (36|66) (37|67) }"#,
-        b"1234567",
-        b"1234567"
+        r#"{ 01 02 [-] 03 04 }"#,
+        &[0x01, 0x02, 0x03, 0x04],
+        &[0x01, 0x02, 0x03, 0x04]
     );
 
     pattern_match!(
-        r#"{ 31 32 (33 34 | FF FF) (35 36 | FF FF) 37 38 39 }"#,
-        b"123456789",
-        b"123456789"
+        r#"{ 01 02 [-] 03 04 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0x04],
+        &[0x01, 0x02, 0xFF, 0x03, 0x04]
     );
 
-    pattern_match!(r#"{ 61 ?? 6? 6? }"#, b"aaaa", b"aaaa");
+    pattern_match!(
+        r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
+        &[0x01, 0xFF, 0x02, 0x03, 0xFF, 0x04],
+        &[0x01, 0xFF, 0x02, 0x03, 0xFF, 0x04]
+    );
+
+    pattern_match!(
+        r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
+        &[0x01, 0xFF, 0x02, 0xFF, 0x03, 0xFF, 0x04],
+        &[0x01, 0xFF, 0x02, 0xFF, 0x03, 0xFF, 0x04]
+    );
+
+    pattern_match!(
+        r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
+        &[0x01, 0xFF, 0x02, 0xFF, 0xFF, 0x03, 0xFF, 0x04],
+        &[0x01, 0xFF, 0x02, 0xFF, 0xFF, 0x03, 0xFF, 0x04]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06],
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
+        &[0x01, 0x02, 0xFF, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06],
+        &[0x01, 0x02, 0xFF, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [1] 03 04 [2] 05 06 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0xFF, 0xFF, 0x05, 0x06],
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0xFF, 0xFF, 0x05, 0x06]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 04 05 [1] 06 07 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [1-] 03 04 05 [1-] 06 07 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-3] 03 04 05 [1-] 06 07 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-3] 03 04 05 [1-] 06 07 }"#,
+        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ ?? 02 [0-3] 03 04 05 [1-] 06 ?? }"#,
+        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-1] 04 05 [0-2] 06 07 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-1] 04 05 [0-2] 06 07 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-5] 04 05 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05],
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-5] 04 05 }"#,
+        &[0x01, 0x02, 0xFF, 0xFF, 0x03, 0x04, 0x05],
+        &[0x01, 0x02, 0xFF, 0xFF, 0x03, 0x04, 0x05]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-5] 04 05 }"#,
+        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05],
+        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 03 [0-6] 04 05 06 }"#,
+        &[0x01, 0x02, 0x03, 0xFF, 0xFF, 0xFF, 0x04, 0xFF, 0x04, 0x05, 0x06],
+        &[0x01, 0x02, 0x03, 0xFF, 0xFF, 0xFF, 0x04, 0xFF, 0x04, 0x05, 0x06]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 [0-2] 03 }"#,
+        &[0x01, 0x2, 0x03, 0x03, 0x03, 0x03],
+        &[0x01, 0x2, 0x03, 0x03]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 [0-2] 03 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0x03, 0x03, 0x03],
+        &[0x01, 0x02, 0xFF, 0x03, 0x03]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 [0-2] 03 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0xFF, 0x03],
+        &[0x01, 0x02, 0xFF, 0x03, 0xFF, 0x03]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 [0-2] 04 [2-3] 04 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0xFF, 0xFF, 0x04],
+        &[0x01, 0x02, 0x03, 0x04, 0xFF, 0xFF, 0x04]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 [0-2] 04 [2-3] 04 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x04, 0x04, 0x04],
+        &[0x01, 0x02, 0x03, 0x04, 0x04, 0x04, 0x04]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 [0-2] 04 [2-3] 04 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x04, 0x04, 0x04, 0x04],
+        &[0x01, 0x02, 0x03, 0x04, 0x04, 0x04, 0x04]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 [0-2] 04 [2-3] 04 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x04, 0x04, 0x04],
+        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x04, 0x04, 0x04]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 [0-2] 03 [0-2] 04 [2-3] 04 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0xFF, 0x04, 0x04, 0x04, 0x04],
+        &[0x01, 0x02, 0xFF, 0x03, 0xFF, 0x04, 0x04, 0x04, 0x04]
+    );
+
+    pattern_false!(
+        r#"{ 01 02 [0-2] 03 [0-2] 04 [2-3] 04 }"#,
+        &[0x01, 0x02, 0xFF, 0x03, 0xFF, 0xFF, 0xFF, 0x04, 0x04, 0x04, 0x04]
+    );
+
+    pattern_match!(
+        r#"{ 01 [-] [4-] [-] 02 }"#,
+        &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02],
+        &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02]
+    );
+
+    pattern_false!(
+        r#"{ 01 [-] [5-] [-] 02 }"#,
+        &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02]
+    );
+
+    pattern_false!(r#"{ 03 04 [-] 01 02 }"#, &[0x01, 0x02, 0x03, 0x04]);
+    pattern_false!(r#"{ 01 02 [2-] 03 04 }"#, &[0x01, 0x02, 0xFF, 0x03, 0x04]);
+
+    pattern_match!(
+        r#"{ 01 02 ~03 04 05 }"#,
+        &[0x01, 0x02, 0xFF, 0x04, 0x05],
+        &[0x01, 0x02, 0xFF, 0x04, 0x05]
+    );
+
+    pattern_match!(
+        r#"{ (01 02 ~03 04 05 | 01 02 ~00 04 05) }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05],
+        &[0x01, 0x02, 0x03, 0x04, 0x05]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 ~?2 04 05 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05],
+        &[0x01, 0x02, 0x03, 0x04, 0x05]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 ~2? 04 05 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05],
+        &[0x01, 0x02, 0x03, 0x04, 0x05]
+    );
+
+    pattern_false!(r#"{ 01 02 ~03 04 05 }"#, &[0x01, 0x02, 0x03, 0x04, 0x05]);
+    pattern_false!(r#"{ 01 02 ~?3 04 05 }"#, &[0x01, 0x02, 0x03, 0x04, 0x05]);
+    pattern_false!(r#"{ 01 02 ~2? 04 05 }"#, &[0x01, 0x02, 0x20, 0x04, 0x05]);
+
+    pattern_match!(
+        r#"{ (01 02 ~0? 04 05 | 01 02 ~?2 04 05) }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05],
+        &[0x01, 0x02, 0x03, 0x04, 0x05]
+    );
+
+    pattern_match!(
+        r#"{ (01|11) (02|12) (03|13) (04|14) (05|15) (06|16) (07|17) }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ (01|11) (02|12) (03|13) (04|14) (05|15) (06|16) (07|17) }"#,
+        &[0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17],
+        &[0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17]
+    );
+
+    pattern_match!(
+        r#"{ (01|11) (02|12) (03|13) (04|14) (05|15) (06|16) (07|17) }"#,
+        &[0x01, 0x12, 0x03, 0x14, 0x05, 0x16, 0x07],
+        &[0x01, 0x12, 0x03, 0x14, 0x05, 0x16, 0x07]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 (03 04 | FF FF) (05 06 | FF FF) 07 08 09 }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09],
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 (03 04 | FF FF) (05 06 | FF FF) 07 08 09 }"#,
+        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0xFF, 0x07, 0x08, 0x09],
+        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0xFF, 0x07, 0x08, 0x09]
+    );
+
+    pattern_match!(
+        r#"{ 01 ?? 2? 3? }"#,
+        &[0x01, 0xFF, 0x22, 0x33],
+        &[0x01, 0xFF, 0x22, 0x33]
+    );
 }
 
 #[test]
@@ -1131,9 +1312,9 @@ fn match_at() {
     rule_true!(
         r#"
         rule test {
-            strings: 
-                $a = "foo" 
-            condition: 
+            strings:
+                $a = "foo"
+            condition:
                 $a at 0
         }
         "#,
@@ -1143,10 +1324,10 @@ fn match_at() {
     rule_true!(
         r#"
         rule test {
-            strings: 
-                $a = "foo" 
+            strings:
+                $a = "foo"
                 $b = "bar"
-            condition: 
+            condition:
                 2 of ($a, $b) or $b at 0
         }
         "#,
@@ -1183,7 +1364,7 @@ fn match_at() {
             strings:
                 $a = "fofo"
             condition:
-                $a at 0 and 
+                $a at 0 and
                 $a at 2 and
                 $a at 4
         }
@@ -1212,9 +1393,9 @@ fn match_in() {
     rule_true!(
         r#"
         rule test {
-            strings: 
-                $a = "foo" 
-            condition: 
+            strings:
+                $a = "foo"
+            condition:
                 $a in (0..1)
         }
         "#,
@@ -1251,7 +1432,7 @@ fn match_in() {
             strings:
                 $a = "fofo"
             condition:
-                $a in (0..1) and 
+                $a in (0..1) and
                 $a in (2..3) and
                 $a in (4..5)
         }
@@ -1262,9 +1443,9 @@ fn match_in() {
     rule_true!(
         r#"
         rule test {
-            strings: 
-                $a = "sippi" 
-            condition: 
+            strings:
+                $a = "sippi"
+            condition:
                 $a in (0..6)
         }
         "#,
@@ -1274,9 +1455,9 @@ fn match_in() {
     rule_true!(
         r#"
         rule test {
-            strings: 
-                $a = "sippi" 
-            condition: 
+            strings:
+                $a = "sippi"
+            condition:
                 $a in (6..6)
         }
         "#,
@@ -1286,9 +1467,9 @@ fn match_in() {
     rule_false!(
         r#"
         rule test {
-            strings: 
-                $a = "sippi" 
-            condition: 
+            strings:
+                $a = "sippi"
+            condition:
                 $a in (7..20)
         }
         "#,
@@ -1301,12 +1482,12 @@ fn match_in() {
         import "test_proto2"
 
         rule test {
-            strings: 
-                $a = "foo" 
-            condition: 
+            strings:
+                $a = "foo"
+            condition:
                 // Use the `add` function to force negative bounds in a range.
-                // We can't use constants as YARA will know that they are 
-                // negative and raise an error. YARA is not smart enough to 
+                // We can't use constants as YARA will know that they are
+                // negative and raise an error. YARA is not smart enough to
                 // realize that the result of `add` is negative.
                 $a in (test_proto2.add(-1,0)..0)
         }
@@ -1320,12 +1501,12 @@ fn match_in() {
         import "test_proto2"
 
         rule test {
-            strings: 
-                $a = "foo" 
-            condition: 
+            strings:
+                $a = "foo"
+            condition:
                 // Use the `add` function to force negative bounds in a range.
-                // We can't use constants as YARA will know that they are 
-                // negative and raise an error. YARA is not smart enough to 
+                // We can't use constants as YARA will know that they are
+                // negative and raise an error. YARA is not smart enough to
                 // realize that the result of `add` is negative.
                 $a in (test_proto2.add(-1,-1)..test_proto2.add(-1,0))
         }
@@ -1411,9 +1592,9 @@ fn match_count() {
     rule_true!(
         r#"
         rule test {
-            strings: 
-                $a = "aaa" 
-            condition: 
+            strings:
+                $a = "aaa"
+            condition:
                 #a in (4..5) == 2
         }
         "#,
@@ -1426,9 +1607,9 @@ fn match_count() {
         import "test_proto2"
 
         rule test {
-            strings: 
-                $a = "aaa" 
-            condition: 
+            strings:
+                $a = "aaa"
+            condition:
                 #a in (0..test_proto2.add(-1,-1)) == 2
         }
         "#,
@@ -1441,9 +1622,9 @@ fn match_count() {
         import "test_proto2"
 
         rule test {
-            strings: 
-                $a = "aaa" 
-            condition: 
+            strings:
+                $a = "aaa"
+            condition:
                 #a in (test_proto2.add(-1,-1)..5) == 2
         }
         "#,
@@ -1785,7 +1966,7 @@ fn fullword() {
     );
 
     pattern_true!(
-        r#""mississippi" wide fullword"#,  
+        r#""mississippi" wide fullword"#,
         b"\x00\x00m\x00i\x00s\x00s\x00i\x00s\x00s\x00i\x00p\x00p\x00i\x00\x00\x00"
     );
 
@@ -2002,7 +2183,7 @@ fn base64() {
     pattern_true!(
         r#""foobar" base64wide wide"#,
         // base64("f\x00o\x00o\x00b\x00a\x00r\x00") in wide form
-        b"Z\x00g\x00B\x00v\x00A\x00G\x008\x00A\x00Y\x00g\x00B\x00h\x00A\x00H\x00I\x00A\x00" 
+        b"Z\x00g\x00B\x00v\x00A\x00G\x008\x00A\x00Y\x00g\x00B\x00h\x00A\x00H\x00I\x00A\x00"
     );
 
     pattern_true!(
@@ -2011,7 +2192,7 @@ fn base64() {
     );
 
     pattern_true!(
-        r#""foobar" 
+        r#""foobar"
             base64wide("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
             base64("./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")"#,
         b"X\x00k\x007\x00t\x00W\x00k\x00D\x00w\x00"
@@ -2020,9 +2201,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississippi" base64
-            condition: 
+            condition:
                 $a at 6 and !a == 14
         }
         "#,
@@ -2033,9 +2214,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississippi" base64
-            condition: 
+            condition:
                 $a at 7 and !a == 14
         }
         "#,
@@ -2046,9 +2227,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississippi" base64
-            condition: 
+            condition:
                 $a at 8 and !a == 14
         }
         "#,
@@ -2059,9 +2240,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississipp" base64
-            condition: 
+            condition:
                 $a at 6 and !a == 12
         }
         "#,
@@ -2072,9 +2253,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississipp" base64
-            condition: 
+            condition:
                 $a at 7 and !a == 13
         }
         "#,
@@ -2085,9 +2266,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississipp" base64
-            condition: 
+            condition:
                 $a at 8 and !a == 13
         }
         "#,
@@ -2098,9 +2279,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississip" base64
-            condition: 
+            condition:
                 $a at 6 and !a == 11
         }
         "#,
@@ -2111,9 +2292,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississip" base64
-            condition: 
+            condition:
                 $a at 7 and !a == 11
         }
         "#,
@@ -2124,9 +2305,9 @@ fn base64() {
     rule_true!(
         r#"
         rule test {
-            strings: 
+            strings:
                 $a = "mississip" base64
-            condition: 
+            condition:
                 $a at 8 and !a == 12
         }
         "#,

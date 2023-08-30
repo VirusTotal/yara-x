@@ -23,6 +23,110 @@ faster at runtime.
 [3]: https://swtch.com/~rsc/regexp/regexp2.html
 */
 
+use std::num::NonZeroU32;
+
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
+use crate::compiler::Atom;
+
+//#[cfg(feature = "fast-regexp")]
+pub mod fast;
+
 pub mod hir;
 pub mod parser;
 pub mod thompson;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    /// The regular expression is too large.
+    #[error("regexp too large")]
+    TooLarge,
+
+    /// The regular expression doesn't meet the requirements for being
+    /// executed by [`re::fast::FastVM`].
+    #[error("regexp is incompatible with FastVM")]
+    FastIncompatible,
+}
+
+/// Represents an atom extracted from a regular expression.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub(crate) struct RegexpAtom {
+    pub atom: Atom,
+    pub fwd_code: Option<FwdCodeLoc>,
+    pub bck_code: Option<BckCodeLoc>,
+}
+
+impl RegexpAtom {
+    #[inline]
+    pub fn make_wide(mut self) -> Self {
+        self.atom = self.atom.make_wide();
+        self
+    }
+
+    #[inline]
+    pub fn set_exact(&mut self, yes: bool) -> &mut Self {
+        self.atom.set_exact(yes);
+        self
+    }
+}
+
+/// Trait implementing by both [`FwdCodeLoc`] and [`BckCodeLoc`].
+pub(crate) trait CodeLoc: From<usize> {
+    fn location(&self) -> usize;
+    fn backwards(&self) -> bool;
+}
+
+/// Represents a location within the forward code for a regexp.
+#[derive(Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Debug)]
+pub(crate) struct FwdCodeLoc(NonZeroU32);
+
+impl From<usize> for FwdCodeLoc {
+    fn from(value: usize) -> Self {
+        let value: u32 = value.try_into().unwrap();
+        Self(NonZeroU32::new(value + 1).unwrap())
+    }
+}
+
+impl CodeLoc for FwdCodeLoc {
+    #[inline]
+    fn location(&self) -> usize {
+        self.0.get() as usize - 1
+    }
+
+    #[inline]
+    fn backwards(&self) -> bool {
+        false
+    }
+}
+
+/// Represents a location within the backward code for a regexp.
+#[derive(Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Debug)]
+pub(crate) struct BckCodeLoc(NonZeroU32);
+
+impl From<usize> for BckCodeLoc {
+    fn from(value: usize) -> Self {
+        let value: u32 = value.try_into().unwrap();
+        Self(NonZeroU32::new(value + 1).unwrap())
+    }
+}
+
+impl CodeLoc for BckCodeLoc {
+    #[inline]
+    fn location(&self) -> usize {
+        self.0.get() as usize - 1
+    }
+
+    #[inline]
+    fn backwards(&self) -> bool {
+        true
+    }
+}
+
+/// Value returned by the callback functions passed to [`PikeVM::try_match`]
+/// and [`FastVM::try_match`] for indicating if VM should continue trying to
+/// find more matches or stop without trying to find more matches.
+pub(crate) enum Action {
+    Continue,
+    Stop,
+}

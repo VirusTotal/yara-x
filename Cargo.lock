@@ -3993,6 +3993,7 @@ dependencies = [
  "lingua",
  "linkme",
  "log",
+ "memchr",
  "memx",
  "pretty_assertions",
  "protobuf",

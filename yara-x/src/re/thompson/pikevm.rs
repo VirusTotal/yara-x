@@ -1,6 +1,7 @@
 use std::mem;
 
-use super::instr::{decode_instr, CodeLoc, Instr};
+use super::instr::{Instr, InstrParser};
+use crate::re::{Action, CodeLoc};
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -111,7 +112,8 @@ impl<'r> PikeVM<'r> {
             let next_byte = fwd_input.next();
 
             for ip in self.threads.iter() {
-                let (instr, size) = decode_instr(&self.code[*ip..]);
+                let (instr, size) =
+                    InstrParser::decode_instr(&self.code[*ip..]);
 
                 let is_match = match instr {
                     Instr::AnyByte => curr_byte.is_some(),
@@ -167,14 +169,6 @@ impl<'r> PikeVM<'r> {
     }
 }
 
-/// Value returned by the function passed to [`PikeVM::try_match`] for
-/// indicating if the Pike VM should continue trying to find more matches
-/// or stop without trying to find more matches.
-pub(crate) enum Action {
-    Continue,
-    Stop,
-}
-
 /// Structure used by the [`epsilon_closure`] function for maintaining
 /// its state during the computation of an epsilon closure. See the
 /// documentation of [`epsilon_closure`] for details.
@@ -227,7 +221,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     state.executed_splits.clear();
 
     while let Some(ip) = state.threads.pop() {
-        let (instr, size) = decode_instr(&code[ip..]);
+        let (instr, size) = InstrParser::decode_instr(&code[ip..]);
         let next = ip + size;
         match instr {
             Instr::AnyByte

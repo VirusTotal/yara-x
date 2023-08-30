@@ -156,8 +156,9 @@ impl WasmExport {
 /// [`WasmExportedFn2`], etc. Each of these types is a generic type that
 /// represents all functions with 0, 1, and 2 arguments respectively.
 pub(crate) trait WasmExportedFn {
-    /// Returns the function that will be passed to [`wasmtime::Func::new`]
-    /// while linking the WASM code to this function.
+    /// Returns the function that will be passed to
+    /// [`wasmtime::Func::new_unchecked`] while linking the WASM code to this
+    /// function.
     fn trampoline(&'static self) -> TrampolineFn;
 
     /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
@@ -193,8 +194,8 @@ type WasmResultArray<T> = SmallVec<[T; MAX_RESULTS]>;
 
 /// Represents an argument passed to a `#[wasm_export]` function.
 ///
-/// The purpose of this type is converting [`wasmtime::ValRaw`] into Rust
-/// types (e.g: `i64`, `i32`, `f64`, `f32`, etc)
+/// The purpose of this type is converting [`ValRaw`] into Rust types
+/// (e.g: `i64`, `i32`, `f64`, `f32`, etc)
 struct WasmArg(ValRaw);
 
 impl From<ValRaw> for WasmArg {
@@ -257,8 +258,8 @@ impl From<WasmArg> for RuntimeString {
     }
 }
 
-/// A trait for converting a function result into an array of
-/// [`wasmtime::ValRaw`] values suitable to be passed to WASM code.
+/// A trait for converting a function result into an array of [`ValRaw`] values
+/// suitable to be passed to WASM code.
 ///
 /// Functions with the `#[wasm_export]` attribute must return a type that
 /// implements this trait.
@@ -938,7 +939,7 @@ pub(crate) fn array_indexing_string(
         .as_array()
         .as_string_array()
         .get(index as usize)
-        .map(|s| { 
+        .map(|s| {
             RuntimeString::from_bytes(caller.data_mut(), s.as_bstr())
         })
 }

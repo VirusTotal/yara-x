@@ -17,36 +17,30 @@ use regex_syntax::hir::literal::Seq;
 use regex_syntax::hir::{
     visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition,
 };
-use thiserror::Error;
 
 use yara_x_parser::ast::HexByte;
-
-use crate::compiler::{
-    best_atom_from_slice, seq_quality, Atom, SeqQuality, DESIRED_ATOM_SIZE,
-    MAX_ATOMS_PER_REGEXP,
-};
 
 use super::instr;
 use super::instr::{
     literal_code_length, Instr, InstrSeq, NumAlt, OPCODE_PREFIX,
 };
 
-use crate::re;
+use crate::compiler::{
+    best_atom_in_bytes, seq_quality, Atom, SeqQuality, DESIRED_ATOM_SIZE,
+    MAX_ATOMS_PER_REGEXP,
+};
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("regexp too large")]
-    TooLarge,
-}
+use crate::re;
+use crate::re::{BckCodeLoc, Error, FwdCodeLoc};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default)]
-pub(crate) struct Location {
+pub(super) struct CodeLoc {
     pub fwd: usize,
     pub bck_seq_id: u64,
     pub bck: usize,
 }
 
-impl Location {
+impl CodeLoc {
     fn sub(&self, rhs: &Self) -> Result<Offset, Error> {
         Ok(Offset {
             fwd: (self.fwd as isize - rhs.fwd as isize)
@@ -59,15 +53,15 @@ impl Location {
     }
 }
 
-pub(crate) struct Offset {
+struct Offset {
     fwd: instr::Offset,
     bck: instr::Offset,
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub(crate) struct RegexpAtom {
+pub(super) struct RegexpAtom {
     pub atom: Atom,
-    pub code_loc: Location,
+    pub code_loc: CodeLoc,
 }
 
 /// Compiles a regular expression.
@@ -97,7 +91,7 @@ pub(crate) struct Compiler {
     /// emitted, the destination address is not yet known. The compiler needs
     /// to save the jump's address in order to patch the instruction and adjust
     /// the destination address once its known.
-    bookmarks: Vec<Location>,
+    bookmarks: Vec<CodeLoc>,
 
     /// Best atoms found so far. This is a stack where each entry is a list of
     /// atoms, represented by [`RegexpAtoms`].
@@ -133,6 +127,7 @@ pub(crate) struct Compiler {
 }
 
 impl Compiler {
+    /// Creates a new regexp compiler.
     pub fn new() -> Self {
         let mut lit_extractor = hir::literal::Extractor::new();
 
@@ -153,7 +148,49 @@ impl Compiler {
         }
     }
 
+    /// Given the high-level intermediate representation (HIR) of a regular
+    /// expression, produces code for the PikeVM that matches the regular
+    /// expression and returns a set of atoms extracted from it.
+    ///
+    /// The code for the PikeVM is appended to the `code` vector, and the
+    /// returned atoms contain the location within the code where the PikeVM
+    /// should start the execution when the atom is found.
     pub fn compile(
+        self,
+        hir: &re::hir::Hir,
+        code: &mut Vec<u8>,
+    ) -> Result<Vec<re::RegexpAtom>, Error> {
+        let (fwd_code, bck_code, atoms) = self.compile_internal(hir)?;
+
+        // `fwd_code_start` will contain the offset within the `code` vector
+        // where the forward code resides.
+        let fwd_code_start = code.len();
+        code.append(&mut fwd_code.into_inner());
+
+        // `bck_code_start` will contain the offset within the `code` vector
+        // where the backward code resides.
+        let bck_code_start = code.len();
+        code.append(&mut bck_code.into_inner());
+
+        let atoms = atoms
+            .into_iter()
+            .map(|a| re::RegexpAtom {
+                atom: a.atom,
+                fwd_code: Some(FwdCodeLoc::from(
+                    a.code_loc.fwd + fwd_code_start,
+                )),
+                bck_code: Some(BckCodeLoc::from(
+                    a.code_loc.bck + bck_code_start,
+                )),
+            })
+            .collect();
+
+        Ok(atoms)
+    }
+}
+
+impl Compiler {
+    pub(super) fn compile_internal(
         mut self,
         hir: &re::hir::Hir,
     ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
@@ -168,9 +205,7 @@ impl Compiler {
 
         Ok((self.forward_code, self.backward_code, atoms))
     }
-}
 
-impl Compiler {
     #[inline]
     fn forward_code(&self) -> &InstrSeq {
         &self.forward_code
@@ -191,70 +226,70 @@ impl Compiler {
         self.backward_code_chunks.last_mut().unwrap_or(&mut self.backward_code)
     }
 
-    fn location(&self) -> Location {
-        Location {
+    fn location(&self) -> CodeLoc {
+        CodeLoc {
             fwd: self.forward_code().location(),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code().location(),
         }
     }
 
-    fn emit_instr(&mut self, instr: u8) -> Location {
-        Location {
+    fn emit_instr(&mut self, instr: u8) -> CodeLoc {
+        CodeLoc {
             fwd: self.forward_code_mut().emit_instr(instr),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_instr(instr),
         }
     }
 
-    fn emit_split_n(&mut self, n: NumAlt) -> Location {
-        Location {
+    fn emit_split_n(&mut self, n: NumAlt) -> CodeLoc {
+        CodeLoc {
             fwd: self.forward_code_mut().emit_split_n(n),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_split_n(n),
         }
     }
 
-    fn emit_masked_byte(&mut self, b: HexByte) -> Location {
-        Location {
+    fn emit_masked_byte(&mut self, b: HexByte) -> CodeLoc {
+        CodeLoc {
             fwd: self.forward_code_mut().emit_masked_byte(b),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_masked_byte(b),
         }
     }
 
-    fn emit_class(&mut self, c: &ClassBytes) -> Location {
-        Location {
+    fn emit_class(&mut self, c: &ClassBytes) -> CodeLoc {
+        CodeLoc {
             fwd: self.forward_code_mut().emit_class(c),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_class(c),
         }
     }
 
-    fn emit_literal(&mut self, literal: &Literal) -> Location {
-        Location {
+    fn emit_literal(&mut self, literal: &Literal) -> CodeLoc {
+        CodeLoc {
             fwd: self.forward_code_mut().emit_literal(literal.0.iter()),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_literal(literal.0.iter().rev()),
         }
     }
 
-    fn emit_clone(&mut self, start: Location, end: Location) -> Location {
-        Location {
+    fn emit_clone(&mut self, start: CodeLoc, end: CodeLoc) -> CodeLoc {
+        CodeLoc {
             fwd: self.forward_code_mut().emit_clone(start.fwd, end.fwd),
             bck_seq_id: self.backward_code().seq_id(),
             bck: self.backward_code_mut().emit_clone(start.bck, end.bck),
         }
     }
 
-    fn patch_instr(&mut self, location: &Location, offset: Offset) {
+    fn patch_instr(&mut self, location: &CodeLoc, offset: Offset) {
         self.forward_code_mut().patch_instr(location.fwd, offset.fwd);
         self.backward_code_mut().patch_instr(location.bck, offset.bck);
     }
 
     fn patch_split_n<I: ExactSizeIterator<Item = Offset>>(
         &mut self,
-        location: &Location,
+        location: &CodeLoc,
         offsets: I,
     ) {
         let mut fwd = Vec::with_capacity(offsets.len());
@@ -269,10 +304,10 @@ impl Compiler {
         self.backward_code_mut().patch_split_n(location.bck, bck.into_iter());
     }
 
-    fn visit_post_class(&mut self, class: &Class) -> Location {
+    fn visit_post_class(&mut self, class: &Class) -> CodeLoc {
         match class {
             Class::Bytes(class) => {
-                if let Some(byte) = re::hir::class_to_hex_byte(class) {
+                if let Some(byte) = re::hir::class_to_masked_byte(class) {
                     self.emit_masked_byte(byte)
                 } else {
                     self.emit_class(class)
@@ -289,7 +324,7 @@ impl Compiler {
         }
     }
 
-    fn visit_post_look(&mut self, look: &Look) -> Location {
+    fn visit_post_look(&mut self, look: &Look) -> CodeLoc {
         match look {
             Look::Start => self.emit_instr(Instr::START),
             Look::End => self.emit_instr(Instr::END),
@@ -307,7 +342,7 @@ impl Compiler {
             .push(InstrSeq::new(self.backward_code().seq_id() + 1));
     }
 
-    fn visit_post_concat(&mut self, expressions: &Vec<Hir>) -> Vec<Location> {
+    fn visit_post_concat(&mut self, expressions: &Vec<Hir>) -> Vec<CodeLoc> {
         // We are here because all the children of a `Concat` node have been
         // processed. The last N chunks in `backward_code_chunks` contain the
         // code produced for each of the N children, but the nodes where
@@ -395,7 +430,7 @@ impl Compiler {
     fn visit_post_alternation(
         &mut self,
         expressions: &Vec<Hir>,
-    ) -> Result<Location, Error> {
+    ) -> Result<CodeLoc, Error> {
         // e1|e2|....|eN
         //
         //         split_n l1,l2,l3
@@ -524,7 +559,7 @@ impl Compiler {
     fn visit_post_repetition(
         &mut self,
         rep: &Repetition,
-    ) -> Result<Location, Error> {
+    ) -> Result<CodeLoc, Error> {
         match (rep.min, rep.max, rep.greedy) {
             // e* and e*?
             //
@@ -771,7 +806,7 @@ impl hir::Visitor for &mut Compiler {
                 // takes into account a few things, like penalizing common bytes
                 // and prioritizing digits over letters.
                 let mut best_atom =
-                    best_atom_from_slice(literal, DESIRED_ATOM_SIZE);
+                    best_atom_in_bytes(literal, DESIRED_ATOM_SIZE);
 
                 // If the atom extracted from the literal is not at the
                 // start of the literal it's `backtrack` value will be
@@ -854,7 +889,7 @@ impl hir::Visitor for &mut Compiler {
 
                 let mut best_atoms = None;
                 let mut best_quality = SeqQuality::min();
-                let mut code_loc = Location::default();
+                let mut code_loc = CodeLoc::default();
 
                 let seqs: Vec<_> = expressions
                     .iter()

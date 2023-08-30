@@ -15,6 +15,3 @@ mod instr;
 mod tests;
 
 pub(crate) use compiler::Compiler;
-pub(crate) use compiler::Error;
-pub(crate) use compiler::RegexpAtom;
-pub(crate) use instr::{BckCodeLoc, FwdCodeLoc};

@@ -235,7 +235,7 @@ pub fn any_byte(hir_kind: &HirKind) -> bool {
 /// This function basically does the opposite than [`hex_byte_to_class`].
 /// However, not all the classes represent a masked byte, in such cases
 /// this function returns [`None`].
-pub fn class_to_hex_byte(c: &ClassBytes) -> Option<HexByte> {
+pub fn class_to_masked_byte(c: &ClassBytes) -> Option<HexByte> {
     if c.ranges().is_empty() {
         return None;
     }

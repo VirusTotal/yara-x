@@ -5,9 +5,9 @@ use yara_x_parser::ast;
 
 use crate::compiler::Atom;
 use crate::re;
+use crate::re::{BckCodeLoc, FwdCodeLoc};
 
-use super::compiler::{Compiler, Location, RegexpAtom};
-use super::instr::{BckCodeLoc, FwdCodeLoc};
+use super::compiler::{CodeLoc, Compiler, RegexpAtom};
 use super::pikevm::{epsilon_closure, EpsilonClosureState};
 
 macro_rules! assert_re_code {
@@ -15,7 +15,7 @@ macro_rules! assert_re_code {
         let parser = re::parser::Parser::new();
 
         let (fwd_code, bck_code, atoms) = Compiler::new()
-            .compile(
+            .compile_internal(
                 &parser
                     .parse(&ast::Regexp {
                         literal: format!("/{}/", $re).as_str(),
@@ -63,7 +63,7 @@ macro_rules! assert_re_atoms {
         let parser = re::parser::Parser::new();
 
         let (_, _, atoms) = Compiler::new()
-            .compile(
+            .compile_internal(
                 &parser
                     .parse(&ast::Regexp {
                         literal: format!("/{}/", $re).as_str(),
@@ -106,7 +106,7 @@ fn re_code_1() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::exact(vec![0x61, 0x62, 0x63, 0x64]),
-            code_loc: Location { fwd: 0x00, bck: 0x04, bck_seq_id: 0 }
+            code_loc: CodeLoc { fwd: 0x00, bck: 0x04, bck_seq_id: 0 }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0],
@@ -140,7 +140,7 @@ fn re_code_2() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
-            code_loc: Location { fwd: 0x00, bck: 0x05, bck_seq_id: 0 }
+            code_loc: CodeLoc { fwd: 0x00, bck: 0x05, bck_seq_id: 0 }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0],
@@ -172,7 +172,7 @@ fn re_code_3() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
-            code_loc: Location { fwd: 0x00, bck: 0x05, bck_seq_id: 0 }
+            code_loc: CodeLoc { fwd: 0x00, bck: 0x05, bck_seq_id: 0 }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0],
@@ -212,7 +212,7 @@ fn re_code_4() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x65, 0x31, 0x32, 0x33]),
-            code_loc: Location { fwd: 0x05, bck: 0x04, bck_seq_id: 0 }
+            code_loc: CodeLoc { fwd: 0x05, bck: 0x04, bck_seq_id: 0 }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0],
@@ -255,15 +255,15 @@ fn re_code_5() {
         vec![
             RegexpAtom {
                 atom: Atom::exact(vec![0x61, 0x62]),
-                code_loc: Location { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![0x63, 0x64]),
-                code_loc: Location { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![0x65, 0x66]),
-                code_loc: Location { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0x00, bck: 0x21, bck_seq_id: 0 }
             }
         ],
         // Epsilon closure starting at forward code 0.
@@ -309,15 +309,15 @@ fn re_code_6() {
         vec![
             RegexpAtom {
                 atom: Atom::exact(vec![0x31, 0x61, 0x62]),
-                code_loc: Location { fwd: 0, bck: 0x22, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0, bck: 0x22, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![0x31, 0x63, 0x64]),
-                code_loc: Location { fwd: 0, bck: 0x22, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0, bck: 0x22, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![0x31, 0x65, 0x66]),
-                code_loc: Location { fwd: 0, bck: 0x22, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0, bck: 0x22, bck_seq_id: 0 }
             }
         ],
         // Epsilon closure starting at forward code 0.
@@ -365,11 +365,11 @@ fn re_code_7() {
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![97, 98, 99, 100]),
-                code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x1b },
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1b },
             },
             RegexpAtom {
                 atom: Atom::exact(vec![97, 102, 103]),
-                code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x1b },
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1b },
             },
         ],
         // Epsilon closure starting at forward code 0.
@@ -419,11 +419,11 @@ fn re_code_8() {
         vec![
             RegexpAtom {
                 atom: Atom::exact(vec![0x61, 0x66, 0x67]),
-                code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x1c },
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1c },
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
-                code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x1c },
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1c },
             },
         ],
         // Epsilon closure starting at forward code 0.
@@ -463,23 +463,23 @@ fn re_code_9() {
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x30]),
-                code_loc: Location { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
+                code_loc: CodeLoc { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x31]),
-                code_loc: Location { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
+                code_loc: CodeLoc { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x32]),
-                code_loc: Location { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
+                code_loc: CodeLoc { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x78]),
-                code_loc: Location { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
+                code_loc: CodeLoc { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x79]),
-                code_loc: Location { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
+                code_loc: CodeLoc { bck: 0x0d, fwd: 0, bck_seq_id: 0 }
             },
         ],
         // Epsilon closure starting at forward code 0.
@@ -518,7 +518,7 @@ fn re_code_10() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
-            code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x28 },
+            code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x28 },
         }],
         // Epsilon closure starting at forward code 0.
         vec![0],
@@ -556,7 +556,7 @@ fn re_code_11() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x61]),
-            code_loc: Location { fwd: 0, bck_seq_id: 0, bck: 0x0c }
+            code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x0c }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0],
@@ -618,7 +618,7 @@ fn re_code_12() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x63, 0x31, 0x32, 0x33]),
-            code_loc: Location { fwd: 2, bck_seq_id: 0, bck: 0x16 }
+            code_loc: CodeLoc { fwd: 2, bck_seq_id: 0, bck: 0x16 }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0],
@@ -701,11 +701,11 @@ fn re_code_13() {
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
-                code_loc: Location { fwd: 0x0b, bck_seq_id: 0, bck: 0x34 }
+                code_loc: CodeLoc { fwd: 0x0b, bck_seq_id: 0, bck: 0x34 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x67, 0x68, 0x69, 0x6a]),
-                code_loc: Location { fwd: 0x17, bck_seq_id: 0, bck: 0x40 }
+                code_loc: CodeLoc { fwd: 0x17, bck_seq_id: 0, bck: 0x40 }
             }
         ],
         // Epsilon closure starting at forward code 0.
@@ -747,11 +747,11 @@ fn re_code_14() {
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
-                code_loc: Location { fwd: 0x06, bck_seq_id: 0, bck: 0x12 }
+                code_loc: CodeLoc { fwd: 0x06, bck_seq_id: 0, bck: 0x12 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![]),
-                code_loc: Location { fwd: 0x06, bck_seq_id: 0, bck: 0x12 }
+                code_loc: CodeLoc { fwd: 0x06, bck_seq_id: 0, bck: 0x12 }
             }
         ],
         // Epsilon closure starting at forward code 0.
@@ -791,15 +791,15 @@ fn re_code_15() {
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61]),
-                code_loc: Location { fwd: 0x00, bck_seq_id: 0, bck: 0x25 }
+                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x25 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x62]),
-                code_loc: Location { fwd: 0x00, bck_seq_id: 0, bck: 0x25 }
+                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x25 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![]),
-                code_loc: Location { fwd: 0x00, bck_seq_id: 0, bck: 0x25 }
+                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x25 }
             }
         ],
         // Epsilon closure starting at forward code 0.
@@ -838,7 +838,7 @@ fn re_code_16() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x64, 0x65]),
-            code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x02 }
+            code_loc: CodeLoc { fwd: 0x14, bck_seq_id: 0, bck: 0x02 }
         },],
         // Epsilon closure starting at forward code 0.
         vec![0x14, 0x11],
@@ -868,7 +868,7 @@ fn re_code_17() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x62, 0x62]),
-            code_loc: Location { fwd: 0x02, bck_seq_id: 0, bck: 0x02 }
+            code_loc: CodeLoc { fwd: 0x02, bck_seq_id: 0, bck: 0x02 }
         },],
         // Epsilon closure starting at forward code 0.
         vec![0x00],
@@ -908,7 +908,7 @@ fn re_code_18() {
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x62, 0x63]),
-            code_loc: Location { fwd: 0x03, bck_seq_id: 0, bck: 0x08 }
+            code_loc: CodeLoc { fwd: 0x03, bck_seq_id: 0, bck: 0x08 }
         },],
         // Epsilon closure starting at forward code 0.
         vec![0x00],
@@ -939,11 +939,11 @@ fn re_code_19() {
         vec![
             RegexpAtom {
                 atom: Atom::exact(vec![0x41, 0x31, 0x32]),
-                code_loc: Location { fwd: 0x00, bck_seq_id: 0, bck: 0x06 }
+                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x06 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![0x61, 0x31, 0x32]),
-                code_loc: Location { fwd: 0x00, bck_seq_id: 0, bck: 0x06 }
+                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x06 }
             },
         ],
         // Epsilon closure starting at forward code 0.
@@ -979,19 +979,19 @@ fn re_code_20() {
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x41, 0x42]),
-                code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
+                code_loc: CodeLoc { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x41, 0x62]),
-                code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
+                code_loc: CodeLoc { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x42]),
-                code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
+                code_loc: CodeLoc { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62]),
-                code_loc: Location { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
+                code_loc: CodeLoc { fwd: 0x14, bck_seq_id: 0, bck: 0x08 }
             },
         ],
         // Epsilon closure starting at forward code 0.

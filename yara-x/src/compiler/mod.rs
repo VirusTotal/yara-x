@@ -694,7 +694,7 @@ impl<'a> Compiler<'a> {
             wide_pattern = make_wide(pattern.text.as_bytes());
             main_patterns.push((
                 wide_pattern.as_slice(),
-                best_atom_from_slice(
+                best_atom_in_bytes(
                     wide_pattern.as_slice(),
                     // For wide patterns let's use atoms twice large as usual.
                     DESIRED_ATOM_SIZE * 2,
@@ -706,10 +706,7 @@ impl<'a> Compiler<'a> {
         if pattern.flags.contains(PatternFlags::Ascii) {
             main_patterns.push((
                 pattern.text.as_bytes(),
-                best_atom_from_slice(
-                    pattern.text.as_bytes(),
-                    DESIRED_ATOM_SIZE,
-                ),
+                best_atom_in_bytes(pattern.text.as_bytes(), DESIRED_ATOM_SIZE),
                 flags,
             ));
         }
@@ -726,12 +723,11 @@ impl<'a> Compiler<'a> {
                         | PatternFlags::Nocase,
                 ));
 
+                let xor_range = pattern.xor_range.clone().unwrap();
+
                 self.add_sub_pattern(
                     SubPattern::Xor { pattern: pattern_lit_id, flags },
-                    XorGenerator::new(
-                        best_atom,
-                        pattern.xor_range.clone().unwrap(),
-                    ),
+                    best_atom.xor_combinations(xor_range),
                     SubPatternAtom::from_atom,
                 );
             } else if pattern.flags.contains(PatternFlags::Nocase) {
@@ -748,7 +744,7 @@ impl<'a> Compiler<'a> {
                         pattern: pattern_lit_id,
                         flags: flags | SubPatternFlags::Nocase,
                     },
-                    CaseGenerator::new(&best_atom),
+                    best_atom.case_combinations(),
                     SubPatternAtom::from_atom,
                 );
             }
@@ -788,7 +784,7 @@ impl<'a> Compiler<'a> {
                         self.add_sub_pattern(
                             sub_pattern,
                             iter::once(
-                                best_atom_from_slice(
+                                best_atom_in_bytes(
                                     base64_pattern.as_slice(),
                                     DESIRED_ATOM_SIZE,
                                 )
@@ -828,7 +824,7 @@ impl<'a> Compiler<'a> {
                         self.add_sub_pattern(
                             sub_pattern,
                             iter::once(
-                                best_atom_from_slice(
+                                best_atom_in_bytes(
                                     wide.as_slice(),
                                     DESIRED_ATOM_SIZE * 2,
                                 )
@@ -901,16 +897,20 @@ impl<'a> Compiler<'a> {
         }
 
         if matches!(head.is_greedy(), Some(true)) {
-            flags.set(SubPatternFlags::Greedy);
+            flags.set(SubPatternFlags::GreedyRegexp);
         }
 
-        let atoms = self.compile_regexp(&head, span)?;
+        let (atoms, is_fast_regexp) = self.compile_regexp(&head, span)?;
+
+        if is_fast_regexp {
+            flags.set(SubPatternFlags::FastRegexp);
+        }
 
         if pattern.flags.contains(PatternFlags::Wide) {
             self.add_sub_pattern(
                 Regexp { flags: flags | SubPatternFlags::Wide },
-                atoms.iter(),
-                SubPatternAtom::from_regexp_atom_wide,
+                atoms.iter().cloned().map(|atom| atom.make_wide()),
+                SubPatternAtom::from_regexp_atom,
             );
         }
 
@@ -950,7 +950,7 @@ impl<'a> Compiler<'a> {
             let pattern_lit_id =
                 self.intern_literal(literal.0.as_bytes(), wide);
 
-            let best_atom = best_atom_from_slice(
+            let best_atom = best_atom_in_bytes(
                 self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
                 if wide { DESIRED_ATOM_SIZE * 2 } else { DESIRED_ATOM_SIZE },
             );
@@ -967,7 +967,7 @@ impl<'a> Compiler<'a> {
             if case_insensitive {
                 self.add_sub_pattern(
                     sp,
-                    CaseGenerator::new(&best_atom),
+                    best_atom.case_combinations(),
                     SubPatternAtom::from_atom,
                 );
             } else {
@@ -1052,16 +1052,21 @@ impl<'a> Compiler<'a> {
             };
         } else {
             if matches!(leading.is_greedy(), Some(true)) {
-                flags.set(SubPatternFlags::Greedy);
+                flags.set(SubPatternFlags::GreedyRegexp);
             }
 
-            let atoms = self.compile_regexp(leading, span)?;
+            let (atoms, is_fast_regexp) =
+                self.compile_regexp(leading, span)?;
+
+            if is_fast_regexp {
+                flags.set(SubPatternFlags::FastRegexp);
+            }
 
             if wide {
                 prev_sub_pattern_wide = self.add_sub_pattern(
                     RegexpChainHead { flags: flags | SubPatternFlags::Wide },
-                    atoms.iter(),
-                    SubPatternAtom::from_regexp_atom_wide,
+                    atoms.iter().cloned().map(|atom| atom.make_wide()),
+                    SubPatternAtom::from_regexp_atom,
                 );
             }
 
@@ -1111,10 +1116,15 @@ impl<'a> Compiler<'a> {
                 }
             } else {
                 if matches!(p.hir.is_greedy(), Some(true)) {
-                    flags.set(SubPatternFlags::Greedy);
+                    flags.set(SubPatternFlags::GreedyRegexp);
                 }
 
-                let atoms = self.compile_regexp(&p.hir, span)?;
+                let (atoms, is_fast_regexp) =
+                    self.compile_regexp(&p.hir, span)?;
+
+                if is_fast_regexp {
+                    flags.set(SubPatternFlags::FastRegexp);
+                }
 
                 if wide {
                     prev_sub_pattern_wide = self.add_sub_pattern(
@@ -1123,8 +1133,8 @@ impl<'a> Compiler<'a> {
                             gap: p.gap.clone(),
                             flags: flags | SubPatternFlags::Wide,
                         },
-                        atoms.iter(),
-                        SubPatternAtom::from_regexp_atom_wide,
+                        atoms.iter().cloned().map(|atom| atom.make_wide()),
+                        SubPatternAtom::from_regexp_atom,
                     )
                 }
 
@@ -1149,43 +1159,42 @@ impl<'a> Compiler<'a> {
         &mut self,
         hir: &re::hir::Hir,
         span: Span,
-    ) -> Result<Vec<re::thompson::RegexpAtom>, CompileError> {
-        let re_compiler = re::thompson::Compiler::new();
+    ) -> Result<(Vec<re::RegexpAtom>, bool), CompileError> {
+        //#[cfg(not(feature = "fast-regexp"))]
+        //let (result, is_fast_regexp) = (
+        //re::thompson::Compiler::new().compile(hir, &mut self.re_code),
+        //    false,
+        //);
 
-        let r = match re_compiler.compile(hir) {
-            Ok(r) => r,
-            Err(re::thompson::Error::TooLarge) => {
-                return Err(CompileError::from(
-                    CompileErrorInfo::invalid_regexp(
-                        &self.report_builder,
-                        "regexp is too large".to_string(),
-                        span,
-                    ),
-                ))
-            }
+        // When the `fast-regexp` feature is enabled, try to compile the regexp
+        // for `FastVM` first, if the it fails with `Error::FastIncompatible`,
+        // the regexp is not compatible for `FastVM` and `PikeVM` must be used
+        // instead.
+        //#[cfg(feature = "fast-regexp")]
+        let (result, is_fast_regexp) = match re::fast::Compiler::new()
+            .compile(hir, &mut self.re_code)
+        {
+            Err(re::Error::FastIncompatible) => (
+                re::thompson::Compiler::new().compile(hir, &mut self.re_code),
+                false,
+            ),
+            result => (result, true),
         };
 
-        let (forward_code, backward_code, mut atoms) = r;
-
-        // `fwd_code` will contain the offset within the `re_code` vector
-        // where the forward code resides.
-        let fwd_code = self.re_code.len();
-        self.re_code.append(&mut forward_code.into_inner());
-
-        // `bck_code` will contain the offset within the `re_code` vector
-        // where the backward code resides.
-        let bck_code = self.re_code.len();
-        self.re_code.append(&mut backward_code.into_inner());
+        let atoms = result.map_err(|err| match err {
+            re::Error::TooLarge => {
+                CompileError::from(CompileErrorInfo::invalid_regexp(
+                    &self.report_builder,
+                    "regexp is too large".to_string(),
+                    span,
+                ))
+            }
+            _ => unreachable!(),
+        })?;
 
         let mut slow_pattern = false;
 
-        // The forward and backward code locations in each atom are relative
-        // to the start of the code generated for this regexp. Here we make
-        // them relative to the start of `re_code`.
-        for atom in atoms.iter_mut() {
-            atom.code_loc.fwd += fwd_code;
-            atom.code_loc.bck += bck_code;
-
+        for atom in &atoms {
             if atom.atom.len() < 2 {
                 slow_pattern = true;
             }
@@ -1196,7 +1205,7 @@ impl<'a> Compiler<'a> {
                 .push(Warning::slow_pattern(&self.report_builder, span));
         }
 
-        Ok(atoms)
+        Ok((atoms, is_fast_regexp))
     }
 
     fn process_literal_chain_head(
@@ -1638,10 +1647,13 @@ bitmask! {
         FullwordRight        = 0x10,
         // Indicates that the pattern is a greedy regexp. Apply only to regexp
         // sub-patterns.
-        Greedy               = 0x20,
+        GreedyRegexp         = 0x20,
+        // Indicates that the pattern is a fast regexp. A fast regexp is one
+        // that can be matched by the FastVM.
+        FastRegexp           = 0x40,
         // Indicates that the sub-pattern only matches at the start of the
         // data. Applies only to literal sub-patterns.
-        AnchoredStart        = 0x40,
+        AnchoredStart        = 0x80,
 
     }
 }

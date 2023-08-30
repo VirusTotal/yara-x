@@ -86,7 +86,7 @@ fn hex_byte_to_class(b: &ast::HexByte) -> hir::ClassBytes {
 #[cfg(test)]
 mod tests {
     use super::hex_byte_to_class;
-    use crate::re::hir::class_to_hex_byte;
+    use crate::re::hir::class_to_masked_byte;
     use pretty_assertions::assert_eq;
     use regex_syntax::hir::{
         Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn class_to_hex() {
         assert_eq!(
-            class_to_hex_byte(&hex_byte_to_class(&HexByte {
+            class_to_masked_byte(&hex_byte_to_class(&HexByte {
                 value: 0x30,
                 mask: 0xF0
             })),
@@ -264,7 +264,7 @@ mod tests {
         );
 
         assert_eq!(
-            class_to_hex_byte(&hex_byte_to_class(&HexByte {
+            class_to_masked_byte(&hex_byte_to_class(&HexByte {
                 value: 0x05,
                 mask: 0x0F
             })),
@@ -272,7 +272,7 @@ mod tests {
         );
 
         assert_eq!(
-            class_to_hex_byte(&hex_byte_to_class(&HexByte {
+            class_to_masked_byte(&hex_byte_to_class(&HexByte {
                 value: 0x08,
                 mask: 0xAA
             })),
@@ -280,7 +280,7 @@ mod tests {
         );
 
         assert_eq!(
-            class_to_hex_byte(&ClassBytes::new(vec![
+            class_to_masked_byte(&ClassBytes::new(vec![
                 ClassBytesRange::new(3, 4),
                 ClassBytesRange::new(8, 8),
             ])),
@@ -288,7 +288,7 @@ mod tests {
         );
 
         assert_eq!(
-            class_to_hex_byte(&ClassBytes::new(vec![
+            class_to_masked_byte(&ClassBytes::new(vec![
                 ClassBytesRange::new(0, 0),
                 ClassBytesRange::new(2, 2),
                 ClassBytesRange::new(4, 4),
@@ -300,7 +300,7 @@ mod tests {
             Hir::dot(Dot::AnyByte).kind()
         {
             assert_eq!(
-                class_to_hex_byte(class),
+                class_to_masked_byte(class),
                 Some(HexByte { value: 0x00, mask: 0x00 })
             );
         } else {

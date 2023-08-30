@@ -53,10 +53,12 @@ will end up using the `"Look"` atom alone, but in `/a(bcd|efg)h/` atoms `"bcd"`
 and `"efg"` will be used because `"a"` and `"h"` are too short.
  */
 
+mod mask;
 mod quality;
 
 use std::collections::Bound;
-use std::ops::{RangeBounds, RangeInclusive};
+use std::iter::zip;
+use std::ops::{Range, RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
 use std::vec::IntoIter;
 use std::{cmp, iter};
@@ -70,6 +72,8 @@ pub(crate) use crate::compiler::atoms::quality::atom_quality;
 pub(crate) use crate::compiler::atoms::quality::seq_quality;
 pub(crate) use crate::compiler::atoms::quality::SeqQuality;
 
+use crate::compiler::atoms::quality::masked_atom_quality;
+use crate::compiler::mask::ByteMaskCombinator;
 use crate::compiler::{SubPatternFlagSet, SubPatternFlags};
 
 /// The number of bytes that every atom *should* have. Some atoms may be
@@ -216,6 +220,16 @@ impl Atom {
         self
     }
 
+    pub fn make_wide(mut self) -> Self {
+        let atom_len = self.bytes.len();
+        self.bytes = self
+            .bytes
+            .into_iter()
+            .interleave(itertools::repeat_n(0x00, atom_len))
+            .collect();
+        self
+    }
+
     pub fn exact<T: AsRef<[u8]>>(v: T) -> Self {
         let mut atom = Self::from(v.as_ref().to_vec());
         atom.exact = true;
@@ -227,34 +241,107 @@ impl Atom {
         atom.exact = false;
         atom
     }
+
+    /// Returns a [`XorCombinations`] iterator that produces the atoms that
+    /// result from XORing this atom with every byte in a range.
+    ///
+    /// The iterator produces as many atoms as bytes are in the range.
+    pub fn xor_combinations(
+        self,
+        range: RangeInclusive<u8>,
+    ) -> XorCombinations {
+        XorCombinations::new(self, range)
+    }
+
+    /// Returns a [`CaseCombinations`] iterator that produces all possible case
+    /// combinations of this atom.
+    pub fn case_combinations(self) -> CaseCombinations {
+        CaseCombinations::new(self)
+    }
+
+    /// Returns a [`MaskCombinations`] iterator that produces all possible
+    /// combinations that result from applying a given mask to the atom.
+    ///
+    /// The mask should have the same length than the atom. If the mask is
+    /// shorter than the atom, the atoms produced by the iterator will be
+    /// as long as the mask. If the mask is longer, the exceeding bytes are
+    /// simply ignored.
+    ///
+    /// The bits that are set to 1 in the mask are fixed, and their values
+    /// are taken from the corresponding bit in the atom. The bits that are
+    /// set to 0 in the mask are the variable bits, the resulting atoms will
+    /// cover all possible combinations for the variable bits.
+    #[allow(dead_code)]
+    pub fn mask_combinations(self, mask: &[u8]) -> MaskCombinations {
+        MaskCombinations::new(self, mask)
+    }
 }
 
-/// Returns the best possible atom from a slice.
-///
-/// The returned atom will have the `desired_size` if possible, but it can be
-/// shorter if the slice is shorter.
-pub(crate) fn best_atom_from_slice(s: &[u8], desired_size: usize) -> Atom {
+/// Returns the range for the best possible atom that can be extracted from
+/// the slice and its quality.
+pub(crate) fn best_range_in_bytes(
+    bytes: &[u8],
+    desired_size: usize,
+) -> (Range<usize>, i32) {
     let mut best_quality = i32::MIN;
-    let mut best_atom = None;
+    let mut best_range = None;
 
-    for i in 0..=s.len().saturating_sub(desired_size) {
-        let atom =
-            Atom::from_slice_range(s, i..cmp::min(s.len(), i + desired_size));
-        let quality = atom.quality();
+    for i in 0..=bytes.len().saturating_sub(desired_size) {
+        let range = i..cmp::min(bytes.len(), i + desired_size);
+        let quality = atom_quality(&bytes[range.clone()]);
         if quality > best_quality {
             best_quality = quality;
-            best_atom = Some(atom);
+            best_range = Some(range);
         }
     }
 
-    best_atom.expect("at least one atom should be generated")
+    (best_range.unwrap(), best_quality)
+}
+
+/// Returns the range for the best possible atom that can be extracted from the
+/// masked slice.
+#[allow(dead_code)]
+pub(crate) fn best_range_in_masked_bytes(
+    bytes: &[u8],
+    mask: &[u8],
+    desired_size: usize,
+) -> (Range<usize>, i32) {
+    assert_eq!(bytes.len(), mask.len());
+
+    let mut best_quality = i32::MIN;
+    let mut best_range = None;
+
+    for i in 0..=bytes.len().saturating_sub(desired_size) {
+        let range = i..cmp::min(bytes.len(), i + desired_size);
+        let quality =
+            masked_atom_quality(&bytes[range.clone()], &mask[range.clone()]);
+        if quality > best_quality {
+            best_quality = quality;
+            best_range = Some(range);
+        }
+    }
+
+    (best_range.unwrap(), best_quality)
+}
+
+/// Returns the best possible atom from a slice of bytes.
+///
+/// The returned atom will have the `desired_size` if possible, but it can be
+/// shorter if the slice is shorter.
+///
+/// The atom's backtrack value will be equal to the position of the atom within
+/// the slice. This means that once the atom is found, the reported offset will
+/// correspond to the start of the slice in the data.
+pub(crate) fn best_atom_in_bytes(bytes: &[u8], desired_size: usize) -> Atom {
+    let (range, _) = best_range_in_bytes(bytes, desired_size);
+    Atom::from_slice_range(bytes, range)
 }
 
 pub(crate) fn extract_atoms(
     literal_bytes: &[u8],
     flags: SubPatternFlagSet,
 ) -> Box<dyn Iterator<Item = Atom>> {
-    let best_atom = best_atom_from_slice(
+    let best_atom = best_atom_in_bytes(
         literal_bytes,
         if flags.contains(SubPatternFlags::Wide) {
             DESIRED_ATOM_SIZE * 2
@@ -275,7 +362,7 @@ pub(crate) fn extract_atoms(
     };
 
     if flags.contains(SubPatternFlags::Nocase) {
-        Box::new(CaseGenerator::new(&best_atom))
+        Box::new(CaseCombinations::new(best_atom))
     } else {
         Box::new(iter::once(best_atom))
     }
@@ -300,21 +387,53 @@ pub(super) fn make_wide(s: &[u8]) -> Vec<u8> {
     .collect()
 }
 
-/// Given an [`Atom`] produces a sequence of atoms that covers all the possible
-/// case combinations for the ASCII characters. The original atom is included
-/// in the sequence, and non-alphabetic characters are left untouched. For
-/// example for the atom "1aBc2" the result is the sequence:
+/// Iterator that returns all the atoms resulting from masking an atom with
+/// with a mask.
+pub(crate) struct MaskCombinations {
+    cartesian_product: MultiProduct<ByteMaskCombinator>,
+    backtrack: u16,
+    exact: bool,
+}
+
+impl MaskCombinations {
+    fn new(atom: Atom, mask: &[u8]) -> Self {
+        Self {
+            exact: atom.exact,
+            backtrack: atom.backtrack,
+            cartesian_product: zip(atom.bytes, mask)
+                .into_iter()
+                .map(|(byte, mask)| ByteMaskCombinator::new(byte, *mask))
+                .multi_cartesian_product(),
+        }
+    }
+}
+
+impl Iterator for MaskCombinations {
+    type Item = Atom;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut atom = Atom::from(self.cartesian_product.next()?);
+        atom.backtrack = self.backtrack;
+        atom.exact = self.exact;
+        Some(atom)
+    }
+}
+
+/// Iterator that returns a sequence of atoms that covers all the possible case
+/// combinations for the ASCII characters in the original atom. The original
+/// atom is always included in the sequence, and non-alphabetic characters are
+/// left untouched. For example, for the atom "1aBc2" the result is the sequence:
 ///
 ///  "1abc2", "1abC2", "1aBc2", "1aBC2", "1Abc2", "1AbC2", "1ABc2", "1ABC2"
 ///
-pub(crate) struct CaseGenerator {
+pub(crate) struct CaseCombinations {
     cartesian_product: MultiProduct<IntoIter<u8>>,
     backtrack: u16,
     exact: bool,
 }
 
-impl CaseGenerator {
-    pub fn new(atom: &Atom) -> Self {
+impl CaseCombinations {
+    fn new(atom: Atom) -> Self {
         Self {
             exact: atom.exact,
             backtrack: atom.backtrack,
@@ -338,7 +457,7 @@ impl CaseGenerator {
     }
 }
 
-impl Iterator for CaseGenerator {
+impl Iterator for CaseCombinations {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -349,24 +468,25 @@ impl Iterator for CaseGenerator {
     }
 }
 
-/// Given an [`Atom`] and a inclusive range (e.g. 0..=255, 10..=20), returns
-/// as many atoms as values are in the range. Each returned atom is the result
-/// of XORing the original one with one of the values in the range.
+/// Iterator that returns the atoms resulting from XORing an atom with all
+/// byte values in a given inclusive range (e.g. 0..=255, 10..=20). Each
+/// returned atom is the result of XORing the original one with one of the
+/// values in the range.
 ///
 /// The resulting atoms are all inexact, regardless of whether the original
 /// was exact or not.
-pub(super) struct XorGenerator {
+pub(crate) struct XorCombinations {
     atom: Atom,
     range: RangeInclusive<u8>,
 }
 
-impl XorGenerator {
-    pub fn new(atom: Atom, range: RangeInclusive<u8>) -> Self {
+impl XorCombinations {
+    fn new(atom: Atom, range: RangeInclusive<u8>) -> Self {
         Self { atom, range }
     }
 }
 
-impl Iterator for XorGenerator {
+impl Iterator for XorCombinations {
     type Item = Atom;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -386,12 +506,29 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use crate::compiler::atoms;
-    use crate::compiler::atoms::{Atom, CaseGenerator, XorGenerator};
+    use crate::compiler::atoms::Atom;
 
     #[test]
-    fn case_generator() {
+    fn mask_combinations() {
+        let atom = Atom::exact([0x11, 0x22, 0x33, 0x44]);
+        let mut c = atom.mask_combinations(&[0xff, 0xf0, 0xff, 0xff]);
+
+        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x20, 0x33, 0x44])));
+        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x21, 0x33, 0x44])));
+        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x22, 0x33, 0x44])));
+
+        let mut c = c.skip(10);
+
+        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2d, 0x33, 0x44])));
+        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2e, 0x33, 0x44])));
+        assert_eq!(c.next(), Some(Atom::exact([0x11, 0x2f, 0x33, 0x44])));
+        assert_eq!(c.next(), None);
+    }
+
+    #[test]
+    fn case_combinations() {
         let atom = Atom::exact(b"a1B2c");
-        let mut c = CaseGenerator::new(&atom);
+        let mut c = atom.case_combinations();
 
         assert_eq!(c.next(), Some(Atom::exact(b"a1b2c")));
         assert_eq!(c.next(), Some(Atom::exact(b"a1b2C")));
@@ -404,18 +541,18 @@ mod test {
         assert_eq!(c.next(), None);
 
         let mut atom = Atom::exact([0x00_u8, 0x01, 0x02]);
-        atom.backtrack = 2;
+        atom.set_backtrack(2);
 
-        let mut c = CaseGenerator::new(&atom);
+        let mut c = atom.clone().case_combinations();
 
         assert_eq!(c.next(), Some(atom));
         assert_eq!(c.next(), None);
     }
 
     #[test]
-    fn xor_generator() {
+    fn xor_combinations() {
         let atom = Atom::exact([0x00_u8, 0x01, 0x02]);
-        let mut c = XorGenerator::new(atom, 0..=1);
+        let mut c = atom.xor_combinations(0..=1);
 
         assert_eq!(c.next(), Some(Atom::inexact([0x00, 0x01, 0x02])));
         assert_eq!(c.next(), Some(Atom::inexact([0x01, 0x00, 0x03])));

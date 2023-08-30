@@ -12,13 +12,12 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use yara_x_parser::ast::Span;
 use yara_x_parser::Warning;
 
-use crate::compiler::atoms::{make_wide, Atom};
+use crate::compiler::atoms::Atom;
 use crate::compiler::{
     IdentId, Imports, LiteralId, NamespaceId, PatternId, RegexpId, RuleId,
     SubPattern, SubPatternId,
 };
-use crate::re::thompson::RegexpAtom;
-use crate::re::thompson::{BckCodeLoc, FwdCodeLoc};
+use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::types::{Regexp, Struct};
 use crate::SerializationError;
@@ -382,12 +381,6 @@ pub(crate) struct SubPatternAtom {
     /// The atom itself.
     atom: Atom,
     /// The index within `re_code` where the forward code for this atom starts.
-    /// This index is represented by `NonZeroU32`, allowing the `None` case to
-    /// be represented as zero, which saves the extra space that the `Option`
-    /// enum would require otherwise. However, as indexes can be actually zero,
-    /// they are incremented by in one. So, index 0 becomes 1, 1 becomes 2, and
-    /// so on. The [`SubPatternAtom::fwd_code`] method takes this into account
-    /// and subtract 1 before returning the index value.
     fwd_code: Option<FwdCodeLoc>,
     /// The index within `re_code` where the backward code for this atom starts.
     bck_code: Option<BckCodeLoc>,
@@ -399,22 +392,6 @@ impl SubPatternAtom {
         Self { sub_pattern_id, atom, bck_code: None, fwd_code: None }
     }
 
-    pub(crate) fn from_regexp_atom_wide(
-        sub_pattern_id: SubPatternId,
-        value: &RegexpAtom,
-    ) -> Self {
-        let mut atom = Atom::from(make_wide(value.atom.as_slice()));
-
-        atom.set_exact(value.atom.is_exact());
-
-        Self {
-            sub_pattern_id,
-            atom,
-            fwd_code: Some(FwdCodeLoc::from(value.code_loc.fwd)),
-            bck_code: Some(BckCodeLoc::from(value.code_loc.bck)),
-        }
-    }
-
     pub(crate) fn from_regexp_atom(
         sub_pattern_id: SubPatternId,
         value: RegexpAtom,
@@ -422,8 +399,8 @@ impl SubPatternAtom {
         Self {
             sub_pattern_id,
             atom: value.atom,
-            fwd_code: Some(FwdCodeLoc::from(value.code_loc.fwd)),
-            bck_code: Some(BckCodeLoc::from(value.code_loc.bck)),
+            fwd_code: value.fwd_code,
+            bck_code: value.bck_code,
         }
     }
 
@@ -453,12 +430,12 @@ impl SubPatternAtom {
     }
 
     #[inline]
-    pub(crate) fn fwd_code(&self) -> FwdCodeLoc {
-        self.fwd_code.unwrap()
+    pub(crate) fn fwd_code(&self) -> Option<FwdCodeLoc> {
+        self.fwd_code
     }
 
     #[inline]
-    pub(crate) fn bck_code(&self) -> BckCodeLoc {
-        self.bck_code.unwrap()
+    pub(crate) fn bck_code(&self) -> Option<BckCodeLoc> {
+        self.bck_code
     }
 }

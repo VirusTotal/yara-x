@@ -1,12 +1,38 @@
 use std::cmp::Ordering;
+use std::iter;
 
 use bitvec::bitarr;
 use regex_syntax::hir::literal::Seq;
 
-/// Compute the quality of an atom.
-pub fn atom_quality<'a, B>(bytes: B) -> i32
+/// Compute the quality of a masked atom.
+///
+/// Both iterators (`bytes` and `masks`) should have the same number of
+/// elements, if not, the shortest one will determine the length of the atom.
+///
+/// Each byte in the atom contributes a certain amount of points to the   
+/// quality. Bytes [a-zA-Z] contribute 18 points each, the extremely common
+/// byte 0x00 contributes only 6 points, and other common bytes like 0x20
+/// and 0xFF contribute 12 points. The rest of the bytes contribute 20 points
+/// each. Masked bytes adds 2 points for each non-masked bit, and subtracts 1
+/// point for each masked bit. So, the ?? mask subtracts 8 points, and masks X?
+/// and ?X contributes 4 points.
+///
+/// An additional boost consisting in 2x the number of unique bytes in the atom
+/// is added to the quality. This are some examples of the quality of atoms:
+///
+///   01 0? 03      quality = 20 +  4 + 20      + 4 = 48
+///   01 02         quality = 20 + 20           + 4 = 44
+///   01 ?? ?3 04   quality = 20 -  8 +  4 + 20 + 4 = 36
+///   61 62         quality = 18 + 18           + 4 = 40
+///   61 61         quality = 18 + 18           + 2 = 38
+///   01 ?? 03      quality = 20 -  8 + 20      + 4 = 36
+///   00 01         quality =  6 + 20           + 4 = 30
+///   01            quality = 20                + 1 = 21
+///
+pub fn masked_atom_quality<'a, B, M>(bytes: B, masks: M) -> i32
 where
     B: IntoIterator<Item = &'a u8>,
+    M: IntoIterator<Item = &'a u8>,
 {
     let mut q: i32 = 0;
 
@@ -17,29 +43,43 @@ where
     let bytes = bytes.into_iter();
     let mut atom_len = 0;
 
-    for byte in bytes {
-        bytes_present.set(*byte as usize, true);
-        match *byte {
-            // Common values contribute less to the quality than the
-            // rest of values.
-            0x20 | 0x90 | 0xcc | 0xff => {
-                q += 12;
-            }
-            // Zeroes are specially bad and contribute less.
-            0x00 => {
-                q += 6;
-            }
-            // Bytes in the ASCII ranges a-z and A-Z have a slightly
-            // lower quality than the rest. We want to favor atoms that
-            // don't contain too many letters, as they generate less
-            // additional atoms when the `nocase` modifier is used in
-            // the pattern.
-            b'a'..=b'z' | b'A'..=b'Z' => {
-                q += 18;
-            }
-            // General case.
-            _ => {
-                q += 20;
+    for (byte, mask) in bytes.zip(masks) {
+        // If there's any masked bit, the quality is incremented by
+        // N * 2 - M, where N is the number of non-masked bits and M is
+        // the number of masked bits. For ?? the increment is -8, while
+        // ?X and X? results in a +4 increment.
+        if mask.count_zeros() > 0 {
+            q += 2 * mask.count_ones() as i32 - mask.count_zeros() as i32;
+        }
+        // For non-masked bytes the increment depends on the byte value.
+        // Common values like 0x00, 0xff, 0xcc (opcode using of function
+        // padding in PE files), 0x20 (whitespace) the increment is a bit
+        // lower than for other bytes.
+        else {
+            bytes_present.set(*byte as usize, true);
+
+            match *byte {
+                // Common values contribute less to the quality than the
+                // rest of values.
+                0x20 | 0x90 | 0xcc | 0xff => {
+                    q += 12;
+                }
+                // Zeroes are specially bad and contribute less.
+                0x00 => {
+                    q += 6;
+                }
+                // Bytes in the ASCII ranges a-z and A-Z have a slightly
+                // lower quality than the rest. We want to favor atoms that
+                // don't contain too many letters, as they generate less
+                // additional atoms when the `nocase` modifier is used in
+                // the pattern.
+                b'a'..=b'z' | b'A'..=b'Z' => {
+                    q += 18;
+                }
+                // General case.
+                _ => {
+                    q += 20;
+                }
             }
         }
 
@@ -70,6 +110,15 @@ where
     }
 
     q
+}
+
+/// Compute the quality of an atom.
+#[inline]
+pub fn atom_quality<'a, B>(bytes: B) -> i32
+where
+    B: IntoIterator<Item = &'a u8>,
+{
+    masked_atom_quality(bytes, iter::repeat(&0xff))
 }
 
 #[derive(PartialEq)]
@@ -161,6 +210,7 @@ pub(crate) fn seq_quality(seq: &Seq) -> Option<SeqQuality> {
 mod test {
     use super::atom_quality;
     use super::seq_quality;
+    use crate::compiler::atoms::quality::masked_atom_quality;
     use regex_syntax::hir::literal::Literal;
     use regex_syntax::hir::literal::Seq;
 
@@ -191,6 +241,31 @@ mod test {
         let q_abcd = atom_quality(b"abcd");
         let q_ABCD = atom_quality(b"ABCD");
         let q_abc_dot = atom_quality(b"abc.");
+
+        let q_01x203 = masked_atom_quality(
+            [0x01, 0x02, 0x03].iter(),
+            [0xff, 0x0f, 0xff].iter()
+        );
+
+        let q_010x03 = masked_atom_quality(
+            [0x01, 0x02, 0x03].iter(),
+            [0xff, 0xf0, 0xff].iter()
+        );
+
+        let q_01xx03 = masked_atom_quality(
+            [0x01, 0x02, 0x03].iter(),
+            [0xff, 0x00, 0xff].iter()
+        );
+
+        let q_010x0x = masked_atom_quality(
+            [0x01, 0x02, 0x03].iter(),
+            [0xff, 0xf0, 0xf0].iter()
+        );
+
+        let q_0102xx04 = masked_atom_quality(
+            [0x01, 0x02, 0x03, 0x04].iter(),
+            [0xff, 0xff, 0x00, 0xff].iter(),
+        );
         
         assert!(q_00000001 > q_00000000);
         assert!(q_00000001 > q_000001);
@@ -203,9 +278,19 @@ mod test {
         assert!(q_010203 > q_0102);
         assert!(q_010203 > q_00000000);
         assert!(q_0102 > q_01);
+        assert!(q_01x203 > q_0102);
+        assert!(q_01x203 > q_0001);
+        assert!(q_01x203 < q_010203);
+        assert_eq!(q_01x203, q_010x03);
         assert_eq!(q_cccccccc, q_ffffffff);
         assert_eq!(q_cccccccc, q_90909090);
         assert_eq!(q_cccccccc, q_20202020);
+        assert!(q_01xx03 <= q_0102);
+        assert!(q_01xx03 < q_010x03);
+        assert!(q_01xx03 < q_010203);
+        assert!(q_010x0x > q_01);
+        assert!(q_010x0x < q_010203);
+        assert_eq!(q_01020000, q_0102xx04);
         assert!(q_01020102 > q_01020000);
         assert!(q_01020102 > q_01010101);
         assert!(q_01020304 > q_01020102);
@@ -217,8 +302,7 @@ mod test {
         assert!(q_ab > q_01);
         assert!(q_aa > q_01);
         assert!(q_ab > q_aa);
-        dbg!(q_ab);
-        dbg!(q_00000001);
+
         
         assert!(q_ab > q_000001);
     }

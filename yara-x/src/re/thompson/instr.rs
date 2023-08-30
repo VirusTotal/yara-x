@@ -54,14 +54,12 @@ solely matches the `0xAA` byte.
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::mem::size_of;
-use std::num::NonZeroU32;
 use std::u8;
 
 use bitvec::array::BitArray;
 use bitvec::order::Lsb0;
 use bitvec::slice::{BitSlice, IterOnes};
 use regex_syntax::hir::ClassBytes;
-use serde::{Deserialize, Serialize};
 
 use yara_x_parser::ast::HexByte;
 
@@ -512,7 +510,7 @@ impl Display for InstrSeq {
 
 /// Parses a slice of bytes that contains Pike VM instructions, returning
 /// individual instructions and their arguments.
-pub struct InstrParser<'a> {
+pub(crate) struct InstrParser<'a> {
     code: &'a [u8],
     ip: usize,
 }
@@ -527,138 +525,91 @@ impl<'a> InstrParser<'a> {
     }
 
     pub fn next(&mut self) -> Instr {
-        let (instr, size) = decode_instr(&self.code[self.ip..]);
+        let (instr, size) = Self::decode_instr(&self.code[self.ip..]);
         self.ip += size;
         instr
     }
-}
 
-/// Trait implementing by both [`FwdCodeLoc`] and [`BckCodeLoc`].
-pub(crate) trait CodeLoc: From<usize> {
-    fn location(&self) -> usize;
-    fn backwards(&self) -> bool;
-}
+    #[inline(always)]
+    pub fn decode_instr(code: &[u8]) -> (Instr, usize) {
+        match code[..] {
+            [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => (Instr::AnyByte, 2),
+            [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
+                (Instr::MaskedByte { byte, mask }, 4)
+            }
+            [OPCODE_PREFIX, Instr::CASE_INSENSITIVE_CHAR, byte, ..] => {
+                (Instr::CaseInsensitiveChar(byte), 3)
+            }
+            [OPCODE_PREFIX, Instr::JUMP, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
 
-/// Represents a location within the forward code for a regexp.
-#[derive(Serialize, Deserialize, Clone, Copy)]
-pub(crate) struct FwdCodeLoc(NonZeroU32);
+                (Instr::Jump(offset), 2 + size_of::<Offset>())
+            }
+            [OPCODE_PREFIX, Instr::SPLIT_A, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
 
-impl From<usize> for FwdCodeLoc {
-    fn from(value: usize) -> Self {
-        let value: u32 = value.try_into().unwrap();
-        Self(NonZeroU32::new(value + 1).unwrap())
+                (Instr::SplitA(offset), 2 + size_of::<Offset>())
+            }
+            [OPCODE_PREFIX, Instr::SPLIT_B, ..] => {
+                let offset = Self::decode_offset(&code[2..]);
+
+                (Instr::SplitB(offset), 2 + size_of::<Offset>())
+            }
+            [OPCODE_PREFIX, Instr::SPLIT_N, ..] => {
+                let n = Self::decode_num_alt(&code[2..]);
+
+                let offsets = &code[2 + size_of::<NumAlt>()
+                    ..2 + size_of::<NumAlt>()
+                        + size_of::<Offset>() * n as usize];
+
+                (
+                    Instr::SplitN(SplitN(offsets)),
+                    2 + size_of::<NumAlt>() + size_of::<Offset>() * n as usize,
+                )
+            }
+            [OPCODE_PREFIX, Instr::CLASS_RANGES, ..] => {
+                let n = code[2];
+
+                let ranges = &code[3..3 + size_of::<i16>() * n as usize];
+
+                (
+                    Instr::ClassRanges(ClassRanges(ranges)),
+                    3 + size_of::<i16>() * n as usize,
+                )
+            }
+            [OPCODE_PREFIX, Instr::CLASS_BITMAP, ..] => {
+                let bitmap = &code[2..2 + 32];
+                (Instr::ClassBitmap(ClassBitmap(bitmap)), 2 + bitmap.len())
+            }
+            [OPCODE_PREFIX, Instr::START, ..] => (Instr::Start, 2),
+            [OPCODE_PREFIX, Instr::END, ..] => (Instr::End, 2),
+            [OPCODE_PREFIX, Instr::WORD_BOUNDARY, ..] => {
+                (Instr::WordBoundary, 2)
+            }
+            [OPCODE_PREFIX, Instr::WORD_BOUNDARY_NEG, ..] => {
+                (Instr::WordBoundaryNeg, 2)
+            }
+            [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
+            [OPCODE_PREFIX, OPCODE_PREFIX, ..] => {
+                (Instr::Byte(OPCODE_PREFIX), 2)
+            }
+            [b, ..] => (Instr::Byte(b), 1),
+            [] => (Instr::Eoi, 0),
+        }
     }
-}
 
-impl CodeLoc for FwdCodeLoc {
-    #[inline]
-    fn location(&self) -> usize {
-        self.0.get() as usize - 1
+    fn decode_offset(slice: &[u8]) -> Offset {
+        let bytes: &[u8; size_of::<Offset>()] =
+            unsafe { &*(slice.as_ptr() as *const [u8; size_of::<Offset>()]) };
+
+        Offset::from_le_bytes(*bytes)
     }
 
-    #[inline]
-    fn backwards(&self) -> bool {
-        false
-    }
-}
+    fn decode_num_alt(slice: &[u8]) -> NumAlt {
+        let bytes: &[u8; size_of::<NumAlt>()] =
+            unsafe { &*(slice.as_ptr() as *const [u8; size_of::<NumAlt>()]) };
 
-/// Represents a location within the backward code for a regexp.
-#[derive(Serialize, Deserialize, Clone, Copy)]
-pub(crate) struct BckCodeLoc(NonZeroU32);
-
-impl From<usize> for BckCodeLoc {
-    fn from(value: usize) -> Self {
-        let value: u32 = value.try_into().unwrap();
-        Self(NonZeroU32::new(value + 1).unwrap())
-    }
-}
-
-impl CodeLoc for BckCodeLoc {
-    #[inline]
-    fn location(&self) -> usize {
-        self.0.get() as usize - 1
-    }
-
-    #[inline]
-    fn backwards(&self) -> bool {
-        true
-    }
-}
-
-fn decode_offset(slice: &[u8]) -> Offset {
-    let bytes: &[u8; size_of::<Offset>()] =
-        unsafe { &*(slice.as_ptr() as *const [u8; size_of::<Offset>()]) };
-
-    Offset::from_le_bytes(*bytes)
-}
-
-fn decode_num_alt(slice: &[u8]) -> NumAlt {
-    let bytes: &[u8; size_of::<NumAlt>()] =
-        unsafe { &*(slice.as_ptr() as *const [u8; size_of::<NumAlt>()]) };
-
-    NumAlt::from_le_bytes(*bytes)
-}
-
-#[inline(always)]
-pub(crate) fn decode_instr(code: &[u8]) -> (Instr, usize) {
-    match code[..] {
-        [OPCODE_PREFIX, Instr::ANY_BYTE, ..] => (Instr::AnyByte, 2),
-        [OPCODE_PREFIX, Instr::MASKED_BYTE, byte, mask, ..] => {
-            (Instr::MaskedByte { byte, mask }, 4)
-        }
-        [OPCODE_PREFIX, Instr::CASE_INSENSITIVE_CHAR, byte, ..] => {
-            (Instr::CaseInsensitiveChar(byte), 3)
-        }
-        [OPCODE_PREFIX, Instr::JUMP, ..] => {
-            let offset = decode_offset(&code[2..]);
-
-            (Instr::Jump(offset), 2 + size_of::<Offset>())
-        }
-        [OPCODE_PREFIX, Instr::SPLIT_A, ..] => {
-            let offset = decode_offset(&code[2..]);
-
-            (Instr::SplitA(offset), 2 + size_of::<Offset>())
-        }
-        [OPCODE_PREFIX, Instr::SPLIT_B, ..] => {
-            let offset = decode_offset(&code[2..]);
-
-            (Instr::SplitB(offset), 2 + size_of::<Offset>())
-        }
-        [OPCODE_PREFIX, Instr::SPLIT_N, ..] => {
-            let n = decode_num_alt(&code[2..]);
-
-            let offsets = &code[2 + size_of::<NumAlt>()
-                ..2 + size_of::<NumAlt>() + size_of::<Offset>() * n as usize];
-
-            (
-                Instr::SplitN(SplitN(offsets)),
-                2 + size_of::<NumAlt>() + size_of::<Offset>() * n as usize,
-            )
-        }
-        [OPCODE_PREFIX, Instr::CLASS_RANGES, ..] => {
-            let n = code[2];
-
-            let ranges = &code[3..3 + size_of::<i16>() * n as usize];
-
-            (
-                Instr::ClassRanges(ClassRanges(ranges)),
-                3 + size_of::<i16>() * n as usize,
-            )
-        }
-        [OPCODE_PREFIX, Instr::CLASS_BITMAP, ..] => {
-            let bitmap = &code[2..2 + 32];
-            (Instr::ClassBitmap(ClassBitmap(bitmap)), 2 + bitmap.len())
-        }
-        [OPCODE_PREFIX, Instr::START, ..] => (Instr::Start, 2),
-        [OPCODE_PREFIX, Instr::END, ..] => (Instr::End, 2),
-        [OPCODE_PREFIX, Instr::WORD_BOUNDARY, ..] => (Instr::WordBoundary, 2),
-        [OPCODE_PREFIX, Instr::WORD_BOUNDARY_NEG, ..] => {
-            (Instr::WordBoundaryNeg, 2)
-        }
-        [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
-        [OPCODE_PREFIX, OPCODE_PREFIX, ..] => (Instr::Byte(OPCODE_PREFIX), 2),
-        [b, ..] => (Instr::Byte(b), 1),
-        [] => (Instr::Eoi, 0),
+        NumAlt::from_le_bytes(*bytes)
     }
 }
 

@@ -24,8 +24,10 @@ use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
+use crate::re::fast::fastvm::FastVM;
 use crate::re::thompson::pikevm;
 use crate::re::thompson::pikevm::PikeVM;
+use crate::re::Action;
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
 use crate::scanner::{RuntimeStringId, HEARTBEAT_COUNTER};
 use crate::string_pool::BStringPool;
@@ -252,8 +254,11 @@ impl ScanContext<'_> {
 
         let ac = self.compiled_rules.ac_automaton();
 
-        let mut pike_vm = PikeVM::new(self.compiled_rules.re_code())
-            .scan_limit(PikeVM::DEFAULT_SCAN_LIMIT);
+        let mut vm = VM {
+            pike_vm: PikeVM::new(self.compiled_rules.re_code())
+                .scan_limit(PikeVM::DEFAULT_SCAN_LIMIT),
+            fast_vm: FastVM::new(self.compiled_rules.re_code()),
+        };
 
         let atoms = self.compiled_rules.atoms();
 
@@ -361,7 +366,7 @@ impl ScanContext<'_> {
                 | SubPattern::RegexpChainHead { flags, .. }
                 | SubPattern::RegexpChainTail { flags, .. } => {
                     verify_regexp_match(
-                        &mut pike_vm,
+                        &mut vm,
                         scanned_data,
                         atom_pos,
                         atom,
@@ -524,7 +529,7 @@ impl ScanContext<'_> {
                 self.track_pattern_match(
                     pattern_id,
                     match_,
-                    flags.contains(SubPatternFlags::Greedy),
+                    flags.contains(SubPatternFlags::GreedyRegexp),
                 );
             }
             SubPattern::LiteralChainHead { .. }
@@ -659,7 +664,7 @@ impl ScanContext<'_> {
                                 range: match_range.start..tail_match_range.end,
                                 xor_key: None,
                             },
-                            flags.contains(SubPatternFlags::Greedy),
+                            flags.contains(SubPatternFlags::GreedyRegexp),
                         );
                     }
                 }
@@ -813,37 +818,57 @@ fn verify_full_word(
 /// This function can produce multiple matches, `f` is called for every
 /// match found.
 fn verify_regexp_match(
-    pike_vm: &mut PikeVM,
+    vm: &mut VM,
     scanned_data: &[u8],
     atom_pos: usize,
     atom: &SubPatternAtom,
     flags: SubPatternFlagSet,
     mut f: impl FnMut(Match),
 ) {
-    // Try matching from the point where the atom was found
-    // going forward (left-to-right).
     let mut fwd_match_len = None;
 
-    if flags.contains(SubPatternFlags::Wide) {
-        pike_vm.try_match(
-            atom.fwd_code(),
-            scanned_data[atom_pos..].iter().step_by(2),
-            scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
-            |match_len| {
-                fwd_match_len = Some(match_len * 2);
-                pikevm::Action::Stop
-            },
-        );
+    // If the atom has some forward code, that's the code that should execute
+    // the VM for matching the portion that pattern that comes after the atom.
+    // The type of VM used depends on whether the pattern was compiled for the
+    // faster and less general FastVM, or for the slower but more general
+    // PikeVM.
+    if let Some(fwd_code) = atom.fwd_code() {
+        if flags.contains(SubPatternFlags::Wide) {
+            if flags.contains(SubPatternFlags::FastRegexp) {
+                todo!()
+            } else {
+                vm.pike_vm.try_match(
+                    fwd_code,
+                    scanned_data[atom_pos..].iter().step_by(2),
+                    scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
+                    |match_len| {
+                        fwd_match_len = Some(match_len * 2);
+                        Action::Stop
+                    },
+                );
+            }
+        } else if flags.contains(SubPatternFlags::FastRegexp) {
+            vm.fast_vm.try_match(
+                fwd_code,
+                &scanned_data[atom_pos..],
+                |match_len| {
+                    fwd_match_len = Some(match_len);
+                    Action::Stop
+                },
+            );
+        } else {
+            vm.pike_vm.try_match(
+                fwd_code,
+                scanned_data[atom_pos..].iter(),
+                scanned_data[..atom_pos].iter().rev(),
+                |match_len| {
+                    fwd_match_len = Some(match_len);
+                    Action::Stop
+                },
+            );
+        }
     } else {
-        pike_vm.try_match(
-            atom.fwd_code(),
-            scanned_data[atom_pos..].iter(),
-            scanned_data[..atom_pos].iter().rev(),
-            |match_len| {
-                fwd_match_len = Some(match_len);
-                pikevm::Action::Stop
-            },
-        );
+        fwd_match_len = Some(atom.len());
     }
 
     let fwd_match_len = match fwd_match_len {
@@ -851,33 +876,59 @@ fn verify_regexp_match(
         None => return,
     };
 
-    if flags.contains(SubPatternFlags::Wide) {
-        pike_vm.try_match(
-            atom.bck_code(),
-            scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
-            scanned_data[atom_pos..].iter().step_by(2),
-            |bck_match_len| {
-                let range =
-                    atom_pos - bck_match_len * 2..atom_pos + fwd_match_len;
-                if verify_full_word(scanned_data, &range, flags, None) {
-                    f(Match { range, xor_key: None });
-                }
-                pikevm::Action::Continue
-            },
-        );
+    if let Some(bck_code) = atom.bck_code() {
+        if flags.contains(SubPatternFlags::Wide) {
+            if flags.contains(SubPatternFlags::FastRegexp) {
+                todo!()
+            } else {
+                vm.pike_vm.try_match(
+                    bck_code,
+                    scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
+                    scanned_data[atom_pos..].iter().step_by(2),
+                    |bck_match_len| {
+                        let range = atom_pos - bck_match_len * 2
+                            ..atom_pos + fwd_match_len;
+                        if verify_full_word(scanned_data, &range, flags, None)
+                        {
+                            f(Match { range, xor_key: None });
+                        }
+                        Action::Continue
+                    },
+                );
+            }
+        } else if flags.contains(SubPatternFlags::FastRegexp) {
+            vm.fast_vm.try_match(
+                bck_code,
+                &scanned_data[..atom_pos],
+                |bck_match_len| {
+                    let range =
+                        atom_pos - bck_match_len..atom_pos + fwd_match_len;
+                    if verify_full_word(scanned_data, &range, flags, None) {
+                        f(Match { range, xor_key: None });
+                    }
+                    Action::Continue
+                },
+            );
+        } else {
+            vm.pike_vm.try_match(
+                bck_code,
+                scanned_data[..atom_pos].iter().rev(),
+                scanned_data[atom_pos..].iter(),
+                |bck_match_len| {
+                    let range =
+                        atom_pos - bck_match_len..atom_pos + fwd_match_len;
+                    if verify_full_word(scanned_data, &range, flags, None) {
+                        f(Match { range, xor_key: None });
+                    }
+                    Action::Continue
+                },
+            );
+        }
     } else {
-        pike_vm.try_match(
-            atom.bck_code(),
-            scanned_data[..atom_pos].iter().rev(),
-            scanned_data[atom_pos..].iter(),
-            |bck_match_len| {
-                let range = atom_pos - bck_match_len..atom_pos + fwd_match_len;
-                if verify_full_word(scanned_data, &range, flags, None) {
-                    f(Match { range, xor_key: None });
-                }
-                pikevm::Action::Continue
-            },
-        );
+        let range = atom_pos..atom_pos + fwd_match_len;
+        if verify_full_word(scanned_data, &range, flags, None) {
+            f(Match { range, xor_key: None });
+        }
     }
 }
 
@@ -1064,4 +1115,9 @@ fn verify_base64_match(
     } else {
         None
     }
+}
+
+struct VM<'r> {
+    pike_vm: PikeVM<'r>,
+    fast_vm: FastVM<'r>,
 }

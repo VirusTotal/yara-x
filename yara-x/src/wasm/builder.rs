@@ -70,7 +70,7 @@ macro_rules! global_const {
 /// per function. Too few namespaces per function increases compilation time
 /// due to the higher number of functions, too much namespaces per function
 /// increases compilation because each function becomes too large and complex.
-///  
+///
 /// In turn, each of the namespace blocks calls one or more rules functions
 /// which contains the logic for multiple YARA rules. This is how one of the
 /// namespace blocks looks in details:
@@ -83,7 +83,7 @@ macro_rules! global_const {
 ///        br_if outer            ;; exit the outer block if result is 1
 ///        ...
 ///        call global_rules_n
-///        br_if outer            
+///        br_if outer
 ///     }
 ///     block {            ;; block for non-global rules
 ///        call rules_0    ;; calls a function that contains the logic for one
