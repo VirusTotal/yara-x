@@ -77,6 +77,22 @@ struct SegmentCommand32 {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
+struct SegmentCommand64 {
+    cmd: u32,
+    cmdsize: u32,
+    segname: [u8; 16],
+    vmaddr: u64,
+    vmsize: u64,
+    fileoff: u64,
+    filesize: u64,
+    maxprot: u32,
+    initprot: u32,
+    nsects: u32,
+    flags: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
 struct Section32 {
     sectname: [u8; 16],
     segname: [u8; 16],
@@ -89,6 +105,23 @@ struct Section32 {
     flags: u32,
     reserved1: u32,
     reserved2: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct Section64 {
+    sectname: [u8; 16],
+    segname: [u8; 16],
+    addr: u64,
+    size: u64,
+    offset: u32,
+    align: u32,
+    reloff: u32,
+    nreloc: u32,
+    flags: u32,
+    reserved1: u32,
+    reserved2: u32,
+    reserved3: u32,
 }
 
 // Get magic constant from Mach-O file
@@ -117,6 +150,7 @@ fn handle_segment_command(
         }
 
         // Print the sg structure in the specified format
+        println!("Segment Commands:");
         println!("Command: 0x{:x}", sg.cmd);
         println!("Command Size: {}", sg.cmdsize);
         println!(
@@ -125,8 +159,8 @@ fn handle_segment_command(
         );
         println!("VM Address: 0x{:x}", sg.vmaddr);
         println!("VM Size: 0x{:x}", sg.vmsize);
-        println!("File Offset: 0x{:x}", sg.fileoff);
-        println!("File Size: 0x{:x}", sg.filesize);
+        println!("File Offset: {}", sg.fileoff);
+        println!("File Size: {}", sg.filesize);
         println!("Max Protection: 0x{:x}", sg.maxprot);
         println!("Init Protection: 0x{:x}", sg.initprot);
         println!("Number of Sections: {}", sg.nsects);
@@ -149,14 +183,59 @@ fn handle_segment_command(
 }
 
 // Handle the LC_SEGMENT_64 command
-fn handle_segment_64_command(
+fn handle_segment_command_64(
     command_data: &[u8],
     size: usize,
     seg_count: &mut u64,
     macho_proto: &mut Macho,
 ) {
-    // TODO: Implement the logic for handling the LC_SEGMENT_64 command
-    *seg_count += 1;
+    // Check if segment size is not less than SegmentCommand64 struct size
+    if size < std::mem::size_of::<SegmentCommand64>() {
+        return;
+    }
+
+    // Parse segment command data
+    if let Ok((remaining_data, mut sg)) =
+        parse_segment_command_64(command_data)
+    {
+        if let Some(magic_value) = macho_proto.magic {
+            if should_swap_bytes(magic_value) {
+                swap_segment_command_64(&mut sg);
+            }
+        }
+
+        // Print the sg structure in the specified format
+        println!("Segment Commands:");
+        println!("Command: 0x{:x}", sg.cmd);
+        println!("Command Size: {}", sg.cmdsize);
+        println!(
+            "Segment Name: {}",
+            std::str::from_utf8(&sg.segname).unwrap_or_default()
+        );
+        println!("VM Address: 0x{:x}", sg.vmaddr);
+        println!("VM Size: 0x{:x}", sg.vmsize);
+        println!("File Offset: {}", sg.fileoff);
+        println!("File Size: {}", sg.filesize);
+        println!("Max Protection: 0x{:x}", sg.maxprot);
+        println!("Init Protection: 0x{:x}", sg.initprot);
+        println!("Number of Sections: {}", sg.nsects);
+        println!("Flags: 0x{:x}", sg.flags);
+
+        // TODO: Set the segment fields in the macho_proto
+        let mut sections_data = remaining_data;
+        for _ in 0..sg.nsects {
+            if let Ok((remaining_sections, sec)) =
+                parse_section_64(sections_data)
+            {
+                // TODO: Set the section fields in the macho_proto
+                sections_data = remaining_sections;
+            } else {
+                break;
+            }
+        }
+
+        *seg_count += 1;
+    }
 }
 
 // Check if given file is basic Mach-O file
@@ -204,7 +283,7 @@ fn swap_mach_header(header: &mut MachOHeader64) {
     header.sizeofcmds = BigEndian::read_u32(&header.sizeofcmds.to_le_bytes());
     header.flags = BigEndian::read_u32(&header.flags.to_le_bytes());
 
-    // Only swap the reserved field for 64-bit files
+    // Only swap the reserved field for 64bit files
     if !is_32_bit(header.magic) {
         header.reserved = BigEndian::read_u32(&header.reserved.to_le_bytes());
     }
@@ -216,6 +295,7 @@ fn swap_load_command(command: &mut LoadCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+// Swap Mach-O segment command for 32bit files
 fn swap_segment_command(segment: &mut SegmentCommand32) {
     segment.cmd = BigEndian::read_u32(&segment.cmd.to_le_bytes());
     segment.cmdsize = BigEndian::read_u32(&segment.cmdsize.to_le_bytes());
@@ -223,6 +303,20 @@ fn swap_segment_command(segment: &mut SegmentCommand32) {
     segment.vmsize = BigEndian::read_u32(&segment.vmsize.to_le_bytes());
     segment.fileoff = BigEndian::read_u32(&segment.fileoff.to_le_bytes());
     segment.filesize = BigEndian::read_u32(&segment.filesize.to_le_bytes());
+    segment.maxprot = BigEndian::read_u32(&segment.maxprot.to_le_bytes());
+    segment.initprot = BigEndian::read_u32(&segment.initprot.to_le_bytes());
+    segment.nsects = BigEndian::read_u32(&segment.nsects.to_le_bytes());
+    segment.flags = BigEndian::read_u32(&segment.flags.to_le_bytes());
+}
+
+// Swap Mach-O segment command for 64bit files
+fn swap_segment_command_64(segment: &mut SegmentCommand64) {
+    segment.cmd = BigEndian::read_u32(&segment.cmd.to_le_bytes());
+    segment.cmdsize = BigEndian::read_u32(&segment.cmdsize.to_le_bytes());
+    segment.vmaddr = BigEndian::read_u64(&segment.vmaddr.to_le_bytes());
+    segment.vmsize = BigEndian::read_u64(&segment.vmsize.to_le_bytes());
+    segment.fileoff = BigEndian::read_u64(&segment.fileoff.to_le_bytes());
+    segment.filesize = BigEndian::read_u64(&segment.filesize.to_le_bytes());
     segment.maxprot = BigEndian::read_u32(&segment.maxprot.to_le_bytes());
     segment.initprot = BigEndian::read_u32(&segment.initprot.to_le_bytes());
     segment.nsects = BigEndian::read_u32(&segment.nsects.to_le_bytes());
@@ -298,6 +392,38 @@ fn parse_segment_command(input: &[u8]) -> IResult<&[u8], SegmentCommand32> {
     ))
 }
 
+// Parsing function for Mach-O 64bit Command segment
+fn parse_segment_command_64(input: &[u8]) -> IResult<&[u8], SegmentCommand64> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, segname) = take(16usize)(input)?;
+    let (input, vmaddr) = le_u64(input)?;
+    let (input, vmsize) = le_u64(input)?;
+    let (input, fileoff) = le_u64(input)?;
+    let (input, filesize) = le_u64(input)?;
+    let (input, maxprot) = le_u32(input)?;
+    let (input, initprot) = le_u32(input)?;
+    let (input, nsects) = le_u32(input)?;
+    let (input, flags) = le_u32(input)?;
+
+    Ok((
+        input,
+        SegmentCommand64 {
+            cmd,
+            cmdsize,
+            segname: *array_ref![segname, 0, 16],
+            vmaddr,
+            vmsize,
+            fileoff,
+            filesize,
+            maxprot,
+            initprot,
+            nsects,
+            flags,
+        },
+    ))
+}
+
 // Parsing function for Mach-O 32bit Section
 fn parse_section(input: &[u8]) -> IResult<&[u8], Section32> {
     let (input, sectname) = take(16usize)(input)?;
@@ -326,6 +452,40 @@ fn parse_section(input: &[u8]) -> IResult<&[u8], Section32> {
             flags,
             reserved1,
             reserved2,
+        },
+    ))
+}
+
+// Parsing function for Mach-O 64bit Section
+fn parse_section_64(input: &[u8]) -> IResult<&[u8], Section64> {
+    let (input, sectname) = take(16usize)(input)?;
+    let (input, segname) = take(16usize)(input)?;
+    let (input, addr) = le_u64(input)?;
+    let (input, size) = le_u64(input)?;
+    let (input, offset) = le_u32(input)?;
+    let (input, align) = le_u32(input)?;
+    let (input, reloff) = le_u32(input)?;
+    let (input, nreloc) = le_u32(input)?;
+    let (input, flags) = le_u32(input)?;
+    let (input, reserved1) = le_u32(input)?;
+    let (input, reserved2) = le_u32(input)?;
+    let (input, reserved3) = le_u32(input)?;
+
+    Ok((
+        input,
+        Section64 {
+            sectname: *array_ref![sectname, 0, 16],
+            segname: *array_ref![segname, 0, 16],
+            addr,
+            size,
+            offset,
+            align,
+            reloff,
+            nreloc,
+            flags,
+            reserved1,
+            reserved2,
+            reserved3,
         },
     ))
 }
@@ -379,7 +539,7 @@ fn parse_macho_commands(
                     );
                 }
                 LC_SEGMENT_64 => {
-                    handle_segment_64_command(
+                    handle_segment_command_64(
                         command_data,
                         command.cmdsize as usize,
                         &mut seg_count,
@@ -430,6 +590,7 @@ fn parse_macho_file(data: &[u8], macho_proto: &mut Macho) {
         }
 
         // Print header fields in hexadecimal format
+        println!("Header:");
         println!("Magic: 0x{:x}", parsed_header.magic);
         println!("CPU Type: {}", parsed_header.cputype);
         println!("CPU Subtype: {}", parsed_header.cpusubtype);
@@ -438,6 +599,7 @@ fn parse_macho_file(data: &[u8], macho_proto: &mut Macho) {
         println!("Size of Commands: {}", parsed_header.sizeofcmds);
         println!("Flags: 0x{:x}", parsed_header.flags);
         println!("Reserved: 0x{:x}", parsed_header.reserved);
+        println!();
 
         // Assign the parsed header to the header_option variable
         header = Some(parsed_header);
