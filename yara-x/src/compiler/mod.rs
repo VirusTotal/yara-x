@@ -1015,24 +1015,27 @@ impl<'a> Compiler<'a> {
         let case_insensitive = flags.contains(PatternFlags::Nocase);
         let full_word = flags.contains(PatternFlags::Fullword);
 
-        let mut flags = SubPatternFlagSet::none();
+        let mut common_flags = SubPatternFlagSet::none();
 
         if case_insensitive {
-            flags.set(SubPatternFlags::Nocase);
-        }
-
-        if full_word {
-            flags.set(SubPatternFlags::FullwordLeft);
+            common_flags.set(SubPatternFlags::Nocase);
         }
 
         let mut prev_sub_pattern_ascii = SubPatternId(0);
         let mut prev_sub_pattern_wide = SubPatternId(0);
 
         if let hir::HirKind::Literal(literal) = leading.kind() {
+            let mut flags = common_flags;
+
+            if full_word {
+                flags.set(SubPatternFlags::FullwordLeft);
+            }
+
             if ascii {
                 prev_sub_pattern_ascii =
                     self.process_literal_chain_head(literal, flags);
             }
+
             if wide {
                 prev_sub_pattern_wide = self.process_literal_chain_head(
                     literal,
@@ -1040,6 +1043,8 @@ impl<'a> Compiler<'a> {
                 );
             };
         } else {
+            let mut flags = common_flags;
+
             if matches!(leading.is_greedy(), Some(true)) {
                 flags.set(SubPatternFlags::GreedyRegexp);
             }
@@ -1049,6 +1054,10 @@ impl<'a> Compiler<'a> {
 
             if is_fast_regexp {
                 flags.set(SubPatternFlags::FastRegexp);
+            }
+
+            if full_word {
+                flags.set(SubPatternFlags::FullwordLeft);
             }
 
             if wide {
@@ -1068,13 +1077,9 @@ impl<'a> Compiler<'a> {
             }
         }
 
-        // The head of the chain is the only one that has the `FullwordLeft`
-        // flag, now that the head has been processed we must unset this flag.
-        if full_word {
-            flags.unset(SubPatternFlags::FullwordLeft);
-        }
-
         for (i, p) in trailing.iter().enumerate() {
+            let mut flags = common_flags;
+
             // The last pattern in the chain has the `LastInChain` flag and
             // the `FullwordRight` if the original pattern was `Fullword`.
             // Patterns in the middle of the chain won't have neither of these
