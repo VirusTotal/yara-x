@@ -1,4 +1,3 @@
-use bitvec::array::BitArray;
 use std::cmp;
 use std::cmp::Ordering;
 use std::collections::VecDeque;
@@ -6,6 +5,7 @@ use std::iter;
 use std::iter::zip;
 use std::ops::Range;
 
+use bitvec::array::BitArray;
 use regex_syntax::hir::literal::Seq;
 
 use crate::compiler::{Atom, DESIRED_ATOM_SIZE};
@@ -21,7 +21,7 @@ where
     best_quality: i32,
     best_range: Range<usize>,
     queue: VecDeque<(usize, u8, u8, i32)>,
-    bytes_present: BitArray<[usize; 256]>,
+    bytes_present: BitArray<[u64; 4]>,
     byte_mask_iter: I,
 }
 
@@ -94,15 +94,15 @@ where
         if self.queue.len() == self.queue.capacity() {
             let (_, _, _, q) = self.queue.pop_front().unwrap();
             self.base_quality -= q;
-        }
 
-        // After removing the left-most byte (if any), and before the new byte
-        // is added, check if the quality has improved.
-        let quality = self.quality();
-        if quality > self.best_quality {
-            self.best_quality = quality;
-            self.best_range = self.queue.front().unwrap().0
-                ..self.queue.back().unwrap().0 + 1;
+            // After removing the left-most byte, and before the new byte is
+            // added, check if the quality has improved.
+            let quality = self.quality();
+            if quality > self.best_quality {
+                self.best_quality = quality;
+                self.best_range = self.queue.front().unwrap().0
+                    ..self.queue.back().unwrap().0 + 1;
+            }
         }
 
         self.queue.push_back((self.index, byte, mask, q));
@@ -125,11 +125,17 @@ where
 
         self.bytes_present.fill(false);
 
-        for (_, byte, _, _) in &self.queue {
-            self.bytes_present.set(*byte as usize, true);
-        }
+        let mut unique_bytes = 0;
 
-        let unique_bytes = self.bytes_present.count_ones();
+        for (_, byte, _, _) in &self.queue {
+            if matches!(
+                self.bytes_present.get(*byte as usize).as_deref(),
+                Some(false)
+            ) {
+                self.bytes_present.set(*byte as usize, true);
+                unique_bytes += 1;
+            }
+        }
 
         // The base quality is used as the starting point, but it's boosted
         // or penalized according to the uniqueness of the bytes
@@ -139,8 +145,8 @@ where
         // penalize it heavily.
         if unique_bytes == 1 {
             // As the number of unique bytes is 1, the first one in
-            // bytes_present corresponds to that unique byte.
-            match self.bytes_present.first_one().unwrap() {
+            // the queue corresponds to that unique byte.
+            match self.queue.front().unwrap().1 {
                 0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
                     q -= 10 * self.queue.len() as i32
                 }

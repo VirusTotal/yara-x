@@ -231,8 +231,22 @@ impl Visitor for PatternSplitter {
     }
 
     fn visit_pre(&mut self, hir: &Hir) -> Result<(), Self::Err> {
-        if let HirKind::Repetition(_) = hir.kind() {
-            self.rep_level += 1
+        match hir.kind() {
+            // Repetitions are ok, as long as they are a non-greedy and
+            // the pattern repeated is any byte. Jumps in hex patterns
+            // (eg: [1], [10-20]) are expressed as one of such repetitions.
+            // These jumps behave as delimiters between pattern pieces.
+            HirKind::Repetition(rep) => {
+                if !rep.greedy && re::hir::any_byte(rep.sub.kind()) {
+                    self.rep_level += 1
+                } else {
+                    return Err(Error::FastIncompatible);
+                }
+            }
+            HirKind::Capture(_)
+            | HirKind::Look(_)
+            | HirKind::Alternation(_) => return Err(Error::FastIncompatible),
+            _ => {}
         }
         Ok(())
     }
@@ -269,30 +283,28 @@ impl Visitor for PatternSplitter {
                 // the pattern repeated is any byte. Jumps in hex patterns
                 // (eg: [1], [10-20]) are expressed as one of such repetitions.
                 // These jumps behave as delimiters between pattern pieces.
-                if !rep.greedy && re::hir::any_byte(rep.sub.kind()) {
-                    match (rep.min, rep.max) {
-                        // When the jump has a fixed size <= 8 treat it as a
-                        // sequence of ?? wildcards. It's more efficient to
-                        // treat short fixed size jumps as a sequence of
-                        // wildcards than breaking the pattern into more
-                        // pieces.
-                        (min, Some(max)) if min == max && max <= 8 => {
-                            for _ in 0..max {
-                                self.bytes.push(0);
-                                self.mask.push(0);
-                            }
+                match (rep.min, rep.max) {
+                    // When the jump has a fixed size <= 8 treat it as a
+                    // sequence of ?? wildcards. It's more efficient to
+                    // treat short fixed size jumps as a sequence of
+                    // wildcards than breaking the pattern into more
+                    // pieces.
+                    (min, Some(max)) if min == max && max <= 8 => {
+                        for _ in 0..max {
+                            self.bytes.push(0);
+                            self.mask.push(0);
                         }
-                        (min, Some(max)) => {
-                            self.finish_literal();
-                            if min == max {
-                                self.pieces
-                                    .push(PatternPiece::Jump(min as u16));
-                            } else {
-                                self.pieces.push(PatternPiece::JumpRange(
-                                    min as u16, max as u16,
-                                ));
-                            }
+                    }
+                    (min, Some(max)) => {
+                        self.finish_literal();
+                        if min == max {
+                            self.pieces.push(PatternPiece::Jump(min as u16));
+                        } else {
+                            self.pieces.push(PatternPiece::JumpRange(
+                                min as u16, max as u16,
+                            ));
                         }
+                    }
                         // This should not happen. Regexp patterns are split
                         // into multiple chained patterns by calling
                         // re::hir::Hir::split_at_large_gaps before being passed
@@ -301,18 +313,11 @@ impl Visitor for PatternSplitter {
                         (_, None) => {
                             unreachable!()
                         }
-                    }
-                } else {
-                    return Err(Error::FastIncompatible);
                 }
             }
             HirKind::Empty => {}
             HirKind::Concat(_) => {}
-            HirKind::Look(_)
-            | HirKind::Capture(_)
-            | HirKind::Alternation(_) => {
-                return Err(Error::FastIncompatible);
-            }
+            _ => unreachable!(),
         }
 
         Ok(())
