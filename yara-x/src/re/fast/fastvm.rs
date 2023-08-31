@@ -68,6 +68,8 @@ impl<'r> FastVM<'r> {
             &input[..cmp::min(input.len(), self.scan_limit)]
         };
 
+        let mut next_positions = BTreeSet::new();
+
         self.positions.insert(0);
 
         while !self.positions.is_empty() {
@@ -78,8 +80,8 @@ impl<'r> FastVM<'r> {
 
             match instr {
                 Instr::Match => {
-                    for position in mem::take(&mut self.positions) {
-                        match f(position) {
+                    for position in &self.positions {
+                        match f(*position) {
                             Action::Stop => {
                                 return;
                             }
@@ -88,7 +90,10 @@ impl<'r> FastVM<'r> {
                     }
                 }
                 Instr::Literal(literal) => {
-                    for position in mem::take(&mut self.positions) {
+                    for position in &self.positions {
+                        if *position >= input.len() {
+                            continue;
+                        }
                         let is_match = if backwards {
                             self.try_match_literal_bck(
                                 &input[..input.len() - position],
@@ -96,17 +101,20 @@ impl<'r> FastVM<'r> {
                             )
                         } else {
                             self.try_match_literal_fwd(
-                                &input[position..],
+                                &input[*position..],
                                 literal,
                             )
                         };
                         if is_match {
-                            self.positions.insert(position + literal.len());
+                            next_positions.insert(position + literal.len());
                         }
                     }
                 }
                 Instr::MaskedLiteral(literal, mask) => {
-                    for position in mem::take(&mut self.positions) {
+                    for position in &self.positions {
+                        if *position >= input.len() {
+                            continue;
+                        }
                         let is_match = if backwards {
                             self.try_match_masked_literal_bck(
                                 &input[..input.len() - position],
@@ -115,71 +123,87 @@ impl<'r> FastVM<'r> {
                             )
                         } else {
                             self.try_match_masked_literal_fwd(
-                                &input[position..],
+                                &input[*position..],
                                 literal,
                                 mask,
                             )
                         };
                         if is_match {
-                            self.positions.insert(position + literal.len());
+                            next_positions.insert(position + literal.len());
                         }
                     }
                 }
                 Instr::Jump(jump) => {
-                    for position in mem::take(&mut self.positions) {
-                        self.positions.insert(position + jump as usize);
+                    for position in &self.positions {
+                        next_positions.insert(position + jump as usize);
                     }
                 }
                 Instr::JumpRange(range) => {
                     match InstrParser::decode_instr(&self.code[ip..]) {
                         (Instr::Literal(literal), _) if backwards => {
-                            for position in mem::take(&mut self.positions) {
+                            for position in &self.positions {
+                                if *position >= input.len() {
+                                    continue;
+                                }
                                 self.jump_bck(
                                     &input[..input.len() - position],
                                     literal,
                                     &range,
-                                    position,
+                                    *position,
+                                    &mut next_positions,
                                 );
                             }
                         }
                         (Instr::Literal(literal), _) if !backwards => {
-                            for position in mem::take(&mut self.positions) {
+                            for position in &self.positions {
+                                if *position >= input.len() {
+                                    continue;
+                                }
                                 self.jump_fwd(
-                                    &input[position..],
+                                    &input[*position..],
                                     literal,
                                     &range,
-                                    position,
+                                    *position,
+                                    &mut next_positions,
                                 )
                             }
                         }
                         (Instr::MaskedLiteral(literal, mask), _)
                             if backwards && mask.last() == Some(&0xff) =>
                         {
-                            for position in mem::take(&mut self.positions) {
+                            for position in &self.positions {
+                                if *position >= input.len() {
+                                    continue;
+                                }
                                 self.jump_bck(
                                     &input[..input.len() - position],
                                     literal,
                                     &range,
-                                    position,
+                                    *position,
+                                    &mut next_positions,
                                 );
                             }
                         }
                         (Instr::MaskedLiteral(literal, mask), _)
                             if !backwards && mask.first() == Some(&0xff) =>
                         {
-                            for position in mem::take(&mut self.positions) {
+                            for position in &self.positions {
+                                if *position >= input.len() {
+                                    continue;
+                                }
                                 self.jump_fwd(
-                                    &input[position..],
+                                    &input[*position..],
                                     literal,
                                     &range,
-                                    position,
+                                    *position,
+                                    &mut next_positions,
                                 );
                             }
                         }
                         _ => {
                             for position in mem::take(&mut self.positions) {
                                 for i in range.clone() {
-                                    self.positions
+                                    next_positions
                                         .insert(position + i as usize);
                                 }
                             }
@@ -187,6 +211,9 @@ impl<'r> FastVM<'r> {
                     }
                 }
             }
+
+            next_positions = mem::replace(&mut self.positions, next_positions);
+            next_positions.clear();
         }
     }
 }
@@ -256,11 +283,12 @@ impl FastVM<'_> {
 
     #[inline]
     fn jump_fwd(
-        &mut self,
+        &self,
         input: &[u8],
         literal: &[u8],
         range: &RangeInclusive<u16>,
         position: usize,
+        next_positions: &mut BTreeSet<usize>,
     ) {
         let jmp_min = *range.start() as usize;
         let jmp_max = cmp::min(input.len(), *range.end() as usize + 1);
@@ -273,18 +301,19 @@ impl FastVM<'_> {
         if let Some(jmp_range) = input.get(jmp_range) {
             let lit = *literal.first().unwrap();
             for offset in memchr::memchr_iter(lit, jmp_range) {
-                self.positions.insert(position + jmp_min + offset);
+                next_positions.insert(position + jmp_min + offset);
             }
         }
     }
 
     #[inline]
     fn jump_bck(
-        &mut self,
+        &self,
         input: &[u8],
         literal: &[u8],
         range: &RangeInclusive<u16>,
         position: usize,
+        next_positions: &mut BTreeSet<usize>,
     ) {
         let jmp_range = input.len().saturating_sub(*range.end() as usize + 1)
             ..input.len().saturating_sub(*range.start() as usize);
@@ -296,7 +325,7 @@ impl FastVM<'_> {
         if let Some(jmp_range) = input.get(jmp_range) {
             let lit = *literal.last().unwrap();
             for offset in memchr::memrchr_iter(lit, jmp_range) {
-                self.positions.insert(position + jmp_range.len() - offset - 1);
+                next_positions.insert(position + jmp_range.len() - offset - 1);
             }
         }
     }
