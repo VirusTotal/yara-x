@@ -1,4 +1,4 @@
-use crate::ast::{BinaryExpr, Expr, NAryExpr};
+use crate::ast::{BinaryExpr, Expr, NAryExpr, PatternSetItem};
 use crate::parser::SourceId;
 
 pub trait HasSpan {
@@ -71,6 +71,17 @@ impl<'src> HasSpan for &Vec<Expr<'src>> {
     fn span(&self) -> Span {
         let span =
             self.first().expect("calling span() on an empty Vec<Expr>").span();
+
+        span.combine(&self.last().unwrap().span())
+    }
+}
+
+impl<'src> HasSpan for &Vec<PatternSetItem<'src>> {
+    fn span(&self) -> Span {
+        let span = self
+            .first()
+            .expect("calling span() on an empty Vec<PatternSetItem>")
+            .span();
 
         span.combine(&self.last().unwrap().span())
     }

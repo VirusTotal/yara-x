@@ -1299,6 +1299,8 @@ fn emit_of_pattern_set(
 ) {
     let pattern_ids = cast!(&mut of.items, OfItems::PatternSet);
 
+    debug_assert!(!pattern_ids.is_empty());
+
     let num_patterns = pattern_ids.len();
     let mut pattern_ids = pattern_ids.iter().cloned();
     let next_pattern_id = of.stack_frame.new_var(Type::Integer);
