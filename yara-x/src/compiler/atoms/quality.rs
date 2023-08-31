@@ -43,9 +43,29 @@ where
 
     pub fn find(mut self) -> (Range<usize>, i32) {
         while let Some((byte, mask)) = self.byte_mask_iter.next() {
-            self.push(*byte, *mask)
+            if self.queue.len() == self.queue.capacity() {
+                self.pop();
+            }
+            self.push(*byte, *mask);
+        }
+        while !self.queue.is_empty() {
+            self.pop();
         }
         (self.best_range, self.best_quality)
+    }
+
+    #[inline]
+    fn pop(&mut self) {
+        let (_, _, _, q) = self.queue.pop_front().unwrap();
+        self.base_quality -= q;
+
+        let quality = self.quality();
+
+        if quality > self.best_quality {
+            self.best_quality = quality;
+            self.best_range = self.queue.front().unwrap().0
+                ..self.queue.back().unwrap().0 + 1;
+        }
     }
 
     #[inline]
@@ -88,28 +108,11 @@ where
                 }
             }
         }
-        // If the atom already has the desired length, remove the first byte
-        // from the left to make room for the new byte. The base quality is
-        // decremented by the quality of the removed byte.
-        if self.queue.len() == self.queue.capacity() {
-            let (_, _, _, q) = self.queue.pop_front().unwrap();
-            self.base_quality -= q;
-
-            // After removing the left-most byte, and before the new byte is
-            // added, check if the quality has improved.
-            let quality = self.quality();
-            if quality > self.best_quality {
-                self.best_quality = quality;
-                self.best_range = self.queue.front().unwrap().0
-                    ..self.queue.back().unwrap().0 + 1;
-            }
-        }
 
         self.queue.push_back((self.index, byte, mask, q));
         self.base_quality += q;
         self.index += 1;
 
-        // After adding the new byte, check again if the quality has improved.
         let quality = self.quality();
         if quality > self.best_quality {
             self.best_quality = quality;
@@ -127,11 +130,13 @@ where
 
         let mut unique_bytes = 0;
 
-        for (_, byte, _, _) in &self.queue {
-            if matches!(
-                self.bytes_present.get(*byte as usize).as_deref(),
-                Some(false)
-            ) {
+        for (_, byte, mask, _) in &self.queue {
+            if *mask == 0xff
+                && matches!(
+                    self.bytes_present.get(*byte as usize).as_deref(),
+                    Some(false)
+                )
+            {
                 self.bytes_present.set(*byte as usize, true);
                 unique_bytes += 1;
             }
@@ -159,7 +164,7 @@ where
         // let's boost the quality proportionally to the number of unique
         // bytes.
         else {
-            q += 2 * unique_bytes as i32;
+            q += 2 * unique_bytes;
         }
 
         q
@@ -508,7 +513,7 @@ mod test {
                 &[0x01, 0x02, 0x03, 0x04],
                 &[0xFF, 0xFF, 0x0F, 0xFF],
             ),
-            (0..4, 72),
+            (0..4, 70),
         );
 
         assert_eq!(
@@ -516,7 +521,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x04],
                 &[0xFF, 0xFF, 0x00, 0xFF]
             ),
-            (0..4, 60),
+            (0..4, 58),
         );
 
         assert_eq!(
@@ -525,6 +530,14 @@ mod test {
                 &[0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF],
             ),
             (3..7, 88),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(
+                &[0x68, 0x00, 0x00, 0x00, 0x00, 0xFF],
+                &[0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF],
+            ),
+            (3..6, 28),
         );
     }
 }
