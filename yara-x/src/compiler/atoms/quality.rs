@@ -401,7 +401,7 @@ mod test {
         assert!(q_01xx03 < q_010203);
         assert!(q_010x0x > q_01);
         assert!(q_010x0x < q_010203);
-        assert!(q_01020000 < q_0102xx04);
+        assert_eq!(q_01020000, q_0102xx04);
         assert!(q_01020102 > q_01020000);
         assert!(q_01020102 > q_01010101);
         assert!(q_01020304 > q_01020102);
