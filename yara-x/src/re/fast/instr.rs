@@ -144,6 +144,9 @@ impl<'a> InstrParser<'a> {
                 (JumpRange(min..=max), 1 + 2 * size_of::<u16>())
             }
             [Instr::MATCH, ..] => (Match, 1),
+            [opcode, ..] => {
+                unreachable!("unknown opcode for FastVM: {}", opcode)
+            }
             _ => unreachable!(),
         }
     }

@@ -111,8 +111,9 @@ impl<'r> PikeVM<'r> {
             let next_byte = fwd_input.next();
 
             for ip in self.threads.iter() {
-                let (instr, size) =
-                    InstrParser::decode_instr(&self.code[*ip..]);
+                let (instr, size) = InstrParser::decode_instr(unsafe {
+                    &self.code.get_unchecked(*ip..)
+                });
 
                 let is_match = match instr {
                     Instr::AnyByte => curr_byte.is_some(),
@@ -135,10 +136,6 @@ impl<'r> PikeVM<'r> {
                         Action::Stop => break,
                         Action::Continue => false,
                     },
-                    Instr::Eoi => {
-                        // TODO: is this correct?
-                        break;
-                    }
                     _ => unreachable!(),
                 };
 
@@ -220,7 +217,8 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     state.executed_splits.clear();
 
     while let Some(ip) = state.threads.pop() {
-        let (instr, size) = InstrParser::decode_instr(&code[ip..]);
+        let (instr, size) =
+            InstrParser::decode_instr(unsafe { code.get_unchecked(ip..) });
         let next = ip + size;
         match instr {
             Instr::AnyByte
@@ -308,7 +306,6 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     state.threads.push(next)
                 }
             }
-            Instr::Eoi => {}
         }
     }
 }

@@ -148,10 +148,6 @@ pub enum Instr<'a> {
     /// The negation of WordBoundary. Used for \B look-around assertions. This
     /// is a zero-length match.
     WordBoundaryNeg,
-
-    /// Not really an instruction, is just a marker that indicates the end
-    /// of a instruction sequence.
-    Eoi,
 }
 
 impl<'a> Instr<'a> {
@@ -497,8 +493,6 @@ impl Display for InstrSeq {
                 }
                 Instr::Match => {
                     writeln!(f, "{:05x}: MATCH", addr)?;
-                }
-                Instr::Eoi => {
                     break;
                 }
             };
@@ -568,13 +562,13 @@ impl<'a> InstrParser<'a> {
                 )
             }
             [OPCODE_PREFIX, Instr::CLASS_RANGES, ..] => {
-                let n = code[2];
-
-                let ranges = &code[3..3 + size_of::<i16>() * n as usize];
+                let n = *unsafe { code.get_unchecked(2) } as usize;
+                let ranges =
+                    unsafe { code.get_unchecked(3..3 + size_of::<i16>() * n) };
 
                 (
                     Instr::ClassRanges(ClassRanges(ranges)),
-                    3 + size_of::<i16>() * n as usize,
+                    3 + size_of::<i16>() * n,
                 )
             }
             [OPCODE_PREFIX, Instr::CLASS_BITMAP, ..] => {
@@ -594,7 +588,7 @@ impl<'a> InstrParser<'a> {
                 (Instr::Byte(OPCODE_PREFIX), 2)
             }
             [b, ..] => (Instr::Byte(b), 1),
-            [] => (Instr::Eoi, 0),
+            _ => unreachable!(),
         }
     }
 
