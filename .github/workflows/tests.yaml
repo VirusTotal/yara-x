@@ -1,6 +1,7 @@
 name: Tests
 on:
   pull_request:
+    types: [ opened, reopened ]
   push:
 jobs:
   test:
@@ -81,3 +82,4 @@ jobs:
           args: --workspace --all-targets ${{ matrix.args }}
         env:
           RUSTFLAGS: -Awarnings # Allow all warnings
+

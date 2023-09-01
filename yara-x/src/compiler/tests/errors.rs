@@ -832,6 +832,46 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    all of ($a*)
+}
+"#,
+            r#"error: no matching patterns
+   ╭─[line:4:13]
+   │
+ 4 │     all of ($a*)
+   │             ─┬─  
+   │              ╰─── there's no pattern in this set
+   │ 
+   │ Note: `$a*` doesn't match any pattern identifier
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    all of them
+}
+"#,
+            r#"error: no matching patterns
+   ╭─[line:4:12]
+   │
+ 4 │     all of them
+   │            ──┬─  
+   │              ╰─── there's no pattern in this set
+   │ 
+   │ Note: this rule doesn't define any patterns
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
         #[cfg(feature = "test_proto2-module")]
         (
             line!(),

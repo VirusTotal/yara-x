@@ -161,19 +161,21 @@ impl Rules {
     /// The [`Rules`] can be restored back by passing the bytes to
     /// [`Rules::deserialize`].
     pub fn serialize(&self) -> Result<Vec<u8>, SerializationError> {
-        let mut bytes = BufWriter::new(Vec::new());
+        let mut bytes = Vec::new();
         self.serialize_into(&mut bytes)?;
-        Ok(bytes.into_inner().unwrap())
+        Ok(bytes)
     }
 
     /// Serializes the rules and writes the bytes into a `writer`.
     pub fn serialize_into<W>(
         &self,
-        mut writer: W,
+        writer: W,
     ) -> Result<(), SerializationError>
     where
         W: Write,
     {
+        let mut writer = BufWriter::new(writer);
+
         // Write file header.
         writer.write_all(b"YARA-X")?;
 

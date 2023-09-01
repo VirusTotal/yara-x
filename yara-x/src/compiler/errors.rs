@@ -207,4 +207,13 @@ pub enum CompileErrorInfo {
         quantifier1_span: Span,
         quantifier2_span: Span,
     },
+
+    #[error("no matching patterns")]
+    #[label("there's no pattern in this set", span)]
+    #[note(note)]
+    EmptyPatternSet {
+        detailed_report: String,
+        span: Span,
+        note: Option<String>,
+    },
 }

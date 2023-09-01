@@ -616,7 +616,7 @@ fn of_expr_from_ast(
         }
         // `x of them`, `x of ($a*, $b)`
         ast::OfItems::PatternSet(pattern_set) => {
-            let pattern_ids = pattern_set_from_ast(ctx, pattern_set);
+            let pattern_ids = pattern_set_from_ast(ctx, pattern_set)?;
             let num_patterns = pattern_ids.len();
             (OfItems::PatternSet(pattern_ids), num_patterns)
         }
@@ -699,7 +699,7 @@ fn for_of_expr_from_ast(
     for_of: &ast::ForOf,
 ) -> Result<Expr, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
-    let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set);
+    let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
     // Create new stack frame with 5 slots:
     //   1 slot for the loop variable, a pattern ID in this case
     //   4 up to slots used for loop control variables (see: emit::emit_for)
@@ -1029,17 +1029,52 @@ fn quantifier_from_ast(
 fn pattern_set_from_ast(
     ctx: &mut Context,
     pattern_set: &ast::PatternSet,
-) -> Vec<PatternId> {
+) -> Result<Vec<PatternId>, CompileError> {
     let pattern_ids = match pattern_set {
         // `x of them`
-        ast::PatternSet::Them => ctx
-            .current_rule_patterns
-            .iter()
-            .map(|(pattern_id, _)| *pattern_id)
-            .collect(),
+        ast::PatternSet::Them { span } => {
+            let pattern_ids: Vec<PatternId> = ctx
+                .current_rule_patterns
+                .iter()
+                .map(|(pattern_id, _)| *pattern_id)
+                .collect();
+
+            if pattern_ids.is_empty() {
+                return Err(CompileError::from(
+                    CompileErrorInfo::empty_pattern_set(
+                        ctx.report_builder,
+                        *span,
+                        Some(
+                            "this rule doesn't define any patterns"
+                                .to_string(),
+                        ),
+                    ),
+                ));
+            }
+
+            pattern_ids
+        }
         // `x of ($a*, $b)`
         ast::PatternSet::Set(ref set) => {
             let mut pattern_ids = Vec::new();
+            for item in set {
+                if !ctx
+                    .current_rule_patterns
+                    .iter()
+                    .any(|(_, p)| item.matches(p.identifier()))
+                {
+                    return Err(CompileError::from(
+                        CompileErrorInfo::empty_pattern_set(
+                            ctx.report_builder,
+                            item.span(),
+                            Some(format!(
+                                "`{}` doesn't match any pattern identifier",
+                                item.identifier,
+                            )),
+                        ),
+                    ));
+                }
+            }
             for (pattern_id, pattern) in ctx.current_rule_patterns.iter() {
                 // Iterate over the patterns in the set (e.g: $foo, $foo*) and
                 // check if some of them matches the identifier.
@@ -1059,7 +1094,7 @@ fn pattern_set_from_ast(
             .make_non_anchorable();
     }
 
-    pattern_ids
+    Ok(pattern_ids)
 }
 
 fn func_call_from_ast(

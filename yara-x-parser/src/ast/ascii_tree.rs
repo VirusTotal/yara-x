@@ -444,7 +444,7 @@ pub(crate) fn quantifier_ascii_tree(quantifier: &Quantifier) -> Tree {
 
 pub(crate) fn pattern_set_ascii_tree(pattern_set: &PatternSet) -> Tree {
     match pattern_set {
-        PatternSet::Them => Leaf(vec!["them".to_string()]),
+        PatternSet::Them { .. } => Leaf(vec!["them".to_string()]),
         PatternSet::Set(set) => {
             Leaf(set.iter().map(|s| s.identifier.to_string()).collect())
         }

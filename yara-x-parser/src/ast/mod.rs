@@ -886,9 +886,9 @@ pub enum Iterable<'src> {
 
 /// Either a set of pattern identifiers (possibly with wildcards), or the
 /// special set `them`, which includes all the patterns declared in the rule.
-#[derive(Debug)]
+#[derive(Debug, HasSpan)]
 pub enum PatternSet<'src> {
-    Them,
+    Them { span: Span },
     Set(Vec<PatternSetItem<'src>>),
 }
 

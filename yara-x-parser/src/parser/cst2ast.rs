@@ -1461,7 +1461,7 @@ fn of_expr_from_cst<'src>(
         GrammarRule::k_THEM => {
             // `them` was used in the condition, all the patterns are used.
             ctx.unused_patterns.clear();
-            OfItems::PatternSet(PatternSet::Them)
+            OfItems::PatternSet(PatternSet::Them { span: ctx.span(&node) })
         }
         GrammarRule::pattern_ident_tuple => OfItems::PatternSet(
             PatternSet::Set(pattern_ident_tuple(ctx, node)?),
@@ -1511,7 +1511,7 @@ fn for_expr_from_cst<'src>(
             GrammarRule::k_THEM => {
                 // `them` was used in the condition, all the patterns are used.
                 ctx.unused_patterns.clear();
-                PatternSet::Them
+                PatternSet::Them { span: ctx.span(&node) }
             }
             GrammarRule::pattern_ident_tuple => {
                 PatternSet::Set(pattern_ident_tuple(ctx, node)?)

@@ -70,7 +70,7 @@ pub(crate) struct ScanContext<'r> {
     pub main_memory: Option<wasmtime::Memory>,
     /// The host-side stack of local variables.
     ///
-    /// See [`crate::compiler::Context::new_var`] for a more detailed
+    /// See [`crate::compiler::context::VarStack`] for a more detailed
     /// description of what is this, and what "host-side" means in this
     /// case.
     pub vars_stack: Vec<TypeValue>,
@@ -748,7 +748,7 @@ fn verify_literal_match(
     let match_found = if flags.contains(SubPatternFlags::Nocase) {
         pattern.eq_ignore_ascii_case(&scanned_data[atom_pos..match_end])
     } else {
-        memx::memeq(&scanned_data[atom_pos..match_end], pattern.as_bytes())
+        &scanned_data[atom_pos..match_end] == pattern.as_bytes()
     };
 
     if match_found {
@@ -971,7 +971,7 @@ fn verify_xor_match(
         }
     }
 
-    if memx::memeq(&scanned_data[match_range.clone()], pattern.as_bytes()) {
+    if &scanned_data[match_range.clone()] == pattern.as_bytes() {
         Some(Match { range: match_range, xor_key: Some(key) })
     } else {
         None
