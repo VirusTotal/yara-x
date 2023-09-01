@@ -153,7 +153,7 @@ fn handle_segment_command(
         }
 
         // Populate protobuf segment section for 32bit files
-        let mut segment = Segment32 {
+        let mut segment = Segment {
             cmd: Some(sg.cmd).into(),
             cmdsize: Some(sg.cmdsize).into(),
             segname: Some(
@@ -162,10 +162,10 @@ fn handle_segment_command(
                     .to_string(),
             )
             .into(),
-            vmaddr: Some(sg.vmaddr).into(),
-            vmsize: Some(sg.vmsize).into(),
-            fileoff: Some(sg.fileoff).into(),
-            filesize: Some(sg.filesize).into(),
+            vmaddr: Some(sg.vmaddr as u64).into(),
+            vmsize: Some(sg.vmsize as u64).into(),
+            fileoff: Some(sg.fileoff as u64).into(),
+            filesize: Some(sg.filesize as u64).into(),
             maxprot: Some(sg.maxprot).into(),
             initprot: Some(sg.initprot).into(),
             nsects: Some(sg.nsects).into(),
@@ -190,7 +190,7 @@ fn handle_segment_command(
                 }
 
                 // Populate protobuf section for 32bit files
-                let section = Section32 {
+                let section = Section {
                     segname: Some(
                         std::str::from_utf8(&sec.segname)
                             .unwrap_or_default()
@@ -203,8 +203,8 @@ fn handle_segment_command(
                             .to_string(),
                     )
                     .into(),
-                    addr: Some(sec.addr).into(),
-                    size: Some(sec.size).into(),
+                    addr: Some(sec.addr as u64).into(),
+                    size: Some(sec.size as u64).into(),
                     offset: Some(sec.offset).into(),
                     align: Some(sec.align).into(),
                     reloff: Some(sec.reloff).into(),
@@ -256,7 +256,7 @@ fn handle_segment_command_64(
         }
 
         // Populate protobuf segment section for 64bit files
-        let mut segment = Segment64 {
+        let mut segment = Segment {
             cmd: Some(sg.cmd).into(),
             cmdsize: Some(sg.cmdsize).into(),
             segname: Some(
@@ -273,7 +273,7 @@ fn handle_segment_command_64(
             initprot: Some(sg.initprot).into(),
             nsects: Some(sg.nsects).into(),
             flags: Some(sg.flags).into(),
-            sections_64: Vec::new(),
+            sections: Vec::new(),
             ..Default::default()
         };
 
@@ -293,7 +293,7 @@ fn handle_segment_command_64(
                 }
 
                 // Populate protobuf section for 64bit files
-                let section = Section64 {
+                let section = Section {
                     segname: Some(
                         std::str::from_utf8(&sec.segname)
                             .unwrap_or_default()
@@ -319,7 +319,7 @@ fn handle_segment_command_64(
                     ..Default::default()
                 };
 
-                segment.sections_64.push(section);
+                segment.sections.push(section);
                 sections_data = remaining_sections;
             } else {
                 break;
@@ -327,7 +327,7 @@ fn handle_segment_command_64(
         }
 
         // Push segments with sections into protobuf
-        macho_proto.segments_64.push(segment);
+        macho_proto.segments.push(segment);
         *seg_count += 1;
     }
 
@@ -771,49 +771,7 @@ fn print_macho_info(macho_proto: &Macho) {
     println!("Reserved: {}", print_option_hex(header.reserved));
     println!();
 
-    // Print 64bit Segment Commands
-    for segment in &macho_proto.segments_64 {
-        println!("Segment Commands:");
-        println!("Command: {}", print_option_hex(segment.cmd));
-        println!("Command Size: {}", print_option(segment.cmdsize));
-        println!("Segment Name: {}", print_option(segment.segname.as_ref()));
-        println!("VM Address: {}", print_option_hex(segment.vmaddr));
-        println!("VM Size: {}", print_option_hex(segment.vmsize));
-        println!("File Offset: {}", print_option(segment.fileoff));
-        println!("File Size: {}", print_option(segment.filesize));
-        println!("Max Protection: {}", print_option_hex(segment.maxprot));
-        println!("Init Protection: {}", print_option_hex(segment.initprot));
-        println!("Number of Sections: {}", print_option(segment.nsects));
-        println!("Flags: {}", print_option_hex(segment.flags));
-        for section in &segment.sections_64 {
-            println!("Sections:");
-            println!(
-                "Segment Name: {}",
-                print_option(section.segname.as_ref())
-            );
-            println!(
-                "Section Name: {}",
-                print_option(section.sectname.as_ref())
-            );
-            println!("Address: {}", print_option_hex(section.addr));
-            println!("Size: {}", print_option_hex(section.size));
-            println!("Offset: {}", print_option(section.offset));
-            println!("Alignment: {}", print_option(section.align));
-            println!("Relocation Offset: {}", print_option(section.reloff));
-            println!(
-                "Number of Relocations: {}",
-                print_option(section.nreloc)
-            );
-            println!("Flags: {}", print_option_hex(section.flags));
-            println!("Reserved 1: {}", print_option(section.reserved1));
-            println!("Reserved 2: {}", print_option(section.reserved2));
-            println!("Reserved 3: {}", print_option(section.reserved3));
-            println!();
-        }
-        println!();
-    }
-
-    // Print 32bit Segment Commands
+    // Print Segment Commands
     for segment in &macho_proto.segments {
         println!("Segment Commands:");
         println!("Command: {}", print_option_hex(segment.cmd));
@@ -827,6 +785,7 @@ fn print_macho_info(macho_proto: &Macho) {
         println!("Init Protection: {}", print_option_hex(segment.initprot));
         println!("Number of Sections: {}", print_option(segment.nsects));
         println!("Flags: {}", print_option_hex(segment.flags));
+        // Print nested Segment Sections
         for section in &segment.sections {
             println!("Sections:");
             println!(
@@ -849,6 +808,7 @@ fn print_macho_info(macho_proto: &Macho) {
             println!("Flags: {}", print_option_hex(section.flags));
             println!("Reserved 1: {}", print_option(section.reserved1));
             println!("Reserved 2: {}", print_option(section.reserved2));
+            println!("Reserved 3: {}", print_option(section.reserved3));
             println!();
         }
         println!();
