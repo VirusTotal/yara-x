@@ -14,7 +14,7 @@ use std::slice::Iter;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Once;
 use std::time::Duration;
-use std::{fs, thread};
+use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
@@ -93,6 +93,7 @@ pub struct Scanner<'r> {
 
 impl<'r> Scanner<'r> {
     const DEFAULT_MAX_MATCHES_PER_PATTERN: usize = 1_000_000;
+    const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
@@ -351,6 +352,29 @@ impl<'r> Scanner<'r> {
         // Clear information about matches found in a previous scan, if any.
         self.clear_matches();
 
+        // Timeout in seconds. This is either the value provided by the user or
+        // 315.360.000 which is the number of seconds in a year. Using u64::MAX
+        // doesn't work because this value is added to the current epoch, and
+        // will cause an overflow. We need an integer large enough, but that
+        // has room before the u64 limit is reached. For this same reason if
+        // the user specifies a value larger than 315.360.000 we limit it to
+        // 315.360.000 anyways. One year should be enough, I hope you don't
+        // plan to run a YARA scan that takes longer.
+        let timeout_secs =
+            self.timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
+                cmp::min(
+                    t.as_secs_f32().ceil() as u64,
+                    Self::DEFAULT_SCAN_TIMEOUT,
+                )
+            });
+
+        // Sets the deadline for the WASM store. The WASM main function will
+        // abort if the deadline is reached while the function is being
+        // executed.
+        self.wasm_store.set_epoch_deadline(timeout_secs);
+        self.wasm_store
+            .epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
+
         // If the user specified some timeout, start the heartbeat thread, if
         // not previously started. The heartbeat thread increments the WASM
         // engine epoch and HEARTBEAT_COUNTER every second. There's a single
@@ -373,18 +397,6 @@ impl<'r> Scanner<'r> {
                 });
             });
         }
-
-        // Timeout in seconds, this is either the value provided by the user or
-        // u64::MAX.
-        let timeout_secs =
-            self.timeout.map_or(u64::MAX, |t| t.as_secs_f32().ceil() as u64);
-
-        // Sets the deadline for the WASM store. The WASM main function will
-        // abort if the deadline is reached while the function is being
-        // executed.
-        self.wasm_store.set_epoch_deadline(timeout_secs);
-        self.wasm_store
-            .epoch_deadline_callback(|_| Err(ScanError::Timeout.into()));
 
         // Set the global variable `filesize` to the size of the scanned data.
         self.filesize
