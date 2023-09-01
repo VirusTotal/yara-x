@@ -93,7 +93,7 @@ struct SegmentCommand64 {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-struct Section32 {
+struct SegmentSection32 {
     sectname: [u8; 16],
     segname: [u8; 16],
     addr: u32,
@@ -109,7 +109,7 @@ struct Section32 {
 
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-struct Section64 {
+struct SegmentSection64 {
     sectname: [u8; 16],
     segname: [u8; 16],
     addr: u64,
@@ -152,8 +152,8 @@ fn handle_segment_command(
             swap_segment_command(&mut sg);
         }
 
-        // Populate protobuf segment section
-        let segment = Segment {
+        // Populate protobuf segment section for 32bit files
+        let mut segment = Segment32 {
             cmd: Some(sg.cmd).into(),
             cmdsize: Some(sg.cmdsize).into(),
             segname: Some(
@@ -170,23 +170,61 @@ fn handle_segment_command(
             initprot: Some(sg.initprot).into(),
             nsects: Some(sg.nsects).into(),
             flags: Some(sg.flags).into(),
+            sections: Vec::new(),
             ..Default::default()
         };
 
-        macho_proto.segments.push(segment);
-
-        // TODO: Set the segment fields in the macho_proto
+        // Set the section fields in the 32bit Macho-O segment
         let mut sections_data = remaining_data;
         for _ in 0..sg.nsects {
-            if let Ok((remaining_sections, sec)) = parse_section(sections_data)
+            if let Ok((remaining_sections, mut sec)) =
+                parse_section(sections_data)
             {
-                // TODO: Set the section fields in the macho_proto
+                if should_swap_bytes(
+                    macho_proto
+                        .header
+                        .magic
+                        .ok_or("Magic value not present in header")?,
+                ) {
+                    swap_segment_section(&mut sec);
+                }
+
+                // Populate protobuf section for 32bit files
+                let section = Section32 {
+                    segname: Some(
+                        std::str::from_utf8(&sec.segname)
+                            .unwrap_or_default()
+                            .to_string(),
+                    )
+                    .into(),
+                    sectname: Some(
+                        std::str::from_utf8(&sec.sectname)
+                            .unwrap_or_default()
+                            .to_string(),
+                    )
+                    .into(),
+                    addr: Some(sec.addr).into(),
+                    size: Some(sec.size).into(),
+                    offset: Some(sec.offset).into(),
+                    align: Some(sec.align).into(),
+                    reloff: Some(sec.reloff).into(),
+                    nreloc: Some(sec.nreloc).into(),
+                    flags: Some(sec.flags).into(),
+                    reserved1: Some(sec.reserved1).into(),
+                    reserved2: Some(sec.reserved2).into(),
+                    ..Default::default()
+                };
+
+                segment.sections.push(section);
+
                 sections_data = remaining_sections;
             } else {
                 break;
             }
         }
 
+        // Push segments with sections into protobuf
+        macho_proto.segments.push(segment);
         *seg_count += 1;
     }
     return Ok(());
@@ -217,8 +255,8 @@ fn handle_segment_command_64(
             swap_segment_command_64(&mut sg);
         }
 
-        // Populate protobuf segment section
-        let segment = Segment64 {
+        // Populate protobuf segment section for 64bit files
+        let mut segment = Segment64 {
             cmd: Some(sg.cmd).into(),
             cmdsize: Some(sg.cmdsize).into(),
             segname: Some(
@@ -235,24 +273,61 @@ fn handle_segment_command_64(
             initprot: Some(sg.initprot).into(),
             nsects: Some(sg.nsects).into(),
             flags: Some(sg.flags).into(),
+            sections_64: Vec::new(),
             ..Default::default()
         };
 
-        macho_proto.segments_64.push(segment);
-
-        // TODO: Set the segment fields in the macho_proto
+        // Set the section fields in the 64bit Macho-O segment
         let mut sections_data = remaining_data;
         for _ in 0..sg.nsects {
-            if let Ok((remaining_sections, sec)) =
+            if let Ok((remaining_sections, mut sec)) =
                 parse_section_64(sections_data)
             {
-                // TODO: Set the section fields in the macho_proto
+                if should_swap_bytes(
+                    macho_proto
+                        .header
+                        .magic
+                        .ok_or("Magic value not present in header")?,
+                ) {
+                    swap_segment_section_64(&mut sec);
+                }
+
+                // Populate protobuf section for 64bit files
+                let section = Section64 {
+                    segname: Some(
+                        std::str::from_utf8(&sec.segname)
+                            .unwrap_or_default()
+                            .to_string(),
+                    )
+                    .into(),
+                    sectname: Some(
+                        std::str::from_utf8(&sec.sectname)
+                            .unwrap_or_default()
+                            .to_string(),
+                    )
+                    .into(),
+                    addr: Some(sec.addr).into(),
+                    size: Some(sec.size).into(),
+                    offset: Some(sec.offset).into(),
+                    align: Some(sec.align).into(),
+                    reloff: Some(sec.reloff).into(),
+                    nreloc: Some(sec.nreloc).into(),
+                    flags: Some(sec.flags).into(),
+                    reserved1: Some(sec.reserved1).into(),
+                    reserved2: Some(sec.reserved2).into(),
+                    reserved3: Some(sec.reserved3).into(),
+                    ..Default::default()
+                };
+
+                segment.sections_64.push(section);
                 sections_data = remaining_sections;
             } else {
                 break;
             }
         }
 
+        // Push segments with sections into protobuf
+        macho_proto.segments_64.push(segment);
         *seg_count += 1;
     }
 
@@ -342,6 +417,33 @@ fn swap_segment_command_64(segment: &mut SegmentCommand64) {
     segment.initprot = BigEndian::read_u32(&segment.initprot.to_le_bytes());
     segment.nsects = BigEndian::read_u32(&segment.nsects.to_le_bytes());
     segment.flags = BigEndian::read_u32(&segment.flags.to_le_bytes());
+}
+
+// Swap Mach-O segment section for 32bit files
+fn swap_segment_section(section: &mut SegmentSection32) {
+    section.addr = BigEndian::read_u32(&section.addr.to_le_bytes());
+    section.size = BigEndian::read_u32(&section.size.to_le_bytes());
+    section.offset = BigEndian::read_u32(&section.offset.to_le_bytes());
+    section.align = BigEndian::read_u32(&section.align.to_le_bytes());
+    section.reloff = BigEndian::read_u32(&section.reloff.to_le_bytes());
+    section.nreloc = BigEndian::read_u32(&section.nreloc.to_le_bytes());
+    section.flags = BigEndian::read_u32(&section.flags.to_le_bytes());
+    section.reserved1 = BigEndian::read_u32(&section.reserved1.to_le_bytes());
+    section.reserved2 = BigEndian::read_u32(&section.reserved2.to_le_bytes());
+}
+
+// Swap Mach-O segment section for 64bit files
+fn swap_segment_section_64(section: &mut SegmentSection64) {
+    section.addr = BigEndian::read_u64(&section.addr.to_le_bytes());
+    section.size = BigEndian::read_u64(&section.size.to_le_bytes());
+    section.offset = BigEndian::read_u32(&section.offset.to_le_bytes());
+    section.align = BigEndian::read_u32(&section.align.to_le_bytes());
+    section.reloff = BigEndian::read_u32(&section.reloff.to_le_bytes());
+    section.nreloc = BigEndian::read_u32(&section.nreloc.to_le_bytes());
+    section.flags = BigEndian::read_u32(&section.flags.to_le_bytes());
+    section.reserved1 = BigEndian::read_u32(&section.reserved1.to_le_bytes());
+    section.reserved2 = BigEndian::read_u32(&section.reserved2.to_le_bytes());
+    section.reserved3 = BigEndian::read_u32(&section.reserved2.to_le_bytes());
 }
 
 // Parse Mach-O header
@@ -446,7 +548,7 @@ fn parse_segment_command_64(input: &[u8]) -> IResult<&[u8], SegmentCommand64> {
 }
 
 // Parsing function for Mach-O 32bit Section
-fn parse_section(input: &[u8]) -> IResult<&[u8], Section32> {
+fn parse_section(input: &[u8]) -> IResult<&[u8], SegmentSection32> {
     let (input, sectname) = take(16usize)(input)?;
     let (input, segname) = take(16usize)(input)?;
     let (input, addr) = le_u32(input)?;
@@ -461,7 +563,7 @@ fn parse_section(input: &[u8]) -> IResult<&[u8], Section32> {
 
     Ok((
         input,
-        Section32 {
+        SegmentSection32 {
             sectname: *array_ref![sectname, 0, 16],
             segname: *array_ref![segname, 0, 16],
             addr,
@@ -478,7 +580,7 @@ fn parse_section(input: &[u8]) -> IResult<&[u8], Section32> {
 }
 
 // Parsing function for Mach-O 64bit Section
-fn parse_section_64(input: &[u8]) -> IResult<&[u8], Section64> {
+fn parse_section_64(input: &[u8]) -> IResult<&[u8], SegmentSection64> {
     let (input, sectname) = take(16usize)(input)?;
     let (input, segname) = take(16usize)(input)?;
     let (input, addr) = le_u64(input)?;
@@ -494,7 +596,7 @@ fn parse_section_64(input: &[u8]) -> IResult<&[u8], Section64> {
 
     Ok((
         input,
-        Section64 {
+        SegmentSection64 {
             sectname: *array_ref![sectname, 0, 16],
             segname: *array_ref![segname, 0, 16],
             addr,
@@ -683,6 +785,31 @@ fn print_macho_info(macho_proto: &Macho) {
         println!("Init Protection: {}", print_option_hex(segment.initprot));
         println!("Number of Sections: {}", print_option(segment.nsects));
         println!("Flags: {}", print_option_hex(segment.flags));
+        for section in &segment.sections_64 {
+            println!("Sections:");
+            println!(
+                "Segment Name: {}",
+                print_option(section.segname.as_ref())
+            );
+            println!(
+                "Section Name: {}",
+                print_option(section.sectname.as_ref())
+            );
+            println!("Address: {}", print_option_hex(section.addr));
+            println!("Size: {}", print_option_hex(section.size));
+            println!("Offset: {}", print_option(section.offset));
+            println!("Alignment: {}", print_option(section.align));
+            println!("Relocation Offset: {}", print_option(section.reloff));
+            println!(
+                "Number of Relocations: {}",
+                print_option(section.nreloc)
+            );
+            println!("Flags: {}", print_option_hex(section.flags));
+            println!("Reserved 1: {}", print_option(section.reserved1));
+            println!("Reserved 2: {}", print_option(section.reserved2));
+            println!("Reserved 3: {}", print_option(section.reserved3));
+            println!();
+        }
         println!();
     }
 
@@ -700,6 +827,30 @@ fn print_macho_info(macho_proto: &Macho) {
         println!("Init Protection: {}", print_option_hex(segment.initprot));
         println!("Number of Sections: {}", print_option(segment.nsects));
         println!("Flags: {}", print_option_hex(segment.flags));
+        for section in &segment.sections {
+            println!("Sections:");
+            println!(
+                "Segment Name: {}",
+                print_option(section.segname.as_ref())
+            );
+            println!(
+                "Section Name: {}",
+                print_option(section.sectname.as_ref())
+            );
+            println!("Address: {}", print_option_hex(section.addr));
+            println!("Size: {}", print_option_hex(section.size));
+            println!("Offset: {}", print_option(section.offset));
+            println!("Alignment: {}", print_option(section.align));
+            println!("Relocation Offset: {}", print_option(section.reloff));
+            println!(
+                "Number of Relocations: {}",
+                print_option(section.nreloc)
+            );
+            println!("Flags: {}", print_option_hex(section.flags));
+            println!("Reserved 1: {}", print_option(section.reserved1));
+            println!("Reserved 2: {}", print_option(section.reserved2));
+            println!();
+        }
         println!();
     }
 

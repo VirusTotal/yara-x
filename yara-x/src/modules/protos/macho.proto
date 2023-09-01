@@ -19,7 +19,36 @@ message Header {
   optional uint32 reserved = 8;
 }
 
-message Segment {
+message Section32 {
+  optional string segname = 1;
+  optional string sectname = 2;
+  optional uint32 addr = 3;
+  optional uint32 size = 4;
+  optional uint32 offset = 5;
+  optional uint32 align = 6;
+  optional uint32 reloff = 7;
+  optional uint32 nreloc = 8;
+  optional uint32 flags = 9;
+  optional uint32 reserved1 = 10;
+  optional uint32 reserved2 = 11;
+}
+
+message Section64 {
+  optional string segname = 1;
+  optional string sectname = 2;
+  optional uint64 addr = 3;
+  optional uint64 size = 4;
+  optional uint32 offset = 5;
+  optional uint32 align = 6;
+  optional uint32 reloff = 7;
+  optional uint32 nreloc = 8;
+  optional uint32 flags = 9;
+  optional uint32 reserved1 = 10;
+  optional uint32 reserved2 = 11;
+  optional uint32 reserved3 = 12;
+}
+
+message Segment32 {
   optional uint32 cmd = 1;
   optional uint32 cmdsize = 2;
   optional string segname = 3;
@@ -31,6 +60,7 @@ message Segment {
   optional uint32 initprot = 9;
   optional uint32 nsects = 10;
   optional uint32 flags = 11;
+  repeated Section32 sections = 12;
 }
 
 message Segment64 {
@@ -45,11 +75,12 @@ message Segment64 {
   optional uint32 initprot = 9;
   optional uint32 nsects = 10;
   optional uint32 flags = 11;
+  repeated Section64 sections_64 = 12;
 }
 
 message Macho {
   required Header header = 1;
   optional uint64 number_of_segments = 2;
-  repeated Segment segments = 3;
+  repeated Segment32 segments = 3;
   repeated Segment64 segments_64 = 4;
 }
