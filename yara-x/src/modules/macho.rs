@@ -154,22 +154,21 @@ fn handle_segment_command(
 
         // Populate protobuf segment section for 32bit files
         let mut segment = Segment {
-            cmd: Some(sg.cmd).into(),
-            cmdsize: Some(sg.cmdsize).into(),
+            cmd: Some(sg.cmd),
+            cmdsize: Some(sg.cmdsize),
             segname: Some(
                 std::str::from_utf8(&sg.segname)
                     .unwrap_or_default()
                     .to_string(),
-            )
-            .into(),
-            vmaddr: Some(sg.vmaddr as u64).into(),
-            vmsize: Some(sg.vmsize as u64).into(),
-            fileoff: Some(sg.fileoff as u64).into(),
-            filesize: Some(sg.filesize as u64).into(),
-            maxprot: Some(sg.maxprot).into(),
-            initprot: Some(sg.initprot).into(),
-            nsects: Some(sg.nsects).into(),
-            flags: Some(sg.flags).into(),
+            ),
+            vmaddr: Some(sg.vmaddr as u64),
+            vmsize: Some(sg.vmsize as u64),
+            fileoff: Some(sg.fileoff as u64),
+            filesize: Some(sg.filesize as u64),
+            maxprot: Some(sg.maxprot),
+            initprot: Some(sg.initprot),
+            nsects: Some(sg.nsects),
+            flags: Some(sg.flags),
             sections: Vec::new(),
             ..Default::default()
         };
@@ -195,23 +194,21 @@ fn handle_segment_command(
                         std::str::from_utf8(&sec.segname)
                             .unwrap_or_default()
                             .to_string(),
-                    )
-                    .into(),
+                    ),
                     sectname: Some(
                         std::str::from_utf8(&sec.sectname)
                             .unwrap_or_default()
                             .to_string(),
-                    )
-                    .into(),
-                    addr: Some(sec.addr as u64).into(),
-                    size: Some(sec.size as u64).into(),
-                    offset: Some(sec.offset).into(),
-                    align: Some(sec.align).into(),
-                    reloff: Some(sec.reloff).into(),
-                    nreloc: Some(sec.nreloc).into(),
-                    flags: Some(sec.flags).into(),
-                    reserved1: Some(sec.reserved1).into(),
-                    reserved2: Some(sec.reserved2).into(),
+                    ),
+                    addr: Some(sec.addr as u64),
+                    size: Some(sec.size as u64),
+                    offset: Some(sec.offset),
+                    align: Some(sec.align),
+                    reloff: Some(sec.reloff),
+                    nreloc: Some(sec.nreloc),
+                    flags: Some(sec.flags),
+                    reserved1: Some(sec.reserved1),
+                    reserved2: Some(sec.reserved2),
                     ..Default::default()
                 };
 
@@ -227,7 +224,8 @@ fn handle_segment_command(
         macho_proto.segments.push(segment);
         *seg_count += 1;
     }
-    return Ok(());
+
+    Ok(())
 }
 
 // Handle the LC_SEGMENT_64 command
@@ -257,22 +255,21 @@ fn handle_segment_command_64(
 
         // Populate protobuf segment section for 64bit files
         let mut segment = Segment {
-            cmd: Some(sg.cmd).into(),
-            cmdsize: Some(sg.cmdsize).into(),
+            cmd: Some(sg.cmd),
+            cmdsize: Some(sg.cmdsize),
             segname: Some(
                 std::str::from_utf8(&sg.segname)
                     .unwrap_or_default()
                     .to_string(),
-            )
-            .into(),
-            vmaddr: Some(sg.vmaddr).into(),
-            vmsize: Some(sg.vmsize).into(),
-            fileoff: Some(sg.fileoff).into(),
-            filesize: Some(sg.filesize).into(),
-            maxprot: Some(sg.maxprot).into(),
-            initprot: Some(sg.initprot).into(),
-            nsects: Some(sg.nsects).into(),
-            flags: Some(sg.flags).into(),
+            ),
+            vmaddr: Some(sg.vmaddr),
+            vmsize: Some(sg.vmsize),
+            fileoff: Some(sg.fileoff),
+            filesize: Some(sg.filesize),
+            maxprot: Some(sg.maxprot),
+            initprot: Some(sg.initprot),
+            nsects: Some(sg.nsects),
+            flags: Some(sg.flags),
             sections: Vec::new(),
             ..Default::default()
         };
@@ -298,24 +295,22 @@ fn handle_segment_command_64(
                         std::str::from_utf8(&sec.segname)
                             .unwrap_or_default()
                             .to_string(),
-                    )
-                    .into(),
+                    ),
                     sectname: Some(
                         std::str::from_utf8(&sec.sectname)
                             .unwrap_or_default()
                             .to_string(),
-                    )
-                    .into(),
-                    addr: Some(sec.addr).into(),
-                    size: Some(sec.size).into(),
-                    offset: Some(sec.offset).into(),
-                    align: Some(sec.align).into(),
-                    reloff: Some(sec.reloff).into(),
-                    nreloc: Some(sec.nreloc).into(),
-                    flags: Some(sec.flags).into(),
-                    reserved1: Some(sec.reserved1).into(),
-                    reserved2: Some(sec.reserved2).into(),
-                    reserved3: Some(sec.reserved3).into(),
+                    ),
+                    addr: Some(sec.addr),
+                    size: Some(sec.size),
+                    offset: Some(sec.offset),
+                    align: Some(sec.align),
+                    reloff: Some(sec.reloff),
+                    nreloc: Some(sec.nreloc),
+                    flags: Some(sec.flags),
+                    reserved1: Some(sec.reserved1),
+                    reserved2: Some(sec.reserved2),
+                    reserved3: Some(sec.reserved3),
                     ..Default::default()
                 };
 
@@ -331,15 +326,16 @@ fn handle_segment_command_64(
         *seg_count += 1;
     }
 
-    return Ok(());
+    Ok(())
 }
 
 // Check if given file is basic Mach-O file
 fn is_macho_file_block(data: &[u8]) -> bool {
     match parse_magic(data) {
-        Ok((_, magic)) => {
-            matches!(magic, MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64)
-        }
+        Ok((_, magic)) => match magic {
+            MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64 => true,
+            _ => false,
+        },
         _ => false,
     }
 }
@@ -712,15 +708,15 @@ fn parse_macho_file(data: &[u8], macho_proto: &mut Macho) {
 
         // Populate protobuf header section
         let header = Header {
-            magic: Some(parsed_header.magic).into(),
-            cputype: Some(parsed_header.cputype).into(),
-            cpusubtype: Some(parsed_header.cpusubtype).into(),
-            filetype: Some(parsed_header.filetype).into(),
-            ncmds: Some(parsed_header.ncmds).into(),
-            sizeofcmds: Some(parsed_header.sizeofcmds).into(),
-            flags: Some(parsed_header.flags).into(),
+            magic: Some(parsed_header.magic),
+            cputype: Some(parsed_header.cputype),
+            cpusubtype: Some(parsed_header.cpusubtype),
+            filetype: Some(parsed_header.filetype),
+            ncmds: Some(parsed_header.ncmds),
+            sizeofcmds: Some(parsed_header.sizeofcmds),
+            flags: Some(parsed_header.flags),
             reserved: if !is_32_bit(parsed_header.magic) {
-                Some(parsed_header.reserved).into()
+                Some(parsed_header.reserved)
             } else {
                 None
             },
