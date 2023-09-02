@@ -339,7 +339,6 @@ impl MaskCombinations {
             exact: atom.exact,
             backtrack: atom.backtrack,
             cartesian_product: zip(atom.bytes, mask)
-                .into_iter()
                 .map(|(byte, mask)| ByteMaskCombinator::new(byte, *mask))
                 .multi_cartesian_product(),
         }

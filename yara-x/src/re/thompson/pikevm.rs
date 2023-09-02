@@ -112,7 +112,7 @@ impl<'r> PikeVM<'r> {
 
             for ip in self.threads.iter() {
                 let (instr, size) = InstrParser::decode_instr(unsafe {
-                    &self.code.get_unchecked(*ip..)
+                    self.code.get_unchecked(*ip..)
                 });
 
                 let is_match = match instr {
