@@ -332,10 +332,9 @@ fn handle_segment_command_64(
 // Check if given file is basic Mach-O file
 fn is_macho_file_block(data: &[u8]) -> bool {
     match parse_magic(data) {
-        Ok((_, magic)) => match magic {
-            MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64 => true,
-            _ => false,
-        },
+        Ok((_, magic)) => {
+            matches!(magic, MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64)
+        }
         _ => false,
     }
 }
@@ -360,10 +359,7 @@ fn is_32_bit(magic: u32) -> bool {
 // If given file is BigEndian we want to swap bytes to LittleEndian
 // If file is already in LittleEndian format return false
 fn should_swap_bytes(magic: u32) -> bool {
-    match magic {
-        MH_CIGAM | MH_CIGAM_64 | FAT_CIGAM | FAT_CIGAM_64 => true,
-        _ => false,
-    }
+    matches!(magic, MH_CIGAM | MH_CIGAM_64 | FAT_CIGAM | FAT_CIGAM_64)
 }
 
 // Swap Mach-O headers from BigEndian to LittleEndian
