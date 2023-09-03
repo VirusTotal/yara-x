@@ -19,7 +19,7 @@ where
     index: usize,
     base_quality: i32,
     best_quality: i32,
-    best_range: Range<usize>,
+    best_range: Option<Range<usize>>,
     queue: VecDeque<(usize, u8, u8, i32)>,
     bytes_present: BitArray<[u64; 4]>,
     byte_mask_iter: I,
@@ -35,13 +35,13 @@ where
             index: 0,
             base_quality: 0,
             best_quality: i32::MIN,
-            best_range: 0..0,
+            best_range: None,
             queue: VecDeque::with_capacity(DESIRED_ATOM_SIZE),
             bytes_present: Default::default(),
         }
     }
 
-    pub fn find(mut self) -> (Range<usize>, i32) {
+    pub fn find(mut self) -> (Option<Range<usize>>, i32) {
         while let Some((byte, mask)) = self.byte_mask_iter.next() {
             if self.queue.len() == self.queue.capacity() {
                 self.pop();
@@ -63,8 +63,10 @@ where
 
         if quality > self.best_quality {
             self.best_quality = quality;
-            self.best_range = self.queue.front().unwrap().0
-                ..self.queue.back().unwrap().0 + 1;
+            self.best_range = Some(
+                self.queue.front().unwrap().0
+                    ..self.queue.back().unwrap().0 + 1,
+            );
         }
     }
 
@@ -116,8 +118,10 @@ where
         let quality = self.quality();
         if quality > self.best_quality {
             self.best_quality = quality;
-            self.best_range = self.queue.front().unwrap().0
-                ..self.queue.back().unwrap().0 + 1;
+            self.best_range = Some(
+                self.queue.front().unwrap().0
+                    ..self.queue.back().unwrap().0 + 1,
+            );
         }
     }
 
@@ -258,7 +262,9 @@ pub(crate) fn seq_quality(seq: &Seq) -> Option<SeqQuality> {
 
 /// Returns the range for the best possible atom that can be extracted from
 /// the slice and its quality.
-pub(crate) fn best_range_in_bytes(bytes: &[u8]) -> (Range<usize>, i32) {
+pub(crate) fn best_range_in_bytes(
+    bytes: &[u8],
+) -> (Option<Range<usize>>, i32) {
     let mut best_quality = i32::MIN;
     let mut best_range = None;
 
@@ -271,7 +277,7 @@ pub(crate) fn best_range_in_bytes(bytes: &[u8]) -> (Range<usize>, i32) {
         }
     }
 
-    (best_range.unwrap(), best_quality)
+    (best_range, best_quality)
 }
 
 /// Returns the range for the best possible atom that can be extracted from the
@@ -280,7 +286,7 @@ pub(crate) fn best_range_in_bytes(bytes: &[u8]) -> (Range<usize>, i32) {
 pub(crate) fn best_range_in_masked_bytes(
     bytes: &[u8],
     mask: &[u8],
-) -> (Range<usize>, i32) {
+) -> (Option<Range<usize>>, i32) {
     BestAtomFinder::new(zip(bytes, mask)).find()
 }
 
@@ -294,7 +300,7 @@ pub(crate) fn best_range_in_masked_bytes(
 /// correspond to the start of the slice in the data.
 pub(crate) fn best_atom_in_bytes(bytes: &[u8]) -> Atom {
     let (range, _) = best_range_in_bytes(bytes);
-    Atom::from_slice_range(bytes, range)
+    Atom::from_slice_range(bytes, range.unwrap())
 }
 
 /// Computes the quality of a masked atom.
@@ -497,7 +503,7 @@ mod test {
                 &[0x01, 0x02, 0x03, 0x04, 0x05],
                 &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
             ),
-            (0..4, 88),
+            (Some(0..4), 88),
         );
 
         assert_eq!(
@@ -505,7 +511,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x00],
                 &[0xFF, 0xFF, 0x00, 0x00],
             ),
-            (0..2, 44),
+            (Some(0..2), 44),
         );
 
         assert_eq!(
@@ -513,7 +519,7 @@ mod test {
                 &[0x01, 0x02, 0x03, 0x04],
                 &[0xFF, 0xFF, 0x0F, 0xFF],
             ),
-            (0..4, 70),
+            (Some(0..4), 70),
         );
 
         assert_eq!(
@@ -521,7 +527,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x04],
                 &[0xFF, 0xFF, 0x00, 0xFF]
             ),
-            (0..4, 58),
+            (Some(0..4), 58),
         );
 
         assert_eq!(
@@ -529,7 +535,7 @@ mod test {
                 &[0x01, 0x02, 0x00, 0x04, 0x05, 0x06, 0x07],
                 &[0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF],
             ),
-            (3..7, 88),
+            (Some(3..7), 88),
         );
 
         assert_eq!(
@@ -537,7 +543,12 @@ mod test {
                 &[0x68, 0x00, 0x00, 0x00, 0x00, 0xFF],
                 &[0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF],
             ),
-            (3..6, 28),
+            (Some(3..6), 28),
+        );
+
+        assert_eq!(
+            atoms::best_range_in_masked_bytes(&[], &[],),
+            (None, i32::MIN),
         );
     }
 }

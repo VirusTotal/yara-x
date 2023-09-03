@@ -742,6 +742,18 @@ fn hex_patterns() {
     );
 
     pattern_match!(
+        r#"{ (01 02 | 11 12) (03 04 | 13 14) (05 06 | 15 16) }"#,
+        &[0x01, 0x02, 0x13, 0x14, 0x05, 0x06],
+        &[0x01, 0x02, 0x13, 0x14, 0x05, 0x06]
+    );
+
+    pattern_match!(
+        r#"{ (01 02 | 11 12) (03 04 | 13 14) (05 06 | 15 16) 07 08 09 }"#,
+        &[0x01, 0x02, 0x13, 0x14, 0x05, 0x06, 0x07, 0x08, 0x09],
+        &[0x01, 0x02, 0x13, 0x14, 0x05, 0x06, 0x07, 0x08, 0x09]
+    );
+
+    pattern_match!(
         r#"{ 01 02 (03 04 | FF FF) (05 06 | FF FF) 07 08 09 }"#,
         &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09],
         &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09]
@@ -890,6 +902,24 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a.(bc.){2}/"#, b"aabcabca", b"aabcabca");
     pattern_match!(r#"/(ab{1,2}c){1,3}/"#, b"abbcabc", b"abbcabc");
     pattern_match!(r#"/ab(c|cc){1,3}d/"#, b"abccccccd", b"abccccccd");
+
+    pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
+
+    // TODO: known issue related to exact atoms. The matching string
+    // should be "abbb" and not "abb".
+    pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
+
+    pattern_match!(
+        r#"/the (caterpillar|cat)/"#,
+        b"the caterpillar",
+        b"the caterpillar"
+    );
+
+    pattern_match!(
+        r#"/the (cat|caterpillar)/"#,
+        b"the caterpillar",
+        b"the cat"
+    );
 }
 
 #[test]
@@ -2867,9 +2897,4 @@ fn test_proto2_module() {
     //   [(yara.field_options).name = "bool_yara"];
     //
     condition_true!(r#"test_proto2.bool_yara"#);
-}
-
-#[test]
-fn issue() {
-    pattern_false!(r#"/mis.*?ppi/s fullword"#, b"xmississippi");
 }

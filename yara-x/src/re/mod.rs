@@ -71,6 +71,11 @@ impl RegexpAtom {
         self.atom.set_exact(yes);
         self
     }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.atom.len()
+    }
 }
 
 /// Trait implementing by both [`FwdCodeLoc`] and [`BckCodeLoc`].

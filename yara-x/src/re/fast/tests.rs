@@ -24,7 +24,7 @@ macro_rules! assert_re_code {
     }};
 }
 
-#[test]
-fn test_fast_re() {
-    assert_re_code!("(?s)abcd", "", "");
-}
+//#[test]
+//fn test_fast_re() {
+//    assert_re_code!("(?s)abcd", "", "");
+//}

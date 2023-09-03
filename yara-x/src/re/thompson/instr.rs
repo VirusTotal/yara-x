@@ -51,17 +51,11 @@ of `0xAA`. Stated differently, the opcode `0xAA` serves as a special case that
 solely matches the `0xAA` byte.
  */
 
-use std::fmt::{Display, Formatter};
-use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 use std::mem::size_of;
 use std::u8;
 
-use bitvec::array::BitArray;
 use bitvec::order::Lsb0;
 use bitvec::slice::{BitSlice, IterOnes};
-use regex_syntax::hir::ClassBytes;
-
-use yara_x_parser::ast::HexByte;
 
 /// Marker that indicates the start of some VM opcode.
 pub const OPCODE_PREFIX: u8 = 0xAA;
@@ -129,7 +123,7 @@ pub enum Instr<'a> {
     /// continue at the remaining locations.
     SplitN(SplitN<'a>),
 
-    /// Relative jump. The opcode is followed by an `i16` offset, the location
+    /// Relative jump. The opcode is followed by an offset, the location
     /// of the target instruction is computed by adding this offset to the
     /// location of the jump opcode.
     Jump(Offset),
@@ -167,361 +161,15 @@ impl<'a> Instr<'a> {
     pub const WORD_BOUNDARY_NEG: u8 = 0x0D;
 }
 
-/// A sequence of instructions for the Pike VM.
-#[derive(Default)]
-pub struct InstrSeq {
-    seq_id: u64,
-    seq: Cursor<Vec<u8>>,
-}
-
-impl AsRef<[u8]> for InstrSeq {
-    fn as_ref(&self) -> &[u8] {
-        self.seq.get_ref().as_slice()
-    }
-}
-
-impl InstrSeq {
-    /// Creates a new [`InstrSeq`]  with the given ID. The caller must guarantee
-    /// that each [`InstrSeq`] has a unique ID, not shared with other sequences
-    /// from the same regular expression.
-    pub fn new(seq_id: u64) -> Self {
-        Self { seq_id, seq: Cursor::new(Vec::new()) }
-    }
-
-    /// Consumes the [`InstrSeq`] and returns the inner vector that contains
-    /// the code.
-    pub fn into_inner(self) -> Vec<u8> {
-        self.seq.into_inner()
-    }
-
-    /// Appends another sequence to this one.
-    pub fn append(&mut self, other: &Self) {
-        self.seq.write_all(other.seq.get_ref().as_slice()).unwrap();
-    }
-
-    /// Returns the current location within the instruction sequence.
-    ///
-    /// The location is an offset relative to the sequence's starting point,
-    /// the first instruction is at location 0. This function always returns
-    /// the location where the next instruction will be put.
-    #[inline]
-    pub fn location(&self) -> usize {
-        self.seq.position() as usize
-    }
-
-    /// Returns the unique ID associated to the instruction sequence.
-    ///
-    /// While emitting the backward code for regexp the compiler can create
-    /// multiple [`InstrSeq`], but each of them has an unique ID that is
-    /// returned by this function.
-    #[inline]
-    pub fn seq_id(&self) -> u64 {
-        self.seq_id
-    }
-
-    /// Adds some instruction at the end of the sequence and returns the
-    /// location where the newly added instruction resides.
-    pub fn emit_instr(&mut self, instr: u8) -> usize {
-        // Store the position where the instruction will be written, which will
-        // the result for this function.
-        let location = self.location();
-
-        self.seq.write_all(&[OPCODE_PREFIX, instr]).unwrap();
-
-        match instr {
-            Instr::SPLIT_A | Instr::SPLIT_B | Instr::JUMP => {
-                // Split and Jump instructions are followed by a 16-bits
-                // offset that is relative to the start of the instruction.
-                self.seq.write_all(&[0x00; size_of::<Offset>()]).unwrap();
-            }
-            _ => {}
-        }
-
-        location
-    }
-
-    /// Adds a [`Instr::SplitN`] instruction at the end of the sequence and
-    /// returns the location where the newly added instruction resides.
-    pub fn emit_split_n(&mut self, n: NumAlt) -> usize {
-        let location = self.location();
-        self.seq.write_all(&[OPCODE_PREFIX, Instr::SPLIT_N]).unwrap();
-        self.seq.write_all(NumAlt::to_le_bytes(n).as_slice()).unwrap();
-        for _ in 0..n {
-            self.seq.write_all(&[0x00; size_of::<Offset>()]).unwrap();
-        }
-        location
-    }
-
-    /// Adds a [`Instr::MaskedByte`] instruction at the end of the sequence and
-    /// returns the location where the newly added instruction resides.
-    pub fn emit_masked_byte(&mut self, b: HexByte) -> usize {
-        let location = self.location();
-        self.seq
-            .write_all(&[OPCODE_PREFIX, Instr::MASKED_BYTE, b.value, b.mask])
-            .unwrap();
-        location
-    }
-
-    /// Adds a [`Instr::ClassBitmap`] or [`Instr::ClassRanges`] instruction at
-    /// the end of the sequence and returns the location where the newly added
-    /// instruction resides.
-    pub fn emit_class(&mut self, c: &ClassBytes) -> usize {
-        let location = self.location();
-        // When the number of ranges is <= 15 `Instr::ClassRanges` is
-        // preferred over `Instr::ClassBitmap` because of its more compact
-        // representation. With 16 ranges or more `Instr::ClassBitmap` becomes
-        // more compact.
-        if c.ranges().len() < 16 {
-            self.seq
-                .write_all(&[
-                    OPCODE_PREFIX,
-                    Instr::CLASS_RANGES,
-                    c.ranges().len() as u8,
-                ])
-                .unwrap();
-            for range in c.ranges() {
-                self.seq.write_all(&[range.start(), range.end()]).unwrap();
-            }
-        } else {
-            // Create a bitmap where the N-th bit is set if byte N is part of
-            // any of the ranges in the class.
-            let mut bitmap: BitArray<_, Lsb0> = BitArray::new([0_u8; 32]);
-            for range in c.ranges() {
-                let range = range.start() as usize..=range.end() as usize;
-                bitmap[range].fill(true);
-            }
-            self.seq.write_all(&[OPCODE_PREFIX, Instr::CLASS_BITMAP]).unwrap();
-            self.seq.write_all(&bitmap.data).unwrap();
-        }
-
-        location
-    }
-
-    /// Adds instructions for matching a literal at the end of the sequence.
-    pub fn emit_literal<'a, I: IntoIterator<Item = &'a u8>>(
-        &mut self,
-        literal: I,
-    ) -> usize {
-        let location = self.location();
-        for b in literal {
-            // If the literal contains a byte that is equal to the opcode
-            // prefix it is duplicated. This allows the VM to interpret this
-            // byte as part of the literal, not as an instruction.
-            if *b == OPCODE_PREFIX {
-                self.seq.write_all(&[*b, *b]).unwrap();
-            } else {
-                self.seq.write_all(&[*b]).unwrap();
-            }
-        }
-        location
-    }
-
-    /// Emits a clone of the code that goes from `start` to `end`, both
-    /// inclusive.
-    pub fn emit_clone(&mut self, start: usize, end: usize) -> usize {
-        let location = self.location();
-        self.seq.get_mut().extend_from_within(start..end);
-        self.seq.seek(SeekFrom::Current(end as i64 - start as i64)).unwrap();
-        location
-    }
-
-    /// Patches the offset of the instruction that starts at the given location.
-    ///
-    /// # Panics
-    ///
-    /// If the instruction at `location` is not one that have an offset as its
-    /// argument, like [`Instr::Jump`], [`Instr::SplitA`] or [`Instr::SplitB`].
-    pub fn patch_instr(&mut self, location: usize, offset: Offset) {
-        // Save the current position for the forward code in order to restore
-        // it later.
-        let saved_loc = self.location();
-
-        // Seek to the position indicated by `location`.
-        self.seq.seek(SeekFrom::Start(location as u64)).unwrap();
-
-        let mut buf = [0; 2];
-        self.seq.read_exact(&mut buf).unwrap();
-
-        // Make sure that we have some `split` or `jump` instruction at the
-        // given location.
-        assert_eq!(buf[0], OPCODE_PREFIX);
-        assert!(
-            buf[1] == Instr::JUMP
-                || buf[1] == Instr::SPLIT_A
-                || buf[1] == Instr::SPLIT_B
-        );
-
-        // Write the given offset after the instruction opcode. This will
-        // overwrite any existing offsets, usually initialized with 0.
-        self.seq.write_all(Offset::to_le_bytes(offset).as_slice()).unwrap();
-
-        // Restore to the previous current position.
-        self.seq.seek(SeekFrom::Start(saved_loc as u64)).unwrap();
-    }
-
-    /// Patches the offsets of the [`Instr::SplitN`] instruction at the given
-    /// location.
-    ///
-    /// # Panics
-    ///
-    /// If the instruction at `location` [`Instr::SplitN`], or if the number
-    /// of offsets provided are not the one that the instruction expects.
-    pub fn patch_split_n<I: ExactSizeIterator<Item = Offset>>(
-        &mut self,
-        location: usize,
-        mut offsets: I,
-    ) {
-        // Save the current location for the forward code in order to restore
-        // it later.
-        let saved_loc = self.location();
-
-        // Seek to the position indicated by `location`.
-        self.seq.seek(SeekFrom::Start(location as u64)).unwrap();
-
-        let mut opcode = [0; 2];
-        self.seq.read_exact(&mut opcode).unwrap();
-
-        // Make sure that we have some `split` or `jump` instruction at the
-        // given location.
-        assert_eq!(opcode[0], OPCODE_PREFIX);
-        assert_eq!(opcode[1], Instr::SPLIT_N);
-
-        let read_num_alternatives = |c: &mut Cursor<Vec<u8>>| -> NumAlt {
-            let mut buf = [0_u8; size_of::<NumAlt>()];
-            c.read_exact(&mut buf).unwrap();
-            NumAlt::from_le_bytes(buf)
-        };
-
-        let n = read_num_alternatives(&mut self.seq);
-
-        // Make sure that the number of offsets passed to this function is
-        // equal the number of alternatives.
-        assert_eq!(n as usize, offsets.len());
-
-        for _ in 0..n {
-            self.seq
-                .write_all(
-                    Offset::to_le_bytes(offsets.next().unwrap()).as_slice(),
-                )
-                .unwrap();
-        }
-
-        // Restore to the previous current position.
-        self.seq.seek(SeekFrom::Start(saved_loc as u64)).unwrap();
-    }
-}
-
-impl Display for InstrSeq {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut instr = InstrParser::new(self.seq.get_ref().as_slice());
-        writeln!(f)?;
-        loop {
-            let addr = instr.ip();
-            match instr.next() {
-                Instr::AnyByte => {
-                    writeln!(f, "{:05x}: ANY_BYTE", addr)?;
-                }
-                Instr::Byte(byte) => {
-                    writeln!(f, "{:05x}: LIT {:#04x}", addr, byte)?;
-                }
-                Instr::MaskedByte { byte, mask } => {
-                    writeln!(
-                        f,
-                        "{:05x}: MASKED_BYTE {:#04x} {:#04x}",
-                        addr, byte, mask
-                    )?;
-                }
-                Instr::CaseInsensitiveChar(c) => {
-                    writeln!(f, "{:05x}: CASE_INSENSITIVE {:#04x}", addr, c)?;
-                }
-                Instr::ClassRanges(class) => {
-                    write!(f, "{:05x}: CLASS_RANGES ", addr)?;
-                    for range in class.ranges() {
-                        write!(f, "[{:#04x}-{:#04x}] ", range.0, range.1)?;
-                    }
-                    writeln!(f)?;
-                }
-                Instr::ClassBitmap(class) => {
-                    write!(f, "{:05x}: CLASS_BITMAP ", addr)?;
-                    for byte in class.bytes() {
-                        write!(f, "{:#04x} ", byte)?;
-                    }
-                    writeln!(f)?;
-                }
-                Instr::Jump(offset) => {
-                    writeln!(
-                        f,
-                        "{:05x}: JUMP {:05x}",
-                        addr,
-                        addr as isize + offset as isize,
-                    )?;
-                }
-                Instr::SplitA(offset) => {
-                    writeln!(
-                        f,
-                        "{:05x}: SPLIT_A {:05x}",
-                        addr,
-                        addr as isize + offset as isize,
-                    )?;
-                }
-                Instr::SplitB(offset) => {
-                    writeln!(
-                        f,
-                        "{:05x}: SPLIT_B {:05x}",
-                        addr,
-                        addr as isize + offset as isize,
-                    )?;
-                }
-                Instr::SplitN(split) => {
-                    write!(f, "{:05x}: SPLIT_N", addr)?;
-                    for offset in split.offsets() {
-                        write!(f, " {:05x}", addr as isize + offset as isize)?;
-                    }
-                    writeln!(f)?;
-                }
-                Instr::Start => {
-                    writeln!(f, "{:05x}: START", addr)?;
-                }
-                Instr::End => {
-                    writeln!(f, "{:05x}: END", addr)?;
-                }
-                Instr::WordBoundary => {
-                    writeln!(f, "{:05x}: WORD_BOUNDARY", addr)?;
-                }
-                Instr::WordBoundaryNeg => {
-                    writeln!(f, "{:05x}: WORD_BOUNDARY_NEG", addr)?;
-                }
-                Instr::Match => {
-                    writeln!(f, "{:05x}: MATCH", addr)?;
-                    break;
-                }
-            };
-        }
-
-        Ok(())
-    }
-}
-
 /// Parses a slice of bytes that contains Pike VM instructions, returning
 /// individual instructions and their arguments.
 pub(crate) struct InstrParser<'a> {
     code: &'a [u8],
-    ip: usize,
 }
 
 impl<'a> InstrParser<'a> {
     pub fn new(code: &'a [u8]) -> Self {
-        Self { code, ip: 0 }
-    }
-
-    pub fn ip(&self) -> usize {
-        self.ip
-    }
-
-    pub fn next(&mut self) -> Instr {
-        let (instr, size) = Self::decode_instr(&self.code[self.ip..]);
-        self.ip += size;
-        instr
+        Self { code }
     }
 
     #[inline(always)]
@@ -604,6 +252,19 @@ impl<'a> InstrParser<'a> {
             unsafe { &*(slice.as_ptr() as *const [u8; size_of::<NumAlt>()]) };
 
         NumAlt::from_le_bytes(*bytes)
+    }
+}
+
+impl<'a> Iterator for InstrParser<'a> {
+    type Item = (Instr<'a>, usize);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.code.is_empty() {
+            return None;
+        }
+        let (instr, size) = InstrParser::decode_instr(self.code);
+        self.code = &self.code[size..];
+        Some((instr, size))
     }
 }
 

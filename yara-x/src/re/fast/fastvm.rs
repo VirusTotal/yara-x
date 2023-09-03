@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use indexmap::IndexSet;
 use std::ops::RangeInclusive;
 use std::{cmp, mem};
 
@@ -21,7 +21,7 @@ pub(crate) struct FastVM<'r> {
     /// this number of bytes from the input.
     scan_limit: usize,
     /// A set with all the positions currently tracked.
-    positions: BTreeSet<usize>,
+    positions: IndexSet<usize>,
 }
 
 impl<'r> FastVM<'r> {
@@ -29,7 +29,7 @@ impl<'r> FastVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            positions: BTreeSet::new(),
+            positions: IndexSet::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
     }
@@ -68,8 +68,9 @@ impl<'r> FastVM<'r> {
             &input[..cmp::min(input.len(), self.scan_limit)]
         };
 
-        let mut next_positions = BTreeSet::new();
+        let mut next_positions = IndexSet::new();
 
+        self.positions.clear();
         self.positions.insert(0);
 
         while !self.positions.is_empty() {
@@ -130,6 +131,61 @@ impl<'r> FastVM<'r> {
                         };
                         if is_match {
                             next_positions.insert(position + literal.len());
+                        }
+                    }
+                }
+                Instr::Alternation(alternatives) => {
+                    for alt in alternatives {
+                        for position in &self.positions {
+                            if *position >= input.len() {
+                                continue;
+                            }
+                            match alt {
+                                Instr::Literal(literal) => {
+                                    let is_match = if backwards {
+                                        self.try_match_literal_bck(
+                                            &input[..input.len() - position],
+                                            literal,
+                                        )
+                                    } else {
+                                        self.try_match_literal_fwd(
+                                            &input[*position..],
+                                            literal,
+                                        )
+                                    };
+                                    if is_match {
+                                        next_positions
+                                            .insert(position + literal.len());
+                                    }
+                                }
+                                Instr::MaskedLiteral(literal, mask) => {
+                                    let is_match = if backwards {
+                                        self.try_match_masked_literal_bck(
+                                            &input[..input.len() - position],
+                                            literal,
+                                            mask,
+                                        )
+                                    } else {
+                                        self.try_match_masked_literal_fwd(
+                                            &input[*position..],
+                                            literal,
+                                            mask,
+                                        )
+                                    };
+                                    if is_match {
+                                        next_positions
+                                            .insert(position + literal.len());
+                                    }
+                                }
+                                // The only valid instructions in alternatives
+                                // are literals.
+                                Instr::Match
+                                | Instr::Alternation(_)
+                                | Instr::Jump(_)
+                                | Instr::JumpRange(_) => {
+                                    unreachable!()
+                                }
+                            }
                         }
                     }
                 }
@@ -288,7 +344,7 @@ impl FastVM<'_> {
         literal: &[u8],
         range: &RangeInclusive<u16>,
         position: usize,
-        next_positions: &mut BTreeSet<usize>,
+        next_positions: &mut IndexSet<usize>,
     ) {
         let jmp_min = *range.start() as usize;
         let jmp_max = cmp::min(input.len(), *range.end() as usize + 1);
@@ -313,7 +369,7 @@ impl FastVM<'_> {
         literal: &[u8],
         range: &RangeInclusive<u16>,
         position: usize,
-        next_positions: &mut BTreeSet<usize>,
+        next_positions: &mut IndexSet<usize>,
     ) {
         let jmp_range = input.len().saturating_sub(*range.end() as usize + 1)
             ..input.len().saturating_sub(*range.start() as usize);
