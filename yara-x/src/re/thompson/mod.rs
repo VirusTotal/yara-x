@@ -1,5 +1,4 @@
-/*!
-A regexp compiler using the [Thompson's construction][1] algorithm that
+/*! A regexp compiler using the [Thompson's construction][1] algorithm that
 produces code for the Pike VM described in Russ Cox's article
 [Regular Expression Matching: the Virtual Machine Approach][2].
 

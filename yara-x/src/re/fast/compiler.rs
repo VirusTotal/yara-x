@@ -10,18 +10,18 @@ use crate::re;
 use crate::re::fast::instr::Instr;
 use crate::re::{BckCodeLoc, Error, FwdCodeLoc, RegexpAtom};
 
-/// A compiler that takes a [`re::hir::Hir`] and produces code for the
-/// VM represented by [`re::fast::FastVM`].
-///
-/// This compiler accepts only a subset of the regular expressions.
-///
+/// A compiler that takes a [`re::hir::Hir`] and produces code for
+/// [`re::fast::FastVM`].
 pub(crate) struct Compiler {}
 
 impl Compiler {
+    /// Creates a new compiler.
     pub fn new() -> Self {
         Self {}
     }
 
+    /// Compiles the regular expression represented by the given [`Hir`]
+    /// and appends the produced code to a vector.
     pub fn compile(
         mut self,
         hir: &re::hir::Hir,
@@ -214,15 +214,16 @@ impl Compiler {
 
 /// Represents the pieces in which patterns are decomposed during compilation.
 ///
-/// Patterns accepted by the Fast VM can be decomposed into a sequence of
-/// pieces where each piece is either a literal, a masked literal, or a jump.
-/// For example, the pattern `{ 01 02 03 [0-2] 04 0? 06 }` is decomposed into
-/// the sequence:
+/// Patterns accepted by the Fast VM can be decomposed into a sequence of pieces
+/// where each piece is either a literal, a masked literal, an alternation, or a
+/// jump.
+///
+/// For instance, the pattern `{ 01 02 03 [0-2] 04 0? 06 }` is decomposed into:
 ///
 /// ```text
-/// Literal([01, 02, 03])
+/// Pattern(Literal([01, 02, 03]))
 /// Jump(0,2)
-/// MaskedLiteral([04, 00, 06], [FF, F0, FF])
+/// Pattern(Masked([04, 00, 06], [FF, F0, FF]))
 /// ```
 enum PatternPiece {
     Pattern(Pattern),
@@ -236,7 +237,8 @@ enum Pattern {
     Masked(Vec<u8>, Vec<u8>),
 }
 
-/// Given the HIR for a regexp pattern, decomposed it in [`PatternPiece`]s.
+/// Given the [`Hir`] for a regexp pattern, decomposed it into
+/// [`PatternPiece`]s.
 struct PatternSplitter {
     bytes: Vec<u8>,
     mask: Vec<u8>,
@@ -400,7 +402,8 @@ impl Visitor for PatternSplitter {
     }
 }
 
-/// A sequence of instructions for the Fast VM.
+/// Helper type for emitting a sequence of instructions for
+/// [`re::fast::fastvm::FastVM`].
 #[derive(Default)]
 struct InstrSeq {
     seq: Cursor<Vec<u8>>,

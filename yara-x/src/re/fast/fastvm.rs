@@ -8,19 +8,24 @@ use memx::memeq;
 use crate::re::fast::instr::{Instr, InstrParser};
 use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
 
-/// Represents a faster alternative to [crate::re::thompson::pikevm::PikeVM]
+/// A faster but less general alternative to [PikeVM].
 ///
-/// A FastVM is similar to a PikeVM, but it is limited to a subset of the
-/// regular expressions.
+/// `FastVM` is a virtual machine that executes bytecode that evaluates
+/// regular expressions, similarly to [PikeVM]. `FastVM` is faster, but
+/// only supports a subset of the regular expressions supported by [PikeVM]
+/// (see the more details in the [`crate::re::fast`] module's documentation).
 ///
-/// TODO: finish
+/// [PikeVM]: crate::re::thompson::pikevm::PikeVM
 pub(crate) struct FastVM<'r> {
     /// The code for the VM. Produced by [`crate::re::fast::Compiler`].
     code: &'r [u8],
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: usize,
-    /// A set with all the positions currently tracked.
+    /// A set with all the positions within the data that are matching so
+    /// far. `IndexSet` is used instead of `HashSet` because insertion order
+    /// needs to be maintained while iterating the positions and `HashSet`
+    /// doesn't make any guarantees about iteration order.
     positions: IndexSet<usize>,
 }
 
