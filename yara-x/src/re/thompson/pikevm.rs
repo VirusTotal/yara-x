@@ -1,7 +1,11 @@
-use std::mem;
+use std::{hash::BuildHasherDefault, mem};
+
+use rustc_hash::{FxHashSet, FxHasher};
 
 use super::instr::{Instr, InstrParser};
 use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
+
+type IndexSet = indexmap::IndexSet<usize, BuildHasherDefault<FxHasher>>;
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -12,10 +16,10 @@ pub(crate) struct PikeVM<'r> {
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the list is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
-    threads: Vec<usize>,
+    threads: IndexSet,
     /// The list of threads that will become the active threads when the next
     /// byte is read from the input.
-    next_threads: Vec<usize>,
+    next_threads: IndexSet,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: usize,
@@ -28,8 +32,8 @@ impl<'r> PikeVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            threads: Vec::new(),
-            next_threads: Vec::new(),
+            threads: IndexSet::default(),
+            next_threads: IndexSet::default(),
             cache: EpsilonClosureState::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
@@ -170,12 +174,12 @@ impl<'r> PikeVM<'r> {
 /// documentation of [`epsilon_closure`] for details.
 pub struct EpsilonClosureState {
     threads: Vec<usize>,
-    executed_splits: Vec<usize>,
+    executed_splits: FxHashSet<usize>,
 }
 
 impl EpsilonClosureState {
     pub fn new() -> Self {
-        Self { threads: Vec::new(), executed_splits: Vec::new() }
+        Self { threads: Vec::new(), executed_splits: FxHashSet::default() }
     }
 }
 
@@ -211,7 +215,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
-    closure: &mut Vec<usize>,
+    closure: &mut IndexSet,
 ) {
     state.threads.push(start.location());
     state.executed_splits.clear();
@@ -228,17 +232,10 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
-                if !closure.contains(&ip) {
-                    closure.push(ip);
-                }
+                closure.insert(ip);
             }
             Instr::SplitA(offset) => {
-                // TODO: here we are relying on `contains` which is O(n), this
-                // can be improved by using a set. We can even remove
-                // `executed_splits` and rely on `closure`, which must be
-                // a set that maintains the insertion order.
-                if !state.executed_splits.contains(&ip) {
-                    state.executed_splits.push(ip);
+                if state.executed_splits.insert(ip) {
                     state
                         .threads
                         .push((ip as i64 + offset as i64).try_into().unwrap());
@@ -246,8 +243,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 }
             }
             Instr::SplitB(offset) => {
-                if !state.executed_splits.contains(&ip) {
-                    state.executed_splits.push(ip);
+                if state.executed_splits.insert(ip) {
                     state.threads.push(next);
                     state
                         .threads
@@ -255,8 +251,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 }
             }
             Instr::SplitN(split) => {
-                if !state.executed_splits.contains(&ip) {
-                    state.executed_splits.push(ip);
+                if state.executed_splits.insert(ip) {
                     for offset in split.offsets().rev() {
                         state.threads.push(
                             (ip as i64 + offset as i64).try_into().unwrap(),
