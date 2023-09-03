@@ -1,12 +1,15 @@
-use indexmap::IndexSet;
+use std::hash::BuildHasherDefault;
 use std::ops::RangeInclusive;
 use std::{cmp, mem};
 
 use itertools::izip;
 use memx::memeq;
+use rustc_hash::FxHasher;
 
 use crate::re::fast::instr::{Instr, InstrParser};
 use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
+
+type IndexSet = indexmap::IndexSet<usize, BuildHasherDefault<FxHasher>>;
 
 /// A faster but less general alternative to [PikeVM].
 ///
@@ -26,7 +29,7 @@ pub(crate) struct FastVM<'r> {
     /// far. `IndexSet` is used instead of `HashSet` because insertion order
     /// needs to be maintained while iterating the positions and `HashSet`
     /// doesn't make any guarantees about iteration order.
-    positions: IndexSet<usize>,
+    positions: IndexSet,
 }
 
 impl<'r> FastVM<'r> {
@@ -34,7 +37,7 @@ impl<'r> FastVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            positions: IndexSet::new(),
+            positions: IndexSet::default(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
     }
@@ -73,9 +76,8 @@ impl<'r> FastVM<'r> {
             &input[..cmp::min(input.len(), self.scan_limit)]
         };
 
-        let mut next_positions = IndexSet::new();
+        let mut next_positions = IndexSet::default();
 
-        self.positions.clear();
         self.positions.insert(0);
 
         while !self.positions.is_empty() {
@@ -89,6 +91,7 @@ impl<'r> FastVM<'r> {
                     for position in &self.positions {
                         match f(*position) {
                             Action::Stop => {
+                                self.positions.clear();
                                 return;
                             }
                             Action::Continue => {}
@@ -349,7 +352,7 @@ impl FastVM<'_> {
         literal: &[u8],
         range: &RangeInclusive<u16>,
         position: usize,
-        next_positions: &mut IndexSet<usize>,
+        next_positions: &mut IndexSet,
     ) {
         let jmp_min = *range.start() as usize;
         let jmp_max = cmp::min(input.len(), *range.end() as usize + 1);
@@ -374,7 +377,7 @@ impl FastVM<'_> {
         literal: &[u8],
         range: &RangeInclusive<u16>,
         position: usize,
-        next_positions: &mut IndexSet<usize>,
+        next_positions: &mut IndexSet,
     ) {
         let jmp_range = input.len().saturating_sub(*range.end() as usize + 1)
             ..input.len().saturating_sub(*range.start() as usize);
