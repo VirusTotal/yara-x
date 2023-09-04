@@ -689,6 +689,11 @@ fn hex_patterns() {
     pattern_false!(r#"{ 03 04 [-] 01 02 }"#, &[0x01, 0x02, 0x03, 0x04]);
     pattern_false!(r#"{ 01 02 [2-] 03 04 }"#, &[0x01, 0x02, 0xFF, 0x03, 0x04]);
 
+    pattern_false!(
+        r#"{ 01 03 03 [1-3] 03 04 05 06 07 }"#,
+        &[0x01, 0x03, 0x03, 0x03, 0x04, 0x05, 0x06, 0x07]
+    );
+
     pattern_match!(
         r#"{ 01 02 ~03 04 05 }"#,
         &[0x01, 0x02, 0xFF, 0x04, 0x05],
@@ -1217,6 +1222,30 @@ fn regexp_wide() {
         r#"/foo.*?bar/s wide"#,
         b"f\x00o\x00o\x00b\x00a\x00r\x00",
         b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/foo.{1,3}?bar/s wide"#,
+        b"f\x00o\x00o\x00X\x00b\x00a\x00r\x00",
+        b"f\x00o\x00o\x00X\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/fo.{0,3}?bar/s wide"#,
+        b"f\x00o\x00b\x00a\x00r\x00",
+        b"f\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/fo.{0,3}?bar/s wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/fo.{0,3}?bar/s wide"#,
+        b"f\x00o\x00o\x00o\x00b\x00a\x00r\x00",
+        b"f\x00o\x00o\x00o\x00b\x00a\x00r\x00"
     );
 }
 

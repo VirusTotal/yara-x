@@ -831,24 +831,11 @@ fn verify_regexp_match(
     // faster and less general FastVM, or for the slower but more general
     // PikeVM.
     if let Some(fwd_code) = atom.fwd_code() {
-        if flags.contains(SubPatternFlags::Wide) {
-            if flags.contains(SubPatternFlags::FastRegexp) {
-                todo!()
-            } else {
-                vm.pike_vm.try_match(
-                    fwd_code,
-                    scanned_data[atom_pos..].iter().step_by(2),
-                    scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
-                    |match_len| {
-                        fwd_match_len = Some(match_len * 2);
-                        Action::Stop
-                    },
-                );
-            }
-        } else if flags.contains(SubPatternFlags::FastRegexp) {
+        if flags.contains(SubPatternFlags::FastRegexp) {
             vm.fast_vm.try_match(
                 fwd_code,
                 &scanned_data[atom_pos..],
+                flags.contains(SubPatternFlags::Wide),
                 |match_len| {
                     fwd_match_len = Some(match_len);
                     Action::Stop
@@ -857,8 +844,9 @@ fn verify_regexp_match(
         } else {
             vm.pike_vm.try_match(
                 fwd_code,
-                scanned_data[atom_pos..].iter(),
-                scanned_data[..atom_pos].iter().rev(),
+                &scanned_data[atom_pos..],
+                &scanned_data[..atom_pos],
+                flags.contains(SubPatternFlags::Wide),
                 |match_len| {
                     fwd_match_len = Some(match_len);
                     Action::Stop
@@ -875,29 +863,11 @@ fn verify_regexp_match(
     };
 
     if let Some(bck_code) = atom.bck_code() {
-        if flags.contains(SubPatternFlags::Wide) {
-            if flags.contains(SubPatternFlags::FastRegexp) {
-                todo!()
-            } else {
-                vm.pike_vm.try_match(
-                    bck_code,
-                    scanned_data[..atom_pos].iter().rev().skip(1).step_by(2),
-                    scanned_data[atom_pos..].iter().step_by(2),
-                    |bck_match_len| {
-                        let range = atom_pos - bck_match_len * 2
-                            ..atom_pos + fwd_match_len;
-                        if verify_full_word(scanned_data, &range, flags, None)
-                        {
-                            f(Match { range, xor_key: None });
-                        }
-                        Action::Continue
-                    },
-                );
-            }
-        } else if flags.contains(SubPatternFlags::FastRegexp) {
+        if flags.contains(SubPatternFlags::FastRegexp) {
             vm.fast_vm.try_match(
                 bck_code,
                 &scanned_data[..atom_pos],
+                flags.contains(SubPatternFlags::Wide),
                 |bck_match_len| {
                     let range =
                         atom_pos - bck_match_len..atom_pos + fwd_match_len;
@@ -910,8 +880,9 @@ fn verify_regexp_match(
         } else {
             vm.pike_vm.try_match(
                 bck_code,
-                scanned_data[..atom_pos].iter().rev(),
-                scanned_data[atom_pos..].iter(),
+                &scanned_data[atom_pos..],
+                &scanned_data[..atom_pos],
+                flags.contains(SubPatternFlags::Wide),
                 |bck_match_len| {
                     let range =
                         atom_pos - bck_match_len..atom_pos + fwd_match_len;

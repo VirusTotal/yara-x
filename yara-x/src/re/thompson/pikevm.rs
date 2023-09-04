@@ -57,6 +57,60 @@ impl<'r> PikeVM<'r> {
     }
 
     /// Executes VM code starting at the `start` location and calls `f` for
+    /// each match found. The `right` slice contains the bytes at the right
+    /// of the starting point (i.e: from the starting point until the end of
+    /// the input), while the `right` slice contains the bytes at the left of
+    /// the starting point (i.e: from the start of the input until the starting
+    /// point.
+    ///
+    /// ```text
+    ///     <-- left --> | <-- right -->
+    ///      a b c d e f | g h i j k l k
+    ///                  |
+    ///                   starting point
+    /// ```
+    ///
+    /// The `f` function must return either [`Action::Continue`] or
+    /// [`Action::Stop`], the former will cause the VM to keep trying to find
+    /// longer matches, while the latter will stop the scanning.
+    #[inline]
+    pub(crate) fn try_match<C>(
+        &mut self,
+        start: C,
+        right: &[u8],
+        left: &[u8],
+        wide: bool,
+        mut f: impl FnMut(usize) -> Action,
+    ) where
+        C: CodeLoc,
+    {
+        match (start.backwards(), wide) {
+            // Going forward, not wide.
+            (false, false) => {
+                self.try_match_impl(start, right.iter(), left.iter().rev(), f)
+            }
+            // Going forward, wide.
+            (false, true) => self.try_match_impl(
+                start,
+                right.iter().step_by(2),
+                left.iter().rev().skip(1).step_by(2),
+                |match_len| f(match_len * 2),
+            ),
+            // Going backward, not wide.
+            (true, false) => {
+                self.try_match_impl(start, left.iter().rev(), right.iter(), f)
+            }
+            // Going backward, wide.
+            (true, true) => self.try_match_impl(
+                start,
+                left.iter().rev().skip(1).step_by(2),
+                right.iter().step_by(2),
+                |match_len| f(match_len * 2),
+            ),
+        }
+    }
+
+    /// Executes VM code starting at the `start` location and calls `f` for
     /// each match found. Input bytes are read from the `fwd_input` iterator
     /// until no more bytes are available or the scan limit is reached. When
     /// a match is found `f` is called with the number of bytes that matched.
@@ -83,7 +137,7 @@ impl<'r> PikeVM<'r> {
     /// that appear right before the start of `fwd_input` for matching some
     /// look-around assertions that need information about the surrounding
     /// bytes.
-    pub(crate) fn try_match<'a, C, F, B>(
+    fn try_match_impl<'a, C, F, B>(
         &mut self,
         start: C,
         mut fwd_input: F,
