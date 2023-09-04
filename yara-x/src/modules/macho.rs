@@ -1341,7 +1341,7 @@ fn parse_macho_file(
         Ok(result) => {
             macho_proto.set_number_of_segments(result);
         }
-        Err(e) => return Err(e.to_string()),
+        Err(e) => return Err(e),
     }
 
     // Populate other fields
