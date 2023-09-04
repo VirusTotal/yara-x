@@ -50,7 +50,9 @@ message Segment {
 }
 
 message Macho {
-  required Header header = 1;
+  optional Header header = 1;
   optional uint64 number_of_segments = 2;
   repeated Segment segments = 3;
+  optional uint64 entry_point = 4;
+  optional uint64 stack_size = 5;
 }
