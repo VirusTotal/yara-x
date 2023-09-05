@@ -203,20 +203,23 @@ impl<'r> FastVM<'r> {
                                 // are literals.
                                 Instr::Match
                                 | Instr::Alternation(_)
-                                | Instr::Jump(_)
-                                | Instr::JumpRange(_) => {
+                                | Instr::JumpExact(_)
+                                | Instr::JumpGreedy(_)
+                                | Instr::Jump(_) => {
                                     unreachable!()
                                 }
                             }
                         }
                     }
                 }
-                Instr::Jump(jump) => {
+                Instr::JumpExact(jump) => {
                     for position in &self.positions {
                         next_positions.insert(position + step * jump as usize);
                     }
                 }
-                Instr::JumpRange(range) => {
+                Instr::Jump(ref range) | Instr::JumpGreedy(ref range) => {
+                    let greedy = matches!(instr, Instr::JumpGreedy(_));
+
                     match InstrParser::decode_instr(&self.code[ip..]) {
                         (Instr::Literal(literal), _) if backwards => {
                             for position in &self.positions {
@@ -227,7 +230,8 @@ impl<'r> FastVM<'r> {
                                     &input[..input.len() - position],
                                     literal,
                                     wide,
-                                    &range,
+                                    greedy,
+                                    range,
                                     *position,
                                     &mut next_positions,
                                 );
@@ -242,7 +246,8 @@ impl<'r> FastVM<'r> {
                                     &input[*position..],
                                     literal,
                                     wide,
-                                    &range,
+                                    greedy,
+                                    range,
                                     *position,
                                     &mut next_positions,
                                 )
@@ -259,7 +264,8 @@ impl<'r> FastVM<'r> {
                                     &input[..input.len() - position],
                                     literal,
                                     wide,
-                                    &range,
+                                    greedy,
+                                    range,
                                     *position,
                                     &mut next_positions,
                                 );
@@ -276,7 +282,8 @@ impl<'r> FastVM<'r> {
                                     &input[*position..],
                                     literal,
                                     wide,
-                                    &range,
+                                    greedy,
+                                    range,
                                     *position,
                                     &mut next_positions,
                                 );
@@ -428,6 +435,7 @@ impl FastVM<'_> {
         input: &[u8],
         literal: &[u8],
         wide: bool,
+        greedy: bool,
         range: &RangeInclusive<u16>,
         position: usize,
         next_positions: &mut IndexSet,
@@ -446,7 +454,7 @@ impl FastVM<'_> {
 
         if let Some(jmp_range) = input.get(range_min..range_max) {
             let lit = *literal.first().unwrap();
-            for offset in memchr::memchr_iter(lit, jmp_range) {
+            let mut on_match_found = |offset| {
                 if wide {
                     // In wide mode we are only interested in bytes found
                     // at even offsets. At odd offsets the input should
@@ -456,6 +464,15 @@ impl FastVM<'_> {
                     }
                 } else {
                     next_positions.insert(position + n + offset);
+                }
+            };
+            if greedy {
+                for offset in memchr::memrchr_iter(lit, jmp_range) {
+                    on_match_found(offset)
+                }
+            } else {
+                for offset in memchr::memchr_iter(lit, jmp_range) {
+                    on_match_found(offset)
                 }
             }
         }
@@ -467,6 +484,7 @@ impl FastVM<'_> {
         input: &[u8],
         literal: &[u8],
         wide: bool,
+        greedy: bool,
         range: &RangeInclusive<u16>,
         position: usize,
         next_positions: &mut IndexSet,
@@ -505,7 +523,7 @@ impl FastVM<'_> {
 
         if let Some(jmp_range) = input.get(range_min..range_max) {
             let lit = *literal.last().unwrap();
-            for offset in memchr::memrchr_iter(lit, jmp_range) {
+            let mut on_match_found = |offset| {
                 if wide {
                     // In wide mode we are only interested in bytes found
                     // at even offsets. At odd offsets the input should
@@ -519,6 +537,15 @@ impl FastVM<'_> {
                     next_positions.insert(
                         position + n + jmp_range.len() - offset - step,
                     );
+                }
+            };
+            if greedy {
+                for offset in memchr::memchr_iter(lit, jmp_range) {
+                    on_match_found(offset)
+                }
+            } else {
+                for offset in memchr::memrchr_iter(lit, jmp_range) {
+                    on_match_found(offset)
                 }
             }
         }

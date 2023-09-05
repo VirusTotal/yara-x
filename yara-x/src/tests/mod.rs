@@ -829,6 +829,27 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a|b|c|d|e/"#, b"e", b"e");
     pattern_match!(r#"/(a|b|c|d|e)f/"#, b"ef", b"ef");
     pattern_match!(r#"/a|b/"#, b"a", b"a");
+
+    // TODO: known issue related to exact atoms. The matching string
+    // should be "abbb" and not "abb".
+    pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
+    pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
+
+    pattern_match!(
+        r#"/the (caterpillar|cat)/"#,
+        b"the caterpillar",
+        b"the caterpillar"
+    );
+
+    pattern_match!(
+        r#"/the (cat|caterpillar)/"#,
+        b"the caterpillar",
+        b"the cat"
+    );
+}
+
+#[test]
+fn regexp_patterns_2() {
     pattern_match!(r#"/.b{2}/"#, b"abb", b"abb");
     pattern_match!(r#"/.b{2,3}/"#, b"abb", b"abb");
     pattern_match!(r#"/.b{2,3}/"#, b"abbb", b"abbb");
@@ -907,28 +928,17 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a.(bc.){2}/"#, b"aabcabca", b"aabcabca");
     pattern_match!(r#"/(ab{1,2}c){1,3}/"#, b"abbcabc", b"abbcabc");
     pattern_match!(r#"/ab(c|cc){1,3}d/"#, b"abccccccd", b"abccccccd");
-
-    pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
-
-    // TODO: known issue related to exact atoms. The matching string
-    // should be "abbb" and not "abb".
-    pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
-
-    pattern_match!(
-        r#"/the (caterpillar|cat)/"#,
-        b"the caterpillar",
-        b"the caterpillar"
-    );
-
-    pattern_match!(
-        r#"/the (cat|caterpillar)/"#,
-        b"the caterpillar",
-        b"the cat"
-    );
+    pattern_match!(r#"/abc.{0,3}def/s"#, b"abcdef", b"abcdef");
+    pattern_match!(r#"/ab.{0,3}cdef/s"#, b"abcdef", b"abcdef");
+    pattern_match!(r#"/abc.{1,3}def/s"#, b"abcxdef", b"abcxdef");
+    pattern_match!(r#"/ab.{1,3}cdef/s"#, b"abxcdef", b"abxcdef");
+    pattern_match!(r#"/abc.{0,3}ddd/s"#, b"abcdddddd", b"abcdddddd");
+    pattern_false!(r#"/abc.{1,3}def/s"#, b"abcxxxxdef");
+    pattern_false!(r#"/ab.{1,3}cdef/s"#, b"abxxxxcdef");
 }
 
 #[test]
-fn regexp_patterns_2() {
+fn regexp_patterns_3() {
     pattern_match!(r#"/a[bx]c/"#, b"abc", b"abc");
     pattern_match!(r#"/a[bx]c/"#, b"axc", b"axc");
     pattern_match!(r#"/a[0-9]*b/"#, b"ab", b"ab");
@@ -1104,7 +1114,7 @@ fn regexp_patterns_2() {
 }
 
 #[test]
-fn regexp_patterns_3() {
+fn regexp_patterns_4() {
     rule_true!(
         r#"rule test {
             strings:

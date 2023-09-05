@@ -2,7 +2,7 @@ use std::mem::size_of;
 use std::ops::RangeInclusive;
 
 use crate::re::fast::instr::Instr::{
-    Alternation, Jump, JumpRange, Literal, MaskedLiteral, Match,
+    Alternation, Jump, JumpExact, JumpGreedy, Literal, MaskedLiteral, Match,
 };
 
 /// Instructions supported by the Fast VM.
@@ -24,19 +24,22 @@ pub enum Instr<'a> {
     Alternation(InstrParser<'a>),
 
     /// Matches any string of a fixed length.
-    Jump(u16),
+    JumpExact(u16),
 
     /// Matches any string with a length in a given range.
-    JumpRange(RangeInclusive<u16>),
+    Jump(RangeInclusive<u16>),
+
+    JumpGreedy(RangeInclusive<u16>),
 }
 
 impl<'a> Instr<'a> {
     pub const MATCH: u8 = 0x00;
     pub const LITERAL: u8 = 0x01;
     pub const MASKED_LITERAL: u8 = 0x02;
-    pub const JUMP: u8 = 0x03;
-    pub const JUMP_RANGE: u8 = 0x04;
-    pub const ALTERNATION: u8 = 0x05;
+    pub const JUMP_EXACT: u8 = 0x03;
+    pub const JUMP: u8 = 0x04;
+    pub const JUMP_GREEDY: u8 = 0x05;
+    pub const ALTERNATION: u8 = 0x06;
 }
 
 /// Parses a slice of bytes that contains Fast VM instructions, returning
@@ -82,14 +85,19 @@ impl<'a> InstrParser<'a> {
                     1 + size_of::<u16>() + len,
                 )
             }
-            [Instr::JUMP, ..] => {
+            [Instr::JUMP_EXACT, ..] => {
                 let len = Self::decode_u16(&code[1..]);
-                (Jump(len), 1 + size_of::<u16>())
+                (JumpExact(len), 1 + size_of::<u16>())
             }
-            [Instr::JUMP_RANGE, ..] => {
+            [Instr::JUMP, ..] => {
                 let min = Self::decode_u16(&code[1..]);
                 let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
-                (JumpRange(min..=max), 1 + 2 * size_of::<u16>())
+                (Jump(min..=max), 1 + 2 * size_of::<u16>())
+            }
+            [Instr::JUMP_GREEDY, ..] => {
+                let min = Self::decode_u16(&code[1..]);
+                let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
+                (JumpGreedy(min..=max), 1 + 2 * size_of::<u16>())
             }
             [Instr::MATCH, ..] => (Match, 1),
             [opcode, ..] => {

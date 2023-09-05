@@ -98,7 +98,9 @@ impl Compiler {
                         }
                     }
                 }
-                PatternPiece::Jump(_) | PatternPiece::JumpRange(_, _) => {
+                PatternPiece::JumpExact(_)
+                | PatternPiece::Jump(_, _)
+                | PatternPiece::JumpGreedy(_, _) => {
                     piece_atoms.push((None, None, None, i32::MIN))
                 }
             };
@@ -204,9 +206,14 @@ impl Compiler {
             PatternPiece::Alternation(alt) => {
                 instr.emit_alternation(alt);
             }
-            PatternPiece::Jump(len) => instr.emit_jump(*len),
-            PatternPiece::JumpRange(min, max) => {
-                instr.emit_jump_range(*min, *max)
+            PatternPiece::JumpExact(len) => instr.emit_jump_exact(*len),
+            PatternPiece::Jump(min, max)
+            | PatternPiece::JumpGreedy(min, max) => {
+                instr.emit_jump(
+                    *min,
+                    *max,
+                    matches!(piece, PatternPiece::JumpGreedy(_, _)),
+                );
             }
         }
     }
@@ -228,8 +235,9 @@ impl Compiler {
 enum PatternPiece {
     Pattern(Pattern),
     Alternation(Vec<Pattern>),
-    JumpRange(u16, u16),
-    Jump(u16),
+    Jump(u16, u16),
+    JumpGreedy(u16, u16),
+    JumpExact(u16),
 }
 
 enum Pattern {
@@ -314,15 +322,15 @@ impl Visitor for PatternSplitter {
             }
 
             HirKind::Repetition(rep) => {
-                // Repetitions are ok as long as they are not nested inside another
-                // repetition or alternation, they are non-greedy and the pattern
-                // repeated is any byte. Jumps in hex pattern (eg: [1], [10-20])
-                // are expressed as one of such repetitions. These jumps behave as
+                // Repetitions are ok as long as they are not nested inside
+                // another repetition or alternation and the pattern repeated
+                // is any byte. Jumps in hex pattern (eg: [1], [10-20]) are
+                // expressed as one of such repetitions. These jumps behave as
                 // delimiters between pattern pieces.
                 if self.in_repetition || self.in_alternation {
                     return Err(Error::FastIncompatible);
                 }
-                if rep.greedy || !re::hir::any_byte(rep.sub.kind()) {
+                if !re::hir::any_byte(rep.sub.kind()) {
                     return Err(Error::FastIncompatible);
                 }
                 match (rep.min, rep.max) {
@@ -342,9 +350,14 @@ impl Visitor for PatternSplitter {
                             self.pieces.push(PatternPiece::Pattern(pattern));
                         }
                         if min == max {
-                            self.pieces.push(PatternPiece::Jump(min as u16));
+                            self.pieces
+                                .push(PatternPiece::JumpExact(min as u16));
+                        } else if rep.greedy {
+                            self.pieces.push(PatternPiece::JumpGreedy(
+                                min as u16, max as u16,
+                            ));
                         } else {
-                            self.pieces.push(PatternPiece::JumpRange(
+                            self.pieces.push(PatternPiece::Jump(
                                 min as u16, max as u16,
                             ));
                         }
@@ -425,13 +438,17 @@ impl InstrSeq {
         self.seq.write_all(&[Instr::MATCH]).unwrap();
     }
 
-    pub fn emit_jump(&mut self, len: u16) {
-        self.seq.write_all(&[Instr::JUMP]).unwrap();
+    pub fn emit_jump_exact(&mut self, len: u16) {
+        self.seq.write_all(&[Instr::JUMP_EXACT]).unwrap();
         self.seq.write_all(len.to_le_bytes().as_slice()).unwrap();
     }
 
-    pub fn emit_jump_range(&mut self, min: u16, max: u16) {
-        self.seq.write_all(&[Instr::JUMP_RANGE]).unwrap();
+    pub fn emit_jump(&mut self, min: u16, max: u16, greedy: bool) {
+        if greedy {
+            self.seq.write_all(&[Instr::JUMP_GREEDY]).unwrap();
+        } else {
+            self.seq.write_all(&[Instr::JUMP]).unwrap();
+        }
         self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
         self.seq.write_all(max.to_le_bytes().as_slice()).unwrap();
     }
