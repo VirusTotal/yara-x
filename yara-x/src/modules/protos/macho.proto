@@ -55,4 +55,176 @@ message Macho {
   repeated Segment segments = 3;
   optional uint64 entry_point = 4;
   optional uint64 stack_size = 5;
+
+  // Set Mach-O definitions
+  optional uint32 MH_MAGIC = 6;
+  optional uint32 MH_CIGAM = 7;
+  optional uint32 MH_MAGIC_64 = 8;
+  optional uint32 MH_CIGAM_64 = 9;
+
+  // Set FAT Mach-O definitions
+  optional uint32 FAT_MAGIC = 10;
+  optional uint32 FAT_CIGAM = 11;
+  optional uint32 FAT_MAGIC_64 = 12;
+  optional uint32 FAT_CIGAM_64 = 13;
+
+  // Set 64bit masks
+  optional uint32 CPU_ARCH_ABI64 = 14;
+  optional uint32 CPU_SUBTYPE_LIB64 = 15;
+
+  // Set CPU types
+  optional uint32 CPU_TYPE_MC680X0 = 16;
+  optional uint32 CPU_TYPE_X86 = 17;
+  optional uint32 CPU_TYPE_I386 = 18;
+  optional uint32 CPU_TYPE_X86_64 = 19;
+  optional uint32 CPU_TYPE_MIPS = 20;
+  optional uint32 CPU_TYPE_MC98000 = 21;
+  optional uint32 CPU_TYPE_ARM = 22;
+  optional uint32 CPU_TYPE_ARM64 = 23;
+  optional uint32 CPU_TYPE_MC88000 = 24;
+  optional uint32 CPU_TYPE_SPARC = 25;
+  optional uint32 CPU_TYPE_POWERPC = 26;
+  optional uint32 CPU_TYPE_POWERPC64 = 27;
+
+  // Set CPU subtypes
+  optional uint32 CPU_SUBTYPE_INTEL_MODEL_ALL = 28;
+  optional uint32 CPU_SUBTYPE_386 = 29;
+  optional uint32 CPU_SUBTYPE_I386_ALL = 30;
+  optional uint32 CPU_SUBTYPE_X86_64_ALL = 31;
+  optional uint32 CPU_SUBTYPE_486 = 32;
+  optional uint32 CPU_SUBTYPE_486SX = 33;
+  optional uint32 CPU_SUBTYPE_586 = 34;
+  optional uint32 CPU_SUBTYPE_PENT = 35;
+  optional uint32 CPU_SUBTYPE_PENTPRO = 36;
+  optional uint32 CPU_SUBTYPE_PENTII_M3 = 37;
+  optional uint32 CPU_SUBTYPE_PENTII_M5 = 38;
+  optional uint32 CPU_SUBTYPE_CELERON = 39;
+  optional uint32 CPU_SUBTYPE_CELERON_MOBILE = 40;
+  optional uint32 CPU_SUBTYPE_PENTIUM_3 = 41;
+  optional uint32 CPU_SUBTYPE_PENTIUM_3_M = 42;
+  optional uint32 CPU_SUBTYPE_PENTIUM_3_XEON = 43;
+  optional uint32 CPU_SUBTYPE_PENTIUM_M = 44;
+  optional uint32 CPU_SUBTYPE_PENTIUM_4 = 45;
+  optional uint32 CPU_SUBTYPE_PENTIUM_4_M = 46;
+  optional uint32 CPU_SUBTYPE_ITANIUM = 47;
+  optional uint32 CPU_SUBTYPE_ITANIUM_2 = 48;
+  optional uint32 CPU_SUBTYPE_XEON = 49;
+  optional uint32 CPU_SUBTYPE_XEON_MP = 50;
+  optional uint32 CPU_SUBTYPE_ARM_ALL = 51;
+  optional uint32 CPU_SUBTYPE_ARM_V4T = 52;
+  optional uint32 CPU_SUBTYPE_ARM_V6 = 53;
+  optional uint32 CPU_SUBTYPE_ARM_V5 = 54;
+  optional uint32 CPU_SUBTYPE_ARM_V5TEJ = 55;
+  optional uint32 CPU_SUBTYPE_ARM_XSCALE = 56;
+  optional uint32 CPU_SUBTYPE_ARM_V7 = 57;
+  optional uint32 CPU_SUBTYPE_ARM_V7F = 58;
+  optional uint32 CPU_SUBTYPE_ARM_V7S = 59;
+  optional uint32 CPU_SUBTYPE_ARM_V7K = 60;
+  optional uint32 CPU_SUBTYPE_ARM_V6M = 61;
+  optional uint32 CPU_SUBTYPE_ARM_V7M = 62;
+  optional uint32 CPU_SUBTYPE_ARM_V7EM = 63;
+  optional uint32 CPU_SUBTYPE_ARM64_ALL = 64;
+  optional uint32 CPU_SUBTYPE_SPARC_ALL = 65;
+  optional uint32 CPU_SUBTYPE_POWERPC_ALL = 66;
+  optional uint32 CPU_SUBTYPE_MC980000_ALL = 67;
+  optional uint32 CPU_SUBTYPE_POWERPC_601 = 68;
+  optional uint32 CPU_SUBTYPE_MC98601 = 69;
+  optional uint32 CPU_SUBTYPE_POWERPC_602 = 70;
+  optional uint32 CPU_SUBTYPE_POWERPC_603 = 71;
+  optional uint32 CPU_SUBTYPE_POWERPC_603E = 72;
+  optional uint32 CPU_SUBTYPE_POWERPC_603EV = 73;
+  optional uint32 CPU_SUBTYPE_POWERPC_604 = 74;
+  optional uint32 CPU_SUBTYPE_POWERPC_604E = 75;
+  optional uint32 CPU_SUBTYPE_POWERPC_620 = 76;
+  optional uint32 CPU_SUBTYPE_POWERPC_750 = 77;
+  optional uint32 CPU_SUBTYPE_POWERPC_7400 = 78;
+  optional uint32 CPU_SUBTYPE_POWERPC_7450 = 79;
+  optional uint32 CPU_SUBTYPE_POWERPC_970 = 80;
+
+  // Set file types
+  optional uint32 MH_OBJECT = 81;
+  optional uint32 MH_EXECUTE = 82;
+  optional uint32 MH_FVMLIB = 83;
+  optional uint32 MH_CORE = 84;
+  optional uint32 MH_PRELOAD = 85;
+  optional uint32 MH_DYLIB = 86;
+  optional uint32 MH_DYLINKER = 87;
+  optional uint32 MH_BUNDLE = 88;
+  optional uint32 MH_DYLIB_STUB = 89;
+  optional uint32 MH_DSYM = 90;
+  optional uint32 MH_KEXT_BUNDLE = 91;
+
+  // Set header flags
+  optional uint32 MH_NOUNDEFS = 92;
+  optional uint32 MH_INCRLINK = 93;
+  optional uint32 MH_DYLDLINK = 94;
+  optional uint32 MH_BINDATLOAD = 95;
+  optional uint32 MH_PREBOUND = 96;
+  optional uint32 MH_SPLIT_SEGS = 97;
+  optional uint32 MH_LAZY_INIT = 98;
+  optional uint32 MH_TWOLEVEL = 99;
+  optional uint32 MH_FORCE_FLAT = 100;
+  optional uint32 MH_NOMULTIDEFS = 101;
+  optional uint32 MH_NOFIXPREBINDING = 102;
+  optional uint32 MH_PREBINDABLE = 103;
+  optional uint32 MH_ALLMODSBOUND = 104;
+  optional uint32 MH_SUBSECTIONS_VIA_SYMBOLS = 105;
+  optional uint32 MH_CANONICAL = 106;
+  optional uint32 MH_WEAK_DEFINES = 107;
+  optional uint32 MH_BINDS_TO_WEAK = 108;
+  optional uint32 MH_ALLOW_STACK_EXECUTION = 109;
+  optional uint32 MH_ROOT_SAFE = 110;
+  optional uint32 MH_SETUID_SAFE = 111;
+  optional uint32 MH_NO_REEXPORTED_DYLIBS = 112;
+  optional uint32 MH_PIE = 113;
+  optional uint32 MH_DEAD_STRIPPABLE_DYLIB = 114;
+  optional uint32 MH_HAS_TLV_DESCRIPTORS = 115;
+  optional uint32 MH_NO_HEAP_EXECUTION = 116;
+  optional uint32 MH_APP_EXTENSION_SAFE = 117;
+
+  // Set segment flags masks
+  optional uint32 SG_HIGHVM = 118;
+  optional uint32 SG_FVMLIB = 119;
+  optional uint32 SG_NORELOC = 120;
+  optional uint32 SG_PROTECTED_VERSION_1 = 121;
+
+  // Set sections flags masks
+  optional uint32 SECTION_TYPE = 122;
+  optional uint32 SECTION_ATTRIBUTES = 123;
+
+  // Set section types
+  optional uint32 S_REGULAR = 124;
+  optional uint32 S_ZEROFILL = 125;
+  optional uint32 S_CSTRING_LITERALS = 126;
+  optional uint32 S_4BYTE_LITERALS = 127;
+  optional uint32 S_8BYTE_LITERALS = 128;
+  optional uint32 S_NON_LAZY_SYMBOL_POINTERS = 129;
+  optional uint32 S_LAZY_SYMBOL_POINTERS = 130;
+  optional uint32 S_LITERAL_POINTERS = 131;
+  optional uint32 S_SYMBOL_STUBS = 132;
+  optional uint32 S_MOD_INIT_FUNC_POINTERS = 133;
+  optional uint32 S_MOD_TERM_FUNC_POINTERS = 134;
+  optional uint32 S_COALESCED = 135;
+  optional uint32 S_GB_ZEROFILL = 136;
+  optional uint32 S_INTERPOSING = 137;
+  optional uint32 S_16BYTE_LITERALS = 138;
+  optional uint32 S_DTRACE_DOF = 139;
+  optional uint32 S_LAZY_DYLIB_SYMBOL_POINTERS = 140;
+  optional uint32 S_THREAD_LOCAL_REGULAR = 141;
+  optional uint32 S_THREAD_LOCAL_ZEROFILL = 142;
+  optional uint32 S_THREAD_LOCAL_VARIABLES = 143;
+  optional uint32 S_THREAD_LOCAL_VARIABLE_POINTERS = 144;
+  optional uint32 S_THREAD_LOCAL_INIT_FUNCTION_POINTERS = 145;
+
+  // Set section attributes
+  optional uint32 S_ATTR_PURE_INSTRUCTIONS = 146;
+  optional uint32 S_ATTR_NO_TOC = 147;
+  optional uint32 S_ATTR_STRIP_STATIC_SYMS = 148;
+  optional uint32 S_ATTR_NO_DEAD_STRIP = 149;
+  optional uint32 S_ATTR_LIVE_SUPPORT = 150;
+  optional uint32 S_ATTR_SELF_MODIFYING_CODE = 151;
+  optional uint32 S_ATTR_DEBUG = 152;
+  optional uint32 S_ATTR_SOME_INSTRUCTIONS = 153;
+  optional uint32 S_ATTR_EXT_RELOC = 154;
+  optional uint32 S_ATTR_LOC_RELOC = 155;
 }
