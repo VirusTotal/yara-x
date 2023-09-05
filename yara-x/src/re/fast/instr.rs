@@ -2,7 +2,8 @@ use std::mem::size_of;
 use std::ops::RangeInclusive;
 
 use crate::re::fast::instr::Instr::{
-    Alternation, Jump, JumpExact, JumpGreedy, Literal, MaskedLiteral, Match,
+    Alternation, Jump, JumpExact, JumpExactNoNewline, JumpGreedy,
+    JumpGreedyNoNewline, JumpNoNewline, Literal, MaskedLiteral, Match,
 };
 
 /// Instructions supported by the Fast VM.
@@ -23,13 +24,27 @@ pub enum Instr<'a> {
     /// as part of an alternation.
     Alternation(InstrParser<'a>),
 
-    /// Matches any string of a fixed length.
+    /// Matches all strings of a given length.
     JumpExact(u16),
 
-    /// Matches any string with a length in a given range.
+    /// Matches all strings of a given length, but the string can't contain
+    /// newline characters.
+    JumpExactNoNewline(u16),
+
+    /// Matches any string with a length in a given range. This is a
+    /// non-greedy match, shorter strings are preferred.
     Jump(RangeInclusive<u16>),
 
+    /// Matches any string with a length in a given range, but the string can't
+    /// contain newline characters. This is a non-greedy match, shorter strings
+    /// are preferred.
+    JumpNoNewline(RangeInclusive<u16>),
+
+    /// Exactly like Jump, but greedy.
     JumpGreedy(RangeInclusive<u16>),
+
+    /// Exactly like JumpNoNewline, but greedy.
+    JumpGreedyNoNewline(RangeInclusive<u16>),
 }
 
 impl<'a> Instr<'a> {
@@ -39,7 +54,10 @@ impl<'a> Instr<'a> {
     pub const JUMP_EXACT: u8 = 0x03;
     pub const JUMP: u8 = 0x04;
     pub const JUMP_GREEDY: u8 = 0x05;
-    pub const ALTERNATION: u8 = 0x06;
+    pub const JUMP_EXACT_NO_NEWLINE: u8 = 0x06;
+    pub const JUMP_NO_NEWLINE: u8 = 0x07;
+    pub const JUMP_GREEDY_NO_NEWLINE: u8 = 0x08;
+    pub const ALTERNATION: u8 = 0x09;
 }
 
 /// Parses a slice of bytes that contains Fast VM instructions, returning
@@ -98,6 +116,20 @@ impl<'a> InstrParser<'a> {
                 let min = Self::decode_u16(&code[1..]);
                 let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
                 (JumpGreedy(min..=max), 1 + 2 * size_of::<u16>())
+            }
+            [Instr::JUMP_EXACT_NO_NEWLINE, ..] => {
+                let len = Self::decode_u16(&code[1..]);
+                (JumpExactNoNewline(len), 1 + size_of::<u16>())
+            }
+            [Instr::JUMP_NO_NEWLINE, ..] => {
+                let min = Self::decode_u16(&code[1..]);
+                let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
+                (JumpNoNewline(min..=max), 1 + 2 * size_of::<u16>())
+            }
+            [Instr::JUMP_GREEDY_NO_NEWLINE, ..] => {
+                let min = Self::decode_u16(&code[1..]);
+                let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
+                (JumpGreedyNoNewline(min..=max), 1 + 2 * size_of::<u16>())
             }
             [Instr::MATCH, ..] => (Match, 1),
             [opcode, ..] => {

@@ -98,9 +98,9 @@ impl Compiler {
                         }
                     }
                 }
-                PatternPiece::JumpExact(_)
-                | PatternPiece::Jump(_, _)
-                | PatternPiece::JumpGreedy(_, _) => {
+                PatternPiece::JumpExact(..)
+                | PatternPiece::Jump(..)
+                | PatternPiece::JumpGreedy(..) => {
                     piece_atoms.push((None, None, None, i32::MIN))
                 }
             };
@@ -206,13 +206,18 @@ impl Compiler {
             PatternPiece::Alternation(alt) => {
                 instr.emit_alternation(alt);
             }
-            PatternPiece::JumpExact(len) => instr.emit_jump_exact(*len),
-            PatternPiece::Jump(min, max)
-            | PatternPiece::JumpGreedy(min, max) => {
+            PatternPiece::JumpExact(len, accept_newlines) => {
+                instr.emit_jump_exact(*len as u16, *accept_newlines)
+            }
+            PatternPiece::Jump(min, max, accept_newlines)
+            | PatternPiece::JumpGreedy(min, max, accept_newlines) => {
                 instr.emit_jump(
-                    *min,
-                    *max,
-                    matches!(piece, PatternPiece::JumpGreedy(_, _)),
+                    *min as u16,
+                    // TODO: implement a different type of jump for those cases
+                    // that don't have an upper bound.
+                    max.unwrap_or(u16::MAX as u32) as u16,
+                    matches!(piece, PatternPiece::JumpGreedy(..)),
+                    *accept_newlines,
                 );
             }
         }
@@ -229,15 +234,18 @@ impl Compiler {
 ///
 /// ```text
 /// Pattern(Literal([01, 02, 03]))
-/// Jump(0,2)
+/// Jump(0,2, false)
 /// Pattern(Masked([04, 00, 06], [FF, F0, FF]))
 /// ```
+///
+/// The `bool` field in all jump variants mean whether the newline characters
+/// are accepted in the data being skipped or not.
 enum PatternPiece {
     Pattern(Pattern),
     Alternation(Vec<Pattern>),
-    Jump(u16, u16),
-    JumpGreedy(u16, u16),
-    JumpExact(u16),
+    Jump(u32, Option<u32>, bool),
+    JumpGreedy(u32, Option<u32>, bool),
+    JumpExact(u32, bool),
 }
 
 enum Pattern {
@@ -330,45 +338,52 @@ impl Visitor for PatternSplitter {
                 if self.in_repetition || self.in_alternation {
                     return Err(Error::FastIncompatible);
                 }
-                if !re::hir::any_byte(rep.sub.kind()) {
+
+                let any_byte = re::hir::any_byte(rep.sub.kind());
+                let any_byte_except_newline =
+                    re::hir::any_byte_except_newline(rep.sub.kind());
+
+                if !any_byte && !any_byte_except_newline {
                     return Err(Error::FastIncompatible);
                 }
+
+                let accept_newlines = !any_byte_except_newline;
+
                 match (rep.min, rep.max) {
-                    // When the jump has a fixed size <= 8 treat it as a
-                    // sequence of ?? wildcards. It's more efficient to
-                    // treat short fixed size jumps as a sequence of
-                    // wildcards than breaking the pattern into more
-                    // pieces.
-                    (min, Some(max)) if min == max && max <= 8 => {
+                    // When the jump has a fixed size <= 8 and accept newlines
+                    // treat it as a sequence of ?? wildcards. It's more
+                    // efficient to treat short fixed size jumps as a sequence
+                    // of wildcards than breaking the pattern into more pieces.
+                    (min, Some(max))
+                        if min == max && max <= 8 && accept_newlines =>
+                    {
                         for _ in 0..max {
                             self.bytes.push(0);
                             self.mask.push(0);
                         }
                     }
-                    (min, Some(max)) => {
+                    (min, max) => {
                         if let Some(pattern) = self.finish_literal() {
                             self.pieces.push(PatternPiece::Pattern(pattern));
                         }
-                        if min == max {
-                            self.pieces
-                                .push(PatternPiece::JumpExact(min as u16));
+                        if Some(min) == max {
+                            self.pieces.push(PatternPiece::JumpExact(
+                                min,
+                                accept_newlines,
+                            ));
                         } else if rep.greedy {
                             self.pieces.push(PatternPiece::JumpGreedy(
-                                min as u16, max as u16,
+                                min,
+                                max,
+                                accept_newlines,
                             ));
                         } else {
                             self.pieces.push(PatternPiece::Jump(
-                                min as u16, max as u16,
+                                min,
+                                max,
+                                accept_newlines,
                             ));
                         }
-                    }
-                    // This should not happen. Regexp patterns are split
-                    // into multiple chained patterns by calling
-                    // re::hir::Hir::split_at_large_gaps before being passed
-                    // to this compiler. Therefore patterns should not
-                    // contain unbounded jumps when are compiled.
-                    (_, None) => {
-                        unreachable!()
                     }
                 }
                 self.in_repetition = true;
@@ -438,16 +453,35 @@ impl InstrSeq {
         self.seq.write_all(&[Instr::MATCH]).unwrap();
     }
 
-    pub fn emit_jump_exact(&mut self, len: u16) {
-        self.seq.write_all(&[Instr::JUMP_EXACT]).unwrap();
+    pub fn emit_jump_exact(&mut self, len: u16, accept_newlines: bool) {
+        if accept_newlines {
+            self.seq.write_all(&[Instr::JUMP_EXACT]).unwrap();
+        } else {
+            self.seq.write_all(&[Instr::JUMP_EXACT_NO_NEWLINE]).unwrap();
+        }
         self.seq.write_all(len.to_le_bytes().as_slice()).unwrap();
     }
 
-    pub fn emit_jump(&mut self, min: u16, max: u16, greedy: bool) {
-        if greedy {
-            self.seq.write_all(&[Instr::JUMP_GREEDY]).unwrap();
-        } else {
-            self.seq.write_all(&[Instr::JUMP]).unwrap();
+    pub fn emit_jump(
+        &mut self,
+        min: u16,
+        max: u16,
+        greedy: bool,
+        accept_newlines: bool,
+    ) {
+        match (greedy, accept_newlines) {
+            (true, true) => {
+                self.seq.write_all(&[Instr::JUMP_GREEDY]).unwrap();
+            }
+            (true, false) => {
+                self.seq.write_all(&[Instr::JUMP_GREEDY_NO_NEWLINE]).unwrap();
+            }
+            (false, true) => {
+                self.seq.write_all(&[Instr::JUMP]).unwrap();
+            }
+            (false, false) => {
+                self.seq.write_all(&[Instr::JUMP_NO_NEWLINE]).unwrap();
+            }
         }
         self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
         self.seq.write_all(max.to_le_bytes().as_slice()).unwrap();

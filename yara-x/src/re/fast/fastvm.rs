@@ -201,11 +201,7 @@ impl<'r> FastVM<'r> {
                                 }
                                 // The only valid instructions in alternatives
                                 // are literals.
-                                Instr::Match
-                                | Instr::Alternation(_)
-                                | Instr::JumpExact(_)
-                                | Instr::JumpGreedy(_)
-                                | Instr::Jump(_) => {
+                                _ => {
                                     unreachable!()
                                 }
                             }
@@ -217,8 +213,30 @@ impl<'r> FastVM<'r> {
                         next_positions.insert(position + step * jump as usize);
                     }
                 }
-                Instr::Jump(ref range) | Instr::JumpGreedy(ref range) => {
-                    let greedy = matches!(instr, Instr::JumpGreedy(_));
+                Instr::JumpExactNoNewline(jump) => {
+                    for position in &self.positions {
+                        let jump_range =
+                            *position..*position + step * jump as usize;
+                        if memchr::memchr(0x0A, &input[jump_range]).is_none() {
+                            next_positions
+                                .insert(position + step * jump as usize);
+                        }
+                    }
+                }
+                Instr::Jump(ref range)
+                | Instr::JumpGreedy(ref range)
+                | Instr::JumpNoNewline(ref range)
+                | Instr::JumpGreedyNoNewline(ref range) => {
+                    let greedy = matches!(
+                        instr,
+                        Instr::JumpGreedy(_) | Instr::JumpGreedyNoNewline(_)
+                    );
+
+                    let accept_newlines = !matches!(
+                        instr,
+                        Instr::JumpNoNewline(_)
+                            | Instr::JumpGreedyNoNewline(_)
+                    );
 
                     match InstrParser::decode_instr(&self.code[ip..]) {
                         (Instr::Literal(literal), _) if backwards => {
@@ -231,6 +249,7 @@ impl<'r> FastVM<'r> {
                                     literal,
                                     wide,
                                     greedy,
+                                    accept_newlines,
                                     range,
                                     *position,
                                     &mut next_positions,
@@ -247,6 +266,7 @@ impl<'r> FastVM<'r> {
                                     literal,
                                     wide,
                                     greedy,
+                                    accept_newlines,
                                     range,
                                     *position,
                                     &mut next_positions,
@@ -265,6 +285,7 @@ impl<'r> FastVM<'r> {
                                     literal,
                                     wide,
                                     greedy,
+                                    accept_newlines,
                                     range,
                                     *position,
                                     &mut next_positions,
@@ -283,6 +304,7 @@ impl<'r> FastVM<'r> {
                                     literal,
                                     wide,
                                     greedy,
+                                    accept_newlines,
                                     range,
                                     *position,
                                     &mut next_positions,
@@ -291,7 +313,29 @@ impl<'r> FastVM<'r> {
                         }
                         _ => {
                             for position in mem::take(&mut self.positions) {
+                                if accept_newlines {
+                                    let jmp_min_range = position
+                                        ..position + *range.start() as usize;
+                                    match input.get(jmp_min_range) {
+                                        Some(r) => {
+                                            if memchr::memchr(0x0A, r)
+                                                .is_some()
+                                            {
+                                                continue;
+                                            }
+                                        }
+                                        None => continue,
+                                    }
+                                }
                                 for i in range.clone() {
+                                    if accept_newlines {
+                                        match input
+                                            .get(position + step * i as usize)
+                                        {
+                                            Some(0x0A) | None => continue,
+                                            _ => {}
+                                        }
+                                    }
                                     next_positions
                                         .insert(position + step * i as usize);
                                 }
@@ -436,6 +480,7 @@ impl FastVM<'_> {
         literal: &[u8],
         wide: bool,
         greedy: bool,
+        accept_newlines: bool,
         range: &RangeInclusive<u16>,
         position: usize,
         next_positions: &mut IndexSet,
@@ -449,6 +494,13 @@ impl FastVM<'_> {
         let range_max = cmp::min(input.len(), m + step);
 
         if range_min >= range_max {
+            return;
+        }
+
+        // If newlines are not accepted in the data being skipped by the jump
+        // lets make sure that the ranges that goes from the current position
+        // to position + n doesn't contain any newlines.
+        if !accept_newlines && memchr::memchr(0x0A, &input[..n]).is_some() {
             return;
         }
 
@@ -466,13 +518,51 @@ impl FastVM<'_> {
                     next_positions.insert(position + n + offset);
                 }
             };
-            if greedy {
-                for offset in memchr::memrchr_iter(lit, jmp_range) {
-                    on_match_found(offset)
+            match (greedy, accept_newlines) {
+                // Non-greedy, newlines accepted.
+                (false, true) => {
+                    for offset in memchr::memchr_iter(lit, jmp_range) {
+                        on_match_found(offset)
+                    }
                 }
-            } else {
-                for offset in memchr::memchr_iter(lit, jmp_range) {
-                    on_match_found(offset)
+                // Non-greedy, newlines not accepted.
+                (false, false) => {
+                    // Search for the literal byte and the newline at the same
+                    // time. Any offset found before the newline is a position
+                    // that needs to be verified, but once the newline if found
+                    // no more positions will match and we can return.
+                    for offset in memchr::memchr2_iter(lit, 0x0A, jmp_range) {
+                        if jmp_range[offset] == 0x0A {
+                            return;
+                        }
+                        on_match_found(offset)
+                    }
+                }
+                // Greedy, newlines accepted.
+                (true, true) => {
+                    for offset in memchr::memrchr_iter(lit, jmp_range) {
+                        on_match_found(offset)
+                    }
+                }
+                // Greedy, newlines not accepted.
+                (true, false) => {
+                    // Search for the newline character in the range covered by
+                    // the jump. If found, truncate the range at the point where
+                    // the newline was found.
+                    let jmp_range = if let Some(newline) =
+                        memchr::memchr(0x0A, jmp_range)
+                    {
+                        &jmp_range[..newline]
+                    } else {
+                        jmp_range
+                    };
+                    // Now search for the literal byte from right to left (in
+                    // opposite direction to the forward jump). As this is a
+                    // greedy jump we want the higher offsets to be inserted
+                    // in `next_positions` first.
+                    for offset in memchr::memrchr_iter(lit, jmp_range) {
+                        on_match_found(offset)
+                    }
                 }
             }
         }
@@ -485,6 +575,7 @@ impl FastVM<'_> {
         literal: &[u8],
         wide: bool,
         greedy: bool,
+        accept_newlines: bool,
         range: &RangeInclusive<u16>,
         position: usize,
         next_positions: &mut IndexSet,
@@ -521,6 +612,15 @@ impl FastVM<'_> {
             return;
         }
 
+        // If newlines are not accepted in the data being skipped by the jump
+        // lets make sure that the ranges that goes from the current position
+        // to position + n doesn't contain any newlines.
+        if !accept_newlines
+            && memchr::memchr(0x0A, &input[range_max..]).is_some()
+        {
+            return;
+        }
+
         if let Some(jmp_range) = input.get(range_min..range_max) {
             let lit = *literal.last().unwrap();
             let mut on_match_found = |offset| {
@@ -539,13 +639,47 @@ impl FastVM<'_> {
                     );
                 }
             };
-            if greedy {
-                for offset in memchr::memchr_iter(lit, jmp_range) {
-                    on_match_found(offset)
+            match (greedy, accept_newlines) {
+                // Non-greedy, newlines accepted.
+                (false, true) => {
+                    for offset in memchr::memrchr_iter(lit, jmp_range) {
+                        on_match_found(offset)
+                    }
                 }
-            } else {
-                for offset in memchr::memrchr_iter(lit, jmp_range) {
-                    on_match_found(offset)
+                // Non-greedy, newlines not accepted.
+                (false, false) => {
+                    for offset in memchr::memrchr2_iter(lit, 0x0A, jmp_range) {
+                        if jmp_range[offset] == 0x0A {
+                            return;
+                        }
+                        on_match_found(offset)
+                    }
+                }
+                // Greedy, newlines accepted.
+                (true, true) => {
+                    for offset in memchr::memchr_iter(lit, jmp_range) {
+                        on_match_found(offset)
+                    }
+                }
+                // Greedy, newlines not accepted.
+                (true, false) => {
+                    // Search for the newline character in the range covered by
+                    // the jump. If found, truncate the range at the point where
+                    // the newline was found.
+                    let jmp_range = if let Some(newline) =
+                        memchr::memchr(0x0A, jmp_range)
+                    {
+                        &jmp_range[newline + 1..]
+                    } else {
+                        jmp_range
+                    };
+                    // Now search for the literal byte from left to right (in
+                    // the opposite direction to the backward jump). As this a
+                    // a greedy jump we want the lower offsets to be inserted
+                    // in `next_positions` first.
+                    for offset in memchr::memchr_iter(lit, jmp_range) {
+                        on_match_found(offset)
+                    }
                 }
             }
         }

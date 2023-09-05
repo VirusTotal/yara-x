@@ -9,6 +9,7 @@ use crate::utils::cast;
 pub use regex_syntax::hir::Class;
 pub use regex_syntax::hir::ClassBytes;
 pub use regex_syntax::hir::HirKind;
+use regex_syntax::hir::{ClassBytesRange, ClassUnicode, ClassUnicodeRange};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ChainedPattern {
@@ -224,6 +225,35 @@ pub fn any_byte(hir_kind: &HirKind) -> bool {
             } else {
                 false
             }
+        }
+        _ => false,
+    }
+}
+
+/// Returns true if `hir_kind` is a byte class containing all possible bytes
+/// except newline.
+///
+/// For example `.` in a regexp that doesn't use the `/s` modifier
+/// (i.e: `dot_matches_new_line` is false).
+pub fn any_byte_except_newline(hir_kind: &HirKind) -> bool {
+    match hir_kind {
+        HirKind::Class(Class::Bytes(class)) => {
+            // The class must contain two ranges, one that contains all bytes
+            // in the range 0x00-0x09, and the other that contains all bytes
+            // in the range 0x0B-0xFF. Only 0x0A (ASCII code for line-feed) is
+            // excluded.
+            let all_bytes_except_newline = ClassBytes::new([
+                ClassBytesRange::new(0x00, 0x09),
+                ClassBytesRange::new(0x0B, 0xFF),
+            ]);
+            all_bytes_except_newline.eq(class)
+        }
+        HirKind::Class(Class::Unicode(class)) => {
+            let all_bytes_except_newline = ClassUnicode::new([
+                ClassUnicodeRange::new(0x00 as char, 0x09 as char),
+                ClassUnicodeRange::new(0x0B as char, char::MAX),
+            ]);
+            all_bytes_except_newline.eq(class)
         }
         _ => false,
     }

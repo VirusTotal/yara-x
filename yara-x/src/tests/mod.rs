@@ -830,6 +830,23 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/(a|b|c|d|e)f/"#, b"ef", b"ef");
     pattern_match!(r#"/a|b/"#, b"a", b"a");
 
+    pattern_match!(r#"/abcd.*ef/"#, b"abcdef", b"abcdef");
+    pattern_match!(r#"/ab.*cdef/"#, b"abcdef", b"abcdef");
+    pattern_match!(r#"/abcd.*ef/"#, b"abcdxef", b"abcdxef");
+    pattern_match!(r#"/ab.*cdef/"#, b"abxcdef", b"abxcdef");
+    pattern_false!(r#"/abcd.*ef/"#, b"abcd\nef");
+    pattern_false!(r#"/ab.*cdef/"#, b"ab\ncdef");
+    pattern_false!(r#"/abcd.{3}aaa/"#, b"abcd\naaaaaa");
+    pattern_false!(r#"/ab.{3}aaa/"#, b"ab\naaaaaa");
+    pattern_match!(r#"/abcd.*ef/s"#, b"abcd\nef", b"abcd\nef");
+    pattern_match!(r#"/ab.*cdef/s"#, b"ab\ncdef", b"ab\ncdef");
+    pattern_match!(r#"/abcd.{3}aaa/s"#, b"abcd\naaaaaaaaa", b"abcd\naaaaa");
+    pattern_match!(r#"/ab.{3}aaa/s"#, b"ab\naaaaaaaaa", b"ab\naaaaa");
+    pattern_false!(r#"/abcd.{1,2}ef/"#, b"abcdef");
+    pattern_false!(r#"/ab.{1,2}cdef/"#, b"abcdef");
+    pattern_match!(r#"/abcd.{1,2}ef/"#, b"abcdxef", b"abcdxef");
+    pattern_match!(r#"/ab.{1,2}cdef/"#, b"abxcdef", b"abxcdef");
+
     // TODO: known issue related to exact atoms. The matching string
     // should be "abbb" and not "abb".
     pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
@@ -846,6 +863,11 @@ fn regexp_patterns_1() {
         b"the caterpillar",
         b"the cat"
     );
+}
+
+#[test]
+fn issue() {
+    pattern_false!(r#"/abcd.{3}aaa/"#, b"abcd\naaaaaa");
 }
 
 #[test]
