@@ -982,7 +982,6 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
 fn handle_segment_command(
     command_data: &[u8],
     size: usize,
-    seg_count: &mut u64,
     macho_proto: &mut Macho,
 ) -> Result<(), String> {
     // Check if segment size is not less than SegmentCommand32 struct size
@@ -1062,7 +1061,6 @@ fn handle_segment_command(
 
     // Push segments with sections into protobuf
     macho_proto.segments.push(segment);
-    *seg_count += 1;
 
     Ok(())
 }
@@ -1071,7 +1069,6 @@ fn handle_segment_command(
 fn handle_segment_command_64(
     command_data: &[u8],
     size: usize,
-    seg_count: &mut u64,
     macho_proto: &mut Macho,
 ) -> Result<(), String> {
     // Check if segment size is not less than SegmentCommand64 struct size
@@ -1152,7 +1149,6 @@ fn handle_segment_command_64(
 
     // Push segments with sections into protobuf
     macho_proto.segments.push(segment);
-    *seg_count += 1;
 
     Ok(())
 }
@@ -1297,8 +1293,12 @@ fn handle_main(
     }
 
     // TODO: COMPILER FLAGS
-    macho_proto.entry_point =
-        macho_offset_to_rva(entrypoint_cmd.entryoff, macho_proto);
+    if false {
+        macho_proto.entry_point =
+            macho_offset_to_rva(entrypoint_cmd.entryoff, macho_proto);
+    } else {
+        macho_proto.set_entry_point(entrypoint_cmd.entryoff);
+    }
 
     macho_proto.set_stack_size(entrypoint_cmd.stacksize);
 
@@ -1310,32 +1310,21 @@ fn handle_command(
     cmd: u32,
     cmdsize: usize,
     command_data: &[u8],
-    seg_count: &mut u64,
     macho_proto: &mut Macho,
     process_segments: bool,
-) {
-    // Handly only segments, count segments
+) -> Result<u64, String> {
+    let mut seg_count = 0;
+
+    // Handle segment commands and increment segment count
     if process_segments {
         match cmd {
             LC_SEGMENT => {
-                if let Err(e) = handle_segment_command(
-                    command_data,
-                    cmdsize,
-                    seg_count,
-                    macho_proto,
-                ) {
-                    eprintln!("Error handling LC_SEGMENT: {}", e);
-                }
+                handle_segment_command(command_data, cmdsize, macho_proto)?;
+                seg_count += 1;
             }
             LC_SEGMENT_64 => {
-                if let Err(e) = handle_segment_command_64(
-                    command_data,
-                    cmdsize,
-                    seg_count,
-                    macho_proto,
-                ) {
-                    eprintln!("Error handling LC_SEGMENT_64: {}", e);
-                }
+                handle_segment_command_64(command_data, cmdsize, macho_proto)?;
+                seg_count += 1;
             }
             _ => {}
         }
@@ -1343,21 +1332,16 @@ fn handle_command(
     } else {
         match cmd {
             LC_UNIXTHREAD => {
-                if let Err(e) =
-                    handle_unixthread(command_data, cmdsize, macho_proto)
-                {
-                    eprintln!("Error handling LC_UNIXTHREAD: {}", e);
-                }
+                handle_unixthread(command_data, cmdsize, macho_proto)?;
             }
             LC_MAIN => {
-                if let Err(e) = handle_main(command_data, cmdsize, macho_proto)
-                {
-                    eprintln!("Error handling LC_MAIN: {}", e);
-                }
+                handle_main(command_data, cmdsize, macho_proto)?;
             }
             _ => {}
         }
     }
+
+    Ok(seg_count)
 }
 
 // Parse Mach-O commands
@@ -1407,14 +1391,13 @@ fn parse_macho_commands(
             break;
         }
 
-        handle_command(
+        seg_count += handle_command(
             command.cmd,
             command.cmdsize as usize,
             command_data,
-            &mut seg_count,
             macho_proto,
             process_segments,
-        );
+        )?;
 
         // Continue to next command offset
         command_offset += command.cmdsize as usize;
