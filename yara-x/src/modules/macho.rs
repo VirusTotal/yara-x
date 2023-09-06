@@ -4,6 +4,7 @@ use crate::modules::protos::macho::*;
 use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
 use nom::{bytes::complete::take, multi::count, number::complete::*, IResult};
+use thiserror::Error;
 
 // Mach-O file needs to have at least header of size 28 to be considered correct
 // Real minimum size of Mach-O file would be higher
@@ -192,6 +193,25 @@ const S_ATTR_DEBUG: u32 = 0x02000000; // Debug section
 const S_ATTR_SOME_INSTRUCTIONS: u32 = 0x00000400; // Some machine instructions
 const S_ATTR_EXT_RELOC: u32 = 0x00000200; // Has external relocations
 const S_ATTR_LOC_RELOC: u32 = 0x00000100; // Has local relocations
+
+// Add error types
+#[derive(Error, Debug)]
+pub enum MachoError {
+    #[error("File is too small")]
+    FileTooSmall,
+
+    #[error("Unsupported  cputype in header")]
+    UnsupportedCPUType,
+
+    #[error("File section is too small to contain `{0}`")]
+    FileSectionTooSmall(String),
+
+    #[error("`{0}` value not present in header")]
+    MissingHeaderValue(String),
+
+    #[error("Parsing error: {0}")]
+    ParsingError(String),
+}
 
 // 32bit Mach-O header struct
 #[repr(C)]
@@ -983,19 +1003,21 @@ fn handle_segment_command(
     command_data: &[u8],
     size: usize,
     macho_proto: &mut Macho,
-) -> Result<(), String> {
+) -> Result<(), MachoError> {
     // Check if segment size is not less than SegmentCommand32 struct size
     if size < std::mem::size_of::<SegmentCommand32>() {
-        return Err(
-            "File section too small to contain segment section".to_string()
-        );
+        return Err(MachoError::FileSectionTooSmall(
+            "SegmentCommand32".to_string(),
+        ));
     }
 
     // Parse segment command data
     let (remaining_data, mut sg) = parse_segment_command(command_data)
-        .map_err(|e| format!("Parsing error: {:?}", e))?;
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
     if should_swap_bytes(
-        macho_proto.magic.ok_or("Magic value not present in header")?,
+        macho_proto
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
         swap_segment_command(&mut sg);
     }
@@ -1023,9 +1045,11 @@ fn handle_segment_command(
     let mut sections_data = remaining_data;
     for _ in 0..sg.nsects {
         let (remaining_sections, mut sec) = parse_section(sections_data)
-            .map_err(|e| format!("Parsing error: {:?}", e))?;
+            .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
         if should_swap_bytes(
-            macho_proto.magic.ok_or("Magic value not present in header")?,
+            macho_proto
+                .magic
+                .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
         ) {
             swap_segment_section(&mut sec);
         }
@@ -1070,20 +1094,22 @@ fn handle_segment_command_64(
     command_data: &[u8],
     size: usize,
     macho_proto: &mut Macho,
-) -> Result<(), String> {
+) -> Result<(), MachoError> {
     // Check if segment size is not less than SegmentCommand64 struct size
     if size < std::mem::size_of::<SegmentCommand64>() {
-        return Err(
-            "File section too small to contain segment section".to_string()
-        );
+        return Err(MachoError::FileSectionTooSmall(
+            "SegmentCommand64".to_string(),
+        ));
     }
 
     // Parse segment command data
     let (remaining_data, mut sg) = parse_segment_command_64(command_data)
-        .map_err(|e| format!("Parsing error: {:?}", e))?;
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
     if should_swap_bytes(
-        macho_proto.magic.ok_or("Magic value not present in header")?,
+        macho_proto
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
         swap_segment_command_64(&mut sg);
     }
@@ -1111,9 +1137,11 @@ fn handle_segment_command_64(
     let mut sections_data = remaining_data;
     for _ in 0..sg.nsects {
         let (remaining_sections, mut sec) = parse_section_64(sections_data)
-            .map_err(|e| format!("Parsing error: {:?}", e))?;
+            .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
         if should_swap_bytes(
-            macho_proto.magic.ok_or("Magic value not present in header")?,
+            macho_proto
+                .magic
+                .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
         ) {
             swap_segment_section_64(&mut sec);
         }
@@ -1158,21 +1186,23 @@ fn handle_unixthread(
     command_data: &[u8],
     size: usize,
     macho_proto: &mut Macho,
-) -> Result<(), String> {
+) -> Result<(), MachoError> {
     if size < std::mem::size_of::<ThreadCommand>() {
-        return Err(
-            "File section too small to contain unixthread section".to_string()
-        );
+        return Err(MachoError::FileSectionTooSmall(
+            "ThreadCommand".to_string(),
+        ));
     }
 
     // Parse thread command
     let (remaining_data, thread_cmd) = parse_thread_command(command_data)
-        .map_err(|e| format!("Parsing error: {:?}", e))?;
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
     // Check command size
     let command_size = std::cmp::min(size, thread_cmd.cmdsize as usize);
     if command_size < std::mem::size_of::<ThreadCommand>() {
-        return Err("Invalid command size".to_string());
+        return Err(MachoError::FileSectionTooSmall(
+            "ThreadCommand".to_string(),
+        ));
     }
 
     let thread_state_size =
@@ -1181,53 +1211,70 @@ fn handle_unixthread(
     let mut is64: bool = false;
 
     // Perform parsing according to cputype in header
-    match macho_proto.cputype.ok_or("cputype value not present in header")? {
+    match macho_proto
+        .cputype
+        .ok_or(MachoError::MissingHeaderValue("cputype".to_string()))?
+    {
         CPU_TYPE_MC680X0 => {
             if thread_state_size >= std::mem::size_of::<M68KThreadState>() {
                 let (_, state) = parse_m68k_thread_state(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.pc as u64;
             }
         }
         CPU_TYPE_MC88000 => {
             if thread_state_size >= std::mem::size_of::<M88KThreadState>() {
                 let (_, state) = parse_m88k_thread_state(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.xip as u64;
             }
         }
         CPU_TYPE_SPARC => {
             if thread_state_size >= std::mem::size_of::<SPARCThreadState>() {
                 let (_, state) = parse_sparc_thread_state(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.pc as u64;
             }
         }
         CPU_TYPE_POWERPC => {
             if thread_state_size >= std::mem::size_of::<PPCThreadState>() {
                 let (_, state) = parse_ppc_thread_state(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.srr0 as u64;
             }
         }
         CPU_TYPE_X86 => {
             if thread_state_size >= std::mem::size_of::<X86ThreadState>() {
                 let (_, state) = parse_x86_thread_state(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.eip as u64;
             }
         }
         CPU_TYPE_ARM => {
             if thread_state_size >= std::mem::size_of::<ARMThreadState>() {
                 let (_, state) = parse_arm_thread_state(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.pc as u64;
             }
         }
         CPU_TYPE_X86_64 => {
             if thread_state_size >= std::mem::size_of::<X86ThreadState64>() {
                 let (_, state) = parse_x86_thread_state64(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.rip;
                 is64 = true;
             }
@@ -1235,7 +1282,9 @@ fn handle_unixthread(
         CPU_TYPE_ARM64 => {
             if thread_state_size >= std::mem::size_of::<ARMThreadState64>() {
                 let (_, state) = parse_arm_thread_state64(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.pc;
                 is64 = true;
             }
@@ -1243,17 +1292,21 @@ fn handle_unixthread(
         CPU_TYPE_POWERPC64 => {
             if thread_state_size >= std::mem::size_of::<PPCThreadState64>() {
                 let (_, state) = parse_ppc_thread_state64(remaining_data)
-                    .map_err(|e| format!("Parsing error: {:?}", e))?;
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
                 address = state.srr0;
                 is64 = true;
             }
         }
-        _ => return Err("Unsupported CPU type".to_string()),
+        _ => return Err(MachoError::UnsupportedCPUType),
     }
 
     // Swap bytes if neccessary
     if should_swap_bytes(
-        macho_proto.magic.ok_or("Magic value not present in header")?,
+        macho_proto
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
         address = if is64 {
             address.swap_bytes()
@@ -1273,21 +1326,23 @@ fn handle_main(
     command_data: &[u8],
     size: usize,
     macho_proto: &mut Macho,
-) -> Result<(), String> {
+) -> Result<(), MachoError> {
     // Check size
     if size < std::mem::size_of::<EntryPointCommand>() {
-        return Err(
-            "File section too small to contain entrypoint section".to_string()
-        );
+        return Err(MachoError::FileSectionTooSmall(
+            "EntryPointCommand".to_string(),
+        ));
     }
 
     // Parse main command
     let (_, mut entrypoint_cmd) = parse_entry_point_command(command_data)
-        .map_err(|e| format!("Parsing error: {:?}", e))?;
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
     // Swap bytes if neccesarry
     if should_swap_bytes(
-        macho_proto.magic.ok_or("Magic value not present in header")?,
+        macho_proto
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
         swap_entry_point_command(&mut entrypoint_cmd);
     }
@@ -1312,7 +1367,7 @@ fn handle_command(
     command_data: &[u8],
     macho_proto: &mut Macho,
     process_segments: bool,
-) -> Result<u64, String> {
+) -> Result<u64, MachoError> {
     let mut seg_count = 0;
 
     // Handle segment commands and increment segment count
@@ -1349,9 +1404,11 @@ fn parse_macho_commands(
     data: &[u8],
     macho_proto: &mut Macho,
     process_segments: bool,
-) -> Result<u64, String> {
+) -> Result<u64, MachoError> {
     let header_size = if is_32_bit(
-        macho_proto.magic.ok_or("Magic value not present in header")?,
+        macho_proto
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
         std::mem::size_of::<MachOHeader32>()
     } else {
@@ -1364,7 +1421,7 @@ fn parse_macho_commands(
     // Loop over Mach-O commands
     for _ in 0..macho_proto
         .ncmds
-        .ok_or("Number of commands not present in header")?
+        .ok_or(MachoError::MissingHeaderValue("ncmds".to_string()))?
     {
         // Check if remaining data is not less than size of LoadCommand
         if data.len() - command_offset < std::mem::size_of::<LoadCommand>() {
@@ -1374,9 +1431,11 @@ fn parse_macho_commands(
         // Parse load commands from Mach-O file
         let command_data = &data[command_offset..];
         let (_, mut command) = parse_load_command(command_data)
-            .map_err(|e| format!("Parsing error: {:?}", e))?;
+            .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
         if should_swap_bytes(
-            macho_proto.magic.ok_or("Magic value not present in header")?,
+            macho_proto
+                .magic
+                .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
         ) {
             swap_load_command(&mut command);
         }
@@ -1410,14 +1469,14 @@ fn parse_macho_commands(
 fn parse_macho_file(
     data: &[u8],
     macho_proto: &mut Macho,
-) -> Result<(), String> {
+) -> Result<(), MachoError> {
     // File is too small to contain Mach-O header
     if data.len() < std::mem::size_of::<MachOHeader64>() {
-        return Err("File is too small".to_string());
+        return Err(MachoError::FileTooSmall);
     }
 
     let (_, mut parsed_header) = parse_macho_header(data)
-        .map_err(|e| format!("Parsing error: {:?}", e))?;
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
     // Byte conversion (swap) if necessary
     if should_swap_bytes(parsed_header.magic) {
         swap_mach_header(&mut parsed_header);
@@ -1723,14 +1782,14 @@ fn main(ctx: &ScanContext) -> Macho {
 
     // If data is too short to be valid Mach-O file, return empty protobuf
     if data.len() < VALID_MACHO_LENGTH {
-        eprintln!("Data is too short to be a valid Mach-O file.");
+        eprintln!("{}", MachoError::FileTooSmall);
         return macho_proto;
     }
 
     // parse basic Mach-O file
     if is_macho_file_block(data) {
         if let Err(error) = parse_macho_file(data, &mut macho_proto) {
-            eprintln!("Error while parsing Mach-O file: {}", error);
+            eprintln!("{}", error);
         }
     }
 
