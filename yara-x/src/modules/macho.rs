@@ -28,18 +28,14 @@ const CPU_SUBTYPE_LIB64: u32 = 0x80000000;
 
 // Define Mach-O CPU types
 const CPU_TYPE_MC680X0: u32 = 0x00000006; // Motorola 68000
-const CPU_TYPE_I386: u32 = 0x00000007; // AMD/Intel x86
 const CPU_TYPE_X86: u32 = 0x00000007; // AMD/Intel x86
 const CPU_TYPE_X86_64: u32 = 0x01000007; // AMD/Intel x86-64
 const CPU_TYPE_MIPS: u32 = 0x00000008; // MIPS
 const CPU_TYPE_MC98000: u32 = 0x0000000a; // Motorola PowerPC
-const CPU_TYPE_HPPA: u32 = 0x0000000b; // HP PA-RISC
 const CPU_TYPE_ARM: u32 = 0x0000000c; // ARM
 const CPU_TYPE_ARM64: u32 = 0x0100000c; // ARM 64-bit
 const CPU_TYPE_MC88000: u32 = 0x0000000d; // Motorola 88000
 const CPU_TYPE_SPARC: u32 = 0x0000000e; // SPARC
-const CPU_TYPE_I860: u32 = 0x0000000f; // Intel i860
-const CPU_TYPE_ALPHA: u32 = 0x00000010; // DEC Alpha
 const CPU_TYPE_POWERPC: u32 = 0x00000012; // PowerPC
 const CPU_TYPE_POWERPC64: u32 = 0x01000012; // PowerPC 64-bit
 
@@ -90,7 +86,7 @@ const CPU_SUBTYPE_SPARC_ALL: u32 = 0x00000000;
 // Define Mach-O PowerPC CPU subtypes
 const CPU_SUBTYPE_POWERPC_ALL: u32 = 0x00000000;
 const CPU_SUBTYPE_MC980000_ALL: u32 = 0x00000000;
-const CPU_SUBTYPE_POWEPC_601: u32 = 0x00000001;
+const CPU_SUBTYPE_POWERPC_601: u32 = 0x00000001;
 const CPU_SUBTYPE_MC98601: u32 = 0x00000001;
 const CPU_SUBTYPE_POWERPC_602: u32 = 0x00000002;
 const CPU_SUBTYPE_POWERPC_603: u32 = 0x00000003;
@@ -147,54 +143,9 @@ const MH_APP_EXTENSION_SAFE: u32 = 0x02000000;
 
 // Define Mach-O load commands
 const LC_SEGMENT: u32 = 0x00000001;
-const LC_SYMTAB: u32 = 0x00000002;
-const LC_SYMSEG: u32 = 0x00000003;
-const LC_THREAD: u32 = 0x00000004;
 const LC_UNIXTHREAD: u32 = 0x00000005;
-const LC_LOADFVMLIB: u32 = 0x00000006;
-const LC_IDFVMLIB: u32 = 0x00000007;
-const LC_IDENT: u32 = 0x00000008;
-const LC_FVMFILE: u32 = 0x00000009;
-const LC_PREPAGE: u32 = 0x0000000a;
-const LC_DYSYMTAB: u32 = 0x0000000b;
-const LC_LOAD_DYLIB: u32 = 0x0000000c;
-const LC_ID_DYLIB: u32 = 0x0000000d;
-const LC_LOAD_DYLINKER: u32 = 0x0000000e;
-const LC_ID_DYLINKER: u32 = 0x0000000f;
-const LC_PREBOUND_DYLIB: u32 = 0x00000010;
-const LC_ROUTINES: u32 = 0x00000011;
-const LC_SUB_FRAMEWORK: u32 = 0x00000012;
-const LC_SUB_UMBRELLA: u32 = 0x00000013;
-const LC_SUB_CLIENT: u32 = 0x00000014;
-const LC_SUB_LIBRARY: u32 = 0x00000015;
-const LC_TWOLEVEL_HINTS: u32 = 0x00000016;
-const LC_PREBIND_CKSUM: u32 = 0x00000017;
-const LC_LOAD_WEAK_DYLIB: u32 = 0x80000018;
 const LC_SEGMENT_64: u32 = 0x00000019;
-const LC_ROUTINES_64: u32 = 0x0000001a;
-const LC_UUID: u32 = 0x0000001b;
-const LC_RPATH: u32 = 0x8000001c;
-const LC_CODE_SIGNATURE: u32 = 0x0000001d;
-const LC_SEGMENT_SPLIT_INFO: u32 = 0x0000001e;
-const LC_REEXPORT_DYLIB: u32 = 0x8000001f;
-const LC_LAZY_LOAD_DYLIB: u32 = 0x00000020;
-const LC_ENCRYPTION_INFO: u32 = 0x00000021;
-const LC_DYLD_INFO: u32 = 0x00000022;
-const LC_DYLD_INFO_ONLY: u32 = 0x80000022;
-const LC_LOAD_UPWARD_DYLIB: u32 = 0x80000023;
-const LC_VERSION_MIN_MACOSX: u32 = 0x00000024;
-const LC_VERSION_MIN_IPHONEOS: u32 = 0x00000025;
-const LC_FUNCTION_STARTS: u32 = 0x00000026;
-const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x80000028;
-const LC_DATA_IN_CODE: u32 = 0x00000029;
-const LC_SOURCE_VERSION: u32 = 0x0000002a;
-const LC_DYLIB_CODE_SIGN_DRS: u32 = 0x0000002b;
-const LC_ENCRYPTION_INFO_64: u32 = 0x0000002c;
-const LC_LINKER_OPTION: u32 = 0x0000002d;
-const LC_LINKER_OPTIMIZATION_HINT: u32 = 0x0000002e;
-const LC_VERSION_MIN_TVOS: u32 = 0x0000002f;
-const LC_VERSION_MIN_WATCHOS: u32 = 0x00000030;
 
 // Define segment flags
 const SG_HIGHVM: u32 = 0x00000001;
@@ -1055,7 +1006,7 @@ fn handle_segment_command(
     let (remaining_data, mut sg) = parse_segment_command(command_data)
         .map_err(|e| format!("Parsing error: {:?}", e))?;
     if should_swap_bytes(
-        macho_proto.header.magic.ok_or("Magic value not present in header")?,
+        macho_proto.magic.ok_or("Magic value not present in header")?,
     ) {
         swap_segment_command(&mut sg);
     }
@@ -1085,10 +1036,7 @@ fn handle_segment_command(
         let (remaining_sections, mut sec) = parse_section(sections_data)
             .map_err(|e| format!("Parsing error: {:?}", e))?;
         if should_swap_bytes(
-            macho_proto
-                .header
-                .magic
-                .ok_or("Magic value not present in header")?,
+            macho_proto.magic.ok_or("Magic value not present in header")?,
         ) {
             swap_segment_section(&mut sec);
         }
@@ -1148,7 +1096,7 @@ fn handle_segment_command_64(
         .map_err(|e| format!("Parsing error: {:?}", e))?;
 
     if should_swap_bytes(
-        macho_proto.header.magic.ok_or("Magic value not present in header")?,
+        macho_proto.magic.ok_or("Magic value not present in header")?,
     ) {
         swap_segment_command_64(&mut sg);
     }
@@ -1178,10 +1126,7 @@ fn handle_segment_command_64(
         let (remaining_sections, mut sec) = parse_section_64(sections_data)
             .map_err(|e| format!("Parsing error: {:?}", e))?;
         if should_swap_bytes(
-            macho_proto
-                .header
-                .magic
-                .ok_or("Magic value not present in header")?,
+            macho_proto.magic.ok_or("Magic value not present in header")?,
         ) {
             swap_segment_section_64(&mut sec);
         }
@@ -1250,11 +1195,7 @@ fn handle_unixthread(
     let mut is64: bool = false;
 
     // Perform parsing according to cputype in header
-    match macho_proto
-        .header
-        .cputype
-        .ok_or("cputype value not present in header")?
-    {
+    match macho_proto.cputype.ok_or("cputype value not present in header")? {
         CPU_TYPE_MC680X0 => {
             if thread_state_size >= std::mem::size_of::<M68KThreadState>() {
                 let (_, state) = parse_m68k_thread_state(remaining_data)
@@ -1326,7 +1267,7 @@ fn handle_unixthread(
 
     // Swap bytes if neccessary
     if should_swap_bytes(
-        macho_proto.header.magic.ok_or("Magic value not present in header")?,
+        macho_proto.magic.ok_or("Magic value not present in header")?,
     ) {
         address = if is64 {
             address.swap_bytes()
@@ -1363,7 +1304,7 @@ fn handle_main(
 
     // Swap bytes if neccesarry
     if should_swap_bytes(
-        macho_proto.header.magic.ok_or("Magic value not present in header")?,
+        macho_proto.magic.ok_or("Magic value not present in header")?,
     ) {
         swap_entry_point_command(&mut entrypoint_cmd);
     }
@@ -1439,7 +1380,7 @@ fn parse_macho_commands(
     process_segments: bool,
 ) -> Result<u64, String> {
     let header_size = if is_32_bit(
-        macho_proto.header.magic.ok_or("Magic value not present in header")?,
+        macho_proto.magic.ok_or("Magic value not present in header")?,
     ) {
         std::mem::size_of::<MachOHeader32>()
     } else {
@@ -1451,7 +1392,6 @@ fn parse_macho_commands(
 
     // Loop over Mach-O commands
     for _ in 0..macho_proto
-        .header
         .ncmds
         .ok_or("Number of commands not present in header")?
     {
@@ -1465,10 +1405,7 @@ fn parse_macho_commands(
         let (_, mut command) = parse_load_command(command_data)
             .map_err(|e| format!("Parsing error: {:?}", e))?;
         if should_swap_bytes(
-            macho_proto
-                .header
-                .magic
-                .ok_or("Magic value not present in header")?,
+            macho_proto.magic.ok_or("Magic value not present in header")?,
         ) {
             swap_load_command(&mut command);
         }
@@ -1517,23 +1454,16 @@ fn parse_macho_file(
     }
 
     // Populate protobuf header section
-    let header = Header {
-        magic: Some(parsed_header.magic),
-        cputype: Some(parsed_header.cputype),
-        cpusubtype: Some(parsed_header.cpusubtype),
-        filetype: Some(parsed_header.filetype),
-        ncmds: Some(parsed_header.ncmds),
-        sizeofcmds: Some(parsed_header.sizeofcmds),
-        flags: Some(parsed_header.flags),
-        reserved: if !is_32_bit(parsed_header.magic) {
-            Some(parsed_header.reserved)
-        } else {
-            None
-        },
-        ..Default::default()
-    };
-
-    macho_proto.header = Some(header).into();
+    macho_proto.set_magic(parsed_header.magic);
+    macho_proto.set_cputype(parsed_header.cputype);
+    macho_proto.set_cpusubtype(parsed_header.cpusubtype);
+    macho_proto.set_filetype(parsed_header.filetype);
+    macho_proto.set_ncmds(parsed_header.ncmds);
+    macho_proto.set_sizeofcmds(parsed_header.sizeofcmds);
+    macho_proto.set_flags(parsed_header.flags);
+    if !is_32_bit(parsed_header.magic) {
+        macho_proto.set_reserved(parsed_header.reserved);
+    }
 
     // Populate number of segments based on return type
     match parse_macho_commands(data, macho_proto, true) {
@@ -1550,8 +1480,182 @@ fn parse_macho_file(
 }
 
 // Set all Mach-O definitions
-fn set_definitions() {
-    // TODO: Set protobuf definitions for constants
+fn set_definitions(macho_proto: &mut Macho) {
+    // Set magic constants
+    macho_proto.set_MH_MAGIC(MH_MAGIC);
+    macho_proto.set_MH_CIGAM(MH_CIGAM);
+    macho_proto.set_MH_MAGIC_64(MH_MAGIC_64);
+    macho_proto.set_MH_CIGAM_64(MH_CIGAM_64);
+
+    // Set FAT magic constants
+    macho_proto.set_FAT_MAGIC(FAT_MAGIC);
+    macho_proto.set_FAT_CIGAM(FAT_CIGAM);
+    macho_proto.set_FAT_MAGIC_64(FAT_MAGIC_64);
+    macho_proto.set_FAT_CIGAM_64(FAT_CIGAM_64);
+
+    // Set 64bit masks
+    macho_proto.set_CPU_ARCH_ABI64(CPU_ARCH_ABI64);
+    macho_proto.set_CPU_SUBTYPE_LIB64(CPU_SUBTYPE_LIB64);
+
+    // Set CPU types
+    macho_proto.set_CPU_TYPE_MC680X0(CPU_TYPE_MC680X0);
+    macho_proto.set_CPU_TYPE_X86(CPU_TYPE_X86);
+    macho_proto.set_CPU_TYPE_I386(CPU_TYPE_X86);
+    macho_proto.set_CPU_TYPE_X86_64(CPU_TYPE_X86_64);
+    macho_proto.set_CPU_TYPE_MIPS(CPU_TYPE_MIPS);
+    macho_proto.set_CPU_TYPE_MC98000(CPU_TYPE_MC98000);
+    macho_proto.set_CPU_TYPE_ARM(CPU_TYPE_ARM);
+    macho_proto.set_CPU_TYPE_ARM64(CPU_TYPE_ARM64);
+    macho_proto.set_CPU_TYPE_MC88000(CPU_TYPE_MC88000);
+    macho_proto.set_CPU_TYPE_SPARC(CPU_TYPE_SPARC);
+    macho_proto.set_CPU_TYPE_POWERPC(CPU_TYPE_POWERPC);
+    macho_proto.set_CPU_TYPE_POWERPC64(CPU_TYPE_POWERPC64);
+
+    // Set CPU subtypes
+    macho_proto.set_CPU_SUBTYPE_INTEL_MODEL_ALL(CPU_SUBTYPE_INTEL_MODEL_ALL);
+    macho_proto.set_CPU_SUBTYPE_386(CPU_SUBTYPE_386);
+    macho_proto.set_CPU_SUBTYPE_I386_ALL(CPU_SUBTYPE_386);
+    macho_proto.set_CPU_SUBTYPE_X86_64_ALL(CPU_SUBTYPE_386);
+    macho_proto.set_CPU_SUBTYPE_486(CPU_SUBTYPE_486);
+    macho_proto.set_CPU_SUBTYPE_486SX(CPU_SUBTYPE_486SX);
+    macho_proto.set_CPU_SUBTYPE_586(CPU_SUBTYPE_586);
+    macho_proto.set_CPU_SUBTYPE_PENT(CPU_SUBTYPE_PENT);
+    macho_proto.set_CPU_SUBTYPE_PENTPRO(CPU_SUBTYPE_PENTPRO);
+    macho_proto.set_CPU_SUBTYPE_PENTII_M3(CPU_SUBTYPE_PENTII_M3);
+    macho_proto.set_CPU_SUBTYPE_PENTII_M5(CPU_SUBTYPE_PENTII_M5);
+    macho_proto.set_CPU_SUBTYPE_CELERON(CPU_SUBTYPE_CELERON);
+    macho_proto.set_CPU_SUBTYPE_CELERON_MOBILE(CPU_SUBTYPE_CELERON_MOBILE);
+    macho_proto.set_CPU_SUBTYPE_PENTIUM_3(CPU_SUBTYPE_PENTIUM_3);
+    macho_proto.set_CPU_SUBTYPE_PENTIUM_3_M(CPU_SUBTYPE_PENTIUM_3_M);
+    macho_proto.set_CPU_SUBTYPE_PENTIUM_3_XEON(CPU_SUBTYPE_PENTIUM_3_XEON);
+    macho_proto.set_CPU_SUBTYPE_PENTIUM_M(CPU_SUBTYPE_PENTIUM_M);
+    macho_proto.set_CPU_SUBTYPE_PENTIUM_4(CPU_SUBTYPE_PENTIUM_4);
+    macho_proto.set_CPU_SUBTYPE_PENTIUM_4_M(CPU_SUBTYPE_PENTIUM_4_M);
+    macho_proto.set_CPU_SUBTYPE_ITANIUM(CPU_SUBTYPE_ITANIUM);
+    macho_proto.set_CPU_SUBTYPE_ITANIUM_2(CPU_SUBTYPE_ITANIUM_2);
+    macho_proto.set_CPU_SUBTYPE_XEON(CPU_SUBTYPE_XEON);
+    macho_proto.set_CPU_SUBTYPE_XEON_MP(CPU_SUBTYPE_XEON_MP);
+    macho_proto.set_CPU_SUBTYPE_ARM_ALL(CPU_SUBTYPE_ARM_ALL);
+    macho_proto.set_CPU_SUBTYPE_ARM_V4T(CPU_SUBTYPE_ARM_V4T);
+    macho_proto.set_CPU_SUBTYPE_ARM_V6(CPU_SUBTYPE_ARM_V6);
+    macho_proto.set_CPU_SUBTYPE_ARM_V5(CPU_SUBTYPE_ARM_V5);
+    macho_proto.set_CPU_SUBTYPE_ARM_V5TEJ(CPU_SUBTYPE_ARM_V5TEJ);
+    macho_proto.set_CPU_SUBTYPE_ARM_XSCALE(CPU_SUBTYPE_ARM_XSCALE);
+    macho_proto.set_CPU_SUBTYPE_ARM_V7(CPU_SUBTYPE_ARM_V7);
+    macho_proto.set_CPU_SUBTYPE_ARM_V7F(CPU_SUBTYPE_ARM_V7F);
+    macho_proto.set_CPU_SUBTYPE_ARM_V7S(CPU_SUBTYPE_ARM_V7S);
+    macho_proto.set_CPU_SUBTYPE_ARM_V7K(CPU_SUBTYPE_ARM_V7K);
+    macho_proto.set_CPU_SUBTYPE_ARM_V6M(CPU_SUBTYPE_ARM_V6M);
+    macho_proto.set_CPU_SUBTYPE_ARM_V7M(CPU_SUBTYPE_ARM_V7M);
+    macho_proto.set_CPU_SUBTYPE_ARM_V7EM(CPU_SUBTYPE_ARM_V7EM);
+    macho_proto.set_CPU_SUBTYPE_ARM64_ALL(CPU_SUBTYPE_ARM64_ALL);
+    macho_proto.set_CPU_SUBTYPE_SPARC_ALL(CPU_SUBTYPE_SPARC_ALL);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_ALL(CPU_SUBTYPE_POWERPC_ALL);
+    macho_proto.set_CPU_SUBTYPE_MC980000_ALL(CPU_SUBTYPE_MC980000_ALL);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_601(CPU_SUBTYPE_POWERPC_601);
+    macho_proto.set_CPU_SUBTYPE_MC98601(CPU_SUBTYPE_MC98601);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_602(CPU_SUBTYPE_POWERPC_602);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_603(CPU_SUBTYPE_POWERPC_603);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_603E(CPU_SUBTYPE_POWERPC_603E);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_603EV(CPU_SUBTYPE_POWERPC_603EV);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_604(CPU_SUBTYPE_POWERPC_604);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_604E(CPU_SUBTYPE_POWERPC_604E);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_620(CPU_SUBTYPE_POWERPC_620);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_750(CPU_SUBTYPE_POWERPC_750);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_7400(CPU_SUBTYPE_POWERPC_7400);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_7450(CPU_SUBTYPE_POWERPC_7450);
+    macho_proto.set_CPU_SUBTYPE_POWERPC_970(CPU_SUBTYPE_POWERPC_970);
+
+    // Set file types
+    macho_proto.set_MH_OBJECT(MH_OBJECT);
+    macho_proto.set_MH_EXECUTE(MH_EXECUTE);
+    macho_proto.set_MH_FVMLIB(MH_FVMLIB);
+    macho_proto.set_MH_CORE(MH_CORE);
+    macho_proto.set_MH_PRELOAD(MH_PRELOAD);
+    macho_proto.set_MH_DYLIB(MH_DYLIB);
+    macho_proto.set_MH_DYLINKER(MH_DYLINKER);
+    macho_proto.set_MH_BUNDLE(MH_BUNDLE);
+    macho_proto.set_MH_DYLIB_STUB(MH_DYLIB_STUB);
+    macho_proto.set_MH_DSYM(MH_DSYM);
+    macho_proto.set_MH_KEXT_BUNDLE(MH_KEXT_BUNDLE);
+
+    // Set header flags
+    macho_proto.set_MH_NOUNDEFS(MH_NOUNDEFS);
+    macho_proto.set_MH_INCRLINK(MH_INCRLINK);
+    macho_proto.set_MH_DYLDLINK(MH_DYLDLINK);
+    macho_proto.set_MH_BINDATLOAD(MH_BINDATLOAD);
+    macho_proto.set_MH_PREBOUND(MH_PREBOUND);
+    macho_proto.set_MH_SPLIT_SEGS(MH_SPLIT_SEGS);
+    macho_proto.set_MH_LAZY_INIT(MH_LAZY_INIT);
+    macho_proto.set_MH_TWOLEVEL(MH_TWOLEVEL);
+    macho_proto.set_MH_FORCE_FLAT(MH_FORCE_FLAT);
+    macho_proto.set_MH_NOMULTIDEFS(MH_NOMULTIDEFS);
+    macho_proto.set_MH_NOFIXPREBINDING(MH_NOFIXPREBINDING);
+    macho_proto.set_MH_PREBINDABLE(MH_PREBINDABLE);
+    macho_proto.set_MH_ALLMODSBOUND(MH_ALLMODSBOUND);
+    macho_proto.set_MH_SUBSECTIONS_VIA_SYMBOLS(MH_SUBSECTIONS_VIA_SYMBOLS);
+    macho_proto.set_MH_CANONICAL(MH_CANONICAL);
+    macho_proto.set_MH_WEAK_DEFINES(MH_WEAK_DEFINES);
+    macho_proto.set_MH_BINDS_TO_WEAK(MH_BINDS_TO_WEAK);
+    macho_proto.set_MH_ALLOW_STACK_EXECUTION(MH_ALLOW_STACK_EXECUTION);
+    macho_proto.set_MH_ROOT_SAFE(MH_ROOT_SAFE);
+    macho_proto.set_MH_SETUID_SAFE(MH_SETUID_SAFE);
+    macho_proto.set_MH_NO_REEXPORTED_DYLIBS(MH_NO_REEXPORTED_DYLIBS);
+    macho_proto.set_MH_PIE(MH_PIE);
+    macho_proto.set_MH_DEAD_STRIPPABLE_DYLIB(MH_DEAD_STRIPPABLE_DYLIB);
+    macho_proto.set_MH_HAS_TLV_DESCRIPTORS(MH_HAS_TLV_DESCRIPTORS);
+    macho_proto.set_MH_NO_HEAP_EXECUTION(MH_NO_HEAP_EXECUTION);
+    macho_proto.set_MH_APP_EXTENSION_SAFE(MH_APP_EXTENSION_SAFE);
+
+    // Set segment flags masks
+    macho_proto.set_SG_HIGHVM(SG_HIGHVM);
+    macho_proto.set_SG_FVMLIB(SG_FVMLIB);
+    macho_proto.set_SG_NORELOC(SG_NORELOC);
+    macho_proto.set_SG_PROTECTED_VERSION_1(SG_PROTECTED_VERSION_1);
+
+    // Set section flags masks
+    macho_proto.set_SECTION_TYPE(SECTION_TYPE);
+    macho_proto.set_SECTION_ATTRIBUTES(SECTION_ATTRIBUTES);
+
+    // Set section types
+    macho_proto.set_S_REGULAR(S_REGULAR);
+    macho_proto.set_S_ZEROFILL(S_ZEROFILL);
+    macho_proto.set_S_CSTRING_LITERALS(S_CSTRING_LITERALS);
+    macho_proto.set_S_4BYTE_LITERALS(S_4BYTE_LITERALS);
+    macho_proto.set_S_8BYTE_LITERALS(S_8BYTE_LITERALS);
+    macho_proto.set_S_NON_LAZY_SYMBOL_POINTERS(S_NON_LAZY_SYMBOL_POINTERS);
+    macho_proto.set_S_LAZY_SYMBOL_POINTERS(S_LAZY_SYMBOL_POINTERS);
+    macho_proto.set_S_LITERAL_POINTERS(S_LITERAL_POINTERS);
+    macho_proto.set_S_SYMBOL_STUBS(S_SYMBOL_STUBS);
+    macho_proto.set_S_MOD_INIT_FUNC_POINTERS(S_MOD_INIT_FUNC_POINTERS);
+    macho_proto.set_S_MOD_TERM_FUNC_POINTERS(S_MOD_TERM_FUNC_POINTERS);
+    macho_proto.set_S_COALESCED(S_COALESCED);
+    macho_proto.set_S_GB_ZEROFILL(S_GB_ZEROFILL);
+    macho_proto.set_S_INTERPOSING(S_INTERPOSING);
+    macho_proto.set_S_16BYTE_LITERALS(S_16BYTE_LITERALS);
+    macho_proto.set_S_DTRACE_DOF(S_DTRACE_DOF);
+    macho_proto.set_S_LAZY_DYLIB_SYMBOL_POINTERS(S_LAZY_DYLIB_SYMBOL_POINTERS);
+    macho_proto.set_S_THREAD_LOCAL_REGULAR(S_THREAD_LOCAL_REGULAR);
+    macho_proto.set_S_THREAD_LOCAL_ZEROFILL(S_THREAD_LOCAL_ZEROFILL);
+    macho_proto.set_S_THREAD_LOCAL_VARIABLES(S_THREAD_LOCAL_VARIABLES);
+    macho_proto.set_S_THREAD_LOCAL_VARIABLE_POINTERS(
+        S_THREAD_LOCAL_VARIABLE_POINTERS,
+    );
+    macho_proto.set_S_THREAD_LOCAL_INIT_FUNCTION_POINTERS(
+        S_THREAD_LOCAL_INIT_FUNCTION_POINTERS,
+    );
+
+    // Set section attributes
+    macho_proto.set_S_ATTR_PURE_INSTRUCTIONS(S_ATTR_PURE_INSTRUCTIONS);
+    macho_proto.set_S_ATTR_NO_TOC(S_ATTR_NO_TOC);
+    macho_proto.set_S_ATTR_STRIP_STATIC_SYMS(S_ATTR_STRIP_STATIC_SYMS);
+    macho_proto.set_S_ATTR_NO_DEAD_STRIP(S_ATTR_NO_DEAD_STRIP);
+    macho_proto.set_S_ATTR_LIVE_SUPPORT(S_ATTR_LIVE_SUPPORT);
+    macho_proto.set_S_ATTR_SELF_MODIFYING_CODE(S_ATTR_SELF_MODIFYING_CODE);
+    macho_proto.set_S_ATTR_DEBUG(S_ATTR_DEBUG);
+    macho_proto.set_S_ATTR_SOME_INSTRUCTIONS(S_ATTR_SOME_INSTRUCTIONS);
+    macho_proto.set_S_ATTR_EXT_RELOC(S_ATTR_EXT_RELOC);
+    macho_proto.set_S_ATTR_LOC_RELOC(S_ATTR_LOC_RELOC);
 }
 
 // Helper function to print Option values or "NOT PRESENT"
@@ -1573,15 +1677,14 @@ fn print_option_hex<T: std::fmt::LowerHex>(opt: Option<T>) -> String {
 // Debug printing
 fn print_macho_info(macho_proto: &Macho) {
     println!("Header:");
-    let header = &macho_proto.header;
-    println!("Magic: {}", print_option_hex(header.magic));
-    println!("CPU Type: {}", print_option(header.cputype));
-    println!("CPU Subtype: {}", print_option(header.cpusubtype));
-    println!("File Type: {}", print_option(header.filetype));
-    println!("Number of Commands: {}", print_option(header.ncmds));
-    println!("Size of Commands: {}", print_option(header.sizeofcmds));
-    println!("Flags: {}", print_option_hex(header.flags));
-    println!("Reserved: {}", print_option_hex(header.reserved));
+    println!("Magic: {}", print_option_hex(macho_proto.magic));
+    println!("CPU Type: {}", print_option(macho_proto.cputype));
+    println!("CPU Subtype: {}", print_option(macho_proto.cpusubtype));
+    println!("File Type: {}", print_option(macho_proto.filetype));
+    println!("Number of Commands: {}", print_option(macho_proto.ncmds));
+    println!("Size of Commands: {}", print_option(macho_proto.sizeofcmds));
+    println!("Flags: {}", print_option_hex(macho_proto.flags));
+    println!("Reserved: {}", print_option_hex(macho_proto.reserved));
     println!();
 
     // Print Segment Commands
@@ -1664,6 +1767,8 @@ fn main(ctx: &ScanContext) -> Macho {
     if is_fat_macho_file_block(data) {
         //parse_fat_macho_file(data, &mut macho_proto);
     }
+
+    set_definitions(&mut macho_proto);
 
     print_macho_info(&macho_proto);
     macho_proto
