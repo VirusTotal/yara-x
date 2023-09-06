@@ -1,13 +1,14 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::ops::{Range, RangeInclusive};
+use std::ops::{Add, Range, RangeInclusive};
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 #[cfg(feature = "logging")]
 use log::*;
-#[cfg(feature = "logging")]
+#[cfg(any(feature = "logging", feature = "rule-profiling"))]
 use std::time::Instant;
 
 use base64::Engine;
@@ -106,6 +107,42 @@ pub(crate) struct ScanContext<'r> {
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
     pub regexp_cache: RefCell<FxHashMap<RegexpId, Regex>>,
+    /// Hash map that tracks the time spend on each pattern. Keys are pattern
+    /// PatternIds and values are the cumulative time spent on verifying each
+    /// pattern.
+    //#[cfg(feature = "rule-profiling")]
+    pub time_spent_in_pattern: FxHashMap<PatternId, Duration>,
+}
+
+//#[cfg(feature = "rule-profiling")]
+impl<'r> ScanContext<'r> {
+    pub fn most_expensive_rules(&self) -> Vec<(&'r str, &'r str, Duration)> {
+        let mut result = Vec::with_capacity(self.compiled_rules.rules().len());
+
+        for r in self.compiled_rules.rules() {
+            let mut rule_time = Duration::default();
+            for (_, pattern_id) in r.patterns.iter() {
+                if let Some(d) = self.time_spent_in_pattern.get(pattern_id) {
+                    rule_time += *d;
+                }
+            }
+            let rule_name =
+                self.compiled_rules.ident_pool().get(r.ident_id).unwrap();
+
+            let namespace_name = self
+                .compiled_rules
+                .ident_pool()
+                .get(r.namespace_ident_id)
+                .unwrap();
+
+            result.push((namespace_name, rule_name, rule_time));
+        }
+
+        // Sort the results by the time spent on each rule, in descending
+        // order.
+        result.sort_by(|a, b| b.1.cmp(a.1));
+        result
+    }
 }
 
 impl ScanContext<'_> {
@@ -263,7 +300,7 @@ impl ScanContext<'_> {
         let atoms = self.compiled_rules.atoms();
 
         #[cfg(feature = "logging")]
-        let start = Instant::now();
+        let scan_start = Instant::now();
 
         #[cfg(feature = "logging")]
         let mut atom_matches = 0_usize;
@@ -276,7 +313,10 @@ impl ScanContext<'_> {
 
             if HEARTBEAT_COUNTER.load(Ordering::Relaxed) >= self.deadline {
                 #[cfg(feature = "logging")]
-                info!("Scan timeout after: {:?}", Instant::elapsed(&start));
+                info!(
+                    "Scan timeout after: {:?}",
+                    Instant::elapsed(&scan_start)
+                );
                 return Err(ScanError::Timeout);
             }
 
@@ -340,6 +380,8 @@ impl ScanContext<'_> {
 
                 continue;
             }
+
+            let verification_start = Instant::now();
 
             match sub_pattern {
                 SubPattern::Literal { pattern, flags, .. }
@@ -468,12 +510,23 @@ impl ScanContext<'_> {
                     }
                 }
             };
+
+            self.time_spent_in_pattern
+                .entry(*pattern_id)
+                .and_modify(|t| {
+                    *t = t.add(Instant::elapsed(&verification_start));
+                })
+                .or_insert(Instant::elapsed(&verification_start));
         }
 
         #[cfg(feature = "logging")]
         {
-            info!("Scan time: {:?}", Instant::elapsed(&start));
+            info!("Scan time: {:?}", Instant::elapsed(&scan_start));
             info!("Atom matches: {}", atom_matches);
+            info!(
+                "Most expensive rules: {:?}",
+                &self.most_expensive_rules()[..10]
+            );
         }
         Ok(())
     }
