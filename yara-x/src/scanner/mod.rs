@@ -131,7 +131,7 @@ impl<'r> Scanner<'r> {
                 limit_reached: BitVec::repeat(false, num_patterns as usize),
                 max_matches_per_pattern: Self::DEFAULT_MAX_MATCHES_PER_PATTERN,
                 regexp_cache: RefCell::new(FxHashMap::default()),
-                //#[cfg(feature = "rule-profiling")]
+                #[cfg(feature = "rules-profiling")]
                 time_spent_in_pattern: FxHashMap::default(),
             },
         ));

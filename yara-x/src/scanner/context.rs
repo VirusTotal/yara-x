@@ -1,13 +1,14 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::ops::{Add, Range, RangeInclusive};
+use std::ops::{Range, RangeInclusive};
 use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
 
 #[cfg(feature = "logging")]
 use log::*;
+#[cfg(feature = "rules-profiling")]
+use std::time::Duration;
 #[cfg(any(feature = "logging", feature = "rules-profiling"))]
 use std::time::Instant;
 
@@ -381,6 +382,7 @@ impl ScanContext<'_> {
                 continue;
             }
 
+            #[cfg(feature = "rules-profiling")]
             let verification_start = Instant::now();
 
             match sub_pattern {
@@ -511,24 +513,22 @@ impl ScanContext<'_> {
                 }
             };
 
-            let time_spent = Instant::elapsed(&verification_start);
-
-            self.time_spent_in_pattern
-                .entry(*pattern_id)
-                .and_modify(|t| {
-                    *t = t.add(time_spent);
-                })
-                .or_insert(time_spent);
+            #[cfg(feature = "rules-profiling")]
+            {
+                let time_spent = Instant::elapsed(&verification_start);
+                self.time_spent_in_pattern
+                    .entry(*pattern_id)
+                    .and_modify(|t| {
+                        *t += time_spent;
+                    })
+                    .or_insert(time_spent);
+            }
         }
 
         #[cfg(feature = "logging")]
         {
             info!("Scan time: {:?}", Instant::elapsed(&scan_start));
             info!("Atom matches: {}", atom_matches);
-            info!(
-                "Most expensive rules: {:?}",
-                &self.most_expensive_rules()[..10]
-            );
             #[cfg(feature = "rules-profiling")]
             {
                 info!("Most expensive rules:");
