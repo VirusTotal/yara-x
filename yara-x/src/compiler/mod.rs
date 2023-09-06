@@ -53,7 +53,6 @@ pub use crate::compiler::errors::*;
 
 #[doc(inline)]
 pub use crate::compiler::rules::*;
-use crate::compiler::SubPattern::{Regexp, RegexpChainHead, RegexpChainTail};
 use crate::re;
 use crate::re::hir::ChainedPattern;
 
@@ -898,7 +897,7 @@ impl<'a> Compiler<'a> {
 
         if pattern.flags.contains(PatternFlags::Wide) {
             self.add_sub_pattern(
-                Regexp { flags: flags | SubPatternFlags::Wide },
+                SubPattern::Regexp { flags: flags | SubPatternFlags::Wide },
                 atoms.iter().cloned().map(|atom| atom.make_wide()),
                 SubPatternAtom::from_regexp_atom,
             );
@@ -906,7 +905,7 @@ impl<'a> Compiler<'a> {
 
         if pattern.flags.contains(PatternFlags::Ascii) {
             self.add_sub_pattern(
-                Regexp { flags },
+                SubPattern::Regexp { flags },
                 atoms.into_iter(),
                 SubPatternAtom::from_regexp_atom,
             );
@@ -1021,6 +1020,10 @@ impl<'a> Compiler<'a> {
             common_flags.set(SubPatternFlags::Nocase);
         }
 
+        if matches!(leading.is_greedy(), Some(true)) {
+            common_flags.set(SubPatternFlags::GreedyRegexp);
+        }
+
         let mut prev_sub_pattern_ascii = SubPatternId(0);
         let mut prev_sub_pattern_wide = SubPatternId(0);
 
@@ -1045,10 +1048,6 @@ impl<'a> Compiler<'a> {
         } else {
             let mut flags = common_flags;
 
-            if matches!(leading.is_greedy(), Some(true)) {
-                flags.set(SubPatternFlags::GreedyRegexp);
-            }
-
             let (atoms, is_fast_regexp) =
                 self.compile_regexp(leading, span)?;
 
@@ -1062,7 +1061,9 @@ impl<'a> Compiler<'a> {
 
             if wide {
                 prev_sub_pattern_wide = self.add_sub_pattern(
-                    RegexpChainHead { flags: flags | SubPatternFlags::Wide },
+                    SubPattern::RegexpChainHead {
+                        flags: flags | SubPatternFlags::Wide,
+                    },
                     atoms.iter().cloned().map(|atom| atom.make_wide()),
                     SubPatternAtom::from_regexp_atom,
                 );
@@ -1070,7 +1071,7 @@ impl<'a> Compiler<'a> {
 
             if ascii {
                 prev_sub_pattern_ascii = self.add_sub_pattern(
-                    RegexpChainHead { flags },
+                    SubPattern::RegexpChainHead { flags },
                     atoms.into_iter(),
                     SubPatternAtom::from_regexp_atom,
                 );
@@ -1122,7 +1123,7 @@ impl<'a> Compiler<'a> {
 
                 if wide {
                     prev_sub_pattern_wide = self.add_sub_pattern(
-                        RegexpChainTail {
+                        SubPattern::RegexpChainTail {
                             chained_to: prev_sub_pattern_wide,
                             gap: p.gap.clone(),
                             flags: flags | SubPatternFlags::Wide,
@@ -1134,7 +1135,7 @@ impl<'a> Compiler<'a> {
 
                 if ascii {
                     prev_sub_pattern_ascii = self.add_sub_pattern(
-                        RegexpChainTail {
+                        SubPattern::RegexpChainTail {
                             chained_to: prev_sub_pattern_ascii,
                             gap: p.gap.clone(),
                             flags,
@@ -1640,7 +1641,8 @@ bitmask! {
         FullwordLeft         = 0x08,
         FullwordRight        = 0x10,
         // Indicates that the pattern is a greedy regexp. Apply only to regexp
-        // sub-patterns.
+        // sub-patterns, or to any sub-pattern is part of chain that corresponds
+        // to a greedy regexp.
         GreedyRegexp         = 0x20,
         // Indicates that the pattern is a fast regexp. A fast regexp is one
         // that can be matched by the FastVM.
@@ -1720,4 +1722,18 @@ pub(crate) enum SubPattern {
         alphabet: LiteralId,
         padding: u8,
     },
+}
+
+impl SubPattern {
+    /// If this sub-pattern is chained to another one, returns the
+    /// [`SubPatternId`] associated to this other pattern.
+    pub fn chained_to(&self) -> Option<SubPatternId> {
+        match self {
+            SubPattern::LiteralChainTail { chained_to, .. }
+            | SubPattern::RegexpChainTail { chained_to, .. } => {
+                Some(*chained_to)
+            }
+            _ => None,
+        }
+    }
 }

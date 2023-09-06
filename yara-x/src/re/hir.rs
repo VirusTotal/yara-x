@@ -52,12 +52,12 @@ impl Hir {
     const PATTERN_CHAINING_THRESHOLD: u32 = 200;
 
     /// Splits a pattern into multiple pieces if it contains gaps that are larger
-    /// than [`PATTERN_CHAINING_THRESHOLD`]. Notice that these gaps must be
-    /// non-greedy, so it doesn't apply to regexps like `/abc.*xyz/s` because `.*`
-    /// is greedy, but it applies to the non-greedy `/abc.*?xyz/s`. Also notice
-    /// that only regexps with the `/s` modifier (i.e: `dot_matches_new_line` is
-    /// true) will be split. In regexps without this modifier `.*?` can not contain
-    /// newlines, and therefore is not a real gap that contain anything.
+    /// than [`PATTERN_CHAINING_THRESHOLD`]. Notice that this only applies to
+    /// gaps that can contain any arbitrary character, therefore a regexp like
+    /// `/abc.*xyz/` can not be split into `abc` and `xyz` because the `.*`
+    /// matches any character except newlines. However, if the `/s` suffix (i.e:
+    /// `dot_matches_new_line` is true) is added to the regexp, then `.*` will
+    /// match anything, and the regexp will be split.
     ///
     /// Receives the HIR for the original pattern and returns a tuple where the
     /// first item corresponds to the leading piece of the original pattern, and
@@ -106,7 +106,6 @@ impl Hir {
                 let max_gap =
                     repetition.max.unwrap_or(u32::MAX) - repetition.min;
                 if max_gap > Self::PATTERN_CHAINING_THRESHOLD
-                    && !repetition.greedy
                     && any_byte(repetition.sub.as_ref().kind())
                 {
                     push(prev_gap, pattern_chunk);
@@ -374,37 +373,6 @@ mod tests {
             )
         );
 
-        // Check that the pattern is not split when the jump is greedy.
-        assert_eq!(
-            // Input
-            Hir::concat(vec![
-                Hir::literal([0x01]),
-                Hir::repetition(Repetition {
-                    min: 0,
-                    max: Some(2 * Hir::PATTERN_CHAINING_THRESHOLD),
-                    greedy: true,
-                    sub: Box::new(Hir::dot(Dot::AnyByte).inner),
-                }),
-                Hir::literal([0x02, 0x03]),
-            ])
-            // Output
-            .split_at_large_gaps(),
-            (
-                Hir::concat(vec![
-                    // Input
-                    Hir::literal([0x01]),
-                    Hir::repetition(Repetition {
-                        min: 0,
-                        max: Some(2 * Hir::PATTERN_CHAINING_THRESHOLD),
-                        greedy: true,
-                        sub: Box::new(Hir::dot(Dot::AnyByte).inner),
-                    }),
-                    Hir::literal([0x02, 0x03]),
-                ]),
-                vec![]
-            )
-        );
-
         // Check that the pattern is split when the jump is large.
         assert_eq!(
             // Input
@@ -439,6 +407,30 @@ mod tests {
                         hir: Hir::literal([0x06, 0x07])
                     }
                 ]
+            )
+        );
+
+        // Check that the pattern is split when the jump is greedy.
+        assert_eq!(
+            // Input
+            Hir::concat(vec![
+                Hir::literal([0x01, 0x02, 0x03]),
+                Hir::repetition(Repetition {
+                    min: 0,
+                    max: None,
+                    greedy: true,
+                    sub: Box::new(Hir::dot(Dot::AnyByte).inner),
+                }),
+                Hir::literal([0x04, 0x05]),
+            ])
+            .split_at_large_gaps(),
+            // Output
+            (
+                Hir::literal([0x01, 0x02, 0x03]),
+                vec![ChainedPattern {
+                    gap: 0..=u32::MAX,
+                    hir: Hir::literal([0x04, 0x05])
+                },]
             )
         );
     }

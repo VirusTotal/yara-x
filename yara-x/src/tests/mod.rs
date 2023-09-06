@@ -866,11 +866,6 @@ fn regexp_patterns_1() {
 }
 
 #[test]
-fn issue() {
-    pattern_match!(r#"/abcd.*aaa/"#, b"abcdxxxxaaa", b"abcdxxxxaaa");
-}
-
-#[test]
 fn regexp_patterns_2() {
     pattern_match!(r#"/.b{2}/"#, b"abb", b"abb");
     pattern_match!(r#"/.b{2,3}/"#, b"abb", b"abb");
@@ -957,6 +952,9 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/abc.{0,3}ddd/s"#, b"abcdddddd", b"abcdddddd");
     pattern_false!(r#"/abc.{1,3}def/s"#, b"abcxxxxdef");
     pattern_false!(r#"/ab.{1,3}cdef/s"#, b"abxxxxcdef");
+    pattern_match!(r#"/abc.*ddd/s"#, b"abcdddddd", b"abcdddddd");
+    pattern_match!(r#"/abc.*?ddd/s"#, b"abcdddddd", b"abcddd");
+    pattern_match!(r#"/abc.*ddd/s"#, b"abcabcdddddd", b"abcabcdddddd");
 }
 
 #[test]

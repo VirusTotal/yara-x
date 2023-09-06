@@ -86,7 +86,9 @@ pub(crate) struct ScanContext<'r> {
     /// a pattern is split into multiple chained pieces, each piece is handled
     /// as an individual pattern, but the match of one of the pieces doesn't
     /// imply that the whole pattern matches. This partial matches are stored
-    /// here until they can be confirmed or discarded.
+    /// here until they can be confirmed or discarded. There's no guarantee
+    /// that matches stored in `VecDeque<UnconfirmedMatch>` are sorted by
+    /// matching offset.
     pub unconfirmed_matches:
         FxHashMap<SubPatternId, VecDeque<UnconfirmedMatch>>,
     /// Bit vector that contains one bit per pattern. The N-th bit is set if
@@ -632,10 +634,9 @@ impl ScanContext<'_> {
     /// matched. Then the function traverses the chain from the tail to the
     /// head, making sure that each intermediate sub-pattern has unconfirmed
     /// matches that have the correct distance between them, so that the whole
-    /// chain matches from head to tail.
-    ///
-    /// If the whole chain matches, the corresponding match is added to the
-    /// list of confirmed matches for pattern identified by `pattern_id`.
+    /// chain matches from head to tail. If the whole chain matches, the
+    /// corresponding match is added to the list of confirmed matches for
+    /// pattern identified by `pattern_id`.
     fn verify_chain_of_matches(
         &mut self,
         pattern_id: PatternId,
@@ -646,6 +647,7 @@ impl ScanContext<'_> {
 
         queue.push_back((tail_sub_pattern_id, tail_match_range, 1));
 
+        let mut tail_chained_to: Option<SubPatternId> = None;
         let mut tail_match_range: Option<Range<usize>> = None;
 
         while let Some((id, match_range, chain_length)) = queue.pop_front() {
@@ -664,6 +666,21 @@ impl ScanContext<'_> {
                             },
                             flags.contains(SubPatternFlags::GreedyRegexp),
                         );
+                    }
+
+                    let mut next_pattern_id = tail_chained_to;
+
+                    while let Some(id) = next_pattern_id {
+                        if let Some(unconfirmed_matches) =
+                            self.unconfirmed_matches.get_mut(&id)
+                        {
+                            for m in unconfirmed_matches {
+                                m.chain_length = 0;
+                            }
+                        }
+                        let (_, sub_pattern) =
+                            self.compiled_rules.get_sub_pattern(id);
+                        next_pattern_id = sub_pattern.chained_to();
                     }
                 }
                 SubPattern::LiteralChainTail {
@@ -691,6 +708,11 @@ impl ScanContext<'_> {
                             let valid_range =
                                 m.range.end + min_gap..=m.range.end + max_gap;
 
+                            // Besides checking that the unconfirmed match lays
+                            // at a correct distance from the current match, we
+                            // also check that the chain length associated to
+                            // the unconfirmed match doesn't exceed the current
+                            // chain length.
                             if valid_range.contains(&match_range.start)
                                 && m.chain_length <= chain_length
                             {
@@ -705,10 +727,12 @@ impl ScanContext<'_> {
                     }
 
                     if flags.contains(SubPatternFlags::LastInChain) {
-                        // Take note of the range where the tail matched. This
-                        // is reached only when this function is called with a
-                        // sub-pattern ID that corresponds to chain tail.
+                        // Take note of the range where the tail matched.
                         tail_match_range = Some(match_range.clone());
+
+                        if flags.contains(SubPatternFlags::GreedyRegexp) {
+                            tail_chained_to = Some(*chained_to);
+                        }
                     }
                 }
                 _ => unreachable!(),
