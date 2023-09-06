@@ -217,9 +217,11 @@ impl<'r> FastVM<'r> {
                     for position in &self.positions {
                         let jump_range =
                             *position..*position + step * jump as usize;
-                        if memchr::memchr(0x0A, &input[jump_range]).is_none() {
-                            next_positions
-                                .insert(position + step * jump as usize);
+                        if let Some(jump_range) = input.get(jump_range) {
+                            if memchr::memchr(0x0A, jump_range).is_none() {
+                                next_positions
+                                    .insert(position + step * jump as usize);
+                            }
                         }
                     }
                 }
