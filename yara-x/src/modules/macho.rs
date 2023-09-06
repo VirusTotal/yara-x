@@ -490,11 +490,7 @@ fn should_swap_bytes(magic: u32) -> bool {
 }
 
 // Change Mach-O RVA to offset
-fn macho_rva_to_offset(
-    address: u64,
-    offset: &mut u64,
-    macho_proto: &Macho,
-) -> bool {
+fn macho_rva_to_offset(address: u64, macho_proto: &Macho) -> Option<u64> {
     for segment in &macho_proto.segments {
         if let (Some(start), Some(vmsize), Some(fileoff)) =
             (segment.vmaddr, segment.vmsize, segment.fileoff)
@@ -502,21 +498,16 @@ fn macho_rva_to_offset(
             let end = start + vmsize;
 
             if address >= start && address < end {
-                *offset = fileoff + (address - start);
-                return true;
+                return Some(fileoff + (address - start));
             }
         }
     }
 
-    false
+    None
 }
 
 // Change Mach-O offset to RVA
-fn macho_offset_to_rva(
-    offset: u64,
-    address: &mut u64,
-    macho_proto: &Macho,
-) -> bool {
+fn macho_offset_to_rva(offset: u64, macho_proto: &Macho) -> Option<u64> {
     for segment in &macho_proto.segments {
         if let (Some(start), Some(filesize), Some(vmaddr)) =
             (segment.fileoff, segment.filesize, segment.vmaddr)
@@ -524,13 +515,12 @@ fn macho_offset_to_rva(
             let end = start + filesize;
 
             if offset >= start && offset < end {
-                *address = vmaddr + (offset - start);
-                return true;
+                return Some(vmaddr + (offset - start));
             }
         }
     }
 
-    false
+    None
 }
 
 // Swap Mach-O headers from BigEndian to LittleEndian
@@ -1276,11 +1266,8 @@ fn handle_unixthread(
         };
     }
 
-    // TODO COMPILER FLAGS
-    let mut offset = 0;
-    if macho_rva_to_offset(address, &mut offset, macho_proto) {
-        macho_proto.set_entry_point(offset);
-    }
+    // TODO: COMPILER FLAGS
+    macho_proto.entry_point = macho_rva_to_offset(address, macho_proto);
 
     Ok(())
 }
@@ -1309,10 +1296,10 @@ fn handle_main(
         swap_entry_point_command(&mut entrypoint_cmd);
     }
 
-    // TODO COMPILER FLAGS
-    let mut address: u64 = 0;
-    macho_offset_to_rva(entrypoint_cmd.entryoff, &mut address, macho_proto);
-    macho_proto.set_entry_point(entrypoint_cmd.entryoff);
+    // TODO: COMPILER FLAGS
+    macho_proto.entry_point =
+        macho_offset_to_rva(entrypoint_cmd.entryoff, macho_proto);
+
     macho_proto.set_stack_size(entrypoint_cmd.stacksize);
 
     Ok(())
