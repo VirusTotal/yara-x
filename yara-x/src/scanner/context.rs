@@ -8,7 +8,7 @@ use std::time::Duration;
 
 #[cfg(feature = "logging")]
 use log::*;
-#[cfg(any(feature = "logging", feature = "rule-profiling"))]
+#[cfg(any(feature = "logging", feature = "rules-profiling"))]
 use std::time::Instant;
 
 use base64::Engine;
@@ -110,11 +110,11 @@ pub(crate) struct ScanContext<'r> {
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
-    //#[cfg(feature = "rule-profiling")]
+    #[cfg(feature = "rules-profiling")]
     pub time_spent_in_pattern: FxHashMap<PatternId, Duration>,
 }
 
-//#[cfg(feature = "rule-profiling")]
+#[cfg(feature = "rules-profiling")]
 impl<'r> ScanContext<'r> {
     pub fn most_expensive_rules(&self) -> Vec<(&'r str, &'r str, Duration)> {
         let mut result = Vec::with_capacity(self.compiled_rules.rules().len());
@@ -140,7 +140,7 @@ impl<'r> ScanContext<'r> {
 
         // Sort the results by the time spent on each rule, in descending
         // order.
-        result.sort_by(|a, b| b.1.cmp(a.1));
+        result.sort_by(|a, b| b.2.cmp(&a.2));
         result
     }
 }
@@ -511,12 +511,14 @@ impl ScanContext<'_> {
                 }
             };
 
+            let time_spent = Instant::elapsed(&verification_start);
+
             self.time_spent_in_pattern
                 .entry(*pattern_id)
                 .and_modify(|t| {
-                    *t = t.add(Instant::elapsed(&verification_start));
+                    *t = t.add(time_spent);
                 })
-                .or_insert(Instant::elapsed(&verification_start));
+                .or_insert(time_spent);
         }
 
         #[cfg(feature = "logging")]
@@ -527,6 +529,15 @@ impl ScanContext<'_> {
                 "Most expensive rules: {:?}",
                 &self.most_expensive_rules()[..10]
             );
+            #[cfg(feature = "rules-profiling")]
+            {
+                info!("Most expensive rules:");
+                for r in self.most_expensive_rules().iter().take(10) {
+                    info!("+ namespace: {}", r.0);
+                    info!("  rule: {}", r.1);
+                    info!("  time: {:?}", r.2);
+                }
+            }
         }
         Ok(())
     }

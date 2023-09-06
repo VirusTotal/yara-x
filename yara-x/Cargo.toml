@@ -24,6 +24,11 @@ fast-regexp = []
 # Enables debug logs.
 logging = ["dep:log"]
 
+# Enables rules profiling. When this is enabled together with `logging` the
+# logs will contain information about the most expensive rules after each 
+# scan. Notice that profiling itself has an noticeable impact on performance.
+rules-profiling = []
+
 # Features for enabling/disabling modules.
 test_proto2-module = []
 test_proto3-module = []
