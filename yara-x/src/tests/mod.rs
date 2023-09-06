@@ -867,7 +867,7 @@ fn regexp_patterns_1() {
 
 #[test]
 fn issue() {
-    pattern_false!(r#"/abcd.{3}aaa/"#, b"abcd\naaaaaa");
+    pattern_match!(r#"/abcd.*aaa/"#, b"abcdxxxxaaa", b"abcdxxxxaaa");
 }
 
 #[test]

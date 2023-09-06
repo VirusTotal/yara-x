@@ -838,7 +838,11 @@ fn verify_regexp_match(
                 flags.contains(SubPatternFlags::Wide),
                 |match_len| {
                     fwd_match_len = Some(match_len);
-                    Action::Stop
+                    if flags.contains(SubPatternFlags::GreedyRegexp) {
+                        Action::Continue
+                    } else {
+                        Action::Stop
+                    }
                 },
             );
         } else {
