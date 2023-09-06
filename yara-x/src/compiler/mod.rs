@@ -1154,17 +1154,11 @@ impl<'a> Compiler<'a> {
         hir: &re::hir::Hir,
         span: Span,
     ) -> Result<(Vec<re::RegexpAtom>, bool), CompileError> {
-        //#[cfg(not(feature = "fast-regexp"))]
-        //let (result, is_fast_regexp) = (
-        //re::thompson::Compiler::new().compile(hir, &mut self.re_code),
-        //    false,
-        //);
-
         // When the `fast-regexp` feature is enabled, try to compile the regexp
         // for `FastVM` first, if the it fails with `Error::FastIncompatible`,
         // the regexp is not compatible for `FastVM` and `PikeVM` must be used
         // instead.
-        //#[cfg(feature = "fast-regexp")]
+        #[cfg(feature = "fast-regexp")]
         let (result, is_fast_regexp) = match re::fast::Compiler::new()
             .compile(hir, &mut self.re_code)
         {
@@ -1174,6 +1168,12 @@ impl<'a> Compiler<'a> {
             ),
             result => (result, true),
         };
+
+        #[cfg(not(feature = "fast-regexp"))]
+        let (result, is_fast_regexp) = (
+            re::thompson::Compiler::new().compile(hir, &mut self.re_code),
+            false,
+        );
 
         let atoms = result.map_err(|err| match err {
             re::Error::TooLarge => {
