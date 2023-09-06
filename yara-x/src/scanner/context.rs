@@ -289,7 +289,9 @@ impl ScanContext<'_> {
     pub(crate) fn search_for_patterns(&mut self) -> Result<(), ScanError> {
         let scanned_data = self.scanned_data();
 
-        self.verify_patterns_anchored_at_0();
+        // Verify the anchored pattern first. These are patterns that can match
+        // at a single known offset within the data.
+        self.verify_anchored_patterns();
 
         let ac = self.compiled_rules.ac_automaton();
 
@@ -386,6 +388,12 @@ impl ScanContext<'_> {
             let verification_start = Instant::now();
 
             match sub_pattern {
+                // Anchored patterns should not be found by the Aho-Corasick
+                // automata because they are not added to the automata in
+                // the first place.
+                SubPattern::LiteralAnchored { .. } => unreachable!(
+                    "anchored pattern found by the Aho-Corasick automata"
+                ),
                 SubPattern::Literal { pattern, flags, .. }
                 | SubPattern::LiteralChainHead { pattern, flags, .. }
                 | SubPattern::LiteralChainTail { pattern, flags, .. } => {
@@ -542,22 +550,27 @@ impl ScanContext<'_> {
         Ok(())
     }
 
-    fn verify_patterns_anchored_at_0(&mut self) {
+    fn verify_anchored_patterns(&mut self) {
         for (sub_pattern_id, (pattern_id, sub_pattern)) in self
             .compiled_rules
-            .sub_patterns_anchored_at_0()
+            .anchored_sub_patterns()
             .iter()
             .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
         {
             match sub_pattern {
-                SubPattern::Literal { pattern, flags, .. } => {
+                SubPattern::LiteralAnchored {
+                    pattern,
+                    flags,
+                    anchored_at,
+                    ..
+                } => {
                     if let Some(match_) = verify_literal_match(
                         self.compiled_rules
                             .lit_pool()
                             .get_bytes(*pattern)
                             .unwrap(),
                         self.scanned_data(),
-                        0,
+                        *anchored_at,
                         *flags,
                     ) {
                         self.handle_sub_pattern_match(
@@ -582,6 +595,7 @@ impl ScanContext<'_> {
     ) {
         match sub_pattern {
             SubPattern::Literal { .. }
+            | SubPattern::LiteralAnchored { .. }
             | SubPattern::Xor { .. }
             | SubPattern::Base64 { .. }
             | SubPattern::Base64Wide { .. }

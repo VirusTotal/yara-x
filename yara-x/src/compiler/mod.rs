@@ -199,9 +199,9 @@ pub struct Compiler<'a> {
     sub_patterns: Vec<(PatternId, SubPattern)>,
 
     /// Vector that contains the [`SubPatternId`] for sub-patterns that can
-    /// match only at offset 0 within the scanned data. These sub-patterns
+    /// match only at a fixed offset within the scanned data. These sub-patterns
     /// are not added to the Aho-Corasick automaton.
-    sub_patterns_anchored_at_start: Vec<SubPatternId>,
+    anchored_sub_patterns: Vec<SubPatternId>,
 
     /// A vector that contains all the atoms generated from the patterns.
     /// Each atom has an associated [`SubPatternId`] that indicates the
@@ -291,7 +291,7 @@ impl<'a> Compiler<'a> {
             warnings: Vec::new(),
             rules: Vec::new(),
             sub_patterns: Vec::new(),
-            sub_patterns_anchored_at_start: Vec::new(),
+            anchored_sub_patterns: Vec::new(),
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
@@ -474,7 +474,7 @@ impl<'a> Compiler<'a> {
             imported_modules: self.imported_modules,
             rules: self.rules,
             sub_patterns: self.sub_patterns,
-            sub_patterns_anchored_at_0: self.sub_patterns_anchored_at_start,
+            anchored_sub_patterns: self.anchored_sub_patterns,
             atoms: self.atoms,
             re_code: self.re_code,
             warnings: self.warnings,
@@ -827,13 +827,14 @@ impl<'a> Compiler<'a> {
                 }
             } else {
                 self.add_sub_pattern(
-                    SubPattern::Literal {
-                        pattern: pattern_lit_id,
-                        flags: if matches!(pattern.anchored_at, Some(0)) {
-                            flags | SubPatternFlags::AnchoredStart
-                        } else {
-                            flags
-                        },
+                    if let Some(offset) = pattern.anchored_at {
+                        SubPattern::LiteralAnchored {
+                            pattern: pattern_lit_id,
+                            anchored_at: offset,
+                            flags,
+                        }
+                    } else {
+                        SubPattern::Literal { pattern: pattern_lit_id, flags }
                     },
                     iter::once(best_atom),
                     SubPatternAtom::from_atom,
@@ -1381,19 +1382,12 @@ impl<'a> Compiler<'a> {
     {
         let sub_pattern_id = SubPatternId(self.sub_patterns.len() as u32);
 
-        // Literal patterns can be anchored at offset 0.
-        let is_anchored_at_start = match sub_pattern {
-            SubPattern::Literal { flags, .. } => {
-                flags.contains(SubPatternFlags::AnchoredStart)
-            }
-            _ => false,
-        };
-
-        // Sub-patterns that are anchored at the start of the data are not
-        // added to the Aho-Corasick automata. Instead their IDs are added
-        // to the sub_patterns_anchored_at_0 list.
-        if is_anchored_at_start {
-            self.sub_patterns_anchored_at_start.push(sub_pattern_id);
+        // Sub-patterns that are anchored at some fixed offset are not added to
+        // the Aho-Corasick automata. Instead their IDs are added to the
+        // sub_patterns_anchored_at_0 list, together with the offset they are
+        // anchored to.
+        if let SubPattern::LiteralAnchored { .. } = sub_pattern {
+            self.anchored_sub_patterns.push(sub_pattern_id);
         } else {
             for atom in atoms {
                 self.atoms.push(f(sub_pattern_id, atom))
@@ -1647,10 +1641,6 @@ bitmask! {
         // Indicates that the pattern is a fast regexp. A fast regexp is one
         // that can be matched by the FastVM.
         FastRegexp           = 0x40,
-        // Indicates that the sub-pattern only matches at the start of the
-        // data. Applies only to literal sub-patterns.
-        AnchoredStart        = 0x80,
-
     }
 }
 
@@ -1667,6 +1657,12 @@ bitmask! {
 pub(crate) enum SubPattern {
     Literal {
         pattern: LiteralId,
+        flags: SubPatternFlagSet,
+    },
+
+    LiteralAnchored {
+        pattern: LiteralId,
+        anchored_at: usize,
         flags: SubPatternFlagSet,
     },
 

@@ -74,10 +74,10 @@ pub struct Rules {
     /// where the sub-pattern belongs to.
     pub(in crate::compiler) sub_patterns: Vec<(PatternId, SubPattern)>,
 
-    /// Vector that contains the [`SubPatternId`] for sub-patterns that can
-    /// match only at offset 0 within the scanned data. These sub-patterns
+    /// Vector that contains the [`SubPatternId`] and for sub-patterns that can
+    /// match only at a fixed offset within the scanned data. These sub-patterns
     /// are not added to the Aho-Corasick automaton.
-    pub(in crate::compiler) sub_patterns_anchored_at_0: Vec<SubPatternId>,
+    pub(in crate::compiler) anchored_sub_patterns: Vec<SubPatternId>,
 
     /// A vector that contains all the atoms extracted from the patterns. Each
     /// atom has an associated [`SubPatternId`] that indicates the sub-pattern
@@ -230,8 +230,8 @@ impl Rules {
     }
 
     #[inline]
-    pub(crate) fn sub_patterns_anchored_at_0(&self) -> &[SubPatternId] {
-        self.sub_patterns_anchored_at_0.as_slice()
+    pub(crate) fn anchored_sub_patterns(&self) -> &[SubPatternId] {
+        self.anchored_sub_patterns.as_slice()
     }
     #[inline]
     pub(crate) fn re_code(&self) -> &[u8] {
@@ -283,8 +283,8 @@ impl Rules {
             info!("Number of rules: {}", self.rules.len());
             info!("Number of patterns: {}", self.num_patterns);
             info!(
-                "Number of patterns anchored at 0: {}",
-                self.sub_patterns_anchored_at_0.len()
+                "Number of patterns anchored sub-patterns: {}",
+                self.anchored_sub_patterns.len()
             );
             info!("Number of atoms: {}", self.atoms.len());
             info!("Atoms with len = 0: {}", num_atoms[0]);
