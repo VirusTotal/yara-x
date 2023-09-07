@@ -37,13 +37,30 @@ pub mod hir;
 pub mod parser;
 pub mod thompson;
 
+/// When it comes to matching a regular expression, the initial step involves
+/// locating an "atom" within the data under examination. Once this atom is
+/// pinpointed, the regex engine proceeds to read bytes from the data, starting
+/// at the offset where the atom was discovered. This reading operation occurs
+/// in both forward and backward directions.
+///
+/// The maximum number of bytes read in each direction is capped. In essence,
+/// for every atom match, the regex engine will read, at most, 2 times the
+/// scan limit bytes while confirming the match. This is the default value for
+/// the scan limit.
 pub const DEFAULT_SCAN_LIMIT: u16 = 4096;
+
+/// Maximum number of alternatives in a regexp alternation
+/// (e.g: `(foo|bar|baz..)`)
+pub const MAX_ALTERNATIVES: u8 = 255;
 
 #[derive(Error, Debug)]
 pub enum Error {
     /// The regular expression is too large.
     #[error("regexp too large")]
     TooLarge,
+
+    #[error("too many alternatives in alternation (max: 255)")]
+    TooManyAlternatives,
 
     /// The regular expression doesn't meet the requirements for being
     /// executed by [`re::fast::FastVM`].

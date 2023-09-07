@@ -35,7 +35,7 @@ use crate::compiler::{
 
 use crate::re;
 use crate::re::thompson::instr::InstrParser;
-use crate::re::{BckCodeLoc, Error, FwdCodeLoc};
+use crate::re::{BckCodeLoc, Error, FwdCodeLoc, MAX_ALTERNATIVES};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default)]
 pub(super) struct CodeLoc {
@@ -421,8 +421,8 @@ impl Compiler {
         //     ....
         // lN: ... code for eN ...
         // lEND:
-        // TODO: make sure that the number of alternatives is 255 or
-        // less. Maybe return an error from here.
+        debug_assert!(alternatives.len() < 256);
+
         let l0 = self.emit_split_n(alternatives.len().try_into().unwrap());
 
         self.bookmarks.push(l0);
@@ -757,6 +757,9 @@ impl hir::Visitor for &mut Compiler {
                 self.visit_pre_concat();
             }
             HirKind::Alternation(alternatives) => {
+                if alternatives.len() > MAX_ALTERNATIVES.into() {
+                    return Err(Error::TooManyAlternatives);
+                }
                 self.visit_pre_alternation(alternatives);
             }
             HirKind::Repetition(rep) => {

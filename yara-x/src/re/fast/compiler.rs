@@ -8,7 +8,7 @@ use regex_syntax::hir::{visit, Class, Hir, HirKind, Visitor};
 use crate::compiler::{best_range_in_bytes, best_range_in_masked_bytes, Atom};
 use crate::re;
 use crate::re::fast::instr::Instr;
-use crate::re::{BckCodeLoc, Error, FwdCodeLoc, RegexpAtom};
+use crate::re::{BckCodeLoc, Error, FwdCodeLoc, RegexpAtom, MAX_ALTERNATIVES};
 
 /// A compiler that takes a [`re::hir::Hir`] and produces code for
 /// [`re::fast::FastVM`].
@@ -381,9 +381,12 @@ impl Visitor for PatternSplitter {
                 }
                 self.in_repetition = true;
             }
-            HirKind::Alternation(_) => {
+            HirKind::Alternation(alternatives) => {
                 if self.in_repetition || self.in_alternation {
                     return Err(Error::FastIncompatible);
+                }
+                if alternatives.len() > MAX_ALTERNATIVES.into() {
+                    return Err(Error::TooManyAlternatives);
                 }
                 if let Some(pattern) = self.finish_literal() {
                     self.pieces.push(PatternPiece::Pattern(pattern));
@@ -497,6 +500,7 @@ impl InstrSeq {
         &mut self,
         alternatives: &Vec<Pattern>,
     ) -> Result<(), Error> {
+        debug_assert!(alternatives.len() <= MAX_ALTERNATIVES.into());
         // Write the opcode. The opcode will be followed by an u16 with the
         // size of all the alternatives. The code for the alternatives comes
         // after the size.
