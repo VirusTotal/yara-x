@@ -18,7 +18,7 @@ jobs:
           - macos
           - win-msvc
           # - win-gnu
-          - constant-folding-off
+          - no-default-features
         include:
           - build: msrv
             os: ubuntu-latest
