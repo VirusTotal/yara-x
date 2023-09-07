@@ -108,8 +108,8 @@ impl<'src> Pattern<'src> {
     /// in order to indicate that the pattern (the `$a` pattern in this case)
     /// can match only at a fixed offset.
     pub fn anchor_at(&mut self, offset: usize) {
-        if let Pattern::Literal(p) = self {
-            match p.anchored_at {
+        match self {
+            Pattern::Literal(p) => match p.anchored_at {
                 Some(o) if o != offset => {
                     p.anchored_at = None;
                     p.flags.set(PatternFlags::NonAnchorable);
@@ -120,7 +120,19 @@ impl<'src> Pattern<'src> {
                     }
                 }
                 _ => {}
-            }
+            },
+            Pattern::Regexp(p) => match p.anchored_at {
+                Some(o) if o != offset => {
+                    p.anchored_at = None;
+                    p.flags.set(PatternFlags::NonAnchorable);
+                }
+                None => {
+                    if !p.flags.contains(PatternFlags::NonAnchorable) {
+                        p.anchored_at = Some(offset);
+                    }
+                }
+                _ => {}
+            },
         }
     }
 

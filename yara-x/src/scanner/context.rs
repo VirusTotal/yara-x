@@ -388,12 +388,6 @@ impl ScanContext<'_> {
             let verification_start = Instant::now();
 
             match sub_pattern {
-                // Anchored patterns should not be found by the Aho-Corasick
-                // automata because they are not added to the automata in
-                // the first place.
-                SubPattern::LiteralAnchored { .. } => unreachable!(
-                    "anchored pattern found by the Aho-Corasick automata"
-                ),
                 SubPattern::Literal { pattern, flags, .. }
                 | SubPattern::LiteralChainHead { pattern, flags, .. }
                 | SubPattern::LiteralChainTail { pattern, flags, .. } => {
@@ -558,10 +552,10 @@ impl ScanContext<'_> {
             .map(|id| (id, self.compiled_rules.get_sub_pattern(*id)))
         {
             match sub_pattern {
-                SubPattern::LiteralAnchored {
+                SubPattern::Literal {
                     pattern,
                     flags,
-                    anchored_at,
+                    anchored_at: Some(offset),
                     ..
                 } => {
                     if let Some(match_) = verify_literal_match(
@@ -570,7 +564,7 @@ impl ScanContext<'_> {
                             .get_bytes(*pattern)
                             .unwrap(),
                         self.scanned_data(),
-                        *anchored_at,
+                        *offset,
                         *flags,
                     ) {
                         self.handle_sub_pattern_match(
@@ -595,7 +589,6 @@ impl ScanContext<'_> {
     ) {
         match sub_pattern {
             SubPattern::Literal { .. }
-            | SubPattern::LiteralAnchored { .. }
             | SubPattern::Xor { .. }
             | SubPattern::Base64 { .. }
             | SubPattern::Base64Wide { .. }

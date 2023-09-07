@@ -738,6 +738,7 @@ impl<'a> Compiler<'a> {
                     SubPattern::Literal {
                         pattern: pattern_lit_id,
                         flags: flags | SubPatternFlags::Nocase,
+                        anchored_at: None,
                     },
                     best_atom.case_combinations(),
                     SubPatternAtom::from_atom,
@@ -827,14 +828,10 @@ impl<'a> Compiler<'a> {
                 }
             } else {
                 self.add_sub_pattern(
-                    if let Some(offset) = pattern.anchored_at {
-                        SubPattern::LiteralAnchored {
-                            pattern: pattern_lit_id,
-                            anchored_at: offset,
-                            flags,
-                        }
-                    } else {
-                        SubPattern::Literal { pattern: pattern_lit_id, flags }
+                    SubPattern::Literal {
+                        pattern: pattern_lit_id,
+                        anchored_at: pattern.anchored_at,
+                        flags,
                     },
                     iter::once(best_atom),
                     SubPatternAtom::from_atom,
@@ -868,7 +865,11 @@ impl<'a> Compiler<'a> {
             //   /foo|bar|baz/
             //   { 01 02 03 }
             //   { (01 02 03 | 04 05 06 ) }
-            self.process_alternation_literal(head, pattern.flags);
+            self.process_alternation_literal(
+                head,
+                pattern.anchored_at,
+                pattern.flags,
+            );
             return Ok(());
         }
 
@@ -918,6 +919,7 @@ impl<'a> Compiler<'a> {
     fn process_alternation_literal(
         &mut self,
         hir: re::hir::Hir,
+        anchored_at: Option<usize>,
         flags: PatternFlagSet,
     ) {
         let ascii = flags.contains(PatternFlags::Ascii);
@@ -944,24 +946,24 @@ impl<'a> Compiler<'a> {
                 self.lit_pool.get_bytes(pattern_lit_id).unwrap(),
             );
 
-            let sp = SubPattern::Literal {
+            let flags =
+                if wide { flags | SubPatternFlags::Wide } else { flags };
+
+            let sub_pattern = SubPattern::Literal {
                 pattern: pattern_lit_id,
-                flags: if wide {
-                    flags | SubPatternFlags::Wide
-                } else {
-                    flags
-                },
+                anchored_at,
+                flags,
             };
 
             if case_insensitive {
                 self.add_sub_pattern(
-                    sp,
+                    sub_pattern,
                     best_atom.case_combinations(),
                     SubPatternAtom::from_atom,
                 );
             } else {
                 self.add_sub_pattern(
-                    sp,
+                    sub_pattern,
                     iter::once(best_atom),
                     SubPatternAtom::from_atom,
                 );
@@ -1386,7 +1388,7 @@ impl<'a> Compiler<'a> {
         // the Aho-Corasick automata. Instead their IDs are added to the
         // sub_patterns_anchored_at_0 list, together with the offset they are
         // anchored to.
-        if let SubPattern::LiteralAnchored { .. } = sub_pattern {
+        if let SubPattern::Literal { anchored_at: Some(_), .. } = sub_pattern {
             self.anchored_sub_patterns.push(sub_pattern_id);
         } else {
             for atom in atoms {
@@ -1657,12 +1659,7 @@ bitmask! {
 pub(crate) enum SubPattern {
     Literal {
         pattern: LiteralId,
-        flags: SubPatternFlagSet,
-    },
-
-    LiteralAnchored {
-        pattern: LiteralId,
-        anchored_at: usize,
+        anchored_at: Option<usize>,
         flags: SubPatternFlagSet,
     },
 

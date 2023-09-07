@@ -283,7 +283,7 @@ impl Rules {
             info!("Number of rules: {}", self.rules.len());
             info!("Number of patterns: {}", self.num_patterns);
             info!(
-                "Number of patterns anchored sub-patterns: {}",
+                "Number of anchored sub-patterns: {}",
                 self.anchored_sub_patterns.len()
             );
             info!("Number of atoms: {}", self.atoms.len());
