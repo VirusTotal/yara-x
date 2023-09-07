@@ -127,7 +127,7 @@ impl Compiler {
             let bck_code_start = code.len();
             let mut bck_code = InstrSeq::new();
             for piece in pieces[0..best_piece].iter().rev() {
-                self.emit_piece(piece, &mut bck_code);
+                self.emit_piece(piece, &mut bck_code)?;
             }
             bck_code.emit_match();
             code.extend_from_slice(bck_code.into_inner().as_slice());
@@ -146,7 +146,7 @@ impl Compiler {
         let mut fwd_code = InstrSeq::new();
 
         for piece in fwd_pieces {
-            self.emit_piece(piece, &mut fwd_code);
+            self.emit_piece(piece, &mut fwd_code)?;
         }
 
         fwd_code.emit_match();
@@ -198,11 +198,15 @@ impl Compiler {
         Ok(atoms)
     }
 
-    fn emit_piece(&mut self, piece: &PatternPiece, instr: &mut InstrSeq) {
+    fn emit_piece(
+        &mut self,
+        piece: &PatternPiece,
+        instr: &mut InstrSeq,
+    ) -> Result<(), Error> {
         match piece {
             PatternPiece::Pattern(pattern) => instr.emit_pattern(pattern),
             PatternPiece::Alternation(alt) => {
-                instr.emit_alternation(alt);
+                instr.emit_alternation(alt)?;
             }
             PatternPiece::JumpExact(len, accept_newlines) => {
                 instr.emit_jump_exact(*len as u16, *accept_newlines)
@@ -217,6 +221,8 @@ impl Compiler {
                 );
             }
         }
+
+        Ok(())
     }
 }
 
@@ -482,7 +488,10 @@ impl InstrSeq {
         }
     }
 
-    pub fn emit_alternation(&mut self, alternatives: &Vec<Pattern>) {
+    pub fn emit_alternation(
+        &mut self,
+        alternatives: &Vec<Pattern>,
+    ) -> Result<(), Error> {
         // Write the opcode. The opcode will be followed by an u16 with the
         // size of all the alternatives. The code for the alternatives comes
         // after the size.
@@ -499,16 +508,18 @@ impl InstrSeq {
         for pattern in alternatives {
             self.emit_pattern(pattern);
         }
-        // Path the size of alternatives.
+        // Calculate the size of alternatives.
         let alternatives_len = self.seq.position() - alternatives_loc;
+        // The size of alternatives should fit in a u16.
+        let alternatives_len =
+            alternatives_len.try_into().map_err(|_| Error::TooLarge)?;
         self.seq.seek(SeekFrom::Start(len_location)).unwrap();
         self.seq
-            .write_all(
-                u16::to_le_bytes(alternatives_len.try_into().unwrap())
-                    .as_slice(),
-            )
+            .write_all(u16::to_le_bytes(alternatives_len).as_slice())
             .unwrap();
         // Go back to the end of the code.
         self.seq.seek(SeekFrom::End(0)).unwrap();
+
+        Ok(())
     }
 }
