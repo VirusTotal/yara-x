@@ -37,7 +37,7 @@ pub mod hir;
 pub mod parser;
 pub mod thompson;
 
-pub const DEFAULT_SCAN_LIMIT: usize = 4096;
+pub const DEFAULT_SCAN_LIMIT: u16 = 4096;
 
 #[derive(Error, Debug)]
 pub enum Error {

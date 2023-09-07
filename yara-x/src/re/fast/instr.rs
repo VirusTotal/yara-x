@@ -1,9 +1,9 @@
 use std::mem::size_of;
-use std::ops::RangeInclusive;
+use std::ops::{RangeFrom, RangeInclusive};
 
 use crate::re::fast::instr::Instr::{
-    Alternation, Jump, JumpExact, JumpExactNoNewline, JumpNoNewline, Literal,
-    MaskedLiteral, Match,
+    Alternation, Jump, JumpExact, JumpExactNoNewline, JumpNoNewline,
+    JumpNoNewlineUnbounded, JumpUnbounded, Literal, MaskedLiteral, Match,
 };
 
 /// Instructions supported by the Fast VM.
@@ -31,14 +31,19 @@ pub enum Instr<'a> {
     /// newline characters.
     JumpExactNoNewline(u16),
 
-    /// Matches any string with a length in a given range. This is a
-    /// non-greedy match, shorter strings are preferred.
+    /// Matches any string with a length in a given range.
     Jump(RangeInclusive<u16>),
+
+    /// Like Jump, but the upper bound is infinite.
+    JumpUnbounded(RangeFrom<u16>),
 
     /// Matches any string with a length in a given range, but the string can't
     /// contain newline characters. This is a non-greedy match, shorter strings
     /// are preferred.
     JumpNoNewline(RangeInclusive<u16>),
+
+    /// Like JumpNoNewline, but the upper bound is infinite.
+    JumpNoNewlineUnbounded(RangeFrom<u16>),
 }
 
 impl<'a> Instr<'a> {
@@ -87,7 +92,6 @@ impl<'a> InstrParser<'a> {
                 )
             }
             [Instr::ALTERNATION, ..] => {
-                // TODO: should this be larger than u16?
                 let len = Self::decode_u16(&code[1..]) as usize;
                 let start = 1 + size_of::<u16>();
                 (
@@ -102,7 +106,12 @@ impl<'a> InstrParser<'a> {
             [Instr::JUMP, ..] => {
                 let min = Self::decode_u16(&code[1..]);
                 let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
-                (Jump(min..=max), 1 + 2 * size_of::<u16>())
+                // When max is 0 it actually means unlimited max.
+                if max == 0 {
+                    (JumpUnbounded(min..), 1 + 2 * size_of::<u16>())
+                } else {
+                    (Jump(min..=max), 1 + 2 * size_of::<u16>())
+                }
             }
             [Instr::JUMP_EXACT_NO_NEWLINE, ..] => {
                 let len = Self::decode_u16(&code[1..]);
@@ -111,7 +120,12 @@ impl<'a> InstrParser<'a> {
             [Instr::JUMP_NO_NEWLINE, ..] => {
                 let min = Self::decode_u16(&code[1..]);
                 let max = Self::decode_u16(&code[1 + size_of::<u16>()..]);
-                (JumpNoNewline(min..=max), 1 + 2 * size_of::<u16>())
+                // When max is 0 it actually means unlimited max.
+                if max == 0 {
+                    (JumpNoNewlineUnbounded(min..), 1 + 2 * size_of::<u16>())
+                } else {
+                    (JumpNoNewline(min..=max), 1 + 2 * size_of::<u16>())
+                }
             }
             [Instr::MATCH, ..] => (Match, 1),
             [opcode, ..] => {

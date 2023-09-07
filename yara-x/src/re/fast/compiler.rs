@@ -214,9 +214,7 @@ impl Compiler {
             PatternPiece::Jump(min, max, accept_newlines) => {
                 instr.emit_jump(
                     *min as u16,
-                    // TODO: implement a different type of jump for those cases
-                    // that don't have an upper bound.
-                    max.unwrap_or(u16::MAX as u32) as u16,
+                    max.map(|max| max as u16),
                     *accept_newlines,
                 );
             }
@@ -457,14 +455,21 @@ impl InstrSeq {
         self.seq.write_all(len.to_le_bytes().as_slice()).unwrap();
     }
 
-    pub fn emit_jump(&mut self, min: u16, max: u16, accept_newlines: bool) {
+    pub fn emit_jump(
+        &mut self,
+        min: u16,
+        max: Option<u16>,
+        accept_newlines: bool,
+    ) {
         if accept_newlines {
             self.seq.write_all(&[Instr::JUMP]).unwrap();
         } else {
             self.seq.write_all(&[Instr::JUMP_NO_NEWLINE]).unwrap();
         }
         self.seq.write_all(min.to_le_bytes().as_slice()).unwrap();
-        self.seq.write_all(max.to_le_bytes().as_slice()).unwrap();
+        // When `max` is `None` it is encoded as 0 in the opcode. This is ok
+        // because jumps with an upper bound of 0 are not allowed.
+        self.seq.write_all(max.unwrap_or(0).to_le_bytes().as_slice()).unwrap();
     }
 
     pub fn emit_pattern(&mut self, pattern: &Pattern) {

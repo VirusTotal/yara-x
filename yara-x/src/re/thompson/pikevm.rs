@@ -22,7 +22,7 @@ pub(crate) struct PikeVM<'r> {
     next_threads: IndexSet,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
-    scan_limit: usize,
+    scan_limit: u16,
     /// State for the [`epsilon_closure`] function.
     cache: EpsilonClosureState,
 }
@@ -51,7 +51,7 @@ impl<'r> PikeVM<'r> {
     ///
     /// The default limit is 4096 bytes.
     #[allow(dead_code)]
-    pub fn scan_limit(mut self, limit: usize) -> Self {
+    pub fn scan_limit(mut self, limit: u16) -> Self {
         self.scan_limit = limit;
         self
     }
@@ -215,7 +215,7 @@ impl<'r> PikeVM<'r> {
             mem::swap(&mut self.threads, &mut self.next_threads);
             self.next_threads.clear();
 
-            if current_pos >= self.scan_limit {
+            if current_pos >= self.scan_limit.into() {
                 self.threads.clear();
                 break;
             }

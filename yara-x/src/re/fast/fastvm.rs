@@ -25,7 +25,7 @@ pub(crate) struct FastVM<'r> {
     code: &'r [u8],
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
-    scan_limit: usize,
+    scan_limit: u16,
     /// A set with all the positions within the data that are matching so
     /// far. `IndexSet` is used instead of `HashSet` because insertion order
     /// needs to be maintained while iterating the positions and `HashSet`
@@ -55,7 +55,7 @@ impl<'r> FastVM<'r> {
     ///
     /// The default limit is 4096 bytes.
     #[allow(dead_code)]
-    pub fn scan_limit(mut self, limit: usize) -> Self {
+    pub fn scan_limit(mut self, limit: u16) -> Self {
         self.scan_limit = limit;
         self
     }
@@ -73,9 +73,9 @@ impl<'r> FastVM<'r> {
         let mut ip = start.location();
 
         let input = if backwards {
-            &input[input.len().saturating_sub(self.scan_limit)..]
+            &input[input.len().saturating_sub(self.scan_limit.into())..]
         } else {
-            &input[..cmp::min(input.len(), self.scan_limit)]
+            &input[..cmp::min(input.len(), self.scan_limit.into())]
         };
 
         let step = if wide { 2 } else { 1 };
@@ -232,12 +232,27 @@ impl<'r> FastVM<'r> {
                         }
                     }
                 }
-                Instr::Jump(ref range) | Instr::JumpNoNewline(ref range) => {
+                Instr::Jump(..)
+                | Instr::JumpUnbounded(..)
+                | Instr::JumpNoNewline(..)
+                | Instr::JumpNoNewlineUnbounded(..) => {
                     let mut flags = flags;
 
-                    if !matches!(instr, Instr::JumpNoNewline(_)) {
-                        flags.set(JumpFlags::AcceptNewlines)
-                    }
+                    let range = match instr {
+                        Instr::Jump(range) => {
+                            flags.set(JumpFlags::AcceptNewlines);
+                            range
+                        }
+                        Instr::JumpNoNewline(range) => range,
+                        Instr::JumpUnbounded(range) => {
+                            flags.set(JumpFlags::AcceptNewlines);
+                            range.start..=self.scan_limit
+                        }
+                        Instr::JumpNoNewlineUnbounded(range) => {
+                            range.start..=self.scan_limit
+                        }
+                        _ => unreachable!(),
+                    };
 
                     match InstrParser::decode_instr(&self.code[ip..]) {
                         (Instr::Literal(literal), _) if backwards => {
@@ -249,7 +264,7 @@ impl<'r> FastVM<'r> {
                                     &input[..input.len() - position],
                                     literal,
                                     flags,
-                                    range,
+                                    &range,
                                     *position,
                                     &mut next_positions,
                                 );
@@ -264,7 +279,7 @@ impl<'r> FastVM<'r> {
                                     &input[*position..],
                                     literal,
                                     flags,
-                                    range,
+                                    &range,
                                     *position,
                                     &mut next_positions,
                                 )
@@ -281,7 +296,7 @@ impl<'r> FastVM<'r> {
                                     &input[..input.len() - position],
                                     literal,
                                     flags,
-                                    range,
+                                    &range,
                                     *position,
                                     &mut next_positions,
                                 );
@@ -298,7 +313,7 @@ impl<'r> FastVM<'r> {
                                     &input[*position..],
                                     literal,
                                     flags,
-                                    range,
+                                    &range,
                                     *position,
                                     &mut next_positions,
                                 );
