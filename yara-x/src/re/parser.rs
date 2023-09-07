@@ -33,21 +33,13 @@ impl Display for Error {
 ///
 /// Takes an [`ast::Regexp`] and produces its corresponding [`re::hir::Hir`].
 pub(crate) struct Parser {
-    parser: re::ast::parse::Parser,
     force_case_insensitive: bool,
     allow_mixed_greediness: bool,
 }
 
 impl Parser {
     pub fn new() -> Self {
-        let mut builder = re::ast::parse::ParserBuilder::new();
-        builder.empty_min_range(true);
-
-        Self {
-            parser: builder.build(),
-            force_case_insensitive: false,
-            allow_mixed_greediness: true,
-        }
+        Self { force_case_insensitive: false, allow_mixed_greediness: true }
     }
 
     /// Parses the regexp as a case-insensitive one, no matter whether the regexp
@@ -69,12 +61,14 @@ impl Parser {
 
     /// Parses the regexp and returns its HIR.
     pub fn parse(&self, regexp: &ast::Regexp) -> Result<Hir, Error> {
-        let ast = self.parser.parse(regexp.src).map_err(|err| {
-            Error::SyntaxError {
+        let mut parser =
+            re::ast::parse::ParserBuilder::new().empty_min_range(true).build();
+
+        let ast =
+            parser.parse(regexp.src).map_err(|err| Error::SyntaxError {
                 msg: err.kind().to_string(),
                 span: *err.span(),
-            }
-        })?;
+            })?;
 
         let greedy = Validator::new().validate(&ast);
 
