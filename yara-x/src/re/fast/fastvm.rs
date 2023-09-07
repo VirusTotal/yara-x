@@ -1,3 +1,4 @@
+use bitmask::bitmask;
 use std::hash::BuildHasherDefault;
 use std::ops::RangeInclusive;
 use std::{cmp, mem};
@@ -81,6 +82,12 @@ impl<'r> FastVM<'r> {
         let mut next_positions = IndexSet::default();
 
         self.positions.insert(0);
+
+        let mut flags = JumpFlagSet::none();
+
+        if wide {
+            flags.set(JumpFlags::Wide);
+        }
 
         while !self.positions.is_empty() {
             let (instr, instr_size) =
@@ -226,8 +233,11 @@ impl<'r> FastVM<'r> {
                     }
                 }
                 Instr::Jump(ref range) | Instr::JumpNoNewline(ref range) => {
-                    let accept_newlines =
-                        !matches!(instr, Instr::JumpNoNewline(_));
+                    let mut flags = flags;
+
+                    if !matches!(instr, Instr::JumpNoNewline(_)) {
+                        flags.set(JumpFlags::AcceptNewlines)
+                    }
 
                     match InstrParser::decode_instr(&self.code[ip..]) {
                         (Instr::Literal(literal), _) if backwards => {
@@ -238,8 +248,7 @@ impl<'r> FastVM<'r> {
                                 self.jump_bck(
                                     &input[..input.len() - position],
                                     literal,
-                                    wide,
-                                    accept_newlines,
+                                    flags,
                                     range,
                                     *position,
                                     &mut next_positions,
@@ -254,8 +263,7 @@ impl<'r> FastVM<'r> {
                                 self.jump_fwd(
                                     &input[*position..],
                                     literal,
-                                    wide,
-                                    accept_newlines,
+                                    flags,
                                     range,
                                     *position,
                                     &mut next_positions,
@@ -272,8 +280,7 @@ impl<'r> FastVM<'r> {
                                 self.jump_bck(
                                     &input[..input.len() - position],
                                     literal,
-                                    wide,
-                                    accept_newlines,
+                                    flags,
                                     range,
                                     *position,
                                     &mut next_positions,
@@ -290,8 +297,7 @@ impl<'r> FastVM<'r> {
                                 self.jump_fwd(
                                     &input[*position..],
                                     literal,
-                                    wide,
-                                    accept_newlines,
+                                    flags,
                                     range,
                                     *position,
                                     &mut next_positions,
@@ -300,7 +306,7 @@ impl<'r> FastVM<'r> {
                         }
                         _ => {
                             for position in mem::take(&mut self.positions) {
-                                if accept_newlines {
+                                if flags.contains(JumpFlags::AcceptNewlines) {
                                     let jmp_min_range = position
                                         ..position + *range.start() as usize;
                                     match input.get(jmp_min_range) {
@@ -315,7 +321,9 @@ impl<'r> FastVM<'r> {
                                     }
                                 }
                                 for i in range.clone() {
-                                    if accept_newlines {
+                                    if flags
+                                        .contains(JumpFlags::AcceptNewlines)
+                                    {
                                         match input
                                             .get(position + step * i as usize)
                                         {
@@ -465,13 +473,12 @@ impl FastVM<'_> {
         &self,
         input: &[u8],
         literal: &[u8],
-        wide: bool,
-        accept_newlines: bool,
+        flags: JumpFlagSet,
         range: &RangeInclusive<u16>,
         position: usize,
         next_positions: &mut IndexSet,
     ) {
-        let step = if wide { 2 } else { 1 };
+        let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
 
         let n = *range.start() as usize * step;
         let m = *range.end() as usize * step;
@@ -486,14 +493,16 @@ impl FastVM<'_> {
         // If newlines are not accepted in the data being skipped by the jump
         // lets make sure that the ranges that goes from the current position
         // to position + n doesn't contain any newlines.
-        if !accept_newlines && memchr::memchr(0x0A, &input[..n]).is_some() {
+        if !flags.contains(JumpFlags::AcceptNewlines)
+            && memchr::memchr(0x0A, &input[..n]).is_some()
+        {
             return;
         }
 
         if let Some(jmp_range) = input.get(range_min..range_max) {
             let lit = *literal.first().unwrap();
             let mut on_match_found = |offset| {
-                if wide {
+                if flags.contains(JumpFlags::Wide) {
                     // In wide mode we are only interested in bytes found
                     // at even offsets. At odd offsets the input should
                     // have only zeroes and they are not potential matches.
@@ -504,7 +513,7 @@ impl FastVM<'_> {
                     next_positions.insert(position + n + offset);
                 }
             };
-            if accept_newlines {
+            if flags.contains(JumpFlags::AcceptNewlines) {
                 for offset in memchr::memchr_iter(lit, jmp_range) {
                     on_match_found(offset)
                 }
@@ -528,13 +537,12 @@ impl FastVM<'_> {
         &self,
         input: &[u8],
         literal: &[u8],
-        wide: bool,
-        accept_newlines: bool,
+        flags: JumpFlagSet,
         range: &RangeInclusive<u16>,
         position: usize,
         next_positions: &mut IndexSet,
     ) {
-        let step = if wide { 2 } else { 1 };
+        let step = if flags.contains(JumpFlags::Wide) { 2 } else { 1 };
 
         let n = *range.start() as usize * step;
         let m = *range.end() as usize * step;
@@ -569,7 +577,7 @@ impl FastVM<'_> {
         // If newlines are not accepted in the data being skipped by the jump
         // lets make sure that the ranges that goes from the current position
         // to position + n doesn't contain any newlines.
-        if !accept_newlines
+        if !flags.contains(JumpFlags::AcceptNewlines)
             && memchr::memchr(0x0A, &input[range_max..]).is_some()
         {
             return;
@@ -578,7 +586,7 @@ impl FastVM<'_> {
         if let Some(jmp_range) = input.get(range_min..range_max) {
             let lit = *literal.last().unwrap();
             let mut on_match_found = |offset| {
-                if wide {
+                if flags.contains(JumpFlags::Wide) {
                     // In wide mode we are only interested in bytes found
                     // at even offsets. At odd offsets the input should
                     // have only zeroes and they are not potential matches.
@@ -593,7 +601,7 @@ impl FastVM<'_> {
                     );
                 }
             };
-            if accept_newlines {
+            if flags.contains(JumpFlags::Wide) {
                 for offset in memchr::memrchr_iter(lit, jmp_range) {
                     on_match_found(offset)
                 }
@@ -606,5 +614,13 @@ impl FastVM<'_> {
                 }
             }
         }
+    }
+}
+
+bitmask! {
+    pub mask JumpFlagSet: u8 where flags JumpFlags  {
+        AcceptNewlines = 0x01,
+        Wide           = 0x02,
+
     }
 }
