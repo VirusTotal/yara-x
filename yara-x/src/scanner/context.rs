@@ -329,12 +329,13 @@ impl ScanContext<'_> {
             // Subtract the backtrack value from the offset where the atom
             // matched. If the result is negative the atom can't be inside
             // the scanned data and therefore is not a possible match.
-            let (atom_pos, overflow) =
-                ac_match.start().overflowing_sub(atom.backtrack());
-
-            if overflow {
+            let atom_pos = if let Some(atom_pos) =
+                ac_match.start().checked_sub(atom.backtrack())
+            {
+                atom_pos
+            } else {
                 continue;
-            }
+            };
 
             // Each atom belongs to a sub-pattern.
             let sub_pattern_id = atom.sub_pattern_id();
