@@ -13,31 +13,42 @@ pub trait HasSpan {
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone, Default)]
 pub struct Span {
     /// The [`SourceId`] associated to the source file that contains this span.
-    pub(crate) source_id: SourceId,
+    source_id: SourceId,
     /// Starting byte offset.
-    pub(crate) start: usize,
-    /// Ending byte offset.
-    pub(crate) end: usize,
+    start: usize,
+    /// Ending byte offset, exclusive.
+    end: usize,
 }
 
 impl Span {
-    pub(crate) fn new(source_id: SourceId, span: pest::Span<'_>) -> Self {
-        Self { source_id, start: span.start(), end: span.end() }
+    pub(crate) fn new(source_id: SourceId, start: usize, end: usize) -> Self {
+        Self { source_id, start, end }
+    }
+
+    /// [`SourceId`] associated to the source file that contains this span.
+    #[inline]
+    pub fn source_id(&self) -> SourceId {
+        self.source_id
     }
 
     /// Byte offset where the span starts.
+    #[inline]
     pub fn start(&self) -> usize {
         self.start
     }
 
     /// Byte offset where the span ends.
+    #[inline]
     pub fn end(&self) -> usize {
         self.end
     }
 
-    pub fn combine(&self, span: &Span) -> Span {
-        assert_eq!(self.source_id, span.source_id);
-        Span { source_id: self.source_id, start: self.start, end: span.end }
+    /// Returns a new span that combines this span with `other`.
+    ///
+    /// The resulting span goes from `self.start()` to `other.end()`.
+    pub fn combine(&self, other: &Span) -> Span {
+        assert_eq!(self.source_id, other.source_id);
+        Span { source_id: self.source_id, start: self.start, end: other.end }
     }
 
     /// Returns a new [`Span`] that is a subspan of the original one.

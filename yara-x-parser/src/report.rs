@@ -181,7 +181,7 @@ impl ReportBuilder {
         };
 
         let mut report_builder =
-            ariadne::Report::build(kind, span.source_id, span.start)
+            ariadne::Report::build(kind, span.source_id(), span.start())
                 .with_config(
                     ariadne::Config::default().with_color(self.with_colors),
                 )
@@ -194,7 +194,7 @@ impl ReportBuilder {
                 Color::Unset.paint(label)
             };
             report_builder = report_builder.with_label(
-                Label::new((span.source_id, span.start..span.end))
+                Label::new((span.source_id(), span.start()..span.end()))
                     .with_message(label),
             );
         }
@@ -219,16 +219,14 @@ impl ReportBuilder {
         // to be highlighted in the error message. The span can cover
         // multiple lines.
         let error_span = match pest_error.location {
-            InputLocation::Pos(p) => Span {
-                source_id: self.current_source_id.get().unwrap(),
-                start: p,
-                end: p,
-            },
-            InputLocation::Span(span) => Span {
-                source_id: self.current_source_id.get().unwrap(),
-                start: span.0,
-                end: span.1,
-            },
+            InputLocation::Pos(p) => {
+                Span::new(self.current_source_id.get().unwrap(), p, p)
+            }
+            InputLocation::Span(span) => Span::new(
+                self.current_source_id.get().unwrap(),
+                span.0,
+                span.1,
+            ),
         };
 
         let (title, error_msg, note) = match &pest_error.variant {

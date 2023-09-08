@@ -67,9 +67,11 @@ impl<'src, 'rb> Context<'src, 'rb> {
 
     /// Creates a new [`Span`] from [`CSTNode`].
     pub(crate) fn span(&self, node: &CSTNode) -> Span {
+        let span = node.as_span();
         Span::new(
             self.report_builder.current_source_id().unwrap(),
-            node.as_span(),
+            span.start(),
+            span.end(),
         )
     }
 }

@@ -1401,11 +1401,11 @@ fn func_call_from_cst<'src>(
     let rparen = children.next().unwrap();
     expect!(rparen, GrammarRule::RPAREN);
 
-    let args_span = Span {
-        source_id: ctx.report_builder.current_source_id().unwrap(),
-        start: lparen.as_span().start(),
-        end: rparen.as_span().end(),
-    };
+    let args_span = Span::new(
+        ctx.report_builder.current_source_id().unwrap(),
+        lparen.as_span().start(),
+        rparen.as_span().end(),
+    );
 
     // Make sure that there are no more nodes.
     assert!(children.next().is_none());
