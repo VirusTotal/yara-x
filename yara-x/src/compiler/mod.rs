@@ -397,7 +397,7 @@ impl<'a> Compiler<'a> {
     ///
     /// In this other example the rule `foo` is put in the default namespace,
     /// but the rule `bar` is put under the `bar` namespace. This implies that
-    /// `foo` is not visible to `bar`, and the second all to `add_source`
+    /// `foo` is not visible to `bar`, and the second call to `add_source`
     /// fails.
     ///
     /// ```
