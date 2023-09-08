@@ -165,6 +165,8 @@ fn arithmetic_operations() {
     condition_true!("1-1 == 0");
     condition_true!("-2.0-3.0 == -5");
     condition_true!("--1 == 1");
+    condition_true!("--1.0 == 1.0");
+    condition_true!("-1.0-1.5 == -2.5");
     condition_true!("1--1 == 2");
     condition_true!("2 * -2 == -4");
     condition_true!("-4 * 2 == -8");
@@ -2616,6 +2618,34 @@ fn of() {
         "#,
         b"barbaz"
     );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            any of them in (3..3)
+        }
+        "#,
+        b"barbaz"
+    );
+
+    rule_true!(
+        r#"
+        rule test {
+          strings:
+            $ = "foo"
+            $ = "bar"
+            $ = "baz"
+          condition:
+            any of them at 3
+        }
+        "#,
+        b"barbaz"
+    );
 }
 
 #[test]
@@ -2842,6 +2872,9 @@ fn test_proto2_module() {
     );
 
     condition_true!(r#"test_proto2.map_string_int64["one"] == 1"#);
+    condition_true!(r#"test_proto2.map_string_float["one"] == 1.0"#);
+
+    condition_true!(r#"test_proto2.map_string_bool["foo"]"#);
 
     condition_true!(
         r#"test_proto2.map_string_struct["foo"].nested_int64_one == 1"#
@@ -2864,6 +2897,10 @@ fn test_proto2_module() {
 
     condition_true!(r#"test_proto2.map_int64_string[100] == "one thousand""#);
     condition_true!(r#"test_proto2.map_int64_int64[100] == 1000"#);
+    condition_true!(r#"test_proto2.map_int64_float[100] == 1000.0"#);
+
+    condition_true!(r#"test_proto2.map_int64_bool[100]"#);
+
     condition_true!(
         r#"test_proto2.map_int64_struct[100].nested_int64_one == 1"#
     );

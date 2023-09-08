@@ -116,11 +116,13 @@ fn main(ctx: &ScanContext) -> TestProto2 {
 
     test.map_string_struct.insert("foo".to_string(), nested.clone());
     test.map_string_int64.insert("one".to_string(), 1);
+    test.map_string_float.insert("one".to_string(), 1.0);
     test.map_string_string.insert("foo".to_string(), "FOO".to_string());
     test.map_string_bool.insert("foo".to_string(), true);
 
     test.map_int64_struct.insert(100, nested.clone());
     test.map_int64_int64.insert(100, 1000);
+    test.map_int64_float.insert(100, 1000.0);
     test.map_int64_string.insert(100, "one thousand".to_string());
     test.map_int64_bool.insert(100, true);
 
