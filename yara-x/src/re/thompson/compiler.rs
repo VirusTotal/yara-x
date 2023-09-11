@@ -34,7 +34,7 @@ use crate::compiler::{
 };
 
 use crate::re;
-use crate::re::thompson::instr::InstrParser;
+use crate::re::thompson::instr::{InstrParser, SplitId};
 use crate::re::{BckCodeLoc, Error, FwdCodeLoc, MAX_ALTERNATIVES};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default)]
@@ -142,8 +142,8 @@ impl Compiler {
 
         Self {
             lit_extractor,
-            forward_code: InstrSeq::new(0),
-            backward_code: InstrSeq::new(0),
+            forward_code: InstrSeq::new(),
+            backward_code: InstrSeq::new(),
             backward_code_chunks: Vec::new(),
             bookmarks: Vec::new(),
             best_atoms_stack: vec![RegexpAtoms::empty()],
@@ -321,7 +321,8 @@ impl Compiler {
                 if let Some(class) = class.to_byte_class() {
                     self.emit_class(&class)
                 } else {
-                    // TODO: properly handle this
+                    // This should not be reached, except on a few edge cases
+                    // See: https://github.com/rust-lang/regex/issues/1088
                     panic!("unicode classes not supported")
                 }
             }
@@ -342,8 +343,7 @@ impl Compiler {
         self.bookmarks.push(self.location());
         // A new child of a `Concat` node is about to be processed,
         // create the chunk that will receive the code for this child.
-        self.backward_code_chunks
-            .push(InstrSeq::new(self.backward_code().seq_id() + 1));
+        self.backward_code_chunks.push(self.backward_code().next());
     }
 
     fn visit_post_concat(&mut self, expressions: &Vec<Hir>) -> Vec<CodeLoc> {
@@ -652,6 +652,7 @@ impl Compiler {
                 let adjustment = (min - 1) as usize * (end.bck - start.bck)
                     + size_of_val(&OPCODE_PREFIX)
                     + size_of_val(&Instr::SPLIT_A)
+                    + size_of::<SplitId>()
                     + size_of::<instr::Offset>();
 
                 let best_atoms = self.best_atoms_stack.last_mut().unwrap();
@@ -1046,18 +1047,31 @@ impl hir::Visitor for &mut Compiler {
         self.bookmarks.push(self.location());
         // A new child of a `Concat` node is about to be processed,
         // create the chunk that will receive the code for this child.
-        self.backward_code_chunks
-            .push(InstrSeq::new(self.backward_code().seq_id() + 1));
+        self.backward_code_chunks.push(self.backward_code().next());
 
         Ok(())
     }
 }
 
-/// A sequence of instructions for the Pike VM.
+/// A sequence of instructions for the PikeVM.
+///
+/// This type is used by the compiler while emitting code for PikeVM. It is
+/// simply a buffer with a set of specialized functions for adding PikeVM
+/// instructions at the end of the buffer. It also provides functions for
+/// getting the location where the next instruction will be added, and for
+/// setting the offset of instructions that point to other places within
+/// the code.
+///
+/// Each `InstrSeq` has an ID, that distinguish them from other sequences.
 #[derive(Default)]
 pub(super) struct InstrSeq {
+    /// The unique ID that identifies this sequence of instructions.
     seq_id: u64,
+    /// A vector that contains the PikeVM code.
     seq: Cursor<Vec<u8>>,
+    /// The ID that will identify the next split instruction emitted in this
+    /// sequence.
+    split_id: u8,
 }
 
 impl AsRef<[u8]> for InstrSeq {
@@ -1067,11 +1081,18 @@ impl AsRef<[u8]> for InstrSeq {
 }
 
 impl InstrSeq {
-    /// Creates a new [`InstrSeq`]  with the given ID. The caller must guarantee
-    /// that each [`InstrSeq`] has a unique ID, not shared with other sequences
-    /// from the same regular expression.
-    pub fn new(seq_id: u64) -> Self {
-        Self { seq_id, seq: Cursor::new(Vec::new()) }
+    /// Creates a new [`InstrSeq`].
+    pub fn new() -> Self {
+        Self { seq_id: 0, seq: Cursor::new(Vec::new()), split_id: 0 }
+    }
+
+    /// Creates a new [`InstrSeq`] with an ID that is `self.seq_id() + 1`.
+    pub fn next(&self) -> Self {
+        Self {
+            seq_id: self.seq_id + 1,
+            seq: Cursor::new(Vec::new()),
+            split_id: self.split_id,
+        }
     }
 
     /// Consumes the [`InstrSeq`] and returns the inner vector that contains
@@ -1115,9 +1136,23 @@ impl InstrSeq {
         self.seq.write_all(&[OPCODE_PREFIX, instr]).unwrap();
 
         match instr {
-            Instr::SPLIT_A | Instr::SPLIT_B | Instr::JUMP => {
-                // Split and Jump instructions are followed by a 16-bits
-                // offset that is relative to the start of the instruction.
+            Instr::SPLIT_A | Instr::SPLIT_B => {
+                // Split instructions are followed by a 8-bits value that
+                // identifies the split. Each split in the same regexp have
+                // a unique value.
+                self.seq.write_all(&[self.split_id]).unwrap();
+                // Increment the split ID, so that the next split has a
+                // different ID.
+                self.split_id += 1;
+                // The split ID is  followed by a 16-bits offset that is
+                // relative to the start of the instruction.
+                self.seq
+                    .write_all(&[0x00; size_of::<instr::Offset>()])
+                    .unwrap();
+            }
+            Instr::JUMP => {
+                // Jump instructions are followed by a 16-bits offset that is
+                // relative to the start of the instruction.
                 self.seq
                     .write_all(&[0x00; size_of::<instr::Offset>()])
                     .unwrap();
@@ -1132,7 +1167,10 @@ impl InstrSeq {
     /// returns the location where the newly added instruction resides.
     pub fn emit_split_n(&mut self, n: NumAlt) -> usize {
         let location = self.location();
-        self.seq.write_all(&[OPCODE_PREFIX, Instr::SPLIT_N]).unwrap();
+        self.seq
+            .write_all(&[OPCODE_PREFIX, Instr::SPLIT_N, self.split_id])
+            .unwrap();
+        self.split_id += 1;
         self.seq.write_all(NumAlt::to_le_bytes(n).as_slice()).unwrap();
         for _ in 0..n {
             self.seq.write_all(&[0x00; size_of::<instr::Offset>()]).unwrap();
@@ -1233,11 +1271,19 @@ impl InstrSeq {
         // Make sure that we have some `split` or `jump` instruction at the
         // given location.
         assert_eq!(buf[0], OPCODE_PREFIX);
-        assert!(
-            buf[1] == Instr::JUMP
-                || buf[1] == Instr::SPLIT_A
-                || buf[1] == Instr::SPLIT_B
-        );
+
+        match buf[1] {
+            Instr::JUMP => {}
+            Instr::SPLIT_A | Instr::SPLIT_B => {
+                // Skip the split ID.
+                self.seq
+                    .seek(SeekFrom::Current(size_of::<SplitId>() as i64))
+                    .unwrap();
+            }
+            _ => {
+                unreachable!()
+            }
+        }
 
         // Write the given offset after the instruction opcode. This will
         // overwrite any existing offsets, usually initialized with 0.
@@ -1268,7 +1314,9 @@ impl InstrSeq {
         // Seek to the position indicated by `location`.
         self.seq.seek(SeekFrom::Start(location as u64)).unwrap();
 
-        let mut opcode = [0; 2];
+        // Read the first few bytes in the opcode, corresponding to the prefix,
+        // the opcode itself, and the split id respectively.
+        let mut opcode = [0; 2 + size_of::<SplitId>()];
         self.seq.read_exact(&mut opcode).unwrap();
 
         // Make sure that we have some `split` or `jump` instruction at the
@@ -1349,24 +1397,26 @@ impl Display for InstrSeq {
                         addr as isize + offset as isize,
                     )?;
                 }
-                Instr::SplitA(offset) => {
+                Instr::SplitA(id, offset) => {
                     writeln!(
                         f,
-                        "{:05x}: SPLIT_A {:05x}",
+                        "{:05x}: SPLIT_A({}) {:05x}",
                         addr,
+                        id,
                         addr as isize + offset as isize,
                     )?;
                 }
-                Instr::SplitB(offset) => {
+                Instr::SplitB(id, offset) => {
                     writeln!(
                         f,
-                        "{:05x}: SPLIT_B {:05x}",
+                        "{:05x}: SPLIT_B({}) {:05x}",
                         addr,
+                        id,
                         addr as isize + offset as isize,
                     )?;
                 }
                 Instr::SplitN(split) => {
-                    write!(f, "{:05x}: SPLIT_N", addr)?;
+                    write!(f, "{:05x}: SPLIT_N({})", addr, split.id())?;
                     for offset in split.offsets() {
                         write!(f, " {:05x}", addr as isize + offset as isize)?;
                     }

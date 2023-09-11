@@ -64,6 +64,10 @@ pub const OPCODE_PREFIX: u8 = 0xAA;
 /// alternatives)
 pub type NumAlt = u8;
 
+/// Each split instruction in a regular expression has a unique 8-bits ID
+/// represented by this type.
+pub type SplitId = u8;
+
 /// Offset for jump and split instructions. The offset is always relative to
 /// the address where the instruction starts.
 pub type Offset = i32;
@@ -109,14 +113,14 @@ pub enum Instr<'a> {
     /// + offset while the current thread continues at the next instruction.
     /// The name comes from the fact that this instruction splits the execution
     /// flow in two.
-    SplitA(Offset),
+    SplitA(SplitId, Offset),
 
     /// Similar to SplitA, but the current thread continues at instruction
     /// pointer + offset while the new thread continues at the next instruction.
     /// This difference is important because the newly created thread has lower
     /// priority than the existing one, and priority affects the greediness of
     /// the regular expression.
-    SplitB(Offset),
+    SplitB(SplitId, Offset),
 
     /// Continues executing the code at N different locations. The current
     /// thread continues at the first location, and N-1 newly created threads
@@ -187,26 +191,39 @@ impl<'a> InstrParser<'a> {
 
                 (Instr::Jump(offset), 2 + size_of::<Offset>())
             }
-            [OPCODE_PREFIX, Instr::SPLIT_A, ..] => {
-                let offset = Self::decode_offset(&code[2..]);
-
-                (Instr::SplitA(offset), 2 + size_of::<Offset>())
-            }
-            [OPCODE_PREFIX, Instr::SPLIT_B, ..] => {
-                let offset = Self::decode_offset(&code[2..]);
-
-                (Instr::SplitB(offset), 2 + size_of::<Offset>())
-            }
-            [OPCODE_PREFIX, Instr::SPLIT_N, ..] => {
-                let n = Self::decode_num_alt(&code[2..]);
-
-                let offsets = &code[2 + size_of::<NumAlt>()
-                    ..2 + size_of::<NumAlt>()
-                        + size_of::<Offset>() * n as usize];
+            [OPCODE_PREFIX, Instr::SPLIT_A, id, ..] => {
+                let offset =
+                    Self::decode_offset(&code[2 + size_of::<SplitId>()..]);
 
                 (
-                    Instr::SplitN(SplitN(offsets)),
-                    2 + size_of::<NumAlt>() + size_of::<Offset>() * n as usize,
+                    Instr::SplitA(id, offset),
+                    2 + size_of::<SplitId>() + size_of::<Offset>(),
+                )
+            }
+            [OPCODE_PREFIX, Instr::SPLIT_B, id, ..] => {
+                let offset =
+                    Self::decode_offset(&code[2 + size_of::<SplitId>()..]);
+
+                (
+                    Instr::SplitB(id, offset),
+                    2 + size_of::<SplitId>() + size_of::<Offset>(),
+                )
+            }
+            [OPCODE_PREFIX, Instr::SPLIT_N, id, ..] => {
+                let n =
+                    Self::decode_num_alt(&code[2 + size_of::<SplitId>()..]);
+
+                let offsets =
+                    &code[2 + size_of::<SplitId>() + size_of::<NumAlt>()
+                        ..2 + size_of::<SplitId>()
+                            + size_of::<NumAlt>()
+                            + size_of::<Offset>() * n as usize];
+
+                (
+                    Instr::SplitN(SplitN(id, offsets)),
+                    2 + size_of::<SplitId>()
+                        + size_of::<NumAlt>()
+                        + size_of::<Offset>() * n as usize,
                 )
             }
             [OPCODE_PREFIX, Instr::CLASS_RANGES, ..] => {
@@ -268,11 +285,17 @@ impl<'a> Iterator for InstrParser<'a> {
     }
 }
 
-pub struct SplitN<'a>(&'a [u8]);
+pub struct SplitN<'a>(SplitId, &'a [u8]);
 
 impl<'a> SplitN<'a> {
+    #[inline]
+    pub fn id(&self) -> SplitId {
+        self.0
+    }
+
+    #[inline]
     pub fn offsets(&self) -> SplitOffsets<'a> {
-        SplitOffsets(self.0)
+        SplitOffsets(self.1)
     }
 }
 

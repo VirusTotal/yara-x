@@ -1,8 +1,11 @@
+use std::default::Default;
 use std::{hash::BuildHasherDefault, mem};
 
-use rustc_hash::{FxHashSet, FxHasher};
+use bitvec::array::BitArray;
+use rustc_hash::FxHasher;
 
 use super::instr::{Instr, InstrParser};
+use crate::re::thompson::instr::SplitId;
 use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
 
 type IndexSet = indexmap::IndexSet<usize, BuildHasherDefault<FxHasher>>;
@@ -228,12 +231,24 @@ impl<'r> PikeVM<'r> {
 /// documentation of [`epsilon_closure`] for details.
 pub struct EpsilonClosureState {
     threads: Vec<usize>,
-    executed_splits: FxHashSet<usize>,
+    executed_splits: BitArray<[u64; 4]>,
 }
 
 impl EpsilonClosureState {
     pub fn new() -> Self {
-        Self { threads: Vec::new(), executed_splits: FxHashSet::default() }
+        Self { threads: Vec::new(), executed_splits: Default::default() }
+    }
+
+    #[inline(always)]
+    pub fn executed(&mut self, split_id: SplitId) -> bool {
+        unsafe {
+            let executed =
+                *self.executed_splits.get_unchecked(split_id as usize);
+            if !executed {
+                self.executed_splits.set_unchecked(split_id as usize, true)
+            }
+            executed
+        }
     }
 }
 
@@ -272,7 +287,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     closure: &mut IndexSet,
 ) {
     state.threads.push(start.location());
-    state.executed_splits.clear();
+    state.executed_splits.fill(false);
 
     while let Some(ip) = state.threads.pop() {
         let (instr, size) =
@@ -288,16 +303,16 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             | Instr::Match => {
                 closure.insert(ip);
             }
-            Instr::SplitA(offset) => {
-                if state.executed_splits.insert(ip) {
+            Instr::SplitA(id, offset) => {
+                if !state.executed(id) {
                     state
                         .threads
                         .push((ip as i64 + offset as i64).try_into().unwrap());
                     state.threads.push(next);
                 }
             }
-            Instr::SplitB(offset) => {
-                if state.executed_splits.insert(ip) {
+            Instr::SplitB(id, offset) => {
+                if !state.executed(id) {
                     state.threads.push(next);
                     state
                         .threads
@@ -305,7 +320,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 }
             }
             Instr::SplitN(split) => {
-                if state.executed_splits.insert(ip) {
+                if !state.executed(split.id()) {
                     for offset in split.offsets().rev() {
                         state.threads.push(
                             (ip as i64 + offset as i64).try_into().unwrap(),
