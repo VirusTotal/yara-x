@@ -60,12 +60,11 @@ use std::iter;
 use std::iter::zip;
 use std::ops::{RangeBounds, RangeInclusive};
 use std::slice::SliceIndex;
-use std::vec::IntoIter;
 
 use itertools::{Itertools, MultiProduct};
 use regex_syntax::hir::literal::Literal;
 use serde::{Deserialize, Serialize};
-use smallvec::{SmallVec, ToSmallVec};
+use smallvec::{smallvec, SmallVec, ToSmallVec};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
 pub(crate) use crate::compiler::atoms::quality::atom_quality;
@@ -364,7 +363,8 @@ impl Iterator for MaskCombinations {
 ///  "1abc2", "1abC2", "1aBc2", "1aBC2", "1Abc2", "1AbC2", "1ABc2", "1ABC2"
 ///
 pub(crate) struct CaseCombinations {
-    cartesian_product: MultiProduct<IntoIter<u8>>,
+    cartesian_product:
+        MultiProduct<smallvec::IntoIter<[u8; DESIRED_ATOM_SIZE]>>,
     backtrack: u16,
     exact: bool,
 }
@@ -383,10 +383,9 @@ impl CaseCombinations {
                     // and uppercase variants. For non-alphabetic characters
                     // return the original one.
                     if byte.is_ascii_alphabetic() {
-                        // TODO: use smallvec here
-                        vec![byte, byte.to_ascii_uppercase()]
+                        smallvec![byte, byte.to_ascii_uppercase()]
                     } else {
-                        vec![byte]
+                        smallvec![byte]
                     }
                 })
                 .multi_cartesian_product(),

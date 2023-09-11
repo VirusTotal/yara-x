@@ -271,11 +271,11 @@ impl<'a> Parser<'a> {
             };
             return Err(Error::from(ErrorInfo::invalid_utf_8(
                 report_builder,
-                Span {
-                    source_id: report_builder.current_source_id().unwrap(),
-                    start: span_start,
-                    end: span_end,
-                },
+                Span::new(
+                    report_builder.current_source_id().unwrap(),
+                    span_start,
+                    span_end,
+                ),
             )));
         }
 

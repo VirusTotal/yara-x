@@ -30,7 +30,7 @@ YARA prioritizes compiling regular expressions for [FastVM] and only resorts
 to [PikeVM] if the compilation fails due to incompatible constructs in the
 regular expression.
 
-[FastVM]: crate::re::thompson::fastvm::FastVM
+[FastVM]: fastvm::FastVM
 [PikeVM]: crate::re::thompson::pikevm::PikeVM
 */
 
