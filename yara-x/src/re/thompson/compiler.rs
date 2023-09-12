@@ -686,7 +686,7 @@ impl Compiler {
                 // The first copy of `e` has already been emitted while
                 // visiting the child nodes. Make min - 1 clones of `e`.
                 for _ in 0..min.saturating_sub(1) {
-                    self.emit_clone(start, end);
+                    self.emit_clone(start, end)?;
                 }
 
                 // If min == 0 the first split and `e` are already emitted (the
@@ -701,7 +701,7 @@ impl Compiler {
                         Instr::SPLIT_B
                     });
                     self.bookmarks.push(split);
-                    self.emit_clone(start, end);
+                    self.emit_clone(start, end)?;
                 }
 
                 if min > 1 {
