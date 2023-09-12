@@ -64,8 +64,9 @@ pub const OPCODE_PREFIX: u8 = 0xAA;
 /// alternatives)
 pub type NumAlt = u8;
 
-/// Each split instruction in a regular expression has a unique 8-bits ID
-/// represented by this type.
+/// Each split instruction in a regular expression has a unique ID represented
+/// by this type. This ID is used by [`super::pikevm::epsilon_closure`] for
+/// tracking which split instructions has been executed.  
 pub type SplitId = u8;
 
 /// Offset for jump and split instructions. The offset is always relative to
@@ -169,11 +170,12 @@ impl<'a> Instr<'a> {
 /// individual instructions and their arguments.
 pub(crate) struct InstrParser<'a> {
     code: &'a [u8],
+    addr: usize,
 }
 
 impl<'a> InstrParser<'a> {
     pub fn new(code: &'a [u8]) -> Self {
-        Self { code }
+        Self { code, addr: 0 }
     }
 
     #[inline(always)]
@@ -280,8 +282,10 @@ impl<'a> Iterator for InstrParser<'a> {
             return None;
         }
         let (instr, size) = InstrParser::decode_instr(self.code);
+        let addr = self.addr;
+        self.addr += size;
         self.code = &self.code[size..];
-        Some((instr, size))
+        Some((instr, addr))
     }
 }
 

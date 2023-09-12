@@ -278,12 +278,16 @@ impl Compiler {
         }
     }
 
-    fn emit_clone(&mut self, start: CodeLoc, end: CodeLoc) -> CodeLoc {
-        CodeLoc {
-            fwd: self.forward_code_mut().emit_clone(start.fwd, end.fwd),
+    fn emit_clone(
+        &mut self,
+        start: CodeLoc,
+        end: CodeLoc,
+    ) -> Result<CodeLoc, Error> {
+        Ok(CodeLoc {
+            fwd: self.forward_code_mut().emit_clone(start.fwd, end.fwd)?,
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_clone(start.bck, end.bck),
-        }
+            bck: self.backward_code_mut().emit_clone(start.bck, end.bck)?,
+        })
     }
 
     fn patch_instr(&mut self, location: &CodeLoc, offset: CodeLocOffset) {
@@ -615,16 +619,11 @@ impl Compiler {
                 // of the repetition node was visited. Clone the code for `e`
                 // n - 3 times, which result in n - 2 copies.
                 for _ in 0..min.saturating_sub(3) {
-                    self.emit_clone(start, end);
+                    self.emit_clone(start, end)?;
                 }
 
-                let l1;
-                if min > 2 {
-                    l1 = self.location();
-                    self.emit_clone(start, end);
-                } else {
-                    l1 = start;
-                };
+                let l1 =
+                    if min > 2 { self.emit_clone(start, end)? } else { start };
 
                 let l2 = self.emit_instr(if greedy {
                     Instr::SPLIT_B
@@ -633,7 +632,7 @@ impl Compiler {
                 });
 
                 self.patch_instr(&l2, l1.sub(&l2)?);
-                self.emit_clone(start, end);
+                self.emit_clone(start, end)?;
 
                 // If the best atoms were extracted from the expression inside
                 // the repetition, the backward code location for those atoms
@@ -1071,7 +1070,7 @@ pub(super) struct InstrSeq {
     seq: Cursor<Vec<u8>>,
     /// The ID that will identify the next split instruction emitted in this
     /// sequence.
-    split_id: u8,
+    split_id: SplitId,
 }
 
 impl AsRef<[u8]> for InstrSeq {
@@ -1244,11 +1243,59 @@ impl InstrSeq {
 
     /// Emits a clone of the code that goes from `start` to `end`, both
     /// inclusive.
-    pub fn emit_clone(&mut self, start: usize, end: usize) -> usize {
+    ///
+    /// The new code is identically to existing code, except of the IDs
+    /// associated to split instructions, which are updated in order to keep
+    /// the guarantee that every split instruction in a regexp has its own
+    /// unique ID.
+    pub fn emit_clone(
+        &mut self,
+        start: usize,
+        end: usize,
+    ) -> Result<usize, Error> {
         let location = self.location();
+
+        // Extend the code by cloning the ranges that go from `start` to `end`.
         self.seq.get_mut().extend_from_within(start..end);
+
+        // Create two slices, one that covers all the previously existing code
+        // and another that covers the newly cloned code.
+        let (original_code, cloned_code) =
+            self.seq.get_mut().as_mut_slice().split_at_mut(location);
+
+        // Every split instruction has an ID, we don't want the split
+        // instructions in the cloned code to have the same IDs than
+        // in the original code, those IDs need to be updated.
+        for (instr, offset) in InstrParser::new(&original_code[start..end]) {
+            match instr {
+                Instr::SplitA(_, _)
+                | Instr::SplitB(_, _)
+                | Instr::SplitN(_) => {
+                    debug_assert_eq!(
+                        cloned_code[offset],
+                        original_code[start + offset]
+                    );
+                    debug_assert_eq!(
+                        cloned_code[offset + 1],
+                        original_code[start + offset + 1]
+                    );
+                    // `offset` is the start of the instruction, the split ID
+                    // two bytes
+                    cloned_code[offset + 2] = self.split_id;
+
+                    if let Some(incremented) = self.split_id.checked_add(1) {
+                        self.split_id = incremented
+                    } else {
+                        return Err(Error::TooLarge);
+                    }
+                }
+                _ => {}
+            }
+        }
+
         self.seq.seek(SeekFrom::Current(end as i64 - start as i64)).unwrap();
-        location
+
+        Ok(location)
     }
 
     /// Patches the offset of the instruction that starts at the given location.
@@ -1354,10 +1401,7 @@ impl Display for InstrSeq {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f)?;
 
-        let code = InstrParser::new(self.seq.get_ref().as_slice());
-        let mut addr = 0;
-
-        for (instr, instr_size) in code {
+        for (instr, addr) in InstrParser::new(self.seq.get_ref().as_slice()) {
             match instr {
                 Instr::AnyByte => {
                     writeln!(f, "{:05x}: ANY_BYTE", addr)?;
@@ -1439,8 +1483,6 @@ impl Display for InstrSeq {
                     break;
                 }
             };
-
-            addr += instr_size;
         }
 
         Ok(())

@@ -649,7 +649,7 @@ fn re_code_13() {
 0001c: LIT 0x6b
 0001d: LIT 0x6c
 0001e: SPLIT_B(1) 00000
-00025: SPLIT_N(0) 00031 0003d
+00025: SPLIT_N(2) 00031 0003d
 00031: LIT 0x61
 00032: LIT 0x62
 00033: LIT 0x63
@@ -682,7 +682,7 @@ fn re_code_13() {
 0001c: LIT 0x68
 0001d: LIT 0x67
 0001e: SPLIT_B(1) 00000
-00025: SPLIT_N(0) 00031 0003d
+00025: SPLIT_N(2) 00031 0003d
 00031: LIT 0x66
 00032: LIT 0x65
 00033: LIT 0x64
@@ -851,6 +851,59 @@ fn re_code_16() {
 #[test]
 fn re_code_17() {
     assert_re_code!(
+        "(?s)(|abc){3,}",
+        // Forward code
+        r#"
+00000: SPLIT_N(0) 0000c 00012
+0000c: JUMP 00015
+00012: LIT 0x61
+00013: LIT 0x62
+00014: LIT 0x63
+00015: SPLIT_N(1) 00021 00027
+00021: JUMP 0002a
+00027: LIT 0x61
+00028: LIT 0x62
+00029: LIT 0x63
+0002a: SPLIT_B(2) 00015
+00031: SPLIT_N(3) 0003d 00043
+0003d: JUMP 00046
+00043: LIT 0x61
+00044: LIT 0x62
+00045: LIT 0x63
+00046: MATCH
+"#,
+        // Backward code
+        r#"
+00000: SPLIT_N(0) 0000c 00012
+0000c: JUMP 00015
+00012: LIT 0x63
+00013: LIT 0x62
+00014: LIT 0x61
+00015: SPLIT_N(1) 00021 00027
+00021: JUMP 0002a
+00027: LIT 0x63
+00028: LIT 0x62
+00029: LIT 0x61
+0002a: SPLIT_B(2) 00015
+00031: SPLIT_N(3) 0003d 00043
+0003d: JUMP 00046
+00043: LIT 0x63
+00044: LIT 0x62
+00045: LIT 0x61
+00046: MATCH
+"#,
+        // Atoms
+        vec![],
+        // Epsilon closure starting at forward code 0.
+        indexset! {0x46, 0x43, 0x27, 0x12},
+        // Epsilon closure starting at backward code 0.
+        indexset! {0x46, 0x43, 0x27, 0x12}
+    );
+}
+
+#[test]
+fn re_code_18() {
+    assert_re_code!(
         "(?s).b{2}",
         // Forward code
         r#"
@@ -879,7 +932,7 @@ fn re_code_17() {
 }
 
 #[test]
-fn re_code_18() {
+fn re_code_19() {
     assert_re_code!(
         "(?s)a.(bc.){2}",
         // Forward code
@@ -919,7 +972,7 @@ fn re_code_18() {
 }
 
 #[test]
-fn re_code_19() {
+fn re_code_20() {
     assert_re_code!(
         "(?is)a12",
         // Forward code
@@ -955,7 +1008,7 @@ fn re_code_19() {
 }
 
 #[test]
-fn re_code_20() {
+fn re_code_21() {
     assert_re_code!(
         r#"(?is)[a-z]{1,2}ab"#,
         // Forward code
