@@ -567,8 +567,7 @@ impl<'a> Compiler<'a> {
         let mut ident_and_pattern_ids = Vec::with_capacity(num_patterns);
 
         // Create a map (IdentId, Pattern).
-        let mut patterns_map: FxHashMap<PatternId, Pattern> =
-            FxHashMap::default();
+        let mut patterns_map = indexmap::IndexMap::default();
 
         for (pattern_id, pattern) in
             iter::zip(self.next_pattern_id.successors(), patterns)

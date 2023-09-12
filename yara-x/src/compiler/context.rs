@@ -1,8 +1,9 @@
 use std::collections::VecDeque;
+use std::hash::BuildHasherDefault;
 use std::mem::size_of;
 use std::rc::Rc;
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHasher};
 use walrus::ir::InstrSeqId;
 use walrus::{FunctionId, ValType};
 use yara_x_parser::report::ReportBuilder;
@@ -49,8 +50,16 @@ pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
     /// Rule that is being compiled.
     pub current_rule: &'a RuleInfo,
 
-    /// IR nodes for patterns defined in the rule being compiled.
-    pub current_rule_patterns: &'a mut FxHashMap<PatternId, ir::Pattern<'src>>,
+    /// IR nodes for patterns defined in the rule being compiled. This is an
+    /// [`IndexMap`] where keys are [`PatternId`]s and values are
+    /// [`ir::Pattern`]. A `IndexMap` is used instead of `HashMap` because
+    /// we want to be able to iterate over the patterns in the order they
+    /// were defined in the rule.
+    pub current_rule_patterns: &'a mut indexmap::IndexMap<
+        PatternId,
+        ir::Pattern<'src>,
+        BuildHasherDefault<FxHasher>,
+    >,
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Vec<Warning>,
