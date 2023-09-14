@@ -1,14 +1,9 @@
-use std::default::Default;
-use std::{hash::BuildHasherDefault, mem};
-
 use bitvec::array::BitArray;
-use rustc_hash::FxHasher;
+use bitvec::vec::BitVec;
 
 use super::instr::{Instr, InstrParser};
 use crate::re::thompson::instr::SplitId;
 use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
-
-type IndexSet = indexmap::IndexSet<usize, BuildHasherDefault<FxHasher>>;
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -19,10 +14,10 @@ pub(crate) struct PikeVM<'r> {
     /// position within the VM code, pointing to some VM instruction. Each item
     /// in the list is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
-    threads: IndexSet,
+    threads: ThreadSet,
     /// The list of threads that will become the active threads when the next
     /// byte is read from the input.
-    next_threads: IndexSet,
+    next_threads: ThreadSet,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
     /// this number of bytes from the input.
     scan_limit: u16,
@@ -35,8 +30,8 @@ impl<'r> PikeVM<'r> {
     pub fn new(code: &'r [u8]) -> Self {
         Self {
             code,
-            threads: IndexSet::default(),
-            next_threads: IndexSet::default(),
+            threads: ThreadSet::new(),
+            next_threads: ThreadSet::new(),
             cache: EpsilonClosureState::new(),
             scan_limit: DEFAULT_SCAN_LIMIT,
         }
@@ -284,7 +279,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     curr_byte: Option<&u8>,
     prev_byte: Option<&u8>,
     state: &mut EpsilonClosureState,
-    closure: &mut IndexSet,
+    closure: &mut ThreadSet,
 ) {
     state.threads.push(start.location());
     state.executed_splits.fill(false);
@@ -371,5 +366,133 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 }
             }
         }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct ThreadSet {
+    threads: Vec<usize>,
+    base: usize,
+    p_bitmap: BitVec<usize>,
+    n_bitmap: BitVec<usize>,
+}
+
+impl ThreadSet {
+    pub fn new() -> Self {
+        Self {
+            threads: Vec::new(),
+            base: 0,
+            p_bitmap: BitVec::repeat(false, 1024),
+            n_bitmap: BitVec::repeat(false, 1024),
+        }
+    }
+
+    #[inline]
+    pub fn insert(&mut self, value: usize) -> bool {
+        if self.threads.is_empty() {
+            self.base = value;
+            self.threads.push(value);
+            return true;
+        }
+        if self.base == value {
+            return false;
+        }
+
+        let offset = value as isize - self.base as isize;
+
+        match offset {
+            offset if offset > 0 => {
+                let offset = offset as usize;
+                if self.p_bitmap.len() <= offset {
+                    self.p_bitmap.resize(offset + 1, false);
+                    self.p_bitmap.set(offset, true);
+                    self.threads.push(value);
+                    true
+                } else if !*self.p_bitmap.get(offset).unwrap() {
+                    self.p_bitmap.set(offset, true);
+                    self.threads.push(value);
+                    true
+                } else {
+                    false
+                }
+            }
+            offset if offset < 0 => {
+                let offset = -offset as usize;
+                if self.n_bitmap.len() <= offset {
+                    self.n_bitmap.resize(offset + 1, false);
+                    self.n_bitmap.set(offset, true);
+                    self.threads.push(value);
+                    true
+                } else if !*self.n_bitmap.get(offset).unwrap() {
+                    self.n_bitmap.set(offset, true);
+                    self.threads.push(value);
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.threads.is_empty()
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        for thread in self.threads.iter() {
+            let offset = *thread as isize - self.base as isize;
+            if offset >= 0 {
+                self.p_bitmap.set(offset as usize, false);
+            } else {
+                self.n_bitmap.set((-offset) as usize, false);
+            }
+        }
+
+        self.threads.clear();
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &usize> {
+        self.threads.iter()
+    }
+
+    pub fn into_vec(self) -> Vec<usize> {
+        self.threads
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::re::thompson::pikevm::ThreadSet;
+
+    #[test]
+    fn thread_set() {
+        let mut s = ThreadSet::new();
+
+        assert!(s.insert(4));
+        assert!(s.insert(2));
+        assert!(s.insert(10));
+        assert!(s.insert(0));
+        assert!(s.insert(2000));
+
+        assert!(!s.insert(4));
+        assert!(!s.insert(2));
+        assert!(!s.insert(10));
+        assert!(!s.insert(0));
+        assert!(!s.insert(2000));
+
+        assert_eq!(s.threads, vec![4, 2, 10, 0, 2000]);
+
+        s.clear();
+
+        assert!(s.insert(200));
+        assert!(s.insert(2));
+        assert!(s.insert(10));
+        assert!(s.insert(300));
+        assert!(s.insert(250));
+
+        assert_eq!(s.threads, vec![200, 2, 10, 300, 250]);
     }
 }

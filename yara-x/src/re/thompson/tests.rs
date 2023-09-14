@@ -9,7 +9,7 @@ use crate::re;
 use crate::re::{BckCodeLoc, FwdCodeLoc};
 
 use super::compiler::{CodeLoc, Compiler, RegexpAtom};
-use super::pikevm::{epsilon_closure, EpsilonClosureState};
+use super::pikevm::{epsilon_closure, EpsilonClosureState, ThreadSet};
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{
@@ -33,7 +33,7 @@ macro_rules! assert_re_code {
         assert_eq!(bck_code.to_string(), $bck);
         assert_eq!(atoms, $atoms);
 
-        let mut fwd_closure = IndexSet::default();
+        let mut fwd_closure = ThreadSet::new();
         let mut cache = EpsilonClosureState::new();
 
         epsilon_closure(
@@ -44,9 +44,9 @@ macro_rules! assert_re_code {
             &mut cache,
             &mut fwd_closure,
         );
-        assert_eq!(fwd_closure, $fwd_closure);
+        assert_eq!(fwd_closure.into_vec(), $fwd_closure);
 
-        let mut bck_closure = IndexSet::default();
+        let mut bck_closure = ThreadSet::new();
         epsilon_closure(
             bck_code.as_ref(),
             BckCodeLoc::try_from(0_usize).unwrap(),
@@ -55,7 +55,7 @@ macro_rules! assert_re_code {
             &mut cache,
             &mut bck_closure,
         );
-        assert_eq!(bck_closure, $bck_closure);
+        assert_eq!(bck_closure.into_vec(), $bck_closure);
     }};
 }
 
@@ -110,9 +110,9 @@ fn re_code_1() {
             code_loc: CodeLoc { fwd: 0x00, bck: 0x04, bck_seq_id: 0 }
         }],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -144,9 +144,9 @@ fn re_code_2() {
             code_loc: CodeLoc { fwd: 0x00, bck: 0x05, bck_seq_id: 0 }
         }],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -176,9 +176,9 @@ fn re_code_3() {
             code_loc: CodeLoc { fwd: 0x00, bck: 0x05, bck_seq_id: 0 }
         }],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -216,9 +216,9 @@ fn re_code_4() {
             code_loc: CodeLoc { fwd: 0x05, bck: 0x04, bck_seq_id: 0 }
         }],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -268,9 +268,9 @@ fn re_code_5() {
             }
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x10, 0x18, 0x20},
+        vec![0x10, 0x18, 0x20],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x10, 0x18, 0x20}
+        vec![0x10, 0x18, 0x20]
     );
 }
 
@@ -322,9 +322,9 @@ fn re_code_6() {
             }
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x10, 0x18, 0x20}
+        vec![0x10, 0x18, 0x20]
     );
 }
 
@@ -374,9 +374,9 @@ fn re_code_7() {
             },
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -428,9 +428,9 @@ fn re_code_8() {
             },
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -484,9 +484,9 @@ fn re_code_9() {
             },
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -522,9 +522,9 @@ fn re_code_10() {
             code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x28 },
         }],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -560,9 +560,9 @@ fn re_code_11() {
             code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x0d }
         }],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -622,9 +622,9 @@ fn re_code_12() {
             code_loc: CodeLoc { fwd: 2, bck_seq_id: 0, bck: 0x17 }
         }],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -710,9 +710,9 @@ fn re_code_13() {
             }
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x0c, 0x18},
+        vec![0x0c, 0x18],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x0c, 0x18}
+        vec![0x0c, 0x18]
     );
 }
 
@@ -756,9 +756,9 @@ fn re_code_14() {
             }
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x07, 0x14},
+        vec![0x07, 0x14],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x07, 0x14}
+        vec![0x07, 0x14]
     );
 }
 
@@ -804,9 +804,9 @@ fn re_code_15() {
             }
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x13, 0x21, 0x28},
+        vec![0x13, 0x21, 0x28],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x13, 0x21, 0x28}
+        vec![0x13, 0x21, 0x28]
     );
 }
 
@@ -842,9 +842,9 @@ fn re_code_16() {
             code_loc: CodeLoc { fwd: 0x15, bck_seq_id: 0, bck: 0x02 }
         },],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x15, 0x12},
+        vec![0x15, 0x12],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x00}
+        vec![0x00]
     );
 }
 
@@ -895,9 +895,9 @@ fn re_code_17() {
         // Atoms
         vec![],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x46, 0x43, 0x27, 0x12},
+        vec![0x46, 0x43, 0x27, 0x12],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x46, 0x43, 0x27, 0x12}
+        vec![0x46, 0x43, 0x27, 0x12]
     );
 }
 
@@ -925,9 +925,9 @@ fn re_code_18() {
             code_loc: CodeLoc { fwd: 0x02, bck_seq_id: 0, bck: 0x02 }
         },],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x00},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x00}
+        vec![0x00]
     );
 }
 
@@ -965,9 +965,9 @@ fn re_code_19() {
             code_loc: CodeLoc { fwd: 0x03, bck_seq_id: 0, bck: 0x08 }
         },],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x00},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x00}
+        vec![0x00]
     );
 }
 
@@ -1001,9 +1001,9 @@ fn re_code_20() {
             },
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0x00},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0x00}
+        vec![0x00]
     );
 }
 
@@ -1049,9 +1049,9 @@ fn re_code_21() {
             },
         ],
         // Epsilon closure starting at forward code 0.
-        indexset! {0},
+        vec![0x00],
         // Epsilon closure starting at backward code 0.
-        indexset! {0}
+        vec![0x00]
     );
 }
 
@@ -1121,9 +1121,4 @@ fn re_atoms() {
         r#"(?s)a(b.b|c.c|d.d|e.e|f.f|g.g|h.h|i.i|j.j|k.k|l.l|m.m|n.n|o.o|p.p|q.q|r.r)"#,
         vec![Atom::inexact(b"a")]
     );
-}
-
-#[test]
-fn issue() {
-    assert_re_atoms!("\x00\x00\x00\x00.{2,3}abc", vec![Atom::inexact(b"abc")]);
 }
