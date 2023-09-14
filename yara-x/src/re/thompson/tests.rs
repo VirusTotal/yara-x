@@ -1,4 +1,3 @@
-use indexmap::{indexset, IndexSet};
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 

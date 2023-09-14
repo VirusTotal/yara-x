@@ -309,21 +309,54 @@ impl Visitor for PatternSplitter {
                 // kind of classes allowed inside a repetition are those that
                 // match all bytes, and those cases are handled while visiting
                 // the repetition node itself.
-                if !self.in_repetition {
-                    match class {
-                        Class::Bytes(class) => {
-                            if let Some(masked_byte) =
-                                re::hir::class_to_masked_byte(class)
-                            {
-                                self.bytes.push(masked_byte.value);
-                                self.mask.push(masked_byte.mask);
-                            } else {
-                                return Err(Error::FastIncompatible);
-                            }
+                if self.in_repetition {
+                    return Ok(());
+                }
+                match class {
+                    Class::Bytes(class) => {
+                        // Check if the class is representing a single masked
+                        // byte, like `3?`.
+                        if let Some(masked_byte) =
+                            re::hir::class_to_masked_byte(class)
+                        {
+                            self.bytes.push(masked_byte.value);
+                            self.mask.push(masked_byte.mask);
                         }
-                        Class::Unicode(_) => {
+                        // Check if the class is representing an alternation of
+                        // masked bytes, like `(1? | 2? | 3?)`. When the HIR for
+                        // hex patterns is constructed, alternations like this
+                        // one are represented by a `hir::Alternation` nodes
+                        // where each alternative is a class that represents a
+                        // single masked byte. However, the `regex_syntax` crate
+                        // can optimize the HIR by merging all the alternatives
+                        // in single class that represents multiple masked bytes.
+                        else if let Some(masked_bytes) =
+                            re::hir::class_to_masked_bytes_alternation(class)
+                        {
+                            if let Some(pattern) = self.finish_literal() {
+                                self.pieces
+                                    .push(PatternPiece::Pattern(pattern));
+                            }
+                            self.pieces.push(PatternPiece::Alternation(
+                                masked_bytes
+                                    .iter()
+                                    .map(|b| {
+                                        Pattern::Masked(
+                                            vec![b.value],
+                                            vec![b.mask],
+                                        )
+                                    })
+                                    .collect(),
+                            ));
+                        }
+                        // In all the remaining cases the class can't be
+                        // represented as masked bytes.
+                        else {
                             return Err(Error::FastIncompatible);
                         }
+                    }
+                    Class::Unicode(_) => {
+                        return Err(Error::FastIncompatible);
                     }
                 }
             }

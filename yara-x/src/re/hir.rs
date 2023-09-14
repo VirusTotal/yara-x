@@ -284,7 +284,7 @@ pub fn class_to_masked_byte(c: &ClassBytes) -> Option<HexByte> {
     // `3F`, by xoring the two we get `0x0F`.
     let neg_mask = largest_byte ^ smallest_byte;
 
-    // Make sure that a bitwise and between the largest and the smallest
+    // Make sure that a bitwise AND between the largest and the smallest
     // bytes is equal to the smallest one.
     if largest_byte & smallest_byte != smallest_byte {
         return None;
@@ -308,6 +308,27 @@ pub fn class_to_masked_byte(c: &ClassBytes) -> Option<HexByte> {
     }
 
     Some(HexByte { value: smallest_byte, mask: !neg_mask })
+}
+
+pub fn class_to_masked_bytes_alternation(
+    c: &ClassBytes,
+) -> Option<Vec<HexByte>> {
+    if c.ranges().is_empty() {
+        return None;
+    }
+    let mut result = Vec::new();
+    for range in c.ranges() {
+        if range.start() & range.end() != range.start() {
+            return None;
+        }
+        let neg_mask = range.start() ^ range.end();
+        let num_bytes = (range.end() - range.start()) + 1;
+        if 1 << neg_mask.count_ones() != num_bytes {
+            return None;
+        }
+        result.push(HexByte { value: range.start(), mask: !neg_mask });
+    }
+    Some(result)
 }
 
 #[cfg(test)]
