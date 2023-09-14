@@ -1,3 +1,5 @@
+use std::mem;
+
 use bitvec::array::BitArray;
 use bitvec::vec::BitVec;
 
