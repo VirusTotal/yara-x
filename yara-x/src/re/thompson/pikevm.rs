@@ -405,32 +405,36 @@ impl ThreadSet {
         match offset {
             offset if offset > 0 => {
                 let offset = offset as usize;
-                if self.p_bitmap.len() <= offset {
-                    self.p_bitmap.resize(offset + 1, false);
-                    self.p_bitmap.set(offset, true);
-                    self.threads.push(value);
-                    true
-                } else if !*self.p_bitmap.get(offset).unwrap() {
-                    self.p_bitmap.set(offset, true);
-                    self.threads.push(value);
-                    true
-                } else {
-                    false
+                unsafe {
+                    if self.p_bitmap.len() <= offset {
+                        self.p_bitmap.resize(offset + 1, false);
+                        self.p_bitmap.set_unchecked(offset, true);
+                        self.threads.push(value);
+                        true
+                    } else if !*self.p_bitmap.get_unchecked(offset) {
+                        self.p_bitmap.set_unchecked(offset, true);
+                        self.threads.push(value);
+                        true
+                    } else {
+                        false
+                    }
                 }
             }
             offset if offset < 0 => {
                 let offset = -offset as usize;
-                if self.n_bitmap.len() <= offset {
-                    self.n_bitmap.resize(offset + 1, false);
-                    self.n_bitmap.set(offset, true);
-                    self.threads.push(value);
-                    true
-                } else if !*self.n_bitmap.get(offset).unwrap() {
-                    self.n_bitmap.set(offset, true);
-                    self.threads.push(value);
-                    true
-                } else {
-                    false
+                unsafe {
+                    if self.n_bitmap.len() <= offset {
+                        self.n_bitmap.resize(offset + 1, false);
+                        self.n_bitmap.set_unchecked(offset, true);
+                        self.threads.push(value);
+                        true
+                    } else if !*self.n_bitmap.get_unchecked(offset) {
+                        self.n_bitmap.set_unchecked(offset, true);
+                        self.threads.push(value);
+                        true
+                    } else {
+                        false
+                    }
                 }
             }
             _ => unreachable!(),
