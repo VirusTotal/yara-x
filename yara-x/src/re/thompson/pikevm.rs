@@ -448,9 +448,9 @@ impl ThreadSet {
         match offset {
             offset if offset < 0 => {
                 let offset = -offset as usize;
-                assert!(offset < Self::MAX_OFFSET);
                 unsafe {
                     if self.n_bitmap.len() <= offset {
+                        assert!(offset < Self::MAX_OFFSET);
                         self.n_bitmap.resize(offset + 1, false);
                         self.n_bitmap.set_unchecked(offset, true);
                         self.values.push(value);
@@ -468,9 +468,9 @@ impl ThreadSet {
                 // At this point `offset` cannot be zero, it's safe to subtract
                 // 1 so that the first bit in the `p_bitmap` is used.
                 let offset = offset as usize - 1;
-                assert!(offset < Self::MAX_OFFSET);
                 unsafe {
                     if self.p_bitmap.len() <= offset {
+                        assert!(offset < Self::MAX_OFFSET);
                         self.p_bitmap.resize(offset + 1, false);
                         self.p_bitmap.set_unchecked(offset, true);
                         self.values.push(value);
