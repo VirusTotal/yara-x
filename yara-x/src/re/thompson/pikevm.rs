@@ -408,6 +408,8 @@ pub(crate) struct ThreadSet {
 }
 
 impl ThreadSet {
+    pub const MAX_OFFSET: usize = 524288;
+
     pub fn new() -> Self {
         Self {
             values: Vec::new(),
@@ -421,6 +423,12 @@ impl ThreadSet {
     ///
     /// Returns `true` if the value didn't exist in the set and was added, and
     /// `false` if the value already existed.
+    ///
+    /// # Panics
+    ///
+    /// If `value` is too far from the first value added to the set.
+    /// Specifically, it panics when `abs(value - initial_value) >= MAX_OFFSET`
+    ///
     #[inline]
     pub fn add(&mut self, value: usize) -> bool {
         // Special case when the set is totally empty.
@@ -440,6 +448,7 @@ impl ThreadSet {
         match offset {
             offset if offset < 0 => {
                 let offset = -offset as usize;
+                assert!(offset < Self::MAX_OFFSET);
                 unsafe {
                     if self.n_bitmap.len() <= offset {
                         self.n_bitmap.resize(offset + 1, false);
@@ -459,6 +468,7 @@ impl ThreadSet {
                 // At this point `offset` cannot be zero, it's safe to subtract
                 // 1 so that the first bit in the `p_bitmap` is used.
                 let offset = offset as usize - 1;
+                assert!(offset < Self::MAX_OFFSET);
                 unsafe {
                     if self.p_bitmap.len() <= offset {
                         self.p_bitmap.resize(offset + 1, false);
