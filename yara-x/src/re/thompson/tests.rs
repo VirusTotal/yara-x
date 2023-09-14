@@ -5,10 +5,11 @@ use yara_x_parser::ast;
 
 use crate::compiler::Atom;
 use crate::re;
+use crate::re::bitmapset::BitmapSet;
 use crate::re::{BckCodeLoc, FwdCodeLoc};
 
 use super::compiler::{CodeLoc, Compiler, RegexpAtom};
-use super::pikevm::{epsilon_closure, EpsilonClosureState, ThreadSet};
+use super::pikevm::{epsilon_closure, EpsilonClosureState};
 
 macro_rules! assert_re_code {
     ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{
@@ -32,7 +33,7 @@ macro_rules! assert_re_code {
         assert_eq!(bck_code.to_string(), $bck);
         assert_eq!(atoms, $atoms);
 
-        let mut fwd_closure = ThreadSet::new();
+        let mut fwd_closure = BitmapSet::new();
         let mut cache = EpsilonClosureState::new();
 
         epsilon_closure(
@@ -45,7 +46,7 @@ macro_rules! assert_re_code {
         );
         assert_eq!(fwd_closure.into_vec(), $fwd_closure);
 
-        let mut bck_closure = ThreadSet::new();
+        let mut bck_closure = BitmapSet::new();
         epsilon_closure(
             bck_code.as_ref(),
             BckCodeLoc::try_from(0_usize).unwrap(),

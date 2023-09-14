@@ -33,6 +33,7 @@ use crate::compiler::Atom;
 //#[cfg(feature = "fast-regexp")]
 pub mod fast;
 
+pub mod bitmapset;
 pub mod hir;
 pub mod parser;
 pub mod thompson;
