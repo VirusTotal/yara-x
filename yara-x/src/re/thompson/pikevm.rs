@@ -12,12 +12,12 @@ use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
 pub(crate) struct PikeVM<'r> {
     /// The code for the VM. Produced by [`crate::re::compiler::Compiler`].
     code: &'r [u8],
-    /// The list of currently active threads. Each item in this list is a
+    /// The set of currently active threads. Each item in this set is a
     /// position within the VM code, pointing to some VM instruction. Each item
-    /// in the list is unique, the VM guarantees that there aren't two active
+    /// in the set is unique, the VM guarantees that there aren't two active
     /// threads at the same VM instruction.
     threads: ThreadSet,
-    /// The list of threads that will become the active threads when the next
+    /// The set of threads that will become the active threads when the next
     /// byte is read from the input.
     next_threads: ThreadSet,
     /// Maximum number of bytes to scan. The VM will abort after ingesting
@@ -298,7 +298,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
             | Instr::ClassBitmap(_)
             | Instr::ClassRanges(_)
             | Instr::Match => {
-                closure.insert(ip);
+                closure.add(ip);
             }
             Instr::SplitA(id, offset) => {
                 if !state.executed(id) {
@@ -371,101 +371,146 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     }
 }
 
+/// Represents a set of threads running in the PikeVM.
+///
+/// Each value in the set is a position within the PikeVM bytecode. They are
+/// guaranteed to be unique, the `add` operation is a no-op if the new value
+/// already exists in the set.
+///
+/// Checking if a value exists in the set is a O(1) operation, using bitmaps
+/// for tracking existing values. However, as the values in the set are `usize`,
+/// is impossible in practice to have a bitmap that has 1 bit for every possible
+/// value from 0 to `usize::MAX`. Positions within the bitmap are computed
+/// relative to the first value inserted in the set. For example, if the first
+/// value is `1234`, the first bit in the bitmap corresponds to `1234`, the
+/// second bit to `1235`, the third one to `1236` and so on. A separate bitmap
+/// is maintained for values that are lower than the initial one. Value `1233`
+/// is represented as the first bit in this other bitmap. Both bitmaps will grow
+/// to accommodate newly inserted values as required.
+///
+/// `ThreadSet` works well with values that are close to each other. Outliers
+/// can make the memory required for storing the bitmaps to grow very quickly.
+/// However, the the values stored in this set are the positions of PikeVM
+/// instructions, which are usually close to each other.
+///
+/// Another property of this type is that values inserted in the set can be
+/// iterated in insertion order.
 #[derive(Debug, PartialEq)]
 pub(crate) struct ThreadSet {
-    threads: Vec<usize>,
-    base: usize,
+    // Vector that contains the values in the set, in insertion order.
+    values: Vec<usize>,
+    // First value inserted in the set.
+    initial_value: usize,
+    // Bitmap for values that are > initial_value.
     p_bitmap: BitVec<usize>,
+    // Bitmap for values that are < initial_value.
     n_bitmap: BitVec<usize>,
 }
 
 impl ThreadSet {
     pub fn new() -> Self {
         Self {
-            threads: Vec::new(),
-            base: 0,
+            values: Vec::new(),
+            initial_value: 0,
             p_bitmap: BitVec::repeat(false, 1024),
             n_bitmap: BitVec::repeat(false, 1024),
         }
     }
 
+    /// Adds a new value to the set.
+    ///
+    /// Returns `true` if the value didn't exist in the set and was added, and
+    /// `false` if the value already existed.
     #[inline]
-    pub fn insert(&mut self, value: usize) -> bool {
-        if self.threads.is_empty() {
-            self.base = value;
-            self.threads.push(value);
+    pub fn add(&mut self, value: usize) -> bool {
+        // Special case when the set is totally empty.
+        if self.values.is_empty() {
+            self.initial_value = value;
+            self.values.push(value);
             return true;
         }
-        if self.base == value {
+        // Special case where the new value is equal to the first value
+        // added to the set. We don't need to spare a bit on this value.
+        if self.initial_value == value {
             return false;
         }
 
-        let offset = value as isize - self.base as isize;
+        let offset = value as isize - self.initial_value as isize;
 
         match offset {
-            offset if offset > 0 => {
-                let offset = offset as usize;
-                unsafe {
-                    if self.p_bitmap.len() <= offset {
-                        self.p_bitmap.resize(offset + 1, false);
-                        self.p_bitmap.set_unchecked(offset, true);
-                        self.threads.push(value);
-                        true
-                    } else if !*self.p_bitmap.get_unchecked(offset) {
-                        self.p_bitmap.set_unchecked(offset, true);
-                        self.threads.push(value);
-                        true
-                    } else {
-                        false
-                    }
-                }
-            }
             offset if offset < 0 => {
                 let offset = -offset as usize;
                 unsafe {
                     if self.n_bitmap.len() <= offset {
                         self.n_bitmap.resize(offset + 1, false);
                         self.n_bitmap.set_unchecked(offset, true);
-                        self.threads.push(value);
+                        self.values.push(value);
                         true
                     } else if !*self.n_bitmap.get_unchecked(offset) {
                         self.n_bitmap.set_unchecked(offset, true);
-                        self.threads.push(value);
+                        self.values.push(value);
                         true
                     } else {
                         false
                     }
                 }
             }
-            _ => unreachable!(),
+            offset => {
+                // At this point `offset` cannot be zero, it's safe to subtract
+                // 1 so that the first bit in the `p_bitmap` is used.
+                let offset = offset as usize - 1;
+                unsafe {
+                    if self.p_bitmap.len() <= offset {
+                        self.p_bitmap.resize(offset + 1, false);
+                        self.p_bitmap.set_unchecked(offset, true);
+                        self.values.push(value);
+                        true
+                    } else if !*self.p_bitmap.get_unchecked(offset) {
+                        self.p_bitmap.set_unchecked(offset, true);
+                        self.values.push(value);
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
         }
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.threads.is_empty()
+        self.values.is_empty()
     }
 
+    /// Removes all values in the set.
     #[inline]
     pub fn clear(&mut self) {
-        for thread in self.threads.iter() {
-            let offset = *thread as isize - self.base as isize;
-            if offset >= 0 {
-                self.p_bitmap.set(offset as usize, false);
-            } else {
-                self.n_bitmap.set((-offset) as usize, false);
+        for thread in self.values.drain(0..) {
+            let offset = thread as isize - self.initial_value as isize;
+            match offset {
+                offset if offset > 0 => {
+                    self.p_bitmap.set((offset - 1) as usize, false);
+                }
+                offset if offset < 0 => {
+                    self.n_bitmap.set((-offset) as usize, false);
+                }
+                _ => {
+                    // when `offset` is 0 there's no bit to clear, the initial
+                    // value doesn't have a bit in neither of the bitmaps.
+                }
             }
         }
-
-        self.threads.clear();
     }
 
+    /// Returns an iterator for the items in the set.
+    ///
+    /// Items are returned in insertion order.
     pub fn iter(&self) -> impl Iterator<Item = &usize> {
-        self.threads.iter()
+        self.values.iter()
     }
 
     pub fn into_vec(self) -> Vec<usize> {
-        self.threads
+        self.values
     }
 }
 
@@ -477,28 +522,28 @@ mod tests {
     fn thread_set() {
         let mut s = ThreadSet::new();
 
-        assert!(s.insert(4));
-        assert!(s.insert(2));
-        assert!(s.insert(10));
-        assert!(s.insert(0));
-        assert!(s.insert(2000));
+        assert!(s.add(4));
+        assert!(s.add(2));
+        assert!(s.add(10));
+        assert!(s.add(0));
+        assert!(s.add(2000));
 
-        assert!(!s.insert(4));
-        assert!(!s.insert(2));
-        assert!(!s.insert(10));
-        assert!(!s.insert(0));
-        assert!(!s.insert(2000));
+        assert!(!s.add(4));
+        assert!(!s.add(2));
+        assert!(!s.add(10));
+        assert!(!s.add(0));
+        assert!(!s.add(2000));
 
-        assert_eq!(s.threads, vec![4, 2, 10, 0, 2000]);
+        assert_eq!(s.values, vec![4, 2, 10, 0, 2000]);
 
         s.clear();
 
-        assert!(s.insert(200));
-        assert!(s.insert(2));
-        assert!(s.insert(10));
-        assert!(s.insert(300));
-        assert!(s.insert(250));
+        assert!(s.add(200));
+        assert!(s.add(2));
+        assert!(s.add(10));
+        assert!(s.add(300));
+        assert!(s.add(250));
 
-        assert_eq!(s.threads, vec![200, 2, 10, 300, 250]);
+        assert_eq!(s.values, vec![200, 2, 10, 300, 250]);
     }
 }
