@@ -1495,12 +1495,8 @@ fn parse_macho_file(
     }
 
     // Populate number of segments based on return type
-    match parse_macho_commands(data, macho_proto, true) {
-        Ok(result) => {
-            macho_proto.set_number_of_segments(result);
-        }
-        Err(e) => return Err(e),
-    }
+    let number_of_segments = parse_macho_commands(data, macho_proto, true)?;
+    macho_proto.set_number_of_segments(number_of_segments);
 
     // Populate other fields
     parse_macho_commands(data, macho_proto, false)?;
