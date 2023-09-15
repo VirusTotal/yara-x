@@ -916,6 +916,7 @@ fn regexp_patterns_2() {
     pattern_match!(r#"/ab{2,3}c/"#, b"abbbc", b"abbbc");
     pattern_match!(r#"/ab{2,3}?c/"#, b"abbbc", b"abbbc");
     pattern_match!(r#"/ab{0,1}?c/"#, b"abc", b"abc");
+    pattern_match!(r#"/ab{,1}?c/"#, b"abc", b"abc");
     pattern_match!(r#"/a{0,1}bc/"#, b"bbc", b"bc");
     pattern_match!(r#"/ab{0,}c/"#, b"ac", b"ac");
     pattern_match!(r#"/ab{0,}c/"#, b"abc", b"abc");
@@ -935,7 +936,9 @@ fn regexp_patterns_2() {
     pattern_false!(r#"/ab{1,}b/"#, b"ab");
     pattern_match!(r#"/ab{1,1}c/"#, b"abc", b"abc");
     pattern_match!(r#"/ab{0,3}c/"#, b"abbbc", b"abbbc");
+    pattern_match!(r#"/ab{,3}c/"#, b"abbbc", b"abbbc");
     pattern_false!(r#"/ab{0,2}c/"#, b"abbbc");
+    pattern_false!(r#"/ab{,2}c/"#, b"abbbc");
     pattern_false!(r#"/ab{4,5}c/"#, b"abbbc");
     pattern_false!(r#"/ab{3}c/"#, b"abbbbc");
     pattern_false!(r#"/ab{4}c/"#, b"abbbbbc");

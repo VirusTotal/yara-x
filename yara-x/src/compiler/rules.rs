@@ -207,6 +207,7 @@ impl Rules {
     /// If no regular expression with such [`RegexpId`] exists.
     #[inline]
     pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
+        // TODO: when compiling regexps allow the use of `{,n}` syntax
         let re = Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
         RegexBuilder::new(re.naked())
             .case_insensitive(re.case_insensitive())

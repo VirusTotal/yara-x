@@ -61,12 +61,14 @@ impl Parser {
 
     /// Parses the regexp and returns its HIR.
     pub fn parse(&self, regexp: &ast::Regexp) -> Result<Hir, Error> {
-        let ast = re::ast::parse::Parser::new().parse(regexp.src).map_err(
-            |err| Error::SyntaxError {
+        let mut parser =
+            re::ast::parse::ParserBuilder::new().empty_min_range(true).build();
+
+        let ast =
+            parser.parse(regexp.src).map_err(|err| Error::SyntaxError {
                 msg: err.kind().to_string(),
                 span: *err.span(),
-            },
-        )?;
+            })?;
 
         let greedy = Validator::new().validate(&ast);
 
