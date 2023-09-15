@@ -1777,6 +1777,9 @@ fn main(ctx: &ScanContext) -> Macho {
     // Create an empty instance of the Mach-O protobuf
     let mut macho_proto = Macho::new();
 
+    // Set constants before parsing the binary
+    set_definitions(&mut macho_proto);
+
     // Get a &[u8] slice with the content of the file being scanned.
     let data = ctx.scanned_data();
 
@@ -1796,8 +1799,6 @@ fn main(ctx: &ScanContext) -> Macho {
     if is_fat_macho_file_block(data) {
         //parse_fat_macho_file(data, &mut macho_proto);
     }
-
-    set_definitions(&mut macho_proto);
 
     print_macho_info(&macho_proto);
     macho_proto
