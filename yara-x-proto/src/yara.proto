@@ -24,6 +24,7 @@ message MessageOptions {
 
 message EnumOptions {
   optional string name = 1;
+  optional bool inline = 2;
 }
 
 extend google.protobuf.FileOptions {

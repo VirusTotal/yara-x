@@ -2,7 +2,7 @@ use bitvec::vec::BitVec;
 
 /// A high-performance set of `usize` values.
 ///
-/// As in any set, they values are guaranteed to be unique, the `insert`
+/// As in any set, the values are guaranteed to be unique, the `insert`
 /// operation is a no-op if the new value already exists in the set.
 /// Additionally, this type supports iterating the values in insertion order.
 ///

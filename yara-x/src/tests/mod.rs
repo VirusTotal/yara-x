@@ -2903,6 +2903,8 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.Enumeration.ITEM_0 == 0"#);
     condition_true!(r#"test_proto2.Enumeration.ITEM_1 == 1"#);
 
+    condition_true!(r#"test_proto2.INLINE_0x1000 == 0x1000"#);
+
     condition_true!(
         r#"test_proto2.TopLevelEnumeration.ITEM_0x1000 == 0x1000"#
     );

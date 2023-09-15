@@ -309,25 +309,41 @@ impl Struct {
                 };
 
             for enum_ in enums {
-                let mut enum_struct = Struct::new();
-
-                for item in enum_.values() {
-                    if let Some(existing_field) = enum_struct.add_field(
-                        item.name(),
-                        TypeValue::Integer(Value::Const(item.value() as i64)),
-                    ) {
-                        panic!(
-                            "field '{}' already exists",
-                            existing_field.name
-                        );
+                if Self::enum_is_inline(&enum_) {
+                    for item in enum_.values() {
+                        fields.push(StructField {
+                            type_value: TypeValue::Integer(Value::Const(
+                                item.value() as i64,
+                            )),
+                            number: 0,
+                            name: item.name().to_owned(),
+                        });
                     }
-                }
+                } else {
+                    // Create the structure where each field will be one of the
+                    // enum's items.
+                    let mut enum_struct = Struct::new();
 
-                fields.push(StructField {
-                    type_value: TypeValue::Struct(Rc::new(enum_struct)),
-                    number: 0,
-                    name: Self::enum_name(&enum_),
-                })
+                    for item in enum_.values() {
+                        if let Some(existing_field) = enum_struct.add_field(
+                            item.name(),
+                            TypeValue::Integer(Value::Const(
+                                item.value() as i64
+                            )),
+                        ) {
+                            panic!(
+                                "field '{}' already exists",
+                                existing_field.name
+                            );
+                        }
+                    }
+
+                    fields.push(StructField {
+                        type_value: TypeValue::Struct(Rc::new(enum_struct)),
+                        number: 0,
+                        name: Self::enum_name(&enum_),
+                    });
+                }
             }
         }
 
@@ -385,6 +401,47 @@ impl Struct {
                 .unwrap_or_else(|| enum_descriptor.name().to_owned())
         } else {
             enum_descriptor.name().to_owned()
+        }
+    }
+
+    /// Given a [`EnumDescriptor`] returns whether this enum is declared as
+    /// inline.
+    ///
+    /// Inline enums are those whose fields are added directly to the parent
+    /// struct, no new structs are created for accommodating the enum fields.
+    ///
+    /// For example, consider this non-flat enum:
+    ///
+    /// ```text
+    /// enum MyEnum {
+    ///   ITEM_0 = 0;
+    ///   ITEM_1 = 1;
+    /// }
+    /// ```
+    ///
+    /// Fields like `ITEM_0` and `ITEM_1` will appear under a struct named
+    /// `MyEnum`. If the enum is declared at the module level, it will be
+    /// accessed like this:  `module_name.MyEnum.ITEM_0`.
+    ///
+    /// Now consider the flat variant:
+    ///
+    /// ```text
+    /// enum MyEnum {
+    ///   ITEM_0 = 0;
+    ///   ITEM_1 = 1;
+    /// }
+    /// ```
+    ///
+    /// The fields in this enum will be used like `module_name.ITEM_0`, items
+    /// in the enum are added directly as fields of the module, or the struct
+    /// that contains the enum.
+    fn enum_is_inline(enum_descriptor: &EnumDescriptor) -> bool {
+        if let Some(enum_options) =
+            yara_enum_options.get(&enum_descriptor.proto().options)
+        {
+            enum_options.inline.unwrap_or(false)
+        } else {
+            false
         }
     }
 

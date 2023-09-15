@@ -180,7 +180,13 @@ message TestProto2 {
 enum TopLevelEnumeration {
   ITEM_0x1000 = 0x1000;
   ITEM_0x2000 = 0x2000;
-} 
+}
+
+enum InlineEnumeration {
+  option (yara.enum_options).inline = true;
+  INLINE_0x1000 = 0x1000;
+  INLINE_0x2000 = 0x2000;
+}
 
 message NestedProto2 {
   optional int32              nested_int32_zero = 1;
