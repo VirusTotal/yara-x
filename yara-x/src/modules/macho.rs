@@ -12,16 +12,16 @@ const VALID_MACHO_LENGTH: usize = 28;
 
 // Define Mach-O header constats
 // May be moved away later
-const MH_MAGIC: u32 = 0xFEEDFACE;
-const MH_CIGAM: u32 = 0xCEFAEDFE;
-const MH_MAGIC_64: u32 = 0xFEEDFACF;
-const MH_CIGAM_64: u32 = 0xCFFAEDFE;
+const MH_MAGIC: u32 = 0xfeedface;
+const MH_CIGAM: u32 = 0xcefaedfe;
+const MH_MAGIC_64: u32 = 0xfeedfacf;
+const MH_CIGAM_64: u32 = 0xcffaedfe;
 
 // Define Mach-O FAT header constants
-const FAT_MAGIC: u32 = 0xCAFEBABE;
-const FAT_CIGAM: u32 = 0xBEBAFECA;
-const FAT_MAGIC_64: u32 = 0xCAFEBABF;
-const FAT_CIGAM_64: u32 = 0xBFBAFECA;
+const FAT_MAGIC: u32 = 0xcafebabe;
+const FAT_CIGAM: u32 = 0xbebafeca;
+const FAT_MAGIC_64: u32 = 0xcafebabf;
+const FAT_CIGAM_64: u32 = 0xbfbafeca;
 
 // Define Mach-O 64-bit masks
 const CPU_ARCH_ABI64: u32 = 0x01000000;
@@ -237,6 +237,37 @@ struct MachOHeader64 {
     ncmds: u32,
     sizeofcmds: u32,
     flags: u32,
+    reserved: u32,
+}
+
+// Fat header struct
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct FatHeader {
+    magic: u32,
+    nfat_arch: u32,
+}
+
+// 32bit Fat arch struct
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct FatArch32 {
+    cputype: u32,
+    cpusubtype: u32,
+    offset: u32,
+    size: u32,
+    align: u32,
+}
+
+// 64bit Fat arch struct
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct FatArch64 {
+    cputype: u32,
+    cpusubtype: u32,
+    offset: u64,
+    size: u64,
+    align: u32,
     reserved: u32,
 }
 
@@ -499,8 +530,12 @@ fn is_fat_macho_file_block(data: &[u8]) -> bool {
 
 // Check if given file is 32bit Mach-O file
 fn is_32_bit(magic: u32) -> bool {
-    let bytes = magic.to_ne_bytes();
-    bytes[0] == 0xce || bytes[3] == 0xce
+    magic == MH_MAGIC || magic == MH_CIGAM
+}
+
+// Determine if the fat arch is 32-bit based on its size
+fn fat_is_32(magic: u32) -> bool {
+    magic == FAT_MAGIC || magic == FAT_CIGAM
 }
 
 // If given file is BigEndian we want to swap bytes to LittleEndian
@@ -510,8 +545,8 @@ fn should_swap_bytes(magic: u32) -> bool {
 }
 
 // Change Mach-O RVA to offset
-fn macho_rva_to_offset(address: u64, macho_proto: &Macho) -> Option<u64> {
-    for segment in &macho_proto.segments {
+fn macho_rva_to_offset(address: u64, macho_file: &File) -> Option<u64> {
+    for segment in &macho_file.segments {
         if let (Some(start), Some(vmsize), Some(fileoff)) =
             (segment.vmaddr, segment.vmsize, segment.fileoff)
         {
@@ -527,8 +562,8 @@ fn macho_rva_to_offset(address: u64, macho_proto: &Macho) -> Option<u64> {
 }
 
 // Change Mach-O offset to RVA
-fn macho_offset_to_rva(offset: u64, macho_proto: &Macho) -> Option<u64> {
-    for segment in &macho_proto.segments {
+fn macho_offset_to_rva(offset: u64, macho_file: &File) -> Option<u64> {
+    for segment in &macho_file.segments {
         if let (Some(start), Some(filesize), Some(vmaddr)) =
             (segment.fileoff, segment.filesize, segment.vmaddr)
         {
@@ -653,6 +688,39 @@ fn parse_macho_header(input: &[u8]) -> IResult<&[u8], MachOHeader64> {
             flags,
             reserved,
         },
+    ))
+}
+
+// Parse FAT header
+fn parse_fat_header(input: &[u8]) -> IResult<&[u8], FatHeader> {
+    let (input, magic) = be_u32(input)?;
+    let (input, nfat_arch) = be_u32(input)?;
+    Ok((input, FatHeader { magic, nfat_arch }))
+}
+
+// Parse FAT architecture for 32-bit
+fn parse_fat_arch_32(input: &[u8]) -> IResult<&[u8], FatArch32> {
+    let (input, cputype) = be_u32(input)?;
+    let (input, cpusubtype) = be_u32(input)?;
+    let (input, offset) = be_u32(input)?;
+    let (input, size) = be_u32(input)?;
+    let (input, align) = be_u32(input)?;
+
+    Ok((input, FatArch32 { cputype, cpusubtype, offset, size, align }))
+}
+
+// Parse FAT architecture for 64-bit
+fn parse_fat_arch_64(input: &[u8]) -> IResult<&[u8], FatArch64> {
+    let (input, cputype) = be_u32(input)?;
+    let (input, cpusubtype) = be_u32(input)?;
+    let (input, offset) = be_u64(input)?;
+    let (input, size) = be_u64(input)?;
+    let (input, align) = be_u32(input)?;
+    let (input, reserved) = be_u32(input)?;
+
+    Ok((
+        input,
+        FatArch64 { cputype, cpusubtype, offset, size, align, reserved },
     ))
 }
 
@@ -1002,7 +1070,7 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
 fn handle_segment_command(
     command_data: &[u8],
     size: usize,
-    macho_proto: &mut Macho,
+    macho_file: &mut File,
 ) -> Result<(), MachoError> {
     // Check if segment size is not less than SegmentCommand32 struct size
     if size < std::mem::size_of::<SegmentCommand32>() {
@@ -1015,7 +1083,7 @@ fn handle_segment_command(
     let (remaining_data, mut sg) = parse_segment_command(command_data)
         .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
     if should_swap_bytes(
-        macho_proto
+        macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
@@ -1047,7 +1115,7 @@ fn handle_segment_command(
         let (remaining_sections, mut sec) = parse_section(sections_data)
             .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
         if should_swap_bytes(
-            macho_proto
+            macho_file
                 .magic
                 .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
         ) {
@@ -1084,7 +1152,7 @@ fn handle_segment_command(
     }
 
     // Push segments with sections into protobuf
-    macho_proto.segments.push(segment);
+    macho_file.segments.push(segment);
 
     Ok(())
 }
@@ -1093,7 +1161,7 @@ fn handle_segment_command(
 fn handle_segment_command_64(
     command_data: &[u8],
     size: usize,
-    macho_proto: &mut Macho,
+    macho_file: &mut File,
 ) -> Result<(), MachoError> {
     // Check if segment size is not less than SegmentCommand64 struct size
     if size < std::mem::size_of::<SegmentCommand64>() {
@@ -1107,7 +1175,7 @@ fn handle_segment_command_64(
         .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
     if should_swap_bytes(
-        macho_proto
+        macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
@@ -1139,7 +1207,7 @@ fn handle_segment_command_64(
         let (remaining_sections, mut sec) = parse_section_64(sections_data)
             .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
         if should_swap_bytes(
-            macho_proto
+            macho_file
                 .magic
                 .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
         ) {
@@ -1176,7 +1244,7 @@ fn handle_segment_command_64(
     }
 
     // Push segments with sections into protobuf
-    macho_proto.segments.push(segment);
+    macho_file.segments.push(segment);
 
     Ok(())
 }
@@ -1185,7 +1253,7 @@ fn handle_segment_command_64(
 fn handle_unixthread(
     command_data: &[u8],
     size: usize,
-    macho_proto: &mut Macho,
+    macho_file: &mut File,
 ) -> Result<(), MachoError> {
     if size < std::mem::size_of::<ThreadCommand>() {
         return Err(MachoError::FileSectionTooSmall(
@@ -1211,7 +1279,7 @@ fn handle_unixthread(
     let mut is64: bool = false;
 
     // Perform parsing according to cputype in header
-    match macho_proto
+    match macho_file
         .cputype
         .ok_or(MachoError::MissingHeaderValue("cputype".to_string()))?
     {
@@ -1304,7 +1372,7 @@ fn handle_unixthread(
 
     // Swap bytes if neccessary
     if should_swap_bytes(
-        macho_proto
+        macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
@@ -1316,7 +1384,7 @@ fn handle_unixthread(
     }
 
     // TODO: COMPILER FLAGS
-    macho_proto.entry_point = macho_rva_to_offset(address, macho_proto);
+    macho_file.entry_point = macho_rva_to_offset(address, macho_file);
 
     Ok(())
 }
@@ -1325,7 +1393,7 @@ fn handle_unixthread(
 fn handle_main(
     command_data: &[u8],
     size: usize,
-    macho_proto: &mut Macho,
+    macho_file: &mut File,
 ) -> Result<(), MachoError> {
     // Check size
     if size < std::mem::size_of::<EntryPointCommand>() {
@@ -1340,7 +1408,7 @@ fn handle_main(
 
     // Swap bytes if neccesarry
     if should_swap_bytes(
-        macho_proto
+        macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
@@ -1349,13 +1417,13 @@ fn handle_main(
 
     // TODO: COMPILER FLAGS
     if false {
-        macho_proto.entry_point =
-            macho_offset_to_rva(entrypoint_cmd.entryoff, macho_proto);
+        macho_file.entry_point =
+            macho_offset_to_rva(entrypoint_cmd.entryoff, macho_file);
     } else {
-        macho_proto.set_entry_point(entrypoint_cmd.entryoff);
+        macho_file.set_entry_point(entrypoint_cmd.entryoff);
     }
 
-    macho_proto.set_stack_size(entrypoint_cmd.stacksize);
+    macho_file.set_stack_size(entrypoint_cmd.stacksize);
 
     Ok(())
 }
@@ -1365,7 +1433,7 @@ fn handle_command(
     cmd: u32,
     cmdsize: usize,
     command_data: &[u8],
-    macho_proto: &mut Macho,
+    macho_file: &mut File,
     process_segments: bool,
 ) -> Result<u64, MachoError> {
     let mut seg_count = 0;
@@ -1374,11 +1442,11 @@ fn handle_command(
     if process_segments {
         match cmd {
             LC_SEGMENT => {
-                handle_segment_command(command_data, cmdsize, macho_proto)?;
+                handle_segment_command(command_data, cmdsize, macho_file)?;
                 seg_count += 1;
             }
             LC_SEGMENT_64 => {
-                handle_segment_command_64(command_data, cmdsize, macho_proto)?;
+                handle_segment_command_64(command_data, cmdsize, macho_file)?;
                 seg_count += 1;
             }
             _ => {}
@@ -1387,10 +1455,10 @@ fn handle_command(
     } else {
         match cmd {
             LC_UNIXTHREAD => {
-                handle_unixthread(command_data, cmdsize, macho_proto)?;
+                handle_unixthread(command_data, cmdsize, macho_file)?;
             }
             LC_MAIN => {
-                handle_main(command_data, cmdsize, macho_proto)?;
+                handle_main(command_data, cmdsize, macho_file)?;
             }
             _ => {}
         }
@@ -1402,11 +1470,11 @@ fn handle_command(
 // Parse Mach-O commands
 fn parse_macho_commands(
     data: &[u8],
-    macho_proto: &mut Macho,
+    macho_file: &mut File,
     process_segments: bool,
 ) -> Result<u64, MachoError> {
     let header_size = if is_32_bit(
-        macho_proto
+        macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
     ) {
@@ -1419,7 +1487,7 @@ fn parse_macho_commands(
     let mut command_offset = header_size;
 
     // Loop over Mach-O commands
-    for _ in 0..macho_proto
+    for _ in 0..macho_file
         .ncmds
         .ok_or(MachoError::MissingHeaderValue("ncmds".to_string()))?
     {
@@ -1433,7 +1501,7 @@ fn parse_macho_commands(
         let (_, mut command) = parse_load_command(command_data)
             .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
         if should_swap_bytes(
-            macho_proto
+            macho_file
                 .magic
                 .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
         ) {
@@ -1454,7 +1522,7 @@ fn parse_macho_commands(
             command.cmd,
             command.cmdsize as usize,
             command_data,
-            macho_proto,
+            macho_file,
             process_segments,
         )?;
 
@@ -1466,10 +1534,8 @@ fn parse_macho_commands(
 }
 
 // Parse basic Mach-O file
-fn parse_macho_file(
-    data: &[u8],
-    macho_proto: &mut Macho,
-) -> Result<(), MachoError> {
+fn parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
+    let mut macho_file = File::default();
     // File is too small to contain Mach-O header
     if data.len() < std::mem::size_of::<MachOHeader64>() {
         return Err(MachoError::FileTooSmall);
@@ -1483,23 +1549,96 @@ fn parse_macho_file(
     }
 
     // Populate protobuf header section
-    macho_proto.set_magic(parsed_header.magic);
-    macho_proto.set_cputype(parsed_header.cputype);
-    macho_proto.set_cpusubtype(parsed_header.cpusubtype);
-    macho_proto.set_filetype(parsed_header.filetype);
-    macho_proto.set_ncmds(parsed_header.ncmds);
-    macho_proto.set_sizeofcmds(parsed_header.sizeofcmds);
-    macho_proto.set_flags(parsed_header.flags);
+    macho_file.set_magic(parsed_header.magic);
+    macho_file.set_cputype(parsed_header.cputype);
+    macho_file.set_cpusubtype(parsed_header.cpusubtype);
+    macho_file.set_filetype(parsed_header.filetype);
+    macho_file.set_ncmds(parsed_header.ncmds);
+    macho_file.set_sizeofcmds(parsed_header.sizeofcmds);
+    macho_file.set_flags(parsed_header.flags);
     if !is_32_bit(parsed_header.magic) {
-        macho_proto.set_reserved(parsed_header.reserved);
+        macho_file.set_reserved(parsed_header.reserved);
     }
 
     // Populate number of segments based on return type
-    let number_of_segments = parse_macho_commands(data, macho_proto, true)?;
-    macho_proto.set_number_of_segments(number_of_segments);
+    let number_of_segments =
+        parse_macho_commands(data, &mut macho_file, true)?;
+    macho_file.set_number_of_segments(number_of_segments);
 
     // Populate other fields
-    parse_macho_commands(data, macho_proto, false)?;
+    parse_macho_commands(data, &mut macho_file, false)?;
+
+    Ok(macho_file)
+}
+
+// Parse FAT Mach-O file
+fn parse_fat_macho_file(
+    data: &[u8],
+    macho_proto: &mut Macho,
+) -> Result<(), MachoError> {
+    let (remaining_data, header) = parse_fat_header(data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    macho_proto.set_fat_magic(header.magic);
+    macho_proto.set_nfat_arch(header.nfat_arch);
+
+    // Depending on the size of the data, determine if it's a 32bit or 64bit Mach-O
+    let fat_arch_size = if fat_is_32(header.magic) {
+        std::mem::size_of::<FatArch32>()
+    } else {
+        std::mem::size_of::<FatArch64>()
+    };
+
+    // Loop through the nested array of fat_archs
+    for i in 0..header.nfat_arch as usize {
+        let arch_data = &remaining_data[i * fat_arch_size..];
+
+        // Parse 32bit FAT headers
+        if fat_is_32(header.magic) {
+            let (_, arch) = parse_fat_arch_32(arch_data)
+                .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+            let fat_arch_entry = FatArch {
+                cputype: Some(arch.cputype),
+                cpusubtype: Some(arch.cpusubtype),
+                offset: Some(arch.offset as u64),
+                size: Some(arch.size as u64),
+                align: Some(arch.align),
+                ..Default::default()
+            };
+            macho_proto.fat_arch.push(fat_arch_entry);
+
+            // Parse nested data as basic Mach-O file
+            let nested_file = parse_macho_file(
+                &data
+                    [arch.offset as usize..(arch.offset + arch.size) as usize],
+            )?;
+            macho_proto.file.push(nested_file);
+        // Parse 64bit FAT headers
+        } else {
+            let (_, arch) = parse_fat_arch_64(arch_data)
+                .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+            let fat_arch_entry = FatArch {
+                cputype: Some(arch.cputype),
+                cpusubtype: Some(arch.cpusubtype),
+                offset: Some(arch.offset),
+                size: Some(arch.size),
+                align: Some(arch.align),
+                reserved: Some(arch.reserved),
+                ..Default::default()
+            };
+            print!("{:?}", arch);
+            macho_proto.fat_arch.push(fat_arch_entry);
+
+            // Parse nested data as basic Mach-O file
+            let nested_file = parse_macho_file(
+                &data
+                    [arch.offset as usize..(arch.offset + arch.size) as usize],
+            )?;
+            macho_proto.file.push(nested_file);
+        }
+    }
 
     Ok(())
 }
@@ -1766,6 +1905,103 @@ fn print_macho_info(macho_proto: &Macho) {
 
     // Print Stack Size
     println!("Stack Size: {}", print_option(macho_proto.stack_size));
+
+    // FAT related printing:
+    // Print Fat binary header info
+    println!("Fat Binary Header:");
+    println!("Fat Magic: {}", print_option_hex(macho_proto.fat_magic));
+    println!(
+        "Number of Fat Architectures: {}",
+        print_option(macho_proto.nfat_arch)
+    );
+    println!();
+
+    // Print each FatArch entry
+    for fat_arch in &macho_proto.fat_arch {
+        println!("Fat Architecture:");
+        println!("CPU Type: {}", print_option(fat_arch.cputype));
+        println!("CPU Subtype: {}", print_option(fat_arch.cpusubtype));
+        println!("Offset: {}", print_option_hex(fat_arch.offset));
+        println!("Size: {}", print_option_hex(fat_arch.size));
+        println!("Align: {}", print_option(fat_arch.align));
+        println!("Reserved: {}", print_option_hex(fat_arch.reserved));
+        println!();
+    }
+
+    // Print nested Mach-O files
+    for nested_file in &macho_proto.file {
+        println!("Nested Mach-O File:");
+        println!("Magic: {}", print_option_hex(nested_file.magic));
+        println!("CPU Type: {}", print_option(nested_file.cputype));
+        println!("CPU Subtype: {}", print_option(nested_file.cpusubtype));
+        println!("File Type: {}", print_option(nested_file.filetype));
+        println!("Number of Commands: {}", print_option(nested_file.ncmds));
+        println!("Size of Commands: {}", print_option(nested_file.sizeofcmds));
+        println!("Flags: {}", print_option_hex(nested_file.flags));
+        println!("Reserved: {}", print_option_hex(nested_file.reserved));
+        println!();
+
+        // Print nested Segment Commands
+        for segment in &nested_file.segments {
+            println!("Segment Commands:");
+            println!("Command: {}", print_option_hex(segment.cmd));
+            println!("Command Size: {}", print_option(segment.cmdsize));
+            println!(
+                "Segment Name: {}",
+                print_option(segment.segname.as_ref())
+            );
+            println!("VM Address: {}", print_option_hex(segment.vmaddr));
+            println!("VM Size: {}", print_option_hex(segment.vmsize));
+            println!("File Offset: {}", print_option(segment.fileoff));
+            println!("File Size: {}", print_option(segment.filesize));
+            println!("Max Protection: {}", print_option_hex(segment.maxprot));
+            println!(
+                "Init Protection: {}",
+                print_option_hex(segment.initprot)
+            );
+            println!("Number of Sections: {}", print_option(segment.nsects));
+            println!("Flags: {}", print_option_hex(segment.flags));
+            // Print nested Segment Sections
+            for section in &segment.sections {
+                println!("Sections:");
+                println!(
+                    "Segment Name: {}",
+                    print_option(section.segname.as_ref())
+                );
+                println!(
+                    "Section Name: {}",
+                    print_option(section.sectname.as_ref())
+                );
+                println!("Address: {}", print_option_hex(section.addr));
+                println!("Size: {}", print_option_hex(section.size));
+                println!("Offset: {}", print_option(section.offset));
+                println!("Alignment: {}", print_option(section.align));
+                println!(
+                    "Relocation Offset: {}",
+                    print_option(section.reloff)
+                );
+                println!(
+                    "Number of Relocations: {}",
+                    print_option(section.nreloc)
+                );
+                println!("Flags: {}", print_option_hex(section.flags));
+                println!("Reserved 1: {}", print_option(section.reserved1));
+                println!("Reserved 2: {}", print_option(section.reserved2));
+                println!("Reserved 3: {}", print_option(section.reserved3));
+                println!();
+            }
+            println!();
+        }
+
+        // Print number of segments, entry point, and stack size
+        println!(
+            "Number of segments: {}",
+            print_option(nested_file.number_of_segments)
+        );
+        println!("Entry Point: {}", print_option(nested_file.entry_point));
+        println!("Stack Size: {}", print_option(nested_file.stack_size));
+        println!();
+    }
 }
 
 #[module_main]
@@ -1787,13 +2023,31 @@ fn main(ctx: &ScanContext) -> Macho {
 
     // parse basic Mach-O file
     if is_macho_file_block(data) {
-        if let Err(error) = parse_macho_file(data, &mut macho_proto) {
-            eprintln!("{}", error);
+        match parse_macho_file(data) {
+            Ok(file_data) => {
+                macho_proto.magic = file_data.magic;
+                macho_proto.cputype = file_data.cputype;
+                macho_proto.cpusubtype = file_data.cpusubtype;
+                macho_proto.filetype = file_data.filetype;
+                macho_proto.ncmds = file_data.ncmds;
+                macho_proto.sizeofcmds = file_data.sizeofcmds;
+                macho_proto.flags = file_data.flags;
+                macho_proto.reserved = file_data.reserved;
+                macho_proto.number_of_segments = file_data.number_of_segments;
+                macho_proto.segments = file_data.segments;
+                macho_proto.entry_point = file_data.entry_point;
+                macho_proto.stack_size = file_data.stack_size;
+            }
+            Err(error) => {
+                eprintln!("{}", error);
+            }
         }
     }
 
     if is_fat_macho_file_block(data) {
-        //parse_fat_macho_file(data, &mut macho_proto);
+        if let Err(error) = parse_fat_macho_file(data, &mut macho_proto) {
+            eprintln!("{}", error);
+        }
     }
 
     print_macho_info(&macho_proto);
