@@ -1628,7 +1628,6 @@ fn parse_fat_macho_file(
                 reserved: Some(arch.reserved),
                 ..Default::default()
             };
-            print!("{:?}", arch);
             macho_proto.fat_arch.push(fat_arch_entry);
 
             // Parse nested data as basic Mach-O file
