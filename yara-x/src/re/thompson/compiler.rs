@@ -200,8 +200,8 @@ impl Compiler {
     ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
         visit(&hir.inner, &mut self)?;
 
-        self.forward_code_mut().emit_instr(Instr::MATCH);
-        self.backward_code_mut().emit_instr(Instr::MATCH);
+        self.forward_code_mut().emit_instr(Instr::MATCH)?;
+        self.backward_code_mut().emit_instr(Instr::MATCH)?;
 
         let atoms = self.best_atoms_stack.pop().unwrap().atoms;
 
@@ -238,20 +238,20 @@ impl Compiler {
         }
     }
 
-    fn emit_instr(&mut self, instr: u8) -> CodeLoc {
-        CodeLoc {
-            fwd: self.forward_code_mut().emit_instr(instr),
+    fn emit_instr(&mut self, instr: u8) -> Result<CodeLoc, Error> {
+        Ok(CodeLoc {
+            fwd: self.forward_code_mut().emit_instr(instr)?,
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_instr(instr),
-        }
+            bck: self.backward_code_mut().emit_instr(instr)?,
+        })
     }
 
-    fn emit_split_n(&mut self, n: NumAlt) -> CodeLoc {
-        CodeLoc {
-            fwd: self.forward_code_mut().emit_split_n(n),
+    fn emit_split_n(&mut self, n: NumAlt) -> Result<CodeLoc, Error> {
+        Ok(CodeLoc {
+            fwd: self.forward_code_mut().emit_split_n(n)?,
             bck_seq_id: self.backward_code().seq_id(),
-            bck: self.backward_code_mut().emit_split_n(n),
-        }
+            bck: self.backward_code_mut().emit_split_n(n)?,
+        })
     }
 
     fn emit_masked_byte(&mut self, b: HexByte) -> CodeLoc {
@@ -333,14 +333,16 @@ impl Compiler {
         }
     }
 
-    fn visit_post_look(&mut self, look: &Look) -> CodeLoc {
-        match look {
-            Look::Start => self.emit_instr(Instr::START),
-            Look::End => self.emit_instr(Instr::END),
-            Look::WordAscii => self.emit_instr(Instr::WORD_BOUNDARY),
-            Look::WordAsciiNegate => self.emit_instr(Instr::WORD_BOUNDARY_NEG),
+    fn visit_post_look(&mut self, look: &Look) -> Result<CodeLoc, Error> {
+        Ok(match look {
+            Look::Start => self.emit_instr(Instr::START)?,
+            Look::End => self.emit_instr(Instr::END)?,
+            Look::WordAscii => self.emit_instr(Instr::WORD_BOUNDARY)?,
+            Look::WordAsciiNegate => {
+                self.emit_instr(Instr::WORD_BOUNDARY_NEG)?
+            }
             _ => unreachable!(),
-        }
+        })
     }
 
     fn visit_pre_concat(&mut self) {
@@ -414,7 +416,10 @@ impl Compiler {
         locations
     }
 
-    fn visit_pre_alternation(&mut self, alternatives: &Vec<Hir>) {
+    fn visit_pre_alternation(
+        &mut self,
+        alternatives: &Vec<Hir>,
+    ) -> Result<(), Error> {
         // e1|e2|....|eN
         //
         // l0: split_n l1,l2,l3
@@ -427,12 +432,14 @@ impl Compiler {
         // lEND:
         debug_assert!(alternatives.len() < 256);
 
-        let l0 = self.emit_split_n(alternatives.len().try_into().unwrap());
+        let l0 = self.emit_split_n(alternatives.len().try_into().unwrap())?;
 
         self.bookmarks.push(l0);
         self.bookmarks.push(self.location());
 
         self.best_atoms_stack.push(RegexpAtoms::empty());
+
+        Ok(())
     }
 
     fn visit_post_alternation(
@@ -505,7 +512,7 @@ impl Compiler {
         Ok(split_loc)
     }
 
-    fn visit_pre_repetition(&mut self, rep: &Repetition) {
+    fn visit_pre_repetition(&mut self, rep: &Repetition) -> Result<(), Error> {
         match (rep.min, rep.max, rep.greedy) {
             // e* and e*?
             //
@@ -518,7 +525,7 @@ impl Compiler {
                     Instr::SPLIT_A
                 } else {
                     Instr::SPLIT_B
-                });
+                })?;
                 self.bookmarks.push(l1);
                 self.zero_rep_depth += 1;
             }
@@ -555,13 +562,15 @@ impl Compiler {
                         Instr::SPLIT_A
                     } else {
                         Instr::SPLIT_B
-                    });
+                    })?;
                     self.bookmarks.push(split);
                     self.zero_rep_depth += 1;
                 }
                 self.bookmarks.push(self.location());
             }
         }
+
+        Ok(())
     }
 
     fn visit_post_repetition(
@@ -577,7 +586,7 @@ impl Compiler {
             // l3:
             (0, None, _) => {
                 let l1 = self.bookmarks.pop().unwrap();
-                let l2 = self.emit_instr(Instr::JUMP);
+                let l2 = self.emit_instr(Instr::JUMP)?;
                 let l3 = self.location();
                 self.patch_instr(&l1, l3.sub(&l1)?);
                 self.patch_instr(&l2, l1.sub(&l2)?);
@@ -596,7 +605,7 @@ impl Compiler {
                     Instr::SPLIT_B
                 } else {
                     Instr::SPLIT_A
-                });
+                })?;
                 self.patch_instr(&l2, l1.sub(&l2)?);
 
                 Ok(l1)
@@ -629,7 +638,7 @@ impl Compiler {
                     Instr::SPLIT_B
                 } else {
                     Instr::SPLIT_A
-                });
+                })?;
 
                 self.patch_instr(&l2, l1.sub(&l2)?);
                 self.emit_clone(start, end)?;
@@ -699,7 +708,7 @@ impl Compiler {
                         Instr::SPLIT_A
                     } else {
                         Instr::SPLIT_B
-                    });
+                    })?;
                     self.bookmarks.push(split);
                     self.emit_clone(start, end)?;
                 }
@@ -760,10 +769,10 @@ impl hir::Visitor for &mut Compiler {
                 if alternatives.len() > MAX_ALTERNATIVES.into() {
                     return Err(Error::TooManyAlternatives);
                 }
-                self.visit_pre_alternation(alternatives);
+                self.visit_pre_alternation(alternatives)?;
             }
             HirKind::Repetition(rep) => {
-                self.visit_pre_repetition(rep);
+                self.visit_pre_repetition(rep)?;
             }
         }
 
@@ -845,7 +854,7 @@ impl hir::Visitor for &mut Compiler {
                 (best_atoms, code_loc)
             }
             HirKind::Look(look) => {
-                let mut code_loc = self.visit_post_look(look);
+                let mut code_loc = self.visit_post_look(look)?;
 
                 code_loc.bck_seq_id = self.backward_code().seq_id();
                 code_loc.bck = self.backward_code().location();
@@ -862,7 +871,7 @@ impl hir::Visitor for &mut Compiler {
             }
             hir_kind @ HirKind::Class(class) => {
                 let mut code_loc = if re::hir::any_byte(hir_kind) {
-                    self.emit_instr(Instr::ANY_BYTE)
+                    self.emit_instr(Instr::ANY_BYTE)?
                 } else {
                     self.visit_post_class(class)
                 };
@@ -1028,7 +1037,7 @@ impl hir::Visitor for &mut Compiler {
     fn visit_alternation_in(&mut self) -> Result<(), Self::Err> {
         // Emit the jump that appears between alternatives and jump to
         // the end.
-        let l = self.emit_instr(Instr::JUMP);
+        let l = self.emit_instr(Instr::JUMP)?;
         // The jump's destination is not known yet, so save the jump's
         // address in order to patch the destination later.
         self.bookmarks.push(l);
@@ -1127,7 +1136,7 @@ impl InstrSeq {
 
     /// Adds some instruction at the end of the sequence and returns the
     /// location where the newly added instruction resides.
-    pub fn emit_instr(&mut self, instr: u8) -> usize {
+    pub fn emit_instr(&mut self, instr: u8) -> Result<usize, Error> {
         // Store the position where the instruction will be written, which will
         // the result for this function.
         let location = self.location();
@@ -1136,15 +1145,19 @@ impl InstrSeq {
 
         match instr {
             Instr::SPLIT_A | Instr::SPLIT_B => {
-                // Split instructions are followed by a 8-bits value that
-                // identifies the split. Each split in the same regexp have
-                // a unique value.
+                // Split instructions are followed by a value that identifies
+                // the split. Each split in the same regexp have a unique
+                // value.
                 self.seq
                     .write_all(SplitId::to_le_bytes(self.split_id).as_slice())
                     .unwrap();
                 // Increment the split ID, so that the next split has a
                 // different ID.
-                self.split_id += 1;
+                if let Some(incremented) = self.split_id.checked_add(1) {
+                    self.split_id = incremented
+                } else {
+                    return Err(Error::TooLarge);
+                }
                 // The split ID is  followed by a 16-bits offset that is
                 // relative to the start of the instruction.
                 self.seq
@@ -1161,23 +1174,32 @@ impl InstrSeq {
             _ => {}
         }
 
-        location
+        Ok(location)
     }
 
     /// Adds a [`Instr::SplitN`] instruction at the end of the sequence and
     /// returns the location where the newly added instruction resides.
-    pub fn emit_split_n(&mut self, n: NumAlt) -> usize {
+    pub fn emit_split_n(&mut self, n: NumAlt) -> Result<usize, Error> {
         let location = self.location();
+
         self.seq.write_all(&[OPCODE_PREFIX, Instr::SPLIT_N]).unwrap();
         self.seq
             .write_all(SplitId::to_le_bytes(self.split_id).as_slice())
             .unwrap();
-        self.split_id += 1;
+
+        if let Some(incremented) = self.split_id.checked_add(1) {
+            self.split_id = incremented
+        } else {
+            return Err(Error::TooLarge);
+        }
+
         self.seq.write_all(NumAlt::to_le_bytes(n).as_slice()).unwrap();
+
         for _ in 0..n {
             self.seq.write_all(&[0x00; size_of::<instr::Offset>()]).unwrap();
         }
-        location
+
+        Ok(location)
     }
 
     /// Adds a [`Instr::MaskedByte`] instruction at the end of the sequence and
