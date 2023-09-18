@@ -228,7 +228,10 @@ impl<'r> PikeVM<'r> {
 /// documentation of [`epsilon_closure`] for details.
 pub struct EpsilonClosureState {
     threads: Vec<usize>,
-    executed_splits: BitArray<[u64; 4]>,
+    /// This bit array has one bit per possible value of SplitId. If the
+    /// split instruction with SplitId = N is executed, the N-th bit in the
+    /// array is set to 1.
+    executed_splits: BitArray<[u64; (1 << SplitId::BITS as usize) / 64]>,
 }
 
 impl EpsilonClosureState {
