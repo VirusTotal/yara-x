@@ -69,6 +69,7 @@ linkme = { workspace = true }
 log = { workspace = true, optional = true }
 memchr = { workspace = true }
 memx = { workspace = true }
+num = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 regex = { workspace = true }

@@ -4021,6 +4021,7 @@ dependencies = [
  "log",
  "memchr",
  "memx",
+ "num",
  "pretty_assertions",
  "protobuf",
  "protobuf-codegen",

@@ -18,6 +18,7 @@ use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
+use num::Integer;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
 use wasmtime::{
@@ -174,12 +175,20 @@ impl<'r> Scanner<'r> {
         // the N-th bit is set if pattern with PatternId = N matched. The
         // bitmap starts right after the bitmap that contains matching
         // information for rules.
-        let matching_patterns_bitmap_base =
-            MATCHING_RULES_BITMAP_BASE as u32 + num_rules / 8 + 1;
+        //
+        // TODO: `div_ceil` will be included in `std` in the future
+        // but is currently unstable. When it gets stabilized we can stop
+        // using `num`.
+        // https://doc.rust-lang.org/std/primitive.i8.html#method.div_ceil
+        let matching_patterns_bitmap_base = MATCHING_RULES_BITMAP_BASE as u32
+            + num::Integer::div_ceil(&num_rules, &8);
 
         // Compute the required memory size in 64KB pages.
-        let mem_size =
-            matching_patterns_bitmap_base + num_patterns / 8 % 65536 + 1;
+        let mem_size = num::Integer::div_ceil(
+            &(matching_patterns_bitmap_base
+                + num::Integer::div_ceil(&num_patterns, &8)),
+            &65536,
+        );
 
         let matching_patterns_bitmap_base = Global::new(
             wasm_store.as_context_mut(),
