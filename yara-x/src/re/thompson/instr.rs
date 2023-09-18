@@ -67,7 +67,7 @@ pub type NumAlt = u8;
 /// Each split instruction in a regular expression has a unique ID represented
 /// by this type. This ID is used by [`super::pikevm::epsilon_closure`] for
 /// tracking which split instructions has been executed.  
-pub type SplitId = u8;
+pub type SplitId = u16;
 
 /// Offset for jump and split instructions. The offset is always relative to
 /// the address where the instruction starts.
@@ -193,7 +193,8 @@ impl<'a> InstrParser<'a> {
 
                 (Instr::Jump(offset), 2 + size_of::<Offset>())
             }
-            [OPCODE_PREFIX, Instr::SPLIT_A, id, ..] => {
+            [OPCODE_PREFIX, Instr::SPLIT_A, ..] => {
+                let id = Self::decode_split_id(&code[2..]);
                 let offset =
                     Self::decode_offset(&code[2 + size_of::<SplitId>()..]);
 
@@ -202,7 +203,8 @@ impl<'a> InstrParser<'a> {
                     2 + size_of::<SplitId>() + size_of::<Offset>(),
                 )
             }
-            [OPCODE_PREFIX, Instr::SPLIT_B, id, ..] => {
+            [OPCODE_PREFIX, Instr::SPLIT_B, ..] => {
+                let id = Self::decode_split_id(&code[2..]);
                 let offset =
                     Self::decode_offset(&code[2 + size_of::<SplitId>()..]);
 
@@ -211,7 +213,8 @@ impl<'a> InstrParser<'a> {
                     2 + size_of::<SplitId>() + size_of::<Offset>(),
                 )
             }
-            [OPCODE_PREFIX, Instr::SPLIT_N, id, ..] => {
+            [OPCODE_PREFIX, Instr::SPLIT_N, ..] => {
+                let id = Self::decode_split_id(&code[2..]);
                 let n =
                     Self::decode_num_alt(&code[2 + size_of::<SplitId>()..]);
 
@@ -271,6 +274,13 @@ impl<'a> InstrParser<'a> {
             unsafe { &*(slice.as_ptr() as *const [u8; size_of::<NumAlt>()]) };
 
         NumAlt::from_le_bytes(*bytes)
+    }
+
+    fn decode_split_id(slice: &[u8]) -> SplitId {
+        let bytes: &[u8; size_of::<SplitId>()] =
+            unsafe { &*(slice.as_ptr() as *const [u8; size_of::<SplitId>()]) };
+
+        SplitId::from_le_bytes(*bytes)
     }
 }
 

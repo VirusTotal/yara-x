@@ -228,60 +228,7 @@ fn re_code_5() {
         "(?s)ab|cd|ef",
         // Forward code
         r#"
-00000: SPLIT_N(0) 00010 00018 00020
-00010: LIT 0x61
-00011: LIT 0x62
-00012: JUMP 00022
-00018: LIT 0x63
-00019: LIT 0x64
-0001a: JUMP 00022
-00020: LIT 0x65
-00021: LIT 0x66
-00022: MATCH
-"#,
-        // Backward code
-        r#"
-00000: SPLIT_N(0) 00010 00018 00020
-00010: LIT 0x62
-00011: LIT 0x61
-00012: JUMP 00022
-00018: LIT 0x64
-00019: LIT 0x63
-0001a: JUMP 00022
-00020: LIT 0x66
-00021: LIT 0x65
-00022: MATCH
-"#,
-        // Atoms
-        vec![
-            RegexpAtom {
-                atom: Atom::exact(vec![0x61, 0x62]),
-                code_loc: CodeLoc { fwd: 0x00, bck: 0x22, bck_seq_id: 0 }
-            },
-            RegexpAtom {
-                atom: Atom::exact(vec![0x63, 0x64]),
-                code_loc: CodeLoc { fwd: 0x00, bck: 0x22, bck_seq_id: 0 }
-            },
-            RegexpAtom {
-                atom: Atom::exact(vec![0x65, 0x66]),
-                code_loc: CodeLoc { fwd: 0x00, bck: 0x22, bck_seq_id: 0 }
-            }
-        ],
-        // Epsilon closure starting at forward code 0.
-        vec![0x10, 0x18, 0x20],
-        // Epsilon closure starting at backward code 0.
-        vec![0x10, 0x18, 0x20]
-    );
-}
-
-#[test]
-fn re_code_6() {
-    assert_re_code!(
-        "(?s)1(ab|cd|ef)",
-        // Forward code
-        r#"
-00000: LIT 0x31
-00001: SPLIT_N(0) 00011 00019 00021
+00000: SPLIT_N(0) 00011 00019 00021
 00011: LIT 0x61
 00012: LIT 0x62
 00013: JUMP 00023
@@ -294,37 +241,90 @@ fn re_code_6() {
 "#,
         // Backward code
         r#"
-00000: SPLIT_N(0) 00010 00018 00020
-00010: LIT 0x62
-00011: LIT 0x61
-00012: JUMP 00022
-00018: LIT 0x64
-00019: LIT 0x63
-0001a: JUMP 00022
-00020: LIT 0x66
-00021: LIT 0x65
-00022: LIT 0x31
+00000: SPLIT_N(0) 00011 00019 00021
+00011: LIT 0x62
+00012: LIT 0x61
+00013: JUMP 00023
+00019: LIT 0x64
+0001a: LIT 0x63
+0001b: JUMP 00023
+00021: LIT 0x66
+00022: LIT 0x65
 00023: MATCH
 "#,
         // Atoms
         vec![
             RegexpAtom {
+                atom: Atom::exact(vec![0x61, 0x62]),
+                code_loc: CodeLoc { fwd: 0x00, bck: 0x23, bck_seq_id: 0 }
+            },
+            RegexpAtom {
+                atom: Atom::exact(vec![0x63, 0x64]),
+                code_loc: CodeLoc { fwd: 0x00, bck: 0x23, bck_seq_id: 0 }
+            },
+            RegexpAtom {
+                atom: Atom::exact(vec![0x65, 0x66]),
+                code_loc: CodeLoc { fwd: 0x00, bck: 0x23, bck_seq_id: 0 }
+            }
+        ],
+        // Epsilon closure starting at forward code 0.
+        vec![0x11, 0x19, 0x21],
+        // Epsilon closure starting at backward code 0.
+        vec![0x11, 0x19, 0x21]
+    );
+}
+
+#[test]
+fn re_code_6() {
+    assert_re_code!(
+        "(?s)1(ab|cd|ef)",
+        // Forward code
+        r#"
+00000: LIT 0x31
+00001: SPLIT_N(0) 00012 0001a 00022
+00012: LIT 0x61
+00013: LIT 0x62
+00014: JUMP 00024
+0001a: LIT 0x63
+0001b: LIT 0x64
+0001c: JUMP 00024
+00022: LIT 0x65
+00023: LIT 0x66
+00024: MATCH
+"#,
+        // Backward code
+        r#"
+00000: SPLIT_N(0) 00011 00019 00021
+00011: LIT 0x62
+00012: LIT 0x61
+00013: JUMP 00023
+00019: LIT 0x64
+0001a: LIT 0x63
+0001b: JUMP 00023
+00021: LIT 0x66
+00022: LIT 0x65
+00023: LIT 0x31
+00024: MATCH
+"#,
+        // Atoms
+        vec![
+            RegexpAtom {
                 atom: Atom::exact(vec![0x31, 0x61, 0x62]),
-                code_loc: CodeLoc { fwd: 0, bck: 0x23, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0, bck: 0x24, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![0x31, 0x63, 0x64]),
-                code_loc: CodeLoc { fwd: 0, bck: 0x23, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0, bck: 0x24, bck_seq_id: 0 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![0x31, 0x65, 0x66]),
-                code_loc: CodeLoc { fwd: 0, bck: 0x23, bck_seq_id: 0 }
+                code_loc: CodeLoc { fwd: 0, bck: 0x24, bck_seq_id: 0 }
             }
         ],
         // Epsilon closure starting at forward code 0.
         vec![0x00],
         // Epsilon closure starting at backward code 0.
-        vec![0x10, 0x18, 0x20]
+        vec![0x11, 0x19, 0x21]
     );
 }
 
@@ -335,42 +335,42 @@ fn re_code_7() {
         // Forward code
         r#"
 00000: LIT 0x61
-00001: SPLIT_A(0) 0001b
-00008: LIT 0x62
-00009: LIT 0x63
-0000a: LIT 0x64
-0000b: ANY_BYTE
-0000d: SPLIT_B(1) 0000b
-00014: LIT 0x65
-00015: JUMP 00001
-0001b: LIT 0x66
-0001c: LIT 0x67
-0001d: MATCH
+00001: SPLIT_A(0) 0001d
+00009: LIT 0x62
+0000a: LIT 0x63
+0000b: LIT 0x64
+0000c: ANY_BYTE
+0000e: SPLIT_B(1) 0000c
+00016: LIT 0x65
+00017: JUMP 00001
+0001d: LIT 0x66
+0001e: LIT 0x67
+0001f: MATCH
 "#,
         // Backward code
         r#"
 00000: LIT 0x67
 00001: LIT 0x66
-00002: SPLIT_A(0) 0001c
-00009: LIT 0x65
-0000a: ANY_BYTE
-0000c: SPLIT_B(1) 0000a
-00013: LIT 0x64
-00014: LIT 0x63
-00015: LIT 0x62
-00016: JUMP 00002
-0001c: LIT 0x61
-0001d: MATCH
+00002: SPLIT_A(0) 0001e
+0000a: LIT 0x65
+0000b: ANY_BYTE
+0000d: SPLIT_B(1) 0000b
+00015: LIT 0x64
+00016: LIT 0x63
+00017: LIT 0x62
+00018: JUMP 00002
+0001e: LIT 0x61
+0001f: MATCH
 "#,
         // Atoms
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![97, 98, 99, 100]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1d },
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1f },
             },
             RegexpAtom {
                 atom: Atom::exact(vec![97, 102, 103]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1d },
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1f },
             },
         ],
         // Epsilon closure starting at forward code 0.
@@ -387,44 +387,44 @@ fn re_code_8() {
         // Forward code
         r#"
 00000: LIT 0x61
-00001: SPLIT_B(0) 0001c
-00008: LIT 0x62
-00009: LIT 0x63
-0000a: LIT 0x64
-0000b: ANY_BYTE
-0000d: SPLIT_A(1) 0000b
-00014: LIT 0x64
-00015: LIT 0x65
-00016: JUMP 00001
-0001c: LIT 0x66
-0001d: LIT 0x67
-0001e: MATCH
+00001: SPLIT_B(0) 0001e
+00009: LIT 0x62
+0000a: LIT 0x63
+0000b: LIT 0x64
+0000c: ANY_BYTE
+0000e: SPLIT_A(1) 0000c
+00016: LIT 0x64
+00017: LIT 0x65
+00018: JUMP 00001
+0001e: LIT 0x66
+0001f: LIT 0x67
+00020: MATCH
 "#,
         // Backward code
         r#"
 00000: LIT 0x67
 00001: LIT 0x66
-00002: SPLIT_B(0) 0001d
-00009: LIT 0x65
-0000a: LIT 0x64
-0000b: ANY_BYTE
-0000d: SPLIT_A(1) 0000b
-00014: LIT 0x64
-00015: LIT 0x63
-00016: LIT 0x62
-00017: JUMP 00002
-0001d: LIT 0x61
-0001e: MATCH
+00002: SPLIT_B(0) 0001f
+0000a: LIT 0x65
+0000b: LIT 0x64
+0000c: ANY_BYTE
+0000e: SPLIT_A(1) 0000c
+00016: LIT 0x64
+00017: LIT 0x63
+00018: LIT 0x62
+00019: JUMP 00002
+0001f: LIT 0x61
+00020: MATCH
 "#,
         // Atoms
         vec![
             RegexpAtom {
                 atom: Atom::exact(vec![0x61, 0x66, 0x67]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1e },
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x20 },
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x1e },
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x20 },
             },
         ],
         // Epsilon closure starting at forward code 0.
@@ -538,10 +538,10 @@ fn re_code_11() {
 00001: LIT 0x62
 00002: LIT 0x63
 00003: SPLIT_B(0) 00000
-0000a: LIT 0x61
-0000b: LIT 0x62
-0000c: LIT 0x63
-0000d: MATCH
+0000b: LIT 0x61
+0000c: LIT 0x62
+0000d: LIT 0x63
+0000e: MATCH
 "#,
         // Backward code
         r#"
@@ -549,15 +549,15 @@ fn re_code_11() {
 00001: LIT 0x62
 00002: LIT 0x61
 00003: SPLIT_B(0) 00000
-0000a: LIT 0x63
-0000b: LIT 0x62
-0000c: LIT 0x61
-0000d: MATCH
+0000b: LIT 0x63
+0000c: LIT 0x62
+0000d: LIT 0x61
+0000e: MATCH
 "#,
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x61]),
-            code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x0d }
+            code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x0e }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0x00],
@@ -585,13 +585,13 @@ fn re_code_12() {
 0000a: LIT 0x32
 0000b: LIT 0x33
 0000c: SPLIT_B(0) 00006
-00013: LIT 0x61
-00014: LIT 0x62
-00015: LIT 0x63
-00016: LIT 0x31
-00017: LIT 0x32
-00018: LIT 0x33
-00019: MATCH
+00014: LIT 0x61
+00015: LIT 0x62
+00016: LIT 0x63
+00017: LIT 0x31
+00018: LIT 0x32
+00019: LIT 0x33
+0001a: MATCH
 "#,
         // Backward code
         r#"
@@ -608,18 +608,18 @@ fn re_code_12() {
 0000a: LIT 0x62
 0000b: LIT 0x61
 0000c: SPLIT_B(0) 00006
-00013: LIT 0x33
-00014: LIT 0x32
-00015: LIT 0x31
-00016: LIT 0x63
-00017: LIT 0x62
-00018: LIT 0x61
-00019: MATCH
+00014: LIT 0x33
+00015: LIT 0x32
+00016: LIT 0x31
+00017: LIT 0x63
+00018: LIT 0x62
+00019: LIT 0x61
+0001a: MATCH
 "#,
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x63, 0x31, 0x32, 0x33]),
-            code_loc: CodeLoc { fwd: 2, bck_seq_id: 0, bck: 0x17 }
+            code_loc: CodeLoc { fwd: 2, bck_seq_id: 0, bck: 0x18 }
         }],
         // Epsilon closure starting at forward code 0.
         vec![0x00],
@@ -634,85 +634,85 @@ fn re_code_13() {
         "(?s)(abcdef|ghijkl){2,}",
         // Forward code
         r#"
-00000: SPLIT_N(0) 0000c 00018
-0000c: LIT 0x61
-0000d: LIT 0x62
-0000e: LIT 0x63
-0000f: LIT 0x64
-00010: LIT 0x65
-00011: LIT 0x66
-00012: JUMP 0001e
-00018: LIT 0x67
-00019: LIT 0x68
-0001a: LIT 0x69
-0001b: LIT 0x6a
-0001c: LIT 0x6b
-0001d: LIT 0x6c
-0001e: SPLIT_B(1) 00000
-00025: SPLIT_N(2) 00031 0003d
-00031: LIT 0x61
-00032: LIT 0x62
-00033: LIT 0x63
-00034: LIT 0x64
-00035: LIT 0x65
-00036: LIT 0x66
-00037: JUMP 00043
-0003d: LIT 0x67
-0003e: LIT 0x68
-0003f: LIT 0x69
-00040: LIT 0x6a
-00041: LIT 0x6b
-00042: LIT 0x6c
-00043: MATCH
+00000: SPLIT_N(0) 0000d 00019
+0000d: LIT 0x61
+0000e: LIT 0x62
+0000f: LIT 0x63
+00010: LIT 0x64
+00011: LIT 0x65
+00012: LIT 0x66
+00013: JUMP 0001f
+00019: LIT 0x67
+0001a: LIT 0x68
+0001b: LIT 0x69
+0001c: LIT 0x6a
+0001d: LIT 0x6b
+0001e: LIT 0x6c
+0001f: SPLIT_B(1) 00000
+00027: SPLIT_N(2) 00034 00040
+00034: LIT 0x61
+00035: LIT 0x62
+00036: LIT 0x63
+00037: LIT 0x64
+00038: LIT 0x65
+00039: LIT 0x66
+0003a: JUMP 00046
+00040: LIT 0x67
+00041: LIT 0x68
+00042: LIT 0x69
+00043: LIT 0x6a
+00044: LIT 0x6b
+00045: LIT 0x6c
+00046: MATCH
 "#,
         // Backward code
         r#"
-00000: SPLIT_N(0) 0000c 00018
-0000c: LIT 0x66
-0000d: LIT 0x65
-0000e: LIT 0x64
-0000f: LIT 0x63
-00010: LIT 0x62
-00011: LIT 0x61
-00012: JUMP 0001e
-00018: LIT 0x6c
-00019: LIT 0x6b
-0001a: LIT 0x6a
-0001b: LIT 0x69
-0001c: LIT 0x68
-0001d: LIT 0x67
-0001e: SPLIT_B(1) 00000
-00025: SPLIT_N(2) 00031 0003d
-00031: LIT 0x66
-00032: LIT 0x65
-00033: LIT 0x64
-00034: LIT 0x63
-00035: LIT 0x62
-00036: LIT 0x61
-00037: JUMP 00043
-0003d: LIT 0x6c
-0003e: LIT 0x6b
-0003f: LIT 0x6a
-00040: LIT 0x69
-00041: LIT 0x68
-00042: LIT 0x67
-00043: MATCH
+00000: SPLIT_N(0) 0000d 00019
+0000d: LIT 0x66
+0000e: LIT 0x65
+0000f: LIT 0x64
+00010: LIT 0x63
+00011: LIT 0x62
+00012: LIT 0x61
+00013: JUMP 0001f
+00019: LIT 0x6c
+0001a: LIT 0x6b
+0001b: LIT 0x6a
+0001c: LIT 0x69
+0001d: LIT 0x68
+0001e: LIT 0x67
+0001f: SPLIT_B(1) 00000
+00027: SPLIT_N(2) 00034 00040
+00034: LIT 0x66
+00035: LIT 0x65
+00036: LIT 0x64
+00037: LIT 0x63
+00038: LIT 0x62
+00039: LIT 0x61
+0003a: JUMP 00046
+00040: LIT 0x6c
+00041: LIT 0x6b
+00042: LIT 0x6a
+00043: LIT 0x69
+00044: LIT 0x68
+00045: LIT 0x67
+00046: MATCH
 "#,
         // Atoms
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
-                code_loc: CodeLoc { fwd: 0x0c, bck_seq_id: 0, bck: 0x37 }
+                code_loc: CodeLoc { fwd: 0x0d, bck_seq_id: 0, bck: 0x3a }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x67, 0x68, 0x69, 0x6a]),
-                code_loc: CodeLoc { fwd: 0x18, bck_seq_id: 0, bck: 0x43 }
+                code_loc: CodeLoc { fwd: 0x19, bck_seq_id: 0, bck: 0x46 }
             }
         ],
         // Epsilon closure starting at forward code 0.
-        vec![0x0c, 0x18],
+        vec![0x0d, 0x19],
         // Epsilon closure starting at backward code 0.
-        vec![0x0c, 0x18]
+        vec![0x0d, 0x19]
     );
 }
 
@@ -722,43 +722,43 @@ fn re_code_14() {
         "(?s)(abc){0,2}",
         // Forward code
         r#"
-00000: SPLIT_A(0) 00014
-00007: LIT 0x61
-00008: LIT 0x62
-00009: LIT 0x63
-0000a: SPLIT_A(1) 00014
-00011: LIT 0x61
-00012: LIT 0x62
-00013: LIT 0x63
-00014: MATCH
+00000: SPLIT_A(0) 00016
+00008: LIT 0x61
+00009: LIT 0x62
+0000a: LIT 0x63
+0000b: SPLIT_A(1) 00016
+00013: LIT 0x61
+00014: LIT 0x62
+00015: LIT 0x63
+00016: MATCH
 "#,
         // Backward code
         r#"
-00000: SPLIT_A(0) 00014
-00007: LIT 0x63
-00008: LIT 0x62
-00009: LIT 0x61
-0000a: SPLIT_A(1) 00014
-00011: LIT 0x63
-00012: LIT 0x62
-00013: LIT 0x61
-00014: MATCH
+00000: SPLIT_A(0) 00016
+00008: LIT 0x63
+00009: LIT 0x62
+0000a: LIT 0x61
+0000b: SPLIT_A(1) 00016
+00013: LIT 0x63
+00014: LIT 0x62
+00015: LIT 0x61
+00016: MATCH
 "#,
         // Atoms
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
-                code_loc: CodeLoc { fwd: 0x07, bck_seq_id: 0, bck: 0x14 }
+                code_loc: CodeLoc { fwd: 0x08, bck_seq_id: 0, bck: 0x16 }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![]),
-                code_loc: CodeLoc { fwd: 0x07, bck_seq_id: 0, bck: 0x14 }
+                code_loc: CodeLoc { fwd: 0x08, bck_seq_id: 0, bck: 0x16 }
             }
         ],
         // Epsilon closure starting at forward code 0.
-        vec![0x07, 0x14],
+        vec![0x08, 0x16],
         // Epsilon closure starting at backward code 0.
-        vec![0x07, 0x14]
+        vec![0x08, 0x16]
     );
 }
 
@@ -768,45 +768,45 @@ fn re_code_15() {
         "(?s)(a+|b)*",
         // Forward code
         r#"
-00000: SPLIT_A(0) 00028
-00007: SPLIT_N(1) 00013 00021
-00013: LIT 0x61
-00014: SPLIT_B(2) 00013
-0001b: JUMP 00022
-00021: LIT 0x62
-00022: JUMP 00000
-00028: MATCH
+00000: SPLIT_A(0) 0002b
+00008: SPLIT_N(1) 00015 00024
+00015: LIT 0x61
+00016: SPLIT_B(2) 00015
+0001e: JUMP 00025
+00024: LIT 0x62
+00025: JUMP 00000
+0002b: MATCH
 "#,
         // Backward code
         r#"
-00000: SPLIT_A(0) 00028
-00007: SPLIT_N(1) 00013 00021
-00013: LIT 0x61
-00014: SPLIT_B(2) 00013
-0001b: JUMP 00022
-00021: LIT 0x62
-00022: JUMP 00000
-00028: MATCH
+00000: SPLIT_A(0) 0002b
+00008: SPLIT_N(1) 00015 00024
+00015: LIT 0x61
+00016: SPLIT_B(2) 00015
+0001e: JUMP 00025
+00024: LIT 0x62
+00025: JUMP 00000
+0002b: MATCH
 "#,
         // Atoms
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61]),
-                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x28 }
+                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x2b }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x62]),
-                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x28 }
+                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x2b }
             },
             RegexpAtom {
                 atom: Atom::exact(vec![]),
-                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x28 }
+                code_loc: CodeLoc { fwd: 0x00, bck_seq_id: 0, bck: 0x2b }
             }
         ],
         // Epsilon closure starting at forward code 0.
-        vec![0x13, 0x21, 0x28],
+        vec![0x15, 0x24, 0x2b],
         // Epsilon closure starting at backward code 0.
-        vec![0x13, 0x21, 0x28]
+        vec![0x15, 0x24, 0x2b]
     );
 }
 
@@ -816,33 +816,33 @@ fn re_code_16() {
         "(?s)(|abc)de",
         // Forward code
         r#"
-00000: SPLIT_N(0) 0000c 00012
-0000c: JUMP 00015
-00012: LIT 0x61
-00013: LIT 0x62
-00014: LIT 0x63
-00015: LIT 0x64
-00016: LIT 0x65
-00017: MATCH
+00000: SPLIT_N(0) 0000d 00013
+0000d: JUMP 00016
+00013: LIT 0x61
+00014: LIT 0x62
+00015: LIT 0x63
+00016: LIT 0x64
+00017: LIT 0x65
+00018: MATCH
 "#,
         // Backward code
         r#"
 00000: LIT 0x65
 00001: LIT 0x64
-00002: SPLIT_N(0) 0000e 00014
-0000e: JUMP 00017
-00014: LIT 0x63
-00015: LIT 0x62
-00016: LIT 0x61
-00017: MATCH
+00002: SPLIT_N(0) 0000f 00015
+0000f: JUMP 00018
+00015: LIT 0x63
+00016: LIT 0x62
+00017: LIT 0x61
+00018: MATCH
 "#,
         // Atoms
         vec![RegexpAtom {
             atom: Atom::inexact(vec![0x64, 0x65]),
-            code_loc: CodeLoc { fwd: 0x15, bck_seq_id: 0, bck: 0x02 }
+            code_loc: CodeLoc { fwd: 0x16, bck_seq_id: 0, bck: 0x02 }
         },],
         // Epsilon closure starting at forward code 0.
-        vec![0x15, 0x12],
+        vec![0x16, 0x13],
         // Epsilon closure starting at backward code 0.
         vec![0x00]
     );
@@ -854,50 +854,50 @@ fn re_code_17() {
         "(?s)(|abc){3,}",
         // Forward code
         r#"
-00000: SPLIT_N(0) 0000c 00012
-0000c: JUMP 00015
-00012: LIT 0x61
-00013: LIT 0x62
-00014: LIT 0x63
-00015: SPLIT_N(1) 00021 00027
-00021: JUMP 0002a
-00027: LIT 0x61
-00028: LIT 0x62
-00029: LIT 0x63
-0002a: SPLIT_B(2) 00015
-00031: SPLIT_N(3) 0003d 00043
-0003d: JUMP 00046
-00043: LIT 0x61
-00044: LIT 0x62
-00045: LIT 0x63
-00046: MATCH
+00000: SPLIT_N(0) 0000d 00013
+0000d: JUMP 00016
+00013: LIT 0x61
+00014: LIT 0x62
+00015: LIT 0x63
+00016: SPLIT_N(1) 00023 00029
+00023: JUMP 0002c
+00029: LIT 0x61
+0002a: LIT 0x62
+0002b: LIT 0x63
+0002c: SPLIT_B(2) 00016
+00034: SPLIT_N(3) 00041 00047
+00041: JUMP 0004a
+00047: LIT 0x61
+00048: LIT 0x62
+00049: LIT 0x63
+0004a: MATCH
 "#,
         // Backward code
         r#"
-00000: SPLIT_N(0) 0000c 00012
-0000c: JUMP 00015
-00012: LIT 0x63
-00013: LIT 0x62
-00014: LIT 0x61
-00015: SPLIT_N(1) 00021 00027
-00021: JUMP 0002a
-00027: LIT 0x63
-00028: LIT 0x62
-00029: LIT 0x61
-0002a: SPLIT_B(2) 00015
-00031: SPLIT_N(3) 0003d 00043
-0003d: JUMP 00046
-00043: LIT 0x63
-00044: LIT 0x62
-00045: LIT 0x61
-00046: MATCH
+00000: SPLIT_N(0) 0000d 00013
+0000d: JUMP 00016
+00013: LIT 0x63
+00014: LIT 0x62
+00015: LIT 0x61
+00016: SPLIT_N(1) 00023 00029
+00023: JUMP 0002c
+00029: LIT 0x63
+0002a: LIT 0x62
+0002b: LIT 0x61
+0002c: SPLIT_B(2) 00016
+00034: SPLIT_N(3) 00041 00047
+00041: JUMP 0004a
+00047: LIT 0x63
+00048: LIT 0x62
+00049: LIT 0x61
+0004a: MATCH
 "#,
         // Atoms
         vec![],
         // Epsilon closure starting at forward code 0.
-        vec![0x46, 0x43, 0x27, 0x12],
+        vec![0x4a, 0x47, 0x29, 0x13],
         // Epsilon closure starting at backward code 0.
-        vec![0x46, 0x43, 0x27, 0x12]
+        vec![0x4a, 0x47, 0x29, 0x13]
     );
 }
 
@@ -1014,38 +1014,38 @@ fn re_code_21() {
         // Forward code
         r#"
 00000: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
-00007: SPLIT_A(0) 00015
-0000e: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
-00015: MASKED_BYTE 0x41 0xdf
-00019: MASKED_BYTE 0x42 0xdf
-0001d: MATCH
+00007: SPLIT_A(0) 00016
+0000f: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
+00016: MASKED_BYTE 0x41 0xdf
+0001a: MASKED_BYTE 0x42 0xdf
+0001e: MATCH
 "#,
         // Backward code
         r#"
 00000: MASKED_BYTE 0x42 0xdf
 00004: MASKED_BYTE 0x41 0xdf
 00008: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
-0000f: SPLIT_A(0) 0001d
-00016: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
-0001d: MATCH
+0000f: SPLIT_A(0) 0001e
+00017: CLASS_RANGES [0x41-0x5a] [0x61-0x7a] 
+0001e: MATCH
 "#,
         // Atoms
         vec![
             RegexpAtom {
                 atom: Atom::inexact(vec![0x41, 0x42]),
-                code_loc: CodeLoc { fwd: 0x15, bck_seq_id: 0, bck: 0x08 }
+                code_loc: CodeLoc { fwd: 0x16, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x41, 0x62]),
-                code_loc: CodeLoc { fwd: 0x15, bck_seq_id: 0, bck: 0x08 }
+                code_loc: CodeLoc { fwd: 0x16, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x42]),
-                code_loc: CodeLoc { fwd: 0x15, bck_seq_id: 0, bck: 0x08 }
+                code_loc: CodeLoc { fwd: 0x16, bck_seq_id: 0, bck: 0x08 }
             },
             RegexpAtom {
                 atom: Atom::inexact(vec![0x61, 0x62]),
-                code_loc: CodeLoc { fwd: 0x15, bck_seq_id: 0, bck: 0x08 }
+                code_loc: CodeLoc { fwd: 0x16, bck_seq_id: 0, bck: 0x08 }
             },
         ],
         // Epsilon closure starting at forward code 0.

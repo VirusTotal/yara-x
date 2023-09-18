@@ -195,6 +195,11 @@ pub struct Compiler<'a> {
     /// The [`PatternId`] for the pattern being processed.
     current_pattern_id: PatternId,
 
+    /// Map used for de-duplicating pattern. Keys are the pattern's IR and
+    /// values are the `PatternId` assigned to each pattern. Every time a rule
+    /// declares a pattern, this map is used for determining if the same
+    /// pattern (i.e: a pattern with exactly the same IR) was already declared
+    /// by some other rule. If that's the case, that same pattern is re-used.
     patterns: FxHashMap<Pattern, PatternId>,
 
     /// A vector with all the sub-patterns from all the rules. A

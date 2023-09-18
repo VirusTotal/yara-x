@@ -1139,7 +1139,7 @@ impl InstrSeq {
                 // Split instructions are followed by a 8-bits value that
                 // identifies the split. Each split in the same regexp have
                 // a unique value.
-                self.seq.write_all(&[self.split_id]).unwrap();
+                self.seq.write_all(&self.split_id.to_le_bytes()).unwrap();
                 // Increment the split ID, so that the next split has a
                 // different ID.
                 self.split_id += 1;
@@ -1166,9 +1166,8 @@ impl InstrSeq {
     /// returns the location where the newly added instruction resides.
     pub fn emit_split_n(&mut self, n: NumAlt) -> usize {
         let location = self.location();
-        self.seq
-            .write_all(&[OPCODE_PREFIX, Instr::SPLIT_N, self.split_id])
-            .unwrap();
+        self.seq.write_all(&[OPCODE_PREFIX, Instr::SPLIT_N]).unwrap();
+        self.seq.write_all(&self.split_id.to_le_bytes()).unwrap();
         self.split_id += 1;
         self.seq.write_all(NumAlt::to_le_bytes(n).as_slice()).unwrap();
         for _ in 0..n {
@@ -1279,9 +1278,11 @@ impl InstrSeq {
                         cloned_code[offset + 1],
                         original_code[start + offset + 1]
                     );
-                    // `offset` is the start of the instruction, the split ID
-                    // two bytes
-                    cloned_code[offset + 2] = self.split_id;
+                    // Update the split ID, which is at `offset + 2` because
+                    // `offset` is the offset where the opcode starts, and the
+                    // first two bytes are the prefix and the opcode itself.
+                    cloned_code[offset + 2..offset + 2 + size_of::<SplitId>()]
+                        .copy_from_slice(&self.split_id.to_le_bytes());
 
                     if let Some(incremented) = self.split_id.checked_add(1) {
                         self.split_id = incremented
