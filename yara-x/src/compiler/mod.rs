@@ -5,7 +5,8 @@ module implements the YARA compiler.
 */
 
 use std::cell::RefCell;
-use std::collections::VecDeque;
+use std::collections::hash_map::Entry;
+use std::collections::{HashSet, VecDeque};
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
@@ -194,6 +195,8 @@ pub struct Compiler<'a> {
     /// The [`PatternId`] for the pattern being processed.
     current_pattern_id: PatternId,
 
+    patterns: FxHashMap<Pattern, PatternId>,
+
     /// A vector with all the sub-patterns from all the rules. A
     /// [`SubPatternId`] is an index in this vector.
     sub_patterns: Vec<(PatternId, SubPattern)>,
@@ -300,6 +303,7 @@ impl<'a> Compiler<'a> {
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
+            patterns: FxHashMap::default(),
         }
     }
 
@@ -558,20 +562,37 @@ impl<'a> Compiler<'a> {
         self.check_for_existing_identifier(&rule.identifier)?;
 
         // Convert the patterns from AST to IR.
-        let patterns =
+        let patterns_in_rule =
             patterns_from_ast(&self.report_builder, rule.patterns.as_ref())?;
 
-        let num_patterns: usize = patterns.len();
+        let num_patterns: usize = patterns_in_rule.len();
 
-        // Create array with pairs (IdentId, PatternId)
+        // Create vector with pairs (IdentId, PatternId)
         let mut ident_and_pattern_ids = Vec::with_capacity(num_patterns);
 
-        // Create a map (IdentId, Pattern).
-        let mut patterns_map = indexmap::IndexMap::default();
+        // Create vector with pairs (PatternId, Pattern).
+        let mut patterns_with_ids = Vec::with_capacity(num_patterns);
 
-        for (pattern_id, pattern) in
-            iter::zip(self.next_pattern_id.successors(), patterns)
-        {
+        let mut pending_patterns = HashSet::new();
+
+        for pattern in patterns_in_rule {
+            // Check if this pattern has been declared before, in this rule or
+            // in some other rule. In such cases the pattern ID is re-used, we
+            // don't need to process (i.e: extract atoms and add them to
+            // Aho-Corasick automaton) the pattern again.
+            let pattern_id =
+                match self.patterns.entry(pattern.pattern().clone()) {
+                    // The pattern already exists, return the existing ID.
+                    Entry::Occupied(entry) => *entry.get(),
+                    // The pattern didn't exist.
+                    Entry::Vacant(entry) => {
+                        let pattern_id = self.next_pattern_id;
+                        self.next_pattern_id.incr(1);
+                        pending_patterns.insert(pattern_id);
+                        entry.insert(pattern_id);
+                        pattern_id
+                    }
+                };
             // Save pattern identifier (e.g: $a) in the pool of identifiers
             // or reuse the IdentId if the identifier has been used already.
             ident_and_pattern_ids.push((
@@ -579,7 +600,7 @@ impl<'a> Compiler<'a> {
                 pattern_id,
             ));
 
-            patterns_map.insert(pattern_id, pattern);
+            patterns_with_ids.push((pattern_id, pattern));
         }
 
         let rule_id = RuleId(self.rules.len() as i32);
@@ -622,7 +643,7 @@ impl<'a> Compiler<'a> {
             report_builder: &self.report_builder,
             rules: &self.rules,
             current_rule: self.rules.last().unwrap(),
-            current_rule_patterns: &mut patterns_map,
+            current_rule_patterns: &mut patterns_with_ids,
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             warnings: &mut self.warnings,
@@ -650,29 +671,41 @@ impl<'a> Compiler<'a> {
 
         drop(ctx);
 
-        let patterns_with_span = iter::zip(
-            patterns_map,
+        let patterns_with_ids_and_span = iter::zip(
+            patterns_with_ids,
             rule.patterns.iter().flatten().map(|p| p.span()),
         );
 
-        for ((pattern_id, pattern), span) in patterns_with_span {
-            self.current_pattern_id = pattern_id;
-            match pattern {
-                Pattern::Literal(pattern) => {
-                    self.process_literal_pattern(pattern);
-                }
-                Pattern::Regexp(pattern) => {
-                    self.process_regexp_pattern(pattern, span)?;
-                }
-            };
+        for ((pattern_id, pattern), span) in patterns_with_ids_and_span {
+            if pending_patterns.contains(&pattern_id)
+                || pattern.anchored_at().is_some()
+            {
+                pending_patterns.remove(&pattern_id);
+                self.current_pattern_id = pattern_id;
+                let anchored_at = pattern.anchored_at();
+                match pattern.into_pattern() {
+                    Pattern::Literal(pattern) => {
+                        self.process_literal_pattern(pattern, anchored_at);
+                    }
+                    Pattern::Regexp(pattern) => {
+                        self.process_regexp_pattern(
+                            pattern,
+                            anchored_at,
+                            span,
+                        )?;
+                    }
+                };
+            }
         }
-
-        self.next_pattern_id.incr(num_patterns);
 
         Ok(())
     }
 
-    fn process_literal_pattern(&mut self, pattern: LiteralPattern) {
+    fn process_literal_pattern(
+        &mut self,
+        pattern: LiteralPattern,
+        anchored_at: Option<usize>,
+    ) {
         let full_word = pattern.flags.contains(PatternFlags::Fullword);
         let mut flags = SubPatternFlagSet::none();
 
@@ -718,7 +751,6 @@ impl<'a> Compiler<'a> {
                 ));
 
                 let xor_range = pattern.xor_range.clone().unwrap();
-
                 self.add_sub_pattern(
                     SubPattern::Xor { pattern: pattern_lit_id, flags },
                     best_atom.xor_combinations(xor_range),
@@ -757,24 +789,26 @@ impl<'a> Compiler<'a> {
                 ));
 
                 if pattern.flags.contains(PatternFlags::Base64) {
-                    for (padding, base64_pattern) in
-                        base64_patterns(main_pattern, pattern.base64_alphabet)
-                    {
-                        let sub_pattern =
-                            if let Some(alphabet) = pattern.base64_alphabet {
-                                SubPattern::CustomBase64 {
-                                    pattern: pattern_lit_id,
-                                    alphabet: self
-                                        .lit_pool
-                                        .get_or_intern(alphabet),
-                                    padding,
-                                }
-                            } else {
-                                SubPattern::Base64 {
-                                    pattern: pattern_lit_id,
-                                    padding,
-                                }
-                            };
+                    for (padding, base64_pattern) in base64_patterns(
+                        main_pattern,
+                        pattern.base64_alphabet.as_deref(),
+                    ) {
+                        let sub_pattern = if let Some(alphabet) =
+                            pattern.base64_alphabet.as_deref()
+                        {
+                            SubPattern::CustomBase64 {
+                                pattern: pattern_lit_id,
+                                alphabet: self
+                                    .lit_pool
+                                    .get_or_intern(alphabet),
+                                padding,
+                            }
+                        } else {
+                            SubPattern::Base64 {
+                                pattern: pattern_lit_id,
+                                padding,
+                            }
+                        };
 
                         self.add_sub_pattern(
                             sub_pattern,
@@ -792,10 +826,10 @@ impl<'a> Compiler<'a> {
                 if pattern.flags.contains(PatternFlags::Base64Wide) {
                     for (padding, base64_pattern) in base64_patterns(
                         main_pattern,
-                        pattern.base64wide_alphabet,
+                        pattern.base64wide_alphabet.as_deref(),
                     ) {
                         let sub_pattern = if let Some(alphabet) =
-                            pattern.base64wide_alphabet
+                            pattern.base64wide_alphabet.as_deref()
                         {
                             SubPattern::CustomBase64Wide {
                                 pattern: pattern_lit_id,
@@ -829,7 +863,7 @@ impl<'a> Compiler<'a> {
                 self.add_sub_pattern(
                     SubPattern::Literal {
                         pattern: pattern_lit_id,
-                        anchored_at: pattern.anchored_at,
+                        anchored_at,
                         flags,
                     },
                     iter::once(best_atom),
@@ -842,6 +876,7 @@ impl<'a> Compiler<'a> {
     fn process_regexp_pattern(
         &mut self,
         pattern: RegexpPattern,
+        anchored_at: Option<usize>,
         span: Span,
     ) -> Result<(), CompileError> {
         // Try splitting the regexp into multiple chained sub-patterns if it
@@ -864,11 +899,7 @@ impl<'a> Compiler<'a> {
             //   /foo|bar|baz/
             //   { 01 02 03 }
             //   { (01 02 03 | 04 05 06 ) }
-            self.process_alternation_literal(
-                head,
-                pattern.anchored_at,
-                pattern.flags,
-            );
+            self.process_alternation_literal(head, anchored_at, pattern.flags);
             return Ok(());
         }
 
@@ -1556,10 +1587,6 @@ impl From<RegexpId> for u32 {
 pub(crate) struct PatternId(i32);
 
 impl PatternId {
-    fn successors(&self) -> impl Iterator<Item = PatternId> {
-        iter::successors(Some(self.0), |n| Some(n + 1)).map(PatternId)
-    }
-
     #[inline]
     fn incr(&mut self, amount: usize) {
         self.0 += amount as i32;

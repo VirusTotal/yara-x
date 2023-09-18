@@ -14,7 +14,7 @@ use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, FuncCall, Iterable, LiteralPattern, Lookup,
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
-    Quantifier, Range, RegexpPattern,
+    PatternInRule, Quantifier, Range, RegexpPattern,
 };
 use crate::compiler::{CompileError, CompileErrorInfo, Context, PatternId};
 use crate::re;
@@ -25,18 +25,18 @@ use crate::types::{Map, Regexp, Type, TypeValue, Value};
 pub(in crate::compiler) fn patterns_from_ast<'src>(
     report_builder: &ReportBuilder,
     patterns: Option<&Vec<ast::Pattern<'src>>>,
-) -> Result<Vec<Pattern<'src>>, CompileError> {
+) -> Result<Vec<PatternInRule<'src>>, CompileError> {
     patterns
         .into_iter()
         .flatten()
         .map(|p| pattern_from_ast(report_builder, p))
-        .collect::<Result<Vec<Pattern<'src>>, CompileError>>()
+        .collect::<Result<Vec<PatternInRule<'src>>, CompileError>>()
 }
 
 fn pattern_from_ast<'src>(
     report_builder: &ReportBuilder,
     pattern: &ast::Pattern<'src>,
-) -> Result<Pattern<'src>, CompileError> {
+) -> Result<PatternInRule<'src>, CompileError> {
     match pattern {
         ast::Pattern::Text(pattern) => {
             Ok(text_pattern_from_ast(report_builder, pattern)?)
@@ -53,7 +53,7 @@ fn pattern_from_ast<'src>(
 pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     _report_builder: &ReportBuilder,
     pattern: &ast::TextPattern<'src>,
-) -> Result<Pattern<'src>, CompileError> {
+) -> Result<PatternInRule<'src>, CompileError> {
     let mut flags = PatternFlagSet::none();
 
     if pattern.modifiers.ascii().is_some()
@@ -98,33 +98,37 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         _ => None,
     };
 
-    Ok(Pattern::Literal(LiteralPattern {
-        ident: pattern.identifier.name,
-        flags,
-        text: pattern.text.clone(),
-        xor_range,
-        base64_alphabet,
-        base64wide_alphabet,
+    Ok(PatternInRule {
+        identifier: pattern.identifier.name,
         anchored_at: None,
-    }))
+        pattern: Pattern::Literal(LiteralPattern {
+            flags,
+            xor_range,
+            base64_alphabet: base64_alphabet.map(String::from),
+            base64wide_alphabet: base64wide_alphabet.map(String::from),
+            text: pattern.text.as_ref().into(),
+        }),
+    })
 }
 
 pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
     _report_builder: &ReportBuilder,
     pattern: &ast::HexPattern<'src>,
-) -> Result<Pattern<'src>, CompileError> {
-    Ok(Pattern::Regexp(RegexpPattern {
-        ident: pattern.identifier.name,
-        flags: PatternFlagSet::none() | PatternFlags::Ascii,
-        hir: re::hir::Hir::from(hex_pattern_hir_from_ast(pattern)),
+) -> Result<PatternInRule<'src>, CompileError> {
+    Ok(PatternInRule {
+        identifier: pattern.identifier.name,
         anchored_at: None,
-    }))
+        pattern: Pattern::Regexp(RegexpPattern {
+            flags: PatternFlagSet::from(PatternFlags::Ascii),
+            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(pattern)),
+        }),
+    })
 }
 
 pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     report_builder: &ReportBuilder,
     pattern: &ast::RegexpPattern<'src>,
-) -> Result<Pattern<'src>, CompileError> {
+) -> Result<PatternInRule<'src>, CompileError> {
     let mut flags = PatternFlagSet::none();
 
     if pattern.modifiers.ascii().is_some()
@@ -185,12 +189,11 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     // TODO: raise warning when .* used, propose using the non-greedy
     // variant .*?
 
-    Ok(Pattern::Regexp(RegexpPattern {
-        ident: pattern.identifier.name,
-        flags,
-        hir,
+    Ok(PatternInRule {
+        identifier: pattern.identifier.name,
         anchored_at: None,
-    }))
+        pattern: Pattern::Regexp(RegexpPattern { flags, hir }),
+    })
 }
 
 /// Given the AST for some expression, creates its IR.
@@ -1052,11 +1055,15 @@ fn pattern_set_from_ast(
                 ));
             }
 
+            // Make all the patterns in the set non-anchorable.
+            for (_, pattern) in ctx.current_rule_patterns.iter_mut() {
+                pattern.make_non_anchorable();
+            }
+
             pattern_ids
         }
         // `x of ($a*, $b)`
         ast::PatternSet::Set(ref set) => {
-            let mut pattern_ids = Vec::new();
             for item in set {
                 if !ctx
                     .current_rule_patterns
@@ -1075,24 +1082,19 @@ fn pattern_set_from_ast(
                     ));
                 }
             }
-            for (pattern_id, pattern) in ctx.current_rule_patterns.iter() {
+            let mut pattern_ids = Vec::new();
+            for (pattern_id, pattern) in ctx.current_rule_patterns.iter_mut() {
                 // Iterate over the patterns in the set (e.g: $foo, $foo*) and
                 // check if some of them matches the identifier.
                 if set.iter().any(|p| p.matches(pattern.identifier())) {
                     pattern_ids.push(*pattern_id);
+                    // All the patterns in the set are made non-anchorable.
+                    pattern.make_non_anchorable();
                 }
             }
             pattern_ids
         }
     };
-
-    // Make all the patterns in the set non-anchorable.
-    for pattern_id in pattern_ids.iter() {
-        ctx.current_rule_patterns
-            .get_mut(pattern_id)
-            .unwrap()
-            .make_non_anchorable();
-    }
 
     Ok(pattern_ids)
 }

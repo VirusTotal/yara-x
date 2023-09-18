@@ -1,3 +1,5 @@
+use std::hash::{Hash, Hasher};
+use std::mem;
 use std::ops::RangeInclusive;
 
 use regex_syntax;
@@ -9,7 +11,9 @@ use crate::utils::cast;
 pub use regex_syntax::hir::Class;
 pub use regex_syntax::hir::ClassBytes;
 pub use regex_syntax::hir::HirKind;
-use regex_syntax::hir::{ClassBytesRange, ClassUnicode, ClassUnicodeRange};
+use regex_syntax::hir::{
+    visit, ClassBytesRange, ClassUnicode, ClassUnicodeRange, Visitor,
+};
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ChainedPattern {
@@ -21,10 +25,22 @@ pub(crate) struct ChainedPattern {
 ///
 /// This is a thin wrapper around [`regex_syntax::hir::Hir`] that implements
 /// some YARA-specific functionality.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Eq, Debug)]
 pub(crate) struct Hir {
     pub(super) inner: regex_syntax::hir::Hir,
     pub(super) greedy: Option<bool>,
+}
+
+impl Hash for Hir {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        visit(&self.inner, HirHasher { state }).unwrap();
+    }
+}
+
+impl PartialEq for Hir {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
+    }
 }
 
 impl From<regex_syntax::hir::Hir> for Hir {
@@ -202,6 +218,60 @@ impl Hir {
 
     pub fn dot(dot: regex_syntax::hir::Dot) -> Hir {
         regex_syntax::hir::Hir::dot(dot).into()
+    }
+}
+
+struct HirHasher<'a, H: Hasher> {
+    state: &'a mut H,
+}
+
+impl<'a, H: Hasher> Visitor for HirHasher<'a, H> {
+    type Output = ();
+    type Err = ();
+
+    fn finish(self) -> Result<Self::Output, Self::Err> {
+        Ok(())
+    }
+
+    fn visit_pre(
+        &mut self,
+        hir: &regex_syntax::hir::Hir,
+    ) -> Result<(), Self::Err> {
+        mem::discriminant(hir.kind()).hash(self.state);
+        match hir.kind() {
+            HirKind::Literal(lit) => {
+                lit.0.hash(self.state);
+            }
+            HirKind::Class(class) => {
+                mem::discriminant(class).hash(self.state);
+                match class {
+                    Class::Unicode(class) => {
+                        for range in class.ranges() {
+                            range.start().hash(self.state);
+                            range.end().hash(self.state);
+                        }
+                    }
+                    Class::Bytes(class) => {
+                        for range in class.ranges() {
+                            range.start().hash(self.state);
+                            range.end().hash(self.state);
+                        }
+                    }
+                }
+            }
+            HirKind::Repetition(rep) => {
+                rep.min.hash(self.state);
+                rep.max.hash(self.state);
+                rep.greedy.hash(self.state);
+            }
+            HirKind::Empty => {}
+            HirKind::Look(_) => {}
+            HirKind::Capture(_) => {}
+            HirKind::Concat(_) => {}
+            HirKind::Alternation(_) => {}
+        }
+
+        Ok(())
     }
 }
 

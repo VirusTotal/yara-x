@@ -50,16 +50,10 @@ pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
     /// Rule that is being compiled.
     pub current_rule: &'a RuleInfo,
 
-    /// IR nodes for patterns defined in the rule being compiled. This is an
-    /// [`IndexMap`] where keys are [`PatternId`]s and values are
-    /// [`ir::Pattern`]. A `IndexMap` is used instead of `HashMap` because
-    /// we want to be able to iterate over the patterns in the order they
-    /// were defined in the rule.
-    pub current_rule_patterns: &'a mut indexmap::IndexMap<
-        PatternId,
-        ir::Pattern<'src>,
-        BuildHasherDefault<FxHasher>,
-    >,
+    /// A vector that contains the IR for the patterns declared in the current
+    /// rule, accompanied by their corresponding [`PatternId`].
+    pub current_rule_patterns:
+        &'a mut Vec<(PatternId, ir::PatternInRule<'src>)>,
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Vec<Warning>,
@@ -131,7 +125,7 @@ impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
     }
 
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
-    /// the current rule and return a mutable reference the [ir::Pattern]
+    /// the current rule and return a mutable reference the [ir::PatternInRule]
     /// node in the IR.
     ///
     /// Notice that this function accepts identifiers with any of the valid
@@ -140,7 +134,10 @@ impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
     /// # Panics
     ///
     /// Panics if the current rule does not have the requested pattern.
-    pub fn get_pattern_mut(&mut self, ident: &str) -> &mut ir::Pattern<'src> {
+    pub fn get_pattern_mut(
+        &mut self,
+        ident: &str,
+    ) -> &mut ir::PatternInRule<'src> {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident

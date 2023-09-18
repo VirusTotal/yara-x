@@ -2744,6 +2744,20 @@ fn rule_reuse_1() {
 }
 
 #[test]
+fn duplicate_pattern() {
+    rule_true!(
+        r#"rule test {
+            strings:
+                $a = "foo"
+                $b = "foo"
+            condition:
+                $a and $b
+        }"#,
+        b"foo"
+    );
+}
+
+#[test]
 fn rule_reuse_2() {
     let rules = crate::compile(
         r#"

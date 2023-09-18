@@ -29,11 +29,11 @@ allows using the same regexp engine for matching both types of patterns.
 [Hir]: regex_syntax::hir::Hir
 */
 
-use std::borrow::Cow;
+use std::hash::Hash;
 use std::ops::RangeInclusive;
 
 use bitmask::bitmask;
-use bstr::BStr;
+use bstr::BString;
 use serde::{Deserialize, Serialize};
 
 use crate::compiler::context::{Var, VarStackFrame};
@@ -62,7 +62,7 @@ bitmask! {
     /// when neither `ascii` or `wide` modifiers are used.
     ///
     /// In resume either the `Ascii` or the `Wide` flags (or both) will be set.
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Hash, Serialize, Deserialize)]
     pub mask PatternFlagSet: u16 where flags PatternFlags  {
         Ascii                = 0x0001,
         Wide                 = 0x0002,
@@ -76,24 +76,40 @@ bitmask! {
     }
 }
 
-/// Intermediate representation (IR) for a pattern.
-pub(in crate::compiler) enum Pattern<'src> {
-    /// A literal pattern is one the doesn't contain wildcards, alternatives,
-    /// or any kind of variable content. For example, the text pattern `"foo"`,
-    /// the regular expression `/foo/`, and the hex pattern `{01 02 03}` are
-    /// all literal.
-    Literal(LiteralPattern<'src>),
-    /// A regexp pattern is one that contains wildcards and/or alternatives,
-    /// like regular expression `/foo.*bar/` and hex pattern `{01 ?? 03}`.
-    Regexp(RegexpPattern<'src>),
+/// Represents a pattern in the context of a specific rule.
+///
+/// It encapsulates a [`Pattern`] alongside an identifier and information
+/// regarding whether the pattern is anchored. The key distinction between
+/// this type and [`Pattern`] lies in the context: while the latter defines
+/// a pattern in a generic context, this structure represents a pattern
+/// within the confines of a specific rule. If two distinct rules declare
+/// precisely the same pattern, including any modifiers, they will reference
+/// the same [`Pattern`] instance.
+pub(in crate::compiler) struct PatternInRule<'src> {
+    identifier: &'src str,
+    pattern: Pattern,
+    anchored_at: Option<usize>,
 }
 
-impl<'src> Pattern<'src> {
+impl<'src> PatternInRule<'src> {
+    #[inline]
     pub fn identifier(&self) -> &'src str {
-        match self {
-            Pattern::Literal(pattern) => pattern.ident,
-            Pattern::Regexp(pattern) => pattern.ident,
-        }
+        self.identifier
+    }
+
+    #[inline]
+    pub fn anchored_at(&self) -> Option<usize> {
+        self.anchored_at
+    }
+
+    #[inline]
+    pub fn into_pattern(self) -> Pattern {
+        self.pattern
+    }
+
+    #[inline]
+    pub fn pattern(&self) -> &Pattern {
+        &self.pattern
     }
 
     /// Anchor the pattern to a given offset. This means that the pattern can
@@ -108,36 +124,23 @@ impl<'src> Pattern<'src> {
     /// in order to indicate that the pattern (the `$a` pattern in this case)
     /// can match only at a fixed offset.
     pub fn anchor_at(&mut self, offset: usize) {
-        match self {
-            Pattern::Literal(p) => match p.anchored_at {
-                Some(o) if o != offset => {
-                    p.anchored_at = None;
-                    p.flags.set(PatternFlags::NonAnchorable);
+        match self.anchored_at {
+            Some(o) if o != offset => {
+                self.anchored_at = None;
+                self.pattern.flags_mut().set(PatternFlags::NonAnchorable);
+            }
+            None => {
+                if !self.pattern.flags().contains(PatternFlags::NonAnchorable)
+                {
+                    self.anchored_at = Some(offset);
                 }
-                None => {
-                    if !p.flags.contains(PatternFlags::NonAnchorable) {
-                        p.anchored_at = Some(offset);
-                    }
-                }
-                _ => {}
-            },
-            Pattern::Regexp(p) => match p.anchored_at {
-                Some(o) if o != offset => {
-                    p.anchored_at = None;
-                    p.flags.set(PatternFlags::NonAnchorable);
-                }
-                None => {
-                    if !p.flags.contains(PatternFlags::NonAnchorable) {
-                        p.anchored_at = Some(offset);
-                    }
-                }
-                _ => {}
-            },
+            }
+            _ => {}
         }
     }
 
     /// Make the pattern non-anchorable. Any existing anchor is removed and
-    /// future calls to [`Pattern::anchor_at`] are ignored.
+    /// future calls to [`PatternInRule::anchor_at`] are ignored.
     ///
     /// This function is used to indicate that a certain pattern can't be
     /// anchored at any fixed offset because it is used in ways that require
@@ -146,39 +149,62 @@ impl<'src> Pattern<'src> {
     /// the number of occurrences of `$a`), makes `$a` non-anchorable because
     /// we need to find all occurrences of `$a`.
     pub fn make_non_anchorable(&mut self) {
+        self.pattern.flags_mut().set(PatternFlags::NonAnchorable);
+        self.anchored_at = None;
+    }
+}
+
+/// Represents a pattern in YARA.
+///
+/// This type represents a pattern independently of the rule in which it was
+/// declared. Multiple rules declaring exactly the same pattern will share the
+/// same instance of [`Pattern`]. For representing a pattern in the context of
+/// a specific rule we have the [`PatternInRule`], which contains a [`Pattern`]
+/// and additional information about how the pattern in declared or used in
+/// rule.
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub(in crate::compiler) enum Pattern {
+    /// A literal pattern is one that doesn't contain wildcards, alternatives,
+    /// or any kind of variable content. For example, the text pattern `"foo"`,
+    /// the regular expression `/foo/`, and the hex pattern `{01 02 03}` are
+    /// all literal.
+    Literal(LiteralPattern),
+    /// A regexp pattern is one that contains wildcards and/or alternatives,
+    /// like regular expression `/foo.*bar/` and hex pattern `{01 ?? 03}`.
+    Regexp(RegexpPattern),
+}
+
+impl Pattern {
+    #[inline]
+    pub fn flags(&self) -> &PatternFlagSet {
         match self {
-            Pattern::Literal(p) => {
-                p.flags.set(PatternFlags::NonAnchorable);
-                p.anchored_at = None;
-            }
-            Pattern::Regexp(p) => {
-                p.flags.set(PatternFlags::NonAnchorable);
-                p.anchored_at = None;
-            }
+            Pattern::Literal(literal) => &literal.flags,
+            Pattern::Regexp(regexp) => &regexp.flags,
+        }
+    }
+
+    #[inline]
+    pub fn flags_mut(&mut self) -> &mut PatternFlagSet {
+        match self {
+            Pattern::Literal(literal) => &mut literal.flags,
+            Pattern::Regexp(regexp) => &mut regexp.flags,
         }
     }
 }
 
-/// Intermediate representation (IR) for a text pattern.
-pub(in crate::compiler) struct LiteralPattern<'src> {
-    pub ident: &'src str,
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub(in crate::compiler) struct LiteralPattern {
     pub flags: PatternFlagSet,
-    pub text: Cow<'src, BStr>,
+    pub text: BString,
     pub xor_range: Option<RangeInclusive<u8>>,
-    pub base64_alphabet: Option<&'src str>,
-    pub base64wide_alphabet: Option<&'src str>,
-    pub anchored_at: Option<usize>,
+    pub base64_alphabet: Option<String>,
+    pub base64wide_alphabet: Option<String>,
 }
 
-/// Intermediate representation (IR) for a regular expression.
-///
-/// The IR for a regular expression is entrusted to the `regex_syntax` crate,
-/// particularly to its [`regex_syntax::hir::Hir`] type.
-pub(in crate::compiler) struct RegexpPattern<'src> {
-    pub ident: &'src str,
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub(in crate::compiler) struct RegexpPattern {
     pub flags: PatternFlagSet,
     pub hir: re::hir::Hir,
-    pub anchored_at: Option<usize>,
 }
 
 /// Intermediate representation (IR) for an expression.
