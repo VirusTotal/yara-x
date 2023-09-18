@@ -565,15 +565,15 @@ impl<'a> Compiler<'a> {
         let patterns_in_rule =
             patterns_from_ast(&self.report_builder, rule.patterns.as_ref())?;
 
-        let num_patterns: usize = patterns_in_rule.len();
-
-        // Create vector with pairs (IdentId, PatternId)
-        let mut ident_and_pattern_ids = Vec::with_capacity(num_patterns);
+        // Create vector with pairs (IdentId, PatternId).
+        let mut ident_and_pattern_ids =
+            Vec::with_capacity(patterns_in_rule.len());
 
         // Create vector with pairs (PatternId, Pattern).
-        let mut patterns_with_ids = Vec::with_capacity(num_patterns);
+        let mut patterns_with_ids = Vec::with_capacity(patterns_in_rule.len());
 
         let mut pending_patterns = HashSet::new();
+        let mut next_pattern_ids = self.next_pattern_id.successors();
 
         for pattern in patterns_in_rule {
             // Check if this pattern has been declared before, in this rule or
@@ -586,8 +586,7 @@ impl<'a> Compiler<'a> {
                     Entry::Occupied(entry) => *entry.get(),
                     // The pattern didn't exist.
                     Entry::Vacant(entry) => {
-                        let pattern_id = self.next_pattern_id;
-                        self.next_pattern_id.incr(1);
+                        let pattern_id = next_pattern_ids.next().unwrap();
                         pending_patterns.insert(pattern_id);
                         entry.insert(pattern_id);
                         pattern_id
@@ -677,10 +676,8 @@ impl<'a> Compiler<'a> {
         );
 
         for ((pattern_id, pattern), span) in patterns_with_ids_and_span {
-            if pending_patterns.contains(&pattern_id)
-                || pattern.anchored_at().is_some()
-            {
-                pending_patterns.remove(&pattern_id);
+            let pending = pending_patterns.contains(&pattern_id);
+            if pending || pattern.anchored_at().is_some() {
                 self.current_pattern_id = pattern_id;
                 let anchored_at = pattern.anchored_at();
                 match pattern.into_pattern() {
@@ -695,6 +692,10 @@ impl<'a> Compiler<'a> {
                         )?;
                     }
                 };
+                if pending {
+                    pending_patterns.remove(&pattern_id);
+                    self.next_pattern_id.incr(1);
+                }
             }
         }
 
@@ -1590,6 +1591,10 @@ impl PatternId {
     #[inline]
     fn incr(&mut self, amount: usize) {
         self.0 += amount as i32;
+    }
+
+    fn successors(&self) -> impl Iterator<Item = PatternId> {
+        iter::successors(Some(self.0), |n| Some(n + 1)).map(PatternId)
     }
 }
 
