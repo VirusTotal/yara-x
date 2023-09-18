@@ -18,7 +18,6 @@ use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
-use num::Integer;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
 use wasmtime::{

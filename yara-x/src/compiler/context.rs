@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
-use std::hash::BuildHasherDefault;
 use std::mem::size_of;
 use std::rc::Rc;
 
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::FxHashMap;
 use walrus::ir::InstrSeqId;
 use walrus::{FunctionId, ValType};
 use yara_x_parser::report::ReportBuilder;
