@@ -2003,6 +2003,114 @@ fn print_macho_info(macho_proto: &Macho) {
     }
 }
 
+// Get Mach-O file index in fat file by cputype field.
+#[module_export(name = "file_index_for_arch")]
+fn file_index_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
+    let macho = ctx.module_output::<Macho>()?;
+
+    // Ensure nfat_arch is present
+    let nfat = macho.nfat_arch?;
+
+    // Iterate over fat_arch up to nfat entries
+    for i in 0..nfat as usize {
+        if let Some(arch) = macho.fat_arch.get(i) {
+            if let Some(cputype) = arch.cputype {
+                if cputype as i64 == type_arg {
+                    return Some(i as i64);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+// Get Mach-O file index in fat file by cputype and cpusubtype fields.
+#[module_export(name = "file_index_for_arch")]
+fn file_index_subtype(
+    ctx: &mut ScanContext,
+    type_arg: i64,
+    subtype_arg: i64,
+) -> Option<i64> {
+    let macho = ctx.module_output::<Macho>()?;
+
+    // Ensure nfat_arch is present
+    let nfat = macho.nfat_arch?;
+
+    // Iterate over fat_arch up to nfat entries
+    for i in 0..nfat as usize {
+        if let Some(arch) = macho.fat_arch.get(i) {
+            if let (Some(cputype), Some(cpusubtype)) =
+                (arch.cputype, arch.cpusubtype)
+            {
+                if cputype as i64 == type_arg
+                    && cpusubtype as i64 == subtype_arg
+                {
+                    return Some(i as i64);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+// Get real entry point offset for specific architecture in fat Mach-O.
+#[module_export(name = "entry_point_for_arch")]
+fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
+    let macho = ctx.module_output::<Macho>()?;
+
+    // Ensure nfat_arch is present
+    let nfat = macho.nfat_arch?;
+
+    // Iterate over fat_arch up to nfat entries
+    for i in 0..nfat as usize {
+        if let Some(arch) = macho.fat_arch.get(i) {
+            if let Some(cputype) = arch.cputype {
+                if cputype as i64 == type_arg {
+                    let file_offset = arch.offset?;
+                    let entry_point = macho.file.get(i)?.entry_point?;
+                    return Some(file_offset as i64 + entry_point as i64);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+// Get real entry point offset for specific architecture in fat Mach-O.
+#[module_export(name = "entry_point_for_arch")]
+fn ep_for_arch_subtype(
+    ctx: &mut ScanContext,
+    type_arg: i64,
+    subtype_arg: i64,
+) -> Option<i64> {
+    let macho = ctx.module_output::<Macho>()?;
+
+    // Ensure nfat_arch is present
+    let nfat = macho.nfat_arch?;
+
+    // Iterate over fat_arch up to nfat entries
+    for i in 0..nfat as usize {
+        if let Some(arch) = macho.fat_arch.get(i) {
+            if let (Some(cputype), Some(cpusubtype)) =
+                (arch.cputype, arch.cpusubtype)
+            {
+                if cputype as i64 == type_arg
+                    && cpusubtype as i64 == subtype_arg
+                {
+                    let file_offset = arch.offset?;
+                    let entry_point = macho.file.get(i)?.entry_point?;
+                    return Some(file_offset as i64 + entry_point as i64);
+                }
+            }
+        }
+    }
+
+    None
+}
+
 #[module_main]
 fn main(ctx: &ScanContext) -> Macho {
     // Create an empty instance of the Mach-O protobuf
@@ -2020,9 +2128,10 @@ fn main(ctx: &ScanContext) -> Macho {
         return macho_proto;
     }
 
-    // parse basic Mach-O file
+    // Parse basic Mach-O file
     if is_macho_file_block(data) {
         match parse_macho_file(data) {
+            // Parsing was successful, populate basic fields from parsed Mach-O structure
             Ok(file_data) => {
                 macho_proto.magic = file_data.magic;
                 macho_proto.cputype = file_data.cputype;
@@ -2043,6 +2152,7 @@ fn main(ctx: &ScanContext) -> Macho {
         }
     }
 
+    // Parse Mach-O FAT files
     if is_fat_macho_file_block(data) {
         if let Err(error) = parse_fat_macho_file(data, &mut macho_proto) {
             eprintln!("{}", error);
