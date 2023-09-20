@@ -41,9 +41,8 @@ use crate::compiler::PatternId;
 use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue, Value};
 
-pub(in crate::compiler) use ast2ir::expr_from_ast;
+pub(in crate::compiler) use ast2ir::bool_expr_from_ast;
 pub(in crate::compiler) use ast2ir::patterns_from_ast;
-pub(in crate::compiler) use ast2ir::warn_if_not_bool;
 
 use crate::re;
 

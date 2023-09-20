@@ -1,25 +1,18 @@
-use std::collections::VecDeque;
 use std::mem::size_of;
 use std::rc::Rc;
 
-use rustc_hash::FxHashMap;
-use walrus::ir::InstrSeqId;
-use walrus::{FunctionId, ValType};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::Warning;
 
-use crate::compiler::{
-    ir, IdentId, LiteralId, PatternId, RegexpId, RuleId, RuleInfo,
-};
-use crate::string_pool::{BStringPool, StringPool};
+use crate::compiler::{ir, IdentId, PatternId, RuleId, RuleInfo};
+use crate::string_pool::StringPool;
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::Type;
 use crate::wasm;
-use crate::wasm::WasmSymbols;
 
 /// Structure that contains information and data structures required during the
 /// current compilation process.
-pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
+pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     /// Builder for creating error and warning reports.
     pub report_builder: &'a ReportBuilder,
 
@@ -31,17 +24,6 @@ pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
     /// some value, symbols are looked up in this table and the main symbol
     /// table (i.e: `symbol_table`) is ignored.
     pub current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
-
-    /// Used during code emitting for tracking the function signature
-    /// associated to a function call.
-    pub current_signature: Option<usize>,
-
-    /// Table with all the symbols (functions, variables) used by WASM.
-    pub wasm_symbols: &'a WasmSymbols,
-
-    /// Map where keys are fully qualified and mangled function names, and
-    /// values are the function's ID in the WASM module.
-    pub wasm_exports: &'a FxHashMap<String, FunctionId>,
 
     /// Information about the rules compiled so far.
     pub rules: &'a Vec<RuleInfo>,
@@ -57,30 +39,12 @@ pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
     /// Pool with identifiers used in the rules.
     pub ident_pool: &'a mut StringPool<IdentId>,
 
-    /// Pool with regular expressions used in rule conditions.
-    pub regexp_pool: &'a mut StringPool<RegexpId>,
-
-    /// Pool with literal strings used in the rules.
-    pub lit_pool: &'a mut BStringPool<LiteralId>,
-
-    /// Stack of installed exception handlers for catching undefined values.
-    pub exception_handler_stack: Vec<(ValType, InstrSeqId)>,
-
     /// Stack of variables. These are local variables used during the
     /// evaluation of rule conditions, for example for storing loop variables.
     pub vars: VarStack,
-
-    /// The lookup_stack contains a sequence of field IDs that will be used
-    /// in the next field lookup operation. See [`emit::emit_lookup_common`]
-    /// for details.
-    pub(crate) lookup_stack: VecDeque<i32>,
-
-    /// The index of the host-side variable that contains the structure where
-    /// the lookup operation will be performed.
-    pub(crate) lookup_start: Option<Var>,
 }
 
-impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
+impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     /// Returns a [`RuleInfo`] given its [`RuleId`].
     ///
     /// # Panics
@@ -156,17 +120,6 @@ impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
         }
 
         panic!("pattern `{}` not found", ident);
-    }
-
-    /// Given a function mangled name returns its id.
-    ///
-    /// # Panics
-    ///
-    /// If a no function with the given name exists.
-    pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
-        *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
-            panic!("can't find function `{}`", fn_mangled_name)
-        })
     }
 }
 

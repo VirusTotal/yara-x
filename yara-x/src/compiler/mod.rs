@@ -32,8 +32,8 @@ use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
 
 use crate::compiler::base64::base64_patterns;
-use crate::compiler::emit::emit_rule_condition;
-use crate::compiler::{Context, VarStack};
+use crate::compiler::emit::{emit_rule_condition, EmitContext};
+use crate::compiler::{CompileContext, VarStack};
 use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
@@ -705,55 +705,31 @@ impl<'a> Compiler<'a> {
         // No other symbol with the same identifier should exist.
         assert!(existing_symbol.is_none());
 
-        let mut ctx = Context {
-            current_struct: None,
-            current_signature: None,
-            symbol_table: &mut self.symbol_table,
-            ident_pool: &mut self.ident_pool,
-            lit_pool: &mut self.lit_pool,
-            regexp_pool: &mut self.regexp_pool,
-            report_builder: &self.report_builder,
-            rules: &self.rules,
-            current_rule_patterns: &mut patterns_with_ids,
-            wasm_symbols: &self.wasm_symbols,
-            wasm_exports: &self.wasm_exports,
-            warnings: &mut self.warnings,
-            exception_handler_stack: Vec::new(),
-            lookup_start: None,
-            lookup_stack: VecDeque::new(),
-            vars: VarStack::new(),
-        };
-
-        let mut condition = match expr_from_ast(&mut ctx, &rule.condition) {
-            Ok(expr) => expr,
-            Err(err) => {
-                drop(ctx);
-                self.restore_snapshot(snapshot);
-                return Err(err);
-            }
-        };
-
-        warn_if_not_bool(&mut ctx, condition.ty(), rule.condition.span());
-
-        emit_rule_condition(
-            &mut ctx,
-            &mut self.wasm_mod,
-            rule_id,
-            rule.flags,
-            &mut condition,
-        );
-
-        // After emitting the whole condition, the stack of variables should
-        // be empty.
-        assert_eq!(ctx.vars.used, 0);
-
-        drop(ctx);
+        // Convert the rule condition's AST to the intermediate representation
+        // (IR).
+        let mut condition = bool_expr_from_ast(
+            &mut CompileContext {
+                current_struct: None,
+                symbol_table: &mut self.symbol_table,
+                ident_pool: &mut self.ident_pool,
+                report_builder: &self.report_builder,
+                rules: &self.rules,
+                current_rule_patterns: &mut patterns_with_ids,
+                warnings: &mut self.warnings,
+                vars: VarStack::new(),
+            },
+            &rule.condition,
+        )?;
 
         let patterns_with_ids_and_span = iter::zip(
             patterns_with_ids,
             rule.patterns.iter().flatten().map(|p| p.span()),
         );
 
+        // Process the patterns in the rule. This extract the best atoms
+        // from each pattern, adding them to the `self.atoms` vector, it
+        // also creates one or more sub-patterns per pattern and add them
+        // to `self.sub_patterns`
         for ((pattern_id, pattern), span) in patterns_with_ids_and_span {
             let pending = pending_patterns.contains(&pattern_id);
             if pending || pattern.anchored_at().is_some() {
@@ -777,6 +753,35 @@ impl<'a> Compiler<'a> {
                 }
             }
         }
+
+        // The last step is emitting the WASM code corresponding to the rule's
+        // condition. This is done after every fallible function has been called
+        // because once the code is emitted it cannot be undone, which means
+        // that if this function fails after emitting the code, some code debris
+        // will remain in the WASM module.
+        let mut ctx = EmitContext {
+            current_signature: None,
+            lit_pool: &mut self.lit_pool,
+            regexp_pool: &mut self.regexp_pool,
+            wasm_symbols: &self.wasm_symbols,
+            wasm_exports: &self.wasm_exports,
+            exception_handler_stack: Vec::new(),
+            lookup_start: None,
+            lookup_stack: VecDeque::new(),
+            vars: VarStack::new(),
+        };
+
+        emit_rule_condition(
+            &mut ctx,
+            &mut self.wasm_mod,
+            rule_id,
+            rule.flags,
+            &mut condition,
+        );
+
+        // After emitting the whole condition, the stack of variables should
+        // be empty.
+        assert_eq!(ctx.vars.used, 0);
 
         Ok(())
     }

@@ -16,7 +16,9 @@ use crate::compiler::ir::{
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternInRule, Quantifier, Range, RegexpPattern,
 };
-use crate::compiler::{CompileError, CompileErrorInfo, Context, PatternId};
+use crate::compiler::{
+    CompileContext, CompileError, CompileErrorInfo, PatternId,
+};
 use crate::re;
 use crate::re::parser::Error;
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
@@ -198,7 +200,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 
 /// Given the AST for some expression, creates its IR.
 pub(in crate::compiler) fn expr_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     expr: &ast::Expr,
 ) -> Result<Expr, CompileError> {
     match expr {
@@ -593,8 +595,17 @@ pub(in crate::compiler) fn expr_from_ast(
     }
 }
 
+pub(in crate::compiler) fn bool_expr_from_ast(
+    ctx: &mut CompileContext,
+    ast: &ast::Expr,
+) -> Result<Expr, CompileError> {
+    let expr = expr_from_ast(ctx, ast)?;
+    warn_if_not_bool(ctx, expr.ty(), ast.span());
+    Ok(expr)
+}
+
 fn of_expr_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     of: &ast::Of,
 ) -> Result<Expr, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
@@ -699,7 +710,7 @@ fn of_expr_from_ast(
 }
 
 fn for_of_expr_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     for_of: &ast::ForOf,
 ) -> Result<Expr, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
@@ -721,9 +732,7 @@ fn for_of_expr_from_ast(
 
     ctx.symbol_table.push(Rc::new(loop_vars));
 
-    let condition = expr_from_ast(ctx, &for_of.condition)?;
-
-    warn_if_not_bool(ctx, condition.ty(), for_of.condition.span());
+    let condition = bool_expr_from_ast(ctx, &for_of.condition)?;
 
     ctx.symbol_table.pop();
     ctx.vars.unwind(&stack_frame);
@@ -738,7 +747,7 @@ fn for_of_expr_from_ast(
 }
 
 fn for_in_expr_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     for_in: &ast::ForIn,
 ) -> Result<Expr, CompileError> {
     let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
@@ -838,9 +847,7 @@ fn for_in_expr_from_ast(
     // Put the loop variables into scope.
     ctx.symbol_table.push(Rc::new(symbols));
 
-    let condition = expr_from_ast(ctx, &for_in.condition)?;
-
-    warn_if_not_bool(ctx, condition.ty(), for_in.condition.span());
+    let condition = bool_expr_from_ast(ctx, &for_in.condition)?;
 
     // Leaving the condition's scope. Remove loop variables.
     ctx.symbol_table.pop();
@@ -857,7 +864,7 @@ fn for_in_expr_from_ast(
 }
 
 fn iterable_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     iter: &ast::Iterable,
 ) -> Result<Iterable, CompileError> {
     match iter {
@@ -911,7 +918,7 @@ fn iterable_from_ast(
 }
 
 fn anchor_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     anchor: &Option<ast::MatchAnchor>,
 ) -> Result<MatchAnchor, CompileError> {
     match anchor {
@@ -926,7 +933,7 @@ fn anchor_from_ast(
 }
 
 fn range_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     range: &ast::Range,
 ) -> Result<Range, CompileError> {
     let lower_bound =
@@ -956,7 +963,7 @@ fn range_from_ast(
 }
 
 fn non_negative_integer_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     expr: &ast::Expr,
 ) -> Result<Expr, CompileError> {
     let span = expr.span();
@@ -980,7 +987,7 @@ fn non_negative_integer_from_ast(
 }
 
 fn integer_in_range_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     expr: &ast::Expr,
     range: RangeInclusive<i64>,
 ) -> Result<Expr, CompileError> {
@@ -1009,7 +1016,7 @@ fn integer_in_range_from_ast(
 }
 
 fn quantifier_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     quantifier: &ast::Quantifier,
 ) -> Result<Quantifier, CompileError> {
     match quantifier {
@@ -1031,7 +1038,7 @@ fn quantifier_from_ast(
 }
 
 fn pattern_set_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     pattern_set: &ast::PatternSet,
 ) -> Result<Vec<PatternId>, CompileError> {
     let pattern_ids = match pattern_set {
@@ -1101,7 +1108,7 @@ fn pattern_set_from_ast(
 }
 
 fn func_call_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     func_call: &ast::FuncCall,
 ) -> Result<Expr, CompileError> {
     let callable = expr_from_ast(ctx, &func_call.callable)?;
@@ -1176,7 +1183,7 @@ fn func_call_from_ast(
 }
 
 fn matches_expr_from_ast(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     expr: &ast::BinaryExpr,
 ) -> Result<Expr, CompileError> {
     let lhs_span = expr.lhs.span();
@@ -1198,7 +1205,7 @@ fn matches_expr_from_ast(
 }
 
 fn check_type(
-    ctx: &Context,
+    ctx: &CompileContext,
     ty: Type,
     span: Span,
     accepted_types: &[Type],
@@ -1216,7 +1223,7 @@ fn check_type(
 }
 
 fn check_type2(
-    ctx: &Context,
+    ctx: &CompileContext,
     expr: &ast::Expr,
     ty: Type,
     accepted_types: &[Type],
@@ -1234,7 +1241,7 @@ fn check_type2(
 }
 
 fn check_operands(
-    ctx: &Context,
+    ctx: &CompileContext,
     lhs_ty: Type,
     rhs_ty: Type,
     lhs_span: Span,
@@ -1306,7 +1313,7 @@ fn re_error_to_compile_error(
 
 /// Produce a warning if the expression is not boolean.
 pub(in crate::compiler) fn warn_if_not_bool(
-    ctx: &mut Context,
+    ctx: &mut CompileContext,
     ty: Type,
     span: Span,
 ) {
@@ -1339,7 +1346,7 @@ pub(in crate::compiler) fn warn_if_not_bool(
 macro_rules! gen_unary_op {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $check_fn:expr) => {
         fn $name(
-            ctx: &mut Context,
+            ctx: &mut CompileContext,
             expr: &ast::UnaryExpr,
         ) -> Result<Expr, CompileError> {
             let operand = Box::new(expr_from_ast(ctx, &expr.operand)?);
@@ -1354,7 +1361,7 @@ macro_rules! gen_unary_op {
             )?;
 
             let check_fn:
-                Option<fn(&mut Context, &Expr, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, &Expr, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             if let Some(check_fn) = check_fn {
@@ -1375,7 +1382,7 @@ macro_rules! gen_unary_op {
 macro_rules! gen_binary_op {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
         fn $name(
-            ctx: &mut Context,
+            ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
         ) -> Result<Expr, CompileError> {
             let lhs_span = expr.lhs.span();
@@ -1395,7 +1402,7 @@ macro_rules! gen_binary_op {
             )?;
 
             let check_fn:
-                Option<fn(&mut Context, &Expr, &Expr, Span, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, &Expr, &Expr, Span, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             if let Some(check_fn) = check_fn {
@@ -1416,7 +1423,7 @@ macro_rules! gen_binary_op {
 macro_rules! gen_string_op {
     ($name:ident, $variant:ident) => {
         fn $name(
-            ctx: &mut Context,
+            ctx: &mut CompileContext,
             expr: &ast::BinaryExpr,
         ) -> Result<Expr, CompileError> {
             let lhs_span = expr.lhs.span();
@@ -1449,7 +1456,7 @@ macro_rules! gen_string_op {
 macro_rules! gen_n_ary_operation {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
         fn $name(
-            ctx: &mut Context,
+            ctx: &mut CompileContext,
             expr: &ast::NAryExpr,
         ) -> Result<Expr, CompileError> {
             let accepted_types = &[$( $accepted_types ),+];
@@ -1461,7 +1468,7 @@ macro_rules! gen_n_ary_operation {
                 .collect::<Result<Vec<Expr>, CompileError>>()?;
 
             let check_fn:
-                Option<fn(&mut Context, &Expr, Span) -> Result<(), CompileError>>
+                Option<fn(&mut CompileContext, &Expr, Span) -> Result<(), CompileError>>
                 = $check_fn;
 
             // Make sure that all operands have one of the accepted types.

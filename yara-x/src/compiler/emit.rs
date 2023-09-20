@@ -6,20 +6,24 @@ functions in the module which generate WASM code for specific kinds of
 expressions or language constructs.
  */
 
+use std::collections::VecDeque;
 use std::mem::size_of;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
+use rustc_hash::FxHashMap;
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
-use walrus::{InstrSeqBuilder, ValType};
+use walrus::{FunctionId, InstrSeqBuilder, ValType};
 use yara_x_parser::ast::{RuleFlag, RuleFlags};
 
+use crate::compiler::context::VarStack;
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, Quantifier,
 };
-use crate::compiler::{Context, RuleId, Var, VarStackFrame};
+use crate::compiler::{LiteralId, RegexpId, RuleId, Var, VarStackFrame};
+use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::SymbolKind;
 use crate::types::{Array, Map, Type, TypeValue, Value};
 use crate::utils::cast;
@@ -27,8 +31,8 @@ use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
-    LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
-    VARS_STACK_START,
+    WasmSymbols, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START,
+    MATCHING_RULES_BITMAP_BASE, VARS_STACK_START,
 };
 
 /// This macro emits the code for the left and right operands of some
@@ -156,9 +160,62 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
+/// Structure that contains information used while emitting the code that
+/// corresponds to the condition of a YARA rule.
+pub(in crate::compiler) struct EmitContext<'a> {
+    /// Signature index associated the function call being emitted. This
+    /// is an index in the array returned by `func.signatures()`, where
+    /// `func` is an instance of [`Type::Func`] that represents the
+    /// function being called. As each function may have multiple signatures
+    /// this tells which specific signature must be used.
+    pub current_signature: Option<usize>,
+
+    /// Table with all the symbols (functions, variables) used by WASM.
+    pub wasm_symbols: &'a WasmSymbols,
+
+    /// Map where keys are fully qualified and mangled function names, and
+    /// values are the function's ID in the WASM module.
+    pub wasm_exports: &'a FxHashMap<String, FunctionId>,
+
+    /// Pool with regular expressions used in rule conditions.
+    pub regexp_pool: &'a mut StringPool<RegexpId>,
+
+    /// Pool with literal strings used in the rules.
+    pub lit_pool: &'a mut BStringPool<LiteralId>,
+
+    /// Stack of installed exception handlers for catching undefined values.
+    pub exception_handler_stack: Vec<(ValType, InstrSeqId)>,
+
+    /// Stack of variables. These are local variables used during the
+    /// evaluation of rule conditions, for example for storing loop variables.
+    pub vars: VarStack,
+
+    /// The lookup_stack contains a sequence of field IDs that will be used
+    /// in the next field lookup operation. See [`emit::emit_lookup_common`]
+    /// for details.
+    pub(crate) lookup_stack: VecDeque<i32>,
+
+    /// The index of the host-side variable that contains the structure where
+    /// the lookup operation will be performed.
+    pub(crate) lookup_start: Option<Var>,
+}
+
+impl<'a> EmitContext<'a> {
+    /// Given a function mangled name returns its id.
+    ///
+    /// # Panics
+    ///
+    /// If a no function with the given name exists.
+    pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
+        *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
+            panic!("can't find function `{}`", fn_mangled_name)
+        })
+    }
+}
+
 /// Emits WASM code of a rule.
 pub(super) fn emit_rule_condition(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     builder: &mut WasmModuleBuilder,
     rule_id: RuleId,
     rule_flags: RuleFlags,
@@ -224,7 +281,11 @@ pub(super) fn emit_rule_condition(
 }
 
 /// Emits WASM code for `expr` into the instruction sequence `instr`.
-fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
+fn emit_expr(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    expr: &mut Expr,
+) {
     match expr {
         Expr::Const { type_value } => match type_value {
             TypeValue::Integer(Value::Const(value)) => {
@@ -763,7 +824,10 @@ fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &mut Expr) {
 
 /// Emits code that checks if the pattern search phase has not been executed
 /// yet, and do it in that case.
-fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lazy_pattern_search(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+) {
     instr.global_get(ctx.wasm_symbols.pattern_search_done);
     instr.if_else(
         None,
@@ -799,7 +863,7 @@ fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 fn emit_pattern_match(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     expr: &mut Expr,
 ) {
@@ -851,7 +915,7 @@ fn emit_pattern_match(
 
 /// Emits the code that returns the number of matches for a pattern.
 fn emit_pattern_count(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     expr: &mut Expr,
 ) {
@@ -895,7 +959,7 @@ fn emit_pattern_count(
 
 /// Emits the code that returns the offset of matches for a pattern.
 fn emit_pattern_offset(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     expr: &mut Expr,
 ) {
@@ -943,7 +1007,7 @@ fn emit_pattern_offset(
 
 /// Emits the code that returns the length of matches for a pattern.
 fn emit_pattern_length(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     expr: &mut Expr,
 ) {
@@ -993,7 +1057,7 @@ fn emit_pattern_length(
 ///
 /// The emitted code leaves 0 or 1 at the top of the stack.
 fn emit_check_for_rule_match(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     rule_id: RuleId,
 ) {
@@ -1035,7 +1099,7 @@ fn emit_check_for_rule_match(
 /// I32. The emitted code consumes the PatternId and leaves another I32 with
 /// value 0 or 1 at the top of the stack.
 fn emit_check_for_pattern_match(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
 ) {
     // Take the pattern ID at the top of the stack and store it in a temp
@@ -1099,7 +1163,7 @@ fn emit_check_for_pattern_match(
 ///
 /// If the `var` argument is not `None` for arrays that don't contain structs.
 fn emit_array_indexing(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
     dst_var: Option<Var>,
@@ -1154,7 +1218,7 @@ fn emit_array_indexing(
 ///
 /// If the `dst_var` argument is not `None` for maps that don't contain structs.
 fn emit_map_lookup_by_index(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map: &Rc<Map>,
     dst_var: Option<Var>,
@@ -1239,7 +1303,7 @@ fn emit_map_lookup_by_index(
 }
 
 fn emit_map_lookup(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map: &Rc<Map>,
 ) {
@@ -1254,7 +1318,7 @@ fn emit_map_lookup(
 }
 
 fn emit_map_integer_key_lookup(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
@@ -1273,7 +1337,7 @@ fn emit_map_integer_key_lookup(
 }
 
 fn emit_map_string_key_lookup(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
@@ -1293,7 +1357,7 @@ fn emit_map_string_key_lookup(
 }
 
 fn emit_of_pattern_set(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     of: &mut Of,
 ) {
@@ -1366,7 +1430,7 @@ fn emit_of_pattern_set(
 }
 
 fn emit_of_expr_tuple(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     of: &mut Of,
 ) {
@@ -1411,7 +1475,7 @@ fn emit_of_expr_tuple(
 }
 
 fn emit_for_of_pattern_set(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     for_of: &mut ForOf,
 ) {
@@ -1454,7 +1518,7 @@ fn emit_for_of_pattern_set(
 }
 
 fn emit_for_in_range(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
@@ -1519,7 +1583,7 @@ fn emit_for_in_range(
 }
 
 fn emit_for_in_expr(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
@@ -1537,7 +1601,7 @@ fn emit_for_in_expr(
 }
 
 fn emit_for_in_array(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
@@ -1617,7 +1681,7 @@ fn emit_for_in_array(
 }
 
 fn emit_for_in_map(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
@@ -1699,7 +1763,7 @@ fn emit_for_in_map(
 }
 
 fn emit_for_in_expr_tuple(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
@@ -1771,7 +1835,7 @@ fn emit_for_in_expr_tuple(
 /// the loop's condition. This code should not leave anything on the stack.
 #[allow(clippy::too_many_arguments)]
 fn emit_for<I, B, C, A>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     stack_frame: &mut VarStackFrame,
     quantifier: &mut Quantifier,
@@ -1780,10 +1844,10 @@ fn emit_for<I, B, C, A>(
     condition: C,
     after_cond: A,
 ) where
-    I: FnOnce(&mut Context, &mut InstrSeqBuilder, Var, InstrSeqId),
-    B: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
-    C: FnOnce(&mut Context, &mut InstrSeqBuilder),
-    A: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
+    I: FnOnce(&mut EmitContext, &mut InstrSeqBuilder, Var, InstrSeqId),
+    B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder, Var),
+    C: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
+    A: FnOnce(&mut EmitContext, &mut InstrSeqBuilder, Var),
 {
     // Create variable `n`, which will contain the maximum number of iterations.
     let n = stack_frame.new_var(Type::Integer);
@@ -1795,7 +1859,7 @@ fn emit_for<I, B, C, A>(
     // Function that increments `i` and checks if `i` < `n` after each
     // iteration, repeating the loop while the condition is true.
     let incr_i_and_repeat =
-        |ctx: &mut Context,
+        |ctx: &mut EmitContext,
          instr: &mut InstrSeqBuilder,
          n: Var,
          i: Var,
@@ -2084,12 +2148,12 @@ fn emit_for<I, B, C, A>(
 ///                                     ;; the stack.
 /// ```
 fn emit_switch<F>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     ty: ValType,
     instr: &mut InstrSeqBuilder,
     branch_generator: F,
 ) where
-    F: FnMut(&mut Context, &mut InstrSeqBuilder) -> bool,
+    F: FnMut(&mut EmitContext, &mut InstrSeqBuilder) -> bool,
 {
     // Convert the i64 at the top of the stack to an i32, which is the type
     // expected by the `bt_table` instruction.
@@ -2108,13 +2172,13 @@ fn emit_switch<F>(
 }
 
 fn emit_switch_internal<F>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     ty: ValType,
     instr: &mut InstrSeqBuilder,
     mut branch_generator: F,
     mut block_ids: Vec<InstrSeqId>,
 ) where
-    F: FnMut(&mut Context, &mut InstrSeqBuilder) -> bool,
+    F: FnMut(&mut EmitContext, &mut InstrSeqBuilder) -> bool,
 {
     block_ids.push(instr.id());
 
@@ -2149,12 +2213,12 @@ fn emit_switch_internal<F>(
 ///
 /// For multiple variables use [`set_vars`].
 fn set_var<B>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     var: Var,
     block: B,
 ) where
-    B: FnOnce(&mut Context, &mut InstrSeqBuilder),
+    B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
     // First push the offset where the variable resided in memory. This will
     // be used by the `store` instruction.
@@ -2188,12 +2252,12 @@ fn set_var<B>(
 ///
 /// For a single variable use [`set_var`].
 fn set_vars<B>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     vars: &[Var],
     block: B,
 ) where
-    B: FnOnce(&mut Context, &mut InstrSeqBuilder),
+    B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
     // Execute the block that produces the values.
     block(ctx, instr);
@@ -2245,7 +2309,7 @@ fn set_vars<B>(
 }
 
 /// Loads the value of variable into the stack.
-fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
+fn load_var(ctx: &EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // The slots where variables are stored start at offset VARS_STACK_START
     // within main memory, and are 64-bits long. Lets compute the variable's
     // offset with respect to VARS_STACK_START.
@@ -2268,7 +2332,7 @@ fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
 }
 
 /// Increments a variable.
-fn incr_var(ctx: &mut Context, instr: &mut InstrSeqBuilder, var: Var) {
+fn incr_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // incr_var only works with integer variables.
     assert_eq!(var.ty, Type::Integer);
     set_var(ctx, instr, var, |ctx, instr| {
@@ -2288,7 +2352,7 @@ fn incr_var(ctx: &mut Context, instr: &mut InstrSeqBuilder, var: Var) {
 ///   empty (e.g: "").
 ///
 fn emit_bool_expr(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     expr: &mut Expr,
 ) {
@@ -2333,7 +2397,7 @@ fn emit_bool_expr(
 /// is undefined, and throws an exception if that's the case (see:
 /// [`throw_undef`])
 fn emit_call_and_handle_undef(
-    ctx: &Context,
+    ctx: &EmitContext,
     instr: &mut InstrSeqBuilder,
     fn_id: walrus::FunctionId,
 ) {
@@ -2395,7 +2459,7 @@ fn emit_call_and_handle_undef(
 /// the starting point of the lookup operation. If the pushed value is -1
 /// it will start the lookup operation in the current structure, if any, or
 /// in the root structure as a last resort.
-fn emit_lookup_common(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     let num_lookup_indexes = ctx.lookup_stack.len();
     let main_memory = ctx.wasm_symbols.main_memory;
 
@@ -2430,7 +2494,7 @@ fn emit_lookup_common(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_integer(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_integer(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2440,7 +2504,7 @@ fn emit_lookup_integer(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_float(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_float(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2450,7 +2514,7 @@ fn emit_lookup_float(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_bool(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_bool(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2460,7 +2524,7 @@ fn emit_lookup_bool(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_string(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_string(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2471,7 +2535,7 @@ fn emit_lookup_string(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 
 #[inline]
 fn emit_lookup_value(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     dst_var: Var,
 ) {
@@ -2512,9 +2576,9 @@ fn emit_lookup_value(
 /// ```
 ///
 fn catch_undef(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    expr: impl FnOnce(&mut Context, &mut InstrSeqBuilder),
+    expr: impl FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 ) {
     // Create a new block containing `expr`. When an exception is raised from
     // within `expr`, the control flow will jump out of this block via a `br`
@@ -2532,7 +2596,7 @@ fn catch_undef(
 /// Throws an exception when an undefined value is found.
 ///
 /// For more information see [`catch_undef`].
-fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
+fn throw_undef(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
     let innermost_handler = *ctx
         .exception_handler_stack
         .last()
@@ -2586,7 +2650,7 @@ fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
 /// Similar to [`throw_undef`], but throws the exception if the top of the
 /// stack is zero. If the top of the stack is non-zero, calling this function
 /// is a no-op.
-fn throw_undef_if_zero(ctx: &Context, instr: &mut InstrSeqBuilder) {
+fn throw_undef_if_zero(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
     // Save the top of the stack into temp variable, but leave a copy in the
     // stack.
     instr.local_tee(ctx.wasm_symbols.i64_tmp);
