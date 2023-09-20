@@ -1,6 +1,6 @@
 /*! This module implements the [`Variable`] type.
 
-The [`Variable`] is just a wrapper around [`TypeValue`]. Instead of exposing
+[`Variable`] is just a wrapper around [`TypeValue`]. Instead of exposing
 the internal [`TypeValue`] type in the public API we expose [`Variable`]
 instead, decoupling the API from internal implementation details.
 

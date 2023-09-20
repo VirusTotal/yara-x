@@ -24,8 +24,8 @@ macro_rules! global_const {
 ///
 /// The produced WASM module exports a `main` function that is the entry point
 /// for the module. The `main` function calls namespaces functions, each of
-/// functions contain the logic for one or more YARA namespaces. This is how
-/// the main function looks like:
+/// these functions contain the logic for one or more YARA namespaces. This is
+/// how the main function looks like:
 ///
 ///  ```text
 /// func main {
@@ -35,9 +35,9 @@ macro_rules! global_const {
 /// }
 /// ```
 ///
-/// Each namespaces function contains a block per YARA namespace, and each of these
-/// blocks contains two inner blocks, for global and non-global rules respectively.
-/// For example:
+/// Each of the `namespaces_X` function contains a block per YARA namespace,
+/// and each of these blocks contains two inner blocks, for global and
+/// non-global rules respectively. For example:
 ///
 /// ```text
 /// func namespaces_0 {
@@ -61,11 +61,11 @@ macro_rules! global_const {
 /// }
 /// ```
 ///
-/// The number of YARA namespaces per namespaces function is controlled with
+/// The number of YARA namespaces per `namespaces_X` function is controlled with
 /// the [`WasmModuleBuilder::namespaces_per_func`] method. This has an impact
 /// in the total number of functions contained in the WASM module and their
 /// sizes. The least namespaces per function, the higher the number of
-/// functions but smaller their sizes. This has an effect in the module
+/// functions but the smaller their sizes. This has an effect in the module
 /// compilation time, and the sweet spot seems to be around 10-20 namespaces
 /// per function. Too few namespaces per function increases compilation time
 /// due to the higher number of functions, too much namespaces per function
@@ -239,11 +239,15 @@ impl WasmModuleBuilder {
         self.wasm_exports.clone()
     }
 
+    /// Configure the number of YARA that namespaces that will be put in each
+    /// WASM function.
     pub fn namespaces_per_func(&mut self, n: usize) -> &mut Self {
         self.namespaces_per_func = n;
         self
     }
 
+    /// Configure the number of YARA rules that will be put in each WASM
+    /// function.
     pub fn rules_per_func(&mut self, n: usize) -> &mut Self {
         self.rules_per_func = n;
         self
@@ -251,7 +255,7 @@ impl WasmModuleBuilder {
 
     /// Returns a instruction sequence builder that can be used for emitting
     /// code for a global YARA rule. The code emitted for a global rule must
-    /// early with `return 1` if the rule didn't match.
+    /// return early with `return 1` if the rule didn't match.
     pub fn new_global_rule(&mut self) -> InstrSeqBuilder {
         if self.num_global_rules == self.rules_per_func {
             self.finish_global_rule_func();
@@ -261,7 +265,7 @@ impl WasmModuleBuilder {
         self.global_rules_func.func_body()
     }
 
-    /// Returns a instruction sequence builder that can be used for emitting
+    /// Returns an instruction sequence builder that can be used for emitting
     /// code for a non-global YARA rule.
     pub fn new_rule(&mut self) -> InstrSeqBuilder {
         if self.num_rules == self.rules_per_func {
@@ -292,8 +296,8 @@ impl WasmModuleBuilder {
         self.finish_namespace_block();
         self.finish_namespace_func();
 
-        // Emit the last few instructions for main function, which consist in
-        // putting the return value in the stack. The return value is 0 if
+        // Emit the last few instructions for the main function, which consist
+        // in putting the return value in the stack. The return value is 0 if
         // everything went ok and 1 if a timeout occurred.
         self.main_func
             .func_body()
@@ -416,9 +420,10 @@ impl WasmModuleBuilder {
         );
 
         if !rule_func.func_body().instrs().is_empty() {
-            let mut block_2 = self.namespace_func.instr_seq(self.rules_block);
+            let mut rules_block =
+                self.namespace_func.instr_seq(self.rules_block);
 
-            block_2.call(
+            rules_block.call(
                 self.module.funcs.add_local(rule_func.local_func(Vec::new())),
             );
         }
