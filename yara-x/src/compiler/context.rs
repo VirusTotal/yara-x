@@ -46,9 +46,6 @@ pub(in crate::compiler) struct Context<'a, 'src, 'sym> {
     /// Information about the rules compiled so far.
     pub rules: &'a Vec<RuleInfo>,
 
-    /// Rule that is being compiled.
-    pub current_rule: &'a RuleInfo,
-
     /// A vector that contains the IR for the patterns declared in the current
     /// rule, accompanied by their corresponding [`PatternId`].
     pub current_rule_patterns:
@@ -92,6 +89,13 @@ impl<'a, 'src, 'sym> Context<'a, 'src, 'sym> {
     #[inline]
     pub fn get_rule(&self, rule_id: RuleId) -> &RuleInfo {
         self.rules.get(rule_id.0 as usize).unwrap()
+    }
+
+    /// Returns the [`RuleInfo`] structure corresponding to the rule currently
+    /// being compiled.
+    #[inline]
+    pub fn get_current_rule(&self) -> &RuleInfo {
+        self.rules.last().unwrap()
     }
 
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in

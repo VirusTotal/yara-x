@@ -101,6 +101,22 @@ fn var_stack() {
 }
 
 #[test]
+fn snapshots() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .add_source(r#"rule test { strings: $a = "foo" condition: $a }"#)
+        .unwrap();
+    let snapshot = compiler.take_snapshot();
+
+    compiler
+        .add_source(r#"rule test { strings: $a = /{}/ condition: $a }"#)
+        .expect_err("compilation should fail");
+
+    assert_eq!(compiler.take_snapshot(), snapshot);
+}
+
+#[test]
 fn globals() {
     let mut compiler = Compiler::new();
 
