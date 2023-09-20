@@ -138,6 +138,8 @@ message TestProto2 {
   enum Enumeration {
     ITEM_0 = 0;
     ITEM_1 = 1;
+    ITEM_2 = 2 [(yara.enum_value).i64 = 0x7fffffffffff];
+    ITEM_3 = 3 [(yara.enum_value).i64 = -1];
   }
 
   optional Enumeration        enumeration = 100;

@@ -4,17 +4,18 @@ use std::rc::Rc;
 
 use bstr::BString;
 use indexmap::IndexMap;
-use protobuf::reflect::Syntax;
 use protobuf::reflect::{
     EnumDescriptor, FieldDescriptor, MessageDescriptor, ReflectMapRef,
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
 };
+use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::MessageDyn;
 use serde::{Deserialize, Serialize};
 
-use yara_x_proto::exts::enum_options as yara_enum_options;
-use yara_x_proto::exts::field_options as yara_field_options;
-use yara_x_proto::exts::module_options as yara_module_options;
+use yara_x_proto::exts::enum_options;
+use yara_x_proto::exts::enum_value;
+use yara_x_proto::exts::field_options;
+use yara_x_proto::exts::module_options;
 
 use crate::types::{Array, Map, TypeValue, Value};
 
@@ -313,7 +314,7 @@ impl Struct {
                     for item in enum_.values() {
                         fields.push(StructField {
                             type_value: TypeValue::Integer(Value::Const(
-                                item.value() as i64,
+                                Self::enum_value(&item),
                             )),
                             number: 0,
                             name: item.name().to_owned(),
@@ -328,7 +329,7 @@ impl Struct {
                         if let Some(existing_field) = enum_struct.add_field(
                             item.name(),
                             TypeValue::Integer(Value::Const(
-                                item.value() as i64
+                                Self::enum_value(&item),
                             )),
                         ) {
                             panic!(
@@ -367,10 +368,10 @@ impl Struct {
     /// Returns true if the given message is the YARA module's root message.
     fn is_root_msg(msg_descriptor: &MessageDescriptor) -> bool {
         let file_descriptor = msg_descriptor.file_descriptor();
-        if let Some(module_options) =
-            yara_module_options.get(&file_descriptor.proto().options)
+        if let Some(options) =
+            module_options.get(&file_descriptor.proto().options)
         {
-            module_options.root_message.unwrap() == msg_descriptor.name()
+            options.root_message.unwrap() == msg_descriptor.name()
         } else {
             false
         }
@@ -393,12 +394,10 @@ impl Struct {
     ///
     /// Here the enum will be named `my_enum` instead of `Enumeration`.
     fn enum_name(enum_descriptor: &EnumDescriptor) -> String {
-        if let Some(enum_options) =
-            yara_enum_options.get(&enum_descriptor.proto().options)
+        if let Some(options) =
+            enum_options.get(&enum_descriptor.proto().options)
         {
-            enum_options
-                .name
-                .unwrap_or_else(|| enum_descriptor.name().to_owned())
+            options.name.unwrap_or_else(|| enum_descriptor.name().to_owned())
         } else {
             enum_descriptor.name().to_owned()
         }
@@ -436,12 +435,57 @@ impl Struct {
     /// in the enum are added directly as fields of the module, or the struct
     /// that contains the enum.
     fn enum_is_inline(enum_descriptor: &EnumDescriptor) -> bool {
-        if let Some(enum_options) =
-            yara_enum_options.get(&enum_descriptor.proto().options)
+        if let Some(options) =
+            enum_options.get(&enum_descriptor.proto().options)
         {
-            enum_options.inline.unwrap_or(false)
+            options.inline.unwrap_or(false)
         } else {
             false
+        }
+    }
+
+    /// Given a [`EnumValueDescriptor`] returns the value associated to that
+    /// enum item.
+    ///
+    /// The value for each item in an enum can be specified in two ways: by
+    /// means of the tag number, or by using a special option. Let's see an
+    /// example of the first case:
+    ///
+    /// ```text
+    /// enum MyEnum {
+    ///   ITEM_0 = 0;
+    ///   ITEM_1 = 1;
+    /// }
+    /// ```
+    ///
+    /// In this enum the value of `ITEM_0` is 0, and the value of `ITEM_1` is
+    /// 1. The tag number associated to each item determines its value. However
+    /// this approach has one limitation, tag number are of type `i32` and
+    /// therefore they are limited to the range `-2147483648,2147483647`. For
+    /// larger values you need to use the second approach:
+    ///
+    /// ```text
+    /// enum MyEnum {
+    ///   ITEM_0 = 0  [(yara.enum_value).i64 = 0x7fffffffffff];
+    ///   ITEM_1 = 1  [(yara.enum_value).i64 = -1];;
+    /// }
+    /// ```
+    ///
+    /// In this other case tag number are maintained because they are required
+    /// in every protobuf enum, however, the value associated to each items is
+    /// not determined by the field number, but by the `(yara.enum_value).i64`
+    /// option.
+    ///
+    /// What this function returns is the value associated to an enum item,
+    /// returning the value set via the `(yara.enum_value).i64` option, if any,
+    /// or the tag number.
+    fn enum_value(enum_value_descriptor: &EnumValueDescriptor) -> i64 {
+        if let Some(options) =
+            enum_value.get(&enum_value_descriptor.proto().options)
+        {
+            options.i64.unwrap_or_else(|| enum_value_descriptor.value() as i64)
+        } else {
+            enum_value_descriptor.value() as i64
         }
     }
 
@@ -459,12 +503,10 @@ impl Struct {
     /// Here the `foo` field will be named `bar` when the protobuf is converted
     /// into a [`Struct`].
     fn field_name(field_descriptor: &FieldDescriptor) -> String {
-        if let Some(field_options) =
-            yara_field_options.get(&field_descriptor.proto().options)
+        if let Some(options) =
+            field_options.get(&field_descriptor.proto().options)
         {
-            field_options
-                .name
-                .unwrap_or_else(|| field_descriptor.name().to_owned())
+            options.name.unwrap_or_else(|| field_descriptor.name().to_owned())
         } else {
             field_descriptor.name().to_owned()
         }
@@ -481,10 +523,10 @@ impl Struct {
     /// ```
     ///
     fn ignore_field(field_descriptor: &FieldDescriptor) -> bool {
-        if let Some(field_options) =
-            yara_field_options.get(&field_descriptor.proto().options)
+        if let Some(options) =
+            field_options.get(&field_descriptor.proto().options)
         {
-            field_options.ignore.unwrap_or(false)
+            options.ignore.unwrap_or(false)
         } else {
             false
         }

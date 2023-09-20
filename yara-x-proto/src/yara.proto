@@ -27,6 +27,10 @@ message EnumOptions {
   optional bool inline = 2;
 }
 
+message EnumValueOptions {
+  optional int64 i64 = 1;
+}
+
 extend google.protobuf.FileOptions {
   optional ModuleOptions module_options = 51503;
 }
@@ -41,4 +45,8 @@ extend google.protobuf.MessageOptions {
 
 extend google.protobuf.EnumOptions {
   optional EnumOptions enum_options = 51506;
+}
+
+extend google.protobuf.EnumValueOptions {
+  optional EnumValueOptions enum_value = 51507;
 }

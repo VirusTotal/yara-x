@@ -805,11 +805,23 @@ enum Threshold {
 }
 ```
 
-----
+However, because tag numbers are of type `i32`, the range of possible values 
+goes from `i32::MIN` to `i32::MAX`. For larger values you need to use  an 
+alternative approach:
 
-**NOTE**: The maximum possible value for an enum item is `0x7fffffff`
+```protobuf
+enum MachO {
+  MAGIC = 0 [(yara.enum_value).i64 = 0xfeedface];
+  CIGAM = 1 [(yara.enum_value).i64 = 0xcefaedfe];
+}
+```
 
-----
+In the enum above the values of `MAGIC` and `CIGAM` are not `0` and `1` but
+`0xfeedface` and `0xcefaedfe` respectively. Tag numbers are still present
+because they are required in protobuf, however, their values are irrelevant.
+The `(yara.enum_value).i64` option has priority when assigning a value to each
+enum item, and it allows setting values from `i64::MIN` to `i64::MAX`.
+
 
 ### Inline enums
 

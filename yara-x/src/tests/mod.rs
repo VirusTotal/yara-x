@@ -2919,6 +2919,8 @@ fn test_proto2_module() {
 
     condition_true!(r#"test_proto2.Enumeration.ITEM_0 == 0"#);
     condition_true!(r#"test_proto2.Enumeration.ITEM_1 == 1"#);
+    condition_true!(r#"test_proto2.Enumeration.ITEM_2 == 0x7fffffffffff"#);
+    condition_true!(r#"test_proto2.Enumeration.ITEM_3 == -1"#);
 
     condition_true!(r#"test_proto2.INLINE_0x1000 == 0x1000"#);
 
