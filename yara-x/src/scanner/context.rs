@@ -18,7 +18,7 @@ use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use bstr::ByteSlice;
 use protobuf::{MessageDyn, MessageFull};
-use regex::bytes::Regex;
+use regex_automata::meta::Regex;
 use rustc_hash::FxHashMap;
 use wasmtime::Store;
 

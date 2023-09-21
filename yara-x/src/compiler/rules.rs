@@ -6,7 +6,7 @@ use aho_corasick::AhoCorasick;
 use bincode::Options;
 #[cfg(feature = "logging")]
 use log::*;
-use regex::bytes::{Regex, RegexBuilder};
+use regex_automata::meta::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use yara_x_parser::ast::Span;
@@ -19,8 +19,7 @@ use crate::compiler::{
 };
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
 use crate::string_pool::{BStringPool, StringPool};
-use crate::types::{Regexp, Struct};
-use crate::SerializationError;
+use crate::{types, SerializationError};
 
 /// A set of YARA rules in compiled form.
 ///
@@ -207,13 +206,37 @@ impl Rules {
     /// If no regular expression with such [`RegexpId`] exists.
     #[inline]
     pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
-        // TODO: when compiling regexps allow the use of `{,n}` syntax
-        let re = Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
-        RegexBuilder::new(re.naked())
-            .case_insensitive(re.case_insensitive())
-            .dot_matches_new_line(re.dot_matches_new_line())
-            .build()
-            .unwrap()
+        // Instead of using the `regex` crate directly for compiling the
+        // regular expression, we must follow a longer path that involves
+        // parsing the regular expression and building its AST, converting
+        // the AST into a HIR, and then compiling the HIR. This is because
+        // the `regex` crate doesn't support regular expressions with the
+        // `{,n}` syntax, and we are forced to use a custom version of
+        // `regex_syntax` that provides support for it.
+        //
+        // But using our own version of the regexp parser implies that we
+        // must decompose the regexp compilation in multiple steps instead
+        // of calling a higher-level API that does it for us.
+        let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
+
+        let mut parser = regex_syntax::ast::parse::ParserBuilder::new()
+            // This the custom configuration option that turns-on support for
+            // the `{,n}`. This option doesn't exist in the official
+            // `regex_syntax` crate.
+            .empty_min_range(true)
+            .build();
+
+        let ast = parser.parse(re.naked()).unwrap();
+
+        let mut translator =
+            regex_syntax::hir::translate::TranslatorBuilder::new()
+                .dot_matches_new_line(re.dot_matches_new_line())
+                .case_insensitive(re.case_insensitive())
+                .build();
+
+        let hir = translator.translate(re.naked(), &ast).unwrap();
+
+        regex_automata::meta::Builder::new().build_from_hir(&hir).unwrap()
     }
 
     /// Returns a sub-pattern by [`SubPatternId`].
@@ -308,9 +331,9 @@ impl Rules {
     }
 
     #[inline]
-    pub(crate) fn globals(&self) -> Struct {
+    pub(crate) fn globals(&self) -> types::Struct {
         bincode::DefaultOptions::new()
-            .deserialize::<Struct>(self.serialized_globals.as_slice())
+            .deserialize::<types::Struct>(self.serialized_globals.as_slice())
             .expect("error deserializing global variables")
     }
 

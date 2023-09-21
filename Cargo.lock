@@ -4027,6 +4027,7 @@ dependencies = [
  "protobuf-codegen",
  "protobuf-parse",
  "regex 1.9.5 (git+https://github.com/plusvic/regex.git?rev=423493d)",
+ "regex-automata 0.3.8 (git+https://github.com/plusvic/regex.git?rev=423493d)",
  "regex-syntax 0.7.5 (git+https://github.com/plusvic/regex.git?rev=423493d)",
  "rustc-hash",
  "serde",

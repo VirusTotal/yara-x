@@ -261,6 +261,7 @@ fn string_operations() {
     condition_true!(r#""foobar" matches /^foobar$/"#);
     condition_true!(r#""foo\nbar" matches /foo.*bar/s"#);
     condition_false!(r#""foo\nbar" matches /foo.*bar/"#);
+    condition_true!(r#""foobar" matches /fo{,2}bar/"#);
 }
 
 #[test]
