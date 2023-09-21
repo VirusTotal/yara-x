@@ -326,15 +326,18 @@ impl<'r> Scanner<'r> {
     ///
     /// The variable will retain the new value in subsequent scans, unless this
     /// function is called again for setting a new value.
-    pub fn set_global<T: Into<Variable>>(
+    pub fn set_global<T: TryInto<Variable>>(
         &mut self,
         ident: &str,
         value: T,
-    ) -> Result<&mut Self, VariableError> {
+    ) -> Result<&mut Self, VariableError>
+    where
+        VariableError: From<<T as TryInto<Variable>>::Error>,
+    {
         let ctx = self.wasm_store.data_mut();
 
         if let Some(field) = ctx.root_struct.field_by_name_mut(ident) {
-            let variable: Variable = value.into();
+            let variable: Variable = value.try_into()?;
             let type_value: TypeValue = variable.into();
             // The new type must match the the old one.
             if type_value.eq_type(&field.type_value) {

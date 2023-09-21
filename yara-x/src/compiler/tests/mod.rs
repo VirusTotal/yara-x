@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use serde_json::json;
 use std::mem::size_of;
 
 use crate::compiler::{
@@ -385,5 +386,74 @@ fn globals() {
             .matching_rules()
             .len(),
         2
+    );
+}
+
+#[test]
+fn globals_json() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .define_global(
+            "some_struct",
+            json!({
+                "some_int": 1,
+                "some_bool": true,
+                "some_string": "foo",
+                "some_int_array": [1,2,3],
+                "some_float_array": [1.0, 2.0, 3.0]
+            }),
+        )
+        .unwrap()
+        .add_source(
+            r#"
+            rule foo {
+            condition: 
+                some_struct.some_int == 1 and
+                some_struct.some_bool and
+                some_struct.some_string == "foo" and
+                some_struct.some_int_array[0] == 1 and
+                some_struct.some_float_array[1] == 2.0
+            }"#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .define_global("invalid_array", json!([1, "foo", 3]))
+            .unwrap_err(),
+        VariableError::InvalidArray
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .define_global("invalid_array", json!([1, [2, 3], 4]))
+            .unwrap_err(),
+        VariableError::InvalidArray
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .define_global("invalid_array", json!([1, null]))
+            .unwrap_err(),
+        VariableError::InvalidArray
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .define_global("invalid_array", json!({ "foo": null }))
+            .unwrap_err(),
+        VariableError::UnexpectedNull
     );
 }

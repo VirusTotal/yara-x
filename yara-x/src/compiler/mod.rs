@@ -347,27 +347,40 @@ impl<'a> Compiler<'a> {
         Ok(self)
     }
 
-    /// Defines a global variable and sets its initial value.
+    /// Defines a global variable and sets its initial value.    
+    ///   
+    /// Global variables must be defined before using [`Compiler::add_source`]
+    /// for adding any YARA source code that uses those variables. The variable
+    /// will retain its initial value when the compiled [`Rules`] are used for
+    /// scanning data, however each scanner can change the variable's initial
+    /// value by calling [`crate::Scanner::set_global`].
     ///
-    /// `T` can be any type that implements [`Into<Variable>`], which includes:
-    /// `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`, `bool`,
-    /// `&str` and `String`.
+    /// `T` can be any type that implements [`TryInto<Variable>`], which
+    /// includes: `i64`, `i32`, `i16`, `i8`, `u32`, `u16`, `u8`, `f64`, `f32`,
+    /// `bool`, `&str`, `String` and [`serde_json::Value`].
     ///
-    /// Global variables must be defined before calling [`Compiler::add_source`]
-    /// with some YARA rule that uses the variable. The variable will retain its
-    /// initial value when the [`Rules`] are used for scanning data, however
-    /// each scanner can change the variable's value by calling
-    /// [`crate::Scanner::set_global`].
-    pub fn define_global<T: Into<Variable>>(
+    /// ```
+    /// # use yara_x::Compiler;
+    /// assert!(Compiler::new()
+    ///     .define_global("some_int", 1)
+    ///     .add_source("rule some_int_not_zero {condition: some_int != 0}")?
+    ///     .is_ok());
+    ///
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn define_global<T: TryInto<Variable>>(
         &mut self,
         ident: &str,
         value: T,
-    ) -> Result<&mut Self, VariableError> {
+    ) -> Result<&mut Self, VariableError>
+    where
+        VariableError: From<<T as TryInto<Variable>>::Error>,
+    {
         if !is_valid_identifier(ident) {
             return Err(VariableError::InvalidIdentifier(ident.to_string()));
         }
 
-        let var: Variable = value.into();
+        let var: Variable = value.try_into()?;
         let type_value: TypeValue = var.into();
 
         if self.globals_struct.add_field(ident, type_value.clone()).is_some() {
