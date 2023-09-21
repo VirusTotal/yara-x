@@ -10,8 +10,8 @@ use thiserror::Error;
 // Real minimum size of Mach-O file would be higher
 const VALID_MACHO_LENGTH: usize = 28;
 
-// Define Mach-O header constats
-// May be moved away later
+// Define Mach-O constats used in parsing
+// as it is problematic to get those from proto destriptors
 const MH_MAGIC: u32 = 0xfeedface;
 const MH_CIGAM: u32 = 0xcefaedfe;
 const MH_MAGIC_64: u32 = 0xfeedfacf;
@@ -23,176 +23,22 @@ const FAT_CIGAM: u32 = 0xbebafeca;
 const FAT_MAGIC_64: u32 = 0xcafebabf;
 const FAT_CIGAM_64: u32 = 0xbfbafeca;
 
-// Define Mach-O 64-bit masks
-const CPU_ARCH_ABI64: u32 = 0x01000000;
-const CPU_SUBTYPE_LIB64: u32 = 0x80000000;
-
-// Define Mach-O CPU types
-const CPU_TYPE_MC680X0: u32 = 0x00000006; // Motorola 68000
-const CPU_TYPE_X86: u32 = 0x00000007; // AMD/Intel x86
-const CPU_TYPE_X86_64: u32 = 0x01000007; // AMD/Intel x86-64
-const CPU_TYPE_MIPS: u32 = 0x00000008; // MIPS
-const CPU_TYPE_MC98000: u32 = 0x0000000a; // Motorola PowerPC
-const CPU_TYPE_ARM: u32 = 0x0000000c; // ARM
-const CPU_TYPE_ARM64: u32 = 0x0100000c; // ARM 64-bit
-const CPU_TYPE_MC88000: u32 = 0x0000000d; // Motorola 88000
-const CPU_TYPE_SPARC: u32 = 0x0000000e; // SPARC
-const CPU_TYPE_POWERPC: u32 = 0x00000012; // PowerPC
-const CPU_TYPE_POWERPC64: u32 = 0x01000012; // PowerPC 64-bit
-
-// Define Mach-O INTEL CPU subtypes
-const CPU_SUBTYPE_INTEL_MODEL_ALL: u32 = 0x00000000;
-const CPU_SUBTYPE_386: u32 = 0x00000003;
-const CPU_SUBTYPE_486: u32 = 0x00000004;
-const CPU_SUBTYPE_486SX: u32 = 0x00000084;
-const CPU_SUBTYPE_586: u32 = 0x00000005;
-const CPU_SUBTYPE_PENT: u32 = 0x00000005;
-const CPU_SUBTYPE_PENTPRO: u32 = 0x00000016;
-const CPU_SUBTYPE_PENTII_M3: u32 = 0x00000036;
-const CPU_SUBTYPE_PENTII_M5: u32 = 0x00000056;
-const CPU_SUBTYPE_CELERON: u32 = 0x00000067;
-const CPU_SUBTYPE_CELERON_MOBILE: u32 = 0x00000077;
-const CPU_SUBTYPE_PENTIUM_3: u32 = 0x00000008;
-const CPU_SUBTYPE_PENTIUM_3_M: u32 = 0x00000018;
-const CPU_SUBTYPE_PENTIUM_3_XEON: u32 = 0x00000028;
-const CPU_SUBTYPE_PENTIUM_M: u32 = 0x00000009;
-const CPU_SUBTYPE_PENTIUM_4: u32 = 0x0000000a;
-const CPU_SUBTYPE_PENTIUM_4_M: u32 = 0x0000001a;
-const CPU_SUBTYPE_ITANIUM: u32 = 0x0000000b;
-const CPU_SUBTYPE_ITANIUM_2: u32 = 0x0000001b;
-const CPU_SUBTYPE_XEON: u32 = 0x0000000c;
-const CPU_SUBTYPE_XEON_MP: u32 = 0x0000001c;
-
-// Define Mach-O ARM CPU subtypes
-const CPU_SUBTYPE_ARM_ALL: u32 = 0x00000000;
-const CPU_SUBTYPE_ARM_V4T: u32 = 0x00000005;
-const CPU_SUBTYPE_ARM_V6: u32 = 0x00000006;
-const CPU_SUBTYPE_ARM_V5: u32 = 0x00000007;
-const CPU_SUBTYPE_ARM_V5TEJ: u32 = 0x00000007;
-const CPU_SUBTYPE_ARM_XSCALE: u32 = 0x00000008;
-const CPU_SUBTYPE_ARM_V7: u32 = 0x00000009;
-const CPU_SUBTYPE_ARM_V7F: u32 = 0x0000000a;
-const CPU_SUBTYPE_ARM_V7S: u32 = 0x0000000b;
-const CPU_SUBTYPE_ARM_V7K: u32 = 0x0000000c;
-const CPU_SUBTYPE_ARM_V6M: u32 = 0x0000000e;
-const CPU_SUBTYPE_ARM_V7M: u32 = 0x0000000f;
-const CPU_SUBTYPE_ARM_V7EM: u32 = 0x00000010;
-
-// Define Mach-O ARM64 CPU subtypes
-const CPU_SUBTYPE_ARM64_ALL: u32 = 0x00000000;
-
-// Define Mach-O SPARC CPU subtypes
-const CPU_SUBTYPE_SPARC_ALL: u32 = 0x00000000;
-
-// Define Mach-O PowerPC CPU subtypes
-const CPU_SUBTYPE_POWERPC_ALL: u32 = 0x00000000;
-const CPU_SUBTYPE_MC980000_ALL: u32 = 0x00000000;
-const CPU_SUBTYPE_POWERPC_601: u32 = 0x00000001;
-const CPU_SUBTYPE_MC98601: u32 = 0x00000001;
-const CPU_SUBTYPE_POWERPC_602: u32 = 0x00000002;
-const CPU_SUBTYPE_POWERPC_603: u32 = 0x00000003;
-const CPU_SUBTYPE_POWERPC_603E: u32 = 0x00000004;
-const CPU_SUBTYPE_POWERPC_603EV: u32 = 0x00000005;
-const CPU_SUBTYPE_POWERPC_604: u32 = 0x00000006;
-const CPU_SUBTYPE_POWERPC_604E: u32 = 0x00000007;
-const CPU_SUBTYPE_POWERPC_620: u32 = 0x00000008;
-const CPU_SUBTYPE_POWERPC_750: u32 = 0x00000009;
-const CPU_SUBTYPE_POWERPC_7400: u32 = 0x0000000a;
-const CPU_SUBTYPE_POWERPC_7450: u32 = 0x0000000b;
-const CPU_SUBTYPE_POWERPC_970: u32 = 0x00000064;
-
-// Define Mach-O file types
-const MH_OBJECT: u32 = 0x00000001;
-const MH_EXECUTE: u32 = 0x00000002;
-const MH_FVMLIB: u32 = 0x00000003;
-const MH_CORE: u32 = 0x00000004;
-const MH_PRELOAD: u32 = 0x00000005;
-const MH_DYLIB: u32 = 0x00000006;
-const MH_DYLINKER: u32 = 0x00000007;
-const MH_BUNDLE: u32 = 0x00000008;
-const MH_DYLIB_STUB: u32 = 0x00000009;
-const MH_DSYM: u32 = 0x0000000a;
-const MH_KEXT_BUNDLE: u32 = 0x0000000b;
-
-// Define Mach-O file flags
-const MH_NOUNDEFS: u32 = 0x00000001;
-const MH_INCRLINK: u32 = 0x00000002;
-const MH_DYLDLINK: u32 = 0x00000004;
-const MH_BINDATLOAD: u32 = 0x00000008;
-const MH_PREBOUND: u32 = 0x00000010;
-const MH_SPLIT_SEGS: u32 = 0x00000020;
-const MH_LAZY_INIT: u32 = 0x00000040;
-const MH_TWOLEVEL: u32 = 0x00000080;
-const MH_FORCE_FLAT: u32 = 0x00000100;
-const MH_NOMULTIDEFS: u32 = 0x00000200;
-const MH_NOFIXPREBINDING: u32 = 0x00000400;
-const MH_PREBINDABLE: u32 = 0x00000800;
-const MH_ALLMODSBOUND: u32 = 0x00001000;
-const MH_SUBSECTIONS_VIA_SYMBOLS: u32 = 0x00002000;
-const MH_CANONICAL: u32 = 0x00004000;
-const MH_WEAK_DEFINES: u32 = 0x00008000;
-const MH_BINDS_TO_WEAK: u32 = 0x00010000;
-const MH_ALLOW_STACK_EXECUTION: u32 = 0x00020000;
-const MH_ROOT_SAFE: u32 = 0x00040000;
-const MH_SETUID_SAFE: u32 = 0x00080000;
-const MH_NO_REEXPORTED_DYLIBS: u32 = 0x00100000;
-const MH_PIE: u32 = 0x00200000;
-const MH_DEAD_STRIPPABLE_DYLIB: u32 = 0x00400000;
-const MH_HAS_TLV_DESCRIPTORS: u32 = 0x00800000;
-const MH_NO_HEAP_EXECUTION: u32 = 0x01000000;
-const MH_APP_EXTENSION_SAFE: u32 = 0x02000000;
+// Define Mach-O CPU type constants
+const CPU_TYPE_MC680X0: u32 = 0x00000006;
+const CPU_TYPE_X86: u32 = 0x00000007;
+const CPU_TYPE_X86_64: u32 = 0x01000007;
+const CPU_TYPE_ARM: u32 = 0x0000000c;
+const CPU_TYPE_ARM64: u32 = 0x0100000c;
+const CPU_TYPE_MC88000: u32 = 0x0000000d;
+const CPU_TYPE_SPARC: u32 = 0x0000000e;
+const CPU_TYPE_POWERPC: u32 = 0x00000012;
+const CPU_TYPE_POWERPC64: u32 = 0x01000012;
 
 // Define Mach-O load commands
 const LC_SEGMENT: u32 = 0x00000001;
 const LC_UNIXTHREAD: u32 = 0x00000005;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_MAIN: u32 = 0x80000028;
-
-// Define segment flags
-const SG_HIGHVM: u32 = 0x00000001;
-const SG_FVMLIB: u32 = 0x00000002;
-const SG_NORELOC: u32 = 0x00000004;
-const SG_PROTECTED_VERSION_1: u32 = 0x00000008;
-
-// Define section flag masks
-const SECTION_TYPE: u32 = 0x000000ff;
-const SECTION_ATTRIBUTES: u32 = 0xffffff00;
-
-// Define section types (use SECTION_TYPE mask)
-const S_REGULAR: u32 = 0x00000000;
-const S_ZEROFILL: u32 = 0x00000001;
-const S_CSTRING_LITERALS: u32 = 0x00000002;
-const S_4BYTE_LITERALS: u32 = 0x00000003;
-const S_8BYTE_LITERALS: u32 = 0x00000004;
-const S_LITERAL_POINTERS: u32 = 0x00000005;
-const S_NON_LAZY_SYMBOL_POINTERS: u32 = 0x00000006;
-const S_LAZY_SYMBOL_POINTERS: u32 = 0x00000007;
-const S_SYMBOL_STUBS: u32 = 0x00000008;
-const S_MOD_INIT_FUNC_POINTERS: u32 = 0x00000009;
-const S_MOD_TERM_FUNC_POINTERS: u32 = 0x0000000a;
-const S_COALESCED: u32 = 0x0000000b;
-const S_GB_ZEROFILL: u32 = 0x0000000c;
-const S_INTERPOSING: u32 = 0x0000000d;
-const S_16BYTE_LITERALS: u32 = 0x0000000e;
-const S_DTRACE_DOF: u32 = 0x0000000f;
-const S_LAZY_DYLIB_SYMBOL_POINTERS: u32 = 0x00000010;
-const S_THREAD_LOCAL_REGULAR: u32 = 0x00000011;
-const S_THREAD_LOCAL_ZEROFILL: u32 = 0x00000012;
-const S_THREAD_LOCAL_VARIABLES: u32 = 0x00000013;
-const S_THREAD_LOCAL_VARIABLE_POINTERS: u32 = 0x00000014;
-const S_THREAD_LOCAL_INIT_FUNCTION_POINTERS: u32 = 0x00000015;
-
-// Define section attributes (use SECTION_ATTRIBUTES mask)
-const S_ATTR_PURE_INSTRUCTIONS: u32 = 0x80000000; // Only pure instructions
-const S_ATTR_NO_TOC: u32 = 0x40000000; // Contains coalesced symbols
-const S_ATTR_STRIP_STATIC_SYMS: u32 = 0x20000000; // Can strip static symbols
-const S_ATTR_NO_DEAD_STRIP: u32 = 0x10000000; // No dead stripping
-const S_ATTR_LIVE_SUPPORT: u32 = 0x08000000; // Live blocks support
-const S_ATTR_SELF_MODIFYING_CODE: u32 = 0x04000000; // Self modifying code
-const S_ATTR_DEBUG: u32 = 0x02000000; // Debug section
-const S_ATTR_SOME_INSTRUCTIONS: u32 = 0x00000400; // Some machine instructions
-const S_ATTR_EXT_RELOC: u32 = 0x00000200; // Has external relocations
-const S_ATTR_LOC_RELOC: u32 = 0x00000100; // Has local relocations
 
 // Add error types
 #[derive(Error, Debug)]
@@ -1642,185 +1488,6 @@ fn parse_fat_macho_file(
     Ok(())
 }
 
-// Set all Mach-O definitions
-fn set_definitions(macho_proto: &mut Macho) {
-    // Set magic constants
-    macho_proto.set_MH_MAGIC(MH_MAGIC);
-    macho_proto.set_MH_CIGAM(MH_CIGAM);
-    macho_proto.set_MH_MAGIC_64(MH_MAGIC_64);
-    macho_proto.set_MH_CIGAM_64(MH_CIGAM_64);
-
-    // Set FAT magic constants
-    macho_proto.set_FAT_MAGIC(FAT_MAGIC);
-    macho_proto.set_FAT_CIGAM(FAT_CIGAM);
-    macho_proto.set_FAT_MAGIC_64(FAT_MAGIC_64);
-    macho_proto.set_FAT_CIGAM_64(FAT_CIGAM_64);
-
-    // Set 64bit masks
-    macho_proto.set_CPU_ARCH_ABI64(CPU_ARCH_ABI64);
-    macho_proto.set_CPU_SUBTYPE_LIB64(CPU_SUBTYPE_LIB64);
-
-    // Set CPU types
-    macho_proto.set_CPU_TYPE_MC680X0(CPU_TYPE_MC680X0);
-    macho_proto.set_CPU_TYPE_X86(CPU_TYPE_X86);
-    macho_proto.set_CPU_TYPE_I386(CPU_TYPE_X86);
-    macho_proto.set_CPU_TYPE_X86_64(CPU_TYPE_X86_64);
-    macho_proto.set_CPU_TYPE_MIPS(CPU_TYPE_MIPS);
-    macho_proto.set_CPU_TYPE_MC98000(CPU_TYPE_MC98000);
-    macho_proto.set_CPU_TYPE_ARM(CPU_TYPE_ARM);
-    macho_proto.set_CPU_TYPE_ARM64(CPU_TYPE_ARM64);
-    macho_proto.set_CPU_TYPE_MC88000(CPU_TYPE_MC88000);
-    macho_proto.set_CPU_TYPE_SPARC(CPU_TYPE_SPARC);
-    macho_proto.set_CPU_TYPE_POWERPC(CPU_TYPE_POWERPC);
-    macho_proto.set_CPU_TYPE_POWERPC64(CPU_TYPE_POWERPC64);
-
-    // Set CPU subtypes
-    macho_proto.set_CPU_SUBTYPE_INTEL_MODEL_ALL(CPU_SUBTYPE_INTEL_MODEL_ALL);
-    macho_proto.set_CPU_SUBTYPE_386(CPU_SUBTYPE_386);
-    macho_proto.set_CPU_SUBTYPE_I386_ALL(CPU_SUBTYPE_386);
-    macho_proto.set_CPU_SUBTYPE_X86_64_ALL(CPU_SUBTYPE_386);
-    macho_proto.set_CPU_SUBTYPE_486(CPU_SUBTYPE_486);
-    macho_proto.set_CPU_SUBTYPE_486SX(CPU_SUBTYPE_486SX);
-    macho_proto.set_CPU_SUBTYPE_586(CPU_SUBTYPE_586);
-    macho_proto.set_CPU_SUBTYPE_PENT(CPU_SUBTYPE_PENT);
-    macho_proto.set_CPU_SUBTYPE_PENTPRO(CPU_SUBTYPE_PENTPRO);
-    macho_proto.set_CPU_SUBTYPE_PENTII_M3(CPU_SUBTYPE_PENTII_M3);
-    macho_proto.set_CPU_SUBTYPE_PENTII_M5(CPU_SUBTYPE_PENTII_M5);
-    macho_proto.set_CPU_SUBTYPE_CELERON(CPU_SUBTYPE_CELERON);
-    macho_proto.set_CPU_SUBTYPE_CELERON_MOBILE(CPU_SUBTYPE_CELERON_MOBILE);
-    macho_proto.set_CPU_SUBTYPE_PENTIUM_3(CPU_SUBTYPE_PENTIUM_3);
-    macho_proto.set_CPU_SUBTYPE_PENTIUM_3_M(CPU_SUBTYPE_PENTIUM_3_M);
-    macho_proto.set_CPU_SUBTYPE_PENTIUM_3_XEON(CPU_SUBTYPE_PENTIUM_3_XEON);
-    macho_proto.set_CPU_SUBTYPE_PENTIUM_M(CPU_SUBTYPE_PENTIUM_M);
-    macho_proto.set_CPU_SUBTYPE_PENTIUM_4(CPU_SUBTYPE_PENTIUM_4);
-    macho_proto.set_CPU_SUBTYPE_PENTIUM_4_M(CPU_SUBTYPE_PENTIUM_4_M);
-    macho_proto.set_CPU_SUBTYPE_ITANIUM(CPU_SUBTYPE_ITANIUM);
-    macho_proto.set_CPU_SUBTYPE_ITANIUM_2(CPU_SUBTYPE_ITANIUM_2);
-    macho_proto.set_CPU_SUBTYPE_XEON(CPU_SUBTYPE_XEON);
-    macho_proto.set_CPU_SUBTYPE_XEON_MP(CPU_SUBTYPE_XEON_MP);
-    macho_proto.set_CPU_SUBTYPE_ARM_ALL(CPU_SUBTYPE_ARM_ALL);
-    macho_proto.set_CPU_SUBTYPE_ARM_V4T(CPU_SUBTYPE_ARM_V4T);
-    macho_proto.set_CPU_SUBTYPE_ARM_V6(CPU_SUBTYPE_ARM_V6);
-    macho_proto.set_CPU_SUBTYPE_ARM_V5(CPU_SUBTYPE_ARM_V5);
-    macho_proto.set_CPU_SUBTYPE_ARM_V5TEJ(CPU_SUBTYPE_ARM_V5TEJ);
-    macho_proto.set_CPU_SUBTYPE_ARM_XSCALE(CPU_SUBTYPE_ARM_XSCALE);
-    macho_proto.set_CPU_SUBTYPE_ARM_V7(CPU_SUBTYPE_ARM_V7);
-    macho_proto.set_CPU_SUBTYPE_ARM_V7F(CPU_SUBTYPE_ARM_V7F);
-    macho_proto.set_CPU_SUBTYPE_ARM_V7S(CPU_SUBTYPE_ARM_V7S);
-    macho_proto.set_CPU_SUBTYPE_ARM_V7K(CPU_SUBTYPE_ARM_V7K);
-    macho_proto.set_CPU_SUBTYPE_ARM_V6M(CPU_SUBTYPE_ARM_V6M);
-    macho_proto.set_CPU_SUBTYPE_ARM_V7M(CPU_SUBTYPE_ARM_V7M);
-    macho_proto.set_CPU_SUBTYPE_ARM_V7EM(CPU_SUBTYPE_ARM_V7EM);
-    macho_proto.set_CPU_SUBTYPE_ARM64_ALL(CPU_SUBTYPE_ARM64_ALL);
-    macho_proto.set_CPU_SUBTYPE_SPARC_ALL(CPU_SUBTYPE_SPARC_ALL);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_ALL(CPU_SUBTYPE_POWERPC_ALL);
-    macho_proto.set_CPU_SUBTYPE_MC980000_ALL(CPU_SUBTYPE_MC980000_ALL);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_601(CPU_SUBTYPE_POWERPC_601);
-    macho_proto.set_CPU_SUBTYPE_MC98601(CPU_SUBTYPE_MC98601);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_602(CPU_SUBTYPE_POWERPC_602);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_603(CPU_SUBTYPE_POWERPC_603);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_603E(CPU_SUBTYPE_POWERPC_603E);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_603EV(CPU_SUBTYPE_POWERPC_603EV);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_604(CPU_SUBTYPE_POWERPC_604);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_604E(CPU_SUBTYPE_POWERPC_604E);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_620(CPU_SUBTYPE_POWERPC_620);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_750(CPU_SUBTYPE_POWERPC_750);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_7400(CPU_SUBTYPE_POWERPC_7400);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_7450(CPU_SUBTYPE_POWERPC_7450);
-    macho_proto.set_CPU_SUBTYPE_POWERPC_970(CPU_SUBTYPE_POWERPC_970);
-
-    // Set file types
-    macho_proto.set_MH_OBJECT(MH_OBJECT);
-    macho_proto.set_MH_EXECUTE(MH_EXECUTE);
-    macho_proto.set_MH_FVMLIB(MH_FVMLIB);
-    macho_proto.set_MH_CORE(MH_CORE);
-    macho_proto.set_MH_PRELOAD(MH_PRELOAD);
-    macho_proto.set_MH_DYLIB(MH_DYLIB);
-    macho_proto.set_MH_DYLINKER(MH_DYLINKER);
-    macho_proto.set_MH_BUNDLE(MH_BUNDLE);
-    macho_proto.set_MH_DYLIB_STUB(MH_DYLIB_STUB);
-    macho_proto.set_MH_DSYM(MH_DSYM);
-    macho_proto.set_MH_KEXT_BUNDLE(MH_KEXT_BUNDLE);
-
-    // Set header flags
-    macho_proto.set_MH_NOUNDEFS(MH_NOUNDEFS);
-    macho_proto.set_MH_INCRLINK(MH_INCRLINK);
-    macho_proto.set_MH_DYLDLINK(MH_DYLDLINK);
-    macho_proto.set_MH_BINDATLOAD(MH_BINDATLOAD);
-    macho_proto.set_MH_PREBOUND(MH_PREBOUND);
-    macho_proto.set_MH_SPLIT_SEGS(MH_SPLIT_SEGS);
-    macho_proto.set_MH_LAZY_INIT(MH_LAZY_INIT);
-    macho_proto.set_MH_TWOLEVEL(MH_TWOLEVEL);
-    macho_proto.set_MH_FORCE_FLAT(MH_FORCE_FLAT);
-    macho_proto.set_MH_NOMULTIDEFS(MH_NOMULTIDEFS);
-    macho_proto.set_MH_NOFIXPREBINDING(MH_NOFIXPREBINDING);
-    macho_proto.set_MH_PREBINDABLE(MH_PREBINDABLE);
-    macho_proto.set_MH_ALLMODSBOUND(MH_ALLMODSBOUND);
-    macho_proto.set_MH_SUBSECTIONS_VIA_SYMBOLS(MH_SUBSECTIONS_VIA_SYMBOLS);
-    macho_proto.set_MH_CANONICAL(MH_CANONICAL);
-    macho_proto.set_MH_WEAK_DEFINES(MH_WEAK_DEFINES);
-    macho_proto.set_MH_BINDS_TO_WEAK(MH_BINDS_TO_WEAK);
-    macho_proto.set_MH_ALLOW_STACK_EXECUTION(MH_ALLOW_STACK_EXECUTION);
-    macho_proto.set_MH_ROOT_SAFE(MH_ROOT_SAFE);
-    macho_proto.set_MH_SETUID_SAFE(MH_SETUID_SAFE);
-    macho_proto.set_MH_NO_REEXPORTED_DYLIBS(MH_NO_REEXPORTED_DYLIBS);
-    macho_proto.set_MH_PIE(MH_PIE);
-    macho_proto.set_MH_DEAD_STRIPPABLE_DYLIB(MH_DEAD_STRIPPABLE_DYLIB);
-    macho_proto.set_MH_HAS_TLV_DESCRIPTORS(MH_HAS_TLV_DESCRIPTORS);
-    macho_proto.set_MH_NO_HEAP_EXECUTION(MH_NO_HEAP_EXECUTION);
-    macho_proto.set_MH_APP_EXTENSION_SAFE(MH_APP_EXTENSION_SAFE);
-
-    // Set segment flags masks
-    macho_proto.set_SG_HIGHVM(SG_HIGHVM);
-    macho_proto.set_SG_FVMLIB(SG_FVMLIB);
-    macho_proto.set_SG_NORELOC(SG_NORELOC);
-    macho_proto.set_SG_PROTECTED_VERSION_1(SG_PROTECTED_VERSION_1);
-
-    // Set section flags masks
-    macho_proto.set_SECTION_TYPE(SECTION_TYPE);
-    macho_proto.set_SECTION_ATTRIBUTES(SECTION_ATTRIBUTES);
-
-    // Set section types
-    macho_proto.set_S_REGULAR(S_REGULAR);
-    macho_proto.set_S_ZEROFILL(S_ZEROFILL);
-    macho_proto.set_S_CSTRING_LITERALS(S_CSTRING_LITERALS);
-    macho_proto.set_S_4BYTE_LITERALS(S_4BYTE_LITERALS);
-    macho_proto.set_S_8BYTE_LITERALS(S_8BYTE_LITERALS);
-    macho_proto.set_S_NON_LAZY_SYMBOL_POINTERS(S_NON_LAZY_SYMBOL_POINTERS);
-    macho_proto.set_S_LAZY_SYMBOL_POINTERS(S_LAZY_SYMBOL_POINTERS);
-    macho_proto.set_S_LITERAL_POINTERS(S_LITERAL_POINTERS);
-    macho_proto.set_S_SYMBOL_STUBS(S_SYMBOL_STUBS);
-    macho_proto.set_S_MOD_INIT_FUNC_POINTERS(S_MOD_INIT_FUNC_POINTERS);
-    macho_proto.set_S_MOD_TERM_FUNC_POINTERS(S_MOD_TERM_FUNC_POINTERS);
-    macho_proto.set_S_COALESCED(S_COALESCED);
-    macho_proto.set_S_GB_ZEROFILL(S_GB_ZEROFILL);
-    macho_proto.set_S_INTERPOSING(S_INTERPOSING);
-    macho_proto.set_S_16BYTE_LITERALS(S_16BYTE_LITERALS);
-    macho_proto.set_S_DTRACE_DOF(S_DTRACE_DOF);
-    macho_proto.set_S_LAZY_DYLIB_SYMBOL_POINTERS(S_LAZY_DYLIB_SYMBOL_POINTERS);
-    macho_proto.set_S_THREAD_LOCAL_REGULAR(S_THREAD_LOCAL_REGULAR);
-    macho_proto.set_S_THREAD_LOCAL_ZEROFILL(S_THREAD_LOCAL_ZEROFILL);
-    macho_proto.set_S_THREAD_LOCAL_VARIABLES(S_THREAD_LOCAL_VARIABLES);
-    macho_proto.set_S_THREAD_LOCAL_VARIABLE_POINTERS(
-        S_THREAD_LOCAL_VARIABLE_POINTERS,
-    );
-    macho_proto.set_S_THREAD_LOCAL_INIT_FUNCTION_POINTERS(
-        S_THREAD_LOCAL_INIT_FUNCTION_POINTERS,
-    );
-
-    // Set section attributes
-    macho_proto.set_S_ATTR_PURE_INSTRUCTIONS(S_ATTR_PURE_INSTRUCTIONS);
-    macho_proto.set_S_ATTR_NO_TOC(S_ATTR_NO_TOC);
-    macho_proto.set_S_ATTR_STRIP_STATIC_SYMS(S_ATTR_STRIP_STATIC_SYMS);
-    macho_proto.set_S_ATTR_NO_DEAD_STRIP(S_ATTR_NO_DEAD_STRIP);
-    macho_proto.set_S_ATTR_LIVE_SUPPORT(S_ATTR_LIVE_SUPPORT);
-    macho_proto.set_S_ATTR_SELF_MODIFYING_CODE(S_ATTR_SELF_MODIFYING_CODE);
-    macho_proto.set_S_ATTR_DEBUG(S_ATTR_DEBUG);
-    macho_proto.set_S_ATTR_SOME_INSTRUCTIONS(S_ATTR_SOME_INSTRUCTIONS);
-    macho_proto.set_S_ATTR_EXT_RELOC(S_ATTR_EXT_RELOC);
-    macho_proto.set_S_ATTR_LOC_RELOC(S_ATTR_LOC_RELOC);
-}
-
 // Helper function to print Option values or "NOT PRESENT"
 fn print_option<T: std::fmt::Display>(opt: Option<T>) -> String {
     match opt {
@@ -2115,9 +1782,6 @@ fn ep_for_arch_subtype(
 fn main(ctx: &ScanContext) -> Macho {
     // Create an empty instance of the Mach-O protobuf
     let mut macho_proto = Macho::new();
-
-    // Set constants before parsing the binary
-    set_definitions(&mut macho_proto);
 
     // Get a &[u8] slice with the content of the file being scanned.
     let data = ctx.scanned_data();

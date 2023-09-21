@@ -84,176 +84,234 @@ message Macho {
 
   // Nested Mach-O files
   repeated File file = 16;
+}
 
-  // Set Mach-O definitions
-  required uint32 MH_MAGIC = 17;
-  required uint32 MH_CIGAM = 18;
-  required uint32 MH_MAGIC_64 = 19;
-  required uint32 MH_CIGAM_64 = 20;
+enum HEADER {
+  option (yara.enum_options).inline = true;
+  MH_MAGIC = 0 [(yara.enum_value).i64 = 0xfeedface];
+  MH_CIGAM = 1 [(yara.enum_value).i64 = 0xcefaedfe];
+  MH_MAGIC_64 = 2 [(yara.enum_value).i64 = 0xfeedfacf];
+  MH_CIGAM_64 = 3 [(yara.enum_value).i64 = 0xcffaedfe];
+}
 
-  // Set FAT Mach-O definitions
-  required uint32 FAT_MAGIC = 21;
-  required uint32 FAT_CIGAM = 22;
-  required uint32 FAT_MAGIC_64 = 23;
-  required uint32 FAT_CIGAM_64 = 24;
+enum FAT_HEADER {
+  option (yara.enum_options).inline = true;
+  FAT_MAGIC = 0 [(yara.enum_value).i64 = 0xcafebabe];
+  FAT_CIGAM = 1 [(yara.enum_value).i64 = 0xbebafeca];
+  FAT_MAGIC_64 = 2 [(yara.enum_value).i64 = 0xcafebabf];
+  FAT_CIGAM_64 = 3 [(yara.enum_value).i64 = 0xbfbafeca];
+}
 
-  // Set 64bit masks
-  required uint32 CPU_ARCH_ABI64 = 25;
-  required uint32 CPU_SUBTYPE_LIB64 = 26;
+enum MASK_64BIT {
+  option (yara.enum_options).inline = true;
+  CPU_ARCH_ABI64 = 0x01000000;
+  CPU_SUBTYPE_LIB64 = 0 [(yara.enum_value).i64 = 0x80000000];
+}
 
-  // Set CPU types
-  required uint32 CPU_TYPE_MC680X0 = 27;
-  required uint32 CPU_TYPE_X86 = 28;
-  required uint32 CPU_TYPE_I386 = 29;
-  required uint32 CPU_TYPE_X86_64 = 30;
-  required uint32 CPU_TYPE_MIPS = 31;
-  required uint32 CPU_TYPE_MC98000 = 32;
-  required uint32 CPU_TYPE_ARM = 33;
-  required uint32 CPU_TYPE_ARM64 = 34;
-  required uint32 CPU_TYPE_MC88000 = 35;
-  required uint32 CPU_TYPE_SPARC = 36;
-  required uint32 CPU_TYPE_POWERPC = 37;
-  required uint32 CPU_TYPE_POWERPC64 = 38;
+enum CPU_TYPE {
+  option (yara.enum_options).inline = true;
+  CPU_TYPE_MC680X0 = 0x00000006;
+  CPU_TYPE_X86 = 0x00000007;
+  CPU_TYPE_X86_64 = 0x01000007;
+  CPU_TYPE_MIPS = 0x00000008;
+  CPU_TYPE_MC98000 = 0x0000000a;
+  CPU_TYPE_ARM = 0x0000000c;
+  CPU_TYPE_ARM64 = 0x0100000c;
+  CPU_TYPE_MC88000 = 0x0000000d;
+  CPU_TYPE_SPARC = 0x0000000e;
+  CPU_TYPE_POWERPC = 0x00000012;
+  CPU_TYPE_POWERPC64 = 0x01000012;
+}
 
-  // Set CPU subtypes
-  required uint32 CPU_SUBTYPE_INTEL_MODEL_ALL = 39;
-  required uint32 CPU_SUBTYPE_386 = 40;
-  required uint32 CPU_SUBTYPE_I386_ALL = 41;
-  required uint32 CPU_SUBTYPE_X86_64_ALL = 42;
-  required uint32 CPU_SUBTYPE_486 = 43;
-  required uint32 CPU_SUBTYPE_486SX = 44;
-  required uint32 CPU_SUBTYPE_586 = 45;
-  required uint32 CPU_SUBTYPE_PENT = 46;
-  required uint32 CPU_SUBTYPE_PENTPRO = 47;
-  required uint32 CPU_SUBTYPE_PENTII_M3 = 48;
-  required uint32 CPU_SUBTYPE_PENTII_M5 = 49;
-  required uint32 CPU_SUBTYPE_CELERON = 50;
-  required uint32 CPU_SUBTYPE_CELERON_MOBILE = 51;
-  required uint32 CPU_SUBTYPE_PENTIUM_3 = 52;
-  required uint32 CPU_SUBTYPE_PENTIUM_3_M = 53;
-  required uint32 CPU_SUBTYPE_PENTIUM_3_XEON = 54;
-  required uint32 CPU_SUBTYPE_PENTIUM_M = 55;
-  required uint32 CPU_SUBTYPE_PENTIUM_4 = 56;
-  required uint32 CPU_SUBTYPE_PENTIUM_4_M = 57;
-  required uint32 CPU_SUBTYPE_ITANIUM = 58;
-  required uint32 CPU_SUBTYPE_ITANIUM_2 = 59;
-  required uint32 CPU_SUBTYPE_XEON = 60;
-  required uint32 CPU_SUBTYPE_XEON_MP = 61;
-  required uint32 CPU_SUBTYPE_ARM_ALL = 62;
-  required uint32 CPU_SUBTYPE_ARM_V4T = 63;
-  required uint32 CPU_SUBTYPE_ARM_V6 = 64;
-  required uint32 CPU_SUBTYPE_ARM_V5 = 65;
-  required uint32 CPU_SUBTYPE_ARM_V5TEJ = 66;
-  required uint32 CPU_SUBTYPE_ARM_XSCALE = 67;
-  required uint32 CPU_SUBTYPE_ARM_V7 = 68;
-  required uint32 CPU_SUBTYPE_ARM_V7F = 69;
-  required uint32 CPU_SUBTYPE_ARM_V7S = 70;
-  required uint32 CPU_SUBTYPE_ARM_V7K = 71;
-  required uint32 CPU_SUBTYPE_ARM_V6M = 72;
-  required uint32 CPU_SUBTYPE_ARM_V7M = 73;
-  required uint32 CPU_SUBTYPE_ARM_V7EM = 74;
-  required uint32 CPU_SUBTYPE_ARM64_ALL = 75;
-  required uint32 CPU_SUBTYPE_SPARC_ALL = 76;
-  required uint32 CPU_SUBTYPE_POWERPC_ALL = 77;
-  required uint32 CPU_SUBTYPE_MC980000_ALL = 78;
-  required uint32 CPU_SUBTYPE_POWERPC_601 = 79;
-  required uint32 CPU_SUBTYPE_MC98601 = 80;
-  required uint32 CPU_SUBTYPE_POWERPC_602 = 81;
-  required uint32 CPU_SUBTYPE_POWERPC_603 = 82;
-  required uint32 CPU_SUBTYPE_POWERPC_603E = 83;
-  required uint32 CPU_SUBTYPE_POWERPC_603EV = 84;
-  required uint32 CPU_SUBTYPE_POWERPC_604 = 85;
-  required uint32 CPU_SUBTYPE_POWERPC_604E = 86;
-  required uint32 CPU_SUBTYPE_POWERPC_620 = 87;
-  required uint32 CPU_SUBTYPE_POWERPC_750 = 88;
-  required uint32 CPU_SUBTYPE_POWERPC_7400 = 89;
-  required uint32 CPU_SUBTYPE_POWERPC_7450 = 90;
-  required uint32 CPU_SUBTYPE_POWERPC_970 = 91;
+enum CPU_I386_TYPE {
+  option (yara.enum_options).inline = true;
+  CPU_TYPE_I386 = 0x00000007;
+}
 
-  // Set file types
-  required uint32 MH_OBJECT = 92;
-  required uint32 MH_EXECUTE = 93;
-  required uint32 MH_FVMLIB = 94;
-  required uint32 MH_CORE = 95;
-  required uint32 MH_PRELOAD = 96;
-  required uint32 MH_DYLIB = 97;
-  required uint32 MH_DYLINKER = 98;
-  required uint32 MH_BUNDLE = 99;
-  required uint32 MH_DYLIB_STUB = 100;
-  required uint32 MH_DSYM = 101;
-  required uint32 MH_KEXT_BUNDLE = 102;
+enum CPU_INTEL_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_INTEL_MODEL_ALL = 0x00000000;
+  CPU_SUBTYPE_386 = 0x00000003;
+  CPU_SUBTYPE_486 = 0x00000004;
+  CPU_SUBTYPE_486SX = 0x00000084;
+  CPU_SUBTYPE_586 = 0x00000005;
+  CPU_SUBTYPE_CELERON = 0x00000067;
+  CPU_SUBTYPE_CELERON_MOBILE = 0x00000077;
+  CPU_SUBTYPE_ITANIUM = 0x0000000b;
+  CPU_SUBTYPE_ITANIUM_2 = 0x0000001b;
+  CPU_SUBTYPE_XEON = 0x0000000c;
+  CPU_SUBTYPE_XEON_MP = 0x0000001c;
+}
 
-  // Set header flags
-  required uint32 MH_NOUNDEFS = 103;
-  required uint32 MH_INCRLINK = 104;
-  required uint32 MH_DYLDLINK = 105;
-  required uint32 MH_BINDATLOAD = 106;
-  required uint32 MH_PREBOUND = 107;
-  required uint32 MH_SPLIT_SEGS = 108;
-  required uint32 MH_LAZY_INIT = 109;
-  required uint32 MH_TWOLEVEL = 110;
-  required uint32 MH_FORCE_FLAT = 111;
-  required uint32 MH_NOMULTIDEFS = 112;
-  required uint32 MH_NOFIXPREBINDING = 113;
-  required uint32 MH_PREBINDABLE = 114;
-  required uint32 MH_ALLMODSBOUND = 115;
-  required uint32 MH_SUBSECTIONS_VIA_SYMBOLS = 116;
-  required uint32 MH_CANONICAL = 117;
-  required uint32 MH_WEAK_DEFINES = 118;
-  required uint32 MH_BINDS_TO_WEAK = 119;
-  required uint32 MH_ALLOW_STACK_EXECUTION = 120;
-  required uint32 MH_ROOT_SAFE = 121;
-  required uint32 MH_SETUID_SAFE = 122;
-  required uint32 MH_NO_REEXPORTED_DYLIBS = 123;
-  required uint32 MH_PIE = 124;
-  required uint32 MH_DEAD_STRIPPABLE_DYLIB = 125;
-  required uint32 MH_HAS_TLV_DESCRIPTORS = 126;
-  required uint32 MH_NO_HEAP_EXECUTION = 127;
-  required uint32 MH_APP_EXTENSION_SAFE = 128;
+enum CPU_I386_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_I386_ALL = 0x00000003;
+}
 
-  // Set segment flags masks
-  required uint32 SG_HIGHVM = 129;
-  required uint32 SG_FVMLIB = 130;
-  required uint32 SG_NORELOC = 131;
-  required uint32 SG_PROTECTED_VERSION_1 = 132;
+enum CPU_X86_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_X86_64_ALL = 0x00000003;
+}
 
-  // Set sections flags masks
-  required uint32 SECTION_TYPE = 133;
-  required uint32 SECTION_ATTRIBUTES = 134;
+enum CPU_INTEL_PENTIUM_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_PENT = 0x00000005;
+  CPU_SUBTYPE_PENTPRO = 0x00000016;
+  CPU_SUBTYPE_PENTII_M3 = 0x00000036;
+  CPU_SUBTYPE_PENTII_M5 = 0x00000056;
+  CPU_SUBTYPE_PENTIUM_3 = 0x00000008;
+  CPU_SUBTYPE_PENTIUM_3_M = 0x00000018;
+  CPU_SUBTYPE_PENTIUM_3_XEON = 0x00000028;
+  CPU_SUBTYPE_PENTIUM_M = 0x00000009;
+  CPU_SUBTYPE_PENTIUM_4 = 0x0000000a;
+  CPU_SUBTYPE_PENTIUM_4_M = 0x0000001a;
+}
 
-  // Set section types
-  required uint32 S_REGULAR = 135;
-  required uint32 S_ZEROFILL = 136;
-  required uint32 S_CSTRING_LITERALS = 137;
-  required uint32 S_4BYTE_LITERALS = 138;
-  required uint32 S_8BYTE_LITERALS = 139;
-  required uint32 S_NON_LAZY_SYMBOL_POINTERS = 140;
-  required uint32 S_LAZY_SYMBOL_POINTERS = 141;
-  required uint32 S_LITERAL_POINTERS = 142;
-  required uint32 S_SYMBOL_STUBS = 143;
-  required uint32 S_MOD_INIT_FUNC_POINTERS = 144;
-  required uint32 S_MOD_TERM_FUNC_POINTERS = 145;
-  required uint32 S_COALESCED = 146;
-  required uint32 S_GB_ZEROFILL = 147;
-  required uint32 S_INTERPOSING = 148;
-  required uint32 S_16BYTE_LITERALS = 149;
-  required uint32 S_DTRACE_DOF = 150;
-  required uint32 S_LAZY_DYLIB_SYMBOL_POINTERS = 151;
-  required uint32 S_THREAD_LOCAL_REGULAR = 152;
-  required uint32 S_THREAD_LOCAL_ZEROFILL = 153;
-  required uint32 S_THREAD_LOCAL_VARIABLES = 154;
-  required uint32 S_THREAD_LOCAL_VARIABLE_POINTERS = 155;
-  required uint32 S_THREAD_LOCAL_INIT_FUNCTION_POINTERS = 156;
+enum CPU_ARM_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_ARM_ALL = 0x00000000;
+  CPU_SUBTYPE_ARM_V4T = 0x00000005;
+  CPU_SUBTYPE_ARM_V6 = 0x00000006;
+  CPU_SUBTYPE_ARM_V5 = 0x00000007;
+  CPU_SUBTYPE_ARM_XSCALE = 0x00000008;
+  CPU_SUBTYPE_ARM_V7 = 0x00000009;
+  CPU_SUBTYPE_ARM_V7F = 0x0000000a;
+  CPU_SUBTYPE_ARM_V7S = 0x0000000b;
+  CPU_SUBTYPE_ARM_V7K = 0x0000000c;
+  CPU_SUBTYPE_ARM_V6M = 0x0000000e;
+  CPU_SUBTYPE_ARM_V7M = 0x0000000f;
+  CPU_SUBTYPE_ARM_V7EM = 0x00000010;
+}
 
-  // Set section attributes
-  required uint32 S_ATTR_PURE_INSTRUCTIONS = 157;
-  required uint32 S_ATTR_NO_TOC = 158;
-  required uint32 S_ATTR_STRIP_STATIC_SYMS = 159;
-  required uint32 S_ATTR_NO_DEAD_STRIP = 160;
-  required uint32 S_ATTR_LIVE_SUPPORT = 161;
-  required uint32 S_ATTR_SELF_MODIFYING_CODE = 162;
-  required uint32 S_ATTR_DEBUG = 163;
-  required uint32 S_ATTR_SOME_INSTRUCTIONS = 164;
-  required uint32 S_ATTR_EXT_RELOC = 165;
-  required uint32 S_ATTR_LOC_RELOC = 166;
+enum CPU_ARM_64_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_ARM_V5TEJ = 0x00000007;
+  CPU_SUBTYPE_ARM64_ALL = 0x00000000;
+}
+
+enum CPU_SPARC_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_SPARC_ALL = 0x00000000;
+}
+
+enum CPU_POWERPC_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_POWERPC_ALL = 0x00000000;
+  CPU_SUBTYPE_POWERPC_601 = 0x00000001;
+  CPU_SUBTYPE_POWERPC_602 = 0x00000002;
+  CPU_SUBTYPE_POWERPC_603 = 0x00000003;
+  CPU_SUBTYPE_POWERPC_603e = 0x00000004;
+  CPU_SUBTYPE_POWERPC_603ev = 0x00000005;
+  CPU_SUBTYPE_POWERPC_604 = 0x00000006;
+  CPU_SUBTYPE_POWERPC_604e = 0x00000007;
+  CPU_SUBTYPE_POWERPC_620 = 0x00000008;
+  CPU_SUBTYPE_POWERPC_750 = 0x00000009;
+  CPU_SUBTYPE_POWERPC_7400 = 0x0000000a;
+  CPU_SUBTYPE_POWERPC_7450 = 0x0000000b;
+  CPU_SUBTYPE_POWERPC_970 = 0x00000064;
+}
+
+enum CPU_MC_SUBTYPE {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_MC980000_ALL = 0x00000000;
+  CPU_SUBTYPE_MC98601 = 0x00000001;
+}
+
+enum FILE_TYPE {
+  option (yara.enum_options).inline = true;
+  MH_OBJECT = 0x00000001;
+  MH_EXECUTE = 0x00000002;
+  MH_FVMLIB = 0x00000003;
+  MH_CORE = 0x00000004;
+  MH_PRELOAD = 0x00000005;
+  MH_DYLIB = 0x00000006;
+  MH_DYLINKER = 0x00000007;
+  MH_BUNDLE = 0x00000008;
+  MH_DYLIB_STUB = 0x00000009;
+  MH_DSYM = 0x0000000a;
+  MH_KEXT_BUNDLE = 0x0000000b;
+}
+
+enum FILE_FLAG {
+  option (yara.enum_options).inline = true;
+  MH_NOUNDEFS = 0x00000001;
+  MH_INCRLINK = 0x00000002;
+  MH_DYLDLINK = 0x00000004;
+  MH_BINDATLOAD = 0x00000008;
+  MH_PREBOUND = 0x00000010;
+  MH_SPLIT_SEGS = 0x00000020;
+  MH_LAZY_INIT = 0x00000040;
+  MH_TWOLEVEL = 0x00000080;
+  MH_FORCE_FLAT = 0x00000100;
+  MH_NOMULTIDEFS = 0x00000200;
+  MH_NOFIXPREBINDING = 0x00000400;
+  MH_PREBINDABLE = 0x00000800;
+  MH_ALLMODSBOUND = 0x00001000;
+  MH_SUBSECTIONS_VIA_SYMBOLS = 0x00002000;
+  MH_CANONICAL = 0x00004000;
+  MH_WEAK_DEFINES = 0x00008000;
+  MH_BINDS_TO_WEAK = 0x00010000;
+  MH_ALLOW_STACK_EXECUTION = 0x00020000;
+  MH_ROOT_SAFE = 0x00040000;
+  MH_SETUID_SAFE = 0x00080000;
+  MH_NO_REEXPORTED_DYLIBS = 0x00100000;
+  MH_PIE = 0x00200000;
+  MH_DEAD_STRIPPABLE_DYLIB = 0x00400000;
+  MH_HAS_TLV_DESCRIPTORS = 0x00800000;
+  MH_NO_HEAP_EXECUTION = 0x01000000;
+  MH_APP_EXTENSION_SAFE = 0x02000000;
+}
+
+enum SEGMENT_FLAG {
+  option (yara.enum_options).inline = true;
+  SG_HIGHVM = 0x00000001;
+  SG_FVMLIB = 0x00000002;
+  SG_NORELOC = 0x00000004;
+  SG_PROTECTED_VERSION_1 = 0x00000008;
+}
+
+enum SECTION_FLAG_MASK {
+  option (yara.enum_options).inline = true;
+  SECTION_TYPE = 0x000000ff;
+  SECTION_ATTRIBUTES = 0 [(yara.enum_value).i64 = 0xffffff00];
+}
+
+enum SECTION_TYPE {
+  option (yara.enum_options).inline = true;
+  S_REGULAR = 0x00000000;
+  S_ZEROFILL = 0x00000001;
+  S_CSTRING_LITERALS = 0x00000002;
+  S_4BYTE_LITERALS = 0x00000003;
+  S_8BYTE_LITERALS = 0x00000004;
+  S_LITERAL_POINTERS = 0x00000005;
+  S_NON_LAZY_SYMBOL_POINTERS = 0x00000006;
+  S_LAZY_SYMBOL_POINTERS = 0x00000007;
+  S_SYMBOL_STUBS = 0x00000008;
+  S_MOD_INIT_FUNC_POINTERS = 0x00000009;
+  S_MOD_TERM_FUNC_POINTERS = 0x0000000a;
+  S_COALESCED = 0x0000000b;
+  S_GB_ZEROFILL = 0x0000000c;
+  S_INTERPOSING = 0x0000000d;
+  S_16BYTE_LITERALS = 0x0000000e;
+  S_DTRACE_DOF = 0x0000000f;
+  S_LAZY_DYLIB_SYMBOL_POINTERS = 0x00000010;
+  S_THREAD_LOCAL_REGULAR = 0x00000011;
+  S_THREAD_LOCAL_ZEROFILL = 0x00000012;
+  S_THREAD_LOCAL_VARIABLES = 0x00000013;
+  S_THREAD_LOCAL_VARIABLE_POINTERS = 0x00000014;
+  S_THREAD_LOCAL_INIT_FUNCTION_POINTERS = 0x00000015;
+}
+
+enum SECTION_ATTRIBURES {
+  option (yara.enum_options).inline = true;
+  S_ATTR_PURE_INSTRUCTIONS = 0 [(yara.enum_value).i64 = 0x80000000];
+  S_ATTR_NO_TOC = 0x40000000;
+  S_ATTR_STRIP_STATIC_SYMS = 0x20000000;
+  S_ATTR_NO_DEAD_STRIP = 0x10000000;
+  S_ATTR_LIVE_SUPPORT = 0x08000000;
+  S_ATTR_SELF_MODIFYING_CODE = 0x04000000;
+  S_ATTR_DEBUG = 0x02000000;
+  S_ATTR_SOME_INSTRUCTIONS = 0x00000400;
+  S_ATTR_EXT_RELOC = 0x00000200;
+  S_ATTR_LOC_RELOC = 0x00000100;
 }
