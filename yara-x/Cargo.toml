@@ -72,7 +72,6 @@ memx = { workspace = true }
 num = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
-regex = { workspace = true }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }
 smallvec = { workspace = true, features=["serde"] }

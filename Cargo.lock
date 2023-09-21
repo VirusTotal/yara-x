@@ -221,7 +221,7 @@ dependencies = [
  "peeking_take_while",
  "proc-macro2",
  "quote",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
  "rustc-hash",
  "shlex",
  "syn 1.0.109",
@@ -687,7 +687,7 @@ dependencies = [
  "oorandom",
  "plotters",
  "rayon",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
  "serde",
  "serde_derive",
  "serde_json",
@@ -991,7 +991,7 @@ dependencies = [
  "humantime",
  "is-terminal",
  "log",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
  "termcolor",
 ]
 
@@ -1247,7 +1247,7 @@ dependencies = [
  "bstr",
  "fnv",
  "log",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
 ]
 
 [[package]]
@@ -1353,7 +1353,7 @@ dependencies = [
  "lazy_static",
  "log",
  "memchr",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
  "same-file",
  "thread_local",
  "walkdir",
@@ -1586,7 +1586,7 @@ dependencies = [
  "maplit",
  "once_cell",
  "rayon",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
@@ -2038,7 +2038,7 @@ checksum = "3b25af4ef94a8528b41fb49a696e361dc6ef975c782417268072d987ac327964"
 dependencies = [
  "once_cell",
  "parse-display-derive",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
 ]
 
 [[package]]
@@ -2050,7 +2050,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
  "regex-syntax 0.6.29",
  "structmeta",
  "syn 1.0.109",
@@ -2295,7 +2295,7 @@ dependencies = [
  "once_cell",
  "protobuf",
  "protobuf-parse",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
  "tempfile",
  "thiserror",
 ]
@@ -2554,17 +2554,6 @@ dependencies = [
  "memchr",
  "regex-automata 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex-syntax 0.7.5 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "regex"
-version = "1.9.5"
-source = "git+https://github.com/plusvic/regex.git?rev=423493d#423493d4094e8167f50e1d812eb5a6349440c984"
-dependencies = [
- "aho-corasick",
- "memchr",
- "regex-automata 0.3.8 (git+https://github.com/plusvic/regex.git?rev=423493d)",
- "regex-syntax 0.7.5 (git+https://github.com/plusvic/regex.git?rev=423493d)",
 ]
 
 [[package]]
@@ -3083,7 +3072,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "phf 0.10.1",
- "regex 1.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex",
  "semver 0.11.0",
  "sha2 0.9.9",
  "signal-hook 0.1.17",
@@ -4026,7 +4015,6 @@ dependencies = [
  "protobuf",
  "protobuf-codegen",
  "protobuf-parse",
- "regex 1.9.5 (git+https://github.com/plusvic/regex.git?rev=423493d)",
  "regex-automata 0.3.8 (git+https://github.com/plusvic/regex.git?rev=423493d)",
  "regex-syntax 0.7.5 (git+https://github.com/plusvic/regex.git?rev=423493d)",
  "rustc-hash",

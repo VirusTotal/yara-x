@@ -55,7 +55,6 @@ pretty_assertions = "1.3.0"
 protobuf = "3.2.0"
 protobuf-codegen = "3.2.0"
 protobuf-parse = "3.2.0"
-regex = { git = "https://github.com/plusvic/regex.git", rev="423493d" }
 regex-syntax = { git = "https://github.com/plusvic/regex.git", rev="423493d" }
 regex-automata = { git = "https://github.com/plusvic/regex.git", rev="423493d" }
 rustc-hash = "1.1.0"
