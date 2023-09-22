@@ -149,24 +149,31 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             let scan_results = scan_results?;
 
-            let matching_rules: Vec<Rule> = if negate {
-                scan_results.non_matching_rules().collect()
+            let num_matching_rules = if negate {
+                let mut matching_rules = scan_results.non_matching_rules();
+                print_matching_rules(
+                    args,
+                    &file_path,
+                    &mut matching_rules,
+                    output,
+                );
+                matching_rules.len()
             } else {
-                scan_results.matching_rules().collect()
+                let mut matching_rules = scan_results.matching_rules();
+                print_matching_rules(
+                    args,
+                    &file_path,
+                    &mut matching_rules,
+                    output,
+                );
+                matching_rules.len()
             };
 
-            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
-
-            if !matching_rules.is_empty() {
+            if num_matching_rules > 0 {
                 state.num_matching_files.fetch_add(1, Ordering::Relaxed);
             }
 
-            print_matching_rules(
-                args,
-                &file_path,
-                matching_rules.as_slice(),
-                output,
-            );
+            state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
 
             Ok(())
         },
@@ -196,14 +203,18 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 fn print_matching_rules(
     args: &ArgMatches,
     file_path: &Path,
-    rules: &[Rule],
+    rules: &mut dyn Iterator<Item = Rule>,
     output: &Sender<Message>,
 ) {
     let print_namespace = args.get_flag("print-namespace");
     let print_strings = args.get_flag("print-strings");
     let print_strings_limit = args.get_one::<usize>("print-strings-limit");
 
-    for matching_rule in rules {
+    // Clippy insists on replacing the `while let` statement with
+    // `for matching_rule in rules.by_ref()`, but that fails with
+    // `the `by_ref` method cannot be invoked on a trait object`
+    #[allow(clippy::while_let_on_iterator)]
+    while let Some(matching_rule) = rules.next() {
         let line = if print_namespace {
             format!(
                 "{}:{} {}",
