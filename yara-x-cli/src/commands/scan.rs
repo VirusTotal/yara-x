@@ -149,29 +149,29 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             let scan_results = scan_results?;
 
-            let num_matching_rules = if negate {
+            if negate {
                 let mut matching_rules = scan_results.non_matching_rules();
+                if matching_rules.len() > 0 {
+                    state.num_matching_files.fetch_add(1, Ordering::Relaxed);
+                }
                 print_matching_rules(
                     args,
                     &file_path,
                     &mut matching_rules,
                     output,
                 );
-                matching_rules.len()
             } else {
                 let mut matching_rules = scan_results.matching_rules();
+                if matching_rules.len() > 0 {
+                    state.num_matching_files.fetch_add(1, Ordering::Relaxed);
+                }
                 print_matching_rules(
                     args,
                     &file_path,
                     &mut matching_rules,
                     output,
                 );
-                matching_rules.len()
             };
-
-            if num_matching_rules > 0 {
-                state.num_matching_files.fetch_add(1, Ordering::Relaxed);
-            }
 
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
 
