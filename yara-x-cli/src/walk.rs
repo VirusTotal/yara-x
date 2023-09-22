@@ -6,7 +6,7 @@ use std::time::Duration;
 use std::{io, thread};
 
 use anyhow::Context;
-use crossbeam::channel::{Sender, TryRecvError};
+use crossbeam::channel::{SendError, Sender, TryRecvError};
 use crossterm::tty::IsTty;
 use globwalk::FileType;
 use superconsole::{Component, Lines, SuperConsole};
@@ -99,7 +99,12 @@ impl<'a> DirWalker<'a> {
     /// The `e` function is called with any error that occurs during the walk,
     /// including errors returned by `f` itself. `e` must return `Ok(())` for
     /// continuing the walk or `Err` for aborting.
-    pub fn walk<F, E>(&self, path: &Path, mut f: F, mut e: E)
+    pub fn walk<F, E>(
+        &self,
+        path: &Path,
+        mut f: F,
+        mut e: E,
+    ) -> anyhow::Result<()>
     where
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
@@ -112,15 +117,15 @@ impl<'a> DirWalker<'a> {
                 Ok(metadata) => {
                     if self.pass_metadata_filter(metadata) {
                         if let Err(err) = f(path) {
-                            let _ = e(err);
+                            return e(err);
                         }
                     }
                 }
                 Err(err) => {
-                    let _ = e(err);
+                    return e(err);
                 }
             };
-            return;
+            return Ok(());
         }
 
         let path = match path
@@ -129,8 +134,7 @@ impl<'a> DirWalker<'a> {
         {
             Ok(path) => path,
             Err(err) => {
-                let _ = e(err);
-                return;
+                return e(err);
             }
         };
 
@@ -153,8 +157,8 @@ impl<'a> DirWalker<'a> {
             let entry = match entry {
                 Ok(e) => e,
                 Err(err) => {
-                    if e(err.into()).is_err() {
-                        return;
+                    if let Err(err) = e(err.into()) {
+                        return Err(err);
                     } else {
                         continue;
                     }
@@ -165,19 +169,15 @@ impl<'a> DirWalker<'a> {
                 Ok(metadata) => {
                     if self.pass_metadata_filter(metadata) {
                         if let Err(err) = f(entry.path()) {
-                            if e(err).is_err() {
-                                return;
-                            }
+                            e(err)?
                         }
                     }
                 }
-                Err(err) => {
-                    if e(err.into()).is_err() {
-                        return;
-                    }
-                }
+                Err(err) => e(err.into())?,
             }
         }
+
+        Ok(())
     }
 
     fn pass_metadata_filter(&self, metadata: Metadata) -> bool {
@@ -210,12 +210,20 @@ impl<'a> DirWalker<'a> {
 /// threads and can be used for storing global stats like number of files
 /// processed.
 ///
+/// <br>
+///
+/// When an error occurs, both while walking the directory tree, or when the
+/// user-provided function returns an error, the error is passed to an error
+/// handling function that can decide whether the walk should continue or be
+/// aborted. The walk continues if the error handling function returns `Ok`
+/// and aborts if it returns `Err`.
+///
 /// # Examples
 ///
 /// ```text
 /// let mut walker = ParDirWalker::new();
 ///
-/// walker.run(
+/// walker.walk(
 ///     // The path to be walked.
 ///     "."
 ///     // The first argument is the initial state. This must have some type
@@ -233,6 +241,12 @@ impl<'a> DirWalker<'a> {
 ///     // `Sender<Message>`.
 ///     |file_path, state, output, scanner| {
 ///         scanner.scan_file(file_path);
+///     }
+///     // This function is called with every error that occurs during the
+///     // walk.
+///     |err, output| {
+///         // Do something with `err`, like sending it to `output`.
+///         // The walk aborts if this returns `Err`.
 ///     }
 /// ).unwrap();
 /// ```
@@ -331,7 +345,7 @@ impl<'a> ParDirWalker<'a> {
             // will obtain file paths from the paths channel and call `func`.
             for _ in 0..num_threads {
                 let paths_recv = paths_recv.clone();
-                let msg_sender = msg_send.clone();
+                let msg_send = msg_send.clone();
                 let state = state.clone();
                 threads.push(s.spawn(move |_| {
                     let mut per_thread_obj = init();
@@ -339,12 +353,13 @@ impl<'a> ParDirWalker<'a> {
                         let res = func(
                             path.to_path_buf(),
                             &state,
-                            &msg_sender,
+                            &msg_send,
                             &mut per_thread_obj,
                         );
                         if let Err(err) = res {
-                            if e(err, &msg_sender).is_err() {
-                                let _ = msg_sender.send(Message::Abort);
+                            if e(err, &msg_send).is_err() {
+                                let _ = msg_send.send(Message::Abort);
+                                break;
                             }
                         }
                     }
@@ -354,15 +369,18 @@ impl<'a> ParDirWalker<'a> {
             // Span a thread that walks the directory and puts file paths in
             // the channel.
             threads.push(s.spawn(move |_| {
-                self.walker.walk(
+                let _ = self.walker.walk(
                     path,
                     |file_path| Ok(paths_send.send(file_path.to_path_buf())?),
                     |err| {
-                        if let Err(err) = e(err, &msg_send) {
-                            Err(err)
-                        } else {
-                            Ok(())
+                        // If an error occurs while sending the file path
+                        // through the channel, abort the walk.
+                        if err.is::<SendError<PathBuf>>() {
+                            return Err(err);
                         }
+                        // For other types of error (e.g: permission denied)
+                        // keep walking the directory tree.
+                        Ok(())
                     },
                 );
             }));

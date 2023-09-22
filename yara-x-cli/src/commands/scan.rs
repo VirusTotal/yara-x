@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
@@ -134,9 +135,19 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 return Err(Error::from(ScanError::Timeout));
             }
 
+            state.files_in_progress.lock().unwrap().push(file_path.clone());
+
             let scan_results = scanner
                 .scan_file(&file_path)
-                .with_context(|| format!("scanning {:?}", &file_path))?;
+                .with_context(|| format!("scanning {:?}", &file_path));
+
+            state
+                .files_in_progress
+                .lock()
+                .unwrap()
+                .retain(|p| !file_path.eq(p));
+
+            let scan_results = scan_results?;
 
             let matching_rules: Vec<Rule> = if negate {
                 scan_results.non_matching_rules().collect()
@@ -167,11 +178,14 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 err.root_cause(),
             )));
 
-            if err.is::<ScanError>() {
-                Err(err)
-            } else {
-                Ok(())
+            // In case of timeout walk is aborted.
+            if let Ok(scan_err) = err.downcast::<ScanError>() {
+                if matches!(scan_err, ScanError::Timeout) {
+                    return Err(scan_err.into());
+                }
             }
+
+            Ok(())
         },
     )
     .unwrap();
@@ -235,6 +249,7 @@ struct ScanState {
     start_time: Instant,
     num_scanned_files: AtomicUsize,
     num_matching_files: AtomicUsize,
+    files_in_progress: Mutex<Vec<PathBuf>>,
 }
 
 impl ScanState {
@@ -243,6 +258,7 @@ impl ScanState {
             start_time,
             num_scanned_files: AtomicUsize::new(0),
             num_matching_files: AtomicUsize::new(0),
+            files_in_progress: Mutex::new(Vec::new()),
         }
     }
 }
@@ -250,40 +266,47 @@ impl ScanState {
 impl Component for ScanState {
     fn draw_unchecked(
         &self,
-        _dimensions: superconsole::Dimensions,
+        dimensions: superconsole::Dimensions,
         mode: superconsole::DrawMode,
-    ) -> anyhow::Result<superconsole::Lines> {
-        let res = match mode {
-            superconsole::DrawMode::Normal => {
-                let state = format!(
-                    "{} file(s) matched. {} file(s) scanned in {:.1}s",
-                    self.num_matching_files.load(Ordering::Relaxed),
-                    self.num_scanned_files.load(Ordering::Relaxed),
-                    self.start_time.elapsed().as_secs_f32()
-                );
-                let state = Span::new_styled(state.bold())?;
-                Line::from_iter([state])
+    ) -> anyhow::Result<Lines> {
+        let mut lines = Lines::new();
+
+        lines.push(Line::from_iter([Span::new_unstyled(
+            "─".repeat(dimensions.width),
+        )?]));
+
+        let scanned = format!(
+            " {} file(s) scanned in {:.1}s. ",
+            self.num_scanned_files.load(Ordering::Relaxed),
+            self.start_time.elapsed().as_secs_f32()
+        );
+
+        let num_matching_files =
+            self.num_matching_files.load(Ordering::Relaxed);
+
+        let matched = format!("{} file(s) matched.", num_matching_files);
+
+        lines.push(Line::from_iter([
+            Span::new_unstyled(scanned)?,
+            Span::new_styled(if num_matching_files > 0 {
+                matched.red().bold()
+            } else {
+                matched.green().bold()
+            })?,
+        ]));
+
+        if matches!(mode, superconsole::DrawMode::Normal) {
+            lines.push(Line::from_iter([Span::new_unstyled(
+                "╶".repeat(dimensions.width),
+            )?]));
+
+            for file in self.files_in_progress.lock().unwrap().iter() {
+                lines.push(Line::from_iter([Span::new_unstyled(
+                    file.display(),
+                )?]))
             }
-            superconsole::DrawMode::Final => {
-                let num_scanned_files =
-                    self.num_scanned_files.load(Ordering::Relaxed);
-                let num_matching_files =
-                    self.num_matching_files.load(Ordering::Relaxed);
-                let matched =
-                    format!("{} file(s) matched.", num_matching_files,);
-                let scanned = format!(
-                    " {} file(s) scanned in {:.1}s",
-                    num_scanned_files,
-                    self.start_time.elapsed().as_secs_f32()
-                );
-                let matched = if num_matching_files > 0 {
-                    Span::new_styled(matched.red().bold())?
-                } else {
-                    Span::new_styled(matched.green().bold())?
-                };
-                Line::from_iter([matched, Span::new_styled(scanned.bold())?])
-            }
-        };
-        Ok(Lines(vec![res]))
+        }
+
+        Ok(lines)
     }
 }
