@@ -148,7 +148,7 @@ rule test {
    │
  4 │     $a = /foo/i nocase
    │               ┬ ───┬──  
-   │               ╰───────── the `i` postfix indicates that the pattern is case-insensitive
+   │               ╰───────── the `i` suffix indicates that the pattern is case-insensitive
    │                    │    
    │                    ╰──── the `nocase` modifier does the same
 ───╯

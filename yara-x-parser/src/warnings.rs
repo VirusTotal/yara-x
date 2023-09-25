@@ -65,7 +65,7 @@ pub enum Warning {
     },
 
     #[warning("redundant case-insensitive modifier")]
-    #[label("the `i` postfix indicates that the pattern is case-insensitive", i_span)]
+    #[label("the `i` suffix indicates that the pattern is case-insensitive", i_span)]
     #[label("the `nocase` modifier does the same", nocase_span)]
     RedundantCaseModifier {
         detailed_report: String,
