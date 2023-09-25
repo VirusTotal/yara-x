@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
         println!("could not enable ANSI support: {}", err)
     }
 
-    let args = Command::new("yarafmt")
+    let args = Command::new("yrfmt")
         .about("Format YARA source code")
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))

@@ -10,7 +10,7 @@ homepage.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "yarafmt"
+name = "yrfmt"
 path = "src/bin/main.rs"
 
 [lib]
