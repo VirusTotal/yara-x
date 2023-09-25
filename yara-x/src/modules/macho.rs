@@ -1,6 +1,9 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
 
+#[cfg(feature = "logging")]
+use log::*;
+
 use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
 use nom::{bytes::complete::take, multi::count, number::complete::*, IResult};
@@ -1788,7 +1791,8 @@ fn main(ctx: &ScanContext) -> Macho {
 
     // If data is too short to be valid Mach-O file, return empty protobuf
     if data.len() < VALID_MACHO_LENGTH {
-        eprintln!("{}", MachoError::FileTooSmall);
+        #[cfg(feature = "logging")]
+        error!("{}", MachoError::FileTooSmall);
         return macho_proto;
     }
 
@@ -1810,16 +1814,18 @@ fn main(ctx: &ScanContext) -> Macho {
                 macho_proto.entry_point = file_data.entry_point;
                 macho_proto.stack_size = file_data.stack_size;
             }
-            Err(error) => {
-                eprintln!("{}", error);
+            Err(_error) => {
+                #[cfg(feature = "logging")]
+                error!("Error while parsing macho file: {}", _error);
             }
         }
     }
 
     // Parse Mach-O FAT files
     if is_fat_macho_file_block(data) {
-        if let Err(error) = parse_fat_macho_file(data, &mut macho_proto) {
-            eprintln!("{}", error);
+        if let Err(_error) = parse_fat_macho_file(data, &mut macho_proto) {
+            #[cfg(feature = "logging")]
+            error!("Error while parsing macho FAT file:{}", _error);
         }
     }
 
