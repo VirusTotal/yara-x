@@ -1,0 +1,10 @@
+rule test {
+  strings:
+    $foofoo = "foo"
+    $bar = "bar"
+
+    $bazbazbaz = "baz"
+    $qux = "qux"
+  condition:
+    all of them
+}
