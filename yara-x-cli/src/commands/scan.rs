@@ -135,7 +135,12 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 return Err(Error::from(ScanError::Timeout));
             }
 
-            state.files_in_progress.lock().unwrap().push(file_path.clone());
+            let now = Instant::now();
+            state
+                .files_in_progress
+                .lock()
+                .unwrap()
+                .push((file_path.clone(), now));
 
             let scan_results = scanner
                 .scan_file(&file_path)
@@ -145,7 +150,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .files_in_progress
                 .lock()
                 .unwrap()
-                .retain(|p| !file_path.eq(p));
+                .retain(|(p, _)| !file_path.eq(p));
 
             let scan_results = scan_results?;
 
@@ -260,7 +265,7 @@ struct ScanState {
     start_time: Instant,
     num_scanned_files: AtomicUsize,
     num_matching_files: AtomicUsize,
-    files_in_progress: Mutex<Vec<PathBuf>>,
+    files_in_progress: Mutex<Vec<(PathBuf, Instant)>>,
 }
 
 impl ScanState {
@@ -311,13 +316,31 @@ impl Component for ScanState {
                 "╶".repeat(dimensions.width),
             )?]));
 
-            for file in self.files_in_progress.lock().unwrap().iter() {
-                lines.push(Line::from_iter([Span::new_unstyled(
-                    file.display(),
-                )?]))
+            for (file, start_time) in
+                self.files_in_progress.lock().unwrap().iter()
+            {
+                let path = file.display().to_string();
+                // The length of the elapsed is 7 characters.
+                let spaces = " "
+                    .repeat(dimensions.width.saturating_sub(path.len() + 7));
+                let line = format!(
+                    "{}{}{:6.1}s",
+                    truncate_with_ellipsis(path, dimensions.width - 7),
+                    spaces,
+                    Instant::elapsed(start_time).as_secs_f32()
+                );
+                lines.push(Line::from_iter([Span::new_unstyled(line)?]))
             }
         }
 
         Ok(lines)
+    }
+}
+
+fn truncate_with_ellipsis(s: String, max_length: usize) -> String {
+    if s.len() <= max_length {
+        s
+    } else {
+        format!("{}...", &s[..max_length - 3])
     }
 }
