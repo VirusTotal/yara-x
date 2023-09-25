@@ -111,6 +111,8 @@ where
         leading_newline: bool,
         trailing_newline: bool,
     ) {
+        assert!(!comment_lines.is_empty());
+
         let comment = match (leading_newline, trailing_newline) {
             (true, true) => Token::BlockComment(comment_lines),
             (true, false) => Token::HeadComment(comment_lines),
@@ -194,7 +196,7 @@ where
                     // field in the current comment is set to true. However,
                     // if trailing_newline was already true this is the second
                     // newline after the comment, and in that case we push the
-                    // current comment and start with a new one.
+                    // current comment and go to the PreComment state.
                     //
                     // This means that an empty line in between comments break
                     // the comment block in two. For example:
@@ -217,12 +219,7 @@ where
                                 *trailing_newline,
                             );
                             self.output_buffer.push_back(Token::Newline);
-                            state = State::Comment {
-                                indentation: self.indentation,
-                                leading_newline: true,
-                                trailing_newline: false,
-                                lines: Vec::new(),
-                            };
+                            state = State::PreComment { leading_newline: true }
                         } else {
                             *trailing_newline = true;
                         };
@@ -270,6 +267,8 @@ where
             }
         }
 
+        // Handle the case in which a comment was found but it wasn't followed
+        // by a newline.
         if let State::Comment {
             lines,
             leading_newline,
@@ -486,6 +485,23 @@ mod tests {
                 Token::Whitespace,
                 Token::InlineComment(vec!["/* some comment */".to_string()]),
                 Token::Identifier("foo"),
+            ],
+        );
+
+        test(
+            vec![
+                Token::Comment("// comment"),
+                Token::Newline,
+                Token::Newline,
+                Token::Whitespace,
+                Token::Whitespace,
+            ],
+            vec![
+                Token::BlockComment(vec!["// comment".to_string()]),
+                Token::Newline,
+                Token::Newline,
+                Token::Whitespace,
+                Token::Whitespace,
             ],
         );
     }
