@@ -394,8 +394,8 @@ impl Formatter {
         );
 
         // Make sure that tail and block comments are followed by newline. In
-        // must cases this already the case, but some of the rules that remove
-        // newlines may remove those appearing after the comment.
+        // most cases this is already the case, but some of the rules that
+        // remove newlines may remove those appearing after the comment.
         let tokens = processor::Processor::new(tokens)
             .set_passthrough(*CONTROL)
             .add_rule(

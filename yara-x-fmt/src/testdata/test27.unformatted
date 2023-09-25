@@ -1,0 +1,6 @@
+rule test{
+  strings:
+    $a = {01020304}// foo
+  condition:
+    all of them
+}

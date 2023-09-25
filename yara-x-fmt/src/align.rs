@@ -67,7 +67,6 @@ where
         // the block, if not, return the token.
         if matches!(next, AlignmentBlockBegin) {
             let mut column = 0;
-            let mut newlines = 0;
             let mut marker_columns = Vec::new();
             let mut block_tokens = VecDeque::new();
 
@@ -81,14 +80,7 @@ where
                     }
                     AlignmentMarker => {
                         // When some alignment marker appears inside the block
-                        // store its column number. Also make sure that at least
-                        // one newline character has been found before each
-                        // occurrence of AlignmentMarker.
-                        debug_assert!(
-                            newlines > 0,
-                            "newline not found before alignment marker"
-                        );
-                        newlines = 0;
+                        // store its column number.
                         marker_columns.push(column);
                         block_tokens.push_back(token);
                     }
@@ -96,7 +88,6 @@ where
                         // When a new line character is found, the
                         // column number is reset to zero.
                         column = 0;
-                        newlines += 1;
                         block_tokens.push_back(token);
                     }
                     _ => {
