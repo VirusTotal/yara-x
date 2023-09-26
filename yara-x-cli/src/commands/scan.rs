@@ -19,6 +19,7 @@ use crate::commands::compile_rules;
 use crate::walk::Message;
 use crate::{help, walk};
 
+#[rustfmt::skip]
 pub fn scan() -> Command {
     super::command("scan")
         .about("Scan a file or directory")
@@ -26,51 +27,56 @@ pub fn scan() -> Command {
             arg!(<RULES_PATH>)
                 .help("Path to YARA source file")
                 .value_parser(value_parser!(PathBuf))
-                .action(ArgAction::Append),
+                .action(ArgAction::Append)
         )
         .arg(
             arg!(<PATH>)
                 .help("Path to the file or directory that will be scanned")
-                .value_parser(value_parser!(PathBuf)),
+                .value_parser(value_parser!(PathBuf))
         )
-        .arg(arg!(-e - -"print-namespace").help("Print rule namespace"))
         .arg(
-            arg!(-s - -"print-strings").help(
-                "Print matching patterns, limited to the first 120 bytes",
-            ),
+            arg!(-e - -"print-namespace")
+                .help("Print rule namespace")
+        )
+        .arg(
+            arg!(-s - -"print-strings")
+                .help("Print matching patterns, limited to the first 120 bytes")
         )
         .arg(
             arg!(--"print-strings-limit" <N>)
                 .help("Print matching patterns, limited to the first N bytes")
-                .value_parser(value_parser!(usize)),
+                .value_parser(value_parser!(usize))
         )
-        .arg(arg!(-n - -"negate").help("Print non-satisfied rules only"))
+        .arg(
+            arg!(-n - -"negate")
+                .help("Print non-satisfied rules only")
+        )
         .arg(
             arg!(--"path-as-namespace")
-                .help("Use file path as rule namespace"),
+                .help("Use file path as rule namespace")
         )
         .arg(
             arg!(-C - -"compiled-rules")
                 .help("Tells that RULES_PATH is a file with compiled rules")
-                .long_help(help::COMPILED_RULES_HELP),
+                .long_help(help::COMPILED_RULES_HELP)
         )
         .arg(
             arg!(-z --"skip-larger" <FILE_SIZE>)
                 .help("Skip files larger than the given size")
-                .value_parser(value_parser!(u64)),
+                .value_parser(value_parser!(u64))
         )
         .arg(
             arg!(-p --"threads" <NUM_THREADS>)
                 .help("Use the given number of threads")
                 .long_help(help::THREADS_LONG_HELP)
                 .required(false)
-                .value_parser(value_parser!(u8).range(1..)),
+                .value_parser(value_parser!(u8).range(1..))
         )
         .arg(
             arg!(-a --"timeout" <SECONDS>)
                 .help("Abort scanning after the given number seconds")
                 .required(false)
-                .value_parser(value_parser!(u64).range(1..)),
+                .value_parser(value_parser!(u64).range(1..))
         )
 }
 
