@@ -5,6 +5,8 @@
 //! both protobuf structure fields and constants. This together with
 //! also exported functions can be later used in YARA rules.
 
+mod tests;
+
 use crate::modules::prelude::*;
 use crate::modules::protos::macho::*;
 
@@ -601,7 +603,7 @@ fn swap_segment_section_64(section: &mut SegmentSection64) {
     section.flags = BigEndian::read_u32(&section.flags.to_le_bytes());
     section.reserved1 = BigEndian::read_u32(&section.reserved1.to_le_bytes());
     section.reserved2 = BigEndian::read_u32(&section.reserved2.to_le_bytes());
-    section.reserved3 = BigEndian::read_u32(&section.reserved2.to_le_bytes());
+    section.reserved3 = BigEndian::read_u32(&section.reserved3.to_le_bytes());
 }
 
 /// Swap the endianness of fields within a Mach-O entrypoint command section from BigEndian to LittleEndian.
