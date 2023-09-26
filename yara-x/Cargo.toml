@@ -40,6 +40,8 @@ text-module = [
 # The Time module allows you to retrieve epoch in seconds that can
 # be used in conditions of a rule to check againts other epoch time.
 time-module = []
+# The Strings Module
+string-module = []
 # The hash module provides functions for computing md5, sha1 and sha-256 hashes
 hash-module = [
     "dep:md5",
