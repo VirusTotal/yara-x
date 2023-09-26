@@ -2,9 +2,8 @@ use std::cell::RefCell;
 
 use md5 as md5_hash;
 use rustc_hash::FxHashMap;
-use sha1 as sha1_hash;
-use sha1::Digest;
-use sha256::digest as sha256_digest;
+use sha1::Sha1;
+use sha2::{Digest, Sha256};
 
 use crate::modules::prelude::*;
 use crate::modules::protos::hash::*;
@@ -31,7 +30,7 @@ fn main(_ctx: &ScanContext) -> Hash {
 }
 
 #[module_export(name = "md5")]
-fn md5(
+fn md5_data(
     ctx: &mut ScanContext,
     offset: i64,
     size: i64,
@@ -68,7 +67,7 @@ fn md5_str(ctx: &mut ScanContext, s: RuntimeString) -> Option<RuntimeString> {
 }
 
 #[module_export(name = "sha1")]
-fn sha1(
+fn sha1_data(
     ctx: &mut ScanContext,
     offset: i64,
     size: i64,
@@ -86,7 +85,7 @@ fn sha1(
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
     let data = ctx.scanned_data().get(range)?;
-    let mut hasher = sha1_hash::Sha1::new();
+    let mut hasher = Sha1::new();
 
     hasher.update(data);
 
@@ -102,14 +101,14 @@ fn sha1(
 
 #[module_export(name = "sha1")]
 fn sha1_str(ctx: &mut ScanContext, s: RuntimeString) -> Option<RuntimeString> {
-    let mut hasher = sha1_hash::Sha1::new();
+    let mut hasher = Sha1::new();
     hasher.update(s.as_bstr(ctx));
 
     Some(RuntimeString::from_bytes(ctx, format!("{:x}", hasher.finalize())))
 }
 
 #[module_export(name = "sha256")]
-fn sha256(
+fn sha256_data(
     ctx: &mut ScanContext,
     offset: i64,
     size: i64,
@@ -127,7 +126,11 @@ fn sha256(
 
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
     let data = ctx.scanned_data().get(range)?;
-    let digest = sha256_digest(data);
+    let mut hasher = Sha256::new();
+
+    hasher.update(data);
+
+    let digest = format!("{:x}", hasher.finalize());
     let result = RuntimeString::from_bytes(ctx, digest.as_bytes());
 
     SHA256_CACHE.with(|cache| {
@@ -142,8 +145,8 @@ fn sha256_str(
     ctx: &mut ScanContext,
     s: RuntimeString,
 ) -> Option<RuntimeString> {
-    Some(RuntimeString::from_bytes(
-        ctx,
-        sha256_digest(s.as_bstr(ctx).as_bytes()),
-    ))
+    let mut hasher = Sha256::new();
+    hasher.update(s.as_bstr(ctx));
+
+    Some(RuntimeString::from_bytes(ctx, format!("{:x}", hasher.finalize())))
 }

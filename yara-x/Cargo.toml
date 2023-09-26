@@ -44,7 +44,7 @@ time-module = []
 hash-module = [
     "dep:md5",
     "dep:sha1",
-    "dep:sha256",
+    "dep:sha2",
 ]
 
 # Features that are enabled by default.
@@ -76,7 +76,7 @@ linkme = { workspace = true }
 log = { workspace = true, optional = true }
 md5 = { workspace = true, optional = true }
 sha1 = { workspace = true, optional = true }
-sha256 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 memchr = { workspace = true }
 memx = { workspace = true }
 num = { workspace = true }
