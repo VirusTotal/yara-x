@@ -64,6 +64,6 @@ mod tests {
 
         let mut scanner = crate::scanner::Scanner::new(&rules);
 
-        assert_eq!(scanner.scan(&[]).num_matching_rules(), 6);
+        assert_eq!(scanner.scan(&[]).matching_rules().len(), 6);
     }
 }
