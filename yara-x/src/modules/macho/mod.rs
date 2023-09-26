@@ -5,6 +5,7 @@
 //! both protobuf structure fields and constants. This together with
 //! also exported functions can be later used in YARA rules.
 
+#[cfg(test)]
 mod tests;
 
 use crate::modules::prelude::*;
