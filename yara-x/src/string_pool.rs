@@ -27,6 +27,7 @@ where
     T: From<u32> + Into<u32>,
 {
     pool: intaglio::SymbolTable<HashBuilder>,
+    size: usize,
     phantom: PhantomData<T>,
 }
 
@@ -38,6 +39,7 @@ where
     pub fn new() -> Self {
         Self {
             pool: intaglio::SymbolTable::with_hasher(HashBuilder::default()),
+            size: 0,
             phantom: Default::default(),
         }
     }
@@ -49,6 +51,7 @@ where
         if let Some(s) = self.pool.check_interned(s) {
             T::from(s.id())
         } else {
+            self.size += s.len();
             T::from(self.pool.intern(s.to_string()).unwrap().id())
         }
     }
@@ -133,6 +136,7 @@ where
     T: From<u32> + Into<u32>,
 {
     pool: intaglio::bytes::SymbolTable<HashBuilder>,
+    size: usize,
     phantom: PhantomData<T>,
 }
 
@@ -146,6 +150,7 @@ where
             pool: intaglio::bytes::SymbolTable::with_hasher(
                 HashBuilder::default(),
             ),
+            size: 0,
             phantom: Default::default(),
         }
     }
@@ -161,6 +166,7 @@ where
         if let Some(s) = self.pool.check_interned(bytes) {
             T::from(s.id())
         } else {
+            self.size += bytes.len();
             T::from(self.pool.intern(bytes.to_owned()).unwrap().id())
         }
     }
@@ -169,7 +175,13 @@ where
     /// interned. If not returns [`None`].
     #[inline]
     pub fn get(&self, id: T) -> Option<&BStr> {
-        self.pool.get(Symbol::from(id.into())).map(BStr::new)
+        self.get_bytes(id).map(BStr::new)
+    }
+
+    /// Similar to [`BStringPool::get`], but returns the string as `&[u8]`.
+    #[inline]
+    pub fn get_bytes(&self, id: T) -> Option<&[u8]> {
+        self.pool.get(Symbol::from(id.into()))
     }
 
     /// Similar to [`BStringPool::get`], but returns the string as `&str`.
@@ -179,12 +191,17 @@ where
     /// If the interned string is not valid UTF-8.
     #[inline]
     pub fn get_str(&self, id: T) -> Option<&str> {
-        self.pool
-            .get(Symbol::from(id.into()))
+        self.get_bytes(id)
             .map(|s| {
                 std::str::from_utf8(s)
                     .expect("using BStringPool::get_str with a string that is not valid UTF-8")
             })
+    }
+
+    /// Returns the total size in bytes of all the strings stored in the pool.
+    #[inline]
+    pub fn size(&self) -> usize {
+        self.size
     }
 }
 

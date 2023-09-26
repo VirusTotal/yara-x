@@ -2,6 +2,7 @@ use pretty_assertions::assert_eq;
 
 use crate::parser::Parser;
 
+#[cfg(feature = "ascii-tree")]
 #[test]
 fn newlines_and_spaces() {
     let cst = Parser::new()
@@ -44,6 +45,15 @@ fn identifiers() {
         .is_ok());
     assert!(Parser::new().build_cst("rule rules { condition: true }").is_ok());
     assert!(Parser::new().build_cst("rule _true { condition: true }").is_ok());
+}
+
+#[test]
+fn pathological_case() {
+    // Make sure that pathologically bad rules don't take forever to parse.
+    // Parsing this rule must fail.
+    assert!(Parser::new()
+        .build_cst(r#"rule bug { condition: ((((((((((((false)))))))))))) }"#)
+        .is_err());
 }
 
 mod ast;

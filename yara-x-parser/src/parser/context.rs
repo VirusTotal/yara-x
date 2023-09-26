@@ -1,15 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ast::Ident;
-use crate::parser::SourceCode;
+use crate::ast::{Ident, Span};
+use crate::cst::CSTNode;
 use crate::report::ReportBuilder;
 use crate::warnings::Warning;
 
 /// A structure that holds information about the parsing process.
 pub(crate) struct Context<'src, 'rb> {
-    /// The source code being parsed.
-    pub(crate) src: SourceCode<'src>,
-
     /// Contains the pattern identifiers declared by the rule that is being
     /// currently parsed. The map is filled during the processing of the
     /// patterns (a.k.a: strings) section of the rule. Identifiers are stored
@@ -46,12 +43,8 @@ pub(crate) struct Context<'src, 'rb> {
 }
 
 impl<'src, 'rb> Context<'src, 'rb> {
-    pub(crate) fn new(
-        src: SourceCode<'src>,
-        report_builder: &'rb ReportBuilder,
-    ) -> Self {
+    pub(crate) fn new(report_builder: &'rb ReportBuilder) -> Self {
         Self {
-            src,
             inside_for_of: false,
             declared_patterns: HashMap::new(),
             unused_patterns: HashSet::new(),
@@ -65,10 +58,20 @@ impl<'src, 'rb> Context<'src, 'rb> {
     ///
     /// # Panics
     ///
-    /// Panics if called at some point where a string is not being parsed,
-    /// so it should be called only from `pattern_from_cst` or any other
-    /// function under `pattern_from_cst` in the call tree.
+    /// Panics if called at some point where a pattern is not being parsed,
+    /// which means that should be called only from `pattern_from_cst` or any
+    /// other function under `pattern_from_cst` in the call tree.
     pub(crate) fn current_pattern_ident(&self) -> String {
         self.current_pattern.as_ref().unwrap().name.to_string()
+    }
+
+    /// Creates a new [`Span`] from [`CSTNode`].
+    pub(crate) fn span(&self, node: &CSTNode) -> Span {
+        let span = node.as_span();
+        Span::new(
+            self.report_builder.current_source_id().unwrap(),
+            span.start(),
+            span.end(),
+        )
     }
 }

@@ -182,7 +182,7 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// The `wasm_export` macro is used for declaring a Rust function that will be
 /// called from WASM.
 ///
-/// The function's first argument must be of type [`wasmtime::Caller`], which
+/// The function's first argument must be of type `wasmtime::Caller`, which
 /// contains information about the context in which the function is called,
 /// including a reference to the `yara_x::scanner::ScanContext` corresponding
 /// to the current scan.

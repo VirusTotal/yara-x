@@ -25,24 +25,27 @@ mod span;
 use std::borrow::Cow;
 use std::collections::btree_map::Values;
 use std::collections::{BTreeMap, HashSet};
+use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
-use std::{fmt, mem};
+use std::slice::Iter;
 
 use bitmask::bitmask;
 use bstr::BStr;
 use yara_x_macros::*;
 
-use crate::cst::CSTNode;
-use crate::types::*;
 use crate::warnings::Warning;
 
 pub use crate::ast::span::*;
-pub use crate::types::Type;
+use crate::SourceCode;
 
 /// Abstract Syntax Tree (AST) for YARA rules.
 pub struct AST<'src> {
-    pub namespaces: Vec<Namespace<'src>>,
+    /// The source code that produced this AST.
+    pub source: SourceCode<'src>,
+    /// The list of imports.
+    pub imports: Vec<Import>,
+    /// The list of rules in the AST.
+    pub rules: Vec<Rule<'src>>,
     /// Warnings generated while building this AST.
     pub warnings: Vec<Warning>,
 }
@@ -50,8 +53,7 @@ pub struct AST<'src> {
 #[cfg(feature = "ascii-tree")]
 impl<'src> Debug for AST<'src> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        use std::borrow::Borrow;
-        ::ascii_tree::write_tree(f, self.ascii_tree().borrow())
+        ::ascii_tree::write_tree(f, &self.ascii_tree())
     }
 }
 
@@ -66,21 +68,12 @@ impl<'src> Debug for AST<'src> {
 impl<'src> AST<'src> {
     /// Returns a printable ASCII tree representing the AST.
     pub fn ascii_tree(&self) -> ::ascii_tree::Tree {
-        use crate::ast::ascii_tree::namespace_ascii_tree;
+        use crate::ast::ascii_tree::rule_ascii_tree;
         ::ascii_tree::Tree::Node(
             "root".to_string(),
-            self.namespaces.iter().map(namespace_ascii_tree).collect(),
+            self.rules.iter().map(rule_ascii_tree).collect(),
         )
     }
-}
-
-/// A namespace containing YARA rules.
-///
-/// Within each namespace rule identifiers are unique.
-#[derive(Debug)]
-pub struct Namespace<'src> {
-    pub rules: Vec<Rule<'src>>,
-    pub imports: Vec<Import>,
 }
 
 bitmask! {
@@ -142,17 +135,7 @@ impl<'src> Display for MetaValue<'src> {
 /// Types of patterns (a.k.a strings) that can appear in a YARA rule.
 ///
 /// Possible types are: text patterns, hex patterns and regular expressions.
-///
-/// This type implements the [`Hash`] trait, which produces the same hash for
-/// patterns that are equal and have the same modifiers. The pattern identifier
-/// or the rule it belongs to is not taken into account while computing the
-/// hash, which allows identifying patterns that are defined in more than one
-/// YARA rule in an identical way. Notice however that some patterns may be
-/// semantically equivalent, but their hashes may differ due to being declared
-/// in different ways. For example: `{ 01 [-] 02 }` is equivalent to
-/// `{ 01 [0-] 03 }` but they don't have the same hash because their
-/// definitions are not identical.
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub enum Pattern<'src> {
     Text(Box<TextPattern<'src>>),
     Hex(Box<HexPattern<'src>>),
@@ -165,6 +148,14 @@ impl<'src> Pattern<'src> {
             Pattern::Text(p) => &p.identifier,
             Pattern::Regexp(p) => &p.identifier,
             Pattern::Hex(p) => &p.identifier,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Pattern::Text(p) => p.span,
+            Pattern::Hex(p) => p.span,
+            Pattern::Regexp(p) => p.span,
         }
     }
 }
@@ -189,37 +180,37 @@ impl<'src> PatternModifiers<'src> {
     }
 
     #[inline]
-    pub fn ascii(&self) -> Option<&PatternModifier> {
+    pub fn ascii(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("ascii")
     }
 
     #[inline]
-    pub fn wide(&self) -> Option<&PatternModifier> {
+    pub fn wide(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("wide")
     }
 
     #[inline]
-    pub fn base64(&self) -> Option<&PatternModifier> {
+    pub fn base64(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("base64")
     }
 
     #[inline]
-    pub fn base64wide(&self) -> Option<&PatternModifier> {
+    pub fn base64wide(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("base64wide")
     }
 
     #[inline]
-    pub fn fullword(&self) -> Option<&PatternModifier> {
+    pub fn fullword(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("fullword")
     }
 
     #[inline]
-    pub fn nocase(&self) -> Option<&PatternModifier> {
+    pub fn nocase(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("nocase")
     }
 
     #[inline]
-    pub fn xor(&self) -> Option<&PatternModifier> {
+    pub fn xor(&self) -> Option<&PatternModifier<'src>> {
         self.modifiers.get("xor")
     }
 }
@@ -263,25 +254,6 @@ impl PatternModifier<'_> {
             PatternModifier::Base64 { .. } => "base64",
             PatternModifier::Base64Wide { .. } => "base64wide",
             PatternModifier::Xor { .. } => "xor",
-        }
-    }
-}
-
-impl Hash for PatternModifier<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        mem::discriminant(self).hash(state);
-        match self {
-            PatternModifier::Base64 { alphabet, .. } => {
-                alphabet.hash(state);
-            }
-            PatternModifier::Base64Wide { alphabet, .. } => {
-                alphabet.hash(state);
-            }
-            PatternModifier::Xor { start, end, .. } => {
-                start.hash(state);
-                end.hash(state);
-            }
-            _ => {}
         }
     }
 }
@@ -336,17 +308,8 @@ impl Display for PatternModifier<'_> {
 pub struct TextPattern<'src> {
     pub span: Span,
     pub identifier: Ident<'src>,
-    pub value: Cow<'src, BStr>,
+    pub text: Cow<'src, BStr>,
     pub modifiers: PatternModifiers<'src>,
-}
-
-impl Hash for TextPattern<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state);
-        for modifier in self.modifiers.iter() {
-            modifier.hash(state);
-        }
-    }
 }
 
 /// A regular expression pattern in a YARA rule.
@@ -358,15 +321,6 @@ pub struct RegexpPattern<'src> {
     pub modifiers: PatternModifiers<'src>,
 }
 
-impl Hash for RegexpPattern<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.regexp.hash(state);
-        for modifier in self.modifiers.iter() {
-            modifier.hash(state);
-        }
-    }
-}
-
 /// A hex pattern (a.k.a hex string) in a YARA rule.
 #[derive(Debug, HasSpan)]
 pub struct HexPattern<'src> {
@@ -376,17 +330,8 @@ pub struct HexPattern<'src> {
     pub modifiers: PatternModifiers<'src>,
 }
 
-impl Hash for HexPattern<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.tokens.hash(state);
-        for modifier in self.modifiers.iter() {
-            modifier.hash(state);
-        }
-    }
-}
-
 /// A sequence of tokens that conform a hex pattern (a.k.a hex string).
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct HexTokens {
     pub tokens: Vec<HexToken>,
 }
@@ -395,18 +340,25 @@ pub struct HexTokens {
 ///
 /// A token can be a single byte, a negated byte (e.g. `~XX`), an
 /// alternative (e.g `(XXXX|YYYY)`), or a jump (e.g `[0-10]`).
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub enum HexToken {
-    Byte(Box<HexByte>),
-    NotByte(Box<HexByte>),
+    Byte(HexByte),
+    NotByte(HexByte),
     Alternative(Box<HexAlternative>),
-    Jump(Box<HexJump>),
+    Jump(HexJump),
 }
 
 /// A single byte in a hex pattern (a.k.a hex string).
 ///
-/// The byte is accompanied by a mask which will be 0xFF for non-masked bytes.
-#[derive(Hash, Debug)]
+/// The byte's value is accompanied by a mask that indicates which bits in the
+/// value are taken into account during matching, and which are ignored. A bit
+/// set to 1 in the mask indicates that the corresponding bit in the value is
+/// taken into account, while a bit set to 0 indicates that the corresponding
+/// bit in the value is ignored. Ignored bits are always set to 0 in the value.
+///
+/// For example, for pattern `A?` the value is `A0` and the mask is `F0`, and
+/// for pattern `?1` the value is `01` and the mask is `0F`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct HexByte {
     pub value: u8,
     pub mask: u8,
@@ -415,13 +367,13 @@ pub struct HexByte {
 /// An alternative in a hex pattern (a.k.a hex string).
 ///
 /// Alternatives are sequences of hex tokens separated by `|`.
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct HexAlternative {
     pub alternatives: Vec<HexTokens>,
 }
 
 /// A jump in a hex pattern (a.k.a hex string).
-#[derive(Hash, Debug)]
+#[derive(Debug)]
 pub struct HexJump {
     pub start: Option<u16>,
     pub end: Option<u16>,
@@ -482,8 +434,14 @@ pub enum Expr<'src> {
         span: Span,
     },
 
-    /// A literal, (e.g: `1`, `2.0`, `"abcd"`)
-    Literal(Box<Literal<'src>>),
+    /// A literal string, (e.g: `"abcd"`)
+    LiteralString(Box<LiteralString<'src>>),
+
+    /// A literal integer, (e.g: `1`, `0xAB`)
+    LiteralInteger(Box<LiteralInteger<'src>>),
+
+    /// A literal float, (e.g: `2.0`, `3.14`)
+    LiteralFloat(Box<LiteralFloat<'src>>),
 
     /// A regular expression (e.g: `/ab.*cd/i`)
     Regexp(Box<Regexp<'src>>),
@@ -491,16 +449,16 @@ pub enum Expr<'src> {
     /// Identifier (e.g. `some_identifier`).
     Ident(Box<Ident<'src>>),
 
-    /// Pattern match expression (e.g. `$a`, `$a at 0`, `$a in (0..10)`)
+    /// Pattern match expression (e.g. `$`, `$a`, `$a at 0`, `$a in (0..10)`)
     PatternMatch(Box<PatternMatch<'src>>),
 
-    /// Pattern count expression (e.g. `#a`, `#a in (0..10)`)
+    /// Pattern count expression (e.g. `#`, `#a`, `#a in (0..10)`)
     PatternCount(Box<IdentWithRange<'src>>),
 
-    /// Pattern offset expression (e.g. `@a`, `@a[1]`)
+    /// Pattern offset expression (e.g. `@` `@a`, `@a[1]`)
     PatternOffset(Box<IdentWithIndex<'src>>),
 
-    /// Pattern length expression (e.g. `!a`, `!a[1]`)
+    /// Pattern length expression (e.g. `!`, `!a`, `!a[1]`)
     PatternLength(Box<IdentWithIndex<'src>>),
 
     /// Array or dictionary lookup expression (e.g. `array[1]`, `dict["key"]`)
@@ -510,7 +468,7 @@ pub enum Expr<'src> {
     FieldAccess(Box<BinaryExpr<'src>>),
 
     /// A function call expression (e.g. `foo()`, `bar(1,2)`)
-    FnCall(Box<FnCall<'src>>),
+    FuncCall(Box<FuncCall<'src>>),
 
     /// A `defined` expression (e.g. `defined foo`)
     Defined(Box<UnaryExpr<'src>>),
@@ -519,28 +477,28 @@ pub enum Expr<'src> {
     Not(Box<UnaryExpr<'src>>),
 
     /// Boolean `and` expression.
-    And(Box<BinaryExpr<'src>>),
+    And(Box<NAryExpr<'src>>),
 
     /// Boolean `or` expression.
-    Or(Box<BinaryExpr<'src>>),
+    Or(Box<NAryExpr<'src>>),
 
     /// Arithmetic minus.
     Minus(Box<UnaryExpr<'src>>),
 
     /// Arithmetic add (`+`) expression.
-    Add(Box<BinaryExpr<'src>>),
+    Add(Box<NAryExpr<'src>>),
 
     /// Arithmetic subtraction (`-`) expression.
-    Sub(Box<BinaryExpr<'src>>),
+    Sub(Box<NAryExpr<'src>>),
 
     /// Arithmetic multiplication (`*`) expression.
-    Mul(Box<BinaryExpr<'src>>),
+    Mul(Box<NAryExpr<'src>>),
 
     /// Arithmetic division (`\`) expression.
-    Div(Box<BinaryExpr<'src>>),
+    Div(Box<NAryExpr<'src>>),
 
     /// Arithmetic modulus (`%`) expression.
-    Modulus(Box<BinaryExpr<'src>>),
+    Mod(Box<NAryExpr<'src>>),
 
     /// Bitwise not (`~`) expression.
     BitwiseNot(Box<UnaryExpr<'src>>),
@@ -661,52 +619,12 @@ pub struct In<'src> {
 pub struct Ident<'src> {
     pub span: Span,
     #[doc(hidden)]
-    pub type_value: TypeValue,
     pub name: &'src str,
 }
 
 impl<'src> Ident<'src> {
     pub(crate) fn new(name: &'src str, span: Span) -> Self {
-        Self { name, span, type_value: TypeValue::Unknown }
-    }
-
-    pub(crate) fn with_type_and_value(
-        name: &'src str,
-        span: Span,
-        type_value: TypeValue,
-    ) -> Self {
-        Self { name, span, type_value }
-    }
-
-    /// Returns the identifier's type.
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
-    }
-}
-
-/// Creates an [`Ident`] directly from a [`CSTNode`].
-impl<'src> From<CSTNode<'src>> for Ident<'src> {
-    fn from(node: CSTNode<'src>) -> Self {
-        Self {
-            type_value: TypeValue::Unknown,
-            span: node.as_span().into(),
-            name: node.as_str(),
-        }
+        Self { name, span }
     }
 }
 
@@ -740,45 +658,72 @@ pub struct IdentWithIndex<'src> {
 /// of a `matches` operator.
 #[derive(Debug, HasSpan)]
 pub struct Regexp<'src> {
+    /// The span that covers the regexp's source code.
     pub span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
-    pub regexp: &'src str,
-    pub case_insensitive: bool,
-    pub dotall: bool,
-}
-
-impl Hash for Regexp<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.regexp.hash(state);
-        self.case_insensitive.hash(state);
-        self.dotall.hash(state);
-    }
-}
-
-/// A literal value of any type (e.g: `1`, `2.0`, `"abcd"`, `true`).
-#[derive(Debug, HasSpan)]
-pub struct Literal<'src> {
-    pub span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
-    /// The literal value as it appears in the source code.
+    /// The regular expressions as it appears in the source code, including
+    /// the opening and closing slashes (`/`), and the modifiers `i` and `s`,
+    /// if they are present.
     pub literal: &'src str,
+    /// The regexp source code. Doesn't include the opening and closing `/`.
+    pub src: &'src str,
+    /// True if the regular expression was followed by /i
+    pub case_insensitive: bool,
+    /// True if the regular expression was followed by /s
+    pub dot_matches_new_line: bool,
 }
 
-impl<'src> Literal<'src> {
+/// A literal string (e.g: `"abcd"`).
+#[derive(Debug, HasSpan)]
+pub struct LiteralString<'src> {
+    /// The span that covers the literal string, including the quotes.
+    pub span: Span,
+    /// The literal string as it appears in the source code, including the
+    /// quotes.
+    pub literal: &'src str,
+    /// The value of the string literal. Escaped characters, if any, are
+    /// unescaped. Doesn't include the quotes.
+    pub value: Cow<'src, BStr>,
+}
+
+impl<'src> LiteralString<'src> {
     pub(crate) fn new(
         literal: &'src str,
         span: Span,
-        type_value: TypeValue,
+        value: Cow<'src, BStr>,
     ) -> Self {
-        Self { literal, span, type_value }
+        Self { literal, span, value }
     }
+}
 
-    /// Returns the literal's type
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
+/// A literal integer (e.g: `1`, `0xAB`).
+#[derive(Debug, HasSpan)]
+pub struct LiteralInteger<'src> {
+    pub span: Span,
+    /// The literal value as it appears in the source code.
+    pub literal: &'src str,
+    /// The value of the integer literal.
+    pub value: i64,
+}
+
+impl<'src> LiteralInteger<'src> {
+    pub(crate) fn new(literal: &'src str, span: Span, value: i64) -> Self {
+        Self { literal, span, value }
+    }
+}
+
+/// A literal float (e.g: `2.0`, `3.14`).
+#[derive(Debug, HasSpan)]
+pub struct LiteralFloat<'src> {
+    pub span: Span,
+    /// The literal value as it appears in the source code.
+    pub literal: &'src str,
+    /// The value of the integer literal.
+    pub value: f64,
+}
+
+impl<'src> LiteralFloat<'src> {
+    pub(crate) fn new(literal: &'src str, span: Span, value: f64) -> Self {
+        Self { literal, span, value }
     }
 }
 
@@ -786,46 +731,18 @@ impl<'src> Literal<'src> {
 #[derive(Debug, HasSpan)]
 pub struct UnaryExpr<'src> {
     pub span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     pub operand: Expr<'src>,
 }
 
 impl<'src> UnaryExpr<'src> {
-    pub(crate) fn new(
-        operand: Expr<'src>,
-        span: Span,
-        type_value: TypeValue,
-    ) -> Self {
-        Self { operand, span, type_value }
-    }
-
-    /// Returns the expression's type
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
+    pub(crate) fn new(operand: Expr<'src>, span: Span) -> Self {
+        Self { operand, span }
     }
 }
 
 /// An expression with two operands.
 #[derive(Debug)]
 pub struct BinaryExpr<'src> {
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     /// Left-hand side.
     pub lhs: Expr<'src>,
     /// Right-hand side.
@@ -833,76 +750,63 @@ pub struct BinaryExpr<'src> {
 }
 
 impl<'src> BinaryExpr<'src> {
-    pub(crate) fn new(
-        lhs: Expr<'src>,
-        rhs: Expr<'src>,
-        type_value: TypeValue,
-    ) -> Self {
-        Self { lhs, rhs, type_value }
+    pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
+        Self { lhs, rhs }
+    }
+}
+
+/// An expression with multiple operands.
+#[derive(Debug)]
+pub struct NAryExpr<'src> {
+    pub operands: Vec<Expr<'src>>,
+}
+
+impl<'src> NAryExpr<'src> {
+    pub(crate) fn new(lhs: Expr<'src>, rhs: Expr<'src>) -> Self {
+        Self { operands: vec![lhs, rhs] }
     }
 
-    /// Returns the expression's type
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
+    #[inline]
+    pub fn operands(&self) -> Iter<'_, Expr<'src>> {
+        self.operands.iter()
     }
 
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
+    #[inline]
+    pub fn add(&mut self, expr: Expr<'src>) {
+        self.operands.push(expr);
+    }
+
+    pub fn first(&self) -> &Expr<'src> {
+        self.operands
+            .first()
+            .expect("expression is expected to have at least one operand")
+    }
+
+    pub fn last(&self) -> &Expr<'src> {
+        self.operands
+            .last()
+            .expect("expression is expected to have at least one operand")
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[Expr<'src>] {
+        self.operands.as_slice()
     }
 }
 
 /// An expression representing a function call.
 #[derive(Debug, HasSpan)]
-pub struct FnCall<'src> {
+pub struct FuncCall<'src> {
     pub span: Span,
     pub args_span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     pub callable: Expr<'src>,
     pub args: Vec<Expr<'src>>,
-    #[doc(hidden)]
-    pub fn_signature_index: Option<usize>,
-}
-
-impl<'src> FnCall<'src> {
-    // Returns the function's return type.
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
-    }
 }
 
 /// A lookup operation in an array or dictionary.
 #[derive(Debug, HasSpan)]
 pub struct Lookup<'src> {
     pub span: Span,
-    #[doc(hidden)]
-    pub type_value: TypeValue,
     pub primary: Expr<'src>,
     pub index: Expr<'src>,
 }
@@ -912,29 +816,8 @@ impl<'src> Lookup<'src> {
         primary: Expr<'src>,
         index: Expr<'src>,
         span: Span,
-        type_value: TypeValue,
     ) -> Self {
-        Self { primary, index, span, type_value }
-    }
-
-    /// Returns the expression's type
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value.ty()
-    }
-
-    #[doc(hidden)]
-    pub fn set_type_value(&mut self, type_value: TypeValue) -> &Self {
-        let current_ty = self.type_value.ty();
-        if current_ty != Type::Unknown && current_ty != type_value.ty() {
-            panic!(
-                "setting type `{:?}` to expression that was previously `{:?}",
-                type_value.ty(),
-                current_ty
-            );
-        }
-        self.type_value = type_value;
-        self
+        Self { primary, index, span }
     }
 }
 
@@ -1003,9 +886,9 @@ pub enum Iterable<'src> {
 
 /// Either a set of pattern identifiers (possibly with wildcards), or the
 /// special set `them`, which includes all the patterns declared in the rule.
-#[derive(Debug)]
+#[derive(Debug, HasSpan)]
 pub enum PatternSet<'src> {
-    Them,
+    Them { span: Span },
     Set(Vec<PatternSetItem<'src>>),
 }
 
@@ -1029,71 +912,6 @@ impl PatternSetItem<'_> {
             ident.starts_with(prefix)
         } else {
             ident == self.identifier
-        }
-    }
-}
-
-impl<'src> Expr<'src> {
-    #[inline(always)]
-    pub fn ty(&self) -> Type {
-        self.type_value().ty()
-    }
-
-    #[doc(hidden)]
-    pub fn type_value(&self) -> &TypeValue {
-        match self {
-            Expr::FieldAccess(expr)
-            | Expr::And(expr)
-            | Expr::Or(expr)
-            | Expr::Eq(expr)
-            | Expr::Ne(expr)
-            | Expr::Lt(expr)
-            | Expr::Gt(expr)
-            | Expr::Le(expr)
-            | Expr::Ge(expr)
-            | Expr::Contains(expr)
-            | Expr::IContains(expr)
-            | Expr::StartsWith(expr)
-            | Expr::IStartsWith(expr)
-            | Expr::EndsWith(expr)
-            | Expr::IEndsWith(expr)
-            | Expr::IEquals(expr)
-            | Expr::Matches(expr)
-            | Expr::Add(expr)
-            | Expr::Sub(expr)
-            | Expr::Mul(expr)
-            | Expr::Div(expr)
-            | Expr::Modulus(expr)
-            | Expr::Shl(expr)
-            | Expr::Shr(expr)
-            | Expr::BitwiseAnd(expr)
-            | Expr::BitwiseOr(expr)
-            | Expr::BitwiseXor(expr) => &expr.type_value,
-
-            Expr::Lookup(expr) => &expr.type_value,
-            Expr::Ident(ident) => &ident.type_value,
-            Expr::Regexp(regexp) => &regexp.type_value,
-            Expr::FnCall(fn_call) => &fn_call.type_value,
-
-            Expr::Literal(l) => &l.type_value,
-            Expr::True { .. } => &TRUE,
-            Expr::False { .. } => &FALSE,
-
-            Expr::PatternMatch(_)
-            | Expr::Of(_)
-            | Expr::ForOf(_)
-            | Expr::ForIn(_) => &UNKNOWN_BOOL,
-
-            Expr::Filesize { .. }
-            | Expr::Entrypoint { .. }
-            | Expr::PatternCount(_)
-            | Expr::PatternOffset(_)
-            | Expr::PatternLength(_) => &UNKNOWN_INT,
-
-            Expr::Defined(expr)
-            | Expr::Not(expr)
-            | Expr::BitwiseNot(expr)
-            | Expr::Minus(expr) => &expr.type_value,
         }
     }
 }

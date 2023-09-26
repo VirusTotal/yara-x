@@ -2,17 +2,18 @@ use crate::ast::{Span, AST};
 use crate::cst::CST;
 use bstr::{BStr, ByteSlice};
 use pest::Parser as PestParser;
+use std::num::NonZeroUsize;
 
 #[doc(inline)]
 pub use crate::parser::errors::*;
 pub use crate::parser::grammar::Rule as GrammarRule;
 
-pub(crate) use crate::parser::ast_builder::*;
 pub(crate) use crate::parser::context::*;
+pub(crate) use crate::parser::cst2ast::*;
 pub(crate) use crate::report::*;
 
-mod ast_builder;
 mod context;
+mod cst2ast;
 mod errors;
 
 #[cfg(test)]
@@ -38,7 +39,7 @@ mod tests;
 ///
 /// ```
 /// use yara_x_parser::SourceCode;
-/// let src = SourceCode::from("rule test { condition: true }").origin("some_file.yar");
+/// let src = SourceCode::from("rule test { condition: true }").with_origin("some_file.yar");
 /// ```
 ///
 #[derive(Debug, Clone)]
@@ -60,7 +61,7 @@ impl<'src> SourceCode<'src> {
     /// This is usually the path of the file that contained the source code
     /// but it can be an arbitrary string. The origin appears in error and
     /// warning messages.
-    pub fn origin(self, origin: &str) -> Self {
+    pub fn with_origin(self, origin: &str) -> Self {
         Self {
             raw: self.raw,
             valid: self.valid,
@@ -81,18 +82,22 @@ impl<'src> SourceCode<'src> {
 impl<'src> From<&'src str> for SourceCode<'src> {
     /// Creates a new [`SourceCode`] from a `&str`.
     fn from(src: &'src str) -> Self {
-        // Because the input is a &str we know that the code is valid UTF-8,
-        // so the `valid` field can be set to the provided reference.
+        // The input is a &str, therefore it's guaranteed to be valid UTF-8
+        // and the `valid` field can initialized.
         Self { raw: BStr::new(src), valid: Some(src), origin: None }
     }
 }
 
 impl<'src> From<&'src [u8]> for SourceCode<'src> {
     /// Creates a new [`SourceCode`] from a `&[u8]`.
+    ///
+    /// As `src` is not guaranteed to be a valid UTF-8 string, the parser will
+    /// verify it and return an error if invalid UTF-8 characters are found.
     fn from(src: &'src [u8]) -> Self {
-        // Because the input is a &[u8], the code can contain invalid UTF-8,
-        // so the `valid` field is set to `None`. The `validate_utf8` function
-        // must be used for validating the source code.
+        // The input is a &[u8], its content is not guaranteed to be valid
+        // UTF-8 so the `valid` field is set to `None`. The `validate_utf8`
+        // function will be called for validating the source code before
+        // being parsed.
         Self { raw: BStr::new(src), valid: None, origin: None }
     }
 }
@@ -108,6 +113,18 @@ pub struct Parser<'a> {
 impl<'a> Parser<'a> {
     /// Creates a new YARA parser.
     pub fn new() -> Self {
+        // This imposes a limit on the number of calls that can be made to some
+        // of the Pest parser's internal functions. The purpose of this limit
+        // is preventing pathological cases from running forever, as certain
+        // expressions, particularly nested parenthesised expressions, exhibit
+        // an exponential behaviour.
+        //
+        // This limit also affects source files that are too large. The current
+        // value has been determined experimentally, it's high enough to cause
+        // errors with very few rules, while at the same time keeping rule
+        // compile time reasonably low (~1 min) with pathological cases.
+        pest::set_call_limit(NonZeroUsize::new(250_000_000));
+
         Self {
             external_report_builder: None,
             own_report_builder: ReportBuilder::new(),
@@ -125,15 +142,16 @@ impl<'a> Parser<'a> {
 
     /// Builds the Abstract Syntax Tree (AST) for some YARA source code.
     ///
-    /// The `src` argument can be either a `&str` pointing to the source code,
-    /// or a [`SourceCode`] structure. With a [`SourceCode`] structure you can
-    /// provide additional information about the source code, like the path
-    /// of the file from where the code was read.
+    /// `src` can be any type that implements [`Into<SourceCode>`], which
+    /// includes `&str`, `&[u8]`, and [`SourceCode`] itself. By passing a
+    /// [`SourceCode`] you can provide additional information about the
+    /// source code, like the path of the file that originally contained the
+    /// code.
     ///
     /// The AST returned by this function holds references to the original
     /// source code. For example, identifiers in the AST point to the
-    /// corresponding identifiers in the source code. This avoids making copies
-    /// of the strings representing the identifiers, but also implies that the
+    /// corresponding strings in the code. This avoids making copies of the
+    /// strings representing the identifiers, but also implies that the
     /// memory backing the source code can't be dropped until the AST is
     /// dropped.
     ///
@@ -151,7 +169,7 @@ impl<'a> Parser<'a> {
     ///
     /// ```
     /// use yara_x_parser::{Parser, SourceCode};
-    /// let src = SourceCode::from("rule example { condition: true }").origin("some_rule.yar");
+    /// let src = SourceCode::from("rule example { condition: true }").with_origin("some_rule.yar");
     /// let ast = Parser::new().build_ast(src).unwrap();
     /// ```
     pub fn build_ast<'src, S>(&self, src: S) -> Result<AST<'src>, Error>
@@ -170,20 +188,22 @@ impl<'a> Parser<'a> {
         let root = cst.into_iter().next().unwrap();
         assert_eq!(root.as_rule(), GrammarRule::source_file);
 
-        let mut ctx = Context::new(src, self.get_report_builder());
+        let report_builder = self.get_report_builder();
 
-        let namespace = namespace_from_cst(&mut ctx, root.into_inner())?;
-        let namespaces = vec![namespace];
+        let mut ctx = Context::new(report_builder);
 
-        Ok(AST { namespaces, warnings: ctx.warnings })
+        let (imports, rules) = ast_from_cst(&mut ctx, root.into_inner())?;
+
+        Ok(AST { source: src, imports, rules, warnings: ctx.warnings })
     }
 
     /// Build the Concrete Syntax Tree (CST) for a YARA source.
     ///
-    /// The `src` argument can either a `&str` pointing to the source code, or
-    /// a [`SourceCode`] structure. With a [`SourceCode`] structure you can
-    /// provide additional information about the source code, like the path
-    /// of the file from where the code was read.
+    /// `src` can be any type that implements [`Into<SourceCode>`], which
+    /// includes `&str`, `&[u8]`, and [`SourceCode`] itself. By passing a
+    /// [`SourceCode`] you can provide additional information about the
+    /// source code, like the path of the file that originally contained the
+    /// code.
     ///
     /// The CST returned by this function holds references to the original
     /// source code. This implies that the memory backing the source code
@@ -203,7 +223,7 @@ impl<'a> Parser<'a> {
     ///
     /// ```
     /// use yara_x_parser::{Parser, SourceCode};
-    /// let src = SourceCode::from("rule example { condition: true }").origin("some_rule.yar");
+    /// let src = SourceCode::from("rule example { condition: true }").with_origin("some_rule.yar");
     /// let cst = Parser::new().build_cst(src).unwrap();
     /// ```
     #[inline(always)]
@@ -249,16 +269,19 @@ impl<'a> Parser<'a> {
             } else {
                 span_start
             };
-            return Err(Error::new(ErrorInfo::invalid_utf_8(
+            return Err(Error::from(ErrorInfo::invalid_utf_8(
                 report_builder,
-                &src,
-                Span { start: span_start, end: span_end },
+                Span::new(
+                    report_builder.current_source_id().unwrap(),
+                    span_start,
+                    span_end,
+                ),
             )));
         }
 
         let pairs = grammar::ParserImpl::parse(rule, src.valid.unwrap())
             .map_err(|pest_error| {
-                report_builder.convert_pest_error(&src, pest_error)
+                report_builder.convert_pest_error(pest_error)
             })?;
 
         Ok(CST { comments: false, whitespaces: false, pairs: Box::new(pairs) })

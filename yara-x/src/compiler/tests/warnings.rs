@@ -11,16 +11,16 @@ fn warnings() {
             r#"
 rule test { 
   strings: 
-    $a = { 01 [1-2][3-4][1-3] 02 } 
+    $a = { 01 02 [1-2][3-4][1-3] 03 04 } 
   condition: 
     $a 
 }"#,
             r#"warning: consecutive jumps in hex pattern `$a`
-   ╭─[line:4:15]
+   ╭─[line:4:18]
    │
- 4 │     $a = { 01 [1-2][3-4][1-3] 02 }
-   ·               ───────┬───────  
-   ·                      ╰───────── these consecutive jumps will be treated as [5-9]
+ 4 │     $a = { 01 02 [1-2][3-4][1-3] 03 04 }
+   │                  ───────┬───────  
+   │                         ╰───────── these consecutive jumps will be treated as [5-9]
 ───╯
 "#,
         ),
@@ -38,8 +38,8 @@ rule test {
    ╭─[line:4:18]
    │
  4 │     $a = { 0F 84 [4] [0-7] 8D }
-   ·                  ────┬────  
-   ·                      ╰────── these consecutive jumps will be treated as [4-11]
+   │                  ────┬────  
+   │                      ╰────── these consecutive jumps will be treated as [4-11]
 ───╯
 "#,
         ),
@@ -58,10 +58,10 @@ rule test {
    ╭─[line:7:5]
    │
  7 │     all of them at 0
-   ·     ─┬─         ──┬─  
-   ·      ╰──────────────── this implies that multiple patterns must match
-   ·                   │   
-   ·                   ╰─── but they must match at the same offset
+   │     ─┬─         ──┬─  
+   │      ╰──────────────── this implies that multiple patterns must match
+   │                   │   
+   │                   ╰─── but they must match at the same offset
 ───╯
 "#,
         ),
@@ -80,10 +80,10 @@ rule test {
    ╭─[line:7:5]
    │
  7 │     all of ($*) at 0
-   ·     ─┬─         ──┬─  
-   ·      ╰──────────────── this implies that multiple patterns must match
-   ·                   │   
-   ·                   ╰─── but they must match at the same offset
+   │     ─┬─         ──┬─  
+   │      ╰──────────────── this implies that multiple patterns must match
+   │                   │   
+   │                   ╰─── but they must match at the same offset
 ───╯
 "#,
         ),
@@ -102,10 +102,10 @@ rule test {
    ╭─[line:7:5]
    │
  7 │     2 of ($*) at 0
-   ·     ┬         ──┬─  
-   ·     ╰─────────────── this implies that multiple patterns must match
-   ·                 │   
-   ·                 ╰─── but they must match at the same offset
+   │     ┬         ──┬─  
+   │     ╰─────────────── this implies that multiple patterns must match
+   │                 │   
+   │                 ╰─── but they must match at the same offset
 ───╯
 "#,
         ),
@@ -125,10 +125,32 @@ rule test {
    ╭─[line:8:5]
    │
  8 │     70% of ($*) at 0
-   ·     ─┬          ──┬─  
-   ·      ╰──────────────── this implies that multiple patterns must match
-   ·                   │   
-   ·                   ╰─── but they must match at the same offset
+   │     ─┬          ──┬─  
+   │      ╰──────────────── this implies that multiple patterns must match
+   │                   │   
+   │                   ╰─── but they must match at the same offset
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /foo/i nocase
+  condition: 
+    $a
+}
+"#,
+            r#"warning: redundant case-insensitive modifier
+   ╭─[line:4:15]
+   │
+ 4 │     $a = /foo/i nocase
+   │               ┬ ───┬──  
+   │               ╰───────── the `i` suffix indicates that the pattern is case-insensitive
+   │                    │    
+   │                    ╰──── the `nocase` modifier does the same
 ───╯
 "#,
         ),
@@ -147,10 +169,10 @@ rule test {
    ╭─[line:7:5]
    │
  7 │     3 of them
-   ·     ─────┬────  
-   ·          ╰────── this expression is always false
-   · 
-   · Note: the expression requires 3 matching patterns out of 2
+   │     ─────┬────  
+   │          ╰────── this expression is always false
+   │ 
+   │ Note: the expression requires 3 matching patterns out of 2
 ───╯
 "#,
         ),
@@ -166,11 +188,11 @@ import "test_proto2"
    ╭─[line:3:1]
    │
  2 │ import "test_proto2"
-   · ──────────┬─────────  
-   ·           ╰─────────── `test_proto2` imported here for the first time
+   │ ──────────┬─────────  
+   │           ╰─────────── `test_proto2` imported here for the first time
  3 │ import "test_proto2"
-   · ──────────┬─────────  
-   ·           ╰─────────── duplicate import
+   │ ──────────┬─────────  
+   │           ╰─────────── duplicate import
 ───╯
 "#,
         ),
@@ -186,10 +208,51 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: 0
-   ·              ┬  
-   ·              ╰── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │              ┬  
+   │              ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: for any i in (0..1): ( 1 )
+}
+    "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:3:37]
+   │
+ 3 │   condition: for any i in (0..1): ( 1 )
+   │                                     ┬  
+   │                                     ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings: 
+    $a = "foo"
+  condition: 
+    for any of them: ( 1 )
+}
+    "#,
+            r#"warning: non-boolean expression used as boolean
+   ╭─[line:6:24]
+   │
+ 6 │     for any of them: ( 1 )
+   │                        ┬  
+   │                        ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
@@ -205,10 +268,10 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: 2 and 3
-   ·              ┬  
-   ·              ╰── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │              ┬  
+   │              ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
@@ -224,10 +287,10 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: "foo" or "bar"
-   ·              ──┬──  
-   ·                ╰──── this expression is `string` but is being used as `bool`
-   · 
-   · Note: non-empty strings are considered `true`, while the empty string ("") is `false`
+   │              ──┬──  
+   │                ╰──── this expression is `string` but is being used as `bool`
+   │ 
+   │ Note: non-empty strings are considered `true`, while the empty string ("") is `false`
 ───╯
 "#,
         ),
@@ -243,10 +306,10 @@ rule test {
    ╭─[line:3:22]
    │
  3 │   condition: true or "false"
-   ·                      ───┬───  
-   ·                         ╰───── this expression is `string` but is being used as `bool`
-   · 
-   · Note: non-empty strings are considered `true`, while the empty string ("") is `false`
+   │                      ───┬───  
+   │                         ╰───── this expression is `string` but is being used as `bool`
+   │ 
+   │ Note: non-empty strings are considered `true`, while the empty string ("") is `false`
 ───╯
 "#,
         ),
@@ -262,10 +325,10 @@ rule test {
    ╭─[line:3:18]
    │
  3 │   condition: not 2
-   ·                  ┬  
-   ·                  ╰── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │                  ┬  
+   │                  ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
@@ -281,10 +344,10 @@ rule test {
    ╭─[line:3:18]
    │
  3 │   condition: not 2+2
-   ·                  ─┬─  
-   ·                   ╰─── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+   │                  ─┬─  
+   │                   ╰─── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
         ),
@@ -293,24 +356,48 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: !a[1]
+  strings:
+    $a = "foo"
+  condition: 
+    !a[1]
 }
 "#,
             r#"warning: non-boolean expression used as boolean
-   ╭─[line:3:14]
+   ╭─[line:6:5]
    │
- 3 │   condition: !a[1]
-   ·              ──┬──  
-   ·                ╰──── this expression is `integer` but is being used as `bool`
-   · 
-   · Note: non-zero integers are considered `true`, while zero is `false`
+ 6 │     !a[1]
+   │     ──┬──  
+   │       ╰──── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = {00 [1-10] 01}
+  condition: 
+    $a
+}
+"#,
+            r#"warning: slow pattern
+   ╭─[line:4:10]
+   │
+ 4 │     $a = {00 [1-10] 01}
+   │          ───────┬──────  
+   │                 ╰──────── this pattern may slow down the scan
 ───╯
 "#,
         ),
     ];
 
     for t in tests {
-        let compiler = Compiler::new().add_source(t.1).unwrap();
+        let mut compiler = Compiler::new();
+        compiler.add_source(t.1).unwrap();
         assert!(
             !compiler.warnings.is_empty(),
             "test at line {} didn't produce warnings",
@@ -401,8 +488,8 @@ rule test {
     ];
 
     for t in tests {
-        let compiler = Compiler::new().add_source(t.1).unwrap();
-
+        let mut compiler = Compiler::new();
+        compiler.add_source(t.1).unwrap();
         if !compiler.warnings.is_empty() {
             panic!(
                 "test at line {} raised warning:\n{}",

@@ -1,42 +1,86 @@
-name: Test suite
-
-on: [push, pull_request]
-
+name: Tests
+on:
+  pull_request:
+    types: [ opened, reopened ]
+  push:
 jobs:
-  tests:
-    name: Run tests
+  test:
+    name: Test
+    env:
+      CARGO_TERM_COLOR: always
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, windows-latest, macOS-latest ]
-        rust: [ stable ]
-        cargo-test-args:
-        - "--features=test_proto2-module,test_proto3-module,ascii-tree"
-        - "--features=compile-time-optimization,test_proto2-module,test_proto3-module,ascii-tree"
-    env:
-      CARGO_TERM_COLOR: always
-    steps:
-    - name: Checkout sources
-      uses: actions/checkout@v3
+        build:
+          - msrv
+          - stable
+          - nightly
+          - macos
+          - win-msvc
+          # - win-gnu
+          - no-default-features
+        include:
+          - build: msrv
+            os: ubuntu-latest
+            rust: 1.67.1
+            args: ""
 
-    - name: Setup cache
-      uses: actions/cache@v3
-      with:
-        path: |
+          - build: stable
+            os: ubuntu-latest
+            rust: stable
+            args: ""
+
+          - build: nightly
+            os: ubuntu-latest
+            rust: nightly
+            args: ""
+
+          - build: macos
+            os: macos-latest
+            rust: stable
+            args: ""
+
+          - build: win-msvc
+            os: windows-latest
+            rust: stable
+            args: ""
+
+          # Tests for the `stable-x86_64-pc-windows-gnu` toolchain disabled
+          # due to https://github.com/VirusTotal/yara-x/issues/29
+          #
+          # - build: win-gnu
+          #   os: windows-latest
+          #   rust: stable-x86_64-gnu
+          #   args: ""
+
+          - build: no-default-features
+            os: ubuntu-latest
+            rust: stable
+            args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module"
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Setup cache
+        uses: actions/cache@v3
+        with:
+          path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Install Rust toolchain
-      uses: hecrj/setup-rust-action@v1
-      with:
-        rust-version: ${{ matrix.rust }}
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
 
-    - name: Run cargo test
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --workspace --all-targets --no-default-features ${{ matrix.cargo-test-args }}
-      env:
-        RUSTFLAGS: -Awarnings  # Allow all warnings
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --all-targets ${{ matrix.args }}
+        env:
+          RUSTFLAGS: -Awarnings # Allow all warnings
+

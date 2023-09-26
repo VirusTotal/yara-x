@@ -11,9 +11,9 @@ pub mod protos {
 
 #[allow(unused_imports)]
 pub(crate) mod prelude {
+    pub(crate) use crate::scanner::ScanContext;
     pub(crate) use crate::wasm::string::*;
     pub(crate) use crate::wasm::*;
-    pub(crate) use crate::ScanContext;
     pub(crate) use bstr::ByteSlice;
     pub(crate) use linkme::distributed_slice;
     pub(crate) use wasmtime::Caller;

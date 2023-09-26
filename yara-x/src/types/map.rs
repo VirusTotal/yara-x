@@ -1,7 +1,10 @@
-use crate::types::TypeValue;
 use bstr::BString;
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
+use crate::types::TypeValue;
+
+#[derive(Serialize, Deserialize)]
 pub enum Map {
     /// A map that has integer keys.
     IntegerKeys {
@@ -64,10 +67,5 @@ impl Map {
             Map::IntegerKeys { map, .. } => map.len(),
             Map::StringKeys { map, .. } => map.len(),
         }
-    }
-
-    /// Returns true if the map is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
     }
 }

@@ -138,6 +138,8 @@ message TestProto2 {
   enum Enumeration {
     ITEM_0 = 0;
     ITEM_1 = 1;
+    ITEM_2 = 2 [(yara.enum_value).i64 = 0x7fffffffffff];
+    ITEM_3 = 3 [(yara.enum_value).i64 = -1];
   }
 
   optional Enumeration        enumeration = 100;
@@ -153,11 +155,13 @@ message TestProto2 {
   map<string, int64>          map_string_int64 = 201;
   map<string, string>         map_string_string = 202;
   map<string, bool>           map_string_bool = 203;
+  map<string, float>          map_string_float = 204;
 
   map<int64, NestedProto2>    map_int64_struct = 300;
   map<int64, int64>           map_int64_int64 = 301;
   map<int64, string>          map_int64_string = 302;
   map<int64, bool>            map_int64_bool = 303;
+  map<int64, float>           map_int64_float = 304;
 
   /// This field will be visible in YARA as `bool_yara` instead of `bool_proto`.
   optional bool bool_proto = 350 [(yara.field_options).name = "bool_yara"];
@@ -171,12 +175,20 @@ message TestProto2 {
     ITEM_0 = 0;
     ITEM_1 = 1;
   }
+
+  optional uint64 file_size = 400;
 }
 
 enum TopLevelEnumeration {
   ITEM_0x1000 = 0x1000;
   ITEM_0x2000 = 0x2000;
-} 
+}
+
+enum InlineEnumeration {
+  option (yara.enum_options).inline = true;
+  INLINE_0x1000 = 0x1000;
+  INLINE_0x2000 = 0x2000;
+}
 
 message NestedProto2 {
   optional int32              nested_int32_zero = 1;

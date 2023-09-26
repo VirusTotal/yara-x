@@ -219,7 +219,7 @@ ident = @{
   !(keyword ~ !ident_chars) ~ (ASCII_ALPHA | "_") ~ ident_chars*
 }
 
-// Pattern identifier (i.e: $a, $b, $foo, $bar).
+// Pattern identifier (i.e: $, $a, $b, $foo, $bar).
 pattern_ident = @{
   "$" ~ ident_chars*
 }
@@ -399,13 +399,20 @@ boolean_expr = {
 
 boolean_term = {
   pattern_ident ~ (k_AT ~ expr | k_IN ~ range)?        |
+  for_expr                                             |
+  of_expr                                              |
+  expr ~ ((comparison_op | string_op) ~ expr)*         |
+  // All the rules below must appear *after*
+  // expr ~ ((comparison_op | string_op) ~ expr)*
+  // That's because all of them can be a prefix of `expr`.
+  // For example, an identifier `trueX` has the prefix
+  // `true`, if k_TRUE is evaluated before, the prefix
+  // is matched as the keyword `true`, and the remaining
+  // `X` as an identifier.
   k_TRUE                                               |
   k_FALSE                                              |
   k_NOT ~ boolean_term                                 |
   k_DEFINED ~ boolean_term                             |
-  for_expr                                             |
-  of_expr                                              |
-  expr ~ ((comparison_op | string_op) ~ expr)*         |
   LPAREN ~ boolean_expr ~ RPAREN
 }
 

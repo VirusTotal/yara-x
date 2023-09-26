@@ -1,6 +1,7 @@
 use bstr::{BStr, ByteSlice, Utf8Error};
 
-use crate::{LiteralId, RuntimeStringId, ScanContext};
+use crate::compiler::LiteralId;
+use crate::scanner::{RuntimeStringId, ScanContext};
 
 /// Represents a [`RuntimeString`] as a `i64` that can be passed from WASM to
 /// host and vice-versa.

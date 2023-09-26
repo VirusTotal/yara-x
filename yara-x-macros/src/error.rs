@@ -183,10 +183,9 @@ fn gen_build_func(
 
             Ok(quote!(
                 #[doc(hidden)]
-                pub fn #fn_ident(report_builder: &ReportBuilder, src: &SourceCode, #args) -> Self {
+                pub fn #fn_ident(report_builder: &ReportBuilder, #args) -> Self {
                     let detailed_report = report_builder.create_report(
                         #report_type,
-                        src,
                         #main_label_span,
                         format!(#attr_args),
                         vec![
@@ -326,7 +325,7 @@ fn get_labels(
                     return Err(syn::Error::new_spanned(
                         value,
                         format!(
-                            "unkown argument {}",
+                            "unknown argument {}",
                             value.path.get_ident().unwrap()
                         ),
                     ));

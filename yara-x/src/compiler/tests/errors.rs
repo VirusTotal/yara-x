@@ -2,9 +2,35 @@ use pretty_assertions::assert_eq;
 
 use crate::compiler::Compiler;
 
+#[rustfmt::skip]
 #[test]
-fn errors() {
+fn errors_1() {
     let tests = vec![
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+   condition: true
+}
+
+rule test {
+   condition: false
+}
+"#,
+            r#"error: duplicate rule `test`
+   ╭─[line:2:6]
+   │
+ 2 │ rule test {
+   │      ──┬─  
+   │        ╰─── `test` declared here for the first time
+   │ 
+ 6 │ rule test {
+   │      ──┬─  
+   │        ╰─── duplicate declaration of `test`
+───╯
+"#,
+        ),
         ////////////////////////////////////////////////////////////
         (
             line!(),
@@ -17,10 +43,10 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: "foo" == 2
-   ·              ──┬──    ┬  
-   ·                ╰───────── this expression is `string`
-   ·                       │  
-   ·                       ╰── this expression is `integer`
+   │              ──┬──    ┬  
+   │                ╰───────── this expression is `string`
+   │                       │  
+   │                       ╰── this expression is `integer`
 ───╯
 "#,
         ),
@@ -36,8 +62,8 @@ rule test {
    ╭─[line:3:18]
    │
  3 │   condition: 1 + "1" == 2
-   ·                  ─┬─  
-   ·                   ╰─── expression should be `float` or `integer`, but is `string`
+   │                  ─┬─  
+   │                   ╰─── expression should be `float` or `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -53,8 +79,8 @@ rule test {
    ╭─[line:3:14]
    │
  3 │   condition: 2.0 % 1 == 1
-   ·              ─┬─  
-   ·               ╰─── expression should be `integer`, but is `float`
+   │              ─┬─  
+   │               ╰─── expression should be `integer`, but is `float`
 ───╯
 "#,
         ),
@@ -70,8 +96,8 @@ rule test {
    ╭─[line:3:19]
    │
  3 │   condition: 1 + -"1" == 0
-   ·                   ─┬─  
-   ·                    ╰─── expression should be `float` or `integer`, but is `string`
+   │                   ─┬─  
+   │                    ╰─── expression should be `float` or `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -87,8 +113,8 @@ rule test {
    ╭─[line:3:19]
    │
  3 │   condition: 1 << 2.0 + 2
-   ·                   ───┬───  
-   ·                      ╰───── expression should be `integer`, but is `float`
+   │                   ───┬───  
+   │                      ╰───── expression should be `integer`, but is `float`
 ───╯
 "#,
         ),
@@ -104,8 +130,8 @@ rule test {
    ╭─[line:3:19]
    │
  3 │   condition: 1 << -1 == 0
-   ·                   ─┬  
-   ·                    ╰── this number can not be negative
+   │                   ─┬  
+   │                    ╰── this number can not be negative
 ───╯
 "#,
         ),
@@ -121,8 +147,59 @@ rule test {
    ╭─[line:3:29]
    │
  3 │   condition: "111" contains 1
-   ·                             ┬  
-   ·                             ╰── expression should be `string`, but is `integer`
+   │                             ┬  
+   │                             ╰── expression should be `string`, but is `integer`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: "foobar" matches "foobar"
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:3:31]
+   │
+ 3 │   condition: "foobar" matches "foobar"
+   │                               ────┬───  
+   │                                   ╰───── expression should be `regexp`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: 1 matches /foobar/
+}
+"#,
+            r#"error: wrong type
+   ╭─[line:3:14]
+   │
+ 3 │   condition: 1 matches /foobar/
+   │              ┬  
+   │              ╰── expression should be `string`, but is `integer`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition: "foobar" matches /foo[bar/
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:3:35]
+   │
+ 3 │   condition: "foobar" matches /foo[bar/
+   │                                   ┬  
+   │                                   ╰── unclosed character class
 ───╯
 "#,
         ),
@@ -141,8 +218,8 @@ rule test {
    ╭─[line:6:15]
    │
  6 │     #a in (0.."10") == 0
-   ·               ──┬─  
-   ·                 ╰─── expression should be `integer`, but is `string`
+   │               ──┬─  
+   │                 ╰─── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -151,15 +228,78 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: $a at "1"
+  strings:
+    $a = "foo"
+  condition: 
+    $a in (-1..0)
+}
+"#,
+            r#"error: unexpected negative number
+   ╭─[line:6:12]
+   │
+ 6 │     $a in (-1..0)
+   │            ─┬  
+   │             ╰── this number can not be negative
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition: 
+    $a in (0..-2)
+}
+"#,
+            r#"error: unexpected negative number
+   ╭─[line:6:15]
+   │
+ 6 │     $a in (0..-2)
+   │               ─┬  
+   │                ╰── this number can not be negative
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition: 
+    $a in (2..1)
+}
+"#,
+            r#"error: invalid range
+   ╭─[line:6:11]
+   │
+ 6 │     $a in (2..1)
+   │           ───┬──  
+   │              ╰──── higher bound must be greater or equal than lower bound
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition: 
+    $a at "1"
 }
 "#,
             r#"error: wrong type
-   ╭─[line:3:20]
+   ╭─[line:6:11]
    │
- 3 │   condition: $a at "1"
-   ·                    ─┬─  
-   ·                     ╰─── expression should be `integer`, but is `string`
+ 6 │     $a at "1"
+   │           ─┬─  
+   │            ╰─── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -168,15 +308,18 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: @a["1"] == 0x100
+  strings:
+    $a = "foo"
+  condition: 
+    @a["1"] == 0x100
 }
 "#,
             r#"error: wrong type
-   ╭─[line:3:17]
+   ╭─[line:6:8]
    │
- 3 │   condition: @a["1"] == 0x100
-   ·                 ─┬─  
-   ·                  ╰─── expression should be `integer`, but is `string`
+ 6 │     @a["1"] == 0x100
+   │        ─┬─  
+   │         ╰─── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -185,15 +328,18 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: @a[0]
+  strings:
+    $a = "foo"
+  condition: 
+    @a[0]
 }
         "#,
             r#"error: number out of range
-   ╭─[line:3:17]
+   ╭─[line:6:8]
    │
- 3 │   condition: @a[0]
-   ·                 ┬  
-   ·                 ╰── this number is out of the allowed range [1-9223372036854775807]
+ 6 │     @a[0]
+   │        ┬  
+   │        ╰── this number is out of the allowed range [1-9223372036854775807]
 ───╯
 "#,
         ),
@@ -202,14 +348,17 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: !a[-1]
+  strings:
+    $a = "foo"
+  condition: 
+    !a[-1]
 }"#,
             r#"error: number out of range
-   ╭─[line:3:17]
+   ╭─[line:6:8]
    │
- 3 │   condition: !a[-1]
-   ·                 ─┬  
-   ·                  ╰── this number is out of the allowed range [1-9223372036854775807]
+ 6 │     !a[-1]
+   │        ─┬  
+   │         ╰── this number is out of the allowed range [1-9223372036854775807]
 ───╯
 "#,
         ),
@@ -218,15 +367,18 @@ rule test {
             line!(),
             r#"
 rule test {
-  condition: #a in (0.."10")
+  strings:
+    $a = "foo"
+  condition: 
+    #a in (0.."10")
 }
         "#,
             r#"error: wrong type
-   ╭─[line:3:24]
+   ╭─[line:6:15]
    │
- 3 │   condition: #a in (0.."10")
-   ·                        ──┬─  
-   ·                          ╰─── expression should be `integer`, but is `string`
+ 6 │     #a in (0.."10")
+   │               ──┬─  
+   │                 ╰─── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -245,8 +397,8 @@ rule test {
    ╭─[line:6:21]
    │
  6 │     any of them in (1.0..10)
-   ·                     ─┬─  
-   ·                      ╰─── expression should be `integer`, but is `float`
+   │                     ─┬─  
+   │                      ╰─── expression should be `integer`, but is `float`
 ───╯
 "#,
         ),
@@ -265,8 +417,28 @@ rule test {
    ╭─[line:6:20]
    │
  6 │     any of them at "10"
-   ·                    ──┬─  
-   ·                      ╰─── expression should be `integer`, but is `string`
+   │                    ──┬─  
+   │                      ╰─── expression should be `integer`, but is `string`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = "foo"
+  condition:
+    $a at -1
+}
+"#,
+            r#"error: unexpected negative number
+   ╭─[line:6:11]
+   │
+ 6 │     $a at -1
+   │           ─┬  
+   │            ╰── this number can not be negative
 ───╯
 "#,
         ),
@@ -285,8 +457,8 @@ rule test {
    ╭─[line:6:5]
    │
  6 │     "1" of them
-   ·     ─┬─  
-   ·      ╰─── expression should be `integer`, but is `string`
+   │     ─┬─  
+   │      ╰─── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -305,8 +477,8 @@ rule test {
    ╭─[line:6:5]
    │
  6 │     101% of them
-   ·     ─┬─  
-   ·      ╰─── this number is out of the allowed range [0-100]
+   │     ─┬─  
+   │      ╰─── this number is out of the allowed range [0-100]
 ───╯
 "#,
         ),
@@ -324,8 +496,8 @@ rule test {
    ╭─[line:4:10]
    │
  4 │      for 3.14 x in (0..10) : (false)
-   ·          ──┬─  
-   ·            ╰─── expression should be `integer`, but is `float`
+   │          ──┬─  
+   │            ╰─── expression should be `integer`, but is `float`
 ───╯
 "#,
         ),
@@ -342,8 +514,8 @@ rule test {
    ╭─[line:4:17]
    │
  4 │     1 of (true, 2, false)
-   ·                 ┬  
-   ·                 ╰── expression should be `boolean`, but is `integer`
+   │                 ┬  
+   │                 ╰── expression should be `boolean`, but is `integer`
 ───╯
 "#,
         ),
@@ -360,8 +532,8 @@ rule test {
    ╭─[line:4:5]
    │
  4 │     undeclared_ident
-   ·     ────────┬───────  
-   ·             ╰───────── this identifier has not been declared
+   │     ────────┬───────  
+   │             ╰───────── this identifier has not been declared
 ───╯
 "#,
         ),
@@ -374,8 +546,8 @@ import "foo""#,
    ╭─[line:2:1]
    │
  2 │ import "foo"
-   · ──────┬─────  
-   ·       ╰─────── module `foo` not found
+   │ ──────┬─────  
+   │       ╰─────── module `foo` not found
 ───╯
 "#,
         ),
@@ -394,10 +566,10 @@ rule test {
    ╭─[line:4:20]
    │
  4 │     for 1 n in (1, 2, "3") : (
-   ·                    ┬  ─┬─  
-   ·                    ╰─────── this expression is `integer`
-   ·                        │   
-   ·                        ╰─── this expression is `string`
+   │                    ┬  ─┬─  
+   │                    ╰─────── this expression is `integer`
+   │                        │   
+   │                        ╰─── this expression is `string`
 ───╯
 "#,
         ),
@@ -416,10 +588,10 @@ rule test {
    ╭─[line:5:7]
    │
  5 │       n == "3"
-   ·       ┬    ─┬─  
-   ·       ╰───────── this expression is `integer`
-   ·             │   
-   ·             ╰─── this expression is `string`
+   │       ┬    ─┬─  
+   │       ╰───────── this expression is `integer`
+   │             │   
+   │             ╰─── this expression is `string`
 ───╯
 "#,
         ),
@@ -436,10 +608,10 @@ rule test {
    ╭─[line:4:13]
    │
  4 │     for all x,y in (0..10) : ( true )
-   ·             ─┬─    ───┬───  
-   ·              ╰────────────── this expects 2 value(s)
-   ·                       │     
-   ·                       ╰───── this produces 1 value(s)
+   │             ─┬─    ───┬───  
+   │              ╰────────────── this expects 2 value(s)
+   │                       │     
+   │                       ╰───── this produces 1 value(s)
 ───╯
 "#,
         ),
@@ -456,10 +628,10 @@ rule test {
    ╭─[line:4:13]
    │
  4 │     for all x,y in (1, 2, 3) : ( true )
-   ·             ─┬─     ───┬───  
-   ·              ╰─────────────── this expects 2 value(s)
-   ·                        │     
-   ·                        ╰───── this produces 1 value(s)
+   │             ─┬─     ───┬───  
+   │              ╰─────────────── this expects 2 value(s)
+   │                        │     
+   │                        ╰───── this produces 1 value(s)
 ───╯
 "#,
         ),
@@ -478,8 +650,8 @@ rule test {
    ╭─[line:5:7]
    │
  5 │       x == "3"
-   ·       ┬  
-   ·       ╰── this identifier has not been declared
+   │       ┬  
+   │       ╰── this identifier has not been declared
 ───╯
 "#,
         ),
@@ -501,8 +673,201 @@ rule test {
    ╭─[line:8:11]
    │
  8 │       and y == 1
-   ·           ┬  
-   ·           ╰── this identifier has not been declared
+   │           ┬  
+   │           ╰── this identifier has not been declared
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test_1 {
+  condition:
+    true
+}
+
+global rule test_2 {
+  condition:
+    test_1
+}
+"#,
+            r#"error: global rule `test_2` depends on non-global rule `test_1`
+   ╭─[line:9:5]
+   │
+ 2 │ rule test_1 {
+   │      ───┬──  
+   │         ╰──── non-global rule `test_1` declared here
+   │ 
+ 7 │ global rule test_2 {
+   │             ───┬──  
+   │                ╰──── global rule `test_2` declared here
+   │ 
+ 9 │     test_1
+   │     ───┬──  
+   │        ╰──── `test_1` is used in the condition of `test_2`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /abc[xyz/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:14]
+   │
+ 4 │     $a = /abc[xyz/
+   │              ┬  
+   │              ╰── unclosed character class
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /abc.{-100}xyz/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:16]
+   │
+ 4 │     $a = /abc.{-100}xyz/
+   │                │ 
+   │                ╰─ repetition quantifier expects a valid decimal
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /abc[b-a]/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:15]
+   │
+ 4 │     $a = /abc[b-a]/
+   │               ─┬─  
+   │                ╰─── invalid character class range, the start must be <= the end
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /(abc/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:11]
+   │
+ 4 │     $a = /(abc/
+   │           ┬  
+   │           ╰── unclosed group
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /a[]b/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:12]
+   │
+ 4 │     $a = /a[]b/
+   │            ─┬  
+   │             ╰── unclosed character class
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  strings:
+    $a = /a.*b.*?c/
+  condition:
+    $a
+}
+"#,
+            r#"error: mixing greedy and non-greedy quantifiers in regular expression
+   ╭─[line:4:15]
+   │
+ 4 │     $a = /a.*b.*?c/
+   │            ─┬ ─┬─  
+   │             ╰────── this is greedy
+   │                │   
+   │                ╰─── this is non-greedy
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    all of ($a*)
+}
+"#,
+            r#"error: no matching patterns
+   ╭─[line:4:13]
+   │
+ 4 │     all of ($a*)
+   │             ─┬─  
+   │              ╰─── there's no pattern in this set
+   │ 
+   │ Note: `$a*` doesn't match any pattern identifier
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    all of them
+}
+"#,
+            r#"error: no matching patterns
+   ╭─[line:4:12]
+   │
+ 4 │     all of them
+   │            ──┬─  
+   │              ╰─── there's no pattern in this set
+   │ 
+   │ Note: this rule doesn't define any patterns
 ───╯
 "#,
         ),
@@ -521,10 +886,10 @@ rule test {
    ╭─[line:5:13]
    │
  5 │     for all x,y in test_proto2.array_int64 : ( true )
-   ·             ─┬─    ───────────┬───────────  
-   ·              ╰────────────────────────────── this expects 2 value(s)
-   ·                               │             
-   ·                               ╰───────────── this produces 1 value(s)
+   │             ─┬─    ───────────┬───────────  
+   │              ╰────────────────────────────── this expects 2 value(s)
+   │                               │             
+   │                               ╰───────────── this produces 1 value(s)
 ───╯
 "#,
         ),
@@ -543,10 +908,10 @@ rule test {
    ╭─[line:5:13]
    │
  5 │     for all x in test_proto2.map_string_int64 : ( true )
-   ·             ┬    ──────────────┬─────────────  
-   ·             ╰────────────────────────────────── this expects 1 value(s)
-   ·                                │               
-   ·                                ╰─────────────── this produces 2 value(s)
+   │             ┬    ──────────────┬─────────────  
+   │             ╰────────────────────────────────── this expects 1 value(s)
+   │                                │               
+   │                                ╰─────────────── this produces 2 value(s)
 ───╯
 "#,
         ),
@@ -565,8 +930,8 @@ rule test {
    ╭─[line:5:18]
    │
  5 │     for all x in test_proto2.int64_zero : ( true )
-   ·                  ───────────┬──────────  
-   ·                             ╰──────────── expression should be `array` or `map`, but is `integer`
+   │                  ───────────┬──────────  
+   │                             ╰──────────── expression should be `array` or `map`, but is `integer`
 ───╯
 "#,
         ),
@@ -585,10 +950,10 @@ rule test {
    ╭─[line:5:53]
    │
  5 │     for all k,v in test_proto2.map_int64_string : ( k == "1" )
-   ·                                                     ┬    ─┬─  
-   ·                                                     ╰───────── this expression is `integer`
-   ·                                                           │   
-   ·                                                           ╰─── this expression is `string`
+   │                                                     ┬    ─┬─  
+   │                                                     ╰───────── this expression is `integer`
+   │                                                           │   
+   │                                                           ╰─── this expression is `string`
 ───╯
 "#,
         ),
@@ -607,10 +972,10 @@ rule test {
    ╭─[line:5:53]
    │
  5 │     for all k,v in test_proto2.map_int64_string : ( v == 1 )
-   ·                                                     ┬    ┬  
-   ·                                                     ╰─────── this expression is `string`
-   ·                                                          │  
-   ·                                                          ╰── this expression is `integer`
+   │                                                     ┬    ┬  
+   │                                                     ╰─────── this expression is `string`
+   │                                                          │  
+   │                                                          ╰── this expression is `integer`
 ───╯
 "#,
         ),
@@ -631,10 +996,10 @@ rule test {
    ╭─[line:6:8]
    │
  6 │        struct.nested_int64_zero == "0"
-   ·        ────────────┬───────────    ─┬─  
-   ·                    ╰──────────────────── this expression is `integer`
-   ·                                     │   
-   ·                                     ╰─── this expression is `string`
+   │        ────────────┬───────────    ─┬─  
+   │                    ╰──────────────────── this expression is `integer`
+   │                                     │   
+   │                                     ╰─── this expression is `string`
 ───╯
 "#,
         ),
@@ -653,8 +1018,8 @@ rule test {
    ╭─[line:5:5]
    │
  5 │     test_proto2.int64_zero[0]
-   ·     ───────────┬──────────  
-   ·                ╰──────────── expression should be `array` or `map`, but is `integer`
+   │     ───────────┬──────────  
+   │                ╰──────────── expression should be `array` or `map`, but is `integer`
 ───╯
 "#,
         ),
@@ -673,8 +1038,8 @@ rule test {
    ╭─[line:5:29]
    │
  5 │     test_proto2.array_int64["foo"]
-   ·                             ──┬──  
-   ·                               ╰──── expression should be `integer`, but is `string`
+   │                             ──┬──  
+   │                               ╰──── expression should be `integer`, but is `string`
 ───╯
 "#,
         ),
@@ -693,8 +1058,8 @@ rule test {
    ╭─[line:5:34]
    │
  5 │     test_proto2.map_string_int64[0]
-   ·                                  ┬  
-   ·                                  ╰── expression should be `string`, but is `integer`
+   │                                  ┬  
+   │                                  ╰── expression should be `string`, but is `integer`
 ───╯
 "#,
         ),
@@ -713,8 +1078,8 @@ rule test {
    ╭─[line:5:5]
    │
  5 │     test_proto2(1)
-   ·     ─────┬─────  
-   ·          ╰─────── expression should be `function`, but is `struct`
+   │     ─────┬─────  
+   │          ╰─────── expression should be `function`, but is `struct`
 ───╯
 "#,
         ),
@@ -733,8 +1098,8 @@ rule test {
    ╭─[line:5:17]
    │
  5 │     test_proto2.ignored
-   ·                 ───┬───  
-   ·                    ╰───── this identifier has not been declared
+   │                 ───┬───  
+   │                    ╰───── this identifier has not been declared
 ───╯
 "#,
         ),
@@ -753,13 +1118,13 @@ rule test {
    ╭─[line:5:20]
    │
  5 │     test_proto2.add(1, "2") == 3
-   ·                    ────┬───  
-   ·                        ╰───── wrong arguments in this call
-   · 
-   · Note: accepted argument combinations:
-
-             (float, float)
-             (integer, integer)
+   │                    ────┬───  
+   │                        ╰───── wrong arguments in this call
+   │ 
+   │ Note: accepted argument combinations:
+   │
+   │       (float, float)
+   │       (integer, integer)
 ───╯
 "#,
         ),
@@ -778,12 +1143,12 @@ rule test {
    ╭─[line:5:21]
    │
  5 │     test_proto2.head() == "foo"
-   ·                     ─┬  
-   ·                      ╰── wrong arguments in this call
-   · 
-   · Note: accepted argument combinations:
-
-             (integer)
+   │                     ─┬  
+   │                      ╰── wrong arguments in this call
+   │ 
+   │ Note: accepted argument combinations:
+   │
+   │       (integer)
 ───╯
 "#,
         ),
@@ -801,4 +1166,47 @@ rule test {
         "test at line {}", t.0
     )
     }
+}
+
+#[test]
+fn errors_2() {
+    assert_eq!(
+        Compiler::new()
+            .define_global("foo", 1)
+            .unwrap()
+            .add_source("rule foo  {condition: true}")
+            .unwrap_err()
+            .to_string(),
+        "error: rule `foo` conflicts with an existing identifier
+   ╭─[line:1:6]
+   │
+ 1 │ rule foo  {condition: true}
+   │      ─┬─  
+   │       ╰─── identifier already in use by a module or global variable
+───╯
+"
+    );
+
+    assert_eq!(
+        Compiler::new()
+            .add_source("rule foo : first {condition: true}")
+            .unwrap()
+            .add_source("rule foo : second {condition: true}")
+            .unwrap_err()
+            .to_string(),
+        "error: duplicate rule `foo`
+   ╭─[line:1:6]
+   │
+ 1 │ rule foo : first {condition: true}
+   │      ─┬─  
+   │       ╰─── `foo` declared here for the first time
+   │
+   ├─[line:1:6]
+   │
+ 1 │ rule foo : second {condition: true}
+   │      ─┬─  
+   │       ╰─── duplicate declaration of `foo`
+───╯
+"
+    );
 }

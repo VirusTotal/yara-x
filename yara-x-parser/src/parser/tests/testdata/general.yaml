@@ -7,20 +7,23 @@
        comment, which can contain /*
     */
     private global rule test {
+      strings:
+        $a = "foo"
       condition:
         true or /*in-line comment*/ false and not $a // end-of line comment
     }
   ast: |
     root
-    └─ namespace
-       └─ private global rule test
-          └─ condition
-             └─ or : boolean(unknown)
-                ├─ true
-                └─ and : boolean(unknown)
-                   ├─ false
-                   └─ not : boolean(unknown)
-                      └─ $a
+    └─ private global rule test
+       ├─ strings
+       │  └─ $a = "foo" 
+       └─ condition
+          └─ or
+             ├─ true
+             └─ and
+                ├─ false
+                └─ not
+                   └─ $a
 ###############################################################################
 
 - rule: |
@@ -30,33 +33,51 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ and : boolean(true)
-                ├─ or : boolean(true)
-                │  ├─ true
-                │  └─ false
-                └─ not : boolean(true)
-                   └─ false
+    └─ rule test
+       └─ condition
+          └─ and
+             ├─ or
+             │  ├─ true
+             │  └─ false
+             └─ not
+                └─ false
 
 ###############################################################################
 
 - rule: |
     rule test {
       condition:
+        foo or bar or baz
+    }
+  ast: |
+    root
+    └─ rule test
+       └─ condition
+          └─ or
+             ├─ foo
+             ├─ bar
+             └─ baz
+
+###############################################################################
+
+- rule: |
+    rule test {
+      strings:
+        $a = "foo"
+      condition:
         $a in (0..100)
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ $a in (<start>, <end>)
-                ├─ <start>
-                │  └─ 0
-                └─ <end>
-                   └─ 100
+    └─ rule test
+       ├─ strings
+       │  └─ $a = "foo" 
+       └─ condition
+          └─ $a in (<start>, <end>)
+             ├─ <start>
+             │  └─ 0
+             └─ <end>
+                └─ 100
 
 ###############################################################################
 
@@ -69,16 +90,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a = "foo" 
-          └─ condition
-             └─ $a at <expr>
-                └─ <expr>
-                   └─ add : integer(300)
-                      ├─ 100
-                      └─ 200
+    └─ rule test
+       ├─ strings
+       │  └─ $a = "foo" 
+       └─ condition
+          └─ $a at <expr>
+             └─ <expr>
+                └─ add
+                   ├─ 100
+                   └─ 200
 
 ###############################################################################
 
@@ -91,19 +111,18 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a = "foo" 
-          └─ condition
-             └─ eq : boolean(unknown)
-                ├─ #a in <range>
-                │  └─ <range>
-                │     ├─ add : integer(200)
-                │     │  ├─ 100
-                │     │  └─ 100
-                │     └─ 400
-                └─ 2
+    └─ rule test
+       ├─ strings
+       │  └─ $a = "foo" 
+       └─ condition
+          └─ eq
+             ├─ #a in <range>
+             │  └─ <range>
+             │     ├─ add
+             │     │  ├─ 100
+             │     │  └─ 100
+             │     └─ 400
+             └─ 2
 
 ###############################################################################
 
@@ -116,16 +135,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a = "foo" 
-          └─ condition
-             └─ eq : boolean(unknown)
-                ├─ @a[<index>]
-                │  └─ <index>
-                │     └─ 2
-                └─ 0x1000
+    └─ rule test
+       ├─ strings
+       │  └─ $a = "foo" 
+       └─ condition
+          └─ eq
+             ├─ @a[<index>]
+             │  └─ <index>
+             │     └─ 2
+             └─ 0x1000
 
 ###############################################################################
 
@@ -136,14 +154,13 @@
     }
   ast: | 
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ eq : boolean(unknown)
-                ├─ entrypoint
-                └─ add : integer(3000)
-                   ├─ 1000
-                   └─ 2000
+    └─ rule test
+       └─ condition
+          └─ eq
+             ├─ entrypoint
+             └─ add
+                ├─ 1000
+                └─ 2000
 
 ###############################################################################
 
@@ -154,28 +171,24 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ and : boolean(true)
-                ├─ and : boolean(true)
-                │  ├─ and : boolean(true)
-                │  │  ├─ and : boolean(true)
-                │  │  │  ├─ gt : boolean(true)
-                │  │  │  │  ├─ 2
-                │  │  │  │  └─ 1
-                │  │  │  └─ lt : boolean(true)
-                │  │  │     ├─ 1.0
-                │  │  │     └─ 3
-                │  │  └─ le : boolean(true)
-                │  │     ├─ 4
-                │  │     └─ 4.0
-                │  └─ gt : boolean(true)
-                │     ├─ 5
-                │     └─ 4.9
-                └─ ge : boolean(true)
-                   ├─ 5
-                   └─ 5.0
+    └─ rule test
+       └─ condition
+          └─ and
+             ├─ gt
+             │  ├─ 2
+             │  └─ 1
+             ├─ lt
+             │  ├─ 1.0
+             │  └─ 3
+             ├─ le
+             │  ├─ 4
+             │  └─ 4.0
+             ├─ gt
+             │  ├─ 5
+             │  └─ 4.9
+             └─ ge
+                ├─ 5
+                └─ 5.0
 
 ###############################################################################
 
@@ -186,34 +199,33 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ eq : unknown(unknown)
-                ├─ <struct>.<field>
-                │  ├─ <struct>
-                │  │  └─ <expr>[<index>]
-                │  │     ├─ <expr>
-                │  │     │  └─ <struct>.<field>
-                │  │     │     ├─ <struct>
-                │  │     │     │  └─ foo
-                │  │     │     └─ <field>
-                │  │     │        └─ bar
-                │  │     └─ <index>
-                │  │        └─ 0
-                │  └─ <field>
-                │     └─ baz
-                └─ <callable>()
-                   └─ <callable>
-                      └─ <struct>.<field>
-                         ├─ <struct>
-                         │  └─ <struct>.<field>
-                         │     ├─ <struct>
-                         │     │  └─ foo
-                         │     └─ <field>
-                         │        └─ bar
-                         └─ <field>
-                            └─ baz
+    └─ rule test
+       └─ condition
+          └─ eq
+             ├─ <struct>.<field>
+             │  ├─ <struct>
+             │  │  └─ <expr>[<index>]
+             │  │     ├─ <expr>
+             │  │     │  └─ <struct>.<field>
+             │  │     │     ├─ <struct>
+             │  │     │     │  └─ foo
+             │  │     │     └─ <field>
+             │  │     │        └─ bar
+             │  │     └─ <index>
+             │  │        └─ 0
+             │  └─ <field>
+             │     └─ baz
+             └─ <callable>()
+                └─ <callable>
+                   └─ <struct>.<field>
+                      ├─ <struct>
+                      │  └─ <struct>.<field>
+                      │     ├─ <struct>
+                      │     │  └─ foo
+                      │     └─ <field>
+                      │        └─ bar
+                      └─ <field>
+                         └─ baz
 
 ###############################################################################
 
@@ -224,24 +236,23 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ <struct>.<field>
-                ├─ <struct>
-                │  └─ <callable>(<arg0>, <arg1>)
-                │     ├─ <callable>
-                │     │  └─ <struct>.<field>
-                │     │     ├─ <struct>
-                │     │     │  └─ foo
-                │     │     └─ <field>
-                │     │        └─ bar
-                │     ├─ <arg0>
-                │     │  └─ 1
-                │     └─ <arg1>
-                │        └─ 2
-                └─ <field>
-                   └─ baz
+    └─ rule test
+       └─ condition
+          └─ <struct>.<field>
+             ├─ <struct>
+             │  └─ <callable>(<arg0>, <arg1>)
+             │     ├─ <callable>
+             │     │  └─ <struct>.<field>
+             │     │     ├─ <struct>
+             │     │     │  └─ foo
+             │     │     └─ <field>
+             │     │        └─ bar
+             │     ├─ <arg0>
+             │     │  └─ 1
+             │     └─ <arg1>
+             │        └─ 2
+             └─ <field>
+                └─ baz
 
 ###############################################################################
 
@@ -252,14 +263,13 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ <expr>[<index>]
-                ├─ <expr>
-                │  └─ foo
-                └─ <index>
-                   └─ 0
+    └─ rule test
+       └─ condition
+          └─ <expr>[<index>]
+             ├─ <expr>
+             │  └─ foo
+             └─ <index>
+                └─ 0
 
 ###############################################################################
 
@@ -270,21 +280,46 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ <struct>.<field>
-                ├─ <struct>
-                │  └─ <expr>[<index>]
-                │     ├─ <expr>
-                │     │  └─ <struct>.<field>
-                │     │     ├─ <struct>
-                │     │     │  └─ foo
-                │     │     └─ <field>
-                │     │        └─ bar
-                │     └─ <index>
-                │        └─ 0
-                └─ <field>
-                   └─ baz
+    └─ rule test
+       └─ condition
+          └─ <struct>.<field>
+             ├─ <struct>
+             │  └─ <expr>[<index>]
+             │     ├─ <expr>
+             │     │  └─ <struct>.<field>
+             │     │     ├─ <struct>
+             │     │     │  └─ foo
+             │     │     └─ <field>
+             │     │        └─ bar
+             │     └─ <index>
+             │        └─ 0
+             └─ <field>
+                └─ baz
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        trueFoo
+    }
+  ast: |
+    root
+    └─ rule test
+       └─ condition
+          └─ trueFoo
+
+###############################################################################
+
+- rule: |
+    rule test {
+      condition:
+        notFoo
+    }
+  ast: |
+    root
+    └─ rule test
+       └─ condition
+          └─ notFoo
 
 ###############################################################################

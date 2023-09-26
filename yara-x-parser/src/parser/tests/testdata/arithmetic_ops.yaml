@@ -7,23 +7,21 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ eq : boolean(true)
-                ├─ add : float(6.0)
-                │  ├─ 1
-                │  └─ mul : float(5.0)
-                │     ├─ mul : float(-5.0)
-                │     │  ├─ 2.5
-                │     │  └─ -2
-                │     └─ -1.0
-                └─ add : float(6.0)
-                   ├─ div : float(5.0)
-                   │  ├─ 10.0
-                   │  └─ 2
-                   └─ minus : integer(1)
-                      └─ -1
+    └─ rule test
+       └─ condition
+          └─ eq
+             ├─ add
+             │  ├─ 1
+             │  └─ mul
+             │     ├─ 2.5
+             │     ├─ -2
+             │     └─ -1.0
+             └─ add
+                ├─ div
+                │  ├─ 10.0
+                │  └─ 2
+                └─ minus
+                   └─ -1
 
 ###############################################################################
 
@@ -34,23 +32,21 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ eq : boolean(false)
-                ├─ mul : float(7.0)
-                │  ├─ mul : float(-7.0)
-                │  │  ├─ add : float(3.5)
-                │  │  │  ├─ 1
-                │  │  │  └─ 2.5
-                │  │  └─ -2
-                │  └─ -1.0
-                └─ div : float(3.3333333333333335)
-                   ├─ 10.0
-                   └─ add : integer(3)
-                      ├─ 2
-                      └─ minus : integer(1)
-                         └─ -1
+    └─ rule test
+       └─ condition
+          └─ eq
+             ├─ mul
+             │  ├─ add
+             │  │  ├─ 1
+             │  │  └─ 2.5
+             │  ├─ -2
+             │  └─ -1.0
+             └─ div
+                ├─ 10.0
+                └─ add
+                   ├─ 2
+                   └─ minus
+                      └─ -1
 
 ###############################################################################
 
@@ -61,16 +57,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ eq : boolean(true)
-                ├─ div : integer(2)
-                │  ├─ 5
-                │  └─ 2
-                └─ mod : integer(2)
-                   ├─ 8
-                   └─ 3
+    └─ rule test
+       └─ condition
+          └─ eq
+             ├─ div
+             │  ├─ 5
+             │  └─ 2
+             └─ mod
+                ├─ 8
+                └─ 3
 
 ###############################################################################
 
@@ -81,16 +76,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ ne : boolean(false)
-                ├─ sub : integer(3)
-                │  ├─ 5
-                │  └─ 2
-                └─ sub : integer(3)
-                   ├─ 6
-                   └─ 3
+    └─ rule test
+       └─ condition
+          └─ ne
+             ├─ sub
+             │  ├─ 5
+             │  └─ 2
+             └─ sub
+                ├─ 6
+                └─ 3
 
 ###############################################################################
 
@@ -98,21 +92,20 @@
     rule test {
       condition:
         // The result of integer division and modulo where divisor is zero is
-        // undefined, therefore their value at compile time will be unkown.
+        // undefined, therefore their value at compile time will be unknown.
         10 \ 0 == 10 % 0
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ eq : boolean(unknown)
-                ├─ div : integer(unknown)
-                │  ├─ 10
-                │  └─ 0
-                └─ mod : integer(unknown)
-                   ├─ 10
-                   └─ 0
+    └─ rule test
+       └─ condition
+          └─ eq
+             ├─ div
+             │  ├─ 10
+             │  └─ 0
+             └─ mod
+                ├─ 10
+                └─ 0
 
 ###############################################################################
 
@@ -126,15 +119,14 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ eq : boolean(false)
-                ├─ div : float(inf)
-                │  ├─ 5.0
-                │  └─ 0
-                └─ mod : float(NaN)
-                   ├─ 10
-                   └─ 0.0
+    └─ rule test
+       └─ condition
+          └─ eq
+             ├─ div
+             │  ├─ 5.0
+             │  └─ 0
+             └─ mod
+                ├─ 10
+                └─ 0.0
 
 ###############################################################################

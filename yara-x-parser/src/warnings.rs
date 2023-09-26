@@ -4,10 +4,8 @@ use yara_x_macros::Error;
 use crate::ast::Span;
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
-use crate::types::Type;
-use crate::SourceCode;
 
-/// A warning raised while parsing or compiling YARA rules.
+/// A warning raised while parsing YARA rules.
 #[rustfmt::skip]
 #[derive(Error)]
 pub enum Warning {
@@ -44,7 +42,7 @@ pub enum Warning {
     #[note(note)]
     NonBooleanAsBoolean {
         detailed_report: String,
-        expression_type: Type,
+        expression_type: String,
         span: Span,
         note: Option<String>,
     },
@@ -65,4 +63,20 @@ pub enum Warning {
         new_import_span: Span,
         existing_import_span: Span,
     },
+
+    #[warning("redundant case-insensitive modifier")]
+    #[label("the `i` suffix indicates that the pattern is case-insensitive", i_span)]
+    #[label("the `nocase` modifier does the same", nocase_span)]
+    RedundantCaseModifier {
+        detailed_report: String,
+        nocase_span: Span,
+        i_span: Span,
+    },
+
+    #[warning("slow pattern")]
+    #[label("this pattern may slow down the scan", span)]
+    SlowPattern {
+        detailed_report: String,
+        span: Span,
+    }
 }

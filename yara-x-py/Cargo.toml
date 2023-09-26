@@ -1,0 +1,18 @@
+[package]
+name = "yara-x-py"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "yara_x"
+doc = false
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.19.0", features = ["abi3", "abi3-py38", "extension-module"]}
+pyo3-file = "0.7.0"
+yara-x = { workspace = true }
+
+[build-dependencies]
+pyo3-build-config = "0.19.0"

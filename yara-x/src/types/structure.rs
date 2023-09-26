@@ -1,32 +1,32 @@
+use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
 use bstr::BString;
 use indexmap::IndexMap;
-use protobuf::reflect::Syntax;
 use protobuf::reflect::{
     EnumDescriptor, FieldDescriptor, MessageDescriptor, ReflectMapRef,
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
 };
+use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::MessageDyn;
-use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 
-use yara_x_proto::exts::enum_options as yara_enum_options;
-use yara_x_proto::exts::field_options as yara_field_options;
-use yara_x_proto::exts::module_options as yara_module_options;
+use yara_x_proto::exts::enum_options;
+use yara_x_proto::exts::enum_value;
+use yara_x_proto::exts::field_options;
+use yara_x_proto::exts::module_options;
 
-use crate::types::{Array, Map, TypeValue};
+use crate::types::{Array, Map, TypeValue, Value};
 
 /// A field in a [`Struct`].
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StructField {
     /// Field name.
     pub name: String,
     /// For structures derived from a protobuf this contains the field number
     /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
-    /// Index that occupies the field in the structure it belongs to.
-    pub index: usize,
     /// Field type and value.
     pub type_value: TypeValue,
 }
@@ -45,18 +45,16 @@ pub struct StructField {
 /// The structures that represent a YARA module are created from the protobuf
 /// associated to that module. Functions [`Struct::from_proto_msg`] and
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Struct {
-    /// Fields in this structure. The index of each field is the index that it
-    /// has in this vector. Fields are sorted by field number, which means that
-    /// for protobuf-derived structures the order of the fields  doesn't depend
-    /// on the order in which they appear in the source .proto file. For
-    /// structures that are not created from a protobuf, the order of fields is
-    /// the order in which they were inserted.
-    fields: Vec<StructField>,
-    /// Map where keys are field names and values are their corresponding index
-    /// in the `fields` vector.
-    field_index: FxHashMap<String, usize>,
+    /// Fields in this structure.
+    ///
+    /// An `IndexMap` is used instead of a `HashMap` because we want to be able
+    /// to maintain the field insertion order and retrieve fields according to
+    /// this order. For protobuf-derived structures fields are inserted in the
+    /// order determined by their tag numbers, the order in which they appear
+    /// in the .proto source file is irrelevant.
+    fields: IndexMap<String, StructField>,
 }
 
 impl Default for Struct {
@@ -67,7 +65,7 @@ impl Default for Struct {
 
 impl Struct {
     pub fn new() -> Self {
-        Self { fields: Vec::new(), field_index: FxHashMap::default() }
+        Self { fields: IndexMap::new() }
     }
 
     /// Adds a new field to the structure.
@@ -77,6 +75,11 @@ impl Struct {
     /// "foo", which must be another struct with a field named "bar", which
     /// must be a structure where the field "baz" will be finally inserted.
     ///
+    /// If the field was not present in the structure, it is added and the
+    /// function returns `None`. If it was already present, it is replaced
+    /// with the new field and the function returns `Some(StructField)` with
+    /// the previous field.
+    ///
     /// # Panics
     ///
     /// If the name is a dot-separated sequence of field names but some of
@@ -84,10 +87,14 @@ impl Struct {
     /// name is "foo.bar.baz" but the field "foo" doesn't exist or is not
     /// a structure.
     ///
-    /// Also panics if there is some [`Rc`] or [`Weak`] pointer pointing to
-    /// any of the intermediate structures (e.g: the structures in the "foo"
-    /// and "bar" fields).
-    pub fn add_field(&mut self, name: &str, value: TypeValue) -> &mut Self {
+    /// If there is some [`Rc`] or [`Weak`] pointer pointing to any of the
+    /// intermediate structures (e.g: the structures in the "foo" and "bar"
+    /// fields).
+    pub fn add_field(
+        &mut self,
+        name: &str,
+        value: TypeValue,
+    ) -> Option<StructField> {
         if let Some(dot) = name.find('.') {
             let field =
                 self.field_by_name_mut(&name[0..dot]).unwrap_or_else(|| {
@@ -102,50 +109,47 @@ impl Struct {
                     )
                 });
 
-                s.add_field(&name[dot + 1..], value);
+                s.add_field(&name[dot + 1..], value)
             } else {
                 panic!("field `{}` is not a struct", &name[0..dot])
             }
         } else {
-            let index = self.fields.len();
-            self.fields.push(StructField {
-                type_value: value,
-                name: name.to_owned(),
-                number: 0,
-                index,
-            });
-            self.field_index.insert(name.to_owned(), index);
+            self.fields.insert(
+                name.to_owned(),
+                StructField {
+                    type_value: value,
+                    name: name.to_owned(),
+                    number: 0,
+                },
+            )
         }
-
-        self
     }
 
+    /// Get a field by index.
     #[inline]
     pub fn field_by_index(&self, index: usize) -> Option<&StructField> {
-        self.fields.get(index)
+        self.fields.get_index(index).map(|(_, v)| v)
     }
 
+    /// Get a field by name.
     #[inline]
     pub fn field_by_name(&self, name: &str) -> Option<&StructField> {
-        let index = self.field_index.get(name)?;
-        self.field_by_index(*index)
+        self.fields.get(name)
     }
 
-    #[inline]
-    pub fn field_by_index_mut(
-        &mut self,
-        index: usize,
-    ) -> Option<&mut StructField> {
-        self.fields.get_mut(index)
-    }
-
+    /// Get a mutable field by name.
     #[inline]
     pub fn field_by_name_mut(
         &mut self,
         name: &str,
     ) -> Option<&mut StructField> {
-        let index = self.field_index.get(name)?;
-        self.field_by_index_mut(*index)
+        self.fields.get_mut(name)
+    }
+
+    /// Returns the index of a field.
+    #[inline]
+    pub fn index_of(&self, name: &str) -> usize {
+        self.fields.get_index_of(name).unwrap()
     }
 
     /// Creates a [`Struct`] from a protobuf message.
@@ -278,7 +282,6 @@ impl Struct {
 
             fields.push(StructField {
                 // Index is initially zero, will be adjusted later.
-                index: 0,
                 type_value: value,
                 number,
                 name,
@@ -307,50 +310,68 @@ impl Struct {
                 };
 
             for enum_ in enums {
-                let mut enum_struct = Struct::new();
+                if Self::enum_is_inline(&enum_) {
+                    for item in enum_.values() {
+                        fields.push(StructField {
+                            type_value: TypeValue::Integer(Value::Const(
+                                Self::enum_value(&item),
+                            )),
+                            number: 0,
+                            name: item.name().to_owned(),
+                        });
+                    }
+                } else {
+                    // Create the structure where each field will be one of the
+                    // enum's items.
+                    let mut enum_struct = Struct::new();
 
-                for item in enum_.values() {
-                    enum_struct.add_field(
-                        item.name(),
-                        TypeValue::Integer(Some(item.value() as i64)),
-                    );
+                    for item in enum_.values() {
+                        if let Some(existing_field) = enum_struct.add_field(
+                            item.name(),
+                            TypeValue::Integer(Value::Const(
+                                Self::enum_value(&item),
+                            )),
+                        ) {
+                            panic!(
+                                "field '{}' already exists",
+                                existing_field.name
+                            );
+                        }
+                    }
+
+                    fields.push(StructField {
+                        type_value: TypeValue::Struct(Rc::new(enum_struct)),
+                        number: 0,
+                        name: Self::enum_name(&enum_),
+                    });
                 }
-
-                fields.push(StructField {
-                    index: fields.len(),
-                    type_value: TypeValue::Struct(Rc::new(enum_struct)),
-                    number: 0,
-                    name: Self::enum_name(&enum_),
-                })
             }
         }
 
-        // Update index numbers, so that each field has an index that
-        // corresponds to its position in the vector. Also create the
-        // map that correlates field names to field indexes.
-        let mut field_index = FxHashMap::default();
+        let mut field_index = IndexMap::new();
 
-        for (index, field) in fields.iter_mut().enumerate() {
-            field.index = index;
-            if field_index.insert(field.name.clone(), index).is_some() {
+        for field in fields {
+            if let Some(existing_field) =
+                field_index.insert(field.name.clone(), field)
+            {
                 panic!(
                     "duplicate field name `{}` in `{}`",
-                    field.name,
+                    existing_field.name,
                     msg_descriptor.name()
                 )
             }
         }
 
-        Self { fields, field_index }
+        Self { fields: field_index }
     }
 
     /// Returns true if the given message is the YARA module's root message.
     fn is_root_msg(msg_descriptor: &MessageDescriptor) -> bool {
         let file_descriptor = msg_descriptor.file_descriptor();
-        if let Some(module_options) =
-            yara_module_options.get(&file_descriptor.proto().options)
+        if let Some(options) =
+            module_options.get(&file_descriptor.proto().options)
         {
-            module_options.root_message.unwrap() == msg_descriptor.name()
+            options.root_message.unwrap() == msg_descriptor.name()
         } else {
             false
         }
@@ -373,14 +394,98 @@ impl Struct {
     ///
     /// Here the enum will be named `my_enum` instead of `Enumeration`.
     fn enum_name(enum_descriptor: &EnumDescriptor) -> String {
-        if let Some(enum_options) =
-            yara_enum_options.get(&enum_descriptor.proto().options)
+        if let Some(options) =
+            enum_options.get(&enum_descriptor.proto().options)
         {
-            enum_options
-                .name
-                .unwrap_or_else(|| enum_descriptor.name().to_owned())
+            options.name.unwrap_or_else(|| enum_descriptor.name().to_owned())
         } else {
             enum_descriptor.name().to_owned()
+        }
+    }
+
+    /// Given a [`EnumDescriptor`] returns whether this enum is declared as
+    /// inline.
+    ///
+    /// Inline enums are those whose fields are added directly to the parent
+    /// struct, no new structs are created for accommodating the enum fields.
+    ///
+    /// For example, consider this non-flat enum:
+    ///
+    /// ```text
+    /// enum MyEnum {
+    ///   ITEM_0 = 0;
+    ///   ITEM_1 = 1;
+    /// }
+    /// ```
+    ///
+    /// Fields like `ITEM_0` and `ITEM_1` will appear under a struct named
+    /// `MyEnum`. If the enum is declared at the module level, it will be
+    /// accessed like this:  `module_name.MyEnum.ITEM_0`.
+    ///
+    /// Now consider the flat variant:
+    ///
+    /// ```text
+    /// enum MyEnum {
+    ///   ITEM_0 = 0;
+    ///   ITEM_1 = 1;
+    /// }
+    /// ```
+    ///
+    /// The fields in this enum will be used like `module_name.ITEM_0`, items
+    /// in the enum are added directly as fields of the module, or the struct
+    /// that contains the enum.
+    fn enum_is_inline(enum_descriptor: &EnumDescriptor) -> bool {
+        if let Some(options) =
+            enum_options.get(&enum_descriptor.proto().options)
+        {
+            options.inline.unwrap_or(false)
+        } else {
+            false
+        }
+    }
+
+    /// Given a [`EnumValueDescriptor`] returns the value associated to that
+    /// enum item.
+    ///
+    /// The value for each item in an enum can be specified in two ways: by
+    /// means of the tag number, or by using a special option. Let's see an
+    /// example of the first case:
+    ///
+    /// ```text
+    /// enum MyEnum {
+    ///   ITEM_0 = 0;
+    ///   ITEM_1 = 1;
+    /// }
+    /// ```
+    ///
+    /// In this enum the value of `ITEM_0` is 0, and the value of `ITEM_1` is
+    /// 1. The tag number associated to each item determines its value. However
+    /// this approach has one limitation, tag number are of type `i32` and
+    /// therefore they are limited to the range `-2147483648,2147483647`. For
+    /// larger values you need to use the second approach:
+    ///
+    /// ```text
+    /// enum MyEnum {
+    ///   ITEM_0 = 0  [(yara.enum_value).i64 = 0x7fffffffffff];
+    ///   ITEM_1 = 1  [(yara.enum_value).i64 = -1];;
+    /// }
+    /// ```
+    ///
+    /// In this other case tag number are maintained because they are required
+    /// in every protobuf enum, however, the value associated to each items is
+    /// not determined by the field number, but by the `(yara.enum_value).i64`
+    /// option.
+    ///
+    /// What this function returns is the value associated to an enum item,
+    /// returning the value set via the `(yara.enum_value).i64` option, if any,
+    /// or the tag number.
+    fn enum_value(enum_value_descriptor: &EnumValueDescriptor) -> i64 {
+        if let Some(options) =
+            enum_value.get(&enum_value_descriptor.proto().options)
+        {
+            options.i64.unwrap_or_else(|| enum_value_descriptor.value() as i64)
+        } else {
+            enum_value_descriptor.value() as i64
         }
     }
 
@@ -398,12 +503,10 @@ impl Struct {
     /// Here the `foo` field will be named `bar` when the protobuf is converted
     /// into a [`Struct`].
     fn field_name(field_descriptor: &FieldDescriptor) -> String {
-        if let Some(field_options) =
-            yara_field_options.get(&field_descriptor.proto().options)
+        if let Some(options) =
+            field_options.get(&field_descriptor.proto().options)
         {
-            field_options
-                .name
-                .unwrap_or_else(|| field_descriptor.name().to_owned())
+            options.name.unwrap_or_else(|| field_descriptor.name().to_owned())
         } else {
             field_descriptor.name().to_owned()
         }
@@ -420,10 +523,10 @@ impl Struct {
     /// ```
     ///
     fn ignore_field(field_descriptor: &FieldDescriptor) -> bool {
-        if let Some(field_options) =
-            yara_field_options.get(&field_descriptor.proto().options)
+        if let Some(options) =
+            field_options.get(&field_descriptor.proto().options)
         {
-            field_options.ignore.unwrap_or(false)
+            options.ignore.unwrap_or(false)
         } else {
             false
         }
@@ -459,44 +562,46 @@ impl Struct {
             | RuntimeType::I64
             | RuntimeType::U32
             | RuntimeType::U64
-            | RuntimeType::Enum(_) => TypeValue::Integer(
-                value.map(Self::value_as_i64).or_else(|| {
-                    // None values are translated to their default values,
-                    // in proto3. In proto2 they are left as None.
-                    if syntax == Syntax::Proto3 {
-                        Some(0)
-                    } else {
-                        None
-                    }
-                }),
-            ),
+            | RuntimeType::Enum(_) => {
+                if let Some(v) = value {
+                    TypeValue::Integer(Value::Var(Self::value_as_i64(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default values.
+                    TypeValue::Integer(Value::Var(0))
+                } else {
+                    TypeValue::Integer(Value::Unknown)
+                }
+            }
             RuntimeType::F32 | RuntimeType::F64 => {
-                TypeValue::Float(value.map(Self::value_as_f64).or_else(|| {
-                    if syntax == Syntax::Proto3 {
-                        Some(0_f64)
-                    } else {
-                        None
-                    }
-                }))
+                if let Some(v) = value {
+                    TypeValue::Float(Value::Var(Self::value_as_f64(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default values.
+                    TypeValue::Float(Value::Var(0_f64))
+                } else {
+                    TypeValue::Float(Value::Unknown)
+                }
             }
             RuntimeType::Bool => {
-                TypeValue::Bool(value.map(Self::value_as_bool).or_else(|| {
-                    if syntax == Syntax::Proto3 {
-                        Some(false)
-                    } else {
-                        None
-                    }
-                }))
+                if let Some(v) = value {
+                    TypeValue::Bool(Value::Var(Self::value_as_bool(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default values.
+                    TypeValue::Bool(Value::Var(false))
+                } else {
+                    TypeValue::Bool(Value::Unknown)
+                }
             }
-            RuntimeType::String | RuntimeType::VecU8 => TypeValue::String(
-                value.map(Self::value_as_bstring).or_else(|| {
-                    if syntax == Syntax::Proto3 {
-                        Some(BString::default())
-                    } else {
-                        None
-                    }
-                }),
-            ),
+            RuntimeType::String | RuntimeType::VecU8 => {
+                if let Some(v) = value {
+                    TypeValue::String(Value::Var(Self::value_as_bstring(v)))
+                } else if syntax == Syntax::Proto3 {
+                    // In proto3 unknown values are set to their default values.
+                    TypeValue::String(Value::Var(BString::default()))
+                } else {
+                    TypeValue::String(Value::Unknown)
+                }
+            }
             RuntimeType::Message(msg_descriptor) => {
                 let structure = if let Some(value) = value {
                     Self::from_proto_descriptor_and_value(
@@ -814,10 +919,35 @@ impl Struct {
     }
 }
 
+impl PartialEq for Struct {
+    /// Compares two structs for equality.
+    ///
+    /// Structs are equal if they have the same number of fields, fields have
+    /// the same names and types, and appear in the same order. Field values
+    /// are not taken into account.
+    fn eq(&self, other: &Self) -> bool {
+        // Both structs must have the same number of fields.
+        if self.fields.len() != other.fields.len() {
+            return false;
+        }
+        for (a, b) in iter::zip(&self.fields, &other.fields) {
+            // Field names must match.
+            if a.0 != b.0 {
+                return false;
+            };
+            // Field types must match.
+            if !a.1.type_value.eq_type(&b.1.type_value) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Struct;
-    use crate::types::TypeValue;
+    use crate::types::{Array, TypeValue, Value};
     use std::rc::Rc;
 
     #[test]
@@ -826,13 +956,63 @@ mod tests {
         let foo = Struct::default();
 
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
+        root.add_field("bar", TypeValue::Integer(Value::Var(1)));
+
+        let foo_index = root.index_of("foo");
+        let bar_index = root.index_of("bar");
+
+        assert_eq!(foo_index, 0);
+        assert_eq!(bar_index, 1);
 
         let field1 = root.field_by_name("foo").unwrap();
-        let field2 = root.field_by_index(field1.index).unwrap();
+        let field2 = root.field_by_index(foo_index).unwrap();
 
         assert_eq!(field1.name, "foo");
         assert_eq!(field1.name, field2.name);
 
-        root.add_field("foo.bar", TypeValue::Integer(Some(1)));
+        root.add_field("foo.bar", TypeValue::Integer(Value::Var(1)));
+    }
+
+    #[test]
+    fn struct_eq() {
+        let mut sub: Struct = Struct::default();
+
+        sub.add_field("integer", TypeValue::Integer(Value::Unknown));
+        sub.add_field("string", TypeValue::String(Value::Unknown));
+        sub.add_field("boolean", TypeValue::Bool(Value::Unknown));
+
+        let sub = Rc::new(sub);
+
+        let mut a = Struct::default();
+        let mut b = Struct::default();
+
+        a.add_field("boolean", TypeValue::Bool(Value::Var(true)));
+        a.add_field("integer", TypeValue::Integer(Value::Var(1)));
+        a.add_field("structure", TypeValue::Struct(sub.clone()));
+        a.add_field(
+            "floats_array",
+            TypeValue::Array(Rc::new(Array::Floats(vec![]))),
+        );
+
+        // At this point a != b because b is still empty.
+        assert_ne!(a, b);
+
+        b.add_field("boolean", TypeValue::Bool(Value::Var(false)));
+        b.add_field("integer", TypeValue::Integer(Value::Var(1)));
+        b.add_field("structure", TypeValue::Struct(sub));
+        b.add_field(
+            "floats_array",
+            TypeValue::Array(Rc::new(Array::Floats(vec![]))),
+        );
+
+        // At this point a == b.
+        assert_eq!(a, b);
+
+        a.add_field("foo", TypeValue::Bool(Value::Var(false)));
+        b.add_field("foo", TypeValue::Integer(Value::Unknown));
+
+        // At this point a != b again because field "foo" have a different type
+        // on each structure.
+        assert_ne!(a, b);
     }
 }

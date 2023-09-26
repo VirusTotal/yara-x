@@ -5,9 +5,8 @@ use std::rc::Rc;
 #[cfg(test)]
 use bstr::{BStr, ByteSlice};
 
-use yara_x_parser::types::{Func, Struct, TypeValue};
-
 use crate::compiler::{RuleId, Var};
+use crate::types::{Func, Struct, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -16,8 +15,8 @@ pub(crate) trait SymbolLookup {
 
 #[derive(Clone)]
 pub(crate) struct Symbol {
-    pub type_value: TypeValue,
-    pub kind: SymbolKind,
+    type_value: TypeValue,
+    kind: SymbolKind,
 }
 
 /// Kinds of symbol.
@@ -26,13 +25,12 @@ pub(crate) struct Symbol {
 /// accesses the symbol.
 #[derive(Clone)]
 pub(crate) enum SymbolKind {
-    Unknown,
     /// The symbol refers to a variable stored in WASM memory.
     WasmVar(Var),
     /// The symbol refers to a variable stored in the host.
     HostVar(Var),
     /// The symbol refers to some field in a structure.
-    FieldIndex(i32),
+    FieldIndex(usize),
     /// The symbol refers to a rule.
     Rule(RuleId),
     /// The symbol refers to a function.
@@ -40,8 +38,8 @@ pub(crate) enum SymbolKind {
 }
 
 impl Symbol {
-    pub fn new(type_value: TypeValue) -> Self {
-        Self { type_value, kind: SymbolKind::Unknown }
+    pub fn new(type_value: TypeValue, kind: SymbolKind) -> Self {
+        Self { type_value, kind }
     }
 
     #[inline(always)]
@@ -49,10 +47,15 @@ impl Symbol {
         &self.type_value
     }
 
+    #[inline(always)]
+    pub fn kind(&self) -> &SymbolKind {
+        &self.kind
+    }
+
     #[cfg(test)]
     fn as_integer(&self) -> Option<i64> {
-        if let TypeValue::Integer(value) = self.type_value {
-            value
+        if let TypeValue::Integer(value) = &self.type_value {
+            value.extract().cloned()
         } else {
             None
         }
@@ -60,8 +63,12 @@ impl Symbol {
 
     #[cfg(test)]
     fn as_bstr(&self) -> Option<&BStr> {
-        if let TypeValue::String(Some(s)) = &self.type_value {
-            Some(s.as_bstr())
+        if let TypeValue::String(value) = &self.type_value {
+            if let Some(s) = value.extract() {
+                Some(s.as_bstr())
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -99,13 +106,18 @@ impl SymbolLookup for Option<Symbol> {
 impl SymbolLookup for Struct {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
         let field = self.field_by_name(ident)?;
-        let mut symbol = Symbol::new(field.type_value.clone());
 
-        if let TypeValue::Func(func) = &field.type_value {
-            symbol.kind = SymbolKind::Func(func.clone());
+        let symbol = if let TypeValue::Func(func) = &field.type_value {
+            Symbol::new(
+                field.type_value.clone(),
+                SymbolKind::Func(func.clone()),
+            )
         } else {
-            symbol.kind = SymbolKind::FieldIndex(field.index as i32);
-        }
+            Symbol::new(
+                field.type_value.clone(),
+                SymbolKind::FieldIndex(self.index_of(ident)),
+            )
+        };
 
         Some(symbol)
     }
@@ -184,9 +196,8 @@ impl SymbolLookup for RefCell<SymbolTable> {
 /// symbol is found, or the bottom of the stack is reached.
 ///
 /// If the symbol table at the top of the stack contains an identifier "foo",
-/// it hides any other identifier "foo" that may exists on a symbol table
-/// that is deeper in the stack.
-///
+/// it hides any other identifier "foo" that may exist on a symbol table that
+/// is deeper in the stack.
 pub(crate) struct StackedSymbolTable<'a> {
     stack: VecDeque<Rc<dyn SymbolLookup + 'a>>,
 }
@@ -237,9 +248,10 @@ impl<'a> SymbolLookup for StackedSymbolTable<'a> {
 #[cfg(test)]
 #[cfg(feature = "test_proto2-module")]
 mod tests {
-    use crate::symbols::SymbolLookup;
     use bstr::BStr;
-    use yara_x_parser::types::{Struct, Type};
+
+    use crate::symbols::SymbolLookup;
+    use crate::types::{Struct, Type};
 
     #[test]
     fn message_lookup() {

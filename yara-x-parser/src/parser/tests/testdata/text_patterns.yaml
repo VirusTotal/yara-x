@@ -9,12 +9,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a = "foo" ascii fullword private wide xor
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a = "foo" ascii fullword private wide xor
+       └─ condition
+          └─ $a
 
 ###############################################################################
 
@@ -27,12 +26,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a = "foo" base64 base64wide
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a = "foo" base64 base64wide
+       └─ condition
+          └─ $a
 
 ###############################################################################
 
@@ -46,12 +44,11 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a = "foo" ascii xor(3)
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a = "foo" ascii xor(3)
+       └─ condition
+          └─ $a
 
 ###############################################################################
 
@@ -64,11 +61,10 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  └─ $a = "foo" ascii xor(0-128)
-          └─ condition
-             └─ $a
+    └─ rule test
+       ├─ strings
+       │  └─ $a = "foo" ascii xor(0-128)
+       └─ condition
+          └─ $a
 
 ###############################################################################

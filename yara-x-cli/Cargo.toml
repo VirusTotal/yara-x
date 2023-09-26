@@ -7,6 +7,7 @@ description.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true
+rust-version.workspace = true
 
 [[bin]]
 name = "yr"
@@ -14,22 +15,40 @@ path = "src/main.rs"
 
 [features]
 # When this feature is enabled the CLI program saves CPU profiling
-# information into a flamegraph.svg file when run.
+# information into a flamegraph.svg file when run. For unknown reasons
+# the `pprof` crate often causes segfaults in Mac OS X, but it seems
+# to work fine in Linux.
 profiling = ["pprof"]
+
+# When this feature is enabled the CLI program prints debug logs if
+# the RUST_LOG environment variable is set to any of the debug levels:
+#
+#   error
+#   warn
+#   info
+#   debug
+#   trace
+#
+# Example: RUST_LOG=info ./yr scan some_rule.yar some_file
+logging = ["dep:log", "dep:env_logger"]
+
 
 [dependencies]
 ascii_tree = { workspace = true }
-ansi_term = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features=["cargo"] }
 enable-ansi-support = { workspace = true }
-globset = { workspace = true }
+env_logger = { workspace = true , optional = true }
+log = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x = { workspace = true }
 yara-x-parser = { workspace = true, features = ["ascii-tree"] }
 yara-x-fmt = { workspace = true }
 
 crossbeam = "0.8.2"
-pprof = { version = "0.11", features = ["flamegraph"], optional=true }
+crossterm = "0.27.0"
+globwalk = "0.8.1"
+pprof = { version = "0.12.1", features = ["flamegraph"], optional=true }
+superconsole = "0.2.0"
 walkdir = "2.3.2"
 wild = "2.1.0"

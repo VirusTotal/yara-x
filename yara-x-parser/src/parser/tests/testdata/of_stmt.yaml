@@ -7,15 +7,14 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ <quantifier> of <items>
-                ├─ <quantifier>
-                │  └─ 1
-                └─ <items: pattern_set>
-                   └─ $a
-                      $b*
+    └─ rule test
+       └─ condition
+          └─ <quantifier> of <items>
+             ├─ <quantifier>
+             │  └─ 1
+             └─ <items: pattern_set>
+                └─ $a
+                   $b*
     
 ###############################################################################
 
@@ -26,15 +25,14 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ <quantifier> of <items>
-                ├─ <quantifier>
-                │  └─ percentage
-                │     └─ 10
-                └─ <items: pattern_set>
-                   └─ them
+    └─ rule test
+       └─ condition
+          └─ <quantifier> of <items>
+             ├─ <quantifier>
+             │  └─ percentage
+             │     └─ 10
+             └─ <items: pattern_set>
+                └─ them
 
 ###############################################################################
 
@@ -45,18 +43,17 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ <quantifier> of <items> in (<start>..<end>)
-                ├─ <quantifier>
-                │  └─ all
-                ├─ <items: pattern_set>
-                │  └─ them
-                ├─ <start>
-                │  └─ 0
-                └─ <end>
-                   └─ 100
+    └─ rule test
+       └─ condition
+          └─ <quantifier> of <items> in (<start>..<end>)
+             ├─ <quantifier>
+             │  └─ all
+             ├─ <items: pattern_set>
+             │  └─ them
+             ├─ <start>
+             │  └─ 0
+             └─ <end>
+                └─ 100
 
 ###############################################################################
 
@@ -67,16 +64,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ <quantifier> of <items> at <expr>
-                ├─ <quantifier>
-                │  └─ any
-                ├─ <items: pattern_set>
-                │  └─ them
-                └─ <expr>
-                   └─ 10
+    └─ rule test
+       └─ condition
+          └─ <quantifier> of <items> at <expr>
+             ├─ <quantifier>
+             │  └─ any
+             ├─ <items: pattern_set>
+             │  └─ them
+             └─ <expr>
+                └─ 10
 
 ###############################################################################
 
@@ -87,15 +83,14 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          └─ condition
-             └─ <quantifier> of <items>
-                ├─ <quantifier>
-                │  └─ none
-                └─ <items: boolean_expr_set>
-                   ├─ true
-                   └─ false
+    └─ rule test
+       └─ condition
+          └─ <quantifier> of <items>
+             ├─ <quantifier>
+             │  └─ none
+             └─ <items: boolean_expr_set>
+                ├─ true
+                └─ false
 ###############################################################################
 
 - rule: |
@@ -108,17 +103,16 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  ├─ $a = "foo" 
-          │  └─ $b = "bar" 
-          └─ condition
-             └─ <quantifier> of <items>
-                ├─ <quantifier>
-                │  └─ all
-                └─ <items: pattern_set>
-                   └─ them
+    └─ rule test
+       ├─ strings
+       │  ├─ $a = "foo" 
+       │  └─ $b = "bar" 
+       └─ condition
+          └─ <quantifier> of <items>
+             ├─ <quantifier>
+             │  └─ all
+             └─ <items: pattern_set>
+                └─ them
 
 ###############################################################################
 
@@ -134,18 +128,17 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  ├─ $a = "foo" 
-          │  ├─ $ = "bar" 
-          │  └─ $ = "baz" 
-          └─ condition
-             └─ <quantifier> of <items>
-                ├─ <quantifier>
-                │  └─ all
-                └─ <items: pattern_set>
-                   └─ them
+    └─ rule test
+       ├─ strings
+       │  ├─ $a = "foo" 
+       │  ├─ $ = "bar" 
+       │  └─ $ = "baz" 
+       └─ condition
+          └─ <quantifier> of <items>
+             ├─ <quantifier>
+             │  └─ all
+             └─ <items: pattern_set>
+                └─ them
 
 ###############################################################################
 
@@ -159,16 +152,15 @@
     }
   ast: |
     root
-    └─ namespace
-       └─ rule test
-          ├─ strings
-          │  ├─ $aa = "foo" 
-          │  └─ $ab = "bar" 
-          └─ condition
-             └─ <quantifier> of <items>
-                ├─ <quantifier>
-                │  └─ all
-                └─ <items: pattern_set>
-                   └─ $a*
+    └─ rule test
+       ├─ strings
+       │  ├─ $aa = "foo" 
+       │  └─ $ab = "bar" 
+       └─ condition
+          └─ <quantifier> of <items>
+             ├─ <quantifier>
+             │  └─ all
+             └─ <items: pattern_set>
+                └─ $a*
 
 ###############################################################################

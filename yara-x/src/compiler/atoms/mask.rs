@@ -32,7 +32,7 @@ impl Iterator for ByteMaskCombinator {
             return None;
         }
 
-        let next = self.byte | (self.i & !self.mask);
+        let next = (self.byte & self.mask) | (self.i & !self.mask);
 
         // self.i starts at 0, and on each iteration it is ORed with the mask
         // and incremented by one. With this trick we make sure that on each
@@ -42,11 +42,10 @@ impl Iterator for ByteMaskCombinator {
         // For example if mask is 0b1110_1110 and the initial value of i is
         // zero, on each iteration the value of i changes like:
         //
-        //  1)  0           | 0b1110_1110 + 1  = 0b1110_1111
-        //  2)  0b1110_1111 | 0b1110_1110 + 1  = 0b1110_0000
-        //  3)  0b1110_0000 | 0b1110_1110 + 1  = 0b1110_1111
-        //  4)  0b1110_1111 | 0b1110_1110 + 1  = 0b1111_1111
-        //  5)  0b1111_1111 | 0b1110_1110 + 1  -> overflow
+        //  1)  (0           | 0b1110_1110) + 1  = 0b1110_1111
+        //  2)  (0b1110_1111 | 0b1110_1110) + 1  = 0b1111_0000
+        //  3)  (0b1111_0000 | 0b1110_1110) + 1  = 0b1111_1111
+        //  4)  (0b1111_1111 | 0b1110_1110) + 1  -> overflow
         //
         (self.i, self.done) = (self.i | self.mask).overflowing_add(1);
 
@@ -83,6 +82,18 @@ mod tests {
         assert_eq!(c.next(), Some(0b1111_1011u8));
         assert_eq!(c.next(), Some(0b1111_1110u8));
         assert_eq!(c.next(), Some(0b1111_1111u8));
+        assert_eq!(c.next(), None);
+
+        let mut c = ByteMaskCombinator::new(0xcc, 0x00);
+        for i in 0..=0xff {
+            assert_eq!(c.next(), Some(i));
+        }
+        assert_eq!(c.next(), None);
+
+        let mut c = ByteMaskCombinator::new(0x33, 0xf0);
+        for i in 0x30..=0x3f {
+            assert_eq!(c.next(), Some(i));
+        }
         assert_eq!(c.next(), None);
     }
 }

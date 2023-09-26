@@ -1,90 +1,39 @@
 /*! This module emits the WASM code for conditions in YARA rules.
 
-The entry point for this module is the [`emit_rule_code`] function, which
+The entry point for this module is the [`emit_rule_condition`] function, which
 emits the WASM a code for a single YARA rule. This function calls other
 functions in the module which generate WASM code for specific kinds of
 expressions or language constructs.
  */
 
+use std::collections::VecDeque;
 use std::mem::size_of;
 use std::rc::Rc;
 
 use bstr::ByteSlice;
+use rustc_hash::FxHashMap;
 use walrus::ir::ExtendedLoad::ZeroExtend;
 use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
 use walrus::ValType::{I32, I64};
-use walrus::{InstrSeqBuilder, ValType};
-use yara_x_parser::ast::OfItems;
-use yara_x_parser::ast::{
-    Expr, ForIn, Iterable, MatchAnchor, PatternSet, Quantifier, Range, Rule,
-};
-use yara_x_parser::ast::{ForOf, Of};
-use yara_x_parser::types::{Array, Map, Type, TypeValue};
+use walrus::{FunctionId, InstrSeqBuilder, ValType};
+use yara_x_parser::ast::{RuleFlag, RuleFlags};
 
-use crate::compiler::{Context, PatternId, RuleId, Var};
-use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
+use crate::compiler::context::VarStack;
+use crate::compiler::ir::{
+    Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, Quantifier,
+};
+use crate::compiler::{LiteralId, RegexpId, RuleId, Var, VarStackFrame};
+use crate::string_pool::{BStringPool, StringPool};
+use crate::symbols::SymbolKind;
+use crate::types::{Array, Map, Type, TypeValue, Value};
+use crate::utils::cast;
 use crate::wasm;
+use crate::wasm::builder::WasmModuleBuilder;
 use crate::wasm::string::RuntimeString;
 use crate::wasm::{
-    LOOKUP_INDEXES_END, LOOKUP_INDEXES_START, MATCHING_RULES_BITMAP_BASE,
-    VARS_STACK_START,
+    WasmSymbols, LOOKUP_INDEXES_END, LOOKUP_INDEXES_START,
+    MATCHING_RULES_BITMAP_BASE, VARS_STACK_START,
 };
-
-/// This macro emits a constant if the [`TypeValue`] indicates that the
-/// expression has a constant value (e.i: the value is known at compile time),
-/// if not, it executes the code block, emitting whatever the code block says.
-/// Notice however that this is done only if the `compile-time-optimization`
-/// feature is enabled, if the feature is not enabled the code block will be
-/// executed regardless of whether the expression's value is known at compile
-/// time or not.
-///
-/// # Example
-///
-/// This is how we emit the code for the `add` operation:
-///
-/// ```text
-///emit_const_or_code!(ctx, instr, expr.type_value(), {
-///    emit_expr(ctx, instr, &operands.lhs);
-///    emit_expr(ctx, instr, &operands.rhs);
-///    instr.binop(BinaryOp::I64Add);
-///});
-/// ```
-///
-/// In the code above, if the value for `expr` is known at compile time (e.g:
-/// the expression is `2+2`), the code emitted would be simply a `i64.const`
-/// instruction that pushes that value in the stack. (e.g: `i64.const 4`). If
-/// the value is not known at compile time, the code block will be executed,
-/// emitting the code for the left and right operands, plus the `i64.add`
-/// instruction that sums the results from both operands.
-///
-macro_rules! emit_const_or_code {
-    ($ctx:ident, $instr:ident, $type_value:expr, $code:block) => {{
-        if cfg!(feature = "compile-time-optimization") {
-            match &*$type_value {
-                TypeValue::Bool(Some(value)) => {
-                    $instr.i32_const((*value) as i32);
-                }
-                TypeValue::Integer(Some(value)) => {
-                    $instr.i64_const(*value);
-                }
-                TypeValue::Float(Some(value)) => {
-                    $instr.f64_const(*value);
-                }
-                TypeValue::String(Some(value)) => {
-                    // Put the literal string in the pool, or get its ID if it was
-                    // already there.
-                    let literal_id =
-                        $ctx.lit_pool.get_or_intern(value.as_bstr());
-
-                    $instr.i64_const(RuntimeString::Literal(literal_id).as_wasm() as i64);
-                }
-                _ => $code,
-            }
-        } else {
-            $code
-        }
-    }};
-}
 
 /// This macro emits the code for the left and right operands of some
 /// operation, converting integer operands to float if the other operand
@@ -94,7 +43,7 @@ macro_rules! emit_operands {
         let mut lhs_type = $lhs.ty();
         let mut rhs_type = $rhs.ty();
 
-        emit_expr($ctx, $instr, &$lhs);
+        emit_expr($ctx, $instr, $lhs);
 
         // If the left operand is integer, but the right one is float,
         // convert the left operand to float.
@@ -103,7 +52,7 @@ macro_rules! emit_operands {
             lhs_type = Type::Float;
         }
 
-        emit_expr($ctx, $instr, &$rhs);
+        emit_expr($ctx, $instr, $rhs);
 
         // If the right operand is integer, but the left one is float,
         // convert the right operand to float.
@@ -117,127 +66,769 @@ macro_rules! emit_operands {
 }
 
 macro_rules! emit_arithmetic_op {
-    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt, $float_op:tt) => {{
-        emit_const_or_code!($ctx, $instr, $expr.type_value(), {
-            match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
-                (Type::Integer, Type::Integer) => {
-                    // Both operands are integer, the operation is integer.
-                    $instr.binop(BinaryOp::$int_op);
+    ($ctx:ident, $instr:ident, $operands:expr, $int_op:tt, $float_op:tt) => {{
+        // If any of the operands is float, this is a float operation.
+        let is_float =
+            $operands.iter().any(|op| matches!(op.ty(), Type::Float));
+
+        let mut operands = $operands.iter_mut();
+        let first_operand = operands.next().unwrap();
+
+        emit_expr($ctx, $instr, first_operand);
+
+        if is_float && matches!(first_operand.ty(), Type::Integer) {
+            $instr.unop(UnaryOp::F64ConvertSI64);
+        }
+
+        while let Some(operand) = operands.next() {
+            emit_expr($ctx, $instr, operand);
+            if is_float {
+                if matches!(operand.ty(), Type::Integer) {
+                    $instr.unop(UnaryOp::F64ConvertSI64);
                 }
-                (Type::Float, Type::Float) => {
-                    // Both operands are float, the operation is float.
-                    $instr.binop(BinaryOp::$float_op);
-                }
-                _ => unreachable!(),
-            };
-        });
+                $instr.binop(BinaryOp::$float_op);
+            } else {
+                $instr.binop(BinaryOp::$int_op);
+            }
+        }
     }};
 }
 
 macro_rules! emit_comparison_op {
-    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt, $float_op:tt, $str_op:expr) => {{
-        emit_const_or_code!($ctx, $instr, $expr.type_value(), {
-            match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
-                (Type::Integer, Type::Integer) => {
-                    $instr.binop(BinaryOp::$int_op);
-                }
-                (Type::Float, Type::Float) => {
-                    $instr.binop(BinaryOp::$float_op);
-                }
-                (Type::String, Type::String) => {
-                    $instr.call($ctx.function_id($str_op));
-                }
-                _ => unreachable!(),
-            };
-        });
+    ($ctx:ident, $instr:ident, $lhs:expr, $rhs:expr, $int_op:tt, $float_op:tt, $str_op:expr) => {{
+        match emit_operands!($ctx, $instr, $lhs, $rhs) {
+            (Type::Integer, Type::Integer) => {
+                $instr.binop(BinaryOp::$int_op);
+            }
+            (Type::Float, Type::Float) => {
+                $instr.binop(BinaryOp::$float_op);
+            }
+            (Type::String, Type::String) => {
+                $instr.call($ctx.function_id($str_op));
+            }
+            _ => unreachable!(),
+        };
     }};
 }
 
 macro_rules! emit_shift_op {
-    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt) => {{
-        emit_const_or_code!($ctx, $instr, $expr.type_value(), {
-            match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
-                (Type::Integer, Type::Integer) => {
-                    // When the left operand is >= 64, shift operations don't
-                    // behave in the same way in WebAssembly and YARA. In YARA,
-                    // 1 << 64 == 0, but in WebAssembly 1 << 64 == 1.
-                    // In general, X << Y behaves as X << (Y mod 64) in
-                    // WebAssembly, while in YARA the result is always 0 for
-                    // every Y >= 64. The sames applies for X >> Y.
-                    //
-                    // For that reason shift operations require some additional
-                    // code. The code for shift-left goes like this:
-                    //
-                    //  eval lhs
-                    //  eval rhs
-                    //  move rhs to tmp while leaving it in the stack (local_tee)
-                    //  push result form shift operation
-                    //  push 0
-                    //  push rhs (from tmp)
-                    //  push 64
-                    //  is rhs less than 64?
-                    //  if true                               ┐
-                    //     push result form shift operation   │  select
-                    //  else                                  │
-                    //     push 0                             ┘
-                    //
-                    $instr.local_tee($ctx.wasm_symbols.i64_tmp);
-                    $instr.binop(BinaryOp::$int_op);
-                    $instr.i64_const(0);
-                    $instr.local_get($ctx.wasm_symbols.i64_tmp);
-                    $instr.i64_const(64);
-                    $instr.binop(BinaryOp::I64LtS);
-                    $instr.select(Some(I64));
-                }
-                _ => unreachable!(),
-            };
-        });
+    ($ctx:ident, $instr:ident, $lhs:expr, $rhs:expr, $int_op:tt) => {{
+        match emit_operands!($ctx, $instr, $lhs, $rhs) {
+            (Type::Integer, Type::Integer) => {
+                // When the left operand is >= 64, shift operations don't
+                // behave in the same way in WebAssembly and YARA. In YARA,
+                // 1 << 64 == 0, but in WebAssembly 1 << 64 == 1.
+                // In general, X << Y behaves as X << (Y mod 64) in
+                // WebAssembly, while in YARA the result is always 0 for
+                // every Y >= 64. The sames applies for X >> Y.
+                //
+                // For that reason shift operations require some additional
+                // code. The code for shift-left goes like this:
+                //
+                //  eval lhs
+                //  eval rhs
+                //  move rhs to tmp while leaving it in the stack (local_tee)
+                //  push result form shift operation
+                //  push 0
+                //  push rhs (from tmp)
+                //  push 64
+                //  is rhs less than 64?
+                //  if true                               ┐
+                //     push result form shift operation   │  select
+                //  else                                  │
+                //     push 0                             ┘
+                //
+                $instr.local_tee($ctx.wasm_symbols.i64_tmp);
+                $instr.binop(BinaryOp::$int_op);
+                $instr.i64_const(0);
+                $instr.local_get($ctx.wasm_symbols.i64_tmp);
+                $instr.i64_const(64);
+                $instr.binop(BinaryOp::I64LtS);
+                $instr.select(Some(I64));
+            }
+            _ => unreachable!(),
+        };
     }};
 }
 
 macro_rules! emit_bitwise_op {
-    ($ctx:ident, $instr:ident, $expr:expr, $operands:expr, $int_op:tt) => {{
-        emit_const_or_code!($ctx, $instr, $expr.type_value(), {
-            match emit_operands!($ctx, $instr, $operands.lhs, $operands.rhs) {
-                (Type::Integer, Type::Integer) => {
-                    $instr.binop(BinaryOp::$int_op)
-                }
-                _ => unreachable!(),
-            };
-        });
+    ($ctx:ident, $instr:ident, $lhs:expr, $rhs:expr, $int_op:tt) => {{
+        match emit_operands!($ctx, $instr, $lhs, $rhs) {
+            (Type::Integer, Type::Integer) => $instr.binop(BinaryOp::$int_op),
+            _ => unreachable!(),
+        };
     }};
 }
 
+/// Structure that contains information used while emitting the code that
+/// corresponds to the condition of a YARA rule.
+pub(in crate::compiler) struct EmitContext<'a> {
+    /// Signature index associated the function call being emitted. This
+    /// is an index in the array returned by `func.signatures()`, where
+    /// `func` is an instance of [`Type::Func`] that represents the
+    /// function being called. As each function may have multiple signatures
+    /// this tells which specific signature must be used.
+    pub current_signature: Option<usize>,
+
+    /// Table with all the symbols (functions, variables) used by WASM.
+    pub wasm_symbols: &'a WasmSymbols,
+
+    /// Map where keys are fully qualified and mangled function names, and
+    /// values are the function's ID in the WASM module.
+    pub wasm_exports: &'a FxHashMap<String, FunctionId>,
+
+    /// Pool with regular expressions used in rule conditions.
+    pub regexp_pool: &'a mut StringPool<RegexpId>,
+
+    /// Pool with literal strings used in the rules.
+    pub lit_pool: &'a mut BStringPool<LiteralId>,
+
+    /// Stack of installed exception handlers for catching undefined values.
+    pub exception_handler_stack: Vec<(ValType, InstrSeqId)>,
+
+    /// Stack of variables. These are local variables used during the
+    /// evaluation of rule conditions, for example for storing loop variables.
+    pub vars: VarStack,
+
+    /// The lookup_stack contains a sequence of field IDs that will be used
+    /// in the next field lookup operation. See [`emit::emit_lookup_common`]
+    /// for details.
+    pub(crate) lookup_stack: VecDeque<i32>,
+
+    /// The index of the host-side variable that contains the structure where
+    /// the lookup operation will be performed.
+    pub(crate) lookup_start: Option<Var>,
+}
+
+impl<'a> EmitContext<'a> {
+    /// Given a function mangled name returns its id.
+    ///
+    /// # Panics
+    ///
+    /// If a no function with the given name exists.
+    pub fn function_id(&self, fn_mangled_name: &str) -> FunctionId {
+        *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
+            panic!("can't find function `{}`", fn_mangled_name)
+        })
+    }
+}
+
 /// Emits WASM code of a rule.
-pub(super) fn emit_rule_code(
-    ctx: &mut Context,
-    instr: &mut InstrSeqBuilder,
+pub(super) fn emit_rule_condition(
+    ctx: &mut EmitContext,
+    builder: &mut WasmModuleBuilder,
     rule_id: RuleId,
-    rule: &Rule,
+    rule_flags: RuleFlags,
+    condition: &mut Expr,
 ) {
+    // Global and non-global rules are put into two independent instruction
+    // sequences. The global rules are put into the instruction sequence that
+    // gets executed first, which means that global rules will be executed
+    // before any non-global rule, regardless of their order in the source
+    // code. Within the same group (global and non-global) rules maintain their
+    // relative order, though.
+    //
+    // Global rules can not invoke non-global rule. As global rules will always
+    // run before non-global ones, the former can't rely on the result of the
+    // latter.
+    let mut instr = if rule_flags.contains(RuleFlag::Global) {
+        builder.new_global_rule()
+    } else {
+        builder.new_rule()
+    };
+
     // Emit WASM code for the rule's condition.
-    instr.block(None, |block| {
-        catch_undef(ctx, block, |ctx, instr| {
-            emit_bool_expr(ctx, instr, &rule.condition);
-        });
-
-        // If the condition's result is 0, jump out of the block
-        // and don't call the `rule_match` function.
-        block.unop(UnaryOp::I32Eqz);
-        block.br_if(block.id());
-
-        // RuleId is the argument to `rule_match`.
-        block.i32_const(rule_id.0);
-
-        // Emit call instruction for calling `rule_match`.
-        block.call(ctx.function_id(wasm::export__rule_match.mangled_name));
+    catch_undef(ctx, &mut instr, |ctx, instr| {
+        emit_bool_expr(ctx, instr, condition);
     });
+
+    // Check if the result from the condition is zero (false).
+    instr.unop(UnaryOp::I32Eqz);
+    instr.if_else(
+        None,
+        |then_| {
+            // The condition is false. For normal rules we don't do anything,
+            // but for global rules we must call `global_rule_no_match` and
+            // return 1.
+            //
+            // By returning 1 the function that contains the logic for this
+            // rule exits immediately, preventing any other rule (both global
+            // and non-global) in the same namespace is executed, and therefore
+            // they will remain false.
+            //
+            // This guarantees that any global rule that returns false, forces
+            // the non-global rules in the same namespace to be false. There
+            // may be some global rules that matched before, though. The
+            // purpose of `global_rule_no_match` is reverting those previous
+            // matches.
+            if rule_flags.contains(RuleFlag::Global) {
+                // Call `global_rule_no_match`.
+                then_.i32_const(rule_id.0);
+                then_.call(ctx.function_id(
+                    wasm::export__global_rule_no_match.mangled_name,
+                ));
+                // Return 1.
+                then_.i32_const(1);
+                then_.return_();
+            }
+        },
+        |else_| {
+            // The condition is true, call `rule_match`.
+            else_.i32_const(rule_id.0);
+            else_.call(ctx.function_id(wasm::export__rule_match.mangled_name));
+        },
+    );
+}
+
+/// Emits WASM code for `expr` into the instruction sequence `instr`.
+fn emit_expr(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    expr: &mut Expr,
+) {
+    match expr {
+        Expr::Const { type_value } => match type_value {
+            TypeValue::Integer(Value::Const(value)) => {
+                instr.i64_const(*value);
+            }
+            TypeValue::Float(Value::Const(value)) => {
+                instr.f64_const(*value);
+            }
+            TypeValue::Bool(Value::Const(value)) => {
+                instr.i32_const((*value).into());
+            }
+            TypeValue::String(Value::Const(value)) => {
+                // Put the literal string in the pool, or get its ID if it was
+                // already there.
+                let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());
+
+                instr.i64_const(RuntimeString::Literal(literal_id).as_wasm());
+            }
+            TypeValue::Regexp(Some(regexp)) => {
+                let re_id = ctx.regexp_pool.get_or_intern(regexp.as_str());
+
+                instr.i32_const(re_id.into());
+            }
+            t => unreachable!("{:?}", t),
+        },
+
+        Expr::Filesize { .. } => {
+            instr.global_get(ctx.wasm_symbols.filesize);
+        }
+        Expr::Entrypoint { .. } => {
+            // TODO
+            // todo!()
+            instr.i64_const(0);
+        }
+        Expr::Ident { symbol } => {
+            match symbol.kind() {
+                SymbolKind::Rule(rule_id) => {
+                    // Emit code that checks if a rule has matched, leaving
+                    // zero or one at the top of the stack.
+                    emit_check_for_rule_match(ctx, instr, *rule_id);
+                }
+                SymbolKind::WasmVar(var) => {
+                    // The symbol represents a variable in WASM memory,
+                    // emit code for loading its value into the stack.
+                    load_var(ctx, instr, *var);
+                }
+                SymbolKind::HostVar(var) => {
+                    // The symbol represents a host-side variable, so it must
+                    // be a structure, map or array.
+                    ctx.lookup_start = Some(*var);
+                }
+                SymbolKind::Func(func) => {
+                    let signature =
+                        &func.signatures()[ctx.current_signature.unwrap()];
+
+                    if signature.result_may_be_undef {
+                        emit_call_and_handle_undef(
+                            ctx,
+                            instr,
+                            ctx.function_id(signature.mangled_name.as_str()),
+                        );
+                    } else {
+                        instr.call(
+                            ctx.function_id(signature.mangled_name.as_str()),
+                        );
+                    }
+                }
+                SymbolKind::FieldIndex(index) => {
+                    ctx.lookup_stack.push_back((*index).try_into().unwrap());
+
+                    match symbol.type_value().ty() {
+                        Type::Integer => {
+                            emit_lookup_integer(ctx, instr);
+                        }
+                        Type::Float => {
+                            emit_lookup_float(ctx, instr);
+                        }
+                        Type::Bool => {
+                            emit_lookup_bool(ctx, instr);
+                        }
+                        Type::String => {
+                            emit_lookup_string(ctx, instr);
+                        }
+                        Type::Struct | Type::Array | Type::Map => {
+                            // Do nothing. For structs, arrays and maps pushing
+                            // the field index in `lookup_stack` is enough. We
+                            // don't need to emit a call for retrieving a value.
+                        }
+                        _ => {
+                            // This point should not be reached. The type of
+                            // identifiers must be known during code emitting
+                            // because they are resolved during the semantic
+                            // check, and the AST is updated with type info.
+                            unreachable!();
+                        }
+                    }
+                }
+            }
+        }
+
+        Expr::PatternMatch { .. } | Expr::PatternMatchVar { .. } => {
+            emit_pattern_match(ctx, instr, expr);
+        }
+
+        Expr::PatternCount { .. } | Expr::PatternCountVar { .. } => {
+            emit_pattern_count(ctx, instr, expr);
+        }
+
+        Expr::PatternOffset { .. } | Expr::PatternOffsetVar { .. } => {
+            emit_pattern_offset(ctx, instr, expr);
+        }
+
+        Expr::PatternLength { .. } | Expr::PatternLengthVar { .. } => {
+            emit_pattern_length(ctx, instr, expr);
+        }
+
+        Expr::FieldAccess { lhs, rhs } => {
+            emit_expr(ctx, instr, lhs);
+            emit_expr(ctx, instr, rhs);
+        }
+
+        Expr::Defined { operand } => {
+            // The `defined` expression is emitted as:
+            //
+            //   try {
+            //     evaluate_operand()
+            //     true
+            //   } catch undefined {
+            //     false
+            //   }
+            //
+            catch_undef(ctx, instr, |ctx, instr| {
+                emit_bool_expr(ctx, instr, operand);
+                // Drop the operand's value as we are not interested in the
+                // value, we are interested only in whether it's defined or
+                // not.
+                instr.drop();
+                // Push a 1 in the stack indicating that the operand is
+                // defined. This point is not reached if the operand calls
+                // `throw_undef`.
+                instr.i32_const(1);
+            });
+        }
+
+        Expr::Not { operand } => {
+            // The `not` expression is emitted as:
+            //
+            //   if (evaluate_operand()) {
+            //     false
+            //   } else {
+            //     true
+            //   }
+            //
+            emit_bool_expr(ctx, instr, operand);
+            instr.if_else(
+                I32,
+                |then| {
+                    then.i32_const(0);
+                },
+                |else_| {
+                    else_.i32_const(1);
+                },
+            );
+        }
+        Expr::And { operands } => {
+            // The `or` expression is emitted as:
+            //
+            // block {
+            //   try {
+            //     result = first_operand()
+            //   } catch undefined {
+            //     result = false
+            //   }
+            //   if !result {
+            //     push false
+            //     exit from block
+            //   }
+            //   try {
+            //     result = second_operand()
+            //   } catch undefined {
+            //     result = false
+            //   }
+            //   if !result {
+            //     push false
+            //     exit from block
+            //   }
+            //   ...
+            //   push true
+            // }
+            instr.block(
+                I32, // the block returns a bool
+                |block| {
+                    let block_id = block.id();
+                    for operand in operands {
+                        catch_undef(ctx, block, |ctx, instr| {
+                            emit_bool_expr(ctx, instr, operand);
+                        });
+                        // If the operand is `false`, exit from the block
+                        // with a `false` result.
+                        block.if_else(
+                            None,
+                            |_| {},
+                            |else_| {
+                                else_.i32_const(0);
+                                else_.br(block_id);
+                            },
+                        );
+                    }
+                    // If none of the operands was false, fallback to returning
+                    // true.
+                    block.i32_const(1);
+                },
+            );
+        }
+        Expr::Or { operands } => {
+            // The `or` expression is emitted as:
+            //
+            // block {
+            //   try {
+            //     result = first_operand()
+            //   } catch undefined {
+            //     result = false
+            //   }
+            //   if result {
+            //     push true
+            //     exit from block
+            //   }
+            //   try {
+            //     result = second_operand()
+            //   } catch undefined {
+            //     result = false
+            //   }
+            //   if result {
+            //     push true
+            //     exit from block
+            //   }
+            //   ...
+            //   push false
+            // }
+            instr.block(
+                I32, // the block returns a bool
+                |block| {
+                    let block_id = block.id();
+                    for operand in operands {
+                        catch_undef(ctx, block, |ctx, instr| {
+                            emit_bool_expr(ctx, instr, operand);
+                        });
+                        // If the operand is `true`, exit from the block
+                        // with a `true` result.
+                        block.if_else(
+                            None,
+                            |then_| {
+                                then_.i32_const(1);
+                                then_.br(block_id);
+                            },
+                            |_| {},
+                        );
+                    }
+                    // If none of the operands was true, fallback to returning
+                    // false.
+                    block.i32_const(0);
+                },
+            );
+        }
+        Expr::Minus { operand } => {
+            match operand.ty() {
+                Type::Float => {
+                    emit_expr(ctx, instr, operand);
+                    instr.unop(UnaryOp::F64Neg);
+                }
+                Type::Integer => {
+                    // WebAssembly does not have a i64.neg instruction, it
+                    // is implemented as i64.sub(0, x).
+                    instr.i64_const(0);
+                    emit_expr(ctx, instr, operand);
+                    instr.binop(BinaryOp::I64Sub);
+                }
+                _ => unreachable!(),
+            };
+        }
+        Expr::BitwiseNot { operand } => {
+            emit_expr(ctx, instr, operand);
+            // WebAssembly does not have an instruction for bitwise not,
+            // it is implemented as i64.xor(x, -1)
+            instr.i64_const(-1);
+            instr.binop(BinaryOp::I64Xor);
+        }
+        Expr::Add { operands } => {
+            emit_arithmetic_op!(ctx, instr, operands, I64Add, F64Add);
+        }
+        Expr::Sub { operands } => {
+            emit_arithmetic_op!(ctx, instr, operands, I64Sub, F64Sub);
+        }
+        Expr::Mul { operands } => {
+            emit_arithmetic_op!(ctx, instr, operands, I64Mul, F64Mul);
+        }
+        Expr::Div { operands } => {
+            let mut operands = operands.iter_mut();
+            let first_operand = operands.next().unwrap();
+            let mut is_float = matches!(first_operand.ty(), Type::Float);
+
+            emit_expr(ctx, instr, first_operand);
+
+            for operand in operands {
+                // The previous operand is not float but this one is float,
+                // we must convert the previous operand to float
+                if !is_float && matches!(operand.ty(), Type::Float) {
+                    instr.unop(UnaryOp::F64ConvertSI64);
+                    is_float = true;
+                }
+
+                emit_expr(ctx, instr, operand);
+
+                if is_float && matches!(operand.ty(), Type::Integer) {
+                    instr.unop(UnaryOp::F64ConvertSI64);
+                }
+
+                if is_float {
+                    instr.binop(BinaryOp::F64Div);
+                } else {
+                    // In integer division make sure that the divisor is not
+                    // zero, if that's the case the result is undefined.
+                    throw_undef_if_zero(ctx, instr);
+                    instr.binop(BinaryOp::I64DivS);
+                }
+            }
+        }
+        Expr::Mod { operands } => {
+            let mut operands = operands.iter_mut();
+            let first_operand = operands.next().unwrap();
+
+            emit_expr(ctx, instr, first_operand);
+
+            for operand in operands {
+                emit_expr(ctx, instr, operand);
+                throw_undef_if_zero(ctx, instr);
+                instr.binop(BinaryOp::I64RemS);
+            }
+        }
+        Expr::Shl { lhs, rhs } => {
+            emit_shift_op!(ctx, instr, lhs, rhs, I64Shl);
+        }
+        Expr::Shr { lhs, rhs } => {
+            emit_shift_op!(ctx, instr, lhs, rhs, I64ShrS);
+        }
+        Expr::BitwiseAnd { lhs, rhs } => {
+            emit_bitwise_op!(ctx, instr, lhs, rhs, I64And);
+        }
+        Expr::BitwiseOr { lhs, rhs } => {
+            emit_bitwise_op!(ctx, instr, lhs, rhs, I64Or);
+        }
+        Expr::BitwiseXor { lhs, rhs } => {
+            emit_bitwise_op!(ctx, instr, lhs, rhs, I64Xor);
+        }
+        Expr::Eq { lhs, rhs } => {
+            emit_comparison_op!(
+                ctx,
+                instr,
+                lhs,
+                rhs,
+                I64Eq,
+                F64Eq,
+                wasm::export__str_eq.mangled_name
+            );
+        }
+        Expr::Ne { lhs, rhs } => {
+            emit_comparison_op!(
+                ctx,
+                instr,
+                lhs,
+                rhs,
+                I64Ne,
+                F64Ne,
+                wasm::export__str_ne.mangled_name
+            );
+        }
+        Expr::Lt { lhs, rhs } => {
+            emit_comparison_op!(
+                ctx,
+                instr,
+                lhs,
+                rhs,
+                I64LtS,
+                F64Lt,
+                wasm::export__str_lt.mangled_name
+            );
+        }
+        Expr::Gt { lhs, rhs } => {
+            emit_comparison_op!(
+                ctx,
+                instr,
+                lhs,
+                rhs,
+                I64GtS,
+                F64Gt,
+                wasm::export__str_gt.mangled_name
+            );
+        }
+        Expr::Le { lhs, rhs } => {
+            emit_comparison_op!(
+                ctx,
+                instr,
+                lhs,
+                rhs,
+                I64LeS,
+                F64Le,
+                wasm::export__str_le.mangled_name
+            );
+        }
+        Expr::Ge { lhs, rhs } => {
+            emit_comparison_op!(
+                ctx,
+                instr,
+                lhs,
+                rhs,
+                I64GeS,
+                F64Ge,
+                wasm::export__str_ge.mangled_name
+            );
+        }
+        Expr::Contains { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr.call(
+                ctx.function_id(wasm::export__str_contains.mangled_name),
+            );
+        }
+        Expr::IContains { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr.call(
+                ctx.function_id(wasm::export__str_icontains.mangled_name),
+            );
+        }
+        Expr::StartsWith { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr.call(
+                ctx.function_id(wasm::export__str_startswith.mangled_name),
+            );
+        }
+        Expr::IStartsWith { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr.call(
+                ctx.function_id(wasm::export__str_istartswith.mangled_name),
+            );
+        }
+        Expr::EndsWith { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr.call(
+                ctx.function_id(wasm::export__str_endswith.mangled_name),
+            );
+        }
+        Expr::IEndsWith { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr.call(
+                ctx.function_id(wasm::export__str_iendswith.mangled_name),
+            );
+        }
+        Expr::IEquals { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr
+                .call(ctx.function_id(wasm::export__str_iequals.mangled_name));
+        }
+
+        Expr::Matches { lhs, rhs } => {
+            emit_operands!(ctx, instr, lhs, rhs);
+            instr
+                .call(ctx.function_id(wasm::export__str_matches.mangled_name));
+        }
+
+        Expr::Lookup(lookup) => {
+            // Emit the code for the index expression, which leaves the
+            // index in the stack.
+            emit_expr(ctx, instr, &mut lookup.index);
+            // Emit code for the primary expression (array or map) that is
+            // being indexed.
+            //
+            // Notice that the index expression must be emitted before the
+            // primary expression because the former may need to modify
+            // `lookup_stack`, and we don't want to alter `lookup_stack`
+            // until `emit_array_indexing` or `emit_map_lookup` is called.
+            emit_expr(ctx, instr, &mut lookup.primary);
+            // Emit a call instruction to the corresponding function, which
+            // depends on the type of the primary expression (array or map)
+            // and the type of the index expression.
+            match lookup.primary.type_value() {
+                TypeValue::Array(array) => {
+                    emit_array_indexing(ctx, instr, &array, None);
+                }
+                TypeValue::Map(map) => {
+                    emit_map_lookup(ctx, instr, &map);
+                }
+                _ => unreachable!(),
+            };
+        }
+
+        Expr::Of(of) => match &of.items {
+            OfItems::PatternSet(_) => {
+                emit_of_pattern_set(ctx, instr, of);
+            }
+            OfItems::BoolExprTuple(_) => {
+                emit_of_expr_tuple(ctx, instr, of);
+            }
+        },
+
+        Expr::ForOf(for_of) => {
+            emit_for_of_pattern_set(ctx, instr, for_of);
+        }
+
+        Expr::ForIn(for_in) => match &mut for_in.iterable {
+            Iterable::Range(_) => {
+                emit_for_in_range(ctx, instr, for_in);
+            }
+            Iterable::ExprTuple(_) => {
+                emit_for_in_expr_tuple(ctx, instr, for_in);
+            }
+            Iterable::Expr(_) => {
+                emit_for_in_expr(ctx, instr, for_in);
+            }
+        },
+
+        Expr::FuncCall(fn_call) => {
+            // Emit the arguments first.
+            for expr in fn_call.args.iter_mut() {
+                emit_expr(ctx, instr, expr);
+            }
+
+            let previous =
+                ctx.current_signature.replace(fn_call.signature_index);
+
+            // Emit the expression that resolves into a function identifier.
+            emit_expr(ctx, instr, &mut fn_call.callable);
+
+            ctx.current_signature = previous;
+        }
+    }
 }
 
 /// Emits code that checks if the pattern search phase has not been executed
 /// yet, and do it in that case.
-fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
-    instr.local_get(ctx.wasm_symbols.pattern_search_done);
+fn emit_lazy_pattern_search(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+) {
+    instr.global_get(ctx.wasm_symbols.pattern_search_done);
     instr.if_else(
         None,
         |_then| {
@@ -245,620 +836,228 @@ fn emit_lazy_pattern_search(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
             // do here.
         },
         |_else| {
-            // Search for patterns.
+            // Call `search_for_patterns`.
             _else.call(
                 ctx.function_id(
                     wasm::export__search_for_patterns.mangled_name,
                 ),
             );
-            // Set pattern_search_done to true.
-            _else.i32_const(1);
-            _else.local_set(ctx.wasm_symbols.pattern_search_done);
+            // `search_for_patterns` returns `true` when everything went ok, and
+            // `false` when a timeout occurs.
+            _else.if_else(
+                None,
+                |_then| {
+                    // Everything ok, set pattern_search_done to true.
+                    _then.i32_const(1);
+                    _then.global_set(ctx.wasm_symbols.pattern_search_done);
+                },
+                |_else| {
+                    // A timeout occurred, set the global variable
+                    // `timeout_occurred` to true.
+                    _else.i32_const(1);
+                    _else.global_set(ctx.wasm_symbols.timeout_occurred);
+                },
+            );
         },
     );
 }
 
-/// Emits the code that determines if some pattern is matching.
-///
-/// This function assumes that the pattern ID is at the top of the stack.
 fn emit_pattern_match(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    anchor: Option<&MatchAnchor>,
+    expr: &mut Expr,
 ) {
+    emit_lazy_pattern_search(ctx, instr);
+
+    let anchor = match expr {
+        // When the pattern ID is known, simply push the ID into the stack.
+        Expr::PatternMatch { pattern_id, anchor } => {
+            instr.i32_const((*pattern_id).into());
+            anchor
+        }
+        // When the pattern ID is not known, the ID is taken from a variable.
+        Expr::PatternMatchVar { symbol, anchor } => {
+            if let SymbolKind::WasmVar(var) = symbol.kind() {
+                load_var(ctx, instr, *var);
+                // load_var returns an I64, convert it to I32 because
+                // PatternId is an I32.
+                instr.unop(UnaryOp::I32WrapI64);
+            } else {
+                unreachable!()
+            }
+            anchor
+        }
+        _ => unreachable!(),
+    };
+
+    // At this point the pattern ID is already in the stack, emit the code that
+    // checks if there's a match.
+
     match anchor {
-        Some(MatchAnchor::At(anchor_at)) => {
-            emit_expr(ctx, instr, &anchor_at.expr);
+        MatchAnchor::None => {
+            emit_check_for_pattern_match(ctx, instr);
+        }
+        MatchAnchor::At(offset) => {
+            emit_expr(ctx, instr, offset);
             instr.call(
                 ctx.function_id(wasm::export__is_pat_match_at.mangled_name),
             );
         }
-        Some(MatchAnchor::In(anchor_in)) => {
-            emit_expr(ctx, instr, &anchor_in.range.lower_bound);
-            emit_expr(ctx, instr, &anchor_in.range.upper_bound);
+        MatchAnchor::In(range) => {
+            emit_expr(ctx, instr, &mut range.lower_bound);
+            emit_expr(ctx, instr, &mut range.upper_bound);
             instr.call(
                 ctx.function_id(wasm::export__is_pat_match_in.mangled_name),
             );
         }
+    }
+}
+
+/// Emits the code that returns the number of matches for a pattern.
+fn emit_pattern_count(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    expr: &mut Expr,
+) {
+    emit_lazy_pattern_search(ctx, instr);
+
+    let range = match expr {
+        // Cases where the pattern ID is known, simply push the ID into the
+        // stack.
+        Expr::PatternCount { pattern_id, range } => {
+            instr.i32_const((*pattern_id).into());
+            range
+        }
+        Expr::PatternCountVar { symbol, range } => {
+            match symbol.kind() {
+                SymbolKind::WasmVar(var) => {
+                    load_var(ctx, instr, *var);
+                    // load_var returns a I64, convert it to I32.
+                    instr.unop(UnaryOp::I32WrapI64);
+                }
+                _ => unreachable!(),
+            }
+            range
+        }
+        _ => unreachable!(),
+    };
+
+    match range {
+        Some(range) => {
+            emit_expr(ctx, instr, &mut range.lower_bound);
+            emit_expr(ctx, instr, &mut range.upper_bound);
+            instr.call(
+                ctx.function_id(wasm::export__pat_matches_in.mangled_name),
+            );
+        }
         None => {
-            emit_check_for_pattern_match(ctx, instr);
+            instr
+                .call(ctx.function_id(wasm::export__pat_matches.mangled_name));
         }
     }
 }
 
-/// Emits WASM code for `expr` into the instruction sequence `instr`.
-fn emit_expr(ctx: &mut Context, instr: &mut InstrSeqBuilder, expr: &Expr) {
-    match expr {
-        Expr::True { .. } => {
-            instr.i32_const(1);
-        }
-        Expr::False { .. } => {
-            instr.i32_const(0);
-        }
-        Expr::Filesize { .. } => {
-            instr.global_get(ctx.wasm_symbols.filesize);
-        }
-        Expr::Entrypoint { .. } => {
-            todo!()
-        }
-        Expr::Regexp(_) => {
-            todo!()
-        }
-        Expr::Literal(lit) => match &lit.type_value {
-            TypeValue::Integer(Some(value)) => {
-                instr.i64_const(*value);
-            }
-            TypeValue::Float(Some(value)) => {
-                instr.f64_const(*value);
-            }
-            TypeValue::Bool(Some(value)) => {
-                instr.i32_const((*value) as i32);
-            }
-            TypeValue::String(Some(value)) => {
-                // Put the literal string in the pool, or get its ID if it was
-                // already there.
-                let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());
+/// Emits the code that returns the offset of matches for a pattern.
+fn emit_pattern_offset(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    expr: &mut Expr,
+) {
+    emit_lazy_pattern_search(ctx, instr);
 
-                instr.i64_const(RuntimeString::Literal(literal_id).as_wasm());
-            }
-            _ => unreachable!(),
-        },
-        Expr::Ident(ident) => {
-            emit_const_or_code!(ctx, instr, &ident.type_value, {
-                // Search for the identifier in the current structure, if any,
-                // or in the global symbol table if `current_struct` is None.
-                let symbol = if let Some(current_struct) = &ctx.current_struct
-                {
-                    current_struct.lookup(ident.name).unwrap()
-                } else {
-                    ctx.symbol_table.lookup(ident.name).unwrap()
-                };
-
-                match symbol.kind {
-                    SymbolKind::Unknown => {
-                        unreachable!(
-                            "symbol kind must be known while emitting code"
-                        )
-                    }
-                    SymbolKind::Rule(rule_id) => {
-                        // Emit code that checks if a rule has matched, leaving
-                        // zero or one at the top of the stack.
-                        emit_check_for_rule_match(ctx, instr, rule_id);
-                    }
-                    SymbolKind::WasmVar(var) => {
-                        // The symbol represents a variable in WASM memory,
-                        // emit code for loading its value into the stack.
-                        load_var(ctx, instr, var);
-                    }
-                    SymbolKind::HostVar(var) => {
-                        // The symbol represents a host-side variable, so it must
-                        // be a structure, map or array.
-                        ctx.lookup_start = Some(var);
-                    }
-                    SymbolKind::Func(func) => {
-                        let signature =
-                            &func.signatures()[ctx.current_signature.unwrap()];
-
-                        if signature.result_may_be_undef {
-                            emit_call_and_handle_undef(
-                                ctx,
-                                instr,
-                                ctx.function_id(
-                                    signature.mangled_name.as_str(),
-                                ),
-                            );
-                        } else {
-                            instr.call(
-                                ctx.function_id(
-                                    signature.mangled_name.as_str(),
-                                ),
-                            );
-                        }
-                    }
-                    SymbolKind::FieldIndex(index) => {
-                        ctx.lookup_stack.push_back(index);
-
-                        match ident.ty() {
-                            Type::Integer => {
-                                emit_lookup_integer(ctx, instr);
-                            }
-                            Type::Float => {
-                                emit_lookup_float(ctx, instr);
-                            }
-                            Type::Bool => {
-                                emit_lookup_bool(ctx, instr);
-                            }
-                            Type::String => {
-                                emit_lookup_string(ctx, instr);
-                            }
-                            Type::Struct | Type::Array | Type::Map => {
-                                // Do nothing. For structs, arrays and maps pushing
-                                // the field index in `lookup_stack` is enough. We
-                                // don't need to emit a call for retrieving a value.
-                            }
-                            _ => {
-                                // This point should not be reached. The type of
-                                // identifiers must be known during code emitting
-                                // because they are resolved during the semantic
-                                // check, and the AST is updated with type info.
-                                unreachable!();
-                            }
-                        }
-                    }
+    let index = match expr {
+        // Cases where the pattern ID is known, simply push the ID into the
+        // stack.
+        Expr::PatternOffset { pattern_id, index } => {
+            instr.i32_const((*pattern_id).into());
+            index
+        }
+        Expr::PatternOffsetVar { symbol, index } => {
+            match symbol.kind() {
+                SymbolKind::WasmVar(var) => {
+                    load_var(ctx, instr, *var);
+                    // load_var returns a I64, convert it to I32.
+                    instr.unop(UnaryOp::I32WrapI64);
                 }
-            });
-        }
-        Expr::PatternMatch(pattern) => {
-            // If the patterns has not been searched yet, do it now.
-            emit_lazy_pattern_search(ctx, instr);
-
-            // Push the pattern ID in the stack. Identifier "$" is an special
-            // case, as this is used inside `for` loops and it represents a
-            // different pattern on each iteration. In those cases the pattern
-            // ID is obtained from a loop variable.
-            if pattern.identifier.name == "$" {
-                match ctx.symbol_table.lookup("$").unwrap().kind {
-                    SymbolKind::WasmVar(var) => {
-                        load_var(ctx, instr, var);
-                        // load_var returns a I64, convert it to I32.
-                        instr.unop(UnaryOp::I32WrapI64);
-                    }
-                    _ => unreachable!(),
-                }
+                _ => unreachable!(),
             }
-            // For normal pattern identifiers (e.g: $a, $b, $foo) we find the
-            // corresponding pattern in the current rule, and push its ID.
-            else {
-                instr.i32_const(
-                    ctx.get_pattern_from_current_rule(&pattern.identifier).0,
-                );
-            };
+            index
+        }
+        _ => unreachable!(),
+    };
 
-            emit_pattern_match(ctx, instr, pattern.anchor.as_ref());
+    match index {
+        // The index was specified, like in `@a[2]`
+        Some(index) => {
+            emit_expr(ctx, instr, index);
         }
-        Expr::PatternCount(_) => {
-            // If the patterns has not been searched yet, do it now.
-            emit_lazy_pattern_search(ctx, instr);
-            // TODO
+        // The index was not specified, like in `!a`, which is
+        // equivalent to `@a[1]`.
+        None => {
+            instr.i64_const(1);
         }
-        Expr::PatternOffset(_) => {
-            // If the patterns has not been searched yet, do it now.
-            emit_lazy_pattern_search(ctx, instr);
-            // TODO
-        }
-        Expr::PatternLength(_) => {
-            emit_lazy_pattern_search(ctx, instr);
-            // TODO
-        }
-        Expr::Lookup(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                // Emit the code for the index expression, which leaves the
-                // index in the stack.
-                emit_expr(ctx, instr, &operands.index);
-                // Emit code for the primary expression (array or map) that is
-                // being indexed.
-                //
-                // Notice that the index expression must be emitted before the
-                // primary expression because the former may need to modify
-                // `lookup_stack`, and we don't want to alter `lookup_stack`
-                // until `emit_array_indexing` or `emit_map_lookup` is called.
-                emit_expr(ctx, instr, &operands.primary);
-
-                // Emit a call instruction to the corresponding function, which
-                // depends on the type of the primary expression (array or map)
-                // and the type of the index expression.
-                match operands.primary.type_value() {
-                    TypeValue::Array(array) => {
-                        emit_array_indexing(ctx, instr, array, None);
-                    }
-                    TypeValue::Map(map) => {
-                        emit_map_lookup(ctx, instr, map);
-                    }
-                    _ => unreachable!(),
-                };
-            })
-        }
-        Expr::FieldAccess(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_expr(ctx, instr, &operands.lhs);
-
-                ctx.current_struct =
-                    Some(operands.lhs.type_value().as_struct());
-
-                emit_expr(ctx, instr, &operands.rhs);
-
-                ctx.current_struct = None;
-            })
-        }
-        Expr::FnCall(fn_call) => {
-            for expr in fn_call.args.iter() {
-                emit_expr(ctx, instr, expr);
-            }
-
-            let previous = ctx
-                .current_signature
-                .replace(fn_call.fn_signature_index.unwrap());
-
-            emit_expr(ctx, instr, &fn_call.callable);
-
-            ctx.current_signature = previous;
-        }
-        Expr::Defined(operand) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                // The `defined` expression is emitted as:
-                //
-                //   try {
-                //     evaluate_operand()
-                //     true
-                //   } catch undefined {
-                //     false
-                //   }
-                //
-                catch_undef(ctx, instr, |ctx, instr| {
-                    emit_bool_expr(ctx, instr, &operand.operand);
-                    // Drop the operand's value as we are not interested in the
-                    // value, we are interested only in whether it's defined or
-                    // not.
-                    instr.drop();
-                    // Push a 1 in the stack indicating that the operand is
-                    // defined. This point is not reached if the operand calls
-                    // `throw_undef`.
-                    instr.i32_const(1);
-                });
-            })
-        }
-        Expr::Not(operand) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                // The `not` expression is emitted as:
-                //
-                //   if (evaluate_operand()) {
-                //     false
-                //   } else {
-                //     true
-                //   }
-                //
-                emit_bool_expr(ctx, instr, &operand.operand);
-                instr.if_else(
-                    I32,
-                    |then| {
-                        then.i32_const(0);
-                    },
-                    |else_| {
-                        else_.i32_const(1);
-                    },
-                );
-            })
-        }
-        Expr::And(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                // The `and` expression is emitted as:
-                //
-                //   try {
-                //     lhs = evaluate_left_operand()
-                //   } catch undefined {
-                //     lhs = false
-                //   }
-                //
-                //   if (lhs) {
-                //     try {
-                //        evaluate_right_operand()
-                //     } catch undefined {
-                //        false
-                //     }
-                //   } else {
-                //     false
-                //   }
-                //
-                catch_undef(ctx, instr, |ctx, instr| {
-                    emit_bool_expr(ctx, instr, &operands.lhs);
-                });
-
-                instr.if_else(
-                    I32,
-                    |then_| {
-                        catch_undef(ctx, then_, |ctx, instr| {
-                            emit_bool_expr(ctx, instr, &operands.rhs);
-                        });
-                    },
-                    |else_| {
-                        else_.i32_const(0);
-                    },
-                );
-            });
-        }
-        Expr::Or(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                // The `or` expression is emitted as:
-                //
-                //   try {
-                //     lhs = evaluate_left_operand()
-                //   } catch undefined {
-                //     lhs = false
-                //   }
-                //
-                //   if (lhs) {
-                //     true
-                //   } else {
-                //     evaluate_right_operand()
-                //   }
-                //
-                catch_undef(ctx, instr, |ctx, instr| {
-                    emit_bool_expr(ctx, instr, &operands.lhs);
-                });
-
-                instr.if_else(
-                    I32,
-                    |then_| {
-                        then_.i32_const(1);
-                    },
-                    |else_| {
-                        catch_undef(ctx, else_, |ctx, instr| {
-                            emit_bool_expr(ctx, instr, &operands.rhs);
-                        });
-                    },
-                );
-            });
-        }
-        Expr::Minus(operand) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                match operand.operand.ty() {
-                    Type::Float => {
-                        emit_expr(ctx, instr, &operand.operand);
-                        instr.unop(UnaryOp::F64Neg);
-                    }
-                    Type::Integer => {
-                        // WebAssembly does not have a i64.neg instruction, it
-                        // is implemented as i64.sub(0, x).
-                        instr.i64_const(0);
-                        emit_expr(ctx, instr, &operand.operand);
-                        instr.binop(BinaryOp::I64Sub);
-                    }
-                    _ => unreachable!(),
-                };
-            })
-        }
-        Expr::Modulus(operands) => {
-            // emit_arithmetic_op! macro is not used for modulus because this
-            // operation doesn't accept float operands.
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                match emit_operands!(ctx, instr, operands.lhs, operands.rhs) {
-                    (Type::Integer, Type::Integer) => {
-                        // Make sure that the divisor is not zero, if that's
-                        // the case the result is undefined.
-                        throw_undef_if_zero(ctx, instr);
-                        instr.binop(BinaryOp::I64RemS);
-                    }
-                    _ => unreachable!(),
-                };
-            });
-        }
-        Expr::BitwiseNot(operand) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_expr(ctx, instr, &operand.operand);
-                // WebAssembly does not have an instruction for bitwise not,
-                // it is implemented as i64.xor(x, -1)
-                instr.i64_const(-1);
-                instr.binop(BinaryOp::I64Xor);
-            });
-        }
-        Expr::Add(operands) => {
-            emit_arithmetic_op!(ctx, instr, expr, operands, I64Add, F64Add);
-        }
-        Expr::Sub(operands) => {
-            emit_arithmetic_op!(ctx, instr, expr, operands, I64Sub, F64Sub);
-        }
-        Expr::Mul(operands) => {
-            emit_arithmetic_op!(ctx, instr, expr, operands, I64Mul, F64Mul);
-        }
-        Expr::Div(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                match emit_operands!(ctx, instr, operands.lhs, operands.rhs) {
-                    (Type::Integer, Type::Integer) => {
-                        // Make sure that the divisor is not zero, if that's
-                        // the case the result is undefined.
-                        throw_undef_if_zero(ctx, instr);
-                        instr.binop(BinaryOp::I64DivS);
-                    }
-                    (Type::Float, Type::Float) => {
-                        // Both operands are float, the operation is float.
-                        instr.binop(BinaryOp::F64Div);
-                    }
-                    _ => unreachable!(),
-                };
-            });
-        }
-        Expr::Shl(operands) => {
-            emit_shift_op!(ctx, instr, expr, operands, I64Shl);
-        }
-        Expr::Shr(operands) => {
-            emit_shift_op!(ctx, instr, expr, operands, I64ShrS);
-        }
-        Expr::BitwiseAnd(operands) => {
-            emit_bitwise_op!(ctx, instr, expr, operands, I64And);
-        }
-        Expr::BitwiseOr(operands) => {
-            emit_bitwise_op!(ctx, instr, expr, operands, I64Or);
-        }
-        Expr::BitwiseXor(operands) => {
-            emit_bitwise_op!(ctx, instr, expr, operands, I64Xor);
-        }
-        Expr::Eq(operands) => {
-            emit_comparison_op!(
-                ctx,
-                instr,
-                expr,
-                operands,
-                I64Eq,
-                F64Eq,
-                wasm::export__str_eq.mangled_name
-            );
-        }
-        Expr::Ne(operands) => {
-            emit_comparison_op!(
-                ctx,
-                instr,
-                expr,
-                operands,
-                I64Ne,
-                F64Ne,
-                wasm::export__str_ne.mangled_name
-            );
-        }
-        Expr::Lt(operands) => {
-            emit_comparison_op!(
-                ctx,
-                instr,
-                expr,
-                operands,
-                I64LtS,
-                F64Lt,
-                wasm::export__str_lt.mangled_name
-            );
-        }
-        Expr::Gt(operands) => {
-            emit_comparison_op!(
-                ctx,
-                instr,
-                expr,
-                operands,
-                I64GtS,
-                F64Gt,
-                wasm::export__str_gt.mangled_name
-            );
-        }
-        Expr::Le(operands) => {
-            emit_comparison_op!(
-                ctx,
-                instr,
-                expr,
-                operands,
-                I64LeS,
-                F64Le,
-                wasm::export__str_le.mangled_name
-            );
-        }
-        Expr::Ge(operands) => {
-            emit_comparison_op!(
-                ctx,
-                instr,
-                expr,
-                operands,
-                I64GeS,
-                F64Ge,
-                wasm::export__str_ge.mangled_name
-            );
-        }
-        Expr::Contains(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(
-                    ctx.function_id(wasm::export__str_contains.mangled_name),
-                );
-            });
-        }
-        Expr::IContains(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(
-                    ctx.function_id(wasm::export__str_icontains.mangled_name),
-                );
-            });
-        }
-        Expr::StartsWith(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(
-                    ctx.function_id(wasm::export__str_startswith.mangled_name),
-                );
-            });
-        }
-        Expr::IStartsWith(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(
-                    ctx.function_id(
-                        wasm::export__str_istartswith.mangled_name,
-                    ),
-                );
-            });
-        }
-        Expr::EndsWith(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(
-                    ctx.function_id(wasm::export__str_endswith.mangled_name),
-                );
-            });
-        }
-        Expr::IEndsWith(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(
-                    ctx.function_id(wasm::export__str_iendswith.mangled_name),
-                );
-            });
-        }
-        Expr::IEquals(operands) => {
-            emit_const_or_code!(ctx, instr, expr.type_value(), {
-                emit_operands!(ctx, instr, operands.lhs, operands.rhs);
-                instr.call(
-                    ctx.function_id(wasm::export__str_iequals.mangled_name),
-                );
-            });
-        }
-        Expr::Matches(_) => {
-            // TODO
-        }
-        Expr::Of(of) => match &of.items {
-            OfItems::PatternSet(pattern_set) => {
-                emit_of_pattern_set(ctx, instr, of, pattern_set);
-            }
-            OfItems::BoolExprTuple(expressions) => {
-                emit_of_expr_tuple(ctx, instr, of, expressions);
-            }
-        },
-        Expr::ForOf(for_of) => {
-            emit_for_of_pattern_set(ctx, instr, for_of);
-        }
-        Expr::ForIn(for_in) => match &for_in.iterable {
-            Iterable::Range(range) => {
-                emit_for_in_range(ctx, instr, for_in, range);
-            }
-            Iterable::ExprTuple(expressions) => {
-                emit_for_in_expr_tuple(ctx, instr, for_in, expressions);
-            }
-            Iterable::Expr(iterable) => {
-                emit_for_in_expr(ctx, instr, for_in, iterable);
-            }
-        },
     }
+
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.function_id(wasm::export__pat_offset.mangled_name),
+    )
+}
+
+/// Emits the code that returns the length of matches for a pattern.
+fn emit_pattern_length(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    expr: &mut Expr,
+) {
+    emit_lazy_pattern_search(ctx, instr);
+
+    let index = match expr {
+        // Cases where the pattern ID is known, simply push the ID into the
+        // stack.
+        Expr::PatternLength { pattern_id, index } => {
+            instr.i32_const((*pattern_id).into());
+            index
+        }
+        Expr::PatternLengthVar { symbol, index } => {
+            match symbol.kind() {
+                SymbolKind::WasmVar(var) => {
+                    load_var(ctx, instr, *var);
+                    // load_var returns a I64, convert it to I32.
+                    instr.unop(UnaryOp::I32WrapI64);
+                }
+                _ => unreachable!(),
+            }
+            index
+        }
+        _ => unreachable!(),
+    };
+
+    match index {
+        // The index was specified, like in `!a[2]`
+        Some(index) => {
+            emit_expr(ctx, instr, index);
+        }
+        // The index was not specified, like in `!a`, which is
+        // equivalent to `!a[1]`.
+        None => {
+            instr.i64_const(1);
+        }
+    }
+
+    emit_call_and_handle_undef(
+        ctx,
+        instr,
+        ctx.function_id(wasm::export__pat_length.mangled_name),
+    )
 }
 
 /// Emits the code that checks if rule has matched.
 ///
 /// The emitted code leaves 0 or 1 at the top of the stack.
 fn emit_check_for_rule_match(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     rule_id: RuleId,
 ) {
@@ -882,8 +1081,7 @@ fn emit_check_for_rule_match(
             offset: MATCHING_RULES_BITMAP_BASE as u32,
         },
     );
-    // This is the first operator for the I32ShrU operation.
-    instr.i32_const(rule_id.0 % 8);
+
     // Compute byte & (1 << (rule_id % 8)), which clears all
     // bits except the one we are interested in.
     instr.i32_const(1 << (rule_id.0 % 8));
@@ -891,6 +1089,7 @@ fn emit_check_for_rule_match(
     // Now shift the byte to the right, leaving the
     // interesting bit as the LSB. So the result is either
     // 1 or 0.
+    instr.i32_const(rule_id.0 % 8);
     instr.binop(BinaryOp::I32ShrU);
 }
 
@@ -900,7 +1099,7 @@ fn emit_check_for_rule_match(
 /// I32. The emitted code consumes the PatternId and leaves another I32 with
 /// value 0 or 1 at the top of the stack.
 fn emit_check_for_pattern_match(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
 ) {
     // Take the pattern ID at the top of the stack and store it in a temp
@@ -964,7 +1163,7 @@ fn emit_check_for_pattern_match(
 ///
 /// If the `var` argument is not `None` for arrays that don't contain structs.
 fn emit_array_indexing(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
     dst_var: Option<Var>,
@@ -1019,7 +1218,7 @@ fn emit_array_indexing(
 ///
 /// If the `dst_var` argument is not `None` for maps that don't contain structs.
 fn emit_map_lookup_by_index(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map: &Rc<Map>,
     dst_var: Option<Var>,
@@ -1104,7 +1303,7 @@ fn emit_map_lookup_by_index(
 }
 
 fn emit_map_lookup(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map: &Rc<Map>,
 ) {
@@ -1119,7 +1318,7 @@ fn emit_map_lookup(
 }
 
 fn emit_map_integer_key_lookup(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
@@ -1138,7 +1337,7 @@ fn emit_map_integer_key_lookup(
 }
 
 fn emit_map_string_key_lookup(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
@@ -1158,17 +1357,17 @@ fn emit_map_string_key_lookup(
 }
 
 fn emit_of_pattern_set(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    of: &Of,
-    pattern_set: &PatternSet,
+    of: &mut Of,
 ) {
-    let pattern_ids: Vec<PatternId> =
-        patterns_matching(ctx, pattern_set).collect();
+    let pattern_ids = cast!(&mut of.items, OfItems::PatternSet);
+
+    debug_assert!(!pattern_ids.is_empty());
 
     let num_patterns = pattern_ids.len();
-    let mut pattern_ids = pattern_ids.into_iter();
-    let next_pattern_id = ctx.new_var(Type::Integer);
+    let mut pattern_ids = pattern_ids.iter().cloned();
+    let next_pattern_id = of.stack_frame.new_var(Type::Integer);
 
     // Make sure the pattern search phase is executed, as the `of` statement
     // depends on patterns.
@@ -1177,7 +1376,8 @@ fn emit_of_pattern_set(
     emit_for(
         ctx,
         instr,
-        &of.quantifier,
+        &mut of.stack_frame,
+        &mut of.quantifier,
         |ctx, instr, n, _| {
             // Set n = number of patterns.
             set_var(ctx, instr, n, |_, instr| {
@@ -1205,33 +1405,45 @@ fn emit_of_pattern_set(
             // load_var returns a I64, convert it to I32.
             instr.unop(UnaryOp::I32WrapI64);
 
-            emit_pattern_match(ctx, instr, of.anchor.as_ref());
+            match &mut of.anchor {
+                MatchAnchor::None => {
+                    emit_check_for_pattern_match(ctx, instr);
+                }
+                MatchAnchor::At(offset) => {
+                    emit_expr(ctx, instr, offset);
+                    instr.call(ctx.function_id(
+                        wasm::export__is_pat_match_at.mangled_name,
+                    ));
+                }
+                MatchAnchor::In(range) => {
+                    emit_expr(ctx, instr, &mut range.lower_bound);
+                    emit_expr(ctx, instr, &mut range.upper_bound);
+                    instr.call(ctx.function_id(
+                        wasm::export__is_pat_match_in.mangled_name,
+                    ));
+                }
+            }
         },
         // After each iteration.
         |_, _, _| {},
     );
-
-    // Free loop variables.
-    ctx.free_vars(next_pattern_id);
 }
 
 fn emit_of_expr_tuple(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    of: &Of,
-    expressions: &[Expr],
+    of: &mut Of,
 ) {
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(Type::Bool);
-
+    let expressions = cast!(&mut of.items, OfItems::BoolExprTuple);
+    let next_item = of.stack_frame.new_var(Type::Bool);
     let num_expressions = expressions.len();
-    let mut expressions = expressions.iter();
+    let mut expressions = expressions.iter_mut();
 
     emit_for(
         ctx,
         instr,
-        &of.quantifier,
+        &mut of.stack_frame,
+        &mut of.quantifier,
         |ctx, instr, n, _| {
             // Initialize `n` to number of expressions.
             set_var(ctx, instr, n, |_, instr| {
@@ -1260,35 +1472,22 @@ fn emit_of_expr_tuple(
         // After each iteration.
         |_, _, _| {},
     );
-
-    // Free loop variables.
-    ctx.free_vars(next_item);
 }
 
 fn emit_for_of_pattern_set(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    for_of: &ForOf,
+    for_of: &mut ForOf,
 ) {
-    let pattern_ids: Vec<PatternId> =
-        patterns_matching(ctx, &for_of.pattern_set).collect();
-
-    let num_patterns = pattern_ids.len();
-    let mut pattern_ids = pattern_ids.into_iter();
-    let next_pattern_id = ctx.new_var(Type::Integer);
-
-    let mut symbol = Symbol::new(TypeValue::Integer(None));
-    symbol.kind = SymbolKind::WasmVar(next_pattern_id);
-
-    let mut loop_vars = SymbolTable::new();
-    loop_vars.insert("$", symbol);
-
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    let num_patterns = for_of.pattern_set.len();
+    let mut pattern_ids = for_of.pattern_set.iter();
+    let next_pattern_id = for_of.variable;
 
     emit_for(
         ctx,
         instr,
-        &for_of.quantifier,
+        &mut for_of.stack_frame,
+        &mut for_of.quantifier,
         |ctx, instr, n, _| {
             // Set n = number of patterns.
             set_var(ctx, instr, n, |_, instr| {
@@ -1302,7 +1501,7 @@ fn emit_for_of_pattern_set(
                 load_var(ctx, instr, i);
                 emit_switch(ctx, I64, instr, |_, instr| {
                     if let Some(pattern_id) = pattern_ids.next() {
-                        instr.i64_const(pattern_id.into());
+                        instr.i64_const((*pattern_id).into());
                         return true;
                     }
                     false
@@ -1311,56 +1510,36 @@ fn emit_for_of_pattern_set(
         },
         // Condition
         |ctx, instr| {
-            emit_expr(ctx, instr, &for_of.condition);
+            emit_bool_expr(ctx, instr, &mut for_of.condition);
         },
         // After each iteration.
         |_, _, _| {},
     );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_pattern_id);
 }
 
 fn emit_for_in_range(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    range: &Range,
+    for_in: &mut ForIn,
 ) {
+    let range = cast!(&mut for_in.iterable, Iterable::Range);
+
     // A `for` loop in a range has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(Type::Integer);
-
-    // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(TypeValue::Integer(None));
-
-    // Associate the symbol with the memory location where `next_item` is
-    // stored. Everytime that the loop variable is used in the condition,
-    // it will refer to the value stored in `next_item`.
-    symbol.kind = SymbolKind::WasmVar(next_item);
-
-    let mut loop_vars = SymbolTable::new();
-    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    // The only variable contains the loop's next item.
+    let next_item = for_in.variables[0];
 
     emit_for(
         ctx,
         instr,
-        &for_in.quantifier,
+        &mut for_in.stack_frame,
+        &mut for_in.quantifier,
         |ctx, instr, n, loop_end| {
             // Set n = upper_bound - lower_bound + 1;
             set_var(ctx, instr, n, |ctx, instr| {
-                emit_expr(ctx, instr, &range.upper_bound);
-                emit_expr(ctx, instr, &range.lower_bound);
+                emit_expr(ctx, instr, &mut range.upper_bound);
+                emit_expr(ctx, instr, &mut range.lower_bound);
 
                 // Store lower_bound in temp variable, without removing
                 // it from the stack.
@@ -1393,92 +1572,64 @@ fn emit_for_in_range(
         // Before each iteration.
         |_, _, _| {},
         // Condition.
-        |ctx, instr| emit_expr(ctx, instr, &for_in.condition),
+        |ctx, instr| {
+            emit_bool_expr(ctx, instr, &mut for_in.condition);
+        },
         // After each iteration.
         |ctx, instr, _| {
             incr_var(ctx, instr, next_item);
         },
     );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_item);
 }
 
 fn emit_for_in_expr(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    iterable: &Expr,
+    for_in: &mut ForIn,
 ) {
-    match iterable.ty() {
+    let expr = cast!(&mut for_in.iterable, Iterable::Expr);
+
+    match expr.ty() {
         Type::Array => {
-            emit_for_in_array(ctx, instr, for_in, iterable);
+            emit_for_in_array(ctx, instr, for_in);
         }
         Type::Map => {
-            emit_for_in_map(ctx, instr, for_in, iterable);
+            emit_for_in_map(ctx, instr, for_in);
         }
         _ => unreachable!(),
     }
 }
 
 fn emit_for_in_array(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    array_expr: &Expr,
+    for_in: &mut ForIn,
 ) {
     // A `for` loop in an array has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    let array = array_expr.type_value().as_array();
+    let expr = cast!(&mut for_in.iterable, Iterable::Expr);
+    let array = expr.type_value().as_array();
 
-    // The type of the loop variable must be the type of the items in the array,
-    // except for arrays of struct, for which we don't need to create a variable.
-    let (wasm_side_next_item, loop_var) = match array.as_ref() {
-        Array::Integers(_) => (true, TypeValue::Integer(None)),
-        Array::Floats(_) => (true, TypeValue::Float(None)),
-        Array::Bools(_) => (true, TypeValue::Bool(None)),
-        Array::Strings(_) => (true, TypeValue::String(None)),
-        Array::Structs(_) => (false, TypeValue::Unknown),
-    };
+    // The only variable contains the loop's next item.
+    let next_item = for_in.variables[0];
 
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(loop_var.ty());
-
-    // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(loop_var);
-    let mut loop_vars = SymbolTable::new();
-
-    // Associate the symbol with the memory location where `next_item` is
-    // stored. Everytime that the loop variable is used in the condition,
-    // it will refer to the value stored in `next_item`.
-    if wasm_side_next_item {
-        symbol.kind = SymbolKind::WasmVar(next_item);
-    } else {
-        symbol.kind = SymbolKind::HostVar(next_item);
-    }
-
-    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    // When values in the array are structs, `next_item` is a host-side
+    // variable. For every other type it is a WASM-side variable.
+    let wasm_side_next_item = !matches!(next_item.ty, Type::Struct);
 
     // Emit the expression that lookup the array.
-    emit_expr(ctx, instr, array_expr);
+    emit_expr(ctx, instr, expr);
 
-    let array_var = ctx.new_var(Type::Array);
+    let array_var = for_in.stack_frame.new_var(Type::Array);
 
     emit_lookup_value(ctx, instr, array_var);
 
     emit_for(
         ctx,
         instr,
-        &for_in.quantifier,
+        &mut for_in.stack_frame,
+        &mut for_in.quantifier,
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |ctx, instr| {
@@ -1522,85 +1673,45 @@ fn emit_for_in_array(
             }
         },
         |ctx, instr| {
-            emit_expr(ctx, instr, &for_in.condition);
+            emit_bool_expr(ctx, instr, &mut for_in.condition);
         },
         // After each iteration.
         |_, _, _| {},
     );
-
-    ctx.symbol_table.pop();
-    ctx.free_vars(next_item);
 }
 
 fn emit_for_in_map(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    map_expr: &Expr,
+    for_in: &mut ForIn,
 ) {
     // A `for` loop in an map has exactly two variables.
     assert_eq!(for_in.variables.len(), 2);
 
-    let map = map_expr.type_value().as_map();
+    let expr = cast!(&mut for_in.iterable, Iterable::Expr);
+    let map = expr.type_value().as_map();
 
-    let (key, val) = match map.as_ref() {
-        Map::IntegerKeys { deputy, .. } => (
-            TypeValue::Integer(None),                       // key
-            deputy.as_ref().unwrap().clone_without_value(), // value
-        ),
-        Map::StringKeys { deputy, .. } => (
-            TypeValue::String(None),                        // key
-            deputy.as_ref().unwrap().clone_without_value(), // value
-        ),
-    };
-
-    // Create variable `next_key`, which will contain the key that will be
-    // put in the loop variable in the next iteration.
-    let next_key = ctx.new_var(key.ty());
-
-    // Create variable `next_val`, which will contain the value that will be
-    // put in the loop variable in the next iteration.
-    let next_val = ctx.new_var(val.ty());
+    let next_key = for_in.variables[0];
+    let next_val = for_in.variables[1];
 
     // When values in the map are structs, `next_val` is a host-side variable.
     // For every other type it is a WASM-side variable.
-    let wasm_side_next_val = !matches!(val.ty(), Type::Struct);
-
-    // Create a symbol table containing the loop variables.
-    let mut symbol_key = Symbol::new(key);
-    let mut symbol_val = Symbol::new(val);
-
-    symbol_key.kind = SymbolKind::WasmVar(next_key);
-    symbol_val.kind = match next_val.ty {
-        Type::Integer | Type::Float | Type::Bool | Type::String => {
-            SymbolKind::WasmVar(next_val)
-        }
-        Type::Struct | Type::Array => SymbolKind::HostVar(next_val),
-        _ => unreachable!(),
-    };
-
-    let mut loop_vars = SymbolTable::new();
-
-    loop_vars.insert(for_in.variables[0].name, symbol_key);
-    loop_vars.insert(for_in.variables[1].name, symbol_val);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    let wasm_side_next_val = !matches!(next_val.ty, Type::Struct);
 
     // Emit the expression that lookup the map.
-    emit_expr(ctx, instr, map_expr);
+    emit_expr(ctx, instr, expr);
 
-    let map_var = ctx.new_var(Type::Map);
+    let map_var = for_in.stack_frame.new_var(Type::Map);
 
     emit_lookup_value(ctx, instr, map_var);
 
     emit_for(
         ctx,
         instr,
-        &for_in.quantifier,
+        &mut for_in.stack_frame,
+        &mut for_in.quantifier,
         |ctx, instr, n, loop_end| {
-            // Initialize `n` to the maps's length.
+            // Initialize `n` to the map's length.
             set_var(ctx, instr, n, |ctx, instr| {
                 instr.i32_const(map_var.index);
                 instr
@@ -1644,50 +1755,34 @@ fn emit_for_in_map(
         },
         // Condition.
         |ctx, instr| {
-            emit_expr(ctx, instr, &for_in.condition);
+            emit_bool_expr(ctx, instr, &mut for_in.condition);
         },
         // After each iteration.
         |_, _, _| {},
     );
-
-    ctx.symbol_table.pop();
-    ctx.free_vars(next_key);
 }
 
 fn emit_for_in_expr_tuple(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    for_in: &ForIn,
-    expressions: &[Expr],
+    for_in: &mut ForIn,
 ) {
     // A `for` in a tuple of expressions has exactly one variable.
     assert_eq!(for_in.variables.len(), 1);
 
-    // Create variable `next_item`, which will contain the item that will be
-    // put in the loop variable in the next iteration.
-    let next_item = ctx.new_var(expressions.first().unwrap().ty());
+    let expressions = cast!(&mut for_in.iterable, Iterable::ExprTuple);
 
-    // Create a symbol table containing the loop variable.
-    let mut symbol = Symbol::new(
-        expressions.first().unwrap().type_value().clone_without_value(),
-    );
-
-    symbol.kind = SymbolKind::WasmVar(next_item);
-
-    let mut loop_vars = SymbolTable::new();
-    loop_vars.insert(for_in.variables.first().unwrap().name, symbol);
-
-    // Push the symbol table with loop variable on top of the existing symbol
-    // tables.
-    ctx.symbol_table.push(Rc::new(loop_vars));
+    // The only variable contains the loop's next item.
+    let next_item = for_in.variables[0];
 
     let num_expressions = expressions.len();
-    let mut expressions = expressions.iter();
+    let mut expressions = expressions.iter_mut();
 
     emit_for(
         ctx,
         instr,
-        &for_in.quantifier,
+        &mut for_in.stack_frame,
+        &mut for_in.quantifier,
         |ctx, instr, n, _| {
             // Initialize `n` to number of expressions.
             set_var(ctx, instr, n, |_, instr| {
@@ -1710,17 +1805,11 @@ fn emit_for_in_expr_tuple(
         },
         // Condition.
         |ctx, instr| {
-            emit_expr(ctx, instr, &for_in.condition);
+            emit_bool_expr(ctx, instr, &mut for_in.condition);
         },
         // After each iteration.
         |_, _, _| {},
     );
-
-    // Remove the symbol table that contains the loop variable.
-    ctx.symbol_table.pop();
-
-    // Free loop variables.
-    ctx.free_vars(next_item);
 }
 
 /// Emits a `for` loop.
@@ -1744,31 +1833,33 @@ fn emit_for_in_expr_tuple(
 ///
 /// `after_cond` emits the code that gets executed on every iteration after
 /// the loop's condition. This code should not leave anything on the stack.
+#[allow(clippy::too_many_arguments)]
 fn emit_for<I, B, C, A>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    quantifier: &Quantifier,
+    stack_frame: &mut VarStackFrame,
+    quantifier: &mut Quantifier,
     loop_init: I,
     before_cond: B,
     condition: C,
     after_cond: A,
 ) where
-    I: FnOnce(&mut Context, &mut InstrSeqBuilder, Var, InstrSeqId),
-    B: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
-    C: FnOnce(&mut Context, &mut InstrSeqBuilder),
-    A: FnOnce(&mut Context, &mut InstrSeqBuilder, Var),
+    I: FnOnce(&mut EmitContext, &mut InstrSeqBuilder, Var, InstrSeqId),
+    B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder, Var),
+    C: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
+    A: FnOnce(&mut EmitContext, &mut InstrSeqBuilder, Var),
 {
     // Create variable `n`, which will contain the maximum number of iterations.
-    let n = ctx.new_var(Type::Integer);
+    let n = stack_frame.new_var(Type::Integer);
 
     // Create variable `i`, which will contain the current iteration number.
     // The value of `i` is in the range 0..n-1.
-    let i = ctx.new_var(Type::Integer);
+    let i = stack_frame.new_var(Type::Integer);
 
     // Function that increments `i` and checks if `i` < `n` after each
     // iteration, repeating the loop while the condition is true.
     let incr_i_and_repeat =
-        |ctx: &mut Context,
+        |ctx: &mut EmitContext,
          instr: &mut InstrSeqBuilder,
          n: Var,
          i: Var,
@@ -1798,24 +1889,30 @@ fn emit_for<I, B, C, A>(
             instr.i64_const(0);
         });
 
-        let (max_count, count) = match quantifier {
-            Quantifier::Percentage(expr) | Quantifier::Expr(expr) => {
+        let p = match quantifier {
+            Quantifier::Percentage(expr) => Some((expr, true)),
+            Quantifier::Expr(expr) => Some((expr, false)),
+            _ => None,
+        };
+
+        let (max_count, count) = match p {
+            Some((quantifier, is_percentage)) => {
                 // `max_count` is the number of loop conditions that must return
                 // `true` for the loop to be `true`.
-                let max_count = ctx.new_var(Type::Integer);
+                let max_count = stack_frame.new_var(Type::Integer);
                 // `count` is the number of loop conditions that actually
                 // returned `true`. This is initially zero.
-                let count = ctx.new_var(Type::Integer);
+                let count = stack_frame.new_var(Type::Integer);
 
                 set_var(ctx, instr, max_count, |ctx, instr| {
-                    if matches!(quantifier, Quantifier::Percentage(_)) {
+                    if is_percentage {
                         // Quantifier is a percentage, its final value will be
                         // n * quantifier / 100
 
                         // n * quantifier
                         load_var(ctx, instr, n);
                         instr.unop(UnaryOp::F64ConvertSI64);
-                        emit_expr(ctx, instr, expr);
+                        emit_expr(ctx, instr, quantifier);
                         instr.unop(UnaryOp::F64ConvertSI64);
                         instr.binop(BinaryOp::F64Mul);
 
@@ -1826,7 +1923,7 @@ fn emit_for<I, B, C, A>(
                         instr.unop(UnaryOp::I64TruncSF64);
                     } else {
                         // Quantifier is not a percentage, use it as is.
-                        emit_expr(ctx, instr, expr);
+                        emit_expr(ctx, instr, quantifier);
                     }
                 });
 
@@ -1991,16 +2088,7 @@ fn emit_for<I, B, C, A>(
                 }
             }
         });
-
-        if matches!(
-            quantifier,
-            Quantifier::Percentage(_) | Quantifier::Expr(_)
-        ) {
-            ctx.free_vars(max_count);
-        };
     });
-
-    ctx.free_vars(n);
 }
 
 /// Produces a switch statement by calling a `branch_generator` function
@@ -2027,7 +2115,7 @@ fn emit_for<I, B, C, A>(
 ///       block                         ;; block @4
 ///         block                       ;; block @5
 ///           local.get $tmp            ;; put $tmp at the top of the stack
-///           
+///
 ///           ;; Look for the i32 at the top of the stack, and depending on its
 ///           ;; value jumps out of some block...
 ///           br_table
@@ -2035,7 +2123,7 @@ fn emit_for<I, B, C, A>(
 ///                2 (;@3;)   ;; selector == 1 -> jump out of block @3
 ///                1 (;@4;)   ;; selector == 2 -> jump out of block @4
 ///                0 (;@5;)   ;; default       -> jump out of block @5
-///         
+///
 ///         end                         ;; block @5
 ///         unreachable                 ;; if this point is reached is because
 ///                                     ;; the switch selector is out of range
@@ -2044,28 +2132,28 @@ fn emit_for<I, B, C, A>(
 ///         ;; < code expr 2 goes here >
 ///       end
 ///       br 2 (;@1;)                   ;; exits block @1
-///     end                             ;; block @3  
+///     end                             ;; block @3
 ///     block (result i64)
 ///       ;; < code expr 1 goes here >
 ///     end
-///     br 1 (;@1;)                     ;; exits block @1        
+///     br 1 (;@1;)                     ;; exits block @1
 ///   end                               ;; block @2
-///   block (result i64)                
+///   block (result i64)
 ///     ;; < code expr 0 goes here >
-///   end                                 
-///   br 0 (;@1;)                       ;; exits block @1   
+///   end
+///   br 0 (;@1;)                       ;; exits block @1
 /// end                                 ;; block @1
 ///                                     ;; at this point the i64 returned by the
 ///                                     ;; selected expression is at the top of
 ///                                     ;; the stack.
 /// ```
 fn emit_switch<F>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     ty: ValType,
     instr: &mut InstrSeqBuilder,
     branch_generator: F,
 ) where
-    F: FnMut(&mut Context, &mut InstrSeqBuilder) -> bool,
+    F: FnMut(&mut EmitContext, &mut InstrSeqBuilder) -> bool,
 {
     // Convert the i64 at the top of the stack to an i32, which is the type
     // expected by the `bt_table` instruction.
@@ -2084,13 +2172,13 @@ fn emit_switch<F>(
 }
 
 fn emit_switch_internal<F>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     ty: ValType,
     instr: &mut InstrSeqBuilder,
     mut branch_generator: F,
     mut block_ids: Vec<InstrSeqId>,
 ) where
-    F: FnMut(&mut Context, &mut InstrSeqBuilder) -> bool,
+    F: FnMut(&mut EmitContext, &mut InstrSeqBuilder) -> bool,
 {
     block_ids.push(instr.id());
 
@@ -2125,12 +2213,12 @@ fn emit_switch_internal<F>(
 ///
 /// For multiple variables use [`set_vars`].
 fn set_var<B>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     var: Var,
     block: B,
 ) where
-    B: FnOnce(&mut Context, &mut InstrSeqBuilder),
+    B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
     // First push the offset where the variable resided in memory. This will
     // be used by the `store` instruction.
@@ -2164,12 +2252,12 @@ fn set_var<B>(
 ///
 /// For a single variable use [`set_var`].
 fn set_vars<B>(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     vars: &[Var],
     block: B,
 ) where
-    B: FnOnce(&mut Context, &mut InstrSeqBuilder),
+    B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
     // Execute the block that produces the values.
     block(ctx, instr);
@@ -2221,7 +2309,7 @@ fn set_vars<B>(
 }
 
 /// Loads the value of variable into the stack.
-fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
+fn load_var(ctx: &EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // The slots where variables are stored start at offset VARS_STACK_START
     // within main memory, and are 64-bits long. Lets compute the variable's
     // offset with respect to VARS_STACK_START.
@@ -2244,7 +2332,7 @@ fn load_var(ctx: &Context, instr: &mut InstrSeqBuilder, var: Var) {
 }
 
 /// Increments a variable.
-fn incr_var(ctx: &mut Context, instr: &mut InstrSeqBuilder, var: Var) {
+fn incr_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // incr_var only works with integer variables.
     assert_eq!(var.ty, Type::Integer);
     set_var(ctx, instr, var, |ctx, instr| {
@@ -2264,9 +2352,9 @@ fn incr_var(ctx: &mut Context, instr: &mut InstrSeqBuilder, var: Var) {
 ///   empty (e.g: "").
 ///
 fn emit_bool_expr(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    expr: &Expr,
+    expr: &mut Expr,
 ) {
     emit_expr(ctx, instr, expr);
 
@@ -2275,14 +2363,17 @@ fn emit_bool_expr(
             // `expr` already returned a bool, nothing more to do.
         }
         Type::Integer => {
+            // cast the integer to a bool.
             instr.i64_const(0);
             instr.binop(BinaryOp::I64Ne);
         }
         Type::Float => {
+            // cast the float to a bool.
             instr.f64_const(0.0);
             instr.binop(BinaryOp::F64Ne);
         }
         Type::String => {
+            // cast the string to a bool.
             instr.call(ctx.function_id(wasm::export__str_len.mangled_name));
             instr.i64_const(0);
             instr.binop(BinaryOp::I64Ne);
@@ -2306,7 +2397,7 @@ fn emit_bool_expr(
 /// is undefined, and throws an exception if that's the case (see:
 /// [`throw_undef`])
 fn emit_call_and_handle_undef(
-    ctx: &Context,
+    ctx: &EmitContext,
     instr: &mut InstrSeqBuilder,
     fn_id: walrus::FunctionId,
 ) {
@@ -2333,7 +2424,42 @@ fn emit_call_and_handle_undef(
     );
 }
 
-fn emit_lookup_common(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+/// Emits the code that prepares the arguments for any of the lookup functions
+/// like [`wasm::lookup_integer`], [`wasm::lookup_string`], etc.
+///
+/// This function takes all the values in `ctx.lookup_stack` and put them in
+/// WASM memory starting at offset [`LOOKUP_INDEXES_START`], then it pushes the
+/// number of values in the WASM stack. These values are the indexes of fields
+/// within some structure. For example, suppose we have the following structure:
+///
+/// ```text
+/// Struct {
+///     some_integer_field: Integer,
+///     some_struct_field: Struct {
+///        inner_field_1: String,
+///        inner_field_2: String,
+///        inner_field_3: String,
+///     }
+/// }
+/// ```
+///
+/// Field indexes are relative to the structure where they are contained, and
+/// start at 0, so the index for `some_integer_field` is 0, while the index for
+/// `some_struct_field` is 1. If we want to locate `inner_field_3` starting at
+/// the outer struct, we must lookup `some_struct_field` first (index 1) and
+/// then lookup `inner_field_3` (index 2), so `ctx.lookup_stack` will contain
+/// the values `0` and `3`. These two values are copied to WASM memory and then
+/// the number of values (2) will be pushed into the WASM stack. These way the
+/// lookup function can know how many values to read from WASM memory.
+///
+/// This function also pushes in the stack the index of the host-side variable
+/// that contains the structure where the lookup operation will start. For
+/// example, of the outer structure in the example above is stored in a
+/// host-side variable at index 5, then this function will push a 5, indicating
+/// the starting point of the lookup operation. If the pushed value is -1
+/// it will start the lookup operation in the current structure, if any, or
+/// in the root structure as a last resort.
+fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     let num_lookup_indexes = ctx.lookup_stack.len();
     let main_memory = ctx.wasm_symbols.main_memory;
 
@@ -2368,7 +2494,7 @@ fn emit_lookup_common(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_integer(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_integer(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2378,7 +2504,7 @@ fn emit_lookup_integer(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_float(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_float(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2388,7 +2514,7 @@ fn emit_lookup_float(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_bool(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_bool(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2398,7 +2524,7 @@ fn emit_lookup_bool(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_string(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_string(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     emit_lookup_common(ctx, instr);
     emit_call_and_handle_undef(
         ctx,
@@ -2409,7 +2535,7 @@ fn emit_lookup_string(ctx: &mut Context, instr: &mut InstrSeqBuilder) {
 
 #[inline]
 fn emit_lookup_value(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     dst_var: Var,
 ) {
@@ -2450,9 +2576,9 @@ fn emit_lookup_value(
 /// ```
 ///
 fn catch_undef(
-    ctx: &mut Context,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    expr: impl FnOnce(&mut Context, &mut InstrSeqBuilder),
+    expr: impl FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 ) {
     // Create a new block containing `expr`. When an exception is raised from
     // within `expr`, the control flow will jump out of this block via a `br`
@@ -2470,7 +2596,7 @@ fn catch_undef(
 /// Throws an exception when an undefined value is found.
 ///
 /// For more information see [`catch_undef`].
-fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
+fn throw_undef(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
     let innermost_handler = *ctx
         .exception_handler_stack
         .last()
@@ -2524,7 +2650,7 @@ fn throw_undef(ctx: &Context, instr: &mut InstrSeqBuilder) {
 /// Similar to [`throw_undef`], but throws the exception if the top of the
 /// stack is zero. If the top of the stack is non-zero, calling this function
 /// is a no-op.
-fn throw_undef_if_zero(ctx: &Context, instr: &mut InstrSeqBuilder) {
+fn throw_undef_if_zero(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
     // Save the top of the stack into temp variable, but leave a copy in the
     // stack.
     instr.local_tee(ctx.wasm_symbols.i64_tmp);
@@ -2542,31 +2668,4 @@ fn throw_undef_if_zero(ctx: &Context, instr: &mut InstrSeqBuilder) {
             else_.local_get(ctx.wasm_symbols.i64_tmp);
         },
     );
-}
-
-/// Returns the patterns (a.k.a: strings) in the current rule that match a
-/// pattern set.
-fn patterns_matching<'a>(
-    ctx: &'a mut Context,
-    pattern_set: &'a PatternSet,
-) -> Box<dyn Iterator<Item = PatternId> + 'a> {
-    match pattern_set {
-        PatternSet::Them => {
-            Box::new(ctx.current_rule.patterns.iter().map(|p| p.1))
-        }
-        PatternSet::Set(set_patterns) => Box::new(
-            ctx.current_rule.patterns.iter().filter_map(move |rule_pattern| {
-                // Get the pattern identifier (e.g: $, $a, $foo)
-                let ident = ctx.ident_pool.get(rule_pattern.0).unwrap();
-                // Iterate over the patterns in the set (e.g: $foo, $foo*) and
-                // check if some of them matches the identifier.
-                for set_pattern in set_patterns {
-                    if set_pattern.matches(ident) {
-                        return Some(rule_pattern.1);
-                    }
-                }
-                None
-            }),
-        ),
-    }
 }

@@ -78,14 +78,15 @@ use wasmtime::{
     AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
 
+use crate::utils::cast;
 use yara_x_macros::wasm_export;
-use yara_x_parser::types::TypeValue;
 
-use crate::compiler::{PatternId, RuleId};
+use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
 use crate::scanner::ScanContext;
+use crate::types::{TypeValue, Value};
 use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
-use crate::LiteralId;
+use crate::ScanError;
 
 pub(crate) mod builder;
 pub(crate) mod string;
@@ -155,8 +156,9 @@ impl WasmExport {
 /// [`WasmExportedFn2`], etc. Each of these types is a generic type that
 /// represents all functions with 0, 1, and 2 arguments respectively.
 pub(crate) trait WasmExportedFn {
-    /// Returns the function that will be passed to [`wasmtime::Func::new`]
-    /// while linking the WASM code to this function.
+    /// Returns the function that will be passed to
+    /// [`wasmtime::Func::new_unchecked`] while linking the WASM code to this
+    /// function.
     fn trampoline(&'static self) -> TrampolineFn;
 
     /// Returns a [`Vec<wasmtime::ValType>`] with the types of the function's
@@ -192,8 +194,8 @@ type WasmResultArray<T> = SmallVec<[T; MAX_RESULTS]>;
 
 /// Represents an argument passed to a `#[wasm_export]` function.
 ///
-/// The purpose of this type is converting [`wasmtime::ValRaw`] into Rust
-/// types (e.g: `i64`, `i32`, `f64`, `f32`, etc)
+/// The purpose of this type is converting [`ValRaw`] into Rust types
+/// (e.g: `i64`, `i32`, `f64`, `f32`, etc)
 struct WasmArg(ValRaw);
 
 impl From<ValRaw> for WasmArg {
@@ -244,14 +246,20 @@ impl From<WasmArg> for LiteralId {
     }
 }
 
+impl From<WasmArg> for RegexpId {
+    fn from(value: WasmArg) -> Self {
+        RegexpId::from(value.0.get_i32())
+    }
+}
+
 impl From<WasmArg> for RuntimeString {
     fn from(value: WasmArg) -> Self {
         Self::from_wasm(RuntimeStringWasm::from(value))
     }
 }
 
-/// A trait for converting a function result into an array of
-/// [`wasmtime::ValRaw`] values suitable to be passed to WASM code.
+/// A trait for converting a function result into an array of [`ValRaw`] values
+/// suitable to be passed to WASM code.
 ///
 /// Functions with the `#[wasm_export]` attribute must return a type that
 /// implements this trait.
@@ -408,6 +416,8 @@ fn type_id_to_wasmtime(
         return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<RuleId>() {
         return &[wasmtime::ValType::I32];
+    } else if type_id == TypeId::of::<RegexpId>() {
+        return &[wasmtime::ValType::I32];
     } else if type_id == TypeId::of::<()>() {
         return &[];
     } else if type_id == TypeId::of::<RuntimeString>() {
@@ -492,16 +502,8 @@ impl_wasm_exported_fn!(WasmExportedFn2 A1 A2);
 impl_wasm_exported_fn!(WasmExportedFn3 A1 A2 A3);
 impl_wasm_exported_fn!(WasmExportedFn4 A1 A2 A3 A4);
 
-/// Table with functions and variables used by the WASM module.
-///
-/// The WASM module generated for evaluating rule conditions needs to
-/// call back to YARA for multiple tasks. For example, it calls YARA for
-/// reporting rule matches, for asking if a pattern matches at a given offset,
-/// for executing functions like `uint32()`, etc.
-///
-/// This table contains the [`FunctionId`] for such functions, which are
-/// imported by the WASM module and implemented by YARA. It also
-/// contains the definition of some variables used by the module.
+/// Table with identifiers of variables and memories shared by the WASM
+/// module with the host.
 #[derive(Clone)]
 pub(crate) struct WasmSymbols {
     /// The WASM module's main memory.
@@ -515,12 +517,16 @@ pub(crate) struct WasmSymbols {
     /// Global variable that contains the value for `filesize`.
     pub filesize: walrus::GlobalId,
 
-    /// Local variable that is set to true after the pattern search phase
+    /// Global variable that is set to true after the pattern search phase
     /// has been executed. In this phase the data is scanned looking for
     /// all the patterns at the same time using the Aho-Corasick algorithm.
     /// However this phase is executed lazily, when rule conditions are
     /// evaluated and some of them needs to know if a pattern matched or not.
-    pub pattern_search_done: walrus::LocalId,
+    pub pattern_search_done: walrus::GlobalId,
+
+    /// Global variable that is set to true when a timeout during the scanning
+    /// phase.
+    pub timeout_occurred: walrus::GlobalId,
 
     /// Local variables used for temporary storage.
     pub i64_tmp: walrus::LocalId,
@@ -532,6 +538,7 @@ lazy_static! {
     pub(crate) static ref CONFIG: Config = {
         let mut config = Config::default();
         config.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize);
+        config.epoch_interruption(true);
         config
     };
     pub(crate) static ref ENGINE: Engine = Engine::new(&CONFIG).unwrap();
@@ -563,9 +570,17 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
 }
 
 /// Invoked from WASM for triggering the pattern search phase.
+///
+/// Returns `true` on success and `false` when a timeout occurs.
 #[wasm_export]
-pub(crate) fn search_for_patterns(mut caller: Caller<'_, ScanContext>) {
-    caller.data_mut().search_for_patterns();
+pub(crate) fn search_for_patterns(
+    mut caller: Caller<'_, ScanContext>,
+) -> bool {
+    match caller.data_mut().search_for_patterns() {
+        Ok(_) => true,
+        Err(ScanError::Timeout) => false,
+        Err(_) => unreachable!(),
+    }
 }
 
 /// Invoked from WASM to notify when a rule matches.
@@ -577,35 +592,130 @@ pub(crate) fn rule_match(
     caller.data_mut().track_rule_match(rule_id);
 }
 
+/// Invoked from WASM to notify when a global rule doesn't match.
+#[wasm_export]
+pub(crate) fn global_rule_no_match(
+    mut caller: Caller<'_, ScanContext>,
+    rule_id: RuleId,
+) {
+    caller.data_mut().track_global_rule_no_match(rule_id);
+}
+
 /// Invoked from WASM to ask whether a pattern matches at a given file
 /// offset.
 ///
-/// Returns 1 if the pattern identified by `pattern_id` matches at `offset`,
-/// or 0 if otherwise.
+/// Returns true if the pattern identified by `pattern_id` matches at `offset`,
+/// or false if otherwise.
 #[wasm_export]
 pub(crate) fn is_pat_match_at(
-    _caller: Caller<'_, ScanContext>,
-    _pattern_id: PatternId,
-    _offset: i64,
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    offset: i64,
 ) -> bool {
-    // TODO
-    false
+    // Matches can't occur at negative offsets.
+    if offset < 0 {
+        return false;
+    }
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        matches.search(offset.try_into().unwrap()).is_ok()
+    } else {
+        false
+    }
 }
 
-/// Invoked from WASM to ask whether a pattern at some offset within
-/// given range.
+/// Invoked from WASM to ask whether a pattern matches at some offset within
+/// a given range.
 ///
-/// Returns 1 if the pattern identified by `pattern_id` matches at some offset
-/// in the range [`lower_bound`, `upper_bound`].
+/// Returns true if the pattern identified by `pattern_id` matches at some
+/// offset in the range [`lower_bound`, `upper_bound`], both inclusive.
 #[wasm_export]
 pub(crate) fn is_pat_match_in(
-    _caller: Caller<'_, ScanContext>,
-    _pattern_id: PatternId,
-    _lower_bound: i64,
-    _upper_bound: i64,
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    lower_bound: i64,
+    upper_bound: i64,
 ) -> bool {
-    // TODO
-    false
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        matches
+            .matches_in_range(lower_bound as isize..=upper_bound as isize)
+            .is_positive()
+    } else {
+        false
+    }
+}
+
+/// Invoked from WASM to ask for the number of matches for a pattern.
+#[wasm_export]
+pub(crate) fn pat_matches(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+) -> i64 {
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        matches.len().try_into().unwrap()
+    } else {
+        0
+    }
+}
+
+/// Invoked from WASM to ask for the number of matches of a given pattern
+/// within some offset range.
+///
+/// Returns the number of matches for the pattern identified by `pattern_id`
+/// that start in the range [`lower_bound`, `upper_bound`], both inclusive.
+#[wasm_export]
+pub(crate) fn pat_matches_in(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    lower_bound: i64,
+    upper_bound: i64,
+) -> i64 {
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        matches.matches_in_range(lower_bound as isize..=upper_bound as isize)
+    } else {
+        0
+    }
+}
+
+/// Invoked from WASM to ask for the offset where a pattern matched
+///
+/// Returns the length for the index-th occurrence of the pattern identified
+/// by `pattern_id`. The index is 1-based. Returns `None` if the pattern
+/// has not matched or there are less than `index` matches.
+#[wasm_export]
+pub(crate) fn pat_length(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    index: i64,
+) -> Option<i64> {
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        // Make sure that index >= 1.
+        debug_assert!(index >= 1);
+        let m = matches.get(index as usize - 1)?;
+        Some(ExactSizeIterator::len(&m.range) as i64)
+    } else {
+        None
+    }
+}
+
+/// Invoked from WASM to ask for the length of some pattern match
+///
+/// Returns the offset for the index-th occurrence of the pattern identified
+/// by `pattern_id`. The index is 1-based. Returns `None` if the pattern
+/// has not matched or there are less than `index` matches.
+#[wasm_export]
+pub(crate) fn pat_offset(
+    caller: Caller<'_, ScanContext>,
+    pattern_id: PatternId,
+    index: i64,
+) -> Option<i64> {
+    if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
+        // Make sure that index >= 1.
+        debug_assert!(index >= 1);
+        let m = matches.get(index as usize - 1)?;
+        Some(m.range.start as i64)
+    } else {
+        None
+    }
 }
 
 /// Given some local variable containing an array, returns the length of the
@@ -659,7 +769,8 @@ pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
 /// The initial structure is the one stored in the variable `struct_var`
 /// (`struct_var` is actually an index within `vars_stack`, so, the structure is
 /// stored in `vars_stack[struct_var]`). If `struct_var` is -1 the initial
-/// structure will be `ScanContext.current_struct`.
+/// structure will be the current structure (`ScanContext.current_struct`), or
+/// the root structure (`ScanContext.root_struct`) as a last resort.
 ///
 /// The sequence of indexes is stored in WASM main memory, starting at
 /// `LOOKUP_INDEXES_START`, and the number of indexes is indicated by the
@@ -671,33 +782,29 @@ fn lookup_field(
 ) -> TypeValue {
     let mut store_ctx = caller.as_context_mut();
 
-    let lookup_indexes_ptr =
+    let mem_ptr =
         store_ctx.data_mut().main_memory.unwrap().data_ptr(&mut store_ctx);
+
+    let lookup_indexes_ptr =
+        unsafe { mem_ptr.offset(LOOKUP_INDEXES_START as isize) };
 
     let lookup_indexes = unsafe {
         std::slice::from_raw_parts::<i32>(
-            lookup_indexes_ptr.offset(LOOKUP_INDEXES_START as isize)
-                as *const i32,
+            lookup_indexes_ptr as *const i32,
             num_lookup_indexes as usize,
         )
     };
 
     let type_value = if !lookup_indexes.is_empty() {
-        let mut structure = if let Some(current_structure) =
+        let mut structure = if struct_var != -1 {
+            cast!(
+                &store_ctx.data().vars_stack[struct_var as usize],
+                TypeValue::Struct
+            )
+        } else if let Some(current_structure) =
             &store_ctx.data().current_struct
         {
             current_structure.as_ref()
-        } else if struct_var != -1 {
-            let var = &store_ctx.data().vars_stack[struct_var as usize];
-
-            if let TypeValue::Struct(s) = var {
-                s
-            } else {
-                unreachable!(
-                    "expecting struct, got `{:?}` at variable with index {}",
-                    var, struct_var
-                )
-            }
         } else {
             &store_ctx.data().root_struct
         };
@@ -705,8 +812,17 @@ fn lookup_field(
         let mut final_field = None;
 
         for field_index in lookup_indexes {
+            // Integers in WASM memory are always stored as little-endian
+            // regardless of the endianness of the host platform. If we
+            // are in a big-endian platform the integers needs to be swapped
+            // for obtaining the original value.
+            let field_index = if cfg!(target_endian = "big") {
+                field_index.swap_bytes()
+            } else {
+                *field_index
+            };
             let field =
-                structure.field_by_index(*field_index as usize).unwrap();
+                structure.field_by_index(field_index as usize).unwrap();
             final_field = Some(field);
             if let TypeValue::Struct(s) = &field.type_value {
                 structure = s
@@ -737,10 +853,13 @@ pub(crate) fn lookup_string(
     struct_var: i32,
 ) -> Option<RuntimeString> {
     match lookup_field(&mut caller, num_lookup_indexes, struct_var) {
-        TypeValue::String(Some(value)) => Some(RuntimeString::Owned(
+        TypeValue::String(Value::Var(value)) => Some(RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(value),
         )),
-        TypeValue::String(None) => None,
+        TypeValue::String(Value::Const(value)) => Some(RuntimeString::Owned(
+            caller.data_mut().string_pool.get_or_intern(value),
+        )),
+        TypeValue::String(Value::Unknown) => None,
         _ => unreachable!(),
     }
 }
@@ -774,10 +893,10 @@ macro_rules! gen_lookup_fn {
             num_lookup_indexes: i32,
             struct_var: i32,
         ) -> Option<$return_type> {
-            if let $type(Some(value)) =
+            if let $type(value) =
                 lookup_field(&mut caller, num_lookup_indexes, struct_var)
             {
-                Some(value as $return_type)
+                value.extract().cloned()
             } else {
                 None
             }
@@ -823,7 +942,7 @@ pub(crate) fn array_indexing_string(
         .as_array()
         .as_string_array()
         .get(index as usize)
-        .map(|s| { 
+        .map(|s| {
             RuntimeString::from_bytes(caller.data_mut(), s.as_bstr())
         })
 }
@@ -1249,7 +1368,17 @@ pub(crate) fn str_len(
     s.len(caller.data()) as i64
 }
 
-macro_rules! gen_uint_fn {
+#[wasm_export]
+pub(crate) fn str_matches(
+    caller: Caller<'_, ScanContext>,
+    lhs: RuntimeString,
+    rhs: RegexpId,
+) -> bool {
+    let ctx = caller.data();
+    ctx.regexp_matches(rhs, lhs.as_bstr(ctx))
+}
+
+macro_rules! gen_xint_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {
         #[wasm_export(public = true)]
         pub(crate) fn $name(
@@ -1270,14 +1399,19 @@ macro_rules! gen_uint_fn {
     };
 }
 
-gen_uint_fn!(uint8, u8, from_le_bytes);
-gen_uint_fn!(uint16, u16, from_le_bytes);
-gen_uint_fn!(uint32, u32, from_le_bytes);
-gen_uint_fn!(uint64, u64, from_le_bytes);
-gen_uint_fn!(uint8be, u8, from_be_bytes);
-gen_uint_fn!(uint16be, u16, from_be_bytes);
-gen_uint_fn!(uint32be, u32, from_be_bytes);
-gen_uint_fn!(uint64be, u64, from_be_bytes);
+gen_xint_fn!(uint8, u8, from_le_bytes);
+gen_xint_fn!(uint16, u16, from_le_bytes);
+gen_xint_fn!(uint32, u32, from_le_bytes);
+gen_xint_fn!(uint8be, u8, from_be_bytes);
+gen_xint_fn!(uint16be, u16, from_be_bytes);
+gen_xint_fn!(uint32be, u32, from_be_bytes);
+
+gen_xint_fn!(int8, i8, from_le_bytes);
+gen_xint_fn!(int16, i16, from_le_bytes);
+gen_xint_fn!(int32, i32, from_le_bytes);
+gen_xint_fn!(int8be, i8, from_be_bytes);
+gen_xint_fn!(int16be, i16, from_be_bytes);
+gen_xint_fn!(int32be, i32, from_be_bytes);
 
 #[cfg(test)]
 mod tests {

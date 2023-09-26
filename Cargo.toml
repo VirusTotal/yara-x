@@ -7,6 +7,11 @@ homepage = "https://github.com/VirusTotal/yara-x"
 readme = "README.md"
 license = "MIT"
 
+# When updating rust-version also update MSRV in:
+#   .github/workflows/tests.yaml
+#   .github/workflows/code_health.yaml
+rust-version = "1.67.1"
+
 [workspace]
 members = [
     "yara-x",
@@ -15,31 +20,36 @@ members = [
     "yara-x-macros",
     "yara-x-parser",
     "yara-x-proto",
+    "yara-x-py",
 ]
 
 [workspace.dependencies]
-aho-corasick = "0.7.20"
-ansi_term = "0.12.1"
+aho-corasick = "1.0.0"
 anyhow = "1.0.65"
-ariadne = "0.1.5"
+ariadne = "0.3.0"
 ascii_tree = "0.1.1"
 base64 = "0.21.0"
 bincode = "1.3.3"
 bitmask = "0.5.0"
 bitvec = "1.0.1"
 bstr = "1.1.0"
-clap = "4.0.32"
-criterion = "0.4.0"
+clap = "4.3.1"
+criterion = "0.5.1"
 enable-ansi-support = "0.2.1"
+env_logger = "0.10.0"
 fmmap = "0.3.2"
-globset = "0.4.9"
 indenter = "0.3.3"
-indexmap = "1.9.2"
+indexmap = "2.0.0"
 intaglio = "1.7.0"
-itertools = "0.10.5"
+itertools = "0.11.0"
 lazy_static = "1.4.0"
 line-span = "0.1.3"
 linkme = "0.3"
+log = "0.4"
+md5 = "0.7.0"
+sha1 = "0.10.6"
+sha2 = "0.10.7"
+memchr = "2.6.3"
 memx = "0.1.28"
 num = "0.4.0"
 pest = "2.5.5"
@@ -48,12 +58,15 @@ pretty_assertions = "1.3.0"
 protobuf = "3.2.0"
 protobuf-codegen = "3.2.0"
 protobuf-parse = "3.2.0"
+regex-syntax = { git = "https://github.com/plusvic/regex.git", rev="423493d" }
+regex-automata = { git = "https://github.com/plusvic/regex.git", rev="423493d" }
 rustc-hash = "1.1.0"
 smallvec = "1.10.0"
 serde = "1.0.156"
+serde_json = "1.0.107"
 thiserror = "1.0.40"
-walrus = "0.19.0"
-wasmtime = "5.0.0"
+walrus = "0.20.1"
+wasmtime = "12.0.2"
 yaml-rust = "0.4.5"
 yansi = "0.5.1"
 yara-x = { path = "yara-x" }

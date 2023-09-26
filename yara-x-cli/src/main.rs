@@ -1,20 +1,12 @@
+mod commands;
+mod help;
 mod walk;
 
-use std::fs;
-use std::fs::File;
-use std::io::{stdin, stdout};
-use std::path::PathBuf;
-
-use ansi_term::Color::{Green, Red, Yellow};
-use anyhow::Context;
-use clap::{
-    arg, command, crate_authors, value_parser, ArgAction, ArgMatches, Command,
-};
-
-use yara_x::Scanner;
-use yara_x::{Compiler, Rule};
-use yara_x_fmt::Formatter;
-use yara_x_parser::{Parser, SourceCode};
+use clap::{command, crate_authors};
+use crossterm::tty::IsTty;
+use std::io;
+use yansi::Color::Red;
+use yansi::Paint;
 
 const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
 {author-with-newline}
@@ -24,54 +16,6 @@ const APP_HELP_TEMPLATE: &str = r#"{about-with-newline}
 {all-args}{after-help}
 "#;
 
-const CHECK_LONG_HELP: &str = r#"Check if YARA source files are syntactically correct
-
-If <PATH> is a directory, all files with extensions `yar` and `yara` will be
-checked. The `--filter` option allows changing this behavior."#;
-
-const THREADS_LONG_HELP: &str = r#"Use the specified number of threads
-
-The default value is automatically determined based on the number of CPU cores."#;
-
-const DEPTH_LONG_HELP: &str = r#"Walk directories recursively up to a given depth
-
-This is ignored if <RULES_PATH> is not a directory. When <MAX_DEPTH> is 0 it means
-that files located in the specified directory will be processed, but subdirectories
-won't be traversed. By default <MAX_DEPTH> is infinite."#;
-
-const FILTER_LONG_HELP: &str = r#"Only check files that match the given pattern
-
-Patterns can contains the following wildcards:
-
-?      matches any single character.
-
-*      matches any sequence of characters, except the path separator.
-
-**     matches any sequence of characters, including the path separator.
-
-[...]  matches any character inside the brackets. Can also specify ranges of
-       characters (e.g. [0-9], [a-z])
-
-[!...] is the negation of [...]
-
-This option can be used more than once with different patterns. In such cases
-files matching any of the patterns will be checked.
-
-The absense of this options is equivalent to using this:
-
---filter='**/*.yara' --filter='**/*.yar'"#;
-
-fn command(name: &'static str) -> Command {
-    Command::new(name).help_template(
-        r#"{about-with-newline}
-{usage-heading}
-    {usage}
-
-{all-args}
-"#,
-    )
-}
-
 fn main() -> anyhow::Result<()> {
     // Enable support for ANSI escape codes in Windows. In other platforms
     // this is a no-op.
@@ -79,104 +23,43 @@ fn main() -> anyhow::Result<()> {
         println!("could not enable ANSI support: {}", err)
     }
 
-    let num_threads_arg = arg!(-p --"threads" <NUM_THREADS>)
-        .help("Use the given number of threads")
-        .long_help(THREADS_LONG_HELP)
-        .required(false)
-        .value_parser(value_parser!(u8).range(1..));
+    #[cfg(feature = "logging")]
+    env_logger::init();
+
+    // If stdout is not a tty (for example, because it was redirected to a
+    // file) turn off colors. This way you can redirect the output to a file
+    // without ANSI escape codes messing up the file content.
+    if !io::stdout().is_tty() {
+        Paint::disable();
+    }
 
     let args = command!()
         .author(crate_authors!("\n")) // requires `cargo` feature
         .arg_required_else_help(true)
         .help_template(APP_HELP_TEMPLATE)
         .subcommands(vec![
-            command("scan")
-                .about(
-                    "Scans a file or directory",
-                )
-                .arg(
-                    arg!(<RULES_PATH>)
-                        .help("Path to YARA source file")
-                        .value_parser(value_parser!(PathBuf))
-                        .action(ArgAction::Append),
-                )
-                .arg(
-                    arg!(<PATH>)
-                        .help("Path to the file or directory that will be scanned")
-                        .value_parser(value_parser!(PathBuf))
-                )
-                .arg(
-                    arg!(-e --"print-namespace")
-                        .help("Print rule namespace")
-                )
-                .arg(
-                    arg!(--"path-as-namespace")
-                        .help("Use file path as rule namespace")
-                )
-                .arg(
-                    arg!(-n --"negate")
-                        .help("Print non-satisfied rules only")
-                )
-                .arg(&num_threads_arg),
-            command("ast")
-                .about(
-                    "Print Abstract Syntax Tree (AST) for a YARA source file",
-                )
-                .arg(
-                    arg!(<RULES_PATH>)
-                        .help("Path to YARA source file")
-                        .value_parser(value_parser!(PathBuf)),
-                ),
-            command("wasm")
-                .about("Emits a .wasm file with the code generated for a YARA source file")
-                .arg(
-                    arg!(<RULES_PATH>)
-                        .help("Path to YARA source file")
-                        .value_parser(value_parser!(PathBuf)),
-                )
-            ,
-            command("check")
-                .about("Check if YARA source files are syntactically correct")
-                .long_about(CHECK_LONG_HELP)
-                .arg(
-                    arg!(<RULES_PATH>)
-                        .help("Path to YARA source file or directory")
-                        .value_parser(value_parser!(PathBuf)),
-                )
-                .arg(
-                    arg!(-d --"max-depth" <MAX_DEPTH>)
-                        .help(
-                            "Walk directories recursively up to a given depth",
-                        )
-                        .long_help(DEPTH_LONG_HELP)
-                        .value_parser(value_parser!(u16)),
-                )
-                .arg(
-                    arg!(-f --filter <PATTERN>)
-                        .help("Check files that match the given pattern only")
-                        .long_help(FILTER_LONG_HELP)
-                        .action(ArgAction::Append)
-                )
-                .arg(&num_threads_arg),
-            command("fmt").about("Format YARA source files").arg(
-                arg!(<RULES_PATH>)
-                    .help("Path to YARA source file")
-                    .action(ArgAction::Append)
-                    .value_parser(value_parser!(PathBuf)),
-            ),
+            commands::scan(),
+            commands::compile(),
+            commands::check(),
+            commands::debug(),
+            commands::fmt(),
         ])
         .get_matches_from(wild::args());
 
     #[cfg(feature = "profiling")]
-    let guard =
-        pprof::ProfilerGuardBuilder::default().frequency(1000).build()?;
+    let guard = pprof::ProfilerGuardBuilder::default()
+        .frequency(1000)
+        // Block these libs as advised in `pprof` documentation. Without this
+        // it causes a deadlock in Linux.
+        .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+        .build()?;
 
-    match args.subcommand() {
-        Some(("ast", args)) => cmd_ast(args)?,
-        Some(("wasm", args)) => cmd_wasm(args)?,
-        Some(("check", args)) => cmd_check(args)?,
-        Some(("fmt", args)) => cmd_format(args)?,
-        Some(("scan", args)) => cmd_scan(args)?,
+    let result = match args.subcommand() {
+        Some(("debug", args)) => commands::exec_debug(args),
+        Some(("check", args)) => commands::exec_check(args),
+        Some(("fmt", args)) => commands::exec_fmt(args),
+        Some(("scan", args)) => commands::exec_scan(args),
+        Some(("compile", args)) => commands::exec_compile(args),
         _ => unreachable!(),
     };
 
@@ -187,194 +70,26 @@ fn main() -> anyhow::Result<()> {
         println!("profiling information written to flamegraph.svg");
     };
 
-    Ok(())
-}
-
-fn cmd_scan(args: &ArgMatches) -> anyhow::Result<()> {
-    let rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
-    let path = args.get_one::<PathBuf>("PATH").unwrap();
-    let num_threads = args.get_one::<u8>("threads");
-    let print_namespace = args.get_flag("print-namespace");
-    let path_as_namespace = args.get_flag("path-as-namespace");
-    let negate = args.get_flag("negate");
-
-    let mut compiler = Compiler::new().colorize_errors(true);
-
-    for path in rules_path {
-        let src = fs::read(path)
-            .with_context(|| format!("can not read `{}`", path.display()))?;
-
-        let src = SourceCode::from(src.as_slice())
-            .origin(path.as_os_str().to_str().unwrap());
-
-        if path_as_namespace {
-            compiler = compiler.new_namespace(path.to_string_lossy().as_ref());
-        }
-
-        compiler = compiler.add_source(src)?;
-    }
-
-    let rules = compiler.build()?;
-    let rules_ref = &rules;
-
-    let mut walker = walk::ParallelWalk::new(path);
-
-    if let Some(num_threads) = num_threads {
-        walker = walker.num_threads(*num_threads);
-    }
-
-    walker.run(
-        // The initialization function creates a scanner for each thread.
-        || Scanner::new(rules_ref),
-        |scanner, file_path| {
-            let scan_results = scanner.scan_file(&file_path)?;
-
-            let matching_rules: Vec<Rule> = if negate {
-                scan_results.iter_non_matches().collect()
+    // Errors produced by the compiler already have colors and start with
+    // "error:", in such cases the error is printed as is. In all other
+    // cases imitate the style of compiler errors, so that they all look
+    // in the same way.
+    if let Err(err) = result {
+        if err.is::<yara_x::Error>() {
+            eprintln!("{}", err);
+        } else {
+            if let Some(source) = err.source() {
+                eprintln!(
+                    "{} {}: {}",
+                    Red.paint("error:").bold(),
+                    err,
+                    source
+                );
             } else {
-                scan_results.iter().collect()
-            };
-
-            for matching_rule in matching_rules {
-                if print_namespace {
-                    println!(
-                        "{}:{} {}",
-                        matching_rule.namespace(),
-                        matching_rule.name(),
-                        file_path.display()
-                    );
-                } else {
-                    println!(
-                        "{} {}",
-                        matching_rule.name(),
-                        file_path.display()
-                    );
-                }
+                eprintln!("{} {}", Red.paint("error:").bold(), err);
             }
-            Ok::<(), anyhow::Error>(())
-        },
-    )
-}
-
-fn cmd_ast(args: &ArgMatches) -> anyhow::Result<()> {
-    let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
-
-    let src = fs::read(rules_path)
-        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
-
-    let src = SourceCode::from(src.as_slice())
-        .origin(rules_path.as_os_str().to_str().unwrap());
-
-    let ast = Parser::new().colorize_errors(true).build_ast(src)?;
-
-    let mut output = String::new();
-    ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;
-
-    println!("{output}");
-    Ok(())
-}
-
-fn cmd_wasm(args: &ArgMatches) -> anyhow::Result<()> {
-    let mut rules_path =
-        args.get_one::<PathBuf>("RULES_PATH").unwrap().to_path_buf();
-
-    let src = fs::read(rules_path.as_path())
-        .with_context(|| format!("can not read `{}`", rules_path.display()))?;
-
-    let src = SourceCode::from(src.as_slice())
-        .origin(rules_path.as_os_str().to_str().unwrap());
-
-    rules_path.set_extension("wasm");
-
-    Compiler::new()
-        .colorize_errors(true)
-        .add_source(src)?
-        .emit_wasm_file(rules_path.as_path())?;
-
-    Ok(())
-}
-
-fn cmd_check(args: &ArgMatches) -> anyhow::Result<()> {
-    let rules_path = args.get_one::<PathBuf>("RULES_PATH").unwrap();
-    let max_depth = args.get_one::<u16>("max-depth");
-    let filters = args.get_many::<String>("filter");
-    let num_threads = args.get_one::<u8>("threads");
-
-    let mut walker = walk::ParallelWalk::new(rules_path);
-
-    if let Some(max_depth) = max_depth {
-        walker = walker.max_depth(*max_depth as usize);
-    }
-
-    if let Some(num_threads) = num_threads {
-        walker = walker.num_threads(*num_threads);
-    }
-
-    if let Some(filters) = filters {
-        for filter in filters {
-            walker = walker.filter(filter);
+            std::process::exit(1);
         }
-    } else {
-        // Default filters are `**/*.yar` and `**/*.yara`.
-        walker = walker.filter("**/*.yar").filter("**/*.yara");
-    }
-
-    walker.run(
-        || {},
-        |_, file_path| {
-            let src = fs::read(file_path.clone()).with_context(|| {
-                format!("can not read `{}`", file_path.display())
-            })?;
-
-            let src = SourceCode::from(src.as_slice())
-                .origin(file_path.as_os_str().to_str().unwrap());
-
-            match Parser::new().colorize_errors(true).build_ast(src) {
-                Ok(ast) => {
-                    if ast.warnings.is_empty() {
-                        println!(
-                            "[{}] {}",
-                            Green.paint("PASS"),
-                            file_path.display()
-                        );
-                    } else {
-                        println!(
-                            "[{}] {}\n",
-                            Yellow.paint("WARN"),
-                            file_path.display()
-                        );
-                        for warning in ast.warnings {
-                            println!("{}\n", warning);
-                        }
-                    }
-                }
-                Err(err) => {
-                    println!(
-                        "[{}] {}\n",
-                        Red.paint("ERROR"),
-                        file_path.display()
-                    );
-                    println!("{}", err);
-                }
-            };
-
-            Ok::<(), anyhow::Error>(())
-        },
-    )
-}
-
-fn cmd_format(args: &ArgMatches) -> anyhow::Result<()> {
-    let rules_path = args.get_many::<PathBuf>("RULES_PATH");
-    let formatter = Formatter::new();
-
-    if let Some(files) = rules_path {
-        for file in files {
-            let input = fs::read(file.as_path())?;
-            let output = File::create(file.as_path())?;
-            formatter.format(input.as_slice(), output)?;
-        }
-    } else {
-        formatter.format(stdin(), stdout())?;
     }
 
     Ok(())

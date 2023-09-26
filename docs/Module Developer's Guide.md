@@ -354,10 +354,10 @@ text-module = []
 
 # Features that are enabled by default.
 default = [
-    "compile-time-optimization",
+    "constant-folding",
     "test_proto2-module",
     "test_proto3-module",
-    "text-module"             # The text module will be included by default
+    "text-module"  # The text module will be included by default
 ]
 ```
 
@@ -794,8 +794,8 @@ rule text_in_english {
 
 In our example the values in the enum started at 1 and where consecutive. But
 this is not a requirement, you can associate arbitrary values to each enum
-item, and use hexadecimal numbers for better legibility. All the following 
-enums are valid:
+item, and use hexadecimal numbers for better legibility. The following enum is
+also valid:
 
 ```protobuf
 enum Threshold {
@@ -803,21 +803,116 @@ enum Threshold {
   Medium = 400;
   High = 900;
 }
+```
 
+However, because tag numbers are of type `i32`, the range of possible values 
+goes from `i32::MIN` to `i32::MAX`. For larger values you need to use  an 
+alternative approach:
 
-enum DllCharacteristics {
-  HIGH_ENTROPY_VA = 0x0020;
-  DYNAMIC_BASE = 0x0040;
-  FORCE_INTEGRITY = 0x0080;
-  NX_COMPAT = 0x0100;
+```protobuf
+enum MachO {
+  MAGIC = 0 [(yara.enum_value).i64 = 0xfeedface];
+  CIGAM = 1 [(yara.enum_value).i64 = 0xcefaedfe];
 }
 ```
 
-----
+In the enum above the values of `MAGIC` and `CIGAM` are not `0` and `1` but
+`0xfeedface` and `0xcefaedfe` respectively. Tag numbers are still present
+because they are required in protobuf, however, their values are irrelevant.
+The `(yara.enum_value).i64` option has priority when assigning a value to each
+enum item, and it allows setting values from `i64::MIN` to `i64::MAX`.
 
-**NOTE**: The maximum possible value for an enum item is `0x7fffffff`
 
-----
+### Inline enums
 
+As you may have noticed in the examples above, the name path for accessing some
+enum value in your YARA rules includes the name of the enum itself. For instance,
+if you want to use the `Low` value from the `Threshold` enum, declared in some
+`acme` module, you would write `acme.Threshold.Low`.
+
+The recommended way for naming enums and is that the enum's name itself should
+describe the whole class of values it contains, and items in the enum should
+describe specific items (i.e: `acme.Threshold.Low` is preferred over
+`acme.ThresholdLow` or `acme.Threshold_Low`). However, some existing YARA modules
+don't follow this guideline, and have a multiple groups of constants defined at
+the module's top level. For example, the `macho` module contains, among others,
+the following constants (their values are included for reference):
+
+- `macho.CPU_TYPE_MC680X0` = 0x06
+- `macho.CPU_TYPE_X86` = 0x07
+- `macho.CPU_TYPE_ARM` = 0x0c
+- `macho.CPU_SUBTYPE_386` = 0x03
+- `macho.CPU_SUBTYPE_486` = 0x04
+- `macho.CPU_SUBTYPE_586` = 0x05
+- `macho.CPU_SUBTYPE_ARM_V4T` = 0x05
+- `macho.CPU_SUBTYPE_ARM_V5` = 0x07
+- `macho.CPU_SUBTYPE_ARM_V6` = 0x06
+
+All these constants can't be put together in a single enum, as some of them
+share the same value, (e.g: both `CPU_SUBTYPE_586` and `CPU_SUBTYPE_ARM_V4T`
+are equal to `0x05`), and protobuf enums can't have duplicated values. The 
+solution could be grouping them in different enums, like for example:
+
+
+```protobuf
+enum CPU_TYPE {
+  MC680X0 = 0x06;
+  X86 = 0x007;
+  ARM = 0x0c;
+}
+
+enum CPU_SUBTYPE_INTEL {
+  I386 = 0x03;
+  I486 = 0x04;
+  I586 = 0x05;
+}
+
+enum CPU_SUBTYPE_ARM {
+  V4T = 0x05;
+  V5 = 0x07;
+  V6 = 0x06;
+}
+```
+
+The problem with this approach is that you would need use expressions like these
+in your YARA rules:
+
+- `macho.CPU_TYPE.ARM`
+- `macho.CPU_SUBTYPE_ARM.V5`
+- `macho.CPU_SUBTYPE_INTEL.I386`
+
+This may be ok if you are writing a new module, but it's not enough if you are 
+porting an existing module like `macho`, where maintaining the same names for 
+constants is a must. What to do then? Inline enums comes to your rescue.
+
+An inline enum is one that puts their items directly at the module's top level,
+or the structure where the enum is declared, without introducing an additional
+struct named after the enum itself. For instance:
+
+```protobuf
+enum CPU_TYPE {
+  option (yara.enum_options).inline = true;
+  CPU_TYPE_MC680X0 = 0x06;
+  CPU_TYPE_X86 = 0x007;
+  CPU_TYPE_ARM = 0x0c;
+}
+
+enum CPU_SUBTYPE_INTEL {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_I386 = 0x03;
+  CPU_SUBTYPE_I486 = 0x04;
+  CPU_SUBTYPE_I586 = 0x05;
+}
+
+enum CPU_SUBTYPE_ARM {
+  option (yara.enum_options).inline = true;
+  CPU_SUBTYPE_V4T = 0x05;
+  CPU_SUBTYPE_V5 = 0x07;
+  CPU_SUBTYPE_V6 = 0x06;
+}
+```
+
+With the enums above you can refer to `macho.CPU_TYPE_X86` and instead of 
+`macho.CPU_TYPE.CPU_TYPE_X86` and `macho.CPU_SUBTYPE_INTEL.CPU_SUBTYPE_I386`. 
 
 

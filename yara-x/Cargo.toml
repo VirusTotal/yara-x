@@ -7,14 +7,27 @@ description.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true
+rust-version.workspace = true
 
 [features]
-# Controls whether compile-time optimizations are applied or not.
-# If this feature is enabled, expressions like `2+2+2` and
-# `true or false`, whose value can be determined at compile time,
-# will be reduced to its final value, instead of producing code
-# that actually computes the expression.
-compile-time-optimization = []
+# Enables constant folding. When constant folding is enabled, expressions
+# like `2+2+2` and `true or false`, whose value can be determined at compile
+# time, will be reduced to its final value, instead of producing code that
+# actually computes the expression.
+constant-folding = []
+
+# Enables the use of FastVM for matching regular expression, as an alternative
+# to PikeVM. This feature is enabled by default, and its purpose is disabling
+# the fast regexp matching mechanism for testing purposes.
+fast-regexp = []
+
+# Enables debug logs.
+logging = ["dep:log"]
+
+# Enables rules profiling. When this is enabled together with `logging` the
+# logs will contain information about the most expensive rules after each 
+# scan. Notice that profiling itself has an noticeable impact on performance.
+rules-profiling = ["logging"]
 
 # Features for enabling/disabling modules.
 test_proto2-module = []
@@ -29,37 +42,56 @@ text-module = [
 time-module = []
 # The Strings Module
 string-module = []
+# The hash module provides functions for computing md5, sha1 and sha-256 hashes
+hash-module = [
+    "dep:md5",
+    "dep:sha1",
+    "dep:sha2",
+]
 
 # Features that are enabled by default.
 default = [
-    "compile-time-optimization",
+    "constant-folding",
+    "fast-regexp",
+    "hash-module",
+    "time-module",
     "test_proto2-module",
     "test_proto3-module",
 ]
 
 [dependencies]
-aho-corasick = { workspace = true }
+aho-corasick = { workspace = true, features=["logging"] }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
-ascii_tree = { workspace = true }
+ascii_tree = { workspace = true}
 base64 = { workspace = true }
 bincode = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
-bstr = { workspace = true }
+bstr = { workspace = true, features=["serde"] }
 fmmap = { workspace = true }
+indexmap = { workspace = true, features=["serde"] }
 intaglio = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
 linkme = { workspace = true }
+log = { workspace = true, optional = true }
+md5 = { workspace = true, optional = true }
+sha1 = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+memchr = { workspace = true }
 memx = { workspace = true }
+num = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
-smallvec = { workspace = true }
-serde = { workspace = true }
+regex-syntax = { workspace = true }
+regex-automata = { workspace = true }
+smallvec = { workspace = true, features=["serde"] }
+serde = { workspace = true, features=["rc"] }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 walrus = { workspace = true }
-wasmtime = { workspace = true, features=["cranelift"]  }
+wasmtime = { workspace = true, features=["cranelift", "parallel-compilation"]  }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }
@@ -76,7 +108,8 @@ yara-x-proto = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 pretty_assertions = { workspace = true }
-yara = { version = "0.16.2", features = ["vendored"] }
+wasmprinter = "0.2.62"
+yara = { version = "0.19.0", features = ["vendored"] }
 
 [[bench]]
 name = "benches"

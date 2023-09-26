@@ -1,5 +1,7 @@
-/*! This crate implements a code formatter for YARA rules, in the spirit of
-other tools like `rustfmt` and `gofmt`.
+/*! A code formatter for YARA rules
+
+This crate implements a code format for YARA in the spirit of other tools like
+`rustfmt` and `gofmt`.
 
 # Usage
 
@@ -392,8 +394,8 @@ impl Formatter {
         );
 
         // Make sure that tail and block comments are followed by newline. In
-        // must cases this already the case, but some of the rules that remove
-        // newlines may remove those appearing after the comment.
+        // most cases this is already the case, but some of the rules that
+        // remove newlines may remove those appearing after the comment.
         let tokens = processor::Processor::new(tokens)
             .set_passthrough(*CONTROL)
             .add_rule(
@@ -539,6 +541,7 @@ impl Formatter {
     /// Aligns the equals signs in pattern definitions. For example, for this
     /// input..
     ///
+    /// ```text
     /// rule foo {
     ///   strings:
     ///     $short = "foo"
@@ -547,9 +550,11 @@ impl Formatter {
     ///   condition:
     ///     true
     /// }
+    /// ```
     ///
     /// ... the result is ...
     ///
+    /// ```text
     /// rule foo {
     ///   strings:
     ///     $short       = "foo"
@@ -558,6 +563,26 @@ impl Formatter {
     ///   condition:
     ///     true
     /// }
+    /// ```
+    ///
+    /// Pattern groups separated by empty lines are handled independently, for
+    /// example:
+    ///
+    /// ```text
+    /// rule foo {
+    ///   strings:
+    ///     $short     = "foo"
+    ///     $very_long = "bar"
+    ///    
+    ///     $even_longer    = "baz"
+    ///     $longest_of_all = "qux"
+    ///   condition:
+    ///     true
+    /// }
+    /// ```
+    ///  
+    /// The patterns in the first block are aligned together, but they are not
+    /// influenced by the longer lines in the second block.
     ///
     /// The input must must contain at least one newline character after each
     /// pattern definition.
@@ -567,10 +592,14 @@ impl Formatter {
     {
         // First insert the alignment markers at the appropriate places...
         let input_with_markers = processor::Processor::new(input)
+            // Insert `AlignmentBlockBegin` after the start of the pattern
+            // definitions block.
             .add_rule(
                 |ctx| ctx.token(-1).eq(&Begin(GrammarRule::pattern_defs)),
                 processor::actions::insert(AlignmentBlockBegin),
             )
+            // Insert `AlignmentBlockEnd` just before the end of the pattern
+            // definitions block.
             .add_rule(
                 |ctx| {
                     ctx.token(1).eq(&End(GrammarRule::pattern_defs))
@@ -578,6 +607,19 @@ impl Formatter {
                 },
                 processor::actions::insert(AlignmentBlockEnd),
             )
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(GrammarRule::pattern_defs, false)
+                        && ctx.token(-2).eq(&Newline)
+                        && ctx.token(-1).eq(&Newline)
+                },
+                |ctx| {
+                    ctx.push_output_token(Some(AlignmentBlockEnd));
+                    ctx.push_output_token(Some(AlignmentBlockBegin));
+                },
+            )
+            // Insert `AlignmentMarker` before each equal sign in a pattern
+            // definition.
             .add_rule(
                 |ctx| {
                     ctx.in_rule(GrammarRule::pattern_def, false)
@@ -590,7 +632,7 @@ impl Formatter {
         // ... then pass the token stream with the markers to Aligner, which
         // returns a token stream that replaces the markers with the
         // appropriate number of spaces.
-        Align::new(input_with_markers)
+        Align::new(input_with_markers.inspect(|t| println!("{:?}", t)))
     }
 
     /// Aligns tail comments inside hex patterns
