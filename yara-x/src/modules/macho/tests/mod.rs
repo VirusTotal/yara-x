@@ -146,20 +146,20 @@ fn test_rva_to_offset() {
     // Address within segment 1
     let rva = 0x1500;
     assert_eq!(
-        macho_rva_to_offset(rva, &macho),
+        macho_rva_to_offset(rva, &macho).unwrap(),
         Some(0x400 + (0x1500 - 0x1000))
     );
 
     // Address within segment 2
     let rva = 0x2500;
     assert_eq!(
-        macho_rva_to_offset(rva, &macho),
+        macho_rva_to_offset(rva, &macho).unwrap(),
         Some(0x1400 + (0x2500 - 0x2000))
     );
 
     // Address out of range
     let rva = 0x5000;
-    assert_eq!(macho_rva_to_offset(rva, &macho), None);
+    assert_eq!(macho_rva_to_offset(rva, &macho).unwrap(), None);
 }
 
 #[test]
@@ -169,20 +169,20 @@ fn test_offset_to_rva() {
     // Offset within segment 1
     let offset = 0x500;
     assert_eq!(
-        macho_offset_to_rva(offset, &macho),
+        macho_offset_to_rva(offset, &macho).unwrap(),
         Some(0x1000 + (0x500 - 0x400))
     );
 
     // Offset within segment 2
     let offset = 0x1600;
     assert_eq!(
-        macho_offset_to_rva(offset, &macho),
+        macho_offset_to_rva(offset, &macho).unwrap(),
         Some(0x2000 + (0x1600 - 0x1400))
     );
 
     // Offset out of range
     let offset = 0x5000;
-    assert_eq!(macho_offset_to_rva(offset, &macho), None);
+    assert_eq!(macho_offset_to_rva(offset, &macho).unwrap(), None);
 }
 
 #[test]

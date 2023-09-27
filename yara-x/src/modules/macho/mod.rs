@@ -57,20 +57,23 @@ const LC_MAIN: u32 = 0x80000028;
 /// Represents all possible errors that can occur during Mach-O parsing.
 #[derive(Error, Debug)]
 pub enum MachoError {
-    #[error("File is too small")]
-    FileTooSmall,
-
-    #[error("Unsupported  cputype in header")]
-    UnsupportedCPUType,
-
     #[error("File section is too small to contain `{0}`")]
     FileSectionTooSmall(String),
+
+    #[error("File is too small")]
+    FileTooSmall,
 
     #[error("`{0}` value not present in header")]
     MissingHeaderValue(String),
 
     #[error("Parsing error: {0}")]
     ParsingError(String),
+
+    #[error("Unsupported  cputype in header")]
+    UnsupportedCPUType,
+
+    #[error("Integer overflow error")]
+    Overflow,
 }
 
 /// Mach-O file structures that represent the file
@@ -465,20 +468,30 @@ fn should_swap_bytes(magic: u32) -> bool {
 /// # Returns
 ///
 /// An `Option<u64>` which is `Some` if a corresponding offset is found, otherwise `None`.
-fn macho_rva_to_offset(address: u64, macho_file: &File) -> Option<u64> {
+fn macho_rva_to_offset(
+    address: u64,
+    macho_file: &File,
+) -> Result<Option<u64>, MachoError> {
     for segment in &macho_file.segments {
-        if let (Some(start), Some(vmsize), Some(fileoff)) =
-            (segment.vmaddr, segment.vmsize, segment.fileoff)
-        {
-            let end = start + vmsize;
+        let (start, vmsize, fileoff) = (
+            segment.vmaddr.ok_or(MachoError::Overflow)?,
+            segment.vmsize.ok_or(MachoError::Overflow)?,
+            segment.fileoff.ok_or(MachoError::Overflow)?,
+        );
 
-            if address >= start && address < end {
-                return Some(fileoff + (address - start));
-            }
+        let end = start.checked_add(vmsize).ok_or(MachoError::Overflow)?;
+
+        if address >= start && address < end {
+            let offset = fileoff
+                .checked_add(
+                    address.checked_sub(start).ok_or(MachoError::Overflow)?,
+                )
+                .ok_or(MachoError::Overflow)?;
+            return Ok(Some(offset));
         }
     }
 
-    None
+    Ok(None)
 }
 
 /// Convert a Mach-O file offset to a Relative Virtual Address (RVA).
@@ -491,20 +504,30 @@ fn macho_rva_to_offset(address: u64, macho_file: &File) -> Option<u64> {
 /// # Returns
 ///
 /// An `Option<u64>` which is `Some` if a corresponding RVA is found, otherwise `None`.
-fn macho_offset_to_rva(offset: u64, macho_file: &File) -> Option<u64> {
+fn macho_offset_to_rva(
+    offset: u64,
+    macho_file: &File,
+) -> Result<Option<u64>, MachoError> {
     for segment in &macho_file.segments {
-        if let (Some(start), Some(filesize), Some(vmaddr)) =
-            (segment.fileoff, segment.filesize, segment.vmaddr)
-        {
-            let end = start + filesize;
+        let (start, filesize, vmaddr) = (
+            segment.fileoff.ok_or(MachoError::Overflow)?,
+            segment.filesize.ok_or(MachoError::Overflow)?,
+            segment.vmaddr.ok_or(MachoError::Overflow)?,
+        );
 
-            if offset >= start && offset < end {
-                return Some(vmaddr + (offset - start));
-            }
+        let end = start.checked_add(filesize).ok_or(MachoError::Overflow)?;
+
+        if offset >= start && offset < end {
+            let rva = vmaddr
+                .checked_add(
+                    offset.checked_sub(start).ok_or(MachoError::Overflow)?,
+                )
+                .ok_or(MachoError::Overflow)?;
+            return Ok(Some(rva));
         }
     }
 
-    None
+    Ok(None)
 }
 
 /// Swap the endianness of fields within a 64-bit Mach-O header from BigEndian to LittleEndian.
@@ -1448,8 +1471,9 @@ fn handle_unixthread(
         ));
     }
 
-    let thread_state_size =
-        command_size - std::mem::size_of::<ThreadCommand>();
+    let thread_state_size = command_size
+        .checked_sub(std::mem::size_of::<ThreadCommand>())
+        .ok_or(MachoError::Overflow)?;
     let mut address: u64 = 0;
     let mut is64: bool = false;
 
@@ -1559,7 +1583,7 @@ fn handle_unixthread(
     }
 
     // TODO: COMPILER FLAGS
-    macho_file.entry_point = macho_rva_to_offset(address, macho_file);
+    macho_file.entry_point = macho_rva_to_offset(address, macho_file)?;
 
     Ok(())
 }
@@ -1606,7 +1630,7 @@ fn handle_main(
     // TODO: COMPILER FLAGS
     if false {
         macho_file.entry_point =
-            macho_offset_to_rva(entrypoint_cmd.entryoff, macho_file);
+            macho_offset_to_rva(entrypoint_cmd.entryoff, macho_file)?;
     } else {
         macho_file.set_entry_point(entrypoint_cmd.entryoff);
     }
@@ -1710,7 +1734,11 @@ fn parse_macho_commands(
         .ok_or(MachoError::MissingHeaderValue("ncmds".to_string()))?
     {
         // Check if remaining data is not less than size of LoadCommand
-        if data.len() - command_offset < std::mem::size_of::<LoadCommand>() {
+        let remaining_data_size = data
+            .len()
+            .checked_sub(command_offset)
+            .ok_or(MachoError::Overflow)?;
+        if remaining_data_size < std::mem::size_of::<LoadCommand>() {
             break;
         }
 
@@ -1732,7 +1760,11 @@ fn parse_macho_commands(
         }
 
         // Check if remaining data is not less than cmdsize
-        if data.len() - command_offset < command.cmdsize as usize {
+        let remaining_data_size = data
+            .len()
+            .checked_sub(command_offset)
+            .ok_or(MachoError::Overflow)?;
+        if remaining_data_size < command.cmdsize as usize {
             break;
         }
 
@@ -1801,6 +1833,12 @@ fn parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
     Ok(macho_file)
 }
 
+/// Public wrapper for Mach-O files fuzz testing
+#[cfg(fuzzing)]
+pub fn pub_parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
+    parse_macho_file(data)
+}
+
 /// Parse a FAT Mach-O file and updates the provided protobuf representation.
 ///
 /// A FAT Mach-O file contains multiple binary images, one for each supported
@@ -1851,11 +1889,19 @@ fn parse_fat_macho_file(
             };
             macho_proto.fat_arch.push(fat_arch_entry);
 
+            // Return Overflow error in case offset index or end index is bigger then data size
+            let end_index =
+                arch.offset
+                    .checked_add(arch.size)
+                    .ok_or(MachoError::Overflow)? as usize;
+
+            if arch.offset as usize > data.len() || end_index > data.len() {
+                return Err(MachoError::Overflow);
+            }
+
             // Parse nested data as basic Mach-O file
-            let nested_file = parse_macho_file(
-                &data
-                    [arch.offset as usize..(arch.offset + arch.size) as usize],
-            )?;
+            let nested_file =
+                parse_macho_file(&data[arch.offset as usize..end_index])?;
             macho_proto.file.push(nested_file);
         // Parse 64bit FAT headers
         } else {
@@ -1873,16 +1919,33 @@ fn parse_fat_macho_file(
             };
             macho_proto.fat_arch.push(fat_arch_entry);
 
+            // Return Overflow error in case offset index or end index is bigger then data size
+            let end_index =
+                arch.offset
+                    .checked_add(arch.size)
+                    .ok_or(MachoError::Overflow)? as usize;
+
+            if arch.offset as usize > data.len() || end_index > data.len() {
+                return Err(MachoError::Overflow);
+            }
+
             // Parse nested data as basic Mach-O file
-            let nested_file = parse_macho_file(
-                &data
-                    [arch.offset as usize..(arch.offset + arch.size) as usize],
-            )?;
+            let nested_file =
+                parse_macho_file(&data[arch.offset as usize..end_index])?;
             macho_proto.file.push(nested_file);
         }
     }
 
     Ok(())
+}
+
+/// Public wrapper for Mach-O FAT files fuzz testing
+#[cfg(fuzzing)]
+pub fn pub_parse_fat_macho_file(
+    data: &[u8],
+    macho_proto: &mut Macho,
+) -> Result<(), MachoError> {
+    parse_fat_macho_file(data, macho_proto)
 }
 
 // Functions used just for debugging and printing protobuf values
@@ -2165,7 +2228,9 @@ fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
                 if cputype as i64 == type_arg {
                     let file_offset = arch.offset?;
                     let entry_point = macho.file.get(i)?.entry_point?;
-                    return Some(file_offset as i64 + entry_point as i64);
+                    return file_offset
+                        .checked_add(entry_point)
+                        .map(|sum| sum as i64);
                 }
             }
         }
@@ -2208,7 +2273,9 @@ fn ep_for_arch_subtype(
                 {
                     let file_offset = arch.offset?;
                     let entry_point = macho.file.get(i)?.entry_point?;
-                    return Some(file_offset as i64 + entry_point as i64);
+                    return file_offset
+                        .checked_add(entry_point)
+                        .map(|sum| sum as i64);
                 }
             }
         }

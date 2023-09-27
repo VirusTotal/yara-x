@@ -6,3 +6,5 @@
 *.profraw
 target
 macros/target
+corpus
+artifacts
