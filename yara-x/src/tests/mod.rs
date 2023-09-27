@@ -2848,6 +2848,194 @@ fn test_hash_module() {
 }
 
 #[test]
+#[cfg(feature = "macho-module")]
+fn test_macho_module() {
+    let macho_file = [
+        // Fat header
+        0xFE, 0xED, 0xFA, 0xCE, // magic
+        0x00, 0x00, 0x00, 0x01, // cputype
+        0x00, 0x00, 0x00, 0x02, // cpusubtype
+        0x00, 0x00, 0x00, 0x03, // filetype
+        0x00, 0x00, 0x00, 0x04, // ncmds
+        0x00, 0x00, 0x00, 0x05, // sizeofcmds
+        0x00, 0x00, 0x00, 0x06, // flags
+        0x00, 0x00, 0x00, 0x00, // reserved
+    ];
+
+    let macho_fat_file = [
+        // Fat header
+        0xCA, 0xFE, 0xBA, 0xBE, // magic
+        0x00, 0x00, 0x00, 0x01, // nfat_arch (2 architectures)
+        // First arch (x86_64)
+        0x00, 0x00, 0x00, 0x07, // cputype (CPU_TYPE_X86_64)
+        0x00, 0x00, 0x00, 0x03, // cpusubtype
+        0x00, 0x00, 0x00, 0x00, // offset to x86_64 Mach-O
+        0x00, 0x00, 0x00, 0x00, // size
+        0x00, 0x00, 0x00, 0x00, // align
+    ];
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.MH_MAGIC == 0xfeedface and
+            macho.MH_NO_REEXPORTED_DYLIBS == 0x00100000 and
+            macho.MH_CIGAM == 0xcefaedfe and
+            macho.CPU_TYPE_MIPS == 0x00000008
+        }
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.MH_MAGIC == 0xfeedface and
+            macho.MH_NO_REEXPORTED_DYLIBS == 0x00100000 and
+            macho.MH_CIGAM == 0xcefaedfe and
+            macho.CPU_TYPE_MIPS == 0x00000008
+        }
+        "#,
+        &macho_file
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.MH_MAGIC == 0xfeeeeeee or
+            macho.MH_NO_REEXPORTED_DYLIBS == 0x99999999 or
+            macho.MH_CIGAM == 0xaaaaaaaa or
+            macho.CPU_TYPE_MIPS == 0x00000000
+        }
+        "#,
+        &macho_file
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.magic == 0xcefaedfe and
+            macho.cputype == 1 and
+            macho.cpusubtype == 2 and
+            macho.filetype == 3 and
+            macho.ncmds == 4 and
+            macho.sizeofcmds == 5 and
+            macho.flags == 6
+        }
+        "#,
+        &macho_file
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.fat_magic == 0xcafebabe and
+            macho.nfat_arch == 1
+        }
+        "#,
+        &macho_fat_file
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.fat_magic == 0xcafebabe and
+            not defined macho.nfat_arch == 1
+        }
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x00000007) == 0
+        }
+        "#,
+        &macho_fat_file
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x00000008) == 0
+        }
+        "#,
+        &macho_fat_file
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x00000007, 0x00000003) == 0
+        }
+        "#,
+        &macho_fat_file
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x00000008, 0x00000004) == 0
+        }
+        "#,
+        &macho_fat_file
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.entry_point_for_arch(0x00000007)
+        }
+        "#,
+        &macho_fat_file
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.entry_point_for_arch(0x00000007, 0x00000003)
+        }
+        "#,
+        &macho_fat_file
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.entry_point_for_arch(0x00000007, 0x00000003)
+        }
+        "#,
+        &[]
+    );
+}
+
+#[test]
 #[cfg(feature = "test_proto2-module")]
 fn test_defined_2() {
     condition_false!(r#"defined test_proto2.undef_i64()"#);
