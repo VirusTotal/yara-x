@@ -18,6 +18,7 @@ use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
+use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
 use wasmtime::{
@@ -26,6 +27,7 @@ use wasmtime::{
 };
 
 use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
+use crate::modules::BUILTIN_MODULES;
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -629,6 +631,24 @@ impl<'a, 'r> ScanResults<'a, 'r> {
     /// Returns an iterator that yields the non-matching rules in arbitrary order.
     pub fn non_matching_rules(&'a self) -> NonMatchingRules<'a, 'r> {
         NonMatchingRules::new(self.ctx, &self.data)
+    }
+
+    /// Returns the protobuf produced by a YARA module after processing the
+    /// data.
+    ///
+    /// The result will be `None` if the module doesn't exist or didn't
+    /// produce any output.
+    pub fn module_output(
+        &'a self,
+        module_name: &str,
+    ) -> Option<&'a dyn MessageDyn> {
+        let module = BUILTIN_MODULES.get(module_name)?;
+        let module_output = self
+            .ctx
+            .module_outputs
+            .get(module.root_struct_descriptor.full_name())?
+            .as_ref();
+        Some(module_output)
     }
 }
 

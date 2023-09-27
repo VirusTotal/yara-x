@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use protobuf::MessageDyn;
 
 use crate::scanner;
 use crate::scanner::Scanner;
@@ -148,6 +149,33 @@ fn reuse_scanner() {
             .len(),
         0
     );
+}
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn module_output() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.file_size == 3
+        } 
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan(b"").expect("scan should not fail");
+
+    let output = scan_results
+        .module_output("test_proto2")
+        .expect("test_proto2 should produce some output");
+
+    let output: &crate::modules::protos::test_proto2::TestProto2 =
+        <dyn MessageDyn>::downcast_ref(output).unwrap();
+
+    assert_eq!(output.int32_one, Some(1_i32));
 }
 
 #[test]
