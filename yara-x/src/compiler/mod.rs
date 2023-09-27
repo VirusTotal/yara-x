@@ -362,8 +362,8 @@ impl<'a> Compiler<'a> {
     /// ```
     /// # use yara_x::Compiler;
     /// assert!(Compiler::new()
-    ///     .define_global("some_int", 1)
-    ///     .add_source("rule some_int_not_zero {condition: some_int != 0}")?
+    ///     .define_global("some_int", 1)?
+    ///     .add_source("rule some_int_not_zero {condition: some_int != 0}")
     ///     .is_ok());
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
