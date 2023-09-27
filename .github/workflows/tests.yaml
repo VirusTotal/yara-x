@@ -80,7 +80,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-targets ${{ matrix.args }}
+          args: --all-targets ${{ matrix.args }}
         env:
           RUSTFLAGS: -Awarnings # Allow all warnings
 
