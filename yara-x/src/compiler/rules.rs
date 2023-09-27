@@ -90,9 +90,9 @@ pub struct Rules {
     /// vector. This vector contains both forward and backward code.
     pub(in crate::compiler) re_code: Vec<u8>,
 
-    /// A [`Struct`] in serialized form that contains all the global variables.
-    /// Each field in the structure corresponds to a global variable defined
-    /// at compile time using [`crate::compiler::Compiler`].
+    /// A [`types::Struct`] in serialized form that contains all the global
+    /// variables. Each field in the structure corresponds to a global variable
+    /// defined at compile time using [`crate::compiler::Compiler`].
     pub(in crate::compiler) serialized_globals: Vec<u8>,
 
     /// Aho-Corasick automaton containing the atoms extracted from the patterns.
