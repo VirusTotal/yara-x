@@ -2,9 +2,10 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 
-use crate::commands::compile_rules;
+use crate::commands::{compile_rules, external_var_parser};
+use crate::help;
 
 pub fn compile() -> Command {
     super::command("compile")
@@ -24,6 +25,16 @@ pub fn compile() -> Command {
             arg!(--"path-as-namespace")
                 .help("Use file path as rule namespace"),
         )
+        .arg(
+            Arg::new("define")
+                .short('d')
+                .long("define")
+                .help("Define external variable")
+                .long_help(help::DEFINE_LONG_HELP)
+                .required(false)
+                .value_name("VAR=VALUE")
+                .value_parser(external_var_parser),
+        )
 }
 
 pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
@@ -31,7 +42,11 @@ pub fn exec_compile(args: &ArgMatches) -> anyhow::Result<()> {
     let output_path = args.get_one::<PathBuf>("OUTPUT_PATH").unwrap();
     let path_as_namespace = args.get_flag("path-as-namespace");
 
-    let rules = compile_rules(rules_path, path_as_namespace)?;
+    let external_vars: Option<Vec<(String, serde_json::Value)>> = args
+        .get_many::<(String, serde_json::Value)>("define")
+        .map(|var| var.cloned().collect());
+
+    let rules = compile_rules(rules_path, path_as_namespace, external_vars)?;
 
     let output_file = File::create(output_path).with_context(|| {
         format!("can not write `{}`", output_path.display())

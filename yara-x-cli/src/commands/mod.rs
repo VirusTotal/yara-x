@@ -15,9 +15,10 @@ use std::io::stdout;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use clap::Command;
 use crossterm::tty::IsTty;
+use serde_json::Value;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 
 use yara_x::{Compiler, Rules};
@@ -36,15 +37,41 @@ pub fn command(name: &'static str) -> Command {
     )
 }
 
+fn external_var_parser(
+    option: &str,
+) -> Result<(String, serde_json::Value), anyhow::Error> {
+    let (var, value) = option.split_once('=').ok_or(anyhow!(
+        "the equal sign is missing, use the syntax VAR=VALUE (example: {}=10)",
+        option
+    ))?;
+
+    let value = serde_json::from_str(value).map_err(|_| {
+        anyhow!(
+            "`{}` is not a valid value, did you mean \\\"{}\\\"?",
+            value,
+            value
+        )
+    })?;
+
+    Ok((var.to_string(), value))
+}
+
 pub fn compile_rules<'a, P>(
     paths: P,
     path_as_namespace: bool,
+    external_vars: Option<Vec<(String, Value)>>,
 ) -> Result<Rules, anyhow::Error>
 where
     P: Iterator<Item = &'a PathBuf>,
 {
     let mut compiler: Compiler<'_> =
         Compiler::new().colorize_errors(stdout().is_tty());
+
+    if let Some(vars) = external_vars {
+        for (ident, value) in vars {
+            compiler.define_global(ident.as_str(), value)?;
+        }
+    }
 
     let mut w = DirWalker::new();
 

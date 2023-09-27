@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 use crossbeam::channel::Sender;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
@@ -15,7 +15,7 @@ use yansi::Color::{Cyan, Red};
 use yansi::Paint;
 use yara_x::{Rule, Rules, ScanError, Scanner};
 
-use crate::commands::compile_rules;
+use crate::commands::{compile_rules, external_var_parser};
 use crate::walk::Message;
 use crate::{help, walk};
 
@@ -78,6 +78,16 @@ pub fn scan() -> Command {
                 .required(false)
                 .value_parser(value_parser!(u64).range(1..))
         )
+        .arg(
+            Arg::new("define")
+                .short('d')
+                .long("define")
+                .help("Define external variable")
+                .long_help(help::DEFINE_LONG_HELP)
+                .required(false)
+                .value_name("VAR=VALUE")
+                .value_parser(external_var_parser)
+        )
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
@@ -90,6 +100,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let negate = args.get_flag("negate");
     let timeout = args.get_one::<u64>("timeout");
 
+    let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
+        .get_many::<(String, serde_json::Value)>("define")
+        .map(|var| var.cloned().collect());
+
     let rules = if compiled_rules {
         if rules_path.len() > 1 {
             bail!(
@@ -101,10 +115,27 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         // TODO: implement Rules::deserialize_from reader
         let mut file = File::open(rules_path.next().unwrap())?;
         let mut data = Vec::new();
+
         File::read_to_end(&mut file, &mut data)?;
-        Rules::deserialize(data.as_slice())?
+
+        let rules = Rules::deserialize(data.as_slice())?;
+
+        // If the user is defining external variables, make sure that these
+        // variables are valid. A scanner is created only with the purpose
+        // of validating the variables.
+        if let Some(ref vars) = external_vars {
+            let mut scanner = Scanner::new(&rules);
+            for (ident, value) in vars {
+                scanner.set_global(ident.as_str(), value)?;
+            }
+        }
+
+        rules
     } else {
-        compile_rules(rules_path, path_as_namespace)?
+        // With `take()` we pass the external variables to `compile_rules`,
+        // while leaving a `None` in `external_vars`. This way external
+        // variables are not set again in the scanner.
+        compile_rules(rules_path, path_as_namespace, external_vars.take())?
     };
 
     let rules_ref = &rules;
@@ -131,7 +162,17 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     w.walk(
         path,
         state,
-        || Scanner::new(rules_ref),
+        || {
+            let mut scanner = Scanner::new(rules_ref);
+            if let Some(ref vars) = external_vars {
+                for (ident, value) in vars {
+                    // It's ok to use `unwrap()`, this can not fail because
+                    // we already verified that external variables are correct.
+                    scanner.set_global(ident.as_str(), value).unwrap();
+                }
+            }
+            scanner
+        },
         |file_path, state, output, scanner| {
             let elapsed_time = Instant::elapsed(&start_time);
 
@@ -142,6 +183,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             }
 
             let now = Instant::now();
+
             state
                 .files_in_progress
                 .lock()

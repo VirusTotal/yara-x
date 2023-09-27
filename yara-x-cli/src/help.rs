@@ -35,6 +35,15 @@ The absense of this options is equivalent to using this:
 
 --filter='**/*.yara' --filter='**/*.yar'"#;
 
+pub const DEFINE_LONG_HELP: &str = r#"Define external variable
+
+Examples:
+
+--define some_int=1
+--define some_float=3.14
+--define some_bool=true
+--define some_str=\"foobar\""#;
+
 pub const COMPILED_RULES_HELP: &str = r#"Indicates that <RULES_PATH> is a file containing compiled rules
 
 YARA rules can be compiled with the `yr compile` command. The file produced by
