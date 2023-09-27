@@ -1,12 +1,11 @@
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::thread::sleep;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::{io, thread};
 
 use anyhow::Context;
-use crossbeam::channel::{SendError, Sender, TryRecvError};
+use crossbeam::channel::{RecvTimeoutError, SendError, Sender};
 use crossterm::tty::IsTty;
 use globwalk::FileType;
 use superconsole::{Component, Lines, SuperConsole};
@@ -403,8 +402,12 @@ impl<'a> ParDirWalker<'a> {
                 }
             };
 
+            // The console is rendered once every `render_period`.
+            let render_period = Duration::from_secs_f64(0.150);
+            let mut last_render = Instant::now();
+
             loop {
-                match msg_recv.try_recv() {
+                match msg_recv.recv_timeout(render_period) {
                     Ok(Message::Info(s)) => {
                         if let Some(console) = console.as_mut() {
                             console.emit(
@@ -430,16 +433,17 @@ impl<'a> ParDirWalker<'a> {
                     Ok(Message::Abort) => {
                         break;
                     }
-                    Err(TryRecvError::Disconnected) => {
+                    Err(RecvTimeoutError::Disconnected) => {
                         break;
                     }
-                    Err(TryRecvError::Empty) => {
-                        sleep(Duration::from_secs_f64(0.150));
-                    }
+                    Err(RecvTimeoutError::Timeout) => {}
                 }
 
                 if let Some(console) = console.as_mut() {
-                    console.render(state.as_ref()).unwrap();
+                    if Instant::elapsed(&last_render) > render_period {
+                        console.render(state.as_ref()).unwrap();
+                        last_render = Instant::now();
+                    }
                 }
             }
 
