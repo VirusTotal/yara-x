@@ -1,0 +1,15 @@
+rule test {
+  strings:
+    $a = "foo"
+    $b = "bar"
+    $c = "baz"
+  condition:
+    (
+    $a and
+      $b and
+    $c
+    )
+    and for all of them : (
+    # < 10
+    )
+}

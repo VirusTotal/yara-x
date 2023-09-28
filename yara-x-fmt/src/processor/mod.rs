@@ -192,20 +192,19 @@ where
     /// [`Option`] is allowing to pass the value returned by
     /// [`Context::pop_input_token`] directly to this function.
     pub fn push_output_token(&mut self, token: Option<Token<'a>>) {
-        if token.is_none() {
-            return;
-        }
+        let token = match token {
+            Some(token) => token,
+            None => return,
+        };
 
-        let token = token.unwrap();
-
-        if let Token::End(rule) = token {
-            if let Some(top) = self.stack.pop() {
-                assert_eq!(top, rule);
+        match token {
+            Token::Begin(rule) => self.stack.push(rule),
+            Token::End(rule) => {
+                if let Some(top) = self.stack.pop() {
+                    assert_eq!(top, rule);
+                }
             }
-        }
-
-        if let Token::Begin(rule) = token {
-            self.stack.push(rule)
+            _ => {}
         }
 
         // Store outputted token in prev_tokens, but only if it is a
@@ -456,7 +455,7 @@ pub(crate) mod actions {
         ctx.push_output_token(token);
     }
 
-    /// Action that puts an space token into the output without removing
+    /// Action that puts a space token into the output without removing
     /// the next token from the input.
     pub(crate) fn space<'a, I>(ctx: &mut Context<'a, I>)
     where

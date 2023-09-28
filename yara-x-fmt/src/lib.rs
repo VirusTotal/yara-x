@@ -381,6 +381,7 @@ impl Formatter {
 
         let tokens = Self::indent_body(tokens);
         let tokens = Self::indent_sections(tokens);
+        let tokens = Self::indent_parenthesized_exprs(tokens);
 
         // indent_body and indent_sections will insert Indentation tokens, but
         // won't take into account that those tokens must appear before the
@@ -538,6 +539,53 @@ impl Formatter {
             )
     }
 
+    /// Indent parenthesized expressions in rule conditions.
+    ///
+    /// rule foo {
+    /// strings:
+    ///   $a = "foo"
+    ///   $b = "bar"
+    /// condition:
+    ///    (
+    ///    $a and $b
+    ///    )
+    /// }
+    ///
+    /// ... the result is ...
+    ///
+    /// rule foo {
+    /// strings:
+    ///   $a = "foo"
+    ///   $b = "bar"
+    /// condition:
+    ///    (
+    ///      $a and $b
+    ///    )
+    /// }
+    ///
+    fn indent_parenthesized_exprs<'a, I>(input: I) -> impl TokenStream<'a> + 'a
+    where
+        I: TokenStream<'a> + 'a,
+    {
+        processor::Processor::new(input)
+            .set_passthrough(*COMMENT)
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(GrammarRule::boolean_expr, true)
+                        && ctx.token(-1).eq(&LPAREN)
+                },
+                processor::actions::insert(Indentation(1)),
+            )
+            .add_rule(
+                |ctx| {
+                    ctx.in_rule(GrammarRule::boolean_expr, true)
+                        && ctx.token(1).eq(&RPAREN)
+                        && ctx.token(-1).neq(&Indentation(-1))
+                },
+                processor::actions::insert(Indentation(-1)),
+            )
+    }
+
     /// Aligns the equals signs in pattern definitions. For example, for this
     /// input..
     ///
@@ -632,7 +680,7 @@ impl Formatter {
         // ... then pass the token stream with the markers to Aligner, which
         // returns a token stream that replaces the markers with the
         // appropriate number of spaces.
-        Align::new(input_with_markers.inspect(|t| println!("{:?}", t)))
+        Align::new(input_with_markers)
     }
 
     /// Aligns tail comments inside hex patterns

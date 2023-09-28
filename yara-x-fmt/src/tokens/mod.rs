@@ -144,6 +144,8 @@ lazy_static! {
     pub(crate) static ref RBRACE: Token<'static> = Token::Punctuation("}");
     pub(crate) static ref LBRACKET: Token<'static> = Token::LGrouping("[");
     pub(crate) static ref RBRACKET: Token<'static> = Token::RGrouping("]");
+    pub(crate) static ref LPAREN: Token<'static> = Token::LGrouping("(");
+    pub(crate) static ref RPAREN: Token<'static> = Token::RGrouping(")");
 }
 
 /// Type that represents the tokens used by the formatter.
