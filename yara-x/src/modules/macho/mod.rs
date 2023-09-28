@@ -987,7 +987,7 @@ fn parse_section(input: &[u8]) -> IResult<&[u8], SegmentSection32> {
 /// # Returns
 ///
 /// A `nom` IResult containing the remaining input and the parsed
-/// SegmentSection64 structure, or a `nom’ error if the parsing fails.
+/// SegmentSection64 structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
@@ -1165,7 +1165,7 @@ fn parse_arm_thread_state(input: &[u8]) -> IResult<&[u8], ARMThreadState> {
 /// # Returns
 ///
 /// A `nom` IResult containing the remaining input and the parsed
-/// PPCThreadState structure, or a `nom’ error if the parsing fails.
+/// PPCThreadState structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
@@ -1197,11 +1197,11 @@ fn parse_ppc_thread_state(input: &[u8]) -> IResult<&[u8], PPCThreadState> {
 /// # Returns
 ///
 /// A `nom` IResult containing the remaining input and the parsed
-/// SPARCThreadState structure, or a `nom’ error if the parsing fails.
+/// SPARCThreadState structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
-/// Returns a `nom’ error if the input data is insufficient or malformed.
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_sparc_thread_state(input: &[u8]) -> IResult<&[u8], SPARCThreadState> {
     let (input, psr) = le_u32(input)?;
     let (input, pc) = le_u32(input)?;
@@ -1223,11 +1223,11 @@ fn parse_sparc_thread_state(input: &[u8]) -> IResult<&[u8], SPARCThreadState> {
 /// # Returns
 ///
 /// A `nom` IResult containing the remaining input and the parsed
-/// M68KThreadState structure, or a `nom’ error if the parsing fails.
+/// M68KThreadState structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
-/// Returns a `nom’ error if the input data is insufficient or malformed.
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_m68k_thread_state(input: &[u8]) -> IResult<&[u8], M68KThreadState> {
     let (input, dreg) = count(le_u32, 8)(input)?;
     let (input, areg) = count(le_u32, 8)(input)?;
@@ -1247,12 +1247,12 @@ fn parse_m68k_thread_state(input: &[u8]) -> IResult<&[u8], M68KThreadState> {
 ///
 /// # Returns
 ///
-/// A `nom’ IResult containing the remaining input and the parsed
-/// M88KThreadState structure, or a `nom’ error if the parsing fails.
+/// A `nom` IResult containing the remaining input and the parsed
+/// M88KThreadState structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
-/// Returns a `nom’ error if the input data is insufficient or malformed.
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_m88k_thread_state(input: &[u8]) -> IResult<&[u8], M88KThreadState> {
     let (input, r) = count(le_u32, 31)(input)?;
     let (input, xip) = le_u32(input)?;
@@ -1272,12 +1272,12 @@ fn parse_m88k_thread_state(input: &[u8]) -> IResult<&[u8], M88KThreadState> {
 ///
 /// # Returns
 ///
-/// A `nom’ IResult containing the remaining input and the parsed
-/// X86ThreadState64 structure, or a `nom’ error if the parsing fails.
+/// A `nom` IResult containing the remaining input and the parsed
+/// X86ThreadState64 structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
-/// Returns a `nom’ error if the input data is insufficient or malformed.
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_x86_thread_state64(input: &[u8]) -> IResult<&[u8], X86ThreadState64> {
     let (input, rax) = le_u64(input)?;
     let (input, rbx) = le_u64(input)?;
@@ -1339,12 +1339,12 @@ fn parse_x86_thread_state64(input: &[u8]) -> IResult<&[u8], X86ThreadState64> {
 ///
 /// # Returns
 ///
-/// A `nom’ IResult containing the remaining input and the parsed
-/// ARMThreadState64 structure, or a `nom’ error if the parsing fails.
+/// A `nom` IResult containing the remaining input and the parsed
+/// ARMThreadState64 structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
-/// Returns a `nom’ error if the input data is insufficient or malformed.
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_arm_thread_state64(input: &[u8]) -> IResult<&[u8], ARMThreadState64> {
     let (input, r) = count(le_u64, 29)(input)?;
     let (input, fp) = le_u64(input)?;
@@ -1366,12 +1366,12 @@ fn parse_arm_thread_state64(input: &[u8]) -> IResult<&[u8], ARMThreadState64> {
 ///
 /// # Returns
 ///
-/// A `nom’ IResult containing the remaining input and the parsed
-/// PPCThreadState64 structure, or a `nom’ error if the parsing fails.
+/// A `nom` IResult containing the remaining input and the parsed
+/// PPCThreadState64 structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
-/// Returns a `nom’ error if the input data is insufficient or malformed.
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
     let (input, srr0) = le_u64(input)?;
     let (input, srr1) = le_u64(input)?;
