@@ -402,7 +402,7 @@ struct PPCThreadState64 {
 ///
 /// # Arguments
 ///
-/// * `input` - A byte slice representing the start of the Mach-O file.
+/// * `input`: A byte slice representing the start of the Mach-O file.
 ///
 /// # Returns
 ///
@@ -416,7 +416,7 @@ fn parse_magic(input: &[u8]) -> IResult<&[u8], u32> {
 ///
 /// # Arguments
 ///
-/// * `data` - A byte slice to check.
+/// * `data`: A byte slice to check.
 ///
 /// # Returns
 ///
@@ -435,7 +435,7 @@ fn is_macho_file_block(data: &[u8]) -> bool {
 ///
 /// # Arguments
 ///
-/// * `data` - A byte slice to check.
+/// * `data`: A byte slice to check.
 ///
 /// # Returns
 ///
@@ -455,7 +455,7 @@ fn is_fat_macho_file_block(data: &[u8]) -> bool {
 ///
 /// # Arguments
 ///
-/// * `magic` - The magic constant to check.
+/// * `magic`: The magic constant to check.
 ///
 /// # Returns
 ///
@@ -469,7 +469,7 @@ fn is_32_bit(magic: u32) -> bool {
 ///
 /// # Arguments
 ///
-/// * `magic` - The magic constant to check.
+/// * `magic`: The magic constant to check.
 ///
 /// # Returns
 ///
@@ -484,7 +484,7 @@ fn fat_is_32(magic: u32) -> bool {
 ///
 /// # Arguments
 ///
-/// * `magic` - The magic constant to check.
+/// * `magic`: The magic constant to check.
 ///
 /// # Returns
 ///
@@ -499,8 +499,8 @@ fn should_swap_bytes(magic: u32) -> bool {
 ///
 /// # Arguments
 ///
-/// * `address` - The RVA to convert.
-/// * `macho_file` - A reference to the Mach-O file.
+/// * `address`: The RVA to convert.
+/// * `macho_file`: A reference to the Mach-O file.
 ///
 /// # Returns
 ///
@@ -508,7 +508,7 @@ fn should_swap_bytes(magic: u32) -> bool {
 /// otherwise `None`.
 /// # Errors
 ///
-/// * `MachoError::Overflow` - If integer overflow occurs during the
+/// * `MachoError::Overflow`: If integer overflow occurs during the
 /// calculation.
 fn macho_rva_to_offset(
     address: u64,
@@ -540,8 +540,8 @@ fn macho_rva_to_offset(
 ///
 /// # Arguments
 ///
-/// * `offset` - The file offset to convert.
-/// * `macho_file` - A reference to the Mach-O file.
+/// * `offset`: The file offset to convert.
+/// * `macho_file`: A reference to the Mach-O file.
 ///
 /// # Returns
 ///
@@ -550,7 +550,7 @@ fn macho_rva_to_offset(
 ///
 /// # Errors
 ///
-/// * `MachoError::Overflow` - If integer overflow occurs during the
+/// * `MachoError::Overflow`: If integer overflow occurs during the
 /// calculation.
 fn macho_offset_to_rva(
     offset: u64,
@@ -583,7 +583,7 @@ fn macho_offset_to_rva(
 ///
 /// # Arguments
 ///
-/// * `header` - A mutable reference to the 64-bit Mach-O header.
+/// * `header`: A mutable reference to the 64-bit Mach-O header.
 fn swap_mach_header(header: &mut MachOHeader64) {
     header.cputype = BigEndian::read_u32(&header.cputype.to_le_bytes());
     header.cpusubtype = BigEndian::read_u32(&header.cpusubtype.to_le_bytes());
@@ -603,7 +603,7 @@ fn swap_mach_header(header: &mut MachOHeader64) {
 ///
 /// # Arguments
 ///
-/// * `command` - A mutable reference to the Mach-O load command.
+/// * `command`: A mutable reference to the Mach-O load command.
 fn swap_load_command(command: &mut LoadCommand) {
     command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
@@ -614,7 +614,7 @@ fn swap_load_command(command: &mut LoadCommand) {
 ///
 /// # Arguments
 ///
-/// * `segment` - A mutable reference to the 32-bit Mach-O segment command.
+/// * `segment`: A mutable reference to the 32-bit Mach-O segment command.
 fn swap_segment_command(segment: &mut SegmentCommand32) {
     segment.cmd = BigEndian::read_u32(&segment.cmd.to_le_bytes());
     segment.cmdsize = BigEndian::read_u32(&segment.cmdsize.to_le_bytes());
@@ -633,7 +633,7 @@ fn swap_segment_command(segment: &mut SegmentCommand32) {
 ///
 /// # Arguments
 ///
-/// * `segment` - A mutable reference to the 64-bit Mach-O segment command.
+/// * `segment`: A mutable reference to the 64-bit Mach-O segment command.
 fn swap_segment_command_64(segment: &mut SegmentCommand64) {
     segment.cmd = BigEndian::read_u32(&segment.cmd.to_le_bytes());
     segment.cmdsize = BigEndian::read_u32(&segment.cmdsize.to_le_bytes());
@@ -652,7 +652,7 @@ fn swap_segment_command_64(segment: &mut SegmentCommand64) {
 ///
 /// # Arguments
 ///
-/// * `section` - A mutable reference to the 32-bit Mach-O segment section.
+/// * `section`: A mutable reference to the 32-bit Mach-O segment section.
 fn swap_segment_section(section: &mut SegmentSection32) {
     section.addr = BigEndian::read_u32(&section.addr.to_le_bytes());
     section.size = BigEndian::read_u32(&section.size.to_le_bytes());
@@ -670,7 +670,7 @@ fn swap_segment_section(section: &mut SegmentSection32) {
 ///
 /// # Arguments
 ///
-/// * `section` - A mutable reference to the 64-bit Mach-O segment section.
+/// * `section`: A mutable reference to the 64-bit Mach-O segment section.
 fn swap_segment_section_64(section: &mut SegmentSection64) {
     section.addr = BigEndian::read_u64(&section.addr.to_le_bytes());
     section.size = BigEndian::read_u64(&section.size.to_le_bytes());
@@ -689,8 +689,7 @@ fn swap_segment_section_64(section: &mut SegmentSection64) {
 ///
 /// # Arguments
 ///
-/// * `section` - A mutable reference to the Mach-O entry point command
-///   section.
+/// * `section`: A mutable reference to the Mach-O entry point command section.
 fn swap_entry_point_command(section: &mut EntryPointCommand) {
     section.cmd = BigEndian::read_u32(&section.cmd.to_le_bytes());
     section.cmdsize = BigEndian::read_u32(&section.cmdsize.to_le_bytes());
@@ -703,7 +702,7 @@ fn swap_entry_point_command(section: &mut EntryPointCommand) {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw Mach-O header data.
+/// * `input`: A slice of bytes containing the raw Mach-O header data.
 ///
 /// # Returns
 ///
@@ -746,7 +745,7 @@ fn parse_macho_header(input: &[u8]) -> IResult<&[u8], MachOHeader64> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw FAT header data.
+/// * `input`: A slice of bytes containing the raw FAT header data.
 ///
 /// # Returns
 ///
@@ -767,7 +766,7 @@ fn parse_fat_header(input: &[u8]) -> IResult<&[u8], FatHeader> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw 32-bit FAT architecture
+/// * `input`: A slice of bytes containing the raw 32-bit FAT architecture
 ///   data.
 ///
 /// # Returns
@@ -793,7 +792,7 @@ fn parse_fat_arch_32(input: &[u8]) -> IResult<&[u8], FatArch32> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw 64-bit FAT architecture
+/// * `input`: A slice of bytes containing the raw 64-bit FAT architecture
 ///   data.
 ///
 /// # Returns
@@ -823,7 +822,7 @@ fn parse_fat_arch_64(input: &[u8]) -> IResult<&[u8], FatArch64> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw LoadCommand data.
+/// * `input`: A slice of bytes containing the raw LoadCommand data.
 ///
 /// # Returns
 ///
@@ -845,8 +844,7 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw 32-bit segment command
-///   data.
+/// * `input`: A slice of bytes containing the raw 32-bit segment command data.
 ///
 /// # Returns
 ///
@@ -892,8 +890,7 @@ fn parse_segment_command(input: &[u8]) -> IResult<&[u8], SegmentCommand32> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw 64-bit segment command
-///   data.
+/// * `input`: A slice of bytes containing the raw 64-bit segment command data.
 ///
 /// # Returns
 ///
@@ -939,7 +936,7 @@ fn parse_segment_command_64(input: &[u8]) -> IResult<&[u8], SegmentCommand64> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw 32-bit section data.
+/// * `input`: A slice of bytes containing the raw 32-bit section data.
 ///
 /// # Returns
 ///
@@ -985,7 +982,7 @@ fn parse_section(input: &[u8]) -> IResult<&[u8], SegmentSection32> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw 64-bit section data.
+/// * `input`: A slice of bytes containing the raw 64-bit section data.
 ///
 /// # Returns
 ///
@@ -1033,7 +1030,7 @@ fn parse_section_64(input: &[u8]) -> IResult<&[u8], SegmentSection64> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw thread command data.
+/// * `input`: A slice of bytes containing the raw thread command data.
 ///
 /// # Returns
 ///
@@ -1057,7 +1054,7 @@ fn parse_thread_command(input: &[u8]) -> IResult<&[u8], ThreadCommand> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw entry point command data.
+/// * `input`: A slice of bytes containing the raw entry point command data.
 ///
 /// # Returns
 ///
@@ -1082,7 +1079,7 @@ fn parse_entry_point_command(
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw X86 thread state data.
+/// * `input`: A slice of bytes containing the raw X86 thread state data.
 ///
 /// # Returns
 ///
@@ -1138,7 +1135,7 @@ fn parse_x86_thread_state(input: &[u8]) -> IResult<&[u8], X86ThreadState> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw ARM thread state data.
+/// * `input`: A slice of bytes containing the raw ARM thread state data.
 ///
 /// # Returns
 ///
@@ -1163,7 +1160,7 @@ fn parse_arm_thread_state(input: &[u8]) -> IResult<&[u8], ARMThreadState> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw PPC thread state data.
+/// * `input`: A slice of bytes containing the raw PPC thread state data.
 ///
 /// # Returns
 ///
@@ -1195,7 +1192,7 @@ fn parse_ppc_thread_state(input: &[u8]) -> IResult<&[u8], PPCThreadState> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw SPARC thread state data.
+/// * `input`: A slice of bytes containing the raw SPARC thread state data.
 ///
 /// # Returns
 ///
@@ -1221,7 +1218,7 @@ fn parse_sparc_thread_state(input: &[u8]) -> IResult<&[u8], SPARCThreadState> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw M68K thread state data.
+/// * `input`: A slice of bytes containing the raw M68K thread state data.
 ///
 /// # Returns
 ///
@@ -1246,7 +1243,7 @@ fn parse_m68k_thread_state(input: &[u8]) -> IResult<&[u8], M68KThreadState> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw M88K thread state data.
+/// * `input`: A slice of bytes containing the raw M88K thread state data.
 ///
 /// # Returns
 ///
@@ -1270,7 +1267,7 @@ fn parse_m88k_thread_state(input: &[u8]) -> IResult<&[u8], M88KThreadState> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw X86 64-bit thread state
+/// * `input`: A slice of bytes containing the raw X86 64-bit thread state
 ///   data.
 ///
 /// # Returns
@@ -1337,7 +1334,7 @@ fn parse_x86_thread_state64(input: &[u8]) -> IResult<&[u8], X86ThreadState64> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw ARM 64-bit thread state
+/// * `input`: A slice of bytes containing the raw ARM 64-bit thread state
 ///   data.
 ///
 /// # Returns
@@ -1364,7 +1361,7 @@ fn parse_arm_thread_state64(input: &[u8]) -> IResult<&[u8], ARMThreadState64> {
 ///
 /// # Arguments
 ///
-/// * `input` - A slice of bytes containing the raw PPC 64-bit thread state
+/// * `input`: A slice of bytes containing the raw PPC 64-bit thread state
 ///   data.
 ///
 /// # Returns
@@ -1394,9 +1391,9 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
 ///
 /// # Arguments
 ///
-/// * `command_data` - The raw byte data of the segment command.
-/// * `size` - The size of the segment command data.
-/// * `macho_file` - Mutable reference to the protobuf representation of the
+/// * `command_data`: The raw byte data of the segment command.
+/// * `size`: The size of the segment command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
 ///   Mach-O file.
 ///
 /// # Returns
@@ -1406,12 +1403,12 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
 ///
 /// # Errors
 ///
-/// * `FileSectionTooSmall` - Returned when the segment size is smaller than
-///   the expected SegmentCommand32 struct size.
-/// * `ParsingError` - Returned when there is an error parsing the segment
-///   command data.
-/// * `MissingHeaderValue` - Returned when the "magic" header value is missing,
-///   needed for determining if bytes should be swapped.
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected SegmentCommand32 struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   segment command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
 fn handle_segment_command(
     command_data: &[u8],
     size: usize,
@@ -1508,9 +1505,9 @@ fn handle_segment_command(
 ///
 /// # Arguments
 ///
-/// * `command_data` - The raw byte data of the segment command.
-/// * `size` - The size of the segment command data.
-/// * `macho_file` - Mutable reference to the protobuf representation of the
+/// * `command_data`: The raw byte data of the segment command.
+/// * `size`: The size of the segment command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
 ///   Mach-O file.
 ///
 /// # Returns
@@ -1520,12 +1517,12 @@ fn handle_segment_command(
 ///
 /// # Errors
 ///
-/// * `FileSectionTooSmall` - Returned when the segment size is smaller than
-///   the expected SegmentCommand64 struct size.
-/// * `ParsingError` - Returned when there is an error parsing the segment
-///   command data.
-/// * `MissingHeaderValue` - Returned when the "magic" header value is missing,
-///   needed for determining if bytes should be swapped.
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected SegmentCommand64 struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   segment command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
 fn handle_segment_command_64(
     command_data: &[u8],
     size: usize,
@@ -1624,9 +1621,9 @@ fn handle_segment_command_64(
 ///
 /// # Arguments
 ///
-/// * `command_data` - The raw byte data of the UNIX thread command.
-/// * `size` - The size of the UNIX thread command data.
-/// * `macho_file` - Mutable reference to the protobuf representation of the
+/// * `command_data`: The raw byte data of the UNIX thread command.
+/// * `size`: The size of the UNIX thread command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
 ///   Mach-O file.
 ///
 /// # Returns
@@ -1636,14 +1633,15 @@ fn handle_segment_command_64(
 ///
 /// # Errors
 ///
-/// * `FileSectionTooSmall` - If the provided size is smaller than the
-///   `ThreadCommand` struct.
-/// * `ParsingError` - Encountered when there's an error parsing the UNIX
-///   thread command data.
-/// * `MissingHeaderValue` - Thrown if "cputype" or "magic" header values are
-///   missing.
-/// * `Overflow` - If there is an overflow during command size computation.
-/// * `UnsupportedCPUType` - If the CPU type is not supported.
+/// * `MachoError::FileSectionTooSmall`: If the provided size is smaller than
+///   the `ThreadCommand` struct.
+/// * `MachoError::ParsingError`: Encountered when there's an error parsing the
+///   UNIX thread command data.
+/// * `MachoError::MissingHeaderValue`: Thrown if "cputype" or "magic" header
+///   values are missing.
+/// * `MachoError::Overflow`: If there is an overflow during command size
+///   computation.
+/// * `MachoError::UnsupportedCPUType`: If the CPU type is not supported.
 fn handle_unixthread(
     command_data: &[u8],
     size: usize,
@@ -1789,9 +1787,9 @@ fn handle_unixthread(
 ///
 /// # Arguments
 ///
-/// * `command_data` - The raw byte data of the main command.
-/// * `size` - The size of the main command data.
-/// * `macho_file` - Mutable reference to the protobuf representation of the
+/// * `command_data`: The raw byte data of the main command.
+/// * `size`: The size of the main command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
 ///   Mach-O file.
 ///
 /// # Returns
@@ -1801,12 +1799,12 @@ fn handle_unixthread(
 ///
 /// # Errors
 ///
-/// * `FileSectionTooSmall` - If the provided size is smaller than the
-///   `EntryPointCommand` struct.
-/// * `ParsingError` - Encountered when there's an error parsing the main
-///   command data.
-/// * `MissingHeaderValue` - Thrown if the "magic" header value is missing,
-///   needed to decide if bytes should be swapped.
+/// * `MachoError::FileSectionTooSmall`: If the provided size is smaller than
+///   the `EntryPointCommand` struct.
+/// * `MachoError::ParsingError`: Encountered when there's an error parsing the
+///   main command data.
+/// * `MachoError::MissingHeaderValue`: Thrown if the "magic" header value is
+///   missing, needed to decide if bytes should be swapped.
 fn handle_main(
     command_data: &[u8],
     size: usize,
@@ -1854,12 +1852,12 @@ fn handle_main(
 ///
 /// # Arguments
 ///
-/// * `cmd` - The type of the load command.
-/// * `cmdsize` - The size of the command data.
-/// * `command_data` - The raw byte data of the command.
-/// * `macho_file` - Mutable reference to the protobuf representation of the
+/// * `cmd`: The type of the load command.
+/// * `cmdsize`: The size of the command data.
+/// * `command_data`: The raw byte data of the command.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
 ///   Mach-O file.
-/// * `process_segments` - Flag that decides if segment commands should be
+/// * `process_segments`: Flag that decides if segment commands should be
 ///   processed.
 ///
 /// # Returns
@@ -1919,10 +1917,10 @@ fn handle_command(
 ///
 /// # Arguments
 ///
-/// * `data` - The raw byte data of the Mach-O file.
-/// * `macho_file` - The protobuf representation of the Mach-O file to be
+/// * `data`: The raw byte data of the Mach-O file.
+/// * `macho_file`: The protobuf representation of the Mach-O file to be
 ///   populated.
-/// * `process_segments` - A flag that decides if segments should be processed.
+/// * `process_segments`: A flag that decides if segments should be processed.
 ///
 /// # Returns
 ///
@@ -1931,12 +1929,12 @@ fn handle_command(
 ///
 /// # Errors
 ///
-/// * `MissingHeaderValue` - Occurs if essential header values like "magic" or
-///   "ncmds" are missing.
-/// * `Overflow` - Arises if there's an arithmetic overflow during command
-///   offset computation or remaining data size calculation.
-/// * `ParsingError` - Captures any error encountered during the parsing of
-///   load commands from the Mach-O file.
+/// * `MachoError::MissingHeaderValue`: Occurs if essential header values like
+///   "magic" or "ncmds" are missing.
+/// * `MachoError::Overflow`: Arises if there's an arithmetic overflow during
+///   command offset computation or remaining data size calculation.
+/// * `MachoError::ParsingError`: Captures any error encountered during the
+///   parsing of load commands from the Mach-O file.
 ///
 /// The function also propagates errors from the `handle_command` function.
 fn parse_macho_commands(
@@ -2030,10 +2028,10 @@ fn parse_macho_commands(
 ///
 /// # Errors
 ///
-/// * `FileTooSmall`: This error is thrown if the provided data is too small to
-///   contain a Mach-O header.
-/// * `ParsingError`: This error occurs when there's a problem parsing the
-///   Mach-O header.
+/// * `MachoError::FileTooSmall`: This error is thrown if the provided data is
+///   too small to contain a Mach-O header.
+/// * `MachoError::ParsingError`: This error occurs when there's a problem
+///   parsing the Mach-O header.
 ///
 /// It also propagates errors from `parse_macho_commands`.
 #[doc(hidden)]
@@ -2094,10 +2092,10 @@ pub fn parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
 ///
 /// # Errors
 ///
-/// * `ParsingError`: Occurs if there is an issue parsing the FAT header or the
-///   architecture data.
-/// * `Overflow`: This error is raised if the offset index or the end index
-///   goes beyond the size of the data array.
+/// * `MachoError::ParsingError`: Occurs if there is an issue parsing the FAT
+///   header or the architecture data.
+/// * `MachoError::Overflow`: This error is raised if the offset index or the
+///   end index goes beyond the size of the data array.
 ///
 /// It also propagates errors from `parse_macho_file`.
 #[doc(hidden)]
