@@ -65,9 +65,9 @@ pub use variables::Variable;
 pub use variables::VariableError;
 
 #[cfg(fuzzing)]
-pub use modules::macho::pub_parse_fat_macho_file;
+pub use modules::macho::parse_fat_macho_file;
 #[cfg(fuzzing)]
-pub use modules::macho::pub_parse_macho_file;
+pub use modules::macho::parse_macho_file;
 #[cfg(fuzzing)]
 pub use modules::protos::macho::Macho;
 

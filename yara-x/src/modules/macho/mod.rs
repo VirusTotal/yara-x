@@ -19,8 +19,8 @@ use byteorder::{BigEndian, ByteOrder};
 use nom::{bytes::complete::take, multi::count, number::complete::*, IResult};
 use thiserror::Error;
 
-/// Mach-O file needs to have at least header of size 28 to be considered correct
-/// Real minimum size of Mach-O file would be higher
+/// Mach-O file needs to have at least header of size 28 to be considered
+/// correct Real minimum size of Mach-O file would be higher
 const VALID_MACHO_LENGTH: usize = 28;
 
 /// Define Mach-O constats used in parsing
@@ -53,8 +53,9 @@ const LC_UNIXTHREAD: u32 = 0x00000005;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_MAIN: u32 = 0x80000028;
 
-/// Add strongly-typed error system used in code
-/// Represents all possible errors that can occur during Mach-O parsing.
+/// Enum that provides strongly-typed error system used in code
+/// Represents all possible errors that can occur during Mach-O parsing
+/// Each variant provides specific error details.
 #[derive(Error, Debug)]
 pub enum MachoError {
     #[error("File section is too small to contain `{0}`")]
@@ -79,7 +80,8 @@ pub enum MachoError {
 /// Mach-O file structures that represent the file
 /// and all relevant information about the file
 
-/// 32bit Mach-O header representation
+/// `MachoHeader32`: Represents the header of a 32-bit Mach-O file.
+/// Fields: magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct MachOHeader32 {
@@ -92,7 +94,9 @@ struct MachOHeader32 {
     flags: u32,
 }
 
-/// 64bit Mach-O header representation
+/// `MachoHeader64`: Represents the header of a 64-bit Mach-O file.
+/// Fields: magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags,
+/// reserved
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct MachOHeader64 {
@@ -106,7 +110,8 @@ struct MachOHeader64 {
     reserved: u32,
 }
 
-/// Fat Mach-O header representation
+/// `FatHeader`: Header for a fat Mach-O binary containing multiple
+/// architectures. Fields: magic, nfat_arch
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct FatHeader {
@@ -114,7 +119,8 @@ struct FatHeader {
     nfat_arch: u32,
 }
 
-/// 32bit FAT architecture Mach-O representation
+/// `FatArch32`: Describes a 32-bit architecture in a fat binary.
+/// Fields: cputype, cpusubtype, offset, size, align
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct FatArch32 {
@@ -125,7 +131,8 @@ struct FatArch32 {
     align: u32,
 }
 
-/// 64bit FAT architecture Mach-O representation
+/// `FatArch64`: Describes a 64-bit architecture in a fat binary.
+/// Fields: cputype, cpusubtype, offset, size, align, reserved
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct FatArch64 {
@@ -137,7 +144,8 @@ struct FatArch64 {
     reserved: u32,
 }
 
-/// Load Command representation
+/// `LoadCommand`: Represents a load command in the Mach-O file.
+/// Fields: cmd, cmdsize
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct LoadCommand {
@@ -145,7 +153,9 @@ struct LoadCommand {
     cmdsize: u32,
 }
 
-/// Segment Command 32bit representation
+/// `SegmentCommand32`: Represents a 32-bit segment command in the Mach-O file.
+/// Fields: cmd, cmdsize, segname, vmaddr, vmsize, fileoff, filesize, maxprot,
+/// initprot, nsects, flags
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct SegmentCommand32 {
@@ -162,7 +172,9 @@ struct SegmentCommand32 {
     flags: u32,
 }
 
-/// Segment Command 64bit representation
+/// `SegmentCommand64`: Represents a 64-bit segment command in the Mach-O file.
+/// Fields: cmd, cmdsize, segname, vmaddr, vmsize, fileoff, filesize, maxprot,
+/// initprot, nsects, flags
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct SegmentCommand64 {
@@ -179,7 +191,9 @@ struct SegmentCommand64 {
     flags: u32,
 }
 
-/// Segment Section 32bit representation
+/// `SegmentSection32`: Represents a 32-bit section within a segment.
+/// Fields: sectname, segname, addr, size, offset, align, reloff, nreloc,
+/// flags, reserved1, reserved2
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct SegmentSection32 {
@@ -196,7 +210,9 @@ struct SegmentSection32 {
     reserved2: u32,
 }
 
-/// Segment section 64bit representation
+/// `SegmentSection64`: Represents a 64-bit section within a segment.
+/// Fields: sectname, segname, addr, size, offset, align, reloff, nreloc,
+/// flags, reserved1, reserved2, reserved3
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct SegmentSection64 {
@@ -214,7 +230,8 @@ struct SegmentSection64 {
     reserved3: u32,
 }
 
-/// Thread Command representation
+/// `ThreadCommand`: Represents a thread command in the Mach-O file.
+/// Fields: cmd, cmdsize, flavor, count
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct ThreadCommand {
@@ -224,7 +241,8 @@ struct ThreadCommand {
     count: u32,
 }
 
-/// Entry Point representation
+/// `EntryPointCommand`: Represents the entry point command in the Mach-O file.
+/// Fields: cmd, cmdsize, entryoff, stacksize
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 struct EntryPointCommand {
@@ -234,7 +252,9 @@ struct EntryPointCommand {
     stacksize: u64,
 }
 
-/// X86 CPU ThreadState representation
+/// `X86ThreadState`: Represents the state of an x86 thread in the Mach-O file.
+/// Fields: eax, ebx, ecx, edx, edi, esi, ebp, esp, ss, eflags, eip, cs, ds,
+/// es, fs, gs
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct X86ThreadState {
@@ -256,7 +276,8 @@ struct X86ThreadState {
     gs: u32,
 }
 
-/// ARM CPU ThreadState representation
+/// `ARMThreadState`: Represents the state of an ARM thread in a Mach-O file.
+/// Fields: r, sp, lr, pc, cpsr
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct ARMThreadState {
@@ -267,7 +288,8 @@ struct ARMThreadState {
     cpsr: u32,
 }
 
-/// SPARC CPU ThreadState representation
+/// `SPARCThreadState`: Represents the state of a SPARC thread in a Mach-O
+/// file. Fields: psr, pc, npc, y, g, o
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct SPARCThreadState {
@@ -279,7 +301,8 @@ struct SPARCThreadState {
     o: Vec<u32>,
 }
 
-/// PPC CPU ThreadState representation
+/// `PPCThreadState`: Represents the state of a PowerPC thread in a Mach-O
+/// file. Fields: srr0, srr1, r, cr, xer, lr, ctr, mq, vrsavead
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct PPCThreadState {
@@ -294,7 +317,8 @@ struct PPCThreadState {
     vrsavead: u32,
 }
 
-/// M68K ThreadState CPU representation
+/// `M68KThreadState`: Represents the state of an M68K thread in a Mach-O file.
+/// Fields: dreg, areg, pad, sr, pc
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct M68KThreadState {
@@ -305,7 +329,8 @@ struct M68KThreadState {
     pc: u32,
 }
 
-/// M88K CPU ThreadState representation
+/// `M88KThreadState`: Represents the state of an M88K thread in a Mach-O file.
+/// Fields: r, xip, xip_in_bd, nip
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct M88KThreadState {
@@ -315,7 +340,9 @@ struct M88KThreadState {
     nip: u32,
 }
 
-/// X86 64bit CPU ThreadState representation
+/// `X86ThreadState64`: Represents the state of an x86-64 thread in a Mach-O
+/// file. Fields: rax, rbx, rcx, rdx, rdi, rsi, rbp, rsp, r8, r9, r10, r11,
+/// r12, r13, r14, r15, rip, rflags, cs, fs, gs
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct X86ThreadState64 {
@@ -342,7 +369,8 @@ struct X86ThreadState64 {
     gs: u64,
 }
 
-/// ARM64 CPU ThreadState representation
+/// `ARMThreadState64`: Represents the state of an ARM64 thread in a Mach-O
+/// file. Fields: r, fp, lr, sp, pc, cpsr
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct ARMThreadState64 {
@@ -354,7 +382,8 @@ struct ARMThreadState64 {
     cpsr: u32,
 }
 
-/// PPC64 CPU ThreadState representation
+/// `PPCThreadState64`: Represents the state of a PowerPC64 thread in a Mach-O
+/// file. Fields: srr0, srr1, r, cr, xer, lr, ctr, vrsave
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct PPCThreadState64 {
@@ -368,7 +397,8 @@ struct PPCThreadState64 {
     vrsave: u32,
 }
 
-/// Parse the magic constant from a Mach-O file.
+/// Parse the magic constant from a Mach-O file. The magic constant identifies
+/// the file as a Mach-O file and indicates its endianness and architecture.
 ///
 /// # Arguments
 ///
@@ -376,7 +406,8 @@ struct PPCThreadState64 {
 ///
 /// # Returns
 ///
-/// A tuple consisting of the remaining bytes and the parsed magic constant.
+/// An `IResult` with the remaining bytes after reading the magic constant
+/// and the parsed 32-bit magic constant itself.
 fn parse_magic(input: &[u8]) -> IResult<&[u8], u32> {
     le_u32(input)
 }
@@ -389,7 +420,8 @@ fn parse_magic(input: &[u8]) -> IResult<&[u8], u32> {
 ///
 /// # Returns
 ///
-/// `true` if the data starts with a file Mach-O magic constant, `false` otherwise.
+/// `true` if the data starts with a file Mach-O magic constant, `false`
+/// otherwise.
 fn is_macho_file_block(data: &[u8]) -> bool {
     match parse_magic(data) {
         Ok((_, magic)) => {
@@ -407,7 +439,8 @@ fn is_macho_file_block(data: &[u8]) -> bool {
 ///
 /// # Returns
 ///
-/// `true` if the data starts with a FAT Mach-O magic constant, `false` otherwise.
+/// `true` if the data starts with a FAT Mach-O magic constant, `false`
+/// otherwise.
 fn is_fat_macho_file_block(data: &[u8]) -> bool {
     match parse_magic(data) {
         Ok((_, magic)) => matches!(
@@ -426,7 +459,8 @@ fn is_fat_macho_file_block(data: &[u8]) -> bool {
 ///
 /// # Returns
 ///
-/// `true` if the magic constant represents a 32-bit Mach-O file, `false` otherwise.
+/// `true` if the magic constant represents a 32-bit Mach-O file, `false`
+/// otherwise.
 fn is_32_bit(magic: u32) -> bool {
     magic == MH_MAGIC || magic == MH_CIGAM
 }
@@ -439,7 +473,8 @@ fn is_32_bit(magic: u32) -> bool {
 ///
 /// # Returns
 ///
-/// `true` if the magic constant represents a 32-bit FAT arch, `false` otherwise.
+/// `true` if the magic constant represents a 32-bit FAT arch, `false`
+/// otherwise.
 fn fat_is_32(magic: u32) -> bool {
     magic == FAT_MAGIC || magic == FAT_CIGAM
 }
@@ -453,12 +488,14 @@ fn fat_is_32(magic: u32) -> bool {
 ///
 /// # Returns
 ///
-/// `true` if bytes should be swapped (BigEndian format), `false` if they're already in LittleEndian format.
+/// `true` if bytes should be swapped (BigEndian format), `false` if they're
+/// already in LittleEndian format.
 fn should_swap_bytes(magic: u32) -> bool {
     matches!(magic, MH_CIGAM | MH_CIGAM_64 | FAT_CIGAM | FAT_CIGAM_64)
 }
 
-/// Convert a Mach-O Relative Virtual Address (RVA) to an offset within the file.
+/// Convert a Mach-O Relative Virtual Address (RVA) to an offset within the
+/// file.
 ///
 /// # Arguments
 ///
@@ -467,7 +504,12 @@ fn should_swap_bytes(magic: u32) -> bool {
 ///
 /// # Returns
 ///
-/// An `Option<u64>` which is `Some` if a corresponding offset is found, otherwise `None`.
+/// An `Option<u64>` which is `Some` if a corresponding offset is found,
+/// otherwise `None`.
+/// # Errors
+///
+/// * `MachoError::Overflow` - If integer overflow occurs during the
+/// calculation.
 fn macho_rva_to_offset(
     address: u64,
     macho_file: &File,
@@ -503,7 +545,13 @@ fn macho_rva_to_offset(
 ///
 /// # Returns
 ///
-/// An `Option<u64>` which is `Some` if a corresponding RVA is found, otherwise `None`.
+/// An `Option<u64>` which is `Some` if a corresponding RVA is found, otherwise
+/// `None`.
+///
+/// # Errors
+///
+/// * `MachoError::Overflow` - If integer overflow occurs during the
+/// calculation.
 fn macho_offset_to_rva(
     offset: u64,
     macho_file: &File,
@@ -530,11 +578,12 @@ fn macho_offset_to_rva(
     Ok(None)
 }
 
-/// Swap the endianness of fields within a 64-bit Mach-O header from BigEndian to LittleEndian.
+/// Swaps the endianness of fields within a 64-bit Mach-O header from BigEndian
+/// to LittleEndian. This operation is performed in-place.
 ///
 /// # Arguments
 ///
-/// * `header` - A mutable reference to the 64-bit Mach-O header to be swapped.
+/// * `header` - A mutable reference to the 64-bit Mach-O header.
 fn swap_mach_header(header: &mut MachOHeader64) {
     header.cputype = BigEndian::read_u32(&header.cputype.to_le_bytes());
     header.cpusubtype = BigEndian::read_u32(&header.cpusubtype.to_le_bytes());
@@ -549,21 +598,23 @@ fn swap_mach_header(header: &mut MachOHeader64) {
     }
 }
 
-/// Swap the endianness of fields within a Mach-O load command from BigEndian to LittleEndian.
+/// Swaps the endianness of fields within a Mach-O load command from BigEndian
+/// to LittleEndian in-place.
 ///
 /// # Arguments
 ///
-/// * `command` - A mutable reference to the load command to be swapped.
+/// * `command` - A mutable reference to the Mach-O load command.
 fn swap_load_command(command: &mut LoadCommand) {
     command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
-/// Swap the endianness of fields within a 32-bit Mach-O segment command from BigEndian to LittleEndian.
+/// Swaps the endianness of fields within a 32-bit Mach-O segment command from
+/// BigEndian to LittleEndian in-place.
 ///
 /// # Arguments
 ///
-/// * `segment` - A mutable reference to the 32-bit segment command to be swapped.
+/// * `segment` - A mutable reference to the 32-bit Mach-O segment command.
 fn swap_segment_command(segment: &mut SegmentCommand32) {
     segment.cmd = BigEndian::read_u32(&segment.cmd.to_le_bytes());
     segment.cmdsize = BigEndian::read_u32(&segment.cmdsize.to_le_bytes());
@@ -577,11 +628,12 @@ fn swap_segment_command(segment: &mut SegmentCommand32) {
     segment.flags = BigEndian::read_u32(&segment.flags.to_le_bytes());
 }
 
-/// Swap the endianness of fields within a 64-bit Mach-O segment command from BigEndian to LittleEndian.
+/// Swaps the endianness of fields within a 64-bit Mach-O segment command from
+/// BigEndian to LittleEndian in-place.
 ///
 /// # Arguments
 ///
-/// * `segment` - A mutable reference to the 64-bit segment command to be swapped.
+/// * `segment` - A mutable reference to the 64-bit Mach-O segment command.
 fn swap_segment_command_64(segment: &mut SegmentCommand64) {
     segment.cmd = BigEndian::read_u32(&segment.cmd.to_le_bytes());
     segment.cmdsize = BigEndian::read_u32(&segment.cmdsize.to_le_bytes());
@@ -595,11 +647,12 @@ fn swap_segment_command_64(segment: &mut SegmentCommand64) {
     segment.flags = BigEndian::read_u32(&segment.flags.to_le_bytes());
 }
 
-/// Swap the endianness of fields within a 32-bit Mach-O segment section from BigEndian to LittleEndian.
+/// Swaps the endianness of fields within a 32-bit Mach-O segment section from
+/// BigEndian to LittleEndian in-place.
 ///
 /// # Arguments
 ///
-/// * `section` - A mutable reference to the 32-bit segment section to be swapped.
+/// * `section` - A mutable reference to the 32-bit Mach-O segment section.
 fn swap_segment_section(section: &mut SegmentSection32) {
     section.addr = BigEndian::read_u32(&section.addr.to_le_bytes());
     section.size = BigEndian::read_u32(&section.size.to_le_bytes());
@@ -612,11 +665,12 @@ fn swap_segment_section(section: &mut SegmentSection32) {
     section.reserved2 = BigEndian::read_u32(&section.reserved2.to_le_bytes());
 }
 
-/// Swap the endianness of fields within a 64-bit Mach-O segment section from BigEndian to LittleEndian.
+/// Swaps the endianness of fields within a 64-bit Mach-O segment section from
+/// BigEndian to LittleEndian in-place.
 ///
 /// # Arguments
 ///
-/// * `section` - A mutable reference to the 64-bit segment section to be swapped.
+/// * `section` - A mutable reference to the 64-bit Mach-O segment section.
 fn swap_segment_section_64(section: &mut SegmentSection64) {
     section.addr = BigEndian::read_u64(&section.addr.to_le_bytes());
     section.size = BigEndian::read_u64(&section.size.to_le_bytes());
@@ -630,11 +684,13 @@ fn swap_segment_section_64(section: &mut SegmentSection64) {
     section.reserved3 = BigEndian::read_u32(&section.reserved3.to_le_bytes());
 }
 
-/// Swap the endianness of fields within a Mach-O entrypoint command section from BigEndian to LittleEndian.
+/// Swaps the endianness of fields within a Mach-O entry point command from
+/// BigEndian to LittleEndian in-place.
 ///
 /// # Arguments
 ///
-/// * `section` - A mutable reference to the entrypoint command section to be swapped.
+/// * `section` - A mutable reference to the Mach-O entry point command
+///   section.
 fn swap_entry_point_command(section: &mut EntryPointCommand) {
     section.cmd = BigEndian::read_u32(&section.cmd.to_le_bytes());
     section.cmdsize = BigEndian::read_u32(&section.cmdsize.to_le_bytes());
@@ -642,16 +698,21 @@ fn swap_entry_point_command(section: &mut EntryPointCommand) {
     section.stacksize = BigEndian::read_u64(&section.stacksize.to_le_bytes());
 }
 
-/// Parse the Mach-O 64-bit header. This can accomodate both 32 and 64bit Mach-O files.
+/// Parse the Mach-O 64-bit header. Capable of handling both 32-bit and 64-bit
+/// formats.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the Mach-O header data.
+/// * `input` - A slice of bytes containing the raw Mach-O header data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed MachOHeader64 structure,
-/// or an error.
+/// A `nom` IResult containing either the remaining input and the parsed
+/// MachOHeader64 structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_macho_header(input: &[u8]) -> IResult<&[u8], MachOHeader64> {
     let (input, magic) = parse_magic(input)?;
     let (input, cputype) = le_u32(input)?;
@@ -680,32 +741,43 @@ fn parse_macho_header(input: &[u8]) -> IResult<&[u8], MachOHeader64> {
     ))
 }
 
-/// Parse the FAT header.
+/// Parse the FAT header of a Mach-O binary, providing a structured
+/// representation.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the FAT header data.
+/// * `input` - A slice of bytes containing the raw FAT header data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed FatHeader structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed FatHeader
+/// structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_fat_header(input: &[u8]) -> IResult<&[u8], FatHeader> {
     let (input, magic) = be_u32(input)?;
     let (input, nfat_arch) = be_u32(input)?;
     Ok((input, FatHeader { magic, nfat_arch }))
 }
 
-/// Parse the FAT architecture for 32-bit.
+/// Parse the 32-bit FAT architecture data, offering insights into the binary's
+/// structure.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the 32-bit FAT architecture data.
+/// * `input` - A slice of bytes containing the raw 32-bit FAT architecture
+///   data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed FatArch32 structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed FatArch32
+/// structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_fat_arch_32(input: &[u8]) -> IResult<&[u8], FatArch32> {
     let (input, cputype) = be_u32(input)?;
     let (input, cpusubtype) = be_u32(input)?;
@@ -716,16 +788,22 @@ fn parse_fat_arch_32(input: &[u8]) -> IResult<&[u8], FatArch32> {
     Ok((input, FatArch32 { cputype, cpusubtype, offset, size, align }))
 }
 
-/// Parse the FAT architecture for 64-bit.
+/// Parse the 64-bit FAT architecture data to understand the binary's layout
+/// and characteristics.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the 64-bit FAT architecture data.
+/// * `input` - A slice of bytes containing the raw 64-bit FAT architecture
+///   data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed FatArch64 structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed FatArch64
+/// structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_fat_arch_64(input: &[u8]) -> IResult<&[u8], FatArch64> {
     let (input, cputype) = be_u32(input)?;
     let (input, cpusubtype) = be_u32(input)?;
@@ -740,32 +818,44 @@ fn parse_fat_arch_64(input: &[u8]) -> IResult<&[u8], FatArch64> {
     ))
 }
 
-/// Parse the Mach-O LoadCommand.
+/// Parse a Mach-O LoadCommand, transforming raw bytes into a structured
+/// format.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the LoadCommand data.
+/// * `input` - A slice of bytes containing the raw LoadCommand data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed LoadCommand structure,
-/// or an error.
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// LoadCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
 
     Ok((input, LoadCommand { cmd, cmdsize }))
 }
-/// Parse the Mach-O 32-bit segment command.
+
+/// Parse the 32-bit segment command of a Mach-O file, offering a structured
+/// view of its content.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the 32-bit segment command data.
+/// * `input` - A slice of bytes containing the raw 32-bit segment command
+///   data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed SegmentCommand32 structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// SegmentCommand32 structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_segment_command(input: &[u8]) -> IResult<&[u8], SegmentCommand32> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
@@ -797,16 +887,22 @@ fn parse_segment_command(input: &[u8]) -> IResult<&[u8], SegmentCommand32> {
     ))
 }
 
-/// Parse the Mach-O 64-bit segment command.
+/// Parse the 64-bit segment command, enabling a detailed examination of the
+/// Mach-O file’s segments.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the 64-bit segment command data.
+/// * `input` - A slice of bytes containing the raw 64-bit segment command
+///   data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed SegmentCommand64 structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// SegmentCommand64 structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_segment_command_64(input: &[u8]) -> IResult<&[u8], SegmentCommand64> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
@@ -838,16 +934,21 @@ fn parse_segment_command_64(input: &[u8]) -> IResult<&[u8], SegmentCommand64> {
     ))
 }
 
-/// Parse the Mach-O 32-bit section.
+/// Parse a Mach-O 32-bit section, providing a detailed, structured format of
+/// the section’s content.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the 32-bit section data.
+/// * `input` - A slice of bytes containing the raw 32-bit section data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed SegmentSection32 structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// SegmentSection32 structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_section(input: &[u8]) -> IResult<&[u8], SegmentSection32> {
     let (input, sectname) = take(16usize)(input)?;
     let (input, segname) = take(16usize)(input)?;
@@ -879,16 +980,21 @@ fn parse_section(input: &[u8]) -> IResult<&[u8], SegmentSection32> {
     ))
 }
 
-/// Parse the Mach-O 64-bit section.
+/// Parse a Mach-O 64-bit section, enabling a structured examination of the
+/// content.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the 64-bit section data.
+/// * `input` - A slice of bytes containing the raw 64-bit section data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed SegmentSection64 structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// SegmentSection64 structure, or a `nom’ error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_section_64(input: &[u8]) -> IResult<&[u8], SegmentSection64> {
     let (input, sectname) = take(16usize)(input)?;
     let (input, segname) = take(16usize)(input)?;
@@ -922,16 +1028,21 @@ fn parse_section_64(input: &[u8]) -> IResult<&[u8], SegmentSection64> {
     ))
 }
 
-/// Parse the Mach-O thread command.
+/// Parse the Mach-O thread command, offering insights into the thread’s
+/// attributes and states.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the thread command data.
+/// * `input` - A slice of bytes containing the raw thread command data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed ThreadCommand structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed ThreadCommand
+/// structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_thread_command(input: &[u8]) -> IResult<&[u8], ThreadCommand> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
@@ -941,16 +1052,21 @@ fn parse_thread_command(input: &[u8]) -> IResult<&[u8], ThreadCommand> {
     Ok((input, ThreadCommand { cmd, cmdsize, flavor, count }))
 }
 
-/// Parse the Mach-O entry point command.
+/// Parse the Mach-O entry point command, providing a structured representation
+/// of the data.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the entry point command data.
+/// * `input` - A slice of bytes containing the raw entry point command data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed EntryPointCommand structure,
-/// or an error.
+/// A `nom` IResult containing either the remaining input and the parsed
+/// EntryPointCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_entry_point_command(
     input: &[u8],
 ) -> IResult<&[u8], EntryPointCommand> {
@@ -962,16 +1078,20 @@ fn parse_entry_point_command(
     Ok((input, EntryPointCommand { cmd, cmdsize, entryoff, stacksize }))
 }
 
-/// Parse the thread state for X86 CPU.
+/// Parse the X86 thread state data, offering insights into the CPU's state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the X86 thread state data.
+/// * `input` - A slice of bytes containing the raw X86 thread state data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed X86ThreadState structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// X86ThreadState structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_x86_thread_state(input: &[u8]) -> IResult<&[u8], X86ThreadState> {
     let (input, eax) = le_u32(input)?;
     let (input, ebx) = le_u32(input)?;
@@ -1013,16 +1133,21 @@ fn parse_x86_thread_state(input: &[u8]) -> IResult<&[u8], X86ThreadState> {
     ))
 }
 
-/// Parse the thread state for ARM CPU.
+/// Parse the ARM thread state data, providing detailed information on the
+/// CPU’s current state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the ARM thread state data.
+/// * `input` - A slice of bytes containing the raw ARM thread state data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed ARMThreadState structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// ARMThreadState structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_arm_thread_state(input: &[u8]) -> IResult<&[u8], ARMThreadState> {
     let (input, r) = count(le_u32, 13)(input)?;
     let (input, sp) = le_u32(input)?;
@@ -1033,16 +1158,21 @@ fn parse_arm_thread_state(input: &[u8]) -> IResult<&[u8], ARMThreadState> {
     Ok((input, ARMThreadState { r, sp, lr, pc, cpsr }))
 }
 
-/// Parse the thread state for PPC CPU.
+/// Parse the PPC thread state data to retrieve detailed information about the
+/// PowerPC CPU's state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the PPC thread state data.
+/// * `input` - A slice of bytes containing the raw PPC thread state data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed PPCThreadState structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// PPCThreadState structure, or a `nom’ error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_ppc_thread_state(input: &[u8]) -> IResult<&[u8], PPCThreadState> {
     let (input, srr0) = le_u32(input)?;
     let (input, srr1) = le_u32(input)?;
@@ -1060,16 +1190,21 @@ fn parse_ppc_thread_state(input: &[u8]) -> IResult<&[u8], PPCThreadState> {
     ))
 }
 
-/// Parse the thread state for SPARC CPU.
+/// Parse the SPARC thread state, providing insights into the SPARC CPU’s
+/// state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the SPARC thread state data.
+/// * `input` - A slice of bytes containing the raw SPARC thread state data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed SPARCThreadState structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// SPARCThreadState structure, or a `nom’ error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom’ error if the input data is insufficient or malformed.
 fn parse_sparc_thread_state(input: &[u8]) -> IResult<&[u8], SPARCThreadState> {
     let (input, psr) = le_u32(input)?;
     let (input, pc) = le_u32(input)?;
@@ -1081,16 +1216,21 @@ fn parse_sparc_thread_state(input: &[u8]) -> IResult<&[u8], SPARCThreadState> {
     Ok((input, SPARCThreadState { psr, pc, npc, y, g, o }))
 }
 
-/// Parse the thread state for M68K CPU.
+/// Parse the M68K thread state, offering a detailed, structured view of the
+/// CPU's state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the M68K thread state data.
+/// * `input` - A slice of bytes containing the raw M68K thread state data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed M68KThreadState structure,
-/// or an error.
+/// A `nom` IResult containing the remaining input and the parsed
+/// M68KThreadState structure, or a `nom’ error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom’ error if the input data is insufficient or malformed.
 fn parse_m68k_thread_state(input: &[u8]) -> IResult<&[u8], M68KThreadState> {
     let (input, dreg) = count(le_u32, 8)(input)?;
     let (input, areg) = count(le_u32, 8)(input)?;
@@ -1101,16 +1241,21 @@ fn parse_m68k_thread_state(input: &[u8]) -> IResult<&[u8], M68KThreadState> {
     Ok((input, M68KThreadState { dreg, areg, pad, sr, pc }))
 }
 
-/// Parse the thread state for M88K CPU.
+/// Parse the M88K thread state, enabling detailed insights into the CPU’s
+/// current state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the M88K thread state data.
+/// * `input` - A slice of bytes containing the raw M88K thread state data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed M88KThreadState structure,
-/// or an error.
+/// A `nom’ IResult containing the remaining input and the parsed
+/// M88KThreadState structure, or a `nom’ error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom’ error if the input data is insufficient or malformed.
 fn parse_m88k_thread_state(input: &[u8]) -> IResult<&[u8], M88KThreadState> {
     let (input, r) = count(le_u32, 31)(input)?;
     let (input, xip) = le_u32(input)?;
@@ -1120,16 +1265,22 @@ fn parse_m88k_thread_state(input: &[u8]) -> IResult<&[u8], M88KThreadState> {
     Ok((input, M88KThreadState { r, xip, xip_in_bd, nip }))
 }
 
-/// Parse the thread state for X86 64-bit CPU.
+/// Parse the X86 64-bit thread state data to offer a comprehensive view of the
+/// CPU’s state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the X86 64-bit thread state data.
+/// * `input` - A slice of bytes containing the raw X86 64-bit thread state
+///   data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed X86ThreadState64 structure,
-/// or an error.
+/// A `nom’ IResult containing the remaining input and the parsed
+/// X86ThreadState64 structure, or a `nom’ error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom’ error if the input data is insufficient or malformed.
 fn parse_x86_thread_state64(input: &[u8]) -> IResult<&[u8], X86ThreadState64> {
     let (input, rax) = le_u64(input)?;
     let (input, rbx) = le_u64(input)?;
@@ -1181,16 +1332,22 @@ fn parse_x86_thread_state64(input: &[u8]) -> IResult<&[u8], X86ThreadState64> {
     ))
 }
 
-/// Parse the thread state for ARM 64-bit CPU.
+/// Parse the ARM 64-bit thread state, offering a detailed, structured format
+/// for the CPU’s state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the ARM 64-bit thread state data.
+/// * `input` - A slice of bytes containing the raw ARM 64-bit thread state
+///   data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed ARMThreadState64 structure,
-/// or an error.
+/// A `nom’ IResult containing the remaining input and the parsed
+/// ARMThreadState64 structure, or a `nom’ error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom’ error if the input data is insufficient or malformed.
 fn parse_arm_thread_state64(input: &[u8]) -> IResult<&[u8], ARMThreadState64> {
     let (input, r) = count(le_u64, 29)(input)?;
     let (input, fp) = le_u64(input)?;
@@ -1202,16 +1359,22 @@ fn parse_arm_thread_state64(input: &[u8]) -> IResult<&[u8], ARMThreadState64> {
     Ok((input, ARMThreadState64 { r, fp, lr, sp, pc, cpsr }))
 }
 
-/// Parse the thread state for PPC 64-bit CPU.
+/// Parse the PPC 64-bit thread state to retrieve detailed information about
+/// the PowerPC CPU's state.
 ///
 /// # Arguments
 ///
-/// * `input`: Byte slice containing the PPC 64-bit thread state data.
+/// * `input` - A slice of bytes containing the raw PPC 64-bit thread state
+///   data.
 ///
 /// # Returns
 ///
-/// Returns a result containing either the remaining input and the parsed PPCThreadState64 structure,
-/// or an error.
+/// A `nom’ IResult containing the remaining input and the parsed
+/// PPCThreadState64 structure, or a `nom’ error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom’ error if the input data is insufficient or malformed.
 fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
     let (input, srr0) = le_u64(input)?;
     let (input, srr1) = le_u64(input)?;
@@ -1225,20 +1388,30 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
     Ok((input, PPCThreadState64 { srr0, srr1, r, cr, xer, lr, ctr, vrsave }))
 }
 
-/// Handle the LC_SEGMENT command for 32-bit Mach-O files.
-///
-/// This function processes the segment command data for 32-bit Mach-O files,
-/// populating a protobuf representation of the segment and its associated file sections.
+/// Handles the LC_SEGMENT command for 32-bit Mach-O files, parsing the data
+/// and populating a protobuf representation of the segment and its associated
+/// file sections.
 ///
 /// # Arguments
 ///
-/// - `command_data`: The raw byte data of the segment command.
-/// - `size`: The size of the segment command data.
-/// - `macho_file`: Mutable reference to the protobuf representation of the Mach-O file.
+/// * `command_data` - The raw byte data of the segment command.
+/// * `size` - The size of the segment command data.
+/// * `macho_file` - Mutable reference to the protobuf representation of the
+///   Mach-O file.
 ///
 /// # Returns
 ///
-/// Returns a `Result<(), MachoError>` indicating the success or failure of the operation.
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `FileSectionTooSmall` - Returned when the segment size is smaller than
+///   the expected SegmentCommand32 struct size.
+/// * `ParsingError` - Returned when there is an error parsing the segment
+///   command data.
+/// * `MissingHeaderValue` - Returned when the "magic" header value is missing,
+///   needed for determining if bytes should be swapped.
 fn handle_segment_command(
     command_data: &[u8],
     size: usize,
@@ -1329,20 +1502,30 @@ fn handle_segment_command(
     Ok(())
 }
 
-/// Handle the LC_SEGMENT_64 command for 64-bit Mach-O files.
-///
-/// This function processes the segment command data for 64-bit Mach-O files,
-/// populating a protobuf representation of the segment and its associated file sections.
+/// Handles the LC_SEGMENT_64 command for 64-bit Mach-O files, processing the
+/// segment command data and populating a protobuf representation of the
+/// segment and associated file sections.
 ///
 /// # Arguments
 ///
-/// - `command_data`: The raw byte data of the segment command.
-/// - `size`: The size of the segment command data.
-/// - `macho_file`: Mutable reference to the protobuf representation of the Mach-O file.
+/// * `command_data` - The raw byte data of the segment command.
+/// * `size` - The size of the segment command data.
+/// * `macho_file` - Mutable reference to the protobuf representation of the
+///   Mach-O file.
 ///
 /// # Returns
 ///
-/// Returns a `Result<(), MachoError>` indicating the success or failure of the operation.
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `FileSectionTooSmall` - Returned when the segment size is smaller than
+///   the expected SegmentCommand64 struct size.
+/// * `ParsingError` - Returned when there is an error parsing the segment
+///   command data.
+/// * `MissingHeaderValue` - Returned when the "magic" header value is missing,
+///   needed for determining if bytes should be swapped.
 fn handle_segment_command_64(
     command_data: &[u8],
     size: usize,
@@ -1434,20 +1617,33 @@ fn handle_segment_command_64(
     Ok(())
 }
 
-/// Handle the `LC_UNIXTHREAD` command for older CPUs in Mach-O files.
-///
-/// This function processes the UNIX thread command data, extracting the entry point
-/// for various older CPU architectures. It's used primarily for older formats, being replaced by the `LC_MAIN` command in newer Mach-O files.
+/// Processes the `LC_UNIXTHREAD` command for older CPUs in Mach-O files,
+/// extracting the entry point for various older CPU architectures. This
+/// command is primarily used in older Mach-O file formats and has been
+/// replaced by the `LC_MAIN` command in newer versions.
 ///
 /// # Arguments
 ///
-/// - `command_data`: The raw byte data of the UNIX thread command.
-/// - `size`: The size of the UNIX thread command data.
-/// - `macho_file`: Mutable reference to the protobuf representation of the Mach-O file.
+/// * `command_data` - The raw byte data of the UNIX thread command.
+/// * `size` - The size of the UNIX thread command data.
+/// * `macho_file` - Mutable reference to the protobuf representation of the
+///   Mach-O file.
 ///
 /// # Returns
 ///
-/// Returns a `Result<(), MachoError>` indicating the success or failure of the operation.
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `FileSectionTooSmall` - If the provided size is smaller than the
+///   `ThreadCommand` struct.
+/// * `ParsingError` - Encountered when there's an error parsing the UNIX
+///   thread command data.
+/// * `MissingHeaderValue` - Thrown if "cputype" or "magic" header values are
+///   missing.
+/// * `Overflow` - If there is an overflow during command size computation.
+/// * `UnsupportedCPUType` - If the CPU type is not supported.
 fn handle_unixthread(
     command_data: &[u8],
     size: usize,
@@ -1588,20 +1784,29 @@ fn handle_unixthread(
     Ok(())
 }
 
-/// Handle the `LC_MAIN` command for Mach-O files.
-///
-/// This function processes the main command data, extracting the entry point for the Mach-O file
-/// and setting its stack size.
+/// Processes the `LC_MAIN` command for Mach-O files, extracting the entry
+/// point for the Mach-O file and setting its stack size.
 ///
 /// # Arguments
 ///
-/// - `command_data`: The raw byte data of the main command.
-/// - `size`: The size of the main command data.
-/// - `macho_file`: Mutable reference to the protobuf representation of the Mach-O file.
+/// * `command_data` - The raw byte data of the main command.
+/// * `size` - The size of the main command data.
+/// * `macho_file` - Mutable reference to the protobuf representation of the
+///   Mach-O file.
 ///
 /// # Returns
 ///
-/// Returns a `Result<(), MachoError>` indicating the success or failure of the operation.
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `FileSectionTooSmall` - If the provided size is smaller than the
+///   `EntryPointCommand` struct.
+/// * `ParsingError` - Encountered when there's an error parsing the main
+///   command data.
+/// * `MissingHeaderValue` - Thrown if the "magic" header value is missing,
+///   needed to decide if bytes should be swapped.
 fn handle_main(
     command_data: &[u8],
     size: usize,
@@ -1640,23 +1845,34 @@ fn handle_main(
     Ok(())
 }
 
-/// Handle individual command segments based on the load command value.
+/// Processes individual command segments based on their load command type.
 ///
-/// This function processes various command segments in Mach-O files according to the specified load command value.
-/// It can handle segment commands for both 32-bit and 64-bit Mach-O files. Other commands like `LC_UNIXTHREAD` and `LC_MAIN`
-/// are also processed by this function.
+/// This function is designed to manage various command segments present in
+/// Mach-O files, depending on the given load command type. It is equipped to
+/// handle both 32-bit and 64-bit Mach-O files and processes commands like
+/// `LC_UNIXTHREAD` and `LC_MAIN`.
 ///
 /// # Arguments
 ///
-/// - `cmd`: The load command type.
-/// - `cmdsize`: The size of the command data.
-/// - `command_data`: The raw byte data of the command.
-/// - `macho_file`: Mutable reference to the protobuf representation of the Mach-O file.
-/// - `process_segments`: Flag indicating if segment commands should be processed.
+/// * `cmd` - The type of the load command.
+/// * `cmdsize` - The size of the command data.
+/// * `command_data` - The raw byte data of the command.
+/// * `macho_file` - Mutable reference to the protobuf representation of the
+///   Mach-O file.
+/// * `process_segments` - Flag that decides if segment commands should be
+///   processed.
 ///
 /// # Returns
 ///
-/// Returns a `Result<u64, MachoError>` indicating the success or failure of the operation. On success, it returns the segment count.
+/// Returns a `Result<u64, MachoError>` indicating either the number of
+/// segments processed successfully, or an error encountered during the
+/// operation.
+///
+/// # Errors
+///
+/// The function can propagate errors from `handle_segment_command`,
+/// `handle_segment_command_64`, `handle_unixthread`, and `handle_main`
+/// functions.
 fn handle_command(
     cmd: u32,
     cmdsize: usize,
@@ -1695,21 +1911,34 @@ fn handle_command(
     Ok(seg_count)
 }
 
-/// Parse Mach-O command data from the binary and populates the provided protobuf representation.
+/// Parses the Mach-O command data from the binary and populates the provided
+/// protobuf representation.
 ///
-/// Processes and loops over the Mach-O commands, parsing them and updating the provided
-/// `macho_file` protobuf representation.
+/// This function works by looping through Mach-O commands, parsing each and
+/// updating the `macho_file` protobuf representation accordingly.
 ///
 /// # Arguments
 ///
-/// - `data`: The raw byte data of the Mach-O file.
-/// - `macho_file`: Protobuf representation of the Mach-O file to populate.
-/// - `process_segments`: A flag to decide whether segments should be processed.
+/// * `data` - The raw byte data of the Mach-O file.
+/// * `macho_file` - The protobuf representation of the Mach-O file to be
+///   populated.
+/// * `process_segments` - A flag that decides if segments should be processed.
 ///
 /// # Returns
 ///
-/// Returns a `Result<u64, MachoError>` indicating the number of segments parsed
-/// or an error if the operation fails.
+/// Returns a `Result<u64, MachoError>` indicating either the number of
+/// segments successfully parsed, or an error if the operation fails.
+///
+/// # Errors
+///
+/// * `MissingHeaderValue` - Occurs if essential header values like "magic" or
+///   "ncmds" are missing.
+/// * `Overflow` - Arises if there's an arithmetic overflow during command
+///   offset computation or remaining data size calculation.
+/// * `ParsingError` - Captures any error encountered during the parsing of
+///   load commands from the Mach-O file.
+///
+/// The function also propagates errors from the `handle_command` function.
 fn parse_macho_commands(
     data: &[u8],
     macho_file: &mut File,
@@ -1783,20 +2012,32 @@ fn parse_macho_commands(
     Ok(seg_count)
 }
 
-/// Parse a basic Mach-O file and returns a populated protobuf representation.
+/// Parses a basic Mach-O file and populates a protobuf representation.
 ///
-/// The function inspects the given data to determine if it's a valid Mach-O file,
-/// processes its header, and subsequently all its commands.
+/// The function reads the raw data of the Mach-O file, checks if it's a valid
+/// Mach-O file by inspecting the header, and then processes all the commands
+/// contained within it. It fills a protobuf `File` object with the extracted
+/// information.
 ///
 /// # Arguments
 ///
-/// - `data`: The raw byte data of the Mach-O file.
+/// * `data`: The raw byte data of the Mach-O file.
 ///
 /// # Returns
 ///
-/// Returns a `Result<File, MachoError>` indicating the populated Mach-O protobuf
-/// representation or an error if the operation fails.
-fn parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
+/// Returns a `Result<File, MachoError>` either with a populated Mach-O
+/// protobuf representation or an error if the parsing operation fails.
+///
+/// # Errors
+///
+/// * `FileTooSmall`: This error is thrown if the provided data is too small to
+///   contain a Mach-O header.
+/// * `ParsingError`: This error occurs when there's a problem parsing the
+///   Mach-O header.
+///
+/// It also propagates errors from `parse_macho_commands`.
+#[doc(hidden)]
+pub fn parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
     let mut macho_file = File::default();
     // File is too small to contain Mach-O header
     if data.len() < std::mem::size_of::<MachOHeader64>() {
@@ -1833,27 +2074,34 @@ fn parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
     Ok(macho_file)
 }
 
-/// Public wrapper for Mach-O files fuzz testing
-#[cfg(fuzzing)]
-pub fn pub_parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
-    parse_macho_file(data)
-}
-
-/// Parse a FAT Mach-O file and updates the provided protobuf representation.
+/// Parses a FAT Mach-O file and updates the provided protobuf representation.
 ///
-/// A FAT Mach-O file contains multiple binary images, one for each supported
-/// architecture. This function processes the FAT header, determines the type of architectures
-/// (32-bit or 64-bit), and parses each of the nested binary images.
+/// A FAT Mach-O file contains binary images for multiple supported
+/// architectures. This function processes the FAT header and each of the
+/// nested binary images, populating the provided protobuf representation
+/// accordingly.
 ///
 /// # Arguments
 ///
-/// - `data`: The raw byte data of the FAT Mach-O file.
-/// - `macho_proto`: Protobuf representation of the Mach-O file to populate.
+/// * `data`: The raw byte data of the FAT Mach-O file.
+/// * `macho_proto`: The protobuf representation of the Mach-O file to be
+///   populated.
 ///
 /// # Returns
 ///
-/// Returns a `Result<(), MachoError>` indicating the success or failure of the operation.
-fn parse_fat_macho_file(
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// parsing operation.
+///
+/// # Errors
+///
+/// * `ParsingError`: Occurs if there is an issue parsing the FAT header or the
+///   architecture data.
+/// * `Overflow`: This error is raised if the offset index or the end index
+///   goes beyond the size of the data array.
+///
+/// It also propagates errors from `parse_macho_file`.
+#[doc(hidden)]
+pub fn parse_fat_macho_file(
     data: &[u8],
     macho_proto: &mut Macho,
 ) -> Result<(), MachoError> {
@@ -1863,7 +2111,8 @@ fn parse_fat_macho_file(
     macho_proto.set_fat_magic(header.magic);
     macho_proto.set_nfat_arch(header.nfat_arch);
 
-    // Depending on the size of the data, determine if it's a 32bit or 64bit Mach-O
+    // Depending on the size of the data, determine if it's a 32bit or 64bit
+    // Mach-O
     let fat_arch_size = if fat_is_32(header.magic) {
         std::mem::size_of::<FatArch32>()
     } else {
@@ -1889,7 +2138,8 @@ fn parse_fat_macho_file(
             };
             macho_proto.fat_arch.push(fat_arch_entry);
 
-            // Return Overflow error in case offset index or end index is bigger then data size
+            // Return Overflow error in case offset index or end index is
+            // bigger then data size
             let end_index =
                 arch.offset
                     .checked_add(arch.size)
@@ -1919,7 +2169,8 @@ fn parse_fat_macho_file(
             };
             macho_proto.fat_arch.push(fat_arch_entry);
 
-            // Return Overflow error in case offset index or end index is bigger then data size
+            // Return Overflow error in case offset index or end index is
+            // bigger then data size
             let end_index =
                 arch.offset
                     .checked_add(arch.size)
@@ -1939,210 +2190,21 @@ fn parse_fat_macho_file(
     Ok(())
 }
 
-/// Public wrapper for Mach-O FAT files fuzz testing
-#[cfg(fuzzing)]
-pub fn pub_parse_fat_macho_file(
-    data: &[u8],
-    macho_proto: &mut Macho,
-) -> Result<(), MachoError> {
-    parse_fat_macho_file(data, macho_proto)
-}
-
-// Functions used just for debugging and printing protobuf values
-// Will be removed in the future
-
-// Helper function to print Option values or "NOT PRESENT"
-fn print_option<T: std::fmt::Display>(opt: Option<T>) -> String {
-    match opt {
-        Some(val) => val.to_string(),
-        None => "NOT PRESENT".to_string(),
-    }
-}
-
-// Helper function to print Option values as hex or "NOT PRESENT"
-fn print_option_hex<T: std::fmt::LowerHex>(opt: Option<T>) -> String {
-    match opt {
-        Some(val) => format!("0x{:x}", val),
-        None => "NOT PRESENT".to_string(),
-    }
-}
-
-// Debug printing
-fn print_macho_info(macho_proto: &Macho) {
-    println!("Header:");
-    println!("Magic: {}", print_option_hex(macho_proto.magic));
-    println!("CPU Type: {}", print_option(macho_proto.cputype));
-    println!("CPU Subtype: {}", print_option(macho_proto.cpusubtype));
-    println!("File Type: {}", print_option(macho_proto.filetype));
-    println!("Number of Commands: {}", print_option(macho_proto.ncmds));
-    println!("Size of Commands: {}", print_option(macho_proto.sizeofcmds));
-    println!("Flags: {}", print_option_hex(macho_proto.flags));
-    println!("Reserved: {}", print_option_hex(macho_proto.reserved));
-    println!();
-
-    // Print Segment Commands
-    for segment in &macho_proto.segments {
-        println!("Segment Commands:");
-        println!("Command: {}", print_option_hex(segment.cmd));
-        println!("Command Size: {}", print_option(segment.cmdsize));
-        println!("Segment Name: {}", print_option(segment.segname.as_ref()));
-        println!("VM Address: {}", print_option_hex(segment.vmaddr));
-        println!("VM Size: {}", print_option_hex(segment.vmsize));
-        println!("File Offset: {}", print_option(segment.fileoff));
-        println!("File Size: {}", print_option(segment.filesize));
-        println!("Max Protection: {}", print_option_hex(segment.maxprot));
-        println!("Init Protection: {}", print_option_hex(segment.initprot));
-        println!("Number of Sections: {}", print_option(segment.nsects));
-        println!("Flags: {}", print_option_hex(segment.flags));
-        // Print nested Segment Sections
-        for section in &segment.sections {
-            println!("Sections:");
-            println!(
-                "Segment Name: {}",
-                print_option(section.segname.as_ref())
-            );
-            println!(
-                "Section Name: {}",
-                print_option(section.sectname.as_ref())
-            );
-            println!("Address: {}", print_option_hex(section.addr));
-            println!("Size: {}", print_option_hex(section.size));
-            println!("Offset: {}", print_option(section.offset));
-            println!("Alignment: {}", print_option(section.align));
-            println!("Relocation Offset: {}", print_option(section.reloff));
-            println!(
-                "Number of Relocations: {}",
-                print_option(section.nreloc)
-            );
-            println!("Flags: {}", print_option_hex(section.flags));
-            println!("Reserved 1: {}", print_option(section.reserved1));
-            println!("Reserved 2: {}", print_option(section.reserved2));
-            println!("Reserved 3: {}", print_option(section.reserved3));
-            println!();
-        }
-        println!();
-    }
-
-    // Print Number of Segments
-    println!(
-        "Number of segments: {}",
-        print_option(macho_proto.number_of_segments)
-    );
-
-    // Print Entry Point
-    println!("Entry Point: {}", print_option(macho_proto.entry_point));
-
-    // Print Stack Size
-    println!("Stack Size: {}", print_option(macho_proto.stack_size));
-
-    // FAT related printing:
-    // Print Fat binary header info
-    println!("Fat Binary Header:");
-    println!("Fat Magic: {}", print_option_hex(macho_proto.fat_magic));
-    println!(
-        "Number of Fat Architectures: {}",
-        print_option(macho_proto.nfat_arch)
-    );
-    println!();
-
-    // Print each FatArch entry
-    for fat_arch in &macho_proto.fat_arch {
-        println!("Fat Architecture:");
-        println!("CPU Type: {}", print_option(fat_arch.cputype));
-        println!("CPU Subtype: {}", print_option(fat_arch.cpusubtype));
-        println!("Offset: {}", print_option_hex(fat_arch.offset));
-        println!("Size: {}", print_option_hex(fat_arch.size));
-        println!("Align: {}", print_option(fat_arch.align));
-        println!("Reserved: {}", print_option_hex(fat_arch.reserved));
-        println!();
-    }
-
-    // Print nested Mach-O files
-    for nested_file in &macho_proto.file {
-        println!("Nested Mach-O File:");
-        println!("Magic: {}", print_option_hex(nested_file.magic));
-        println!("CPU Type: {}", print_option(nested_file.cputype));
-        println!("CPU Subtype: {}", print_option(nested_file.cpusubtype));
-        println!("File Type: {}", print_option(nested_file.filetype));
-        println!("Number of Commands: {}", print_option(nested_file.ncmds));
-        println!("Size of Commands: {}", print_option(nested_file.sizeofcmds));
-        println!("Flags: {}", print_option_hex(nested_file.flags));
-        println!("Reserved: {}", print_option_hex(nested_file.reserved));
-        println!();
-
-        // Print nested Segment Commands
-        for segment in &nested_file.segments {
-            println!("Segment Commands:");
-            println!("Command: {}", print_option_hex(segment.cmd));
-            println!("Command Size: {}", print_option(segment.cmdsize));
-            println!(
-                "Segment Name: {}",
-                print_option(segment.segname.as_ref())
-            );
-            println!("VM Address: {}", print_option_hex(segment.vmaddr));
-            println!("VM Size: {}", print_option_hex(segment.vmsize));
-            println!("File Offset: {}", print_option(segment.fileoff));
-            println!("File Size: {}", print_option(segment.filesize));
-            println!("Max Protection: {}", print_option_hex(segment.maxprot));
-            println!(
-                "Init Protection: {}",
-                print_option_hex(segment.initprot)
-            );
-            println!("Number of Sections: {}", print_option(segment.nsects));
-            println!("Flags: {}", print_option_hex(segment.flags));
-            // Print nested Segment Sections
-            for section in &segment.sections {
-                println!("Sections:");
-                println!(
-                    "Segment Name: {}",
-                    print_option(section.segname.as_ref())
-                );
-                println!(
-                    "Section Name: {}",
-                    print_option(section.sectname.as_ref())
-                );
-                println!("Address: {}", print_option_hex(section.addr));
-                println!("Size: {}", print_option_hex(section.size));
-                println!("Offset: {}", print_option(section.offset));
-                println!("Alignment: {}", print_option(section.align));
-                println!(
-                    "Relocation Offset: {}",
-                    print_option(section.reloff)
-                );
-                println!(
-                    "Number of Relocations: {}",
-                    print_option(section.nreloc)
-                );
-                println!("Flags: {}", print_option_hex(section.flags));
-                println!("Reserved 1: {}", print_option(section.reserved1));
-                println!("Reserved 2: {}", print_option(section.reserved2));
-                println!("Reserved 3: {}", print_option(section.reserved3));
-                println!();
-            }
-            println!();
-        }
-
-        // Print number of segments, entry point, and stack size
-        println!(
-            "Number of segments: {}",
-            print_option(nested_file.number_of_segments)
-        );
-        println!("Entry Point: {}", print_option(nested_file.entry_point));
-        println!("Stack Size: {}", print_option(nested_file.stack_size));
-        println!();
-    }
-}
-
-/// Get the Mach-O file index from a fat file using the `cputype` field.
+/// Get the index of a Mach-O file within a fat binary based on CPU type.
+///
+/// This function iterates through the architecture types contained in a
+/// Mach-O fat binary and returns the index of the file that matches the
+/// specified CPU type.
 ///
 /// # Arguments
 ///
-/// - `ctx`: A mutable reference to the scanning context.
-/// - `type_arg`: The CPU type to match against.
+/// * `ctx`: A mutable reference to the scanning context.
+/// * `type_arg`: The CPU type to search for within the fat binary.
 ///
 /// # Returns
 ///
-/// Returns an `Option<i64>` indicating the index of the Mach-O file with the given CPU type.
+/// An `Option<i64>` containing the index of the matching Mach-O file, or
+/// `None` if no match is found.
 #[module_export(name = "file_index_for_arch")]
 fn file_index_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
     let macho = ctx.module_output::<Macho>()?;
@@ -2164,17 +2226,22 @@ fn file_index_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
     None
 }
 
-/// Get the Mach-O file index from a fat file using both the `cputype` and `cpusubtype` fields.
+/// Get the index of a Mach-O file within a fat binary based on both
+/// CPU type and subtype.
+///
+/// This function extends `file_index_type` by also considering the CPU subtype
+/// during the search, allowing for more precise matching.
 ///
 /// # Arguments
 ///
-/// - `ctx`: A mutable reference to the scanning context.
-/// - `type_arg`: The CPU type to match against.
-/// - `subtype_arg`: The CPU subtype to match against.
+/// * `ctx`: A mutable reference to the scanning context.
+/// * `type_arg`: The CPU type to search for.
+/// * `subtype_arg`: The CPU subtype to search for.
 ///
 /// # Returns
 ///
-/// Returns an `Option<i64>` indicating the index of the Mach-O file with the given CPU type and subtype.
+/// An `Option<i64>` containing the index of the matching Mach-O file, or
+/// `None` if no match is found.
 #[module_export(name = "file_index_for_arch")]
 fn file_index_subtype(
     ctx: &mut ScanContext,
@@ -2204,16 +2271,21 @@ fn file_index_subtype(
     None
 }
 
-/// Get the real entry point offset for a specific architecture in a fat Mach-O file.
+/// Get the real entry point offset for a specific CPU type within a fat
+/// Mach-O binary.
+///
+/// It navigates through the architectures in the binary, finds the one that
+/// matches the specified CPU type, and returns its entry point offset.
 ///
 /// # Arguments
 ///
-/// - `ctx`: A mutable reference to the scanning context.
-/// - `type_arg`: The CPU type of the desired architecture.
+/// * `ctx`: A mutable reference to the scanning context.
+/// * `type_arg`: The CPU type of the desired architecture.
 ///
 /// # Returns
 ///
-/// Returns an `Option<i64>` indicating the offset of the entry point for the given architecture.
+/// An `Option<i64>` containing the offset of the entry point for the specified
+/// architecture, or `None` if not found.
 #[module_export(name = "entry_point_for_arch")]
 fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
     let macho = ctx.module_output::<Macho>()?;
@@ -2239,18 +2311,22 @@ fn ep_for_arch_type(ctx: &mut ScanContext, type_arg: i64) -> Option<i64> {
     None
 }
 
-/// Get the real entry point offset for a specific architecture in a fat Mach-O file
-/// using both the `cputype` and `cpusubtype` fields.
+/// Get the real entry point offset for a specific CPU type and subtype
+/// within a fat Mach-O binary.
+///
+/// Similar to `ep_for_arch_type`, but adds consideration for the CPU subtype
+/// to allow for more precise location of the entry point.
 ///
 /// # Arguments
 ///
-/// - `ctx`: A mutable reference to the scanning context.
-/// - `type_arg`: The CPU type of the desired architecture.
-/// - `subtype_arg`: The CPU subtype of the desired architecture.
+/// * `ctx`: A mutable reference to the scanning context.
+/// * `type_arg`: The CPU type of the desired architecture.
+/// * `subtype_arg`: The CPU subtype of the desired architecture.
 ///
 /// # Returns
 ///
-/// Returns an `Option<i64>` indicating the offset of the entry point for the given architecture.
+/// An `Option<i64>` containing the offset of the entry point for the specified
+/// architecture and subtype, or `None` if not found.
 #[module_export(name = "entry_point_for_arch")]
 fn ep_for_arch_subtype(
     ctx: &mut ScanContext,
@@ -2284,18 +2360,28 @@ fn ep_for_arch_subtype(
     None
 }
 
-/// Main function to process a Mach-O file and populate a Mach-O protobuf representation.
-/// Function fails silently in case there is any error in parsing and returns empty
-/// or half populated protobuf. This error can be seen by using RUST_LOG=error and logging
-/// features flag (--features=logging) while compiling and running the code.
+/// The primary function for processing a Mach-O file, extracting its
+/// information and populating a `Macho` protobuf object with the extracted
+/// data.
+///
+/// This function is designed to fail silently and return an empty or partially
+/// filled protobuf in case of an error during the parsing process. More
+/// detailed error information can be obtained with logging enabled.
 ///
 /// # Arguments
 ///
-/// - `ctx`: A reference to the scanning context.
+/// * `ctx`: A reference to the scanning context.
 ///
 /// # Returns
 ///
-/// Returns a `Macho` object populated with data extracted from the scanned Mach-O file.
+/// A `Macho` object populated with extracted data from the scanned Mach-O
+/// file, or partially filled/empty in case of parsing errors.
+///
+/// # Error Handling
+///
+/// The function logs errors rather than propagating them, ensuring the calling
+/// code isn’t interrupted by issues with individual files during bulk
+/// processing.
 #[module_main]
 fn main(ctx: &ScanContext) -> Macho {
     // Create an empty instance of the Mach-O protobuf
@@ -2314,7 +2400,8 @@ fn main(ctx: &ScanContext) -> Macho {
     // Parse basic Mach-O file
     if is_macho_file_block(data) {
         match parse_macho_file(data) {
-            // Parsing was successful, populate basic fields from parsed Mach-O structure
+            // Parsing was successful, populate basic fields from parsed Mach-O
+            // structure
             Ok(file_data) => {
                 macho_proto.magic = file_data.magic;
                 macho_proto.cputype = file_data.cputype;
@@ -2344,6 +2431,5 @@ fn main(ctx: &ScanContext) -> Macho {
         }
     }
 
-    print_macho_info(&macho_proto);
     macho_proto
 }
