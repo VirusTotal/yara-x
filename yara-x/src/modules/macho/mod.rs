@@ -895,8 +895,6 @@ fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
     let (input, current_version) = le_u32(input)?;
     let (input, compatibility_version) = le_u32(input)?;
 
-    // subtract 24 as offset is from beginning of load_command structure
-    // let (input, _) = take(offset - 24)(input)?;
     let (input, name) = map_res(tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))), |(s, _)| std::str::from_utf8(s),)(input)?;
 
     Ok((input, DylibObject{name: name.into(), timestamp, compatibility_version, current_version}))
@@ -1461,8 +1459,8 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
 ///
 /// # Arguments
 ///
-/// * `command_data`: The raw byte data of the segment command.
-/// * `size`: The size of the segment command data.
+/// * `command_data`: The raw byte data of the dylib command.
+/// * `size`: The size of the dylib command data.
 /// * `macho_file`: Mutable reference to the protobuf representation of the
 ///   Mach-O file.
 ///
@@ -1476,7 +1474,7 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
 /// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
 ///   smaller than the expected DylibCommand struct size.
 /// * `MachoError::ParsingError`: Returned when there is an error parsing the
-///   segment command data.
+///   dylib command data.
 /// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
 ///   is missing, needed for determining if bytes should be swapped.
 fn handle_dylib_command(command_data: &[u8],
@@ -2019,7 +2017,6 @@ fn handle_command(
                 handle_segment_command_64(command_data, cmdsize, macho_file)?;
                 seg_count += 1;
             }
-            
             _ => {}
         }
     // Handle rest of commands
