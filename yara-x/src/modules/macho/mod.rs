@@ -23,8 +23,8 @@ use thiserror::Error;
 /// correct Real minimum size of Mach-O file would be higher
 const VALID_MACHO_LENGTH: usize = 28;
 
-/// Define Mach-O constats used in parsing
-/// as it is problematic to get those from proto destriptors
+/// Define Mach-O constants used in parsing
+/// as it is problematic to get those from proto descriptors
 const MH_MAGIC: u32 = 0xfeedface;
 const MH_CIGAM: u32 = 0xcefaedfe;
 const MH_MAGIC_64: u32 = 0xfeedfacf;
@@ -1763,7 +1763,7 @@ fn handle_unixthread(
         _ => return Err(MachoError::UnsupportedCPUType),
     }
 
-    // Swap bytes if neccessary
+    // Swap bytes if necessary
     if should_swap_bytes(
         macho_file
             .magic
@@ -1821,7 +1821,7 @@ fn handle_main(
     let (_, mut entrypoint_cmd) = parse_entry_point_command(command_data)
         .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
-    // Swap bytes if neccesarry
+    // Swap bytes if necessary
     if should_swap_bytes(
         macho_file
             .magic

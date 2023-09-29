@@ -48,7 +48,7 @@ fn test_parse_magic() {
     let result = parse_magic(short_input);
     assert!(result.is_err());
 
-    // Not a Mach-O magic constant, parsing should stil succeed
+    // Not a Mach-O magic constant, parsing should still succeed
     let input = &[99, 99, 99, 99];
     let result = parse_magic(input);
     assert!(result.is_ok());

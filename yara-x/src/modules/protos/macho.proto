@@ -302,7 +302,7 @@ enum SECTION_TYPE {
   S_THREAD_LOCAL_INIT_FUNCTION_POINTERS = 0x00000015;
 }
 
-enum SECTION_ATTRIBURES {
+enum SECTION_ATTRIBUTES {
   option (yara.enum_options).inline = true;
   S_ATTR_PURE_INSTRUCTIONS = 0 [(yara.enum_value).i64 = 0x80000000];
   S_ATTR_NO_TOC = 0x40000000;
