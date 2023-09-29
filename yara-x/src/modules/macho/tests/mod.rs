@@ -222,7 +222,12 @@ fn test_swap_load_command() {
 
 #[test]
 fn test_swap_dylib() {
-    let mut command = DylibObject { timestamp: 0x11223344, compatibility_version: 0x55667788, current_version: 0x99AABBCC, ..Default::default() };
+    let mut command = DylibObject {
+        timestamp: 0x11223344,
+        compatibility_version: 0x55667788,
+        current_version: 0x99AABBCC,
+        ..Default::default()
+    };
 
     swap_dylib(&mut command);
 
@@ -233,7 +238,11 @@ fn test_swap_dylib() {
 
 #[test]
 fn test_swap_dylib_command() {
-    let mut command = DylibCommand { cmd: 0x11223344, cmdsize: 0x55667788, ..Default::default() };
+    let mut command = DylibCommand {
+        cmd: 0x11223344,
+        cmdsize: 0x55667788,
+        ..Default::default()
+    };
 
     swap_dylib_command(&mut command);
 

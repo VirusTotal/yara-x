@@ -16,7 +16,14 @@ use log::*;
 
 use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
-use nom::{bytes::complete::{take, take_till, tag}, multi::count, number::complete::*, IResult, sequence::tuple, combinator::map_res};
+use nom::{
+    bytes::complete::{tag, take, take_till},
+    combinator::map_res,
+    multi::count,
+    number::complete::*,
+    sequence::tuple,
+    IResult,
+};
 use thiserror::Error;
 
 /// Mach-O file needs to have at least header of size 28 to be considered
@@ -165,7 +172,7 @@ struct DylibObject {
     name: Vec<u8>,
     timestamp: u32,
     current_version: u32,
-    compatibility_version: u32
+    compatibility_version: u32,
 }
 
 /// `DylibCommand`: Represents a dylib command in the Mach-O file.
@@ -642,8 +649,10 @@ fn swap_load_command(command: &mut LoadCommand) {
 /// * `dylib`: A mutable reference to the Mach-O dylib.
 fn swap_dylib(dylib: &mut DylibObject) {
     dylib.timestamp = BigEndian::read_u32(&dylib.timestamp.to_le_bytes());
-    dylib.compatibility_version = BigEndian::read_u32(& dylib.compatibility_version.to_le_bytes());
-    dylib.current_version = BigEndian::read_u32(& dylib.current_version.to_le_bytes());
+    dylib.compatibility_version =
+        BigEndian::read_u32(&dylib.compatibility_version.to_le_bytes());
+    dylib.current_version =
+        BigEndian::read_u32(&dylib.current_version.to_le_bytes());
 }
 
 /// Swaps the endianness of fields within a Mach-O dylib command from
@@ -888,16 +897,26 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
 }
 
 fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
-    
     // offset but we don't need it
     let (input, _) = le_u32(input)?;
     let (input, timestamp) = le_u32(input)?;
     let (input, current_version) = le_u32(input)?;
     let (input, compatibility_version) = le_u32(input)?;
 
-    let (input, name) = map_res(tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))), |(s, _)| std::str::from_utf8(s),)(input)?;
+    let (input, name) = map_res(
+        tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
+        |(s, _)| std::str::from_utf8(s),
+    )(input)?;
 
-    Ok((input, DylibObject{name: name.into(), timestamp, compatibility_version, current_version}))
+    Ok((
+        input,
+        DylibObject {
+            name: name.into(),
+            timestamp,
+            compatibility_version,
+            current_version,
+        },
+    ))
 }
 
 fn parse_dylib_command(input: &[u8]) -> IResult<&[u8], DylibCommand> {
@@ -1454,7 +1473,8 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
     Ok((input, PPCThreadState64 { srr0, srr1, r, cr, xer, lr, ctr, vrsave }))
 }
 
-/// Handles the LC_LOAD_DYLIB, LC_ID_DYLIB, LC_LOAD_WEAK_DYLIB, and LC_REEXPORT_DYLIB commands for Mach-O files, parsing the data
+/// Handles the LC_LOAD_DYLIB, LC_ID_DYLIB, LC_LOAD_WEAK_DYLIB, and
+/// LC_REEXPORT_DYLIB commands for Mach-O files, parsing the data
 /// and populating a protobuf representation of the dylib.
 ///
 /// # Arguments
@@ -1477,10 +1497,11 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
 ///   dylib command data.
 /// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
 ///   is missing, needed for determining if bytes should be swapped.
-fn handle_dylib_command(command_data: &[u8],
+fn handle_dylib_command(
+    command_data: &[u8],
     size: usize,
-    macho_file: &mut File,) -> Result<(), MachoError> {
-    
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
     if size < std::mem::size_of::<DylibCommand>() {
         return Err(MachoError::FileSectionTooSmall(
             "DylibCommand".to_string(),
@@ -1500,7 +1521,9 @@ fn handle_dylib_command(command_data: &[u8],
 
     let dylib = Dylib {
         name: Some(
-            std::str::from_utf8(&dy.dylib.name).unwrap_or_default().to_string(),
+            std::str::from_utf8(&dy.dylib.name)
+                .unwrap_or_default()
+                .to_string(),
         ),
         timestamp: Some(dy.dylib.timestamp),
         compatibility_version: Some(dy.dylib.compatibility_version),
@@ -1509,7 +1532,7 @@ fn handle_dylib_command(command_data: &[u8],
     };
     macho_file.dylibs.push(dylib);
     Ok(())
-    }
+}
 
 /// Handles the LC_SEGMENT command for 32-bit Mach-O files, parsing the data
 /// and populating a protobuf representation of the segment and its associated
@@ -2028,7 +2051,8 @@ fn handle_command(
             LC_MAIN => {
                 handle_main(command_data, cmdsize, macho_file)?;
             }
-            LC_LOAD_DYLIB | LC_ID_DYLIB | LC_LOAD_WEAK_DYLIB | LC_REEXPORT_DYLIB => {
+            LC_LOAD_DYLIB | LC_ID_DYLIB | LC_LOAD_WEAK_DYLIB
+            | LC_REEXPORT_DYLIB => {
                 handle_dylib_command(command_data, cmdsize, macho_file)?;
             }
             _ => {}
