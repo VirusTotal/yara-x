@@ -1,0 +1,31 @@
+[package]
+name = "yara-x-fuzz"
+version = "0.1.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.yara-x]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "test_macho_file"
+path = "fuzz_targets/test_macho_file.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "test_macho_fat_file"
+path = "fuzz_targets/test_macho_fat_file.rs"
+test = false
+doc = false

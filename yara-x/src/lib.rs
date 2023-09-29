@@ -64,6 +64,13 @@ pub use scanner::Scanner;
 pub use variables::Variable;
 pub use variables::VariableError;
 
+#[cfg(fuzzing)]
+pub use modules::macho::parse_fat_macho_file;
+#[cfg(fuzzing)]
+pub use modules::macho::parse_macho_file;
+#[cfg(fuzzing)]
+pub use modules::protos::macho::Macho;
+
 mod compiler;
 mod modules;
 mod re;
