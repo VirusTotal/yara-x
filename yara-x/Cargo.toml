@@ -120,6 +120,7 @@ yara-x-proto = { workspace = true }
 criterion = { workspace = true }
 pretty_assertions = { workspace = true }
 wasmprinter = "0.2.62"
+ihex = "3.0.0"
 yara = { version = "0.19.0", features = ["vendored"] }
 
 [[bench]]

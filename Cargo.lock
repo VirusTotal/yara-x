@@ -1367,6 +1367,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ihex"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "365a784774bb381e8c19edb91190a90d7f2625e057b55de2bc0f6b57bc779ff2"
+
+[[package]]
 name = "include_dir"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4032,6 +4038,7 @@ dependencies = [
  "byteorder",
  "criterion",
  "fmmap",
+ "ihex",
  "indexmap 2.0.0",
  "intaglio",
  "itertools 0.11.0",
