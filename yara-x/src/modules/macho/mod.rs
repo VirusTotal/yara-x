@@ -896,6 +896,21 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
     Ok((input, LoadCommand { cmd, cmdsize }))
 }
 
+/// Parse a Mach-O Dylib object, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw dylib object data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// dylib structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
     // offset but we don't need it
     let (input, _) = le_u32(input)?;
@@ -919,6 +934,21 @@ fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
     ))
 }
 
+/// Parse a Mach-O DylibCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw DylibCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// DylibCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_dylib_command(input: &[u8]) -> IResult<&[u8], DylibCommand> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
