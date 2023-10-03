@@ -3368,10 +3368,12 @@ fn test_modules() {
                         // Get the module output
                         let output = scan_results
                             .module_output(&module_name)
-                            .expect(&format!(
-                                "{} should produce some output",
-                                module_name
-                            ));
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "{} should produce some output",
+                                    module_name
+                                )
+                            });
 
                         // Downcast the output
                         let output: &crate::modules::protos::macho::Macho =
