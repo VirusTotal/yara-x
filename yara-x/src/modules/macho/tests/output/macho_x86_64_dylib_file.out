@@ -255,6 +255,52 @@ Macho {
             },
         },
     ],
+    dylibs: [
+        Dylib {
+            name: Some(
+                "fact_x86_64.dylib",
+            ),
+            timestamp: Some(
+                1,
+            ),
+            compatibility_version: Some(
+                0,
+            ),
+            current_version: Some(
+                0,
+            ),
+            special_fields: SpecialFields {
+                unknown_fields: UnknownFields {
+                    fields: None,
+                },
+                cached_size: CachedSize {
+                    size: 0,
+                },
+            },
+        },
+        Dylib {
+            name: Some(
+                "/usr/lib/libSystem.B.dylib",
+            ),
+            timestamp: Some(
+                2,
+            ),
+            compatibility_version: Some(
+                65536,
+            ),
+            current_version: Some(
+                79495168,
+            ),
+            special_fields: SpecialFields {
+                unknown_fields: UnknownFields {
+                    fields: None,
+                },
+                cached_size: CachedSize {
+                    size: 0,
+                },
+            },
+        },
+    ],
     entry_point: None,
     stack_size: None,
     fat_magic: None,

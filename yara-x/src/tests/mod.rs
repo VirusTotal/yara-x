@@ -8,10 +8,6 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
 
-mod testdata;
-
-use crate::tests::testdata::blob::MACHO_X86_64_DYLIB_FILE;
-
 const JUMPS_DATA: &[u8; 1664] = include_bytes!("testdata/jumps.bin");
 
 macro_rules! test_condition {
@@ -2883,6 +2879,11 @@ fn test_macho_module() {
     );
     let macho_data = data.unwrap();
 
+    let data_additional: Result<Vec<u8>, Box<dyn std::error::Error>> = create_binary_from_ihex!(
+        "src/modules/macho/tests/input/macho_x86_64_dylib_file.in"
+    );
+    let dylib_data = data_additional.unwrap();
+
     rule_true!(
         r#"
         import "macho"
@@ -3099,7 +3100,7 @@ fn test_macho_module() {
             macho.dylibs[1].timestamp == 2
     }
     "#,
-        &MACHO_X86_64_DYLIB_FILE
+        &dylib_data
     );
 
     rule_true!(
@@ -3111,7 +3112,7 @@ fn test_macho_module() {
             macho.dylibs[1].compatibility_version == 65536
     }
     "#,
-        &MACHO_X86_64_DYLIB_FILE
+        &dylib_data
     );
 
     rule_true!(
@@ -3123,7 +3124,7 @@ fn test_macho_module() {
             macho.dylibs[1].current_version == 79495168
     }
     "#,
-        &MACHO_X86_64_DYLIB_FILE
+        &dylib_data
     );
 
     rule_true!(
@@ -3135,7 +3136,7 @@ fn test_macho_module() {
             macho.dylibs[1].name == "/usr/lib/libSystem.B.dylib"
     }
     "#,
-        &MACHO_X86_64_DYLIB_FILE
+        &dylib_data
     );
 }
 

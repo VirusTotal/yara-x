@@ -115,6 +115,7 @@ Macho {
             },
         },
     ],
+    dylibs: [],
     entry_point: None,
     stack_size: None,
     fat_magic: None,

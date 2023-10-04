@@ -70,6 +70,7 @@ Macho {
             },
         },
     ],
+    dylibs: [],
     entry_point: Some(
         116,
     ),
