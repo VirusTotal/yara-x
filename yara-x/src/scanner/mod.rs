@@ -4,6 +4,7 @@ The scanner takes the rules produces by the compiler and scans data with them.
 */
 
 use std::cell::RefCell;
+use std::collections::hash_map;
 use std::io::Read;
 use std::ops::{Deref, Range};
 use std::path::{Path, PathBuf};
@@ -27,7 +28,7 @@ use wasmtime::{
 };
 
 use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
-use crate::modules::BUILTIN_MODULES;
+use crate::modules::{Module, BUILTIN_MODULES};
 use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
@@ -59,7 +60,8 @@ pub enum ScanError {
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
 ///
-/// This counter is used for determining the when a scan operation has timed out.
+/// This counter is used for determining the when a scan operation has timed
+/// out.
 static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
@@ -84,8 +86,9 @@ impl<'a> AsRef<[u8]> for ScannedData<'a> {
 /// Scans data with already compiled YARA rules.
 ///
 /// The scanner receives a set of compiled [`Rules`] and scans data with those
-/// rules. The same scanner can be used for scanning multiple files or in-memory
-/// data sequentially, but you need multiple scanners for scanning in parallel.
+/// rules. The same scanner can be used for scanning multiple files or
+/// in-memory data sequentially, but you need multiple scanners for scanning in
+/// parallel.
 pub struct Scanner<'r> {
     wasm_store: Pin<Box<Store<ScanContext<'r>>>>,
     wasm_main_func: TypedFunc<(), i32>,
@@ -107,10 +110,10 @@ impl<'r> Scanner<'r> {
         // for accessing the WASM memory from code that only has a reference
         // to ScanContext. This kind of circular data structures are not
         // natural to Rust, and they can be achieved either by using unsafe
-        // pointers, or by using Rc::Weak. In this case we are storing a pointer
-        // to the store in ScanContext. The store is put into a pinned box in
-        // order to make sure that it doesn't move from its original memory
-        // address and the pointer remains valid.
+        // pointers, or by using Rc::Weak. In this case we are storing a
+        // pointer to the store in ScanContext. The store is put into a
+        // pinned box in order to make sure that it doesn't move from
+        // its original memory address and the pointer remains valid.
         let mut wasm_store = Box::pin(Store::new(
             &crate::wasm::ENGINE,
             ScanContext {
@@ -323,8 +326,8 @@ impl<'r> Scanner<'r> {
     /// Sets the value of a global variable.
     ///
     /// The variable must has been previously defined by calling
-    /// [`crate::Compiler::define_global`], and the type it has during the definition
-    /// must match the type of the new value (`T`).
+    /// [`crate::Compiler::define_global`], and the type it has during the
+    /// definition must match the type of the new value (`T`).
     ///
     /// The variable will retain the new value in subsequent scans, unless this
     /// function is called again for setting a new value.
@@ -465,8 +468,9 @@ impl<'r> Scanner<'r> {
             );
 
             // Make sure that the module is returning a protobuf message where
-            // all required fields are initialized. This only applies to proto2,
-            // proto3 doesn't have "required" fields, all fields are optional.
+            // all required fields are initialized. This only applies to
+            // proto2, proto3 doesn't have "required" fields, all
+            // fields are optional.
             debug_assert!(
                 module_output.is_initialized_dyn(),
                 "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
@@ -515,7 +519,8 @@ impl<'r> Scanner<'r> {
         // This will return Err(ScanError::Timeout), when the scan timeout is
         // reached while WASM code is being executed. If the timeout occurs
         // while ScanContext::search_for_patterns is being executed, the result
-        // will be Ok(1). If the scan completes successfully the result is Ok(0).`
+        // will be Ok(1). If the scan completes successfully the result is
+        // Ok(0).`
         let func_result =
             self.wasm_main_func.call(self.wasm_store.as_context_mut(), ());
 
@@ -593,9 +598,10 @@ impl<'r> Scanner<'r> {
                 .unwrap()
                 .data_mut(self.wasm_store.as_context_mut());
 
-            // Starting at MATCHING_RULES_BITMAP in main memory there's a bitmap
-            // were the N-th bit indicates if the rule with ID = N matched or not,
-            // If some rule matched in a previous call the bitmap will contain some
+            // Starting at MATCHING_RULES_BITMAP in main memory there's a
+            // bitmap were the N-th bit indicates if the rule with
+            // ID = N matched or not, If some rule matched in a
+            // previous call the bitmap will contain some
             // bits set to 1 and need to be cleared.
             let base = MATCHING_RULES_BITMAP_BASE as usize;
             let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
@@ -628,7 +634,8 @@ impl<'a, 'r> ScanResults<'a, 'r> {
         MatchingRules::new(self.ctx, &self.data)
     }
 
-    /// Returns an iterator that yields the non-matching rules in arbitrary order.
+    /// Returns an iterator that yields the non-matching rules in arbitrary
+    /// order.
     pub fn non_matching_rules(&'a self) -> NonMatchingRules<'a, 'r> {
         NonMatchingRules::new(self.ctx, &self.data)
     }
@@ -639,7 +646,7 @@ impl<'a, 'r> ScanResults<'a, 'r> {
     /// The result will be `None` if the module doesn't exist or didn't
     /// produce any output.
     pub fn module_output(
-        &'a self,
+        &self,
         module_name: &str,
     ) -> Option<&'a dyn MessageDyn> {
         let module = BUILTIN_MODULES.get(module_name)?;
@@ -649,6 +656,14 @@ impl<'a, 'r> ScanResults<'a, 'r> {
             .get(module.root_struct_descriptor.full_name())?
             .as_ref();
         Some(module_output)
+    }
+
+    /// Returns an iterator that yields tuples composed of a YARA module name
+    /// and the protobuf produced by that module.
+    ///
+    /// Only returns the modules that produced some output.
+    pub fn module_outputs(&self) -> ModuleOutputs<'a, 'r> {
+        ModuleOutputs::new(self.ctx)
     }
 }
 
@@ -716,7 +731,8 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
             data,
             iterator: matching_rules_bitmap.iter_zeros(),
             // The number of non-matching rules is the total number of rules
-            // minus the number of matching rules, both private and non-private.
+            // minus the number of matching rules, both private and
+            // non-private.
             len: ctx.compiled_rules.rules().len()
                 - ctx.private_matching_rules.len()
                 - ctx.non_private_matching_rules.len(),
@@ -751,6 +767,35 @@ impl<'a, 'r> ExactSizeIterator for NonMatchingRules<'a, 'r> {
     #[inline]
     fn len(&self) -> usize {
         self.len
+    }
+}
+
+/// Iterator that returns the outputs produced by YARA modules.
+pub struct ModuleOutputs<'a, 'r> {
+    ctx: &'a ScanContext<'r>,
+    iterator: hash_map::Iter<'a, &'a str, Module>,
+}
+
+impl<'a, 'r> ModuleOutputs<'a, 'r> {
+    fn new(ctx: &'a ScanContext<'r>) -> Self {
+        Self { ctx, iterator: BUILTIN_MODULES.iter() }
+    }
+}
+
+impl<'a, 'r> Iterator for ModuleOutputs<'a, 'r> {
+    type Item = (&'a str, &'a dyn MessageDyn);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let (name, module) = self.iterator.next()?;
+            if let Some(module_output) = self
+                .ctx
+                .module_outputs
+                .get(module.root_struct_descriptor.full_name())
+            {
+                return Some((*name, module_output.as_ref()));
+            }
+        }
     }
 }
 

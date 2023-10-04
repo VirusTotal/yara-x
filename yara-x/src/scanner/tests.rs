@@ -178,6 +178,38 @@ fn module_output() {
     assert_eq!(output.int32_one, Some(1_i32));
 }
 
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn module_outputs() {
+    let rules = crate::compile(
+        r#"
+        import "test_proto2"
+        rule test {
+            condition:
+                test_proto2.file_size == 3
+        } 
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan(b"").expect("scan should not fail");
+
+    let mut outputs = scan_results.module_outputs();
+
+    let (name, output) = outputs
+        .next()
+        .expect("module outputs iterator should produce at least one item");
+
+    assert_eq!(name, "test_proto2");
+
+    let output: &crate::modules::protos::test_proto2::TestProto2 =
+        <dyn MessageDyn>::downcast_ref(output).unwrap();
+
+    assert_eq!(output.int32_one, Some(1_i32));
+    assert!(outputs.next().is_none());
+}
+
 #[test]
 fn variables_1() {
     let mut compiler = crate::Compiler::new();
