@@ -1,10 +1,11 @@
 /*! End-to-end tests. */
 use bstr::ByteSlice;
+use goldenfile::Mint;
 use ihex::Reader;
 use pretty_assertions::assert_eq;
 use protobuf::MessageDyn;
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::Path;
 
 const JUMPS_DATA: &[u8; 1664] = include_bytes!("testdata/jumps.bin");
@@ -3312,10 +3313,14 @@ fn test_proto2_module() {
 
 #[test]
 fn test_modules() {
+    // Create goldenfile mint
+    let mut mint = Mint::new("src/modules");
+
     // Get all directories in "src/modules/"
     let module_dirs =
         fs::read_dir("src/modules").expect("Failed to read directory");
 
+    // Iterate over the directories
     for dir in module_dirs {
         let dir = dir.expect("Failed to read directory entry");
         if dir.file_type().expect("Failed to get file type").is_dir() {
@@ -3340,6 +3345,7 @@ fn test_modules() {
                 module_name
             );
 
+            // Compile the rule
             let rules = crate::compile(rule.as_str()).unwrap();
             let mut scanner = crate::scanner::Scanner::new(&rules);
 
@@ -3379,9 +3385,19 @@ fn test_modules() {
                         let output: &crate::modules::protos::macho::Macho =
                             <dyn MessageDyn>::downcast_ref(output).unwrap();
 
-                        println!("{:#?}", output);
-                        // TODO!: Compare the output with the expected output
-                        // Use goldenfiles
+                        // Create a Goldenfile test
+                        let mut output_file = mint
+                            .new_goldenfile(format!(
+                                "{}/tests/output/{}.out",
+                                module_name,
+                                file_path
+                                    .file_stem()
+                                    .unwrap()
+                                    .to_str()
+                                    .unwrap()
+                            ))
+                            .unwrap();
+                        write!(output_file, "{:#?}", output).unwrap();
                     }
                 }
             }
