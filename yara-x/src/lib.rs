@@ -53,6 +53,7 @@ pub use compiler::SerializationError;
 pub use scanner::Match;
 pub use scanner::Matches;
 pub use scanner::MatchingRules;
+pub use scanner::ModuleOutputs;
 pub use scanner::NonMatchingRules;
 pub use scanner::Pattern;
 pub use scanner::Patterns;

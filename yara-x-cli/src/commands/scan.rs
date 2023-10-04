@@ -9,9 +9,10 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Error};
 use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 use crossbeam::channel::Sender;
+use indent::indent_all_by;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
-use yansi::Color::{Cyan, Red};
+use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::{Rule, Rules, ScanError, Scanner};
 
@@ -46,6 +47,10 @@ pub fn scan() -> Command {
             arg!(--"print-strings-limit" <N>)
                 .help("Print matching patterns, limited to the first N bytes")
                 .value_parser(value_parser!(usize))
+        )
+        .arg(
+            arg!(-D --"dump-module-output")
+                .help("Dumps the data produced by modules")
         )
         .arg(
             arg!(-n - -"negate")
@@ -98,6 +103,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
+    let dump_module_output = args.get_flag("dump-module-output");
     let timeout = args.get_one::<u64>("timeout");
 
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
@@ -225,6 +231,24 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                     output,
                 );
             };
+
+            if dump_module_output {
+                for (mod_name, mod_output) in scan_results.module_outputs() {
+                    output
+                        .send(Message::Info(format!(
+                            ">>> {} {}\n{}<<<",
+                            Yellow.paint(mod_name).bold(),
+                            file_path.display(),
+                            indent_all_by(
+                                4,
+                                protobuf::text_format::print_to_string_pretty(
+                                    mod_output,
+                                )
+                            ),
+                        )))
+                        .unwrap();
+                }
+            }
 
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
 
