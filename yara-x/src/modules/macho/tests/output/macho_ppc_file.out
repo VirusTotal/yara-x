@@ -1,38 +1,36 @@
 Macho {
     magic: Some(
-        4277009103,
+        3472551422,
     ),
     cputype: Some(
-        16777223,
+        18,
     ),
     cpusubtype: Some(
-        3,
+        0,
     ),
     filetype: Some(
         2,
     ),
     ncmds: Some(
-        21,
+        10,
     ),
     sizeofcmds: Some(
-        2472,
+        1484,
     ),
     flags: Some(
-        10485893,
+        133,
     ),
-    reserved: Some(
-        0,
-    ),
+    reserved: None,
     number_of_segments: Some(
         4,
     ),
     segments: [
         Segment {
             cmd: Some(
-                25,
+                1,
             ),
             cmdsize: Some(
-                72,
+                56,
             ),
             segname: Some(
                 "__PAGEZERO",
@@ -41,7 +39,7 @@ Macho {
                 0,
             ),
             vmsize: Some(
-                4294967296,
+                4096,
             ),
             fileoff: Some(
                 0,
@@ -59,7 +57,7 @@ Macho {
                 0,
             ),
             flags: Some(
-                0,
+                4,
             ),
             sections: [],
             special_fields: SpecialFields {
@@ -73,34 +71,34 @@ Macho {
         },
         Segment {
             cmd: Some(
-                25,
+                1,
             ),
             cmdsize: Some(
-                712,
+                532,
             ),
             segname: Some(
                 "__TEXT",
             ),
             vmaddr: Some(
-                4294967296,
+                4096,
             ),
             vmsize: Some(
-                237568,
+                61440,
             ),
             fileoff: Some(
                 0,
             ),
             filesize: Some(
-                237568,
+                61440,
             ),
             maxprot: Some(
-                5,
+                7,
             ),
             initprot: Some(
                 5,
             ),
             nsects: Some(
-                8,
+                7,
             ),
             flags: Some(
                 0,
@@ -114,105 +112,13 @@ Macho {
                         "__text",
                     ),
                     addr: Some(
-                        4294970912,
+                        7864,
                     ),
                     size: Some(
-                        212922,
+                        47160,
                     ),
                     offset: Some(
-                        3616,
-                    ),
-                    align: Some(
-                        5,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        2147484672,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__TEXT",
-                    ),
-                    sectname: Some(
-                        "__stubs",
-                    ),
-                    addr: Some(
-                        4295183834,
-                    ),
-                    size: Some(
-                        630,
-                    ),
-                    offset: Some(
-                        216538,
-                    ),
-                    align: Some(
-                        1,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        2147484680,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        6,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__TEXT",
-                    ),
-                    sectname: Some(
-                        "__stub_helper",
-                    ),
-                    addr: Some(
-                        4295184464,
-                    ),
-                    size: Some(
-                        1066,
-                    ),
-                    offset: Some(
-                        217168,
+                        3768,
                     ),
                     align: Some(
                         2,
@@ -232,9 +138,139 @@ Macho {
                     reserved2: Some(
                         0,
                     ),
-                    reserved3: Some(
+                    reserved3: None,
+                    special_fields: SpecialFields {
+                        unknown_fields: UnknownFields {
+                            fields: None,
+                        },
+                        cached_size: CachedSize {
+                            size: 0,
+                        },
+                    },
+                },
+                Section {
+                    segname: Some(
+                        "__TEXT",
+                    ),
+                    sectname: Some(
+                        "__picsymbol_stub",
+                    ),
+                    addr: Some(
+                        55024,
+                    ),
+                    size: Some(
                         0,
                     ),
+                    offset: Some(
+                        50928,
+                    ),
+                    align: Some(
+                        2,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
+                        2147483656,
+                    ),
+                    reserved1: Some(
+                        0,
+                    ),
+                    reserved2: Some(
+                        36,
+                    ),
+                    reserved3: None,
+                    special_fields: SpecialFields {
+                        unknown_fields: UnknownFields {
+                            fields: None,
+                        },
+                        cached_size: CachedSize {
+                            size: 0,
+                        },
+                    },
+                },
+                Section {
+                    segname: Some(
+                        "__TEXT",
+                    ),
+                    sectname: Some(
+                        "__symbol_stub",
+                    ),
+                    addr: Some(
+                        55024,
+                    ),
+                    size: Some(
+                        0,
+                    ),
+                    offset: Some(
+                        50928,
+                    ),
+                    align: Some(
+                        2,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
+                        2147483656,
+                    ),
+                    reserved1: Some(
+                        0,
+                    ),
+                    reserved2: Some(
+                        20,
+                    ),
+                    reserved3: None,
+                    special_fields: SpecialFields {
+                        unknown_fields: UnknownFields {
+                            fields: None,
+                        },
+                        cached_size: CachedSize {
+                            size: 0,
+                        },
+                    },
+                },
+                Section {
+                    segname: Some(
+                        "__TEXT",
+                    ),
+                    sectname: Some(
+                        "__picsymbolstub1",
+                    ),
+                    addr: Some(
+                        55024,
+                    ),
+                    size: Some(
+                        2560,
+                    ),
+                    offset: Some(
+                        50928,
+                    ),
+                    align: Some(
+                        2,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
+                        2147484680,
+                    ),
+                    reserved1: Some(
+                        0,
+                    ),
+                    reserved2: Some(
+                        32,
+                    ),
+                    reserved3: None,
                     special_fields: SpecialFields {
                         unknown_fields: UnknownFields {
                             fields: None,
@@ -252,173 +288,77 @@ Macho {
                         "__cstring",
                     ),
                     addr: Some(
-                        4295185536,
+                        57584,
                     ),
                     size: Some(
-                        4935,
+                        7816,
                     ),
                     offset: Some(
-                        218240,
+                        53488,
                     ),
                     align: Some(
+                        2,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
+                        2,
+                    ),
+                    reserved1: Some(
+                        0,
+                    ),
+                    reserved2: Some(
+                        0,
+                    ),
+                    reserved3: None,
+                    special_fields: SpecialFields {
+                        unknown_fields: UnknownFields {
+                            fields: None,
+                        },
+                        cached_size: CachedSize {
+                            size: 0,
+                        },
+                    },
+                },
+                Section {
+                    segname: Some(
+                        "__TEXT",
+                    ),
+                    sectname: Some(
+                        "__literal8",
+                    ),
+                    addr: Some(
+                        65400,
+                    ),
+                    size: Some(
+                        80,
+                    ),
+                    offset: Some(
+                        61304,
+                    ),
+                    align: Some(
+                        3,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
                         4,
                     ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        2,
-                    ),
                     reserved1: Some(
                         0,
                     ),
                     reserved2: Some(
                         0,
                     ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__TEXT",
-                    ),
-                    sectname: Some(
-                        "__const",
-                    ),
-                    addr: Some(
-                        4295190480,
-                    ),
-                    size: Some(
-                        4976,
-                    ),
-                    offset: Some(
-                        223184,
-                    ),
-                    align: Some(
-                        4,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        0,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__TEXT",
-                    ),
-                    sectname: Some(
-                        "__gcc_except_tab",
-                    ),
-                    addr: Some(
-                        4295195456,
-                    ),
-                    size: Some(
-                        5844,
-                    ),
-                    offset: Some(
-                        228160,
-                    ),
-                    align: Some(
-                        2,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        0,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__TEXT",
-                    ),
-                    sectname: Some(
-                        "__unwind_info",
-                    ),
-                    addr: Some(
-                        4295201300,
-                    ),
-                    size: Some(
-                        3416,
-                    ),
-                    offset: Some(
-                        234004,
-                    ),
-                    align: Some(
-                        2,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        0,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
+                    reserved3: None,
                     special_fields: SpecialFields {
                         unknown_fields: UnknownFields {
                             fields: None,
@@ -436,16 +376,16 @@ Macho {
                         "__eh_frame",
                     ),
                     addr: Some(
-                        4295204720,
+                        65480,
                     ),
                     size: Some(
-                        128,
+                        52,
                     ),
                     offset: Some(
-                        237424,
+                        61384,
                     ),
                     align: Some(
-                        3,
+                        2,
                     ),
                     reloff: Some(
                         0,
@@ -454,7 +394,7 @@ Macho {
                         0,
                     ),
                     flags: Some(
-                        0,
+                        1744830475,
                     ),
                     reserved1: Some(
                         0,
@@ -462,9 +402,7 @@ Macho {
                     reserved2: Some(
                         0,
                     ),
-                    reserved3: Some(
-                        0,
-                    ),
+                    reserved3: None,
                     special_fields: SpecialFields {
                         unknown_fields: UnknownFields {
                             fields: None,
@@ -486,34 +424,34 @@ Macho {
         },
         Segment {
             cmd: Some(
-                25,
+                1,
             ),
             cmdsize: Some(
-                872,
+                464,
             ),
             segname: Some(
                 "__DATA",
             ),
             vmaddr: Some(
-                4295204864,
+                65536,
             ),
             vmsize: Some(
-                20480,
+                4096,
             ),
             fileoff: Some(
-                237568,
+                61440,
             ),
             filesize: Some(
-                12288,
+                4096,
             ),
             maxprot: Some(
-                3,
+                7,
             ),
             initprot: Some(
                 3,
             ),
             nsects: Some(
-                10,
+                6,
             ),
             flags: Some(
                 0,
@@ -524,16 +462,16 @@ Macho {
                         "__DATA",
                     ),
                     sectname: Some(
-                        "__nl_symbol_ptr",
+                        "__data",
                     ),
                     addr: Some(
-                        4295204864,
+                        65536,
                     ),
                     size: Some(
-                        8,
+                        596,
                     ),
                     offset: Some(
-                        237568,
+                        61440,
                     ),
                     align: Some(
                         3,
@@ -545,63 +483,15 @@ Macho {
                         0,
                     ),
                     flags: Some(
-                        6,
+                        0,
                     ),
                     reserved1: Some(
-                        105,
+                        0,
                     ),
                     reserved2: Some(
                         0,
                     ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__DATA",
-                    ),
-                    sectname: Some(
-                        "__got",
-                    ),
-                    addr: Some(
-                        4295204872,
-                    ),
-                    size: Some(
-                        72,
-                    ),
-                    offset: Some(
-                        237576,
-                    ),
-                    align: Some(
-                        3,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        6,
-                    ),
-                    reserved1: Some(
-                        106,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
+                    reserved3: None,
                     special_fields: SpecialFields {
                         unknown_fields: UnknownFields {
                             fields: None,
@@ -619,16 +509,16 @@ Macho {
                         "__la_symbol_ptr",
                     ),
                     addr: Some(
-                        4295204944,
+                        66132,
                     ),
                     size: Some(
-                        840,
+                        320,
                     ),
                     offset: Some(
-                        237648,
+                        62036,
                     ),
                     align: Some(
-                        3,
+                        2,
                     ),
                     reloff: Some(
                         0,
@@ -640,14 +530,12 @@ Macho {
                         7,
                     ),
                     reserved1: Some(
-                        115,
+                        80,
                     ),
                     reserved2: Some(
                         0,
                     ),
-                    reserved3: Some(
-                        0,
-                    ),
+                    reserved3: None,
                     special_fields: SpecialFields {
                         unknown_fields: UnknownFields {
                             fields: None,
@@ -662,19 +550,19 @@ Macho {
                         "__DATA",
                     ),
                     sectname: Some(
-                        "__mod_init_func",
+                        "__nl_symbol_ptr",
                     ),
                     addr: Some(
-                        4295205784,
+                        66452,
                     ),
                     size: Some(
-                        8,
+                        124,
                     ),
                     offset: Some(
-                        238488,
+                        62356,
                     ),
                     align: Some(
-                        3,
+                        2,
                     ),
                     reloff: Some(
                         0,
@@ -683,17 +571,15 @@ Macho {
                         0,
                     ),
                     flags: Some(
-                        9,
+                        6,
                     ),
                     reserved1: Some(
-                        0,
+                        160,
                     ),
                     reserved2: Some(
                         0,
                     ),
-                    reserved3: Some(
-                        0,
-                    ),
+                    reserved3: None,
                     special_fields: SpecialFields {
                         unknown_fields: UnknownFields {
                             fields: None,
@@ -708,65 +594,19 @@ Macho {
                         "__DATA",
                     ),
                     sectname: Some(
-                        "__const",
+                        "__dyld",
                     ),
                     addr: Some(
-                        4295205792,
+                        66576,
                     ),
                     size: Some(
-                        8336,
+                        28,
                     ),
                     offset: Some(
-                        238496,
+                        62480,
                     ),
                     align: Some(
-                        4,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        0,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__DATA",
-                    ),
-                    sectname: Some(
-                        "__data",
-                    ),
-                    addr: Some(
-                        4295214128,
-                    ),
-                    size: Some(
-                        808,
-                    ),
-                    offset: Some(
-                        246832,
-                    ),
-                    align: Some(
-                        3,
+                        2,
                     ),
                     reloff: Some(
                         0,
@@ -783,101 +623,7 @@ Macho {
                     reserved2: Some(
                         0,
                     ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__DATA",
-                    ),
-                    sectname: Some(
-                        "__thread_vars",
-                    ),
-                    addr: Some(
-                        4295214936,
-                    ),
-                    size: Some(
-                        24,
-                    ),
-                    offset: Some(
-                        247640,
-                    ),
-                    align: Some(
-                        3,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        19,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__DATA",
-                    ),
-                    sectname: Some(
-                        "__thread_data",
-                    ),
-                    addr: Some(
-                        4295214960,
-                    ),
-                    size: Some(
-                        16,
-                    ),
-                    offset: Some(
-                        247664,
-                    ),
-                    align: Some(
-                        3,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        17,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
+                    reserved3: None,
                     special_fields: SpecialFields {
                         unknown_fields: UnknownFields {
                             fields: None,
@@ -895,10 +641,54 @@ Macho {
                         "__bss",
                     ),
                     addr: Some(
-                        4295214976,
+                        66604,
                     ),
                     size: Some(
-                        5364,
+                        1032,
+                    ),
+                    offset: Some(
+                        0,
+                    ),
+                    align: Some(
+                        2,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
+                        1,
+                    ),
+                    reserved1: Some(
+                        0,
+                    ),
+                    reserved2: Some(
+                        0,
+                    ),
+                    reserved3: None,
+                    special_fields: SpecialFields {
+                        unknown_fields: UnknownFields {
+                            fields: None,
+                        },
+                        cached_size: CachedSize {
+                            size: 0,
+                        },
+                    },
+                },
+                Section {
+                    segname: Some(
+                        "__DATA",
+                    ),
+                    sectname: Some(
+                        "__common",
+                    ),
+                    addr: Some(
+                        67648,
+                    ),
+                    size: Some(
+                        208,
                     ),
                     offset: Some(
                         0,
@@ -921,55 +711,7 @@ Macho {
                     reserved2: Some(
                         0,
                     ),
-                    reserved3: Some(
-                        0,
-                    ),
-                    special_fields: SpecialFields {
-                        unknown_fields: UnknownFields {
-                            fields: None,
-                        },
-                        cached_size: CachedSize {
-                            size: 0,
-                        },
-                    },
-                },
-                Section {
-                    segname: Some(
-                        "__DATA",
-                    ),
-                    sectname: Some(
-                        "__common",
-                    ),
-                    addr: Some(
-                        4295220344,
-                    ),
-                    size: Some(
-                        1576,
-                    ),
-                    offset: Some(
-                        0,
-                    ),
-                    align: Some(
-                        3,
-                    ),
-                    reloff: Some(
-                        0,
-                    ),
-                    nreloc: Some(
-                        0,
-                    ),
-                    flags: Some(
-                        1,
-                    ),
-                    reserved1: Some(
-                        0,
-                    ),
-                    reserved2: Some(
-                        0,
-                    ),
-                    reserved3: Some(
-                        0,
-                    ),
+                    reserved3: None,
                     special_fields: SpecialFields {
                         unknown_fields: UnknownFields {
                             fields: None,
@@ -991,28 +733,28 @@ Macho {
         },
         Segment {
             cmd: Some(
-                25,
+                1,
             ),
             cmdsize: Some(
-                72,
+                56,
             ),
             segname: Some(
                 "__LINKEDIT",
             ),
             vmaddr: Some(
-                4295225344,
+                69632,
             ),
             vmsize: Some(
-                32768,
+                49152,
             ),
             fileoff: Some(
-                249856,
+                65536,
             ),
             filesize: Some(
-                30656,
+                46032,
             ),
             maxprot: Some(
-                1,
+                7,
             ),
             initprot: Some(
                 1,
@@ -1021,7 +763,7 @@ Macho {
                 0,
             ),
             flags: Some(
-                0,
+                4,
             ),
             sections: [],
             special_fields: SpecialFields {
@@ -1035,11 +777,9 @@ Macho {
         },
     ],
     entry_point: Some(
-        3616,
+        3768,
     ),
-    stack_size: Some(
-        0,
-    ),
+    stack_size: None,
     fat_magic: None,
     nfat_arch: None,
     fat_arch: [],

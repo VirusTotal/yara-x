@@ -2874,29 +2874,10 @@ fn test_hash_module() {
 #[test]
 #[cfg(feature = "macho-module")]
 fn test_macho_module() {
-    let macho_file = [
-        // Mach-O header
-        0xFE, 0xED, 0xFA, 0xCE, // magic
-        0x00, 0x00, 0x00, 0x01, // cputype
-        0x00, 0x00, 0x00, 0x02, // cpusubtype
-        0x00, 0x00, 0x00, 0x03, // filetype
-        0x00, 0x00, 0x00, 0x04, // ncmds
-        0x00, 0x00, 0x00, 0x05, // sizeofcmds
-        0x00, 0x00, 0x00, 0x06, // flags
-        0x00, 0x00, 0x00, 0x00, // reserved
-    ];
-
-    let macho_fat_file = [
-        // Fat header
-        0xCA, 0xFE, 0xBA, 0xBE, // magic
-        0x00, 0x00, 0x00, 0x01, // nfat_arch
-        // First arch
-        0x00, 0x00, 0x00, 0x07, // cputype
-        0x00, 0x00, 0x00, 0x03, // cpusubtype
-        0x00, 0x00, 0x00, 0x00, // offset
-        0x00, 0x00, 0x00, 0x00, // size
-        0x00, 0x00, 0x00, 0x00, // align
-    ];
+    let data: Result<Vec<u8>, Box<dyn std::error::Error>> = create_binary_from_ihex!(
+        "src/modules/macho/tests/input/tiny_universal.in"
+    );
+    let macho_data = data.unwrap();
 
     rule_true!(
         r#"
@@ -2923,7 +2904,7 @@ fn test_macho_module() {
             macho.CPU_TYPE_MIPS == 0x00000008
         }
         "#,
-        &macho_file
+        &macho_data
     );
 
     rule_false!(
@@ -2937,48 +2918,7 @@ fn test_macho_module() {
             macho.CPU_TYPE_MIPS == 0x00000000
         }
         "#,
-        &macho_file
-    );
-
-    rule_true!(
-        r#"
-        import "macho"
-        rule test {
-          condition:
-            macho.magic == 0xcefaedfe and
-            macho.cputype == 1 and
-            macho.cpusubtype == 2 and
-            macho.filetype == 3 and
-            macho.ncmds == 4 and
-            macho.sizeofcmds == 5 and
-            macho.flags == 6
-        }
-        "#,
-        &macho_file
-    );
-
-    rule_true!(
-        r#"
-        import "macho"
-        rule test {
-          condition:
-            macho.fat_magic == 0xcafebabe and
-            macho.nfat_arch == 1
-        }
-        "#,
-        &macho_fat_file
-    );
-
-    rule_true!(
-        r#"
-        import "macho"
-        rule test {
-          condition:
-            not defined macho.fat_magic == 0xcafebabe and
-            not defined macho.nfat_arch == 1
-        }
-        "#,
-        &[]
+        &macho_data
     );
 
     rule_true!(
@@ -2989,7 +2929,18 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000007) == 0
         }
         "#,
-        &macho_fat_file
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x01000007) == 1
+        }
+        "#,
+        &macho_data
     );
 
     rule_false!(
@@ -3000,7 +2951,18 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000008) == 0
         }
         "#,
-        &macho_fat_file
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.file_index_for_arch(0x01000008)
+        }
+        "#,
+        &[]
     );
 
     rule_true!(
@@ -3011,7 +2973,18 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000007, 0x00000003) == 0
         }
         "#,
-        &macho_fat_file
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(16777223, 2147483651) == 1
+        }
+        "#,
+        &macho_data
     );
 
     rule_false!(
@@ -3022,7 +2995,7 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000008, 0x00000004) == 0
         }
         "#,
-        &macho_fat_file
+        &macho_data
     );
 
     rule_true!(
@@ -3030,10 +3003,10 @@ fn test_macho_module() {
         import "macho"
         rule test {
           condition:
-            not defined macho.entry_point_for_arch(0x00000007)
+            not defined macho.file_index_for_arch(0x00000008, 0x00000004)
         }
         "#,
-        &macho_fat_file
+        &macho_data
     );
 
     rule_true!(
@@ -3041,10 +3014,65 @@ fn test_macho_module() {
         import "macho"
         rule test {
           condition:
-            not defined macho.entry_point_for_arch(0x00000007, 0x00000003)
+            not defined macho.file_index_for_arch(0x00000007, 0x00000003)
         }
         "#,
-        &macho_fat_file
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000007) == 0x00001EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x01000007) == 0x00004EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000007, 0x00000003) == 0x00001EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(16777223, 2147483651) == 0x00004EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000008, 0x00000003) == 0x00001EE0
+        }
+        "#,
+        &macho_data
     );
 
     rule_true!(

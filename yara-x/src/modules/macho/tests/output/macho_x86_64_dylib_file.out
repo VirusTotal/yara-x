@@ -1,0 +1,272 @@
+Macho {
+    magic: Some(
+        4277009103,
+    ),
+    cputype: Some(
+        16777223,
+    ),
+    cpusubtype: Some(
+        3,
+    ),
+    filetype: Some(
+        6,
+    ),
+    ncmds: Some(
+        13,
+    ),
+    sizeofcmds: Some(
+        744,
+    ),
+    flags: Some(
+        1048709,
+    ),
+    reserved: Some(
+        1,
+    ),
+    number_of_segments: Some(
+        2,
+    ),
+    segments: [
+        Segment {
+            cmd: Some(
+                25,
+            ),
+            cmdsize: Some(
+                312,
+            ),
+            segname: Some(
+                "__TEXT",
+            ),
+            vmaddr: Some(
+                0,
+            ),
+            vmsize: Some(
+                4096,
+            ),
+            fileoff: Some(
+                0,
+            ),
+            filesize: Some(
+                4096,
+            ),
+            maxprot: Some(
+                7,
+            ),
+            initprot: Some(
+                5,
+            ),
+            nsects: Some(
+                3,
+            ),
+            flags: Some(
+                0,
+            ),
+            sections: [
+                Section {
+                    segname: Some(
+                        "__TEXT",
+                    ),
+                    sectname: Some(
+                        "__text",
+                    ),
+                    addr: Some(
+                        3920,
+                    ),
+                    size: Some(
+                        72,
+                    ),
+                    offset: Some(
+                        3920,
+                    ),
+                    align: Some(
+                        4,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
+                        2147484672,
+                    ),
+                    reserved1: Some(
+                        0,
+                    ),
+                    reserved2: Some(
+                        0,
+                    ),
+                    reserved3: Some(
+                        0,
+                    ),
+                    special_fields: SpecialFields {
+                        unknown_fields: UnknownFields {
+                            fields: None,
+                        },
+                        cached_size: CachedSize {
+                            size: 0,
+                        },
+                    },
+                },
+                Section {
+                    segname: Some(
+                        "__TEXT",
+                    ),
+                    sectname: Some(
+                        "__unwind_info",
+                    ),
+                    addr: Some(
+                        3992,
+                    ),
+                    size: Some(
+                        72,
+                    ),
+                    offset: Some(
+                        3992,
+                    ),
+                    align: Some(
+                        2,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
+                        0,
+                    ),
+                    reserved1: Some(
+                        0,
+                    ),
+                    reserved2: Some(
+                        0,
+                    ),
+                    reserved3: Some(
+                        0,
+                    ),
+                    special_fields: SpecialFields {
+                        unknown_fields: UnknownFields {
+                            fields: None,
+                        },
+                        cached_size: CachedSize {
+                            size: 0,
+                        },
+                    },
+                },
+                Section {
+                    segname: Some(
+                        "__TEXT",
+                    ),
+                    sectname: Some(
+                        "__eh_frame",
+                    ),
+                    addr: Some(
+                        4064,
+                    ),
+                    size: Some(
+                        24,
+                    ),
+                    offset: Some(
+                        4064,
+                    ),
+                    align: Some(
+                        3,
+                    ),
+                    reloff: Some(
+                        0,
+                    ),
+                    nreloc: Some(
+                        0,
+                    ),
+                    flags: Some(
+                        0,
+                    ),
+                    reserved1: Some(
+                        0,
+                    ),
+                    reserved2: Some(
+                        0,
+                    ),
+                    reserved3: Some(
+                        0,
+                    ),
+                    special_fields: SpecialFields {
+                        unknown_fields: UnknownFields {
+                            fields: None,
+                        },
+                        cached_size: CachedSize {
+                            size: 0,
+                        },
+                    },
+                },
+            ],
+            special_fields: SpecialFields {
+                unknown_fields: UnknownFields {
+                    fields: None,
+                },
+                cached_size: CachedSize {
+                    size: 0,
+                },
+            },
+        },
+        Segment {
+            cmd: Some(
+                25,
+            ),
+            cmdsize: Some(
+                72,
+            ),
+            segname: Some(
+                "__LINKEDIT",
+            ),
+            vmaddr: Some(
+                4096,
+            ),
+            vmsize: Some(
+                4096,
+            ),
+            fileoff: Some(
+                4096,
+            ),
+            filesize: Some(
+                128,
+            ),
+            maxprot: Some(
+                7,
+            ),
+            initprot: Some(
+                1,
+            ),
+            nsects: Some(
+                0,
+            ),
+            flags: Some(
+                0,
+            ),
+            sections: [],
+            special_fields: SpecialFields {
+                unknown_fields: UnknownFields {
+                    fields: None,
+                },
+                cached_size: CachedSize {
+                    size: 0,
+                },
+            },
+        },
+    ],
+    entry_point: None,
+    stack_size: None,
+    fat_magic: None,
+    nfat_arch: None,
+    fat_arch: [],
+    file: [],
+    special_fields: SpecialFields {
+        unknown_fields: UnknownFields {
+            fields: None,
+        },
+        cached_size: CachedSize {
+            size: 0,
+        },
+    },
+}
