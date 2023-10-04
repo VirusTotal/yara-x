@@ -1,6 +1,12 @@
-/*! End-to-end tests.*/
+/*! End-to-end tests. */
 use bstr::ByteSlice;
+use goldenfile::Mint;
+use ihex::Reader;
 use pretty_assertions::assert_eq;
+use protobuf::MessageDyn;
+use std::fs;
+use std::io::{Read, Write};
+use std::path::Path;
 
 const JUMPS_DATA: &[u8; 1664] = include_bytes!("testdata/jumps.bin");
 
@@ -139,6 +145,24 @@ macro_rules! pattern_match {
             "\n\n`{}` applied to data `{:?}` should match `{:?}`, but it is matching `{:?}`",
             $pattern, $data, $expected_result, matching_data
         );
+    }};
+}
+
+macro_rules! create_binary_from_ihex {
+    ($filename:expr) => {{
+        let mut file = fs::File::open($filename).expect("Unable to open file");
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).expect("Unable to read file");
+
+        let mut reader = Reader::new(&contents);
+        let mut data = Vec::new();
+        while let Some(Ok(record)) = reader.next() {
+            if let ihex::Record::Data { value, .. } = record {
+                data.extend(value);
+            }
+        }
+
+        Ok(data)
     }};
 }
 
@@ -2850,29 +2874,10 @@ fn test_hash_module() {
 #[test]
 #[cfg(feature = "macho-module")]
 fn test_macho_module() {
-    let macho_file = [
-        // Mach-O header
-        0xFE, 0xED, 0xFA, 0xCE, // magic
-        0x00, 0x00, 0x00, 0x01, // cputype
-        0x00, 0x00, 0x00, 0x02, // cpusubtype
-        0x00, 0x00, 0x00, 0x03, // filetype
-        0x00, 0x00, 0x00, 0x04, // ncmds
-        0x00, 0x00, 0x00, 0x05, // sizeofcmds
-        0x00, 0x00, 0x00, 0x06, // flags
-        0x00, 0x00, 0x00, 0x00, // reserved
-    ];
-
-    let macho_fat_file = [
-        // Fat header
-        0xCA, 0xFE, 0xBA, 0xBE, // magic
-        0x00, 0x00, 0x00, 0x01, // nfat_arch
-        // First arch
-        0x00, 0x00, 0x00, 0x07, // cputype
-        0x00, 0x00, 0x00, 0x03, // cpusubtype
-        0x00, 0x00, 0x00, 0x00, // offset
-        0x00, 0x00, 0x00, 0x00, // size
-        0x00, 0x00, 0x00, 0x00, // align
-    ];
+    let data: Result<Vec<u8>, Box<dyn std::error::Error>> = create_binary_from_ihex!(
+        "src/modules/macho/tests/input/tiny_universal.in"
+    );
+    let macho_data = data.unwrap();
 
     rule_true!(
         r#"
@@ -2899,7 +2904,7 @@ fn test_macho_module() {
             macho.CPU_TYPE_MIPS == 0x00000008
         }
         "#,
-        &macho_file
+        &macho_data
     );
 
     rule_false!(
@@ -2913,48 +2918,7 @@ fn test_macho_module() {
             macho.CPU_TYPE_MIPS == 0x00000000
         }
         "#,
-        &macho_file
-    );
-
-    rule_true!(
-        r#"
-        import "macho"
-        rule test {
-          condition:
-            macho.magic == 0xcefaedfe and
-            macho.cputype == 1 and
-            macho.cpusubtype == 2 and
-            macho.filetype == 3 and
-            macho.ncmds == 4 and
-            macho.sizeofcmds == 5 and
-            macho.flags == 6
-        }
-        "#,
-        &macho_file
-    );
-
-    rule_true!(
-        r#"
-        import "macho"
-        rule test {
-          condition:
-            macho.fat_magic == 0xcafebabe and
-            macho.nfat_arch == 1
-        }
-        "#,
-        &macho_fat_file
-    );
-
-    rule_true!(
-        r#"
-        import "macho"
-        rule test {
-          condition:
-            not defined macho.fat_magic == 0xcafebabe and
-            not defined macho.nfat_arch == 1
-        }
-        "#,
-        &[]
+        &macho_data
     );
 
     rule_true!(
@@ -2965,7 +2929,18 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000007) == 0
         }
         "#,
-        &macho_fat_file
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x01000007) == 1
+        }
+        "#,
+        &macho_data
     );
 
     rule_false!(
@@ -2976,7 +2951,18 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000008) == 0
         }
         "#,
-        &macho_fat_file
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.file_index_for_arch(0x01000008)
+        }
+        "#,
+        &[]
     );
 
     rule_true!(
@@ -2987,7 +2973,18 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000007, 0x00000003) == 0
         }
         "#,
-        &macho_fat_file
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(16777223, 2147483651) == 1
+        }
+        "#,
+        &macho_data
     );
 
     rule_false!(
@@ -2998,7 +2995,7 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000008, 0x00000004) == 0
         }
         "#,
-        &macho_fat_file
+        &macho_data
     );
 
     rule_true!(
@@ -3006,10 +3003,10 @@ fn test_macho_module() {
         import "macho"
         rule test {
           condition:
-            not defined macho.entry_point_for_arch(0x00000007)
+            not defined macho.file_index_for_arch(0x00000008, 0x00000004)
         }
         "#,
-        &macho_fat_file
+        &macho_data
     );
 
     rule_true!(
@@ -3017,10 +3014,65 @@ fn test_macho_module() {
         import "macho"
         rule test {
           condition:
-            not defined macho.entry_point_for_arch(0x00000007, 0x00000003)
+            not defined macho.file_index_for_arch(0x00000007, 0x00000003)
         }
         "#,
-        &macho_fat_file
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000007) == 0x00001EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x01000007) == 0x00004EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000007, 0x00000003) == 0x00001EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(16777223, 2147483651) == 0x00004EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000008, 0x00000003) == 0x00001EE0
+        }
+        "#,
+        &macho_data
     );
 
     rule_true!(
@@ -3285,4 +3337,98 @@ fn test_proto2_module() {
     //   [(yara.field_options).name = "bool_yara"];
     //
     condition_true!(r#"test_proto2.bool_yara"#);
+}
+
+#[test]
+fn test_modules() {
+    // Create goldenfile mint
+    let mut mint = Mint::new("src/modules");
+
+    // Get all directories in "src/modules/"
+    let module_dirs =
+        fs::read_dir("src/modules").expect("Failed to read directory");
+
+    // Iterate over the directories
+    for dir in module_dirs {
+        let dir = dir.expect("Failed to read directory entry");
+        if dir.file_type().expect("Failed to get file type").is_dir() {
+            // Get the name of the directory
+            let module_name = dir
+                .file_name()
+                .into_string()
+                .expect("Failed to convert OsString");
+
+            // Skip the "protos" directory
+            if module_name == "protos" {
+                continue;
+            }
+
+            // Construct the rule
+            let rule = format!(
+                r#"
+                import "{}"
+                rule test {{
+                    condition: false
+                }}"#,
+                module_name
+            );
+
+            // Compile the rule
+            let rules = crate::compile(rule.as_str()).unwrap();
+            let mut scanner = crate::scanner::Scanner::new(&rules);
+
+            // Get all ".in" files in the directory
+            let input_files = fs::read_dir(dir.path().join("tests/input"))
+                .expect("Failed to read directory");
+            for file in input_files {
+                let file = file.expect("Failed to read directory entry");
+                if file.file_type().expect("Failed to get file type").is_file()
+                {
+                    let file_path = file.path();
+                    if file_path.extension()
+                        == Some(Path::new("in").as_os_str())
+                    {
+                        // Read the ".in" file and create a binary from it
+                        let data: Result<Vec<u8>, Box<dyn std::error::Error>> =
+                            create_binary_from_ihex!(file_path
+                                .to_str()
+                                .unwrap());
+                        let data = data.unwrap();
+
+                        // Scan the data
+                        let scan_results =
+                            scanner.scan(&data).expect("scan should not fail");
+
+                        // Get the module output
+                        let output = scan_results
+                            .module_output(&module_name)
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "{} should produce some output",
+                                    module_name
+                                )
+                            });
+
+                        // Downcast the output
+                        let output: &crate::modules::protos::macho::Macho =
+                            <dyn MessageDyn>::downcast_ref(output).unwrap();
+
+                        // Create a Goldenfile test
+                        let mut output_file = mint
+                            .new_goldenfile(format!(
+                                "{}/tests/output/{}.out",
+                                module_name,
+                                file_path
+                                    .file_stem()
+                                    .unwrap()
+                                    .to_str()
+                                    .unwrap()
+                            ))
+                            .unwrap();
+                        write!(output_file, "{:#?}", output).unwrap();
+                    }
+                }
+            }
+        }
+    }
 }

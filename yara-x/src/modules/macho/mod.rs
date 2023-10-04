@@ -1437,7 +1437,10 @@ fn handle_segment_command(
         cmd: Some(sg.cmd),
         cmdsize: Some(sg.cmdsize),
         segname: Some(
-            std::str::from_utf8(&sg.segname).unwrap_or_default().to_string(),
+            std::str::from_utf8(&sg.segname)
+                .unwrap_or_default()
+                .trim_end_matches('\0')
+                .to_string(),
         ),
         vmaddr: Some(sg.vmaddr as u64),
         vmsize: Some(sg.vmsize as u64),
@@ -1469,11 +1472,13 @@ fn handle_segment_command(
             segname: Some(
                 std::str::from_utf8(&sec.segname)
                     .unwrap_or_default()
+                    .trim_end_matches('\0')
                     .to_string(),
             ),
             sectname: Some(
                 std::str::from_utf8(&sec.sectname)
                     .unwrap_or_default()
+                    .trim_end_matches('\0')
                     .to_string(),
             ),
             addr: Some(sec.addr as u64),
@@ -1552,7 +1557,10 @@ fn handle_segment_command_64(
         cmd: Some(sg.cmd),
         cmdsize: Some(sg.cmdsize),
         segname: Some(
-            std::str::from_utf8(&sg.segname).unwrap_or_default().to_string(),
+            std::str::from_utf8(&sg.segname)
+                .unwrap_or_default()
+                .trim_end_matches('\0')
+                .to_string(),
         ),
         vmaddr: Some(sg.vmaddr),
         vmsize: Some(sg.vmsize),
@@ -1584,11 +1592,13 @@ fn handle_segment_command_64(
             segname: Some(
                 std::str::from_utf8(&sec.segname)
                     .unwrap_or_default()
+                    .trim_end_matches('\0')
                     .to_string(),
             ),
             sectname: Some(
                 std::str::from_utf8(&sec.sectname)
                     .unwrap_or_default()
+                    .trim_end_matches('\0')
                     .to_string(),
             ),
             addr: Some(sec.addr),
