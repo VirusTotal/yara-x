@@ -22,6 +22,8 @@ members = [
     "yara-x-proto",
     "yara-x-py",
 ]
+resolver = "2"
+
 
 [workspace.dependencies]
 aho-corasick = "1.0.0"
