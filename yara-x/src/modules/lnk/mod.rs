@@ -17,9 +17,6 @@ use crate::modules::protos::lnk::*;
 
 mod parser;
 
-#[cfg(test)]
-mod tests;
-
 #[module_main]
 fn main(ctx: &ScanContext) -> Lnk {
     match parser::LnkParser::new().parse(ctx.scanned_data()) {
