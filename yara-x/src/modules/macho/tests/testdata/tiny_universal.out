@@ -166,6 +166,12 @@ file {
     nsects: 0
     flags: 0
   }
+  dylibs {
+    name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2
+    compatibility_version: 65536
+    current_version: 79495168
+  }
   entry_point: 3808
   stack_size: 0
 }
@@ -342,6 +348,12 @@ file {
     initprot: 1
     nsects: 0
     flags: 0
+  }
+  dylibs {
+    name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2
+    compatibility_version: 65536
+    current_version: 79495168
   }
   entry_point: 3808
   stack_size: 0
