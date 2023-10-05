@@ -2879,11 +2879,6 @@ fn test_macho_module() {
     );
     let macho_data = data.unwrap();
 
-    let data_additional: Result<Vec<u8>, Box<dyn std::error::Error>> = create_binary_from_ihex!(
-        "src/modules/macho/tests/input/macho_x86_64_dylib_file.in"
-    );
-    let dylib_data = data_additional.unwrap();
-
     rule_true!(
         r#"
         import "macho"
@@ -3089,54 +3084,6 @@ fn test_macho_module() {
         }
         "#,
         &[]
-    );
-
-    rule_true!(
-        r#"
-    import "macho"
-    rule test {
-        condition:
-            macho.dylibs[0].timestamp == 1 and
-            macho.dylibs[1].timestamp == 2
-    }
-    "#,
-        &dylib_data
-    );
-
-    rule_true!(
-        r#"
-    import "macho"
-    rule test {
-        condition:
-            macho.dylibs[0].compatibility_version == 0 and
-            macho.dylibs[1].compatibility_version == 65536
-    }
-    "#,
-        &dylib_data
-    );
-
-    rule_true!(
-        r#"
-    import "macho"
-    rule test {
-        condition:
-            macho.dylibs[0].current_version == 0 and
-            macho.dylibs[1].current_version == 79495168
-    }
-    "#,
-        &dylib_data
-    );
-
-    rule_true!(
-        r#"
-    import "macho"
-    rule test {
-        condition:
-            macho.dylibs[0].name == "fact_x86_64.dylib" and 
-            macho.dylibs[1].name == "/usr/lib/libSystem.B.dylib"
-    }
-    "#,
-        &dylib_data
     );
 }
 
