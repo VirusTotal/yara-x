@@ -1,0 +1,38 @@
+is_lnk: true
+creation_time: 1262799464
+access_time: 1262799464
+write_time: 1262627400
+file_size: 764928
+file_attribute_flags: 32
+icon_index: 0
+show_command: 1
+hotkey_flags: 0
+drive_type: 3
+drive_serial_number: 1283437392
+volume_label: "volume_c"
+local_base_path: "C:\\Program Files\\PeaZip\\peazip.exe"
+name: "PeaZip archiver, add to encrypted .pea archive"
+relative_path: "..\\..\\..\\..\\..\\..\\..\\Program Files\\PeaZip\\peazip.exe"
+arguments: "-add2crypt"
+icon_location: "C:\\Program Files\\PeaZip\\res\\icons\\peazip_new.icl"
+overlay_size: 0
+link_target_id_list {
+  size: 18
+  data: "\037P\340O\320 \352:i\020\242\330\010\000+00\235"
+}
+link_target_id_list {
+  size: 23
+  data: "/C:\\\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
+}
+link_target_id_list {
+  size: 130
+  data: "1\000\000\000\000\000\"<\tx\021\000PROGRA~1\000\000l\000\007\000\004\000\357\276b5QZ$<L\273&\000\000\000=\000\000\000\000\000\001\000\000\000\000\000\000\000\000\000B\000P\000r\000o\000g\000r\000a\000m\000 \000F\000i\000l\000e\000s\000\000\000@\000s\000h\000e\000l\000l\0003\0002\000.\000d\000l\000l\000,\000-\0002\0001\0007\0008\0001\000\000\000\030\000"
+}
+link_target_id_list {
+  size: 74
+  data: "1\000\000\000\000\000&<\270\214\020\000PeaZip\000\0006\000\007\000\004\000\357\276\202;Q\263&<\270\214&\000\000\000i\267\000\000\000\000\202\000\000\000\000\000\000\000\000\000\000\000P\000e\000a\000Z\000i\000p\000\000\000\026\000"
+}
+link_target_id_list {
+  size: 86
+  data: "2\000\000\254\013\000$<@\216 \000peazip.exe\000\000>\000\007\000\004\000\357\276&<\267\214&<\267\214&\000\000\000\266\271\000\000\000\000\262\000\000\000\000\000\000\000\000\000\000\000p\000e\000a\000z\000i\000p\000.\000e\000x\000e\000\000\000\032\000"
+}

@@ -1,0 +1,61 @@
+syntax = "proto2";
+
+import "yara.proto";
+
+option (yara.module_options) = {
+  name : "lnk"
+  root_message: "Lnk"
+  rust_module: "lnk"
+};
+
+
+enum FileAttributes {
+  option (yara.enum_options).inline = true;
+  FILE_ATTRIBUTE_READONLY            = 0x00000001;
+  FILE_ATTRIBUTE_HIDDEN              = 0x00000002;
+  FILE_ATTRIBUTE_SYSTEM              = 0x00000004;
+  RESERVED_1                         = 0x00000008;
+  FILE_ATTRIBUTE_DIRECTORY           = 0x00000010;
+  FILE_ATTRIBUTE_ARCHIVE             = 0x00000020;
+  RESERVED_2                         = 0x00000040;
+  FILE_ATTRIBUTE_NORMAL              = 0x00000080;
+  FILE_ATTRIBUTE_TEMPORARY           = 0x00000100;
+  FILE_ATTRIBUTE_SPARSE_FILE         = 0x00000200;
+  FILE_ATTRIBUTE_REPARSE_POINT       = 0x00000400;
+  FILE_ATTRIBUTE_COMPRESSED          = 0x00000800;
+  FILE_ATTRIBUTE_OFFLINE             = 0x00001000;
+  FILE_ATTRIBUTE_NOT_CONTENT_INDEXED = 0x00002000;
+  FILE_ATTRIBUTE_ENCRYPTED           = 0x00004000;
+}
+
+message Lnk {
+  required bool is_lnk = 1;
+  optional uint64 creation_time = 2;
+  optional uint64 access_time = 3;
+  optional uint64 write_time = 4;
+  optional uint32 file_size = 5;
+  optional uint32 file_attribute_flags = 6;
+  optional uint32 icon_index = 7;
+  optional uint32 show_command = 8;
+  optional uint32 hotkey_flags = 9;
+  optional uint32 drive_type = 10;
+  optional uint32 drive_serial_number = 11;
+  optional bytes volume_label = 12;
+  optional bytes local_base_path = 13;
+  optional bytes common_path_suffix = 14;
+  optional bytes name = 15;
+  optional bytes relative_path = 16;
+  optional bytes working_dir = 17;
+  optional bytes arguments = 18;
+  optional bytes icon_location = 19;
+  optional uint64 overlay_size = 20;
+  optional uint64 overlay_offset = 21;
+  repeated ItemId link_target_id_list = 22;
+
+}
+
+message ItemId {
+  required uint32 size = 1;
+  required bytes data = 2;
+}
+

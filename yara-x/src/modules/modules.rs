@@ -9,6 +9,8 @@ pub mod text;
 pub mod hash;
 #[cfg(feature = "test_proto2-module")]
 pub mod test_proto2;
+#[cfg(feature = "lnk-module")]
+pub mod lnk;
 #[cfg(feature = "time-module")]
 pub mod time;
 #[cfg(feature = "test_proto3-module")]
