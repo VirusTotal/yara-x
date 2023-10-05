@@ -76,7 +76,7 @@ macro_rules! new_binary_expr {
 }
 
 fn create_unary_expr<'src>(
-    ctx: &mut Context<'_, '_>,
+    ctx: &Context<'_, '_>,
     operator: CSTNode<'src>,
     operand: Expr<'src>,
 ) -> Result<Expr<'src>, Error> {
@@ -225,7 +225,7 @@ lazy_static! {
 /// Certain modifiers can't be used in conjunction, and this function
 /// returns an error in those cases.
 fn check_pattern_modifiers(
-    ctx: &mut Context<'_, '_>,
+    ctx: &Context<'_, '_>,
     rule_type: GrammarRule,
     modifiers: &PatternModifiers,
 ) -> Result<(), Error> {
@@ -497,8 +497,8 @@ fn patterns_from_cst<'src>(
         let new_pattern = pattern_from_cst(ctx, pattern_def)?;
         let new_pattern_ident = new_pattern.identifier().clone();
 
-        // Check if another pattern with the same identifier already exists, but
-        // only if the identifier is not `$`.
+        // Check if another pattern with the same identifier already exists,
+        // but only if the identifier is not `$`.
         if new_pattern_ident.name != "$" {
             if let Some(existing_pattern_ident) =
                 ctx.declared_patterns.get(&new_pattern_ident.name[1..])
@@ -669,7 +669,7 @@ fn pattern_from_cst<'src>(
 /// Given a CST node corresponding to the grammar rule `regexp`, returns the
 /// corresponding [`Regexp`] struct describing the regexp.
 fn regexp_from_cst<'src>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     regexp: CSTNode<'src>,
 ) -> Result<Regexp<'src>, Error> {
     let re = regexp.as_str();
@@ -719,7 +719,7 @@ fn regexp_from_cst<'src>(
 /// Given a CST node corresponding to the grammar rule `pattern_mods`, returns
 /// a [`PatternModifiers`] struct describing the modifiers.
 fn pattern_mods_from_cst<'src>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     rule_type: GrammarRule,
     pattern_mods: CSTNode<'src>,
 ) -> Result<PatternModifiers<'src>, Error> {
@@ -765,8 +765,9 @@ fn pattern_mods_from_cst<'src>(
                         // closing parenthesis `)`
                         upper_bound = match children.next().unwrap().as_rule()
                         {
-                            // If it is the closing parenthesis, the upper bound
-                            // of the xor range is equal to the lower bound.
+                            // If it is the closing parenthesis, the upper
+                            // bound of the xor
+                            // range is equal to the lower bound.
                             GrammarRule::RPAREN => lower_bound,
                             // If a hyphen follows, parse the integer after the
                             // hyphen.
@@ -863,7 +864,7 @@ fn pattern_mods_from_cst<'src>(
 /// Given a CST node corresponding to the grammar rule` meta_defs`, returns
 /// a vector of [`Meta`] structs describing the defined metadata.
 fn meta_from_cst<'src>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     meta_defs: CSTNode<'src>,
 ) -> Result<Vec<Meta<'src>>, Error> {
     expect!(meta_defs, GrammarRule::meta_defs);
@@ -910,8 +911,8 @@ fn meta_from_cst<'src>(
 // added first. Operators with the same precedence are added in a single
 // call to the `op` function, with operators separated by a pipe `|`.
 //
-// `PRATT_PARSER` has a `parse` function that receives a sequence of expressions
-// interleaved with operators. For example, it can receive..
+// `PRATT_PARSER` has a `parse` function that receives a sequence of
+// expressions interleaved with operators. For example, it can receive..
 //
 // <expr> <infix op> <expr>
 //
@@ -937,9 +938,9 @@ fn meta_from_cst<'src>(
 // PrattParser.
 //
 // For example, for the sequence 1 + 2 * 3, the first call to F will be with
-// arguments (2, *, 3), which produces a T1. In a second call to F the arguments
-// will be (1, +, T1) and its result T2 will be returned by `parse` because
-// there's no more expression to reduce.
+// arguments (2, *, 3), which produces a T1. In a second call to F the
+// arguments will be (1, +, T1) and its result T2 will be returned by `parse`
+// because there's no more expression to reduce.
 //
 // More details:
 // https://en.wikipedia.org/wiki/Operator-precedence_parser#Pratt_parsing
@@ -1636,8 +1637,8 @@ fn quantifier_from_cst<'src>(
     Ok(quantifier)
 }
 
-/// From a CST node corresponding to the grammar rule `pattern_ident_tuple`, returns
-/// a vector of [`PatternSetItem`].
+/// From a CST node corresponding to the grammar rule `pattern_ident_tuple`,
+/// returns a vector of [`PatternSetItem`].
 fn pattern_ident_tuple<'src>(
     ctx: &mut Context<'src, '_>,
     pattern_ident_tuple: CSTNode<'src>,
@@ -1688,8 +1689,8 @@ fn pattern_ident_tuple<'src>(
     Ok(result)
 }
 
-/// From a CST node corresponding to the grammar rule `boolean_expr_tuple`, returns
-/// a vector of [`Expr`].
+/// From a CST node corresponding to the grammar rule `boolean_expr_tuple`,
+/// returns a vector of [`Expr`].
 fn boolean_expr_tuple_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     boolean_expr_tuple: CSTNode<'src>,
@@ -1782,7 +1783,7 @@ fn iterator_from_cst<'src>(
 /// the the corresponding integer. This is a generic function that can be used
 /// for obtaining any type of integer, like u8, i64, etc.
 fn integer_lit_from_cst<'src, T>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     integer_lit: CSTNode<'src>,
 ) -> Result<T, Error>
 where
@@ -1848,7 +1849,7 @@ where
 /// From a CST node corresponding to the grammar rule `float_lit`, returns
 /// the `f64` representing the literal.
 fn float_lit_from_cst<'src>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     float_lit: CSTNode<'src>,
 ) -> Result<f64, Error> {
     expect!(float_lit, GrammarRule::float_lit);
@@ -1870,19 +1871,21 @@ fn float_lit_from_cst<'src>(
 /// escaped characters are accepted or not.
 ///
 /// This function returns a [`Cow<'src, BStr>`]. If the string literal doesn't
-/// contain escaped characters, the literal is exactly as it appears in the source
-/// code and we can return a reference to the code in the form of a &[`BStr`].
-/// However, when the literal string contains escaped characters they must be
-/// unescaped, and hence, this function returns a [`BString`] instead.
+/// contain escaped characters, the literal is exactly as it appears in the
+/// source code and we can return a reference to the code in the form of a
+/// &[`BStr`]. However, when the literal string contains escaped characters
+/// they must be unescaped, and hence, this function returns a [`BString`]
+/// instead.
 ///
 /// As escape characters can introduce arbitrary bytes in the string, including
-/// zeroes, they can't be represented by a Rust [`String`] or &[`str`] which requires
-/// valid UTF-8. For that reason we use [`BString`] and &[`BStr`] instead.
+/// zeroes, they can't be represented by a Rust [`String`] or &[`str`] which
+/// requires valid UTF-8. For that reason we use [`BString`] and &[`BStr`]
+/// instead.
 ///
 /// When called with `allow_escaped_char: false`, the returned string can be
 /// safely converted to [`String`] or &[`str`].
 fn string_lit_from_cst<'src>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     string_lit: CSTNode<'src>,
     allow_escape_char: bool,
 ) -> Result<Cow<'src, BStr>, Error> {
@@ -1915,8 +1918,8 @@ fn string_lit_from_cst<'src>(
 
     // TODO: with some unsafe code we could use the position of the backslash
     // returned by find for copying the chunk of literal that doesn't contain
-    // any backslashes directly into the resulting BString, instead of iterating
-    // the literal again from the very beginning.
+    // any backslashes directly into the resulting BString, instead of
+    // iterating the literal again from the very beginning.
     let mut bytes = literal.bytes().enumerate();
     let mut result = BString::new(Vec::with_capacity(literal.len()));
 
@@ -2000,7 +2003,7 @@ fn string_lit_from_cst<'src>(
 /// This function is similar [`string_lit_from_cst`] but guarantees that the
 /// string is a valid UTF-8 string.
 fn utf8_string_lit_from_cst<'src>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     string_lit: CSTNode<'src>,
 ) -> Result<&'src str, Error> {
     // Call string_lit_from_cst with allow_escape_char set to false. This
@@ -2058,8 +2061,9 @@ fn hex_pattern_from_cst<'src>(
                 } else {
                     // The low nibble is missing when there is an odd number of
                     // nibbles in a byte sequence (e.g. { 000 }). The grammar
-                    // allows this case, even if invalid, precisely for detecting
-                    // it here and providing a meaningful error message.
+                    // allows this case, even if invalid, precisely for
+                    // detecting it here and providing a
+                    // meaningful error message.
                     return Err(Error::from(ErrorInfo::invalid_pattern(
                         ctx.report_builder,
                         ctx.current_pattern_ident(),
@@ -2160,7 +2164,7 @@ fn hex_pattern_from_cst<'src>(
 /// From a CST node corresponding to the grammar rule `hex_jump`, returns
 /// the [`HexPattern`] representing it.
 fn hex_jump_from_cst<'src>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     hex_jump: CSTNode<'src>,
 ) -> Result<HexJump, Error> {
     expect!(hex_jump, GrammarRule::hex_jump);
@@ -2195,8 +2199,8 @@ fn hex_jump_from_cst<'src>(
     Ok(HexJump { start, end })
 }
 
-/// From a CST node corresponding to the grammar rule `hex_alternative`, returns
-/// the [`HexAlternative`] where each item is an alternative.
+/// From a CST node corresponding to the grammar rule `hex_alternative`,
+/// returns the [`HexAlternative`] where each item is an alternative.
 fn hex_alternative_from_cst<'src>(
     ctx: &mut Context<'src, '_>,
     hex_alternative: CSTNode<'src>,
@@ -2223,7 +2227,7 @@ fn hex_alternative_from_cst<'src>(
 }
 
 fn ident_from_cst<'src>(
-    ctx: &mut Context<'src, '_>,
+    ctx: &Context<'src, '_>,
     ident: CSTNode<'src>,
 ) -> ast::Ident<'src> {
     ast::Ident { span: ctx.span(&ident), name: ident.as_str() }
