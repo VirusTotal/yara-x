@@ -8,6 +8,9 @@ use sha2::{Digest, Sha256};
 use crate::modules::prelude::*;
 use crate::modules::protos::hash::*;
 
+#[cfg(test)]
+mod tests;
+
 thread_local!(
     static SHA256_CACHE: RefCell<FxHashMap<(i64, i64), String>> =
         RefCell::new(FxHashMap::default());

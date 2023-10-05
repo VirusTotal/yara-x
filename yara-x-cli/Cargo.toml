@@ -37,6 +37,7 @@ logging = ["dep:log", "dep:env_logger"]
 ascii_tree = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features=["cargo"] }
+globwalk = { workspace = true }
 enable-ansi-support = { workspace = true }
 env_logger = { workspace = true , optional = true }
 log = { workspace = true, optional = true }
@@ -49,9 +50,7 @@ yara-x-fmt = { workspace = true }
 
 crossbeam = "0.8.2"
 crossterm = "0.27.0"
-globwalk = "0.8.1"
 indent = "0.1.1"
 pprof = { version = "0.12.1", features = ["flamegraph"], optional=true }
 superconsole = "0.2.0"
-walkdir = "2.3.2"
 wild = "2.1.0"

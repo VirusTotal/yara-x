@@ -2,6 +2,9 @@ use crate::modules::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
 
+#[cfg(test)]
+mod tests;
+
 #[module_export(name = "add")]
 pub(crate) fn add_i64(_ctx: &mut ScanContext, a: i64, b: i64) -> i64 {
     a + b

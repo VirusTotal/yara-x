@@ -1,0 +1,230 @@
+magic: 3472551422
+cputype: 18
+cpusubtype: 0
+filetype: 2
+ncmds: 10
+sizeofcmds: 1484
+flags: 133
+number_of_segments: 4
+segments {
+  cmd: 1
+  cmdsize: 56
+  segname: "__PAGEZERO"
+  vmaddr: 0
+  vmsize: 4096
+  fileoff: 0
+  filesize: 0
+  maxprot: 0
+  initprot: 0
+  nsects: 0
+  flags: 4
+}
+segments {
+  cmd: 1
+  cmdsize: 532
+  segname: "__TEXT"
+  vmaddr: 4096
+  vmsize: 61440
+  fileoff: 0
+  filesize: 61440
+  maxprot: 7
+  initprot: 5
+  nsects: 7
+  flags: 0
+  sections {
+    segname: "__TEXT"
+    sectname: "__text"
+    addr: 7864
+    size: 47160
+    offset: 3768
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 2147484672
+    reserved1: 0
+    reserved2: 0
+  }
+  sections {
+    segname: "__TEXT"
+    sectname: "__picsymbol_stub"
+    addr: 55024
+    size: 0
+    offset: 50928
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 2147483656
+    reserved1: 0
+    reserved2: 36
+  }
+  sections {
+    segname: "__TEXT"
+    sectname: "__symbol_stub"
+    addr: 55024
+    size: 0
+    offset: 50928
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 2147483656
+    reserved1: 0
+    reserved2: 20
+  }
+  sections {
+    segname: "__TEXT"
+    sectname: "__picsymbolstub1"
+    addr: 55024
+    size: 2560
+    offset: 50928
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 2147484680
+    reserved1: 0
+    reserved2: 32
+  }
+  sections {
+    segname: "__TEXT"
+    sectname: "__cstring"
+    addr: 57584
+    size: 7816
+    offset: 53488
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 2
+    reserved1: 0
+    reserved2: 0
+  }
+  sections {
+    segname: "__TEXT"
+    sectname: "__literal8"
+    addr: 65400
+    size: 80
+    offset: 61304
+    align: 3
+    reloff: 0
+    nreloc: 0
+    flags: 4
+    reserved1: 0
+    reserved2: 0
+  }
+  sections {
+    segname: "__TEXT"
+    sectname: "__eh_frame"
+    addr: 65480
+    size: 52
+    offset: 61384
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 1744830475
+    reserved1: 0
+    reserved2: 0
+  }
+}
+segments {
+  cmd: 1
+  cmdsize: 464
+  segname: "__DATA"
+  vmaddr: 65536
+  vmsize: 4096
+  fileoff: 61440
+  filesize: 4096
+  maxprot: 7
+  initprot: 3
+  nsects: 6
+  flags: 0
+  sections {
+    segname: "__DATA"
+    sectname: "__data"
+    addr: 65536
+    size: 596
+    offset: 61440
+    align: 3
+    reloff: 0
+    nreloc: 0
+    flags: 0
+    reserved1: 0
+    reserved2: 0
+  }
+  sections {
+    segname: "__DATA"
+    sectname: "__la_symbol_ptr"
+    addr: 66132
+    size: 320
+    offset: 62036
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 7
+    reserved1: 80
+    reserved2: 0
+  }
+  sections {
+    segname: "__DATA"
+    sectname: "__nl_symbol_ptr"
+    addr: 66452
+    size: 124
+    offset: 62356
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 6
+    reserved1: 160
+    reserved2: 0
+  }
+  sections {
+    segname: "__DATA"
+    sectname: "__dyld"
+    addr: 66576
+    size: 28
+    offset: 62480
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 0
+    reserved1: 0
+    reserved2: 0
+  }
+  sections {
+    segname: "__DATA"
+    sectname: "__bss"
+    addr: 66604
+    size: 1032
+    offset: 0
+    align: 2
+    reloff: 0
+    nreloc: 0
+    flags: 1
+    reserved1: 0
+    reserved2: 0
+  }
+  sections {
+    segname: "__DATA"
+    sectname: "__common"
+    addr: 67648
+    size: 208
+    offset: 0
+    align: 4
+    reloff: 0
+    nreloc: 0
+    flags: 1
+    reserved1: 0
+    reserved2: 0
+  }
+}
+segments {
+  cmd: 1
+  cmdsize: 56
+  segname: "__LINKEDIT"
+  vmaddr: 69632
+  vmsize: 49152
+  fileoff: 65536
+  filesize: 46032
+  maxprot: 7
+  initprot: 1
+  nsects: 0
+  flags: 4
+}
+entry_point: 3768

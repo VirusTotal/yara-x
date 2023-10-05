@@ -5,15 +5,6 @@
 //! both protobuf structure fields and constants. This together with
 //! also exported functions can be later used in YARA rules.
 
-#[cfg(test)]
-mod tests;
-
-use crate::modules::prelude::*;
-use crate::modules::protos::macho::*;
-
-#[cfg(feature = "logging")]
-use log::*;
-
 use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
 use nom::{
@@ -25,6 +16,15 @@ use nom::{
     IResult,
 };
 use thiserror::Error;
+
+use crate::modules::prelude::*;
+use crate::modules::protos::macho::*;
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(feature = "logging")]
+use log::*;
 
 /// Mach-O file needs to have at least header of size 28 to be considered
 /// correct Real minimum size of Mach-O file would be higher

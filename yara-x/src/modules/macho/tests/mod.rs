@@ -1,5 +1,9 @@
-use crate::modules::macho::*;
 use pretty_assertions::assert_eq;
+
+use crate::modules::macho::*;
+use crate::tests::rule_false;
+use crate::tests::rule_true;
+use crate::tests::test_rule;
 
 fn create_test_macho_file() -> File {
     File {
@@ -385,4 +389,219 @@ fn test_swap_entry_point_command() {
     assert_eq!(entry.cmdsize, 0x88776655);
     assert_eq!(entry.entryoff, 0xFFFFDDDDCCBBAA99);
     assert_eq!(entry.stacksize, 0x2222222211111111);
+}
+
+#[test]
+fn test_macho_module() {
+    let macho_data = crate::modules::tests::create_binary_from_ihex(
+        "src/modules/macho/tests/testdata/tiny_universal.in",
+    )
+    .unwrap();
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.MH_MAGIC == 0xfeedface and
+            macho.MH_NO_REEXPORTED_DYLIBS == 0x00100000 and
+            macho.MH_CIGAM == 0xcefaedfe and
+            macho.CPU_TYPE_MIPS == 0x00000008
+        }
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.MH_MAGIC == 0xfeedface and
+            macho.MH_NO_REEXPORTED_DYLIBS == 0x00100000 and
+            macho.MH_CIGAM == 0xcefaedfe and
+            macho.CPU_TYPE_MIPS == 0x00000008
+        }
+        "#,
+        &[]
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.MH_MAGIC == 0xfeeeeeee or
+            macho.MH_NO_REEXPORTED_DYLIBS == 0x99999999 or
+            macho.MH_CIGAM == 0xaaaaaaaa or
+            macho.CPU_TYPE_MIPS == 0x00000000
+        }
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x00000007) == 0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x01000007) == 1
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x00000008) == 0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.file_index_for_arch(0x01000008)
+        }
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x00000007, 0x00000003) == 0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(16777223, 2147483651) == 1
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.file_index_for_arch(0x00000008, 0x00000004) == 0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.file_index_for_arch(0x00000008, 0x00000004)
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.file_index_for_arch(0x00000007, 0x00000003)
+        }
+        "#,
+        &[]
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000007) == 0x00001EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x01000007) == 0x00004EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000007, 0x00000003) == 0x00001EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(16777223, 2147483651) == 0x00004EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            macho.entry_point_for_arch(0x00000008, 0x00000003) == 0x00001EE0
+        }
+        "#,
+        &macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule test {
+          condition:
+            not defined macho.entry_point_for_arch(0x00000007, 0x00000003)
+        }
+        "#,
+        &[]
+    );
 }
