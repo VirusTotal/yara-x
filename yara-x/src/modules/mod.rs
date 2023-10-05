@@ -9,6 +9,9 @@ pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 }
 
+#[cfg(test)]
+mod tests;
+
 #[allow(unused_imports)]
 pub(crate) mod prelude {
     pub(crate) use crate::scanner::ScanContext;
