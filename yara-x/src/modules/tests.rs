@@ -2,10 +2,6 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-use globwalk;
-use goldenfile;
-use ihex;
-
 pub fn create_binary_from_ihex<P: AsRef<Path>>(
     path: P,
 ) -> anyhow::Result<Vec<u8>> {
