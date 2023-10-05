@@ -16,6 +16,32 @@ pub fn create_binary_from_ihex<P: AsRef<Path>>(
     Ok(data)
 }
 
+/// This function tests YARA modules by comparing the output produced by the
+/// module with a golden file that contains the expected output.
+///
+/// The function walks the  directory looking for files
+/// with extension `*.in`. These files can contain arbitrary binary content,
+/// but they must be encoded in the [`Intel HEX format`][1], which is a text
+/// representation of the original content. Storing binary files in our
+/// source repository is not a good idea, specially if such files are
+/// executable files containing malware.
+///
+/// The `*.in` files are decoded when the tests are run, and passed to the
+/// corresponding module, which is determined by looking at the path where
+/// the file was found. If the file is found anywhere under a directory named
+/// `yara-x/src/modules/foo`, its content is passed as input to the `foo`
+/// module. Then, the output produced by the module is compared with the
+/// content of a `*.out` file that is expected to have the same name than
+/// the `*.in` file.
+///
+/// There are many tools for converting binary files to Intel HEX format, one
+/// of such tools is `objcopy` (`llvm-objcopy` on Mac OS X).
+///
+/// ```
+/// objcopy -I binary -O ihex foo.bin foo.ihex.in
+/// ```
+///
+/// [1]: https://en.wikipedia.org/wiki/Intel_HEX
 #[test]
 fn test_modules() {
     // Create goldenfile mint.
@@ -60,9 +86,12 @@ fn test_modules() {
                 panic!("module `{}` should produce some output", module_name)
             });
 
+        // Get a text representation of the module's output.
+        let output = protobuf::text_format::print_to_string_pretty(output);
+
         // Create a goldenfile test
         let mut output_file = mint.new_goldenfile(out_path).unwrap();
 
-        write!(output_file, "{:#?}", output).unwrap();
+        write!(output_file, "{}", output).unwrap();
     }
 }

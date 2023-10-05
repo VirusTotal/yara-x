@@ -1,89 +1,22 @@
-Macho {
-    magic: Some(
-        4277009102,
-    ),
-    cputype: Some(
-        7,
-    ),
-    cpusubtype: Some(
-        3,
-    ),
-    filetype: Some(
-        2,
-    ),
-    ncmds: Some(
-        2,
-    ),
-    sizeofcmds: Some(
-        136,
-    ),
-    flags: Some(
-        18874368,
-    ),
-    reserved: None,
-    number_of_segments: Some(
-        1,
-    ),
-    segments: [
-        Segment {
-            cmd: Some(
-                1,
-            ),
-            cmdsize: Some(
-                56,
-            ),
-            segname: Some(
-                "",
-            ),
-            vmaddr: Some(
-                4096,
-            ),
-            vmsize: Some(
-                4096,
-            ),
-            fileoff: Some(
-                0,
-            ),
-            filesize: Some(
-                164,
-            ),
-            maxprot: Some(
-                7,
-            ),
-            initprot: Some(
-                5,
-            ),
-            nsects: Some(
-                0,
-            ),
-            flags: Some(
-                0,
-            ),
-            sections: [],
-            special_fields: SpecialFields {
-                unknown_fields: UnknownFields {
-                    fields: None,
-                },
-                cached_size: CachedSize {
-                    size: 0,
-                },
-            },
-        },
-    ],
-    entry_point: Some(
-        116,
-    ),
-    stack_size: None,
-    fat_magic: None,
-    nfat_arch: None,
-    fat_arch: [],
-    file: [],
-    special_fields: SpecialFields {
-        unknown_fields: UnknownFields {
-            fields: None,
-        },
-        cached_size: CachedSize {
-            size: 0,
-        },
-    },
+magic: 4277009102
+cputype: 7
+cpusubtype: 3
+filetype: 2
+ncmds: 2
+sizeofcmds: 136
+flags: 18874368
+number_of_segments: 1
+segments {
+  cmd: 1
+  cmdsize: 56
+  segname: ""
+  vmaddr: 4096
+  vmsize: 4096
+  fileoff: 0
+  filesize: 164
+  maxprot: 7
+  initprot: 5
+  nsects: 0
+  flags: 0
 }
+entry_point: 116
