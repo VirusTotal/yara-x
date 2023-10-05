@@ -145,7 +145,7 @@ impl LnkParser {
         // Any remaining data is outside the specification and its considered
         // an overlay. The field `overlay_offset` is initialized only if there
         // is some overlay.
-        if overlay.len() > 0 {
+        if !overlay.is_empty() {
             self.result.overlay_offset =
                 Some((total_size - overlay.len()).try_into().unwrap());
         }
@@ -181,7 +181,7 @@ impl LnkParser {
                 flags,
                 volume_id_offset,
                 local_base_path_offset,
-                common_network_relative_link_offset,
+                _common_network_relative_link_offset,
                 common_path_suffix_offset,
             ),
         ) = tuple((
@@ -375,7 +375,7 @@ impl LnkParser {
         &mut self,
     ) -> impl FnMut(&[u8]) -> IResult<&[u8], ()> + '_ {
         move |input: &[u8]| {
-            let (remainder, data) = Self::length_data(le_u32)(input)?;
+            let (remainder, _data) = Self::length_data(le_u32)(input)?;
             Ok((remainder, ()))
         }
     }
