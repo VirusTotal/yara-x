@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::modules::protos::lnk::{DriveType, Lnk, ShowCommand, TrackerData};
 
 /// A Windows LNK file parser.
-pub(crate) struct LnkParser {
+pub struct LnkParser {
     result: Lnk,
 }
 

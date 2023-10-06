@@ -1,9 +1,8 @@
 [package]
 name = "yara-x-fuzz"
 version = "0.1.0"
-authors = ["Automatically generated"]
 publish = false
-edition = "2018"
+edition = "2021"
 
 [package.metadata]
 cargo-fuzz = true
@@ -19,13 +18,19 @@ path = ".."
 members = ["."]
 
 [[bin]]
-name = "test_macho_file"
-path = "fuzz_targets/test_macho_file.rs"
+name = "macho_parser"
+path = "fuzz_targets/macho_parser.rs"
 test = false
 doc = false
 
 [[bin]]
-name = "test_macho_fat_file"
-path = "fuzz_targets/test_macho_fat_file.rs"
+name = "macho_fat_parser"
+path = "fuzz_targets/macho_fat_parser.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "lnk_parser"
+path = "fuzz_targets/lnk_parser.rs"
 test = false
 doc = false

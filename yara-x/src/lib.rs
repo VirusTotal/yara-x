@@ -67,10 +67,15 @@ pub use variables::VariableError;
 
 #[cfg(fuzzing)]
 pub use modules::macho::parse_fat_macho_file;
+
 #[cfg(fuzzing)]
 pub use modules::macho::parse_macho_file;
+
 #[cfg(fuzzing)]
 pub use modules::protos::macho::Macho;
+
+#[cfg(fuzzing)]
+pub use modules::lnk::parser::LnkParser;
 
 mod compiler;
 mod modules;
