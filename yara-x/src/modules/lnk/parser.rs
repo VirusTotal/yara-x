@@ -7,7 +7,7 @@ use nom::multi::{fold_many0, length_value, many_till};
 use nom::number::complete::{le_u128, le_u16, le_u32, le_u64};
 use nom::sequence::tuple;
 use nom::{Err, ToUsize};
-use nom::{IResult, InputLength, InputTake, Needed, Parser};
+use nom::{IResult, InputTake, Needed, Parser};
 use protobuf::EnumOrUnknown;
 use uuid::Uuid;
 
@@ -435,8 +435,6 @@ impl LnkParser {
 
             self.result.tracker_data = Some(tracker_data).into();
 
-            debug_assert!(remainder.is_empty());
-
             Ok((remainder, ()))
         }
     }
@@ -445,11 +443,10 @@ impl LnkParser {
         unicode: bool,
     ) -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
         move |input: &[u8]| {
-            let (string, mut length) = le_u16(input)?;
+            let (string, length) = le_u16(input)?;
 
-            if unicode {
-                length *= 2;
-            };
+            let length =
+                if unicode { length as usize * 2 } else { length as usize };
 
             let (remainder, string) = take(length)(string)?;
 
@@ -519,8 +516,18 @@ impl LnkParser {
             let size_len = input_length - data.len();
             let size: usize = size.to_usize();
 
+            // This should not happen, the size should be at least the
+            // length of the size field itself, but it could happen in
+            // corrupted files.
+            if size < size_len {
+                return Err(Err::Error(nom::error::Error::new(
+                    input,
+                    nom::error::ErrorKind::TooLarge,
+                )));
+            }
+
             if let Some(needed) =
-                size.checked_sub(input.input_len()).and_then(NonZeroUsize::new)
+                size.checked_sub(input_length).and_then(NonZeroUsize::new)
             {
                 Err(Err::Incomplete(Needed::Size(needed)))
             } else {
