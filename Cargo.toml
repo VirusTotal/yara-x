@@ -29,12 +29,14 @@ resolver = "2"
 aho-corasick = "1.0.0"
 anyhow = "1.0.65"
 ariadne = "0.3.0"
+arrayref = "0.3.7"
 ascii_tree = "0.1.1"
 base64 = "0.21.0"
 bincode = "1.3.3"
 bitmask = "0.5.0"
 bitvec = "1.0.1"
 bstr = "1.1.0"
+byteorder = "1.4.3"
 clap = "4.3.1"
 criterion = "0.5.1"
 enable-ansi-support = "0.2.1"
@@ -54,6 +56,7 @@ sha1 = "0.10.6"
 sha2 = "0.10.7"
 memchr = "2.6.3"
 memx = "0.1.28"
+nom = "7.1.3"
 num = "0.4.0"
 pest = "2.5.5"
 pest_derive = "2.5.5"
@@ -68,6 +71,7 @@ smallvec = "1.10.0"
 serde = "1.0.156"
 serde_json = "1.0.107"
 thiserror = "1.0.40"
+uuid = "1.4.1"
 walrus = "0.20.1"
 wasmtime = "12.0.2"
 yaml-rust = "0.4.5"
@@ -77,6 +81,7 @@ yara-x-fmt = { path = "yara-x-fmt" }
 yara-x-macros = { path = "yara-x-macros" }
 yara-x-parser = { path = "yara-x-parser" }
 yara-x-proto = { path = "yara-x-proto" }
+
 
 [profile.release]
 # debug = 1   # Include debug information in the binary.

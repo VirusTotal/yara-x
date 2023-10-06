@@ -8,7 +8,6 @@ option (yara.module_options) = {
   rust_module: "lnk"
 };
 
-
 enum FileAttributes {
   option (yara.enum_options).inline = true;
   FILE_ATTRIBUTE_READONLY            = 0x00000001;
@@ -28,34 +27,107 @@ enum FileAttributes {
   FILE_ATTRIBUTE_ENCRYPTED           = 0x00004000;
 }
 
+enum ShowCommand {
+  NORMAL        = 0x00000001;
+  MAXIMIZED     = 0x00000003;
+  MIN_NO_ACTIVE = 0x00000007;
+}
+
+enum DriveType {
+  UNKNOWN       = 0x00000000;
+  NO_ROOT_DIR   = 0x00000001;
+  REMOVABLE     = 0x00000002;
+  FIXED         = 0x00000003;
+  REMOTE        = 0x00000004;
+  CDROM         = 0x00000005;
+  RAMDISK       = 0x00000006;
+}
+
 message Lnk {
+  // True if the file is a LNK file.
   required bool is_lnk = 1;
-  optional uint64 creation_time = 2;
-  optional uint64 access_time = 3;
-  optional uint64 write_time = 4;
-  optional uint32 file_size = 5;
-  optional uint32 file_attribute_flags = 6;
-  optional uint32 icon_index = 7;
-  optional uint32 show_command = 8;
-  optional uint32 hotkey_flags = 9;
-  optional uint32 drive_type = 10;
-  optional uint32 drive_serial_number = 11;
-  optional bytes volume_label = 12;
-  optional bytes local_base_path = 13;
-  optional bytes common_path_suffix = 14;
-  optional bytes name = 15;
-  optional bytes relative_path = 16;
-  optional bytes working_dir = 17;
-  optional bytes arguments = 18;
-  optional bytes icon_location = 19;
-  optional uint64 overlay_size = 20;
-  optional uint64 overlay_offset = 21;
-  repeated ItemId link_target_id_list = 22;
 
+  // A description of the shortcut that is displayed to end users to identify
+  // the purpose of the link.
+  optional string name = 2;
+
+  // Time when the LNK file was created.
+  optional uint64 creation_time = 3;
+
+  // Time when the LNK file was last accessed.
+  optional uint64 access_time = 4;
+
+  // Time when the LNK files was last modified.
+  optional uint64 write_time = 5;
+
+  // Size of the target file in bytes. The target file is the file that this
+  // link references to. If the link target file is larger than 0xFFFFFFFF,
+  // this value specifies the least significant 32 bits of the link target file
+  // size.
+  optional uint32 file_size = 6;
+
+  // Attributes of the link target file.
+  optional uint32 file_attributes = 7;
+
+  // Location where the icon associated to the link is found. This is usually
+  // an EXE or DLL file that contains the icon among its resources. The
+  // specific icon to be used is indicated by the `icon_index` field.
+  optional string icon_location = 8;
+
+  // Index of the icon that is associated to the link, within an icon location.
+  optional uint32 icon_index = 9;
+
+  // Expected window state of an application launched by this link.
+  optional ShowCommand show_command = 10;
+
+  // Type of drive the link is stored on.
+  optional DriveType drive_type = 11;
+
+  // Drive serial number of the volume the link target is stored on.
+  optional uint32 drive_serial_number = 12;
+
+  // Volume label of the drive the link target is stored on.
+  optional string volume_label = 13;
+
+  // String used to construct the full path to the link target by appending the
+  // common_path_suffix field.
+  optional string local_base_path = 14;
+
+  // String used to construct the full path to the link target by being appended
+  // to the local_base_path field.
+  optional string common_path_suffix = 15;
+
+  // Location of the link target relative to the LNK file.
+  optional string relative_path = 16;
+
+  // Path of the working directory to be used when activating the link target.
+  optional string working_dir = 17;
+
+  // Command-line arguments that are specified when activating the link target.
+  optional string cmd_line_args = 18;
+
+  // Size in bytes of any extra data appended to the LNK file.
+  optional uint64 overlay_size = 19;
+
+  // Offset within the LNK file where the overlay starts.
+  optional uint64 overlay_offset = 20;
+
+  // Distributed link tracker information.
+  optional TrackerData tracker_data = 21;
 }
 
-message ItemId {
-  required uint32 size = 1;
-  required bytes data = 2;
+// This structure contains data that can be used to resolve a link target if it
+// is not found in its original location when the link is resolved. This data
+// is passed to the Link Tracking service [MS-DLTW] to find the link target.
+//
+// See: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dltw/fc649f0e-871a-431a-88b5-d5b2f80e9cc9
+message TrackerData {
+  optional uint32 version = 1;
+  optional string machine_id = 2;
+  optional string droid_volume_id = 3;
+  optional string droid_file_id = 4;
+  optional string droid_birth_volume_id = 5;
+  optional string droid_birth_file_id = 6;
 }
+
 
