@@ -89,10 +89,10 @@ impl LnkParser {
         self.result.write_time = filetime_to_unix_timestamp(write_time);
         self.result.file_size = Some(file_size);
         self.result.icon_index = Some(icon_index);
-        self.result.show_command =
-            Some(EnumOrUnknown::<ShowCommand>::from_i32(
-                show_command.try_into().unwrap(),
-            ));
+        self.result.show_command = show_command
+            .try_into()
+            .ok()
+            .map(EnumOrUnknown::<ShowCommand>::from_i32);
 
         let unicode = link_flags & Self::IS_UNICODE != 0;
 
@@ -156,7 +156,7 @@ impl LnkParser {
                 Some((total_size - overlay.len()).try_into().unwrap());
         }
 
-        self.result.overlay_size = Some(overlay.len().try_into().unwrap());
+        self.result.overlay_size = overlay.len().try_into().ok();
 
         Ok(mem::take(&mut self.result))
     }
@@ -322,10 +322,10 @@ impl LnkParser {
                 le_u32, // volume_label_offset
             ))(input)?;
 
-            self.result.drive_type =
-                Some(EnumOrUnknown::<DriveType>::from_i32(
-                    drive_type.try_into().unwrap(),
-                ));
+            self.result.drive_type = drive_type
+                .try_into()
+                .ok()
+                .map(EnumOrUnknown::<DriveType>::from_i32);
 
             self.result.drive_serial_number = Some(drive_serial_number);
 
@@ -396,7 +396,7 @@ impl LnkParser {
             let (
                 remainder,
                 (
-                    length,
+                    _length,
                     version,
                     machine_id,
                     droid_volume_id,
@@ -419,8 +419,6 @@ impl LnkParser {
                 map_res(take(16_u8), Uuid::from_slice_le),
             ))(input)?;
 
-            debug_assert_eq!(length, 0x00000058);
-
             let mut tracker_data = TrackerData::new();
 
             tracker_data.version = Some(version);
@@ -430,6 +428,7 @@ impl LnkParser {
 
             tracker_data.droid_birth_volume_id =
                 Some(droid_birth_volume_id.to_string());
+
             tracker_data.droid_birth_file_id =
                 Some(droid_birth_file_id.to_string());
 
