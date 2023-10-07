@@ -225,6 +225,36 @@ fn test_swap_load_command() {
 }
 
 #[test]
+fn test_swap_dylib() {
+    let mut command = DylibObject {
+        timestamp: 0x11223344,
+        compatibility_version: 0x55667788,
+        current_version: 0x99AABBCC,
+        ..Default::default()
+    };
+
+    swap_dylib(&mut command);
+
+    assert_eq!(command.timestamp, 0x44332211);
+    assert_eq!(command.compatibility_version, 0x88776655);
+    assert_eq!(command.current_version, 0xCCBBAA99);
+}
+
+#[test]
+fn test_swap_dylib_command() {
+    let mut command = DylibCommand {
+        cmd: 0x11223344,
+        cmdsize: 0x55667788,
+        ..Default::default()
+    };
+
+    swap_dylib_command(&mut command);
+
+    assert_eq!(command.cmd, 0x44332211);
+    assert_eq!(command.cmdsize, 0x88776655);
+}
+
+#[test]
 fn test_swap_segment_command() {
     let mut segment = SegmentCommand32 {
         cmd: 0x11223344,
