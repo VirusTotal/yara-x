@@ -65,7 +65,7 @@ impl LnkParser {
             // After the size comes the CLSID which must be:
             // 00021401-0000-0000-C000-000000000046
             verify(le_u128, |&clsid| {
-                clsid == 0x46000000_000000C0_00000000_00021401
+                clsid == 0x4600_0000_0000_00C0_0000_0000_0002_1401
             }),
             le_u32, // link_flags,
             le_u32, // file_attributes
