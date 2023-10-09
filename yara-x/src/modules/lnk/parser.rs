@@ -371,9 +371,6 @@ impl LnkParser {
             let (remainder, block) = Self::length_data(le_u32)(input)?;
             // The first 4 bytes in each block indicates its type.
             match le_u32::<&[u8], nom::error::Error<&[u8]>>(block) {
-                Ok((block_data, 0xA0000001)) => {
-                    let _ = self.parse_env_var_data_block()(block_data);
-                }
                 Ok((block_data, 0xA0000003)) => {
                     let _ = self.parse_tracker_data_block()(block_data);
                 }
@@ -381,12 +378,6 @@ impl LnkParser {
             }
             Ok((remainder, ()))
         }
-    }
-
-    fn parse_env_var_data_block(
-        &mut self,
-    ) -> impl FnMut(&[u8]) -> IResult<&[u8], ()> + '_ {
-        move |input: &[u8]| Ok((input, ()))
     }
 
     fn parse_tracker_data_block(
