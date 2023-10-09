@@ -75,3 +75,15 @@ segments {
   nsects: 0
   flags: 0
 }
+dylibs {
+  name: "fact_x86_64.dylib"
+  timestamp: 1
+  compatibility_version: 0
+  current_version: 0
+}
+dylibs {
+  name: "/usr/lib/libSystem.B.dylib"
+  timestamp: 2
+  compatibility_version: 65536
+  current_version: 79495168
+}

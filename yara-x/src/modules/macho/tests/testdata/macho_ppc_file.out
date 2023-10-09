@@ -227,4 +227,10 @@ segments {
   nsects: 0
   flags: 4
 }
+dylibs {
+  name: "/usr/lib/libSystem.B.dylib"
+  timestamp: 1111112572
+  compatibility_version: 65536
+  current_version: 4653313
+}
 entry_point: 3768
