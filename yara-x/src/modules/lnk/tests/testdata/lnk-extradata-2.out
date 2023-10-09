@@ -1,0 +1,25 @@
+is_lnk: true
+name: "PeaZip archiver, add to encrypted .pea archive"
+creation_time: 1262799464
+access_time: 1262799464
+write_time: 1262627400
+file_size: 764928
+file_attributes: 32
+icon_location: "C:\\Program Files\\PeaZip\\res\\icons\\peazip_new.icl"
+icon_index: 0
+show_command: NORMAL
+drive_type: FIXED
+drive_serial_number: 1283437392
+volume_label: "volume_c"
+local_base_path: "C:\\Program Files\\PeaZip\\peazip.exe"
+relative_path: "..\\..\\..\\..\\..\\..\\..\\Program Files\\PeaZip\\peazip.exe"
+cmd_line_args: "-add2crypt"
+overlay_size: 0
+tracker_data {
+  version: 0
+  machine_id: "pc-proprietario"
+  droid_volume_id: "0a92d8cc-364f-44f6-a343-7ce76b0c19f5"
+  droid_file_id: "29a5ca2d-fae8-11de-a706-0016e6d383ac"
+  droid_birth_volume_id: "0a92d8cc-364f-44f6-a343-7ce76b0c19f5"
+  droid_birth_file_id: "29a5ca2d-fae8-11de-a706-0016e6d383ac"
+}
