@@ -129,8 +129,7 @@ pub mod {rust_mod};"#,
             add_modules_rs,
             r#"
 #[cfg(feature = "{name}-module")]
-add_module!(modules, "{name}", {proto_mod}, {root_message}, {rust_mod_name}, {main_fn});
-            "#,
+add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {main_fn});"#,
         )
         .unwrap();
     }

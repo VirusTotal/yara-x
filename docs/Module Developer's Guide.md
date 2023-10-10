@@ -43,9 +43,11 @@ syntax = "proto2";
 
 import "YARA.proto";
 
+package text;
+
 option (YARA.module_options) = {
   name : "text"
-  root_message: "Text"
+  root_message: "text.Text"
   rust_module: "text"
 };
 
@@ -85,12 +87,23 @@ at`yara-x-proto/src/yara.proto`.
 
 ----
 
+```protobuf
+package text;
+```
+
+The package statement is optional but highly recommended, as it prevents name 
+collisions between different YARA modules. If modules `foo` and `bar` both 
+define a structure named `Foobar` without specifying their own package names
+it will confuse the `protoc` compiler when producing the Rust code for your 
+module. The resulting code can use `foo.Foobar` instead of `bar.Foobar` in
+code generated for the `bar` module.
+
 Let's start with the interesting part:
 
 ```protobuf
 option (yara.module_options) = {
   name : "text"
-  root_message: "Text"
+  root_message: "text.Text"
   rust_module: "text"
 };
 ```
@@ -107,10 +120,16 @@ The `name` option defines the module's name. This is the name that will be used
 for importing the module in a YARA rule, in this case our module will be imported
 with `import "text"`. The `root_message` option indicates which is the module's 
 root structure, it must contain the name of some structure (a.k.a message) defined 
-in the `.proto` file. In our case the value for `root_message` is `"Text"` because
-we have defined our module's structure in a message named `Text`. This is required
-because your `.proto` file can define multiple messages, and YARA needs to know
-which of them is considered the root message for the module.
+in the `.proto` file. In our case the value for `root_message` is `"text.Text"` 
+because we have defined our module's structure in a message named `Text`, which
+is under package `text`. In general the value in this field will have the form
+`package.Message`, except if the `package` statement is missing, in which case
+it would be the name of the message alone (i.e: `Text`).
+
+The `root_message` field is required because your `.proto` file can define
+multiple messages, and YARA needs to know which of them is considered the root 
+message for the module. Without this field YARA can't know which message to 
+use.
 
 And here is our root structure/message:
 

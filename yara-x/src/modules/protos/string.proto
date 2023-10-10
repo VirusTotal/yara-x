@@ -1,10 +1,11 @@
 syntax = "proto2";
-
 import "yara.proto";
+
+package string;
 
 option (yara.module_options) = {
   name : "string"
-  root_message: "String"
+  root_message: "string.String"
   rust_module: "string"
 };
 

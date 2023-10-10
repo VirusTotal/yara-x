@@ -1,10 +1,11 @@
 syntax = "proto2";
-
 import "yara.proto";
+
+package lnk;
 
 option (yara.module_options) = {
   name : "lnk"
-  root_message: "Lnk"
+  root_message: "lnk.Lnk"
   rust_module: "lnk"
 };
 

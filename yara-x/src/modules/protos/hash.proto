@@ -1,10 +1,11 @@
 syntax = "proto2";
-
 import "yara.proto";
+
+package hash;
 
 option (yara.module_options) = {
   name : "hash"
-  root_message: "Hash"
+  root_message: "hash.Hash"
   rust_module: "hash"
 };
 

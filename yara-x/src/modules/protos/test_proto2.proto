@@ -13,6 +13,10 @@ syntax = "proto2";
 // that are common to all modules.
 import "yara.proto";
 
+// This is not strictly required, but it prevents name collisions with other
+// YARA modules.
+package test_proto2;
+
 // This option section is also required, it gives YARA information about
 // the module being defined.
 option (yara.module_options) = {
@@ -25,9 +29,10 @@ option (yara.module_options) = {
   // in a hierarchical structure in which one message has fields that are other
   // messages. YARA needs to know which of those message definitions describes
   // the top-level structure for the module. In this case the root message is
-  // "TestProto2" which indicates that the "test_proto2" module will have the
-  // fields defined in the "TestProto2" message.
-  root_message: "TestProto2"
+  // "test_proto2.TestProto2" which indicates that the "test_proto2" module
+  // will have the fields defined in the "TestProto2" message. Notice that
+  // the "test_proto2." prefix comes after the package name.
+  root_message: "test_proto2.TestProto2"
 
   // The name of the Rust module that contains the code for this module. A
   // module with this name must exists under src/modules. In this case the

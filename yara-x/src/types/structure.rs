@@ -49,11 +49,12 @@ pub struct StructField {
 pub struct Struct {
     /// Fields in this structure.
     ///
-    /// An `IndexMap` is used instead of a `HashMap` because we want to be able
-    /// to maintain the field insertion order and retrieve fields according to
-    /// this order. For protobuf-derived structures fields are inserted in the
-    /// order determined by their tag numbers, the order in which they appear
-    /// in the .proto source file is irrelevant.
+    /// An `IndexMap` is used instead of a `HashMap` because we want to be
+    /// able to maintain the field insertion order and retrieve fields
+    /// according to this order. For protobuf-derived structures fields
+    /// are inserted in the order determined by their tag numbers, the
+    /// order in which they appear in the .proto source file is
+    /// irrelevant.
     fields: IndexMap<String, StructField>,
 }
 
@@ -292,9 +293,9 @@ impl Struct {
         fields.sort_by(|a, b| a.number.cmp(&b.number));
 
         if generate_fields_for_enums {
-            // Enums declared inside a message are treated as a nested structure
-            // where each field is an enum item, and each field has a constant
-            // value.
+            // Enums declared inside a message are treated as a nested
+            // structure where each field is an enum item, and each
+            // field has a constant value.
             let enums = msg_descriptor.nested_enums();
 
             // If the message is the module's root message, the enums that are
@@ -310,6 +311,8 @@ impl Struct {
                 };
 
             for enum_ in enums {
+                dbg!(&enum_);
+
                 if Self::enum_is_inline(&enum_) {
                     for item in enum_.values() {
                         fields.push(StructField {
@@ -371,7 +374,7 @@ impl Struct {
         if let Some(options) =
             module_options.get(&file_descriptor.proto().options)
         {
-            options.root_message.unwrap() == msg_descriptor.name()
+            options.root_message.unwrap() == msg_descriptor.full_name()
         } else {
             false
         }
@@ -521,7 +524,6 @@ impl Struct {
     /// ```text
     /// int64 foo = 1 [(yara.field_options).ignore = true];
     /// ```
-    ///
     fn ignore_field(field_descriptor: &FieldDescriptor) -> bool {
         if let Some(options) =
             field_options.get(&field_descriptor.proto().options)
@@ -540,12 +542,13 @@ impl Struct {
     /// 0, false, empty strings).
     ///
     /// This is because in proto3, when a field is missing in the serialized
-    /// data, we can't know whether it's because the field was left uninitialized
-    /// or because it was initialized with its default value. In both cases the
-    /// result is that the field is not included in the serialized data. For
-    /// that reason we can't assume that a missing field can be translated to
-    /// an undefined field in YARA. An integer field that is missing from the
-    /// serialized data could be simply because its value was set to 0.
+    /// data, we can't know whether it's because the field was left
+    /// uninitialized or because it was initialized with its default value.
+    /// In both cases the result is that the field is not included in the
+    /// serialized data. For that reason we can't assume that a missing
+    /// field can be translated to an undefined field in YARA. An integer
+    /// field that is missing from the serialized data could be simply
+    /// because its value was set to 0.
     ///
     /// In proto2 in the other hand, initialized fields are always present in
     /// the serialized data, regardless of their values. So we can distinguish
@@ -566,7 +569,8 @@ impl Struct {
                 if let Some(v) = value {
                     TypeValue::Integer(Value::Var(Self::value_as_i64(v)))
                 } else if syntax == Syntax::Proto3 {
-                    // In proto3 unknown values are set to their default values.
+                    // In proto3 unknown values are set to their default
+                    // values.
                     TypeValue::Integer(Value::Var(0))
                 } else {
                     TypeValue::Integer(Value::Unknown)
@@ -576,7 +580,8 @@ impl Struct {
                 if let Some(v) = value {
                     TypeValue::Float(Value::Var(Self::value_as_f64(v)))
                 } else if syntax == Syntax::Proto3 {
-                    // In proto3 unknown values are set to their default values.
+                    // In proto3 unknown values are set to their default
+                    // values.
                     TypeValue::Float(Value::Var(0_f64))
                 } else {
                     TypeValue::Float(Value::Unknown)
@@ -586,7 +591,8 @@ impl Struct {
                 if let Some(v) = value {
                     TypeValue::Bool(Value::Var(Self::value_as_bool(v)))
                 } else if syntax == Syntax::Proto3 {
-                    // In proto3 unknown values are set to their default values.
+                    // In proto3 unknown values are set to their default
+                    // values.
                     TypeValue::Bool(Value::Var(false))
                 } else {
                     TypeValue::Bool(Value::Unknown)
@@ -596,7 +602,8 @@ impl Struct {
                 if let Some(v) = value {
                     TypeValue::String(Value::Var(Self::value_as_bstring(v)))
                 } else if syntax == Syntax::Proto3 {
-                    // In proto3 unknown values are set to their default values.
+                    // In proto3 unknown values are set to their default
+                    // values.
                     TypeValue::String(Value::Var(BString::default()))
                 } else {
                     TypeValue::String(Value::Unknown)

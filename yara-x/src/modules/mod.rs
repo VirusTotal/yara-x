@@ -50,19 +50,19 @@ pub(crate) struct Module {
 ///
 /// # Example
 ///
-/// add_module!(modules, "test", test, Test, test_mod, Some(test::main as MainFn));
-///
+/// add_module!(modules, "test", test, "Test", test_mod, Some(test::main as
+/// MainFn));
 macro_rules! add_module {
-    ($modules:expr, $name:literal, $proto:ident, $root_message:ident, $rust_module_name:expr, $main_fn:expr) => {{
+    ($modules:expr, $name:literal, $proto:ident, $root_message:literal, $rust_module_name:expr, $main_fn:expr) => {{
         use std::stringify;
         let root_struct_descriptor = protos::$proto::file_descriptor()
             // message_by_full_name expects a dot (.) at the beginning
             // of the name.
-            .message_by_full_name(stringify!(.$root_message))
+            .message_by_full_name(format!(".{}", $root_message).as_str())
             .expect(format!(
                 "`root_message` option in protobuf `{}` is wrong, message `{}` is not defined",
                 stringify!($proto),
-                stringify!($root_message)
+                $root_message
             ).as_str());
 
         $modules.insert(

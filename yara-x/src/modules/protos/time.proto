@@ -1,10 +1,11 @@
 syntax = "proto2";
-
 import "yara.proto";
+
+package time;
 
 option (yara.module_options) = {
   name : "time"
-  root_message: "Time"
+  root_message: "time.Time"
   rust_module: "time"
 };
 
