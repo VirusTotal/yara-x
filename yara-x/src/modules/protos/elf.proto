@@ -1,0 +1,105 @@
+syntax = "proto2";
+import "yara.proto";
+
+package elf;
+
+option (yara.module_options) = {
+  name : "elf"
+  root_message: "elf.ELF"
+  rust_module: "elf"
+};
+
+message ELF {
+  optional Type type = 1;
+  optional Machine machine = 2;
+  optional uint64 entry_point = 3;
+  optional uint64 sh_offset = 4;
+  optional uint32 sh_entry_size = 5;
+  optional uint64 ph_offset = 6;
+  optional uint32 ph_entry_size = 7;
+
+  optional uint32 number_of_sections = 8;
+  optional uint32 number_of_segments = 9;
+
+  repeated Section sections = 10;
+  repeated Segment segments = 11;
+  repeated Sym symtab = 12;
+}
+
+enum Type {
+  ET_NONE   = 0x0000;  // no type
+  ET_REL    = 0x0001;  // relocatable
+  ET_EXEC   = 0x0002;  // executable
+  ET_DYN    = 0x0003;  // Shared-Object-File
+  ET_CORE   = 0x0004;  // Corefile
+  ET_LOPROC = 0xFF00;  // Processor-specific
+  ET_HIPROC = 0x00FF;  // Processor-specific
+}
+
+enum Machine {
+  option (yara.enum_options).inline = true;
+  EM_NONE = 0;         // 0x0000 No type
+  EM_M32 = 1;          // 0x0001 AT&T WE 32100
+  EM_SPARC = 2;        // 0x0002 SPARC
+  EM_386 = 3;          // 0x0003 Intel 80386
+  EM_68K = 4;          // 0x0004 Motorola 68000
+  EM_88K = 5;          // 0x0005 Motorola 88000
+  EM_IAMCU = 6;        // 0x0006 Intel MCU
+  EM_860 = 7;          // 0x0007 Intel 80860
+  EM_MIPS = 8;         // 0x0008 MIPS I Architecture
+  EM_S370 = 9;         // 0x0009 IBM S370
+  EM_MIPS_RS3_LE = 10; // 0x000A MIPS RS3000 Little-endian
+  EM_PPC = 20;         // 0x0014 PowerPC
+  EM_PPC64 = 21;       // 0x0015 64-bit PowerPC
+  EM_ARM = 40;         // 0x0028 ARM
+  EM_X86_64 = 62;      // 0x003E AMD/Intel x86_64
+  EM_AARCH64 = 183;    // 0x00B7 64-bit ARM
+}
+
+message Section {
+  required SectionType type = 1;
+  required uint64 flags = 2;
+  required uint64 address = 3;
+  required uint64 size = 4;
+  required uint64 offset = 5;
+  optional string name = 6;
+}
+
+enum SectionType {
+  option (yara.enum_options).inline = true;
+  SHT_NULL       = 0;  // Section header table entry unused
+  SHT_PROGBITS   = 1;  // Program data
+  SHT_SYMTAB     = 2;  // Symbol table
+  SHT_STRTAB     = 3;  // String table
+  SHT_RELA       = 4;  // Relocation entries with addends
+  SHT_HASH       = 5;  // Symbol hash table
+  SHT_DYNAMIC    = 6;  // Dynamic linking information
+  SHT_NOTE       = 7;  // Notes
+  SHT_NOBITS     = 8;  // Program space with no data (bss)
+  SHT_REL        = 9;  // Relocation entries, no addends
+  SHT_SHLIB      = 10; // Reserved
+  SHT_DYNSYM     = 11; // Dynamic linker symbol table
+  SHT_INIT_ARRAY = 14; // Array of constructors
+  SHT_FINI_ARRAY = 15; // Array of destructors
+}
+
+message Segment {
+  required uint32 type = 1;
+  required uint32 flags = 2;
+  required uint64 offset = 3;
+  required uint64 virtual_address = 4;
+  required uint64 physical_address = 5;
+  required uint64 file_size = 6;
+  required uint64 memory_size = 7;
+  required uint64 alignment = 8;
+}
+
+message Sym {
+  optional string name = 1;
+  required uint64 value = 2;
+  required uint64 size = 3;
+  required uint32 type = 4;
+  required uint32 bind = 5;
+  required uint32 shndx = 6;
+}
+
