@@ -56,7 +56,7 @@ jobs:
           - build: no-default-features
             os: ubuntu-latest
             rust: stable
-            args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,time-module,hash-module,macho-module,lnk-module"
+            args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,time-module,hash-module,macho-module,lnk-module,elf-module"
 
     steps:
       - name: Checkout sources
