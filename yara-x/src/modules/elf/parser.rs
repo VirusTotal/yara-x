@@ -216,11 +216,7 @@ impl ElfParser {
         }
     }
 
-    fn parse_sections<'a>(
-        &self,
-        ehdr: &Ehdr,
-        input: &'a [u8],
-    ) -> Option<Vec<Shdr>> {
+    fn parse_sections(&self, ehdr: &Ehdr, input: &[u8]) -> Option<Vec<Shdr>> {
         input.get(ehdr.sh_offset as usize..).and_then(|sections| {
             count(self.parse_shdr(), ehdr.sh_entry_count as usize)
                 .parse(sections)
