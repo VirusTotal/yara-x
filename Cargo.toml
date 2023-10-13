@@ -16,6 +16,7 @@ rust-version = "1.70.0"
 members = [
     "yara-x",
     "yara-x-cli",
+    "yara-x-dump",
     "yara-x-fmt",
     "yara-x-macros",
     "yara-x-parser",
@@ -78,6 +79,7 @@ wasmtime = "12.0.2"
 yaml-rust = "0.4.5"
 yansi = "0.5.1"
 yara-x = { path = "yara-x" }
+yara-x-dump = { path = "yara-x-dump" }
 yara-x-fmt = { path = "yara-x-fmt" }
 yara-x-macros = { path = "yara-x-macros" }
 yara-x-parser = { path = "yara-x-parser" }

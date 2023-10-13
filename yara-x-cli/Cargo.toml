@@ -45,6 +45,7 @@ protobuf = { workspace = true }
 serde_json = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true }
+yara-x-dump = { workspace = true }
 yara-x-parser = { workspace = true, features = ["ascii-tree"] }
 yara-x-fmt = { workspace = true }
 

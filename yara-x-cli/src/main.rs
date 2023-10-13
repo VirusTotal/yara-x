@@ -43,6 +43,7 @@ fn main() -> anyhow::Result<()> {
             commands::check(),
             commands::debug(),
             commands::fmt(),
+            commands::dump(),
         ])
         .get_matches_from(wild::args());
 
@@ -58,6 +59,7 @@ fn main() -> anyhow::Result<()> {
         Some(("debug", args)) => commands::exec_debug(args),
         Some(("check", args)) => commands::exec_check(args),
         Some(("fmt", args)) => commands::exec_fmt(args),
+        Some(("dump", args)) => commands::exec_dump(args),
         Some(("scan", args)) => commands::exec_scan(args),
         Some(("compile", args)) => commands::exec_compile(args),
         _ => unreachable!(),

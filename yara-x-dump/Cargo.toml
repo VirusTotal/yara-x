@@ -1,0 +1,19 @@
+[package]
+name = "yara-x-dump"
+version = "0.1.0"
+description = "A YARA module for dumping file information"
+authors = ["Tomas Duris <Tomas.Duris@gendigital.com>"]
+edition = "2021"
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

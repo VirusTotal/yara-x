@@ -4115,8 +4115,17 @@ dependencies = [
  "wild",
  "yansi",
  "yara-x",
+ "yara-x-dump",
  "yara-x-fmt",
  "yara-x-parser",
+]
+
+[[package]]
+name = "yara-x-dump"
+version = "0.1.0"
+dependencies = [
+ "pretty_assertions",
+ "thiserror",
 ]
 
 [[package]]

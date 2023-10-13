@@ -1,8 +1,10 @@
 [package]
 name = "yara-x-fuzz"
 version = "0.1.0"
+authors = ["Tomas Duris <Tomas.Duris@gendigital.com>"]
 publish = false
 edition = "2021"
+description = "Fuzzing harness for YARA-X modules"
 
 [package.metadata]
 cargo-fuzz = true
