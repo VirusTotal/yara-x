@@ -4124,8 +4124,11 @@ dependencies = [
 name = "yara-x-dump"
 version = "0.1.0"
 dependencies = [
+ "indent",
  "pretty_assertions",
+ "protobuf",
  "thiserror",
+ "yara-x",
 ]
 
 [[package]]

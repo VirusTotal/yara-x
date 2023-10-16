@@ -1,5 +1,7 @@
+use indent::indent_all_by;
 use std::io;
 use thiserror::Error;
+use yara_x;
 
 /// Errors returned by [`Dumper::dump`].
 #[derive(Error, Debug)]
@@ -32,7 +34,26 @@ impl Dumper {
     {
         let mut buffer = Vec::new();
         input.read_to_end(&mut buffer).map_err(Error::ReadError)?;
-        println!("Buffer: {:?}", buffer);
+
+        // Construct a dummy YARA rule that only imports the module.
+        let rule = r#"import "macho" rule test { condition: false } "#;
+
+        // Compile the rule.
+        let rules = yara_x::compile(rule).unwrap();
+
+        let mut scanner = yara_x::Scanner::new(&rules);
+
+        let scan_results =
+            scanner.scan(&buffer).expect("scan should not fail");
+
+        let output =
+            scan_results.module_output("macho").unwrap_or_else(|| {
+                panic!("module `macho` should produce some output")
+            });
+
+        // Get a text representation of the module's output.
+        let output = protobuf::text_format::print_to_string_pretty(output);
+        println!("{}", indent_all_by(4, output));
         Ok(())
     }
 }
