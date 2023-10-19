@@ -35,25 +35,37 @@ impl Dumper {
         let mut buffer = Vec::new();
         input.read_to_end(&mut buffer).map_err(Error::ReadError)?;
 
-        // Construct a dummy YARA rule that only imports the module.
-        let rule = r#"import "macho" rule test { condition: false } "#;
+        let import_statements = yara_x::get_builtin_modules_names()
+            .iter()
+            .map(|module_name| format!("import \"{}\"", module_name))
+            .collect::<Vec<_>>()
+            .join("\n");
 
+        let rule = format!(
+            r#"{} rule test {{ condition: false }}"#,
+            import_statements
+        );
+
+        println!("{}", rule.as_str());
         // Compile the rule.
-        let rules = yara_x::compile(rule).unwrap();
+        let rules = yara_x::compile(rule.as_str()).unwrap();
 
         let mut scanner = yara_x::Scanner::new(&rules);
 
         let scan_results =
             scanner.scan(&buffer).expect("scan should not fail");
 
-        let output =
-            scan_results.module_output("macho").unwrap_or_else(|| {
-                panic!("module `macho` should produce some output")
-            });
-
-        // Get a text representation of the module's output.
-        let output = protobuf::text_format::print_to_string_pretty(output);
-        println!("{}", indent_all_by(4, output));
+        for (mod_name, mod_output) in scan_results.module_outputs() {
+            // Get a text representation of the module's output.
+            println!(
+                "{}: {}",
+                mod_name,
+                indent_all_by(
+                    4,
+                    protobuf::text_format::print_to_string_pretty(mod_output)
+                )
+            );
+        }
         Ok(())
     }
 }
