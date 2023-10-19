@@ -1813,7 +1813,6 @@ where
         multiplier = -multiplier;
     }
 
-
     let value = if literal.starts_with("0x") {
         T::from_str_radix(literal.strip_prefix("0x").unwrap(), 16)
     } else if literal.starts_with("0o") {
