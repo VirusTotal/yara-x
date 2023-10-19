@@ -1795,7 +1795,7 @@ where
     let mut literal = integer_lit.as_str();
     let mut multiplier = 1;
 
-    let without_underscore = literal.replace("_", "");
+    let without_underscore = literal.replace('_', "");
     literal = without_underscore.as_str();
 
     if let Some(without_suffix) = literal.strip_suffix("KB") {
@@ -1860,7 +1860,7 @@ fn float_lit_from_cst<'src>(
     let mut literal = float_lit.as_str();
     let span = ctx.span(&float_lit);
 
-    let without_underscore = literal.replace("_", "");
+    let without_underscore = literal.replace('_', "");
     literal = without_underscore.as_str();
 
     literal.parse::<f64>().map_err(|err| {
