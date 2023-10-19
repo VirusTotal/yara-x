@@ -1043,6 +1043,45 @@ rule test : foo bar baz {
        └─ integer_lit "0o05_5"
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            GrammarRule::boolean_expr,
+            r#"2.5_5 * 2__3 * -1.0_1 == 5_55.05 + -(1_1)"#,
+            r#"
+ boolean_expr
+ └─ boolean_term
+    ├─ expr
+    │  ├─ term
+    │  │  └─ primary_expr
+    │  │     └─ float_lit "2.5_5"
+    │  ├─ MUL "*"
+    │  ├─ term
+    │  │  └─ primary_expr
+    │  │     └─ integer_lit "2__3"
+    │  ├─ MUL "*"
+    │  └─ term
+    │     └─ primary_expr
+    │        └─ float_lit "-1.0_1"
+    ├─ EQ "=="
+    └─ expr
+       ├─ term
+       │  └─ primary_expr
+       │     └─ float_lit "5_55.05"
+       ├─ ADD "+"
+       └─ term
+          └─ primary_expr
+             ├─ MINUS "-"
+             └─ term
+                └─ primary_expr
+                   ├─ LPAREN "("
+                   ├─ expr
+                   │  └─ term
+                   │     └─ primary_expr
+                   │        └─ integer_lit "1_1"
+                   └─ RPAREN ")"
+"#,
+        ),
     ];
 
     for t in tests {
