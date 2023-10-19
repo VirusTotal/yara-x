@@ -1795,6 +1795,9 @@ where
     let mut literal = integer_lit.as_str();
     let mut multiplier = 1;
 
+    let without_underscore = literal.replace("_", "");
+    literal = without_underscore.as_str();
+
     if let Some(without_suffix) = literal.strip_suffix("KB") {
         literal = without_suffix;
         multiplier = 1024;
@@ -1809,6 +1812,7 @@ where
         literal = without_sign;
         multiplier = -multiplier;
     }
+
 
     let value = if literal.starts_with("0x") {
         T::from_str_radix(literal.strip_prefix("0x").unwrap(), 16)

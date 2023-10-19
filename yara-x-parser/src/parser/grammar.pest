@@ -258,13 +258,13 @@ string_lit = @{
 }
 
 integer_lit = @{
-  "-"? ~ "0x" ~ ASCII_HEX_DIGIT+ |
-  "-"? ~ "0o" ~ ASCII_OCT_DIGIT+ |
-  "-"? ~ ASCII_DIGIT+ ~ ("KB" | "MB")?
+  "-"? ~ "0x" ~ ASCII_HEX_DIGIT+ ~ ("_" | ASCII_HEX_DIGIT)* |
+  "-"? ~ "0o" ~ ASCII_OCT_DIGIT+ ~ ("_" | ASCII_OCT_DIGIT)* |
+  "-"? ~ ASCII_DIGIT+ ~ ("_" | ASCII_DIGIT)* ~ ("KB" | "MB")?
 }
 
 float_lit = @{
-  "-"? ~ ASCII_DIGIT+ ~ DOT ~ ASCII_DIGIT+
+  "-"? ~ ASCII_DIGIT+ ~ ("_" | ASCII_DIGIT)* ~ DOT ~ ASCII_DIGIT+ ~ ("_" | ASCII_DIGIT)*
 }
 
 regexp = @{

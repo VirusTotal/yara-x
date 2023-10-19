@@ -979,6 +979,70 @@ rule test : foo bar baz {
        └─ RPAREN ")"
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            GrammarRule::term,
+            r#"#a in (1_000..200_)"#,
+            r##"
+ term
+ └─ primary_expr
+    ├─ pattern_count "#a"
+    ├─ k_IN "in"
+    └─ range
+       ├─ LPAREN "("
+       ├─ expr
+       │  └─ term
+       │     └─ primary_expr
+       │        └─ integer_lit "1_000"
+       ├─ DOT_DOT ".."
+       ├─ expr
+       │  └─ term
+       │     └─ primary_expr
+       │        └─ integer_lit "200_"
+       └─ RPAREN ")"
+"##,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            GrammarRule::expr,
+            r#"0x0_2 | 0o00_1 & 0x03_"#,
+            r#"
+ expr
+ ├─ term
+ │  └─ primary_expr
+ │     └─ integer_lit "0x0_2"
+ ├─ BITWISE_OR "|"
+ ├─ term
+ │  └─ primary_expr
+ │     └─ integer_lit "0o00_1"
+ ├─ BITWISE_AND "&"
+ └─ term
+    └─ primary_expr
+       └─ integer_lit "0x03_"
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            GrammarRule::expr,
+            r#"0_2_2 | 0x00000_11 & 0o05_5"#,
+            r#"
+ expr
+ ├─ term
+ │  └─ primary_expr
+ │     └─ integer_lit "0_2_2"
+ ├─ BITWISE_OR "|"
+ ├─ term
+ │  └─ primary_expr
+ │     └─ integer_lit "0x00000_11"
+ ├─ BITWISE_AND "&"
+ └─ term
+    └─ primary_expr
+       └─ integer_lit "0o05_5"
+"#,
+        ),
     ];
 
     for t in tests {
