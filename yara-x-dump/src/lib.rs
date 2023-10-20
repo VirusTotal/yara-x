@@ -28,25 +28,31 @@ impl Dumper {
         Dumper {}
     }
 
-    pub fn dump<R>(&self, mut input: R) -> Result<(), Error>
+    pub fn dump<R>(
+        &self,
+        mut input: R,
+        modules: Vec<String>,
+    ) -> Result<(), Error>
     where
         R: io::Read,
     {
         let mut buffer = Vec::new();
         input.read_to_end(&mut buffer).map_err(Error::ReadError)?;
 
+        println!("desired modules: {}", modules.join(", "));
+        // Create a rule that imports all the built-in modules.
         let import_statements = yara_x::get_builtin_modules_names()
             .iter()
             .map(|module_name| format!("import \"{}\"", module_name))
             .collect::<Vec<_>>()
             .join("\n");
 
+        // Create a dummy rule
         let rule = format!(
             r#"{} rule test {{ condition: false }}"#,
             import_statements
         );
 
-        println!("{}", rule.as_str());
         // Compile the rule.
         let rules = yara_x::compile(rule.as_str()).unwrap();
 
@@ -55,6 +61,7 @@ impl Dumper {
         let scan_results =
             scanner.scan(&buffer).expect("scan should not fail");
 
+        // Iterate over the modules' outputs.
         for (mod_name, mod_output) in scan_results.module_outputs() {
             // Get a text representation of the module's output.
             println!(
