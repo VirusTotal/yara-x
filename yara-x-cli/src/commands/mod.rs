@@ -23,7 +23,7 @@ use crossterm::tty::IsTty;
 use serde_json::Value;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 
-use yara_x::{Compiler, Rules};
+use yara_x::{get_builtin_modules_names, Compiler, Rules};
 use yara_x_parser::SourceCode;
 
 use crate::walk::DirWalker;
@@ -37,6 +37,21 @@ pub fn command(name: &'static str) -> Command {
 {all-args}
 "#,
     )
+}
+
+fn modules_parser(option: &str) -> Result<Vec<String>, anyhow::Error> {
+    let modules = option.split(',').map(|s| s.to_string()).collect::<Vec<_>>();
+    let supported_modules = get_builtin_modules_names();
+    for module in &modules {
+        if !supported_modules.contains(&module.as_str()) {
+            anyhow::bail!(
+                "Unsupported module: {}. Supported modules for --modules argument are: {}",
+                module,
+                supported_modules.join(", ")
+            );
+        }
+    }
+    Ok(modules)
 }
 
 fn external_var_parser(

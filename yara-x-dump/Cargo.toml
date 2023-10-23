@@ -16,6 +16,7 @@ crate-type = ["rlib", "cdylib"]
 thiserror = { workspace = true }
 yara-x = { workspace = true }
 protobuf = { workspace = true }
+yansi = { workspace = true }
 
 indent = "0.1.1"
 

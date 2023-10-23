@@ -1,6 +1,7 @@
 use indent::indent_all_by;
 use std::io;
 use thiserror::Error;
+use yansi::Color::Cyan;
 use yara_x;
 
 /// Errors returned by [`Dumper::dump`].
@@ -31,7 +32,7 @@ impl Dumper {
     pub fn dump<R>(
         &self,
         mut input: R,
-        modules: Vec<String>,
+        modules: Option<&Vec<String>>,
     ) -> Result<(), Error>
     where
         R: io::Read,
@@ -39,9 +40,17 @@ impl Dumper {
         let mut buffer = Vec::new();
         input.read_to_end(&mut buffer).map_err(Error::ReadError)?;
 
-        println!("desired modules: {}", modules.join(", "));
+        let import_modules = if let Some(modules) = modules {
+            modules.clone()
+        } else {
+            yara_x::get_builtin_modules_names()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect()
+        };
+
         // Create a rule that imports all the built-in modules.
-        let import_statements = yara_x::get_builtin_modules_names()
+        let import_statements = import_modules
             .iter()
             .map(|module_name| format!("import \"{}\"", module_name))
             .collect::<Vec<_>>()
@@ -65,8 +74,8 @@ impl Dumper {
         for (mod_name, mod_output) in scan_results.module_outputs() {
             // Get a text representation of the module's output.
             println!(
-                "{}: {}",
-                mod_name,
+                ">>> {}:\n{}<<<",
+                Cyan.paint(mod_name).bold(),
                 indent_all_by(
                     4,
                     protobuf::text_format::print_to_string_pretty(mod_output)

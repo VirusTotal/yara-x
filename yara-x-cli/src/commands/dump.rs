@@ -1,10 +1,11 @@
-use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 use std::fs::File;
 use std::io::stdin;
 use std::path::PathBuf;
 
-use yara_x::get_builtin_modules_names;
 use yara_x_dump::Dumper;
+
+use crate::commands::modules_parser;
 
 pub fn dump() -> Command {
     super::command("dump")
@@ -17,29 +18,17 @@ pub fn dump() -> Command {
                 .required(false),
         )
         .arg(
-            arg!(--"modules" <NAME>)
-                .help("Name of the module or comma-separated list of modules to be used for parsing")
-                .value_parser(value_parser!(String))
-                .value_delimiter(',')
-                .required(false),
+            Arg::new("modules")
+            .long("modules")
+            .help("Name of the module or comma-separated list of modules to be used for parsing")
+            .required(false)
+            .value_parser(modules_parser),
         )
 }
 
 pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     let file = args.get_one::<PathBuf>("FILE");
-    let modules = args
-        .get_many::<String>("modules")
-        .unwrap_or_default()
-        .map(|s| s.to_string())
-        .collect::<Vec<_>>();
-
-    // Validate modules
-    let supported_modules = get_builtin_modules_names();
-    for module in &modules {
-        if !supported_modules.contains(&module.as_str()) {
-            anyhow::bail!("Unsupported module: {}. Supported modules for --modules argument are: {}", module, supported_modules.join(", "));
-        }
-    }
+    let modules = args.get_one::<Vec<String>>("modules");
 
     let dumper = Dumper::new();
 
