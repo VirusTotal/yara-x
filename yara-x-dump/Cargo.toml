@@ -20,8 +20,10 @@ yansi = { workspace = true }
 
 indent = "0.1.1"
 serde_json = { version = "1.0.1", features = ["preserve_order"] }
-serde_yaml  = { version = "0.8.26" }
+serde_yaml = "0.8.26" 
+toml = "0.8.4"
 protobuf-json-mapping = "3.3.0"
+xml2json-rs = "1.0.1"
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

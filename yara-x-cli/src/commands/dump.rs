@@ -1,4 +1,4 @@
-use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
+use clap::{arg, value_parser, Arg, ArgMatches, Command};
 use std::fs::File;
 use std::io::stdin;
 use std::path::PathBuf;
@@ -14,7 +14,12 @@ pub fn dump() -> Command {
             arg!(<FILE>)
                 .help("Path to binary file")
                 .value_parser(value_parser!(PathBuf))
-                .action(ArgAction::Append)
+                .required(false),
+        )
+        .arg(
+            arg!(-o --"output-format" <FORMAT>)
+                .help("Desired output format")
+                .value_parser(value_parser!(String))
                 .required(false),
         )
         .arg(
@@ -28,6 +33,7 @@ pub fn dump() -> Command {
 
 pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     let file = args.get_one::<PathBuf>("FILE");
+    let output_format = args.get_one::<String>("output-format");
     let modules = args.get_one::<Vec<String>>("modules");
 
     let dumper = Dumper::new();
@@ -35,10 +41,10 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     if let Some(file) = file {
         println!("Dumping file: {:?}", file.as_path());
         let input = File::open(file.as_path())?;
-        dumper.dump(input, modules)?;
+        dumper.dump(input, modules, output_format)?;
     } else {
         println!("Dumping stdin");
-        dumper.dump(stdin(), modules)?;
+        dumper.dump(stdin(), modules, output_format)?;
     }
 
     Ok(())

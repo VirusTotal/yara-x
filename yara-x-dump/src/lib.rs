@@ -25,6 +25,12 @@ pub enum Error {
     /// Error while parsing YAML strings.
     #[error("Parsing YAML error")]
     ParsingYAMLError(#[from] serde_yaml::Error),
+    /// Error while parsing TOML strings.
+    #[error("Parsing TOML error")]
+    ParsingTOMLError(#[from] toml::ser::Error),
+    /// Error while parsing XML strings.
+    #[error("Parsing XML error")]
+    ParsingXMLError(#[from] xml2json_rs::X2JError),
     /// Error for unsupported serilization formats.
     #[error("Unsupported serilization format")]
     UnsupportedFormat,
@@ -51,6 +57,7 @@ impl Dumper {
         &self,
         mut input: R,
         modules: Option<&Vec<String>>,
+        output_format: Option<&String>,
     ) -> Result<(), Error>
     where
         R: io::Read,
@@ -92,10 +99,11 @@ impl Dumper {
         // Iterate over the modules' outputs and get serialized results to
         // print.
         for (mod_name, mod_output) in scan_results.module_outputs() {
-            let desired_output = "json";
             let json_output = print_to_string(mod_output)?;
-
-            let serializer = get_serializer(desired_output)?;
+            let serializer = get_serializer(match output_format {
+                Some(format) => format,
+                None => "json",
+            })?;
 
             let serialized_result = serializer.serialize(json_output)?;
 
