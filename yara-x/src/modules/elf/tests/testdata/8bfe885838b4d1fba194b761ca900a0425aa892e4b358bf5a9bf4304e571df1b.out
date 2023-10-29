@@ -1,6 +1,5 @@
 type: ET_DYN
 machine: EM_X86_64
-entry_point: 0
 sh_offset: 14904
 sh_entry_size: 64
 ph_offset: 64
@@ -13,6 +12,7 @@ sections {
   address: 0
   size: 0
   offset: 0
+  name: ""
 }
 sections {
   type: SHT_NOTE
@@ -279,7 +279,7 @@ sections {
   name: ".shstrtab"
 }
 segments {
-  type: 1
+  type: PT_LOAD
   flags: 4
   offset: 0
   virtual_address: 0
@@ -289,7 +289,7 @@ segments {
   alignment: 4096
 }
 segments {
-  type: 1
+  type: PT_LOAD
   flags: 5
   offset: 4096
   virtual_address: 4096
@@ -299,7 +299,7 @@ segments {
   alignment: 4096
 }
 segments {
-  type: 1
+  type: PT_LOAD
   flags: 4
   offset: 8192
   virtual_address: 8192
@@ -309,7 +309,7 @@ segments {
   alignment: 4096
 }
 segments {
-  type: 1
+  type: PT_LOAD
   flags: 6
   offset: 11744
   virtual_address: 15840
@@ -319,7 +319,7 @@ segments {
   alignment: 4096
 }
 segments {
-  type: 2
+  type: PT_DYNAMIC
   flags: 6
   offset: 11760
   virtual_address: 15856
@@ -329,7 +329,7 @@ segments {
   alignment: 8
 }
 segments {
-  type: 4
+  type: PT_NOTE
   flags: 4
   offset: 680
   virtual_address: 680
@@ -339,7 +339,7 @@ segments {
   alignment: 8
 }
 segments {
-  type: 4
+  type: PT_NOTE
   flags: 4
   offset: 728
   virtual_address: 728
@@ -349,7 +349,7 @@ segments {
   alignment: 4
 }
 segments {
-  type: 1685382483
+  type: PT_GNU_PROPERTY
   flags: 4
   offset: 680
   virtual_address: 680
@@ -359,7 +359,7 @@ segments {
   alignment: 8
 }
 segments {
-  type: 1685382480
+  type: PT_GNU_EH_FRAME
   flags: 4
   offset: 8192
   virtual_address: 8192
@@ -369,7 +369,7 @@ segments {
   alignment: 4
 }
 segments {
-  type: 1685382481
+  type: PT_GNU_STACK
   flags: 6
   offset: 0
   virtual_address: 0
@@ -379,7 +379,7 @@ segments {
   alignment: 16
 }
 segments {
-  type: 1685382482
+  type: PT_GNU_RELRO
   flags: 4
   offset: 11744
   virtual_address: 15840
@@ -389,320 +389,490 @@ segments {
   alignment: 1
 }
 symtab {
+  name: ""
   value: 0
   size: 0
-  type: 0
-  bind: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
   shndx: 0
 }
 symtab {
   name: "crtstuff.c"
   value: 0
   size: 0
-  type: 4
-  bind: 0
+  type: STT_FILE
+  bind: STB_LOCAL
   shndx: 65521
 }
 symtab {
   name: "deregister_tm_clones"
   value: 4352
   size: 0
-  type: 2
-  bind: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
   shndx: 12
 }
 symtab {
   name: "register_tm_clones"
   value: 4400
   size: 0
-  type: 2
-  bind: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
   shndx: 12
 }
 symtab {
   name: "__do_global_dtors_aux"
   value: 4464
   size: 0
-  type: 2
-  bind: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
   shndx: 12
 }
 symtab {
   name: "completed.0"
   value: 16496
   size: 1
-  type: 1
-  bind: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
   shndx: 22
 }
 symtab {
   name: "__do_global_dtors_aux_fini_array_entry"
   value: 15848
   size: 0
-  type: 1
-  bind: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
   shndx: 17
 }
 symtab {
   name: "frame_dummy"
   value: 4544
   size: 0
-  type: 2
-  bind: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
   shndx: 12
 }
 symtab {
   name: "__frame_dummy_init_array_entry"
   value: 15840
   size: 0
-  type: 1
-  bind: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
   shndx: 16
 }
 symtab {
   name: "toto.c"
   value: 0
   size: 0
-  type: 4
-  bind: 0
+  type: STT_FILE
+  bind: STB_LOCAL
   shndx: 65521
 }
 symtab {
   name: "crtstuff.c"
   value: 0
   size: 0
-  type: 4
-  bind: 0
+  type: STT_FILE
+  bind: STB_LOCAL
   shndx: 65521
 }
 symtab {
   name: "__FRAME_END__"
   value: 8360
   size: 0
-  type: 1
-  bind: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
   shndx: 15
 }
 symtab {
+  name: ""
   value: 0
   size: 0
-  type: 4
-  bind: 0
+  type: STT_FILE
+  bind: STB_LOCAL
   shndx: 65521
 }
 symtab {
   name: "_fini"
   value: 4660
   size: 0
-  type: 2
-  bind: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
   shndx: 13
 }
 symtab {
   name: "__dso_handle"
   value: 16488
   size: 0
-  type: 1
-  bind: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
   shndx: 21
 }
 symtab {
   name: "_DYNAMIC"
   value: 15856
   size: 0
-  type: 1
-  bind: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
   shndx: 18
 }
 symtab {
   name: "__GNU_EH_FRAME_HDR"
   value: 8192
   size: 0
-  type: 0
-  bind: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
   shndx: 14
 }
 symtab {
   name: "__TMC_END__"
   value: 16496
   size: 0
-  type: 1
-  bind: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
   shndx: 21
 }
 symtab {
   name: "_GLOBAL_OFFSET_TABLE_"
   value: 16360
   size: 0
-  type: 1
-  bind: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
   shndx: 20
 }
 symtab {
   name: "_init"
   value: 4096
   size: 0
-  type: 2
-  bind: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
   shndx: 10
 }
 symtab {
   name: "_ITM_deregisterTMCloneTable"
   value: 0
   size: 0
-  type: 0
-  bind: 2
+  type: STT_NOTYPE
+  bind: STB_WEAK
   shndx: 0
 }
 symtab {
   name: "memstuff"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "z"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "weak_fun"
   value: 0
   size: 0
-  type: 2
-  bind: 2
+  type: STT_FUNC
+  bind: STB_WEAK
   shndx: 0
 }
 symtab {
   name: "FOO"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "foo64"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "__gmon_start__"
   value: 0
   size: 0
-  type: 0
-  bind: 2
+  type: STT_NOTYPE
+  bind: STB_WEAK
   shndx: 0
 }
 symtab {
   name: "foo"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "strstuff"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "main"
   value: 4560
   size: 97
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 12
 }
 symtab {
   name: "ALLCAPSSTR"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "stuffmem"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "FOO64"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "long_function_to_make_the_tlsh_hash_work"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "STRALLCAPS"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "a_value"
   value: 0
   size: 0
-  type: 1
-  bind: 1
+  type: STT_OBJECT
+  bind: STB_GLOBAL
   shndx: 0
 }
 symtab {
   name: "_ITM_registerTMCloneTable"
   value: 0
   size: 0
-  type: 0
-  bind: 2
+  type: STT_NOTYPE
+  bind: STB_WEAK
   shndx: 0
 }
 symtab {
   name: "protected_fun"
   value: 4553
   size: 7
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 12
 }
 symtab {
   name: "__cxa_finalize@GLIBC_2.2.5"
   value: 0
   size: 0
-  type: 2
-  bind: 2
+  type: STT_FUNC
+  bind: STB_WEAK
   shndx: 0
 }
 symtab {
   name: "stuffstr"
   value: 0
   size: 0
-  type: 2
-  bind: 1
+  type: STT_FUNC
+  bind: STB_GLOBAL
   shndx: 0
+}
+dynsym {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
+  shndx: 0
+}
+dynsym {
+  name: "_ITM_deregisterTMCloneTable"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+}
+dynsym {
+  name: "memstuff"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "z"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "weak_fun"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_WEAK
+  shndx: 0
+}
+dynsym {
+  name: "FOO"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "foo64"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "__gmon_start__"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+}
+dynsym {
+  name: "foo"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "strstuff"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "ALLCAPSSTR"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "stuffmem"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "FOO64"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "long_function_to_make_the_tlsh_hash_work"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "STRALLCAPS"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "a_value"
+  value: 0
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "_ITM_registerTMCloneTable"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+}
+dynsym {
+  name: "__cxa_finalize"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_WEAK
+  shndx: 0
+}
+dynsym {
+  name: "stuffstr"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+}
+dynsym {
+  name: "main"
+  value: 4560
+  size: 97
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 12
+}
+dynsym {
+  name: "protected_fun"
+  value: 4553
+  size: 7
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 12
 }

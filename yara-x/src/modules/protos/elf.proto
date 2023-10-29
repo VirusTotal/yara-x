@@ -24,6 +24,7 @@ message ELF {
   repeated Section sections = 10;
   repeated Segment segments = 11;
   repeated Sym symtab = 12;
+  repeated Sym dynsym = 13;
 }
 
 enum Type {
@@ -84,7 +85,7 @@ enum SectionType {
 }
 
 message Segment {
-  required uint32 type = 1;
+  required SegmentType type = 1;
   required uint32 flags = 2;
   required uint64 offset = 3;
   required uint64 virtual_address = 4;
@@ -94,12 +95,46 @@ message Segment {
   required uint64 alignment = 8;
 }
 
+enum SegmentType {
+  option (yara.enum_options).inline = true;
+  PT_NULL         = 0;  // The array element is unused
+  PT_LOAD         = 1;  // Loadable segment
+  PT_DYNAMIC      = 2;  // Segment contains dynamic linking info
+  PT_INTERP       = 3;  // Contains interpreter pathname
+  PT_NOTE         = 4;  // Location & size of auxiliary info
+  PT_SHLIB        = 5;  // Reserved, unspecified semantics
+  PT_PHDR         = 6;  // Location and size of program header table
+  PT_TLS          = 7;  // Thread-Local Storage
+  PT_GNU_EH_FRAME = 0x6474e550;
+  PT_GNU_STACK    = 0x6474e551;
+  PT_GNU_RELRO    = 0x6474e552;
+  PT_GNU_PROPERTY = 0x6474e553;
+}
+
 message Sym {
   optional string name = 1;
   required uint64 value = 2;
   required uint64 size = 3;
-  required uint32 type = 4;
-  required uint32 bind = 5;
+  required SymType type = 4;
+  required SymBind bind = 5;
   required uint32 shndx = 6;
+}
+
+enum SymType {
+  option (yara.enum_options).inline = true;
+  STT_NOTYPE  = 0;  // Symbol type is unspecified
+  STT_OBJECT  = 1;  // Symbol is a data object
+  STT_FUNC    = 2;  // Symbol is a code object
+  STT_SECTION = 3;  // Symbol associated with a section
+  STT_FILE    = 4;  // Symbol's name is file name
+  STT_COMMON  = 5;  // Symbol is a common data object
+  STT_TLS     = 6;  // Symbol is thread-local data object
+}
+
+enum SymBind {
+  option (yara.enum_options).inline = true;
+  STB_LOCAL  = 0;  // Local symbol
+  STB_GLOBAL = 1;  // Global symbol
+  STB_WEAK   = 2;  // Weak symbol
 }
 

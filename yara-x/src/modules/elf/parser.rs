@@ -1,7 +1,7 @@
 use std::mem;
 use std::ops::Range;
 
-use nom::bytes::complete::{is_not, take};
+use nom::bytes::complete::{take, take_till};
 use nom::combinator::{map_res, verify};
 use nom::multi::{count, many0};
 use nom::number::complete::{le_u32, u16, u32, u64, u8};
@@ -11,7 +11,6 @@ use nom::{Err, IResult, Parser};
 use protobuf::EnumOrUnknown;
 
 use crate::modules::protos::elf;
-use crate::modules::protos::elf::ELF;
 
 #[repr(u8)]
 enum Class {
@@ -21,7 +20,7 @@ enum Class {
 
 /// An ELF file parser.
 pub struct ElfParser {
-    result: ELF,
+    result: elf::ELF,
     endianness: Endianness,
     class: Class,
 }
@@ -30,7 +29,7 @@ impl ElfParser {
     /// Creates a new parser for ELF files.
     pub fn new() -> Self {
         Self {
-            result: ELF::default(),
+            result: elf::ELF::default(),
             endianness: Endianness::Native,
             class: Class::Elf32,
         }
@@ -40,25 +39,24 @@ impl ElfParser {
     /// extracted from the file.
     pub fn parse<'a>(
         &mut self,
-        input: &'a [u8],
-    ) -> Result<ELF, Err<nom::error::Error<&'a [u8]>>> {
+        elf: &'a [u8],
+    ) -> Result<elf::ELF, Err<nom::error::Error<&'a [u8]>>> {
         // Parse the ELF identifier.
-        let (remainder, (_, class, data_encoding, _, _, _)) =
-            tuple((
-                // Magic must be 0x7f 0x45 (E) 0x4c (L) 0x46 (F).
-                verify(le_u32, |magic| *magic == 0x464C457F),
-                // Class must be either ELF_CLASS_32 or ELF_CLASS_64.
-                verify(u8, |c| {
-                    *c == Self::ELF_CLASS_32 || *c == Self::ELF_CLASS_64
-                }),
-                // Data encoding must be either ELF_DATA_2LSB or ELF_DATA_2MSB
-                verify(u8, |d| {
-                    *d == Self::ELF_DATA_2LSB || *d == Self::ELF_DATA_2MSB
-                }),
-                u8,            // version
-                take(8_usize), // padding
-                u8,            // nident
-            ))(input)?;
+        let (remainder, (_, class, data_encoding, _, _, _)) = tuple((
+            // Magic must be 0x7f 0x45 (E) 0x4c (L) 0x46 (F).
+            verify(le_u32, |magic| *magic == 0x464C457F),
+            // Class must be either ELF_CLASS_32 or ELF_CLASS_64.
+            verify(u8, |c| {
+                *c == Self::ELF_CLASS_32 || *c == Self::ELF_CLASS_64
+            }),
+            // Data encoding must be either ELF_DATA_2LSB or ELF_DATA_2MSB
+            verify(u8, |d| {
+                *d == Self::ELF_DATA_2LSB || *d == Self::ELF_DATA_2MSB
+            }),
+            u8,            // version
+            take(8_usize), // padding
+            u8,            // nident
+        ))(elf)?;
 
         match class {
             Self::ELF_CLASS_32 => self.class = Class::Elf32,
@@ -99,20 +97,12 @@ impl ElfParser {
         self.result.ph_entry_size = Some(ehdr.ph_entry_size.into());
         self.result.number_of_sections = Some(ehdr.sh_entry_count.into());
         self.result.number_of_segments = Some(ehdr.ph_entry_count.into());
-        self.result.entry_point = Some(ehdr.entry_point); // TODO: rva to offset
 
-        // Parse segments. `segments` is a vector of `Phdr`.
-        let segments =
-            input.get(ehdr.ph_offset as usize..).and_then(|segments| {
-                count(self.parse_phdr(), ehdr.ph_entry_count as usize)
-                    .parse(segments)
-                    .map(|(_, segments)| segments)
-                    .ok()
-            });
+        let segments = self.parse_segments(&ehdr, elf);
+        let sections = self.parse_sections(&ehdr, elf);
 
         for s in segments.iter().flatten() {
             let mut segment = elf::Segment::new();
-            segment.type_ = Some(s.type_);
             segment.flags = Some(s.flags);
             segment.offset = Some(s.offset);
             segment.virtual_address = Some(s.virt_addr);
@@ -120,6 +110,11 @@ impl ElfParser {
             segment.file_size = Some(s.file_size);
             segment.memory_size = Some(s.mem_size);
             segment.alignment = Some(s.alignment);
+            segment.type_ = s
+                .type_
+                .try_into()
+                .ok()
+                .map(EnumOrUnknown::<elf::SegmentType>::from_i32);
 
             self.result.segments.push(segment);
         }
@@ -130,7 +125,18 @@ impl ElfParser {
             return Ok(mem::take(&mut self.result));
         }
 
-        let sections = match self.parse_sections(&ehdr, input) {
+        if let Some(elf_type) = self.result.type_ {
+            if ehdr.entry_point != 0 {
+                self.result.entry_point = Self::rva_to_offset(
+                    elf_type,
+                    segments.as_deref().unwrap_or(&[]),
+                    sections.as_deref().unwrap_or(&[]),
+                    ehdr.entry_point,
+                )
+            }
+        }
+
+        let sections = match sections {
             Some(sections) => sections,
             None => return Ok(mem::take(&mut self.result)),
         };
@@ -147,7 +153,7 @@ impl ElfParser {
             section.address = Some(s.addr);
             section.size = Some(s.size);
             section.offset = Some(s.offset);
-            section.name = Self::parse_name(input, shstrtab, s.name);
+            section.name = Self::parse_name(elf, shstrtab, s.name);
             section.type_ = s
                 .type_
                 .try_into()
@@ -158,30 +164,18 @@ impl ElfParser {
         }
 
         // Find the `.symtab` section and parse the symbol table.
-        if let Some(symtab) = sections
-            .iter()
-            .find(|section| section.type_ == Self::ELF_SHT_SYMTAB)
-        {
-            if let Some(data) = input.get(symtab.range()) {
-                let symtabstr = sections.get(symtab.link as usize);
-                let syms = many0(self.parse_sym())
-                    .parse(data)
-                    .map(|(_, syms)| syms)
-                    .ok();
+        self.result.symtab.extend(self.parse_sym_table(
+            elf,
+            sections.as_slice(),
+            |section| section.type_ == Self::ELF_SHT_SYMTAB,
+        ));
 
-                for s in syms.iter().flatten() {
-                    let mut sym = elf::Sym::new();
-                    sym.name = Self::parse_name(input, symtabstr, s.name);
-                    sym.value = Some(s.value);
-                    sym.size = Some(s.size);
-                    sym.type_ = Some((s.info & 0x0f).into());
-                    sym.bind = Some((s.info >> 4).into());
-                    sym.shndx = Some(s.shndx.into());
-
-                    self.result.symtab.push(sym);
-                }
-            }
-        }
+        // Find the `.dynsym` section and parse the dynamic linking symbols.
+        self.result.dynsym.extend(self.parse_sym_table(
+            elf,
+            sections.as_slice(),
+            |section| section.type_ == Self::ELF_SHT_DYNSYM,
+        ));
 
         Ok(mem::take(&mut self.result))
     }
@@ -195,13 +189,16 @@ impl ElfParser {
     const ELF_DATA_2LSB: u8 = 0x01;
     const ELF_DATA_2MSB: u8 = 0x02;
     const ELF_SHN_LORESERVE: u16 = 0xFF00;
+    const ELF_SHT_NULL: u32 = 0;
     const ELF_SHT_SYMTAB: u32 = 2;
+    const ELF_SHT_NOBITS: u32 = 8;
+    const ELF_SHT_DYNSYM: u32 = 11;
 
     /// Parses an offset or address.
     ///
     /// The size of an offset or address in an ELF file depends on the class
     /// of file. It is an `u32` in 32-bits ELF files, and `u64` in 64-bits
-    /// files. This parses consumes an `u32` while parsing 32-bits files, but
+    /// files. This parser consumes an `u32` while parsing 32-bits files, but
     /// always returns the value as an `u32`.
     fn off_or_addr(&self) -> impl FnMut(&[u8]) -> IResult<&[u8], u64> + '_ {
         move |input: &[u8]| {
@@ -214,6 +211,49 @@ impl ElfParser {
             };
             Ok((remainder, value))
         }
+    }
+
+    fn rva_to_offset(
+        elf_type: EnumOrUnknown<elf::Type>,
+        segments: &[Phdr],
+        sections: &[Shdr],
+        rva: u64,
+    ) -> Option<u64> {
+        match elf_type.enum_value() {
+            Ok(elf::Type::ET_EXEC) => {
+                for segment in segments.iter() {
+                    if (segment.virt_addr
+                        ..segment.virt_addr + segment.mem_size)
+                        .contains(&rva)
+                    {
+                        return segment
+                            .offset
+                            .checked_add(rva - segment.virt_addr);
+                    }
+                }
+            }
+            _ => {
+                for section in sections.iter() {
+                    if section.type_ != Self::ELF_SHT_NOBITS
+                        && section.type_ != Self::ELF_SHT_NULL
+                        && (section.addr..section.addr + section.size)
+                            .contains(&rva)
+                    {
+                        return section.offset.checked_add(rva - section.addr);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn parse_segments(&self, ehdr: &Ehdr, input: &[u8]) -> Option<Vec<Phdr>> {
+        input.get(ehdr.ph_offset as usize..).and_then(|segments| {
+            count(self.parse_phdr(), ehdr.ph_entry_count as usize)
+                .parse(segments)
+                .map(|(_, segments)| segments)
+                .ok()
+        })
     }
 
     fn parse_sections(&self, ehdr: &Ehdr, input: &[u8]) -> Option<Vec<Shdr>> {
@@ -370,6 +410,54 @@ impl ElfParser {
         }
     }
 
+    /// Parses a symbol table from a section that matches a predicate.
+    ///
+    /// This function receives the ELF data together with a slice of [`Shdr`]
+    /// structures that describe the sections in the ELF. The first section for
+    /// which the predicate functions returns true is considered as symbol
+    /// table and parsed accordingly. The result is a vector of [`elf::Sym`]
+    /// structures.
+    fn parse_sym_table<P>(
+        &self,
+        elf: &[u8],
+        sections: &[Shdr],
+        predicate: P,
+    ) -> Vec<elf::Sym>
+    where
+        P: FnMut(&&Shdr) -> bool,
+    {
+        let mut result = vec![];
+
+        if let Some(symtab) = sections.iter().find(predicate) {
+            if let Some(data) = elf.get(symtab.range()) {
+                let syms = many0(self.parse_sym())
+                    .parse(data)
+                    .map(|(_, syms)| syms)
+                    .ok();
+
+                let symtabstr = sections.get(symtab.link as usize);
+
+                for s in syms.iter().flatten() {
+                    let mut sym = elf::Sym::new();
+                    sym.name = Self::parse_name(elf, symtabstr, s.name);
+                    sym.value = Some(s.value);
+                    sym.size = Some(s.size);
+                    sym.shndx = Some(s.shndx.into());
+                    sym.type_ = Some(EnumOrUnknown::<elf::SymType>::from_i32(
+                        (s.info & 0x0f) as i32,
+                    ));
+                    sym.bind = Some(EnumOrUnknown::<elf::SymBind>::from_i32(
+                        (s.info >> 4) as i32,
+                    ));
+
+                    result.push(sym);
+                }
+            }
+        }
+
+        result
+    }
+
     fn parse_sym(&self) -> impl FnMut(&[u8]) -> IResult<&[u8], Sym> + '_ {
         move |input: &[u8]| match self.class {
             Class::Elf32 => self.parse_sym32()(input),
@@ -431,24 +519,19 @@ impl ElfParser {
         str_table: Option<&Shdr>,
         str_idx: u32,
     ) -> Option<String> {
-        if str_table.is_none() && str_idx == 0 {
-            return None;
-        }
-
-        let section = match elf.get(str_table.unwrap().range()) {
+        let section = match elf.get(str_table?.range()) {
             Some(section) => section,
             None => return None,
         };
+        // Take `str_idx` bytes from `section` and from the remaining bytes
+        // read the string until the null terminator is found.
+        let (_, (_, str_bytes)) =
+            take::<u32, &[u8], nom::error::Error<&[u8]>>(str_idx)
+                .and(take_till(|c| c == 0))
+                .parse(section)
+                .ok()?;
 
-        // Take `name_idx` bytes from `section`...
-        take::<u32, &[u8], nom::error::Error<&[u8]>>(str_idx)
-            // From the remaining bytes read bytes until the null
-            // terminator is found.
-            .and(is_not([0_u8]))
-            .parse(section)
-            // Convert the bytes to string.
-            .map(|(_, (_, name))| String::from_utf8_lossy(name).to_string())
-            .ok()
+        Some(String::from_utf8_lossy(str_bytes).to_string())
     }
 }
 
