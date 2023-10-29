@@ -35,8 +35,8 @@ impl ElfParser {
         }
     }
 
-    /// Parses an ELF file and produces a [`ELF`] protobuf containing metadata
-    /// extracted from the file.
+    /// Parses an ELF file and produces a [`elf::ELF`] protobuf containing
+    /// metadata extracted from the file.
     pub fn parse<'a>(
         &mut self,
         elf: &'a [u8],
@@ -222,10 +222,7 @@ impl ElfParser {
         match elf_type.enum_value() {
             Ok(elf::Type::ET_EXEC) => {
                 for segment in segments.iter() {
-                    if (segment.virt_addr
-                        ..segment.virt_addr + segment.mem_size)
-                        .contains(&rva)
-                    {
+                    if segment.virt_addr_range()?.contains(&rva) {
                         return segment
                             .offset
                             .checked_add(rva - segment.virt_addr);
@@ -236,8 +233,7 @@ impl ElfParser {
                 for section in sections.iter() {
                     if section.type_ != Self::ELF_SHT_NOBITS
                         && section.type_ != Self::ELF_SHT_NULL
-                        && (section.addr..section.addr + section.size)
-                            .contains(&rva)
+                        && section.addr_range()?.contains(&rva)
                     {
                         return section.offset.checked_add(rva - section.addr);
                     }
@@ -429,28 +425,32 @@ impl ElfParser {
         let mut result = vec![];
 
         if let Some(symtab) = sections.iter().find(predicate) {
-            if let Some(data) = elf.get(symtab.range()) {
-                let syms = many0(self.parse_sym())
-                    .parse(data)
-                    .map(|(_, syms)| syms)
-                    .ok();
+            if let Some(range) = symtab.offset_range() {
+                if let Some(data) = elf.get(range) {
+                    let syms = many0(self.parse_sym())
+                        .parse(data)
+                        .map(|(_, syms)| syms)
+                        .ok();
 
-                let symtabstr = sections.get(symtab.link as usize);
+                    let symtabstr = sections.get(symtab.link as usize);
 
-                for s in syms.iter().flatten() {
-                    let mut sym = elf::Sym::new();
-                    sym.name = Self::parse_name(elf, symtabstr, s.name);
-                    sym.value = Some(s.value);
-                    sym.size = Some(s.size);
-                    sym.shndx = Some(s.shndx.into());
-                    sym.type_ = Some(EnumOrUnknown::<elf::SymType>::from_i32(
-                        (s.info & 0x0f) as i32,
-                    ));
-                    sym.bind = Some(EnumOrUnknown::<elf::SymBind>::from_i32(
-                        (s.info >> 4) as i32,
-                    ));
+                    for s in syms.iter().flatten() {
+                        let mut sym = elf::Sym::new();
+                        sym.name = Self::parse_name(elf, symtabstr, s.name);
+                        sym.value = Some(s.value);
+                        sym.size = Some(s.size);
+                        sym.shndx = Some(s.shndx.into());
+                        sym.type_ =
+                            Some(EnumOrUnknown::<elf::SymType>::from_i32(
+                                (s.info & 0x0f) as i32,
+                            ));
+                        sym.bind =
+                            Some(EnumOrUnknown::<elf::SymBind>::from_i32(
+                                (s.info >> 4) as i32,
+                            ));
 
-                    result.push(sym);
+                        result.push(sym);
+                    }
                 }
             }
         }
@@ -519,7 +519,7 @@ impl ElfParser {
         str_table: Option<&Shdr>,
         str_idx: u32,
     ) -> Option<String> {
-        let section = match elf.get(str_table?.range()) {
+        let section = match elf.get(str_table?.offset_range()?) {
             Some(section) => section,
             None => return None,
         };
@@ -569,8 +569,15 @@ struct Shdr {
 
 impl Shdr {
     /// Returns the range that occupies the section within the ELF file.
-    pub fn range(&self) -> Range<usize> {
-        self.offset as usize..self.offset as usize + self.size as usize
+    pub fn offset_range(&self) -> Option<Range<usize>> {
+        Some(
+            self.offset as usize..self.offset.checked_add(self.size)? as usize,
+        )
+    }
+
+    /// Returns the section's address range.
+    pub fn addr_range(&self) -> Option<Range<u64>> {
+        Some(self.addr..self.addr.checked_add(self.size)?)
     }
 }
 
@@ -585,6 +592,13 @@ struct Phdr {
     file_size: u64,
     mem_size: u64,
     alignment: u64,
+}
+
+impl Phdr {
+    /// Returns the segment's virtual address range.
+    pub fn virt_addr_range(&self) -> Option<Range<u64>> {
+        Some(self.virt_addr..self.virt_addr.checked_add(self.mem_size)?)
+    }
 }
 
 /// ELF symbol
