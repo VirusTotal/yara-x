@@ -34,3 +34,9 @@ name = "lnk_parser"
 path = "fuzz_targets/lnk_parser.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "elf_parser"
+path = "fuzz_targets/elf_parser.rs"
+test = false
+doc = false
