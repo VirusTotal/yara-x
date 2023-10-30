@@ -440,14 +440,22 @@ impl ElfParser {
                         sym.value = Some(s.value);
                         sym.size = Some(s.size);
                         sym.shndx = Some(s.shndx.into());
+
                         sym.type_ =
                             Some(EnumOrUnknown::<elf::SymType>::from_i32(
                                 (s.info & 0x0f) as i32,
                             ));
+
                         sym.bind =
                             Some(EnumOrUnknown::<elf::SymBind>::from_i32(
                                 (s.info >> 4) as i32,
                             ));
+
+                        sym.visibility = Some(EnumOrUnknown::<
+                            elf::SymVisibility,
+                        >::from_i32(
+                            (s.other & 0x03) as i32
+                        ));
 
                         result.push(sym);
                     }

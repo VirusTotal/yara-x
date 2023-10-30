@@ -118,6 +118,7 @@ message Sym {
   required SymType type = 4;
   required SymBind bind = 5;
   required uint32 shndx = 6;
+  required SymVisibility visibility = 7;
 }
 
 enum SymType {
@@ -136,5 +137,13 @@ enum SymBind {
   STB_LOCAL  = 0;  // Local symbol
   STB_GLOBAL = 1;  // Global symbol
   STB_WEAK   = 2;  // Weak symbol
+}
+
+enum SymVisibility {
+  option (yara.enum_options).inline = true;
+  STV_DEFAULT   = 0;  // Visibility by binding
+  STV_INTERNAL  = 1;  // Reserved
+  STV_HIDDEN    = 2;  // Not visible to other components
+  STV_PROTECTED = 3;  // Visible in other but cannot be preempted.
 }
 

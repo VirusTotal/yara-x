@@ -34,11 +34,10 @@ macro_rules! global_const {
 ///   call namespaces_N
 /// }
 /// ```
-///
+/// 
 /// Each of the `namespaces_X` function contains a block per YARA namespace,
 /// and each of these blocks contains two inner blocks, for global and
 /// non-global rules respectively. For example:
-///
 /// ```text
 /// func namespaces_0 {
 ///   block {              ;; block for namespace 0
@@ -60,7 +59,7 @@ macro_rules! global_const {
 ///   ...  more blocks
 /// }
 /// ```
-///
+/// 
 /// The number of YARA namespaces per `namespaces_X` function is controlled with
 /// the [`WasmModuleBuilder::namespaces_per_func`] method. This has an impact
 /// in the total number of functions contained in the WASM module and their
@@ -74,7 +73,6 @@ macro_rules! global_const {
 /// In turn, each of the namespace blocks calls one or more rules functions
 /// which contains the logic for multiple YARA rules. This is how one of the
 /// namespace blocks looks in details:
-///
 /// ```text
 ///   block outer {               ;; block for namespace 1
 ///     block {                   ;; block for global rules
@@ -93,12 +91,11 @@ macro_rules! global_const {
 ///     }
 ///   }
 /// ```
-///
+/// 
 /// Each of the rules function contains the code for multiple YARA rules. The
 /// [`WasmModuleBuilder::rules_per_func`] method controls the number of YARA
 /// rules per function. As in the case of namespaces, this has an impact in
 /// compilation time. This is how these functions look like:
-///
 /// ```text
 /// func global_rules_0 {
 ///    ... code for global rule 1.
@@ -113,14 +110,13 @@ macro_rules! global_const {
 ///     ... code for non-global rule 2
 /// }
 /// ```
-///
+/// 
 /// Each of the functions containing global rules (i.e: `global_rules_N`) return
 /// one of the following values:
 ///
 ///   0 - When all global rules matches
 ///   1 - When some global rule didn't match
 ///   2 - If a timeout occurs
-///
 pub(crate) struct WasmModuleBuilder {
     module: walrus::Module,
     wasm_symbols: WasmSymbols,
@@ -457,10 +453,10 @@ mod tests {
         let wasm = module.emit_wasm();
         let text = wasmprinter::print_bytes(wasm).unwrap();
 
-        // Remove all lines that start with "  (type" or "  (import". These lines
-        // are not relevant to this test, we are interested in the functions
-        // only. Also the order of imports is not stable across compiler
-        // versions.
+        // Remove all lines that start with "  (type" or "  (import". These
+        // lines are not relevant to this test, we are interested in
+        // the functions only. Also the order of imports is not stable
+        // across compiler versions.
         let text = text
             .split('\n')
             .filter(|l| {
@@ -471,38 +467,38 @@ mod tests {
         assert_eq!(
             text,
             r#"(module
-  (func (;87;) (type 1) (result i32)
+  (func (;88;) (type 1) (result i32)
     i32.const 0
     global.set 2
     i32.const 0
     global.set 3
-    call 88
     call 89
+    call 90
     global.get 3
   )
-  (func (;88;) (type 0)
-    block ;; label = @1
-      call 90
-    end
+  (func (;89;) (type 0)
     block ;; label = @1
       call 91
     end
-  )
-  (func (;89;) (type 0)
     block ;; label = @1
       call 92
     end
   )
   (func (;90;) (type 0)
-    i32.const 4
+    block ;; label = @1
+      call 93
+    end
   )
   (func (;91;) (type 0)
-    i32.const 5
+    i32.const 4
   )
   (func (;92;) (type 0)
+    i32.const 5
+  )
+  (func (;93;) (type 0)
     i32.const 6
   )
-  (export "main" (func 87))
+  (export "main" (func 88))
 )"#
         );
     }
