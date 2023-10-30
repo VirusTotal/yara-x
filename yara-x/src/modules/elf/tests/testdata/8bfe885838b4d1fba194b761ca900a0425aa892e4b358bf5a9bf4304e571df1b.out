@@ -1,0 +1,1038 @@
+type: ET_DYN
+machine: EM_X86_64
+sh_offset: 14904
+sh_entry_size: 64
+ph_offset: 64
+ph_entry_size: 56
+number_of_sections: 34
+number_of_segments: 11
+symtab_entries: 40
+dynsym_entries: 21
+dynamic_section_entries: 24
+sections {
+  type: SHT_NULL
+  flags: 0
+  address: 0
+  size: 0
+  offset: 0
+  name: ""
+}
+sections {
+  type: SHT_NOTE
+  flags: 2
+  address: 680
+  size: 48
+  offset: 680
+  name: ".note.gnu.property"
+}
+sections {
+  type: SHT_NOTE
+  flags: 2
+  address: 728
+  size: 36
+  offset: 728
+  name: ".note.gnu.build-id"
+}
+sections {
+  type: : 1879048182
+  flags: 2
+  address: 768
+  size: 40
+  offset: 768
+  name: ".gnu.hash"
+}
+sections {
+  type: SHT_DYNSYM
+  flags: 2
+  address: 808
+  size: 504
+  offset: 808
+  name: ".dynsym"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 2
+  address: 1312
+  size: 274
+  offset: 1312
+  name: ".dynstr"
+}
+sections {
+  type: : 1879048191
+  flags: 2
+  address: 1586
+  size: 42
+  offset: 1586
+  name: ".gnu.version"
+}
+sections {
+  type: : 1879048190
+  flags: 2
+  address: 1632
+  size: 32
+  offset: 1632
+  name: ".gnu.version_r"
+}
+sections {
+  type: SHT_RELA
+  flags: 2
+  address: 1664
+  size: 192
+  offset: 1664
+  name: ".rela.dyn"
+}
+sections {
+  type: SHT_RELA
+  flags: 66
+  address: 1856
+  size: 312
+  offset: 1856
+  name: ".rela.plt"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 4096
+  size: 27
+  offset: 4096
+  name: ".init"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 4128
+  size: 224
+  offset: 4128
+  name: ".plt"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 4352
+  size: 305
+  offset: 4352
+  name: ".text"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 4660
+  size: 13
+  offset: 4660
+  name: ".fini"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 2
+  address: 8192
+  size: 36
+  offset: 8192
+  name: ".eh_frame_hdr"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 2
+  address: 8232
+  size: 132
+  offset: 8232
+  name: ".eh_frame"
+}
+sections {
+  type: SHT_INIT_ARRAY
+  flags: 3
+  address: 15840
+  size: 8
+  offset: 11744
+  name: ".init_array"
+}
+sections {
+  type: SHT_FINI_ARRAY
+  flags: 3
+  address: 15848
+  size: 8
+  offset: 11752
+  name: ".fini_array"
+}
+sections {
+  type: SHT_DYNAMIC
+  flags: 3
+  address: 15856
+  size: 464
+  offset: 11760
+  name: ".dynamic"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 16320
+  size: 40
+  offset: 12224
+  name: ".got"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 16360
+  size: 128
+  offset: 12264
+  name: ".got.plt"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 16488
+  size: 8
+  offset: 12392
+  name: ".data"
+}
+sections {
+  type: SHT_NOBITS
+  flags: 3
+  address: 16496
+  size: 8
+  offset: 12400
+  name: ".bss"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 48
+  address: 0
+  size: 18
+  offset: 12400
+  name: ".comment"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 0
+  address: 0
+  size: 128
+  offset: 12432
+  name: ".debug_aranges"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 0
+  address: 0
+  size: 70
+  offset: 12560
+  name: ".debug_info"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 0
+  address: 0
+  size: 36
+  offset: 12630
+  name: ".debug_abbrev"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 0
+  address: 0
+  size: 201
+  offset: 12666
+  name: ".debug_line"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 48
+  address: 0
+  size: 91
+  offset: 12867
+  name: ".debug_str"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 48
+  address: 0
+  size: 59
+  offset: 12958
+  name: ".debug_line_str"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 0
+  address: 0
+  size: 66
+  offset: 13017
+  name: ".debug_rnglists"
+}
+sections {
+  type: SHT_SYMTAB
+  flags: 0
+  address: 0
+  size: 960
+  offset: 13088
+  name: ".symtab"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 0
+  address: 0
+  size: 510
+  offset: 14048
+  name: ".strtab"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 0
+  address: 0
+  size: 344
+  offset: 14558
+  name: ".shstrtab"
+}
+segments {
+  type: PT_LOAD
+  flags: 4
+  offset: 0
+  virtual_address: 0
+  physical_address: 0
+  file_size: 2168
+  memory_size: 2168
+  alignment: 4096
+}
+segments {
+  type: PT_LOAD
+  flags: 5
+  offset: 4096
+  virtual_address: 4096
+  physical_address: 4096
+  file_size: 577
+  memory_size: 577
+  alignment: 4096
+}
+segments {
+  type: PT_LOAD
+  flags: 4
+  offset: 8192
+  virtual_address: 8192
+  physical_address: 8192
+  file_size: 172
+  memory_size: 172
+  alignment: 4096
+}
+segments {
+  type: PT_LOAD
+  flags: 6
+  offset: 11744
+  virtual_address: 15840
+  physical_address: 15840
+  file_size: 656
+  memory_size: 664
+  alignment: 4096
+}
+segments {
+  type: PT_DYNAMIC
+  flags: 6
+  offset: 11760
+  virtual_address: 15856
+  physical_address: 15856
+  file_size: 464
+  memory_size: 464
+  alignment: 8
+}
+segments {
+  type: PT_NOTE
+  flags: 4
+  offset: 680
+  virtual_address: 680
+  physical_address: 680
+  file_size: 48
+  memory_size: 48
+  alignment: 8
+}
+segments {
+  type: PT_NOTE
+  flags: 4
+  offset: 728
+  virtual_address: 728
+  physical_address: 728
+  file_size: 36
+  memory_size: 36
+  alignment: 4
+}
+segments {
+  type: PT_GNU_PROPERTY
+  flags: 4
+  offset: 680
+  virtual_address: 680
+  physical_address: 680
+  file_size: 48
+  memory_size: 48
+  alignment: 8
+}
+segments {
+  type: PT_GNU_EH_FRAME
+  flags: 4
+  offset: 8192
+  virtual_address: 8192
+  physical_address: 8192
+  file_size: 36
+  memory_size: 36
+  alignment: 4
+}
+segments {
+  type: PT_GNU_STACK
+  flags: 6
+  offset: 0
+  virtual_address: 0
+  physical_address: 0
+  file_size: 0
+  memory_size: 0
+  alignment: 16
+}
+segments {
+  type: PT_GNU_RELRO
+  flags: 4
+  offset: 11744
+  virtual_address: 15840
+  physical_address: 15840
+  file_size: 544
+  memory_size: 544
+  alignment: 1
+}
+symtab {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "crtstuff.c"
+  value: 0
+  size: 0
+  type: STT_FILE
+  bind: STB_LOCAL
+  shndx: 65521
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "deregister_tm_clones"
+  value: 4352
+  size: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
+  shndx: 12
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "register_tm_clones"
+  value: 4400
+  size: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
+  shndx: 12
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__do_global_dtors_aux"
+  value: 4464
+  size: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
+  shndx: 12
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "completed.0"
+  value: 16496
+  size: 1
+  type: STT_OBJECT
+  bind: STB_LOCAL
+  shndx: 22
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__do_global_dtors_aux_fini_array_entry"
+  value: 15848
+  size: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
+  shndx: 17
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "frame_dummy"
+  value: 4544
+  size: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
+  shndx: 12
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__frame_dummy_init_array_entry"
+  value: 15840
+  size: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
+  shndx: 16
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "toto.c"
+  value: 0
+  size: 0
+  type: STT_FILE
+  bind: STB_LOCAL
+  shndx: 65521
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "crtstuff.c"
+  value: 0
+  size: 0
+  type: STT_FILE
+  bind: STB_LOCAL
+  shndx: 65521
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__FRAME_END__"
+  value: 8360
+  size: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
+  shndx: 15
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_FILE
+  bind: STB_LOCAL
+  shndx: 65521
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "_fini"
+  value: 4660
+  size: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
+  shndx: 13
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__dso_handle"
+  value: 16488
+  size: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "_DYNAMIC"
+  value: 15856
+  size: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
+  shndx: 18
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__GNU_EH_FRAME_HDR"
+  value: 8192
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
+  shndx: 14
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__TMC_END__"
+  value: 16496
+  size: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "_GLOBAL_OFFSET_TABLE_"
+  value: 16360
+  size: 0
+  type: STT_OBJECT
+  bind: STB_LOCAL
+  shndx: 20
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "_init"
+  value: 4096
+  size: 0
+  type: STT_FUNC
+  bind: STB_LOCAL
+  shndx: 10
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "_ITM_deregisterTMCloneTable"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "memstuff"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "z"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "weak_fun"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "FOO"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "foo64"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__gmon_start__"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "foo"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "strstuff"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "main"
+  value: 4560
+  size: 97
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 12
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "ALLCAPSSTR"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "stuffmem"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "FOO64"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "long_function_to_make_the_tlsh_hash_work"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "STRALLCAPS"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "a_value"
+  value: 0
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "_ITM_registerTMCloneTable"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "protected_fun"
+  value: 4553
+  size: 7
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 12
+  visibility: STV_PROTECTED
+}
+symtab {
+  name: "__cxa_finalize@GLIBC_2.2.5"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "stuffstr"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_ITM_deregisterTMCloneTable"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "memstuff"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "z"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "weak_fun"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "FOO"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "foo64"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__gmon_start__"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "foo"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strstuff"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "ALLCAPSSTR"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "stuffmem"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "FOO64"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "long_function_to_make_the_tlsh_hash_work"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "STRALLCAPS"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "a_value"
+  value: 0
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_ITM_registerTMCloneTable"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__cxa_finalize"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "stuffstr"
+  value: 0
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "main"
+  value: 4560
+  size: 97
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 12
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "protected_fun"
+  value: 4553
+  size: 7
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 12
+  visibility: STV_PROTECTED
+}
+dynamic {
+  tag: DT_NEEDED
+  val: 242
+}
+dynamic {
+  tag: DT_NEEDED
+  val: 252
+}
+dynamic {
+  tag: DT_INIT
+  val: 4096
+}
+dynamic {
+  tag: DT_FINI
+  val: 4660
+}
+dynamic {
+  tag: DT_INIT_ARRAY
+  val: 15840
+}
+dynamic {
+  tag: DT_INIT_ARRAYSZ
+  val: 8
+}
+dynamic {
+  tag: DT_FINI_ARRAY
+  val: 15848
+}
+dynamic {
+  tag: DT_FINI_ARRAYSZ
+  val: 8
+}
+dynamic {
+  tag: : 1879047925
+  val: 768
+}
+dynamic {
+  tag: DT_STRTAB
+  val: 1312
+}
+dynamic {
+  tag: DT_SYMTAB
+  val: 808
+}
+dynamic {
+  tag: DT_STRSZ
+  val: 274
+}
+dynamic {
+  tag: DT_SYMENT
+  val: 24
+}
+dynamic {
+  tag: DT_PLTGOT
+  val: 16360
+}
+dynamic {
+  tag: DT_PLTRELSZ
+  val: 312
+}
+dynamic {
+  tag: DT_PLTREL
+  val: 7
+}
+dynamic {
+  tag: DT_JMPREL
+  val: 1856
+}
+dynamic {
+  tag: DT_RELA
+  val: 1664
+}
+dynamic {
+  tag: DT_RELASZ
+  val: 192
+}
+dynamic {
+  tag: DT_RELAENT
+  val: 24
+}
+dynamic {
+  tag: DT_VERNEED
+  val: 1632
+}
+dynamic {
+  tag: DT_VERNEEDNUM
+  val: 1
+}
+dynamic {
+  tag: DT_VERSYM
+  val: 1586
+}
+dynamic {
+  tag: DT_RELACOUNT
+  val: 3
+}

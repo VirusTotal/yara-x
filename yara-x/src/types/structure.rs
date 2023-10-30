@@ -311,8 +311,6 @@ impl Struct {
                 };
 
             for enum_ in enums {
-                dbg!(&enum_);
-
                 if Self::enum_is_inline(&enum_) {
                     for item in enum_.values() {
                         fields.push(StructField {

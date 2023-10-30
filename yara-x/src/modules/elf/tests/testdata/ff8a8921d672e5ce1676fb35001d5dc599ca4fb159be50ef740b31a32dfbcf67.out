@@ -1,0 +1,22 @@
+type: ET_EXEC
+machine: EM_X86_64
+entry_point: 120
+sh_offset: 0
+sh_entry_size: 0
+ph_offset: 64
+ph_entry_size: 56
+number_of_sections: 0
+number_of_segments: 1
+symtab_entries: 0
+dynsym_entries: 0
+dynamic_section_entries: 0
+segments {
+  type: PT_LOAD
+  flags: 7
+  offset: 0
+  virtual_address: 4194304
+  physical_address: 4194304
+  file_size: 520
+  memory_size: 920
+  alignment: 4096
+}

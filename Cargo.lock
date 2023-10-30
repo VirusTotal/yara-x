@@ -3233,6 +3233,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
+name = "tlsh"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abc50ece64366799d89819a3a5ad910a860220439eefcffef9ca17720c89236e"
+
+[[package]]
 name = "toml"
 version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4164,6 +4170,7 @@ dependencies = [
  "sha2 0.10.7",
  "smallvec",
  "thiserror",
+ "tlsh",
  "uuid",
  "walrus",
  "wasmprinter",
