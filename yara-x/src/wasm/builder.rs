@@ -34,7 +34,7 @@ macro_rules! global_const {
 ///   call namespaces_N
 /// }
 /// ```
-/// 
+///
 /// Each of the `namespaces_X` function contains a block per YARA namespace,
 /// and each of these blocks contains two inner blocks, for global and
 /// non-global rules respectively. For example:
@@ -59,7 +59,7 @@ macro_rules! global_const {
 ///   ...  more blocks
 /// }
 /// ```
-/// 
+///
 /// The number of YARA namespaces per `namespaces_X` function is controlled with
 /// the [`WasmModuleBuilder::namespaces_per_func`] method. This has an impact
 /// in the total number of functions contained in the WASM module and their
@@ -91,7 +91,7 @@ macro_rules! global_const {
 ///     }
 ///   }
 /// ```
-/// 
+///
 /// Each of the rules function contains the code for multiple YARA rules. The
 /// [`WasmModuleBuilder::rules_per_func`] method controls the number of YARA
 /// rules per function. As in the case of namespaces, this has an impact in
@@ -110,7 +110,7 @@ macro_rules! global_const {
 ///     ... code for non-global rule 2
 /// }
 /// ```
-/// 
+///
 /// Each of the functions containing global rules (i.e: `global_rules_N`) return
 /// one of the following values:
 ///
