@@ -6,6 +6,9 @@ ph_offset: 64
 ph_entry_size: 56
 number_of_sections: 34
 number_of_segments: 11
+symtab_entries: 40
+dynsym_entries: 21
+dynamic_section_entries: 24
 sections {
   type: SHT_NULL
   flags: 0
@@ -395,6 +398,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "crtstuff.c"
@@ -403,6 +407,7 @@ symtab {
   type: STT_FILE
   bind: STB_LOCAL
   shndx: 65521
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "deregister_tm_clones"
@@ -411,6 +416,7 @@ symtab {
   type: STT_FUNC
   bind: STB_LOCAL
   shndx: 12
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "register_tm_clones"
@@ -419,6 +425,7 @@ symtab {
   type: STT_FUNC
   bind: STB_LOCAL
   shndx: 12
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "__do_global_dtors_aux"
@@ -427,6 +434,7 @@ symtab {
   type: STT_FUNC
   bind: STB_LOCAL
   shndx: 12
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "completed.0"
@@ -435,6 +443,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_LOCAL
   shndx: 22
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "__do_global_dtors_aux_fini_array_entry"
@@ -443,6 +452,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_LOCAL
   shndx: 17
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "frame_dummy"
@@ -451,6 +461,7 @@ symtab {
   type: STT_FUNC
   bind: STB_LOCAL
   shndx: 12
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "__frame_dummy_init_array_entry"
@@ -459,6 +470,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_LOCAL
   shndx: 16
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "toto.c"
@@ -467,6 +479,7 @@ symtab {
   type: STT_FILE
   bind: STB_LOCAL
   shndx: 65521
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "crtstuff.c"
@@ -475,6 +488,7 @@ symtab {
   type: STT_FILE
   bind: STB_LOCAL
   shndx: 65521
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "__FRAME_END__"
@@ -483,6 +497,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_LOCAL
   shndx: 15
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -491,6 +506,7 @@ symtab {
   type: STT_FILE
   bind: STB_LOCAL
   shndx: 65521
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "_fini"
@@ -499,6 +515,7 @@ symtab {
   type: STT_FUNC
   bind: STB_LOCAL
   shndx: 13
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "__dso_handle"
@@ -507,6 +524,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_LOCAL
   shndx: 21
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "_DYNAMIC"
@@ -515,6 +533,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_LOCAL
   shndx: 18
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "__GNU_EH_FRAME_HDR"
@@ -523,6 +542,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 14
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "__TMC_END__"
@@ -531,6 +551,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_LOCAL
   shndx: 21
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "_GLOBAL_OFFSET_TABLE_"
@@ -539,6 +560,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_LOCAL
   shndx: 20
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "_init"
@@ -547,6 +569,7 @@ symtab {
   type: STT_FUNC
   bind: STB_LOCAL
   shndx: 10
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "_ITM_deregisterTMCloneTable"
@@ -555,6 +578,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "memstuff"
@@ -563,6 +587,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "z"
@@ -571,6 +596,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "weak_fun"
@@ -579,6 +605,7 @@ symtab {
   type: STT_FUNC
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "FOO"
@@ -587,6 +614,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "foo64"
@@ -595,6 +623,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "__gmon_start__"
@@ -603,6 +632,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "foo"
@@ -611,6 +641,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "strstuff"
@@ -619,6 +650,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "main"
@@ -627,6 +659,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 12
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "ALLCAPSSTR"
@@ -635,6 +668,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "stuffmem"
@@ -643,6 +677,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "FOO64"
@@ -651,6 +686,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "long_function_to_make_the_tlsh_hash_work"
@@ -659,6 +695,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "STRALLCAPS"
@@ -667,6 +704,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "a_value"
@@ -675,6 +713,7 @@ symtab {
   type: STT_OBJECT
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "_ITM_registerTMCloneTable"
@@ -683,6 +722,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "protected_fun"
@@ -691,6 +731,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 12
+  visibility: STV_PROTECTED
 }
 symtab {
   name: "__cxa_finalize@GLIBC_2.2.5"
@@ -699,6 +740,7 @@ symtab {
   type: STT_FUNC
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "stuffstr"
@@ -707,6 +749,7 @@ symtab {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: ""
@@ -715,6 +758,7 @@ dynsym {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "_ITM_deregisterTMCloneTable"
@@ -723,6 +767,7 @@ dynsym {
   type: STT_NOTYPE
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "memstuff"
@@ -731,6 +776,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "z"
@@ -739,6 +785,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "weak_fun"
@@ -747,6 +794,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "FOO"
@@ -755,6 +803,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "foo64"
@@ -763,6 +812,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "__gmon_start__"
@@ -771,6 +821,7 @@ dynsym {
   type: STT_NOTYPE
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "foo"
@@ -779,6 +830,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "strstuff"
@@ -787,6 +839,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "ALLCAPSSTR"
@@ -795,6 +848,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "stuffmem"
@@ -803,6 +857,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "FOO64"
@@ -811,6 +866,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "long_function_to_make_the_tlsh_hash_work"
@@ -819,6 +875,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "STRALLCAPS"
@@ -827,6 +884,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "a_value"
@@ -835,6 +893,7 @@ dynsym {
   type: STT_OBJECT
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "_ITM_registerTMCloneTable"
@@ -843,6 +902,7 @@ dynsym {
   type: STT_NOTYPE
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "__cxa_finalize"
@@ -851,6 +911,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_WEAK
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "stuffstr"
@@ -859,6 +920,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "main"
@@ -867,6 +929,7 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 12
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "protected_fun"
@@ -875,4 +938,101 @@ dynsym {
   type: STT_FUNC
   bind: STB_GLOBAL
   shndx: 12
+  visibility: STV_PROTECTED
+}
+dynamic {
+  tag: DT_NEEDED
+  val: 242
+}
+dynamic {
+  tag: DT_NEEDED
+  val: 252
+}
+dynamic {
+  tag: DT_INIT
+  val: 4096
+}
+dynamic {
+  tag: DT_FINI
+  val: 4660
+}
+dynamic {
+  tag: DT_INIT_ARRAY
+  val: 15840
+}
+dynamic {
+  tag: DT_INIT_ARRAYSZ
+  val: 8
+}
+dynamic {
+  tag: DT_FINI_ARRAY
+  val: 15848
+}
+dynamic {
+  tag: DT_FINI_ARRAYSZ
+  val: 8
+}
+dynamic {
+  tag: : 1879047925
+  val: 768
+}
+dynamic {
+  tag: DT_STRTAB
+  val: 1312
+}
+dynamic {
+  tag: DT_SYMTAB
+  val: 808
+}
+dynamic {
+  tag: DT_STRSZ
+  val: 274
+}
+dynamic {
+  tag: DT_SYMENT
+  val: 24
+}
+dynamic {
+  tag: DT_PLTGOT
+  val: 16360
+}
+dynamic {
+  tag: DT_PLTRELSZ
+  val: 312
+}
+dynamic {
+  tag: DT_PLTREL
+  val: 7
+}
+dynamic {
+  tag: DT_JMPREL
+  val: 1856
+}
+dynamic {
+  tag: DT_RELA
+  val: 1664
+}
+dynamic {
+  tag: DT_RELASZ
+  val: 192
+}
+dynamic {
+  tag: DT_RELAENT
+  val: 24
+}
+dynamic {
+  tag: DT_VERNEED
+  val: 1632
+}
+dynamic {
+  tag: DT_VERNEEDNUM
+  val: 1
+}
+dynamic {
+  tag: DT_VERSYM
+  val: 1586
+}
+dynamic {
+  tag: DT_RELACOUNT
+  val: 3
 }

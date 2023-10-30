@@ -6,6 +6,9 @@ ph_offset: 0
 ph_entry_size: 0
 number_of_sections: 17
 number_of_segments: 0
+symtab_entries: 43
+dynsym_entries: 0
+dynamic_section_entries: 0
 sections {
   type: SHT_NULL
   flags: 0
@@ -149,6 +152,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 symtab {
   name: "And64InlineHook.cpp"
@@ -157,6 +161,7 @@ symtab {
   type: STT_FILE
   bind: STB_LOCAL
   shndx: 65521
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -165,6 +170,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -173,6 +179,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -181,6 +188,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -189,6 +197,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -197,6 +206,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -205,6 +215,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -213,6 +224,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -221,6 +233,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -229,6 +242,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -237,6 +251,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -245,6 +260,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -253,6 +269,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -261,6 +278,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -269,6 +287,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -277,6 +296,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -285,6 +305,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -293,6 +314,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -301,6 +323,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -309,6 +332,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -317,6 +341,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -325,6 +350,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -333,6 +359,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -341,6 +368,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -349,6 +377,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -357,6 +386,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -365,6 +395,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -373,6 +404,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -381,6 +413,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -389,6 +422,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -397,6 +431,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -405,6 +440,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -413,6 +449,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -421,6 +458,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -429,6 +467,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -437,6 +476,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -445,6 +485,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -453,6 +494,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -461,6 +503,7 @@ symtab {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 3
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -469,6 +512,7 @@ symtab {
   type: STT_SECTION
   bind: STB_LOCAL
   shndx: 4
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -477,6 +521,7 @@ symtab {
   type: STT_SECTION
   bind: STB_LOCAL
   shndx: 5
+  visibility: STV_DEFAULT
 }
 symtab {
   name: ""
@@ -485,4 +530,5 @@ symtab {
   type: STT_SECTION
   bind: STB_LOCAL
   shndx: 15
+  visibility: STV_DEFAULT
 }

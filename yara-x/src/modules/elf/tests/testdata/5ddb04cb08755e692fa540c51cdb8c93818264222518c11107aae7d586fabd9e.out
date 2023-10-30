@@ -6,6 +6,9 @@ ph_offset: 52
 ph_entry_size: 32
 number_of_sections: 13
 number_of_segments: 8
+symtab_entries: 0
+dynsym_entries: 2
+dynamic_section_entries: 11
 sections {
   type: SHT_NULL
   flags: 0
@@ -197,6 +200,7 @@ dynsym {
   type: STT_NOTYPE
   bind: STB_LOCAL
   shndx: 0
+  visibility: STV_DEFAULT
 }
 dynsym {
   name: "mono_aot_file_info"
@@ -205,4 +209,49 @@ dynsym {
   type: STT_OBJECT
   bind: STB_GLOBAL
   shndx: 9
+  visibility: STV_DEFAULT
+}
+dynamic {
+  tag: DT_FLAGS
+  val: 2
+}
+dynamic {
+  tag: DT_REL
+  val: 412
+}
+dynamic {
+  tag: DT_RELSZ
+  val: 192
+}
+dynamic {
+  tag: DT_RELENT
+  val: 8
+}
+dynamic {
+  tag: DT_RELCOUNT
+  val: 24
+}
+dynamic {
+  tag: DT_SYMTAB
+  val: 308
+}
+dynamic {
+  tag: DT_SYMENT
+  val: 16
+}
+dynamic {
+  tag: DT_STRTAB
+  val: 392
+}
+dynamic {
+  tag: DT_STRSZ
+  val: 20
+}
+dynamic {
+  tag: : 1879047925
+  val: 340
+}
+dynamic {
+  tag: DT_HASH
+  val: 368
 }

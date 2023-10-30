@@ -18,13 +18,17 @@ message ELF {
   optional uint64 ph_offset = 6;
   optional uint32 ph_entry_size = 7;
 
-  optional uint32 number_of_sections = 8;
-  optional uint32 number_of_segments = 9;
+  optional uint64 number_of_sections = 8;
+  optional uint64 number_of_segments = 9;
+  optional uint64 symtab_entries = 10;
+  optional uint64 dynsym_entries = 11;
+  optional uint64 dynamic_section_entries = 12;
 
-  repeated Section sections = 10;
-  repeated Segment segments = 11;
-  repeated Sym symtab = 12;
-  repeated Sym dynsym = 13;
+  repeated Section sections = 13;
+  repeated Segment segments = 14;
+  repeated Sym symtab = 15;
+  repeated Sym dynsym = 16;
+  repeated Dyn dynamic = 17;
 }
 
 enum Type {
@@ -147,3 +151,60 @@ enum SymVisibility {
   STV_PROTECTED = 3;  // Visible in other but cannot be preempted.
 }
 
+message Dyn {
+  optional DynTag tag = 1;
+  optional uint64 val = 2;
+}
+
+enum DynTag {
+  option (yara.enum_options).inline = true;
+  DT_NULL         = 0;   // End of the dynamic entries
+  DT_NEEDED       = 1;   // Name of needed library
+  DT_PLTRELSZ     = 2;   // Size in bytes of PLT relocs
+  DT_PLTGOT       = 3;   // Processor defined value */
+  DT_HASH         = 4;   // Address of symbol hash table
+  DT_STRTAB       = 5;   // Address of string table
+  DT_SYMTAB       = 6;   // Address of symbol table
+  DT_RELA         = 7;   // Address of Rela relocs
+  DT_RELASZ       = 8;   // Total size of Rela relocs
+  DT_RELAENT      = 9;   // Size of one Rela reloc
+  DT_STRSZ        = 10;  // Size of string table
+  DT_SYMENT       = 11;  // Size of one symbol table entry
+  DT_INIT         = 12;  // Address of init function
+  DT_FINI         = 13;  // Address of termination function
+  DT_SONAME       = 14;  // Name of shared object
+  DT_RPATH        = 15;  // Library search path (deprecated)
+  DT_SYMBOLIC     = 16;  // Start symbol search here
+  DT_REL          = 17;  // Address of Rel relocs
+  DT_RELSZ        = 18;  // Total size of Rel relocs
+  DT_RELENT       = 19;  // Size of one Rel reloc
+  DT_PLTREL       = 20;  // Type of reloc in PLT
+  DT_DEBUG        = 21;  // For debugging; unspecified
+  DT_TEXTREL      = 22;  // Reloc might modify .text
+  DT_JMPREL       = 23;  // Address of PLT relocs
+  DT_BIND_NOW     = 24;  // Process relocations of object
+  DT_INIT_ARRAY   = 25;  // Array with addresses of init fct
+  DT_FINI_ARRAY   = 26;  // Array with addresses of fini fct
+  DT_INIT_ARRAYSZ = 27;  // Size in bytes of DT_INIT_ARRAY
+  DT_FINI_ARRAYSZ = 28;  // Size in bytes of DT_FINI_ARRAY
+  DT_RUNPATH      = 29;  // Library search path
+  DT_FLAGS        = 30;  // Flags for the object being loaded
+  DT_ENCODING     = 32;  // Start of encoded range
+
+  DT_LOOS         = 0x6000000d;
+  DT_HIOS         = 0x6ffff000;
+  DT_VALRNGLO     = 0x6ffffd00;
+  DT_VALRNGHI     = 0x6ffffdff;
+  DT_ADDRRNGLO    = 0x6ffffe00;
+  DT_ADDRRNGHI    = 0x6ffffeff;
+  DT_VERSYM       = 0x6ffffff0;
+  DT_RELACOUNT    = 0x6ffffff9;
+  DT_RELCOUNT     = 0x6ffffffa;
+  DT_FLAGS_1      = 0x6ffffffb;
+  DT_VERDEF       = 0x6ffffffc;
+  DT_VERDEFNUM    = 0x6ffffffd;
+  DT_VERNEED      = 0x6ffffffe;
+  DT_VERNEEDNUM   = 0x6fffffff;
+  DT_LOPROC       = 0x70000000;
+  DT_HIPROC       = 0x7fffffff;
+}

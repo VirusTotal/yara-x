@@ -117,7 +117,14 @@ impl ElfParser {
                 .map(EnumOrUnknown::<elf::SegmentType>::from_i32);
 
             self.result.segments.push(segment);
+
+            if s.type_ == Self::ELF_PT_DYNAMIC {
+                self.result.dynamic.extend(self.parse_dyn_entries(elf, s));
+            }
         }
+
+        self.result.dynamic_section_entries =
+            Some(self.result.dynamic.len().try_into().unwrap());
 
         // If the number of sections is greater than ELF_SHN_LORESERVE the
         // header is probably corrupt, exit early.
@@ -170,12 +177,18 @@ impl ElfParser {
             |section| section.type_ == Self::ELF_SHT_SYMTAB,
         ));
 
+        self.result.symtab_entries =
+            Some(self.result.symtab.len().try_into().unwrap());
+
         // Find the `.dynsym` section and parse the dynamic linking symbols.
         self.result.dynsym.extend(self.parse_sym_table(
             elf,
             sections.as_slice(),
             |section| section.type_ == Self::ELF_SHT_DYNSYM,
         ));
+
+        self.result.dynsym_entries =
+            Some(self.result.dynsym.len().try_into().unwrap());
 
         Ok(mem::take(&mut self.result))
     }
@@ -188,7 +201,9 @@ impl ElfParser {
     // 64-bit ELF file
     const ELF_DATA_2LSB: u8 = 0x01;
     const ELF_DATA_2MSB: u8 = 0x02;
+    const ELF_PT_DYNAMIC: u32 = 0x02;
     const ELF_SHN_LORESERVE: u16 = 0xFF00;
+    const ELF_DT_NULL: u64 = 0;
     const ELF_SHT_NULL: u32 = 0;
     const ELF_SHT_SYMTAB: u32 = 2;
     const ELF_SHT_NOBITS: u32 = 8;
@@ -541,6 +556,41 @@ impl ElfParser {
 
         Some(String::from_utf8_lossy(str_bytes).to_string())
     }
+
+    fn parse_dyn_entries(&self, elf: &[u8], s: &Phdr) -> Vec<elf::Dyn> {
+        let mut result = vec![];
+
+        if let Some(range) = s.offset_range() {
+            if let Some(segment_data) = elf.get(range) {
+                // Parse tuples (tag, value) until the final marker
+                // with tag == ELF_DT_NULL is found.
+                let parser_result = many0(verify(
+                    tuple((
+                        // tag
+                        self.off_or_addr(),
+                        // value
+                        self.off_or_addr(),
+                    )),
+                    |(tag, _)| *tag != Self::ELF_DT_NULL,
+                ))
+                .parse(segment_data);
+
+                if let Ok((_, tuples)) = parser_result {
+                    for (tag, value) in tuples {
+                        let mut dyn_entry = elf::Dyn::new();
+                        dyn_entry.tag = tag
+                            .try_into()
+                            .ok()
+                            .map(EnumOrUnknown::<elf::DynTag>::from_i32);
+                        dyn_entry.val = Some(value);
+                        result.push(dyn_entry);
+                    }
+                }
+            }
+        }
+
+        result
+    }
 }
 
 /// ELF executable header.
@@ -603,6 +653,14 @@ struct Phdr {
 }
 
 impl Phdr {
+    /// Returns the range that occupies the segment within the ELF file.
+    pub fn offset_range(&self) -> Option<Range<usize>> {
+        Some(
+            self.offset as usize
+                ..self.offset.checked_add(self.file_size)? as usize,
+        )
+    }
+
     /// Returns the segment's virtual address range.
     pub fn virt_addr_range(&self) -> Option<Range<u64>> {
         Some(self.virt_addr..self.virt_addr.checked_add(self.mem_size)?)

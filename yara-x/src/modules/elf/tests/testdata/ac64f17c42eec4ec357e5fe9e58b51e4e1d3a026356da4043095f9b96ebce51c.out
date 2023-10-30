@@ -7,6 +7,9 @@ ph_offset: 52
 ph_entry_size: 32
 number_of_sections: 0
 number_of_segments: 1
+symtab_entries: 0
+dynsym_entries: 0
+dynamic_section_entries: 0
 segments {
   type: PT_LOAD
   flags: 7
