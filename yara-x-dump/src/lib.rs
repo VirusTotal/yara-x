@@ -1,4 +1,5 @@
 mod serializer;
+use protobuf::reflect::MessageRef;
 use protobuf_json_mapping::print_to_string;
 use serde_json;
 use serde_yaml;
@@ -7,7 +8,7 @@ use thiserror::Error;
 use yansi::Color::Cyan;
 use yara_x;
 
-use crate::serializer::get_serializer;
+use crate::serializer::{get_human_readable_output, get_serializer};
 
 /// Errors returned by [`Dumper::dump`].
 #[derive(Error, Debug)]
@@ -99,13 +100,29 @@ impl Dumper {
         // Iterate over the modules' outputs and get serialized results to
         // print.
         for (mod_name, mod_output) in scan_results.module_outputs() {
-            let json_output = print_to_string(mod_output)?;
-            let serializer = get_serializer(match output_format {
-                Some(format) => format,
-                None => "json",
-            })?;
+            let serialized_result;
 
-            let serialized_result = serializer.serialize(json_output)?;
+            match output_format {
+                // Output is desired to be human-readable.
+                Some(format) if format == "human-readable" => {
+                    serialized_result = get_human_readable_output(
+                        &MessageRef::from(mod_output),
+                    );
+                }
+                // Serialize output for other given formats.
+                Some(format) => {
+                    let json_output = print_to_string(mod_output)?;
+                    let serializer = get_serializer(format)?;
+
+                    serialized_result = serializer.serialize(json_output)?;
+                }
+                // Default to human-readable output.
+                None => {
+                    serialized_result = get_human_readable_output(
+                        &MessageRef::from(mod_output),
+                    );
+                }
+            }
 
             println!(
                 ">>>\n{}:\n{}\n<<<",

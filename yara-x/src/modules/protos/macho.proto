@@ -73,7 +73,7 @@ message File {
 
 message Macho {
   // Set Mach-O header and basic fields
-  optional uint32 magic = 1;
+  optional uint32 magic = 1 [(yara.field_options).hex_value = true];
   optional uint32 cputype = 2;
   optional uint32 cpusubtype = 3;
   optional uint32 filetype = 4;

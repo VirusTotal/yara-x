@@ -4233,6 +4233,7 @@ dependencies = [
  "xml2json-rs",
  "yansi",
  "yara-x",
+ "yara-x-proto",
 ]
 
 [[package]]

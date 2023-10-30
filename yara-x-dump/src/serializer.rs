@@ -1,3 +1,8 @@
+use protobuf::reflect::MessageRef;
+use protobuf::reflect::ReflectFieldRef;
+use protobuf::reflect::ReflectValueRef;
+use yara_x_proto::exts::field_options;
+
 use crate::Error;
 
 // A struct that represents serializers
@@ -66,4 +71,46 @@ pub fn get_serializer(format: &str) -> Result<Box<dyn Serializer>, Error> {
         // Return an error if the format is unsupported
         _ => Err(Error::UnsupportedFormat),
     }
+}
+
+pub fn get_human_readable_output(msg: &MessageRef) -> String {
+    let desc = msg.descriptor_dyn();
+
+    for f in desc.fields() {
+        match f.get_reflect(&**msg) {
+            ReflectFieldRef::Map(map) => {
+                println!("{:?}", map)
+            }
+            ReflectFieldRef::Repeated(repeated) => {
+                println!("{:?}", repeated)
+            }
+            ReflectFieldRef::Optional(optional) => {
+                if let Some(options) = field_options.get(&f.proto().options) {
+                    if options.hex_value.unwrap_or(false) {
+                        match optional.value().unwrap() {
+                            ReflectValueRef::Message(m) => {}
+                            ReflectValueRef::Enum(d, v) => {}
+                            ReflectValueRef::String(s) => {}
+                            ReflectValueRef::Bytes(b) => {}
+                            ReflectValueRef::I32(v) => {}
+                            ReflectValueRef::I64(v) => {}
+                            ReflectValueRef::U32(v) => {
+                                println!("{:x}", v)
+                            }
+                            ReflectValueRef::U64(v) => {}
+                            ReflectValueRef::Bool(v) => {}
+                            ReflectValueRef::F32(v) => {}
+                            ReflectValueRef::F64(v) => {}
+                        }
+                    }
+                }
+                println!("{:?}", optional.value())
+            }
+        }
+        if let Some(options) = field_options.get(&f.proto().options) {
+            println!("{:?}", options)
+        }
+    }
+
+    return "Test".to_string();
 }
