@@ -1,4 +1,6 @@
 max_width = 79
 use_small_heuristics = "Max"
-comment_width = 79
-wrap_comments = true
+# These options are only available on nightly, uncomment when they are finally
+# stable.
+# comment_width = 79
+# wrap_comments = true

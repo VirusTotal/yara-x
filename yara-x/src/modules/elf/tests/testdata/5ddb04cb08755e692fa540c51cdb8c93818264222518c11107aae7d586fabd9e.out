@@ -1,0 +1,257 @@
+type: ET_DYN
+machine: EM_ARM
+sh_offset: 1796
+sh_entry_size: 40
+ph_offset: 52
+ph_entry_size: 32
+number_of_sections: 13
+number_of_segments: 8
+symtab_entries: 0
+dynsym_entries: 2
+dynamic_section_entries: 11
+sections {
+  type: SHT_NULL
+  flags: 0
+  address: 0
+  size: 0
+  offset: 0
+  name: ""
+}
+sections {
+  type: SHT_DYNSYM
+  flags: 2
+  address: 308
+  size: 32
+  offset: 308
+  name: ".dynsym"
+}
+sections {
+  type: : 1879048182
+  flags: 2
+  address: 340
+  size: 28
+  offset: 340
+  name: ".gnu.hash"
+}
+sections {
+  type: SHT_HASH
+  flags: 2
+  address: 368
+  size: 24
+  offset: 368
+  name: ".hash"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 2
+  address: 392
+  size: 20
+  offset: 392
+  name: ".dynstr"
+}
+sections {
+  type: SHT_REL
+  flags: 2
+  address: 412
+  size: 192
+  offset: 412
+  name: ".rel.dyn"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 66144
+  size: 576
+  offset: 608
+  name: ".text"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 132256
+  size: 0
+  offset: 1184
+  name: ".data.rel.ro"
+}
+sections {
+  type: SHT_DYNAMIC
+  flags: 3
+  address: 132256
+  size: 96
+  offset: 1184
+  name: ".dynamic"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 197888
+  size: 400
+  offset: 1280
+  name: ".data"
+}
+sections {
+  type: SHT_NOBITS
+  flags: 3
+  address: 198288
+  size: 104
+  offset: 1680
+  name: ".bss"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 48
+  address: 0
+  size: 19
+  offset: 1680
+  name: ".comment"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 0
+  address: 0
+  size: 94
+  offset: 1699
+  name: ".shstrtab"
+}
+segments {
+  type: PT_PHDR
+  flags: 4
+  offset: 52
+  virtual_address: 52
+  physical_address: 52
+  file_size: 256
+  memory_size: 256
+  alignment: 4
+}
+segments {
+  type: PT_LOAD
+  flags: 4
+  offset: 0
+  virtual_address: 0
+  physical_address: 0
+  file_size: 604
+  memory_size: 604
+  alignment: 65536
+}
+segments {
+  type: PT_LOAD
+  flags: 5
+  offset: 608
+  virtual_address: 66144
+  physical_address: 66144
+  file_size: 576
+  memory_size: 576
+  alignment: 65536
+}
+segments {
+  type: PT_LOAD
+  flags: 6
+  offset: 1184
+  virtual_address: 132256
+  physical_address: 132256
+  file_size: 96
+  memory_size: 96
+  alignment: 65536
+}
+segments {
+  type: PT_LOAD
+  flags: 6
+  offset: 1280
+  virtual_address: 197888
+  physical_address: 197888
+  file_size: 400
+  memory_size: 504
+  alignment: 65536
+}
+segments {
+  type: PT_DYNAMIC
+  flags: 6
+  offset: 1184
+  virtual_address: 132256
+  physical_address: 132256
+  file_size: 96
+  memory_size: 96
+  alignment: 4
+}
+segments {
+  type: PT_GNU_RELRO
+  flags: 4
+  offset: 1184
+  virtual_address: 132256
+  physical_address: 132256
+  file_size: 96
+  memory_size: 2912
+  alignment: 1
+}
+segments {
+  type: PT_GNU_STACK
+  flags: 6
+  offset: 0
+  virtual_address: 0
+  physical_address: 0
+  file_size: 0
+  memory_size: 0
+  alignment: 0
+}
+dynsym {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "mono_aot_file_info"
+  value: 197888
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynamic {
+  tag: DT_FLAGS
+  val: 2
+}
+dynamic {
+  tag: DT_REL
+  val: 412
+}
+dynamic {
+  tag: DT_RELSZ
+  val: 192
+}
+dynamic {
+  tag: DT_RELENT
+  val: 8
+}
+dynamic {
+  tag: DT_RELCOUNT
+  val: 24
+}
+dynamic {
+  tag: DT_SYMTAB
+  val: 308
+}
+dynamic {
+  tag: DT_SYMENT
+  val: 16
+}
+dynamic {
+  tag: DT_STRTAB
+  val: 392
+}
+dynamic {
+  tag: DT_STRSZ
+  val: 20
+}
+dynamic {
+  tag: : 1879047925
+  val: 340
+}
+dynamic {
+  tag: DT_HASH
+  val: 368
+}

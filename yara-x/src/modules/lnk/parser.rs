@@ -335,10 +335,9 @@ impl LnkParser {
 
             // According to the specification if volume_label_offset is 0x14 it
             // indicates that the volume label is an unicode string. In such
-            // cases the value of volume_label_offset must be
-            // ignored, and the offset to the unicode string is the
-            // 4 bytes offset that comes right after
-            // `volume_label_offset`.
+            // cases the value of volume_label_offset must be ignored, and the
+            // offset to the unicode string is the 4 bytes offset that comes
+            // right after `volume_label_offset`.
             if volume_label_offset == 0x14 {
                 (_, volume_label_offset) = le_u32(optional)?;
                 if let Some(string) =

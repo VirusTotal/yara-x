@@ -14,7 +14,6 @@ by Microsoft, and the [`non-official specification by Joachim Metz`][2].
 
 use crate::modules::prelude::*;
 use crate::modules::protos::lnk::*;
-
 pub mod parser;
 
 #[module_main]
