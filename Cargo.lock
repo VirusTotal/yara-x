@@ -4226,6 +4226,7 @@ dependencies = [
  "pretty_assertions",
  "protobuf",
  "protobuf-json-mapping",
+ "protobuf-support",
  "serde_json",
  "serde_yaml",
  "thiserror",

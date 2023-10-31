@@ -100,13 +100,17 @@ impl Dumper {
         // Iterate over the modules' outputs and get serialized results to
         // print.
         for (mod_name, mod_output) in scan_results.module_outputs() {
-            let serialized_result;
+            let mut serialized_result = String::new();
+            let mut is_first_line = false;
 
             match output_format {
                 // Output is desired to be human-readable.
                 Some(format) if format == "human-readable" => {
                     serialized_result = get_human_readable_output(
                         &MessageRef::from(mod_output),
+                        &mut serialized_result,
+                        0,
+                        &mut is_first_line,
                     );
                 }
                 // Serialize output for other given formats.
@@ -118,12 +122,16 @@ impl Dumper {
                 }
                 // Default to human-readable output.
                 None => {
-                    serialized_result = get_human_readable_output(
+                    get_human_readable_output(
                         &MessageRef::from(mod_output),
+                        &mut serialized_result,
+                        0,
+                        &mut is_first_line,
                     );
                 }
             }
 
+            // Print the result.
             println!(
                 ">>>\n{}:\n{}\n<<<",
                 Cyan.paint(mod_name).bold(),
