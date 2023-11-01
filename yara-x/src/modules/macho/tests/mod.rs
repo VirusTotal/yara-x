@@ -132,6 +132,13 @@ fn test_fat_is_32() {
 }
 
 #[test]
+fn test_convert_to_version_string() {
+    assert_eq!(convert_to_version_string(65536), "1.0.0");
+    assert_eq!(convert_to_version_string(102895360), "1570.15.0");
+    assert_eq!(convert_to_version_string(0), "0.0.0");
+}
+
+#[test]
 fn test_should_swap_bytes() {
     assert_eq!(should_swap_bytes(MH_CIGAM), true);
     assert_eq!(should_swap_bytes(MH_CIGAM_64), true);

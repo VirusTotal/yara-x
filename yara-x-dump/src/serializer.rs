@@ -1,9 +1,11 @@
+use chrono::prelude::{DateTime, NaiveDateTime, Utc};
 use protobuf::descriptor::FieldDescriptorProto;
 use protobuf::reflect::MessageRef;
 use protobuf::reflect::ReflectFieldRef;
 use protobuf::reflect::ReflectValueRef;
 use protobuf_support::text_format::quote_bytes_to;
 use std::fmt::Write;
+use yansi::Color::{Green, Yellow};
 use yara_x_proto::exts::field_options;
 
 use crate::Error;
@@ -13,6 +15,17 @@ struct JsonSerializer;
 struct YamlSerializer;
 struct TomlSerializer;
 struct XmlSerializer;
+
+struct ValueOptions {
+    is_hex: bool,
+    is_timestamp: bool,
+}
+
+impl ValueOptions {
+    fn new() -> Self {
+        ValueOptions { is_hex: false, is_timestamp: false }
+    }
+}
 
 /// A trait for any type that can serialize a message
 pub(crate) trait Serializer {
@@ -95,7 +108,14 @@ fn print_field_name(
             indentation.pop();
             indentation.pop();
         }
-        write!(buf, "{}- {}: ", indentation, field_name).unwrap();
+        write!(
+            buf,
+            "{}{} {}: ",
+            indentation,
+            Yellow.paint("-").bold(),
+            field_name
+        )
+        .unwrap();
         *is_first_line = false;
     } else {
         write!(buf, "{}{}: ", indentation, field_name).unwrap();
@@ -106,7 +126,7 @@ fn print_field_name(
 fn print_field_value(
     buf: &mut String,
     value: ReflectValueRef,
-    is_hex: bool,
+    value_options: &ValueOptions,
     indent: usize,
     is_first_line: &mut bool,
 ) {
@@ -128,23 +148,74 @@ fn print_field_value(
             buf.push_str("\n");
         }
         ReflectValueRef::I32(v) => {
-            let field_value =
-                if is_hex { format!("0x{:x}", v) } else { v.to_string() };
+            let field_value = if value_options.is_hex {
+                format!("{} (0x{:x})", v, v)
+            } else if value_options.is_timestamp {
+                format!(
+                    "{} ({})",
+                    v,
+                    DateTime::<Utc>::from_naive_utc_and_offset(
+                        NaiveDateTime::from_timestamp_opt(v as i64, 0)
+                            .unwrap(),
+                        Utc,
+                    )
+                )
+            } else {
+                v.to_string()
+            };
             writeln!(buf, "{}", field_value).unwrap();
         }
         ReflectValueRef::I64(v) => {
-            let field_value =
-                if is_hex { format!("0x{:x}", v) } else { v.to_string() };
+            let field_value = if value_options.is_hex {
+                format!("{} (0x{:x})", v, v)
+            } else if value_options.is_timestamp {
+                format!(
+                    "{} ({})",
+                    v,
+                    DateTime::<Utc>::from_naive_utc_and_offset(
+                        NaiveDateTime::from_timestamp_opt(v, 0).unwrap(),
+                        Utc,
+                    )
+                )
+            } else {
+                v.to_string()
+            };
             writeln!(buf, "{}", field_value).unwrap();
         }
         ReflectValueRef::U32(v) => {
-            let field_value =
-                if is_hex { format!("0x{:x}", v) } else { v.to_string() };
+            let field_value = if value_options.is_hex {
+                format!("{} (0x{:x})", v, v)
+            } else if value_options.is_timestamp {
+                format!(
+                    "{} ({})",
+                    v,
+                    DateTime::<Utc>::from_naive_utc_and_offset(
+                        NaiveDateTime::from_timestamp_opt(v as i64, 0)
+                            .unwrap(),
+                        Utc,
+                    )
+                )
+            } else {
+                v.to_string()
+            };
             writeln!(buf, "{}", field_value).unwrap();
         }
         ReflectValueRef::U64(v) => {
-            let field_value =
-                if is_hex { format!("0x{:x}", v) } else { v.to_string() };
+            let field_value = if value_options.is_hex {
+                format!("{} (0x{:x})", v, v)
+            } else if value_options.is_timestamp {
+                format!(
+                    "{} ({})",
+                    v,
+                    DateTime::<Utc>::from_naive_utc_and_offset(
+                        NaiveDateTime::from_timestamp_opt(v as i64, 0)
+                            .unwrap(),
+                        Utc,
+                    )
+                )
+            } else {
+                v.to_string()
+            };
             writeln!(buf, "{}", field_value).unwrap();
         }
         ReflectValueRef::Bool(v) => {
@@ -168,14 +239,16 @@ fn print_field(
     indent: usize,
     is_first_line: &mut bool,
 ) {
-    let mut is_hex: bool = false;
-
-    if let Some(options) = field_options.get(&field_descriptor.options) {
-        is_hex = options.hex_value.unwrap_or(false)
-    }
+    let value_options = field_options
+        .get(&field_descriptor.options)
+        .map(|options| ValueOptions {
+            is_hex: options.hex_value.unwrap_or(false),
+            is_timestamp: options.timestamp.unwrap_or(false),
+        })
+        .unwrap_or(ValueOptions::new());
 
     print_field_name(buf, field_name, indent, is_first_line);
-    print_field_value(buf, value, is_hex, indent, is_first_line);
+    print_field_value(buf, value, &value_options, indent, is_first_line);
 }
 
 /// A function that returns a human-readable output
@@ -189,7 +262,7 @@ pub fn get_human_readable_output(
 
     // Iterate over the fields of the message
     for f in desc.fields() {
-        let indentation = "  ".repeat(indent);
+        let indentation = "    ".repeat(indent);
 
         // Match the field type
         match f.get_reflect(&**msg) {
@@ -221,7 +294,22 @@ pub fn get_human_readable_output(
                 if repeated.is_empty() {
                     continue;
                 }
-                writeln!(buf, "{}{}:", indentation, f.name()).unwrap();
+                writeln!(
+                    buf,
+                    "{}{} {} {}",
+                    indentation,
+                    Green.paint("# Nested").italic(),
+                    Green.paint(f.name()).italic(),
+                    Green.paint("structure").italic()
+                )
+                .unwrap();
+                writeln!(
+                    buf,
+                    "{}{}:",
+                    indentation,
+                    Yellow.paint(f.name()).bold()
+                )
+                .unwrap();
                 for v in repeated {
                     print_field(buf, "", v, &f.proto(), indent, first_line);
                 }

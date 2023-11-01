@@ -17,6 +17,7 @@ message FieldOptions {
   optional string name = 1;
   optional bool ignore = 2;
   optional bool hex_value = 3;
+  optional bool timestamp = 4;
 }
 
 message MessageOptions {

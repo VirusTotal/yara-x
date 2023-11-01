@@ -26,6 +26,7 @@ toml = "0.8.4"
 protobuf-json-mapping = "3.3.0"
 protobuf-support = "3.3.0"
 xml2json-rs = "1.0.1"
+chrono = "0.4.31"
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
