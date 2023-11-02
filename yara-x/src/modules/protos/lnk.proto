@@ -7,6 +7,7 @@ option (yara.module_options) = {
   name : "lnk"
   root_message: "lnk.Lnk"
   rust_module: "lnk"
+  validity_flag: "is_lnk"
 };
 
 enum FileAttributes {

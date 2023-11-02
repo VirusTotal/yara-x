@@ -5,7 +5,7 @@ use protobuf::reflect::ReflectFieldRef;
 use protobuf::reflect::ReflectValueRef;
 use protobuf_support::text_format::quote_bytes_to;
 use std::fmt::Write;
-use yansi::Color::{Green, Yellow};
+use yansi::Color::{Blue, Green, Yellow};
 use yara_x_proto::exts::field_options;
 
 use crate::Error;
@@ -97,7 +97,7 @@ fn print_field_name(
     indent: usize,
     is_first_line: &mut bool,
 ) {
-    let mut indentation = "    ".repeat(indent);
+    let mut indentation = get_indentation(indent);
 
     if field_name.is_empty() {
         return;
@@ -113,12 +113,12 @@ fn print_field_name(
             "{}{} {}: ",
             indentation,
             Yellow.paint("-").bold(),
-            field_name
+            Blue.paint(field_name)
         )
         .unwrap();
         *is_first_line = false;
     } else {
-        write!(buf, "{}{}: ", indentation, field_name).unwrap();
+        write!(buf, "{}{}: ", indentation, Blue.paint(field_name)).unwrap();
     }
 }
 
@@ -222,12 +222,24 @@ fn print_field_value(
             writeln!(buf, "{}", v).unwrap();
         }
         ReflectValueRef::F32(v) => {
-            writeln!(buf, "{}", v).unwrap();
+            writeln!(buf, "{:.1}", v).unwrap();
         }
         ReflectValueRef::F64(v) => {
-            writeln!(buf, "{}", v).unwrap();
+            writeln!(buf, "{:.1}", v).unwrap();
         }
     }
+}
+
+// Get the value options for a field
+fn get_value_options(field_descriptor: &FieldDescriptorProto) -> ValueOptions {
+    let value_options = field_options
+        .get(&field_descriptor.options)
+        .map(|options| ValueOptions {
+            is_hex: options.hex_value.unwrap_or(false),
+            is_timestamp: options.timestamp.unwrap_or(false),
+        })
+        .unwrap_or(ValueOptions::new());
+    value_options
 }
 
 // Print a field name and value
@@ -239,16 +251,15 @@ fn print_field(
     indent: usize,
     is_first_line: &mut bool,
 ) {
-    let value_options = field_options
-        .get(&field_descriptor.options)
-        .map(|options| ValueOptions {
-            is_hex: options.hex_value.unwrap_or(false),
-            is_timestamp: options.timestamp.unwrap_or(false),
-        })
-        .unwrap_or(ValueOptions::new());
+    let value_options = get_value_options(field_descriptor);
 
     print_field_name(buf, field_name, indent, is_first_line);
     print_field_value(buf, value, &value_options, indent, is_first_line);
+}
+
+// Get indentation level
+fn get_indentation(indent: usize) -> String {
+    "    ".repeat(indent)
 }
 
 /// A function that returns a human-readable output
@@ -262,24 +273,40 @@ pub fn get_human_readable_output(
 
     // Iterate over the fields of the message
     for f in desc.fields() {
-        let indentation = "    ".repeat(indent);
-
         // Match the field type
         match f.get_reflect(&**msg) {
             ReflectFieldRef::Map(map) => {
                 if map.is_empty() {
                     continue;
                 }
-                writeln!(buf, "{}{}:", indentation, f.name()).unwrap();
+                writeln!(
+                    buf,
+                    "{}{}:",
+                    get_indentation(indent),
+                    Yellow.paint(f.name()).bold()
+                )
+                .unwrap();
                 for (k, v) in &map {
-                    print_field(
-                        buf,
-                        "",
-                        k,
-                        &f.proto(),
-                        indent + 1,
-                        first_line,
-                    );
+                    match v {
+                        ReflectValueRef::Message(_) => {
+                            writeln!(
+                                buf,
+                                "{}{}:",
+                                get_indentation(indent + 1),
+                                Blue.paint(k)
+                            )
+                            .unwrap();
+                        }
+                        _ => {
+                            write!(
+                                buf,
+                                "{}{}: ",
+                                get_indentation(indent + 1),
+                                Blue.paint(k)
+                            )
+                            .unwrap();
+                        }
+                    }
                     print_field(
                         buf,
                         "",
@@ -297,7 +324,7 @@ pub fn get_human_readable_output(
                 writeln!(
                     buf,
                     "{}{} {} {}",
-                    indentation,
+                    get_indentation(indent),
                     Green.paint("# Nested").italic(),
                     Green.paint(f.name()).italic(),
                     Green.paint("structure").italic()
@@ -306,24 +333,82 @@ pub fn get_human_readable_output(
                 writeln!(
                     buf,
                     "{}{}:",
-                    indentation,
+                    get_indentation(indent),
                     Yellow.paint(f.name()).bold()
                 )
                 .unwrap();
                 for v in repeated {
-                    print_field(buf, "", v, &f.proto(), indent, first_line);
+                    match v {
+                        ReflectValueRef::Message(_) => {
+                            print_field(
+                                buf,
+                                "",
+                                v,
+                                &f.proto(),
+                                indent,
+                                first_line,
+                            );
+                        }
+                        _ => {
+                            write!(
+                                buf,
+                                "{}  {} ",
+                                get_indentation(indent),
+                                Yellow.paint("-").bold(),
+                            )
+                            .unwrap();
+                            print_field(
+                                buf,
+                                "",
+                                v,
+                                &f.proto(),
+                                indent,
+                                first_line,
+                            );
+                        }
+                    }
                 }
             }
             ReflectFieldRef::Optional(optional) => {
                 if let Some(v) = optional.value() {
-                    print_field(
-                        buf,
-                        f.name(),
-                        v,
-                        &f.proto(),
-                        indent,
-                        first_line,
-                    );
+                    match v {
+                        ReflectValueRef::Message(_) => {
+                            writeln!(
+                                buf,
+                                "{}{} {} {}",
+                                get_indentation(indent),
+                                Green.paint("# Nested").italic(),
+                                Green.paint(f.name()).italic(),
+                                Green.paint("structure").italic()
+                            )
+                            .unwrap();
+                            writeln!(
+                                buf,
+                                "{}{}:",
+                                get_indentation(indent),
+                                Yellow.paint(f.name()).bold()
+                            )
+                            .unwrap();
+                            print_field(
+                                buf,
+                                "",
+                                v,
+                                &f.proto(),
+                                indent,
+                                first_line,
+                            );
+                        }
+                        _ => {
+                            print_field(
+                                buf,
+                                f.name(),
+                                v,
+                                &f.proto(),
+                                indent,
+                                first_line,
+                            );
+                        }
+                    }
                 }
             }
         }

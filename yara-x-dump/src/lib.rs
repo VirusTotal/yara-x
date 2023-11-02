@@ -1,5 +1,7 @@
 mod serializer;
-use protobuf::reflect::MessageRef;
+use protobuf::{
+    reflect::MessageRef, reflect::ReflectValueRef::Bool, MessageDyn,
+};
 use protobuf_json_mapping::print_to_string;
 use serde_json;
 use serde_yaml;
@@ -7,6 +9,7 @@ use std::io;
 use thiserror::Error;
 use yansi::Color::Cyan;
 use yara_x;
+use yara_x_proto::exts::module_options;
 
 use crate::serializer::{get_human_readable_output, get_serializer};
 
@@ -51,6 +54,28 @@ impl Dumper {
     /// Creates a new dumper.
     pub fn new() -> Self {
         Dumper {}
+    }
+
+    // Checks if the module output is valid by checking the validity flag.
+    fn module_is_valid(&self, mod_output: &dyn MessageDyn) -> bool {
+        if let Some(module_desc) = module_options
+            .get(&mod_output.descriptor_dyn().file_descriptor_proto().options)
+        {
+            if let Some(validity_flag_str) =
+                module_desc.validity_flag.as_deref()
+            {
+                if let Some(field) = mod_output
+                    .descriptor_dyn()
+                    .field_by_name(validity_flag_str)
+                {
+                    if let Some(value) = field.get_singular(mod_output) {
+                        return value != Bool(false);
+                    }
+                }
+            }
+        }
+
+        false
     }
 
     /// Dumps information about the binary file.
@@ -103,6 +128,15 @@ impl Dumper {
             let mut serialized_result = String::new();
             let mut is_first_line = false;
 
+            // Skip empty outputs or invalid outputs that are not requested.
+            if mod_output.compute_size_dyn() == 0
+                || (!self.module_is_valid(mod_output)
+                    && !modules
+                        .unwrap_or(&vec![])
+                        .contains(&mod_name.to_string()))
+            {
+                continue;
+            }
             match output_format {
                 // Output is desired to be human-readable.
                 Some(format) if format == "human-readable" => {
