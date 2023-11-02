@@ -26,12 +26,12 @@ fn main(ctx: &ScanContext) -> PE {
 
 #[module_export(name = "rich_signature.toolid")]
 fn rich_toolid(ctx: &mut ScanContext, toolid: i64) -> Option<i64> {
-    _rich_version(ctx.module_output::<PE>()?, Some(toolid), None)
+    rich_version_impl(ctx.module_output::<PE>()?, Some(toolid), None)
 }
 
 #[module_export(name = "rich_signature.version")]
 fn rich_version(ctx: &mut ScanContext, version: i64) -> Option<i64> {
-    _rich_version(ctx.module_output::<PE>()?, None, Some(version))
+    rich_version_impl(ctx.module_output::<PE>()?, None, Some(version))
 }
 
 #[module_export(name = "rich_signature.version")]
@@ -40,7 +40,7 @@ fn rich_version_toolid(
     version: i64,
     toolid: i64,
 ) -> Option<i64> {
-    _rich_version(ctx.module_output::<PE>()?, Some(toolid), Some(version))
+    rich_version_impl(ctx.module_output::<PE>()?, Some(toolid), Some(version))
 }
 
 #[module_export(name = "rich_signature.toolid")]
@@ -49,10 +49,10 @@ fn rich_toolid_version(
     toolid: i64,
     version: i64,
 ) -> Option<i64> {
-    _rich_version(ctx.module_output::<PE>()?, Some(toolid), Some(version))
+    rich_version_impl(ctx.module_output::<PE>()?, Some(toolid), Some(version))
 }
 
-fn _rich_version(
+fn rich_version_impl(
     pe: &PE,
     toolid: Option<i64>,
     version: Option<i64>,
