@@ -10,7 +10,7 @@ use nom::multi::count;
 use nom::number::complete::{le_u16, le_u32, u8};
 use nom::number::streaming::le_u64;
 use nom::sequence::tuple;
-use nom::{Err, IResult, Parser};
+use nom::{Err, IResult};
 use protobuf::{EnumOrUnknown, MessageField};
 
 use crate::modules::protos::pe;
@@ -115,7 +115,6 @@ impl PEParser {
     const MAX_PE_SECTIONS: usize = 96;
     const SIZE_OF_PE_SIGNATURE: usize = 4; // size of PE signature (PE\0\0).
     const SIZE_OF_FILE_HEADER: usize = 20; // size of IMAGE_FILE_HEADER
-    const RICH: u32 = 0x68636952; // "Rich"
     const RICH_TAG: &'static [u8] = &[0x52_u8, 0x69, 0x63, 0x68];
 
     fn parse_dos_header(
