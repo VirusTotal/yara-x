@@ -40,3 +40,9 @@ name = "elf_parser"
 path = "fuzz_targets/elf_parser.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "pe_parser"
+path = "fuzz_targets/pe_parser.rs"
+test = false
+doc = false
