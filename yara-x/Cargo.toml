@@ -60,6 +60,9 @@ macho-module = [
     "dep:arrayref",
 ]
 
+# The `pe` module parses PE files.
+pe-module = []
+
 # The `string` modules offer some functions for parsing strings as integers,
 # determining a string length, etc.
 string-module = []
@@ -86,6 +89,7 @@ default = [
     "elf-module",
     "macho-module",
     "hash-module",
+    "pe-module",
     "time-module",
     "lnk-module",
     "test_proto2-module",

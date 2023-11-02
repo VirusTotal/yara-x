@@ -3,6 +3,8 @@
 pub mod string;
 #[cfg(feature = "macho-module")]
 pub mod macho;
+#[cfg(feature = "pe-module")]
+pub mod pe;
 #[cfg(feature = "elf-module")]
 pub mod elf;
 #[cfg(feature = "text-module")]

@@ -1,0 +1,180 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version {
+  major: 5
+  minor: 1
+}
+subsystem_version {
+  major: 5
+  minor: 1
+}
+image_version {
+  major: 0
+  minor: 0
+}
+linker_version {
+  major: 10
+  minor: 0
+}
+characteristics: 8450
+dll_characteristics: 320
+timestamp: 1528213185
+image_base: 268435456
+checksum: 82308
+base_of_code: 4096
+base_of_data: 12288
+entry_point_raw: 5677
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 4608
+size_of_initialized_data: 5120
+size_of_uninitialized_data: 0
+size_of_image: 28672
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 4096
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+number_of_sections: 5
+rich_signature {
+  offset: 128
+  length: 96
+  key: 157631266
+  raw_data: "f\"\013Z\"Ce\t\"Ce\t\"Ce\t9\336\371\t!Ce\t9\336\373\t#Ce\t9\336\317\t)Ce\tM5\316\t!Ce\t+;\366\t Ce\t\"Cd\t\016Ce\t9\336\316\t&Ce\t9\336\376\t#Ce\t9\336\377\t#Ce\t9\336\370\t#Ce\t"
+  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\033\235\234\000\003\000\000\000\033\235\236\000\001\000\000\000\033\235\252\000\013\000\000\000ov\253\000\003\000\000\000\tx\223\000\002\000\000\000\000\000\001\000,\000\000\000\033\235\253\000\004\000\000\000\033\235\233\000\001\000\000\000\033\235\232\000\001\000\000\000\033\235\235\000\001\000\000\000"
+}
+sections {
+  name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 4608
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 4524
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rdata"
+  characteristics: 1073741888
+  raw_data_size: 2048
+  raw_data_offset: 5632
+  virtual_address: 12288
+  virtual_size: 1777
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 512
+  raw_data_offset: 7680
+  virtual_address: 16384
+  virtual_size: 916
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  characteristics: 1073741888
+  raw_data_size: 1536
+  raw_data_offset: 8192
+  virtual_address: 20480
+  virtual_size: 1468
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  characteristics: 1107296320
+  raw_data_size: 1024
+  raw_data_offset: 9728
+  virtual_address: 24576
+  virtual_size: 524
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 13904
+  size: 161
+}
+data_directories {
+  virtual_address: 12980
+  size: 60
+}
+data_directories {
+  virtual_address: 20480
+  size: 1468
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 10752
+  size: 6048
+}
+data_directories {
+  virtual_address: 24576
+  size: 508
+}
+data_directories {
+  virtual_address: 12480
+  size: 28
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 12552
+  size: 64
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 12288
+  size: 160
+}
+data_directories {
+  virtual_address: 12860
+  size: 64
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+overlay {
+  offset: 10752
+  size: 6048
+}

@@ -1,0 +1,143 @@
+syntax = "proto2";
+import "yara.proto";
+
+package pe;
+
+option (yara.module_options) = {
+  name : "pe"
+  root_message: "pe.PE"
+  rust_module: "pe"
+};
+
+message PE {
+  required bool is_pe = 1;
+  optional Machine machine = 2;
+  optional Subsystem subsystem = 3;
+  optional Version os_version = 4;
+  optional Version subsystem_version = 5;
+  optional Version image_version = 6;
+  optional Version linker_version = 7;
+
+  optional uint32 characteristics = 8;
+  optional uint32 dll_characteristics = 9;
+  optional uint32 timestamp = 10;
+  optional uint64 image_base = 11;
+  optional uint32 checksum = 12;
+  optional uint32 base_of_code = 13;
+  optional uint32 base_of_data = 14;
+  optional uint32 entry_point = 15;
+  optional uint32 entry_point_raw = 16;
+  optional uint32 section_alignment = 17;
+  optional uint32 file_alignment = 18;
+  optional uint32 loader_flags = 19;
+
+  optional uint32 size_of_optional_header = 20;
+  optional uint32 size_of_code = 21;
+  optional uint32 size_of_initialized_data = 22;
+  optional uint32 size_of_uninitialized_data = 23;
+  optional uint32 size_of_image = 24;
+  optional uint32 size_of_headers = 25;
+
+  optional uint64 size_of_stack_reserve = 26;
+  optional uint64 size_of_stack_commit = 27;
+  optional uint64 size_of_heap_reserve = 28;
+  optional uint64 size_of_heap_commit = 29;
+
+  optional uint32 pointer_to_symbol_table = 30;
+  optional uint32 number_of_symbols = 31;
+  optional uint32 number_of_rva_and_sizes = 32;
+  optional uint32 win32_version_value = 33;
+
+  map<string, string> version_info = 34;
+
+  optional uint32 number_of_sections = 35;
+
+  optional RichSignature rich_signature = 36;
+
+  repeated Section sections = 37;
+  repeated DirEntry data_directories = 38;
+
+  optional Overlay overlay = 39;
+}
+
+message Version {
+  required uint32 major = 1;
+  required uint32 minor = 2;
+}
+
+message DirEntry {
+  required uint32 virtual_address = 1;
+  required uint32 size = 2;
+}
+
+message Section {
+  // name is `bytes` instead of `string` because it can contains invalid
+  // UTF-8.
+  required bytes name = 1;
+  required uint32 characteristics = 2;
+  required uint32 raw_data_size = 3;
+  required uint32 raw_data_offset = 4;
+  required uint32 virtual_address = 5;
+  required uint32 virtual_size = 6;
+  required uint32 pointer_to_relocations = 7;
+  required uint32 pointer_to_line_numbers = 8;
+  required uint32 number_of_relocations = 9;
+  required uint32 number_of_line_numbers = 10;
+}
+
+message RichSignature {
+  required uint32 offset = 1;
+  required uint32 length = 2;
+  required uint32 key = 3;
+  required bytes raw_data = 4;
+  required bytes clear_data = 5;
+}
+
+message Overlay {
+  required uint64 offset = 1;
+  required uint64 size = 2;
+}
+
+enum Machine {
+  option (yara.enum_options).inline = true;
+  MACHINE_UNKNOWN   = 0x0000;
+  MACHINE_AM33      = 0x01d3;
+  MACHINE_AMD64     = 0x8664;
+  MACHINE_ARM       = 0x01c0;
+  MACHINE_ARMNT     = 0x01c4;
+  MACHINE_ARM64     = 0xaa64;
+  MACHINE_EBC       = 0x0ebc;
+  MACHINE_I386      = 0x014c;
+  MACHINE_IA64      = 0x0200;
+  MACHINE_M32R      = 0x9041;
+  MACHINE_MIPS16    = 0x0266;
+  MACHINE_MIPSFPU   = 0x0366;
+  MACHINE_MIPSFPU16 = 0x0466;
+  MACHINE_POWERPC   = 0x01f0;
+  MACHINE_POWERPCFP = 0x01f1;
+  MACHINE_R4000     = 0x0166;
+  MACHINE_SH3       = 0x01a2;
+  MACHINE_SH3DSP    = 0x01a3;
+  MACHINE_SH4       = 0x01a6;
+  MACHINE_SH5       = 0x01a8;
+  MACHINE_THUMB     = 0x01c2;
+  MACHINE_WCEMIPSV2 = 0x0169;
+}
+
+enum Subsystem {
+  option (yara.enum_options).inline = true;
+  SUBSYSTEM_UNKNOWN                  = 0;
+  SUBSYSTEM_NATIVE                   = 1;
+  SUBSYSTEM_WINDOWS_GUI              = 2;
+  SUBSYSTEM_WINDOWS_CUI              = 3;
+  SUBSYSTEM_OS2_CUI                  = 5;
+  SUBSYSTEM_POSIX_CUI                = 7;
+  SUBSYSTEM_NATIVE_WINDOWS           = 8;
+  SUBSYSTEM_WINDOWS_CE_GUI           = 9;
+  SUBSYSTEM_EFI_APPLICATION          = 10;
+  SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER  = 11;
+  SUBSYSTEM_EFI_RUNTIME_DRIVER       = 12;
+  SUBSYSTEM_EFI_ROM_IMAGE            = 13;
+  SUBSYSTEM_XBOX                     = 14;
+  SUBSYSTEM_WINDOWS_BOOT_APPLICATION = 16;
+}
