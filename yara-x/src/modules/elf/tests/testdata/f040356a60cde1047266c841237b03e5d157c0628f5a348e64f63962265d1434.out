@@ -1,0 +1,1311 @@
+type: ET_EXEC
+machine: EM_SPARC
+entry_point: 4348
+sh_offset: 13028
+sh_entry_size: 40
+ph_offset: 52
+ph_entry_size: 32
+number_of_sections: 24
+number_of_segments: 5
+symtab_entries: 0
+dynsym_entries: 109
+dynamic_section_entries: 19
+sections {
+  type: SHT_NULL
+  flags: 0
+  address: 0
+  size: 0
+  offset: 0
+  name: ""
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 2
+  address: 65748
+  size: 17
+  offset: 212
+  name: ".interp"
+}
+sections {
+  type: SHT_HASH
+  flags: 2
+  address: 65768
+  size: 832
+  offset: 232
+  name: ".hash"
+}
+sections {
+  type: SHT_DYNSYM
+  flags: 2
+  address: 66600
+  size: 1744
+  offset: 1064
+  name: ".dynsym"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 2
+  address: 68344
+  size: 1054
+  offset: 2808
+  name: ".dynstr"
+}
+sections {
+  type: : 1879048190
+  flags: 2
+  address: 69400
+  size: 64
+  offset: 3864
+  name: ".SUNW_version"
+}
+sections {
+  type: SHT_RELA
+  flags: 2
+  address: 69464
+  size: 24
+  offset: 3928
+  name: ".rela.ex_shared"
+}
+sections {
+  type: SHT_RELA
+  flags: 2
+  address: 69488
+  size: 36
+  offset: 3952
+  name: ".rela.bss"
+}
+sections {
+  type: SHT_RELA
+  flags: 2
+  address: 69524
+  size: 360
+  offset: 3988
+  name: ".rela.plt"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 69884
+  size: 6900
+  offset: 4348
+  name: ".text"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 76784
+  size: 56
+  offset: 11248
+  name: ".init"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 76840
+  size: 56
+  offset: 11304
+  name: ".fini"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 2
+  address: 76896
+  size: 4
+  offset: 11360
+  name: ".exception_ranges"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 2
+  address: 76900
+  size: 4
+  offset: 11364
+  name: ".rodata"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 2
+  address: 76904
+  size: 529
+  offset: 11368
+  name: ".rodata1"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 142972
+  size: 4
+  offset: 11900
+  name: ".got"
+}
+sections {
+  type: SHT_DYNAMIC
+  flags: 3
+  address: 142976
+  size: 160
+  offset: 11904
+  name: ".dynamic"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 7
+  address: 143136
+  size: 412
+  offset: 12064
+  name: ".plt"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 143548
+  size: 32
+  offset: 12476
+  name: ".ex_shared"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 143580
+  size: 84
+  offset: 12508
+  name: ".data"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 143664
+  size: 109
+  offset: 12592
+  name: ".data1"
+}
+sections {
+  type: SHT_NOBITS
+  flags: 3
+  address: 143776
+  size: 3064
+  offset: 12704
+  name: ".bss"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 0
+  address: 0
+  size: 124
+  offset: 12701
+  name: ".comment"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 0
+  address: 0
+  size: 201
+  offset: 12825
+  name: ".shstrtab"
+}
+segments {
+  type: PT_PHDR
+  flags: 5
+  offset: 52
+  virtual_address: 65588
+  physical_address: 0
+  file_size: 160
+  memory_size: 160
+  alignment: 0
+}
+segments {
+  type: PT_INTERP
+  flags: 4
+  offset: 212
+  virtual_address: 0
+  physical_address: 0
+  file_size: 17
+  memory_size: 0
+  alignment: 0
+}
+segments {
+  type: PT_LOAD
+  flags: 5
+  offset: 0
+  virtual_address: 65536
+  physical_address: 0
+  file_size: 11897
+  memory_size: 11897
+  alignment: 65536
+}
+segments {
+  type: PT_LOAD
+  flags: 7
+  offset: 11900
+  virtual_address: 142972
+  physical_address: 0
+  file_size: 801
+  memory_size: 3868
+  alignment: 65536
+}
+segments {
+  type: PT_DYNAMIC
+  flags: 7
+  offset: 11904
+  virtual_address: 142976
+  physical_address: 0
+  file_size: 160
+  memory_size: 0
+  alignment: 0
+}
+dynsym {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 65748
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 1
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 65768
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 2
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 66600
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 3
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 68344
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 4
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 69400
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 5
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 69464
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 6
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 69488
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 7
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 69524
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 8
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 69884
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 76784
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 10
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 76840
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 11
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 76896
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 12
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 76900
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 13
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 76904
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 14
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 142972
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 15
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 142976
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 16
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 143136
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 17
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 143548
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 18
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 143580
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 143664
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 20
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 143776
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 22
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 23
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_default_access_src"
+  value: 143636
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "getopt"
+  value: 143292
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_start"
+  value: 69884
+  size: 244
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_getnames"
+  value: 143304
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "atoi"
+  value: 143520
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strtol"
+  value: 143424
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "parse_rights"
+  value: 73080
+  size: 416
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_environ"
+  value: 143580
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_end"
+  value: 146840
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strdup"
+  value: 143460
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_iob"
+  value: 146512
+  size: 320
+  type: STT_OBJECT
+  bind: STB_WEAK
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_ex_register"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "cmdname"
+  value: 145912
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_GLOBAL_OFFSET_TABLE_"
+  value: 142972
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 15
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__nis_quote_key"
+  value: 76156
+  size: 196
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__ctype"
+  value: 145920
+  size: 521
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_verifycred"
+  value: 72564
+  size: 80
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_default_owner_src"
+  value: 143628
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strtok_quotes"
+  value: 76644
+  size: 20
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "atexit"
+  value: 143184
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "exit"
+  value: 143196
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "force"
+  value: 143620
+  size: 1
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_default_ttl_src"
+  value: 143640
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_verifygroup"
+  value: 143328
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "getpwuid_nisplus_master"
+  value: 75552
+  size: 180
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "sprintf"
+  value: 143364
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strpbrk_quotes"
+  value: 76352
+  size: 176
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_default_group_src"
+  value: 143632
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_init"
+  value: 76784
+  size: 56
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 10
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nisname_split"
+  value: 72364
+  size: 200
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_local_group"
+  value: 143496
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "change_entry"
+  value: 70416
+  size: 136
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "parse_flags"
+  value: 73496
+  size: 244
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "parse_time"
+  value: 73740
+  size: 424
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "___Argv"
+  value: 143616
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_perror"
+  value: 143244
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "getenv"
+  value: 143508
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nisname_index"
+  value: 72244
+  size: 120
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_DYNAMIC"
+  value: 142976
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 16
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_freeresult"
+  value: 143256
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_default_obj"
+  value: 146444
+  size: 64
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "usage"
+  value: 70128
+  size: 148
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strncmp"
+  value: 143448
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__iob"
+  value: 146512
+  size: 320
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strcat"
+  value: 143376
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "getspnam_nisplus_master"
+  value: 75976
+  size: 180
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_lookup"
+  value: 143352
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strrchr"
+  value: 143268
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "cmdnum"
+  value: 146832
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_exit"
+  value: 143208
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_local_principal"
+  value: 143484
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_ex_deregister"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_WEAK
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "environ"
+  value: 143580
+  size: 4
+  type: STT_OBJECT
+  bind: STB_WEAK
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strchr_quotes"
+  value: 76664
+  size: 120
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "change_object"
+  value: 70276
+  size: 140
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__cg89_used"
+  value: 143612
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__cg92_used"
+  value: 143612
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strchr"
+  value: 143436
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "error"
+  value: 143624
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_modify_entry"
+  value: 143232
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__fnonstd_used"
+  value: 143612
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "optind"
+  value: 146836
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_defaults_init"
+  value: 74792
+  size: 216
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strcmp"
+  value: 143280
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_edata"
+  value: 143773
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 20
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_PROCEDURE_LINKAGE_TABLE_"
+  value: 143136
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 17
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_defaults_set"
+  value: 74404
+  size: 388
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "memset"
+  value: 143472
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__fsr_init_value"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 65521
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strcpy"
+  value: 143400
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_etext"
+  value: 77433
+  size: 0
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 14
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_lib_version"
+  value: 76900
+  size: 4
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 13
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "parse_rights_field"
+  value: 72644
+  size: 436
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_ctype"
+  value: 145920
+  size: 521
+  type: STT_OBJECT
+  bind: STB_WEAK
+  shndx: 21
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strspn"
+  value: 143532
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "main"
+  value: 70552
+  size: 1692
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strtok_r_quotes"
+  value: 76528
+  size: 116
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_getsubopt"
+  value: 74164
+  size: 240
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "strlen"
+  value: 143316
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_list"
+  value: 143340
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "__environ_lock"
+  value: 143584
+  size: 24
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 19
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "_fini"
+  value: 76840
+  size: 56
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 11
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_domain_of"
+  value: 143412
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "fprintf"
+  value: 143220
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynsym {
+  name: "nis_modify"
+  value: 143388
+  size: 0
+  type: STT_FUNC
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+dynamic {
+  tag: DT_NEEDED
+  val: 1032
+}
+dynamic {
+  tag: DT_NEEDED
+  val: 1044
+}
+dynamic {
+  tag: DT_INIT
+  val: 76784
+}
+dynamic {
+  tag: DT_FINI
+  val: 76840
+}
+dynamic {
+  tag: DT_VERNEED
+  val: 69400
+}
+dynamic {
+  tag: DT_VERNEEDNUM
+  val: 2
+}
+dynamic {
+  tag: DT_HASH
+  val: 65768
+}
+dynamic {
+  tag: DT_STRTAB
+  val: 68344
+}
+dynamic {
+  tag: DT_STRSZ
+  val: 1054
+}
+dynamic {
+  tag: DT_SYMTAB
+  val: 66600
+}
+dynamic {
+  tag: DT_SYMENT
+  val: 16
+}
+dynamic {
+  tag: DT_DEBUG
+  val: 0
+}
+dynamic {
+  tag: DT_PLTGOT
+  val: 143136
+}
+dynamic {
+  tag: DT_PLTRELSZ
+  val: 360
+}
+dynamic {
+  tag: DT_PLTREL
+  val: 7
+}
+dynamic {
+  tag: DT_JMPREL
+  val: 69524
+}
+dynamic {
+  tag: DT_RELA
+  val: 69464
+}
+dynamic {
+  tag: DT_RELASZ
+  val: 420
+}
+dynamic {
+  tag: DT_RELAENT
+  val: 12
+}
