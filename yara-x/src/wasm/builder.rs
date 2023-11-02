@@ -472,8 +472,8 @@ mod tests {
     global.set 2
     i32.const 0
     global.set 3
-    call 90
-    call 91
+    call 94
+    call 95
     global.get 3
   )
   (func (;94;) (type 0)
