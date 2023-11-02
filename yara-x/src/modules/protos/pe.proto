@@ -91,6 +91,13 @@ message RichSignature {
   required uint32 key = 3;
   required bytes raw_data = 4;
   required bytes clear_data = 5;
+  repeated RichTool tools = 6;
+}
+
+message RichTool {
+  required uint32 toolid = 1;
+  required uint32 version = 2;
+  required uint32 times = 3;
 }
 
 message Overlay {

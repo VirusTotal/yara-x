@@ -6,7 +6,7 @@ use memchr::memmem;
 use nom::bytes::complete::take;
 use nom::combinator::{cond, map, verify};
 use nom::error::ErrorKind;
-use nom::multi::count;
+use nom::multi::{count, many0};
 use nom::number::complete::{le_u16, le_u32, u8};
 use nom::number::streaming::le_u64;
 use nom::sequence::tuple;
@@ -496,7 +496,7 @@ impl PEParser {
             )))?;
 
             let rich_data = &input[dans_tag_pos..rich_tag_pos];
-            let mut clear_data: Vec<u8> = rich_data.to_owned();
+            let mut clear_data = rich_data.to_owned();
 
             // Decrypt the rich data by XORing each byte in the data with
             // the byte corresponding byte in the key.
@@ -507,6 +507,15 @@ impl PEParser {
                 *data_byte ^= key_byte;
             }
 
+            // Parse the rich data.
+            let (_, (_dans, _padding, tools)) =
+                tuple((
+                    le_u32::<&[u8], nom::error::Error<&[u8]>>,
+                    take(12_usize),
+                    many0(tuple((le_u16, le_u16, le_u32))),
+                ))(clear_data.as_slice())
+                .unwrap_or_default();
+
             self.result.rich_signature =
                 MessageField::some(pe::RichSignature {
                     offset: Some(dans_tag_pos.try_into().unwrap()),
@@ -516,6 +525,16 @@ impl PEParser {
                     // backed by the scanned data without copy.
                     raw_data: Some(rich_data.to_vec()),
                     clear_data: Some(clear_data),
+                    tools: tools
+                        .iter()
+                        .map(|(version, toolid, times)| {
+                            let mut entry = pe::RichTool::new();
+                            entry.toolid = Some((*toolid).into());
+                            entry.version = Some((*version).into());
+                            entry.times = Some(*times);
+                            entry
+                        })
+                        .collect(),
                     special_fields: Default::default(),
                 });
 

@@ -49,6 +49,56 @@ rich_signature {
   key: 157631266
   raw_data: "f\"\013Z\"Ce\t\"Ce\t\"Ce\t9\336\371\t!Ce\t9\336\373\t#Ce\t9\336\317\t)Ce\tM5\316\t!Ce\t+;\366\t Ce\t\"Cd\t\016Ce\t9\336\316\t&Ce\t9\336\376\t#Ce\t9\336\377\t#Ce\t9\336\370\t#Ce\t"
   clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\033\235\234\000\003\000\000\000\033\235\236\000\001\000\000\000\033\235\252\000\013\000\000\000ov\253\000\003\000\000\000\tx\223\000\002\000\000\000\000\000\001\000,\000\000\000\033\235\253\000\004\000\000\000\033\235\233\000\001\000\000\000\033\235\232\000\001\000\000\000\033\235\235\000\001\000\000\000"
+  tools {
+    toolid: 156
+    version: 40219
+    times: 3
+  }
+  tools {
+    toolid: 158
+    version: 40219
+    times: 1
+  }
+  tools {
+    toolid: 170
+    version: 40219
+    times: 11
+  }
+  tools {
+    toolid: 171
+    version: 30319
+    times: 3
+  }
+  tools {
+    toolid: 147
+    version: 30729
+    times: 2
+  }
+  tools {
+    toolid: 1
+    version: 0
+    times: 44
+  }
+  tools {
+    toolid: 171
+    version: 40219
+    times: 4
+  }
+  tools {
+    toolid: 155
+    version: 40219
+    times: 1
+  }
+  tools {
+    toolid: 154
+    version: 40219
+    times: 1
+  }
+  tools {
+    toolid: 157
+    version: 40219
+    times: 1
+  }
 }
 sections {
   name: ".text"
