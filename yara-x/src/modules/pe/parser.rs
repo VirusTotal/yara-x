@@ -2,6 +2,7 @@ use std::iter::zip;
 use std::mem;
 
 use bstr::{BStr, ByteSlice};
+use byteorder::{ByteOrder, LE};
 use memchr::memmem;
 use nom::bytes::complete::take;
 use nom::combinator::{cond, map, verify};
@@ -49,7 +50,7 @@ impl PEParser {
 
         // Parse the Rich signature located in between the DOS header and the
         // PE header.
-        let _ = self.parse_rich_signature()(dos_hdr);
+        let _ = self.parse_rich_header()(dos_hdr);
 
         // The number of directory entries is limited to 16.
         let num_dir_entries = usize::max(
@@ -116,6 +117,7 @@ impl PEParser {
     const SIZE_OF_PE_SIGNATURE: usize = 4; // size of PE signature (PE\0\0).
     const SIZE_OF_FILE_HEADER: usize = 20; // size of IMAGE_FILE_HEADER
     const RICH_TAG: &'static [u8] = &[0x52_u8, 0x69, 0x63, 0x68];
+    const DANS_TAG: &'static [u8] = &[0x44_u8, 0x61, 0x6e, 0x53];
 
     fn parse_dos_header(
         &self,
@@ -463,11 +465,19 @@ impl PEParser {
             .max()
     }
 
-    /// Parse the rich header
+    /// Parse the rich header.
+    ///
+    /// The rich header is an undocumented chunk of data found between the DOS
+    /// and the PE headers. It's not a standardized part of the PE file format
+    /// but rather a series of undocumented values placed by some Microsoft
+    /// compilers, which contain information about the toolchain that produced
+    /// the PE file.
+    ///
+    /// More info:
     ///
     /// http://www.ntcore.com/files/richsign.htm
-    /// https://www.virusbulletin.com/virusbulletin/2020/01/vb2019-paper-rich-headers-leveraging-mysterious-artifact-pe-format/
-    fn parse_rich_signature(
+    /// https://bytepointer.com/articles/the_microsoft_rich_header.htm
+    fn parse_rich_header(
         &mut self,
     ) -> impl FnMut(&[u8]) -> IResult<&[u8], ()> + '_ {
         move |input: &[u8]| {
@@ -482,9 +492,9 @@ impl PEParser {
             // for encrypting the Rich data.
             let (remainder, xor_key) = le_u32(&input[rich_tag_pos + 4..])?;
 
-            // Search for the "Dans" tag that indicates the start of the rich
+            // Search for the "DanS" tag that indicates the start of the rich
             // data. This tag is encrypted with the XOR key.
-            let dans_tag = xor_key ^ 0x536e6144;
+            let dans_tag = xor_key ^ LE::read_u32(Self::DANS_TAG);
 
             let dans_tag_pos = memmem::rfind(
                 &input[..rich_tag_pos],
