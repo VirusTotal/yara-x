@@ -5,7 +5,7 @@ use protobuf::reflect::ReflectFieldRef;
 use protobuf::reflect::ReflectValueRef;
 use protobuf_support::text_format::quote_bytes_to;
 use std::fmt::Write;
-use yansi::Color::{Blue, Green, Yellow};
+use yansi::Color;
 use yara_x_proto::exts::field_options;
 
 use crate::Error;
@@ -15,6 +15,14 @@ struct JsonSerializer;
 struct YamlSerializer;
 struct TomlSerializer;
 struct XmlSerializer;
+
+struct Colors;
+
+impl Colors {
+    const GREEN: Color = Color::RGB(51, 255, 153);
+    const BLUE: Color = Color::RGB(51, 51, 255);
+    const YELLOW: Color = Color::RGB(255, 255, 102);
+}
 
 struct ValueOptions {
     is_hex: bool,
@@ -112,13 +120,14 @@ fn print_field_name(
             buf,
             "{}{} {}: ",
             indentation,
-            Yellow.paint("-").bold(),
-            Blue.paint(field_name)
+            Colors::YELLOW.paint("-").bold(),
+            Colors::BLUE.paint(field_name)
         )
         .unwrap();
         *is_first_line = false;
     } else {
-        write!(buf, "{}{}: ", indentation, Blue.paint(field_name)).unwrap();
+        write!(buf, "{}{}: ", indentation, Colors::BLUE.paint(field_name))
+            .unwrap();
     }
 }
 
@@ -283,7 +292,7 @@ pub fn get_human_readable_output(
                     buf,
                     "{}{}:",
                     get_indentation(indent),
-                    Yellow.paint(f.name()).bold()
+                    Colors::YELLOW.paint(f.name()).bold()
                 )
                 .unwrap();
                 for (k, v) in &map {
@@ -293,7 +302,7 @@ pub fn get_human_readable_output(
                                 buf,
                                 "{}{}:",
                                 get_indentation(indent + 1),
-                                Blue.paint(k)
+                                Colors::BLUE.paint(k)
                             )
                             .unwrap();
                         }
@@ -302,7 +311,7 @@ pub fn get_human_readable_output(
                                 buf,
                                 "{}{}: ",
                                 get_indentation(indent + 1),
-                                Blue.paint(k)
+                                Colors::BLUE.paint(k)
                             )
                             .unwrap();
                         }
@@ -325,16 +334,16 @@ pub fn get_human_readable_output(
                     buf,
                     "{}{} {} {}",
                     get_indentation(indent),
-                    Green.paint("# Nested").italic(),
-                    Green.paint(f.name()).italic(),
-                    Green.paint("structure").italic()
+                    Colors::GREEN.paint("# Nested").italic(),
+                    Colors::GREEN.paint(f.name()).italic(),
+                    Colors::GREEN.paint("structure").italic()
                 )
                 .unwrap();
                 writeln!(
                     buf,
                     "{}{}:",
                     get_indentation(indent),
-                    Yellow.paint(f.name()).bold()
+                    Colors::YELLOW.paint(f.name()).bold()
                 )
                 .unwrap();
                 for v in repeated {
@@ -354,7 +363,7 @@ pub fn get_human_readable_output(
                                 buf,
                                 "{}  {} ",
                                 get_indentation(indent),
-                                Yellow.paint("-").bold(),
+                                Colors::YELLOW.paint("-").bold(),
                             )
                             .unwrap();
                             print_field(
@@ -377,16 +386,16 @@ pub fn get_human_readable_output(
                                 buf,
                                 "{}{} {} {}",
                                 get_indentation(indent),
-                                Green.paint("# Nested").italic(),
-                                Green.paint(f.name()).italic(),
-                                Green.paint("structure").italic()
+                                Colors::GREEN.paint("# Nested").italic(),
+                                Colors::GREEN.paint(f.name()).italic(),
+                                Colors::GREEN.paint("structure").italic()
                             )
                             .unwrap();
                             writeln!(
                                 buf,
                                 "{}{}:",
                                 get_indentation(indent),
-                                Yellow.paint(f.name()).bold()
+                                Colors::YELLOW.paint(f.name()).bold()
                             )
                             .unwrap();
                             print_field(

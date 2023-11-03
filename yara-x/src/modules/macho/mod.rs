@@ -1640,7 +1640,7 @@ fn handle_segment_command(
         segname: Some(
             std::str::from_utf8(&sg.segname)
                 .unwrap_or_default()
-                .trim_end_matches('\0')
+                .replace('\0', "")
                 .to_string(),
         ),
         vmaddr: Some(sg.vmaddr as u64),
@@ -1673,13 +1673,13 @@ fn handle_segment_command(
             segname: Some(
                 std::str::from_utf8(&sec.segname)
                     .unwrap_or_default()
-                    .trim_end_matches('\0')
+                    .replace('\0', "")
                     .to_string(),
             ),
             sectname: Some(
                 std::str::from_utf8(&sec.sectname)
                     .unwrap_or_default()
-                    .trim_end_matches('\0')
+                    .replace('\0', "")
                     .to_string(),
             ),
             addr: Some(sec.addr as u64),
@@ -1760,7 +1760,7 @@ fn handle_segment_command_64(
         segname: Some(
             std::str::from_utf8(&sg.segname)
                 .unwrap_or_default()
-                .trim_end_matches('\0')
+                .replace('\0', "")
                 .to_string(),
         ),
         vmaddr: Some(sg.vmaddr),
@@ -1793,13 +1793,13 @@ fn handle_segment_command_64(
             segname: Some(
                 std::str::from_utf8(&sec.segname)
                     .unwrap_or_default()
-                    .trim_end_matches('\0')
+                    .replace('\0', "")
                     .to_string(),
             ),
             sectname: Some(
                 std::str::from_utf8(&sec.sectname)
                     .unwrap_or_default()
-                    .trim_end_matches('\0')
+                    .replace('\0', "")
                     .to_string(),
             ),
             addr: Some(sec.addr),
