@@ -2,21 +2,23 @@ use std::cell::OnceCell;
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::iter::zip;
+use std::str::FromStr;
 
 use bstr::{BStr, ByteSlice};
 use byteorder::{ByteOrder, LE};
 use memchr::memmem;
-use nom::bytes::complete::take;
+use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, map, verify};
 use nom::error::ErrorKind;
 use nom::multi::{count, length_data, many0};
-use nom::number::complete::{le_u16, le_u32, u8};
-use nom::number::streaming::le_u64;
+use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
 use nom::{Err, IResult};
 use protobuf::{EnumOrUnknown, MessageField};
 
 use crate::modules::protos::pe;
+
+type Error<'a> = nom::error::Error<&'a [u8]>;
 
 /// Object that represents a [`PE`] file.
 #[derive(Default)]
@@ -35,8 +37,8 @@ pub struct PE<'a> {
     /// PE sections.
     sections: Vec<Section<'a>>,
 
-    /// PE resources. Resources are parsed lazily when [`PE::get_resources`] is
-    /// called for the first time.
+    /// PE resources. Resources are parsed lazily when [`PE::get_resources`]
+    /// is called for the first time.
     resources: OnceCell<Option<Vec<Resource<'a>>>>,
 
     /// PE directory entries. Directory entries are parsed lazily when
@@ -56,9 +58,7 @@ pub struct PE<'a> {
 impl<'a> PE<'a> {
     /// Given the content of PE file, parses it and returns a [`PE`] object
     /// representing the file.
-    pub fn parse(
-        input: &'a [u8],
-    ) -> Result<Self, Err<nom::error::Error<&'a [u8]>>> {
+    pub fn parse(input: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
         // Parse the MZ header.
         let (_, dos_hdr) = Self::parse_dos_header()(input)?;
 
@@ -75,6 +75,12 @@ impl<'a> PE<'a> {
         let (directory, optional_hdr) =
             Self::parse_opt_header()(optional_hdr)?;
 
+        let string_table_offset = pe_hdr.ptr_sym_table.saturating_add(
+            pe_hdr.number_of_symbols.saturating_mul(Self::SIZE_OF_SYMBOL),
+        );
+
+        let string_table = input.get(string_table_offset as usize..);
+
         // Parse the section table. The section table is located right after
         // NT headers, which starts at pe_hdr and is composed of a the PE
         // signature, the file header, and a variable-length optional header.
@@ -84,7 +90,7 @@ impl<'a> PE<'a> {
                 + pe_hdr.size_of_optional_header as usize..,
         ) {
             count(
-                Self::parse_section(),
+                Self::parse_section(string_table),
                 // The number of sections is capped to MAX_PE_SECTIONS.
                 usize::min(
                     pe_hdr.number_of_sections as usize,
@@ -146,9 +152,9 @@ impl<'a> PE<'a> {
             let start = s.virtual_address;
             let end = start.saturating_add(size);
 
-            // Check if the target RVA is within the boundaries of this section,
-            // but only update `section_rva` with values that are higher than
-            // the current one.
+            // Check if the target RVA is within the boundaries of this
+            // section, but only update `section_rva` with values
+            // that are higher than the current one.
             if section_rva <= s.virtual_address && (start..end).contains(&rva)
             {
                 section_rva = s.virtual_address;
@@ -300,6 +306,8 @@ impl<'a> PE<'a> {
     const SIZE_OF_PE_SIGNATURE: usize = 4; // size of PE signature (PE\0\0).
     const SIZE_OF_FILE_HEADER: usize = 20; // size of IMAGE_FILE_HEADER
     const SIZE_OF_DIR_ENTRY: usize = 8;
+    const SIZE_OF_SYMBOL: u32 = 18;
+
     const MAX_PE_SECTIONS: usize = 96;
     const MAX_DIR_ENTRIES: usize = 16;
 
@@ -500,9 +508,8 @@ impl<'a> PE<'a> {
             // Search for the "Rich" tag that indicates the end of the rich
             // data. The tag is searched starting at the end of the input and
             // going backwards.
-            let rich_tag_pos = memmem::rfind(input, Self::RICH_TAG).ok_or(
-                Err::Error(nom::error::Error::new(input, ErrorKind::Tag)),
-            )?;
+            let rich_tag_pos = memmem::rfind(input, Self::RICH_TAG)
+                .ok_or(Err::Error(Error::new(input, ErrorKind::Tag)))?;
 
             // The u32 that follows the "Rich" tag is the XOR key used for
             // for encrypting the Rich data.
@@ -516,7 +523,7 @@ impl<'a> PE<'a> {
                 &input[..rich_tag_pos],
                 dans_tag.to_le_bytes().as_slice(),
             )
-            .ok_or(Err::Error(nom::error::Error::new(
+            .ok_or(Err::Error(Error::new(
                 &input[..rich_tag_pos],
                 ErrorKind::Tag,
             )))?;
@@ -535,7 +542,7 @@ impl<'a> PE<'a> {
             // Parse the rich data.
             let (_, (_dans, _padding, tools)) =
                 tuple((
-                    le_u32::<&[u8], nom::error::Error<&[u8]>>,
+                    le_u32::<&[u8], Error>,
                     take(12_usize),
                     many0(tuple((le_u16, le_u16, le_u32))),
                 ))(clear_data.as_slice())
@@ -553,8 +560,10 @@ impl<'a> PE<'a> {
         }
     }
 
-    fn parse_section() -> impl FnMut(&[u8]) -> IResult<&[u8], Section> {
-        move |input: &[u8]| {
+    fn parse_section(
+        string_table: Option<&'a [u8]>,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Section> {
+        move |input: &'a [u8]| {
             let mut section = Section::default();
             let remainder;
 
@@ -576,13 +585,14 @@ impl<'a> PE<'a> {
                 map(take(8_usize), |name| {
                     // The PE specification states that:
                     //
-                    // "Section name is an 8-byte, null-padded UTF-8 encoded string.
-                    // If the string is exactly 8 characters long, there is no
-                    // terminating null.".
+                    // "Section name is an 8-byte, null-padded UTF-8 encoded
+                    // string. If the string is exactly 8 characters long,
+                    // there is no terminating null.".
                     //
-                    // Here we remove the trailing nulls, if any, but don't assume that
-                    // the name is valid UTF-8 because some files have section names
-                    // containing zeroes or non-valid UTF-8. For example, file
+                    // Here we remove the trailing nulls, if any, but don't
+                    // assume that the name is valid UTF-8 because some files
+                    // have section names containing zeroes or non-valid UTF-8.
+                    // For example, file
                     // 0043812838495a45449a0ac61a81b9c16eddca1ad249fb4f7fdb1c4505e9bb34
                     // has sections named ".data\x00l\x06" and ".bss\x00\x7f".
                     BStr::new(name).trim_end_with(|c| c == '\0').into()
@@ -597,6 +607,34 @@ impl<'a> PE<'a> {
                 le_u16, // number_of_line_numbers
                 le_u32, // characteristics
             ))(input)?;
+
+            // Certain PE files produced by GNU compilers may contain section
+            // name following the pattern of "/d+" (for example: "/4", "/10",
+            // "/234").In such instances, the number after the slash denotes an
+            // offset within the string table where the actual section name is
+            // stored. This approach allows the inclusion of section names
+            // longer than the 8 bytes allocated in the PE section
+            // table. For example, the file
+            // 2e9c671b8a0411f2b397544b368c44d7f095eb395779de0ad1ac946914dfa34c
+            // contains a section named "/4", which gets translated into
+            // ".gnu_debuglink".
+            if let Some(string_table) = string_table {
+                if let Some(offset) = section
+                    .name
+                    .to_str()
+                    .ok()
+                    .and_then(|name| name.strip_prefix("/"))
+                    .and_then(|offset| u32::from_str(offset).ok())
+                {
+                    if let Some(s) = string_table.get(offset as usize..) {
+                        if let Ok((_, s)) =
+                            take_till::<_, &[u8], Error>(|c| c == 0)(s)
+                        {
+                            section.full_name = Some(BStr::new(s).into());
+                        }
+                    }
+                }
+            }
 
             // TODO: parse section names like /1
             // see: pe_get_section_full_name in YARA
@@ -627,12 +665,12 @@ impl<'a> PE<'a> {
                     number_of_id_entries,
                 ),
             ) = tuple((
-                le_u32::<&[u8], nom::error::Error<&[u8]>>, // characteristics
-                le_u32,                                    // timestamp
-                le_u16,                                    // major_version
-                le_u16,                                    // minor_version
-                le_u16, // number_of_named_entries
-                le_u16, // number_of_id_entries
+                le_u32::<&[u8], Error>, // characteristics
+                le_u32,                 // timestamp
+                le_u16,                 // major_version
+                le_u16,                 // minor_version
+                le_u16,                 // number_of_named_entries
+                le_u16,                 // number_of_id_entries
             ))(input)?;
 
             Ok((
@@ -662,7 +700,7 @@ impl<'a> PE<'a> {
                     .get((name_or_id & 0x7FFFFFFF) as usize..)
                     .and_then(|string| {
                         length_data(map(
-                            le_u16::<&[u8], nom::error::Error<&[u8]>>,
+                            le_u16::<&[u8], Error>,
                             |len| len * 2, //  length from characters to bytes
                         ))(string)
                         .map(|(_, s)| s)
@@ -1071,6 +1109,7 @@ pub struct RichHeader<'a> {
 #[derive(Default)]
 pub struct Section<'a> {
     name: &'a BStr,
+    full_name: Option<&'a BStr>,
     virtual_size: u32,
     virtual_address: u32,
     raw_data_size: u32,
@@ -1084,20 +1123,22 @@ pub struct Section<'a> {
 
 impl From<&Section<'_>> for pe::Section {
     fn from(value: &Section) -> Self {
-        let mut section = pe::Section::new();
-        section.name = Some(value.name.to_vec());
-        section.raw_data_size = Some(value.raw_data_size);
-        section.raw_data_offset = Some(value.raw_data_offset);
-        section.virtual_size = Some(value.virtual_size);
-        section.virtual_address = Some(value.virtual_address);
-        section.pointer_to_line_numbers = Some(value.pointer_to_line_numbers);
-        section.pointer_to_relocations = Some(value.pointer_to_relocations);
-        section.number_of_line_numbers =
-            Some(value.number_of_line_numbers.into());
-        section.number_of_relocations =
-            Some(value.number_of_relocations.into());
-        section.characteristics = Some(value.characteristics);
-        section
+        let mut sec = pe::Section::new();
+        sec.name = Some(value.name.to_vec());
+        sec.full_name = value
+            .full_name
+            .map(|name| name.to_vec())
+            .or_else(|| sec.name.clone());
+        sec.raw_data_size = Some(value.raw_data_size);
+        sec.raw_data_offset = Some(value.raw_data_offset);
+        sec.virtual_size = Some(value.virtual_size);
+        sec.virtual_address = Some(value.virtual_address);
+        sec.pointer_to_line_numbers = Some(value.pointer_to_line_numbers);
+        sec.pointer_to_relocations = Some(value.pointer_to_relocations);
+        sec.number_of_line_numbers = Some(value.number_of_line_numbers.into());
+        sec.number_of_relocations = Some(value.number_of_relocations.into());
+        sec.characteristics = Some(value.characteristics);
+        sec
     }
 }
 

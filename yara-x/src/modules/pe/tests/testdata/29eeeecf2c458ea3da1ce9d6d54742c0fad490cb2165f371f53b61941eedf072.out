@@ -1,0 +1,870 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version {
+  major: 4
+  minor: 0
+}
+subsystem_version {
+  major: 4
+  minor: 0
+}
+image_version {
+  major: 6
+  minor: 0
+}
+linker_version {
+  major: 8
+  minor: 0
+}
+characteristics: 258
+dll_characteristics: 33088
+timestamp: 1621233906
+image_base: 16777216
+checksum: 462075
+base_of_code: 4096
+base_of_data: 348160
+entry_point_raw: 315022
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 340480
+size_of_initialized_data: 119808
+size_of_uninitialized_data: 0
+size_of_image: 479232
+size_of_headers: 1024
+size_of_stack_reserve: 262144
+size_of_stack_commit: 8192
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 32
+win32_version_value: 0
+number_of_sections: 5
+rich_signature {
+  offset: 128
+  length: 88
+  key: 1852233515
+  raw_data: "o\266\010=+\327fn+\327fn+\327fn\014\021\033n!\327fn\014\021\035n/\327fn\014\021\013nb\327fnr\364un:\327fn+\327gn\202\326fn\014\021\010n\025\327fn\014\021\030n*\327fn\014\021\032n*\327fn\014\021\036n*\327fn"
+  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\'\306}\000\n\000\000\000\'\306{\000\004\000\000\000\'\306m\000I\000\000\000Y#\023\000\021\000\000\000\000\000\001\000\251\001\000\000\'\306n\000>\000\000\000\'\306~\000\001\000\000\000\'\306|\000\001\000\000\000\'\306x\000\001\000\000\000"
+  tools {
+    toolid: 125
+    version: 50727
+    times: 10
+  }
+  tools {
+    toolid: 123
+    version: 50727
+    times: 4
+  }
+  tools {
+    toolid: 109
+    version: 50727
+    times: 73
+  }
+  tools {
+    toolid: 19
+    version: 9049
+    times: 17
+  }
+  tools {
+    toolid: 1
+    version: 0
+    times: 425
+  }
+  tools {
+    toolid: 110
+    version: 50727
+    times: 62
+  }
+  tools {
+    toolid: 126
+    version: 50727
+    times: 1
+  }
+  tools {
+    toolid: 124
+    version: 50727
+    times: 1
+  }
+  tools {
+    toolid: 120
+    version: 50727
+    times: 1
+  }
+}
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 340480
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 340336
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 40960
+  raw_data_offset: 341504
+  virtual_address: 348160
+  virtual_size: 42620
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".tls"
+  full_name: ".tls"
+  characteristics: 3221225536
+  raw_data_size: 512
+  raw_data_offset: 382464
+  virtual_address: 393216
+  virtual_size: 9
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  full_name: ".rsrc"
+  characteristics: 1073741888
+  raw_data_size: 58880
+  raw_data_offset: 382976
+  virtual_address: 397312
+  virtual_size: 58696
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1107296320
+  raw_data_size: 17408
+  raw_data_offset: 441856
+  virtual_address: 458752
+  virtual_size: 17402
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 336228
+  size: 220
+}
+data_directories {
+  virtual_address: 397312
+  size: 58696
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 458752
+  size: 14104
+}
+data_directories {
+  virtual_address: 5600
+  size: 28
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 206256
+  size: 24
+}
+data_directories {
+  virtual_address: 206184
+  size: 64
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 4096
+  size: 1452
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 2019914798
+  size: 116
+}
+data_directories {
+  virtual_address: 340336
+  size: 4096
+}
+data_directories {
+  virtual_address: 340480
+  size: 1024
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 1610612768
+}
+data_directories {
+  virtual_address: 1952539694
+  size: 97
+}
+data_directories {
+  virtual_address: 42620
+  size: 348160
+}
+data_directories {
+  virtual_address: 40960
+  size: 341504
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 3221225536
+}
+data_directories {
+  virtual_address: 1936487470
+  size: 0
+}
+data_directories {
+  virtual_address: 9
+  size: 393216
+}
+data_directories {
+  virtual_address: 512
+  size: 382464
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 3221225536
+}
+data_directories {
+  virtual_address: 1920168494
+  size: 99
+}
+resources {
+  length: 2
+  rva: 450448
+  offset: 436112
+  id: 106
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 2
+  rva: 450440
+  offset: 436104
+  id: 107
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 2
+  rva: 450464
+  offset: 436128
+  id: 111
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 2
+  rva: 450456
+  offset: 436120
+  id: 112
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 2
+  rva: 450432
+  offset: 436096
+  id: 114
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 1640
+  rva: 402864
+  offset: 388528
+  type: RESOURCE_TYPE_ICON
+  id: 1
+  language: 0
+}
+resources {
+  length: 296
+  rva: 404504
+  offset: 390168
+  type: RESOURCE_TYPE_ICON
+  id: 2
+  language: 0
+}
+resources {
+  length: 744
+  rva: 404800
+  offset: 390464
+  type: RESOURCE_TYPE_ICON
+  id: 3
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 405544
+  offset: 391208
+  type: RESOURCE_TYPE_ICON
+  id: 4
+  language: 0
+}
+resources {
+  length: 2216
+  rva: 406928
+  offset: 392592
+  type: RESOURCE_TYPE_ICON
+  id: 5
+  language: 0
+}
+resources {
+  length: 3752
+  rva: 409144
+  offset: 394808
+  type: RESOURCE_TYPE_ICON
+  id: 6
+  language: 0
+}
+resources {
+  length: 296
+  rva: 412992
+  offset: 398656
+  type: RESOURCE_TYPE_ICON
+  id: 7
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 413288
+  offset: 398952
+  type: RESOURCE_TYPE_ICON
+  id: 8
+  language: 0
+}
+resources {
+  length: 296
+  rva: 414712
+  offset: 400376
+  type: RESOURCE_TYPE_ICON
+  id: 9
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 415008
+  offset: 400672
+  type: RESOURCE_TYPE_ICON
+  id: 10
+  language: 0
+}
+resources {
+  length: 296
+  rva: 416432
+  offset: 402096
+  type: RESOURCE_TYPE_ICON
+  id: 11
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 416728
+  offset: 402392
+  type: RESOURCE_TYPE_ICON
+  id: 12
+  language: 0
+}
+resources {
+  length: 296
+  rva: 418152
+  offset: 403816
+  type: RESOURCE_TYPE_ICON
+  id: 13
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 418448
+  offset: 404112
+  type: RESOURCE_TYPE_ICON
+  id: 14
+  language: 0
+}
+resources {
+  length: 1128
+  rva: 419872
+  offset: 405536
+  type: RESOURCE_TYPE_ICON
+  id: 15
+  language: 0
+}
+resources {
+  length: 248
+  rva: 421912
+  offset: 407576
+  type: RESOURCE_TYPE_MENU
+  id: 123
+  language: 1033
+}
+resources {
+  length: 164
+  rva: 422160
+  offset: 407824
+  type: RESOURCE_TYPE_MENU
+  id: 129
+  language: 1033
+}
+resources {
+  length: 648
+  rva: 422328
+  offset: 407992
+  type: RESOURCE_TYPE_MENU
+  id: 139
+  language: 1033
+}
+resources {
+  length: 312
+  rva: 422976
+  offset: 408640
+  type: RESOURCE_TYPE_MENU
+  id: 141
+  language: 1033
+}
+resources {
+  length: 136
+  rva: 423288
+  offset: 408952
+  type: RESOURCE_TYPE_MENU
+  id: 144
+  language: 1033
+}
+resources {
+  length: 128
+  rva: 423584
+  offset: 409248
+  type: RESOURCE_TYPE_MENU
+  id: 145
+  language: 1033
+}
+resources {
+  length: 156
+  rva: 423424
+  offset: 409088
+  type: RESOURCE_TYPE_MENU
+  id: 146
+  language: 1033
+}
+resources {
+  length: 1320
+  rva: 423896
+  offset: 409560
+  type: RESOURCE_TYPE_DIALOG
+  id: 102
+  language: 1033
+}
+resources {
+  length: 1940
+  rva: 425216
+  offset: 410880
+  type: RESOURCE_TYPE_DIALOG
+  id: 103
+  language: 1033
+}
+resources {
+  length: 2464
+  rva: 427160
+  offset: 412824
+  type: RESOURCE_TYPE_DIALOG
+  id: 104
+  language: 1033
+}
+resources {
+  length: 1450
+  rva: 429624
+  offset: 415288
+  type: RESOURCE_TYPE_DIALOG
+  id: 105
+  language: 1033
+}
+resources {
+  length: 2368
+  rva: 441136
+  offset: 426800
+  type: RESOURCE_TYPE_DIALOG
+  id: 106
+  language: 1033
+}
+resources {
+  length: 2172
+  rva: 431080
+  offset: 416744
+  type: RESOURCE_TYPE_DIALOG
+  id: 107
+  language: 1033
+}
+resources {
+  length: 1076
+  rva: 433256
+  offset: 418920
+  type: RESOURCE_TYPE_DIALOG
+  id: 108
+  language: 1033
+}
+resources {
+  length: 928
+  rva: 434336
+  offset: 420000
+  type: RESOURCE_TYPE_DIALOG
+  id: 109
+  language: 1033
+}
+resources {
+  length: 764
+  rva: 435264
+  offset: 420928
+  type: RESOURCE_TYPE_DIALOG
+  id: 110
+  language: 1033
+}
+resources {
+  length: 1112
+  rva: 436032
+  offset: 421696
+  type: RESOURCE_TYPE_DIALOG
+  id: 111
+  language: 1033
+}
+resources {
+  length: 1544
+  rva: 437144
+  offset: 422808
+  type: RESOURCE_TYPE_DIALOG
+  id: 112
+  language: 1033
+}
+resources {
+  length: 644
+  rva: 438688
+  offset: 424352
+  type: RESOURCE_TYPE_DIALOG
+  id: 113
+  language: 1033
+}
+resources {
+  length: 1500
+  rva: 444944
+  offset: 430608
+  type: RESOURCE_TYPE_DIALOG
+  id: 114
+  language: 1033
+}
+resources {
+  length: 240
+  rva: 449536
+  offset: 435200
+  type: RESOURCE_TYPE_DIALOG
+  id: 118
+  language: 1033
+}
+resources {
+  length: 266
+  rva: 439336
+  offset: 425000
+  type: RESOURCE_TYPE_DIALOG
+  id: 119
+  language: 1033
+}
+resources {
+  length: 452
+  rva: 439608
+  offset: 425272
+  type: RESOURCE_TYPE_DIALOG
+  id: 124
+  language: 1033
+}
+resources {
+  length: 532
+  rva: 440064
+  offset: 425728
+  type: RESOURCE_TYPE_DIALOG
+  id: 128
+  language: 1033
+}
+resources {
+  length: 180
+  rva: 423712
+  offset: 409376
+  type: RESOURCE_TYPE_DIALOG
+  id: 132
+  language: 1033
+}
+resources {
+  length: 530
+  rva: 440600
+  offset: 426264
+  type: RESOURCE_TYPE_DIALOG
+  id: 133
+  language: 1033
+}
+resources {
+  length: 214
+  rva: 443504
+  offset: 429168
+  type: RESOURCE_TYPE_DIALOG
+  id: 137
+  language: 1033
+}
+resources {
+  length: 466
+  rva: 443720
+  offset: 429384
+  type: RESOURCE_TYPE_DIALOG
+  id: 138
+  language: 1033
+}
+resources {
+  length: 312
+  rva: 444192
+  offset: 429856
+  type: RESOURCE_TYPE_DIALOG
+  id: 140
+  language: 1033
+}
+resources {
+  length: 438
+  rva: 444504
+  offset: 430168
+  type: RESOURCE_TYPE_DIALOG
+  id: 143
+  language: 1033
+}
+resources {
+  length: 798
+  rva: 446448
+  offset: 432112
+  type: RESOURCE_TYPE_DIALOG
+  id: 144
+  language: 1033
+}
+resources {
+  length: 826
+  rva: 447248
+  offset: 432912
+  type: RESOURCE_TYPE_DIALOG
+  id: 145
+  language: 1033
+}
+resources {
+  length: 806
+  rva: 448080
+  offset: 433744
+  type: RESOURCE_TYPE_DIALOG
+  id: 146
+  language: 1033
+}
+resources {
+  length: 648
+  rva: 448888
+  offset: 434552
+  type: RESOURCE_TYPE_DIALOG
+  id: 147
+  language: 1033
+}
+resources {
+  length: 62
+  rva: 455944
+  offset: 441608
+  type: RESOURCE_TYPE_STRING
+  id: 10
+  language: 1033
+}
+resources {
+  length: 968
+  rva: 450472
+  offset: 436136
+  type: RESOURCE_TYPE_STRING
+  id: 251
+  language: 1033
+}
+resources {
+  length: 702
+  rva: 451440
+  offset: 437104
+  type: RESOURCE_TYPE_STRING
+  id: 252
+  language: 1033
+}
+resources {
+  length: 1066
+  rva: 452144
+  offset: 437808
+  type: RESOURCE_TYPE_STRING
+  id: 253
+  language: 1033
+}
+resources {
+  length: 710
+  rva: 453216
+  offset: 438880
+  type: RESOURCE_TYPE_STRING
+  id: 254
+  language: 1033
+}
+resources {
+  length: 1444
+  rva: 453928
+  offset: 439592
+  type: RESOURCE_TYPE_STRING
+  id: 255
+  language: 1033
+}
+resources {
+  length: 568
+  rva: 455376
+  offset: 441040
+  type: RESOURCE_TYPE_STRING
+  id: 256
+  language: 1033
+}
+resources {
+  length: 8
+  rva: 401072
+  offset: 386736
+  type: RESOURCE_TYPE_ACCELERATOR
+  id: 121
+  language: 0
+}
+resources {
+  length: 90
+  rva: 412896
+  offset: 398560
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 101
+  language: 0
+}
+resources {
+  length: 34
+  rva: 414672
+  offset: 400336
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 125
+  language: 0
+}
+resources {
+  length: 34
+  rva: 416392
+  offset: 402056
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 126
+  language: 0
+}
+resources {
+  length: 34
+  rva: 418112
+  offset: 403776
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 127
+  language: 0
+}
+resources {
+  length: 34
+  rva: 419832
+  offset: 405496
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 140
+  language: 0
+}
+resources {
+  length: 20
+  rva: 421000
+  offset: 406664
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 143
+  language: 0
+}
+resources {
+  length: 888
+  rva: 421024
+  offset: 406688
+  type: RESOURCE_TYPE_VERSION
+  id: 1
+  language: 1033
+}
+resources {
+  length: 1779
+  rva: 401080
+  offset: 386744
+  type: RESOURCE_TYPE_MANIFEST
+  id: 1
+  language: 0
+}
+resources {
+  length: 282
+  rva: 450144
+  offset: 435808
+  type: : 240
+  id: 103
+  language: 1033
+}
+resources {
+  length: 363
+  rva: 449776
+  offset: 435440
+  type: : 240
+  id: 104
+  language: 1033
+}
+overlay {
+  offset: 0
+  size: 0
+}

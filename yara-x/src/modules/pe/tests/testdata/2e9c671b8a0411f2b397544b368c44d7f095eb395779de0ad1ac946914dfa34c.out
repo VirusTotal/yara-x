@@ -1,0 +1,267 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version {
+  major: 4
+  minor: 0
+}
+subsystem_version {
+  major: 4
+  minor: 0
+}
+image_version {
+  major: 1
+  minor: 0
+}
+linker_version {
+  major: 2
+  minor: 51
+}
+characteristics: 47
+dll_characteristics: 0
+timestamp: 0
+image_base: 4194304
+checksum: 138527
+base_of_code: 4096
+entry_point_raw: 59328
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 63952
+size_of_initialized_data: 4900
+size_of_uninitialized_data: 15744
+size_of_image: 122880
+size_of_headers: 1024
+size_of_stack_reserve: 16777216
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 84480
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+number_of_sections: 7
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 64000
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 63952
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 5120
+  raw_data_offset: 65024
+  virtual_address: 69632
+  virtual_size: 4900
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".bss"
+  full_name: ".bss"
+  characteristics: 3221225600
+  raw_data_size: 0
+  raw_data_offset: 0
+  virtual_address: 77824
+  virtual_size: 15744
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".CRT"
+  full_name: ".CRT"
+  characteristics: 33554432
+  raw_data_size: 512
+  raw_data_offset: 70144
+  virtual_address: 94208
+  virtual_size: 8
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".idata"
+  full_name: ".idata"
+  characteristics: 3221225536
+  raw_data_size: 4608
+  raw_data_offset: 70656
+  virtual_address: 98304
+  virtual_size: 4488
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  full_name: ".rsrc"
+  characteristics: 3221225536
+  raw_data_size: 8704
+  raw_data_offset: 75264
+  virtual_address: 106496
+  virtual_size: 8464
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: "/4"
+  full_name: ".gnu_debuglink"
+  characteristics: 33554432
+  raw_data_size: 512
+  raw_data_offset: 83968
+  virtual_address: 118784
+  virtual_size: 20
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 98304
+  size: 160
+}
+data_directories {
+  virtual_address: 106496
+  size: 8464
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 84504
+  size: 13392
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 99472
+  size: 1008
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+resources {
+  length: 296
+  rva: 107056
+  offset: 75824
+  type: RESOURCE_TYPE_ICON
+  id: 1
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 107352
+  offset: 76120
+  type: RESOURCE_TYPE_ICON
+  id: 2
+  language: 0
+}
+resources {
+  length: 744
+  rva: 108736
+  offset: 77504
+  type: RESOURCE_TYPE_ICON
+  id: 3
+  language: 0
+}
+resources {
+  length: 2216
+  rva: 109480
+  offset: 78248
+  type: RESOURCE_TYPE_ICON
+  id: 4
+  language: 0
+}
+resources {
+  length: 998
+  rva: 111696
+  offset: 80464
+  type: RESOURCE_TYPE_DIALOG
+  language: 2055
+  name_string: "U\000N\000I\000N\000S\000T\000D\000L\000G\000"
+}
+resources {
+  length: 642
+  rva: 112696
+  offset: 81464
+  type: RESOURCE_TYPE_DIALOG
+  language: 2055
+  name_string: "U\000N\000I\000N\000S\000T\000R\000E\000P\000A\000I\000R\000"
+}
+resources {
+  length: 62
+  rva: 113340
+  offset: 82108
+  type: RESOURCE_TYPE_GROUP_ICON
+  language: 0
+  name_string: "M\000A\000I\000N\000I\000C\000O\000N\000"
+}
+resources {
+  length: 1555
+  rva: 113404
+  offset: 82172
+  type: RESOURCE_TYPE_MANIFEST
+  id: 1
+  language: 2055
+}
+overlay {
+  offset: 84480
+  size: 13416
+}

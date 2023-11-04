@@ -91,6 +91,7 @@ rich_signature {
 }
 sections {
   name: ".text"
+  full_name: ".text"
   characteristics: 1610612768
   raw_data_size: 3584
   raw_data_offset: 1024
@@ -103,6 +104,7 @@ sections {
 }
 sections {
   name: ".rdata"
+  full_name: ".rdata"
   characteristics: 1073741888
   raw_data_size: 2560
   raw_data_offset: 4608
@@ -115,6 +117,7 @@ sections {
 }
 sections {
   name: ".data"
+  full_name: ".data"
   characteristics: 3221225536
   raw_data_size: 512
   raw_data_offset: 7168
@@ -127,6 +130,7 @@ sections {
 }
 sections {
   name: ".pdata"
+  full_name: ".pdata"
   characteristics: 1073741888
   raw_data_size: 512
   raw_data_offset: 7680
@@ -139,6 +143,7 @@ sections {
 }
 sections {
   name: ".rsrc"
+  full_name: ".rsrc"
   characteristics: 1073741888
   raw_data_size: 1024
   raw_data_offset: 8192
@@ -151,6 +156,7 @@ sections {
 }
 sections {
   name: ".reloc"
+  full_name: ".reloc"
   characteristics: 1107296320
   raw_data_size: 512
   raw_data_offset: 9216

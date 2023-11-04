@@ -77,7 +77,7 @@ message Resource {
   required uint32 length = 1;
   required uint32 rva = 2;
   required uint32 offset = 3;
-  required ResourceType type = 4;
+  optional ResourceType type = 4;
   optional uint32 id = 5;
   optional uint32 language = 6;
   optional bytes type_string = 7;
@@ -115,18 +115,29 @@ enum ResourceType {
 }
 
 message Section {
-  // name is `bytes` instead of `string` because it can contains invalid
-  // UTF-8.
+  // The section's name as listed in the section table. The data type is `bytes`
+  // instead of `string` so that it can accommodate invalid UTF-8 characters.
   required bytes name = 1;
-  required uint32 characteristics = 2;
-  required uint32 raw_data_size = 3;
-  required uint32 raw_data_offset = 4;
-  required uint32 virtual_address = 5;
-  required uint32 virtual_size = 6;
-  required uint32 pointer_to_relocations = 7;
-  required uint32 pointer_to_line_numbers = 8;
-  required uint32 number_of_relocations = 9;
-  required uint32 number_of_line_numbers = 10;
+  // Certain PE files produced by GNU compilers may contain section names
+  // following the pattern of "/d+" (for example: "/4", "/10", "/234"). In such
+  // instances, the number after the slash denotes an offset within the string
+  // table where the actual section name is stored. This approach allows the
+  // inclusion of section names longer than the 8 bytes allocated in the PE
+  // section table.
+  //
+  // When this scenario occurs, the `full_name` field holds the actual section
+  // name. In all other cases, it simply duplicates the content of the `name`
+  // field.
+  required bytes full_name = 2;
+  required uint32 characteristics = 3;
+  required uint32 raw_data_size = 4;
+  required uint32 raw_data_offset = 5;
+  required uint32 virtual_address = 6;
+  required uint32 virtual_size = 7;
+  required uint32 pointer_to_relocations = 8;
+  required uint32 pointer_to_line_numbers = 9;
+  required uint32 number_of_relocations = 10;
+  required uint32 number_of_line_numbers = 11;
 }
 
 message RichSignature {

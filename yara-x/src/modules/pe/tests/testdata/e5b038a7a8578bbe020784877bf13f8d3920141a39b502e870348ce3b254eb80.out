@@ -62,6 +62,7 @@ rich_signature {
 }
 sections {
   name: ".rdata"
+  full_name: ".rdata"
   characteristics: 1073741888
   raw_data_size: 512
   raw_data_offset: 512
@@ -74,6 +75,7 @@ sections {
 }
 sections {
   name: ".rsrc"
+  full_name: ".rsrc"
   characteristics: 1073741888
   raw_data_size: 2560
   raw_data_offset: 1024

@@ -45,6 +45,7 @@ win32_version_value: 0
 number_of_sections: 7
 sections {
   name: ".text"
+  full_name: ".text"
   characteristics: 1615855712
   raw_data_size: 8192
   raw_data_offset: 4096
@@ -57,6 +58,7 @@ sections {
 }
 sections {
   name: ".data"
+  full_name: ".data"
   characteristics: 3224371264
   raw_data_size: 4096
   raw_data_offset: 12288
@@ -69,6 +71,7 @@ sections {
 }
 sections {
   name: ".rdata"
+  full_name: ".rdata"
   characteristics: 1076887616
   raw_data_size: 4096
   raw_data_offset: 16384
@@ -81,6 +84,7 @@ sections {
 }
 sections {
   name: ".bss"
+  full_name: ".bss"
   characteristics: 3227517056
   raw_data_size: 0
   raw_data_offset: 0
@@ -93,6 +97,7 @@ sections {
 }
 sections {
   name: ".idata"
+  full_name: ".idata"
   characteristics: 3224371264
   raw_data_size: 4096
   raw_data_offset: 20480
@@ -105,6 +110,7 @@ sections {
 }
 sections {
   name: ".CRT"
+  full_name: ".CRT"
   characteristics: 3224371264
   raw_data_size: 4096
   raw_data_offset: 24576
@@ -117,6 +123,7 @@ sections {
 }
 sections {
   name: ".tls"
+  full_name: ".tls"
   characteristics: 3224371264
   raw_data_size: 4096
   raw_data_offset: 28672
