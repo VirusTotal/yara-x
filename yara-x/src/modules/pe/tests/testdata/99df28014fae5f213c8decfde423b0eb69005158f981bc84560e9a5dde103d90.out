@@ -24,6 +24,7 @@ image_base: 4194304
 checksum: 43228
 base_of_code: 4096
 base_of_data: 12288
+entry_point: 5344
 entry_point_raw: 5344
 section_alignment: 4096
 file_alignment: 4096

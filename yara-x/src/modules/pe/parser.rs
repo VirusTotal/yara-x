@@ -34,6 +34,10 @@ pub struct PE<'a> {
     /// to the end of the file.
     directory: &'a [u8],
 
+    /// Entry point as a file offset. The value is calculated lazily the
+    /// first time [`PE::entry_point_offset`] is called.
+    entry_point: OnceCell<Option<u32>>,
+
     /// PE sections.
     sections: Vec<Section<'a>>,
 
@@ -109,6 +113,7 @@ impl<'a> PE<'a> {
             sections: sections.unwrap_or_default(),
             resources: OnceCell::default(),
             dir_entries: OnceCell::default(),
+            entry_point: OnceCell::default(),
             dos_hdr,
             pe_hdr,
             optional_hdr,
@@ -201,6 +206,13 @@ impl<'a> PE<'a> {
         }
 
         Some(result)
+    }
+
+    /// Returns the PE entry point as a file offset.
+    pub fn entry_point_offset(&self) -> Option<u32> {
+        *self
+            .entry_point
+            .get_or_init(|| self.rva_to_offset(self.optional_hdr.entry_point))
     }
 
     /// Returns a slice of [`Section`] structures, one per each section
@@ -897,10 +909,9 @@ impl From<PE<'_>> for pe::PE {
         result.base_of_code = Some(pe.optional_hdr.base_of_code);
         result.base_of_data = pe.optional_hdr.base_of_data;
         result.entry_point_raw = Some(pe.optional_hdr.entry_point);
+        result.entry_point = pe.entry_point_offset();
         result.section_alignment = Some(pe.optional_hdr.section_alignment);
         result.file_alignment = Some(pe.optional_hdr.file_alignment);
-        // TODO
-        //result.entry_point =
         result.loader_flags = Some(pe.optional_hdr.loader_flags);
         result.dll_characteristics =
             Some(pe.optional_hdr.dll_characteristics.into());

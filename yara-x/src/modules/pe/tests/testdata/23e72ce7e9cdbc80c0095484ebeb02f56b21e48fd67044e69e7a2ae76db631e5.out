@@ -23,6 +23,7 @@ timestamp: 1827812126
 image_base: 6442450944
 checksum: 57102
 base_of_code: 4096
+entry_point: 1920
 entry_point_raw: 4992
 section_alignment: 4096
 file_alignment: 512
