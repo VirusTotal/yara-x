@@ -14,8 +14,8 @@ pub mod parser;
 
 #[module_main]
 fn main(ctx: &ScanContext) -> PE {
-    match parser::PEParser::new().parse(ctx.scanned_data()) {
-        Ok(pe) => pe,
+    match parser::PE::parse(ctx.scanned_data()) {
+        Ok(pe) => pe.into(),
         Err(_) => {
             let mut pe = PE::new();
             pe.is_pe = Some(false);

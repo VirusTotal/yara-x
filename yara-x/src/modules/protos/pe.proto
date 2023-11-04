@@ -56,8 +56,11 @@ message PE {
 
   repeated Section sections = 37;
   repeated DirEntry data_directories = 38;
+  repeated Resource resources = 39;
 
-  optional Overlay overlay = 39;
+  // TODO: implement resource_version?
+
+  optional Overlay overlay = 40;
 }
 
 message Version {
@@ -68,6 +71,47 @@ message Version {
 message DirEntry {
   required uint32 virtual_address = 1;
   required uint32 size = 2;
+}
+
+message Resource {
+  required uint32 length = 1;
+  required uint32 rva = 2;
+  required uint32 offset = 3;
+  required ResourceType type = 4;
+  optional uint32 id = 5;
+  optional uint32 language = 6;
+  optional bytes type_string = 7;
+  optional bytes name_string = 8;
+  optional bytes language_string = 9;
+}
+
+///  https://learn.microsoft.com/en-us/windows/win32/menurc/resource-types?redirectedfrom=MSDN
+enum ResourceType {
+  option (yara.enum_options).inline = true;
+  RESOURCE_TYPE_CURSOR = 1;
+  RESOURCE_TYPE_BITMAP = 2;
+  RESOURCE_TYPE_ICON = 3;
+  RESOURCE_TYPE_MENU = 4;
+  RESOURCE_TYPE_DIALOG = 5;
+  RESOURCE_TYPE_STRING = 6;
+  RESOURCE_TYPE_FONTDIR = 7;
+  RESOURCE_TYPE_FONT = 8;
+  RESOURCE_TYPE_ACCELERATOR = 9;
+  RESOURCE_TYPE_RCDATA = 10;
+  RESOURCE_TYPE_MESSAGETABLE = 11;
+  RESOURCE_TYPE_GROUP_CURSOR = 12;
+  // 13 is missing
+  RESOURCE_TYPE_GROUP_ICON = 14;
+  // 15 is missing
+  RESOURCE_TYPE_VERSION = 16;
+  RESOURCE_TYPE_DLGINCLUDE = 17;
+  // 18 is missing
+  RESOURCE_TYPE_PLUGPLAY = 19;
+  RESOURCE_TYPE_VXD = 20;
+  RESOURCE_TYPE_ANICURSOR = 21;
+  RESOURCE_TYPE_ANIICON = 22;
+  RESOURCE_TYPE_HTML = 23;
+  RESOURCE_TYPE_MANIFEST = 24;
 }
 
 message Section {
