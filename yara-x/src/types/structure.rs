@@ -410,7 +410,7 @@ impl Struct {
     /// Inline enums are those whose fields are added directly to the parent
     /// struct, no new structs are created for accommodating the enum fields.
     ///
-    /// For example, consider this non-flat enum:
+    /// For example, consider this non-inline enum:
     ///
     /// ```text
     /// enum MyEnum {
@@ -423,10 +423,11 @@ impl Struct {
     /// `MyEnum`. If the enum is declared at the module level, it will be
     /// accessed like this:  `module_name.MyEnum.ITEM_0`.
     ///
-    /// Now consider the flat variant:
+    /// Now consider the inline variant:
     ///
     /// ```text
     /// enum MyEnum {
+    ///   option (yara.enum_options).inline = true;
     ///   ITEM_0 = 0;
     ///   ITEM_1 = 1;
     /// }
