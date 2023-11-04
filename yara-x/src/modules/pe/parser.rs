@@ -75,7 +75,8 @@ impl<'a> PE<'a> {
         let (directory, optional_hdr) =
             Self::parse_opt_header()(optional_hdr)?;
 
-        let string_table_offset = pe_hdr.ptr_sym_table.saturating_add(
+        // The string table is located right after the COFF symbol table.
+        let string_table_offset = pe_hdr.symbol_table_offset.saturating_add(
             pe_hdr.number_of_symbols.saturating_mul(Self::SIZE_OF_SYMBOL),
         );
 
@@ -378,7 +379,7 @@ impl<'a> PE<'a> {
                     pe_hdr.machine,
                     pe_hdr.number_of_sections,
                     pe_hdr.timestamp,
-                    pe_hdr.ptr_sym_table,
+                    pe_hdr.symbol_table_offset,
                     pe_hdr.number_of_symbols,
                     pe_hdr.size_of_optional_header,
                     pe_hdr.characteristics,
@@ -592,9 +593,11 @@ impl<'a> PE<'a> {
                     // Here we remove the trailing nulls, if any, but don't
                     // assume that the name is valid UTF-8 because some files
                     // have section names containing zeroes or non-valid UTF-8.
-                    // For example, file
+                    // For example, the file listed below has sections named
+                    // ".data\x00l\x06" and ".bss\x00\x7f".
+                    //
                     // 0043812838495a45449a0ac61a81b9c16eddca1ad249fb4f7fdb1c4505e9bb34
-                    // has sections named ".data\x00l\x06" and ".bss\x00\x7f".
+                    //
                     BStr::new(name).trim_end_with(|c| c == '\0').into()
                 }), // name
                 le_u32, // virtual_size
@@ -613,31 +616,29 @@ impl<'a> PE<'a> {
             // "/234").In such instances, the number after the slash denotes an
             // offset within the string table where the actual section name is
             // stored. This approach allows the inclusion of section names
-            // longer than the 8 bytes allocated in the PE section
-            // table. For example, the file
+            // longer than the 8 bytes allocated in the PE section table. For
+            // example, the file listed below contains a section named "/4",
+            // which gets translated into ".gnu_debuglink".
+            //
             // 2e9c671b8a0411f2b397544b368c44d7f095eb395779de0ad1ac946914dfa34c
-            // contains a section named "/4", which gets translated into
-            // ".gnu_debuglink".
+            //
             if let Some(string_table) = string_table {
                 if let Some(offset) = section
                     .name
                     .to_str()
                     .ok()
-                    .and_then(|name| name.strip_prefix("/"))
+                    .and_then(|name| name.strip_prefix('/'))
                     .and_then(|offset| u32::from_str(offset).ok())
                 {
                     if let Some(s) = string_table.get(offset as usize..) {
                         if let Ok((_, s)) =
                             take_till::<_, &[u8], Error>(|c| c == 0)(s)
                         {
-                            section.full_name = Some(BStr::new(s).into());
+                            section.full_name = Some(BStr::new(s));
                         }
                     }
                 }
             }
-
-            // TODO: parse section names like /1
-            // see: pe_get_section_full_name in YARA
 
             Ok((remainder, section))
         }
@@ -887,7 +888,7 @@ impl From<PE<'_>> for pe::PE {
         result.timestamp = Some(pe.pe_hdr.timestamp);
         result.characteristics = Some(pe.pe_hdr.characteristics.into());
         result.number_of_sections = Some(pe.pe_hdr.number_of_sections.into());
-        result.pointer_to_symbol_table = Some(pe.pe_hdr.ptr_sym_table);
+        result.pointer_to_symbol_table = Some(pe.pe_hdr.symbol_table_offset);
         result.number_of_symbols = Some(pe.pe_hdr.number_of_symbols);
         result.size_of_optional_header =
             Some(pe.pe_hdr.size_of_optional_header.into());
@@ -1059,7 +1060,7 @@ pub struct PEHeader {
     machine: u16,
     number_of_sections: u16,
     timestamp: u32,
-    ptr_sym_table: u32,
+    symbol_table_offset: u32,
     number_of_symbols: u32,
     size_of_optional_header: u16,
     characteristics: u16,

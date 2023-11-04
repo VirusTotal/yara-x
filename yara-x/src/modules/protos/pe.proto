@@ -116,18 +116,20 @@ enum ResourceType {
 
 message Section {
   // The section's name as listed in the section table. The data type is `bytes`
-  // instead of `string` so that it can accommodate invalid UTF-8 characters.
+  // instead of `string` so that it can accommodate invalid UTF-8 content. The
+  // length is 8 bytes at most.
   required bytes name = 1;
-  // Certain PE files produced by GNU compilers may contain section names
-  // following the pattern of "/d+" (for example: "/4", "/10", "/234"). In such
-  // instances, the number after the slash denotes an offset within the string
-  // table where the actual section name is stored. This approach allows the
-  // inclusion of section names longer than the 8 bytes allocated in the PE
-  // section table.
+  // For section names longer than 8 bytes, the name in the section table (and
+  // in the `name` field) contains a forward slash (/) followed by an ASCII
+  // representation of a decimal number that is an offset into the string table.
+  // (examples: "/4", "/123") This mechanism is described in the MSDN and used
+  // by GNU compilers.
   //
   // When this scenario occurs, the `full_name` field holds the actual section
   // name. In all other cases, it simply duplicates the content of the `name`
   // field.
+  //
+  // See: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_section_header#members
   required bytes full_name = 2;
   required uint32 characteristics = 3;
   required uint32 raw_data_size = 4;
