@@ -3,12 +3,16 @@ use protobuf::{
     reflect::MessageRef, reflect::ReflectValueRef::Bool, MessageDyn,
 };
 use protobuf_json_mapping::print_to_string;
+use std::fmt::Write;
 use std::io;
 use thiserror::Error;
 use yansi::Color::Cyan;
 use yara_x_proto::exts::module_options;
 
 use crate::serializer::{get_human_readable_output, get_serializer};
+
+#[cfg(test)]
+mod tests;
 
 /// Errors returned by [`Dumper::dump`].
 #[derive(Error, Debug)]
@@ -35,7 +39,7 @@ pub enum Error {
     /// Error for unsupported serilization formats.
     #[error("Unsupported serilization format")]
     UnsupportedFormat,
-    /// Error for formatting problems
+    /// Error while formatting output
     #[error("Formatting Error")]
     FormattingError(#[from] std::fmt::Error),
 }
@@ -47,17 +51,31 @@ pub struct Dumper {}
 // Dumper public API.
 impl Dumper {
     // Checks if the module output is valid by checking the validity flag.
+    //
+    // # Arguments
+    //
+    // * `mod_output`: The module output to check.
+    //
+    // # Returns
+    //
+    // * `true` if the module output is valid, `false` otherwise.
     fn module_is_valid(&self, mod_output: &dyn MessageDyn) -> bool {
+        // Get the module options.
         if let Some(module_desc) = module_options
             .get(&mod_output.descriptor_dyn().file_descriptor_proto().options)
         {
+            // Get the field name which is considered as the validity flag.
             if let Some(validity_flag_str) =
                 module_desc.validity_flag.as_deref()
             {
+                // Get the validity flag value.
                 if let Some(field) = mod_output
                     .descriptor_dyn()
                     .field_by_name(validity_flag_str)
                 {
+                    // Check if the validity flag is set.
+                    // Validity flag is set if the value present and is not
+                    // false.
                     if let Some(value) = field.get_singular(mod_output) {
                         return value != Bool(false);
                     }
@@ -69,16 +87,29 @@ impl Dumper {
     }
 
     /// Dumps information about the binary file.
+    ///
+    /// # Arguments
+    ///
+    /// * `input`: The input to read from.
+    /// * `modules`: The list of modules to import.
+    /// * `output_format`: The desired output format.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<(), Error>` indicating whether the operation was
+    /// successful or not.
     pub fn dump<R>(
         &self,
         mut input: R,
         modules: Vec<&str>,
         output_format: Option<&String>,
-    ) -> Result<(), Error>
+    ) -> Result<String, Error>
     where
         R: io::Read,
     {
         let mut buffer = Vec::new();
+        let mut result = String::new();
+
         input.read_to_end(&mut buffer).map_err(Error::ReadError)?;
 
         // Get the list of modules to import.
@@ -106,6 +137,7 @@ impl Dumper {
 
         let mut scanner = yara_x::Scanner::new(&rules);
 
+        // Scan the buffer and get the results.
         let scan_results =
             scanner.scan(&buffer).expect("scan should not fail");
 
@@ -151,13 +183,13 @@ impl Dumper {
                 }
             }
 
-            // Print the result.
-            println!(
+            write!(
+                result,
                 ">>>\n{}:\n{}\n<<<",
                 Cyan.paint(mod_name).bold(),
                 serialized_result
-            );
+            )?;
         }
-        Ok(())
+        Ok(result)
     }
 }

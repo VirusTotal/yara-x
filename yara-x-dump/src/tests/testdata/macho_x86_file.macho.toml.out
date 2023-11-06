@@ -1,0 +1,163 @@
+>>>
+[1;36mmacho[0m:
+cpusubtype = 3
+cputype = 7
+entryPoint = "3728"
+filetype = 2
+flags = 18874501
+magic = 4277009102
+ncmds = 16
+numberOfSegments = "4"
+sizeofcmds = 1060
+stackSize = "0"
+
+[[dylibs]]
+compatibilityVersion = "1.0.0"
+currentVersion = "1213.0.0"
+name = "/usr/lib/libSystem.B.dylib"
+timestamp = 2
+
+[[segments]]
+cmd = 1
+cmdsize = 56
+fileoff = "0"
+filesize = "0"
+flags = 0
+initprot = 0
+maxprot = 0
+nsects = 0
+segname = "__PAGEZERO"
+vmaddr = "0"
+vmsize = "4096"
+
+[[segments]]
+cmd = 1
+cmdsize = 396
+fileoff = "0"
+filesize = "4096"
+flags = 0
+initprot = 5
+maxprot = 7
+nsects = 5
+segname = "__TEXT"
+vmaddr = "4096"
+vmsize = "4096"
+
+[[segments.sections]]
+addr = "7824"
+align = 4
+flags = 2147484672
+nreloc = 0
+offset = 3728
+reloff = 0
+reserved1 = 0
+reserved2 = 0
+sectname = "__text"
+segname = "__TEXT"
+size = "166"
+
+[[segments.sections]]
+addr = "7990"
+align = 1
+flags = 2147484936
+nreloc = 0
+offset = 3894
+reloff = 0
+reserved1 = 0
+reserved2 = 6
+sectname = "__symbol_stub"
+segname = "__TEXT"
+size = "12"
+
+[[segments.sections]]
+addr = "8004"
+align = 2
+flags = 2147484928
+nreloc = 0
+offset = 3908
+reloff = 0
+reserved1 = 0
+reserved2 = 0
+sectname = "__stub_helper"
+segname = "__TEXT"
+size = "32"
+
+[[segments.sections]]
+addr = "8036"
+align = 0
+flags = 2
+nreloc = 0
+offset = 3940
+reloff = 0
+reserved1 = 0
+reserved2 = 0
+sectname = "__cstring"
+segname = "__TEXT"
+size = "69"
+
+[[segments.sections]]
+addr = "8108"
+align = 2
+flags = 0
+nreloc = 0
+offset = 4012
+reloff = 0
+reserved1 = 0
+reserved2 = 0
+sectname = "__unwind_info"
+segname = "__TEXT"
+size = "72"
+
+[[segments]]
+cmd = 1
+cmdsize = 192
+fileoff = "4096"
+filesize = "4096"
+flags = 0
+initprot = 3
+maxprot = 7
+nsects = 2
+segname = "__DATA"
+vmaddr = "8192"
+vmsize = "4096"
+
+[[segments.sections]]
+addr = "8192"
+align = 2
+flags = 6
+nreloc = 0
+offset = 4096
+reloff = 0
+reserved1 = 2
+reserved2 = 0
+sectname = "__nl_symbol_ptr"
+segname = "__DATA"
+size = "8"
+
+[[segments.sections]]
+addr = "8200"
+align = 2
+flags = 7
+nreloc = 0
+offset = 4104
+reloff = 0
+reserved1 = 4
+reserved2 = 0
+sectname = "__la_symbol_ptr"
+segname = "__DATA"
+size = "8"
+
+[[segments]]
+cmd = 1
+cmdsize = 56
+fileoff = "8192"
+filesize = "280"
+flags = 0
+initprot = 1
+maxprot = 7
+nsects = 0
+segname = "__LINKEDIT"
+vmaddr = "12288"
+vmsize = "4096"
+
+<<<

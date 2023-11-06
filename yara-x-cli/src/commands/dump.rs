@@ -25,6 +25,7 @@ pub fn dump() -> Command {
         .arg(
             Arg::new("modules")
             .long("modules")
+            .short('m')
             .help("Name of the module or comma-separated list of modules to be used for parsing")
             .required(false)
             .action(ArgAction::Append)
@@ -46,13 +47,11 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     let dumper = Dumper::default();
 
     let input: Box<dyn std::io::Read> = if let Some(file) = file {
-        println!("Dumping file: {:?}", file.as_path());
         Box::new(File::open(file.as_path())?)
     } else {
-        println!("Dumping stdin");
         Box::new(stdin())
     };
 
-    dumper.dump(input, modules, output_format)?;
+    println!("{}", dumper.dump(input, modules, output_format)?);
     Ok(())
 }
