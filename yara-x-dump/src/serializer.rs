@@ -24,49 +24,44 @@ impl Colors {
     const YELLOW: Color = Color::RGB(255, 255, 102);
 }
 
+#[derive(Debug, Default, Clone)]
 struct ValueOptions {
     is_hex: bool,
     is_timestamp: bool,
 }
 
-impl ValueOptions {
-    fn new() -> Self {
-        ValueOptions { is_hex: false, is_timestamp: false }
-    }
-}
-
 /// A trait for any type that can serialize a message
 pub(crate) trait Serializer {
-    fn serialize(&self, message: String) -> Result<String, Error>;
+    fn serialize(&self, message: &str) -> Result<String, Error>;
 }
 
 /// Implement the trait for the JSON serializer
 impl Serializer for JsonSerializer {
-    fn serialize(&self, message: String) -> Result<String, Error> {
-        let value = serde_json::from_str::<serde_json::Value>(&message)?;
+    fn serialize(&self, message: &str) -> Result<String, Error> {
+        let value = serde_json::from_str::<serde_json::Value>(message)?;
         Ok(serde_json::to_string_pretty(&value)?)
     }
 }
 
 /// Implement the trait for the YAML serializer
 impl Serializer for YamlSerializer {
-    fn serialize(&self, message: String) -> Result<String, Error> {
-        let value = serde_json::from_str::<serde_yaml::Value>(&message)?;
+    fn serialize(&self, message: &str) -> Result<String, Error> {
+        let value = serde_json::from_str::<serde_yaml::Value>(message)?;
         Ok(serde_yaml::to_string(&value)?)
     }
 }
 
 /// Implement the trait for the TOML serializer
 impl Serializer for TomlSerializer {
-    fn serialize(&self, message: String) -> Result<String, Error> {
-        let value = serde_json::from_str::<toml::Value>(&message)?;
+    fn serialize(&self, message: &str) -> Result<String, Error> {
+        let value = serde_json::from_str::<toml::Value>(message)?;
         Ok(toml::to_string_pretty(&value)?)
     }
 }
 
 /// Implement the trait for the XML serializer
 impl Serializer for XmlSerializer {
-    fn serialize(&self, message: String) -> Result<String, Error> {
+    fn serialize(&self, message: &str) -> Result<String, Error> {
         // Create a new XML builder and get the XML
         let mut xml_builder = xml2json_rs::XmlConfig::new()
             .rendering(xml2json_rs::Indentation::new(b' ', 2))
@@ -77,13 +72,15 @@ impl Serializer for XmlSerializer {
             ))
             .root_name("file")
             .finalize();
-        let xml = xml_builder.build_from_json_string(&message)?;
+        let xml = xml_builder.build_from_json_string(message)?;
         Ok(xml)
     }
 }
 
 /// A function that returns a trait object based on the format
-pub fn get_serializer(format: &str) -> Result<Box<dyn Serializer>, Error> {
+pub(crate) fn get_serializer(
+    format: &str,
+) -> Result<Box<dyn Serializer>, Error> {
     match format {
         // Return a JSON serializer
         "json" => Ok(Box::new(JsonSerializer)),
@@ -104,31 +101,33 @@ fn print_field_name(
     field_name: &str,
     indent: usize,
     is_first_line: &mut bool,
-) {
+) -> Result<(), Error> {
     let mut indentation = get_indentation(indent);
 
-    if field_name.is_empty() {
-        return;
-    }
-
-    if *is_first_line {
-        if !indentation.is_empty() {
-            indentation.pop();
-            indentation.pop();
+    if !field_name.is_empty() {
+        if *is_first_line {
+            if !indentation.is_empty() {
+                indentation.pop();
+                indentation.pop();
+            }
+            write!(
+                buf,
+                "{}{} {}: ",
+                indentation,
+                Colors::YELLOW.paint("-").bold(),
+                Colors::BLUE.paint(field_name)
+            )?;
+            *is_first_line = false;
+        } else {
+            write!(
+                buf,
+                "{}{}: ",
+                indentation,
+                Colors::BLUE.paint(field_name)
+            )?;
         }
-        write!(
-            buf,
-            "{}{} {}: ",
-            indentation,
-            Colors::YELLOW.paint("-").bold(),
-            Colors::BLUE.paint(field_name)
-        )
-        .unwrap();
-        *is_first_line = false;
-    } else {
-        write!(buf, "{}{}: ", indentation, Colors::BLUE.paint(field_name))
-            .unwrap();
     }
+    Ok(())
 }
 
 // Print a field value with correct indentation for multiple value formats
@@ -138,23 +137,23 @@ fn print_field_value(
     value_options: &ValueOptions,
     indent: usize,
     is_first_line: &mut bool,
-) {
+) -> Result<(), Error> {
     match value {
         ReflectValueRef::Message(m) => {
             *is_first_line = true;
-            get_human_readable_output(&m, buf, indent + 1, is_first_line);
+            get_human_readable_output(&m, buf, indent + 1, is_first_line)?;
         }
         ReflectValueRef::Enum(d, v) => match d.value_by_number(v) {
-            Some(e) => writeln!(buf, "{}", e.name()).unwrap(),
-            None => writeln!(buf, "{}", v).unwrap(),
+            Some(e) => writeln!(buf, "{}", e.name())?,
+            None => writeln!(buf, "{}", v)?,
         },
         ReflectValueRef::String(s) => {
             quote_bytes_to(s.as_bytes(), buf);
-            buf.push_str("\n");
+            buf.push('\n');
         }
         ReflectValueRef::Bytes(b) => {
             quote_bytes_to(b, buf);
-            buf.push_str("\n");
+            buf.push('\n');
         }
         ReflectValueRef::I32(v) => {
             let field_value = if value_options.is_hex {
@@ -172,7 +171,7 @@ fn print_field_value(
             } else {
                 v.to_string()
             };
-            writeln!(buf, "{}", field_value).unwrap();
+            writeln!(buf, "{}", field_value)?;
         }
         ReflectValueRef::I64(v) => {
             let field_value = if value_options.is_hex {
@@ -189,7 +188,7 @@ fn print_field_value(
             } else {
                 v.to_string()
             };
-            writeln!(buf, "{}", field_value).unwrap();
+            writeln!(buf, "{}", field_value)?;
         }
         ReflectValueRef::U32(v) => {
             let field_value = if value_options.is_hex {
@@ -207,7 +206,7 @@ fn print_field_value(
             } else {
                 v.to_string()
             };
-            writeln!(buf, "{}", field_value).unwrap();
+            writeln!(buf, "{}", field_value)?;
         }
         ReflectValueRef::U64(v) => {
             let field_value = if value_options.is_hex {
@@ -225,30 +224,31 @@ fn print_field_value(
             } else {
                 v.to_string()
             };
-            writeln!(buf, "{}", field_value).unwrap();
+            writeln!(buf, "{}", field_value)?;
         }
         ReflectValueRef::Bool(v) => {
-            writeln!(buf, "{}", v).unwrap();
+            writeln!(buf, "{}", v)?;
         }
         ReflectValueRef::F32(v) => {
-            writeln!(buf, "{:.1}", v).unwrap();
+            writeln!(buf, "{:.1}", v)?;
         }
         ReflectValueRef::F64(v) => {
-            writeln!(buf, "{:.1}", v).unwrap();
+            writeln!(buf, "{:.1}", v)?;
         }
     }
+    Ok(())
 }
 
 // Get the value options for a field
 fn get_value_options(field_descriptor: &FieldDescriptorProto) -> ValueOptions {
-    let value_options = field_options
+    field_options
         .get(&field_descriptor.options)
         .map(|options| ValueOptions {
-            is_hex: options.hex_value.unwrap_or(false),
-            is_timestamp: options.timestamp.unwrap_or(false),
+            // Default for boolean is false
+            is_hex: options.hex_value.unwrap_or_default(),
+            is_timestamp: options.timestamp.unwrap_or_default(),
         })
-        .unwrap_or(ValueOptions::new());
-    value_options
+        .unwrap_or_default()
 }
 
 // Print a field name and value
@@ -259,11 +259,12 @@ fn print_field(
     field_descriptor: &FieldDescriptorProto,
     indent: usize,
     is_first_line: &mut bool,
-) {
+) -> Result<(), Error> {
     let value_options = get_value_options(field_descriptor);
 
-    print_field_name(buf, field_name, indent, is_first_line);
-    print_field_value(buf, value, &value_options, indent, is_first_line);
+    print_field_name(buf, field_name, indent, is_first_line)?;
+    print_field_value(buf, value, &value_options, indent, is_first_line)?;
+    Ok(())
 }
 
 // Get indentation level
@@ -277,7 +278,7 @@ pub fn get_human_readable_output(
     buf: &mut String,
     indent: usize,
     first_line: &mut bool,
-) -> String {
+) -> Result<(), Error> {
     let desc = msg.descriptor_dyn();
 
     // Iterate over the fields of the message
@@ -293,8 +294,7 @@ pub fn get_human_readable_output(
                     "{}{}:",
                     get_indentation(indent),
                     Colors::YELLOW.paint(f.name()).bold()
-                )
-                .unwrap();
+                )?;
                 for (k, v) in &map {
                     match v {
                         ReflectValueRef::Message(_) => {
@@ -303,8 +303,7 @@ pub fn get_human_readable_output(
                                 "{}{}:",
                                 get_indentation(indent + 1),
                                 Colors::BLUE.paint(k)
-                            )
-                            .unwrap();
+                            )?;
                         }
                         _ => {
                             write!(
@@ -312,18 +311,17 @@ pub fn get_human_readable_output(
                                 "{}{}: ",
                                 get_indentation(indent + 1),
                                 Colors::BLUE.paint(k)
-                            )
-                            .unwrap();
+                            )?;
                         }
                     }
                     print_field(
                         buf,
                         "",
                         v,
-                        &f.proto(),
+                        f.proto(),
                         indent + 1,
                         first_line,
-                    );
+                    )?;
                 }
             }
             ReflectFieldRef::Repeated(repeated) => {
@@ -337,15 +335,13 @@ pub fn get_human_readable_output(
                     Colors::GREEN.paint("# Nested").italic(),
                     Colors::GREEN.paint(f.name()).italic(),
                     Colors::GREEN.paint("structure").italic()
-                )
-                .unwrap();
+                )?;
                 writeln!(
                     buf,
                     "{}{}:",
                     get_indentation(indent),
                     Colors::YELLOW.paint(f.name()).bold()
-                )
-                .unwrap();
+                )?;
                 for v in repeated {
                     match v {
                         ReflectValueRef::Message(_) => {
@@ -353,10 +349,10 @@ pub fn get_human_readable_output(
                                 buf,
                                 "",
                                 v,
-                                &f.proto(),
+                                f.proto(),
                                 indent,
                                 first_line,
-                            );
+                            )?;
                         }
                         _ => {
                             write!(
@@ -364,16 +360,15 @@ pub fn get_human_readable_output(
                                 "{}  {} ",
                                 get_indentation(indent),
                                 Colors::YELLOW.paint("-").bold(),
-                            )
-                            .unwrap();
+                            )?;
                             print_field(
                                 buf,
                                 "",
                                 v,
-                                &f.proto(),
+                                f.proto(),
                                 indent,
                                 first_line,
-                            );
+                            )?;
                         }
                     }
                 }
@@ -389,33 +384,31 @@ pub fn get_human_readable_output(
                                 Colors::GREEN.paint("# Nested").italic(),
                                 Colors::GREEN.paint(f.name()).italic(),
                                 Colors::GREEN.paint("structure").italic()
-                            )
-                            .unwrap();
+                            )?;
                             writeln!(
                                 buf,
                                 "{}{}:",
                                 get_indentation(indent),
                                 Colors::YELLOW.paint(f.name()).bold()
-                            )
-                            .unwrap();
+                            )?;
                             print_field(
                                 buf,
                                 "",
                                 v,
-                                &f.proto(),
+                                f.proto(),
                                 indent,
                                 first_line,
-                            );
+                            )?;
                         }
                         _ => {
                             print_field(
                                 buf,
                                 f.name(),
                                 v,
-                                &f.proto(),
+                                f.proto(),
                                 indent,
                                 first_line,
-                            );
+                            )?;
                         }
                     }
                 }
@@ -423,5 +416,5 @@ pub fn get_human_readable_output(
         }
     }
 
-    return buf.to_string();
+    Ok(())
 }

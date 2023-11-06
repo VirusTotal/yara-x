@@ -3,12 +3,9 @@ use protobuf::{
     reflect::MessageRef, reflect::ReflectValueRef::Bool, MessageDyn,
 };
 use protobuf_json_mapping::print_to_string;
-use serde_json;
-use serde_yaml;
 use std::io;
 use thiserror::Error;
 use yansi::Color::Cyan;
-use yara_x;
 use yara_x_proto::exts::module_options;
 
 use crate::serializer::{get_human_readable_output, get_serializer};
@@ -38,24 +35,17 @@ pub enum Error {
     /// Error for unsupported serilization formats.
     #[error("Unsupported serilization format")]
     UnsupportedFormat,
+    /// Error for formatting problems
+    #[error("Formatting Error")]
+    FormattingError(#[from] std::fmt::Error),
 }
 
 /// Dumps information about binary files.
+#[derive(Debug, Default, Clone)]
 pub struct Dumper {}
-
-impl Default for Dumper {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 // Dumper public API.
 impl Dumper {
-    /// Creates a new dumper.
-    pub fn new() -> Self {
-        Dumper {}
-    }
-
     // Checks if the module output is valid by checking the validity flag.
     fn module_is_valid(&self, mod_output: &dyn MessageDyn) -> bool {
         if let Some(module_desc) = module_options
@@ -82,7 +72,7 @@ impl Dumper {
     pub fn dump<R>(
         &self,
         mut input: R,
-        modules: Option<&Vec<String>>,
+        modules: Vec<&str>,
         output_format: Option<&String>,
     ) -> Result<(), Error>
     where
@@ -92,13 +82,10 @@ impl Dumper {
         input.read_to_end(&mut buffer).map_err(Error::ReadError)?;
 
         // Get the list of modules to import.
-        let import_modules = if let Some(modules) = modules {
+        let import_modules = if !modules.is_empty() {
             modules.clone()
         } else {
             yara_x::get_builtin_modules_names()
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect()
         };
 
         // Create a rule that imports all the built-in modules.
@@ -131,28 +118,27 @@ impl Dumper {
             // Skip empty outputs or invalid outputs that are not requested.
             if mod_output.compute_size_dyn() == 0
                 || (!self.module_is_valid(mod_output)
-                    && !modules
-                        .unwrap_or(&vec![])
-                        .contains(&mod_name.to_string()))
+                    && !modules.contains(&mod_name))
             {
                 continue;
             }
             match output_format {
                 // Output is desired to be human-readable.
                 Some(format) if format == "human-readable" => {
-                    serialized_result = get_human_readable_output(
+                    get_human_readable_output(
                         &MessageRef::from(mod_output),
                         &mut serialized_result,
                         0,
                         &mut is_first_line,
-                    );
+                    )?;
                 }
                 // Serialize output for other given formats.
                 Some(format) => {
                     let json_output = print_to_string(mod_output)?;
                     let serializer = get_serializer(format)?;
 
-                    serialized_result = serializer.serialize(json_output)?;
+                    serialized_result =
+                        serializer.serialize(json_output.as_str())?;
                 }
                 // Default to human-readable output.
                 None => {
@@ -161,7 +147,7 @@ impl Dumper {
                         &mut serialized_result,
                         0,
                         &mut is_first_line,
-                    );
+                    )?;
                 }
             }
 

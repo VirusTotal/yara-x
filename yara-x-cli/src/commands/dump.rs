@@ -1,11 +1,11 @@
-use clap::{arg, value_parser, Arg, ArgMatches, Command};
+use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 use std::fs::File;
 use std::io::stdin;
 use std::path::PathBuf;
 
 use yara_x_dump::Dumper;
 
-use crate::commands::modules_parser;
+use yara_x::get_builtin_modules_names;
 
 pub fn dump() -> Command {
     super::command("dump")
@@ -27,25 +27,32 @@ pub fn dump() -> Command {
             .long("modules")
             .help("Name of the module or comma-separated list of modules to be used for parsing")
             .required(false)
-            .value_parser(modules_parser),
+            .action(ArgAction::Append)
+            .value_parser(get_builtin_modules_names()),
         )
 }
 
 pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     let file = args.get_one::<PathBuf>("FILE");
     let output_format = args.get_one::<String>("output-format");
-    let modules = args.get_one::<Vec<String>>("modules");
 
-    let dumper = Dumper::new();
+    // get vector of modules
+    let modules: Vec<&str> = args
+        .get_many::<String>("modules")
+        .unwrap_or_default()
+        .map(|s| s.as_str())
+        .collect();
 
-    if let Some(file) = file {
+    let dumper = Dumper::default();
+
+    let input: Box<dyn std::io::Read> = if let Some(file) = file {
         println!("Dumping file: {:?}", file.as_path());
-        let input = File::open(file.as_path())?;
-        dumper.dump(input, modules, output_format)?;
+        Box::new(File::open(file.as_path())?)
     } else {
         println!("Dumping stdin");
-        dumper.dump(stdin(), modules, output_format)?;
-    }
+        Box::new(stdin())
+    };
 
+    dumper.dump(input, modules, output_format)?;
     Ok(())
 }
