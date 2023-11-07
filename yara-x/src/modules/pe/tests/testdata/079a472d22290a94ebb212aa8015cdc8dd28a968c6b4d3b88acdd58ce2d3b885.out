@@ -48,12 +48,32 @@ version_info {
   value: "Tue Jun 5 21:07:13 IST 2018"
 }
 version_info {
+  key: "InternalName"
+  value: "CUSTPROF.DLL"
+}
+version_info {
   key: "Type"
   value: "QA"
 }
 version_info {
+  key: "ProductVersion"
+  value: "27.1.9.33"
+}
+version_info {
   key: "Build Version"
   value: "27.1.9.33"
+}
+version_info {
+  key: "FileVersion"
+  value: "27.1.9.33"
+}
+version_info {
+  key: "ProductName"
+  value: "Quicken for Windows"
+}
+version_info {
+  key: "CompanyName"
+  value: "Quicken Inc."
 }
 version_info {
   key: "LegalCopyright"
@@ -64,28 +84,8 @@ version_info {
   value: "Customer Profile Interface DLL"
 }
 version_info {
-  key: "ProductName"
-  value: "Quicken for Windows"
-}
-version_info {
-  key: "InternalName"
-  value: "CUSTPROF.DLL"
-}
-version_info {
-  key: "ProductVersion"
-  value: "27.1.9.33"
-}
-version_info {
   key: "OriginalFilename"
   value: "CUSTPROF.DLL"
-}
-version_info {
-  key: "FileVersion"
-  value: "27.1.9.33"
-}
-version_info {
-  key: "CompanyName"
-  value: "Quicken Inc."
 }
 version_info_list {
   key: "FileVersion"

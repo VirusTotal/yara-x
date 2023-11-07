@@ -48,15 +48,11 @@ version_info {
   value: "FileTest.exe"
 }
 version_info {
-  key: "ProductName"
-  value: "FileTest"
-}
-version_info {
-  key: "CompanyName"
-  value: "Ladislav Zezula"
-}
-version_info {
   key: "ProductVersion"
+  value: "2, 7, 0, 601"
+}
+version_info {
+  key: "FileVersion"
   value: "2, 7, 0, 601"
 }
 version_info {
@@ -64,20 +60,24 @@ version_info {
   value: "http://www.zezula.net"
 }
 version_info {
-  key: "FileVersion"
-  value: "2, 7, 0, 601"
-}
-version_info {
-  key: "InternalName"
-  value: "FileTest"
+  key: "CompanyName"
+  value: "Ladislav Zezula"
 }
 version_info {
   key: "LegalCopyright"
   value: "Copyright \302\251 2004 - 2018 Ladislav Zezula"
 }
 version_info {
+  key: "InternalName"
+  value: "FileTest"
+}
+version_info {
   key: "FileDescription"
   value: "Interactive File System API Test"
+}
+version_info {
+  key: "ProductName"
+  value: "FileTest"
 }
 version_info_list {
   key: "CompanyName"

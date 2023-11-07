@@ -43,6 +43,22 @@ number_of_symbols: 0
 number_of_rva_and_sizes: 16
 win32_version_value: 0
 version_info {
+  key: "FileDescription"
+  value: "Task Manager Launcher"
+}
+version_info {
+  key: "FileVersion"
+  value: "10.0.19041.1202 (WinBuild.160101.0800)"
+}
+version_info {
+  key: "CompanyName"
+  value: "Microsoft Corporation"
+}
+version_info {
+  key: "InternalName"
+  value: "LaunchTM.exe"
+}
+version_info {
   key: "LegalCopyright"
   value: "\302\251 Microsoft Corporation. All rights reserved."
 }
@@ -55,24 +71,8 @@ version_info {
   value: "Microsoft\302\256 Windows\302\256 Operating System"
 }
 version_info {
-  key: "FileVersion"
-  value: "10.0.19041.1202 (WinBuild.160101.0800)"
-}
-version_info {
-  key: "CompanyName"
-  value: "Microsoft Corporation"
-}
-version_info {
   key: "ProductVersion"
   value: "10.0.19041.1202"
-}
-version_info {
-  key: "InternalName"
-  value: "LaunchTM.exe"
-}
-version_info {
-  key: "FileDescription"
-  value: "Task Manager Launcher"
 }
 version_info_list {
   key: "CompanyName"
