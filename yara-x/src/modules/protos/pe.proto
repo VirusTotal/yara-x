@@ -25,8 +25,13 @@ message PE {
   optional uint32 checksum = 12;
   optional uint32 base_of_code = 13;
   optional uint32 base_of_data = 14;
+
+  // Entry point as a file offset.
   optional uint32 entry_point = 15;
+
+  // Entry point as it appears in the PE header (RVA).
   optional uint32 entry_point_raw = 16;
+
   optional uint32 section_alignment = 17;
   optional uint32 file_alignment = 18;
   optional uint32 loader_flags = 19;
@@ -49,23 +54,29 @@ message PE {
   optional uint32 win32_version_value = 33;
 
   map<string, string> version_info = 34;
+  repeated KeyValue version_info_list = 35;
 
-  optional uint32 number_of_sections = 35;
+  optional uint32 number_of_sections = 36;
 
-  optional RichSignature rich_signature = 36;
+  optional RichSignature rich_signature = 37;
 
-  repeated Section sections = 37;
-  repeated DirEntry data_directories = 38;
-  repeated Resource resources = 39;
+  repeated Section sections = 38;
+  repeated DirEntry data_directories = 39;
+  repeated Resource resources = 40;
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 40;
+  optional Overlay overlay = 41;
 }
 
 message Version {
   required uint32 major = 1;
   required uint32 minor = 2;
+}
+
+message KeyValue {
+  required string key = 1;
+  required string value = 2;
 }
 
 message DirEntry {

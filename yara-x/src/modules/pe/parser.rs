@@ -7,13 +7,14 @@ use std::str::FromStr;
 use bstr::{BStr, ByteSlice};
 use byteorder::{ByteOrder, LE};
 use memchr::memmem;
+use nom::branch::permutation;
 use nom::bytes::complete::{take, take_till};
-use nom::combinator::{cond, map, verify};
+use nom::combinator::{cond, consumed, fail, map, opt, success, verify};
 use nom::error::ErrorKind;
-use nom::multi::{count, length_data, many0};
+use nom::multi::{count, fold_many1, length_data, many0, many1};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
-use nom::{Err, IResult};
+use nom::{Err, IResult, Parser, ToUsize};
 use protobuf::{EnumOrUnknown, MessageField};
 
 use crate::modules::protos::pe;
@@ -41,6 +42,9 @@ pub struct PE<'a> {
     /// PE sections.
     sections: Vec<Section<'a>>,
 
+    /// PE version information extracted from resources.
+    version_info: OnceCell<Option<Vec<(String, String)>>>,
+
     /// PE resources. Resources are parsed lazily when [`PE::get_resources`]
     /// is called for the first time.
     resources: OnceCell<Option<Vec<Resource<'a>>>>,
@@ -64,7 +68,7 @@ impl<'a> PE<'a> {
     /// representing the file.
     pub fn parse(input: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
         // Parse the MZ header.
-        let (_, dos_hdr) = Self::parse_dos_header()(input)?;
+        let (_, dos_hdr) = Self::parse_dos_header(input)?;
 
         // The PE header starts at the offset indicated by `dos_hdr.e_lfanew`.
         // Everything between offset 0 and `dos_hdr.e_lfanew` is stored in the
@@ -73,7 +77,7 @@ impl<'a> PE<'a> {
         let (pe, dos_stub) = take(dos_hdr.e_lfanew)(input)?;
 
         // Parse the PE header (IMAGE_FILE_HEADER)
-        let (optional_hdr, pe_hdr) = Self::parse_pe_header()(pe)?;
+        let (optional_hdr, pe_hdr) = Self::parse_pe_header(pe)?;
 
         // Parse the PE optional header (IMAGE_OPTIONAL_HEADER).
         let (directory, optional_hdr) =
@@ -95,6 +99,8 @@ impl<'a> PE<'a> {
                 + pe_hdr.size_of_optional_header as usize..,
         ) {
             count(
+                // The section parser needs the string table for resolving
+                // some section names.
                 Self::parse_section(string_table),
                 // The number of sections is capped to MAX_PE_SECTIONS.
                 usize::min(
@@ -114,6 +120,7 @@ impl<'a> PE<'a> {
             resources: OnceCell::default(),
             dir_entries: OnceCell::default(),
             entry_point: OnceCell::default(),
+            version_info: OnceCell::default(),
             dos_hdr,
             pe_hdr,
             optional_hdr,
@@ -241,6 +248,16 @@ impl<'a> PE<'a> {
         Some(rich_header)
     }
 
+    // TODO
+    pub fn get_version_info(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.version_info
+            .get_or_init(|| self.parse_version_info())
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+    }
+
     /// Returns a slice of [`Resource`] structures, one per each resource
     /// declared in the PE file.
     pub fn get_resources(&self) -> &[Resource<'a>] {
@@ -294,7 +311,7 @@ impl<'a> PE<'a> {
         let dir_entry = self
             .directory
             .get(index * Self::SIZE_OF_DIR_ENTRY..)
-            .and_then(|entry| Self::parse_dir_entry()(entry).ok())
+            .and_then(|entry| Self::parse_dir_entry(entry).ok())
             .map(|(_reminder, entry)| entry)?;
 
         let start = self.rva_to_offset(dir_entry.addr)? as usize;
@@ -324,35 +341,9 @@ impl<'a> PE<'a> {
     const MAX_PE_SECTIONS: usize = 96;
     const MAX_DIR_ENTRIES: usize = 16;
 
-    fn parse_dos_header() -> impl FnMut(&[u8]) -> IResult<&[u8], DOSHeader> {
-        move |input: &[u8]| {
-            let mut dos_hdr = DOSHeader::default();
-            let remainder;
-
-            (
-                remainder,
-                (
-                    dos_hdr.e_magic,    // DOS magic.
-                    dos_hdr.e_cblp,     // Bytes on last page of file
-                    dos_hdr.e_cp,       // Pages in file
-                    dos_hdr.e_crlc,     // Relocations
-                    dos_hdr.e_cparhdr,  // Size of header in paragraphs
-                    dos_hdr.e_minalloc, // Minimum extra paragraphs needed
-                    dos_hdr.e_maxalloc, // Maximum extra paragraphs needed
-                    dos_hdr.e_ss,       // Initial (relative) SS value
-                    dos_hdr.e_sp,       // Initial SP value
-                    dos_hdr.e_csum,     // Checksum
-                    dos_hdr.e_ip,       // Initial IP value
-                    dos_hdr.e_cs,       // Initial (relative) CS value
-                    dos_hdr.e_lfarlc,   // File address of relocation table
-                    dos_hdr.e_ovno,     // Overlay number
-                    _,                  // Reserved words
-                    dos_hdr.e_oemid,    // OEM identifier (for e_oeminfo)
-                    dos_hdr.e_oeminfo,  // OEM information; e_oemid specific
-                    _,                  // Reserved words
-                    dos_hdr.e_lfanew,   // File address of new exe header
-                ),
-            ) = tuple((
+    fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
+        map(
+            tuple((
                 // Magic must be 'MZ'
                 verify(le_u16, |magic| *magic == 0x5A4D),
                 le_u16,            // e_cblp
@@ -373,30 +364,52 @@ impl<'a> PE<'a> {
                 le_u16,            // e_oeminfo
                 count(le_u16, 10), // e_res2
                 le_u32,            // e_lfanew
-            ))(input)?;
-
-            Ok((remainder, dos_hdr))
-        }
+            )),
+            |(
+                e_magic,    // DOS magic.
+                e_cblp,     // Bytes on last page of file
+                e_cp,       // Pages in file
+                e_crlc,     // Relocations
+                e_cparhdr,  // Size of header in paragraphs
+                e_minalloc, // Minimum extra paragraphs needed
+                e_maxalloc, // Maximum extra paragraphs needed
+                e_ss,       // Initial (relative) SS value
+                e_sp,       // Initial SP value
+                e_csum,     // Checksum
+                e_ip,       // Initial IP value
+                e_cs,       // Initial (relative) CS value
+                e_lfarlc,   // File address of relocation table
+                e_ovno,     // Overlay number
+                _,          // Reserved
+                e_oemid,    // OEM identifier (for e_oeminfo)
+                e_oeminfo,  // OEM information; e_oemid specific
+                _,          // Reserved
+                e_lfanew,   // File address of new exe header
+            )| DOSHeader {
+                e_magic,
+                e_cblp,
+                e_cp,
+                e_crlc,
+                e_cparhdr,
+                e_minalloc,
+                e_maxalloc,
+                e_ss,
+                e_sp,
+                e_csum,
+                e_ip,
+                e_cs,
+                e_lfarlc,
+                e_ovno,
+                e_oemid,
+                e_oeminfo,
+                e_lfanew,
+            },
+        )(input)
     }
 
-    fn parse_pe_header() -> impl FnMut(&[u8]) -> IResult<&[u8], PEHeader> {
-        move |input: &[u8]| {
-            let mut pe_hdr = PEHeader::default();
-            let remainder;
-
-            (
-                remainder,
-                (
-                    _, // magic
-                    pe_hdr.machine,
-                    pe_hdr.number_of_sections,
-                    pe_hdr.timestamp,
-                    pe_hdr.symbol_table_offset,
-                    pe_hdr.number_of_symbols,
-                    pe_hdr.size_of_optional_header,
-                    pe_hdr.characteristics,
-                ),
-            ) = tuple((
+    fn parse_pe_header(input: &[u8]) -> IResult<&[u8], PEHeader> {
+        map(
+            tuple((
                 // Magic must be 'PE\0\0'
                 verify(le_u32, |magic| *magic == 0x00004550),
                 le_u16, // machine
@@ -406,10 +419,26 @@ impl<'a> PE<'a> {
                 le_u32, // number_of_symbols
                 le_u16, // size_of_optional_header
                 le_u16, // characteristics
-            ))(input)?;
-
-            Ok((remainder, pe_hdr))
-        }
+            )),
+            |(
+                _, // magic
+                machine,
+                number_of_sections,
+                timestamp,
+                symbol_table_offset,
+                number_of_symbols,
+                size_of_optional_header,
+                characteristics,
+            )| PEHeader {
+                machine,
+                number_of_sections,
+                timestamp,
+                symbol_table_offset,
+                number_of_symbols,
+                size_of_optional_header,
+                characteristics,
+            },
+        )(input)
     }
 
     fn parse_opt_header() -> impl FnMut(&[u8]) -> IResult<&[u8], OptionalHeader>
@@ -656,42 +685,34 @@ impl<'a> PE<'a> {
         }
     }
 
-    fn parse_dir_entry() -> impl FnMut(&[u8]) -> IResult<&[u8], DirEntry> {
-        move |input: &[u8]| {
-            map(tuple((le_u32, le_u32)), |(addr, size)| DirEntry {
-                addr,
-                size,
-            })(input)
-        }
+    fn parse_dir_entry(input: &[u8]) -> IResult<&[u8], DirEntry> {
+        map(tuple((le_u32, le_u32)), |(addr, size)| DirEntry { addr, size })(
+            input,
+        )
     }
 
-    fn parse_rsrc_dir() -> impl FnMut(&[u8]) -> IResult<&[u8], usize> {
-        move |input: &[u8]| {
-            let (
-                remainder,
-                (
-                    characteristics,
-                    timestamp,
-                    major_version,
-                    minor_version,
-                    number_of_named_entries,
-                    number_of_id_entries,
-                ),
-            ) = tuple((
-                le_u32::<&[u8], Error>, // characteristics
-                le_u32,                 // timestamp
-                le_u16,                 // major_version
-                le_u16,                 // minor_version
-                le_u16,                 // number_of_named_entries
-                le_u16,                 // number_of_id_entries
-            ))(input)?;
-
-            Ok((
-                remainder,
+    fn parse_rsrc_dir(input: &[u8]) -> IResult<&[u8], usize> {
+        map(
+            tuple((
+                le_u32, // characteristics
+                le_u32, // timestamp
+                le_u16, // major_version
+                le_u16, // minor_version
+                le_u16, // number_of_named_entries
+                le_u16, // number_of_id_entries
+            )),
+            |(
+                _characteristics,
+                _timestamp,
+                _major_version,
+                _minor_version,
+                number_of_named_entries,
+                number_of_id_entries,
+            )| {
                 number_of_id_entries as usize
-                    + number_of_named_entries as usize,
-            ))
-        }
+                    + number_of_named_entries as usize
+            },
+        )(input)
     }
 
     fn parse_rsrc_dir_entry(
@@ -739,22 +760,300 @@ impl<'a> PE<'a> {
         }
     }
 
-    fn parse_rsrc_entry() -> impl FnMut(&[u8]) -> IResult<&[u8], ResourceEntry>
-    {
-        move |input: &[u8]| {
-            map(
+    fn parse_rsrc_entry(input: &[u8]) -> IResult<&[u8], ResourceEntry> {
+        map(
+            tuple((
+                le_u32, // offset
+                le_u32, // size
+                le_u32, // code_page
+                le_u32, // reserved
+            )),
+            |(offset, size, _code_page, _reserved)| ResourceEntry {
+                offset,
+                size,
+            },
+        )(input)
+    }
+
+    /// Parses the VERSIONINFO structure stored in the version-information
+    /// resource.
+    ///
+    /// This is tree-like structure where each node has a key, an optional
+    /// value, and possible a certain number of children. Here is an example of
+    /// how this structure typically looks like:
+    ///
+    /// ```text
+    ///   key: "VS_VERSION_INFO"  value: VS_FIXEDFILEINFO struct
+    ///   ├─ key: "StringFileInfo" value: empty
+    ///   │  ├─ key: 090b0
+    ///   │  │  ├─ key: "CompanyName" value: "Microsoft Corporation"
+    ///   │  │  ├─ key: "FileDescription" value: "COM+"
+    ///   │  │  ├─ key: "FileVersion" value: "2001.12.10941.16384"
+    ///   │  │  ├─ key: "InternalName" value: "MTXEX.DLL"
+    ///   │  │  ├─ key: "LegalCopyright" value: "© Microsoft Corporation"
+    ///   │  │  ├─ key: "OriginalFilename" value: "MTXEX.DLL"
+    ///   │  │  ├─ key: "ProductName" value: "Microsoft® Windows® Operating System"
+    ///   │  │  └─ key: "ProductVersion" value: "10.0.17763.1"
+    ///   │  └─ ...
+    ///   ├─ key: "StringFileInfo" value: empty
+    ///   │  └─ ...
+    ///   └─ key: "VarFileInfo" value: empty
+    ///      └─ key: "Translation" value: [09 04 B0 04
+    /// ```
+    ///
+    /// See: https://learn.microsoft.com/en-us/windows/win32/menurc/version-information
+    ///
+    /// This parser returns a vector of (key, value) pairs, both of [`String`]
+    /// type, with the leaf nodes that descend from "StringFileInfo" nodes. In
+    /// the example above the results would be:
+    ///
+    /// ```text
+    /// [
+    ///     ("CompanyName", "Microsoft Corporation"),
+    ///     ("FileDescription", "COM+"),
+    ///     ("FileVersion", "2001.12.10941.16384 (WinBuild.160101.0800)"),
+    ///     ("InternalName", "MTXEX.DLL"),
+    ///     ("LegalCopyright", "© Microsoft Corporation. All rights reserved."),
+    ///     ("OriginalFilename", "MTXEX.DLL"),
+    ///     ("ProductName", "Microsoft® Windows® Operating System"),
+    ///     ("ProductVersion", "10.0.17763.1"),
+    /// ]
+    /// ```
+    fn parse_version_info(&self) -> Option<Vec<(String, String)>> {
+        // The version information is located in a resource with ID
+        // RESOURCE_TYPE_VERSION.
+        let version_info_rsrc = self
+            .get_resources()
+            .iter()
+            .find(|r| matches!(r.type_id, ResourceId::Id(16)))?; // TODO: use constant for 16
+
+        let version_info_raw =
+            self.data.get(version_info_rsrc.offset? as usize..)?;
+
+        let (_, (_key, _fixed_file_info, (_, strings))) =
+            Self::parse_info_with_key(
+                "VS_VERSION_INFO",
+                version_info_raw,
                 tuple((
-                    le_u32, // offset
-                    le_u32, // size
-                    le_u32, // code_page
-                    le_u32, // reserved
+                    le_u32, // signature
+                    le_u32, // struct_version
+                    le_u32, // file_version_high
+                    le_u32, // file_version_low
+                    le_u32, // dwProductVersionMS;
+                    le_u32, // dwProductVersionLS;
+                    le_u32, // DWORD dwFileFlagsMask;
+                    le_u32, // DWORD dwFileFlags;
+                    le_u32, // DWORD dwFileOS;
+                    le_u32, // DWORD dwFileType;
+                    le_u32, // DWORD dwFileSubtype;
+                    le_u32, // DWORD dwFileDateMS;
+                    le_u32, // DWORD dwFileDateLS;
                 )),
-                |(offset, size, _code_page, _reserved)| ResourceEntry {
-                    offset,
-                    size,
-                },
-            )(input)
+                // Possible children are StringFileInfo and VarFileInfo
+                // structures. Both are optional and they can appear in any
+                // order. Usually StringFileInfo appears first, but
+                // 09e7d832320e51bcc80b9aecde2a4135267a9b0156642a9596a62e85c9998cc9
+                // is an example where VarFileInfo appears first.
+                permutation((
+                    opt(Self::parse_var_file_info),
+                    opt(Self::parse_string_file_info),
+                )),
+            )
+            .ok()?;
+
+        strings
+    }
+
+    /// https://learn.microsoft.com/en-us/windows/win32/menurc/stringfileinfo
+    fn parse_string_file_info(
+        input: &[u8],
+    ) -> IResult<&[u8], Vec<(String, String)>> {
+        map(
+            move |input| {
+                Self::parse_info_with_key(
+                    "StringFileInfo",
+                    input,
+                    // StringFileInfo doesn't have any value, so the value's parser
+                    // is simply `fail`, so that it fails if called.
+                    fail::<&[u8], (), Error>,
+                    // The children are one or more StringTable structures.
+                    fold_many1(
+                        Self::parse_file_version_string_table,
+                        Vec::new,
+                        |mut all_strings: Vec<_>, strings| {
+                            all_strings.extend(strings);
+                            all_strings
+                        },
+                    ),
+                )
+            },
+            |(_, _, strings)| strings,
+        )(input)
+    }
+
+    /// https://learn.microsoft.com/en-us/windows/win32/menurc/varfileinfo
+    fn parse_var_file_info(input: &[u8]) -> IResult<&[u8], ()> {
+        map(
+            move |input| {
+                Self::parse_info_with_key(
+                    "VarFileInfo",
+                    input,
+                    // VarFileInfo doesn't have any value, so the value's parser
+                    // is simply `fail`, so that it fails if called.
+                    fail::<&[u8], (), Error>,
+                    // We are not really interested in parsing the children of
+                    // VarFileInfo, just ignore them and succeed.
+                    success(()),
+                )
+            },
+            |(_, _, strings)| strings,
+        )(input)
+    }
+
+    /// https://learn.microsoft.com/en-us/windows/win32/menurc/stringtable
+    fn parse_file_version_string_table(
+        input: &[u8],
+    ) -> IResult<&[u8], Vec<(String, String)>> {
+        map(
+            Self::parse_info(
+                // StringTable doesn't have any value, so the value's parser
+                // is simply `fail`, so that it fails if called.
+                fail::<&[u8], (), Error>,
+                // The children are one or more String structures.
+                many1(Self::parse_file_version_string),
+            ),
+            |(_, _, strings)| strings,
+        )(input)
+    }
+
+    /// Parser that returns a string within the file version information
+    /// structure.
+    ///
+    /// Returns (key, value) pairs where keys are strings like "CompanyName",
+    /// "FileDescription", "LegalCopyright", etc; and values are their
+    /// associates string values.
+    ///
+    /// All strings are returned as a byte slice containing a UTF-16 LE string.
+    ///
+    /// https://learn.microsoft.com/en-us/windows/win32/menurc/string-str
+    fn parse_file_version_string(
+        input: &[u8],
+    ) -> IResult<&[u8], (String, String)> {
+        map(
+            Self::parse_info(
+                // The value is a null-terminated UTF-16LE string.
+                utf16_le_string(),
+                // String doesn't have any children, so the value's parser
+                // is simply `fail`, so that it fails if called.
+                success(()),
+            ),
+            |(key, value, _)| (key, value.unwrap_or_default()),
+        )(input)
+    }
+
+    /// Like [`PE::parse_info`], but checks that the structure's key matches
+    /// `expected_key` and fails if not.
+    fn parse_info_with_key<'b, F, G, V, C>(
+        expected_key: &'static str,
+        input: &'b [u8],
+        value_parser: F,
+        children_parser: G,
+    ) -> IResult<&'b [u8], (String, Option<V>, C)>
+    where
+        F: Parser<&'b [u8], V, Error<'b>>,
+        G: Parser<&'b [u8], C, Error<'b>>,
+    {
+        verify(
+            Self::parse_info(value_parser, children_parser),
+            |(key, _, _)| key == expected_key,
+        )(input)
+    }
+
+    /// Generic parser that parses one of the nodes that conform the
+    /// file version information tree.
+    ///
+    /// The tree is conformed of nested, variable-length structures with the
+    /// following layout:
+    ///
+    /// ```text
+    /// length    - length of the whole structure, including the length itself
+    ///             and its children.
+    /// value_len - length of the value stored in this structure, if any.
+    /// type      - type of value (0: binary, 1: text)
+    /// key       - null-terminated UTF-16LE string that identifies the node
+    ///             in the tree.
+    /// padding1  - 0 or more bytes that align the next field to a 32-bits
+    ///             boundary
+    /// value     - arbitrary bytes, its size is indicated in value_len. If
+    ///             type is 1 (text) value_len is the number of UTF-16LE
+    ///             characters, not bytes.
+    /// padding1  - 0 or more bytes that align the next field to a 32-bits
+    ///             boundary
+    /// children  - data that corresponds to the children of this structure
+    /// ```
+    ///
+    /// This function returns a parser for one of these structures, where the
+    /// parser for the value and the children are passed as arguments.
+    fn parse_info<'b, F, G, V, C>(
+        mut value_parser: F,
+        mut children_parser: G,
+    ) -> impl FnMut(&'b [u8]) -> IResult<&'b [u8], (String, Option<V>, C)>
+    where
+        F: Parser<&'b [u8], V, Error<'b>>,
+        G: Parser<&'b [u8], C, Error<'b>>,
+    {
+        move |input: &'b [u8]| {
+            // Read the structure's length and round it up to a 32-bits
+            // boundary.
+            let (_, length) = le_u16(input)?;
+            let length = Self::round_up(length);
+
+            // Read the structure's bytes.
+            let (remainder, structure) = take(length)(input)?;
+
+            // Parse the structure's first fields.
+            let (_, (consumed, (_, mut value_len, type_, key))) =
+                consumed(tuple((
+                    le_u16,            // length
+                    le_u16,            // value_length
+                    le_u16,            // type
+                    utf16_le_string(), // key
+                )))(structure)?;
+
+            // The structure may contain padding bytes after the key for
+            // aligning the rest of the structure to a 32-bits boundary.
+            // Here we get the length of the data consumed so far and round
+            // it up to a 32-bits boundary.
+            let alignment = Self::round_up(consumed.len());
+
+            // Then take `alignment` bytes from the start of the structure.
+            let (data, _) = take(alignment)(structure)?;
+
+            // If type is 1 the value is of text type and it's length is in
+            // characters. As characters are UTF-16, multiply by two to get
+            // the size in bytes.
+            if type_ == 1 {
+                value_len = value_len.saturating_mul(2);
+            }
+
+            let value_len = Self::round_up(value_len);
+
+            // Parse the value, if value_len is greater than zero.
+            let (data, value) = cond(
+                value_len > 0,
+                take(value_len).and_then(|v| value_parser.parse(v)),
+            )(data)?;
+
+            let (_, children) = children_parser.parse(data)?;
+
+            Ok((remainder, (key, value, children)))
         }
+    }
+
+    /// Round up an offset to the next 32-bit boundary.
+    fn round_up<O: ToUsize>(offset: O) -> usize {
+        // TODO: use usize:div_ceil when we bump the MSRV to 1.73.0.
+        num::Integer::div_ceil(&offset.to_usize(), &4) * 4
     }
 
     fn parse_resources(&self) -> Option<Vec<Resource<'a>>> {
@@ -804,7 +1103,7 @@ impl<'a> PE<'a> {
         while let Some((level, ids, rsrc_dir)) = queue.pop_front() {
             // Parse the IMAGE_RESOURCE_DIRECTORY structure.
             let (raw_entries, num_entries) =
-                match Self::parse_rsrc_dir()(rsrc_dir) {
+                match Self::parse_rsrc_dir(rsrc_dir) {
                     Ok(result) => result,
                     Err(_) => continue,
                 };
@@ -850,7 +1149,7 @@ impl<'a> PE<'a> {
                     if dir_entry.is_subdir {
                         queue.push_back((level + 1, ids, entry_data));
                     } else if let Ok((_, rsrc_entry)) =
-                        Self::parse_rsrc_entry()(entry_data)
+                        Self::parse_rsrc_entry(entry_data)
                     {
                         resources.push(Resource {
                             type_id: ids.0,
@@ -879,7 +1178,7 @@ impl<'a> PE<'a> {
         );
 
         // Parse the data directory.
-        count(Self::parse_dir_entry(), num_dir_entries)(self.directory)
+        count(Self::parse_dir_entry, num_dir_entries)(self.directory)
             .map(|(_, entries)| entries)
             .ok()
     }
@@ -987,6 +1286,14 @@ impl From<PE<'_>> for pe::PE {
         result.resources =
             pe.get_resources().iter().map(pe::Resource::from).collect();
 
+        for (key, value) in pe.get_version_info() {
+            let mut kv = pe::KeyValue::new();
+            kv.key = Some(key.to_owned());
+            kv.value = Some(value.to_owned());
+            result.version_info_list.push(kv);
+            result.version_info.insert(key.to_owned(), value.to_owned());
+        }
+
         if let Some(rich_header) = pe.get_rich_header() {
             result.rich_signature = MessageField::some(pe::RichSignature {
                 offset: Some(rich_header.offset.try_into().unwrap()),
@@ -1045,6 +1352,7 @@ impl From<PE<'_>> for pe::PE {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Default)]
 pub struct DOSHeader {
     e_magic: u16,    // DOS magic.
@@ -1252,5 +1560,23 @@ fn uint(_32bits: bool) -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
         } else {
             le_u64(input)
         }
+    }
+}
+
+/// Parser that reads a null-terminated UTF-16LE string.
+///
+/// The result is a UTF-8 string,
+fn utf16_le_string() -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
+    move |input: &[u8]| {
+        // Read UTF-16 chars until a null terminator is found.
+        let (remainder, string) =
+            many0(verify(le_u16, |c| *c != 0_u16))(input)?;
+
+        // Consume the null-terminator.
+        let (remainder, _) = take(2_usize)(remainder)?;
+
+        let s = String::from_utf16_lossy(string.as_slice());
+
+        Ok((remainder, s))
     }
 }
