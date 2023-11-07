@@ -106,7 +106,7 @@ option (yara.module_options) = {
   name : "text"
   root_message: "text.Text"
   rust_module: "text"
-  validity_flag: "num_lines" (optional)
+  validity_flag: "num_lines"
 };
 ```
 
