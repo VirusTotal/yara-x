@@ -4454,8 +4454,6 @@ dependencies = [
  "globwalk",
  "goldenfile",
  "ihex",
- "indent",
- "pretty_assertions",
  "protobuf",
  "protobuf-json-mapping",
  "protobuf-support",
