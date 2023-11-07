@@ -49,6 +49,7 @@ option (YARA.module_options) = {
   name : "text"
   root_message: "text.Text"
   rust_module: "text"
+  validity_flag: "num_lines" (optional)
 };
 
 message Text {
@@ -105,6 +106,7 @@ option (yara.module_options) = {
   name : "text"
   root_message: "text.Text"
   rust_module: "text"
+  validity_flag: "num_lines" (optional)
 };
 ```
 
@@ -115,16 +117,28 @@ file, but one describing a module. In fact, you can put any `.proto` file in the
 files is describing a YARA module. Only files containing a `yara.module_options` 
 section will define a module.
 
-Options `name` and `root_message` are required, while `rust_module` is optional.
-The `name` option defines the module's name. This is the name that will be used
-for importing the module in a YARA rule, in this case our module will be imported
+Options `name` and `root_message` are required, while `rust_module` and `validity_flag` 
+are optional. The `name` option defines the module's name. This is the name that will be 
+used for importing the module in a YARA rule, in this case our module will be imported
 with `import "text"`. The `root_message` option indicates which is the module's 
 root structure, it must contain the name of some structure (a.k.a message) defined 
 in the `.proto` file. In our case the value for `root_message` is `"text.Text"` 
 because we have defined our module's structure in a message named `Text`, which
 is under package `text`. In general the value in this field will have the form
 `package.Message`, except if the `package` statement is missing, in which case
-it would be the name of the message alone (i.e: `Text`).
+it would be the name of the message alone (i.e: `Text`). The `validity_flag` field
+is used by `yr dump` module in order to mark specific field as the one that
+determines if the module is valid or not. If this field has a value after parsing and
+this value is not `false` then the module is considered valid and module output will
+be shown. Module without this flag will be simply skipped in `yr dump` output.
+For example `lnk` module has a field `is_lnk` which is marked as validity flag by setting
+`validity_flag: "is_lnk"`. Important thing is that this field has to be in root message
+structure. If `is_lnk` is `false` then module output is considered invalid and will be
+skipped in `yr dump` output. Every other value of `is_lnk` will be considered valid
+and module output will be shown. This is due to some modules not having any kind of 
+`is_valid` field and we need to mark other field as validity flag. `Macho` module has a
+field `magic` which is considered as validity flag field. If this field is set to some
+value then module output will be shown as we can consider module parsing to be successful.
 
 The `root_message` field is required because your `.proto` file can define
 multiple messages, and YARA needs to know which of them is considered the root 
@@ -144,7 +158,27 @@ This is a very simple structure with only two integer fields. Notice that the
 numbers after the `=` signs are not the values for those fields, they are 
 actually field tags (i.e: a unique number identifying each field in a message).
 This may be confusing if you are not familiar with protobuf's  syntax, so again:
-explore the protobuf's [documentation](https://developers.google.com/protocol-buffers). 
+explore the protobuf's [documentation](https://developers.google.com/protocol-buffers).
+
+One thing that can be done with integer fields is to represent them in some other way.
+This optional representation is shown in `yr dump` crate output. This crate provides
+multiple output formats as JSON, XML, YAML, TOML and human-readable. The last mentioned
+is the only one that provides also custom representation for integer numbers. Let's say
+for some fields it makes sense to show them as hexadecimal numbers. This can be done by
+adding `[(yara.field_options).hex_value = true];` descriptor to the field. For example:
+
+```
+message Macho {
+  optional uint32 magic = 1 [(yara.field_options).hex_value = true];
+}
+```
+
+This will mark magic field as a hexadecimal number and it will be shown as 
+`magic: 4277009103 (0xfeedfacf)`. Other format that is supported right now is
+for timestamps. If you want to show some integer field as a timestamp you can do it by
+setting `[(yara.field_options).timestamp = true];` descriptor to the field and
+timestamps will be shown in human-readable format.
+
 
 Also notice that we are defining our fields as `optional`. In `proto2` fields
 must be either `optional` or `required`, while in `proto3` they are always
