@@ -4454,7 +4454,6 @@ dependencies = [
  "chrono",
  "globwalk",
  "goldenfile",
- "ihex",
  "protobuf",
  "protobuf-codegen",
  "protobuf-json-mapping",
@@ -4468,7 +4467,6 @@ dependencies = [
  "toml 0.8.4",
  "xml2json-rs",
  "yansi",
- "yara-x-proto",
 ]
 
 [[package]]

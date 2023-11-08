@@ -15,7 +15,6 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-yara-x-proto = { workspace = true }
 protobuf = { workspace = true }
 yansi = { workspace = true }
 
@@ -29,7 +28,6 @@ chrono = "0.4.31"
 
 [dev-dependencies]
 goldenfile = "1.5.2"
-ihex = "3.0.0"
 globwalk = { workspace = true }
 tempfile = "3.8.1"
 rstest = "0.18.2"
