@@ -7,7 +7,7 @@ use std::str::FromStr;
 use bstr::{BStr, ByteSlice};
 use byteorder::{ByteOrder, LE};
 use memchr::memmem;
-use nom::branch::permutation;
+use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, consumed, fail, map, opt, success, verify};
 use nom::error::ErrorKind;
@@ -21,7 +21,10 @@ use crate::modules::protos::pe;
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
-/// Object that represents a [`PE`] file.
+/// Represents a Windows Portable Executable (PE) file.
+///
+/// New instances of this type are created by parsing the content of a PE
+/// file with the [`PE::parse`] function.
 #[derive(Default)]
 pub struct PE<'a> {
     /// Slice that contains the whole PE, from the DOS header to the end.
@@ -52,6 +55,9 @@ pub struct PE<'a> {
     /// PE directory entries. Directory entries are parsed lazily when
     /// [`PE::get_dir_entries`] is called for the first time.
     dir_entries: OnceCell<Option<Vec<DirEntry>>>,
+
+    /// Path to PDB file containing debug information for the PE.
+    pdb_path: OnceCell<Option<&'a str>>,
 
     /// DOS header already parsed.
     pub dos_hdr: DOSHeader,
@@ -121,6 +127,7 @@ impl<'a> PE<'a> {
             dir_entries: OnceCell::default(),
             entry_point: OnceCell::default(),
             version_info: OnceCell::default(),
+            pdb_path: OnceCell::default(),
             dos_hdr,
             pe_hdr,
             optional_hdr,
@@ -258,6 +265,10 @@ impl<'a> PE<'a> {
             .map(|(k, v)| (k.as_str(), v.as_str()))
     }
 
+    pub fn get_pdb_path(&self) -> Option<&'a str> {
+        *self.pdb_path.get_or_init(|| self.parse_dbg())
+    }
+
     /// Returns a slice of [`Resource`] structures, one per each resource
     /// declared in the PE file.
     pub fn get_resources(&self) -> &[Resource<'a>] {
@@ -329,6 +340,9 @@ impl<'a> PE<'a> {
     const IMAGE_NT_OPTIONAL_HDR64_MAGIC: u16 = 0x20b;
 
     const IMAGE_DIRECTORY_ENTRY_RESOURCE: usize = 2;
+    const IMAGE_DIRECTORY_ENTRY_DEBUG: usize = 6;
+
+    const IMAGE_DEBUG_TYPE_CODEVIEW: u32 = 2;
 
     const RICH_TAG: &'static [u8] = &[0x52_u8, 0x69, 0x63, 0x68];
     const DANS_TAG: &'static [u8] = &[0x44_u8, 0x61, 0x6e, 0x53];
@@ -1182,6 +1196,141 @@ impl<'a> PE<'a> {
             .map(|(_, entries)| entries)
             .ok()
     }
+
+    fn parse_dbg(&self) -> Option<&'a str> {
+        let dbg_section =
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG)?;
+
+        let entries = many0(Self::parse_dbg_dir_entry)(dbg_section)
+            .map(|(_, entries)| entries)
+            .ok()?;
+
+        for entry in entries
+            .iter()
+            .filter(|entry| entry.type_ == Self::IMAGE_DEBUG_TYPE_CODEVIEW)
+        {
+            // The debug info offset may be present either as RVA or as raw offset
+            // Sample: 0249e00b6d46bee5a17096559f18e671cd0ceee36373e8708f614a9a6c7c079e
+            let offset = if entry.virtual_address != 0 {
+                self.rva_to_offset(entry.virtual_address)
+            } else {
+                None
+            };
+
+            let offset = match offset.or(Some(entry.raw_data_offset)) {
+                Some(offset) if offset > 0 => offset,
+                Some(_) | None => continue,
+            };
+
+            let cv_info = match self.data.get(offset as usize..) {
+                Some(cv_info) => cv_info,
+                None => continue,
+            };
+
+            // The CodeView information can come in different formats, but all
+            // of them start with 32-bits signature that allows to distinguish
+            // between them. Here we recognize three different signatures:
+            // "RSDS" (PDB 7.0), "NB10" (PDB 2.0) and "MTOC".
+            //
+            // Signatures "NDB09" (CodeView 4.10) and "NDB11" (CodeView 5.0)
+            // also exists, but those are used when debug information is
+            // included in the PE itself, instead of an external PDB file,
+            // therefore in such cases there's no PDB file name to extract.
+            //
+            // See: https://www.debuginfo.com/articles/debuginfomatch.html
+            match alt((
+                // "RSDS" means that the debug information is stored in a
+                // PDB 7.0 file. The structure is:
+                //
+                //   DWORD      signature;
+                //   BYTE[16]   guid;
+                //   DWORD      age;
+                //   BYTE[..]   pdb_path;
+                //
+                tuple((
+                    verify(le_u32::<&[u8], Error>, |signature| {
+                        *signature == 0x53445352 // "RSDS"
+                    }),
+                    take(20_usize), // skip guid and age
+                    take_till(|c| c == 0),
+                )),
+                // "NB10" means that the debug information is stored in a
+                // PDB 2.0 file. The structure is:
+                //
+                //   DWORD      signature;
+                //   DWORD      offset;
+                //   DWORD      timestamp;
+                //   DWORD      age;
+                //   BYTE[..]   pdb_path;
+                //
+                tuple((
+                    verify(le_u32::<&[u8], Error>, |signature| {
+                        *signature == 0x3031424e // "NB10"
+                    }),
+                    take(16_usize), // skip offset, timestamp, and age
+                    take_till(|c| c == 0),
+                )),
+                //
+                //   DWORD      signature;
+                //   BYTE[16]   guid;
+                //   BYTE[..]   pdb_path;
+                //
+                tuple((
+                    verify(le_u32::<&[u8], Error>, |signature| {
+                        *signature == 0x434f544d // "MTOC"
+                    }),
+                    take(16_usize), // skip guid
+                    take_till(|c| c == 0),
+                )),
+            ))(cv_info)
+            {
+                Ok((_, (_signature, _padding, pdb_path))) => {
+                    return std::str::from_utf8(pdb_path).ok()
+                }
+                Err(_) => continue,
+            };
+        }
+
+        None
+    }
+
+    /// Parse the IMAGE_DEBUG_DIRECTORY structure.
+    /// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_debug_directory
+    fn parse_dbg_dir_entry(input: &[u8]) -> IResult<&[u8], DbgDirEntry> {
+        map(
+            tuple((
+                le_u32, // characteristics
+                le_u32, // timestamp
+                le_u16, // major_version
+                le_u16, // minor_version
+                le_u32, // type
+                le_u32, // raw_data_size
+                le_u32, // virtual_address
+                le_u32, // raw_data_offset
+            )),
+            |(
+                characteristics,
+                timestamp,
+                major_version,
+                minor_version,
+                type_,
+                raw_data_size,
+                virtual_address,
+                raw_data_offset,
+            )| {
+                DbgDirEntry {
+                    characteristics,
+                    timestamp,
+                    major_version,
+                    minor_version,
+                    type_,
+                    raw_data_size,
+                    virtual_address,
+                    raw_data_offset,
+                }
+            },
+        )(input)
+    }
 }
 
 impl From<PE<'_>> for pe::PE {
@@ -1227,6 +1376,8 @@ impl From<PE<'_>> for pe::PE {
             Some(pe.optional_hdr.size_of_heap_reserve);
 
         result.size_of_heap_commit = Some(pe.optional_hdr.size_of_heap_commit);
+
+        result.pdb_path = pe.get_pdb_path().map(String::from);
 
         result.number_of_rva_and_sizes =
             Some(pe.optional_hdr.number_of_rva_and_sizes);
@@ -1553,6 +1704,28 @@ impl From<&Resource<'_>> for pe::Resource {
 
         resource
     }
+}
+
+#[derive(Debug)]
+pub struct DbgDirEntry {
+    /// Reserved.
+    characteristics: u32,
+    /// The time and date the debugging information was created.
+    timestamp: u32,
+    /// The major version number of the debugging information format.
+    major_version: u16,
+    /// The minor version number of the debugging information format.
+    minor_version: u16,
+    /// The format of the debugging information.
+    type_: u32,
+    /// The size of the debugging information, in bytes. This value does not
+    /// include the debug directory itself.
+    raw_data_size: u32,
+    /// The address of the debugging information when the image is loaded,
+    /// relative to the image base.
+    virtual_address: u32,
+    /// Offset within the file where debugging information is found.
+    raw_data_offset: u32,
 }
 
 /// Parser that reads a 32-bits or 64-bits unsigned integer, depending on

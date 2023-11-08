@@ -59,14 +59,15 @@ message PE {
   optional uint32 number_of_sections = 36;
 
   optional RichSignature rich_signature = 37;
+  optional string pdb_path = 38;
 
-  repeated Section sections = 38;
-  repeated DirEntry data_directories = 39;
-  repeated Resource resources = 40;
+  repeated Section sections = 39;
+  repeated DirEntry data_directories = 40;
+  repeated Resource resources = 41;
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 41;
+  optional Overlay overlay = 42;
 }
 
 message Version {
