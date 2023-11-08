@@ -59,7 +59,7 @@ pub(crate) trait Serializer {
 impl Serializer for JsonSerializer {
     fn serialize(&self, message: &str) -> Result<String, Error> {
         let value = serde_json::from_str::<serde_json::Value>(message)?;
-        Ok(serde_json::to_string_pretty(&value)?)
+        Ok(serde_json::to_string_pretty(&value)? + "\n")
     }
 }
 
@@ -92,7 +92,7 @@ impl Serializer for XmlSerializer {
             ))
             .root_name("file")
             .finalize();
-        let xml = xml_builder.build_from_json_string(message)?;
+        let xml = xml_builder.build_from_json_string(message)? + "\n";
         Ok(xml)
     }
 }

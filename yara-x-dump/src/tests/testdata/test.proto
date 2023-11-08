@@ -1,0 +1,7 @@
+syntax = "proto2";
+
+message MyMessage {
+  optional int32 field1 = 1;
+  optional string field2 = 2;
+  repeated int32 repeated_field = 3;
+}

@@ -4443,6 +4443,7 @@ dependencies = [
  "yara-x-dump",
  "yara-x-fmt",
  "yara-x-parser",
+ "yara-x-proto",
 ]
 
 [[package]]
@@ -4465,7 +4466,6 @@ dependencies = [
  "toml 0.8.4",
  "xml2json-rs",
  "yansi",
- "yara-x",
  "yara-x-proto",
 ]
 

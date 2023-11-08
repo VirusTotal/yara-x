@@ -15,7 +15,6 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-yara-x = { workspace = true }
 yara-x-proto = { workspace = true }
 protobuf = { workspace = true }
 yansi = { workspace = true }
