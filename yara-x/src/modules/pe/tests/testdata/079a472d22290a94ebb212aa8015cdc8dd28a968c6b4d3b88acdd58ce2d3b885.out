@@ -43,50 +43,6 @@ pointer_to_symbol_table: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
 win32_version_value: 0
-version_info {
-  key: "Build Date"
-  value: "Tue Jun 5 21:07:13 IST 2018"
-}
-version_info {
-  key: "InternalName"
-  value: "CUSTPROF.DLL"
-}
-version_info {
-  key: "Type"
-  value: "QA"
-}
-version_info {
-  key: "ProductVersion"
-  value: "27.1.9.33"
-}
-version_info {
-  key: "Build Version"
-  value: "27.1.9.33"
-}
-version_info {
-  key: "FileVersion"
-  value: "27.1.9.33"
-}
-version_info {
-  key: "ProductName"
-  value: "Quicken for Windows"
-}
-version_info {
-  key: "CompanyName"
-  value: "Quicken Inc."
-}
-version_info {
-  key: "LegalCopyright"
-  value: "Copyright \302\251 2018 by Quicken Inc."
-}
-version_info {
-  key: "FileDescription"
-  value: "Customer Profile Interface DLL"
-}
-version_info {
-  key: "OriginalFilename"
-  value: "CUSTPROF.DLL"
-}
 version_info_list {
   key: "FileVersion"
   value: "27.1.9.33"
@@ -189,6 +145,7 @@ rich_signature {
     times: 1
   }
 }
+pdb_path: "D:\\workspace\\2018_R9_RelBld\\target\\checkout\\custprof\\Release\\custprof.pdb"
 sections {
   name: ".text"
   full_name: ".text"

@@ -43,42 +43,6 @@ pointer_to_symbol_table: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 32
 win32_version_value: 0
-version_info {
-  key: "OriginalFilename"
-  value: "FileTest.exe"
-}
-version_info {
-  key: "ProductVersion"
-  value: "2, 7, 0, 601"
-}
-version_info {
-  key: "FileVersion"
-  value: "2, 7, 0, 601"
-}
-version_info {
-  key: "LegalTrademarks"
-  value: "http://www.zezula.net"
-}
-version_info {
-  key: "CompanyName"
-  value: "Ladislav Zezula"
-}
-version_info {
-  key: "LegalCopyright"
-  value: "Copyright \302\251 2004 - 2018 Ladislav Zezula"
-}
-version_info {
-  key: "InternalName"
-  value: "FileTest"
-}
-version_info {
-  key: "FileDescription"
-  value: "Interactive File System API Test"
-}
-version_info {
-  key: "ProductName"
-  value: "FileTest"
-}
 version_info_list {
   key: "CompanyName"
   value: "Ladislav Zezula"
@@ -168,6 +132,7 @@ rich_signature {
     times: 1
   }
 }
+pdb_path: "FileTest.pdb"
 sections {
   name: ".text"
   full_name: ".text"

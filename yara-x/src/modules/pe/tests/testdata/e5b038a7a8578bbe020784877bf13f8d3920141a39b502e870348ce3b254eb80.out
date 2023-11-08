@@ -61,6 +61,7 @@ rich_signature {
     times: 1
   }
 }
+pdb_path: "C:\\SL\\Bin\\ResourceDll\\Cpp\\Release\\Win32\\ResourceDLL.pdb"
 sections {
   name: ".rdata"
   full_name: ".rdata"

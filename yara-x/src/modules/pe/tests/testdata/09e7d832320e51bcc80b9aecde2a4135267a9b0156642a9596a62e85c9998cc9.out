@@ -43,46 +43,6 @@ pointer_to_symbol_table: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
 win32_version_value: 0
-version_info {
-  key: "FileDescription"
-  value: "System.Linq.Queryable.dll"
-}
-version_info {
-  key: "ProductVersion"
-  value: "4.0.0.0"
-}
-version_info {
-  key: "Comments"
-  value: "System.Linq.Queryable.dll"
-}
-version_info {
-  key: "OriginalFilename"
-  value: "System.Linq.Queryable.dll"
-}
-version_info {
-  key: "FileVersion"
-  value: "4.0.0.0"
-}
-version_info {
-  key: "LegalCopyright"
-  value: "Copyright (c) 2013 Xamarin Inc. (http://www.xamarin.com)"
-}
-version_info {
-  key: "ProductName"
-  value: "Mono Common Language Infrastructure"
-}
-version_info {
-  key: "Assembly Version"
-  value: "4.0.0.0"
-}
-version_info {
-  key: "CompanyName"
-  value: "Xamarin, Inc."
-}
-version_info {
-  key: "InternalName"
-  value: "System.Linq.Queryable.dll"
-}
 version_info_list {
   key: "Comments"
   value: "System.Linq.Queryable.dll"

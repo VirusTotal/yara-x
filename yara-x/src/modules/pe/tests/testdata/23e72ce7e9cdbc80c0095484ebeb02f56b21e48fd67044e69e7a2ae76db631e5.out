@@ -42,38 +42,6 @@ pointer_to_symbol_table: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
 win32_version_value: 0
-version_info {
-  key: "OriginalFilename"
-  value: "MTXEX.DLL"
-}
-version_info {
-  key: "LegalCopyright"
-  value: "\302\251 Microsoft Corporation. All rights reserved."
-}
-version_info {
-  key: "InternalName"
-  value: "MTXEX.DLL"
-}
-version_info {
-  key: "ProductName"
-  value: "Microsoft\302\256 Windows\302\256 Operating System"
-}
-version_info {
-  key: "ProductVersion"
-  value: "10.0.17763.1"
-}
-version_info {
-  key: "FileVersion"
-  value: "2001.12.10941.16384 (WinBuild.160101.0800)"
-}
-version_info {
-  key: "FileDescription"
-  value: "COM+"
-}
-version_info {
-  key: "CompanyName"
-  value: "Microsoft Corporation"
-}
 version_info_list {
   key: "CompanyName"
   value: "Microsoft Corporation"
@@ -154,6 +122,7 @@ rich_signature {
     times: 1
   }
 }
+pdb_path: "mtxex.pdb"
 sections {
   name: ".text"
   full_name: ".text"

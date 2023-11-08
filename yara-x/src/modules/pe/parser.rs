@@ -1291,7 +1291,12 @@ impl From<PE<'_>> for pe::PE {
             kv.key = Some(key.to_owned());
             kv.value = Some(value.to_owned());
             result.version_info_list.push(kv);
-            result.version_info.insert(key.to_owned(), value.to_owned());
+            // TODO: populate the `version_info` map when we find a way for
+            // maintaining an stable order when dumping map fields in text
+            // form. The issue we have now is that the order changes every
+            // time the test cases are run, and the output produced don't
+            // match the golden files.
+            // result.version_info.insert(key.to_owned(), value.to_owned());
         }
 
         if let Some(rich_header) = pe.get_rich_header() {
