@@ -1267,7 +1267,7 @@ impl<'a> PE<'a> {
                     verify(le_u32::<&[u8], Error>, |signature| {
                         *signature == 0x3031424e // "NB10"
                     }),
-                    take(16_usize), // skip offset, timestamp, and age
+                    take(12_usize), // skip offset, timestamp, and age
                     take_till(|c| c == 0),
                 )),
                 //
