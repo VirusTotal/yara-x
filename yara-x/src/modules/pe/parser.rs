@@ -1333,11 +1333,12 @@ impl<'a> PE<'a> {
     }
 }
 
+#[rustfmt::skip]
 impl From<PE<'_>> for pe::PE {
     fn from(pe: PE) -> Self {
         let mut result = pe::PE::new();
-
-        result.is_pe = Some(true);
+        
+        result.set_is_pe(true);
         result.machine = pe
             .pe_hdr
             .machine
@@ -1345,81 +1346,12 @@ impl From<PE<'_>> for pe::PE {
             .ok()
             .map(EnumOrUnknown::<pe::Machine>::from_i32);
 
-        result.timestamp = Some(pe.pe_hdr.timestamp);
-        result.characteristics = Some(pe.pe_hdr.characteristics.into());
-        result.number_of_sections = Some(pe.pe_hdr.number_of_sections.into());
-        result.pointer_to_symbol_table = Some(pe.pe_hdr.symbol_table_offset);
-        result.number_of_symbols = Some(pe.pe_hdr.number_of_symbols);
-        result.size_of_optional_header =
-            Some(pe.pe_hdr.size_of_optional_header.into());
-
-        result.size_of_code = Some(pe.optional_hdr.size_of_code);
-        result.base_of_code = Some(pe.optional_hdr.base_of_code);
-        result.base_of_data = pe.optional_hdr.base_of_data;
-        result.entry_point_raw = Some(pe.optional_hdr.entry_point);
-        result.entry_point = pe.entry_point_offset();
-        result.section_alignment = Some(pe.optional_hdr.section_alignment);
-        result.file_alignment = Some(pe.optional_hdr.file_alignment);
-        result.loader_flags = Some(pe.optional_hdr.loader_flags);
-        result.dll_characteristics =
-            Some(pe.optional_hdr.dll_characteristics.into());
-        result.checksum = Some(pe.optional_hdr.checksum);
-        result.win32_version_value = Some(pe.optional_hdr.win32_version);
-
-        result.size_of_stack_reserve =
-            Some(pe.optional_hdr.size_of_stack_reserve);
-
-        result.size_of_stack_commit =
-            Some(pe.optional_hdr.size_of_stack_commit);
-
-        result.size_of_heap_reserve =
-            Some(pe.optional_hdr.size_of_heap_reserve);
-
-        result.size_of_heap_commit = Some(pe.optional_hdr.size_of_heap_commit);
-
-        result.pdb_path = pe.get_pdb_path().map(String::from);
-
-        result.number_of_rva_and_sizes =
-            Some(pe.optional_hdr.number_of_rva_and_sizes);
-
-        // TODO
-        // number_of_version_infos
-        // opthdr_magic
-
-        result.image_base = pe.optional_hdr.image_base;
-
-        result.size_of_image = Some(pe.optional_hdr.size_of_image);
-        result.size_of_headers = Some(pe.optional_hdr.size_of_headers);
-
-        result.size_of_initialized_data =
-            Some(pe.optional_hdr.size_of_initialized_data);
-
-        result.size_of_uninitialized_data =
-            Some(pe.optional_hdr.size_of_uninitialized_data);
-
-        result.linker_version = MessageField::some(pe::Version {
-            major: Some(pe.optional_hdr.major_linker_version.into()),
-            minor: Some(pe.optional_hdr.minor_linker_version.into()),
-            special_fields: Default::default(),
-        });
-
-        result.os_version = MessageField::some(pe::Version {
-            major: Some(pe.optional_hdr.major_os_version.into()),
-            minor: Some(pe.optional_hdr.minor_os_version.into()),
-            special_fields: Default::default(),
-        });
-
-        result.image_version = MessageField::some(pe::Version {
-            major: Some(pe.optional_hdr.major_image_version.into()),
-            minor: Some(pe.optional_hdr.minor_image_version.into()),
-            special_fields: Default::default(),
-        });
-
-        result.subsystem_version = MessageField::some(pe::Version {
-            major: Some(pe.optional_hdr.major_subsystem_version.into()),
-            minor: Some(pe.optional_hdr.minor_subsystem_version.into()),
-            special_fields: Default::default(),
-        });
+        result.set_timestamp(pe.pe_hdr.timestamp);
+        result.set_characteristics(pe.pe_hdr.characteristics.into());
+        result.set_number_of_sections(pe.pe_hdr.number_of_sections.into());
+        result.set_pointer_to_symbol_table(pe.pe_hdr.symbol_table_offset);
+        result.set_number_of_symbols(pe.pe_hdr.number_of_symbols);
+        result.set_size_of_optional_header(pe.pe_hdr.size_of_optional_header.into());
 
         result.subsystem = pe
             .optional_hdr
@@ -1427,15 +1359,69 @@ impl From<PE<'_>> for pe::PE {
             .try_into()
             .ok()
             .map(EnumOrUnknown::<pe::Subsystem>::from_i32);
+        
+        result.set_size_of_code(pe.optional_hdr.size_of_code);
+        result.set_base_of_code(pe.optional_hdr.base_of_code);
+        result.base_of_data = pe.optional_hdr.base_of_data;
+        result.set_entry_point_raw(pe.optional_hdr.entry_point);
+        result.entry_point = pe.entry_point_offset();
+        result.set_section_alignment(pe.optional_hdr.section_alignment);
+        result.set_file_alignment(pe.optional_hdr.file_alignment);
+        result.set_loader_flags(pe.optional_hdr.loader_flags);
+        result.set_dll_characteristics(pe.optional_hdr.dll_characteristics.into());
+        result.set_checksum(pe.optional_hdr.checksum);
+        result.set_win32_version_value(pe.optional_hdr.win32_version);
+        result.set_size_of_stack_reserve(pe.optional_hdr.size_of_stack_reserve);
+        result.set_size_of_stack_commit(pe.optional_hdr.size_of_stack_commit);
+        result.set_size_of_heap_reserve(pe.optional_hdr.size_of_heap_reserve);
+        result.set_size_of_heap_commit(pe.optional_hdr.size_of_heap_commit);
+        result.pdb_path = pe.get_pdb_path().map(String::from);
+        result.set_number_of_rva_and_sizes(pe.optional_hdr.number_of_rva_and_sizes);
+        result.image_base = pe.optional_hdr.image_base;
+        result.set_size_of_image(pe.optional_hdr.size_of_image);
+        result.set_size_of_headers(pe.optional_hdr.size_of_headers);
+        result.set_size_of_initialized_data(pe.optional_hdr.size_of_initialized_data);
+        result.set_size_of_uninitialized_data(pe.optional_hdr.size_of_uninitialized_data);
 
-        result.data_directories =
-            pe.get_dir_entries().iter().map(pe::DirEntry::from).collect();
+        // TODO
+        // number_of_version_infos
+        // opthdr_magic
+        
+        result.linker_version = MessageField::some(pe::Version {
+            major: Some(pe.optional_hdr.major_linker_version.into()),
+            minor: Some(pe.optional_hdr.minor_linker_version.into()),
+            ..Default::default()
+        });
 
-        result.sections =
-            pe.get_sections().iter().map(pe::Section::from).collect();
+        result.os_version = MessageField::some(pe::Version {
+            major: Some(pe.optional_hdr.major_os_version.into()),
+            minor: Some(pe.optional_hdr.minor_os_version.into()),
+            ..Default::default()
+        });
 
-        result.resources =
-            pe.get_resources().iter().map(pe::Resource::from).collect();
+        result.image_version = MessageField::some(pe::Version {
+            major: Some(pe.optional_hdr.major_image_version.into()),
+            minor: Some(pe.optional_hdr.minor_image_version.into()),
+            ..Default::default()
+        });
+
+        result.subsystem_version = MessageField::some(pe::Version {
+            major: Some(pe.optional_hdr.major_subsystem_version.into()),
+            minor: Some(pe.optional_hdr.minor_subsystem_version.into()),
+            ..Default::default()
+        });
+        
+        result
+            .data_directories
+            .extend(pe.get_dir_entries().iter().map(pe::DirEntry::from));
+
+        result
+            .sections
+            .extend(pe.get_sections().iter().map(pe::Section::from));
+
+        result
+            .resources
+            .extend(pe.get_resources().iter().map(pe::Resource::from));
 
         for (key, value) in pe.get_version_info() {
             let mut kv = pe::KeyValue::new();
@@ -1470,7 +1456,7 @@ impl From<PE<'_>> for pe::PE {
                         entry
                     })
                     .collect(),
-                special_fields: Default::default(),
+                ..Default::default()
             });
         }
 
@@ -1495,12 +1481,12 @@ impl From<PE<'_>> for pe::PE {
                 (Some(offset), Some(size)) if size > 0 => pe::Overlay {
                     offset: Some(offset),
                     size: Some(size),
-                    special_fields: Default::default(),
+                    ..Default::default()
                 },
                 _ => pe::Overlay {
                     offset: Some(0),
                     size: Some(0),
-                    special_fields: Default::default(),
+                    ..Default::default()
                 },
             });
 
