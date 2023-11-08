@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<file>
+  <field1>123</field1>
+  <field2>test</field2>
+  <segments>
+    <nested1>456</nested1>
+    <nested2>789</nested2>
+    <timestamp>123456789</timestamp>
+  </segments>
+  <optional>
+    <onested1>123</onested1>
+    <onested2>456</onested2>
+    <mapStringString>
+      <foo>bar</foo>
+    </mapStringString>
+  </optional>
+</file>

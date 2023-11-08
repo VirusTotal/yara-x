@@ -33,3 +33,9 @@ ihex = "3.0.0"
 globwalk = { workspace = true }
 tempfile = "3.8.1"
 rstest = "0.18.2"
+
+
+[build-dependencies]
+protobuf =  { workspace = true }
+protobuf-codegen =  { workspace = true }
+protobuf-parse =  { workspace = true }

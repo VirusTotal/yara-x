@@ -1,0 +1,12 @@
+---
+field1: 123
+field2: test
+segments:
+  - nested1: 456
+    nested2: "789"
+    timestamp: 123456789
+optional:
+  onested1: 123
+  onested2: "456"
+  mapStringString:
+    foo: bar

@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package dumper;
+
+import "google/protobuf/descriptor.proto";
+
+message FieldOptions {
+    optional bool hex_value = 3;
+    optional bool timestamp = 4;
+  }
+
+extend google.protobuf.FieldOptions {
+    optional FieldOptions field_options = 51504;
+  }

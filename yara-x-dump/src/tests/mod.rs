@@ -1,10 +1,21 @@
 use protobuf::text_format::parse_from_str;
+use protobuf::MessageDyn;
 use rstest::rstest;
 use std::fs;
 use std::io::Write;
 
-#[rstest(output_format, case("json"))]
-fn test_dumper(output_format: &str) {
+use crate::Dumper;
+
+#[rstest(
+    output_format,
+    case("json"),
+    case("yaml"),
+    case("toml"),
+    case("xml"),
+    case("human-readable"),
+    case("None")
+)]
+fn test_dumper(output_format: String) {
     // Create goldenfile mint.
     let mut mint = goldenfile::Mint::new(".");
 
@@ -21,10 +32,19 @@ fn test_dumper(output_format: &str) {
             output_format
         );
         let input = fs::read_to_string(in_path).expect("Unable to read");
-        let protobuf_module_output = parse_from_str(&input).unwrap();
 
-        let dumper = crate::Dumper::default();
-        let output = dumper.dump(protobuf_module_output, output_format);
+        let test = parse_from_str::<crate::test::MyMessage>(&input).unwrap();
+
+        let dumper = Dumper::default();
+        let output = if output_format == "None" {
+            dumper.dump(&test as &dyn MessageDyn, None)
+        } else {
+            dumper.dump(
+                &test as &dyn MessageDyn,
+                Some(&output_format.to_string()),
+            )
+        }
+        .unwrap();
 
         // Create a goldenfile test
         let mut output_file = mint.new_goldenfile(test_name).unwrap();

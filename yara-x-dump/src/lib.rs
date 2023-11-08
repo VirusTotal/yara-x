@@ -10,6 +10,9 @@ use crate::serializer::{get_human_readable_output, get_serializer};
 #[cfg(test)]
 mod tests;
 
+pub use test::*;
+include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+
 /// Errors returned by [`Dumper::dump`].
 #[derive(Error, Debug)]
 #[allow(clippy::large_enum_variant)]

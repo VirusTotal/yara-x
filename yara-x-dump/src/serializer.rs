@@ -6,7 +6,8 @@ use protobuf::reflect::ReflectValueRef;
 use protobuf_support::text_format::quote_bytes_to;
 use std::fmt::Write;
 use yansi::Color;
-use yara_x_proto::exts::field_options;
+
+use crate::dumper::exts::field_options;
 
 use crate::Error;
 
