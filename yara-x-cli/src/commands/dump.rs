@@ -19,8 +19,8 @@ use yara_x::get_builtin_modules_names;
 
 #[derive(Debug, Clone, ValueEnum)]
 enum OutputFormats {
-    JSON,
-    YAML,
+    Json,
+    Yaml,
 }
 
 /// Creates the `dump` command.
@@ -160,7 +160,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
             && (module_is_valid(mod_output) || modules.contains(&mod_name))
         {
             match output_format {
-                Some(OutputFormats::JSON) => {
+                Some(OutputFormats::Json) => {
                     writeln!(
                         result,
                         ">>>\n{}:\n{}\n<<<",
@@ -168,7 +168,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                         print_to_string(mod_output)?.to_colored_json_auto()?
                     )?;
                 }
-                Some(OutputFormats::YAML) | None => {
+                Some(OutputFormats::Yaml) | None => {
                     let dumper = Dumper::default();
                     write!(
                         result,

@@ -18,18 +18,13 @@ thiserror = { workspace = true }
 protobuf = { workspace = true }
 yansi = { workspace = true }
 
-serde_json = { version = "1.0.1", features = ["preserve_order"] }
-serde_yaml = "0.8.26" 
-toml = "0.8.4"
 protobuf-support = "3.3.0"
-xml2json-rs = "1.0.1"
 chrono = "0.4.31"
 
 [dev-dependencies]
 goldenfile = "1.5.2"
 globwalk = { workspace = true }
 tempfile = "3.8.1"
-rstest = "0.18.2"
 
 
 [build-dependencies]
