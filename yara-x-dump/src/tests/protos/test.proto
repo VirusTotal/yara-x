@@ -6,18 +6,18 @@ package test;
 
 message Segment {
   optional uint32 nested1 = 1;
-  optional uint64 nested2 = 2 [(dumper.field_options).hex_value = true];
-  optional uint32 timestamp = 3 [(dumper.field_options).timestamp = true];
+  optional uint64 nested2 = 2 [(dumper.field_options).yaml_fmt = "x"];
+  optional uint32 timestamp = 3 [(dumper.field_options).yaml_fmt = "t"];
 }
 
 message OptionalNested {
   optional uint32 onested1 = 1;
-  optional uint64 onested2 = 2 [(dumper.field_options).hex_value = true];
+  optional uint64 onested2 = 2 [(dumper.field_options).yaml_fmt = "x"];
   map<string, string> map_string_string = 3;
 }
 
 message MyMessage {
-  optional int32 field1 = 1 [(dumper.field_options).hex_value = true];
+  optional int32 field1 = 1 [(dumper.field_options).yaml_fmt = "x"];
   optional string field2 = 2;
   repeated Segment segments = 3;
   optional OptionalNested optional = 4;

@@ -1,15 +1,27 @@
-use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
+use clap::{
+    arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
+};
+
+use colored_json::ToColoredJson;
 use protobuf::{reflect::ReflectValueRef::Bool, MessageDyn};
+use protobuf_json_mapping::print_to_string;
 use std::fmt::Write;
 use std::fs::File;
 use std::io::stdin;
+use std::io::Read;
 use std::path::PathBuf;
-use yansi::Color::Cyan;
+use yansi::{Color::Cyan, Paint};
 use yara_x_proto::exts::module_options;
 
 use yara_x_dump::Dumper;
 
 use yara_x::get_builtin_modules_names;
+
+#[derive(Debug, Clone, ValueEnum)]
+enum OutputFormats {
+    JSON,
+    YAML,
+}
 
 /// Creates the `dump` command.
 /// The `dump` command dumps information about binary files.
@@ -29,8 +41,12 @@ pub fn dump() -> Command {
         .arg(
             arg!(-o --"output-format" <FORMAT>)
                 .help("Desired output format")
-                .value_parser(value_parser!(String))
+                .value_parser(value_parser!(OutputFormats))
                 .required(false),
+        )
+        .arg(
+            arg!(-c - -"color")
+                .help("Use colorful output")
         )
         .arg(
             Arg::new("modules")
@@ -91,7 +107,13 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     let mut result = String::new();
 
     let file = args.get_one::<PathBuf>("FILE");
-    let output_format = args.get_one::<String>("output-format");
+    let output_format = args.get_one::<OutputFormats>("output-format");
+    let colors_flag = args.get_flag("color");
+
+    // Disable colors if the flag is not set.
+    if !colors_flag {
+        Paint::disable();
+    }
 
     // get vector of modules
     let modules: Vec<&str> = args
@@ -100,16 +122,12 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         .map(|s| s.as_str())
         .collect();
 
-    let dumper = Dumper::default();
-
     // Get the input.
-    let mut input: Box<dyn std::io::Read> = if let Some(file) = file {
-        Box::new(File::open(file.as_path())?)
+    if let Some(file) = file {
+        File::open(file.as_path())?.read_to_end(&mut buffer)?
     } else {
-        Box::new(stdin())
+        stdin().read_to_end(&mut buffer)?
     };
-
-    input.read_to_end(&mut buffer)?;
 
     // Get the list of modules to import.
     let import_modules = if !modules.is_empty() {
@@ -141,12 +159,25 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if mod_output.compute_size_dyn() != 0
             && (module_is_valid(mod_output) || modules.contains(&mod_name))
         {
-            write!(
-                result,
-                ">>>\n{}:\n{}<<<\n",
-                Cyan.paint(mod_name).bold(),
-                dumper.dump(mod_output, output_format)?
-            )?;
+            match output_format {
+                Some(OutputFormats::JSON) => {
+                    writeln!(
+                        result,
+                        ">>>\n{}:\n{}\n<<<",
+                        Cyan.paint(mod_name).bold(),
+                        print_to_string(mod_output)?.to_colored_json_auto()?
+                    )?;
+                }
+                Some(OutputFormats::YAML) | None => {
+                    let dumper = Dumper::default();
+                    write!(
+                        result,
+                        ">>>\n{}:\n{}<<<",
+                        Cyan.paint(mod_name).bold(),
+                        dumper.dump(mod_output)?
+                    )?;
+                }
+            }
         }
     }
 

@@ -6,24 +6,20 @@ use protobuf::reflect::ReflectValueRef;
 use protobuf_support::text_format::quote_bytes_to;
 use std::fmt::Write;
 use yansi::Color;
+use yansi::Paint;
 
 use crate::dumper::exts::field_options;
 
 use crate::Error;
 
-// A struct that represents serializers for different formats
-struct JsonSerializer;
-struct YamlSerializer;
-struct TomlSerializer;
-struct XmlSerializer;
-
 // A struct that represents colors for output
 struct Colors;
 
 impl Colors {
-    const GREEN: Color = Color::RGB(51, 255, 153);
-    const BLUE: Color = Color::RGB(51, 51, 255);
-    const YELLOW: Color = Color::RGB(255, 255, 102);
+    const GREEN: Color = Color::Green;
+    const BLUE: Color = Color::Blue;
+    const YELLOW: Color = Color::Yellow;
+    const BROWN: Color = Color::RGB(222, 184, 135);
 }
 
 // A struct that represents options for a field values
@@ -33,101 +29,17 @@ struct ValueOptions {
     is_timestamp: bool,
 }
 
-/// A trait for any type that can serialize a message
-pub(crate) trait Serializer {
-    /// Serialize a message
-    ///
-    /// # Arguments
-    ///
-    /// * `message`: The message to serialize
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Result<String, Error>` where the `String` is the serialized
-    /// message in specified format and the `Error` is any error that occurred
-    /// during serialization
-    ///
-    /// # Errors
-    ///
-    /// * `Error::ParsingJSONError`: If the message is not a valid JSON
-    /// * `Error::ParsingYAMLError`: If the message is not a valid YAML
-    /// * `Error::ParsingTOMLError`: If the message is not a valid TOML
-    /// * `Error::ParsingXMLError`: If the message is not a valid XML
-    fn serialize(&self, message: &str) -> Result<String, Error>;
-}
-
-/// Implement the trait for the JSON serializer
-impl Serializer for JsonSerializer {
-    fn serialize(&self, message: &str) -> Result<String, Error> {
-        let value = serde_json::from_str::<serde_json::Value>(message)?;
-        Ok(serde_json::to_string_pretty(&value)? + "\n")
-    }
-}
-
-/// Implement the trait for the YAML serializer
-impl Serializer for YamlSerializer {
-    fn serialize(&self, message: &str) -> Result<String, Error> {
-        let value = serde_json::from_str::<serde_yaml::Value>(message)?;
-        Ok(serde_yaml::to_string(&value)?)
-    }
-}
-
-/// Implement the trait for the TOML serializer
-impl Serializer for TomlSerializer {
-    fn serialize(&self, message: &str) -> Result<String, Error> {
-        let value = serde_json::from_str::<toml::Value>(message)?;
-        Ok(toml::to_string_pretty(&value)?)
-    }
-}
-
-/// Implement the trait for the XML serializer
-impl Serializer for XmlSerializer {
-    fn serialize(&self, message: &str) -> Result<String, Error> {
-        // Create a new XML builder and get the XML
-        let mut xml_builder = xml2json_rs::XmlConfig::new()
-            .rendering(xml2json_rs::Indentation::new(b' ', 2))
-            .decl(xml2json_rs::Declaration::new(
-                xml2json_rs::Version::XML10,
-                Some(xml2json_rs::Encoding::UTF8),
-                Some(true),
-            ))
-            .root_name("file")
-            .finalize();
-        let xml = xml_builder.build_from_json_string(message)? + "\n";
-        Ok(xml)
-    }
-}
-
-/// A function that returns a trait object based on the format
-///
-/// # Arguments
-///
-/// * `format`: The format to return the trait object for
-///
-/// # Returns
-///
-/// Returns a `Result<Box<dyn Serializer>, Error>` where the `Box<dyn
-/// Serializer>` is the trait object for the specified format and the `Error`
-/// is any error that occurred during the process
-///
-/// # Errors
-///
-/// * `Error::UnsupportedFormat`: If the format is unsupported
-pub(crate) fn get_serializer(
-    format: &str,
-) -> Result<Box<dyn Serializer>, Error> {
-    match format {
-        // Return a JSON serializer
-        "json" => Ok(Box::new(JsonSerializer)),
-        // Return a YAML serializer
-        "yaml" => Ok(Box::new(YamlSerializer)),
-        // Return a TOML serializer
-        "toml" => Ok(Box::new(TomlSerializer)),
-        // Return an XML serializer
-        "xml" => Ok(Box::new(XmlSerializer)),
-        // Return an error if the format is unsupported
-        _ => Err(Error::UnsupportedFormat),
-    }
+// Write a value as a comment
+//
+// # Arguments
+//
+// * `value`: The value to write
+//
+// # Returns
+//
+// Returns a `String` which represents the value as a comment
+fn write_as_a_comment(value: String) -> Paint<String> {
+    Colors::BROWN.paint(format!("{} {}", "#", value))
 }
 
 // Print a field name with correct indentation
@@ -171,7 +83,7 @@ fn print_field_name(
                 "{}{} {}: ",
                 indentation,
                 Colors::YELLOW.paint("-").bold(),
-                Colors::BLUE.paint(field_name)
+                Colors::BLUE.paint(field_name).bold()
             )?;
             *is_first_line = false;
         // If the field name is not the first line, print the indentation and
@@ -181,7 +93,7 @@ fn print_field_name(
                 buf,
                 "{}{}: ",
                 indentation,
-                Colors::BLUE.paint(field_name)
+                Colors::BLUE.paint(field_name).bold()
             )?;
         }
     }
@@ -220,15 +132,20 @@ fn print_field_value(
         ReflectValueRef::Message(m) => {
             *is_first_line = true;
             // Recursively print the message
-            get_human_readable_output(&m, buf, indent + 1, is_first_line)?;
+            get_yaml(&m, buf, indent + 1, is_first_line)?;
         }
         ReflectValueRef::Enum(d, v) => match d.value_by_number(v) {
             Some(e) => writeln!(buf, "{}", e.name())?,
             None => writeln!(buf, "{}", v)?,
         },
         ReflectValueRef::String(s) => {
-            quote_bytes_to(s.as_bytes(), buf);
-            buf.push('\n');
+            writeln!(
+                buf,
+                "{}{}{}",
+                Colors::GREEN.paint("\""),
+                Colors::GREEN.paint(s),
+                Colors::GREEN.paint("\""),
+            )?;
         }
         ReflectValueRef::Bytes(b) => {
             quote_bytes_to(b, buf);
@@ -237,17 +154,20 @@ fn print_field_value(
         ReflectValueRef::I32(v) => {
             // If the value has hex option turned on, print it in hex format
             let field_value = if value_options.is_hex {
-                format!("{} (0x{:x})", v, v)
+                format!("0x{:x}", v)
             // If the value has timestamp option turned on, print it in
             // timestamp format
             } else if value_options.is_timestamp {
                 format!(
-                    "{} ({})",
+                    "{} {}",
                     v,
-                    DateTime::<Utc>::from_naive_utc_and_offset(
-                        NaiveDateTime::from_timestamp_opt(v as i64, 0)
-                            .unwrap(),
-                        Utc,
+                    write_as_a_comment(
+                        DateTime::<Utc>::from_naive_utc_and_offset(
+                            NaiveDateTime::from_timestamp_opt(v as i64, 0)
+                                .unwrap(),
+                            Utc,
+                        )
+                        .to_string()
                     )
                 )
             // Otherwise, print it as a normal integer
@@ -259,12 +179,12 @@ fn print_field_value(
         ReflectValueRef::I64(v) => {
             // If the value has hex option turned on, print it in hex format
             let field_value = if value_options.is_hex {
-                format!("{} (0x{:x})", v, v)
+                format!("0x{:x}", v)
             // If the value has timestamp option turned on, print it in
             // timestamp format
             } else if value_options.is_timestamp {
                 format!(
-                    "{} ({})",
+                    "{} {}",
                     v,
                     DateTime::<Utc>::from_naive_utc_and_offset(
                         NaiveDateTime::from_timestamp_opt(v, 0).unwrap(),
@@ -280,17 +200,20 @@ fn print_field_value(
         ReflectValueRef::U32(v) => {
             // If the value has hex option turned on, print it in hex format
             let field_value = if value_options.is_hex {
-                format!("{} (0x{:x})", v, v)
+                format!("0x{:x}", v)
             // If the value has timestamp option turned on, print it in
             // timestamp format
             } else if value_options.is_timestamp {
                 format!(
-                    "{} ({})",
+                    "{} {}",
                     v,
-                    DateTime::<Utc>::from_naive_utc_and_offset(
-                        NaiveDateTime::from_timestamp_opt(v as i64, 0)
-                            .unwrap(),
-                        Utc,
+                    write_as_a_comment(
+                        DateTime::<Utc>::from_naive_utc_and_offset(
+                            NaiveDateTime::from_timestamp_opt(v as i64, 0)
+                                .unwrap(),
+                            Utc,
+                        )
+                        .to_string()
                     )
                 )
             // Otherwise, print it as a normal integer
@@ -302,17 +225,20 @@ fn print_field_value(
         ReflectValueRef::U64(v) => {
             // If the value has hex option turned on, print it in hex format
             let field_value = if value_options.is_hex {
-                format!("{} (0x{:x})", v, v)
+                format!("0x{:x}", v)
             // If the value has timestamp option turned on, print it in
             // timestamp format
             } else if value_options.is_timestamp {
                 format!(
-                    "{} ({})",
+                    "{} {}",
                     v,
-                    DateTime::<Utc>::from_naive_utc_and_offset(
-                        NaiveDateTime::from_timestamp_opt(v as i64, 0)
-                            .unwrap(),
-                        Utc,
+                    write_as_a_comment(
+                        DateTime::<Utc>::from_naive_utc_and_offset(
+                            NaiveDateTime::from_timestamp_opt(v as i64, 0)
+                                .unwrap(),
+                            Utc,
+                        )
+                        .to_string()
                     )
                 )
             // Otherwise, print it as a normal integer
@@ -348,8 +274,8 @@ fn get_value_options(field_descriptor: &FieldDescriptorProto) -> ValueOptions {
         .get(&field_descriptor.options)
         .map(|options| ValueOptions {
             // Default for boolean is false
-            is_hex: options.hex_value.unwrap_or_default(),
-            is_timestamp: options.timestamp.unwrap_or_default(),
+            is_hex: options.yaml_fmt() == "x",
+            is_timestamp: options.yaml_fmt() == "t",
         })
         .unwrap_or_default()
 }
@@ -399,7 +325,7 @@ fn get_indentation(indent: usize) -> String {
     "    ".repeat(indent)
 }
 
-/// A function that returns a human-readable output
+/// A function that returns a YAML output
 ///
 /// # Arguments
 ///
@@ -413,7 +339,7 @@ fn get_indentation(indent: usize) -> String {
 ///
 /// Returns a `Result<(), Error>` where the `Error` is any error that occurred
 /// during the process
-pub fn get_human_readable_output(
+pub fn get_yaml(
     msg: &MessageRef,
     buf: &mut String,
     indent: usize,
@@ -445,7 +371,7 @@ pub fn get_human_readable_output(
                                 buf,
                                 "{}{}:",
                                 get_indentation(indent + 1),
-                                Colors::BLUE.paint(k)
+                                Colors::BLUE.paint(k).bold()
                             )?;
                         }
                         // Otherwise, print the field name
@@ -454,7 +380,7 @@ pub fn get_human_readable_output(
                                 buf,
                                 "{}{}: ",
                                 get_indentation(indent + 1),
-                                Colors::BLUE.paint(k)
+                                Colors::BLUE.paint(k).bold()
                             )?;
                         }
                     }
@@ -477,11 +403,9 @@ pub fn get_human_readable_output(
                 }
                 writeln!(
                     buf,
-                    "{}{} {} {}",
+                    "{}{}",
                     get_indentation(indent),
-                    Colors::GREEN.paint("# Nested").italic(),
-                    Colors::GREEN.paint(f.name()).italic(),
-                    Colors::GREEN.paint("structure").italic()
+                    write_as_a_comment("Nested ".to_string() + f.name()),
                 )?;
                 writeln!(
                     buf,
@@ -531,11 +455,11 @@ pub fn get_human_readable_output(
                         ReflectValueRef::Message(_) => {
                             writeln!(
                                 buf,
-                                "{}{} {} {}",
+                                "{}{}",
                                 get_indentation(indent),
-                                Colors::GREEN.paint("# Nested").italic(),
-                                Colors::GREEN.paint(f.name()).italic(),
-                                Colors::GREEN.paint("structure").italic()
+                                write_as_a_comment(
+                                    "Nested ".to_string() + f.name()
+                                ),
                             )?;
                             writeln!(
                                 buf,

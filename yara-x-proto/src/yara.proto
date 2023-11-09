@@ -17,8 +17,7 @@ message ModuleOptions {
 message FieldOptions {
   optional string name = 1;
   optional bool ignore = 2;
-  optional bool hex_value = 3;
-  optional bool timestamp = 4;
+  optional string yaml_fmt = 3;
 }
 
 message MessageOptions {

@@ -5,8 +5,7 @@ package dumper;
 import "google/protobuf/descriptor.proto";
 
 message FieldOptions {
-    optional bool hex_value = 3;
-    optional bool timestamp = 4;
+    optional string yaml_fmt = 3;
   }
 
 extend google.protobuf.FieldOptions {

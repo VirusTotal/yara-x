@@ -36,12 +36,13 @@ logging = ["dep:log", "dep:env_logger"]
 [dependencies]
 ascii_tree = { workspace = true }
 anyhow = { workspace = true }
-clap = { workspace = true, features=["cargo"] }
+clap = { workspace = true, features=["cargo", "derive"] }
 globwalk = { workspace = true }
 enable-ansi-support = { workspace = true }
 env_logger = { workspace = true , optional = true }
 log = { workspace = true, optional = true }
 protobuf = { workspace = true }
+protobuf-json-mapping = "3.3.0"
 serde_json = { workspace = true }
 yansi = { workspace = true }
 yara-x = { workspace = true }
@@ -56,3 +57,4 @@ indent = "0.1.1"
 pprof = { version = "0.12.1", features = ["flamegraph"], optional=true }
 superconsole = "0.2.0"
 wild = "2.1.0"
+colored_json = "4.0.0"

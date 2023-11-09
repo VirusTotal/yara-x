@@ -500,6 +500,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac495e00dcec98c83465d5ad66c5c4fabd652fd6686e7c6269b117e729a6f17b"
 dependencies = [
  "clap_builder",
+ "clap_derive",
 ]
 
 [[package]]
@@ -515,6 +516,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_derive"
+version = "4.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf9804afaaf59a91e75b022a30fb7229a7901f60c755489cc61c9b423b836442"
+dependencies = [
+ "heck 0.4.1",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.38",
+]
+
+[[package]]
 name = "clap_lex"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -525,6 +538,18 @@ name = "colorchoice"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
+
+[[package]]
+name = "colored_json"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66203a5372a3ffbef29a90b4f8ed98eae3be5662bc7922c7dee1cb57bd40f9a8"
+dependencies = [
+ "is-terminal",
+ "serde",
+ "serde_json",
+ "yansi",
+]
 
 [[package]]
 name = "compact_str"
@@ -4426,6 +4451,7 @@ dependencies = [
  "anyhow",
  "ascii_tree",
  "clap",
+ "colored_json",
  "crossbeam",
  "crossterm 0.27.0",
  "enable-ansi-support",
@@ -4435,6 +4461,7 @@ dependencies = [
  "log",
  "pprof",
  "protobuf",
+ "protobuf-json-mapping",
  "serde_json",
  "superconsole",
  "wild",
@@ -4456,7 +4483,6 @@ dependencies = [
  "goldenfile",
  "protobuf",
  "protobuf-codegen",
- "protobuf-json-mapping",
  "protobuf-parse",
  "protobuf-support",
  "rstest",
