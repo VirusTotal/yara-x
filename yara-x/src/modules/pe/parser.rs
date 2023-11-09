@@ -255,7 +255,11 @@ impl<'a> PE<'a> {
         Some(rich_header)
     }
 
-    // TODO
+    /// Returns PE version information.
+    ///
+    /// The information is returned as an iterator of (key,value) pairs,
+    /// where keys are strings like "CompanyName", "FileDescription",
+    /// "OriginalFilename", etc.
     pub fn get_version_info(&self) -> impl Iterator<Item = (&str, &str)> {
         self.version_info
             .get_or_init(|| self.parse_version_info())
@@ -265,6 +269,15 @@ impl<'a> PE<'a> {
             .map(|(k, v)| (k.as_str(), v.as_str()))
     }
 
+    /// Returns the path to the PDB file that contains debug information
+    /// for the PE file. The result is `None` either if the PE doesn't
+    /// contain debug information, the debug information is not contained
+    /// in a PDB file, or the file is corrupted and this information
+    /// could not be parsed.
+    ///
+    /// For certain EFI binaries the result is not actually a path, but
+    /// a CLSID. Is not clear what the CLSID means. Example:
+    /// 6c2abf4b80a87e63eee2996e5cea8f004d49ec0c1806080fa72e960529cba14c
     pub fn get_pdb_path(&self) -> Option<&'a str> {
         *self.pdb_path.get_or_init(|| self.parse_dbg())
     }
@@ -834,12 +847,13 @@ impl<'a> PE<'a> {
     /// ]
     /// ```
     fn parse_version_info(&self) -> Option<Vec<(String, String)>> {
-        // The version information is located in a resource with ID
-        // RESOURCE_TYPE_VERSION.
-        let version_info_rsrc = self
-            .get_resources()
-            .iter()
-            .find(|r| matches!(r.type_id, ResourceId::Id(16)))?; // TODO: use constant for 16
+        // Find the resource with ID = RESOURCE_TYPE_VERSION
+        let version_info_rsrc = self.get_resources().iter().find(|r| {
+            r.type_id
+                == ResourceId::Id(
+                    pe::ResourceType::RESOURCE_TYPE_VERSION as u32,
+                )
+        })?;
 
         let version_info_raw =
             self.data.get(version_info_rsrc.offset? as usize..)?;
@@ -1209,8 +1223,10 @@ impl<'a> PE<'a> {
             .iter()
             .filter(|entry| entry.type_ == Self::IMAGE_DEBUG_TYPE_CODEVIEW)
         {
-            // The debug info offset may be present either as RVA or as raw offset
-            // Sample: 0249e00b6d46bee5a17096559f18e671cd0ceee36373e8708f614a9a6c7c079e
+            // The debug info offset may be present either as RVA or as raw
+            // offset. The RVA has higher priority, but if it is 0 or can't
+            // be resolved to a file offset, then the raw offset is used
+            // instead.
             let offset = if entry.virtual_address != 0 {
                 self.rva_to_offset(entry.virtual_address)
             } else {
@@ -1628,7 +1644,7 @@ pub struct ResourceDirEntry<'a> {
     offset: u32,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum ResourceId<'a> {
     Unknown,
     Id(u32),
