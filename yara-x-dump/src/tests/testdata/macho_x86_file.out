@@ -9,7 +9,7 @@ segments:
     nested2: 0x30d40
     timestamp: 999999999 # 2001-09-09 01:46:39 UTC
 optional:
-testonested1: 123
+onested1: 123
     onested2: 0x1c8
     map_string_string:
         "foo\nfoo": "bar\nbar"

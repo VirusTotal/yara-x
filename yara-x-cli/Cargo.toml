@@ -58,3 +58,4 @@ pprof = { version = "0.12.1", features = ["flamegraph"], optional=true }
 superconsole = "0.2.0"
 wild = "2.1.0"
 colored_json = "4.0.0"
+strum_macros = "0.25"

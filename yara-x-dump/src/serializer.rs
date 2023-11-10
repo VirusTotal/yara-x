@@ -473,7 +473,6 @@ pub(crate) fn get_yaml(
                                 get_indentation(indent),
                                 Colors::YELLOW.paint(f.name()).bold()
                             )?;
-                            write!(buf, "test",)?;
                             print_field(
                                 buf,
                                 "",

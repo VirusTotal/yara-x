@@ -1,21 +1,27 @@
+use anyhow::Error;
 use clap::{
     arg, value_parser, Arg, ArgAction, ArgMatches, Command, ValueEnum,
 };
 
 use colored_json::ToColoredJson;
-use protobuf::{reflect::ReflectValueRef::Bool, MessageDyn};
+use protobuf::MessageDyn;
 use protobuf_json_mapping::print_to_string;
 use std::fmt::Write;
 use std::fs::File;
 use std::io::stdin;
 use std::io::Read;
 use std::path::PathBuf;
+use strum_macros::Display;
 use yansi::{Color::Cyan, Paint};
-use yara_x_proto::exts::module_options;
 
 use yara_x_dump::Dumper;
 
-use yara_x::get_builtin_modules_names;
+#[derive(Debug, Clone, ValueEnum, Display)]
+enum SupportedModules {
+    Lnk,
+    Macho,
+    Elf,
+}
 
 #[derive(Debug, Clone, ValueEnum)]
 enum OutputFormats {
@@ -55,41 +61,49 @@ pub fn dump() -> Command {
             .help("Name of the module or comma-separated list of modules to be used for parsing")
             .required(false)
             .action(ArgAction::Append)
-            .value_parser(get_builtin_modules_names()),
+            .value_parser(value_parser!(SupportedModules)),
         )
 }
 
-// Checks if the module output is valid by checking the validity flag.
+// Obtains information about a module by calling dumper crate.
 //
 // # Arguments
 //
-// * `mod_output`: The module output to check.
+// * `output_format`: The output format.
+// * `module`: The module name.
+// * `output`: The output protobuf structure to be dumped.
+// * `result`: String where the result is stored.
 //
 // # Returns
 //
-// * `true` if the module output is valid, `false` otherwise.
-fn module_is_valid(mod_output: &dyn MessageDyn) -> bool {
-    // Get the module options.
-    if let Some(module_desc) = module_options
-        .get(&mod_output.descriptor_dyn().file_descriptor_proto().options)
-    {
-        // Get the field name which is considered as the validity flag.
-        if let Some(validity_flag_str) = module_desc.validity_flag.as_deref() {
-            // Get the validity flag value.
-            if let Some(field) =
-                mod_output.descriptor_dyn().field_by_name(validity_flag_str)
-            {
-                // Check if the validity flag is set.
-                // Validity flag is set if the value present and is not
-                // false.
-                if let Some(value) = field.get_singular(mod_output) {
-                    return value != Bool(false);
-                }
-            }
+// Returns a `Result<(), Error>` indicating whether the operation was
+// successful or not.
+fn obtain_module_info(
+    output_format: Option<&OutputFormats>,
+    module: &SupportedModules,
+    output: &dyn MessageDyn,
+    result: &mut String,
+) -> Result<(), Error> {
+    match output_format {
+        Some(OutputFormats::Json) => {
+            writeln!(
+                result,
+                ">>>\n{}:\n{}\n<<<",
+                Cyan.paint(module).bold(),
+                print_to_string(&*output)?.to_colored_json_auto()?
+            )?;
+        }
+        Some(OutputFormats::Yaml) | None => {
+            let dumper = Dumper::default();
+            write!(
+                result,
+                ">>>\n{}:\n{}<<<",
+                Cyan.paint(module).bold(),
+                dumper.dump(&*output)?
+            )?;
         }
     }
-
-    false
+    Ok(())
 }
 
 /// Executes the `dump` command.
@@ -108,19 +122,13 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
 
     let file = args.get_one::<PathBuf>("FILE");
     let output_format = args.get_one::<OutputFormats>("output-format");
+    let modules = args.get_many::<SupportedModules>("modules");
     let colors_flag = args.get_flag("color");
 
     // Disable colors if the flag is not set.
     if !colors_flag {
         Paint::disable();
     }
-
-    // get vector of modules
-    let modules: Vec<&str> = args
-        .get_many::<String>("modules")
-        .unwrap_or_default()
-        .map(|s| s.as_str())
-        .collect();
 
     // Get the input.
     if let Some(file) = file {
@@ -129,54 +137,63 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         stdin().read_to_end(&mut buffer)?
     };
 
-    // Get the list of modules to import.
-    let import_modules = if !modules.is_empty() {
-        modules.clone()
+    if modules.is_some() {
+        for module in modules.unwrap() {
+            if let Some(output) = match module {
+                SupportedModules::Lnk => {
+                    yara_x::mods::invoke_mod_dyn::<yara_x::mods::Lnk>(&buffer)
+                }
+                SupportedModules::Macho => yara_x::mods::invoke_mod_dyn::<
+                    yara_x::mods::Macho,
+                >(&buffer),
+                SupportedModules::Elf => {
+                    yara_x::mods::invoke_mod_dyn::<yara_x::mods::ELF>(&buffer)
+                }
+            } {
+                obtain_module_info(
+                    output_format,
+                    module,
+                    &*output,
+                    &mut result,
+                )?;
+            }
+        }
     } else {
-        yara_x::get_builtin_modules_names()
-    };
-
-    // Create a rule that imports all the built-in modules.
-    let import_statements = import_modules
-        .iter()
-        .map(|module_name| format!("import \"{}\"", module_name))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    // Create a dummy rule
-    let rule =
-        format!(r#"{} rule test {{ condition: false }}"#, import_statements);
-
-    // Compile the rule.
-    let rules = yara_x::compile(rule.as_str()).unwrap();
-
-    let mut scanner = yara_x::Scanner::new(&rules);
-
-    // Scan the buffer and get the results.
-    let scan_results = scanner.scan(&buffer).expect("scan should not fail");
-
-    for (mod_name, mod_output) in scan_results.module_outputs() {
-        if mod_output.compute_size_dyn() != 0
-            && (module_is_valid(mod_output) || modules.contains(&mod_name))
+        // Module was not specified therefore we have to obtain ouput for every supported module and decide which is valid.
+        if let Some(lnk_output) =
+            yara_x::mods::invoke_mod::<yara_x::mods::Lnk>(&buffer)
         {
-            match output_format {
-                Some(OutputFormats::Json) => {
-                    writeln!(
-                        result,
-                        ">>>\n{}:\n{}\n<<<",
-                        Cyan.paint(mod_name).bold(),
-                        print_to_string(mod_output)?.to_colored_json_auto()?
-                    )?;
-                }
-                Some(OutputFormats::Yaml) | None => {
-                    let dumper = Dumper::default();
-                    write!(
-                        result,
-                        ">>>\n{}:\n{}<<<",
-                        Cyan.paint(mod_name).bold(),
-                        dumper.dump(mod_output)?
-                    )?;
-                }
+            if lnk_output.is_lnk() {
+                obtain_module_info(
+                    output_format,
+                    &SupportedModules::Lnk,
+                    &*lnk_output,
+                    &mut result,
+                )?;
+            }
+        }
+        if let Some(macho_output) =
+            yara_x::mods::invoke_mod::<yara_x::mods::Macho>(&buffer)
+        {
+            if macho_output.has_magic() {
+                obtain_module_info(
+                    output_format,
+                    &SupportedModules::Macho,
+                    &*macho_output,
+                    &mut result,
+                )?;
+            }
+        }
+        if let Some(elf_output) =
+            yara_x::mods::invoke_mod::<yara_x::mods::ELF>(&buffer)
+        {
+            if elf_output.has_type() {
+                obtain_module_info(
+                    output_format,
+                    &SupportedModules::Elf,
+                    &*elf_output,
+                    &mut result,
+                )?;
             }
         }
     }
