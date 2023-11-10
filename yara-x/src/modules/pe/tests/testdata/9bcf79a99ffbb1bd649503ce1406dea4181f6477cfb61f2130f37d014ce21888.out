@@ -1,0 +1,190 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_CUI
+os_version {
+  major: 4
+  minor: 0
+}
+subsystem_version {
+  major: 4
+  minor: 0
+}
+image_version {
+  major: 0
+  minor: 0
+}
+linker_version {
+  major: 48
+  minor: 0
+}
+characteristics: 8226
+dll_characteristics: 34112
+timestamp: 3435013737
+image_base: 268435456
+checksum: 0
+base_of_code: 8192
+base_of_data: 16384
+entry_point: 3058
+entry_point_raw: 10738
+section_alignment: 8192
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 2560
+size_of_initialized_data: 1536
+size_of_uninitialized_data: 0
+size_of_image: 32768
+size_of_headers: 512
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+version_info_list {
+  key: "FileDescription"
+  value: " "
+}
+version_info_list {
+  key: "FileVersion"
+  value: "0.0.0.0"
+}
+version_info_list {
+  key: "InternalName"
+  value: "UnityEngine.Purchasing.AppleStub.dll"
+}
+version_info_list {
+  key: "LegalCopyright"
+  value: " "
+}
+version_info_list {
+  key: "OriginalFilename"
+  value: "UnityEngine.Purchasing.AppleStub.dll"
+}
+version_info_list {
+  key: "ProductVersion"
+  value: "0.0.0.0"
+}
+version_info_list {
+  key: "Assembly Version"
+  value: "0.0.0.0"
+}
+number_of_sections: 3
+pdb_path: "D:\\Unity\\KenShape\\Temp\\UnityEngine.Purchasing.AppleStub.pdb"
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 2560
+  raw_data_offset: 512
+  virtual_address: 8192
+  virtual_size: 2552
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  full_name: ".rsrc"
+  characteristics: 1073741888
+  raw_data_size: 1024
+  raw_data_offset: 3072
+  virtual_address: 16384
+  virtual_size: 776
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1107296320
+  raw_data_size: 512
+  raw_data_offset: 4096
+  virtual_address: 24576
+  virtual_size: 12
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 10655
+  size: 79
+}
+data_directories {
+  virtual_address: 16384
+  size: 776
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 24576
+  size: 12
+}
+data_directories {
+  virtual_address: 10448
+  size: 84
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 8192
+  size: 8
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 8200
+  size: 72
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+resources {
+  length: 684
+  rva: 16472
+  offset: 3160
+  type: RESOURCE_TYPE_VERSION
+  id: 1
+  language: 0
+}
+overlay {
+  offset: 0
+  size: 0
+}

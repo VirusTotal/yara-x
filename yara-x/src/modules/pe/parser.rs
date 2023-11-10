@@ -2,6 +2,7 @@ use std::cell::OnceCell;
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::iter::zip;
+use std::ops::Rem;
 use std::str::FromStr;
 
 use bstr::{BStr, ByteSlice};
@@ -181,26 +182,30 @@ impl<'a> PE<'a> {
                 section_offset = s.raw_data_offset;
                 section_raw_size = s.raw_data_size;
 
-                // Round section_offset down to a multiple of 0x200.
+                // According to the PE specification, file_alignment should
+                // be a power of 2 between 512 and 64KB, inclusive. And the
+                // default value is 512 (0x200). But PE files with lower values
+                // (like 64, 32, and even 1) do exist in the wild and are
+                // correctly handled by the Windows loader. For files with
+                // very small values of file_alignment see:
+                // http://www.phreedom.org/research/tinype/
                 //
-                // Rounding everything less than 0x200 to 0 as discussed in
-                // https://code.google.com/archive/p/corkami/wikis/PE.wiki#PointerToRawData
-                // does not work for PE32_FILE from the test suite and for
-                // some tinype samples where File Alignment = 4
-                // (http://www.phreedom.org/research/tinype/).
-                //
-                // If FileAlignment is >= 0x200, it is apparently ignored (see
-                // Ero Carreras's pefile.py, PE.adjust_FileAlignment).
-                let alignment = min(self.optional_hdr.file_alignment, 0x200);
+                // Also, according to Ero Carreras's pefile.py, file alignments
+                // greater than 512, are actually ignored and 512 is used
+                // instead.
+                let file_alignment =
+                    min(self.optional_hdr.file_alignment, 0x200);
 
-                if let Some(rem) = section_offset.checked_rem(alignment) {
+                // Round down section_offset to a multiple of file_alignment.
+                if let Some(rem) = section_offset.checked_rem(file_alignment) {
                     section_offset -= rem;
                 }
 
-                // TODO
-                //if self.optional_hdr.section_alignment >= 0x1000 {
-                //  todo!()
-                //}
+                if self.optional_hdr.section_alignment >= 0x1000 {
+                    // Round section_offset down to sector size (512 bytes).
+                    section_offset =
+                        section_offset.saturating_sub(section_offset % 0x200);
+                }
             }
         }
 
