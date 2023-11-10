@@ -3,7 +3,7 @@ use protobuf::descriptor::FieldDescriptorProto;
 use protobuf::reflect::MessageRef;
 use protobuf::reflect::ReflectFieldRef;
 use protobuf::reflect::ReflectValueRef;
-use protobuf_support::text_format::quote_bytes_to;
+use protobuf_support::text_format::escape_bytes_to;
 use std::fmt::Write;
 use yansi::Color;
 use yansi::Paint;
@@ -27,6 +27,25 @@ impl Colors {
 struct ValueOptions {
     is_hex: bool,
     is_timestamp: bool,
+}
+
+// Quote bytes function takes from protobuf-support crate
+// and modified to return a String instead of writing to a buffer
+// to allow colorizing the output
+//
+// # Arguments
+//
+// * `bytes`: The bytes to quote
+//
+// # Returns
+//
+// Returns a `String` which represents the quoted bytes
+pub fn quote_bytes(bytes: &[u8]) -> String {
+    let mut result = String::new();
+    result.push('"');
+    escape_bytes_to(bytes, &mut result);
+    result.push('"');
+    result
 }
 
 // Write a value as a comment
@@ -67,24 +86,14 @@ fn print_field_name(
     indent: usize,
     is_first_line: &mut bool,
 ) -> Result<(), Error> {
-    let mut indentation = get_indentation(indent);
+    let indentation = get_indentation(indent);
 
     // If the field name is not empty, print it
     if !field_name.is_empty() {
         // If the field name is the first line, print the indentation with a
         // dash and the field name
         if *is_first_line {
-            if !indentation.is_empty() {
-                indentation.pop();
-                indentation.pop();
-            }
-            write!(
-                buf,
-                "{}{} {}: ",
-                indentation,
-                Colors::YELLOW.paint("-").bold(),
-                Colors::BLUE.paint(field_name).bold()
-            )?;
+            write!(buf, "{}: ", Colors::BLUE.paint(field_name).bold())?;
             *is_first_line = false;
         // If the field name is not the first line, print the indentation and
         // the field name
@@ -141,15 +150,12 @@ fn print_field_value(
         ReflectValueRef::String(s) => {
             writeln!(
                 buf,
-                "{}{}{}",
-                Colors::GREEN.paint("\""),
-                Colors::GREEN.paint(s),
-                Colors::GREEN.paint("\""),
+                "{}",
+                Colors::GREEN.paint(quote_bytes(s.as_bytes()))
             )?;
         }
         ReflectValueRef::Bytes(b) => {
-            quote_bytes_to(b, buf);
-            buf.push('\n');
+            writeln!(buf, "{}", Colors::GREEN.paint(quote_bytes(b)))?;
         }
         ReflectValueRef::I32(v) => {
             // If the value has hex option turned on, print it in hex format
@@ -339,7 +345,7 @@ fn get_indentation(indent: usize) -> String {
 ///
 /// Returns a `Result<(), Error>` where the `Error` is any error that occurred
 /// during the process
-pub fn get_yaml(
+pub(crate) fn get_yaml(
     msg: &MessageRef,
     buf: &mut String,
     indent: usize,
@@ -371,7 +377,11 @@ pub fn get_yaml(
                                 buf,
                                 "{}{}:",
                                 get_indentation(indent + 1),
-                                Colors::BLUE.paint(k).bold()
+                                Colors::BLUE
+                                    .paint(quote_bytes(
+                                        k.to_string().as_bytes()
+                                    ))
+                                    .bold()
                             )?;
                         }
                         // Otherwise, print the field name
@@ -380,7 +390,11 @@ pub fn get_yaml(
                                 buf,
                                 "{}{}: ",
                                 get_indentation(indent + 1),
-                                Colors::BLUE.paint(k).bold()
+                                Colors::BLUE
+                                    .paint(quote_bytes(
+                                        k.to_string().as_bytes()
+                                    ))
+                                    .bold()
                             )?;
                         }
                     }
@@ -403,12 +417,6 @@ pub fn get_yaml(
                 }
                 writeln!(
                     buf,
-                    "{}{}",
-                    get_indentation(indent),
-                    write_as_a_comment("Nested ".to_string() + f.name()),
-                )?;
-                writeln!(
-                    buf,
                     "{}{}:",
                     get_indentation(indent),
                     Colors::YELLOW.paint(f.name()).bold()
@@ -418,6 +426,12 @@ pub fn get_yaml(
                     match v {
                         // If the value is a message, print it recursively
                         ReflectValueRef::Message(_) => {
+                            write!(
+                                buf,
+                                "{}  {} ",
+                                get_indentation(indent),
+                                Colors::YELLOW.paint("-").bold(),
+                            )?;
                             print_field(
                                 buf,
                                 "",
@@ -455,18 +469,11 @@ pub fn get_yaml(
                         ReflectValueRef::Message(_) => {
                             writeln!(
                                 buf,
-                                "{}{}",
-                                get_indentation(indent),
-                                write_as_a_comment(
-                                    "Nested ".to_string() + f.name()
-                                ),
-                            )?;
-                            writeln!(
-                                buf,
                                 "{}{}:",
                                 get_indentation(indent),
                                 Colors::YELLOW.paint(f.name()).bold()
                             )?;
+                            write!(buf, "test",)?;
                             print_field(
                                 buf,
                                 "",

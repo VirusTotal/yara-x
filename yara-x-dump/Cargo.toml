@@ -26,7 +26,6 @@ goldenfile = "1.5.2"
 globwalk = { workspace = true }
 tempfile = "3.8.1"
 
-
 [build-dependencies]
 protobuf =  { workspace = true }
 protobuf-codegen =  { workspace = true }

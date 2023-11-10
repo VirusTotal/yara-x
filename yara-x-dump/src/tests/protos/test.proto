@@ -19,6 +19,7 @@ message OptionalNested {
 message MyMessage {
   optional int32 field1 = 1 [(dumper.field_options).yaml_fmt = "x"];
   optional string field2 = 2;
-  repeated Segment segments = 3;
-  optional OptionalNested optional = 4;
+  required string field3 = 3;
+  repeated Segment segments = 4;
+  optional OptionalNested optional = 5;
 }

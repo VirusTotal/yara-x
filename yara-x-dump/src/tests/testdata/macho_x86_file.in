@@ -1,15 +1,21 @@
 field1: 123
 field2: "test"
+field3: "test\ntest"
 segments {
     nested1: 456
     nested2: 789
     timestamp: 123456789
 }
+segments {
+    nested1: 100000
+    nested2: 200000
+    timestamp: 999999999
+}
 optional {
     onested1: 123
     onested2: 456
     map_string_string {
-      key: "foo"
-      value: "bar"
+      key: "foo\nfoo"
+      value: "bar\nbar"
     }
 }

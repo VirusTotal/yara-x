@@ -1,13 +1,15 @@
 field1: 0x7b
 field2: "test"
-# Nested segments
+field3: "test\ntest"
 segments:
   - nested1: 456
     nested2: 0x315
     timestamp: 123456789 # 1973-11-29 21:33:09 UTC
-# Nested optional
+  - nested1: 100000
+    nested2: 0x30d40
+    timestamp: 999999999 # 2001-09-09 01:46:39 UTC
 optional:
-  - onested1: 123
+testonested1: 123
     onested2: 0x1c8
     map_string_string:
-        foo: "bar"
+        "foo\nfoo": "bar\nbar"
