@@ -18,12 +18,9 @@ use lingua::{Language, LanguageDetectorBuilder};
 /// This function must return an instance of the protobuf message indicated
 /// in the `root_message` option in `text.proto`.
 #[module_main]
-fn main(ctx: &ScanContext) -> Text {
+fn main(_data: &[u8]) -> Text {
     // Create an empty instance of the Text protobuf.
     let mut text_proto = Text::new();
-
-    // Get a &[u8] slice with the content of the file being scanned.
-    let data = ctx.scanned_data();
 
     let mut num_lines = 0;
     let mut num_words = 0;
