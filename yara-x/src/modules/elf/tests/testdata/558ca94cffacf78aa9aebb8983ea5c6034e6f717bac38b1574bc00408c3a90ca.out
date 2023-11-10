@@ -1,0 +1,316 @@
+type: ET_REL
+machine: EM_MIPS
+sh_offset: 2104
+sh_entry_size: 40
+ph_offset: 0
+ph_entry_size: 0
+number_of_sections: 19
+number_of_segments: 0
+symtab_entries: 17
+dynsym_entries: 0
+dynamic_section_entries: 0
+sections {
+  type: SHT_NULL
+  flags: 0
+  address: 0
+  size: 0
+  offset: 0
+  name: ""
+}
+sections {
+  type: SHT_NOTE
+  flags: 2
+  address: 0
+  size: 24
+  offset: 52
+  name: ".note.Linux"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 0
+  size: 240
+  offset: 80
+  name: ".text"
+}
+sections {
+  type: SHT_REL
+  flags: 64
+  address: 0
+  size: 72
+  offset: 1688
+  name: ".rel.text"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 0
+  size: 92
+  offset: 320
+  name: ".init.text"
+}
+sections {
+  type: SHT_REL
+  flags: 64
+  address: 0
+  size: 48
+  offset: 1760
+  name: ".rel.init.text"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 6
+  address: 0
+  size: 36
+  offset: 412
+  name: ".exit.text"
+}
+sections {
+  type: SHT_REL
+  flags: 64
+  address: 0
+  size: 32
+  offset: 1808
+  name: ".rel.exit.text"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 2
+  address: 0
+  size: 166
+  offset: 448
+  name: ".modinfo"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 50
+  address: 0
+  size: 4
+  offset: 616
+  name: ".rodata.str1.4"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 0
+  size: 0
+  offset: 624
+  name: ".data"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 0
+  size: 152
+  offset: 624
+  name: ".data..read_mostly"
+}
+sections {
+  type: SHT_REL
+  flags: 64
+  address: 0
+  size: 80
+  offset: 1840
+  name: ".rel.data..read_mostly"
+}
+sections {
+  type: SHT_PROGBITS
+  flags: 3
+  address: 0
+  size: 352
+  offset: 800
+  name: ".gnu.linkonce.this_module"
+}
+sections {
+  type: SHT_REL
+  flags: 64
+  address: 0
+  size: 16
+  offset: 1920
+  name: ".rel.gnu.linkonce.this_module"
+}
+sections {
+  type: SHT_NOBITS
+  flags: 3
+  address: 0
+  size: 0
+  offset: 1152
+  name: ".bss"
+}
+sections {
+  type: SHT_SYMTAB
+  flags: 0
+  address: 0
+  size: 272
+  offset: 1152
+  name: ".symtab"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 0
+  address: 0
+  size: 262
+  offset: 1424
+  name: ".strtab"
+}
+sections {
+  type: SHT_STRTAB
+  flags: 0
+  address: 0
+  size: 167
+  offset: 1936
+  name: ".shstrtab"
+}
+symtab {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_LOCAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 2
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 9
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: ""
+  value: 0
+  size: 0
+  type: STT_SECTION
+  bind: STB_LOCAL
+  shndx: 11
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "_0"
+  value: 0
+  size: 36
+  type: STT_FUNC
+  bind: STB_LOCAL
+  shndx: 6
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "_1"
+  value: 0
+  size: 92
+  type: STT_FUNC
+  bind: STB_LOCAL
+  shndx: 4
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__this_module"
+  value: 0
+  size: 352
+  type: STT_OBJECT
+  bind: STB_GLOBAL
+  shndx: 13
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__stack_chk_guard"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "nf_ct_netns_get"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "nf_nat_masquerade_inet_register_notifiers"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "__stack_chk_fail"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "xt_unregister_targets"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "nf_nat_masquerade_ipv6"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "nf_nat_masquerade_inet_unregister_notifiers"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "xt_register_targets"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "nf_nat_masquerade_ipv4"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}
+symtab {
+  name: "nf_ct_netns_put"
+  value: 0
+  size: 0
+  type: STT_NOTYPE
+  bind: STB_GLOBAL
+  shndx: 0
+  visibility: STV_DEFAULT
+}

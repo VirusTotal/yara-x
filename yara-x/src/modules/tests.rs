@@ -2,6 +2,13 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
+/// Utility function that reads a file in [`Intel HEX`][1] (ihex) format and
+/// returns the binary data contained in it.
+///
+/// All test files in this repository are stored in ihex format in order to
+/// avoid storing executable files (some of them malware) in binary form.
+///
+/// [1]: https://en.wikipedia.org/wiki/Intel_HEX
 pub fn create_binary_from_ihex<P: AsRef<Path>>(
     path: P,
 ) -> anyhow::Result<Vec<u8>> {
