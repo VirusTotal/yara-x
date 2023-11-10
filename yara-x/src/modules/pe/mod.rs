@@ -13,8 +13,8 @@ mod tests;
 pub mod parser;
 
 #[module_main]
-fn main(ctx: &ScanContext) -> PE {
-    match parser::PE::parse(ctx.scanned_data()) {
+fn main(input: &[u8]) -> PE {
+    match parser::PE::parse(input) {
         Ok(pe) => pe.into(),
         Err(_) => {
             let mut pe = PE::new();

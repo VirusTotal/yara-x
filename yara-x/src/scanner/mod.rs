@@ -448,7 +448,7 @@ impl<'r> Scanner<'r> {
             // the data is specified by the .proto file associated to the
             // module.
             let module_output = if let Some(main_fn) = module.main_fn {
-                main_fn(ctx)
+                main_fn(data.as_ref())
             } else {
                 // Implement the case in which the module doesn't have a main
                 // function and the serialized data should be provided by the

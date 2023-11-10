@@ -3,8 +3,6 @@ use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 
-use crate::scanner::ScanContext;
-
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 }
@@ -26,7 +24,7 @@ pub(crate) mod prelude {
 include!("modules.rs");
 
 /// Type of module's main function.
-type MainFn = fn(&ScanContext) -> Box<dyn MessageDyn>;
+type MainFn = fn(&[u8]) -> Box<dyn MessageDyn>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
@@ -119,4 +117,76 @@ lazy_static! {
 
         modules
     };
+}
+
+pub mod mods {
+    /*! Utility functions and structures for invoking YARA modules directly.
+
+    The utility functions [`invoke_mod`] and [`invoke_mod_dyn`] allow leveraging
+    YARA modules for parsing some file formats independently of any YARA rule.
+    With these functions you can pass arbitrary data to a YARA module and obtain
+    the same data structure that is accessible to YARA rules and which you use
+    in your rule conditions.
+
+    This allows external projects to benefit from YARA's file-parsing
+    capabilities for their own purposes.
+     */
+
+    /// Data structure returned by the `elf` module.
+    pub use super::protos::elf::ELF;
+    /// Data structure returned by the `lnk` module.
+    pub use super::protos::lnk::Lnk;
+    /// Data structure returned by the `macho` module.
+    pub use super::protos::macho::Macho;
+
+    /// Invoke a YARA module with arbitrary data.
+    ///
+    /// <br>
+    ///
+    /// YARA modules typically parse specific file formats, returning structures
+    /// that contain information about the file. These structures are used in YARA
+    /// rules for expressing powerful and rich conditions. However, being able to
+    /// access this information outside of YARA rules can also be beneficial.
+    ///
+    /// <br>
+    ///
+    /// This function allows the direct invocation of a YARA module for parsing
+    /// arbitrary data. It returns the structure produced by the module, which
+    /// depends upon the invoked module. The result will be [`None`] if the
+    /// module does not exist, or if it doesn't produce any information for
+    /// the input data.
+    ///
+    /// `T` must be one of the structure types returned by a YARA module, which
+    /// are defined [`crate::mods`].
+    ///
+    /// # Example
+    /// ```rust
+    /// # use yara_x;
+    /// # let data = &[];
+    /// let elf_info = yara_x::mods::invoke_mod::<yara_x::mods::ELF>(data);
+    /// ```
+    pub fn invoke_mod<T: protobuf::MessageFull>(
+        data: &[u8],
+    ) -> Option<Box<T>> {
+        let module_output = invoke_mod_dyn::<T>(data)?;
+        Some(<dyn protobuf::MessageDyn>::downcast_box(module_output).unwrap())
+    }
+
+    /// Invoke a YARA module with arbitrary data, but returns a dynamic
+    /// structure.
+    ///
+    /// This function is similar to [`invoke_mod`] but its result is a dynamic-
+    /// dispatch version of the structure returned by the YARA module.
+    pub fn invoke_mod_dyn<T: protobuf::MessageFull>(
+        data: &[u8],
+    ) -> Option<Box<dyn protobuf::MessageDyn>> {
+        let descriptor = T::descriptor();
+        let proto_name = descriptor.full_name();
+        let (_, module) =
+            super::BUILTIN_MODULES.iter().find(|(_, module)| {
+                module.root_struct_descriptor.full_name() == proto_name
+            })?;
+
+        Some(module.main_fn?(data))
+    }
 }

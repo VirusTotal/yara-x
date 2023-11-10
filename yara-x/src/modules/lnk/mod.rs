@@ -17,8 +17,8 @@ use crate::modules::protos::lnk::*;
 pub mod parser;
 
 #[module_main]
-fn main(ctx: &ScanContext) -> Lnk {
-    match parser::LnkParser::new().parse(ctx.scanned_data()) {
+fn main(data: &[u8]) -> Lnk {
+    match parser::LnkParser::new().parse(data) {
         Ok(lnk) => lnk,
         Err(_) => {
             let mut lnk = Lnk::new();

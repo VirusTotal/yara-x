@@ -244,9 +244,8 @@ use crate::modules::prelude::*;
 use crate::modules::protos::text::*;
 
 #[module_main]
-fn main(ctx: &ScanContext) -> Text {
+fn main(data: &[u8]) -> Text {
     let mut text_proto = Text::new();
-    let data = ctx.scanned_data();
 
     // TODO: parse the data and populate text_proto.
 
@@ -284,18 +283,18 @@ Next comes the module's main function:
 
 ```rust
 #[module_main]
-fn main(ctx: &ScanContext) -> Text { 
+fn main(data: &[u8]) -> Text { 
     ...
 }
 ```
 
 The module's main function is called for every file scanned by YARA. This 
-function receives a reference to a `ScanContext` structure that gives you access
-to the scanned data. It must return the `Text` structure that was generated from
-the `text.proto` file. The main function must have the `#[module_main]` attribute.
-Notice that the module's main function doesn't need to be called `main`, it can 
-have any arbitrary name, as long as it has the `#[module_main]` attribute. Of 
-course, this attribute can't be used with more than one function per module.
+function receives a byte slice with the content of the file being scanned. It
+must return the `Text` structure that was generated from the `text.proto` file. 
+The main function must have the `#[module_main]` attribute. Notice that the 
+module's main function doesn't need to be called `main`, it can have any 
+arbitrary name, as long as it has the `#[module_main]` attribute. Of course, 
+this attribute can't be used with more than one function per module.
 
 The main function usually consists in creating an instance of the protobuf 
 you previously defined, and populating the protobuf with information extracted from
@@ -310,7 +309,7 @@ use std::io;
 use std::io::BufRead;
 
 #[module_main]
-fn main(ctx: &ScanContext) -> Text {
+fn main(data: &[u8]) -> Text {
     // Create an empty instance of the Text protobuf.
     let mut text_proto = Text::new();
 
