@@ -45,7 +45,6 @@ pub use compiler::compile;
 pub use compiler::CompileError;
 pub use compiler::CompileErrorInfo;
 pub use compiler::Compiler;
-pub use compiler::EmitWasmError;
 pub use compiler::Error;
 pub use compiler::Rules;
 pub use compiler::SerializationError;
@@ -62,22 +61,15 @@ pub use scanner::ScanError;
 pub use scanner::ScanResults;
 pub use scanner::Scanner;
 
+pub use modules::mods;
+
 pub use variables::Variable;
 pub use variables::VariableError;
 
-#[cfg(fuzzing)]
-pub use modules::macho::parse_fat_macho_file;
-
-#[cfg(fuzzing)]
-pub use modules::macho::parse_macho_file;
-
-#[cfg(fuzzing)]
-pub use modules::protos::macho::Macho;
-
-#[cfg(fuzzing)]
-pub use modules::lnk::parser::LnkParser;
-
 mod compiler;
+#[cfg(fuzzing)]
+pub mod modules;
+#[cfg(not(fuzzing))]
 mod modules;
 mod re;
 mod scanner;

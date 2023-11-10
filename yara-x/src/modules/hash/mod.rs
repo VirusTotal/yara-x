@@ -23,7 +23,7 @@ thread_local!(
 );
 
 #[module_main]
-fn main(_ctx: &ScanContext) -> Hash {
+fn main(_data: &[u8]) -> Hash {
     // With every scanned file the cache must be cleared.
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
     SHA1_CACHE.with(|cache| cache.borrow_mut().clear());

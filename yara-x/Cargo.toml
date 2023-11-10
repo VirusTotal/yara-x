@@ -35,6 +35,11 @@ rules-profiling = ["logging"]
 # a given module is built or not. For instance, if the feature `foo-module` is
 # enabled, the module `foo` will be built into YARA.
 
+# The `elf` module parses ELF files.
+elf-module = [
+    "dep:tlsh"
+]
+
 # The `hash` module provides functions for computing md5, sha1 and sha-256
 # hashes.
 hash-module = [
@@ -78,6 +83,7 @@ time-module = []
 default = [
     "constant-folding",
     "fast-regexp",
+    "elf-module",
     "macho-module",
     "hash-module",
     "time-module",
@@ -120,6 +126,7 @@ smallvec = { workspace = true, features=["serde"] }
 serde = { workspace = true, features=["rc"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tlsh = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features=["cranelift", "parallel-compilation"]  }

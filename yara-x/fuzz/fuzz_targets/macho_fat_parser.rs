@@ -1,7 +1,7 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use yara_x::parse_fat_macho_file;
-use yara_x::Macho;
+use yara_x::modules::macho::parse_fat_macho_file;
+use yara_x::modules::protos::macho::Macho;
 
 fuzz_target!(|data: &[u8]| {
     let mut macho_proto = Macho::default();
