@@ -105,7 +105,7 @@ fn main() {
                 modules_rs,
                 r#"
 #[cfg(feature = "{name}-module")]
-pub mod {rust_mod};"#,
+mod {rust_mod};"#,
             )
             .unwrap();
         }
