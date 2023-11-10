@@ -2574,12 +2574,9 @@ fn ep_for_arch_subtype(
 /// code isn’t interrupted by issues with individual files during bulk
 /// processing.
 #[module_main]
-fn main(ctx: &ScanContext) -> Macho {
+fn main(data: &[u8]) -> Macho {
     // Create an empty instance of the Mach-O protobuf
     let mut macho_proto = Macho::new();
-
-    // Get a &[u8] slice with the content of the file being scanned.
-    let data = ctx.scanned_data();
 
     // If data is too short to be valid Mach-O file, return empty protobuf
     if data.len() < VALID_MACHO_LENGTH {

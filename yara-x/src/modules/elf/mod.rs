@@ -6,9 +6,7 @@ and sections information, exported symbols, target platform, etc.
 
 use itertools::Itertools;
 use lazy_static::lazy_static;
-use md5;
 use rustc_hash::FxHashSet;
-use tlsh;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::elf::*;
@@ -19,8 +17,8 @@ pub mod parser;
 mod tests;
 
 #[module_main]
-fn main(ctx: &ScanContext) -> ELF {
-    match parser::ElfParser::new().parse(ctx.scanned_data()) {
+fn main(data: &[u8]) -> ELF {
+    match parser::ElfParser::new().parse(data) {
         Ok(elf) => elf,
         Err(_) => ELF::new(),
     }

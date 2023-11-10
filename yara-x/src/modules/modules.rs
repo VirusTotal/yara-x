@@ -1,19 +1,19 @@
 // File generated automatically by build.rs. Do not edit.
 #[cfg(feature = "string-module")]
-pub mod string;
+mod string;
 #[cfg(feature = "macho-module")]
-pub mod macho;
+mod macho;
 #[cfg(feature = "elf-module")]
-pub mod elf;
+mod elf;
 #[cfg(feature = "text-module")]
-pub mod text;
+mod text;
 #[cfg(feature = "hash-module")]
-pub mod hash;
+mod hash;
 #[cfg(feature = "test_proto2-module")]
-pub mod test_proto2;
+mod test_proto2;
 #[cfg(feature = "lnk-module")]
-pub mod lnk;
+mod lnk;
 #[cfg(feature = "time-module")]
-pub mod time;
+mod time;
 #[cfg(feature = "test_proto3-module")]
-pub mod test_proto3;
+mod test_proto3;
