@@ -35,6 +35,9 @@ pub struct PE<'a> {
     /// the PE header.
     dos_stub: &'a [u8],
 
+    /// Rich header
+    rich_header: OnceCell<Option<RichHeader<'a>>>,
+
     /// Subslice of `data` that goes from the start of the PE directory table
     /// to the end of the file.
     directory: &'a [u8],
@@ -124,16 +127,12 @@ impl<'a> PE<'a> {
         Ok(PE {
             data: input,
             sections: sections.unwrap_or_default(),
-            resources: OnceCell::default(),
-            dir_entries: OnceCell::default(),
-            entry_point: OnceCell::default(),
-            version_info: OnceCell::default(),
-            pdb_path: OnceCell::default(),
             dos_hdr,
             pe_hdr,
             optional_hdr,
             dos_stub,
             directory,
+            ..Default::default()
         })
     }
 
@@ -254,10 +253,14 @@ impl<'a> PE<'a> {
     ///
     /// http://www.ntcore.com/files/richsign.htm
     /// https://bytepointer.com/articles/the_microsoft_rich_header.htm
-    pub fn get_rich_header(&self) -> Option<RichHeader> {
-        let (_, rich_header) =
-            Self::parse_rich_header()(self.dos_stub).ok()?;
-        Some(rich_header)
+    pub fn get_rich_header(&self) -> Option<&RichHeader> {
+        self.rich_header
+            .get_or_init(|| {
+                Self::parse_rich_header()(self.dos_stub)
+                    .map(|(_, rich_header)| rich_header)
+                    .ok()
+            })
+            .as_ref()
     }
 
     /// Returns PE version information.
@@ -300,7 +303,7 @@ impl<'a> PE<'a> {
 
     /// Returns the entries found in the PE directory table.
     ///
-    /// The number of entries is limited MAX_DIR_ENTRIES (16), which is the
+    /// The number of entries is limited to MAX_DIR_ENTRIES (16), which is the
     /// maximum number of directory entries according to the PE specification.
     /// Some PE files may a `number_of_rva_and_sizes` larger than 16, but this
     /// function ignores the extra entries.
@@ -1465,7 +1468,7 @@ impl From<PE<'_>> for pe::PE {
                 // TODO: implement some mechanism for returning slices
                 // backed by the scanned data without copy.
                 raw_data: Some(rich_header.raw_data.to_vec()),
-                clear_data: Some(rich_header.clear_data),
+                clear_data: Some(rich_header.clear_data.clone()),
                 tools: rich_header
                     .tools
                     .iter()
