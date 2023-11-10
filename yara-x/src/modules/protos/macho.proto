@@ -7,7 +7,6 @@ option (yara.module_options) = {
   name : "macho"
   root_message: "macho.Macho"
   rust_module: "macho"
-  validity_flag: "magic"
 };
 
 message Dylib {

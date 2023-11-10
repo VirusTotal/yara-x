@@ -49,8 +49,6 @@ pub use compiler::Error;
 pub use compiler::Rules;
 pub use compiler::SerializationError;
 
-pub use modules::get_builtin_modules_names;
-
 pub use scanner::Match;
 pub use scanner::Matches;
 pub use scanner::MatchingRules;

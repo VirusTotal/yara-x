@@ -26,10 +26,6 @@ include!("modules.rs");
 /// Type of module's main function.
 type MainFn = fn(&[u8]) -> Box<dyn MessageDyn>;
 
-pub fn get_builtin_modules_names() -> Vec<&'static str> {
-    BUILTIN_MODULES.keys().cloned().collect()
-}
-
 /// Describes a YARA module.
 pub(crate) struct Module {
     /// Pointer to the module's main function.

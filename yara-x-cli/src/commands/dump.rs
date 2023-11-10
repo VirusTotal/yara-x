@@ -90,7 +90,7 @@ fn obtain_module_info(
                 result,
                 ">>>\n{}:\n{}\n<<<",
                 Cyan.paint(module).bold(),
-                print_to_string(&*output)?.to_colored_json_auto()?
+                print_to_string(output)?.to_colored_json_auto()?
             )?;
         }
         Some(OutputFormats::Yaml) | None => {
@@ -99,7 +99,7 @@ fn obtain_module_info(
                 result,
                 ">>>\n{}:\n{}<<<",
                 Cyan.paint(module).bold(),
-                dumper.dump(&*output)?
+                dumper.dump(output)?
             )?;
         }
     }
@@ -137,8 +137,8 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         stdin().read_to_end(&mut buffer)?
     };
 
-    if modules.is_some() {
-        for module in modules.unwrap() {
+    if let Some(modules) = modules {
+        for module in modules {
             if let Some(output) = match module {
                 SupportedModules::Lnk => {
                     yara_x::mods::invoke_mod_dyn::<yara_x::mods::Lnk>(&buffer)

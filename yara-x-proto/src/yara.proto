@@ -11,7 +11,6 @@ message ModuleOptions {
   required string name = 1;
   required string root_message = 2;
   optional string rust_module = 3;
-  optional string validity_flag = 4;
 }
 
 message FieldOptions {
