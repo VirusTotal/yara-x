@@ -75,6 +75,7 @@ version_info_list {
   value: "10.0.19041.1202"
 }
 number_of_sections: 6
+number_of_imported_functions: 37
 rich_signature {
   offset: 128
   length: 88
@@ -285,6 +286,190 @@ resources {
   type: RESOURCE_TYPE_MANIFEST
   id: 1
   language: 1033
+}
+import_details {
+  library_name: "msvcrt.dll"
+  functions {
+    name: "__set_app_type"
+    rva: 8752
+  }
+  functions {
+    name: "__wgetmainargs"
+    rva: 8760
+  }
+  functions {
+    name: "_amsg_exit"
+    rva: 8768
+  }
+  functions {
+    name: "?terminate@@YAXXZ"
+    rva: 8776
+  }
+  functions {
+    name: "_commode"
+    rva: 8784
+  }
+  functions {
+    name: "_fmode"
+    rva: 8792
+  }
+  functions {
+    name: "_wcmdln"
+    rva: 8800
+  }
+  functions {
+    name: "__C_specific_handler"
+    rva: 8808
+  }
+  functions {
+    name: "_initterm"
+    rva: 8816
+  }
+  functions {
+    name: "__setusermatherr"
+    rva: 8824
+  }
+  functions {
+    name: "_cexit"
+    rva: 8832
+  }
+  functions {
+    name: "_XcptFilter"
+    rva: 8840
+  }
+  functions {
+    name: "_exit"
+    rva: 8848
+  }
+  functions {
+    name: "exit"
+    rva: 8856
+  }
+  functions {
+    name: "memset"
+    rva: 8864
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-heap-l1-1-0.dll"
+  functions {
+    name: "HeapSetInformation"
+    rva: 8560
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-processthreads-l1-1-0.dll"
+  functions {
+    name: "GetStartupInfoW"
+    rva: 8608
+  }
+  functions {
+    name: "GetCurrentProcess"
+    rva: 8616
+  }
+  functions {
+    name: "GetCurrentThreadId"
+    rva: 8624
+  }
+  functions {
+    name: "GetCurrentProcessId"
+    rva: 8632
+  }
+  functions {
+    name: "TerminateProcess"
+    rva: 8640
+  }
+  functions {
+    name: "SetPriorityClass"
+    rva: 8648
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-com-l1-1-0.dll"
+  functions {
+    name: "CoInitializeEx"
+    rva: 8504
+  }
+  functions {
+    name: "CoUninitialize"
+    rva: 8512
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-processenvironment-l1-1-0.dll"
+  functions {
+    name: "ExpandEnvironmentStringsW"
+    rva: 8592
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-errorhandling-l1-1-0.dll"
+  functions {
+    name: "GetLastError"
+    rva: 8528
+  }
+  functions {
+    name: "UnhandledExceptionFilter"
+    rva: 8536
+  }
+  functions {
+    name: "SetUnhandledExceptionFilter"
+    rva: 8544
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-synch-l1-2-0.dll"
+  functions {
+    name: "Sleep"
+    rva: 8712
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-libraryloader-l1-2-0.dll"
+  functions {
+    name: "GetModuleHandleW"
+    rva: 8576
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-profile-l1-1-0.dll"
+  functions {
+    name: "QueryPerformanceCounter"
+    rva: 8664
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-sysinfo-l1-1-0.dll"
+  functions {
+    name: "GetTickCount"
+    rva: 8728
+  }
+  functions {
+    name: "GetSystemTimeAsFileTime"
+    rva: 8736
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-rtlsupport-l1-1-0.dll"
+  functions {
+    name: "RtlVirtualUnwind"
+    rva: 8680
+  }
+  functions {
+    name: "RtlLookupFunctionEntry"
+    rva: 8688
+  }
+  functions {
+    name: "RtlCaptureContext"
+    rva: 8696
+  }
+}
+import_details {
+  library_name: "SHELL32.dll"
+  functions {
+    name: "ShellExecuteExW"
+    rva: 8488
+  }
 }
 overlay {
   offset: 0

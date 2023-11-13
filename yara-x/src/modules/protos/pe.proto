@@ -57,17 +57,19 @@ message PE {
   repeated KeyValue version_info_list = 35;
 
   optional uint32 number_of_sections = 36;
+  optional uint64 number_of_imported_functions = 37;
 
-  optional RichSignature rich_signature = 37;
-  optional string pdb_path = 38;
+  optional RichSignature rich_signature = 38;
+  optional string pdb_path = 39;
 
-  repeated Section sections = 39;
-  repeated DirEntry data_directories = 40;
-  repeated Resource resources = 41;
+  repeated Section sections = 40;
+  repeated DirEntry data_directories = 41;
+  repeated Resource resources = 42;
+  repeated Import import_details = 43;
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 42;
+  optional Overlay overlay = 44;
 }
 
 message Version {
@@ -88,13 +90,25 @@ message DirEntry {
 message Resource {
   required uint32 length = 1;
   required uint32 rva = 2;
-  required uint32 offset = 3;
+  optional uint32 offset = 3;
   optional ResourceType type = 4;
   optional uint32 id = 5;
   optional uint32 language = 6;
   optional bytes type_string = 7;
   optional bytes name_string = 8;
   optional bytes language_string = 9;
+}
+
+message Import {
+  required string library_name = 1;
+  repeated Function functions = 2;
+}
+
+message Function {
+  optional string name = 1;
+  optional uint32 ordinal = 2;
+  required uint32 rva = 3;
+
 }
 
 ///  https://learn.microsoft.com/en-us/windows/win32/menurc/resource-types?redirectedfrom=MSDN

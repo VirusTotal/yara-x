@@ -1,0 +1,205 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_CUI
+os_version {
+  major: 4
+  minor: 0
+}
+subsystem_version {
+  major: 4
+  minor: 0
+}
+image_version {
+  major: 1
+  minor: 0
+}
+linker_version {
+  major: 2
+  minor: 56
+}
+characteristics: 8974
+dll_characteristics: 0
+timestamp: 1274346651
+image_base: 268435456
+checksum: 0
+base_of_code: 40960
+base_of_data: 49152
+entry_point: 6256
+entry_point_raw: 46704
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 8192
+size_of_initialized_data: 4096
+size_of_uninitialized_data: 36864
+size_of_image: 53248
+size_of_headers: 4096
+size_of_stack_reserve: 2097152
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+number_of_sections: 3
+number_of_imported_functions: 9
+sections {
+  name: "3j70umia"
+  full_name: "3j70umia"
+  characteristics: 3758096512
+  raw_data_size: 0
+  raw_data_offset: 512
+  virtual_address: 4096
+  virtual_size: 36864
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: "3752hxsy"
+  full_name: "3752hxsy"
+  characteristics: 3758096448
+  raw_data_size: 6656
+  raw_data_offset: 512
+  virtual_address: 40960
+  virtual_size: 8192
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: "3806yjxd"
+  full_name: "3806yjxd"
+  characteristics: 3221225536
+  raw_data_size: 1536
+  raw_data_offset: 7168
+  virtual_address: 49152
+  virtual_size: 4096
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 49504
+  size: 864
+}
+data_directories {
+  virtual_address: 49152
+  size: 352
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 50368
+  size: 12
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+import_details {
+  library_name: "KERNEL32.DLL"
+  functions {
+    name: "LoadLibraryA"
+    rva: 49272
+  }
+  functions {
+    name: "GetProcAddress"
+    rva: 49276
+  }
+  functions {
+    name: "VirtualProtect"
+    rva: 49280
+  }
+  functions {
+    name: "VirtualAlloc"
+    rva: 49284
+  }
+  functions {
+    name: "VirtualFree"
+    rva: 49288
+  }
+}
+import_details {
+  library_name: "ADVAPI32.DLL"
+  functions {
+    name: "RegCloseKey"
+    rva: 49296
+  }
+}
+import_details {
+  library_name: "msvcrt.dll"
+  functions {
+    name: "_iob"
+    rva: 49304
+  }
+}
+import_details {
+  library_name: "USER32.dll"
+  functions {
+    name: "wsprintfA"
+    rva: 49312
+  }
+}
+import_details {
+  library_name: "WSOCK32.DLL"
+  functions {
+    name: "bind"
+    rva: 49320
+  }
+}
+overlay {
+  offset: 0
+  size: 0
+}

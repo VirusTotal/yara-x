@@ -2,17 +2,19 @@ use std::cell::OnceCell;
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::iter::zip;
-use std::ops::Rem;
-use std::str::FromStr;
+use std::str::{from_utf8, FromStr};
 
 use bstr::{BStr, ByteSlice};
 use byteorder::{ByteOrder, LE};
+use indexmap::IndexMap;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
-use nom::combinator::{cond, consumed, fail, map, opt, success, verify};
+use nom::combinator::{
+    cond, consumed, fail, iterator, map, opt, success, verify,
+};
 use nom::error::ErrorKind;
-use nom::multi::{count, fold_many1, length_data, many0, many1};
+use nom::multi::{count, fold_many1, length_data, many0, many1, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
 use nom::{Err, IResult, Parser, ToUsize};
@@ -62,6 +64,14 @@ pub struct PE<'a> {
 
     /// Path to PDB file containing debug information for the PE.
     pdb_path: OnceCell<Option<&'a str>>,
+
+    /// Map that with the DLLs imported by this PE file. Keys are DLL names,
+    /// and values are vectors of [`ImportedFunc`] that contain information
+    /// about each function imported from the DLL. We use an [`IndexMap`]
+    /// instead of a [`HashMap`] because we want to maintain the order in
+    /// which the DLLs appear in the import table, which is important while
+    /// computing the imphash.
+    imported_dlls: OnceCell<Option<IndexMap<&'a str, Vec<ImportedFunc<'a>>>>>,
 
     /// DOS header already parsed.
     pub dos_hdr: DOSHeader,
@@ -354,12 +364,29 @@ impl<'a> PE<'a> {
 
         self.data.get(start..end)
     }
+
+    pub fn get_imports(
+        &self,
+    ) -> Option<impl Iterator<Item = (&'a str, &[ImportedFunc<'a>])>> {
+        let imported_dlls = self
+            .imported_dlls
+            .get_or_init(|| self.parse_imports())
+            .as_ref()?;
+
+        Some(
+            imported_dlls
+                .iter()
+                .map(|(name, funcs)| (*name, funcs.as_slice())),
+        )
+    }
 }
 
 impl<'a> PE<'a> {
     const IMAGE_NT_OPTIONAL_HDR32_MAGIC: u16 = 0x10b;
     const IMAGE_NT_OPTIONAL_HDR64_MAGIC: u16 = 0x20b;
 
+    const IMAGE_DIRECTORY_ENTRY_EXPORT: usize = 0;
+    const IMAGE_DIRECTORY_ENTRY_IMPORT: usize = 1;
     const IMAGE_DIRECTORY_ENTRY_RESOURCE: usize = 2;
     const IMAGE_DIRECTORY_ENTRY_DEBUG: usize = 6;
 
@@ -374,6 +401,7 @@ impl<'a> PE<'a> {
     const SIZE_OF_SYMBOL: u32 = 18;
 
     const MAX_PE_SECTIONS: usize = 96;
+    const MAX_PE_IMPORTS: usize = 16384;
     const MAX_DIR_ENTRIES: usize = 16;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
@@ -480,7 +508,6 @@ impl<'a> PE<'a> {
     {
         move |input: &[u8]| {
             let mut opt_hdr = OptionalHeader::default();
-            let magic;
             let base_of_data: Option<u32>;
             let image_base32: Option<u32>;
             let image_base64: Option<u64>;
@@ -489,7 +516,7 @@ impl<'a> PE<'a> {
             (
                 remainder,
                 (
-                    magic,
+                    opt_hdr.magic,
                     opt_hdr.major_linker_version,
                     opt_hdr.minor_linker_version,
                     opt_hdr.size_of_code,
@@ -520,9 +547,18 @@ impl<'a> PE<'a> {
                     image_base64, // only in 64-bits PE
                 ),
             ) = tuple((
-                cond(magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC, le_u32),
-                cond(magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC, le_u32),
-                cond(magic == Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC, le_u64),
+                cond(
+                    opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC,
+                    le_u32,
+                ),
+                cond(
+                    opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC,
+                    le_u32,
+                ),
+                cond(
+                    opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR64_MAGIC,
+                    le_u64,
+                ),
             ))(remainder)?;
 
             opt_hdr.base_of_data = base_of_data;
@@ -568,10 +604,10 @@ impl<'a> PE<'a> {
                 le_u32, // checksum
                 le_u16, // subsystem
                 le_u16, // dll_characteristics
-                uint(magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
-                uint(magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
-                uint(magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
-                uint(magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
+                uint(opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
+                uint(opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
+                uint(opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
+                uint(opt_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC),
                 le_u32, // loader_flags
                 le_u32, // number_of_rva_and_sizes
             ))(remainder)?;
@@ -1092,6 +1128,14 @@ impl<'a> PE<'a> {
         num::Integer::div_ceil(&offset.to_usize(), &4) * 4
     }
 
+    /// Given a RVA, return a byte slice with the content of the PE that
+    /// goes from that RVA to the end of the file.
+    #[inline]
+    fn data_at_rva(&self, rva: u32) -> Option<&'a [u8]> {
+        let offset = self.rva_to_offset(rva)?;
+        self.data.get(offset as usize..)
+    }
+
     fn parse_resources(&self) -> Option<Vec<Resource<'a>>> {
         let rsrc_section =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE)?;
@@ -1309,7 +1353,7 @@ impl<'a> PE<'a> {
             ))(cv_info)
             {
                 Ok((_, (_signature, _padding, pdb_path))) => {
-                    return std::str::from_utf8(pdb_path).ok()
+                    return from_utf8(pdb_path).ok()
                 }
                 Err(_) => continue,
             };
@@ -1354,6 +1398,153 @@ impl<'a> PE<'a> {
                 }
             },
         )(input)
+    }
+
+    fn parse_imports(
+        &self,
+    ) -> Option<IndexMap<&'a str, Vec<ImportedFunc<'a>>>> {
+        let imports_section =
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT)?;
+
+        // Parse import descriptors until finding one that is empty (filled
+        // with null values), which indicates the end of the directory table;
+        // or until `MAX_PE_IMPORTS` is reached.
+        let import_descriptors = many_m_n(
+            0,
+            Self::MAX_PE_IMPORTS,
+            verify(Self::parse_import_descriptor, |d| {
+                d.original_first_thunk != 0 || d.first_thunk != 0
+            }),
+        )(imports_section)
+        .map(|(_, import_descriptors)| import_descriptors)
+        .ok()?;
+
+        let is_32_bits =
+            self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
+
+        let mut imported_funcs: IndexMap<&str, Vec<ImportedFunc>> =
+            IndexMap::new();
+
+        for descriptor in import_descriptors {
+            let dll_name =
+                if let Some(name) = self.dll_name_at_rva(descriptor.name) {
+                    name
+                } else {
+                    continue;
+                };
+
+            let thunks = match if descriptor.original_first_thunk > 0 {
+                self.data_at_rva(descriptor.original_first_thunk)
+            } else {
+                self.data_at_rva(descriptor.first_thunk)
+            } {
+                Some(thunk) => thunk,
+                None => continue,
+            };
+
+            // Parse the thunks, which are an array of 64-bits or 32-bits
+            // values, depending on whether this is 64-bits PE file. The
+            // array is terminated by a null thunk.
+            let mut thunks = iterator(
+                thunks,
+                verify(uint(is_32_bits), |thunk| *thunk != 0),
+            );
+
+            for (i, thunk) in &mut thunks.enumerate() {
+                // If the most significant bit is set, this is an import by
+                // ordinal. The most significant bit depends on whether this
+                // is a 64-bits PE.
+                let import_by_ordinal = if is_32_bits {
+                    thunk & 0x80000000 != 0
+                } else {
+                    thunk & 0x8000000000000000 != 0
+                };
+
+                let mut func = ImportedFunc::default();
+
+                if import_by_ordinal {
+                    let ordinal = (thunk & 0xffff) as u16;
+                    func.ordinal = Some(ordinal);
+                    func.name = ord_to_name(dll_name, ordinal);
+                    func.rva = descriptor.first_thunk.saturating_add(i as u32);
+                } else if let Ok(offset) = TryInto::<u32>::try_into(thunk) {
+                    if let Some(name) =
+                        self.parse_at_rva(offset, Self::parse_import_by_name)
+                    {
+                        func.name = from_utf8(name).ok();
+                        func.rva = descriptor.first_thunk.saturating_add(
+                            (i * if is_32_bits { 4 } else { 8 }) as u32,
+                        );
+                    }
+                }
+
+                if func.ordinal.is_some() || func.name.is_some() {
+                    imported_funcs.entry(dll_name).or_default().push(func)
+                }
+            }
+        }
+
+        Some(imported_funcs)
+    }
+
+    fn parse_import_descriptor(
+        input: &[u8],
+    ) -> IResult<&[u8], ImportDescriptor> {
+        map(
+            tuple((
+                le_u32, // original_first_thunk
+                le_u32, // timestamp
+                le_u32, // forwarder_chain
+                le_u32, // name
+                le_u32, // first_thunk
+            )),
+            |(
+                original_first_thunk,
+                timestamp,
+                forwarder_chain,
+                name,
+                first_thunk,
+            )| {
+                ImportDescriptor {
+                    original_first_thunk,
+                    timestamp,
+                    forwarder_chain,
+                    name,
+                    first_thunk,
+                }
+            },
+        )(input)
+    }
+
+    fn parse_import_by_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        map(
+            tuple((
+                le_u16,                       // hint
+                take_till(|c: u8| c == 0_u8), // name
+            )),
+            |(_, name)| name,
+        )(input)
+    }
+
+    fn parse_at_rva<T, P>(&self, rva: u32, mut parser: P) -> Option<T>
+    where
+        P: FnMut(&'a [u8]) -> IResult<&'a [u8], T>,
+    {
+        let data = self.data_at_rva(rva)?;
+        parser(data).map(|(_, result)| result).ok()
+    }
+
+    fn dll_name_at_rva(&self, rva: u32) -> Option<&'a str> {
+        let dll_name = self.parse_at_rva(rva, take_till(|c| c == 0))?;
+        let dll_name = from_utf8(dll_name).ok()?;
+
+        for c in dll_name.chars() {
+            if matches!(c, ' ' | '"' | '*' | '<' | '>' | '?' | '|') {
+                return None;
+            }
+        }
+
+        Some(dll_name)
     }
 }
 
@@ -1459,7 +1650,21 @@ impl From<PE<'_>> for pe::PE {
             // match the golden files.
             // result.version_info.insert(key.to_owned(), value.to_owned());
         }
-
+        
+        let mut num_imported_funcs = 0;
+        
+        if let Some(imports) = pe.get_imports() {
+            for (dll_name, functions) in imports {
+                let mut import = pe::Import::new();
+                import.library_name = Some(dll_name.to_owned());
+                import.functions = functions.iter().map(pe::Function::from).collect();
+                num_imported_funcs += import.functions.len();
+                result.import_details.push(import);
+            }
+        }
+        
+        result.set_number_of_imported_functions(num_imported_funcs as u64);
+        
         if let Some(rich_header) = pe.get_rich_header() {
             result.rich_signature = MessageField::some(pe::RichSignature {
                 offset: Some(rich_header.offset.try_into().unwrap()),
@@ -1553,6 +1758,7 @@ pub struct PEHeader {
 
 #[derive(Default)]
 pub struct OptionalHeader {
+    magic: u16,
     major_linker_version: u8,
     minor_linker_version: u8,
     size_of_code: u32,
@@ -1666,6 +1872,32 @@ pub struct ResourceEntry {
     size: u32,
 }
 
+#[derive(Debug)]
+pub struct ImportDescriptor {
+    original_first_thunk: u32,
+    timestamp: u32,
+    forwarder_chain: u32,
+    name: u32,
+    first_thunk: u32,
+}
+
+#[derive(Debug, Default)]
+pub struct ImportedFunc<'a> {
+    name: Option<&'a str>,
+    ordinal: Option<u16>,
+    rva: u32,
+}
+
+impl From<&ImportedFunc<'_>> for pe::Function {
+    fn from(value: &ImportedFunc) -> Self {
+        let mut func = pe::Function::new();
+        func.rva = Some(value.rva);
+        func.ordinal = value.ordinal.map(|ordinal| ordinal.into());
+        func.name = value.name.map(|name| name.to_owned());
+        func
+    }
+}
+
 /// Represents a resource in the PE.
 pub struct Resource<'a> {
     rsrc_id: ResourceId<'a>,
@@ -1766,5 +1998,543 @@ fn utf16_le_string() -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
         let s = String::from_utf16_lossy(string.as_slice());
 
         Ok((remainder, s))
+    }
+}
+
+/// Convert ordinal number to function name for some well-known DLLs.
+fn ord_to_name(dll_name: &str, ordinal: u16) -> Option<&'static str> {
+    match dll_name.to_ascii_lowercase().as_str() {
+        "ws2_32.dll" | "wsock32.dll" => wsock32_ord_to_name(ordinal),
+        "oleaut32.dll" => oleaut32_ord_to_name(ordinal),
+        _ => None,
+    }
+}
+
+/// Convert ordinal number to function name for oleaut32.dll.
+fn oleaut32_ord_to_name(ordinal: u16) -> Option<&'static str> {
+    match ordinal {
+        2 => Some("SysAllocString"),
+        3 => Some("SysReAllocString"),
+        4 => Some("SysAllocStringLen"),
+        5 => Some("SysReAllocStringLen"),
+        6 => Some("SysFreeString"),
+        7 => Some("SysStringLen"),
+        8 => Some("VariantInit"),
+        9 => Some("VariantClear"),
+        10 => Some("VariantCopy"),
+        11 => Some("VariantCopyInd"),
+        12 => Some("VariantChangeType"),
+        13 => Some("VariantTimeToDosDateTime"),
+        14 => Some("DosDateTimeToVariantTime"),
+        15 => Some("SafeArrayCreate"),
+        16 => Some("SafeArrayDestroy"),
+        17 => Some("SafeArrayGetDim"),
+        18 => Some("SafeArrayGetElemsize"),
+        19 => Some("SafeArrayGetUBound"),
+        20 => Some("SafeArrayGetLBound"),
+        21 => Some("SafeArrayLock"),
+        22 => Some("SafeArrayUnlock"),
+        23 => Some("SafeArrayAccessData"),
+        24 => Some("SafeArrayUnaccessData"),
+        25 => Some("SafeArrayGetElement"),
+        26 => Some("SafeArrayPutElement"),
+        27 => Some("SafeArrayCopy"),
+        28 => Some("DispGetParam"),
+        29 => Some("DispGetIDsOfNames"),
+        30 => Some("DispInvoke"),
+        31 => Some("CreateDispTypeInfo"),
+        32 => Some("CreateStdDispatch"),
+        33 => Some("RegisterActiveObject"),
+        34 => Some("RevokeActiveObject"),
+        35 => Some("GetActiveObject"),
+        36 => Some("SafeArrayAllocDescriptor"),
+        37 => Some("SafeArrayAllocData"),
+        38 => Some("SafeArrayDestroyDescriptor"),
+        39 => Some("SafeArrayDestroyData"),
+        40 => Some("SafeArrayRedim"),
+        41 => Some("SafeArrayAllocDescriptorEx"),
+        42 => Some("SafeArrayCreateEx"),
+        43 => Some("SafeArrayCreateVectorEx"),
+        44 => Some("SafeArraySetRecordInfo"),
+        45 => Some("SafeArrayGetRecordInfo"),
+        46 => Some("VarParseNumFromStr"),
+        47 => Some("VarNumFromParseNum"),
+        48 => Some("VarI2FromUI1"),
+        49 => Some("VarI2FromI4"),
+        50 => Some("VarI2FromR4"),
+        51 => Some("VarI2FromR8"),
+        52 => Some("VarI2FromCy"),
+        53 => Some("VarI2FromDate"),
+        54 => Some("VarI2FromStr"),
+        55 => Some("VarI2FromDisp"),
+        56 => Some("VarI2FromBool"),
+        57 => Some("SafeArraySetIID"),
+        58 => Some("VarI4FromUI1"),
+        59 => Some("VarI4FromI2"),
+        60 => Some("VarI4FromR4"),
+        61 => Some("VarI4FromR8"),
+        62 => Some("VarI4FromCy"),
+        63 => Some("VarI4FromDate"),
+        64 => Some("VarI4FromStr"),
+        65 => Some("VarI4FromDisp"),
+        66 => Some("VarI4FromBool"),
+        67 => Some("SafeArrayGetIID"),
+        68 => Some("VarR4FromUI1"),
+        69 => Some("VarR4FromI2"),
+        70 => Some("VarR4FromI4"),
+        71 => Some("VarR4FromR8"),
+        72 => Some("VarR4FromCy"),
+        73 => Some("VarR4FromDate"),
+        74 => Some("VarR4FromStr"),
+        75 => Some("VarR4FromDisp"),
+        76 => Some("VarR4FromBool"),
+        77 => Some("SafeArrayGetVartype"),
+        78 => Some("VarR8FromUI1"),
+        79 => Some("VarR8FromI2"),
+        80 => Some("VarR8FromI4"),
+        81 => Some("VarR8FromR4"),
+        82 => Some("VarR8FromCy"),
+        83 => Some("VarR8FromDate"),
+        84 => Some("VarR8FromStr"),
+        85 => Some("VarR8FromDisp"),
+        86 => Some("VarR8FromBool"),
+        87 => Some("VarFormat"),
+        88 => Some("VarDateFromUI1"),
+        89 => Some("VarDateFromI2"),
+        90 => Some("VarDateFromI4"),
+        91 => Some("VarDateFromR4"),
+        92 => Some("VarDateFromR8"),
+        93 => Some("VarDateFromCy"),
+        94 => Some("VarDateFromStr"),
+        95 => Some("VarDateFromDisp"),
+        96 => Some("VarDateFromBool"),
+        97 => Some("VarFormatDateTime"),
+        98 => Some("VarCyFromUI1"),
+        99 => Some("VarCyFromI2"),
+        100 => Some("VarCyFromI4"),
+        101 => Some("VarCyFromR4"),
+        102 => Some("VarCyFromR8"),
+        103 => Some("VarCyFromDate"),
+        104 => Some("VarCyFromStr"),
+        105 => Some("VarCyFromDisp"),
+        106 => Some("VarCyFromBool"),
+        107 => Some("VarFormatNumber"),
+        108 => Some("VarBstrFromUI1"),
+        109 => Some("VarBstrFromI2"),
+        110 => Some("VarBstrFromI4"),
+        111 => Some("VarBstrFromR4"),
+        112 => Some("VarBstrFromR8"),
+        113 => Some("VarBstrFromCy"),
+        114 => Some("VarBstrFromDate"),
+        115 => Some("VarBstrFromDisp"),
+        116 => Some("VarBstrFromBool"),
+        117 => Some("VarFormatPercent"),
+        118 => Some("VarBoolFromUI1"),
+        119 => Some("VarBoolFromI2"),
+        120 => Some("VarBoolFromI4"),
+        121 => Some("VarBoolFromR4"),
+        122 => Some("VarBoolFromR8"),
+        123 => Some("VarBoolFromDate"),
+        124 => Some("VarBoolFromCy"),
+        125 => Some("VarBoolFromStr"),
+        126 => Some("VarBoolFromDisp"),
+        127 => Some("VarFormatCurrency"),
+        128 => Some("VarWeekdayName"),
+        129 => Some("VarMonthName"),
+        130 => Some("VarUI1FromI2"),
+        131 => Some("VarUI1FromI4"),
+        132 => Some("VarUI1FromR4"),
+        133 => Some("VarUI1FromR8"),
+        134 => Some("VarUI1FromCy"),
+        135 => Some("VarUI1FromDate"),
+        136 => Some("VarUI1FromStr"),
+        137 => Some("VarUI1FromDisp"),
+        138 => Some("VarUI1FromBool"),
+        139 => Some("VarFormatFromTokens"),
+        140 => Some("VarTokenizeFormatString"),
+        141 => Some("VarAdd"),
+        142 => Some("VarAnd"),
+        143 => Some("VarDiv"),
+        144 => Some("DllCanUnloadNow"),
+        145 => Some("DllGetClassObject"),
+        146 => Some("DispCallFunc"),
+        147 => Some("VariantChangeTypeEx"),
+        148 => Some("SafeArrayPtrOfIndex"),
+        149 => Some("SysStringByteLen"),
+        150 => Some("SysAllocStringByteLen"),
+        151 => Some("DllRegisterServer"),
+        152 => Some("VarEqv"),
+        153 => Some("VarIdiv"),
+        154 => Some("VarImp"),
+        155 => Some("VarMod"),
+        156 => Some("VarMul"),
+        157 => Some("VarOr"),
+        158 => Some("VarPow"),
+        159 => Some("VarSub"),
+        160 => Some("CreateTypeLib"),
+        161 => Some("LoadTypeLib"),
+        162 => Some("LoadRegTypeLib"),
+        163 => Some("RegisterTypeLib"),
+        164 => Some("QueryPathOfRegTypeLib"),
+        165 => Some("LHashValOfNameSys"),
+        166 => Some("LHashValOfNameSysA"),
+        167 => Some("VarXor"),
+        168 => Some("VarAbs"),
+        169 => Some("VarFix"),
+        170 => Some("OaBuildVersion"),
+        171 => Some("ClearCustData"),
+        172 => Some("VarInt"),
+        173 => Some("VarNeg"),
+        174 => Some("VarNot"),
+        175 => Some("VarRound"),
+        176 => Some("VarCmp"),
+        177 => Some("VarDecAdd"),
+        178 => Some("VarDecDiv"),
+        179 => Some("VarDecMul"),
+        180 => Some("CreateTypeLib2"),
+        181 => Some("VarDecSub"),
+        182 => Some("VarDecAbs"),
+        183 => Some("LoadTypeLibEx"),
+        184 => Some("SystemTimeToVariantTime"),
+        185 => Some("VariantTimeToSystemTime"),
+        186 => Some("UnRegisterTypeLib"),
+        187 => Some("VarDecFix"),
+        188 => Some("VarDecInt"),
+        189 => Some("VarDecNeg"),
+        190 => Some("VarDecFromUI1"),
+        191 => Some("VarDecFromI2"),
+        192 => Some("VarDecFromI4"),
+        193 => Some("VarDecFromR4"),
+        194 => Some("VarDecFromR8"),
+        195 => Some("VarDecFromDate"),
+        196 => Some("VarDecFromCy"),
+        197 => Some("VarDecFromStr"),
+        198 => Some("VarDecFromDisp"),
+        199 => Some("VarDecFromBool"),
+        200 => Some("GetErrorInfo"),
+        201 => Some("SetErrorInfo"),
+        202 => Some("CreateErrorInfo"),
+        203 => Some("VarDecRound"),
+        204 => Some("VarDecCmp"),
+        205 => Some("VarI2FromI1"),
+        206 => Some("VarI2FromUI2"),
+        207 => Some("VarI2FromUI4"),
+        208 => Some("VarI2FromDec"),
+        209 => Some("VarI4FromI1"),
+        210 => Some("VarI4FromUI2"),
+        211 => Some("VarI4FromUI4"),
+        212 => Some("VarI4FromDec"),
+        213 => Some("VarR4FromI1"),
+        214 => Some("VarR4FromUI2"),
+        215 => Some("VarR4FromUI4"),
+        216 => Some("VarR4FromDec"),
+        217 => Some("VarR8FromI1"),
+        218 => Some("VarR8FromUI2"),
+        219 => Some("VarR8FromUI4"),
+        220 => Some("VarR8FromDec"),
+        221 => Some("VarDateFromI1"),
+        222 => Some("VarDateFromUI2"),
+        223 => Some("VarDateFromUI4"),
+        224 => Some("VarDateFromDec"),
+        225 => Some("VarCyFromI1"),
+        226 => Some("VarCyFromUI2"),
+        227 => Some("VarCyFromUI4"),
+        228 => Some("VarCyFromDec"),
+        229 => Some("VarBstrFromI1"),
+        230 => Some("VarBstrFromUI2"),
+        231 => Some("VarBstrFromUI4"),
+        232 => Some("VarBstrFromDec"),
+        233 => Some("VarBoolFromI1"),
+        234 => Some("VarBoolFromUI2"),
+        235 => Some("VarBoolFromUI4"),
+        236 => Some("VarBoolFromDec"),
+        237 => Some("VarUI1FromI1"),
+        238 => Some("VarUI1FromUI2"),
+        239 => Some("VarUI1FromUI4"),
+        240 => Some("VarUI1FromDec"),
+        241 => Some("VarDecFromI1"),
+        242 => Some("VarDecFromUI2"),
+        243 => Some("VarDecFromUI4"),
+        244 => Some("VarI1FromUI1"),
+        245 => Some("VarI1FromI2"),
+        246 => Some("VarI1FromI4"),
+        247 => Some("VarI1FromR4"),
+        248 => Some("VarI1FromR8"),
+        249 => Some("VarI1FromDate"),
+        250 => Some("VarI1FromCy"),
+        251 => Some("VarI1FromStr"),
+        252 => Some("VarI1FromDisp"),
+        253 => Some("VarI1FromBool"),
+        254 => Some("VarI1FromUI2"),
+        255 => Some("VarI1FromUI4"),
+        256 => Some("VarI1FromDec"),
+        257 => Some("VarUI2FromUI1"),
+        258 => Some("VarUI2FromI2"),
+        259 => Some("VarUI2FromI4"),
+        260 => Some("VarUI2FromR4"),
+        261 => Some("VarUI2FromR8"),
+        262 => Some("VarUI2FromDate"),
+        263 => Some("VarUI2FromCy"),
+        264 => Some("VarUI2FromStr"),
+        265 => Some("VarUI2FromDisp"),
+        266 => Some("VarUI2FromBool"),
+        267 => Some("VarUI2FromI1"),
+        268 => Some("VarUI2FromUI4"),
+        269 => Some("VarUI2FromDec"),
+        270 => Some("VarUI4FromUI1"),
+        271 => Some("VarUI4FromI2"),
+        272 => Some("VarUI4FromI4"),
+        273 => Some("VarUI4FromR4"),
+        274 => Some("VarUI4FromR8"),
+        275 => Some("VarUI4FromDate"),
+        276 => Some("VarUI4FromCy"),
+        277 => Some("VarUI4FromStr"),
+        278 => Some("VarUI4FromDisp"),
+        279 => Some("VarUI4FromBool"),
+        280 => Some("VarUI4FromI1"),
+        281 => Some("VarUI4FromUI2"),
+        282 => Some("VarUI4FromDec"),
+        283 => Some("BSTR_UserSize"),
+        284 => Some("BSTR_UserMarshal"),
+        285 => Some("BSTR_UserUnmarshal"),
+        286 => Some("BSTR_UserFree"),
+        287 => Some("VARIANT_UserSize"),
+        288 => Some("VARIANT_UserMarshal"),
+        289 => Some("VARIANT_UserUnmarshal"),
+        290 => Some("VARIANT_UserFree"),
+        291 => Some("LPSAFEARRAY_UserSize"),
+        292 => Some("LPSAFEARRAY_UserMarshal"),
+        293 => Some("LPSAFEARRAY_UserUnmarshal"),
+        294 => Some("LPSAFEARRAY_UserFree"),
+        295 => Some("LPSAFEARRAY_Size"),
+        296 => Some("LPSAFEARRAY_Marshal"),
+        297 => Some("LPSAFEARRAY_Unmarshal"),
+        298 => Some("VarDecCmpR8"),
+        299 => Some("VarCyAdd"),
+        300 => Some("DllUnregisterServer"),
+        301 => Some("OACreateTypeLib2"),
+        303 => Some("VarCyMul"),
+        304 => Some("VarCyMulI4"),
+        305 => Some("VarCySub"),
+        306 => Some("VarCyAbs"),
+        307 => Some("VarCyFix"),
+        308 => Some("VarCyInt"),
+        309 => Some("VarCyNeg"),
+        310 => Some("VarCyRound"),
+        311 => Some("VarCyCmp"),
+        312 => Some("VarCyCmpR8"),
+        313 => Some("VarBstrCat"),
+        314 => Some("VarBstrCmp"),
+        315 => Some("VarR8Pow"),
+        316 => Some("VarR4CmpR8"),
+        317 => Some("VarR8Round"),
+        318 => Some("VarCat"),
+        319 => Some("VarDateFromUdateEx"),
+        322 => Some("GetRecordInfoFromGuids"),
+        323 => Some("GetRecordInfoFromTypeInfo"),
+        325 => Some("SetVarConversionLocaleSetting"),
+        326 => Some("GetVarConversionLocaleSetting"),
+        327 => Some("SetOaNoCache"),
+        329 => Some("VarCyMulI8"),
+        330 => Some("VarDateFromUdate"),
+        331 => Some("VarUdateFromDate"),
+        332 => Some("GetAltMonthNames"),
+        333 => Some("VarI8FromUI1"),
+        334 => Some("VarI8FromI2"),
+        335 => Some("VarI8FromR4"),
+        336 => Some("VarI8FromR8"),
+        337 => Some("VarI8FromCy"),
+        338 => Some("VarI8FromDate"),
+        339 => Some("VarI8FromStr"),
+        340 => Some("VarI8FromDisp"),
+        341 => Some("VarI8FromBool"),
+        342 => Some("VarI8FromI1"),
+        343 => Some("VarI8FromUI2"),
+        344 => Some("VarI8FromUI4"),
+        345 => Some("VarI8FromDec"),
+        346 => Some("VarI2FromI8"),
+        347 => Some("VarI2FromUI8"),
+        348 => Some("VarI4FromI8"),
+        349 => Some("VarI4FromUI8"),
+        360 => Some("VarR4FromI8"),
+        361 => Some("VarR4FromUI8"),
+        362 => Some("VarR8FromI8"),
+        363 => Some("VarR8FromUI8"),
+        364 => Some("VarDateFromI8"),
+        365 => Some("VarDateFromUI8"),
+        366 => Some("VarCyFromI8"),
+        367 => Some("VarCyFromUI8"),
+        368 => Some("VarBstrFromI8"),
+        369 => Some("VarBstrFromUI8"),
+        370 => Some("VarBoolFromI8"),
+        371 => Some("VarBoolFromUI8"),
+        372 => Some("VarUI1FromI8"),
+        373 => Some("VarUI1FromUI8"),
+        374 => Some("VarDecFromI8"),
+        375 => Some("VarDecFromUI8"),
+        376 => Some("VarI1FromI8"),
+        377 => Some("VarI1FromUI8"),
+        378 => Some("VarUI2FromI8"),
+        379 => Some("VarUI2FromUI8"),
+        401 => Some("OleLoadPictureEx"),
+        402 => Some("OleLoadPictureFileEx"),
+        411 => Some("SafeArrayCreateVector"),
+        412 => Some("SafeArrayCopyData"),
+        413 => Some("VectorFromBstr"),
+        414 => Some("BstrFromVector"),
+        415 => Some("OleIconToCursor"),
+        416 => Some("OleCreatePropertyFrameIndirect"),
+        417 => Some("OleCreatePropertyFrame"),
+        418 => Some("OleLoadPicture"),
+        419 => Some("OleCreatePictureIndirect"),
+        420 => Some("OleCreateFontIndirect"),
+        421 => Some("OleTranslateColor"),
+        422 => Some("OleLoadPictureFile"),
+        423 => Some("OleSavePictureFile"),
+        424 => Some("OleLoadPicturePath"),
+        425 => Some("VarUI4FromI8"),
+        426 => Some("VarUI4FromUI8"),
+        427 => Some("VarI8FromUI8"),
+        428 => Some("VarUI8FromI8"),
+        429 => Some("VarUI8FromUI1"),
+        430 => Some("VarUI8FromI2"),
+        431 => Some("VarUI8FromR4"),
+        432 => Some("VarUI8FromR8"),
+        433 => Some("VarUI8FromCy"),
+        434 => Some("VarUI8FromDate"),
+        435 => Some("VarUI8FromStr"),
+        436 => Some("VarUI8FromDisp"),
+        437 => Some("VarUI8FromBool"),
+        438 => Some("VarUI8FromI1"),
+        439 => Some("VarUI8FromUI2"),
+        440 => Some("VarUI8FromUI4"),
+        441 => Some("VarUI8FromDec"),
+        442 => Some("RegisterTypeLibForUser"),
+        443 => Some("UnRegisterTypeLibForUser"),
+        _ => None,
+    }
+}
+
+/// Convert ordinal number to function name for wsock32.dll and ws2_32.dll.
+fn wsock32_ord_to_name(ordinal: u16) -> Option<&'static str> {
+    match ordinal {
+        1 => Some("accept"),
+        2 => Some("bind"),
+        3 => Some("closesocket"),
+        4 => Some("connect"),
+        5 => Some("setpeername"),
+        6 => Some("setsockname"),
+        7 => Some("setsockopt"),
+        8 => Some("htonl"),
+        9 => Some("htons"),
+        10 => Some("ioctlsocket"),
+        11 => Some("inet_addr"),
+        12 => Some("inet_ntoa"),
+        13 => Some("listen"),
+        14 => Some("ntohl"),
+        15 => Some("ntohs"),
+        16 => Some("recv"),
+        17 => Some("recvfrom"),
+        18 => Some("select"),
+        19 => Some("send"),
+        20 => Some("sendto"),
+        21 => Some("setsockopt"),
+        22 => Some("shutdown"),
+        23 => Some("socket"),
+        24 => Some("GetAddrInfoW"),
+        25 => Some("GetNameInfoW"),
+        26 => Some("WSApSetPostRoutine"),
+        27 => Some("FreeAddrInfoW"),
+        28 => Some("WPUCompleteOverlappedRequest"),
+        29 => Some("WSAAccept"),
+        30 => Some("WSAAddressToStringA"),
+        31 => Some("WSAAddressToStringW"),
+        32 => Some("WSACloseEvent"),
+        33 => Some("WSAConnect"),
+        34 => Some("WSACreateEvent"),
+        35 => Some("WSADuplicateSocketA"),
+        36 => Some("WSADuplicateSocketW"),
+        37 => Some("WSAEnumNameSpaceProvidersA"),
+        38 => Some("WSAEnumNameSpaceProvidersW"),
+        39 => Some("WSAEnumNetworkEvents"),
+        40 => Some("WSAEnumProtocolsA"),
+        41 => Some("WSAEnumProtocolsW"),
+        42 => Some("WSAEventSelect"),
+        43 => Some("WSAGetOverlappedResult"),
+        44 => Some("WSAGetQOSByName"),
+        45 => Some("WSAGetServiceClassInfoA"),
+        46 => Some("WSAGetServiceClassInfoW"),
+        47 => Some("WSAGetServiceClassNameByClassIdA"),
+        48 => Some("WSAGetServiceClassNameByClassIdW"),
+        49 => Some("WSAHtonl"),
+        50 => Some("WSAHtons"),
+        51 => Some("gethostbyaddr"),
+        52 => Some("gethostbyname"),
+        53 => Some("getprotobyname"),
+        54 => Some("getprotobynumber"),
+        55 => Some("getservbyname"),
+        56 => Some("getservbyport"),
+        57 => Some("gethostname"),
+        58 => Some("WSAInstallServiceClassA"),
+        59 => Some("WSAInstallServiceClassW"),
+        60 => Some("WSAIoctl"),
+        61 => Some("WSAJoinLeaf"),
+        62 => Some("WSALookupServiceBeginA"),
+        63 => Some("WSALookupServiceBeginW"),
+        64 => Some("WSALookupServiceEnd"),
+        65 => Some("WSALookupServiceNextA"),
+        66 => Some("WSALookupServiceNextW"),
+        67 => Some("WSANSPIoctl"),
+        68 => Some("WSANtohl"),
+        69 => Some("WSANtohs"),
+        70 => Some("WSAProviderConfigChange"),
+        71 => Some("WSARecv"),
+        72 => Some("WSARecvDisconnect"),
+        73 => Some("WSARecvFrom"),
+        74 => Some("WSARemoveServiceClass"),
+        75 => Some("WSAResetEvent"),
+        76 => Some("WSASend"),
+        77 => Some("WSASendDisconnect"),
+        78 => Some("WSASendTo"),
+        79 => Some("WSASetEvent"),
+        80 => Some("WSASetServiceA"),
+        81 => Some("WSASetServiceW"),
+        82 => Some("WSASocketA"),
+        83 => Some("WSASocketW"),
+        84 => Some("WSAStringToAddressA"),
+        85 => Some("WSAStringToAddressW"),
+        86 => Some("WSAWaitForMultipleEvents"),
+        87 => Some("WSCDeinstallProvider"),
+        88 => Some("WSCEnableNSProvider"),
+        89 => Some("WSCEnumProtocols"),
+        90 => Some("WSCGetProviderPath"),
+        91 => Some("WSCInstallNameSpace"),
+        92 => Some("WSCInstallProvider"),
+        93 => Some("WSCUnInstallNameSpace"),
+        94 => Some("WSCUpdateProvider"),
+        95 => Some("WSCWriteNameSpaceOrder"),
+        96 => Some("WSCWriteProviderOrder"),
+        97 => Some("freeaddrinfo"),
+        98 => Some("getaddrinfo"),
+        99 => Some("getnameinfo"),
+        101 => Some("WSAAsyncSelect"),
+        102 => Some("WSAAsyncGetHostByAddr"),
+        103 => Some("WSAAsyncGetHostByName"),
+        104 => Some("WSAAsyncGetProtoByNumber"),
+        105 => Some("WSAAsyncGetProtoByName"),
+        106 => Some("WSAAsyncGetServByPort"),
+        107 => Some("WSAAsyncGetServByName"),
+        108 => Some("WSACancelAsyncRequest"),
+        109 => Some("WSASetBlockingHook"),
+        110 => Some("WSAUnhookBlockingHook"),
+        111 => Some("WSAGetLastError"),
+        112 => Some("WSASetLastError"),
+        113 => Some("WSACancelBlockingCall"),
+        114 => Some("WSAIsBlocking"),
+        115 => Some("WSAStartup"),
+        116 => Some("WSACleanup"),
+        151 => Some("__WSAFDIsSet"),
+        500 => Some("WEP"),
+        _ => None,
     }
 }

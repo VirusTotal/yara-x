@@ -44,6 +44,7 @@ number_of_symbols: 0
 number_of_rva_and_sizes: 16
 win32_version_value: 0
 number_of_sections: 3
+number_of_imported_functions: 0
 pdb_path: "/home/ubuntu/edk2/Build/OvmfIa32/RELEASE_GCC5/IA32/OvmfPkg/Sec/SecMain/DEBUG/SecMain.dll"
 sections {
   name: ".text"

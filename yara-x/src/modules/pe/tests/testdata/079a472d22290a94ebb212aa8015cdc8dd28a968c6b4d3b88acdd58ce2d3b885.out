@@ -88,6 +88,7 @@ version_info_list {
   value: "CUSTPROF.DLL"
 }
 number_of_sections: 5
+number_of_imported_functions: 38
 rich_signature {
   offset: 128
   length: 96
@@ -290,6 +291,164 @@ resources {
   type: RESOURCE_TYPE_MANIFEST
   id: 2
   language: 1033
+}
+import_details {
+  library_name: "MSVCR100.dll"
+  functions {
+    name: "_crt_debugger_hook"
+    rva: 12380
+  }
+  functions {
+    name: "_except_handler4_common"
+    rva: 12384
+  }
+  functions {
+    name: "_onexit"
+    rva: 12388
+  }
+  functions {
+    name: "_lock"
+    rva: 12392
+  }
+  functions {
+    name: "__dllonexit"
+    rva: 12396
+  }
+  functions {
+    name: "_unlock"
+    rva: 12400
+  }
+  functions {
+    name: "__clean_type_info_names_internal"
+    rva: 12404
+  }
+  functions {
+    name: "__CppXcptFilter"
+    rva: 12408
+  }
+  functions {
+    name: "_amsg_exit"
+    rva: 12412
+  }
+  functions {
+    name: "_initterm_e"
+    rva: 12416
+  }
+  functions {
+    name: "_initterm"
+    rva: 12420
+  }
+  functions {
+    name: "_encoded_null"
+    rva: 12424
+  }
+  functions {
+    name: "_malloc_crt"
+    rva: 12428
+  }
+  functions {
+    name: "malloc"
+    rva: 12432
+  }
+  functions {
+    name: "memcpy"
+    rva: 12436
+  }
+  functions {
+    name: "free"
+    rva: 12440
+  }
+}
+import_details {
+  library_name: "KERNEL32.dll"
+  functions {
+    name: "Sleep"
+    rva: 12288
+  }
+  functions {
+    name: "LoadLibraryA"
+    rva: 12292
+  }
+  functions {
+    name: "GetLastError"
+    rva: 12296
+  }
+  functions {
+    name: "FreeLibrary"
+    rva: 12300
+  }
+  functions {
+    name: "GetProcAddress"
+    rva: 12304
+  }
+  functions {
+    name: "LocalFree"
+    rva: 12308
+  }
+  functions {
+    name: "LocalAlloc"
+    rva: 12312
+  }
+  functions {
+    name: "IsDebuggerPresent"
+    rva: 12316
+  }
+  functions {
+    name: "SetUnhandledExceptionFilter"
+    rva: 12320
+  }
+  functions {
+    name: "UnhandledExceptionFilter"
+    rva: 12324
+  }
+  functions {
+    name: "GetCurrentProcess"
+    rva: 12328
+  }
+  functions {
+    name: "TerminateProcess"
+    rva: 12332
+  }
+  functions {
+    name: "GetSystemTimeAsFileTime"
+    rva: 12336
+  }
+  functions {
+    name: "GetCurrentProcessId"
+    rva: 12340
+  }
+  functions {
+    name: "GetCurrentThreadId"
+    rva: 12344
+  }
+  functions {
+    name: "GetTickCount"
+    rva: 12348
+  }
+  functions {
+    name: "EncodePointer"
+    rva: 12352
+  }
+  functions {
+    name: "DecodePointer"
+    rva: 12356
+  }
+  functions {
+    name: "InterlockedExchange"
+    rva: 12360
+  }
+  functions {
+    name: "RaiseException"
+    rva: 12364
+  }
+  functions {
+    name: "InterlockedCompareExchange"
+    rva: 12368
+  }
+  functions {
+    name: "QueryPerformanceCounter"
+    rva: 12372
+  }
 }
 overlay {
   offset: 10752

@@ -84,6 +84,7 @@ version_info_list {
   value: "4.0.0.0"
 }
 number_of_sections: 3
+number_of_imported_functions: 1
 sections {
   name: ".text"
   full_name: ".text"
@@ -194,6 +195,13 @@ resources {
   type: RESOURCE_TYPE_VERSION
   id: 1
   language: 0
+}
+import_details {
+  library_name: "mscoree.dll"
+  functions {
+    name: "_CorDllMain"
+    rva: 8192
+  }
 }
 overlay {
   offset: 0

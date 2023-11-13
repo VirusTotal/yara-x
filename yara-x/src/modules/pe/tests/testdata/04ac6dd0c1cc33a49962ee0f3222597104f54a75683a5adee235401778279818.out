@@ -1,0 +1,503 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_CUI
+os_version {
+  major: 6
+  minor: 0
+}
+subsystem_version {
+  major: 6
+  minor: 0
+}
+image_version {
+  major: 0
+  minor: 0
+}
+linker_version {
+  major: 14
+  minor: 29
+}
+characteristics: 258
+dll_characteristics: 33088
+timestamp: 1626863112
+image_base: 4194304
+checksum: 0
+base_of_code: 4096
+base_of_data: 53248
+entry_point: 2976
+entry_point_raw: 6048
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 47104
+size_of_initialized_data: 32768
+size_of_uninitialized_data: 0
+size_of_image: 90112
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+number_of_sections: 4
+number_of_imported_functions: 69
+rich_signature {
+  offset: 128
+  length: 96
+  key: 2144685205
+  raw_data: "\321-\273,\225L\325\177\225L\325\177\225L\325\177\201\'\326~\237L\325\177\201\'\320~\031L\325\177\201\'\321~\207L\325\177\201\'\324~\226L\325\177\3079\321~\204L\325\177\3079\326~\204L\325\177\3079\320~\275L\325\177\225L\324\177\303L\325\177\3159\320~\224L\325\177\3159\327~\224L\325\177"
+  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\024k\003\001\n\000\000\000\024k\005\001\214\000\000\000\024k\004\001\022\000\000\000\024k\001\001\003\000\000\000Ru\004\001\021\000\000\000Ru\003\001\021\000\000\000Ru\005\001(\000\000\000\000\000\001\000V\000\000\000Xu\005\001\001\000\000\000Xu\002\001\001\000\000\000"
+  tools {
+    toolid: 259
+    version: 27412
+    times: 10
+  }
+  tools {
+    toolid: 261
+    version: 27412
+    times: 140
+  }
+  tools {
+    toolid: 260
+    version: 27412
+    times: 18
+  }
+  tools {
+    toolid: 257
+    version: 27412
+    times: 3
+  }
+  tools {
+    toolid: 260
+    version: 30034
+    times: 17
+  }
+  tools {
+    toolid: 259
+    version: 30034
+    times: 17
+  }
+  tools {
+    toolid: 261
+    version: 30034
+    times: 40
+  }
+  tools {
+    toolid: 1
+    version: 0
+    times: 86
+  }
+  tools {
+    toolid: 261
+    version: 30040
+    times: 1
+  }
+  tools {
+    toolid: 258
+    version: 30040
+    times: 1
+  }
+}
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 47104
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 46792
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rdata"
+  full_name: ".rdata"
+  characteristics: 1073741888
+  raw_data_size: 23552
+  raw_data_offset: 48128
+  virtual_address: 53248
+  virtual_size: 23284
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 2560
+  raw_data_offset: 71680
+  virtual_address: 77824
+  virtual_size: 4828
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1107296320
+  raw_data_size: 4096
+  raw_data_offset: 74240
+  virtual_address: 86016
+  virtual_size: 3700
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 74920
+  size: 40
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 86016
+  size: 3700
+}
+data_directories {
+  virtual_address: 73020
+  size: 28
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 53728
+  size: 64
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 53248
+  size: 280
+}
+data_directories {
+  virtual_address: 74804
+  size: 64
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+import_details {
+  library_name: "KERNEL32.dll"
+  functions {
+    name: "RaiseException"
+    rva: 53248
+  }
+  functions {
+    name: "GetLastError"
+    rva: 53252
+  }
+  functions {
+    name: "GetSystemInfo"
+    rva: 53256
+  }
+  functions {
+    name: "VirtualProtect"
+    rva: 53260
+  }
+  functions {
+    name: "VirtualQuery"
+    rva: 53264
+  }
+  functions {
+    name: "FreeLibrary"
+    rva: 53268
+  }
+  functions {
+    name: "GetModuleHandleW"
+    rva: 53272
+  }
+  functions {
+    name: "GetProcAddress"
+    rva: 53276
+  }
+  functions {
+    name: "LoadLibraryExA"
+    rva: 53280
+  }
+  functions {
+    name: "QueryPerformanceCounter"
+    rva: 53284
+  }
+  functions {
+    name: "GetCurrentProcessId"
+    rva: 53288
+  }
+  functions {
+    name: "GetCurrentThreadId"
+    rva: 53292
+  }
+  functions {
+    name: "GetSystemTimeAsFileTime"
+    rva: 53296
+  }
+  functions {
+    name: "InitializeSListHead"
+    rva: 53300
+  }
+  functions {
+    name: "IsDebuggerPresent"
+    rva: 53304
+  }
+  functions {
+    name: "UnhandledExceptionFilter"
+    rva: 53308
+  }
+  functions {
+    name: "SetUnhandledExceptionFilter"
+    rva: 53312
+  }
+  functions {
+    name: "GetStartupInfoW"
+    rva: 53316
+  }
+  functions {
+    name: "IsProcessorFeaturePresent"
+    rva: 53320
+  }
+  functions {
+    name: "GetCurrentProcess"
+    rva: 53324
+  }
+  functions {
+    name: "TerminateProcess"
+    rva: 53328
+  }
+  functions {
+    name: "WriteConsoleW"
+    rva: 53332
+  }
+  functions {
+    name: "RtlUnwind"
+    rva: 53336
+  }
+  functions {
+    name: "SetLastError"
+    rva: 53340
+  }
+  functions {
+    name: "EnterCriticalSection"
+    rva: 53344
+  }
+  functions {
+    name: "LeaveCriticalSection"
+    rva: 53348
+  }
+  functions {
+    name: "DeleteCriticalSection"
+    rva: 53352
+  }
+  functions {
+    name: "InitializeCriticalSectionAndSpinCount"
+    rva: 53356
+  }
+  functions {
+    name: "TlsAlloc"
+    rva: 53360
+  }
+  functions {
+    name: "TlsGetValue"
+    rva: 53364
+  }
+  functions {
+    name: "TlsSetValue"
+    rva: 53368
+  }
+  functions {
+    name: "TlsFree"
+    rva: 53372
+  }
+  functions {
+    name: "LoadLibraryExW"
+    rva: 53376
+  }
+  functions {
+    name: "GetStdHandle"
+    rva: 53380
+  }
+  functions {
+    name: "WriteFile"
+    rva: 53384
+  }
+  functions {
+    name: "GetModuleFileNameW"
+    rva: 53388
+  }
+  functions {
+    name: "ExitProcess"
+    rva: 53392
+  }
+  functions {
+    name: "GetModuleHandleExW"
+    rva: 53396
+  }
+  functions {
+    name: "GetCommandLineA"
+    rva: 53400
+  }
+  functions {
+    name: "GetCommandLineW"
+    rva: 53404
+  }
+  functions {
+    name: "HeapAlloc"
+    rva: 53408
+  }
+  functions {
+    name: "HeapFree"
+    rva: 53412
+  }
+  functions {
+    name: "FindClose"
+    rva: 53416
+  }
+  functions {
+    name: "FindFirstFileExW"
+    rva: 53420
+  }
+  functions {
+    name: "FindNextFileW"
+    rva: 53424
+  }
+  functions {
+    name: "IsValidCodePage"
+    rva: 53428
+  }
+  functions {
+    name: "GetACP"
+    rva: 53432
+  }
+  functions {
+    name: "GetOEMCP"
+    rva: 53436
+  }
+  functions {
+    name: "GetCPInfo"
+    rva: 53440
+  }
+  functions {
+    name: "MultiByteToWideChar"
+    rva: 53444
+  }
+  functions {
+    name: "WideCharToMultiByte"
+    rva: 53448
+  }
+  functions {
+    name: "GetEnvironmentStringsW"
+    rva: 53452
+  }
+  functions {
+    name: "FreeEnvironmentStringsW"
+    rva: 53456
+  }
+  functions {
+    name: "SetEnvironmentVariableW"
+    rva: 53460
+  }
+  functions {
+    name: "SetStdHandle"
+    rva: 53464
+  }
+  functions {
+    name: "GetFileType"
+    rva: 53468
+  }
+  functions {
+    name: "GetStringTypeW"
+    rva: 53472
+  }
+  functions {
+    name: "CompareStringW"
+    rva: 53476
+  }
+  functions {
+    name: "LCMapStringW"
+    rva: 53480
+  }
+  functions {
+    name: "GetProcessHeap"
+    rva: 53484
+  }
+  functions {
+    name: "HeapSize"
+    rva: 53488
+  }
+  functions {
+    name: "HeapReAlloc"
+    rva: 53492
+  }
+  functions {
+    name: "FlushFileBuffers"
+    rva: 53496
+  }
+  functions {
+    name: "GetConsoleOutputCP"
+    rva: 53500
+  }
+  functions {
+    name: "GetConsoleMode"
+    rva: 53504
+  }
+  functions {
+    name: "SetFilePointerEx"
+    rva: 53508
+  }
+  functions {
+    name: "CreateFileW"
+    rva: 53512
+  }
+  functions {
+    name: "CloseHandle"
+    rva: 53516
+  }
+  functions {
+    name: "DecodePointer"
+    rva: 53520
+  }
+}
+overlay {
+  offset: 0
+  size: 0
+}

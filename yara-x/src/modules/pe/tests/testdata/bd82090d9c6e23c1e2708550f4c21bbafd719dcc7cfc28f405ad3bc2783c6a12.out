@@ -44,6 +44,7 @@ number_of_symbols: 0
 number_of_rva_and_sizes: 16
 win32_version_value: 0
 number_of_sections: 1
+number_of_imported_functions: 0
 rich_signature {
   offset: 128
   length: 32
