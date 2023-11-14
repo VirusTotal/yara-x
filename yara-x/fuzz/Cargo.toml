@@ -24,12 +24,6 @@ test = false
 doc = false
 
 [[bin]]
-name = "macho_fat_parser"
-path = "fuzz_targets/macho_fat_parser.rs"
-test = false
-doc = false
-
-[[bin]]
 name = "lnk_parser"
 path = "fuzz_targets/lnk_parser.rs"
 test = false
