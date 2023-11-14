@@ -1,0 +1,24 @@
+[package]
+name = "yara-x-proto-yaml"
+version.workspace = true
+description.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+readme.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+
+[dependencies]
+protobuf = { workspace = true }
+
+
+[dev-dependencies]
+goldenfile = "1.5.2"
+globwalk = { workspace = true }
+
+[build-dependencies]
+protobuf =  { workspace = true }
+protobuf-codegen = { workspace = true }
+protobuf-parse = { workspace = true }

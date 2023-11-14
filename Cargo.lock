@@ -4174,6 +4174,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "yara-x-proto-yaml"
+version = "0.1.0"
+dependencies = [
+ "globwalk",
+ "goldenfile",
+ "protobuf",
+ "protobuf-codegen",
+ "protobuf-parse",
+]
+
+[[package]]
 name = "yara-x-py"
 version = "0.1.0"
 dependencies = [
