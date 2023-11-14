@@ -4179,6 +4179,7 @@ version = "0.1.0"
 dependencies = [
  "globwalk",
  "goldenfile",
+ "itertools 0.11.0",
  "protobuf",
  "protobuf-codegen",
  "protobuf-parse",

@@ -12,5 +12,5 @@ nested_msg:
   int32_dec: 1234
   str: "qux"
   map_string_string:
-    foo: "bar"
     bar: "baz"
+    foo: "bar"

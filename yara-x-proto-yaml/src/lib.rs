@@ -1,4 +1,6 @@
+use itertools::Itertools;
 use protobuf::MessageDyn;
+use std::cmp::Ordering;
 use std::io::{Error, Write};
 
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
@@ -78,12 +80,24 @@ impl<W: Write> Serializer<W> {
                     self.write_field_name(field.name())?;
                     self.indent += 2;
                     self.newline()?;
-                    let mut items = map.into_iter().peekable();
-                    while let Some((key, value)) = items.next() {
-                        self.write_field_name(key.to_string().as_str())?;
+
+                    // Iteration order is not stable (i.e: the order in which
+                    // items are returned can vary from one execution to the
+                    // other), because the underlying data structure is a
+                    // HashMap. For this reason items are wrapped in a KV
+                    // struct (which implement the Ord trait) and sorted.
+                    // Key-value pairs are sorted by key.
+                    let mut items = map
+                        .into_iter()
+                        .map(|(key, value)| KV { key, value })
+                        .sorted()
+                        .peekable();
+
+                    while let Some(item) = items.next() {
+                        self.write_field_name(item.key.to_string().as_str())?;
                         self.indent += 2;
-                        self.write_name_value_separator(&value)?;
-                        self.write_value(&field, &value)?;
+                        self.write_name_value_separator(&item.value)?;
+                        self.write_value(&field, &item.value)?;
                         self.indent -= 2;
                         if items.peek().is_some() {
                             self.newline()?;
@@ -146,3 +160,53 @@ impl<W: Write> Serializer<W> {
         Ok(())
     }
 }
+
+/// Helper type that allows to sort the entries in protobuf map.
+struct KV<'a> {
+    key: ReflectValueRef<'a>,
+    value: ReflectValueRef<'a>,
+}
+
+impl PartialOrd for KV<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for KV<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.key {
+            ReflectValueRef::U32(v) => {
+                v.cmp(&other.key.to_u32().unwrap_or_default())
+            }
+            ReflectValueRef::U64(v) => {
+                v.cmp(&other.key.to_u64().unwrap_or_default())
+            }
+            ReflectValueRef::I32(v) => {
+                v.cmp(&other.key.to_i32().unwrap_or_default())
+            }
+            ReflectValueRef::I64(v) => {
+                v.cmp(&other.key.to_i64().unwrap_or_default())
+            }
+            ReflectValueRef::Bool(v) => {
+                v.cmp(&other.key.to_bool().unwrap_or_default())
+            }
+            ReflectValueRef::String(v) => {
+                v.cmp(other.key.to_str().unwrap_or_default())
+            }
+            _ => {
+                // Protobuf doesn't support map keys of any other type
+                // except the ones listed above.
+                panic!("unsupported type in map key")
+            }
+        }
+    }
+}
+
+impl PartialEq for KV<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.key.to_str().eq(&other.key.to_str())
+    }
+}
+
+impl Eq for KV<'_> {}

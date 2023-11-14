@@ -9,10 +9,9 @@ readme.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
-
 [dependencies]
 protobuf = { workspace = true }
-
+itertools = { workspace = true }
 
 [dev-dependencies]
 goldenfile = "1.5.2"
