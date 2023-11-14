@@ -806,7 +806,8 @@ impl<'a> PE<'a> {
                     .and_then(|string| {
                         length_data(map(
                             le_u16::<&[u8], Error>,
-                            |len| len * 2, //  length from characters to bytes
+                            //  length from characters to bytes
+                            |len| len.saturating_mul(2),
                         ))(string)
                         .map(|(_, s)| s)
                         .ok()
