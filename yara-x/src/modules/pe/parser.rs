@@ -402,6 +402,7 @@ impl<'a> PE<'a> {
 
     const MAX_PE_SECTIONS: usize = 96;
     const MAX_PE_IMPORTS: usize = 16384;
+    const MAX_PE_RESOURCES: usize = 65535;
     const MAX_DIR_ENTRIES: usize = 16;
 
     fn parse_dos_header(input: &[u8]) -> IResult<&[u8], DOSHeader> {
@@ -1233,6 +1234,10 @@ impl<'a> PE<'a> {
                     } else if let Ok((_, rsrc_entry)) =
                         Self::parse_rsrc_entry(entry_data)
                     {
+                        if resources.len() == Self::MAX_PE_RESOURCES {
+                            return Some(resources);
+                        }
+
                         resources.push(Resource {
                             type_id: ids.0,
                             rsrc_id: ids.1,
