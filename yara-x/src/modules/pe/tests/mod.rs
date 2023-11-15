@@ -26,22 +26,3 @@ fn rich_signature() {
         &pe
     );
 }
-
-#[test]
-fn foo() {
-    let pe = crate::modules::tests::create_binary_from_ihex(
-        "src/modules/pe/tests/testdata/2d80c403b5c50f8bbacb65f58e7a19f272c62d1889216b7a6f1141571ec12649.in",
-    )
-        .unwrap();
-
-    rule_true!(
-        r#"
-        import "pe"
-        rule test {
-          condition:
-            pe.is_pe
-        }
-        "#,
-        &pe
-    );
-}
