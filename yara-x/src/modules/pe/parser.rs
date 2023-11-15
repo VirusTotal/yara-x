@@ -226,7 +226,7 @@ impl<'a> PE<'a> {
             return None;
         }
 
-        let result = section_offset + rva - section_rva;
+        let result = section_offset.saturating_add(rva - section_rva);
 
         // Make sure the resulting offset is within the file.
         if result as usize >= self.data.len() {
