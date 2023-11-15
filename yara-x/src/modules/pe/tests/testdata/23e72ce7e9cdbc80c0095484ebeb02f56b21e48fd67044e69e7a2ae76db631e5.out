@@ -25,6 +25,8 @@ checksum: 57102
 base_of_code: 4096
 entry_point: 1920
 entry_point_raw: 4992
+dll_name: "mtxex.dll"
+export_timestamp: 1827812126
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -375,6 +377,30 @@ import_details {
     name: "GetCurrentProcessId"
     rva: 8608
   }
+}
+export_details {
+  name: "DllGetClassObject"
+  ordinal: 1
+  rva: 4144
+  offset: 1072
+}
+export_details {
+  name: "GetObjectContext"
+  ordinal: 2
+  rva: 9853
+  forward_name: "COMSVCS.GetObjectContext"
+}
+export_details {
+  name: "MTSCreateActivity"
+  ordinal: 3
+  rva: 9896
+  forward_name: "COMSVCS.MTSCreateActivity"
+}
+export_details {
+  name: "SafeRef"
+  ordinal: 4
+  rva: 9930
+  forward_name: "COMSVCS.SafeRef"
 }
 overlay {
   offset: 0

@@ -26,6 +26,8 @@ base_of_code: 4096
 base_of_data: 12288
 entry_point: 2605
 entry_point_raw: 5677
+dll_name: "CUSTPROF.dll"
+export_timestamp: 1528213185
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -449,6 +451,36 @@ import_details {
     name: "QueryPerformanceCounter"
     rva: 12372
   }
+}
+export_details {
+  name: "CP_PutItem"
+  ordinal: 200
+  rva: 4204
+  offset: 1132
+}
+export_details {
+  name: "CP_GetItem"
+  ordinal: 201
+  rva: 4414
+  offset: 1342
+}
+export_details {
+  name: "CP_DelItem"
+  ordinal: 202
+  rva: 4096
+  offset: 1024
+}
+export_details {
+  name: "CP_GetTaxMap"
+  ordinal: 203
+  rva: 4186
+  offset: 1114
+}
+export_details {
+  name: "_DllMain@12"
+  ordinal: 204
+  rva: 4624
+  offset: 1552
 }
 overlay {
   offset: 10752

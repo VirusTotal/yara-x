@@ -1,12 +1,14 @@
 use std::cell::OnceCell;
 use std::cmp::min;
 use std::collections::VecDeque;
+use std::default::Default;
 use std::iter::zip;
 use std::str::{from_utf8, FromStr};
 
 use bstr::{BStr, ByteSlice};
 use byteorder::{ByteOrder, LE};
 use indexmap::IndexMap;
+use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
@@ -72,6 +74,9 @@ pub struct PE<'a> {
     /// which the DLLs appear in the import table, which is important while
     /// computing the imphash.
     imported_dlls: OnceCell<Option<IndexMap<&'a str, Vec<ImportedFunc<'a>>>>>,
+
+    /// Export information about this PE file.
+    exports: OnceCell<Option<ExportInfo<'a>>>,
 
     /// DOS header already parsed.
     pub dos_hdr: DOSHeader,
@@ -326,15 +331,18 @@ impl<'a> PE<'a> {
             .unwrap_or_default()
     }
 
-    /// Returns the data associated to a given directory entry.
+    /// Returns the RVA, size and data associated to a given directory entry.
     ///
-    /// Each directory entry has a RVA and a size. This function translates the
-    /// RVA into a file offset and returns the chunk of file that starts at
-    /// that offset and has the size indicated by the directory entry.
+    /// This function translates the RVA into a file offset and returns the
+    /// chunk of file that starts at that offset and has the size indicated by
+    /// the directory entry.
     ///
     /// Returns `None` if the PE is corrupted in some way that prevents the
     /// data from being found.
-    pub fn get_dir_entry_data(&self, index: usize) -> Option<&'a [u8]> {
+    pub fn get_dir_entry_data(
+        &self,
+        index: usize,
+    ) -> Option<(u32, u32, &'a [u8])> {
         // Nobody should call this function with an index greater
         // than MAX_DIR_ENTRIES.
         debug_assert!(index < Self::MAX_DIR_ENTRIES);
@@ -362,7 +370,9 @@ impl<'a> PE<'a> {
             start.saturating_add(dir_entry.size as usize),
         );
 
-        self.data.get(start..end)
+        let data = self.data.get(start..end)?;
+
+        Some((dir_entry.addr, dir_entry.size, data))
     }
 
     pub fn get_imports(
@@ -378,6 +388,10 @@ impl<'a> PE<'a> {
                 .iter()
                 .map(|(name, funcs)| (*name, funcs.as_slice())),
         )
+    }
+
+    pub fn get_exports(&self) -> Option<&ExportInfo<'a>> {
+        self.exports.get_or_init(|| self.parse_exports()).as_ref()
     }
 }
 
@@ -402,6 +416,7 @@ impl<'a> PE<'a> {
 
     const MAX_PE_SECTIONS: usize = 96;
     const MAX_PE_IMPORTS: usize = 16384;
+    const MAX_PE_EXPORTS: usize = 16384;
     const MAX_PE_RESOURCES: usize = 65535;
     const MAX_DIR_ENTRIES: usize = 16;
 
@@ -1140,7 +1155,7 @@ impl<'a> PE<'a> {
     }
 
     fn parse_resources(&self) -> Option<Vec<Resource<'a>>> {
-        let rsrc_section =
+        let (_, _, rsrc_section) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE)?;
 
         // Resources are stored in tree structure with three levels. Non-leaf
@@ -1271,7 +1286,7 @@ impl<'a> PE<'a> {
     }
 
     fn parse_dbg(&self) -> Option<&'a str> {
-        let dbg_section =
+        let (_, _, dbg_section) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG)?;
 
         let entries = many0(Self::parse_dbg_dir_entry)(dbg_section)
@@ -1410,7 +1425,7 @@ impl<'a> PE<'a> {
     fn parse_imports(
         &self,
     ) -> Option<IndexMap<&'a str, Vec<ImportedFunc<'a>>>> {
-        let imports_section =
+        let (_, _, imports_section) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT)?;
 
         // Parse import descriptors until finding one that is empty (filled
@@ -1533,6 +1548,161 @@ impl<'a> PE<'a> {
         )(input)
     }
 
+    fn parse_exports(&self) -> Option<ExportInfo<'a>> {
+        let (exports_rva, exports_size, exports_data) =
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_EXPORT)?;
+
+        // Parse the IMAGE_EXPORT_DIRECTORY structure.
+        let (_, exports) = Self::parse_exports_dir_entry(exports_data).ok()?;
+
+        let num_exports =
+            min(exports.number_of_functions as usize, Self::MAX_PE_EXPORTS);
+
+        // The IMAGE_EXPORT_DIRECTORY structure points to three arrays. The
+        // only required array is the Export Address Table (EAT), which is an
+        // array of function pointers that contain the address (RVA) of an
+        // exported function. The `address_of_functions` field contains the
+        // RVA for this array. There are as many exported functions as entries
+        // in the `address_of_functions` array. The size of this array is
+        // indicated by the `number_of_functions` field.
+        //
+        // The purpose of the other two arrays is associating a name to
+        // the imported functions, but not all functions have an associated
+        // name. Functions that are exported only by ordinal don't have an
+        // associated entry in these arrays.
+        //
+        // Let's illustrate it with an example:
+        //
+        // base:  5
+        // address_of_functions:     [ 0x00000011 | 0x00000022 | 0x00000033 ]
+        // address_of_name_ordinals: [     0x0000 |     0x0002 |     0x0001 ]
+        // address_of_names:         [ 0x00000044 | 0x00000055 ]
+        //
+        // The function at RVA 0x00000011 (index 0) has ordinal 5 (base+index).
+        // The index can be found at position 0 in the address_of_name_ordinals
+        // array. Using 0 to index into the address_of_names array gives us an
+        // RVA (0x00000044) where the function's name is located.
+        //
+        // The function at RVA 0x00000022 (index 1) has ordinal 6 (base+index).
+        // The index can be found at position 2 in the address_of_name_ordinals
+        // array. 2 is out of bounds for address_of_names, so this function is
+        // exported only by ordinal, not by name.
+        //
+        // The function at RVA 0x00000033 (index 2) has ordinal 7 (base+index).
+        // The index can be found in position 1 in the address_of_name_ordinals.
+        // array. Using 1 to index into the address_of_names array gives us an
+        // RVA (0x00000055) which we can follow to get the name.
+        //
+        // If the RVA from the address_of_functions is within the export
+        // directory it is a forwarder RVA and points to a NULL terminated
+        // ASCII string.
+
+        let func_rvas = self.parse_at_rva(
+            exports.address_of_functions,
+            count(le_u32, num_exports),
+        )?;
+
+        let names = self.parse_at_rva(
+            exports.address_of_names,
+            count(le_u32, exports.number_of_names as usize),
+        )?;
+
+        let name_ordinals = self.parse_at_rva(
+            exports.address_of_name_ordinals,
+            count(le_u16, exports.number_of_names as usize),
+        )?;
+
+        // Create a vector with one item per exported function. Items in the
+        // array initially have function RVA and ordinal only.
+        let mut exported_funcs: Vec<_> = func_rvas
+            .iter()
+            .enumerate()
+            .map(|(i, rva)| ExportedFunc {
+                rva: *rva,
+                ordinal: exports.base + i as u32,
+                ..Default::default()
+            })
+            .collect();
+
+        // Set the name field for each exported function, if they are exported
+        // by name.
+        for f in exported_funcs.iter_mut() {
+            if let Some((idx, _)) =
+                name_ordinals.iter().find_position(|ordinal| {
+                    **ordinal as u32 == f.ordinal - exports.base
+                })
+            {
+                if let Some(name_rva) = names.get(idx) {
+                    f.name = self.str_at_rva(*name_rva);
+                }
+            }
+
+            // If the function's RVA is within the exports section (as given
+            // by the RVA and size fields in the directory entry), this is a
+            // forwarded function. In such cases the function's RVA is not
+            // really pointing to the function, but to a ASCII string that
+            // contains the DLL and function to which this export is forwarded.
+            if (exports_rva..exports_rva + exports_size).contains(&f.rva) {
+                f.forward_name = self.str_at_rva(f.rva);
+            } else {
+                f.offset = self.rva_to_offset(f.rva);
+            }
+        }
+
+        Some(ExportInfo {
+            dll_name: self.dll_name_at_rva(exports.name),
+            timestamp: exports.timestamp,
+            functions: exported_funcs,
+        })
+    }
+
+    fn parse_exports_dir_entry(
+        input: &[u8],
+    ) -> IResult<&[u8], ExportsDirEntry> {
+        map(
+            tuple((
+                le_u32, // characteristics
+                le_u32, // timestamp
+                le_u16, // major_version
+                le_u16, // minor_version
+                le_u32, // name
+                le_u32, // base
+                le_u32, // number_of_functions
+                le_u32, // number_of_names
+                le_u32, // address_of_functions
+                le_u32, // address_of_names
+                le_u32, // address_of_name_ordinals
+            )),
+            |(
+                characteristics,
+                timestamp,
+                major_version,
+                minor_version,
+                name,
+                base,
+                number_of_functions,
+                number_of_names,
+                address_of_functions,
+                address_of_names,
+                address_of_name_ordinals,
+            )| {
+                ExportsDirEntry {
+                    characteristics,
+                    timestamp,
+                    major_version,
+                    minor_version,
+                    name,
+                    base,
+                    number_of_functions,
+                    number_of_names,
+                    address_of_functions,
+                    address_of_names,
+                    address_of_name_ordinals,
+                }
+            },
+        )(input)
+    }
+
     fn parse_at_rva<T, P>(&self, rva: u32, mut parser: P) -> Option<T>
     where
         P: FnMut(&'a [u8]) -> IResult<&'a [u8], T>,
@@ -1541,9 +1711,13 @@ impl<'a> PE<'a> {
         parser(data).map(|(_, result)| result).ok()
     }
 
-    fn dll_name_at_rva(&self, rva: u32) -> Option<&'a str> {
+    fn str_at_rva(&self, rva: u32) -> Option<&'a str> {
         let dll_name = self.parse_at_rva(rva, take_till(|c| c == 0))?;
-        let dll_name = from_utf8(dll_name).ok()?;
+        from_utf8(dll_name).ok()
+    }
+
+    fn dll_name_at_rva(&self, rva: u32) -> Option<&'a str> {
+        let dll_name = self.str_at_rva(rva)?;
 
         for c in dll_name.chars() {
             if matches!(c, ' ' | '"' | '*' | '<' | '>' | '?' | '|') {
@@ -1644,7 +1818,28 @@ impl From<PE<'_>> for pe::PE {
         result
             .resources
             .extend(pe.get_resources().iter().map(pe::Resource::from));
+        
+        
+        let mut num_imported_funcs = 0;
 
+        if let Some(imports) = pe.get_imports() {
+            for (dll_name, functions) in imports {
+                let mut import = pe::Import::new();
+                import.library_name = Some(dll_name.to_owned());
+                import.functions = functions.iter().map(pe::Function::from).collect();
+                num_imported_funcs += import.functions.len();
+                result.import_details.push(import);
+            }
+        }
+
+        result.set_number_of_imported_functions(num_imported_funcs as u64);
+        
+        if let Some(exports) = pe.get_exports() {
+            result.dll_name = exports.dll_name.map(|name| name.to_owned());
+            result.export_timestamp = Some(exports.timestamp);
+            result.export_details.extend(exports.functions.iter().map(pe::Export::from));
+        }
+        
         for (key, value) in pe.get_version_info() {
             let mut kv = pe::KeyValue::new();
             kv.key = Some(key.to_owned());
@@ -1657,20 +1852,6 @@ impl From<PE<'_>> for pe::PE {
             // match the golden files.
             // result.version_info.insert(key.to_owned(), value.to_owned());
         }
-        
-        let mut num_imported_funcs = 0;
-        
-        if let Some(imports) = pe.get_imports() {
-            for (dll_name, functions) in imports {
-                let mut import = pe::Import::new();
-                import.library_name = Some(dll_name.to_owned());
-                import.functions = functions.iter().map(pe::Function::from).collect();
-                num_imported_funcs += import.functions.len();
-                result.import_details.push(import);
-            }
-        }
-        
-        result.set_number_of_imported_functions(num_imported_funcs as u64);
         
         if let Some(rich_header) = pe.get_rich_header() {
             result.rich_signature = MessageField::some(pe::RichSignature {
@@ -1903,6 +2084,47 @@ impl From<&ImportedFunc<'_>> for pe::Function {
         func.name = value.name.map(|name| name.to_owned());
         func
     }
+}
+
+pub struct ExportInfo<'a> {
+    dll_name: Option<&'a str>,
+    timestamp: u32,
+    functions: Vec<ExportedFunc<'a>>,
+}
+
+#[derive(Default)]
+pub struct ExportedFunc<'a> {
+    rva: u32,
+    offset: Option<u32>,
+    ordinal: u32,
+    name: Option<&'a str>,
+    forward_name: Option<&'a str>,
+}
+
+impl From<&ExportedFunc<'_>> for pe::Export {
+    fn from(value: &ExportedFunc<'_>) -> Self {
+        let mut exp = pe::Export::new();
+        exp.name = value.name.map(|name| name.to_owned());
+        exp.ordinal = Some(value.ordinal);
+        exp.rva = Some(value.rva);
+        exp.offset = value.offset;
+        exp.forward_name = value.forward_name.map(|name| name.to_owned());
+        exp
+    }
+}
+
+pub struct ExportsDirEntry {
+    characteristics: u32,
+    timestamp: u32,
+    major_version: u16,
+    minor_version: u16,
+    name: u32,
+    base: u32,
+    number_of_functions: u32,
+    number_of_names: u32,
+    address_of_functions: u32,
+    address_of_names: u32,
+    address_of_name_ordinals: u32,
 }
 
 /// Represents a resource in the PE.

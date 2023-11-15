@@ -32,44 +32,48 @@ message PE {
   // Entry point as it appears in the PE header (RVA).
   optional uint32 entry_point_raw = 16;
 
-  optional uint32 section_alignment = 17;
-  optional uint32 file_alignment = 18;
-  optional uint32 loader_flags = 19;
+  optional string dll_name = 17;
+  optional uint32 export_timestamp = 18;
 
-  optional uint32 size_of_optional_header = 20;
-  optional uint32 size_of_code = 21;
-  optional uint32 size_of_initialized_data = 22;
-  optional uint32 size_of_uninitialized_data = 23;
-  optional uint32 size_of_image = 24;
-  optional uint32 size_of_headers = 25;
+  optional uint32 section_alignment = 19;
+  optional uint32 file_alignment = 20;
+  optional uint32 loader_flags = 21;
 
-  optional uint64 size_of_stack_reserve = 26;
-  optional uint64 size_of_stack_commit = 27;
-  optional uint64 size_of_heap_reserve = 28;
-  optional uint64 size_of_heap_commit = 29;
+  optional uint32 size_of_optional_header = 22;
+  optional uint32 size_of_code = 23;
+  optional uint32 size_of_initialized_data = 24;
+  optional uint32 size_of_uninitialized_data = 25;
+  optional uint32 size_of_image = 26;
+  optional uint32 size_of_headers = 27;
 
-  optional uint32 pointer_to_symbol_table = 30;
-  optional uint32 number_of_symbols = 31;
-  optional uint32 number_of_rva_and_sizes = 32;
-  optional uint32 win32_version_value = 33;
+  optional uint64 size_of_stack_reserve = 28;
+  optional uint64 size_of_stack_commit = 29;
+  optional uint64 size_of_heap_reserve = 30;
+  optional uint64 size_of_heap_commit = 31;
 
-  map<string, string> version_info = 34;
-  repeated KeyValue version_info_list = 35;
+  optional uint32 pointer_to_symbol_table = 32;
+  optional uint32 number_of_symbols = 33;
+  optional uint32 number_of_rva_and_sizes = 34;
+  optional uint32 win32_version_value = 35;
 
-  optional uint32 number_of_sections = 36;
-  optional uint64 number_of_imported_functions = 37;
+  map<string, string> version_info = 36;
+  repeated KeyValue version_info_list = 37;
 
-  optional RichSignature rich_signature = 38;
-  optional string pdb_path = 39;
+  optional uint32 number_of_sections = 38;
+  optional uint64 number_of_imported_functions = 39;
 
-  repeated Section sections = 40;
-  repeated DirEntry data_directories = 41;
-  repeated Resource resources = 42;
-  repeated Import import_details = 43;
+  optional RichSignature rich_signature = 40;
+  optional string pdb_path = 41;
+
+  repeated Section sections = 42;
+  repeated DirEntry data_directories = 43;
+  repeated Resource resources = 44;
+  repeated Import import_details = 45;
+  repeated Export export_details = 46;
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 44;
+  optional Overlay overlay = 47;
 }
 
 message Version {
@@ -104,11 +108,18 @@ message Import {
   repeated Function functions = 2;
 }
 
+message Export {
+  optional string name= 1;
+  required uint32 ordinal = 2;
+  required uint32 rva = 3;
+  optional uint32 offset = 4;
+  optional string forward_name = 5;
+}
+
 message Function {
   optional string name = 1;
   optional uint32 ordinal = 2;
   required uint32 rva = 3;
-
 }
 
 ///  https://learn.microsoft.com/en-us/windows/win32/menurc/resource-types?redirectedfrom=MSDN
