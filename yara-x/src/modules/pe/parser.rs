@@ -765,7 +765,8 @@ impl<'a> PE<'a> {
     fn parse_rsrc_dir(input: &[u8]) -> IResult<&[u8], usize> {
         map(
             tuple((
-                le_u32, // characteristics
+                // characteristics must be 0
+                verify(le_u32, |characteristics| *characteristics == 0),
                 le_u32, // timestamp
                 le_u16, // major_version
                 le_u16, // minor_version
