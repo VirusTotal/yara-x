@@ -244,3 +244,10 @@ enum Subsystem {
   SUBSYSTEM_XBOX                     = 14;
   SUBSYSTEM_WINDOWS_BOOT_APPLICATION = 16;
 }
+
+enum ImportFlags {
+  option (yara.enum_options).inline = true;
+  IMPORT_STANDARD = 0x01;
+  IMPORT_DELAYED = 0x02;
+  IMPORT_ANY = 0x03;
+}
