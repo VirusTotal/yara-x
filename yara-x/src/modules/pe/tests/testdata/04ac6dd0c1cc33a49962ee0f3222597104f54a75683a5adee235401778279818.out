@@ -45,6 +45,7 @@ number_of_rva_and_sizes: 16
 win32_version_value: 0
 number_of_sections: 4
 number_of_imported_functions: 69
+number_of_delayed_imported_functions: 2
 rich_signature {
   offset: 128
   length: 96
@@ -495,6 +496,17 @@ import_details {
   functions {
     name: "DecodePointer"
     rva: 53520
+  }
+}
+delayed_import_details {
+  library_name: "USER32.dll"
+  functions {
+    name: "MessageBeep"
+    rva: 80000
+  }
+  functions {
+    name: "MessageBoxA"
+    rva: 80004
   }
 }
 overlay {

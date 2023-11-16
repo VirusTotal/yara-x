@@ -44,6 +44,7 @@ number_of_rva_and_sizes: 16
 win32_version_value: 0
 number_of_sections: 3
 number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
 pdb_path: "2AC71AF3-A338-495C-834E-977A6DD5C6FD"
 sections {
   name: ".text"

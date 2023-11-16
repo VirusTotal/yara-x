@@ -81,6 +81,7 @@ version_info_list {
 }
 number_of_sections: 5
 number_of_imported_functions: 353
+number_of_delayed_imported_functions: 0
 rich_signature {
   offset: 128
   length: 88
@@ -2085,8 +2086,9 @@ import_details {
     rva: 4240
   }
   functions {
+    name: "ord17"
     ordinal: 17
-    rva: 4241
+    rva: 4244
   }
   functions {
     name: "ImageList_ReplaceIcon"

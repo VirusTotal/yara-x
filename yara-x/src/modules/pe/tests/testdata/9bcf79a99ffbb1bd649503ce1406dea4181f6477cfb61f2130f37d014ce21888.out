@@ -73,6 +73,7 @@ version_info_list {
 }
 number_of_sections: 3
 number_of_imported_functions: 1
+number_of_delayed_imported_functions: 0
 pdb_path: "D:\\Unity\\KenShape\\Temp\\UnityEngine.Purchasing.AppleStub.pdb"
 sections {
   name: ".text"

@@ -61,19 +61,21 @@ message PE {
 
   optional uint32 number_of_sections = 38;
   optional uint64 number_of_imported_functions = 39;
+  optional uint64 number_of_delayed_imported_functions = 40;
 
-  optional RichSignature rich_signature = 40;
-  optional string pdb_path = 41;
+  optional RichSignature rich_signature = 41;
+  optional string pdb_path = 42;
 
-  repeated Section sections = 42;
-  repeated DirEntry data_directories = 43;
-  repeated Resource resources = 44;
-  repeated Import import_details = 45;
-  repeated Export export_details = 46;
+  repeated Section sections = 43;
+  repeated DirEntry data_directories = 44;
+  repeated Resource resources = 45;
+  repeated Import import_details = 46;
+  repeated Import delayed_import_details = 47;
+  repeated Export export_details = 48;
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 47;
+  optional Overlay overlay = 49;
 }
 
 message Version {

@@ -44,6 +44,7 @@ number_of_rva_and_sizes: 16
 win32_version_value: 0
 number_of_sections: 4
 number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
 pdb_path: "/Users/runner/work/OpenCorePkg/OpenCorePkg/UDK/Build/OpenCorePkg/DEBUG_XCODE5/X64/OpenCorePkg/Application/ChipTune/ChipTune/DEBUG/ChipTune.dll"
 sections {
   name: ".text"

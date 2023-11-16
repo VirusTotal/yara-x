@@ -45,6 +45,7 @@ number_of_rva_and_sizes: 16
 win32_version_value: 0
 number_of_sections: 7
 number_of_imported_functions: 48
+number_of_delayed_imported_functions: 0
 sections {
   name: ".text"
   full_name: ".text"

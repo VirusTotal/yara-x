@@ -91,6 +91,7 @@ version_info_list {
 }
 number_of_sections: 5
 number_of_imported_functions: 38
+number_of_delayed_imported_functions: 6
 rich_signature {
   offset: 128
   length: 96
@@ -450,6 +451,39 @@ import_details {
   functions {
     name: "QueryPerformanceCounter"
     rva: 12372
+  }
+}
+delayed_import_details {
+  library_name: "QDB.dll"
+  functions {
+    name: "ord116"
+    ordinal: 116
+    rva: 16408
+  }
+  functions {
+    name: "ord102"
+    ordinal: 102
+    rva: 16412
+  }
+  functions {
+    name: "ord95"
+    ordinal: 95
+    rva: 16416
+  }
+  functions {
+    name: "ord105"
+    ordinal: 105
+    rva: 16420
+  }
+  functions {
+    name: "ord103"
+    ordinal: 103
+    rva: 16424
+  }
+  functions {
+    name: "ord34"
+    ordinal: 34
+    rva: 16428
   }
 }
 export_details {

@@ -73,7 +73,10 @@ pub struct PE<'a> {
     /// instead of a [`HashMap`] because we want to maintain the order in
     /// which the DLLs appear in the import table, which is important while
     /// computing the imphash.
-    imported_dlls: OnceCell<Option<IndexMap<&'a str, Vec<ImportedFunc<'a>>>>>,
+    imports: OnceCell<Option<IndexMap<&'a str, Vec<ImportedFunc>>>>,
+
+    /// Similar to `imports` but contains the delayed imports.
+    delayed_imports: OnceCell<Option<IndexMap<&'a str, Vec<ImportedFunc>>>>,
 
     /// Export information about this PE file.
     exports: OnceCell<Option<ExportInfo<'a>>>,
@@ -375,21 +378,43 @@ impl<'a> PE<'a> {
         Some((dir_entry.addr, dir_entry.size, data))
     }
 
+    /// Returns information about the functions imported by this PE file.
+    ///
+    /// The result is an iterator that yields tuples. The first item in the
+    /// tuple is a DLL from which the PE imports functions, and the second
+    /// item is a slice of [`ImportedFunc`] structures, one per function
+    /// imported from that DLL.
     pub fn get_imports(
         &self,
-    ) -> Option<impl Iterator<Item = (&'a str, &[ImportedFunc<'a>])>> {
-        let imported_dlls = self
-            .imported_dlls
-            .get_or_init(|| self.parse_imports())
+    ) -> Option<impl Iterator<Item = (&'a str, &[ImportedFunc])>> {
+        let imports =
+            self.imports.get_or_init(|| self.parse_imports()).as_ref()?;
+
+        Some(imports.iter().map(|(name, funcs)| (*name, funcs.as_slice())))
+    }
+
+    /// Similar to [`get_imports`] but returns delayed imports.
+    ///
+    /// A delayed import is a hybrid approach between an implicit import and
+    /// explicitly importing APIs via LoadLibrary and GetProcAddress. Delayed
+    /// imports are not resolved when the PE is loaded, they are resolved the
+    /// first time the imported function is called.
+    pub fn get_delayed_imports(
+        &self,
+    ) -> Option<impl Iterator<Item = (&'a str, &[ImportedFunc])>> {
+        let delayed_imports = self
+            .delayed_imports
+            .get_or_init(|| self.parse_delayed_imports())
             .as_ref()?;
 
         Some(
-            imported_dlls
+            delayed_imports
                 .iter()
                 .map(|(name, funcs)| (*name, funcs.as_slice())),
         )
     }
 
+    /// Returns information about the functions exported by this PE.
     pub fn get_exports(&self) -> Option<&ExportInfo<'a>> {
         self.exports.get_or_init(|| self.parse_exports()).as_ref()
     }
@@ -403,6 +428,7 @@ impl<'a> PE<'a> {
     const IMAGE_DIRECTORY_ENTRY_IMPORT: usize = 1;
     const IMAGE_DIRECTORY_ENTRY_RESOURCE: usize = 2;
     const IMAGE_DIRECTORY_ENTRY_DEBUG: usize = 6;
+    const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT: usize = 13;
 
     const IMAGE_DEBUG_TYPE_CODEVIEW: u32 = 2;
 
@@ -579,7 +605,7 @@ impl<'a> PE<'a> {
 
             opt_hdr.base_of_data = base_of_data;
             opt_hdr.image_base =
-                image_base64.or(image_base32.map(|i| i as u64));
+                image_base64.or(image_base32.map(|i| i as u64)).unwrap();
 
             (
                 remainder,
@@ -1154,36 +1180,37 @@ impl<'a> PE<'a> {
         self.data.get(offset as usize..)
     }
 
+    /// Parses the PE resources.
+    ///
+    /// Resources are stored in tree structure with three levels. Non-leaf
+    /// nodes are represented by IMAGE_RESOURCE_DIRECTORY structures, where the
+    /// root of the tree is the IMAGE_RESOURCE_DIRECTORY located at the point
+    /// indicated by the IMAGE_DIRECTORY_ENTRY_RESOURCE entry in the PE
+    /// directory.
+    ///
+    /// Right after each IMAGE_RESOURCE_DIRECTORY, there's a sequence of
+    /// IMAGE_RESOURCE_DIRECTORY_ENTRY structures, where each of this entries
+    /// can correspond to leaf in the tree (i.e: an actual resource) or a
+    /// subdirectory.
+    ///
+    /// If the entry corresponds to a subdirectory, its offset points to
+    /// another IMAGE_RESOURCE_DIRECTORY structure, which in turns is
+    /// followed by more IMAGE_DIRECTORY_ENTRY_RESOURCE. If the entry
+    /// corresponds to leaf, its offset points to the resource data. The
+    /// structure of this data depends on the type of the resource. But we
+    /// don't parse the resource themselves, only the resource tree.
+    ///
+    /// This function performs a BFS traversal over the resource tree, creating
+    /// a list of resources with one entry per tree leaf. The three levels in
+    /// the tree correspond to resource types, resources, and language. That
+    /// means that at the top level we have one entry per resource type: icon,
+    /// string table, menu, etc. The children of each type correspond to
+    /// individual resources of that type, and the children of each individual
+    /// resource represent the resource in a specific language.
     fn parse_resources(&self) -> Option<Vec<Resource<'a>>> {
         let (_, _, rsrc_section) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE)?;
 
-        // Resources are stored in tree structure with three levels. Non-leaf
-        // nodes are represented by IMAGE_RESOURCE_DIRECTORY structures, where
-        // the root of the tree is the IMAGE_RESOURCE_DIRECTORY located at the
-        // point indicated by the IMAGE_DIRECTORY_ENTRY_RESOURCE entry in the
-        // PE directory.
-        //
-        // Right after each IMAGE_RESOURCE_DIRECTORY, there's a sequence of
-        // IMAGE_RESOURCE_DIRECTORY_ENTRY structures, where each of this
-        // entries can correspond to leaf in the tree (i.e: an actual resource)
-        // or a subdirectory.
-        //
-        // If the entry corresponds to a subdirectory, its offset points to
-        // another IMAGE_RESOURCE_DIRECTORY structure, which in turns is
-        // followed by more IMAGE_DIRECTORY_ENTRY_RESOURCE. If the entry
-        // corresponds to leaf, its offset points to the resource data. The
-        // structure of this data depends on the type of the resource. But we
-        // don't parse the resource themselves, only the resource tree.
-        //
-        // This function performs a BFS traversal over the resource tree,
-        // creating a list of resources with one entry per tree leaf. The
-        // three levels in the tree correspond to resource types, resources,
-        // and language. That means that at the top level we have one entry
-        // per resource type: icon, string table, menu, etc. The children of
-        // each type correspond to individual resources of that type, and
-        // the children of each individual resource represent the resource in
-        // a specific language.
         let mut queue = VecDeque::new();
         let mut resources = vec![];
 
@@ -1285,6 +1312,7 @@ impl<'a> PE<'a> {
             .ok()
     }
 
+    /// Parses the PE debug information and extracts the PDB path.
     fn parse_dbg(&self) -> Option<&'a str> {
         let (_, _, dbg_section) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG)?;
@@ -1422,22 +1450,66 @@ impl<'a> PE<'a> {
         )(input)
     }
 
-    fn parse_imports(
-        &self,
-    ) -> Option<IndexMap<&'a str, Vec<ImportedFunc<'a>>>> {
-        let (_, _, imports_section) =
+    /// Parses PE imports.
+    fn parse_imports(&self) -> Option<IndexMap<&'a str, Vec<ImportedFunc>>> {
+        let (_, _, import_data) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT)?;
+        self.parse_import_impl(import_data, Self::parse_import_descriptor)
+    }
 
+    /// Parses PE delayed imports.
+    fn parse_delayed_imports(
+        &self,
+    ) -> Option<IndexMap<&'a str, Vec<ImportedFunc>>> {
+        let (_, _, import_data) =
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT)?;
+        self.parse_import_impl(import_data, Self::parse_delay_load_descriptor)
+    }
+
+    /// Common logic for parsing ordinary and delayed imports.
+    ///
+    /// Both ordinary and delayed imports follow a similar logic. Ordinary
+    /// imports are described by a sequence of IMAGE_IMPORT_DESCRIPTOR
+    /// structures (usually one per imported DLL), that start at the RVA
+    /// indicated by the directory entry IMAGE_DIRECTORY_ENTRY_IMPORT (1).
+    /// This structure has two fields (original_first_thunk and first_thunk)
+    /// that point to the Import Name Table (INT) and Import Address Table
+    /// (IAT) respectively. The INT and the IAT have the same number of slots,
+    /// one per function imported from the DLL. The type of these slots is
+    /// IMAGE_THUNK_DATA32 or IMAGE_THUNK_DATA64, depending on whether it is
+    /// a 32-bits or 64-bits PE file.
+    ///
+    /// Delayed imports are described by IMAGE_DELAYLOAD_DESCRIPTOR structures
+    /// starting at the RVA indicated by the directory entry
+    /// IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT (13). These structures are not
+    /// equal to IMAGE_IMPORT_DESCRIPTOR, that's the first difference with
+    /// respect to ordinary imports, but they also have two fields that
+    /// are equivalent to original_first_thunk and first_thunk, and point to
+    /// arrays equivalent to the INT and IAT.
+    ///
+    /// Another differences between ordinal and delayed imports is that in
+    /// in delayed imports the INT and IAT can contain virtual addresses
+    /// instead of relative virtual address (RVAs). Whether they contain one
+    /// or the other depends on a bit in the `attributes` field in the
+    /// IMAGE_DELAYLOAD_DESCRIPTOR structure.
+    fn parse_import_impl<P>(
+        &self,
+        input: &'a [u8],
+        descriptor_parser: P,
+    ) -> Option<IndexMap<&'a str, Vec<ImportedFunc>>>
+    where
+        P: FnMut(&'a [u8]) -> IResult<&'a [u8], ImportDescriptor>,
+    {
         // Parse import descriptors until finding one that is empty (filled
         // with null values), which indicates the end of the directory table;
         // or until `MAX_PE_IMPORTS` is reached.
         let import_descriptors = many_m_n(
             0,
             Self::MAX_PE_IMPORTS,
-            verify(Self::parse_import_descriptor, |d| {
-                d.original_first_thunk != 0 || d.first_thunk != 0
+            verify(descriptor_parser, |d| {
+                d.import_address_table != 0 || d.import_name_table != 0
             }),
-        )(imports_section)
+        )(input)
         .map(|(_, import_descriptors)| import_descriptors)
         .ok()?;
 
@@ -1447,7 +1519,30 @@ impl<'a> PE<'a> {
         let mut imported_funcs: IndexMap<&str, Vec<ImportedFunc>> =
             IndexMap::new();
 
-        for descriptor in import_descriptors {
+        for mut descriptor in import_descriptors {
+            // If the values in the descriptor are virtual addresses, convert
+            // them to relative virtual addresses (RVAs) by subtracting the
+            // image base. This only happens with 32-bits PE files, in 64-bits
+            // these values are always RVAs, therefore converting the image
+            // base to 32-bits it's ok.
+            if descriptor.va_values {
+                if let Ok(image_base) = self.optional_hdr.image_base.try_into()
+                {
+                    descriptor.name =
+                        descriptor.name.saturating_sub(image_base);
+
+                    descriptor.import_name_table = descriptor
+                        .import_name_table
+                        .saturating_sub(image_base);
+
+                    descriptor.import_address_table = descriptor
+                        .import_address_table
+                        .saturating_sub(image_base);
+                } else {
+                    continue;
+                }
+            }
+
             let dll_name =
                 if let Some(name) = self.dll_name_at_rva(descriptor.name) {
                     name
@@ -1455,10 +1550,14 @@ impl<'a> PE<'a> {
                     continue;
                 };
 
-            let thunks = match if descriptor.original_first_thunk > 0 {
-                self.data_at_rva(descriptor.original_first_thunk)
+            // Use the INT (a.k.a: OriginalFirstThunk) if it is non-zero, but
+            // fallback to using the IAT (a.k.a: FirstThunk) if the RVA to the
+            // INT is zero. That's an uncommon case, but it may happen.
+            // TODO: find a sample file where this happens.
+            let thunks = match if descriptor.import_name_table > 0 {
+                self.data_at_rva(descriptor.import_name_table)
             } else {
-                self.data_at_rva(descriptor.first_thunk)
+                self.data_at_rva(descriptor.import_address_table)
             } {
                 Some(thunk) => thunk,
                 None => continue,
@@ -1472,7 +1571,7 @@ impl<'a> PE<'a> {
                 verify(uint(is_32_bits), |thunk| *thunk != 0),
             );
 
-            for (i, thunk) in &mut thunks.enumerate() {
+            for (i, mut thunk) in &mut thunks.enumerate() {
                 // If the most significant bit is set, this is an import by
                 // ordinal. The most significant bit depends on whether this
                 // is a 64-bits PE.
@@ -1482,21 +1581,32 @@ impl<'a> PE<'a> {
                     thunk & 0x8000000000000000 != 0
                 };
 
-                let mut func = ImportedFunc::default();
+                let mut func = ImportedFunc {
+                    rva: descriptor.import_address_table.saturating_add(
+                        (i * if is_32_bits { 4 } else { 8 }) as u32,
+                    ),
+                    ..Default::default()
+                };
 
                 if import_by_ordinal {
                     let ordinal = (thunk & 0xffff) as u16;
                     func.ordinal = Some(ordinal);
                     func.name = ord_to_name(dll_name, ordinal);
-                    func.rva = descriptor.first_thunk.saturating_add(i as u32);
-                } else if let Ok(offset) = TryInto::<u32>::try_into(thunk) {
-                    if let Some(name) =
-                        self.parse_at_rva(offset, Self::parse_import_by_name)
-                    {
-                        func.name = from_utf8(name).ok();
-                        func.rva = descriptor.first_thunk.saturating_add(
-                            (i * if is_32_bits { 4 } else { 8 }) as u32,
-                        );
+                } else {
+                    // When descriptor values are virtual addresses, thunks are
+                    // virtual addresses too and need to be converted to RVAs.
+                    if descriptor.va_values {
+                        thunk =
+                            thunk.saturating_sub(self.optional_hdr.image_base);
+                    }
+
+                    if let Ok(rva) = TryInto::<u32>::try_into(thunk) {
+                        if let Some(name) =
+                            self.parse_at_rva(rva, Self::parse_import_by_name)
+                        {
+                            func.name =
+                                String::from_utf8(name.to_owned()).ok();
+                        }
                     }
                 }
 
@@ -1520,19 +1630,66 @@ impl<'a> PE<'a> {
                 le_u32, // name
                 le_u32, // first_thunk
             )),
-            |(
-                original_first_thunk,
-                timestamp,
-                forwarder_chain,
-                name,
-                first_thunk,
-            )| {
+            |(original_first_thunk, _, _, name, first_thunk)| {
                 ImportDescriptor {
-                    original_first_thunk,
-                    timestamp,
-                    forwarder_chain,
+                    va_values: false,
                     name,
-                    first_thunk,
+                    import_name_table: original_first_thunk,
+                    import_address_table: first_thunk,
+                }
+            },
+        )(input)
+    }
+
+    fn parse_delay_load_descriptor(
+        input: &[u8],
+    ) -> IResult<&[u8], ImportDescriptor> {
+        map(
+            tuple((
+                le_u32, // attributes
+                le_u32, // name
+                le_u32, // module_handle
+                le_u32, // import_address_table
+                le_u32, // import_name_table
+                le_u32, // bound_import_addr_table_rva
+                le_u32, // unload_information_table_rva
+                le_u32, // timestamp
+            )),
+            |(
+                attributes,
+                name,
+                _,
+                import_address_table,
+                import_name_table,
+                _,
+                _,
+                _,
+            )| {
+                // `name`, `import_name_table` and `import_address_table` are
+                // relative virtual addresses (RVA) when the least significant
+                // bit in `attributes` is set to 1. When this bit is set to 0
+                // the values are virtual addresses (absolute, not relative).
+                //
+                // Matt Pietrek's article "An In-Depth Look into the Win32
+                // Portable Executable File Format" states:
+                //
+                // "In its original incarnation in Visual C++ 6.0, all
+                // ImgDelayDescr fields containing addresses used virtual
+                // addresses, rather than RVAs. That is, they contained actual
+                // addresses where the delayload data could be found. These
+                // fields are DWORDs, the size of a pointer on the x86.
+                // Now fast-forward to IA-64 support. All of a sudden, 4 bytes
+                // isn't enough to hold a complete address. Ooops! At this
+                // point, Microsoft did the correct thing and changed the
+                // fields containing addresses to RVAs"
+                //
+                // File that contains virtual addresses instead of RVAs:
+                // 2775d97f8bdb3311ace960a42eee35dbec84b9d71a6abbacb26c14e83f5897e4
+                ImportDescriptor {
+                    va_values: attributes & 1 == 0,
+                    name,
+                    import_name_table,
+                    import_address_table,
                 }
             },
         )(input)
@@ -1773,7 +1930,7 @@ impl From<PE<'_>> for pe::PE {
         result.set_size_of_heap_commit(pe.optional_hdr.size_of_heap_commit);
         result.pdb_path = pe.get_pdb_path().map(String::from);
         result.set_number_of_rva_and_sizes(pe.optional_hdr.number_of_rva_and_sizes);
-        result.image_base = pe.optional_hdr.image_base;
+        result.set_image_base(pe.optional_hdr.image_base);
         result.set_size_of_image(pe.optional_hdr.size_of_image);
         result.set_size_of_headers(pe.optional_hdr.size_of_headers);
         result.set_size_of_initialized_data(pe.optional_hdr.size_of_initialized_data);
@@ -1821,7 +1978,8 @@ impl From<PE<'_>> for pe::PE {
         
         
         let mut num_imported_funcs = 0;
-
+        let mut num_delayed_imported_funcs = 0;
+        
         if let Some(imports) = pe.get_imports() {
             for (dll_name, functions) in imports {
                 let mut import = pe::Import::new();
@@ -1831,8 +1989,19 @@ impl From<PE<'_>> for pe::PE {
                 result.import_details.push(import);
             }
         }
+        
+        if let Some(delayed_imports) = pe.get_delayed_imports() {
+            for (dll_name, functions) in delayed_imports {
+                let mut import = pe::Import::new();
+                import.library_name = Some(dll_name.to_owned());
+                import.functions = functions.iter().map(pe::Function::from).collect();
+                num_delayed_imported_funcs += import.functions.len();
+                result.delayed_import_details.push(import);
+            }
+        }
 
         result.set_number_of_imported_functions(num_imported_funcs as u64);
+        result.set_number_of_delayed_imported_functions(num_delayed_imported_funcs as u64);
         
         if let Some(exports) = pe.get_exports() {
             result.dll_name = exports.dll_name.map(|name| name.to_owned());
@@ -1955,7 +2124,7 @@ pub struct OptionalHeader {
     entry_point: u32,
     base_of_code: u32,
     base_of_data: Option<u32>,
-    image_base: Option<u64>,
+    image_base: u64,
     section_alignment: u32,
     file_alignment: u32,
     major_os_version: u16,
@@ -2062,26 +2231,27 @@ pub struct ResourceEntry {
 
 #[derive(Debug)]
 pub struct ImportDescriptor {
-    original_first_thunk: u32,
-    timestamp: u32,
-    forwarder_chain: u32,
+    /// True if the values of the rest of the fields are virtual addresses
+    /// instead of relative virtual addresses (RVAs).
+    va_values: bool,
     name: u32,
-    first_thunk: u32,
+    import_name_table: u32,
+    import_address_table: u32,
 }
 
 #[derive(Debug, Default)]
-pub struct ImportedFunc<'a> {
-    name: Option<&'a str>,
+pub struct ImportedFunc {
+    name: Option<String>,
     ordinal: Option<u16>,
     rva: u32,
 }
 
-impl From<&ImportedFunc<'_>> for pe::Function {
+impl From<&ImportedFunc> for pe::Function {
     fn from(value: &ImportedFunc) -> Self {
         let mut func = pe::Function::new();
         func.rva = Some(value.rva);
         func.ordinal = value.ordinal.map(|ordinal| ordinal.into());
-        func.name = value.name.map(|name| name.to_owned());
+        func.name = value.name.clone();
         func
     }
 }
@@ -2230,13 +2400,19 @@ fn utf16_le_string() -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
     }
 }
 
-/// Convert ordinal number to function name for some well-known DLLs.
-fn ord_to_name(dll_name: &str, ordinal: u16) -> Option<&'static str> {
-    match dll_name.to_ascii_lowercase().as_str() {
+/// Convert ordinal number to function name.
+///
+/// For some well-known DLLs the returned name is the one that that corresponds
+/// to the given ordinal. For the remaining DLLs the returned name has the form
+/// "ordN" where N is the ordinal (e.g: "ord1", "ord23").
+fn ord_to_name(dll_name: &str, ordinal: u16) -> Option<String> {
+    let func_name = match dll_name.to_ascii_lowercase().as_str() {
         "ws2_32.dll" | "wsock32.dll" => wsock32_ord_to_name(ordinal),
         "oleaut32.dll" => oleaut32_ord_to_name(ordinal),
         _ => None,
-    }
+    };
+
+    func_name.map(|n| n.to_owned()).or_else(|| Some(format!("ord{}", ordinal)))
 }
 
 /// Convert ordinal number to function name for oleaut32.dll.

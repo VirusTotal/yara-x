@@ -78,6 +78,7 @@ version_info_list {
 }
 number_of_sections: 6
 number_of_imported_functions: 24
+number_of_delayed_imported_functions: 0
 rich_signature {
   offset: 128
   length: 80
