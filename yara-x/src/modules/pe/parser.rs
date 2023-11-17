@@ -1,5 +1,5 @@
 use std::cell::OnceCell;
-use std::cmp::min;
+use std::cmp::{max, min};
 use std::collections::VecDeque;
 use std::default::Default;
 use std::iter::zip;
@@ -179,14 +179,16 @@ impl<'a> PE<'a> {
         let mut section_raw_size = 0;
 
         // Find the section that contains the target RVA. If there are multiple
-        // sections that may contain the RVA, the
+        // sections that may contain the RVA, the last one is used.
         for s in self.sections.iter() {
-            let size = if s.virtual_size != 0 {
-                s.virtual_size
-            } else {
-                s.raw_data_size
-            };
-
+            // In theory we should use the section's virtual size while
+            // checking if some RVA is within the section. In most cases
+            // the virtual size is greater than the raw data size, but that's
+            // not always the case. So we use the larger of the two values.
+            //
+            // Example:
+            // db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984
+            let size = max(s.virtual_size, s.raw_data_size);
             let start = s.virtual_address;
             let end = start.saturating_add(size);
 
@@ -1874,6 +1876,10 @@ impl<'a> PE<'a> {
     }
 
     fn dll_name_at_rva(&self, rva: u32) -> Option<&'a str> {
+        // TODO: this enforces the DLL name to be valid UTF-8. Is this too
+        // restrictive? YARA is using a more relaxed approach and accepts
+        // every byte except the ones listed below. YARA imposes a length
+        // limit of 256 bytes, though.
         let dll_name = self.str_at_rva(rva)?;
 
         for c in dll_name.chars() {
