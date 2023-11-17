@@ -1,0 +1,767 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version {
+  major: 4
+  minor: 0
+}
+subsystem_version {
+  major: 4
+  minor: 0
+}
+image_version {
+  major: 1
+  minor: 0
+}
+linker_version {
+  major: 2
+  minor: 51
+}
+characteristics: 47
+dll_characteristics: 0
+timestamp: 0
+image_base: 4194304
+checksum: 138527
+base_of_code: 4096
+entry_point: 56256
+entry_point_raw: 59328
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 63952
+size_of_initialized_data: 4900
+size_of_uninitialized_data: 15744
+size_of_image: 122880
+size_of_headers: 1024
+size_of_stack_reserve: 16777216
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 84480
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+number_of_sections: 7
+number_of_imported_functions: 119
+number_of_delayed_imported_functions: 0
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 64000
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 63952
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 5120
+  raw_data_offset: 65024
+  virtual_address: 69632
+  virtual_size: 4900
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".bss"
+  full_name: ".bss"
+  characteristics: 3221225600
+  raw_data_size: 0
+  raw_data_offset: 0
+  virtual_address: 77824
+  virtual_size: 15744
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".CRT"
+  full_name: ".CRT"
+  characteristics: 33554432
+  raw_data_size: 512
+  raw_data_offset: 70144
+  virtual_address: 94208
+  virtual_size: 8
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".idata"
+  full_name: ".idata"
+  characteristics: 3221225536
+  raw_data_size: 4608
+  raw_data_offset: 70656
+  virtual_address: 98304
+  virtual_size: 4488
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  full_name: ".rsrc"
+  characteristics: 3221225536
+  raw_data_size: 8704
+  raw_data_offset: 75264
+  virtual_address: 106496
+  virtual_size: 8464
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: "/4"
+  full_name: ".gnu_debuglink"
+  characteristics: 33554432
+  raw_data_size: 512
+  raw_data_offset: 83968
+  virtual_address: 118784
+  virtual_size: 20
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 98304
+  size: 160
+}
+data_directories {
+  virtual_address: 106496
+  size: 8464
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 84504
+  size: 13392
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 99472
+  size: 1008
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+resources {
+  length: 296
+  rva: 107056
+  offset: 75824
+  type: RESOURCE_TYPE_ICON
+  id: 1
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 107352
+  offset: 76120
+  type: RESOURCE_TYPE_ICON
+  id: 2
+  language: 0
+}
+resources {
+  length: 744
+  rva: 108736
+  offset: 77504
+  type: RESOURCE_TYPE_ICON
+  id: 3
+  language: 0
+}
+resources {
+  length: 2216
+  rva: 109480
+  offset: 78248
+  type: RESOURCE_TYPE_ICON
+  id: 4
+  language: 0
+}
+resources {
+  length: 998
+  rva: 111696
+  offset: 80464
+  type: RESOURCE_TYPE_DIALOG
+  language: 2055
+  name_string: "U\000N\000I\000N\000S\000T\000D\000L\000G\000"
+}
+resources {
+  length: 642
+  rva: 112696
+  offset: 81464
+  type: RESOURCE_TYPE_DIALOG
+  language: 2055
+  name_string: "U\000N\000I\000N\000S\000T\000R\000E\000P\000A\000I\000R\000"
+}
+resources {
+  length: 62
+  rva: 113340
+  offset: 82108
+  type: RESOURCE_TYPE_GROUP_ICON
+  language: 0
+  name_string: "M\000A\000I\000N\000I\000C\000O\000N\000"
+}
+resources {
+  length: 1555
+  rva: 113404
+  offset: 82172
+  type: RESOURCE_TYPE_MANIFEST
+  id: 1
+  language: 2055
+}
+import_details {
+  library_name: "advapi32.dll"
+  functions {
+    name: "RegCloseKey"
+    rva: 99472
+  }
+  functions {
+    name: "RegDeleteKeyA"
+    rva: 99480
+  }
+  functions {
+    name: "RegOpenKeyExA"
+    rva: 99488
+  }
+  functions {
+    name: "RegQueryValueExA"
+    rva: 99496
+  }
+}
+import_details {
+  library_name: "comctl32.dll"
+  functions {
+    name: "InitCommonControls"
+    rva: 99512
+  }
+}
+import_details {
+  library_name: "gdi32.dll"
+  functions {
+    name: "CreateFontA"
+    rva: 99528
+  }
+  functions {
+    name: "CreateSolidBrush"
+    rva: 99536
+  }
+  functions {
+    name: "DeleteObject"
+    rva: 99544
+  }
+  functions {
+    name: "SetBkColor"
+    rva: 99552
+  }
+  functions {
+    name: "SetTextColor"
+    rva: 99560
+  }
+}
+import_details {
+  library_name: "kernel32.dll"
+  functions {
+    name: "AddVectoredExceptionHandler"
+    rva: 99576
+  }
+  functions {
+    name: "CloseHandle"
+    rva: 99584
+  }
+  functions {
+    name: "CreateDirectoryA"
+    rva: 99592
+  }
+  functions {
+    name: "CreateEventA"
+    rva: 99600
+  }
+  functions {
+    name: "CreateFileA"
+    rva: 99608
+  }
+  functions {
+    name: "CreateThread"
+    rva: 99616
+  }
+  functions {
+    name: "DeleteCriticalSection"
+    rva: 99624
+  }
+  functions {
+    name: "DeleteFileA"
+    rva: 99632
+  }
+  functions {
+    name: "EnterCriticalSection"
+    rva: 99640
+  }
+  functions {
+    name: "EnumResourceLanguagesA"
+    rva: 99648
+  }
+  functions {
+    name: "EnumResourceNamesA"
+    rva: 99656
+  }
+  functions {
+    name: "EnumResourceTypesA"
+    rva: 99664
+  }
+  functions {
+    name: "ExitProcess"
+    rva: 99672
+  }
+  functions {
+    name: "ExitThread"
+    rva: 99680
+  }
+  functions {
+    name: "FileTimeToDosDateTime"
+    rva: 99688
+  }
+  functions {
+    name: "FileTimeToLocalFileTime"
+    rva: 99696
+  }
+  functions {
+    name: "FindClose"
+    rva: 99704
+  }
+  functions {
+    name: "FindFirstFileA"
+    rva: 99712
+  }
+  functions {
+    name: "FindNextFileA"
+    rva: 99720
+  }
+  functions {
+    name: "FindResourceA"
+    rva: 99728
+  }
+  functions {
+    name: "FindResourceExA"
+    rva: 99736
+  }
+  functions {
+    name: "FreeLibrary"
+    rva: 99744
+  }
+  functions {
+    name: "FreeResource"
+    rva: 99752
+  }
+  functions {
+    name: "GetCommandLineA"
+    rva: 99760
+  }
+  functions {
+    name: "GetConsoleMode"
+    rva: 99768
+  }
+  functions {
+    name: "GetConsoleOutputCP"
+    rva: 99776
+  }
+  functions {
+    name: "GetCurrentProcess"
+    rva: 99784
+  }
+  functions {
+    name: "GetCurrentProcessId"
+    rva: 99792
+  }
+  functions {
+    name: "GetCurrentThreadId"
+    rva: 99800
+  }
+  functions {
+    name: "GetEnvironmentVariableA"
+    rva: 99808
+  }
+  functions {
+    name: "GetFileAttributesA"
+    rva: 99816
+  }
+  functions {
+    name: "GetFileType"
+    rva: 99824
+  }
+  functions {
+    name: "GetLastError"
+    rva: 99832
+  }
+  functions {
+    name: "GetModuleFileNameA"
+    rva: 99840
+  }
+  functions {
+    name: "GetModuleHandleA"
+    rva: 99848
+  }
+  functions {
+    name: "GetPrivateProfileIntA"
+    rva: 99856
+  }
+  functions {
+    name: "GetPrivateProfileStringA"
+    rva: 99864
+  }
+  functions {
+    name: "GetProcAddress"
+    rva: 99872
+  }
+  functions {
+    name: "GetProcessHeap"
+    rva: 99880
+  }
+  functions {
+    name: "GetStartupInfoA"
+    rva: 99888
+  }
+  functions {
+    name: "GetStdHandle"
+    rva: 99896
+  }
+  functions {
+    name: "GetTempFileNameA"
+    rva: 99904
+  }
+  functions {
+    name: "GetTempPathA"
+    rva: 99912
+  }
+  functions {
+    name: "GetThreadPriority"
+    rva: 99920
+  }
+  functions {
+    name: "GetTickCount"
+    rva: 99928
+  }
+  functions {
+    name: "GetVersionExA"
+    rva: 99936
+  }
+  functions {
+    name: "GetWindowsDirectoryA"
+    rva: 99944
+  }
+  functions {
+    name: "HeapAlloc"
+    rva: 99952
+  }
+  functions {
+    name: "HeapFree"
+    rva: 99960
+  }
+  functions {
+    name: "InitializeCriticalSection"
+    rva: 99968
+  }
+  functions {
+    name: "LeaveCriticalSection"
+    rva: 99976
+  }
+  functions {
+    name: "LoadLibraryA"
+    rva: 99984
+  }
+  functions {
+    name: "LoadResource"
+    rva: 99992
+  }
+  functions {
+    name: "LocalAlloc"
+    rva: 100000
+  }
+  functions {
+    name: "LocalFree"
+    rva: 100008
+  }
+  functions {
+    name: "LockResource"
+    rva: 100016
+  }
+  functions {
+    name: "MoveFileA"
+    rva: 100024
+  }
+  functions {
+    name: "MultiByteToWideChar"
+    rva: 100032
+  }
+  functions {
+    name: "ReadFile"
+    rva: 100040
+  }
+  functions {
+    name: "ReadProcessMemory"
+    rva: 100048
+  }
+  functions {
+    name: "RemoveDirectoryA"
+    rva: 100056
+  }
+  functions {
+    name: "ResetEvent"
+    rva: 100064
+  }
+  functions {
+    name: "ResumeThread"
+    rva: 100072
+  }
+  functions {
+    name: "SetCurrentDirectoryA"
+    rva: 100080
+  }
+  functions {
+    name: "SetEvent"
+    rva: 100088
+  }
+  functions {
+    name: "SetFilePointer"
+    rva: 100096
+  }
+  functions {
+    name: "SetLastError"
+    rva: 100104
+  }
+  functions {
+    name: "SetThreadPriority"
+    rva: 100112
+  }
+  functions {
+    name: "SizeofResource"
+    rva: 100120
+  }
+  functions {
+    name: "Sleep"
+    rva: 100128
+  }
+  functions {
+    name: "SuspendThread"
+    rva: 100136
+  }
+  functions {
+    name: "TerminateThread"
+    rva: 100144
+  }
+  functions {
+    name: "TlsAlloc"
+    rva: 100152
+  }
+  functions {
+    name: "TlsGetValue"
+    rva: 100160
+  }
+  functions {
+    name: "TlsSetValue"
+    rva: 100168
+  }
+  functions {
+    name: "TryEnterCriticalSection"
+    rva: 100176
+  }
+  functions {
+    name: "VirtualQuery"
+    rva: 100184
+  }
+  functions {
+    name: "WaitForSingleObject"
+    rva: 100192
+  }
+  functions {
+    name: "WideCharToMultiByte"
+    rva: 100200
+  }
+  functions {
+    name: "WinExec"
+    rva: 100208
+  }
+  functions {
+    name: "WriteFile"
+    rva: 100216
+  }
+  functions {
+    name: "_lclose"
+    rva: 100224
+  }
+  functions {
+    name: "_lopen"
+    rva: 100232
+  }
+}
+import_details {
+  library_name: "ole32.dll"
+  functions {
+    name: "CoCreateInstance"
+    rva: 100248
+  }
+  functions {
+    name: "OleInitialize"
+    rva: 100256
+  }
+  functions {
+    name: "OleUninitialize"
+    rva: 100264
+  }
+}
+import_details {
+  library_name: "oleaut32.dll"
+  functions {
+    name: "SysAllocStringLen"
+    rva: 100280
+  }
+  functions {
+    name: "SysFreeString"
+    rva: 100288
+  }
+  functions {
+    name: "SysReAllocStringLen"
+    rva: 100296
+  }
+}
+import_details {
+  library_name: "user32.dll"
+  functions {
+    name: "CharLowerBuffW"
+    rva: 100312
+  }
+  functions {
+    name: "CharPrevA"
+    rva: 100320
+  }
+  functions {
+    name: "CharUpperA"
+    rva: 100328
+  }
+  functions {
+    name: "CharUpperBuffW"
+    rva: 100336
+  }
+  functions {
+    name: "DialogBoxParamA"
+    rva: 100344
+  }
+  functions {
+    name: "DispatchMessageA"
+    rva: 100352
+  }
+  functions {
+    name: "EndDialog"
+    rva: 100360
+  }
+  functions {
+    name: "FindWindowA"
+    rva: 100368
+  }
+  functions {
+    name: "GetDesktopWindow"
+    rva: 100376
+  }
+  functions {
+    name: "GetSysColor"
+    rva: 100384
+  }
+  functions {
+    name: "GetSystemMetrics"
+    rva: 100392
+  }
+  functions {
+    name: "GetWindowRect"
+    rva: 100400
+  }
+  functions {
+    name: "MessageBeep"
+    rva: 100408
+  }
+  functions {
+    name: "MessageBoxA"
+    rva: 100416
+  }
+  functions {
+    name: "MoveWindow"
+    rva: 100424
+  }
+  functions {
+    name: "PeekMessageA"
+    rva: 100432
+  }
+  functions {
+    name: "PostMessageA"
+    rva: 100440
+  }
+  functions {
+    name: "SendDlgItemMessageA"
+    rva: 100448
+  }
+  functions {
+    name: "SetDlgItemTextA"
+    rva: 100456
+  }
+  functions {
+    name: "TranslateMessage"
+    rva: 100464
+  }
+}
+overlay {
+  offset: 84480
+  size: 13416
+}

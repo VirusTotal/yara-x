@@ -44,7 +44,7 @@ pub fn create_binary_from_ihex<P: AsRef<Path>>(
 /// There are many tools for converting binary files to Intel HEX format, one
 /// of such tools is `objcopy` (`llvm-objcopy` on Mac OS X).
 ///
-/// ```
+/// ```text
 /// objcopy -I binary -O ihex foo.bin foo.ihex.in
 /// ```
 ///

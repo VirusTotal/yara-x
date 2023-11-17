@@ -3,6 +3,8 @@
 mod string;
 #[cfg(feature = "macho-module")]
 mod macho;
+#[cfg(feature = "pe-module")]
+mod pe;
 #[cfg(feature = "elf-module")]
 mod elf;
 #[cfg(feature = "text-module")]
