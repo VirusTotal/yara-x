@@ -1,15 +1,14 @@
 use pretty_assertions::assert_eq;
 
-use crate::modules::tests::create_binary_from_ihex;
+use crate::modules::tests::create_binary_from_zipped_ihex;
 use crate::tests::rule_true;
 use crate::tests::test_rule;
 
 #[test]
 fn rich_signature() {
-    let pe = create_binary_from_ihex(
-        "src/modules/pe/tests/testdata/079a472d22290a94ebb212aa8015cdc8dd28a968c6b4d3b88acdd58ce2d3b885.in",
-    )
-        .unwrap();
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/079a472d22290a94ebb212aa8015cdc8dd28a968c6b4d3b88acdd58ce2d3b885.in.zip",
+    );
 
     rule_true!(
         r#"
@@ -30,10 +29,9 @@ fn rich_signature() {
 
 #[test]
 fn imports() {
-    let pe = create_binary_from_ihex(
-        "src/modules/pe/tests/testdata/2775d97f8bdb3311ace960a42eee35dbec84b9d71a6abbacb26c14e83f5897e4.in",
-    )
-        .unwrap();
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/2775d97f8bdb3311ace960a42eee35dbec84b9d71a6abbacb26c14e83f5897e4.in.zip",
+    );
 
     rule_true!(
         r#"
@@ -134,10 +132,9 @@ fn imports() {
 
 #[test]
 fn imphash() {
-    let pe = create_binary_from_ihex(
-        "src/modules/pe/tests/testdata/c704cca0fe4c9bdee18a302952540073b860e3b4d42e081f86d27bdb1cf6ede4.in",
-    )
-        .unwrap();
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/c704cca0fe4c9bdee18a302952540073b860e3b4d42e081f86d27bdb1cf6ede4.in.zip",
+    );
 
     rule_true!(
         r#"
@@ -150,10 +147,9 @@ fn imphash() {
         &pe
     );
 
-    let pe = create_binary_from_ihex(
-        "src/modules/pe/tests/testdata/e3d45a2865818756068757d7e319258fef40dad54532ee4355b86bc129f27345.in",
-    )
-        .unwrap();
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/e3d45a2865818756068757d7e319258fef40dad54532ee4355b86bc129f27345.in.zip",
+    );
 
     rule_true!(
         r#"
