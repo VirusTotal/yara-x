@@ -467,38 +467,38 @@ mod tests {
         assert_eq!(
             text,
             r#"(module
-  (func (;93;) (type 1) (result i32)
+  (func (;102;) (type 1) (result i32)
     i32.const 0
     global.set 2
     i32.const 0
     global.set 3
-    call 94
-    call 95
+    call 103
+    call 104
     global.get 3
   )
-  (func (;94;) (type 0)
+  (func (;103;) (type 0)
     block ;; label = @1
-      call 96
+      call 105
     end
     block ;; label = @1
-      call 97
-    end
-  )
-  (func (;95;) (type 0)
-    block ;; label = @1
-      call 98
+      call 106
     end
   )
-  (func (;96;) (type 0)
+  (func (;104;) (type 0)
+    block ;; label = @1
+      call 107
+    end
+  )
+  (func (;105;) (type 0)
     i32.const 4
   )
-  (func (;97;) (type 0)
+  (func (;106;) (type 0)
     i32.const 5
   )
-  (func (;98;) (type 0)
+  (func (;107;) (type 0)
     i32.const 6
   )
-  (export "main" (func 93))
+  (export "main" (func 102))
 )"#
         );
     }
