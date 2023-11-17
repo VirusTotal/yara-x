@@ -29,6 +29,35 @@ fn main(input: &[u8]) -> PE {
     }
 }
 
+#[module_export]
+fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let pe = ctx.module_output::<PE>()?;
+    let mut md5_hash = md5::Context::new();
+    let mut first = true;
+
+    for import in &pe.import_details {
+        let original_dll_name =
+            import.library_name.as_deref().unwrap().to_lowercase();
+        let mut dll_name = original_dll_name.as_str();
+        // If extension is '.dll', '.sys' or '.ocx', remove it.
+        for extension in [".dll", ".sys", ".ocx"] {
+            dll_name = dll_name.trim_end_matches(extension);
+        }
+        for func in &import.functions {
+            if !first {
+                md5_hash.consume(",");
+            }
+            md5_hash.consume(dll_name);
+            md5_hash.consume(".");
+            md5_hash.consume(func.name.as_deref().unwrap().to_lowercase());
+            first = false;
+        }
+    }
+
+    let digest = format!("{:x}", md5_hash.compute());
+    Some(RuntimeString::from_bytes(ctx, digest.as_bytes()))
+}
+
 #[module_export(name = "rich_signature.toolid")]
 fn rich_toolid(ctx: &mut ScanContext, toolid: i64) -> Option<i64> {
     rich_version_impl(ctx.module_output::<PE>()?, Some(toolid), None)
