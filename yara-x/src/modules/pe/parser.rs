@@ -673,7 +673,7 @@ impl<'a> PE<'a> {
             let (remainder, key) = le_u32(&input[rich_tag_pos + 4..])?;
 
             // Search for the "DanS" tag that indicates the start of the rich
-            // data. This tag is encrypted with the XOR key.
+            // data. This tag appears encrypted with the XOR key.
             let dans_tag = key ^ LE::read_u32(Self::DANS_TAG);
 
             let dans_tag_pos = memmem::rfind(
@@ -696,7 +696,20 @@ impl<'a> PE<'a> {
                 *data_byte ^= key_byte;
             }
 
-            // Parse the rich data.
+            // Parse the rich data. Some tools, like `pefile`, assume that
+            // the three DWORD values right after the "DanS" tag (12 bytes in
+            // total), must be copies of the XOR key, and make a validation
+            // based on that assumption, to the extent of considering the
+            // whole rich header invalid if that condition is not met. The C
+            // implementation of YARA inherited this behaviour.
+            //
+            // However, everything indicates that these values are just
+            // padding. As the padding is initially filled with zeros, when
+            // the XOR key is applied, their values become the key itself.
+            //
+            // I'm not making any assumptions about the values in the padding
+            // bytes. The rich is header is considered valid no matter what
+            // those 12 bytes contain.
             let (_, (_dans, _padding, tools)) =
                 tuple((
                     le_u32::<&[u8], Error>,
