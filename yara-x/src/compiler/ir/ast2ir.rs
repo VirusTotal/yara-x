@@ -19,6 +19,7 @@ use crate::compiler::ir::{
 use crate::compiler::{
     CompileContext, CompileError, CompileErrorInfo, PatternId,
 };
+use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::parser::Error;
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
@@ -342,6 +343,19 @@ pub(in crate::compiler) fn expr_from_ast(
                         ctx.report_builder,
                         ident.name.to_string(),
                         ident.span(),
+                        // Add a note about the missing import statement if
+                        // the unknown identifier is a module name.
+                        if current_struct.is_none()
+                            && BUILTIN_MODULES.contains_key(ident.name)
+                        {
+                            Some(format!(
+                                "there is a module named `{}`, but the `import \"{}\"` statement is missing",
+                                ident.name,
+                                ident.name
+                            ))
+                        } else {
+                            None
+                        },
                     ),
                 ));
             }

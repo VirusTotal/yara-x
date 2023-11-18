@@ -130,10 +130,12 @@ pub enum CompileErrorInfo {
 
     #[error("unknown identifier `{identifier}`")]
     #[label("this identifier has not been declared", span)]
+    #[note(note)]
     UnknownIdentifier {
         detailed_report: String,
         identifier: String,
         span: Span,
+        note: Option<String>,
     },
 
     #[error("unknown module `{identifier}`")]
