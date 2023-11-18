@@ -15,6 +15,7 @@ fn rich_signature() {
         import "pe"
         rule test {
           condition:
+            pe.rich_signature.toolid(157) == 1 and 
             pe.rich_signature.toolid(157, 40219) == 1 and 
             pe.rich_signature.toolid(1, 0) > 40 and 
             pe.rich_signature.toolid(1, 0) < 45 and
@@ -128,6 +129,32 @@ fn imports() {
         "#,
         &pe
     );
+
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.imports("kernel32.dll") == 6
+        }
+        "#,
+        &pe
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.imports(pe.IMPORT_ANY, "ws2_32.dll") == 1
+        }
+        "#,
+        &pe
+    );
 }
 
 #[test]
@@ -157,6 +184,24 @@ fn imphash() {
         rule test {
           condition:
             pe.imphash() == "d49b7870cb53f29ec3f42b11cc8bea8b"
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
+fn checksum() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/c704cca0fe4c9bdee18a302952540073b860e3b4d42e081f86d27bdb1cf6ede4.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.calculate_checksum() == 0
         }
         "#,
         &pe
