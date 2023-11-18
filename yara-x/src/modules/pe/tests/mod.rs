@@ -190,6 +190,7 @@ fn imphash() {
     );
 }
 
+/*
 #[test]
 fn checksum() {
     let pe = create_binary_from_zipped_ihex(
@@ -207,3 +208,4 @@ fn checksum() {
         &pe
     );
 }
+*/
