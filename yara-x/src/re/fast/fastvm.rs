@@ -330,33 +330,27 @@ impl<'r> FastVM<'r> {
                         }
                         _ => {
                             for position in self.positions.iter() {
-                                if flags.contains(JumpFlags::AcceptNewlines) {
-                                    let jmp_min_range = *position
-                                        ..*position + *range.start() as usize;
-                                    match input.get(jmp_min_range) {
-                                        Some(r) => {
-                                            if memchr::memchr(0x0A, r)
-                                                .is_some()
-                                            {
-                                                continue;
-                                            }
-                                        }
-                                        None => continue,
-                                    }
+                                if *position >= input.len() {
+                                    continue;
                                 }
-                                for i in range.clone() {
-                                    if flags
-                                        .contains(JumpFlags::AcceptNewlines)
-                                    {
-                                        match input
-                                            .get(position + step * i as usize)
-                                        {
-                                            Some(0x0A) | None => continue,
-                                            _ => {}
-                                        }
-                                    }
-                                    self.next_positions
-                                        .insert(position + step * i as usize);
+                                if backwards {
+                                    Self::jump_bck(
+                                        &input[..input.len() - position],
+                                        &[],
+                                        flags,
+                                        &range,
+                                        *position,
+                                        &mut self.next_positions,
+                                    );
+                                } else {
+                                    Self::jump_fwd(
+                                        &input[*position..],
+                                        &[],
+                                        flags,
+                                        &range,
+                                        *position,
+                                        &mut self.next_positions,
+                                    );
                                 }
                             }
                         }
@@ -517,40 +511,51 @@ impl FastVM<'_> {
         // lets make sure that the ranges that goes from the current position
         // to position + n doesn't contain any newlines.
         if !flags.contains(JumpFlags::AcceptNewlines)
-            && memchr::memchr(0x0A, &input[..n]).is_some()
+            && memchr::memchr(0x0A, &input[..range_min]).is_some()
         {
             return;
         }
 
-        if let Some(jmp_range) = input.get(range_min..range_max) {
-            let lit = *literal.first().unwrap();
-            let mut on_match_found = |offset| {
-                if flags.contains(JumpFlags::Wide) {
-                    // In wide mode we are only interested in bytes found
-                    // at even offsets. At odd offsets the input should
-                    // have only zeroes and they are not potential matches.
-                    if offset % 2 == 0 {
-                        next_positions.insert(position + n + offset);
-                    }
-                } else {
-                    next_positions.insert(position + n + offset);
+        let jmp_range = &input[range_min..range_max];
+
+        let mut on_match_found = |offset| {
+            if flags.contains(JumpFlags::Wide) {
+                // In wide mode we are only interested in bytes found
+                // at even offsets. At odd offsets the input should
+                // have only zeroes and they are not potential matches.
+                if offset % 2 == 0 {
+                    next_positions.insert(position + range_min + offset);
                 }
-            };
+            } else {
+                next_positions.insert(position + range_min + offset);
+            }
+        };
+
+        // If the literal is non-empty, the next positions are those where
+        // the byte in the data matches the first byte in the literal.
+        if let Some(lit) = literal.first() {
             if flags.contains(JumpFlags::AcceptNewlines) {
-                for offset in memchr::memchr_iter(lit, jmp_range) {
+                for offset in memchr::memchr_iter(*lit, jmp_range) {
                     on_match_found(offset)
                 }
             } else {
                 // Search for the literal byte and the newline at the same
                 // time. Any offset found before the newline is a position
-                // that needs to be verified, but once the newline if found
+                // that needs to be verified, but once the newline is found
                 // no more positions will match and we can return.
-                for offset in memchr::memchr2_iter(lit, 0x0A, jmp_range) {
+                for offset in memchr::memchr2_iter(*lit, 0x0A, jmp_range) {
                     if jmp_range[offset] == 0x0A {
                         return;
                     }
                     on_match_found(offset)
                 }
+            }
+        }
+        // If the literal is empty, every position within the jump range is a
+        // a match.
+        else {
+            for offset in 0..jmp_range.len() {
+                on_match_found(offset)
             }
         }
     }
@@ -605,35 +610,45 @@ impl FastVM<'_> {
             return;
         }
 
-        if let Some(jmp_range) = input.get(range_min..range_max) {
-            let lit = *literal.last().unwrap();
-            let mut on_match_found = |offset| {
-                if flags.contains(JumpFlags::Wide) {
-                    // In wide mode we are only interested in bytes found
-                    // at even offsets. At odd offsets the input should
-                    // have only zeroes and they are not potential matches.
-                    if offset % 2 == 0 {
-                        next_positions.insert(
-                            position + n + jmp_range.len() - offset - step,
-                        );
-                    }
-                } else {
+        let jmp_range = &input[range_min..range_max];
+
+        let mut on_match_found = |offset| {
+            if flags.contains(JumpFlags::Wide) {
+                // In wide mode we are only interested in bytes found
+                // at even offsets. At odd offsets the input should
+                // have only zeroes and they are not potential matches.
+                if offset % 2 == 0 {
                     next_positions.insert(
                         position + n + jmp_range.len() - offset - step,
                     );
                 }
-            };
-            if flags.contains(JumpFlags::Wide) {
-                for offset in memchr::memrchr_iter(lit, jmp_range) {
+            } else {
+                next_positions
+                    .insert(position + n + jmp_range.len() - offset - step);
+            }
+        };
+
+        // If the literal is non-empty, the next positions are those where
+        // the byte in the data matches the first byte in the literal.
+        if let Some(lit) = literal.last() {
+            if flags.contains(JumpFlags::AcceptNewlines) {
+                for offset in memchr::memrchr_iter(*lit, jmp_range) {
                     on_match_found(offset)
                 }
             } else {
-                for offset in memchr::memrchr2_iter(lit, 0x0A, jmp_range) {
+                for offset in memchr::memrchr2_iter(*lit, 0x0A, jmp_range) {
                     if jmp_range[offset] == 0x0A {
                         return;
                     }
                     on_match_found(offset)
                 }
+            }
+        }
+        // If the literal is empty, every position within the jump range is a
+        // a match.
+        else {
+            for offset in (0..jmp_range.len()).rev() {
+                on_match_found(offset)
             }
         }
     }
@@ -643,6 +658,5 @@ bitmask! {
     pub mask JumpFlagSet: u8 where flags JumpFlags  {
         AcceptNewlines = 0x01,
         Wide           = 0x02,
-
     }
 }
