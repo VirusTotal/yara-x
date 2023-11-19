@@ -150,6 +150,17 @@ fn imports() {
         import "pe"
         rule test {
           condition:
+            pe.imports("ws2_32.dll", 20)
+        }
+        "#,
+        &pe
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
             pe.imports(pe.IMPORT_ANY, "ws2_32.dll") == 1
         }
         "#,
