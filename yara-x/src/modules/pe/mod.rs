@@ -7,6 +7,10 @@ imports and exports, resources, etc.
 use std::slice::Iter;
 
 use bstr::BStr;
+use nom::branch::alt;
+use nom::character::complete::u8;
+use nom::combinator::{map, map_res};
+use nom::number::complete::{le_u16, le_u32};
 
 use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
@@ -29,6 +33,99 @@ fn main(input: &[u8]) -> PE {
     }
 }
 
+/// Returns the PE checksum, as calculated by YARA.
+///
+/// This is useful for comparing with the checksum appearing in the PE header
+/// (pe.checksum) in order to verify if the actual checksum matches the one
+/// in the header.
+#[module_export]
+fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
+    // In essence, the checksum algorithm goes as follows:
+    //
+    // - Read the file as a series of 16-bit little-endian unsigned integers.
+    //   Pad with zeroes if necessary.
+    // - Use a 16-bit accumulator to add up the integers. For each sum, if a
+    //   carry is generated, add it to the accumulator.
+    // - During computation, ignore the 4 bytes in the PE optional header where
+    //   the checksum is stored, as the checksum cannot include itself.
+    // - Add the resulting 16-bit sum to the file size to obtain the final
+    //   checksum.
+    //
+    // However, for performance optimization, the algorithm can be adapted to
+    // work with 32-bit integers. The computation remains the same, but the
+    // resulting 32-bit sum is folded into 16-bits by adding the high and
+    // the low parts together. If this addition produces a carry, it's also
+    // added to the final sum.
+    //
+    // To ignore the 4 bytes in the header containing the checksum, some
+    // implementations (namely pefile) track file's position and skip it if
+    // matches the position where the checksum is stored. The current
+    // implementation takes a different approach; it computes the checksum
+    // for the entire file, including the header checksum. To account for this
+    // inclusion, it then compensates by subtracting the checksum value in the
+    // header from the computed checksum. This trick was used in the original
+    // Microsoft code:
+    //
+    // https://bytepointer.com/resources/microsoft_pe_checksum_algo_distilled.htm
+    //
+    // In fact, pefile's implementation is broken for files where the checksum
+    // in the header is not aligned to a 4-bytes boundary. Such files are not
+    // very common, but they do exist. Example:
+    // af3f20a9272489cbef4281c8c86ad42ccfb04ccedd3ada1e8c26939c726a4c8e
+    let pe = ctx.module_output::<PE>()?;
+    let data = ctx.scanned_data();
+    let mut sum: u32 = 0;
+
+    // The parser first try to read a u32, if not enough data is available,
+    // it tries to read a u16, and if still there's no data available it
+    // tries to read a byte. In all cases the result is promoted to u32. This
+    // emulates the padding at the end of the data if necessary.
+    let data_parser = alt((
+        le_u32::<&[u8], nom::error::Error<&[u8]>>,
+        map(le_u16, |v| v as u32),
+        map(u8, |v| v as u32),
+    ));
+
+    for v in &mut nom::combinator::iterator(data, data_parser) {
+        // TODO: use carrying_add when it becomes stable.
+        // This:
+        //   sum = match sum.overflowing_add(v) {
+        //      (s, true) => s + 1,
+        //      (s, false) => s,
+        //   }
+        // Becomes this:
+        //   (sum, carry) = sum.carrying_add(v, carry);
+        //
+        // Where `carry` must be initialized to false outside of the loop.
+        sum = match sum.overflowing_add(v) {
+            (s, true) => s + 1, // carry
+            (s, false) => s,    // no carry
+        }
+    }
+
+    sum = match sum.overflowing_sub(pe.checksum?) {
+        (s, true) => s - 1, // borrow
+        (s, false) => s,    // no borrow
+    };
+
+    sum = (sum & 0xffff) + (sum >> 16);
+    sum += sum >> 16;
+    sum &= 0xffff;
+    sum += data.len() as u32;
+
+    Some(sum.into())
+}
+
+/// Returns the PE import hash.
+///
+/// The import hash represents the MD5 checksum of the PE's import table
+/// following a normalization process. PE files sharing the same import hash
+/// import precisely identical functions from the same DLLs. This characteristic
+/// often signifies file similarity, despite not being byte-for-byte identical.
+/// For additional details, refer to:
+/// https://www.mandiant.com/resources/blog/tracking-malware-import-hashing
+///
+/// The resulting hash string is consistently in lowercase.
 #[module_export]
 fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let pe = ctx.module_output::<PE>()?;

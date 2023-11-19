@@ -190,11 +190,10 @@ fn imphash() {
     );
 }
 
-/*
 #[test]
 fn checksum() {
     let pe = create_binary_from_zipped_ihex(
-        "src/modules/pe/tests/testdata/c704cca0fe4c9bdee18a302952540073b860e3b4d42e081f86d27bdb1cf6ede4.in.zip",
+        "src/modules/pe/tests/testdata/af3f20a9272489cbef4281c8c86ad42ccfb04ccedd3ada1e8c26939c726a4c8e.in.zip",
     );
 
     rule_true!(
@@ -202,10 +201,9 @@ fn checksum() {
         import "pe"
         rule test {
           condition:
-            pe.calculate_checksum() == 0
+            pe.calculate_checksum() == 0x3CE9BA
         }
         "#,
         &pe
     );
 }
-*/
