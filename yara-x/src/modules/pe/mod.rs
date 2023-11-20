@@ -219,7 +219,7 @@ fn rich_version_impl(
 /// `dll_name` is case-insensitive.
 #[module_export(name = "imports")]
 fn standard_imports_dll(
-    ctx: &mut ScanContext,
+    ctx: &ScanContext,
     dll_name: RuntimeString,
 ) -> Option<i64> {
     imports_impl(
@@ -235,7 +235,7 @@ fn standard_imports_dll(
 /// Both `func_name` and `dll_name` are case-insensitive.
 #[module_export(name = "imports")]
 fn standard_imports_func(
-    ctx: &mut ScanContext,
+    ctx: &ScanContext,
     dll_name: RuntimeString,
     func_name: RuntimeString,
 ) -> Option<bool> {
@@ -254,7 +254,7 @@ fn standard_imports_func(
 /// `dll_name` is case-insensitive.
 #[module_export(name = "imports")]
 fn standard_imports_ordinal(
-    ctx: &mut ScanContext,
+    ctx: &ScanContext,
     dll_name: RuntimeString,
     ordinal: i64,
 ) -> Option<i64> {
@@ -273,7 +273,7 @@ fn standard_imports_ordinal(
 /// modifier in the regexp, as shown in the example below.
 #[module_export(name = "imports")]
 fn standard_imports_regexp(
-    ctx: &mut ScanContext,
+    ctx: &ScanContext,
     dll_name: RegexpId,
     func_name: RegexpId,
 ) -> Option<i64> {
@@ -296,7 +296,7 @@ fn standard_imports_regexp(
 /// * `pe.IMPORT_ANY` : both standard and delayed imports
 #[module_export(name = "imports")]
 fn imports_dll(
-    ctx: &mut ScanContext,
+    ctx: &ScanContext,
     import_flags: i64,
     dll_name: RuntimeString,
 ) -> Option<i64> {
@@ -314,7 +314,7 @@ fn imports_dll(
 /// for details about the `import_flags` argument.
 #[module_export(name = "imports")]
 fn imports_func(
-    ctx: &mut ScanContext,
+    ctx: &ScanContext,
     import_flags: i64,
     dll_name: RuntimeString,
     func_name: RuntimeString,
@@ -335,7 +335,7 @@ fn imports_func(
 /// the `import_flags` argument.
 #[module_export(name = "imports")]
 fn imports_ordinal(
-    ctx: &mut ScanContext,
+    ctx: &ScanContext,
     import_flags: i64,
     dll_name: RuntimeString,
     ordinal: i64,
@@ -358,7 +358,7 @@ fn imports_ordinal(
 /// for details about the `import_flags` argument.
 #[module_export(name = "imports")]
 fn imports_regexp(
-    ctx: &mut ScanContext,
+    ctx: &ScanContext,
     import_flags: i64,
     dll_name: RegexpId,
     func_name: RegexpId,
