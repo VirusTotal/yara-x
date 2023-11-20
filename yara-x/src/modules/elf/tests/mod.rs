@@ -1,14 +1,14 @@
 use pretty_assertions::assert_eq;
 
+use crate::modules::tests::create_binary_from_zipped_ihex;
 use crate::tests::rule_true;
 use crate::tests::test_rule;
 
 #[test]
 fn import_md5() {
-    let elf = crate::modules::tests::create_binary_from_ihex(
-        "src/modules/elf/tests/testdata/8bfe885838b4d1fba194b761ca900a0425aa892e4b358bf5a9bf4304e571df1b.in",
-    )
-    .unwrap();
+    let elf = create_binary_from_zipped_ihex(
+        "src/modules/elf/tests/testdata/8bfe885838b4d1fba194b761ca900a0425aa892e4b358bf5a9bf4304e571df1b.in.zip",
+    );
 
     rule_true!(
         r#"
@@ -24,10 +24,9 @@ fn import_md5() {
 
 #[test]
 fn telfhash() {
-    let elf = crate::modules::tests::create_binary_from_ihex(
-        "src/modules/elf/tests/testdata/8bfe885838b4d1fba194b761ca900a0425aa892e4b358bf5a9bf4304e571df1b.in",
-    )
-        .unwrap();
+    let elf = create_binary_from_zipped_ihex(
+        "src/modules/elf/tests/testdata/8bfe885838b4d1fba194b761ca900a0425aa892e4b358bf5a9bf4304e571df1b.in.zip",
+    );
 
     rule_true!(
         r#"

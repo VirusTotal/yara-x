@@ -1,0 +1,168 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_EFI_APPLICATION
+os_version {
+  major: 0
+  minor: 0
+}
+subsystem_version {
+  major: 0
+  minor: 0
+}
+image_version {
+  major: 0
+  minor: 0
+}
+linker_version {
+  major: 2
+  minor: 56
+}
+characteristics: 782
+dll_characteristics: 0
+timestamp: 0
+image_base: 0
+checksum: 0
+base_of_code: 4096
+entry_point: 16794
+entry_point_raw: 16794
+section_alignment: 4096
+file_alignment: 4096
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 0
+size_of_initialized_data: 0
+size_of_uninitialized_data: 0
+size_of_image: 36864
+size_of_headers: 4096
+size_of_stack_reserve: 0
+size_of_stack_commit: 0
+size_of_heap_reserve: 0
+size_of_heap_commit: 0
+pointer_to_symbol_table: 36864
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+number_of_sections: 4
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+pdb_path: "/Users/runner/work/OpenCorePkg/OpenCorePkg/UDK/Build/OpenCorePkg/DEBUG_XCODE5/X64/OpenCorePkg/Application/ChipTune/ChipTune/DEBUG/ChipTune.dll"
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 20480
+  raw_data_offset: 4096
+  virtual_address: 4096
+  virtual_size: 20480
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 4096
+  raw_data_offset: 24576
+  virtual_address: 24576
+  virtual_size: 4096
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1644167264
+  raw_data_size: 4096
+  raw_data_offset: 28672
+  virtual_address: 28672
+  virtual_size: 12
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".debug"
+  full_name: ".debug"
+  characteristics: 1644167264
+  raw_data_size: 4096
+  raw_data_offset: 32768
+  virtual_address: 32768
+  virtual_size: 191
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 28672
+  size: 12
+}
+data_directories {
+  virtual_address: 32768
+  size: 28
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+overlay {
+  offset: 36864
+  size: 4
+}

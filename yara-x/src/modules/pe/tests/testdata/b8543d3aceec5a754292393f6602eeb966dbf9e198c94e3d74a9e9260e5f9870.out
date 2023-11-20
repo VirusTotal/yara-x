@@ -1,0 +1,478 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version {
+  major: 10
+  minor: 0
+}
+subsystem_version {
+  major: 10
+  minor: 0
+}
+image_version {
+  major: 10
+  minor: 0
+}
+linker_version {
+  major: 14
+  minor: 20
+}
+characteristics: 34
+dll_characteristics: 49504
+timestamp: 1776026023
+image_base: 5368709120
+checksum: 58189
+base_of_code: 4096
+entry_point: 2272
+entry_point_raw: 5344
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 3072
+size_of_initialized_data: 9216
+size_of_uninitialized_data: 0
+size_of_image: 28672
+size_of_headers: 1024
+size_of_stack_reserve: 524288
+size_of_stack_commit: 8192
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+version_info_list {
+  key: "CompanyName"
+  value: "Microsoft Corporation"
+}
+version_info_list {
+  key: "FileDescription"
+  value: "Task Manager Launcher"
+}
+version_info_list {
+  key: "FileVersion"
+  value: "10.0.19041.1202 (WinBuild.160101.0800)"
+}
+version_info_list {
+  key: "InternalName"
+  value: "LaunchTM.exe"
+}
+version_info_list {
+  key: "LegalCopyright"
+  value: "\302\251 Microsoft Corporation. All rights reserved."
+}
+version_info_list {
+  key: "OriginalFilename"
+  value: "LaunchTM.exe"
+}
+version_info_list {
+  key: "ProductName"
+  value: "Microsoft\302\256 Windows\302\256 Operating System"
+}
+version_info_list {
+  key: "ProductVersion"
+  value: "10.0.19041.1202"
+}
+number_of_sections: 6
+number_of_imported_functions: 37
+number_of_delayed_imported_functions: 0
+rich_signature {
+  offset: 128
+  length: 88
+  key: 3921423185
+  raw_data: "\025J\322\272Q+\274\351Q+\274\351Q+\274\351XS/\351E+\274\351E@\271\350P+\274\351E@\277\350S+\274\351E@\270\350C+\274\351Q+\275\351x+\274\351E@\275\350T+\274\351E@\264\350R+\274\351E@C\351P+\274\351E@\276\350P+\274\351"
+  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\tx\223\000\024\000\000\000\024k\005\001\001\000\000\000\024k\003\001\002\000\000\000\024k\004\001\022\000\000\000\000\000\001\000)\000\000\000\024k\001\001\005\000\000\000\024k\010\001\003\000\000\000\024k\377\000\001\000\000\000\024k\002\001\001\000\000\000"
+  tools {
+    toolid: 147
+    version: 30729
+    times: 20
+  }
+  tools {
+    toolid: 261
+    version: 27412
+    times: 1
+  }
+  tools {
+    toolid: 259
+    version: 27412
+    times: 2
+  }
+  tools {
+    toolid: 260
+    version: 27412
+    times: 18
+  }
+  tools {
+    toolid: 1
+    version: 0
+    times: 41
+  }
+  tools {
+    toolid: 257
+    version: 27412
+    times: 5
+  }
+  tools {
+    toolid: 264
+    version: 27412
+    times: 3
+  }
+  tools {
+    toolid: 255
+    version: 27412
+    times: 1
+  }
+  tools {
+    toolid: 258
+    version: 27412
+    times: 1
+  }
+}
+pdb_path: "launchtm.pdb"
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 3072
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 2864
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rdata"
+  full_name: ".rdata"
+  characteristics: 1073741888
+  raw_data_size: 3584
+  raw_data_offset: 4096
+  virtual_address: 8192
+  virtual_size: 3522
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 512
+  raw_data_offset: 7680
+  virtual_address: 12288
+  virtual_size: 1664
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".pdata"
+  full_name: ".pdata"
+  characteristics: 1073741888
+  raw_data_size: 512
+  raw_data_offset: 8192
+  virtual_address: 16384
+  virtual_size: 228
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  full_name: ".rsrc"
+  characteristics: 1073741888
+  raw_data_size: 2560
+  raw_data_offset: 8704
+  virtual_address: 20480
+  virtual_size: 2312
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1107296320
+  raw_data_size: 512
+  raw_data_offset: 11264
+  virtual_address: 24576
+  virtual_size: 32
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 9988
+  size: 260
+}
+data_directories {
+  virtual_address: 20480
+  size: 2312
+}
+data_directories {
+  virtual_address: 16384
+  size: 228
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 24576
+  size: 32
+}
+data_directories {
+  virtual_address: 9088
+  size: 84
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 8208
+  size: 280
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 8488
+  size: 392
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+resources {
+  length: 928
+  rva: 21864
+  offset: 10088
+  type: RESOURCE_TYPE_VERSION
+  id: 1
+  language: 1033
+}
+resources {
+  length: 1219
+  rva: 20640
+  offset: 8864
+  type: RESOURCE_TYPE_MANIFEST
+  id: 1
+  language: 1033
+}
+import_details {
+  library_name: "msvcrt.dll"
+  functions {
+    name: "__set_app_type"
+    rva: 8752
+  }
+  functions {
+    name: "__wgetmainargs"
+    rva: 8760
+  }
+  functions {
+    name: "_amsg_exit"
+    rva: 8768
+  }
+  functions {
+    name: "?terminate@@YAXXZ"
+    rva: 8776
+  }
+  functions {
+    name: "_commode"
+    rva: 8784
+  }
+  functions {
+    name: "_fmode"
+    rva: 8792
+  }
+  functions {
+    name: "_wcmdln"
+    rva: 8800
+  }
+  functions {
+    name: "__C_specific_handler"
+    rva: 8808
+  }
+  functions {
+    name: "_initterm"
+    rva: 8816
+  }
+  functions {
+    name: "__setusermatherr"
+    rva: 8824
+  }
+  functions {
+    name: "_cexit"
+    rva: 8832
+  }
+  functions {
+    name: "_XcptFilter"
+    rva: 8840
+  }
+  functions {
+    name: "_exit"
+    rva: 8848
+  }
+  functions {
+    name: "exit"
+    rva: 8856
+  }
+  functions {
+    name: "memset"
+    rva: 8864
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-heap-l1-1-0.dll"
+  functions {
+    name: "HeapSetInformation"
+    rva: 8560
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-processthreads-l1-1-0.dll"
+  functions {
+    name: "GetStartupInfoW"
+    rva: 8608
+  }
+  functions {
+    name: "GetCurrentProcess"
+    rva: 8616
+  }
+  functions {
+    name: "GetCurrentThreadId"
+    rva: 8624
+  }
+  functions {
+    name: "GetCurrentProcessId"
+    rva: 8632
+  }
+  functions {
+    name: "TerminateProcess"
+    rva: 8640
+  }
+  functions {
+    name: "SetPriorityClass"
+    rva: 8648
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-com-l1-1-0.dll"
+  functions {
+    name: "CoInitializeEx"
+    rva: 8504
+  }
+  functions {
+    name: "CoUninitialize"
+    rva: 8512
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-processenvironment-l1-1-0.dll"
+  functions {
+    name: "ExpandEnvironmentStringsW"
+    rva: 8592
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-errorhandling-l1-1-0.dll"
+  functions {
+    name: "GetLastError"
+    rva: 8528
+  }
+  functions {
+    name: "UnhandledExceptionFilter"
+    rva: 8536
+  }
+  functions {
+    name: "SetUnhandledExceptionFilter"
+    rva: 8544
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-synch-l1-2-0.dll"
+  functions {
+    name: "Sleep"
+    rva: 8712
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-libraryloader-l1-2-0.dll"
+  functions {
+    name: "GetModuleHandleW"
+    rva: 8576
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-profile-l1-1-0.dll"
+  functions {
+    name: "QueryPerformanceCounter"
+    rva: 8664
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-sysinfo-l1-1-0.dll"
+  functions {
+    name: "GetTickCount"
+    rva: 8728
+  }
+  functions {
+    name: "GetSystemTimeAsFileTime"
+    rva: 8736
+  }
+}
+import_details {
+  library_name: "api-ms-win-core-rtlsupport-l1-1-0.dll"
+  functions {
+    name: "RtlVirtualUnwind"
+    rva: 8680
+  }
+  functions {
+    name: "RtlLookupFunctionEntry"
+    rva: 8688
+  }
+  functions {
+    name: "RtlCaptureContext"
+    rva: 8696
+  }
+}
+import_details {
+  library_name: "SHELL32.dll"
+  functions {
+    name: "ShellExecuteExW"
+    rva: 8488
+  }
+}
+overlay {
+  offset: 0
+  size: 0
+}

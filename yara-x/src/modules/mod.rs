@@ -138,6 +138,8 @@ pub mod mods {
     pub use super::protos::lnk::Lnk;
     /// Data structure returned by the `macho` module.
     pub use super::protos::macho::Macho;
+    /// Data structure returned by the `pe` module.
+    pub use super::protos::pe::PE;
 
     /// Invoke a YARA module with arbitrary data.
     ///

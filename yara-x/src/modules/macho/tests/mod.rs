@@ -1,6 +1,7 @@
 use pretty_assertions::assert_eq;
 
 use crate::modules::macho::*;
+use crate::modules::tests::create_binary_from_zipped_ihex;
 use crate::tests::rule_false;
 use crate::tests::rule_true;
 use crate::tests::test_rule;
@@ -407,10 +408,9 @@ fn test_swap_entry_point_command() {
 
 #[test]
 fn test_macho_module() {
-    let macho_data = crate::modules::tests::create_binary_from_ihex(
-        "src/modules/macho/tests/testdata/tiny_universal.in",
-    )
-    .unwrap();
+    let macho_data = create_binary_from_zipped_ihex(
+        "src/modules/macho/tests/testdata/tiny_universal.in.zip",
+    );
 
     rule_true!(
         r#"

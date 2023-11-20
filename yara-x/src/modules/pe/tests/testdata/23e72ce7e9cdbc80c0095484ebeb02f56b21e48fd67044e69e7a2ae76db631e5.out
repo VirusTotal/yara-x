@@ -1,0 +1,409 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_CUI
+os_version {
+  major: 10
+  minor: 0
+}
+subsystem_version {
+  major: 10
+  minor: 0
+}
+image_version {
+  major: 10
+  minor: 0
+}
+linker_version {
+  major: 14
+  minor: 13
+}
+characteristics: 8226
+dll_characteristics: 16736
+timestamp: 1827812126
+image_base: 6442450944
+checksum: 57102
+base_of_code: 4096
+entry_point: 1920
+entry_point_raw: 4992
+dll_name: "mtxex.dll"
+export_timestamp: 1827812126
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 3584
+size_of_initialized_data: 6144
+size_of_uninitialized_data: 0
+size_of_image: 28672
+size_of_headers: 1024
+size_of_stack_reserve: 262144
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+win32_version_value: 0
+version_info_list {
+  key: "CompanyName"
+  value: "Microsoft Corporation"
+}
+version_info_list {
+  key: "FileDescription"
+  value: "COM+"
+}
+version_info_list {
+  key: "FileVersion"
+  value: "2001.12.10941.16384 (WinBuild.160101.0800)"
+}
+version_info_list {
+  key: "InternalName"
+  value: "MTXEX.DLL"
+}
+version_info_list {
+  key: "LegalCopyright"
+  value: "\302\251 Microsoft Corporation. All rights reserved."
+}
+version_info_list {
+  key: "OriginalFilename"
+  value: "MTXEX.DLL"
+}
+version_info_list {
+  key: "ProductName"
+  value: "Microsoft\302\256 Windows\302\256 Operating System"
+}
+version_info_list {
+  key: "ProductVersion"
+  value: "10.0.17763.1"
+}
+number_of_sections: 6
+number_of_imported_functions: 24
+number_of_delayed_imported_functions: 0
+rich_signature {
+  offset: 128
+  length: 80
+  key: 3360243275
+  raw_data: "\017_\'\233K>I\310K>I\310K>I\310.XJ\311I>I\310.XM\311A>I\310K>H\310W>I\310.XH\311N>I\310.XI\311J>I\310.XA\311I>I\310.X\266\310J>I\310.XK\311J>I\310"
+  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000ef\003\001\002\000\000\000ef\004\001\n\000\000\000\000\000\001\000\034\000\000\000ef\001\001\005\000\000\000ef\000\001\001\000\000\000ef\010\001\002\000\000\000ef\377\000\001\000\000\000ef\002\001\001\000\000\000"
+  tools {
+    toolid: 259
+    version: 26213
+    times: 2
+  }
+  tools {
+    toolid: 260
+    version: 26213
+    times: 10
+  }
+  tools {
+    toolid: 1
+    version: 0
+    times: 28
+  }
+  tools {
+    toolid: 257
+    version: 26213
+    times: 5
+  }
+  tools {
+    toolid: 256
+    version: 26213
+    times: 1
+  }
+  tools {
+    toolid: 264
+    version: 26213
+    times: 2
+  }
+  tools {
+    toolid: 255
+    version: 26213
+    times: 1
+  }
+  tools {
+    toolid: 258
+    version: 26213
+    times: 1
+  }
+}
+pdb_path: "mtxex.pdb"
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 3584
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 3408
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rdata"
+  full_name: ".rdata"
+  characteristics: 1073741888
+  raw_data_size: 2560
+  raw_data_offset: 4608
+  virtual_address: 8192
+  virtual_size: 2510
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 512
+  raw_data_offset: 7168
+  virtual_address: 12288
+  virtual_size: 1504
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".pdata"
+  full_name: ".pdata"
+  characteristics: 1073741888
+  raw_data_size: 512
+  raw_data_offset: 7680
+  virtual_address: 16384
+  virtual_size: 264
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  full_name: ".rsrc"
+  characteristics: 1073741888
+  raw_data_size: 1024
+  raw_data_offset: 8192
+  virtual_address: 20480
+  virtual_size: 984
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1107296320
+  raw_data_size: 512
+  raw_data_offset: 9216
+  virtual_address: 24576
+  virtual_size: 28
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 9728
+  size: 220
+}
+data_directories {
+  virtual_address: 9948
+  size: 60
+}
+data_directories {
+  virtual_address: 20480
+  size: 984
+}
+data_directories {
+  virtual_address: 16384
+  size: 264
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 24576
+  size: 28
+}
+data_directories {
+  virtual_address: 8816
+  size: 84
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 8208
+  size: 264
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 8472
+  size: 208
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+resources {
+  length: 888
+  rva: 20576
+  offset: 8288
+  type: RESOURCE_TYPE_VERSION
+  id: 1
+  language: 1033
+}
+import_details {
+  library_name: "msvcrt.dll"
+  functions {
+    name: "__C_specific_handler"
+    rva: 8624
+  }
+  functions {
+    name: "_XcptFilter"
+    rva: 8632
+  }
+  functions {
+    name: "_initterm"
+    rva: 8640
+  }
+  functions {
+    name: "malloc"
+    rva: 8648
+  }
+  functions {
+    name: "free"
+    rva: 8656
+  }
+  functions {
+    name: "_amsg_exit"
+    rva: 8664
+  }
+}
+import_details {
+  library_name: "KERNEL32.dll"
+  functions {
+    name: "LoadLibraryExW"
+    rva: 8472
+  }
+  functions {
+    name: "TerminateProcess"
+    rva: 8480
+  }
+  functions {
+    name: "GetCurrentProcess"
+    rva: 8488
+  }
+  functions {
+    name: "SetUnhandledExceptionFilter"
+    rva: 8496
+  }
+  functions {
+    name: "UnhandledExceptionFilter"
+    rva: 8504
+  }
+  functions {
+    name: "RtlVirtualUnwind"
+    rva: 8512
+  }
+  functions {
+    name: "RtlLookupFunctionEntry"
+    rva: 8520
+  }
+  functions {
+    name: "RtlCaptureContext"
+    rva: 8528
+  }
+  functions {
+    name: "GetTickCount"
+    rva: 8536
+  }
+  functions {
+    name: "GetSystemTimeAsFileTime"
+    rva: 8544
+  }
+  functions {
+    name: "GetCurrentThreadId"
+    rva: 8552
+  }
+  functions {
+    name: "GetLastError"
+    rva: 8560
+  }
+  functions {
+    name: "DisableThreadLibraryCalls"
+    rva: 8568
+  }
+  functions {
+    name: "GetProcAddress"
+    rva: 8576
+  }
+  functions {
+    name: "FreeLibrary"
+    rva: 8584
+  }
+  functions {
+    name: "QueryPerformanceCounter"
+    rva: 8592
+  }
+  functions {
+    name: "Sleep"
+    rva: 8600
+  }
+  functions {
+    name: "GetCurrentProcessId"
+    rva: 8608
+  }
+}
+export_details {
+  name: "DllGetClassObject"
+  ordinal: 1
+  rva: 4144
+  offset: 1072
+}
+export_details {
+  name: "GetObjectContext"
+  ordinal: 2
+  rva: 9853
+  forward_name: "COMSVCS.GetObjectContext"
+}
+export_details {
+  name: "MTSCreateActivity"
+  ordinal: 3
+  rva: 9896
+  forward_name: "COMSVCS.MTSCreateActivity"
+}
+export_details {
+  name: "SafeRef"
+  ordinal: 4
+  rva: 9930
+  forward_name: "COMSVCS.SafeRef"
+}
+overlay {
+  offset: 0
+  size: 0
+}

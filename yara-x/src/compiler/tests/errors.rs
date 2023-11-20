@@ -538,6 +538,27 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        #[cfg(feature = "test_proto2-module")]
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    test_proto2.foo
+}
+        "#,
+            r#"error: unknown identifier `test_proto2`
+   ╭─[line:4:5]
+   │
+ 4 │     test_proto2.foo
+   │     ─────┬─────  
+   │          ╰─────── this identifier has not been declared
+   │ 
+   │ Note: there is a module named `test_proto2`, but the `import "test_proto2"` statement is missing
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
         (
             line!(),
             r#"

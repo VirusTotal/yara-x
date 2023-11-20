@@ -60,6 +60,9 @@ macho-module = [
     "dep:arrayref",
 ]
 
+# The `pe` module parses PE files.
+pe-module = []
+
 # The `string` modules offer some functions for parsing strings as integers,
 # determining a string length, etc.
 string-module = []
@@ -86,6 +89,7 @@ default = [
     "elf-module",
     "macho-module",
     "hash-module",
+    "pe-module",
     "time-module",
     "lnk-module",
     "test_proto2-module",
@@ -135,7 +139,7 @@ yara-x-macros = { workspace = true }
 yara-x-parser = { workspace = true }
 yara-x-proto = { workspace = true }
 
-lingua = { version = "1.4.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
+lingua = { version = "1.6.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 
 [build-dependencies]
 protobuf = { workspace = true }
@@ -147,10 +151,11 @@ yara-x-proto = { workspace = true }
 criterion = { workspace = true }
 globwalk = { workspace = true }
 ihex = "3.0.0"
-goldenfile = "1.5.2"
+goldenfile = "1.6.0"
 pretty_assertions = { workspace = true }
-wasmprinter = "0.2.62"
-yara = { version = "0.19.0", features = ["vendored"] }
+wasmprinter = "0.2.73"
+yara = { version = "0.23.0", features = ["vendored"] }
+zip = "0.6.6"
 
 [[bench]]
 name = "benches"

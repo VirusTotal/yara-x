@@ -1,0 +1,2353 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version {
+  major: 4
+  minor: 0
+}
+subsystem_version {
+  major: 4
+  minor: 0
+}
+image_version {
+  major: 6
+  minor: 0
+}
+linker_version {
+  major: 8
+  minor: 0
+}
+characteristics: 258
+dll_characteristics: 33088
+timestamp: 1621233906
+image_base: 16777216
+checksum: 462075
+base_of_code: 4096
+base_of_data: 348160
+entry_point: 311950
+entry_point_raw: 315022
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 340480
+size_of_initialized_data: 119808
+size_of_uninitialized_data: 0
+size_of_image: 479232
+size_of_headers: 1024
+size_of_stack_reserve: 262144
+size_of_stack_commit: 8192
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 32
+win32_version_value: 0
+version_info_list {
+  key: "CompanyName"
+  value: "Ladislav Zezula"
+}
+version_info_list {
+  key: "FileDescription"
+  value: "Interactive File System API Test"
+}
+version_info_list {
+  key: "FileVersion"
+  value: "2, 7, 0, 601"
+}
+version_info_list {
+  key: "InternalName"
+  value: "FileTest"
+}
+version_info_list {
+  key: "LegalCopyright"
+  value: "Copyright \302\251 2004 - 2018 Ladislav Zezula"
+}
+version_info_list {
+  key: "LegalTrademarks"
+  value: "http://www.zezula.net"
+}
+version_info_list {
+  key: "OriginalFilename"
+  value: "FileTest.exe"
+}
+version_info_list {
+  key: "ProductName"
+  value: "FileTest"
+}
+version_info_list {
+  key: "ProductVersion"
+  value: "2, 7, 0, 601"
+}
+number_of_sections: 5
+number_of_imported_functions: 353
+number_of_delayed_imported_functions: 0
+rich_signature {
+  offset: 128
+  length: 88
+  key: 1852233515
+  raw_data: "o\266\010=+\327fn+\327fn+\327fn\014\021\033n!\327fn\014\021\035n/\327fn\014\021\013nb\327fnr\364un:\327fn+\327gn\202\326fn\014\021\010n\025\327fn\014\021\030n*\327fn\014\021\032n*\327fn\014\021\036n*\327fn"
+  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\'\306}\000\n\000\000\000\'\306{\000\004\000\000\000\'\306m\000I\000\000\000Y#\023\000\021\000\000\000\000\000\001\000\251\001\000\000\'\306n\000>\000\000\000\'\306~\000\001\000\000\000\'\306|\000\001\000\000\000\'\306x\000\001\000\000\000"
+  tools {
+    toolid: 125
+    version: 50727
+    times: 10
+  }
+  tools {
+    toolid: 123
+    version: 50727
+    times: 4
+  }
+  tools {
+    toolid: 109
+    version: 50727
+    times: 73
+  }
+  tools {
+    toolid: 19
+    version: 9049
+    times: 17
+  }
+  tools {
+    toolid: 1
+    version: 0
+    times: 425
+  }
+  tools {
+    toolid: 110
+    version: 50727
+    times: 62
+  }
+  tools {
+    toolid: 126
+    version: 50727
+    times: 1
+  }
+  tools {
+    toolid: 124
+    version: 50727
+    times: 1
+  }
+  tools {
+    toolid: 120
+    version: 50727
+    times: 1
+  }
+}
+pdb_path: "FileTest.pdb"
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 340480
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 340336
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 40960
+  raw_data_offset: 341504
+  virtual_address: 348160
+  virtual_size: 42620
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".tls"
+  full_name: ".tls"
+  characteristics: 3221225536
+  raw_data_size: 512
+  raw_data_offset: 382464
+  virtual_address: 393216
+  virtual_size: 9
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  full_name: ".rsrc"
+  characteristics: 1073741888
+  raw_data_size: 58880
+  raw_data_offset: 382976
+  virtual_address: 397312
+  virtual_size: 58696
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1107296320
+  raw_data_size: 17408
+  raw_data_offset: 441856
+  virtual_address: 458752
+  virtual_size: 17402
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 336228
+  size: 220
+}
+data_directories {
+  virtual_address: 397312
+  size: 58696
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 458752
+  size: 14104
+}
+data_directories {
+  virtual_address: 5600
+  size: 28
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 206256
+  size: 24
+}
+data_directories {
+  virtual_address: 206184
+  size: 64
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 4096
+  size: 1452
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 2019914798
+  size: 116
+}
+data_directories {
+  virtual_address: 340336
+  size: 4096
+}
+data_directories {
+  virtual_address: 340480
+  size: 1024
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 1610612768
+}
+data_directories {
+  virtual_address: 1952539694
+  size: 97
+}
+data_directories {
+  virtual_address: 42620
+  size: 348160
+}
+data_directories {
+  virtual_address: 40960
+  size: 341504
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 3221225536
+}
+data_directories {
+  virtual_address: 1936487470
+  size: 0
+}
+data_directories {
+  virtual_address: 9
+  size: 393216
+}
+data_directories {
+  virtual_address: 512
+  size: 382464
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 3221225536
+}
+data_directories {
+  virtual_address: 1920168494
+  size: 99
+}
+resources {
+  length: 2
+  rva: 450448
+  offset: 436112
+  id: 106
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 2
+  rva: 450440
+  offset: 436104
+  id: 107
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 2
+  rva: 450464
+  offset: 436128
+  id: 111
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 2
+  rva: 450456
+  offset: 436120
+  id: 112
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 2
+  rva: 450432
+  offset: 436096
+  id: 114
+  language: 1033
+  type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+}
+resources {
+  length: 1640
+  rva: 402864
+  offset: 388528
+  type: RESOURCE_TYPE_ICON
+  id: 1
+  language: 0
+}
+resources {
+  length: 296
+  rva: 404504
+  offset: 390168
+  type: RESOURCE_TYPE_ICON
+  id: 2
+  language: 0
+}
+resources {
+  length: 744
+  rva: 404800
+  offset: 390464
+  type: RESOURCE_TYPE_ICON
+  id: 3
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 405544
+  offset: 391208
+  type: RESOURCE_TYPE_ICON
+  id: 4
+  language: 0
+}
+resources {
+  length: 2216
+  rva: 406928
+  offset: 392592
+  type: RESOURCE_TYPE_ICON
+  id: 5
+  language: 0
+}
+resources {
+  length: 3752
+  rva: 409144
+  offset: 394808
+  type: RESOURCE_TYPE_ICON
+  id: 6
+  language: 0
+}
+resources {
+  length: 296
+  rva: 412992
+  offset: 398656
+  type: RESOURCE_TYPE_ICON
+  id: 7
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 413288
+  offset: 398952
+  type: RESOURCE_TYPE_ICON
+  id: 8
+  language: 0
+}
+resources {
+  length: 296
+  rva: 414712
+  offset: 400376
+  type: RESOURCE_TYPE_ICON
+  id: 9
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 415008
+  offset: 400672
+  type: RESOURCE_TYPE_ICON
+  id: 10
+  language: 0
+}
+resources {
+  length: 296
+  rva: 416432
+  offset: 402096
+  type: RESOURCE_TYPE_ICON
+  id: 11
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 416728
+  offset: 402392
+  type: RESOURCE_TYPE_ICON
+  id: 12
+  language: 0
+}
+resources {
+  length: 296
+  rva: 418152
+  offset: 403816
+  type: RESOURCE_TYPE_ICON
+  id: 13
+  language: 0
+}
+resources {
+  length: 1384
+  rva: 418448
+  offset: 404112
+  type: RESOURCE_TYPE_ICON
+  id: 14
+  language: 0
+}
+resources {
+  length: 1128
+  rva: 419872
+  offset: 405536
+  type: RESOURCE_TYPE_ICON
+  id: 15
+  language: 0
+}
+resources {
+  length: 248
+  rva: 421912
+  offset: 407576
+  type: RESOURCE_TYPE_MENU
+  id: 123
+  language: 1033
+}
+resources {
+  length: 164
+  rva: 422160
+  offset: 407824
+  type: RESOURCE_TYPE_MENU
+  id: 129
+  language: 1033
+}
+resources {
+  length: 648
+  rva: 422328
+  offset: 407992
+  type: RESOURCE_TYPE_MENU
+  id: 139
+  language: 1033
+}
+resources {
+  length: 312
+  rva: 422976
+  offset: 408640
+  type: RESOURCE_TYPE_MENU
+  id: 141
+  language: 1033
+}
+resources {
+  length: 136
+  rva: 423288
+  offset: 408952
+  type: RESOURCE_TYPE_MENU
+  id: 144
+  language: 1033
+}
+resources {
+  length: 128
+  rva: 423584
+  offset: 409248
+  type: RESOURCE_TYPE_MENU
+  id: 145
+  language: 1033
+}
+resources {
+  length: 156
+  rva: 423424
+  offset: 409088
+  type: RESOURCE_TYPE_MENU
+  id: 146
+  language: 1033
+}
+resources {
+  length: 1320
+  rva: 423896
+  offset: 409560
+  type: RESOURCE_TYPE_DIALOG
+  id: 102
+  language: 1033
+}
+resources {
+  length: 1940
+  rva: 425216
+  offset: 410880
+  type: RESOURCE_TYPE_DIALOG
+  id: 103
+  language: 1033
+}
+resources {
+  length: 2464
+  rva: 427160
+  offset: 412824
+  type: RESOURCE_TYPE_DIALOG
+  id: 104
+  language: 1033
+}
+resources {
+  length: 1450
+  rva: 429624
+  offset: 415288
+  type: RESOURCE_TYPE_DIALOG
+  id: 105
+  language: 1033
+}
+resources {
+  length: 2368
+  rva: 441136
+  offset: 426800
+  type: RESOURCE_TYPE_DIALOG
+  id: 106
+  language: 1033
+}
+resources {
+  length: 2172
+  rva: 431080
+  offset: 416744
+  type: RESOURCE_TYPE_DIALOG
+  id: 107
+  language: 1033
+}
+resources {
+  length: 1076
+  rva: 433256
+  offset: 418920
+  type: RESOURCE_TYPE_DIALOG
+  id: 108
+  language: 1033
+}
+resources {
+  length: 928
+  rva: 434336
+  offset: 420000
+  type: RESOURCE_TYPE_DIALOG
+  id: 109
+  language: 1033
+}
+resources {
+  length: 764
+  rva: 435264
+  offset: 420928
+  type: RESOURCE_TYPE_DIALOG
+  id: 110
+  language: 1033
+}
+resources {
+  length: 1112
+  rva: 436032
+  offset: 421696
+  type: RESOURCE_TYPE_DIALOG
+  id: 111
+  language: 1033
+}
+resources {
+  length: 1544
+  rva: 437144
+  offset: 422808
+  type: RESOURCE_TYPE_DIALOG
+  id: 112
+  language: 1033
+}
+resources {
+  length: 644
+  rva: 438688
+  offset: 424352
+  type: RESOURCE_TYPE_DIALOG
+  id: 113
+  language: 1033
+}
+resources {
+  length: 1500
+  rva: 444944
+  offset: 430608
+  type: RESOURCE_TYPE_DIALOG
+  id: 114
+  language: 1033
+}
+resources {
+  length: 240
+  rva: 449536
+  offset: 435200
+  type: RESOURCE_TYPE_DIALOG
+  id: 118
+  language: 1033
+}
+resources {
+  length: 266
+  rva: 439336
+  offset: 425000
+  type: RESOURCE_TYPE_DIALOG
+  id: 119
+  language: 1033
+}
+resources {
+  length: 452
+  rva: 439608
+  offset: 425272
+  type: RESOURCE_TYPE_DIALOG
+  id: 124
+  language: 1033
+}
+resources {
+  length: 532
+  rva: 440064
+  offset: 425728
+  type: RESOURCE_TYPE_DIALOG
+  id: 128
+  language: 1033
+}
+resources {
+  length: 180
+  rva: 423712
+  offset: 409376
+  type: RESOURCE_TYPE_DIALOG
+  id: 132
+  language: 1033
+}
+resources {
+  length: 530
+  rva: 440600
+  offset: 426264
+  type: RESOURCE_TYPE_DIALOG
+  id: 133
+  language: 1033
+}
+resources {
+  length: 214
+  rva: 443504
+  offset: 429168
+  type: RESOURCE_TYPE_DIALOG
+  id: 137
+  language: 1033
+}
+resources {
+  length: 466
+  rva: 443720
+  offset: 429384
+  type: RESOURCE_TYPE_DIALOG
+  id: 138
+  language: 1033
+}
+resources {
+  length: 312
+  rva: 444192
+  offset: 429856
+  type: RESOURCE_TYPE_DIALOG
+  id: 140
+  language: 1033
+}
+resources {
+  length: 438
+  rva: 444504
+  offset: 430168
+  type: RESOURCE_TYPE_DIALOG
+  id: 143
+  language: 1033
+}
+resources {
+  length: 798
+  rva: 446448
+  offset: 432112
+  type: RESOURCE_TYPE_DIALOG
+  id: 144
+  language: 1033
+}
+resources {
+  length: 826
+  rva: 447248
+  offset: 432912
+  type: RESOURCE_TYPE_DIALOG
+  id: 145
+  language: 1033
+}
+resources {
+  length: 806
+  rva: 448080
+  offset: 433744
+  type: RESOURCE_TYPE_DIALOG
+  id: 146
+  language: 1033
+}
+resources {
+  length: 648
+  rva: 448888
+  offset: 434552
+  type: RESOURCE_TYPE_DIALOG
+  id: 147
+  language: 1033
+}
+resources {
+  length: 62
+  rva: 455944
+  offset: 441608
+  type: RESOURCE_TYPE_STRING
+  id: 10
+  language: 1033
+}
+resources {
+  length: 968
+  rva: 450472
+  offset: 436136
+  type: RESOURCE_TYPE_STRING
+  id: 251
+  language: 1033
+}
+resources {
+  length: 702
+  rva: 451440
+  offset: 437104
+  type: RESOURCE_TYPE_STRING
+  id: 252
+  language: 1033
+}
+resources {
+  length: 1066
+  rva: 452144
+  offset: 437808
+  type: RESOURCE_TYPE_STRING
+  id: 253
+  language: 1033
+}
+resources {
+  length: 710
+  rva: 453216
+  offset: 438880
+  type: RESOURCE_TYPE_STRING
+  id: 254
+  language: 1033
+}
+resources {
+  length: 1444
+  rva: 453928
+  offset: 439592
+  type: RESOURCE_TYPE_STRING
+  id: 255
+  language: 1033
+}
+resources {
+  length: 568
+  rva: 455376
+  offset: 441040
+  type: RESOURCE_TYPE_STRING
+  id: 256
+  language: 1033
+}
+resources {
+  length: 8
+  rva: 401072
+  offset: 386736
+  type: RESOURCE_TYPE_ACCELERATOR
+  id: 121
+  language: 0
+}
+resources {
+  length: 90
+  rva: 412896
+  offset: 398560
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 101
+  language: 0
+}
+resources {
+  length: 34
+  rva: 414672
+  offset: 400336
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 125
+  language: 0
+}
+resources {
+  length: 34
+  rva: 416392
+  offset: 402056
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 126
+  language: 0
+}
+resources {
+  length: 34
+  rva: 418112
+  offset: 403776
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 127
+  language: 0
+}
+resources {
+  length: 34
+  rva: 419832
+  offset: 405496
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 140
+  language: 0
+}
+resources {
+  length: 20
+  rva: 421000
+  offset: 406664
+  type: RESOURCE_TYPE_GROUP_ICON
+  id: 143
+  language: 0
+}
+resources {
+  length: 888
+  rva: 421024
+  offset: 406688
+  type: RESOURCE_TYPE_VERSION
+  id: 1
+  language: 1033
+}
+resources {
+  length: 1779
+  rva: 401080
+  offset: 386744
+  type: RESOURCE_TYPE_MANIFEST
+  id: 1
+  language: 0
+}
+resources {
+  length: 282
+  rva: 450144
+  offset: 435808
+  type: : 240
+  id: 103
+  language: 1033
+}
+resources {
+  length: 363
+  rva: 449776
+  offset: 435440
+  type: : 240
+  id: 104
+  language: 1033
+}
+import_details {
+  library_name: "ADVAPI32.dll"
+  functions {
+    name: "GetUserNameW"
+    rva: 4096
+  }
+  functions {
+    name: "OpenProcessToken"
+    rva: 4100
+  }
+  functions {
+    name: "OpenThreadToken"
+    rva: 4104
+  }
+  functions {
+    name: "RegCloseKey"
+    rva: 4108
+  }
+  functions {
+    name: "RegQueryValueExW"
+    rva: 4112
+  }
+  functions {
+    name: "RegOpenKeyExW"
+    rva: 4116
+  }
+  functions {
+    name: "GetSidSubAuthority"
+    rva: 4120
+  }
+  functions {
+    name: "GetSidIdentifierAuthority"
+    rva: 4124
+  }
+  functions {
+    name: "GetSidSubAuthorityCount"
+    rva: 4128
+  }
+  functions {
+    name: "GetTokenInformation"
+    rva: 4132
+  }
+  functions {
+    name: "LookupPrivilegeNameW"
+    rva: 4136
+  }
+  functions {
+    name: "AdjustTokenPrivileges"
+    rva: 4140
+  }
+  functions {
+    name: "LookupPrivilegeValueW"
+    rva: 4144
+  }
+  functions {
+    name: "FreeSid"
+    rva: 4148
+  }
+  functions {
+    name: "SetTokenInformation"
+    rva: 4152
+  }
+  functions {
+    name: "AllocateAndInitializeSid"
+    rva: 4156
+  }
+  functions {
+    name: "RegSetValueExW"
+    rva: 4160
+  }
+  functions {
+    name: "CopySid"
+    rva: 4164
+  }
+  functions {
+    name: "GetLengthSid"
+    rva: 4168
+  }
+  functions {
+    name: "InitializeAcl"
+    rva: 4172
+  }
+  functions {
+    name: "AddAccessAllowedAce"
+    rva: 4176
+  }
+  functions {
+    name: "AddAccessDeniedAce"
+    rva: 4180
+  }
+  functions {
+    name: "AddAuditAccessAce"
+    rva: 4184
+  }
+  functions {
+    name: "GetAce"
+    rva: 4188
+  }
+  functions {
+    name: "LookupAccountSidW"
+    rva: 4192
+  }
+  functions {
+    name: "LookupAccountNameW"
+    rva: 4196
+  }
+  functions {
+    name: "SetSecurityDescriptorSacl"
+    rva: 4200
+  }
+  functions {
+    name: "SetSecurityDescriptorDacl"
+    rva: 4204
+  }
+  functions {
+    name: "SetSecurityDescriptorGroup"
+    rva: 4208
+  }
+  functions {
+    name: "SetSecurityDescriptorOwner"
+    rva: 4212
+  }
+  functions {
+    name: "InitializeSecurityDescriptor"
+    rva: 4216
+  }
+  functions {
+    name: "GetSecurityDescriptorSacl"
+    rva: 4220
+  }
+  functions {
+    name: "GetSecurityDescriptorDacl"
+    rva: 4224
+  }
+  functions {
+    name: "GetSecurityDescriptorGroup"
+    rva: 4228
+  }
+  functions {
+    name: "GetSecurityDescriptorOwner"
+    rva: 4232
+  }
+}
+import_details {
+  library_name: "KERNEL32.dll"
+  functions {
+    name: "InitializeCriticalSection"
+    rva: 4312
+  }
+  functions {
+    name: "LockResource"
+    rva: 4316
+  }
+  functions {
+    name: "LoadResource"
+    rva: 4320
+  }
+  functions {
+    name: "FindResourceW"
+    rva: 4324
+  }
+  functions {
+    name: "DeleteCriticalSection"
+    rva: 4328
+  }
+  functions {
+    name: "WaitForSingleObject"
+    rva: 4332
+  }
+  functions {
+    name: "CreateEventW"
+    rva: 4336
+  }
+  functions {
+    name: "WaitForMultipleObjects"
+    rva: 4340
+  }
+  functions {
+    name: "LeaveCriticalSection"
+    rva: 4344
+  }
+  functions {
+    name: "EnterCriticalSection"
+    rva: 4348
+  }
+  functions {
+    name: "GetCurrentProcess"
+    rva: 4352
+  }
+  functions {
+    name: "GetCurrentThread"
+    rva: 4356
+  }
+  functions {
+    name: "GetProcessHeap"
+    rva: 4360
+  }
+  functions {
+    name: "HeapReAlloc"
+    rva: 4364
+  }
+  functions {
+    name: "MultiByteToWideChar"
+    rva: 4368
+  }
+  functions {
+    name: "SetCurrentDirectoryW"
+    rva: 4372
+  }
+  functions {
+    name: "CreateDirectoryW"
+    rva: 4376
+  }
+  functions {
+    name: "GetOverlappedResult"
+    rva: 4380
+  }
+  functions {
+    name: "LockFile"
+    rva: 4384
+  }
+  functions {
+    name: "UnlockFile"
+    rva: 4388
+  }
+  functions {
+    name: "SetFilePointer"
+    rva: 4392
+  }
+  functions {
+    name: "SetEndOfFile"
+    rva: 4396
+  }
+  functions {
+    name: "MoveFileExW"
+    rva: 4400
+  }
+  functions {
+    name: "GetFileAttributesW"
+    rva: 4404
+  }
+  functions {
+    name: "FlushFileBuffers"
+    rva: 4408
+  }
+  functions {
+    name: "DeleteFileW"
+    rva: 4412
+  }
+  functions {
+    name: "OpenProcess"
+    rva: 4416
+  }
+  functions {
+    name: "GlobalFree"
+    rva: 4420
+  }
+  functions {
+    name: "GlobalUnlock"
+    rva: 4424
+  }
+  functions {
+    name: "GlobalLock"
+    rva: 4428
+  }
+  functions {
+    name: "GlobalAlloc"
+    rva: 4432
+  }
+  functions {
+    name: "GlobalReAlloc"
+    rva: 4436
+  }
+  functions {
+    name: "GlobalSize"
+    rva: 4440
+  }
+  functions {
+    name: "LoadLibraryW"
+    rva: 4444
+  }
+  functions {
+    name: "FreeLibrary"
+    rva: 4448
+  }
+  functions {
+    name: "EnumResourceNamesW"
+    rva: 4452
+  }
+  functions {
+    name: "SetEvent"
+    rva: 4456
+  }
+  functions {
+    name: "CreateThread"
+    rva: 4460
+  }
+  functions {
+    name: "GetModuleFileNameW"
+    rva: 4464
+  }
+  functions {
+    name: "GetFileTime"
+    rva: 4468
+  }
+  functions {
+    name: "VirtualAlloc"
+    rva: 4472
+  }
+  functions {
+    name: "SetFileTime"
+    rva: 4476
+  }
+  functions {
+    name: "VirtualFree"
+    rva: 4480
+  }
+  functions {
+    name: "GetTickCount"
+    rva: 4484
+  }
+  functions {
+    name: "ReadFile"
+    rva: 4488
+  }
+  functions {
+    name: "HeapAlloc"
+    rva: 4492
+  }
+  functions {
+    name: "LocalFileTimeToFileTime"
+    rva: 4496
+  }
+  functions {
+    name: "SystemTimeToFileTime"
+    rva: 4500
+  }
+  functions {
+    name: "InterlockedExchange"
+    rva: 4504
+  }
+  functions {
+    name: "Sleep"
+    rva: 4508
+  }
+  functions {
+    name: "InterlockedCompareExchange"
+    rva: 4512
+  }
+  functions {
+    name: "GetStartupInfoW"
+    rva: 4516
+  }
+  functions {
+    name: "OutputDebugStringA"
+    rva: 4520
+  }
+  functions {
+    name: "RtlUnwind"
+    rva: 4524
+  }
+  functions {
+    name: "SetUnhandledExceptionFilter"
+    rva: 4528
+  }
+  functions {
+    name: "GetModuleHandleA"
+    rva: 4532
+  }
+  functions {
+    name: "QueryPerformanceCounter"
+    rva: 4536
+  }
+  functions {
+    name: "GetCurrentThreadId"
+    rva: 4540
+  }
+  functions {
+    name: "GetCurrentProcessId"
+    rva: 4544
+  }
+  functions {
+    name: "TerminateProcess"
+    rva: 4548
+  }
+  functions {
+    name: "UnhandledExceptionFilter"
+    rva: 4552
+  }
+  functions {
+    name: "GetVersionExW"
+    rva: 4556
+  }
+  functions {
+    name: "FormatMessageW"
+    rva: 4560
+  }
+  functions {
+    name: "GetSystemTimeAsFileTime"
+    rva: 4564
+  }
+  functions {
+    name: "FreeResource"
+    rva: 4568
+  }
+  functions {
+    name: "SizeofResource"
+    rva: 4572
+  }
+  functions {
+    name: "WideCharToMultiByte"
+    rva: 4576
+  }
+  functions {
+    name: "WriteFile"
+    rva: 4580
+  }
+  functions {
+    name: "HeapFree"
+    rva: 4584
+  }
+  functions {
+    name: "CloseHandle"
+    rva: 4588
+  }
+  functions {
+    name: "GetModuleHandleW"
+    rva: 4592
+  }
+  functions {
+    name: "GetProcAddress"
+    rva: 4596
+  }
+  functions {
+    name: "SetLastError"
+    rva: 4600
+  }
+  functions {
+    name: "GetFileSize"
+    rva: 4604
+  }
+  functions {
+    name: "DeviceIoControl"
+    rva: 4608
+  }
+  functions {
+    name: "GetLastError"
+    rva: 4612
+  }
+  functions {
+    name: "GetCurrentDirectoryW"
+    rva: 4616
+  }
+  functions {
+    name: "CreateFileW"
+    rva: 4620
+  }
+  functions {
+    name: "EnumTimeFormatsW"
+    rva: 4624
+  }
+  functions {
+    name: "EnumDateFormatsW"
+    rva: 4628
+  }
+  functions {
+    name: "FileTimeToLocalFileTime"
+    rva: 4632
+  }
+  functions {
+    name: "FileTimeToSystemTime"
+    rva: 4636
+  }
+  functions {
+    name: "GetTimeFormatW"
+    rva: 4640
+  }
+  functions {
+    name: "GetDateFormatW"
+    rva: 4644
+  }
+  functions {
+    name: "GetLocaleInfoW"
+    rva: 4648
+  }
+}
+import_details {
+  library_name: "GDI32.dll"
+  functions {
+    name: "TextOutW"
+    rva: 4264
+  }
+  functions {
+    name: "GetTextExtentPoint32W"
+    rva: 4268
+  }
+  functions {
+    name: "SetTextAlign"
+    rva: 4272
+  }
+  functions {
+    name: "SetBkColor"
+    rva: 4276
+  }
+  functions {
+    name: "ExtTextOutW"
+    rva: 4280
+  }
+  functions {
+    name: "SetTextColor"
+    rva: 4284
+  }
+  functions {
+    name: "CreateFontIndirectW"
+    rva: 4288
+  }
+  functions {
+    name: "GetStockObject"
+    rva: 4292
+  }
+  functions {
+    name: "SelectObject"
+    rva: 4296
+  }
+  functions {
+    name: "GetTextMetricsW"
+    rva: 4300
+  }
+  functions {
+    name: "GetObjectW"
+    rva: 4304
+  }
+}
+import_details {
+  library_name: "USER32.dll"
+  functions {
+    name: "GetTopWindow"
+    rva: 4676
+  }
+  functions {
+    name: "GetDlgItemTextW"
+    rva: 4680
+  }
+  functions {
+    name: "CloseClipboard"
+    rva: 4684
+  }
+  functions {
+    name: "SetClipboardData"
+    rva: 4688
+  }
+  functions {
+    name: "EmptyClipboard"
+    rva: 4692
+  }
+  functions {
+    name: "OpenClipboard"
+    rva: 4696
+  }
+  functions {
+    name: "ClientToScreen"
+    rva: 4700
+  }
+  functions {
+    name: "GetFocus"
+    rva: 4704
+  }
+  functions {
+    name: "IsWindowVisible"
+    rva: 4708
+  }
+  functions {
+    name: "EnableMenuItem"
+    rva: 4712
+  }
+  functions {
+    name: "GetSubMenu"
+    rva: 4716
+  }
+  functions {
+    name: "ScreenToClient"
+    rva: 4720
+  }
+  functions {
+    name: "GetDlgItemInt"
+    rva: 4724
+  }
+  functions {
+    name: "GetClipboardData"
+    rva: 4728
+  }
+  functions {
+    name: "IsClipboardFormatAvailable"
+    rva: 4732
+  }
+  functions {
+    name: "ReleaseDC"
+    rva: 4736
+  }
+  functions {
+    name: "GetDC"
+    rva: 4740
+  }
+  functions {
+    name: "SetScrollInfo"
+    rva: 4744
+  }
+  functions {
+    name: "ShowCaret"
+    rva: 4748
+  }
+  functions {
+    name: "SetCaretPos"
+    rva: 4752
+  }
+  functions {
+    name: "CreateCaret"
+    rva: 4756
+  }
+  functions {
+    name: "DestroyCaret"
+    rva: 4760
+  }
+  functions {
+    name: "GetClassNameW"
+    rva: 4764
+  }
+  functions {
+    name: "ReleaseCapture"
+    rva: 4768
+  }
+  functions {
+    name: "GetTabbedTextExtentW"
+    rva: 4772
+  }
+  functions {
+    name: "SetCapture"
+    rva: 4776
+  }
+  functions {
+    name: "GetScrollInfo"
+    rva: 4780
+  }
+  functions {
+    name: "EndPaint"
+    rva: 4784
+  }
+  functions {
+    name: "TabbedTextOutW"
+    rva: 4788
+  }
+  functions {
+    name: "IntersectRect"
+    rva: 4792
+  }
+  functions {
+    name: "BeginPaint"
+    rva: 4796
+  }
+  functions {
+    name: "DefWindowProcW"
+    rva: 4800
+  }
+  functions {
+    name: "RegisterClassExW"
+    rva: 4804
+  }
+  functions {
+    name: "LoadCursorW"
+    rva: 4808
+  }
+  functions {
+    name: "GetClassInfoExW"
+    rva: 4812
+  }
+  functions {
+    name: "LoadImageW"
+    rva: 4816
+  }
+  functions {
+    name: "LoadMenuW"
+    rva: 4820
+  }
+  functions {
+    name: "TrackPopupMenu"
+    rva: 4824
+  }
+  functions {
+    name: "SetForegroundWindow"
+    rva: 4828
+  }
+  functions {
+    name: "LoadAcceleratorsW"
+    rva: 4832
+  }
+  functions {
+    name: "CreateDialogParamW"
+    rva: 4836
+  }
+  functions {
+    name: "ShowWindow"
+    rva: 4840
+  }
+  functions {
+    name: "IsWindow"
+    rva: 4844
+  }
+  functions {
+    name: "TranslateAcceleratorW"
+    rva: 4848
+  }
+  functions {
+    name: "TranslateMessage"
+    rva: 4852
+  }
+  functions {
+    name: "IsWindowEnabled"
+    rva: 4856
+  }
+  functions {
+    name: "GetClientRect"
+    rva: 4860
+  }
+  functions {
+    name: "LoadStringA"
+    rva: 4864
+  }
+  functions {
+    name: "CreateWindowExW"
+    rva: 4868
+  }
+  functions {
+    name: "HideCaret"
+    rva: 4872
+  }
+  functions {
+    name: "GetWindow"
+    rva: 4876
+  }
+  functions {
+    name: "CreateCursor"
+    rva: 4880
+  }
+  functions {
+    name: "SetCursor"
+    rva: 4884
+  }
+  functions {
+    name: "CallWindowProcW"
+    rva: 4888
+  }
+  functions {
+    name: "CreateDialogIndirectParamW"
+    rva: 4892
+  }
+  functions {
+    name: "SendDlgItemMessageA"
+    rva: 4896
+  }
+  functions {
+    name: "DialogBoxIndirectParamW"
+    rva: 4900
+  }
+  functions {
+    name: "FillRect"
+    rva: 4904
+  }
+  functions {
+    name: "DeleteMenu"
+    rva: 4908
+  }
+  functions {
+    name: "MessageBeep"
+    rva: 4912
+  }
+  functions {
+    name: "DrawTextExW"
+    rva: 4916
+  }
+  functions {
+    name: "BeginDeferWindowPos"
+    rva: 4920
+  }
+  functions {
+    name: "DeferWindowPos"
+    rva: 4924
+  }
+  functions {
+    name: "EndDeferWindowPos"
+    rva: 4928
+  }
+  functions {
+    name: "LoadIconW"
+    rva: 4932
+  }
+  functions {
+    name: "DispatchMessageW"
+    rva: 4936
+  }
+  functions {
+    name: "DestroyAcceleratorTable"
+    rva: 4940
+  }
+  functions {
+    name: "GetParent"
+    rva: 4944
+  }
+  functions {
+    name: "IsDialogMessageW"
+    rva: 4948
+  }
+  functions {
+    name: "GetAsyncKeyState"
+    rva: 4952
+  }
+  functions {
+    name: "DestroyWindow"
+    rva: 4956
+  }
+  functions {
+    name: "GetCursorPos"
+    rva: 4960
+  }
+  functions {
+    name: "GetActiveWindow"
+    rva: 4964
+  }
+  functions {
+    name: "PtInRect"
+    rva: 4968
+  }
+  functions {
+    name: "GetSystemMenu"
+    rva: 4972
+  }
+  functions {
+    name: "GetMenuItemCount"
+    rva: 4976
+  }
+  functions {
+    name: "GetMenuItemInfoW"
+    rva: 4980
+  }
+  functions {
+    name: "LoadStringW"
+    rva: 4984
+  }
+  functions {
+    name: "InsertMenuW"
+    rva: 4988
+  }
+  functions {
+    name: "MapDialogRect"
+    rva: 4992
+  }
+  functions {
+    name: "GetSystemMetrics"
+    rva: 4996
+  }
+  functions {
+    name: "SystemParametersInfoW"
+    rva: 5000
+  }
+  functions {
+    name: "KillTimer"
+    rva: 5004
+  }
+  functions {
+    name: "SetWindowPos"
+    rva: 5008
+  }
+  functions {
+    name: "GetWindowRect"
+    rva: 5012
+  }
+  functions {
+    name: "InvalidateRect"
+    rva: 5016
+  }
+  functions {
+    name: "CheckDlgButton"
+    rva: 5020
+  }
+  functions {
+    name: "SetWindowTextA"
+    rva: 5024
+  }
+  functions {
+    name: "SetDlgItemTextW"
+    rva: 5028
+  }
+  functions {
+    name: "GetWindowTextLengthW"
+    rva: 5032
+  }
+  functions {
+    name: "SetFocus"
+    rva: 5036
+  }
+  functions {
+    name: "GetWindowTextA"
+    rva: 5040
+  }
+  functions {
+    name: "GetWindowTextW"
+    rva: 5044
+  }
+  functions {
+    name: "IsDlgButtonChecked"
+    rva: 5048
+  }
+  functions {
+    name: "EnableWindow"
+    rva: 5052
+  }
+  functions {
+    name: "CharUpperW"
+    rva: 5056
+  }
+  functions {
+    name: "DialogBoxParamW"
+    rva: 5060
+  }
+  functions {
+    name: "SetWindowTextW"
+    rva: 5064
+  }
+  functions {
+    name: "EndDialog"
+    rva: 5068
+  }
+  functions {
+    name: "GetDlgItem"
+    rva: 5072
+  }
+  functions {
+    name: "PostMessageW"
+    rva: 5076
+  }
+  functions {
+    name: "GetWindowLongW"
+    rva: 5080
+  }
+  functions {
+    name: "SetWindowLongW"
+    rva: 5084
+  }
+  functions {
+    name: "SendMessageW"
+    rva: 5088
+  }
+  functions {
+    name: "IsCharAlphaW"
+    rva: 5092
+  }
+  functions {
+    name: "GetMessageW"
+    rva: 5096
+  }
+  functions {
+    name: "SetTimer"
+    rva: 5100
+  }
+}
+import_details {
+  library_name: "msvcrt.dll"
+  functions {
+    name: "_controlfp"
+    rva: 5136
+  }
+  functions {
+    name: "?terminate@@YAXXZ"
+    rva: 5140
+  }
+  functions {
+    name: "_wcsnicmp"
+    rva: 5144
+  }
+  functions {
+    name: "wcsstr"
+    rva: 5148
+  }
+  functions {
+    name: "_wcsicmp"
+    rva: 5152
+  }
+  functions {
+    name: "_vsnwprintf"
+    rva: 5156
+  }
+  functions {
+    name: "_wcsrev"
+    rva: 5160
+  }
+  functions {
+    name: "memset"
+    rva: 5164
+  }
+  functions {
+    name: "isxdigit"
+    rva: 5168
+  }
+  functions {
+    name: "memcpy"
+    rva: 5172
+  }
+  functions {
+    name: "wcschr"
+    rva: 5176
+  }
+  functions {
+    name: "_vsnprintf"
+    rva: 5180
+  }
+  functions {
+    name: "??0exception@@QAE@ABQBD@Z"
+    rva: 5184
+  }
+  functions {
+    name: "wcstoul"
+    rva: 5188
+  }
+  functions {
+    name: "wcsncmp"
+    rva: 5192
+  }
+  functions {
+    name: "?what@exception@@UBEPBDXZ"
+    rva: 5196
+  }
+  functions {
+    name: "??1exception@@UAE@XZ"
+    rva: 5200
+  }
+  functions {
+    name: "??0exception@@QAE@ABV0@@Z"
+    rva: 5204
+  }
+  functions {
+    name: "_CxxThrowException"
+    rva: 5208
+  }
+  functions {
+    name: "??0exception@@QAE@XZ"
+    rva: 5212
+  }
+  functions {
+    name: "wcsrchr"
+    rva: 5216
+  }
+  functions {
+    name: "rand"
+    rva: 5220
+  }
+  functions {
+    name: "srand"
+    rva: 5224
+  }
+  functions {
+    name: "toupper"
+    rva: 5228
+  }
+  functions {
+    name: "memmove"
+    rva: 5232
+  }
+  functions {
+    name: "isalpha"
+    rva: 5236
+  }
+  functions {
+    name: "__wargv"
+    rva: 5240
+  }
+  functions {
+    name: "__argc"
+    rva: 5244
+  }
+  functions {
+    name: "__CxxFrameHandler"
+    rva: 5248
+  }
+  functions {
+    name: "_errno"
+    rva: 5252
+  }
+  functions {
+    name: "free"
+    rva: 5256
+  }
+  functions {
+    name: "_onexit"
+    rva: 5260
+  }
+  functions {
+    name: "_lock"
+    rva: 5264
+  }
+  functions {
+    name: "__dllonexit"
+    rva: 5268
+  }
+  functions {
+    name: "_unlock"
+    rva: 5272
+  }
+  functions {
+    name: "??1type_info@@UAE@XZ"
+    rva: 5276
+  }
+  functions {
+    name: "__set_app_type"
+    rva: 5280
+  }
+  functions {
+    name: "__p__fmode"
+    rva: 5284
+  }
+  functions {
+    name: "__p__commode"
+    rva: 5288
+  }
+  functions {
+    name: "_adjust_fdiv"
+    rva: 5292
+  }
+  functions {
+    name: "__setusermatherr"
+    rva: 5296
+  }
+  functions {
+    name: "_amsg_exit"
+    rva: 5300
+  }
+  functions {
+    name: "_initterm"
+    rva: 5304
+  }
+  functions {
+    name: "_wcmdln"
+    rva: 5308
+  }
+  functions {
+    name: "exit"
+    rva: 5312
+  }
+  functions {
+    name: "_XcptFilter"
+    rva: 5316
+  }
+  functions {
+    name: "_exit"
+    rva: 5320
+  }
+  functions {
+    name: "_cexit"
+    rva: 5324
+  }
+  functions {
+    name: "__wgetmainargs"
+    rva: 5328
+  }
+  functions {
+    name: "malloc"
+    rva: 5332
+  }
+  functions {
+    name: "_callnewh"
+    rva: 5336
+  }
+  functions {
+    name: "wcstol"
+    rva: 5340
+  }
+}
+import_details {
+  library_name: "COMCTL32.dll"
+  functions {
+    name: "CreatePropertySheetPageW"
+    rva: 4240
+  }
+  functions {
+    name: "ord17"
+    ordinal: 17
+    rva: 4244
+  }
+  functions {
+    name: "ImageList_ReplaceIcon"
+    rva: 4248
+  }
+  functions {
+    name: "ImageList_Create"
+    rva: 4252
+  }
+  functions {
+    name: "PropertySheetW"
+    rva: 4256
+  }
+}
+import_details {
+  library_name: "ntdll.dll"
+  functions {
+    name: "RtlCreateUnicodeString"
+    rva: 5348
+  }
+  functions {
+    name: "RtlFreeUnicodeString"
+    rva: 5352
+  }
+  functions {
+    name: "NtOpenDirectoryObject"
+    rva: 5356
+  }
+  functions {
+    name: "RtlDecompressBuffer"
+    rva: 5360
+  }
+  functions {
+    name: "NtDeviceIoControlFile"
+    rva: 5364
+  }
+  functions {
+    name: "RtlReAllocateHeap"
+    rva: 5368
+  }
+  functions {
+    name: "NtOpenSymbolicLinkObject"
+    rva: 5372
+  }
+  functions {
+    name: "NtQuerySymbolicLinkObject"
+    rva: 5376
+  }
+  functions {
+    name: "NtCreateSymbolicLinkObject"
+    rva: 5380
+  }
+  functions {
+    name: "NtQuerySecurityObject"
+    rva: 5384
+  }
+  functions {
+    name: "NtSetEaFile"
+    rva: 5388
+  }
+  functions {
+    name: "NtQueryEaFile"
+    rva: 5392
+  }
+  functions {
+    name: "NtQueryVolumeInformationFile"
+    rva: 5396
+  }
+  functions {
+    name: "NtSetVolumeInformationFile"
+    rva: 5400
+  }
+  functions {
+    name: "RtlCompareUnicodeString"
+    rva: 5404
+  }
+  functions {
+    name: "NtQuerySystemInformation"
+    rva: 5408
+  }
+  functions {
+    name: "NtQueryInformationProcess"
+    rva: 5412
+  }
+  functions {
+    name: "NtDeleteFile"
+    rva: 5416
+  }
+  functions {
+    name: "NtSetInformationFile"
+    rva: 5420
+  }
+  functions {
+    name: "RtlAllocateAndInitializeSid"
+    rva: 5424
+  }
+  functions {
+    name: "RtlLengthSid"
+    rva: 5428
+  }
+  functions {
+    name: "RtlCreateAcl"
+    rva: 5432
+  }
+  functions {
+    name: "RtlAddAccessAllowedAce"
+    rva: 5436
+  }
+  functions {
+    name: "RtlSetDaclSecurityDescriptor"
+    rva: 5440
+  }
+  functions {
+    name: "RtlFreeSid"
+    rva: 5444
+  }
+  functions {
+    name: "NtOpenProcessToken"
+    rva: 5448
+  }
+  functions {
+    name: "NtQueryInformationToken"
+    rva: 5452
+  }
+  functions {
+    name: "RtlAllocateHeap"
+    rva: 5456
+  }
+  functions {
+    name: "RtlCreateSecurityDescriptor"
+    rva: 5460
+  }
+  functions {
+    name: "RtlSetOwnerSecurityDescriptor"
+    rva: 5464
+  }
+  functions {
+    name: "NtSetSecurityObject"
+    rva: 5468
+  }
+  functions {
+    name: "RtlFreeHeap"
+    rva: 5472
+  }
+  functions {
+    name: "NtFsControlFile"
+    rva: 5476
+  }
+  functions {
+    name: "NtQueryAttributesFile"
+    rva: 5480
+  }
+  functions {
+    name: "NtQueryDirectoryFile"
+    rva: 5484
+  }
+  functions {
+    name: "NtQueryInformationFile"
+    rva: 5488
+  }
+  functions {
+    name: "NtMapViewOfSection"
+    rva: 5492
+  }
+  functions {
+    name: "NtCreateSection"
+    rva: 5496
+  }
+  functions {
+    name: "NtOpenSection"
+    rva: 5500
+  }
+  functions {
+    name: "NtUnmapViewOfSection"
+    rva: 5504
+  }
+  functions {
+    name: "NtUnlockFile"
+    rva: 5508
+  }
+  functions {
+    name: "NtLockFile"
+    rva: 5512
+  }
+  functions {
+    name: "NtWriteFile"
+    rva: 5516
+  }
+  functions {
+    name: "NtReadFile"
+    rva: 5520
+  }
+  functions {
+    name: "RtlNtStatusToDosError"
+    rva: 5524
+  }
+  functions {
+    name: "NtOpenFile"
+    rva: 5528
+  }
+  functions {
+    name: "RtlInitUnicodeString"
+    rva: 5532
+  }
+  functions {
+    name: "NtCreateFile"
+    rva: 5536
+  }
+  functions {
+    name: "NtClose"
+    rva: 5540
+  }
+}
+import_details {
+  library_name: "SHELL32.dll"
+  functions {
+    name: "SHGetMalloc"
+    rva: 4656
+  }
+  functions {
+    name: "SHGetPathFromIDListW"
+    rva: 4660
+  }
+  functions {
+    name: "SHBrowseForFolderW"
+    rva: 4664
+  }
+  functions {
+    name: "ShellExecuteW"
+    rva: 4668
+  }
+}
+import_details {
+  library_name: "comdlg32.dll"
+  functions {
+    name: "GetSaveFileNameW"
+    rva: 5124
+  }
+  functions {
+    name: "GetOpenFileNameW"
+    rva: 5128
+  }
+}
+import_details {
+  library_name: "VERSION.dll"
+  functions {
+    name: "GetFileVersionInfoW"
+    rva: 5108
+  }
+  functions {
+    name: "GetFileVersionInfoSizeW"
+    rva: 5112
+  }
+  functions {
+    name: "VerQueryValueW"
+    rva: 5116
+  }
+}
+overlay {
+  offset: 0
+  size: 0
+}

@@ -67,9 +67,6 @@ pub use variables::Variable;
 pub use variables::VariableError;
 
 mod compiler;
-#[cfg(fuzzing)]
-pub mod modules;
-#[cfg(not(fuzzing))]
 mod modules;
 mod re;
 mod scanner;
