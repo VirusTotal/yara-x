@@ -401,23 +401,19 @@ fn exports_index_func(
     ctx: &ScanContext,
     func_name: RuntimeString,
 ) -> Option<i64> {
-    if let Some((true, position)) =
-        exports_impl(ctx, MatchCriteria::Name(func_name.as_bstr(ctx)))
-    {
-        return Some(position as i64);
+    match exports_impl(ctx, MatchCriteria::Name(func_name.as_bstr(ctx))) {
+        Some((true, position)) => Some(position as i64),
+        _ => None,
     }
-    None
 }
 
 /// Returns true if the PE file exports a function with the given ordinal.
 #[module_export(name = "exports_index")]
 fn exports_index_ordinal(ctx: &ScanContext, ordinal: i64) -> Option<i64> {
-    if let Some((true, position)) =
-        exports_impl(ctx, MatchCriteria::Ordinal(ordinal))
-    {
-        return Some(position as i64);
+    match exports_impl(ctx, MatchCriteria::Ordinal(ordinal)) {
+        Some((true, position)) => Some(position as i64),
+        _ => None,
     }
-    None
 }
 
 /// Returns true if the PE file exports a function with a name that matches
@@ -427,12 +423,10 @@ fn exports_index_regexp(
     ctx: &ScanContext,
     func_name: RegexpId,
 ) -> Option<i64> {
-    if let Some((true, position)) =
-        exports_impl(ctx, MatchCriteria::Regexp(func_name))
-    {
-        return Some(position as i64);
+    match exports_impl(ctx, MatchCriteria::Regexp(func_name)) {
+        Some((true, position)) => Some(position as i64),
+        _ => None,
     }
-    None
 }
 
 enum MatchCriteria<'a> {
