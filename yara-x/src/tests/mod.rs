@@ -515,6 +515,12 @@ fn hex_patterns() {
     );
 
     pattern_match!(
+        r#"{ 01 02 03 04 (05 0? | 06 0?) }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x06, 0x07],
+        &[0x01, 0x02, 0x03, 0x04, 0x06, 0x07]
+    );
+
+    pattern_match!(
         r#"{ 01 02 [-] 03 04 }"#,
         &[0x01, 0x02, 0x03, 0x04],
         &[0x01, 0x02, 0x03, 0x04]
@@ -923,6 +929,18 @@ fn hex_patterns() {
         &[0xE8, 0xFF, 0xFF, 0xFF, 0xAA, 0x01, 0x02, 0x03, 0x04],
         &[0xE8, 0xFF, 0xFF, 0xFF, 0xAA, 0x01, 0x02, 0x03, 0x04]
     );
+
+    pattern_match!(
+        r#"{ 01 02 03 04 (05 | 06 0?) }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07],
+        &[0x01, 0x02, 0x03, 0x04, 0x05]
+    );
+
+    pattern_match!(
+        r#"{ 01 02 03 04 (05 | 06 0?) }"#,
+        &[0x01, 0x02, 0x03, 0x04, 0x06, 0x07],
+        &[0x01, 0x02, 0x03, 0x04, 0x06, 0x07]
+    );
 }
 
 #[test]
@@ -1318,6 +1336,13 @@ fn regexp_nocase() {
 #[test]
 fn regexp_wide() {
     pattern_match!(r#"/foo(a|b)/ wide"#, b"f\0o\0o\0b\0", b"f\0o\0o\0b\0");
+
+    pattern_match!(
+        r#"/foo(a|b)/ wide nocase"#,
+        b"F\0o\0o\0B\0",
+        b"F\0o\0o\0B\0"
+    );
+
     pattern_match!(r#"/bar/ wide"#, b"b\0a\0r\0", b"b\0a\0r\0");
     pattern_false!(r#"/bar/ wide"#, b"bar");
     pattern_match!(r#"/foo.*?bar/s ascii wide nocase"#, b"FOOBAR", b"FOOBAR");
