@@ -2,8 +2,8 @@ magic: 4277009102
 cputype: 7
 cpusubtype: 3
 filetype: 2
-ncmds: 16
-sizeofcmds: 1060
+ncmds: 17
+sizeofcmds: 1098
 flags: 18874501
 number_of_segments: 4
 segments {
@@ -154,6 +154,11 @@ dylibs {
   timestamp: 2
   compatibility_version: 65536
   current_version: 79495168
+}
+rpaths {
+  cmd: 2147483676
+  cmdsize: 38
+  path: "@loader_path/../Frameworks"
 }
 entry_point: 3728
 stack_size: 0
