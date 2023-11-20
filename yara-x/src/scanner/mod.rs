@@ -809,12 +809,12 @@ pub struct Rule<'a, 'r> {
 
 impl<'a, 'r> Rule<'a, 'r> {
     /// Returns the rule's name.
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'r str {
         self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
     }
 
     /// Returns the rule's namespace.
-    pub fn namespace(&self) -> &str {
+    pub fn namespace(&self) -> &'r str {
         self.rules.ident_pool().get(self.rule_info.namespace_ident_id).unwrap()
     }
 
