@@ -355,7 +355,7 @@ impl<'r> Scanner<'r> {
                 });
             }
         } else {
-            return Err(VariableError::Undeclared(ident.to_string()));
+            return Err(VariableError::Undefined(ident.to_string()));
         }
 
         Ok(self)

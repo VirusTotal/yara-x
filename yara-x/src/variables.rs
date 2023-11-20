@@ -25,24 +25,38 @@ pub struct Variable(TypeValue);
 /// Errors returned while defining or setting variables.
 #[derive(Error, Debug, PartialEq)]
 pub enum VariableError {
-    #[error("variable `{0}` not declared")]
-    Undeclared(String),
+    /// The variable has not being defined. Before calling
+    /// [`crate::Scanner::set_global`] the variable must be defined with a
+    /// call to [`crate::Compiler::define_global`].
+    #[error("variable `{0}` not defined")]
+    Undefined(String),
 
+    /// A variable with the same name already exists.
     #[error("variable `{0}` already exists")]
     AlreadyExists(String),
 
+    /// The identifier is not valid. Identifiers can only contain alphanumeric
+    /// characters and underscores, and can't start with a digit.
     #[error("invalid variable identifier `{0}`")]
     InvalidIdentifier(String),
 
+    /// The value of a variable cannot be null. This may happen when using a
+    /// [`serde_json::Value`], as JSON values can be null.
     #[error("null values are not accepted")]
     UnexpectedNull,
 
+    /// Invalid array. Arrays can't be empty, and all items must be non-null
+    /// and have the same type.
     #[error("arrays can't be empty and all items must be non-null and the same type")]
     InvalidArray,
 
-    #[error("non-uniform array")]
+    /// Integer value is out of range.
+    #[error("integer value is out of range")]
     IntegerOutOfRange,
 
+    /// A variable has been previously defined with a different type. You can
+    /// not call [`crate::Scanner::set_global`] and pass a value that don't
+    /// match the already defined type.
     #[error(
         "invalid type for `{variable}`, expecting `{expected_type}`, got `{actual_type}"
     )]
