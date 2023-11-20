@@ -169,6 +169,39 @@ fn imports() {
 }
 
 #[test]
+fn exports() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/2d80c403b5c50f8bbacb65f58e7a19f272c62d1889216b7a6f1141571ec12649.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.exports("Socks5GetCmd") and
+            pe.exports(/Socks.*$/) and
+            pe.exports(9)
+        }
+        "#,
+        &pe
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.exports_index("Socks5GetCmd") == 8 and
+            pe.exports_index(/Socks.*$/) == 5 and
+            pe.exports_index(9) == 8 
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
 fn imphash() {
     let pe = create_binary_from_zipped_ihex(
         "src/modules/pe/tests/testdata/c704cca0fe4c9bdee18a302952540073b860e3b4d42e081f86d27bdb1cf6ede4.in.zip",

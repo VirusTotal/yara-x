@@ -7,9 +7,10 @@ imports and exports, resources, etc.
 use std::slice::Iter;
 
 use bstr::BStr;
+use itertools::Itertools;
 use nom::branch::alt;
 use nom::character::complete::u8;
-use nom::combinator::{map, map_res};
+use nom::combinator::map;
 use nom::number::complete::{le_u16, le_u32};
 
 use crate::compiler::RegexpId;
@@ -371,6 +372,69 @@ fn imports_regexp(
     )
 }
 
+/// Returns true if the PE file exports a function with the given name.
+#[module_export(name = "exports")]
+fn exports_func(ctx: &ScanContext, func_name: RuntimeString) -> Option<bool> {
+    let (found, _) =
+        exports_impl(ctx, MatchCriteria::Name(func_name.as_bstr(ctx)))?;
+    Some(found)
+}
+
+/// Returns true if the PE file exports a function with the given ordinal.
+#[module_export(name = "exports")]
+fn exports_ordinal(ctx: &ScanContext, ordinal: i64) -> Option<bool> {
+    let (found, _) = exports_impl(ctx, MatchCriteria::Ordinal(ordinal))?;
+    Some(found)
+}
+
+/// Returns true if the PE file exports a function with a name that matches
+/// the given regular expression.
+#[module_export(name = "exports")]
+fn exports_regexp(ctx: &ScanContext, func_name: RegexpId) -> Option<bool> {
+    let (found, _) = exports_impl(ctx, MatchCriteria::Regexp(func_name))?;
+    Some(found)
+}
+
+/// Returns true if the PE file exports a function with the given name.
+#[module_export(name = "exports_index")]
+fn exports_index_func(
+    ctx: &ScanContext,
+    func_name: RuntimeString,
+) -> Option<i64> {
+    if let Some((true, position)) =
+        exports_impl(ctx, MatchCriteria::Name(func_name.as_bstr(ctx)))
+    {
+        return Some(position as i64);
+    }
+    None
+}
+
+/// Returns true if the PE file exports a function with the given ordinal.
+#[module_export(name = "exports_index")]
+fn exports_index_ordinal(ctx: &ScanContext, ordinal: i64) -> Option<i64> {
+    if let Some((true, position)) =
+        exports_impl(ctx, MatchCriteria::Ordinal(ordinal))
+    {
+        return Some(position as i64);
+    }
+    None
+}
+
+/// Returns true if the PE file exports a function with a name that matches
+/// the given regular expression.
+#[module_export(name = "exports_index")]
+fn exports_index_regexp(
+    ctx: &ScanContext,
+    func_name: RegexpId,
+) -> Option<i64> {
+    if let Some((true, position)) =
+        exports_impl(ctx, MatchCriteria::Regexp(func_name))
+    {
+        return Some(position as i64);
+    }
+    None
+}
+
 enum MatchCriteria<'a> {
     Any,
     Regexp(RegexpId),
@@ -441,4 +505,31 @@ fn imports_impl(
     }
 
     total.try_into().ok()
+}
+
+fn exports_impl(
+    ctx: &ScanContext,
+    expected_func_name: MatchCriteria,
+) -> Option<(bool, usize)> {
+    let pe = ctx.module_output::<PE>()?;
+    pe.export_details
+        .iter()
+        .find_position(|export| match expected_func_name {
+            MatchCriteria::Any => true,
+            MatchCriteria::Regexp(regexp_id) => {
+                export.name.as_ref().is_some_and(|name| {
+                    ctx.regexp_matches(regexp_id, name.as_bytes())
+                })
+            }
+            MatchCriteria::Name(expected_name) => {
+                export.name.as_ref().is_some_and(|name| {
+                    expected_name.eq_ignore_ascii_case(name.as_bytes())
+                })
+            }
+            MatchCriteria::Ordinal(expected_ordinal) => export
+                .ordinal
+                .as_ref()
+                .is_some_and(|ordinal| expected_ordinal == *ordinal as i64),
+        })
+        .map_or(Some((false, 0)), |(position, _)| Some((true, position)))
 }
