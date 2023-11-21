@@ -2308,6 +2308,7 @@ impl From<&ExportedFunc<'_>> for pe::Export {
     }
 }
 
+#[allow(dead_code)]
 pub struct ExportsDirEntry {
     characteristics: u32,
     timestamp: u32,
@@ -2372,6 +2373,7 @@ impl From<&Resource<'_>> for pe::Resource {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DbgDirEntry {
     /// Reserved.
