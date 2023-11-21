@@ -818,8 +818,10 @@ fn for_in_expr_from_ast(
     }
 
     // Create stack frame with capacity for the loop variables, plus 4
-    // temporary variables used for controlling the loop.
-    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 4);
+    // temporary variables used for controlling the loop (see emit_for),
+    // plus one additional variable used in loops over arrays and maps
+    // (see emit_for_in_array and emit_for_in_map).
+    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
     let mut symbols = SymbolTable::new();
     let mut variables = Vec::new();
 
