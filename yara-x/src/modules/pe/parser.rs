@@ -1924,7 +1924,14 @@ impl From<PE<'_>> for pe::PE {
         result.set_pointer_to_symbol_table(pe.pe_hdr.symbol_table_offset);
         result.set_number_of_symbols(pe.pe_hdr.number_of_symbols);
         result.set_size_of_optional_header(pe.pe_hdr.size_of_optional_header.into());
-
+        
+        result.opthdr_magic = pe
+            .optional_hdr
+            .magic
+            .try_into()
+            .ok()
+            .map(EnumOrUnknown::<pe::OptHdrMagic>::from_i32);
+        
         result.subsystem = pe
             .optional_hdr
             .subsystem
@@ -1957,7 +1964,6 @@ impl From<PE<'_>> for pe::PE {
 
         // TODO
         // number_of_version_infos
-        // opthdr_magic
         
         result.linker_version = MessageField::some(pe::Version {
             major: Some(pe.optional_hdr.major_linker_version.into()),

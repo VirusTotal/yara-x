@@ -338,3 +338,57 @@ fn locale_and_language() {
         &pe
     );
 }
+
+#[test]
+fn is_32bits() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.is_32_bits()
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
+fn is_64bits() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/2e9c671b8a0411f2b397544b368c44d7f095eb395779de0ad1ac946914dfa34c.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.is_64_bits()
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
+fn is_dll() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/079a472d22290a94ebb212aa8015cdc8dd28a968c6b4d3b88acdd58ce2d3b885.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.is_dll()
+        }
+        "#,
+        &pe
+    );
+}

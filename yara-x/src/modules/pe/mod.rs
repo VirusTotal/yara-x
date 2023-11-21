@@ -34,6 +34,27 @@ fn main(input: &[u8]) -> PE {
     }
 }
 
+/// Returns true if the file is a 32-bit PE.
+#[module_export]
+fn is_32_bits(ctx: &ScanContext) -> Option<bool> {
+    let magic = ctx.module_output::<PE>()?.opthdr_magic?;
+    Some(magic.value() == OptHdrMagic::IMAGE_NT_OPTIONAL_HDR32_MAGIC as i32)
+}
+
+/// Returns true if the file is a 64-bit PE.
+#[module_export]
+fn is_64_bits(ctx: &ScanContext) -> Option<bool> {
+    let magic = ctx.module_output::<PE>()?.opthdr_magic?;
+    Some(magic.value() == OptHdrMagic::IMAGE_NT_OPTIONAL_HDR64_MAGIC as i32)
+}
+
+/// Returns true if the file is dynamic link library (DLL)
+#[module_export]
+fn is_dll(ctx: &ScanContext) -> Option<bool> {
+    let characteristics = ctx.module_output::<PE>()?.characteristics?;
+    Some(characteristics & Characteristics::FILE_DLL as u32 != 0)
+}
+
 /// Returns the PE checksum, as calculated by YARA.
 ///
 /// This is useful for comparing with the checksum appearing in the PE header

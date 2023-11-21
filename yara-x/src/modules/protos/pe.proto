@@ -18,64 +18,65 @@ message PE {
   optional Version image_version = 6;
   optional Version linker_version = 7;
 
-  optional uint32 characteristics = 8;
-  optional uint32 dll_characteristics = 9;
-  optional uint32 timestamp = 10;
-  optional uint64 image_base = 11;
-  optional uint32 checksum = 12;
-  optional uint32 base_of_code = 13;
-  optional uint32 base_of_data = 14;
+  optional OptHdrMagic opthdr_magic = 8;
+  optional uint32 characteristics = 9;
+  optional uint32 dll_characteristics = 10;
+  optional uint32 timestamp = 11;
+  optional uint64 image_base = 12;
+  optional uint32 checksum = 13;
+  optional uint32 base_of_code = 14;
+  optional uint32 base_of_data = 15;
 
   // Entry point as a file offset.
-  optional uint32 entry_point = 15;
+  optional uint32 entry_point = 16;
 
   // Entry point as it appears in the PE header (RVA).
-  optional uint32 entry_point_raw = 16;
+  optional uint32 entry_point_raw = 17;
 
-  optional string dll_name = 17;
-  optional uint32 export_timestamp = 18;
+  optional string dll_name = 18;
+  optional uint32 export_timestamp = 19;
 
-  optional uint32 section_alignment = 19;
-  optional uint32 file_alignment = 20;
-  optional uint32 loader_flags = 21;
+  optional uint32 section_alignment = 20;
+  optional uint32 file_alignment = 21;
+  optional uint32 loader_flags = 22;
 
-  optional uint32 size_of_optional_header = 22;
-  optional uint32 size_of_code = 23;
-  optional uint32 size_of_initialized_data = 24;
-  optional uint32 size_of_uninitialized_data = 25;
-  optional uint32 size_of_image = 26;
-  optional uint32 size_of_headers = 27;
+  optional uint32 size_of_optional_header = 23;
+  optional uint32 size_of_code = 24;
+  optional uint32 size_of_initialized_data = 25;
+  optional uint32 size_of_uninitialized_data = 26;
+  optional uint32 size_of_image = 27;
+  optional uint32 size_of_headers = 28;
 
-  optional uint64 size_of_stack_reserve = 28;
-  optional uint64 size_of_stack_commit = 29;
-  optional uint64 size_of_heap_reserve = 30;
-  optional uint64 size_of_heap_commit = 31;
+  optional uint64 size_of_stack_reserve = 29;
+  optional uint64 size_of_stack_commit = 30;
+  optional uint64 size_of_heap_reserve = 31;
+  optional uint64 size_of_heap_commit = 32;
 
-  optional uint32 pointer_to_symbol_table = 32;
-  optional uint32 number_of_symbols = 33;
-  optional uint32 number_of_rva_and_sizes = 34;
-  optional uint32 win32_version_value = 35;
+  optional uint32 pointer_to_symbol_table = 33;
+  optional uint32 number_of_symbols = 34;
+  optional uint32 number_of_rva_and_sizes = 35;
+  optional uint32 win32_version_value = 36;
 
-  map<string, string> version_info = 36;
-  repeated KeyValue version_info_list = 37;
+  map<string, string> version_info = 37;
+  repeated KeyValue version_info_list = 38;
 
-  optional uint32 number_of_sections = 38;
-  optional uint64 number_of_imported_functions = 39;
-  optional uint64 number_of_delayed_imported_functions = 40;
+  optional uint32 number_of_sections = 39;
+  optional uint64 number_of_imported_functions = 40;
+  optional uint64 number_of_delayed_imported_functions = 41;
 
-  optional RichSignature rich_signature = 41;
-  optional string pdb_path = 42;
+  optional RichSignature rich_signature = 42;
+  optional string pdb_path = 43;
 
-  repeated Section sections = 43;
-  repeated DirEntry data_directories = 44;
-  repeated Resource resources = 45;
-  repeated Import import_details = 46;
-  repeated Import delayed_import_details = 47;
-  repeated Export export_details = 48;
+  repeated Section sections = 44;
+  repeated DirEntry data_directories = 45;
+  repeated Resource resources = 46;
+  repeated Import import_details = 47;
+  repeated Import delayed_import_details = 48;
+  repeated Export export_details = 49;
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 49;
+  optional Overlay overlay = 50;
 }
 
 message Version {
@@ -250,4 +251,43 @@ enum ImportFlags {
   IMPORT_STANDARD = 0x01;
   IMPORT_DELAYED = 0x02;
   IMPORT_ANY = 0x03;
+}
+
+enum OptHdrMagic {
+  IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
+  IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b;
+}
+
+enum Characteristics {
+  option (yara.enum_options).inline = true;
+  // Relocation info stripped from file.
+  FILE_RELOCS_STRIPPED         = 0x0001;
+  // File is executable (i.e. no unresolved external references).
+  FILE_EXECUTABLE_IMAGE        = 0x0002;
+  // Line numbers stripped from file.
+  FILE_LINE_NUMS_STRIPPED      = 0x0004;
+  // Local symbols stripped from file.
+  FILE_LOCAL_SYMS_STRIPPED     = 0x0008;
+  // Aggressively trim working set
+  FILE_AGGRESIVE_WS_TRIM       = 0x0010;
+  // App can handle >2gb addresses
+  FILE_LARGE_ADDRESS_AWARE     = 0x0020;
+  // Bytes of machine word are reversed.
+  FILE_BYTES_REVERSED_LO       = 0x0080;
+  // 32 bit word machine.
+  FILE_32BIT_MACHINE           = 0x0100;
+  // Debugging info stripped from file in .DBG file
+  FILE_DEBUG_STRIPPED          = 0x0200;
+  // If Image is on removable media, copy and run from the swap file.
+  FILE_REMOVABLE_RUN_FROM_SWAP = 0x0400;
+  // If Image is on Net, copy and run from the swap file.
+  FILE_NET_RUN_FROM_SWAP       = 0x0800;
+  // System File.
+  FILE_SYSTEM                  = 0x1000;
+  // File is a DLL.s
+  FILE_DLL                     = 0x2000;
+  // File should only be run on a UP machine
+  FILE_UP_SYSTEM_ONLY          = 0x4000;
+  // Bytes of machine word are reversed.
+  FILE_BYTES_REVERSED_HI       = 0x8000;
 }

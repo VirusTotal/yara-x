@@ -17,6 +17,7 @@ linker_version {
   major: 8
   minor: 0
 }
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 258
 dll_characteristics: 33088
 timestamp: 1621233906
