@@ -384,7 +384,6 @@ fn import_rva_func(
 ) -> Option<i64> {
     let pe = ctx.module_output::<PE>()?;
     import_rva_impl(
-        ctx,
         pe.import_details.as_slice(),
         MatchCriteria::Name(dll_name.as_bstr(ctx)),
         MatchCriteria::Name(func_name.as_bstr(ctx)),
@@ -403,7 +402,6 @@ fn import_rva_ordinal(
 ) -> Option<i64> {
     let pe = ctx.module_output::<PE>()?;
     import_rva_impl(
-        ctx,
         pe.import_details.as_slice(),
         MatchCriteria::Name(dll_name.as_bstr(ctx)),
         MatchCriteria::Ordinal(ordinal),
@@ -422,7 +420,6 @@ fn delayed_import_rva_func(
 ) -> Option<i64> {
     let pe = ctx.module_output::<PE>()?;
     import_rva_impl(
-        ctx,
         pe.delayed_import_details.as_slice(),
         MatchCriteria::Name(dll_name.as_bstr(ctx)),
         MatchCriteria::Name(func_name.as_bstr(ctx)),
@@ -441,7 +438,6 @@ fn delayed_import_rva_ordinal(
 ) -> Option<i64> {
     let pe = ctx.module_output::<PE>()?;
     import_rva_impl(
-        ctx,
         pe.delayed_import_details.as_slice(),
         MatchCriteria::Name(dll_name.as_bstr(ctx)),
         MatchCriteria::Ordinal(ordinal),
@@ -613,7 +609,6 @@ fn imports_impl(
 }
 
 fn import_rva_impl(
-    ctx: &ScanContext,
     imports: &[Import],
     expected_dll_name: MatchCriteria,
     expected_func_name: MatchCriteria,
