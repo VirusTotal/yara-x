@@ -270,7 +270,7 @@ fn standard_imports_ordinal(
 /// Returns the number of imported functions where the function's name matches
 /// `func_name` and the DLL name matches `dll_name`.
 ///
-/// Both `dll_name` and `func_name` are case sensitive unless you use the "/i"
+/// Both `dll_name` and `func_name` are case-sensitive unless you use the "/i"
 /// modifier in the regexp, as shown in the example below.
 #[module_export(name = "imports")]
 fn standard_imports_regexp(
@@ -354,7 +354,7 @@ fn imports_ordinal(
 /// Returns the number of imported functions where the function's name matches
 /// `func_name` and the DLL name matches `dll_name`.
 ///
-/// Both `dll_name` and `func_name` are case sensitive unless you use the "/i"
+/// Both `dll_name` and `func_name` are case-sensitive unless you use the "/i"
 /// modifier in the regexp, as shown in the example below. See [`imports_dll`]
 /// for details about the `import_flags` argument.
 #[module_export(name = "imports")]
@@ -369,6 +369,39 @@ fn imports_regexp(
         import_flags,
         MatchCriteria::Regexp(dll_name),
         MatchCriteria::Regexp(func_name),
+    )
+}
+
+/// Returns the RVA of a function imported with `ordinal` from `dll_name`.
+///
+/// `dll_name` is case-insensitive.
+#[module_export(name = "import_rva")]
+fn import_rva_func(
+    ctx: &ScanContext,
+    dll_name: RuntimeString,
+    func_name: RuntimeString,
+) -> Option<i64> {
+    import_rva_impl(
+        ctx,
+        MatchCriteria::Name(dll_name.as_bstr(ctx)),
+        MatchCriteria::Name(func_name.as_bstr(ctx)),
+    )
+}
+
+/// Returns the RVA of an imported functions where the DLL name matches
+/// `dll_name` and the
+///
+/// Both `dll_name` and `func_name` are case-insensitive.
+#[module_export(name = "import_rva")]
+fn import_rva_ordinal(
+    ctx: &ScanContext,
+    dll_name: RuntimeString,
+    ordinal: i64,
+) -> Option<i64> {
+    import_rva_impl(
+        ctx,
+        MatchCriteria::Name(dll_name.as_bstr(ctx)),
+        MatchCriteria::Ordinal(ordinal),
     )
 }
 
@@ -499,6 +532,52 @@ fn imports_impl(
     }
 
     total.try_into().ok()
+}
+
+fn import_rva_impl(
+    ctx: &ScanContext,
+    expected_dll_name: MatchCriteria,
+    expected_func_name: MatchCriteria,
+) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
+
+    for import in pe.import_details.iter() {
+        let matches = match expected_dll_name {
+            MatchCriteria::Any => true,
+            MatchCriteria::Name(expected_name) => {
+                import.library_name.as_ref().is_some_and(|name| {
+                    expected_name.eq_ignore_ascii_case(name.as_bytes())
+                })
+            }
+            MatchCriteria::Regexp(_) => unreachable!(),
+            MatchCriteria::Ordinal(_) => unreachable!(),
+        };
+
+        if matches {
+            for func in import.functions.iter() {
+                match expected_func_name {
+                    MatchCriteria::Any => return func.rva.map(|r| r as i64),
+                    MatchCriteria::Name(expected_name) => {
+                        if func.name.as_ref().is_some_and(|name| {
+                            expected_name.eq_ignore_ascii_case(name.as_bytes())
+                        }) {
+                            return func.rva.map(|r| r as i64);
+                        }
+                    }
+                    MatchCriteria::Ordinal(expected_ordinal) => {
+                        if func.ordinal.is_some_and(|ordinal| {
+                            ordinal as i64 == expected_ordinal
+                        }) {
+                            return func.rva.map(|r| r as i64);
+                        }
+                    }
+                    MatchCriteria::Regexp(_) => unreachable!(),
+                }
+            }
+        }
+    }
+
+    None
 }
 
 fn exports_impl(

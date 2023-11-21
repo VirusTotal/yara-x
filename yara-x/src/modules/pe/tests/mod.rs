@@ -169,6 +169,35 @@ fn imports() {
 }
 
 #[test]
+fn import_rva() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.import_rva("ws2_32.dll", 20) == 38116
+        }
+        "#,
+        &pe
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.import_rva("kernel32.dll", "VirtualProtect") == 38072
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
 fn exports() {
     let pe = create_binary_from_zipped_ihex(
         "src/modules/pe/tests/testdata/2d80c403b5c50f8bbacb65f58e7a19f272c62d1889216b7a6f1141571ec12649.in.zip",
