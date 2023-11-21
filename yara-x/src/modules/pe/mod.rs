@@ -505,6 +505,41 @@ fn exports_index_regexp(
     }
 }
 
+/// Returns true if the PE contains some resource with the specified locale
+/// identifier.
+///
+/// Locale identifiers are 16-bit integers and can be found here:
+/// https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11
+#[module_export]
+fn locale(ctx: &ScanContext, loc: i64) -> Option<bool> {
+    let pe = ctx.module_output::<PE>()?;
+    let loc: u32 = match loc.try_into() {
+        Ok(lang) => lang,
+        Err(_) => return Some(false),
+    };
+    Some(pe.resources.iter().any(|resource| {
+        resource.language.is_some_and(|rsrc_lang| rsrc_lang & 0xffff == loc)
+    }))
+}
+
+/// Returns true if the PE contains some resource with the specified language
+/// identifier.
+///
+/// Language identifiers are the lowest 8-bit of locale identifiers and can
+/// be found here:
+/// https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/available-language-packs-for-windows?view=windows-11
+#[module_export]
+fn language(ctx: &ScanContext, lang: i64) -> Option<bool> {
+    let pe = ctx.module_output::<PE>()?;
+    let lang: u32 = match lang.try_into() {
+        Ok(lang) => lang,
+        Err(_) => return Some(false),
+    };
+    Some(pe.resources.iter().any(|resource| {
+        resource.language.is_some_and(|rsrc_lang| rsrc_lang & 0xff == lang)
+    }))
+}
+
 enum MatchCriteria<'a> {
     Any,
     Regexp(RegexpId),

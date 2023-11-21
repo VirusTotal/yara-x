@@ -309,3 +309,32 @@ fn checksum() {
         &pe
     );
 }
+
+#[test]
+fn locale_and_language() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.language(0x09)  // English
+        }
+        "#,
+        &pe
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.locale(0x0409) // English US
+        }
+        "#,
+        &pe
+    );
+}
