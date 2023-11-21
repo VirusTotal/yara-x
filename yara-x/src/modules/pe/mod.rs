@@ -372,34 +372,77 @@ fn imports_regexp(
     )
 }
 
-/// Returns the RVA of a function imported with `ordinal` from `dll_name`.
+/// Returns the RVA of an import where the DLL name matches
+/// `dll_name` and the function name matches `func_name`.
 ///
-/// `dll_name` is case-insensitive.
+/// Both `dll_name` and `func_name` are case-insensitive.
 #[module_export(name = "import_rva")]
 fn import_rva_func(
     ctx: &ScanContext,
     dll_name: RuntimeString,
     func_name: RuntimeString,
 ) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
     import_rva_impl(
         ctx,
+        pe.import_details.as_slice(),
         MatchCriteria::Name(dll_name.as_bstr(ctx)),
         MatchCriteria::Name(func_name.as_bstr(ctx)),
     )
 }
 
-/// Returns the RVA of an imported functions where the DLL name matches
-/// `dll_name` and the
+/// Returns the RVA of an import where the DLL name matches
+/// `dll_name` and the ordinal number is `ordinal`.
 ///
-/// Both `dll_name` and `func_name` are case-insensitive.
+/// `dll_name` is case-insensitive.
 #[module_export(name = "import_rva")]
 fn import_rva_ordinal(
     ctx: &ScanContext,
     dll_name: RuntimeString,
     ordinal: i64,
 ) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
     import_rva_impl(
         ctx,
+        pe.import_details.as_slice(),
+        MatchCriteria::Name(dll_name.as_bstr(ctx)),
+        MatchCriteria::Ordinal(ordinal),
+    )
+}
+
+/// Returns the RVA of a delayed import where the DLL name matches
+/// `dll_name` and the function name matches `func_name`.
+///
+/// Both `dll_name` and `func_name` are case-insensitive.
+#[module_export(name = "delayed_import_rva")]
+fn delayed_import_rva_func(
+    ctx: &ScanContext,
+    dll_name: RuntimeString,
+    func_name: RuntimeString,
+) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
+    import_rva_impl(
+        ctx,
+        pe.delayed_import_details.as_slice(),
+        MatchCriteria::Name(dll_name.as_bstr(ctx)),
+        MatchCriteria::Name(func_name.as_bstr(ctx)),
+    )
+}
+
+/// Returns the RVA of an import where the DLL name matches
+/// `dll_name` and the ordinal number is `ordinal`.
+///
+/// `dll_name` is case-insensitive.
+#[module_export(name = "delayed_import_rva")]
+fn delayed_import_rva_ordinal(
+    ctx: &ScanContext,
+    dll_name: RuntimeString,
+    ordinal: i64,
+) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
+    import_rva_impl(
+        ctx,
+        pe.delayed_import_details.as_slice(),
         MatchCriteria::Name(dll_name.as_bstr(ctx)),
         MatchCriteria::Ordinal(ordinal),
     )
@@ -536,12 +579,11 @@ fn imports_impl(
 
 fn import_rva_impl(
     ctx: &ScanContext,
+    imports: &[Import],
     expected_dll_name: MatchCriteria,
     expected_func_name: MatchCriteria,
 ) -> Option<i64> {
-    let pe = ctx.module_output::<PE>()?;
-
-    for import in pe.import_details.iter() {
+    for import in imports {
         let matches = match expected_dll_name {
             MatchCriteria::Any => true,
             MatchCriteria::Name(expected_name) => {

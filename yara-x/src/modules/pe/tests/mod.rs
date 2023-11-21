@@ -198,6 +198,35 @@ fn import_rva() {
 }
 
 #[test]
+fn delayed_import_rva() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/079a472d22290a94ebb212aa8015cdc8dd28a968c6b4d3b88acdd58ce2d3b885.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.delayed_import_rva("QDB.dll", 95) == 16416
+        }
+        "#,
+        &pe
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.delayed_import_rva("QDB.dll", "ord102") == 16412
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
 fn exports() {
     let pe = create_binary_from_zipped_ihex(
         "src/modules/pe/tests/testdata/2d80c403b5c50f8bbacb65f58e7a19f272c62d1889216b7a6f1141571ec12649.in.zip",
