@@ -457,3 +457,15 @@ fn globals_json() {
         VariableError::UnexpectedNull
     );
 }
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn import_modules() {
+    let mut compiler = Compiler::new();
+
+    assert!(compiler
+        .add_source(r#"import "test_proto2" rule foo {condition: true}"#)
+        .unwrap()
+        .add_source(r#"import "test_proto2" rule bar {condition: true}"#)
+        .is_ok());
+}

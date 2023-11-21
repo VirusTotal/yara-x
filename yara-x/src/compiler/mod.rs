@@ -17,7 +17,6 @@ use std::{fmt, iter, u32};
 use bincode::Options;
 use bitmask::bitmask;
 use bstr::ByteSlice;
-use itertools::Itertools;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
@@ -1381,14 +1380,19 @@ impl<'a> Compiler<'a> {
         &mut self,
         imports: &[ast::Import],
     ) -> Result<(), CompileError> {
-        // Remove duplicate imports. Duplicate imports raise a warning, but
-        // they are allowed for backward-compatibility. We don't want to
-        // process the same import twice.
-        let imports = imports.iter().unique_by(|m| &m.module_name);
-
         // Iterate over the list of imported modules.
         for import in imports {
-            let module = BUILTIN_MODULES.get(import.module_name.as_str());
+            let module_name = import.module_name.as_str();
+
+            // If the module was already added to `self.modules_struct` we can
+            // continue with the next one. This happens when the same module is
+            // imported by two different source files, or when imports are
+            // duplicated within the same file.
+            if self.modules_struct.has_field(module_name) {
+                continue;
+            }
+
+            let module = BUILTIN_MODULES.get(module_name);
 
             // Does the imported module actually exist? ...
             if module.is_none() {
@@ -1396,7 +1400,7 @@ impl<'a> Compiler<'a> {
                 return Err(CompileError::from(
                     CompileErrorInfo::unknown_module(
                         &self.report_builder,
-                        import.module_name.to_string(),
+                        module_name.to_string(),
                         import.span(),
                     ),
                 ));
@@ -1406,8 +1410,6 @@ impl<'a> Compiler<'a> {
 
             // Yes, the module exists, add it module to the list of imported
             // modules and the symbol table.
-            let module_name = import.module_name.as_str();
-
             self.imported_modules
                 .push(self.ident_pool.get_or_intern(module_name));
 
