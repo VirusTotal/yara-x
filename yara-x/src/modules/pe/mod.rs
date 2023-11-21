@@ -52,7 +52,7 @@ fn is_64bit(ctx: &ScanContext) -> Option<bool> {
 #[module_export]
 fn is_dll(ctx: &ScanContext) -> Option<bool> {
     let characteristics = ctx.module_output::<PE>()?.characteristics?;
-    Some(characteristics & Characteristics::FILE_DLL as u32 != 0)
+    Some(characteristics & Characteristics::DLL as u32 != 0)
 }
 
 /// Returns the PE checksum, as calculated by YARA.
