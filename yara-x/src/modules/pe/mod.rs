@@ -36,14 +36,14 @@ fn main(input: &[u8]) -> PE {
 
 /// Returns true if the file is a 32-bit PE.
 #[module_export]
-fn is_32_bits(ctx: &ScanContext) -> Option<bool> {
+fn is_32bit(ctx: &ScanContext) -> Option<bool> {
     let magic = ctx.module_output::<PE>()?.opthdr_magic?;
     Some(magic.value() == OptHdrMagic::IMAGE_NT_OPTIONAL_HDR32_MAGIC as i32)
 }
 
 /// Returns true if the file is a 64-bit PE.
 #[module_export]
-fn is_64_bits(ctx: &ScanContext) -> Option<bool> {
+fn is_64bit(ctx: &ScanContext) -> Option<bool> {
     let magic = ctx.module_output::<PE>()?.opthdr_magic?;
     Some(magic.value() == OptHdrMagic::IMAGE_NT_OPTIONAL_HDR64_MAGIC as i32)
 }

@@ -350,7 +350,7 @@ fn is_32bits() {
         import "pe"
         rule test {
           condition:
-            pe.is_32_bits()
+            pe.is_32bit()
         }
         "#,
         &pe
@@ -368,7 +368,7 @@ fn is_64bits() {
         import "pe"
         rule test {
           condition:
-            pe.is_64_bits()
+            pe.is_64bit()
         }
         "#,
         &pe
