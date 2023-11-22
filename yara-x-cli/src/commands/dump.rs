@@ -70,7 +70,6 @@ pub fn dump() -> Command {
 // * `output_format`: The output format.
 // * `module`: The module name.
 // * `output`: The output protobuf structure to be dumped.
-// * `result`: String where the result is stored.
 //
 // # Returns
 //
