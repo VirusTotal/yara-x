@@ -25,7 +25,7 @@ use crate::compiler::ir::{
 use crate::compiler::{LiteralId, RegexpId, RuleId, Var, VarStackFrame};
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::SymbolKind;
-use crate::types::{Array, Map, Type, TypeValue, Value};
+use crate::types::{Array, Func, Map, Type, TypeValue, Value};
 use crate::utils::cast;
 use crate::wasm;
 use crate::wasm::builder::WasmModuleBuilder;
@@ -326,11 +326,13 @@ fn emit_expr(
         Expr::Filesize { .. } => {
             instr.global_get(ctx.wasm_symbols.filesize);
         }
+
         Expr::Entrypoint { .. } => {
             // TODO
             // todo!()
             instr.i64_const(0);
         }
+
         Expr::Ident { symbol } => {
             match symbol.kind() {
                 SymbolKind::Rule(rule_id) => {
@@ -349,43 +351,45 @@ fn emit_expr(
                     ctx.lookup_start = Some(*var);
                 }
                 SymbolKind::Func(func) => {
-                    let signature =
-                        &func.signatures()[ctx.current_signature.unwrap()];
-
-                    if signature.result_may_be_undef {
-                        emit_call_and_handle_undef(
-                            ctx,
-                            instr,
-                            ctx.function_id(signature.mangled_name.as_str()),
-                        );
-                    } else {
-                        instr.call(
-                            ctx.function_id(signature.mangled_name.as_str()),
-                        );
-                    }
+                    emit_func_call(ctx, instr, func);
                 }
                 SymbolKind::FieldIndex(index) => {
                     ctx.lookup_stack.push_back((*index).try_into().unwrap());
 
-                    match symbol.type_value().ty() {
-                        Type::Integer => {
+                    match symbol.type_value() {
+                        TypeValue::Integer(_) => {
                             emit_lookup_integer(ctx, instr);
+                            assert!(ctx.lookup_stack.is_empty());
                         }
-                        Type::Float => {
+                        TypeValue::Float(_) => {
                             emit_lookup_float(ctx, instr);
+                            assert!(ctx.lookup_stack.is_empty());
                         }
-                        Type::Bool => {
+                        TypeValue::Bool(_) => {
                             emit_lookup_bool(ctx, instr);
+                            assert!(ctx.lookup_stack.is_empty());
                         }
-                        Type::String => {
+                        TypeValue::String(_) => {
                             emit_lookup_string(ctx, instr);
+                            assert!(ctx.lookup_stack.is_empty());
                         }
-                        Type::Struct | Type::Array | Type::Map => {
+                        TypeValue::Struct(_)
+                        | TypeValue::Array(_)
+                        | TypeValue::Map(_) => {
                             // Do nothing. For structs, arrays and maps pushing
                             // the field index in `lookup_stack` is enough. We
                             // don't need to emit a call for retrieving a value.
                         }
-                        _ => {
+                        TypeValue::Func(func) => {
+                            emit_func_call(ctx, instr, func);
+                            ctx.lookup_stack.clear();
+                        }
+                        TypeValue::Regexp(_) => {
+                            // The value of an identifier can't be a regular
+                            // expression.
+                            unreachable!();
+                        }
+                        TypeValue::Unknown => {
                             // This point should not be reached. The type of
                             // identifiers must be known during code emitting
                             // because they are resolved during the semantic
@@ -2393,6 +2397,24 @@ fn emit_bool_expr(
             instr.binop(BinaryOp::I64Ne);
         }
         ty => unreachable!("type `{:?}` can't be casted to boolean", ty),
+    }
+}
+
+/// Emit function call.
+fn emit_func_call(
+    ctx: &EmitContext,
+    instr: &mut InstrSeqBuilder,
+    func: &Func,
+) {
+    let signature = &func.signatures()[ctx.current_signature.unwrap()];
+    if signature.result_may_be_undef {
+        emit_call_and_handle_undef(
+            ctx,
+            instr,
+            ctx.function_id(signature.mangled_name.as_str()),
+        );
+    } else {
+        instr.call(ctx.function_id(signature.mangled_name.as_str()));
     }
 }
 

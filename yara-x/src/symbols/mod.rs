@@ -105,21 +105,10 @@ impl SymbolLookup for Option<Symbol> {
 
 impl SymbolLookup for Struct {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        let field = self.field_by_name(ident)?;
-
-        let symbol = if let TypeValue::Func(func) = &field.type_value {
-            Symbol::new(
-                field.type_value.clone(),
-                SymbolKind::Func(func.clone()),
-            )
-        } else {
-            Symbol::new(
-                field.type_value.clone(),
-                SymbolKind::FieldIndex(self.index_of(ident)),
-            )
-        };
-
-        Some(symbol)
+        Some(Symbol::new(
+            self.field_by_name(ident)?.type_value.clone(),
+            SymbolKind::FieldIndex(self.index_of(ident)),
+        ))
     }
 }
 

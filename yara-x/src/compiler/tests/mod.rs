@@ -497,3 +497,26 @@ fn issue() {
     let mut scanner = Scanner::new(&rules);
     let _ = scanner.scan(b"foobar").unwrap();
 }
+
+#[test]
+fn issue2() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .add_source(
+            r#"
+            import "hash"
+            import "pe"
+            rule winti_blackfly_rich_header
+            {
+             condition:
+                hash.md5(pe.rich_signature.clear_data) =="6e89f2fff33a5c1cd4c94c13f54f9e2c" or
+                hash.md5(pe.rich_signature.clear_data) =="52667216065ac5c098808eedfec7d70b"
+            }"#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    let _ = scanner.scan(b"foobar").unwrap();
+}
