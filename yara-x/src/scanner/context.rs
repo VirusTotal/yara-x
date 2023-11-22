@@ -207,7 +207,7 @@ impl ScanContext<'_> {
             .get(rule.namespace_ident_id)
             .unwrap();
 
-        info!("Started rule evaluation: {}:{}", rule_name, rule_namespace);
+        info!("Started rule evaluation: {}:{}", rule_namespace, rule_name);
     }
 
     /// Called during the scan process when a global rule didn't match.

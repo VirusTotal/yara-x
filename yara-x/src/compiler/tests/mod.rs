@@ -476,3 +476,24 @@ fn import_modules() {
         .add_source(r#"import "test_proto2" rule bar {condition: test_proto2.int32_zero == 0}"#)
         .is_ok());
 }
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn issue() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .define_global("global_bool", false)
+        .unwrap()
+        .add_source(
+            r#"import "test_proto2" rule foo {
+                condition: 
+                    for all s in test_proto2.array_string: (s != "foo")
+            }"#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    let _ = scanner.scan(b"foobar").unwrap();
+}

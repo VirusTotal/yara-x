@@ -226,13 +226,10 @@ pub struct Compiler<'a> {
     /// the [`IdentId`] corresponding to the module's identifier.
     imported_modules: Vec<IdentId>,
 
-    /// Structure where each field corresponds to a module imported by the
-    /// rules. The value of each field is the structure that describes the
-    /// module.
-    modules_struct: Struct,
-
-    /// Structure where each field corresponds to some global identifier.
-    globals_struct: Struct,
+    /// Structure where each field corresponds to a global identifier or a module
+    /// imported by the rules. For fields corresponding to modules, the value is
+    /// is the structure that describes the module.
+    root_struct: Struct,
 
     /// Warnings generated while compiling the rules.
     warnings: Vec<Warning>,
@@ -302,8 +299,7 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
-            modules_struct: Struct::new(),
-            globals_struct: Struct::new(),
+            root_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
@@ -382,7 +378,7 @@ impl<'a> Compiler<'a> {
         let var: Variable = value.try_into()?;
         let type_value: TypeValue = var.into();
 
-        if self.globals_struct.add_field(ident, type_value.clone()).is_some() {
+        if self.root_struct.add_field(ident, type_value.clone()).is_some() {
             return Err(VariableError::AlreadyExists(ident.to_string()));
         }
 
@@ -390,7 +386,7 @@ impl<'a> Compiler<'a> {
             ident,
             Symbol::new(
                 type_value,
-                SymbolKind::FieldIndex(self.globals_struct.index_of(ident)),
+                SymbolKind::FieldIndex(self.root_struct.index_of(ident)),
             ),
         );
 
@@ -481,7 +477,7 @@ impl<'a> Compiler<'a> {
         // to `Arc`, as the root cause that prevents `Struct` from being `Send`
         // is the use of `Rc` in `TypeValue`.
         let serialized_globals = bincode::DefaultOptions::new()
-            .serialize(&self.globals_struct)
+            .serialize(&self.root_struct)
             .expect("failed to serialize global variables");
 
         let mut rules = Rules {
@@ -637,7 +633,7 @@ impl<'a> Compiler<'a> {
     ///
     /// This functions checks if the module actually exists, and if so, it
     /// creates a new field with the same name than the module in the
-    /// top-level structure `self.modules_struct` that contains all the
+    /// top-level structure `self.root_struct` that contains all the
     /// imported modules. This field is created only if it don't exist yet.
     fn import_module(&mut self, import: &Import) -> Result<(), CompileError> {
         let module_name = import.module_name.as_str();
@@ -656,9 +652,9 @@ impl<'a> Compiler<'a> {
         // Yes, module exists.
         let module = module.unwrap();
 
-        // The module was already added to `self.modules_struct` and
+        // The module was already added to `self.globals_struct` and
         // `self.imported_modules`, nothing more to do.
-        if self.modules_struct.has_field(module_name) {
+        if self.root_struct.has_field(module_name) {
             return Ok(());
         }
 
@@ -721,7 +717,7 @@ impl<'a> Compiler<'a> {
         // modules. This struct contains all modules imported, from
         // all namespaces. Panic if the module was already in the struct.
         if self
-            .modules_struct
+            .root_struct
             .add_field(module_name, TypeValue::Struct(Rc::new(module_struct)))
             .is_some()
         {
@@ -1476,7 +1472,7 @@ impl<'a> Compiler<'a> {
 
     fn c_imports(&mut self, imports: &[Import]) -> Result<(), CompileError> {
         for import in imports {
-            // Import the module. This updates `self.modules_struct` if
+            // Import the module. This updates `self.root_struct` if
             // necessary.
             self.import_module(import)?;
 
@@ -1491,14 +1487,14 @@ impl<'a> Compiler<'a> {
                     module_name,
                     Symbol::new(
                         // At this point the module must be found in
-                        // `self.modules_struct`.
-                        self.modules_struct
+                        // `self.root_struct`.
+                        self.root_struct
                             .field_by_name(module_name)
                             .unwrap()
                             .type_value
                             .clone(),
                         SymbolKind::FieldIndex(
-                            self.modules_struct.index_of(module_name),
+                            self.root_struct.index_of(module_name),
                         ),
                     ),
                 );

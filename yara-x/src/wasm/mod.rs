@@ -833,9 +833,18 @@ fn lookup_field(
             } else {
                 *field_index
             };
-            let field =
-                structure.field_by_index(field_index as usize).unwrap();
+
+            let field = structure
+                .field_by_index(field_index as usize)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "expecting field with index {} in {:#?}",
+                        field_index, structure
+                    )
+                });
+
             final_field = Some(field);
+
             if let TypeValue::Struct(s) = &field.type_value {
                 structure = s
             }

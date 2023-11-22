@@ -69,11 +69,13 @@ impl From<Type> for ValType {
 /// Contains information about a value.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub enum Value<T> {
-    /// Constant value. The value is known and it can not change at runtime.
+    /// Constant value. The value is known at compile time and it cannot
+    /// change at runtime.
     Const(T),
-    /// Variable value. The value is known, but it can change at runtime.
+    /// Variable value. The value is known at compile time, but it can change
+    /// at runtime.
     Var(T),
-    /// Unknown value.
+    /// The value is unknown at compile time.
     Unknown,
 }
 
@@ -164,9 +166,6 @@ pub enum TypeValue {
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
-
-    // A TypeValue that contains a function is not serialized.
-    #[serde(skip)]
     Func(Rc<Func>),
 }
 
