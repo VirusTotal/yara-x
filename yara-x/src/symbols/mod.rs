@@ -237,6 +237,21 @@ impl<'a> StackedSymbolTable<'a> {
     pub(crate) fn pop(&mut self) -> Option<Rc<dyn SymbolLookup + 'a>> {
         self.stack.pop_back()
     }
+
+    /// Returns the number of symbol tables in the stack.
+    #[inline]
+    pub(crate) fn len(&self) -> usize {
+        self.stack.len()
+    }
+
+    /// Removes the symbol tables at the top of the stack,
+    /// leaving only the bottom `n`.
+    ///
+    /// # Panics
+    /// If the stack does not have at least `n` symbol tables.
+    pub(crate) fn unwind(&mut self, n: usize) {
+        self.stack.drain(n..);
+    }
 }
 
 impl<'a> SymbolLookup for StackedSymbolTable<'a> {

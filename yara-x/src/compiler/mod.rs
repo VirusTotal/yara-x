@@ -811,9 +811,14 @@ impl<'a> Compiler<'a> {
         // No other symbol with the same identifier should exist.
         assert!(existing_symbol.is_none());
 
+        // Save the current number of stacked symbol tables for later
+        // use. During the compilation of the rule's condition more
+        // tables can be added to the stack.
+        let initial = self.symbol_table.len();
+
         // Convert the rule condition's AST to the intermediate representation
         // (IR).
-        let mut condition = bool_expr_from_ast(
+        let condition = bool_expr_from_ast(
             &mut CompileContext {
                 current_struct: None,
                 symbol_table: &mut self.symbol_table,
@@ -825,7 +830,20 @@ impl<'a> Compiler<'a> {
                 vars: VarStack::new(),
             },
             &rule.condition,
-        )?;
+        );
+
+        let mut condition = match condition {
+            Ok(condition) => condition,
+            Err(e) => {
+                // In case of error, revert the symbol table stack to
+                // its initial state before calling bool_expr_from_ast.
+                // This guarantees that symbol tables added during the
+                // compilation process are not left in the stack when
+                // an error occurs.
+                self.symbol_table.unwind(initial);
+                return Err(e);
+            }
+        };
 
         let patterns_with_ids_and_span = iter::zip(
             patterns_with_ids,
