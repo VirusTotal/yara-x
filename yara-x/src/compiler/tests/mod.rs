@@ -387,6 +387,36 @@ fn globals() {
             .len(),
         2
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    {
+        let mut compiler = Compiler::new();
+
+        compiler
+            .define_global("str_foo", "foo")
+            .unwrap()
+            .add_source(
+                r#"
+            import "test_proto2-module"
+            rule foo {
+                condition: 
+                    str_foo == "foo" and
+                    for all s in test_proto2.array_string: (s != str_foo)
+             }"#,
+            )
+            .unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules)
+                .scan(&[])
+                .expect("scan should not fail")
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
 }
 
 #[test]
@@ -475,48 +505,4 @@ fn import_modules() {
         .new_namespace("namespace1")
         .add_source(r#"import "test_proto2" rule bar {condition: test_proto2.int32_zero == 0}"#)
         .is_ok());
-}
-
-#[cfg(feature = "test_proto2-module")]
-#[test]
-fn issue() {
-    let mut compiler = Compiler::new();
-
-    compiler
-        .define_global("global_bool", false)
-        .unwrap()
-        .add_source(
-            r#"import "test_proto2" rule foo {
-                condition: 
-                    for all s in test_proto2.array_string: (s != "foo")
-            }"#,
-        )
-        .unwrap();
-
-    let rules = compiler.build();
-    let mut scanner = Scanner::new(&rules);
-    let _ = scanner.scan(b"foobar").unwrap();
-}
-
-#[test]
-fn issue2() {
-    let mut compiler = Compiler::new();
-
-    compiler
-        .add_source(
-            r#"
-            import "hash"
-            import "pe"
-            rule winti_blackfly_rich_header
-            {
-             condition:
-                hash.md5(pe.rich_signature.clear_data) =="6e89f2fff33a5c1cd4c94c13f54f9e2c" or
-                hash.md5(pe.rich_signature.clear_data) =="52667216065ac5c098808eedfec7d70b"
-            }"#,
-        )
-        .unwrap();
-
-    let rules = compiler.build();
-    let mut scanner = Scanner::new(&rules);
-    let _ = scanner.scan(b"foobar").unwrap();
 }
