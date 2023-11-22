@@ -192,6 +192,24 @@ impl ScanContext<'_> {
         <dyn MessageDyn>::downcast_ref(m)
     }
 
+    /// Writes a log before starting evaluating the condition for the rule
+    /// identified by `rule_id`.
+    #[cfg(feature = "logging")]
+    pub(crate) fn log_rule_eval_start(&mut self, rule_id: RuleId) {
+        let rule = self.compiled_rules.get(rule_id);
+
+        let rule_name =
+            self.compiled_rules.ident_pool().get(rule.ident_id).unwrap();
+
+        let rule_namespace = self
+            .compiled_rules
+            .ident_pool()
+            .get(rule.namespace_ident_id)
+            .unwrap();
+
+        info!("Started rule evaluation: {}:{}", rule_namespace, rule_name);
+    }
+
     /// Called during the scan process when a global rule didn't match.
     ///
     /// When this happen any other global rule in the same namespace that

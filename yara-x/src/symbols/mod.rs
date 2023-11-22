@@ -161,6 +161,16 @@ impl SymbolTable {
     {
         self.map.insert(ident.into(), symbol)
     }
+
+    /// Returns true if the symbol table already contains a symbol with
+    /// the given identifier.
+    #[inline]
+    pub(crate) fn contains<I>(&self, ident: I) -> bool
+    where
+        I: AsRef<str>,
+    {
+        self.map.get(ident.as_ref()).is_some()
+    }
 }
 
 impl Default for SymbolTable {

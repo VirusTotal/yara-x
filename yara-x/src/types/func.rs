@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 use crate::types::{TypeValue, Value};
@@ -45,6 +46,7 @@ use crate::types::{TypeValue, Value};
 /// foo() -> Option<f32>           ->  foo@@fu
 /// foo() -> Option<(f64,f64)>     ->  foo@@ffu
 /// ```
+#[derive(Serialize, Deserialize)]
 pub struct MangledFnName(String);
 
 impl MangledFnName {
@@ -110,7 +112,7 @@ where
 ///
 /// YARA modules allow function overloading, therefore functions can have the
 /// same name but different arguments.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
@@ -147,7 +149,7 @@ impl From<String> for FuncSignature {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Func {
     signatures: Vec<FuncSignature>,
 }

@@ -569,6 +569,18 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     linker
 }
 
+/// Invoked from WASM before starting the evaluation of the rule identified
+/// by the given [`RuleId`]. This only happens when the the "logging" feature
+/// is enabled.
+#[wasm_export]
+#[cfg(feature = "logging")]
+pub(crate) fn log_rule_eval_start(
+    mut caller: Caller<'_, ScanContext>,
+    rule_id: RuleId,
+) {
+    caller.data_mut().log_rule_eval_start(rule_id);
+}
+
 /// Invoked from WASM for triggering the pattern search phase.
 ///
 /// Returns `true` on success and `false` when a timeout occurs.
@@ -821,9 +833,18 @@ fn lookup_field(
             } else {
                 *field_index
             };
-            let field =
-                structure.field_by_index(field_index as usize).unwrap();
+
+            let field = structure
+                .field_by_index(field_index as usize)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "expecting field with index {} in {:#?}",
+                        field_index, structure
+                    )
+                });
+
             final_field = Some(field);
+
             if let TypeValue::Struct(s) = &field.type_value {
                 structure = s
             }
@@ -864,7 +885,7 @@ pub(crate) fn lookup_string(
     }
 }
 
-/// Lookup a field of string type and returns its value.
+/// Lookup a value in a struct, and put its value in a variable.
 ///
 /// See [`lookup_field`].
 #[wasm_export]

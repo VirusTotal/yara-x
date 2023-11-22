@@ -20,6 +20,12 @@ thread_local!(
 
     static MD5_CACHE: RefCell<FxHashMap<(i64, i64), String>> =
         RefCell::new(FxHashMap::default());
+
+    static CRC32_CACHE: RefCell<FxHashMap<(i64, i64), i64>> =
+        RefCell::new(FxHashMap::default());
+
+    static CHECKSUM32_CACHE: RefCell<FxHashMap<(i64, i64), i64>> =
+        RefCell::new(FxHashMap::default());
 );
 
 #[module_main]
@@ -28,6 +34,8 @@ fn main(_data: &[u8]) -> Hash {
     SHA256_CACHE.with(|cache| cache.borrow_mut().clear());
     SHA1_CACHE.with(|cache| cache.borrow_mut().clear());
     MD5_CACHE.with(|cache| cache.borrow_mut().clear());
+    CRC32_CACHE.with(|cache| cache.borrow_mut().clear());
+    CHECKSUM32_CACHE.with(|cache| cache.borrow_mut().clear());
 
     Hash::new()
 }
@@ -152,4 +160,65 @@ fn sha256_str(
     hasher.update(s.as_bstr(ctx));
 
     Some(RuntimeString::from_bytes(ctx, format!("{:x}", hasher.finalize())))
+}
+
+#[module_export(name = "crc32")]
+fn crc_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
+    let cached = CRC32_CACHE.with(|cache| -> Option<i64> {
+        Some(*cache.borrow().get(&(offset, size))?)
+    });
+
+    if cached.is_some() {
+        return cached;
+    }
+
+    let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
+    let data = ctx.scanned_data().get(range)?;
+    let crc = crc32fast::hash(data);
+
+    CRC32_CACHE.with(|cache| {
+        cache.borrow_mut().insert((offset, size), crc.into());
+    });
+
+    Some(crc.into())
+}
+
+#[module_export(name = "crc32")]
+fn crc_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
+    let crc = crc32fast::hash(s.as_bstr(ctx));
+    Some(crc.into())
+}
+
+#[module_export(name = "checksum32")]
+fn checksum_data(ctx: &ScanContext, offset: i64, size: i64) -> Option<i64> {
+    let cached = CHECKSUM32_CACHE.with(|cache| -> Option<i64> {
+        Some(*cache.borrow().get(&(offset, size))?)
+    });
+
+    if cached.is_some() {
+        return cached;
+    }
+
+    let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
+    let data = ctx.scanned_data().get(range)?;
+    let mut checksum = 0_u32;
+
+    for byte in data {
+        checksum = checksum.wrapping_add(*byte as u32)
+    }
+
+    CHECKSUM32_CACHE.with(|cache| {
+        cache.borrow_mut().insert((offset, size), checksum.into());
+    });
+
+    Some(checksum.into())
+}
+
+#[module_export(name = "checksum32")]
+fn checksum_str(ctx: &ScanContext, s: RuntimeString) -> Option<i64> {
+    let mut checksum = 0_u32;
+    for byte in s.as_bstr(ctx).as_bytes() {
+        checksum = checksum.wrapping_add(*byte as u32)
+    }
+    Some(checksum.into())
 }

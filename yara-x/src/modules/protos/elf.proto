@@ -32,6 +32,7 @@ message ELF {
 }
 
 enum Type {
+  option (yara.enum_options).inline = true;
   ET_NONE   = 0x0000;  // no type
   ET_REL    = 0x0001;  // relocatable
   ET_EXEC   = 0x0002;  // executable

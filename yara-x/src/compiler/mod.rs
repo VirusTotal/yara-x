@@ -17,7 +17,6 @@ use std::{fmt, iter, u32};
 use bincode::Options;
 use bitmask::bitmask;
 use bstr::ByteSlice;
-use itertools::Itertools;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
@@ -26,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{HasSpan, Ident, RuleFlag, Span};
+use yara_x_parser::ast::{HasSpan, Ident, Import, RuleFlag, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::warnings::Warning;
 use yara_x_parser::{Parser, SourceCode};
@@ -227,13 +226,10 @@ pub struct Compiler<'a> {
     /// the [`IdentId`] corresponding to the module's identifier.
     imported_modules: Vec<IdentId>,
 
-    /// Structure where each field corresponds to a module imported by the
-    /// rules. The value of each field is the structure that describes the
-    /// module.
-    modules_struct: Struct,
-
-    /// Structure where each field corresponds to some global identifier.
-    globals_struct: Struct,
+    /// Structure where each field corresponds to a global identifier or a module
+    /// imported by the rules. For fields corresponding to modules, the value is
+    /// is the structure that describes the module.
+    root_struct: Struct,
 
     /// Warnings generated while compiling the rules.
     warnings: Vec<Warning>,
@@ -303,8 +299,7 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
-            modules_struct: Struct::new(),
-            globals_struct: Struct::new(),
+            root_struct: Struct::new(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
@@ -383,7 +378,7 @@ impl<'a> Compiler<'a> {
         let var: Variable = value.try_into()?;
         let type_value: TypeValue = var.into();
 
-        if self.globals_struct.add_field(ident, type_value.clone()).is_some() {
+        if self.root_struct.add_field(ident, type_value.clone()).is_some() {
             return Err(VariableError::AlreadyExists(ident.to_string()));
         }
 
@@ -391,7 +386,7 @@ impl<'a> Compiler<'a> {
             ident,
             Symbol::new(
                 type_value,
-                SymbolKind::FieldIndex(self.globals_struct.index_of(ident)),
+                SymbolKind::FieldIndex(self.root_struct.index_of(ident)),
             ),
         );
 
@@ -482,7 +477,7 @@ impl<'a> Compiler<'a> {
         // to `Arc`, as the root cause that prevents `Struct` from being `Send`
         // is the use of `Rc` in `TypeValue`.
         let serialized_globals = bincode::DefaultOptions::new()
-            .serialize(&self.globals_struct)
+            .serialize(&self.root_struct)
             .expect("failed to serialize global variables");
 
         let mut rules = Rules {
@@ -632,6 +627,104 @@ impl<'a> Compiler<'a> {
         self.sub_patterns.truncate(snapshot.sub_patterns_len);
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
+    }
+
+    /// Imports the module described in the `import` statement.
+    ///
+    /// This functions checks if the module actually exists, and if so, it
+    /// creates a new field with the same name than the module in the
+    /// top-level structure `self.root_struct` that contains all the
+    /// imported modules. This field is created only if it don't exist yet.
+    fn import_module(&mut self, import: &Import) -> Result<(), CompileError> {
+        let module_name = import.module_name.as_str();
+        let module = BUILTIN_MODULES.get(module_name);
+
+        // Does a module with the given name actually exist? ...
+        if module.is_none() {
+            // The module does not exist, that's an error.
+            return Err(CompileError::from(CompileErrorInfo::unknown_module(
+                &self.report_builder,
+                module_name.to_string(),
+                import.span(),
+            )));
+        }
+
+        // Yes, module exists.
+        let module = module.unwrap();
+
+        // The module was already added to `self.globals_struct` and
+        // `self.imported_modules`, nothing more to do.
+        if self.root_struct.has_field(module_name) {
+            return Ok(());
+        }
+
+        // Add the module to the list of imported modules.
+        self.imported_modules.push(self.ident_pool.get_or_intern(module_name));
+
+        // Create the structure that describes the module.
+        let mut module_struct = Struct::from_proto_descriptor_and_msg(
+            &module.root_struct_descriptor,
+            None,
+            true,
+        );
+
+        // Does the YARA module has an associated Rust module? If
+        // yes, search for functions exported by the module.
+        if let Some(mod_name) = module.rust_module_name {
+            // This map will contain all the functions exported by the
+            // YARA module. Keys are the function names, and values
+            // are `Func` objects.
+            let mut functions: FxHashMap<&'static str, Func> =
+                FxHashMap::default();
+
+            // Iterate over public functions in WASM_EXPORTS looking
+            // for those that were exported by the current YARA module.
+            // Add them to `functions` map, or update the `Func` object
+            // an additional signature if the function is overloaded.
+            for export in WASM_EXPORTS.iter().filter(|e| e.public) {
+                if export.rust_module_path.contains(mod_name) {
+                    let signature = FuncSignature::from(format!(
+                        "{}.{}",
+                        module_name, export.mangled_name
+                    ));
+                    // If the function was already present in the map
+                    // is because it has multiple signatures. If that's
+                    // the case, add more signatures to the existing
+                    // `Func` object.
+                    if let Some(function) = functions.get_mut(export.name) {
+                        function.add_signature(signature)
+                    } else {
+                        functions.insert(
+                            export.name,
+                            Func::with_signature(signature),
+                        );
+                    }
+                }
+            }
+
+            // Insert the functions in the module's struct.
+            for (name, export) in functions.drain() {
+                if module_struct
+                    .add_field(name, TypeValue::Func(Rc::new(export)))
+                    .is_some()
+                {
+                    panic!("duplicate function `{}`", name)
+                }
+            }
+        }
+
+        // Insert the module in the struct that contains all imported
+        // modules. This struct contains all modules imported, from
+        // all namespaces. Panic if the module was already in the struct.
+        if self
+            .root_struct
+            .add_field(module_name, TypeValue::Struct(Rc::new(module_struct)))
+            .is_some()
+        {
+            panic!("duplicate module `{}`", module_name)
+        }
+
+        Ok(())
     }
 }
 
@@ -1377,122 +1470,35 @@ impl<'a> Compiler<'a> {
         )
     }
 
-    fn c_imports(
-        &mut self,
-        imports: &[ast::Import],
-    ) -> Result<(), CompileError> {
-        // Remove duplicate imports. Duplicate imports raise a warning, but
-        // they are allowed for backward-compatibility. We don't want to
-        // process the same import twice.
-        let imports = imports.iter().unique_by(|m| &m.module_name);
-
-        // Iterate over the list of imported modules.
+    fn c_imports(&mut self, imports: &[Import]) -> Result<(), CompileError> {
         for import in imports {
-            let module = BUILTIN_MODULES.get(import.module_name.as_str());
+            // Import the module. This updates `self.root_struct` if
+            // necessary.
+            self.import_module(import)?;
 
-            // Does the imported module actually exist? ...
-            if module.is_none() {
-                // The module does not exist, that's an error.
-                return Err(CompileError::from(
-                    CompileErrorInfo::unknown_module(
-                        &self.report_builder,
-                        import.module_name.to_string(),
-                        import.span(),
-                    ),
-                ));
-            }
-
-            let module = module.unwrap();
-
-            // Yes, the module exists, add it module to the list of imported
-            // modules and the symbol table.
             let module_name = import.module_name.as_str();
-
-            self.imported_modules
-                .push(self.ident_pool.get_or_intern(module_name));
-
-            // Create the structure that describes the module.
-            let mut module_struct = Struct::from_proto_descriptor_and_msg(
-                &module.root_struct_descriptor,
-                None,
-                true,
-            );
-
-            // Does the YARA module has an associated Rust module? If
-            // yes, search for functions exported by the module.
-            if let Some(mod_name) = module.rust_module_name {
-                // This map will contain all the functions exported by the
-                // YARA module. Keys are the function names, and values
-                // are `Func` objects.
-                let mut functions: FxHashMap<&'static str, Func> =
-                    FxHashMap::default();
-
-                // Iterate over public functions in WASM_EXPORTS looking
-                // for those that were exported by the current YARA module.
-                // Add them to `functions` map, or update the `Func` object
-                // an additional signature if the function is overloaded.
-                for export in WASM_EXPORTS.iter().filter(|e| e.public) {
-                    if export.rust_module_path.contains(mod_name) {
-                        let signature = FuncSignature::from(format!(
-                            "{}.{}",
-                            module_name, export.mangled_name
-                        ));
-                        // If the function was already present in the map
-                        // is because it has multiple signatures. If that's
-                        // the case, add more signatures to the existing
-                        // `Func` object.
-                        if let Some(function) = functions.get_mut(export.name)
-                        {
-                            function.add_signature(signature)
-                        } else {
-                            functions.insert(
-                                export.name,
-                                Func::with_signature(signature),
-                            );
-                        }
-                    }
-                }
-
-                // Insert the functions in the module's struct.
-                for (name, export) in functions.drain() {
-                    if module_struct
-                        .add_field(name, TypeValue::Func(Rc::new(export)))
-                        .is_some()
-                    {
-                        panic!("duplicate function `{}`", name)
-                    }
-                }
-            }
-
-            let module_struct = TypeValue::Struct(Rc::new(module_struct));
-
-            // Insert the module in the struct that contains all imported
-            // modules. This struct contains all modules imported, from
-            // all namespaces. Panic if the module was already in the struct.
-            if self
-                .modules_struct
-                .add_field(module_name, module_struct.clone())
-                .is_some()
-            {
-                panic!("duplicate module `{}`", module_name)
-            }
+            let mut symbol_table =
+                self.current_namespace.symbols.as_ref().borrow_mut();
 
             // Create a symbol for the module and insert it in the symbol
-            // table for this namespace.
-            let symbol = Symbol::new(
-                module_struct,
-                SymbolKind::FieldIndex(
-                    self.modules_struct.index_of(module_name),
-                ),
-            );
-
-            // Insert the symbol in the symbol table for the current
-            // namespace.
-            self.current_namespace
-                .symbols
-                .as_ref()
-                .borrow_mut()
-                .insert(module_name, symbol);
+            // table for this namespace, if it doesn't exist.
+            if !symbol_table.contains(module_name) {
+                symbol_table.insert(
+                    module_name,
+                    Symbol::new(
+                        // At this point the module must be found in
+                        // `self.root_struct`.
+                        self.root_struct
+                            .field_by_name(module_name)
+                            .unwrap()
+                            .type_value
+                            .clone(),
+                        SymbolKind::FieldIndex(
+                            self.root_struct.index_of(module_name),
+                        ),
+                    ),
+                );
+            }
         }
 
         Ok(())

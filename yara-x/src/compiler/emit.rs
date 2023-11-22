@@ -237,6 +237,17 @@ pub(super) fn emit_rule_condition(
         builder.new_rule()
     };
 
+    // When the "logging" feature is enabled, print a log before the starting
+    // evaluating the rule's condition. In case of error during the evaluation
+    // this helps in determining the rule causing the issue.
+    #[cfg(feature = "logging")]
+    {
+        instr.i32_const(rule_id.0);
+        instr.call(
+            ctx.function_id(wasm::export__log_rule_eval_start.mangled_name),
+        );
+    }
+
     // Emit WASM code for the rule's condition.
     catch_undef(ctx, &mut instr, |ctx, instr| {
         emit_bool_expr(ctx, instr, condition);
@@ -1621,6 +1632,8 @@ fn emit_for_in_array(
     // Emit the expression that lookup the array.
     emit_expr(ctx, instr, expr);
 
+    // Create a variable that will hold a reference to the array being
+    // iterated.
     let array_var = for_in.stack_frame.new_var(Type::Array);
 
     emit_lookup_value(ctx, instr, array_var);
@@ -1685,7 +1698,8 @@ fn emit_for_in_map(
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
-    // A `for` loop in an map has exactly two variables.
+    // A `for` loop in an map has exactly two variables, one for the key
+    // and the other for the value.
     assert_eq!(for_in.variables.len(), 2);
 
     let expr = cast!(&mut for_in.iterable, Iterable::Expr);
@@ -1698,7 +1712,7 @@ fn emit_for_in_map(
     // For every other type it is a WASM-side variable.
     let wasm_side_next_val = !matches!(next_val.ty, Type::Struct);
 
-    // Emit the expression that lookup the map.
+    // Emit the expression that returns the map.
     emit_expr(ctx, instr, expr);
 
     let map_var = for_in.stack_frame.new_var(Type::Map);

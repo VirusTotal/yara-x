@@ -10,9 +10,9 @@ doc = false
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.19.0", features = ["abi3", "abi3-py38", "extension-module"]}
+pyo3 = { version = "0.19.2", features = ["abi3", "abi3-py38", "extension-module"]}
 pyo3-file = "0.7.0"
 yara-x = { workspace = true }
 
 [build-dependencies]
-pyo3-build-config = "0.19.0"
+pyo3-build-config = "0.19.2"

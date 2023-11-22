@@ -19,6 +19,7 @@ use crate::compiler::ir::{
 use crate::compiler::{
     CompileContext, CompileError, CompileErrorInfo, PatternId,
 };
+use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::parser::Error;
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
@@ -342,6 +343,19 @@ pub(in crate::compiler) fn expr_from_ast(
                         ctx.report_builder,
                         ident.name.to_string(),
                         ident.span(),
+                        // Add a note about the missing import statement if
+                        // the unknown identifier is a module name.
+                        if current_struct.is_none()
+                            && BUILTIN_MODULES.contains_key(ident.name)
+                        {
+                            Some(format!(
+                                "there is a module named `{}`, but the `import \"{}\"` statement is missing",
+                                ident.name,
+                                ident.name
+                            ))
+                        } else {
+                            None
+                        },
                     ),
                 ));
             }
@@ -804,8 +818,10 @@ fn for_in_expr_from_ast(
     }
 
     // Create stack frame with capacity for the loop variables, plus 4
-    // temporary variables used for controlling the loop.
-    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 4);
+    // temporary variables used for controlling the loop (see emit_for),
+    // plus one additional variable used in loops over arrays and maps
+    // (see emit_for_in_array and emit_for_in_map).
+    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
     let mut symbols = SymbolTable::new();
     let mut variables = Vec::new();
 

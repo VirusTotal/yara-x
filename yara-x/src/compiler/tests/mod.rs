@@ -457,3 +457,43 @@ fn globals_json() {
         VariableError::UnexpectedNull
     );
 }
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn import_modules() {
+    let mut compiler = Compiler::new();
+    assert!(compiler
+        .add_source(r#"import "test_proto2" rule foo {condition: test_proto2.int32_zero == 0}"#)
+        .unwrap()
+        .add_source(r#"import "test_proto2" rule bar {condition: test_proto2.int32_zero == 0}"#)
+        .is_ok());
+
+    let mut compiler = Compiler::new();
+    assert!(compiler
+        .add_source(r#"import "test_proto2" rule foo {condition: test_proto2.int32_zero == 0}"#)
+        .unwrap()
+        .new_namespace("namespace1")
+        .add_source(r#"import "test_proto2" rule bar {condition: test_proto2.int32_zero == 0}"#)
+        .is_ok());
+}
+
+#[cfg(feature = "test_proto2-module")]
+#[test]
+fn issue() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .define_global("global_bool", false)
+        .unwrap()
+        .add_source(
+            r#"import "test_proto2" rule foo {
+                condition: 
+                    for all s in test_proto2.array_string: (s != "foo")
+            }"#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    let _ = scanner.scan(b"foobar").unwrap();
+}

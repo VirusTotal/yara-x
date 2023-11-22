@@ -272,8 +272,8 @@ fn variables_1() {
     );
 
     assert_eq!(
-        scanner.set_global("undeclared", false).err().unwrap(),
-        VariableError::Undeclared("undeclared".to_string())
+        scanner.set_global("undefined", false).err().unwrap(),
+        VariableError::Undefined("undefined".to_string())
     );
 }
 

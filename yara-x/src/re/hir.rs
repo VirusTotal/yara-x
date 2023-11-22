@@ -212,10 +212,6 @@ impl Hir {
         regex_syntax::hir::Hir::repetition(rep).into()
     }
 
-    pub fn class(class: Class) -> Hir {
-        regex_syntax::hir::Hir::class(class).into()
-    }
-
     pub fn dot(dot: regex_syntax::hir::Dot) -> Hir {
         regex_syntax::hir::Hir::dot(dot).into()
     }

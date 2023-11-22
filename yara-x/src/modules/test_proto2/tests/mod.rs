@@ -156,6 +156,18 @@ fn test_proto2_module() {
     );
 
     condition_true!(
+        r#"for 1 s in test_proto2.array_struct : (
+            s.nested_int32_zero == 0
+          )"#
+    );
+
+    condition_false!(
+        r#"for 2 s in test_proto2.array_struct : (
+            s.nested_int32_zero == 0
+          )"#
+    );
+
+    condition_true!(
         r#"for any s in test_proto2.array_struct : (
             s.nested_int32_zero == 0 and
             s.nested_int32_one == 1 and
@@ -170,6 +182,12 @@ fn test_proto2_module() {
 
     condition_true!(
         r#"for any key, value in test_proto2.map_int64_int64 : (
+                key == 100 and value == 1000
+          )"#
+    );
+
+    condition_true!(
+        r#"for 1 key, value in test_proto2.map_int64_int64 : (
                 key == 100 and value == 1000
           )"#
     );

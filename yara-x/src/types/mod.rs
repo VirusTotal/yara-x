@@ -69,11 +69,13 @@ impl From<Type> for ValType {
 /// Contains information about a value.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub enum Value<T> {
-    /// Constant value. The value is known and it can not change at runtime.
+    /// Constant value. The value is known at compile time and it cannot
+    /// change at runtime.
     Const(T),
-    /// Variable value. The value is known, but it can change at runtime.
+    /// Variable value. The value is known at compile time, but it can change
+    /// at runtime.
     Var(T),
-    /// Unknown value.
+    /// The value is unknown at compile time.
     Unknown,
 }
 
@@ -164,9 +166,6 @@ pub enum TypeValue {
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
-
-    // A TypeValue that contains a function is not serialized.
-    #[serde(skip)]
     Func(Rc<Func>),
 }
 
@@ -286,7 +285,8 @@ impl TypeValue {
                 .as_bstr()
         } else {
             panic!(
-                "called `as_bstr` on TypeValue that is not TypeValue::String"
+                "called `as_bstr` on a TypeValue that is not TypeValue::String, it is: {:?}",
+                self
             )
         }
     }
@@ -295,7 +295,10 @@ impl TypeValue {
         if let TypeValue::Array(array) = self {
             array.clone()
         } else {
-            panic!("called `as_array` on a TypeValue that is not TypeValue::Array")
+            panic!(
+                "called `as_array` on a TypeValue that is not TypeValue::Array, it is: {:?}",
+                self
+            )
         }
     }
 
@@ -303,7 +306,10 @@ impl TypeValue {
         if let TypeValue::Struct(structure) = self {
             structure.clone()
         } else {
-            panic!("called `as_struct` on a TypeValue that is not TypeValue::Struct")
+            panic!(
+                "called `as_struct` on a TypeValue that is not TypeValue::Struct, it is: {:?}",
+                self
+            )
         }
     }
 
@@ -311,7 +317,10 @@ impl TypeValue {
         if let TypeValue::Map(map) = self {
             map.clone()
         } else {
-            panic!("called `as_map` on a TypeValue that is not TypeValue::Map")
+            panic!(
+                "called `as_map` on a TypeValue that is not TypeValue::Map, it is: {:?}",
+                self
+            )
         }
     }
 
@@ -320,7 +329,8 @@ impl TypeValue {
             func.clone()
         } else {
             panic!(
-                "called `as_func` on a TypeValue that is not TypeValue::Func"
+                "called `as_func` on a TypeValue that is not TypeValue::Func, it is: {:?}",
+                self
             )
         }
     }
@@ -332,7 +342,10 @@ impl TypeValue {
                 .cloned()
                 .expect("TypeValue doesn't have an associated value")
         } else {
-            panic!("called `as_integer` on a TypeValue that is not TypeValue::Integer")
+            panic!(
+                "called `as_integer` on a TypeValue that is not TypeValue::Integer, it is: {:?}",
+                self
+            )
         }
     }
 
@@ -343,7 +356,10 @@ impl TypeValue {
                 .cloned()
                 .expect("TypeValue doesn't have an associated value")
         } else {
-            panic!("called `as_float` on a TypeValue that is not TypeValue::Float")
+            panic!(
+                "called `as_float` on a TypeValue that is not TypeValue::Float, it is: {:?}",
+                self
+            )
         }
     }
 
@@ -355,7 +371,8 @@ impl TypeValue {
                 .expect("TypeValue doesn't have an associated value")
         } else {
             panic!(
-                "called `as_bool` on a TypeValue that is not TypeValue::Bool"
+                "called `as_bool` on a TypeValue that is not TypeValue::Bool, it is: {:?}",
+                self
             )
         }
     }
