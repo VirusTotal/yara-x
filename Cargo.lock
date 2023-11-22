@@ -561,7 +561,7 @@ dependencies = [
  "heck 0.4.1",
  "proc-macro2",
  "quote",
- "syn 2.0.38",
+ "syn 2.0.39",
 ]
 
 [[package]]
@@ -584,7 +584,7 @@ checksum = "79cff32df5cfea75e6484eeff0b4e48ad3977fb6582676a7862b3590dddc7a87"
 dependencies = [
  "serde",
  "serde_json",
- "yansi",
+ "yansi 0.5.1",
 ]
 
 [[package]]
@@ -1774,7 +1774,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "strum",
- "strum_macros 0.24.3",
+ "strum_macros",
  "wasm-bindgen",
 ]
 
@@ -3095,6 +3095,7 @@ dependencies = [
  "syn 2.0.39",
 ]
 
+[[package]]
 name = "subtle"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4301,7 +4302,7 @@ dependencies = [
  "protobuf",
  "protobuf-json-mapping",
  "serde_json",
- "strum_macros 0.25.3",
+ "strum_macros",
  "superconsole",
  "wild",
  "yansi 0.5.1",
@@ -4372,12 +4373,12 @@ dependencies = [
  "chrono",
  "globwalk",
  "goldenfile",
- "itertools 0.11.0",
+ "itertools 0.12.0",
  "protobuf",
  "protobuf-codegen",
  "protobuf-parse",
  "protobuf-support",
- "yansi",
+ "yansi 0.5.1",
 ]
 
 [[package]]
