@@ -40,9 +40,17 @@ size_of_stack_commit: 8192
 size_of_heap_reserve: 1048576
 size_of_heap_commit: 4096
 pointer_to_symbol_table: 0
+win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
-win32_version_value: 0
+number_of_sections: 6
+number_of_imported_functions: 37
+number_of_delayed_imported_functions: 0
+number_of_resources: 6
+number_of_version_infos: 8
+number_of_imports: 12
+number_of_delayed_imports: 0
+number_of_exports: 0
 version_info_list {
   key: "CompanyName"
   value: "Microsoft Corporation"
@@ -75,9 +83,6 @@ version_info_list {
   key: "ProductVersion"
   value: "10.0.19041.1202"
 }
-number_of_sections: 6
-number_of_imported_functions: 37
-number_of_delayed_imported_functions: 0
 rich_signature {
   offset: 128
   length: 88

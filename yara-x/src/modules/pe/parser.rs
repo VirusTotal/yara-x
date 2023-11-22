@@ -1961,9 +1961,6 @@ impl From<PE<'_>> for pe::PE {
         result.set_size_of_headers(pe.optional_hdr.size_of_headers);
         result.set_size_of_initialized_data(pe.optional_hdr.size_of_initialized_data);
         result.set_size_of_uninitialized_data(pe.optional_hdr.size_of_uninitialized_data);
-
-        // TODO
-        // number_of_version_infos
         
         result.linker_version = MessageField::some(pe::Version {
             major: Some(pe.optional_hdr.major_linker_version.into()),
@@ -2070,6 +2067,27 @@ impl From<PE<'_>> for pe::PE {
                 ..Default::default()
             });
         }
+
+        result.set_number_of_resources(
+            result.sections.len().try_into().unwrap());
+
+        result.set_number_of_version_infos(
+            result.version_info_list.len().try_into().unwrap());
+
+        result.set_number_of_imports(
+            result.import_details.len().try_into().unwrap());
+
+        result.set_number_of_delayed_imports(
+            result.delayed_import_details.len().try_into().unwrap());
+
+        result.set_number_of_exports(
+            result.export_details.len().try_into().unwrap());
+
+        // TODO
+        //result.set_number_of_signatures(
+        //    result.signatures.len().try_into().unwrap());
+        //result.set_number_of_certificates
+        //result.set_number_of_countersignatures
 
         // The overlay offset is the offset where the last section ends. The
         // last section is not the last one in the section table, but the one

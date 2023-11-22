@@ -17,7 +17,6 @@ message PE {
   optional Version subsystem_version = 5;
   optional Version image_version = 6;
   optional Version linker_version = 7;
-
   optional OptHdrMagic opthdr_magic = 8;
   optional uint32 characteristics = 9;
   optional uint32 dll_characteristics = 10;
@@ -53,30 +52,35 @@ message PE {
   optional uint64 size_of_heap_commit = 32;
 
   optional uint32 pointer_to_symbol_table = 33;
-  optional uint32 number_of_symbols = 34;
-  optional uint32 number_of_rva_and_sizes = 35;
-  optional uint32 win32_version_value = 36;
+  optional uint32 win32_version_value = 34;
+  optional uint32 number_of_symbols = 35;
+  optional uint32 number_of_rva_and_sizes = 36;
+  optional uint32 number_of_sections = 37;
+  optional uint64 number_of_imported_functions = 38;
+  optional uint64 number_of_delayed_imported_functions = 39;
+  optional uint64 number_of_resources = 40;
+  optional uint64 number_of_version_infos = 41;
+  optional uint64 number_of_imports = 42;
+  optional uint64 number_of_delayed_imports = 43;
+  optional uint64 number_of_exports = 44;
+  optional uint64 number_of_certificates = 45;
+  optional uint64 number_of_signatures = 46;
+  optional uint64 number_of_countersignatures = 47;
 
-  map<string, string> version_info = 37;
-  repeated KeyValue version_info_list = 38;
-
-  optional uint32 number_of_sections = 39;
-  optional uint64 number_of_imported_functions = 40;
-  optional uint64 number_of_delayed_imported_functions = 41;
-
-  optional RichSignature rich_signature = 42;
-  optional string pdb_path = 43;
-
-  repeated Section sections = 44;
-  repeated DirEntry data_directories = 45;
-  repeated Resource resources = 46;
-  repeated Import import_details = 47;
-  repeated Import delayed_import_details = 48;
-  repeated Export export_details = 49;
+  map<string, string> version_info = 48;
+  repeated KeyValue version_info_list = 49;
+  optional RichSignature rich_signature = 50;
+  optional string pdb_path = 51;
+  repeated Section sections = 52;
+  repeated DirEntry data_directories = 53;
+  repeated Resource resources = 54;
+  repeated Import import_details = 55;
+  repeated Import delayed_import_details = 56;
+  repeated Export export_details = 57;
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 50;
+  optional Overlay overlay = 58;
 }
 
 message Version {
