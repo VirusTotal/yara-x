@@ -1,7 +1,6 @@
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use yara_x::modules::macho::parse_macho_file;
 
 fuzz_target!(|data: &[u8]| {
-    let _ = parse_macho_file(data);
+    let _ = yara_x::mods::invoke_mod::<yara_x::mods::Macho>(data);
 });

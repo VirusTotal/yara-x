@@ -1,0 +1,173 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_EFI_APPLICATION
+os_version {
+  major: 0
+  minor: 0
+}
+subsystem_version {
+  major: 0
+  minor: 0
+}
+image_version {
+  major: 1
+  minor: 0
+}
+linker_version {
+  major: 2
+  minor: 20
+}
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 518
+dll_characteristics: 0
+timestamp: 0
+image_base: 16777216
+checksum: 3991994
+base_of_code: 512
+entry_point: 3937578
+entry_point_raw: 3937578
+section_alignment: 32
+file_alignment: 32
+loader_flags: 0
+size_of_optional_header: 160
+size_of_code: 40582656
+size_of_initialized_data: 0
+size_of_uninitialized_data: 0
+size_of_image: 40583168
+size_of_headers: 512
+size_of_stack_reserve: 0
+size_of_stack_commit: 0
+size_of_heap_reserve: 0
+size_of_heap_commit: 0
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 1
+number_of_rva_and_sizes: 6
+number_of_sections: 4
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 4
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+sections {
+  name: ".setup"
+  full_name: ".setup"
+  characteristics: 1615855648
+  raw_data_size: 14272
+  raw_data_offset: 512
+  virtual_address: 512
+  virtual_size: 14272
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1108344896
+  raw_data_size: 32
+  raw_data_offset: 14784
+  virtual_address: 14784
+  virtual_size: 32
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".compat"
+  full_name: ".compat"
+  characteristics: 1108344896
+  raw_data_size: 32
+  raw_data_offset: 14816
+  virtual_address: 14816
+  virtual_size: 32
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1615855648
+  raw_data_size: 3949344
+  raw_data_offset: 14848
+  virtual_address: 14848
+  virtual_size: 40568320
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 3964192
+  size: 2832
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 1952805678
+  size: 28789
+}
+data_directories {
+  virtual_address: 14272
+  size: 512
+}
+data_directories {
+  virtual_address: 14272
+  size: 512
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 1615855648
+}
+data_directories {
+  virtual_address: 1818587694
+  size: 25455
+}
+data_directories {
+  virtual_address: 32
+  size: 14784
+}
+data_directories {
+  virtual_address: 32
+  size: 14784
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 1108344896
+}
+overlay {
+  offset: 3964192
+  size: 2832
+}

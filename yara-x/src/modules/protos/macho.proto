@@ -16,6 +16,12 @@ message Dylib {
   optional string current_version = 4;
 }
 
+message RPath {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional string path = 3;
+}
+
 message Section {
   optional string segname = 1;
   optional string sectname = 2;
@@ -67,8 +73,9 @@ message File {
   optional uint64 number_of_segments = 9;
   repeated Segment segments = 10;
   repeated Dylib dylibs = 11;
-  optional uint64 entry_point = 12;
-  optional uint64 stack_size = 13;
+  repeated RPath rpaths = 12;
+  optional uint64 entry_point = 13;
+  optional uint64 stack_size = 14;
 }
 
 message Macho {
@@ -84,16 +91,17 @@ message Macho {
   optional uint64 number_of_segments = 9;
   repeated Segment segments = 10;
   repeated Dylib dylibs = 11;
-  optional uint64 entry_point = 12;
-  optional uint64 stack_size = 13;
+  repeated RPath rpaths = 12;
+  optional uint64 entry_point = 13;
+  optional uint64 stack_size = 14;
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 14 [(yara.field_options).yaml_fmt = "x"];
-  optional uint32 nfat_arch = 15;
-  repeated FatArch fat_arch = 16;
+  optional uint32 fat_magic = 15 [(yara.field_options).yaml_fmt = "x"];
+  optional uint32 nfat_arch = 16;
+  repeated FatArch fat_arch = 17;
 
   // Nested Mach-O files
-  repeated File file = 17;
+  repeated File file = 18;
 }
 
 enum HEADER {

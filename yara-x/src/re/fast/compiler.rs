@@ -355,6 +355,10 @@ impl Visitor for PatternSplitter {
                             return Err(Error::FastIncompatible);
                         }
                     }
+                    // Even though the regexp HIR was generated without unicode
+                    // support, the HIR can contain unicode classes due to a
+                    // design issue in regex-syntax.
+                    // https://github.com/rust-lang/regex/issues/1088
                     Class::Unicode(_) => {
                         return Err(Error::FastIncompatible);
                     }

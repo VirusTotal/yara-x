@@ -126,6 +126,12 @@ impl Struct {
         }
     }
 
+    /// Returns true if the structure have a field with the given name.
+    #[inline]
+    pub fn has_field(&self, name: &str) -> bool {
+        self.field_by_name(name).is_some()
+    }
+
     /// Get a field by index.
     #[inline]
     pub fn field_by_index(&self, index: usize) -> Option<&StructField> {

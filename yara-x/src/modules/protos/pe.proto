@@ -1,0 +1,297 @@
+syntax = "proto2";
+import "yara.proto";
+
+package pe;
+
+option (yara.module_options) = {
+  name : "pe"
+  root_message: "pe.PE"
+  rust_module: "pe"
+};
+
+message PE {
+  required bool is_pe = 1;
+  optional Machine machine = 2;
+  optional Subsystem subsystem = 3;
+  optional Version os_version = 4;
+  optional Version subsystem_version = 5;
+  optional Version image_version = 6;
+  optional Version linker_version = 7;
+  optional OptHdrMagic opthdr_magic = 8;
+  optional uint32 characteristics = 9;
+  optional uint32 dll_characteristics = 10;
+  optional uint32 timestamp = 11;
+  optional uint64 image_base = 12;
+  optional uint32 checksum = 13;
+  optional uint32 base_of_code = 14;
+  optional uint32 base_of_data = 15;
+
+  // Entry point as a file offset.
+  optional uint32 entry_point = 16;
+
+  // Entry point as it appears in the PE header (RVA).
+  optional uint32 entry_point_raw = 17;
+
+  optional string dll_name = 18;
+  optional uint32 export_timestamp = 19;
+
+  optional uint32 section_alignment = 20;
+  optional uint32 file_alignment = 21;
+  optional uint32 loader_flags = 22;
+
+  optional uint32 size_of_optional_header = 23;
+  optional uint32 size_of_code = 24;
+  optional uint32 size_of_initialized_data = 25;
+  optional uint32 size_of_uninitialized_data = 26;
+  optional uint32 size_of_image = 27;
+  optional uint32 size_of_headers = 28;
+
+  optional uint64 size_of_stack_reserve = 29;
+  optional uint64 size_of_stack_commit = 30;
+  optional uint64 size_of_heap_reserve = 31;
+  optional uint64 size_of_heap_commit = 32;
+
+  optional uint32 pointer_to_symbol_table = 33;
+  optional uint32 win32_version_value = 34;
+  optional uint32 number_of_symbols = 35;
+  optional uint32 number_of_rva_and_sizes = 36;
+  optional uint32 number_of_sections = 37;
+  optional uint64 number_of_imported_functions = 38;
+  optional uint64 number_of_delayed_imported_functions = 39;
+  optional uint64 number_of_resources = 40;
+  optional uint64 number_of_version_infos = 41;
+  optional uint64 number_of_imports = 42;
+  optional uint64 number_of_delayed_imports = 43;
+  optional uint64 number_of_exports = 44;
+  optional uint64 number_of_certificates = 45;
+  optional uint64 number_of_signatures = 46;
+  optional uint64 number_of_countersignatures = 47;
+
+  map<string, string> version_info = 48;
+  repeated KeyValue version_info_list = 49;
+  optional RichSignature rich_signature = 50;
+  optional string pdb_path = 51;
+  repeated Section sections = 52;
+  repeated DirEntry data_directories = 53;
+  repeated Resource resources = 54;
+  repeated Import import_details = 55;
+  repeated Import delayed_import_details = 56;
+  repeated Export export_details = 57;
+
+  // TODO: implement resource_version?
+
+  optional Overlay overlay = 58;
+}
+
+message Version {
+  required uint32 major = 1;
+  required uint32 minor = 2;
+}
+
+message KeyValue {
+  required string key = 1;
+  required string value = 2;
+}
+
+message DirEntry {
+  required uint32 virtual_address = 1;
+  required uint32 size = 2;
+}
+
+message Resource {
+  required uint32 length = 1;
+  required uint32 rva = 2;
+  optional uint32 offset = 3;
+  optional ResourceType type = 4;
+  optional uint32 id = 5;
+  optional uint32 language = 6;
+  optional bytes type_string = 7;
+  optional bytes name_string = 8;
+  optional bytes language_string = 9;
+}
+
+message Import {
+  required string library_name = 1;
+  repeated Function functions = 2;
+}
+
+message Export {
+  optional string name= 1;
+  required uint32 ordinal = 2;
+  required uint32 rva = 3;
+  optional uint32 offset = 4;
+  optional string forward_name = 5;
+}
+
+message Function {
+  optional string name = 1;
+  optional uint32 ordinal = 2;
+  required uint32 rva = 3;
+}
+
+///  https://learn.microsoft.com/en-us/windows/win32/menurc/resource-types?redirectedfrom=MSDN
+enum ResourceType {
+  option (yara.enum_options).inline = true;
+  RESOURCE_TYPE_CURSOR = 1;
+  RESOURCE_TYPE_BITMAP = 2;
+  RESOURCE_TYPE_ICON = 3;
+  RESOURCE_TYPE_MENU = 4;
+  RESOURCE_TYPE_DIALOG = 5;
+  RESOURCE_TYPE_STRING = 6;
+  RESOURCE_TYPE_FONTDIR = 7;
+  RESOURCE_TYPE_FONT = 8;
+  RESOURCE_TYPE_ACCELERATOR = 9;
+  RESOURCE_TYPE_RCDATA = 10;
+  RESOURCE_TYPE_MESSAGETABLE = 11;
+  RESOURCE_TYPE_GROUP_CURSOR = 12;
+  // 13 is missing
+  RESOURCE_TYPE_GROUP_ICON = 14;
+  // 15 is missing
+  RESOURCE_TYPE_VERSION = 16;
+  RESOURCE_TYPE_DLGINCLUDE = 17;
+  // 18 is missing
+  RESOURCE_TYPE_PLUGPLAY = 19;
+  RESOURCE_TYPE_VXD = 20;
+  RESOURCE_TYPE_ANICURSOR = 21;
+  RESOURCE_TYPE_ANIICON = 22;
+  RESOURCE_TYPE_HTML = 23;
+  RESOURCE_TYPE_MANIFEST = 24;
+}
+
+message Section {
+  // The section's name as listed in the section table. The data type is `bytes`
+  // instead of `string` so that it can accommodate invalid UTF-8 content. The
+  // length is 8 bytes at most.
+  required bytes name = 1;
+  // For section names longer than 8 bytes, the name in the section table (and
+  // in the `name` field) contains a forward slash (/) followed by an ASCII
+  // representation of a decimal number that is an offset into the string table.
+  // (examples: "/4", "/123") This mechanism is described in the MSDN and used
+  // by GNU compilers.
+  //
+  // When this scenario occurs, the `full_name` field holds the actual section
+  // name. In all other cases, it simply duplicates the content of the `name`
+  // field.
+  //
+  // See: https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-image_section_header#members
+  required bytes full_name = 2;
+  required uint32 characteristics = 3;
+  required uint32 raw_data_size = 4;
+  required uint32 raw_data_offset = 5;
+  required uint32 virtual_address = 6;
+  required uint32 virtual_size = 7;
+  required uint32 pointer_to_relocations = 8;
+  required uint32 pointer_to_line_numbers = 9;
+  required uint32 number_of_relocations = 10;
+  required uint32 number_of_line_numbers = 11;
+}
+
+message RichSignature {
+  required uint32 offset = 1;
+  required uint32 length = 2;
+  required uint32 key = 3;
+  required bytes raw_data = 4;
+  required bytes clear_data = 5;
+  repeated RichTool tools = 6;
+}
+
+message RichTool {
+  required uint32 toolid = 1;
+  required uint32 version = 2;
+  required uint32 times = 3;
+}
+
+message Overlay {
+  required uint64 offset = 1;
+  required uint64 size = 2;
+}
+
+enum Machine {
+  option (yara.enum_options).inline = true;
+  MACHINE_UNKNOWN   = 0x0000;
+  MACHINE_AM33      = 0x01d3;
+  MACHINE_AMD64     = 0x8664;
+  MACHINE_ARM       = 0x01c0;
+  MACHINE_ARMNT     = 0x01c4;
+  MACHINE_ARM64     = 0xaa64;
+  MACHINE_EBC       = 0x0ebc;
+  MACHINE_I386      = 0x014c;
+  MACHINE_IA64      = 0x0200;
+  MACHINE_M32R      = 0x9041;
+  MACHINE_MIPS16    = 0x0266;
+  MACHINE_MIPSFPU   = 0x0366;
+  MACHINE_MIPSFPU16 = 0x0466;
+  MACHINE_POWERPC   = 0x01f0;
+  MACHINE_POWERPCFP = 0x01f1;
+  MACHINE_R4000     = 0x0166;
+  MACHINE_SH3       = 0x01a2;
+  MACHINE_SH3DSP    = 0x01a3;
+  MACHINE_SH4       = 0x01a6;
+  MACHINE_SH5       = 0x01a8;
+  MACHINE_THUMB     = 0x01c2;
+  MACHINE_WCEMIPSV2 = 0x0169;
+}
+
+enum Subsystem {
+  option (yara.enum_options).inline = true;
+  SUBSYSTEM_UNKNOWN                  = 0;
+  SUBSYSTEM_NATIVE                   = 1;
+  SUBSYSTEM_WINDOWS_GUI              = 2;
+  SUBSYSTEM_WINDOWS_CUI              = 3;
+  SUBSYSTEM_OS2_CUI                  = 5;
+  SUBSYSTEM_POSIX_CUI                = 7;
+  SUBSYSTEM_NATIVE_WINDOWS           = 8;
+  SUBSYSTEM_WINDOWS_CE_GUI           = 9;
+  SUBSYSTEM_EFI_APPLICATION          = 10;
+  SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER  = 11;
+  SUBSYSTEM_EFI_RUNTIME_DRIVER       = 12;
+  SUBSYSTEM_EFI_ROM_IMAGE            = 13;
+  SUBSYSTEM_XBOX                     = 14;
+  SUBSYSTEM_WINDOWS_BOOT_APPLICATION = 16;
+}
+
+enum ImportFlags {
+  option (yara.enum_options).inline = true;
+  IMPORT_STANDARD = 0x01;
+  IMPORT_DELAYED = 0x02;
+  IMPORT_ANY = 0x03;
+}
+
+enum OptHdrMagic {
+  IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
+  IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b;
+}
+
+enum Characteristics {
+  option (yara.enum_options).inline = true;
+  // Relocation info stripped from file.
+  RELOCS_STRIPPED         = 0x0001;
+  // File is executable (i.e. no unresolved external references).
+  EXECUTABLE_IMAGE        = 0x0002;
+  // Line numbers stripped from file.
+  LINE_NUMS_STRIPPED      = 0x0004;
+  // Local symbols stripped from file.
+  LOCAL_SYMS_STRIPPED     = 0x0008;
+  // Aggressively trim working set
+  AGGRESIVE_WS_TRIM       = 0x0010;
+  // App can handle >2gb addresses
+  LARGE_ADDRESS_AWARE     = 0x0020;
+  // Bytes of machine word are reversed.
+  BYTES_REVERSED_LO       = 0x0080;
+  // 32 bit word machine.
+  MACHINE_32BIT           = 0x0100;
+  // Debugging info stripped from file in .DBG file
+  DEBUG_STRIPPED          = 0x0200;
+  // If Image is on removable media, copy and run from the swap file.
+  REMOVABLE_RUN_FROM_SWAP = 0x0400;
+  // If Image is on Net, copy and run from the swap file.
+  NET_RUN_FROM_SWAP       = 0x0800;
+  // System File.
+  SYSTEM                  = 0x1000;
+  // File is a DLL.s
+  DLL                     = 0x2000;
+  // File should only be run on a UP machine
+  UP_SYSTEM_ONLY          = 0x4000;
+  // Bytes of machine word are reversed.
+  BYTES_REVERSED_HI       = 0x8000;
+}

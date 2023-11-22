@@ -54,15 +54,19 @@ const CPU_TYPE_SPARC: u32 = 0x0000000e;
 const CPU_TYPE_POWERPC: u32 = 0x00000012;
 const CPU_TYPE_POWERPC64: u32 = 0x01000012;
 
+/// Define Mach-O dynamic linker constant
+const LC_REQ_DYLD: u32 = 0x80000000;
+
 /// Define Mach-O load commands
 const LC_SEGMENT: u32 = 0x00000001;
 const LC_UNIXTHREAD: u32 = 0x00000005;
 const LC_LOAD_DYLIB: u32 = 0x0000000c;
 const LC_ID_DYLIB: u32 = 0x0000000d;
-const LC_LOAD_WEAK_DYLIB: u32 = 0x80000018;
+const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
-const LC_REEXPORT_DYLIB: u32 = 0x8000001f;
-const LC_MAIN: u32 = 0x80000028;
+const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
+const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
+const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
 
 /// Enum that provides strongly-typed error system used in code
 /// Represents all possible errors that can occur during Mach-O parsing
@@ -183,6 +187,16 @@ struct DylibCommand {
     cmd: u32,
     cmdsize: u32,
     dylib: DylibObject,
+}
+
+/// `RPathCommand`: Represents an rpath command in the Mach-O file.
+/// Fields: cmd, cmdsize, path
+#[repr(C)]
+#[derive(Debug, Default, Clone)]
+struct RPathCommand {
+    cmd: u32,
+    cmdsize: u32,
+    path: Vec<u8>,
 }
 
 /// `SegmentCommand32`: Represents a 32-bit segment command in the Mach-O file.
@@ -684,6 +698,17 @@ fn swap_dylib_command(command: &mut DylibCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O rpath command from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O rpath command.
+fn swap_rpath_command(command: &mut RPathCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a 32-bit Mach-O segment command from
 /// BigEndian to LittleEndian in-place.
 ///
@@ -973,6 +998,30 @@ fn parse_dylib_command(input: &[u8]) -> IResult<&[u8], DylibCommand> {
     let (input, dylib) = parse_dylib(input)?;
 
     Ok((input, DylibCommand { cmd, cmdsize, dylib }))
+}
+
+/// Parse a Mach-O RPathCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw RPathCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// RPathCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_rpath_command(input: &[u8]) -> IResult<&[u8], RPathCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, offset) = le_u32(input)?;
+    let (input, path) = take(cmdsize - offset)(input)?;
+
+    Ok((input, RPathCommand { cmd, cmdsize, path: path.into() }))
 }
 
 /// Parse the 32-bit segment command of a Mach-O file, offering a structured
@@ -1586,6 +1635,65 @@ fn handle_dylib_command(
     Ok(())
 }
 
+/// Handles the LC_RPATH commands for Mach-O files, parsing the data
+/// and populating a protobuf representation of the rpath command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the rpath command.
+/// * `size`: The size of the dylib command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected RPathCommand struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   rpath command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_rpath_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<RPathCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "RPathCommand".to_string(),
+        ));
+    }
+
+    let (_, mut rp) = parse_rpath_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_rpath_command(&mut rp);
+    }
+
+    let rpath = RPath {
+        cmd: Some(rp.cmd),
+        cmdsize: Some(rp.cmdsize),
+        path: Some(
+            std::str::from_utf8(&rp.path)
+                .unwrap_or_default()
+                .trim_end_matches('\0')
+                .to_string(),
+        ),
+        ..Default::default()
+    };
+    macho_file.rpaths.push(rpath);
+    Ok(())
+}
+
 /// Handles the LC_SEGMENT command for 32-bit Mach-O files, parsing the data
 /// and populating a protobuf representation of the segment and its associated
 /// file sections.
@@ -2111,6 +2219,9 @@ fn handle_command(
             | LC_REEXPORT_DYLIB => {
                 handle_dylib_command(command_data, cmdsize, macho_file)?;
             }
+            LC_RPATH => {
+                handle_rpath_command(command_data, cmdsize, macho_file)?;
+            }
             _ => {}
         }
     }
@@ -2618,6 +2729,7 @@ fn main(data: &[u8]) -> Macho {
                 macho_proto.number_of_segments = file_data.number_of_segments;
                 macho_proto.segments = file_data.segments;
                 macho_proto.dylibs = file_data.dylibs;
+                macho_proto.rpaths = file_data.rpaths;
                 macho_proto.entry_point = file_data.entry_point;
                 macho_proto.stack_size = file_data.stack_size;
             }

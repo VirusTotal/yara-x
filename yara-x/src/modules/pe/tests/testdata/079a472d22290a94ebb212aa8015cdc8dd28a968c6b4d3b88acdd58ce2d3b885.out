@@ -1,0 +1,528 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version {
+  major: 5
+  minor: 1
+}
+subsystem_version {
+  major: 5
+  minor: 1
+}
+image_version {
+  major: 0
+  minor: 0
+}
+linker_version {
+  major: 10
+  minor: 0
+}
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 8450
+dll_characteristics: 320
+timestamp: 1528213185
+image_base: 268435456
+checksum: 82308
+base_of_code: 4096
+base_of_data: 12288
+entry_point: 2605
+entry_point_raw: 5677
+dll_name: "CUSTPROF.dll"
+export_timestamp: 1528213185
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 4608
+size_of_initialized_data: 5120
+size_of_uninitialized_data: 0
+size_of_image: 28672
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 4096
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 5
+number_of_imported_functions: 38
+number_of_delayed_imported_functions: 6
+number_of_resources: 5
+number_of_version_infos: 11
+number_of_imports: 2
+number_of_delayed_imports: 1
+number_of_exports: 5
+version_info_list {
+  key: "FileVersion"
+  value: "27.1.9.33"
+}
+version_info_list {
+  key: "ProductName"
+  value: "Quicken for Windows"
+}
+version_info_list {
+  key: "ProductVersion"
+  value: "27.1.9.33"
+}
+version_info_list {
+  key: "CompanyName"
+  value: "Quicken Inc."
+}
+version_info_list {
+  key: "LegalCopyright"
+  value: "Copyright \302\251 2018 by Quicken Inc."
+}
+version_info_list {
+  key: "Build Date"
+  value: "Tue Jun 5 21:07:13 IST 2018"
+}
+version_info_list {
+  key: "Build Version"
+  value: "27.1.9.33"
+}
+version_info_list {
+  key: "Type"
+  value: "QA"
+}
+version_info_list {
+  key: "FileDescription"
+  value: "Customer Profile Interface DLL"
+}
+version_info_list {
+  key: "InternalName"
+  value: "CUSTPROF.DLL"
+}
+version_info_list {
+  key: "OriginalFilename"
+  value: "CUSTPROF.DLL"
+}
+rich_signature {
+  offset: 128
+  length: 96
+  key: 157631266
+  raw_data: "f\"\013Z\"Ce\t\"Ce\t\"Ce\t9\336\371\t!Ce\t9\336\373\t#Ce\t9\336\317\t)Ce\tM5\316\t!Ce\t+;\366\t Ce\t\"Cd\t\016Ce\t9\336\316\t&Ce\t9\336\376\t#Ce\t9\336\377\t#Ce\t9\336\370\t#Ce\t"
+  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\033\235\234\000\003\000\000\000\033\235\236\000\001\000\000\000\033\235\252\000\013\000\000\000ov\253\000\003\000\000\000\tx\223\000\002\000\000\000\000\000\001\000,\000\000\000\033\235\253\000\004\000\000\000\033\235\233\000\001\000\000\000\033\235\232\000\001\000\000\000\033\235\235\000\001\000\000\000"
+  tools {
+    toolid: 156
+    version: 40219
+    times: 3
+  }
+  tools {
+    toolid: 158
+    version: 40219
+    times: 1
+  }
+  tools {
+    toolid: 170
+    version: 40219
+    times: 11
+  }
+  tools {
+    toolid: 171
+    version: 30319
+    times: 3
+  }
+  tools {
+    toolid: 147
+    version: 30729
+    times: 2
+  }
+  tools {
+    toolid: 1
+    version: 0
+    times: 44
+  }
+  tools {
+    toolid: 171
+    version: 40219
+    times: 4
+  }
+  tools {
+    toolid: 155
+    version: 40219
+    times: 1
+  }
+  tools {
+    toolid: 154
+    version: 40219
+    times: 1
+  }
+  tools {
+    toolid: 157
+    version: 40219
+    times: 1
+  }
+}
+pdb_path: "D:\\workspace\\2018_R9_RelBld\\target\\checkout\\custprof\\Release\\custprof.pdb"
+sections {
+  name: ".text"
+  full_name: ".text"
+  characteristics: 1610612768
+  raw_data_size: 4608
+  raw_data_offset: 1024
+  virtual_address: 4096
+  virtual_size: 4524
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rdata"
+  full_name: ".rdata"
+  characteristics: 1073741888
+  raw_data_size: 2048
+  raw_data_offset: 5632
+  virtual_address: 12288
+  virtual_size: 1777
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".data"
+  full_name: ".data"
+  characteristics: 3221225536
+  raw_data_size: 512
+  raw_data_offset: 7680
+  virtual_address: 16384
+  virtual_size: 916
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".rsrc"
+  full_name: ".rsrc"
+  characteristics: 1073741888
+  raw_data_size: 1536
+  raw_data_offset: 8192
+  virtual_address: 20480
+  virtual_size: 1468
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+sections {
+  name: ".reloc"
+  full_name: ".reloc"
+  characteristics: 1107296320
+  raw_data_size: 1024
+  raw_data_offset: 9728
+  virtual_address: 24576
+  virtual_size: 524
+  pointer_to_relocations: 0
+  pointer_to_line_numbers: 0
+  number_of_relocations: 0
+  number_of_line_numbers: 0
+}
+data_directories {
+  virtual_address: 13904
+  size: 161
+}
+data_directories {
+  virtual_address: 12980
+  size: 60
+}
+data_directories {
+  virtual_address: 20480
+  size: 1468
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 10752
+  size: 6048
+}
+data_directories {
+  virtual_address: 24576
+  size: 508
+}
+data_directories {
+  virtual_address: 12480
+  size: 28
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 12552
+  size: 64
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 12288
+  size: 160
+}
+data_directories {
+  virtual_address: 12860
+  size: 64
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+data_directories {
+  virtual_address: 0
+  size: 0
+}
+resources {
+  length: 958
+  rva: 20640
+  offset: 8352
+  type: RESOURCE_TYPE_VERSION
+  id: 1
+  language: 1033
+}
+resources {
+  length: 346
+  rva: 21600
+  offset: 9312
+  type: RESOURCE_TYPE_MANIFEST
+  id: 2
+  language: 1033
+}
+import_details {
+  library_name: "MSVCR100.dll"
+  functions {
+    name: "_crt_debugger_hook"
+    rva: 12380
+  }
+  functions {
+    name: "_except_handler4_common"
+    rva: 12384
+  }
+  functions {
+    name: "_onexit"
+    rva: 12388
+  }
+  functions {
+    name: "_lock"
+    rva: 12392
+  }
+  functions {
+    name: "__dllonexit"
+    rva: 12396
+  }
+  functions {
+    name: "_unlock"
+    rva: 12400
+  }
+  functions {
+    name: "__clean_type_info_names_internal"
+    rva: 12404
+  }
+  functions {
+    name: "__CppXcptFilter"
+    rva: 12408
+  }
+  functions {
+    name: "_amsg_exit"
+    rva: 12412
+  }
+  functions {
+    name: "_initterm_e"
+    rva: 12416
+  }
+  functions {
+    name: "_initterm"
+    rva: 12420
+  }
+  functions {
+    name: "_encoded_null"
+    rva: 12424
+  }
+  functions {
+    name: "_malloc_crt"
+    rva: 12428
+  }
+  functions {
+    name: "malloc"
+    rva: 12432
+  }
+  functions {
+    name: "memcpy"
+    rva: 12436
+  }
+  functions {
+    name: "free"
+    rva: 12440
+  }
+}
+import_details {
+  library_name: "KERNEL32.dll"
+  functions {
+    name: "Sleep"
+    rva: 12288
+  }
+  functions {
+    name: "LoadLibraryA"
+    rva: 12292
+  }
+  functions {
+    name: "GetLastError"
+    rva: 12296
+  }
+  functions {
+    name: "FreeLibrary"
+    rva: 12300
+  }
+  functions {
+    name: "GetProcAddress"
+    rva: 12304
+  }
+  functions {
+    name: "LocalFree"
+    rva: 12308
+  }
+  functions {
+    name: "LocalAlloc"
+    rva: 12312
+  }
+  functions {
+    name: "IsDebuggerPresent"
+    rva: 12316
+  }
+  functions {
+    name: "SetUnhandledExceptionFilter"
+    rva: 12320
+  }
+  functions {
+    name: "UnhandledExceptionFilter"
+    rva: 12324
+  }
+  functions {
+    name: "GetCurrentProcess"
+    rva: 12328
+  }
+  functions {
+    name: "TerminateProcess"
+    rva: 12332
+  }
+  functions {
+    name: "GetSystemTimeAsFileTime"
+    rva: 12336
+  }
+  functions {
+    name: "GetCurrentProcessId"
+    rva: 12340
+  }
+  functions {
+    name: "GetCurrentThreadId"
+    rva: 12344
+  }
+  functions {
+    name: "GetTickCount"
+    rva: 12348
+  }
+  functions {
+    name: "EncodePointer"
+    rva: 12352
+  }
+  functions {
+    name: "DecodePointer"
+    rva: 12356
+  }
+  functions {
+    name: "InterlockedExchange"
+    rva: 12360
+  }
+  functions {
+    name: "RaiseException"
+    rva: 12364
+  }
+  functions {
+    name: "InterlockedCompareExchange"
+    rva: 12368
+  }
+  functions {
+    name: "QueryPerformanceCounter"
+    rva: 12372
+  }
+}
+delayed_import_details {
+  library_name: "QDB.dll"
+  functions {
+    name: "ord116"
+    ordinal: 116
+    rva: 16408
+  }
+  functions {
+    name: "ord102"
+    ordinal: 102
+    rva: 16412
+  }
+  functions {
+    name: "ord95"
+    ordinal: 95
+    rva: 16416
+  }
+  functions {
+    name: "ord105"
+    ordinal: 105
+    rva: 16420
+  }
+  functions {
+    name: "ord103"
+    ordinal: 103
+    rva: 16424
+  }
+  functions {
+    name: "ord34"
+    ordinal: 34
+    rva: 16428
+  }
+}
+export_details {
+  name: "CP_PutItem"
+  ordinal: 200
+  rva: 4204
+  offset: 1132
+}
+export_details {
+  name: "CP_GetItem"
+  ordinal: 201
+  rva: 4414
+  offset: 1342
+}
+export_details {
+  name: "CP_DelItem"
+  ordinal: 202
+  rva: 4096
+  offset: 1024
+}
+export_details {
+  name: "CP_GetTaxMap"
+  ordinal: 203
+  rva: 4186
+  offset: 1114
+}
+export_details {
+  name: "_DllMain@12"
+  ordinal: 204
+  rva: 4624
+  offset: 1552
+}
+overlay {
+  offset: 10752
+  size: 6048
+}
