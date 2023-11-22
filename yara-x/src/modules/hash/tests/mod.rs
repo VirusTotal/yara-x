@@ -45,4 +45,18 @@ fn test_hash_module() {
         "#,
         b"foobarbaz"
     );
+
+    rule_true!(
+        r#"
+        import "hash"
+        rule test {
+          condition:
+            hash.crc32(0, filesize) == 0x1a7827aa and
+            hash.crc32(3, 3) == 0x76ff8caa and
+            hash.crc32(0, filesize) == hash.crc32("foobarbaz") and
+            hash.crc32(3, 3) ==  hash.crc32("bar")
+        }
+        "#,
+        b"foobarbaz"
+    );
 }

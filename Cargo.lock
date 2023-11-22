@@ -4136,6 +4136,7 @@ dependencies = [
  "bitvec",
  "bstr 1.8.0",
  "byteorder",
+ "crc32fast",
  "criterion",
  "fmmap",
  "globwalk",
