@@ -248,7 +248,7 @@ impl<W: Write> Serializer<W> {
                 Some(e) => write!(self.output, "{}", e.name())?,
                 None => write!(self.output, "{}", v)?,
             },
-            ReflectValueRef::Message(msg) => self.write_msg(&msg)?,
+            ReflectValueRef::Message(msg) => self.write_msg(msg)?,
         }
         Ok(())
     }
