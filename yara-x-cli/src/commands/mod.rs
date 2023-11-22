@@ -1,12 +1,14 @@
 mod check;
 mod compile;
 mod debug;
+mod dump;
 mod fmt;
 mod scan;
 
 pub use check::*;
 pub use compile::*;
 pub use debug::*;
+pub use dump::*;
 pub use fmt::*;
 pub use scan::*;
 

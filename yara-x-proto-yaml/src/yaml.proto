@@ -9,5 +9,5 @@ message FieldOptions {
   }
 
 extend google.protobuf.FieldOptions {
-    optional FieldOptions field_options = 51508;
+    optional FieldOptions field_options = 51504;
   }

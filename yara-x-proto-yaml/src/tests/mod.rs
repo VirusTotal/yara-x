@@ -1,10 +1,14 @@
 use protobuf::text_format::parse_from_str;
 use std::fs;
+use yansi::Paint;
 
 use crate::Serializer;
 
 #[test]
 fn yaml_serializer() {
+    // Disable colors for testing.
+    Paint::disable();
+
     // Create goldenfile mint.
     let mut mint = goldenfile::Mint::new(".");
 

@@ -1,16 +1,17 @@
-int32_hex: 123
+int32_hex: 0x7b
+timestamp: 999999999 # 2001-09-09 01:46:39 UTC
 int32_dec: 123
 str: "foo"
 repeated_msg:
-- int32_dec: 456
-  str: "bar"
-- int32_dec: 789
-  str: "baz"
-  map_string_string:
-    foo: "bar"
+  - int32_dec: 456
+    str: "bar\nbar"
+  - int32_dec: 789
+    str: "baz"
+    map_string_string:
+        "foo\nbar": "bar"
 nested_msg:
-  int32_dec: 1234
-  str: "qux"
-  map_string_string:
-    bar: "baz"
-    foo: "bar"
+    int32_dec: 1234
+    str: "qux\nfoo"
+    map_string_string:
+        "bar": "baz"
+        "foo": "bar"

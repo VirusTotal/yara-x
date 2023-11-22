@@ -12,8 +12,9 @@ message SubMessage {
 
 message Message {
   optional int32 int32_hex = 1 [(yaml.field_options).yaml_fmt = "x"];
-  optional int32 int32_dec = 2;
-  optional string str = 3;
-  repeated SubMessage repeated_msg = 4;
-  optional SubMessage nested_msg = 5;
+  optional int64 timestamp = 2 [(yaml.field_options).yaml_fmt = "t"];
+  optional int32 int32_dec = 3;
+  optional string str = 4;
+  repeated SubMessage repeated_msg = 5;
+  optional SubMessage nested_msg = 6;
 }

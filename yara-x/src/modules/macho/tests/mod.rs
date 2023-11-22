@@ -144,6 +144,13 @@ fn test_should_swap_bytes() {
 }
 
 #[test]
+fn test_convert_to_version_string() {
+    assert_eq!(convert_to_version_string(65536), "1.0.0");
+    assert_eq!(convert_to_version_string(102895360), "1570.15.0");
+    assert_eq!(convert_to_version_string(0), "0.0.0");
+}
+
+#[test]
 fn test_rva_to_offset() {
     let macho = create_test_macho_file();
 
