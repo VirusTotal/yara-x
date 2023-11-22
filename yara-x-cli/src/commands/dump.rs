@@ -19,6 +19,7 @@ enum SupportedModules {
     Lnk,
     Macho,
     Elf,
+    Pe,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -140,6 +141,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                 SupportedModules::Elf => {
                     yara_x::mods::invoke_mod_dyn::<yara_x::mods::ELF>(&buffer)
                 }
+                SupportedModules::Pe => {
+                    yara_x::mods::invoke_mod_dyn::<yara_x::mods::PE>(&buffer)
+                }
             } {
                 obtain_module_info(output_format, module, &*output)?;
             }
@@ -176,6 +180,17 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                     output_format,
                     &SupportedModules::Elf,
                     &*elf_output,
+                )?;
+            }
+        }
+        if let Some(pe_output) =
+            yara_x::mods::invoke_mod::<yara_x::mods::PE>(&buffer)
+        {
+            if pe_output.is_pe() {
+                obtain_module_info(
+                    output_format,
+                    &SupportedModules::Pe,
+                    &*pe_output,
                 )?;
             }
         }
