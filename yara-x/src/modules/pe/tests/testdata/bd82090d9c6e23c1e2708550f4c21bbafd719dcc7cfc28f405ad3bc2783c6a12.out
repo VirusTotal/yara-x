@@ -1,22 +1,18 @@
 is_pe: true
 machine: MACHINE_I386
 subsystem: SUBSYSTEM_WINDOWS_GUI
-os_version {
-  major: 4
-  minor: 0
-}
-subsystem_version {
-  major: 4
-  minor: 0
-}
-image_version {
-  major: 0
-  minor: 0
-}
-linker_version {
-  major: 8
-  minor: 0
-}
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 8
+    minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 259
 dll_characteristics: 1024
@@ -52,101 +48,64 @@ number_of_version_infos: 0
 number_of_imports: 0
 number_of_delayed_imports: 0
 number_of_exports: 0
-rich_signature {
-  offset: 128
-  length: 32
-  key: 2317110461
-  raw_data: "\371-r\331\275L\034\212\275L\034\212\275L\034\212\232\212q\212\274L\034\212\232\212d\212\274L\034\212"
-  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\'\306m\000\001\000\000\000\'\306x\000\001\000\000\000"
-  tools {
-    toolid: 109
-    version: 50727
-    times: 1
-  }
-  tools {
-    toolid: 120
-    version: 50727
-    times: 1
-  }
-}
-sections {
-  name: ".text"
-  full_name: ".text"
-  characteristics: 1610612768
-  raw_data_size: 4
-  raw_data_offset: 464
-  virtual_address: 464
-  virtual_size: 4
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-overlay {
-  offset: 0
-  size: 0
-}
+rich_signature:
+    offset: 128
+    length: 32
+    key: 2317110461
+    raw_data: "\371-r\331\275L\034\212\275L\034\212\275L\034\212\232\212q\212\274L\034\212\232\212d\212\274L\034\212"
+    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\'\306m\000\001\000\000\000\'\306x\000\001\000\000\000"
+    tools:
+      - toolid: 109
+        version: 50727
+        times: 1
+      - toolid: 120
+        version: 50727
+        times: 1
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 4
+    raw_data_offset: 464
+    virtual_address: 464
+    virtual_size: 4
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+overlay:
+    offset: 0
+    size: 0

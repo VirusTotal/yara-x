@@ -1,89 +1,78 @@
-magic: 4277009103
+magic: 0xfeedfacf
 cputype: 16777223
 cpusubtype: 3
 filetype: 6
 ncmds: 13
 sizeofcmds: 744
-flags: 1048709
+flags: 0x100085
 reserved: 1
 number_of_segments: 2
-segments {
-  cmd: 25
-  cmdsize: 312
-  segname: "__TEXT"
-  vmaddr: 0
-  vmsize: 4096
-  fileoff: 0
-  filesize: 4096
-  maxprot: 7
-  initprot: 5
-  nsects: 3
-  flags: 0
-  sections {
+segments:
+  - cmd: 25
+    cmdsize: 312
     segname: "__TEXT"
-    sectname: "__text"
-    addr: 3920
-    size: 72
-    offset: 3920
-    align: 4
-    reloff: 0
-    nreloc: 0
-    flags: 2147484672
-    reserved1: 0
-    reserved2: 0
-    reserved3: 0
-  }
-  sections {
-    segname: "__TEXT"
-    sectname: "__unwind_info"
-    addr: 3992
-    size: 72
-    offset: 3992
-    align: 2
-    reloff: 0
-    nreloc: 0
-    flags: 0
-    reserved1: 0
-    reserved2: 0
-    reserved3: 0
-  }
-  sections {
-    segname: "__TEXT"
-    sectname: "__eh_frame"
-    addr: 4064
-    size: 24
-    offset: 4064
-    align: 3
-    reloff: 0
-    nreloc: 0
-    flags: 0
-    reserved1: 0
-    reserved2: 0
-    reserved3: 0
-  }
-}
-segments {
-  cmd: 25
-  cmdsize: 72
-  segname: "__LINKEDIT"
-  vmaddr: 4096
-  vmsize: 4096
-  fileoff: 4096
-  filesize: 128
-  maxprot: 7
-  initprot: 1
-  nsects: 0
-  flags: 0
-}
-dylibs {
-  name: "fact_x86_64.dylib"
-  timestamp: 1
-  compatibility_version: "0.0.0"
-  current_version: "0.0.0"
-}
-dylibs {
-  name: "/usr/lib/libSystem.B.dylib"
-  timestamp: 2
-  compatibility_version: "1.0.0"
-  current_version: "1213.0.0"
-}
+    vmaddr: 0x0
+    vmsize: 0x1000
+    fileoff: 0
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 3
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0xf50
+        size: 0x48
+        offset: 3920
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__unwind_info"
+        addr: 0xf98
+        size: 0x48
+        offset: 3992
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__eh_frame"
+        addr: 0xfe0
+        size: 0x18
+        offset: 4064
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - cmd: 25
+    cmdsize: 72
+    segname: "__LINKEDIT"
+    vmaddr: 0x1000
+    vmsize: 0x1000
+    fileoff: 4096
+    filesize: 128
+    maxprot: 0x7
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "fact_x86_64.dylib"
+    timestamp: 1 # 1970-01-01 00:00:01 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1213.0.0"

@@ -1,22 +1,18 @@
 is_pe: true
 machine: MACHINE_I386
 subsystem: SUBSYSTEM_WINDOWS_GUI
-os_version {
-  major: 5
-  minor: 1
-}
-subsystem_version {
-  major: 5
-  minor: 1
-}
-image_version {
-  major: 0
-  minor: 0
-}
-linker_version {
-  major: 10
-  minor: 0
-}
+os_version:
+    major: 5
+    minor: 1
+subsystem_version:
+    major: 5
+    minor: 1
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 10
+    minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 8450
 dll_characteristics: 1344
@@ -52,155 +48,107 @@ number_of_version_infos: 0
 number_of_imports: 0
 number_of_delayed_imports: 0
 number_of_exports: 0
-rich_signature {
-  offset: 128
-  length: 32
-  key: 2327776733
-  raw_data: "\231l\321\331\335\r\277\212\335\r\277\212\335\r\277\212\262{%\212\334\r\277\212\262{\"\212\334\r\277\212"
-  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000ov\232\000\001\000\000\000ov\235\000\001\000\000\000"
-  tools {
-    toolid: 154
-    version: 30319
-    times: 1
-  }
-  tools {
-    toolid: 157
-    version: 30319
-    times: 1
-  }
-}
+rich_signature:
+    offset: 128
+    length: 32
+    key: 2327776733
+    raw_data: "\231l\321\331\335\r\277\212\335\r\277\212\335\r\277\212\262{%\212\334\r\277\212\262{\"\212\334\r\277\212"
+    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000ov\232\000\001\000\000\000ov\235\000\001\000\000\000"
+    tools:
+      - toolid: 154
+        version: 30319
+        times: 1
+      - toolid: 157
+        version: 30319
+        times: 1
 pdb_path: "C:\\SL\\Bin\\ResourceDll\\Cpp\\Release\\Win32\\ResourceDLL.pdb"
-sections {
-  name: ".rdata"
-  full_name: ".rdata"
-  characteristics: 1073741888
-  raw_data_size: 512
-  raw_data_offset: 512
-  virtual_address: 4096
-  virtual_size: 108
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-sections {
-  name: ".rsrc"
-  full_name: ".rsrc"
-  characteristics: 1073741888
-  raw_data_size: 2560
-  raw_data_offset: 1024
-  virtual_address: 8192
-  virtual_size: 2100
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 8192
-  size: 2100
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 4096
-  size: 28
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-resources {
-  length: 64
-  rva: 8604
-  offset: 1436
-  type: RESOURCE_TYPE_RCDATA
-  language: 0
-  name_string: "D\000E\000S\000C\000R\000I\000P\000T\000I\000O\000N\000"
-}
-resources {
-  length: 200
-  rva: 8668
-  offset: 1500
-  type: RESOURCE_TYPE_RCDATA
-  language: 0
-  name_string: "P\000A\000C\000K\000A\000G\000E\000I\000N\000F\000O\000"
-}
-resources {
-  length: 256
-  rva: 8868
-  offset: 1700
-  type: RESOURCE_TYPE_RCDATA
-  language: 0
-  name_string: "P\000A\000C\000K\000A\000G\000E\000O\000P\000T\000I\000O\000N\000S\000"
-}
-resources {
-  length: 2
-  rva: 9124
-  offset: 1956
-  type: RESOURCE_TYPE_RCDATA
-  language: 0
-  name_string: "P\000L\000A\000T\000F\000O\000R\000M\000T\000A\000R\000G\000E\000T\000S\000"
-}
-resources {
-  length: 1163
-  rva: 9128
-  offset: 1960
-  type: RESOURCE_TYPE_RCDATA
-  language: 0
-  name_string: "T\000L\000F\000_\000P\000D\000_\000J\000O\000"
-}
-overlay {
-  offset: 0
-  size: 0
-}
+sections:
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 512
+    raw_data_offset: 512
+    virtual_address: 4096
+    virtual_size: 108
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 2560
+    raw_data_offset: 1024
+    virtual_address: 8192
+    virtual_size: 2100
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8192
+    size: 2100
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 4096
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resources:
+  - length: 64
+    rva: 8604
+    offset: 1436
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "D\000E\000S\000C\000R\000I\000P\000T\000I\000O\000N\000"
+  - length: 200
+    rva: 8668
+    offset: 1500
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "P\000A\000C\000K\000A\000G\000E\000I\000N\000F\000O\000"
+  - length: 256
+    rva: 8868
+    offset: 1700
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "P\000A\000C\000K\000A\000G\000E\000O\000P\000T\000I\000O\000N\000S\000"
+  - length: 2
+    rva: 9124
+    offset: 1956
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "P\000L\000A\000T\000F\000O\000R\000M\000T\000A\000R\000G\000E\000T\000S\000"
+  - length: 1163
+    rva: 9128
+    offset: 1960
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "T\000L\000F\000_\000P\000D\000_\000J\000O\000"
+overlay:
+    offset: 0
+    size: 0

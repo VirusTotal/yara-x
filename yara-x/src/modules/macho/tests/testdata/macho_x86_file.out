@@ -1,164 +1,143 @@
-magic: 4277009102
+magic: 0xfeedface
 cputype: 7
 cpusubtype: 3
 filetype: 2
 ncmds: 17
 sizeofcmds: 1098
-flags: 18874501
+flags: 0x1200085
 number_of_segments: 4
-segments {
-  cmd: 1
-  cmdsize: 56
-  segname: "__PAGEZERO"
-  vmaddr: 0
-  vmsize: 4096
-  fileoff: 0
-  filesize: 0
-  maxprot: 0
-  initprot: 0
-  nsects: 0
-  flags: 0
-}
-segments {
-  cmd: 1
-  cmdsize: 396
-  segname: "__TEXT"
-  vmaddr: 4096
-  vmsize: 4096
-  fileoff: 0
-  filesize: 4096
-  maxprot: 7
-  initprot: 5
-  nsects: 5
-  flags: 0
-  sections {
+segments:
+  - cmd: 1
+    cmdsize: 56
+    segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x1000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x0
+  - cmd: 1
+    cmdsize: 396
     segname: "__TEXT"
-    sectname: "__text"
-    addr: 7824
-    size: 166
-    offset: 3728
-    align: 4
-    reloff: 0
-    nreloc: 0
-    flags: 2147484672
-    reserved1: 0
-    reserved2: 0
-  }
-  sections {
-    segname: "__TEXT"
-    sectname: "__symbol_stub"
-    addr: 7990
-    size: 12
-    offset: 3894
-    align: 1
-    reloff: 0
-    nreloc: 0
-    flags: 2147484936
-    reserved1: 0
-    reserved2: 6
-  }
-  sections {
-    segname: "__TEXT"
-    sectname: "__stub_helper"
-    addr: 8004
-    size: 32
-    offset: 3908
-    align: 2
-    reloff: 0
-    nreloc: 0
-    flags: 2147484928
-    reserved1: 0
-    reserved2: 0
-  }
-  sections {
-    segname: "__TEXT"
-    sectname: "__cstring"
-    addr: 8036
-    size: 69
-    offset: 3940
-    align: 0
-    reloff: 0
-    nreloc: 0
-    flags: 2
-    reserved1: 0
-    reserved2: 0
-  }
-  sections {
-    segname: "__TEXT"
-    sectname: "__unwind_info"
-    addr: 8108
-    size: 72
-    offset: 4012
-    align: 2
-    reloff: 0
-    nreloc: 0
-    flags: 0
-    reserved1: 0
-    reserved2: 0
-  }
-}
-segments {
-  cmd: 1
-  cmdsize: 192
-  segname: "__DATA"
-  vmaddr: 8192
-  vmsize: 4096
-  fileoff: 4096
-  filesize: 4096
-  maxprot: 7
-  initprot: 3
-  nsects: 2
-  flags: 0
-  sections {
+    vmaddr: 0x1000
+    vmsize: 0x1000
+    fileoff: 0
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 5
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x1e90
+        size: 0xa6
+        offset: 3728
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__symbol_stub"
+        addr: 0x1f36
+        size: 0xc
+        offset: 3894
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000508
+        reserved1: 0
+        reserved2: 6
+      - segname: "__TEXT"
+        sectname: "__stub_helper"
+        addr: 0x1f44
+        size: 0x20
+        offset: 3908
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000500
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x1f64
+        size: 0x45
+        offset: 3940
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__unwind_info"
+        addr: 0x1fac
+        size: 0x48
+        offset: 4012
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+  - cmd: 1
+    cmdsize: 192
     segname: "__DATA"
-    sectname: "__nl_symbol_ptr"
-    addr: 8192
-    size: 8
-    offset: 4096
-    align: 2
-    reloff: 0
-    nreloc: 0
-    flags: 6
-    reserved1: 2
-    reserved2: 0
-  }
-  sections {
-    segname: "__DATA"
-    sectname: "__la_symbol_ptr"
-    addr: 8200
-    size: 8
-    offset: 4104
-    align: 2
-    reloff: 0
-    nreloc: 0
-    flags: 7
-    reserved1: 4
-    reserved2: 0
-  }
-}
-segments {
-  cmd: 1
-  cmdsize: 56
-  segname: "__LINKEDIT"
-  vmaddr: 12288
-  vmsize: 4096
-  fileoff: 8192
-  filesize: 280
-  maxprot: 7
-  initprot: 1
-  nsects: 0
-  flags: 0
-}
-dylibs {
-  name: "/usr/lib/libSystem.B.dylib"
-  timestamp: 2
-  compatibility_version: "1.0.0"
-  current_version: "1213.0.0"
-}
-rpaths {
-  cmd: 2147483676
-  cmdsize: 38
-  path: "@loader_path/../Frameworks"
-}
+    vmaddr: 0x2000
+    vmsize: 0x1000
+    fileoff: 4096
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x3
+    nsects: 2
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__nl_symbol_ptr"
+        addr: 0x2000
+        size: 0x8
+        offset: 4096
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 2
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__la_symbol_ptr"
+        addr: 0x2008
+        size: 0x8
+        offset: 4104
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x7
+        reserved1: 4
+        reserved2: 0
+  - cmd: 1
+    cmdsize: 56
+    segname: "__LINKEDIT"
+    vmaddr: 0x3000
+    vmsize: 0x1000
+    fileoff: 8192
+    filesize: 280
+    maxprot: 0x7
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1213.0.0"
+rpaths:
+  - cmd: 2147483676
+    cmdsize: 38
+    path: "@loader_path/../Frameworks"
 entry_point: 3728
 stack_size: 0

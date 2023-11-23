@@ -10,11 +10,10 @@ common_path_suffix: "calc.exe"
 relative_path: ".\\calc.exe"
 working_dir: "Z:\\"
 overlay_size: 0
-tracker_data {
-  version: 0
-  machine_id: "localhost"
-  droid_volume_id: "d3575624-759e-423c-a55c-8b4ff424e1bc"
-  droid_file_id: "9626757f-e43a-11ec-9776-0cdd24239e8a"
-  droid_birth_volume_id: "d3575624-759e-423c-a55c-8b4ff424e1bc"
-  droid_birth_file_id: "9626757f-e43a-11ec-9776-0cdd24239e8a"
-}
+tracker_data:
+    version: 0
+    machine_id: "localhost"
+    droid_volume_id: "d3575624-759e-423c-a55c-8b4ff424e1bc"
+    droid_file_id: "9626757f-e43a-11ec-9776-0cdd24239e8a"
+    droid_birth_volume_id: "d3575624-759e-423c-a55c-8b4ff424e1bc"
+    droid_birth_file_id: "9626757f-e43a-11ec-9776-0cdd24239e8a"

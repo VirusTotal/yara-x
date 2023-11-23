@@ -1,22 +1,18 @@
 is_pe: true
 machine: MACHINE_I386
 subsystem: SUBSYSTEM_NATIVE
-os_version {
-  major: 6
-  minor: 1
-}
-subsystem_version {
-  major: 5
-  minor: 1
-}
-image_version {
-  major: 6
-  minor: 1
-}
-linker_version {
-  major: 9
-  minor: 0
-}
+os_version:
+    major: 6
+    minor: 1
+subsystem_version:
+    major: 5
+    minor: 1
+image_version:
+    major: 6
+    minor: 1
+linker_version:
+    major: 9
+    minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 258
 dll_characteristics: 1024
@@ -51,108 +47,64 @@ number_of_version_infos: 0
 number_of_imports: 0
 number_of_delayed_imports: 0
 number_of_exports: 0
-rich_signature {
-  offset: 512
-  length: 64
-  key: 2669511953
-  raw_data: "U\344s\314\021\205\035\237\021\205\035\237\021\205\035\237\021\205\034\237\000\205\035\237\322\212@\237\022\205\035\237\030\375\210\237\020\205\035\237\030\375\236\237\024\205\035\237\030\375\211\237\020\205\035\237\030\375\214\237\020\205\035\237"
-  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001\000\021\000\000\000\303\017]\000\003\000\000\000\tx\225\000\001\000\000\000\tx\203\000\005\000\000\000\tx\224\000\001\000\000\000\tx\221\000\001\000\000\000"
-  tools {
-    toolid: 1
-    version: 0
-    times: 17
-  }
-  tools {
-    toolid: 93
-    version: 4035
-    times: 3
-  }
-  tools {
-    toolid: 149
-    version: 30729
-    times: 1
-  }
-  tools {
-    toolid: 131
-    version: 30729
-    times: 5
-  }
-  tools {
-    toolid: 148
-    version: 30729
-    times: 1
-  }
-  tools {
-    toolid: 145
-    version: 30729
-    times: 1
-  }
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 6864
-  size: 40
-}
-data_directories {
-  virtual_address: 7424
-  size: 952
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 8704
-  size: 4520
-}
-data_directories {
-  virtual_address: 8448
-  size: 152
-}
-data_directories {
-  virtual_address: 6480
-  size: 28
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 6400
-  size: 72
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-overlay {
-  offset: 0
-  size: 0
-}
+rich_signature:
+    offset: 512
+    length: 64
+    key: 2669511953
+    raw_data: "U\344s\314\021\205\035\237\021\205\035\237\021\205\035\237\021\205\034\237\000\205\035\237\322\212@\237\022\205\035\237\030\375\210\237\020\205\035\237\030\375\236\237\024\205\035\237\030\375\211\237\020\205\035\237\030\375\214\237\020\205\035\237"
+    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\000\000\001\000\021\000\000\000\303\017]\000\003\000\000\000\tx\225\000\001\000\000\000\tx\203\000\005\000\000\000\tx\224\000\001\000\000\000\tx\221\000\001\000\000\000"
+    tools:
+      - toolid: 1
+        version: 0
+        times: 17
+      - toolid: 93
+        version: 4035
+        times: 3
+      - toolid: 149
+        version: 30729
+        times: 1
+      - toolid: 131
+        version: 30729
+        times: 5
+      - toolid: 148
+        version: 30729
+        times: 1
+      - toolid: 145
+        version: 30729
+        times: 1
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 6864
+    size: 40
+  - virtual_address: 7424
+    size: 952
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8704
+    size: 4520
+  - virtual_address: 8448
+    size: 152
+  - virtual_address: 6480
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 6400
+    size: 72
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+overlay:
+    offset: 0
+    size: 0

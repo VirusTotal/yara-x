@@ -4280,6 +4280,7 @@ dependencies = [
  "yara-x-macros",
  "yara-x-parser",
  "yara-x-proto",
+ "yara-x-proto-yaml",
  "zip",
 ]
 

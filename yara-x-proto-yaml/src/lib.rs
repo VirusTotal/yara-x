@@ -73,13 +73,12 @@ include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 const INDENTATION: u16 = 4;
 
 // A struct that represents colors for output
-struct ColorsConfig;
-
-impl ColorsConfig {
-    const STRING: Color = Color::Green;
-    const FIELD_NAME: Color = Color::Blue;
-    const REPEATED_NAME: Color = Color::Yellow;
-    const COMMENT: Color = Color::RGB(222, 184, 135); // Brown
+#[derive(Default)]
+struct Colors {
+    string: Color,
+    field_name: Color,
+    repeated_name: Color,
+    comment: Color,
 }
 
 /// A struct that represents options for a field values
@@ -97,12 +96,31 @@ struct ValueOptions {
 pub struct Serializer<W: Write> {
     indent: u16,
     output: W,
+    colors: Colors,
 }
 
 impl<W: Write> Serializer<W> {
     /// Creates a new YAML serializer that writes its output to `w`.
     pub fn new(w: W) -> Self {
-        Self { output: w, indent: 0 }
+        Self { output: w, indent: 0, colors: Colors::default() }
+    }
+
+    /// Specifies whether the serializer should colorize the output.
+    ///
+    /// If true, the output contain ANSI escape sequences that make it
+    /// look nicer on compatible consoles. The default setting is `false`.
+    pub fn with_colors(&mut self, b: bool) -> &mut Self {
+        self.colors = if b {
+            Colors {
+                string: Color::Green,
+                field_name: Color::Blue,
+                repeated_name: Color::Yellow,
+                comment: Color::RGB(222, 184, 135),
+            }
+        } else {
+            Colors::default()
+        };
+        self
     }
 
     /// Serializes the given protobuf message.
@@ -158,19 +176,15 @@ impl<W: Write> Serializer<W> {
     }
 
     fn write_as_a_comment(&mut self, value: String) -> Paint<String> {
-        ColorsConfig::COMMENT.paint(format!("{} {}", "#", value))
+        self.colors.comment.paint(format!("{} {}", "#", value))
     }
 
     fn write_field_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(self.output, "{}:", ColorsConfig::FIELD_NAME.paint(name).bold())
+        write!(self.output, "{}:", self.colors.field_name.paint(name))
     }
 
     fn write_repeated_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(
-            self.output,
-            "{}:",
-            ColorsConfig::REPEATED_NAME.paint(name).bold()
-        )
+        write!(self.output, "{}:", self.colors.repeated_name.paint(name))
     }
 
     fn write_msg(&mut self, msg: &MessageRef) -> Result<(), Error> {
@@ -205,7 +219,7 @@ impl<W: Write> Serializer<W> {
                             self.output,
                             "{}{} ",
                             " ".repeat((INDENTATION - 2) as usize),
-                            ColorsConfig::REPEATED_NAME.paint("-").bold()
+                            self.colors.repeated_name.paint("-")
                         )?;
                         self.indent += INDENTATION;
                         self.write_value(&field, &value)?;
@@ -284,7 +298,7 @@ impl<W: Write> Serializer<W> {
                 write!(
                     self.output,
                     "{}",
-                    ColorsConfig::STRING.paint(&quoted_string)
+                    self.colors.string.paint(&quoted_string)
                 )?;
             }
             ReflectValueRef::Bytes(v) => {
@@ -292,7 +306,7 @@ impl<W: Write> Serializer<W> {
                 write!(
                     self.output,
                     "{}",
-                    ColorsConfig::STRING.paint(&quoted_string)
+                    self.colors.string.paint(&quoted_string)
                 )?;
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {

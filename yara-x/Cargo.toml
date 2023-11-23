@@ -157,6 +157,7 @@ goldenfile = "1.6.0"
 pretty_assertions = { workspace = true }
 wasmprinter = "0.2.73"
 yara = { version = "0.23.0", features = ["vendored"] }
+yara-x-proto-yaml = { workspace = true }
 zip = "0.6.6"
 
 [[bench]]

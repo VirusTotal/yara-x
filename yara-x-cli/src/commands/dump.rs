@@ -92,7 +92,10 @@ fn obtain_module_info(
             println!("{}", Cyan.paint(module).bold());
             println!(">>>");
             let mut serializer = Serializer::new(stdout());
-            serializer.serialize(output).expect("Failed to serialize");
+            serializer
+                .with_colors(true)
+                .serialize(output)
+                .expect("Failed to serialize");
             println!("\n<<<");
         }
     }
