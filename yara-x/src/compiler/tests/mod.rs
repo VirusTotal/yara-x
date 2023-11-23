@@ -397,11 +397,11 @@ fn globals() {
             .unwrap()
             .add_source(
                 r#"
-            import "test_proto2-module"
+            import "test_proto2"
             rule foo {
                 condition: 
                     str_foo == "foo" and
-                    for all s in test_proto2.array_string: (s != str_foo)
+                    for any s in test_proto2.array_string: (s == str_foo)
              }"#,
             )
             .unwrap();
@@ -493,16 +493,70 @@ fn globals_json() {
 fn import_modules() {
     let mut compiler = Compiler::new();
     assert!(compiler
-        .add_source(r#"import "test_proto2" rule foo {condition: test_proto2.int32_zero == 0}"#)
+        .add_source(
+            r#"
+            import "test_proto2" 
+            rule foo {condition: test_proto2.int32_zero == 0}"#
+        )
         .unwrap()
-        .add_source(r#"import "test_proto2" rule bar {condition: test_proto2.int32_zero == 0}"#)
+        .add_source(
+            r#"
+            import "test_proto2" 
+            rule bar {condition: test_proto2.int32_zero == 0}"#
+        )
         .is_ok());
 
     let mut compiler = Compiler::new();
     assert!(compiler
-        .add_source(r#"import "test_proto2" rule foo {condition: test_proto2.int32_zero == 0}"#)
+        .add_source(
+            r#"
+            import "test_proto2" 
+            rule foo {condition: test_proto2.int32_zero == 0}"#
+        )
         .unwrap()
         .new_namespace("namespace1")
-        .add_source(r#"import "test_proto2" rule bar {condition: test_proto2.int32_zero == 0}"#)
+        .add_source(
+            r#"
+            import "test_proto2" 
+            rule bar {condition: test_proto2.int32_zero == 0}"#
+        )
         .is_ok());
+}
+
+#[test]
+fn continue_after_error() {
+    let mut compiler = Compiler::new();
+
+    // This rule won't compile because we are using `contains` with an integer.
+    assert!(compiler
+        .add_source(
+            r#"
+            rule test { 
+                condition: 
+                    for any x in (1,2,3) : ( x contains "foo") 
+            }"#
+        )
+        .is_err());
+
+    // Adding a rule with the same name after the previous one failed should
+    // be ok.
+    assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
+
+    // Now do the same test, but with each rule in a different namespace.
+    let mut compiler = Compiler::new();
+    compiler.new_namespace("namespace1");
+
+    assert!(compiler
+        .add_source(
+            r#"
+            rule test { 
+                condition: 
+                    for any x in (1,2,3) : ( x contains "foo") 
+            }"#
+        )
+        .is_err());
+
+    compiler.new_namespace("namespace2");
+
+    assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
 }

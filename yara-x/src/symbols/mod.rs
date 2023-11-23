@@ -234,12 +234,12 @@ impl<'a> StackedSymbolTable<'a> {
     }
 
     /// Removes the symbol tables at the top of the stack,
-    /// leaving only the bottom `n`.
+    /// keeping only the bottom `len`.
     ///
-    /// # Panics
-    /// If the stack does not have at least `n` symbol tables.
-    pub(crate) fn unwind(&mut self, n: usize) {
-        self.stack.drain(n..);
+    /// If the stack has more than `len` elements this has no effect.
+    #[inline]
+    pub(crate) fn truncate(&mut self, len: usize) {
+        self.stack.truncate(len)
     }
 }
 

@@ -247,7 +247,7 @@ fn test_proto2_module() {
     condition_true!(
         r#"
         test_proto2.add(test_proto2.int64_one, test_proto2.int64_one) == 2 and
-        test_proto2.add(test_proto2.int64_one, test_proto2.int64_zero) == 1 and
+        test_proto2.add(test_proto2.int64_one, test_proto2.int64_zero) == 1
         "#
     );
 }

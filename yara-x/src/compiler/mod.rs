@@ -614,6 +614,7 @@ impl<'a> Compiler<'a> {
             atoms_len: self.atoms.len(),
             re_code_len: self.re_code.len(),
             sub_patterns_len: self.sub_patterns.len(),
+            symbol_table_len: self.symbol_table.len(),
         }
     }
 
@@ -627,6 +628,7 @@ impl<'a> Compiler<'a> {
         self.sub_patterns.truncate(snapshot.sub_patterns_len);
         self.re_code.truncate(snapshot.re_code_len);
         self.atoms.truncate(snapshot.atoms_len);
+        self.symbol_table.truncate(snapshot.symbol_table_len);
     }
 
     /// Imports the module described in the `import` statement.
@@ -793,6 +795,32 @@ impl<'a> Compiler<'a> {
             is_private: rule.flags.contains(RuleFlag::Private),
         });
 
+        // Convert the rule condition's AST to the intermediate representation
+        // (IR).
+        let condition = bool_expr_from_ast(
+            &mut CompileContext {
+                current_struct: None,
+                symbol_table: &mut self.symbol_table,
+                ident_pool: &mut self.ident_pool,
+                report_builder: &self.report_builder,
+                rules: &self.rules,
+                current_rule_patterns: &mut patterns_with_ids,
+                warnings: &mut self.warnings,
+                vars: VarStack::new(),
+            },
+            &rule.condition,
+        );
+
+        // In case of error, restore the compiler to the state it was before
+        // entering this function.
+        let mut condition = match condition {
+            Ok(condition) => condition,
+            Err(e) => {
+                self.restore_snapshot(snapshot);
+                return Err(e);
+            }
+        };
+
         // Create a new symbol of bool type for the rule.
         let new_symbol = Symbol::new(
             TypeValue::Bool(Value::Unknown),
@@ -810,40 +838,6 @@ impl<'a> Compiler<'a> {
 
         // No other symbol with the same identifier should exist.
         assert!(existing_symbol.is_none());
-
-        // Save the current number of stacked symbol tables for later
-        // use. During the compilation of the rule's condition more
-        // tables can be added to the stack.
-        let initial = self.symbol_table.len();
-
-        // Convert the rule condition's AST to the intermediate representation
-        // (IR).
-        let condition = bool_expr_from_ast(
-            &mut CompileContext {
-                current_struct: None,
-                symbol_table: &mut self.symbol_table,
-                ident_pool: &mut self.ident_pool,
-                report_builder: &self.report_builder,
-                rules: &self.rules,
-                current_rule_patterns: &mut patterns_with_ids,
-                warnings: &mut self.warnings,
-                vars: VarStack::new(),
-            },
-            &rule.condition,
-        );
-
-        let mut condition = match condition {
-            Ok(condition) => condition,
-            Err(e) => {
-                // In case of error, revert the symbol table stack to
-                // its initial state before calling bool_expr_from_ast.
-                // This guarantees that symbol tables added during the
-                // compilation process are not left in the stack when
-                // an error occurs.
-                self.symbol_table.unwind(initial);
-                return Err(e);
-            }
-        };
 
         let patterns_with_ids_and_span = iter::zip(
             patterns_with_ids,
@@ -1856,4 +1850,5 @@ struct Snapshot {
     atoms_len: usize,
     re_code_len: usize,
     sub_patterns_len: usize,
+    symbol_table_len: usize,
 }
