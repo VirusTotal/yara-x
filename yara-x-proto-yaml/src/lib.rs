@@ -1,3 +1,54 @@
+/*! Serializes a Protocol Buffer (protobuf) message to YAML.
+
+This crates serializes arbitrary protobuf messages to YAML format, producing
+YAML that is user-friendly, customizable and colorful. Some aspects of the
+produced YAML can be customized by using specific options in your `.proto`
+files. Let's use the following protobuf message definition as an example:
+
+```protobuf
+import "yaml.proto";
+
+message MyMessage {
+  optional int32 some_field = 1 [(yaml.field).fmt = "x"];
+}
+```
+
+The first think to note is the `import "yaml.proto"` statement before the
+message definition. The `yaml.proto` file defines the existing YAML formatting
+options, so you must include it in your own `.proto` file in order to be able
+to use the such options.
+
+The `[(yaml.field).fmt = "x"]` modifier, when applied to some field, indicates
+that values of that field must be rendered in hexadecimal form. The list of
+supported format modifiers is:
+
+- `x`: Serializes the value an hexadecimal number. Only valid for integer
+       fields.
+- `t`: Serializes the field as a timestamp. The value itself is rendered as a
+       decimal integer, but a comment is added with the timestamp in a
+       human-friendly format. Only valid for integer fields.
+
+# Examples
+
+Protobuf definition:
+
+```protobuf
+import "yaml.proto";
+
+message MyMessage {
+  optional int32 some_field = 1 [(yaml.field).fmt = "x"];
+  optional int64 some_timestamp = 2 [(yaml.field).fmt = "x"];
+}
+```
+
+YAML output:
+
+```yaml
+some_field: 0x8b1;
+timestamp: 999999999 # 2001-09-09 01:46:39 UTC
+```
+ */
+
 use chrono::prelude::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use protobuf::MessageDyn;
@@ -12,7 +63,7 @@ use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
 use protobuf::reflect::ReflectValueRef;
 use protobuf::reflect::{FieldDescriptor, MessageRef};
 
-use crate::yaml::exts::field_options;
+use crate::yaml::exts::field as field_options;
 
 #[cfg(test)]
 mod tests;
@@ -31,7 +82,7 @@ impl ColorsConfig {
     const COMMENT: Color = Color::RGB(222, 184, 135); // Brown
 }
 
-// A struct that represents options for a field values
+/// A struct that represents options for a field values
 #[derive(Debug, Default, Clone)]
 struct ValueOptions {
     is_hex: bool,
@@ -69,8 +120,8 @@ impl<W: Write> Serializer<W> {
             .get(&field_descriptor.options)
             .map(|options| ValueOptions {
                 // Default for boolean is false
-                is_hex: options.yaml_fmt() == "x",
-                is_timestamp: options.yaml_fmt() == "t",
+                is_hex: options.fmt() == "x",
+                is_timestamp: options.fmt() == "t",
             })
             .unwrap_or_default()
     }
