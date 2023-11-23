@@ -92,6 +92,7 @@ pub fn scan() -> Command {
                 .required(false)
                 .value_name("VAR=VALUE")
                 .value_parser(external_var_parser)
+                .action(ArgAction::Append)
         )
 }
 
