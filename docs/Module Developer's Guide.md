@@ -146,6 +146,27 @@ actually field tags (i.e: a unique number identifying each field in a message).
 This may be confusing if you are not familiar with protobuf's  syntax, so again:
 explore the protobuf's [documentation](https://developers.google.com/protocol-buffers). 
 
+One thing that can be done with integer fields is to represent them in some other way.
+This optional representation is shown in `yr dump` crate output. This crate provides
+two output formats: JSON and YAML. Both can be shown in colored output via `-c|--color` option.
+The last mentioned also provides custom representation for integer numbers. Let's say
+for some fields it makes sense to show them as hexadecimal numbers. This can be done by
+adding `[(yara.field_options).yaml_fmt = "<format>"];` descriptor to the field. 
+Currently supported formats are: hexadecimal number and human-readable timestamp.
+For example:
+
+```
+message Macho {
+  optional uint32 magic = 1 [(yara.field_options).yml_fmt= "x"];
+}
+```
+
+This will mark magic field as a hexadecimal number and it will be shown as 
+`magic: 0xfeedfacf` instead of `4277009103`. Other format that is supported right now is
+for timestamps. If you want to show some integer field as a timestamp you can do it by
+setting `[(yara.field_options).yml_fmt = "t"];` descriptor to the field and
+human readable timestamps will be shown in YAML comment after its integer value.
+
 Also notice that we are defining our fields as `optional`. In `proto2` fields
 must be either `optional` or `required`, while in `proto3` they are always
 optional and can't be forced to be required. We are going to discuss this topic

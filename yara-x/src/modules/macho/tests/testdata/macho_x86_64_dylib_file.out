@@ -78,12 +78,12 @@ segments {
 dylibs {
   name: "fact_x86_64.dylib"
   timestamp: 1
-  compatibility_version: 0
-  current_version: 0
+  compatibility_version: "0.0.0"
+  current_version: "0.0.0"
 }
 dylibs {
   name: "/usr/lib/libSystem.B.dylib"
   timestamp: 2
-  compatibility_version: 65536
-  current_version: 79495168
+  compatibility_version: "1.0.0"
+  current_version: "1213.0.0"
 }

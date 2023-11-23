@@ -169,8 +169,8 @@ file {
   dylibs {
     name: "/usr/lib/libSystem.B.dylib"
     timestamp: 2
-    compatibility_version: 65536
-    current_version: 79495168
+    compatibility_version: "1.0.0"
+    current_version: "1213.0.0"
   }
   entry_point: 3808
   stack_size: 0
@@ -352,8 +352,8 @@ file {
   dylibs {
     name: "/usr/lib/libSystem.B.dylib"
     timestamp: 2
-    compatibility_version: 65536
-    current_version: 79495168
+    compatibility_version: "1.0.0"
+    current_version: "1213.0.0"
   }
   entry_point: 3808
   stack_size: 0
