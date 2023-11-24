@@ -207,6 +207,7 @@ pub(in crate::compiler) struct RegexpPattern {
 }
 
 /// Intermediate representation (IR) for an expression.
+#[derive(Debug)]
 pub(in crate::compiler) enum Expr {
     /// Constant value (i.e: the value is known at compile time). The value
     /// in `type_value` is not `None`.
@@ -460,6 +461,7 @@ pub(in crate::compiler) enum Expr {
 }
 
 /// A lookup operation in an array or dictionary.
+#[derive(Debug)]
 pub(in crate::compiler) struct Lookup {
     pub type_value: TypeValue,
     pub primary: Box<Expr>,
@@ -467,6 +469,7 @@ pub(in crate::compiler) struct Lookup {
 }
 
 /// An expression representing a function call.
+#[derive(Debug)]
 pub(in crate::compiler) struct FuncCall {
     /// The callable expression, which must resolve in some function identifier.
     pub callable: Expr,
@@ -482,6 +485,7 @@ pub(in crate::compiler) struct FuncCall {
 
 /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
 /// `any of (true, false)`)
+#[derive(Debug)]
 pub(in crate::compiler) struct Of {
     pub quantifier: Quantifier,
     pub items: OfItems,
@@ -491,6 +495,7 @@ pub(in crate::compiler) struct Of {
 
 /// A `for .. of` expression (e.g `for all of them : (..)`,
 /// `for 1 of ($a,$b) : (..)`)
+#[derive(Debug)]
 pub(in crate::compiler) struct ForOf {
     pub quantifier: Quantifier,
     pub variable: Var,
@@ -500,6 +505,7 @@ pub(in crate::compiler) struct ForOf {
 }
 
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
+#[derive(Debug)]
 pub(in crate::compiler) struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
@@ -509,6 +515,7 @@ pub(in crate::compiler) struct ForIn {
 }
 
 /// A quantifier used in `for` and `of` expressions.
+#[derive(Debug)]
 pub(in crate::compiler) enum Quantifier {
     None,
     All,
@@ -523,6 +530,7 @@ pub(in crate::compiler) enum Quantifier {
 /// The anchor is the part of the expression that restricts the offset range
 /// where the match can occur.
 /// (e.g. `at <expr>`, `in <range>`).
+#[derive(Debug)]
 pub(in crate::compiler) enum MatchAnchor {
     None,
     At(Box<Expr>),
@@ -548,18 +556,21 @@ impl MatchAnchor {
 }
 
 /// Items in a `of` expression.
+#[derive(Debug)]
 pub(in crate::compiler) enum OfItems {
     PatternSet(Vec<PatternId>),
     BoolExprTuple(Vec<Expr>),
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
+#[derive(Debug)]
 pub(in crate::compiler) struct Range {
     pub lower_bound: Box<Expr>,
     pub upper_bound: Box<Expr>,
 }
 
 /// Possible iterable expressions that can use in a [`ForIn`].
+#[derive(Debug)]
 pub(in crate::compiler) enum Iterable {
     Range(Range),
     ExprTuple(Vec<Expr>),
@@ -698,7 +709,7 @@ impl Expr {
             | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
 
             Expr::FieldAccess { operands } => {
-                operands.last().unwrap().type_value().clone()
+                operands.last().unwrap().type_value()
             }
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),
             Expr::FuncCall(fn_call) => fn_call.type_value.clone(),

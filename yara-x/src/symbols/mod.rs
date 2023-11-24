@@ -13,7 +13,7 @@ pub(crate) trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Symbol {
     type_value: TypeValue,
     kind: SymbolKind,
@@ -23,7 +23,7 @@ pub(crate) struct Symbol {
 ///
 /// Used by the compiler to determine how to generate code that
 /// accesses the symbol.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) enum SymbolKind {
     /// The symbol refers to a variable stored in WASM memory.
     WasmVar(Var),

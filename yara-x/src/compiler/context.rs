@@ -187,7 +187,7 @@ impl VarStack {
 ///
 /// Frames are stacked one in top of another, individual variables are
 /// allocated within a frame.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct VarStackFrame {
     pub start: i32,
     pub used: i32,
