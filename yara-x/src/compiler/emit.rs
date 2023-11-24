@@ -417,9 +417,10 @@ fn emit_expr(
             emit_pattern_length(ctx, instr, expr);
         }
 
-        Expr::FieldAccess { lhs, rhs } => {
-            emit_expr(ctx, instr, lhs);
-            emit_expr(ctx, instr, rhs);
+        Expr::FieldAccess { operands } => {
+            for operand in operands {
+                emit_expr(ctx, instr, operand);
+            }
         }
 
         Expr::Defined { operand } => {

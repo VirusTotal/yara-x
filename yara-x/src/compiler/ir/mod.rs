@@ -381,10 +381,9 @@ pub(in crate::compiler) enum Expr {
         lhs: Box<Expr>,
     },
 
-    /// Field access expression (e.g. `foo.bar`)
+    /// Field access expression (e.g. `foo.bar.baz`)
     FieldAccess {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// A `defined` expression (e.g. `defined foo`)
@@ -629,7 +628,7 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => Type::Integer,
 
-            Expr::FieldAccess { rhs, .. } => rhs.ty(),
+            Expr::FieldAccess { operands } => operands.last().unwrap().ty(),
             Expr::Ident { symbol, .. } => symbol.type_value().ty(),
             Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
@@ -698,7 +697,9 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
 
-            Expr::FieldAccess { rhs, .. } => rhs.type_value(),
+            Expr::FieldAccess { operands } => {
+                operands.last().unwrap().type_value().clone()
+            }
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),
             Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),

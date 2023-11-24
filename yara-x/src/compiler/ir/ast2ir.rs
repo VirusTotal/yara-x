@@ -290,40 +290,37 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::FuncCall(fn_call) => func_call_from_ast(ctx, fn_call),
 
         ast::Expr::FieldAccess(expr) => {
-            let lhs = expr_from_ast(ctx, &expr.lhs)?;
-
-            // The left-hand operand of a field access operation (i.e: foo.bar)
-            // must be a struct.
-            check_type(ctx, lhs.ty(), expr.lhs.span(), &[Type::Struct])?;
-
-            // Set `current_struct` to the structure returned by the left-hand
-            // operand. While processing the right-hand operand, the first
-            // symbol lookup will use `current_struct` instead of the top-level
-            // symbol table.
-            ctx.current_struct = Some(lhs.type_value().as_struct());
-
-            // Now build the right-hand expression.
-            let rhs = expr_from_ast(ctx, &expr.rhs)?;
-
-            // If the right-hand expression is constant, the result is also
-            // constant.
-            if cfg!(feature = "constant-folding") {
-                if let Expr::Const { type_value, .. } = rhs {
-                    // A constant always have a defined value.
-                    assert!(type_value.is_const());
-                    Ok(Expr::Const { type_value })
-                } else {
-                    Ok(Expr::FieldAccess {
-                        lhs: Box::new(lhs),
-                        rhs: Box::new(rhs),
-                    })
-                }
-            } else {
-                Ok(Expr::FieldAccess {
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                })
+            let mut operands = Vec::with_capacity(expr.operands.len());
+            // Iterate over all operands except the last one. These operands
+            // must be structures. For instance, in `foo.bar.baz`, `foo` and
+            // `bar` must be structures, while `baz` can be of any type.
+            for operand in expr.operands.iter().dropping_back(1) {
+                let expr = expr_from_ast(ctx, operand)?;
+                check_type(ctx, expr.ty(), operand.span(), &[Type::Struct])?;
+                // Set `current_struct` to the structure returned by this
+                // operand. While processing the next operand the first
+                // symbol lookup will use `current_struct` instead of the
+                // top-level symbol table.
+                ctx.current_struct = Some(expr.type_value().as_struct());
+                operands.push(expr);
             }
+
+            // Now process the last operand.
+            let last_operand =
+                expr_from_ast(ctx, expr.operands.last().unwrap())?;
+
+            // If the last operand is constant, the whole expression is
+            // constant.
+            #[cfg(feature = "constant-folding")]
+            if let Expr::Const { type_value, .. } = last_operand {
+                // A constant always have a defined value.
+                assert!(type_value.is_const());
+                return Ok(Expr::Const { type_value });
+            }
+
+            operands.push(last_operand);
+
+            Ok(Expr::FieldAccess { operands })
         }
 
         ast::Expr::Ident(ident) => {
