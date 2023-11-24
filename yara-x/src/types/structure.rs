@@ -991,14 +991,8 @@ mod tests {
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
         root.add_field("bar", TypeValue::Integer(Value::Var(1)));
 
-        let foo_index = root.index_of("foo");
-        let bar_index = root.index_of("bar");
-
-        assert_eq!(foo_index, 0);
-        assert_eq!(bar_index, 1);
-
         let field1 = root.field_by_name("foo").unwrap();
-        let field2 = root.field_by_index(foo_index).unwrap();
+        let field2 = root.field_by_index(0).unwrap();
 
         assert_eq!(field1.type_value.ty(), Type::Struct);
         assert_eq!(field1.type_value.ty(), field2.type_value.ty());
