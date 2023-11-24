@@ -22,6 +22,34 @@ message RPath {
   optional string path = 3;
 }
 
+message MinVersionMacOS {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional uint32 version = 3;
+  optional uint32 sdk = 4;
+}
+
+message MinVersionIphoneOS {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional uint32 version = 3;
+  optional uint32 sdk = 4;
+}
+
+message MinVersionTvOS {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional uint32 version = 3;
+  optional uint32 sdk = 4;
+}
+
+message MinVersionWatchOS {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional uint32 version = 3;
+  optional uint32 sdk = 4;
+}
+
 message Section {
   optional string segname = 1;
   optional string sectname = 2;
@@ -74,8 +102,12 @@ message File {
   repeated Segment segments = 10;
   repeated Dylib dylibs = 11;
   repeated RPath rpaths = 12;
-  optional uint64 entry_point = 13;
-  optional uint64 stack_size = 14;
+  optional MinVersionMacOS min_version_mac_os = 13;
+  optional MinVersionIphoneOS min_version_iphone_os = 14;
+  optional MinVersionTvOS min_version_tv_os = 15;
+  optional MinVersionWatchOS min_version_watch_os = 16;
+  optional uint64 entry_point = 17;
+  optional uint64 stack_size = 18;
 }
 
 message Macho {
@@ -92,16 +124,20 @@ message Macho {
   repeated Segment segments = 10;
   repeated Dylib dylibs = 11;
   repeated RPath rpaths = 12;
-  optional uint64 entry_point = 13;
-  optional uint64 stack_size = 14;
+  optional MinVersionMacOS min_version_mac_os = 13;
+  optional MinVersionIphoneOS min_version_iphone_os = 14;
+  optional MinVersionTvOS min_version_tv_os = 15;
+  optional MinVersionWatchOS min_version_watch_os = 16;
+  optional uint64 entry_point = 17;
+  optional uint64 stack_size = 18;
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 15;
-  optional uint32 nfat_arch = 16;
-  repeated FatArch fat_arch = 17;
+  optional uint32 fat_magic = 19;
+  optional uint32 nfat_arch = 20;
+  repeated FatArch fat_arch = 21;
 
   // Nested Mach-O files
-  repeated File file = 18;
+  repeated File file = 22;
 }
 
 enum HEADER {

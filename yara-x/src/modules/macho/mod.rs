@@ -15,6 +15,7 @@ use nom::{
     sequence::tuple,
     IResult,
 };
+use protobuf::MessageField;
 use thiserror::Error;
 
 use crate::modules::prelude::*;
@@ -66,6 +67,10 @@ const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
+const LC_VERSION_MIN_MACOSX: u32 = 0x24;
+const LC_VERSION_MIN_IPHONEOS: u32 = 0x25;
+const LC_VERSION_MIN_TVOS: u32 = 0x2f;
+const LC_VERSION_MIN_WATCHOS: u32 = 0x30;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
 
 /// Enum that provides strongly-typed error system used in code
@@ -197,6 +202,17 @@ struct RPathCommand {
     cmd: u32,
     cmdsize: u32,
     path: Vec<u8>,
+}
+
+/// `MinVersionCommand`: Represents a minimum version command in the Mach-O file.
+/// Fields: cmd, cmdsize, version, sdk
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct MinVersionCommand {
+    cmd: u32,
+    cmdsize: u32,
+    version: u32,
+    sdk: u32,
 }
 
 /// `SegmentCommand32`: Represents a 32-bit segment command in the Mach-O file.
@@ -691,6 +707,19 @@ fn swap_rpath_command(command: &mut RPathCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O minimum version  
+/// command from BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O minimum version command.
+fn swap_min_version_command(command: &mut MinVersionCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.version = BigEndian::read_u32(&command.version.to_le_bytes());
+    command.sdk = BigEndian::read_u32(&command.sdk.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a 32-bit Mach-O segment command from
 /// BigEndian to LittleEndian in-place.
 ///
@@ -1004,6 +1033,31 @@ fn parse_rpath_command(input: &[u8]) -> IResult<&[u8], RPathCommand> {
     let (input, path) = take(cmdsize - offset)(input)?;
 
     Ok((input, RPathCommand { cmd, cmdsize, path: path.into() }))
+}
+
+/// Parse a Mach-O MinVersionCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw MinVersionCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// MinVersionCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_min_version_command(
+    input: &[u8],
+) -> IResult<&[u8], MinVersionCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, version) = le_u32(input)?;
+    let (input, sdk) = le_u32(input)?;
+    Ok((input, MinVersionCommand { cmd, cmdsize, version, sdk }))
 }
 
 /// Parse the 32-bit segment command of a Mach-O file, offering a structured
@@ -1619,7 +1673,7 @@ fn handle_dylib_command(
 /// # Arguments
 ///
 /// * `command_data`: The raw byte data of the rpath command.
-/// * `size`: The size of the dylib command data.
+/// * `size`: The size of the remote path command data.
 /// * `macho_file`: Mutable reference to the protobuf representation of the
 ///   Mach-O file.
 ///
@@ -1669,6 +1723,102 @@ fn handle_rpath_command(
         ..Default::default()
     };
     macho_file.rpaths.push(rpath);
+    Ok(())
+}
+
+/// Handles the LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_VERSION_MIN_TVOS, and LC_VERSION_MIN_WATCHOS
+/// commands for Mach-O files, parsing the data and populating a protobuf representation of the minimum version
+/// load command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the minimum version command.
+/// * `size`: The size of the minimum version command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected MinVersionCommand struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   minumum version command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_min_version_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<RPathCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "MinVersionCommand".to_string(),
+        ));
+    }
+
+    let (_, mut mvc) = parse_min_version_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_min_version_command(&mut mvc);
+    }
+
+    match mvc.cmd {
+        LC_VERSION_MIN_MACOSX => {
+            let min_version_command = MinVersionMacOS {
+                cmd: Some(mvc.cmd),
+                cmdsize: Some(mvc.cmdsize),
+                version: Some(mvc.version),
+                sdk: Some(mvc.sdk),
+                ..Default::default()
+            };
+
+            macho_file.min_version_mac_os = MessageField::some(min_version_command);
+        }
+        LC_VERSION_MIN_IPHONEOS => {
+            let min_version_command = MinVersionIphoneOS {
+                cmd: Some(mvc.cmd),
+                cmdsize: Some(mvc.cmdsize),
+                version: Some(mvc.version),
+                sdk: Some(mvc.sdk),
+                ..Default::default()
+            };
+
+            macho_file.min_version_iphone_os = MessageField::some(min_version_command);
+        }
+        LC_VERSION_MIN_TVOS => {
+            let min_version_command = MinVersionTvOS {
+                cmd: Some(mvc.cmd),
+                cmdsize: Some(mvc.cmdsize),
+                version: Some(mvc.version),
+                sdk: Some(mvc.sdk),
+                ..Default::default()
+            };
+
+            macho_file.min_version_tv_os = MessageField::some(min_version_command);
+        }
+        LC_VERSION_MIN_WATCHOS => {
+            let min_version_command = MinVersionWatchOS {
+                cmd: Some(mvc.cmd),
+                cmdsize: Some(mvc.cmdsize),
+                version: Some(mvc.version),
+                sdk: Some(mvc.sdk),
+                ..Default::default()
+            };
+
+            macho_file.min_version_watch_os = MessageField::some(min_version_command);
+        }
+        _ => {}
+    }
+
     Ok(())
 }
 
@@ -2205,6 +2355,12 @@ fn handle_command(
             }
             LC_RPATH => {
                 handle_rpath_command(command_data, cmdsize, macho_file)?;
+            }
+            LC_VERSION_MIN_MACOSX
+            | LC_VERSION_MIN_IPHONEOS
+            | LC_VERSION_MIN_TVOS
+            | LC_VERSION_MIN_WATCHOS => {
+                handle_min_version_command(command_data, cmdsize, macho_file)?;
             }
             _ => {}
         }
