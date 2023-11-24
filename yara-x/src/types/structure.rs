@@ -23,8 +23,6 @@ use crate::types::{Array, Map, TypeValue, Value};
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StructField {
-    /// Field name.
-    pub name: String,
     /// For structures derived from a protobuf this contains the field number
     /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
@@ -136,11 +134,7 @@ impl Struct {
         } else {
             self.fields.insert(
                 name.to_owned(),
-                StructField {
-                    type_value: value,
-                    name: name.to_owned(),
-                    number: 0,
-                },
+                StructField { type_value: value, number: 0 },
             )
         }
     }
@@ -179,12 +173,6 @@ impl Struct {
         name: &str,
     ) -> Option<&mut StructField> {
         self.fields.get_mut(name)
-    }
-
-    /// Returns the index of a field.
-    #[inline]
-    pub fn index_of(&self, name: &str) -> usize {
-        self.fields.get_index_of(name).unwrap()
     }
 
     /// Creates a [`Struct`] from a protobuf message.
@@ -315,16 +303,18 @@ impl Struct {
                 }
             };
 
-            fields.push(StructField {
-                // Index is initially zero, will be adjusted later.
-                type_value: value,
-                number,
+            fields.push((
                 name,
-            });
+                StructField {
+                    // Index is initially zero, will be adjusted later.
+                    type_value: value,
+                    number,
+                },
+            ));
         }
 
         // Sort fields by field numbers specified in the proto.
-        fields.sort_by(|a, b| a.number.cmp(&b.number));
+        fields.sort_by(|a, b| a.1.number.cmp(&b.1.number));
 
         if generate_fields_for_enums {
             // Enums declared inside a message are treated as a nested
@@ -347,13 +337,15 @@ impl Struct {
             for enum_ in enums {
                 if Self::enum_is_inline(&enum_) {
                     for item in enum_.values() {
-                        fields.push(StructField {
-                            type_value: TypeValue::Integer(Value::Const(
-                                Self::enum_value(&item),
-                            )),
-                            number: 0,
-                            name: item.name().to_owned(),
-                        });
+                        fields.push((
+                            item.name().to_owned(),
+                            StructField {
+                                type_value: TypeValue::Integer(Value::Const(
+                                    Self::enum_value(&item),
+                                )),
+                                number: 0,
+                            },
+                        ));
                     }
                 } else {
                     // Create the structure where each field will be one of the
@@ -361,37 +353,38 @@ impl Struct {
                     let mut enum_struct = Struct::new();
 
                     for item in enum_.values() {
-                        if let Some(existing_field) = enum_struct.add_field(
-                            item.name(),
-                            TypeValue::Integer(Value::Const(
-                                Self::enum_value(&item),
-                            )),
-                        ) {
-                            panic!(
-                                "field '{}' already exists",
-                                existing_field.name
-                            );
+                        if enum_struct
+                            .add_field(
+                                item.name(),
+                                TypeValue::Integer(Value::Const(
+                                    Self::enum_value(&item),
+                                )),
+                            )
+                            .is_some()
+                        {
+                            panic!("field '{}' already exists", item.name());
                         }
                     }
 
-                    fields.push(StructField {
-                        type_value: TypeValue::Struct(Rc::new(enum_struct)),
-                        number: 0,
-                        name: Self::enum_name(&enum_),
-                    });
+                    fields.push((
+                        Self::enum_name(&enum_),
+                        StructField {
+                            type_value: TypeValue::Struct(Rc::new(
+                                enum_struct,
+                            )),
+                            number: 0,
+                        },
+                    ));
                 }
             }
         }
 
         let mut field_index = IndexMap::new();
 
-        for field in fields {
-            if let Some(existing_field) =
-                field_index.insert(field.name.clone(), field)
-            {
+        for (name, field) in fields {
+            if field_index.insert(name, field).is_some() {
                 panic!(
-                    "duplicate field name `{}` in `{}`",
-                    existing_field.name,
+                    "duplicate field name in message `{}`",
                     msg_descriptor.name()
                 )
             }
@@ -987,7 +980,7 @@ impl PartialEq for Struct {
 #[cfg(test)]
 mod tests {
     use super::Struct;
-    use crate::types::{Array, TypeValue, Value};
+    use crate::types::{Array, Type, TypeValue, Value};
     use std::rc::Rc;
 
     #[test]
@@ -1007,8 +1000,8 @@ mod tests {
         let field1 = root.field_by_name("foo").unwrap();
         let field2 = root.field_by_index(foo_index).unwrap();
 
-        assert_eq!(field1.name, "foo");
-        assert_eq!(field1.name, field2.name);
+        assert_eq!(field1.type_value.ty(), Type::Struct);
+        assert_eq!(field1.type_value.ty(), field2.type_value.ty());
 
         root.add_field("foo.bar", TypeValue::Integer(Value::Var(1)));
     }
