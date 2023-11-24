@@ -1,0 +1,20 @@
+syntax = "proto2";
+
+import "yaml.proto";
+
+package test;
+
+message SubMessage {
+  optional int32 int32_dec = 1;
+  optional string str = 2;
+  map<string, string> map_string_string = 3;
+}
+
+message Message {
+  optional int32 int32_hex = 1 [(yaml.field).fmt = "x"];
+  optional int64 timestamp = 2 [(yaml.field).fmt = "t"];
+  optional int32 int32_dec = 3;
+  optional string str = 4;
+  repeated SubMessage repeated_msg = 5;
+  optional SubMessage nested_msg = 6;
+}

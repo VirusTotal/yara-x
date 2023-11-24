@@ -1,22 +1,21 @@
-magic: 4277009102
+magic: 0xfeedface
 cputype: 7
 cpusubtype: 3
 filetype: 2
 ncmds: 2
 sizeofcmds: 136
-flags: 18874368
+flags: 0x1200000
 number_of_segments: 1
-segments {
-  cmd: 1
-  cmdsize: 56
-  segname: ""
-  vmaddr: 4096
-  vmsize: 4096
-  fileoff: 0
-  filesize: 164
-  maxprot: 7
-  initprot: 5
-  nsects: 0
-  flags: 0
-}
+segments:
+  - cmd: 1
+    cmdsize: 56
+    segname: ""
+    vmaddr: 0x1000
+    vmsize: 0x1000
+    fileoff: 0
+    filesize: 164
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 0
+    flags: 0x0
 entry_point: 116

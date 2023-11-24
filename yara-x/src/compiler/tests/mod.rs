@@ -387,6 +387,36 @@ fn globals() {
             .len(),
         2
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    {
+        let mut compiler = Compiler::new();
+
+        compiler
+            .define_global("str_foo", "foo")
+            .unwrap()
+            .add_source(
+                r#"
+            import "test_proto2"
+            rule foo {
+                condition: 
+                    str_foo == "foo" and
+                    for any s in test_proto2.array_string: (s == str_foo)
+             }"#,
+            )
+            .unwrap();
+
+        let rules = compiler.build();
+
+        assert_eq!(
+            Scanner::new(&rules)
+                .scan(&[])
+                .expect("scan should not fail")
+                .matching_rules()
+                .len(),
+            1
+        );
+    }
 }
 
 #[test]
@@ -463,37 +493,70 @@ fn globals_json() {
 fn import_modules() {
     let mut compiler = Compiler::new();
     assert!(compiler
-        .add_source(r#"import "test_proto2" rule foo {condition: test_proto2.int32_zero == 0}"#)
+        .add_source(
+            r#"
+            import "test_proto2" 
+            rule foo {condition: test_proto2.int32_zero == 0}"#
+        )
         .unwrap()
-        .add_source(r#"import "test_proto2" rule bar {condition: test_proto2.int32_zero == 0}"#)
+        .add_source(
+            r#"
+            import "test_proto2" 
+            rule bar {condition: test_proto2.int32_zero == 0}"#
+        )
         .is_ok());
 
     let mut compiler = Compiler::new();
     assert!(compiler
-        .add_source(r#"import "test_proto2" rule foo {condition: test_proto2.int32_zero == 0}"#)
+        .add_source(
+            r#"
+            import "test_proto2" 
+            rule foo {condition: test_proto2.int32_zero == 0}"#
+        )
         .unwrap()
         .new_namespace("namespace1")
-        .add_source(r#"import "test_proto2" rule bar {condition: test_proto2.int32_zero == 0}"#)
+        .add_source(
+            r#"
+            import "test_proto2" 
+            rule bar {condition: test_proto2.int32_zero == 0}"#
+        )
         .is_ok());
 }
 
-#[cfg(feature = "test_proto2-module")]
 #[test]
-fn issue() {
+fn continue_after_error() {
     let mut compiler = Compiler::new();
 
-    compiler
-        .define_global("global_bool", false)
-        .unwrap()
+    // This rule won't compile because we are using `contains` with an integer.
+    assert!(compiler
         .add_source(
-            r#"import "test_proto2" rule foo {
+            r#"
+            rule test { 
                 condition: 
-                    for all s in test_proto2.array_string: (s != "foo")
-            }"#,
+                    for any x in (1,2,3) : ( x contains "foo") 
+            }"#
         )
-        .unwrap();
+        .is_err());
 
-    let rules = compiler.build();
-    let mut scanner = Scanner::new(&rules);
-    let _ = scanner.scan(b"foobar").unwrap();
+    // Adding a rule with the same name after the previous one failed should
+    // be ok.
+    assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
+
+    // Now do the same test, but with each rule in a different namespace.
+    let mut compiler = Compiler::new();
+    compiler.new_namespace("namespace1");
+
+    assert!(compiler
+        .add_source(
+            r#"
+            rule test { 
+                condition: 
+                    for any x in (1,2,3) : ( x contains "foo") 
+            }"#
+        )
+        .is_err());
+
+    compiler.new_namespace("namespace2");
+
+    assert!(compiler.add_source(r#"rule test { condition: true }"#).is_ok());
 }

@@ -556,6 +556,24 @@ fn should_swap_bytes(magic: u32) -> bool {
     matches!(magic, MH_CIGAM | MH_CIGAM_64 | FAT_CIGAM | FAT_CIGAM_64)
 }
 
+/// Convert a decimal number representation to a version string representation.
+/// The decimal number is expected to be in the format
+/// `major(rest of digits).minor(previous 2 digits).patch(last 2 digits)`.
+///
+/// # Arguments
+///
+/// * `decimal_number`: The decimal number to convert.
+///
+/// # Returns
+///
+/// A string representation of the version number.
+fn convert_to_version_string(decimal_number: u32) -> String {
+    let major = decimal_number >> 16;
+    let minor = (decimal_number >> 8) & 0xFF;
+    let patch = decimal_number & 0xFF;
+    format!("{}.{}.{}", major, minor, patch)
+}
+
 /// Convert a Mach-O Relative Virtual Address (RVA) to an offset within the
 /// file.
 ///
@@ -1659,8 +1677,12 @@ fn handle_dylib_command(
                 .to_string(),
         ),
         timestamp: Some(dy.dylib.timestamp),
-        compatibility_version: Some(dy.dylib.compatibility_version),
-        current_version: Some(dy.dylib.current_version),
+        compatibility_version: Some(convert_to_version_string(
+            dy.dylib.compatibility_version,
+        )),
+        current_version: Some(convert_to_version_string(
+            dy.dylib.current_version,
+        )),
         ..Default::default()
     };
     macho_file.dylibs.push(dylib);
@@ -1876,8 +1898,7 @@ fn handle_segment_command(
         segname: Some(
             std::str::from_utf8(&sg.segname)
                 .unwrap_or_default()
-                .trim_end_matches('\0')
-                .to_string(),
+                .replace('\0', ""),
         ),
         vmaddr: Some(sg.vmaddr as u64),
         vmsize: Some(sg.vmsize as u64),
@@ -1909,14 +1930,12 @@ fn handle_segment_command(
             segname: Some(
                 std::str::from_utf8(&sec.segname)
                     .unwrap_or_default()
-                    .trim_end_matches('\0')
-                    .to_string(),
+                    .replace('\0', ""),
             ),
             sectname: Some(
                 std::str::from_utf8(&sec.sectname)
                     .unwrap_or_default()
-                    .trim_end_matches('\0')
-                    .to_string(),
+                    .replace('\0', ""),
             ),
             addr: Some(sec.addr as u64),
             size: Some(sec.size as u64),
@@ -1996,8 +2015,7 @@ fn handle_segment_command_64(
         segname: Some(
             std::str::from_utf8(&sg.segname)
                 .unwrap_or_default()
-                .trim_end_matches('\0')
-                .to_string(),
+                .replace('\0', ""),
         ),
         vmaddr: Some(sg.vmaddr),
         vmsize: Some(sg.vmsize),
@@ -2029,14 +2047,12 @@ fn handle_segment_command_64(
             segname: Some(
                 std::str::from_utf8(&sec.segname)
                     .unwrap_or_default()
-                    .trim_end_matches('\0')
-                    .to_string(),
+                    .replace('\0', ""),
             ),
             sectname: Some(
                 std::str::from_utf8(&sec.sectname)
                     .unwrap_or_default()
-                    .trim_end_matches('\0')
-                    .to_string(),
+                    .replace('\0', ""),
             ),
             addr: Some(sec.addr),
             size: Some(sec.size),

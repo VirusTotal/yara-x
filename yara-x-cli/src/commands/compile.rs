@@ -33,7 +33,8 @@ pub fn compile() -> Command {
                 .long_help(help::DEFINE_LONG_HELP)
                 .required(false)
                 .value_name("VAR=VALUE")
-                .value_parser(external_var_parser),
+                .value_parser(external_var_parser)
+                .action(ArgAction::Append),
         )
 }
 

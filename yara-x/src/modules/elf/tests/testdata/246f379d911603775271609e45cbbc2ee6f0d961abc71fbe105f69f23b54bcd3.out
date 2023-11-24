@@ -9,534 +9,414 @@ number_of_segments: 0
 symtab_entries: 43
 dynsym_entries: 0
 dynamic_section_entries: 0
-sections {
-  type: SHT_NULL
-  flags: 0
-  address: 0
-  size: 0
-  offset: 0
-  name: ""
-}
-sections {
-  type: SHT_STRTAB
-  flags: 0
-  address: 0
-  size: 206
-  offset: 3320
-  name: ".strtab"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 6
-  address: 0
-  size: 0
-  offset: 52
-  name: ".text"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 48
-  address: 0
-  size: 563
-  offset: 52
-  name: ".debug_str"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 0
-  address: 0
-  size: 145
-  offset: 615
-  name: ".debug_abbrev"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 0
-  address: 0
-  size: 820
-  offset: 760
-  name: ".debug_info"
-}
-sections {
-  type: SHT_REL
-  flags: 0
-  address: 0
-  size: 320
-  offset: 2984
-  name: ".rel.debug_info"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 0
-  address: 0
-  size: 0
-  offset: 1580
-  name: ".debug_ranges"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 0
-  address: 0
-  size: 1
-  offset: 1580
-  name: ".debug_macinfo"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 0
-  address: 0
-  size: 42
-  offset: 1581
-  name: ".debug_pubnames"
-}
-sections {
-  type: SHT_REL
-  flags: 0
-  address: 0
-  size: 8
-  offset: 3304
-  name: ".rel.debug_pubnames"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 0
-  address: 0
-  size: 104
-  offset: 1623
-  name: ".debug_pubtypes"
-}
-sections {
-  type: SHT_REL
-  flags: 0
-  address: 0
-  size: 8
-  offset: 3312
-  name: ".rel.debug_pubtypes"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 48
-  address: 0
-  size: 22
-  offset: 1727
-  name: ".comment"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 0
-  address: 0
-  size: 0
-  offset: 1749
-  name: ".note.GNU-stack"
-}
-sections {
-  type: : 1879048195
-  flags: 0
-  address: 0
-  size: 58
-  offset: 1749
-  name: ".ARM.attributes"
-}
-sections {
-  type: SHT_PROGBITS
-  flags: 0
-  address: 0
-  size: 489
-  offset: 1807
-  name: ".debug_line"
-}
-sections {
-  type: SHT_SYMTAB
-  flags: 0
-  address: 0
-  size: 688
-  offset: 2296
-  name: ".symtab"
-}
-symtab {
-  name: ""
-  value: 0
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 0
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: "And64InlineHook.cpp"
-  value: 0
-  size: 0
-  type: STT_FILE
-  bind: STB_LOCAL
-  shndx: 65521
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 476
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 21
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 70
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 158
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 162
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 180
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 190
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 197
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 210
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 217
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 224
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 232
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 239
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 244
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 252
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 259
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 267
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 274
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 278
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 285
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 293
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 301
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 309
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 343
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 350
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 383
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 390
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 398
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 434
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 442
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 0
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 484
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 491
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 526
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 533
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 540
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 547
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 556
-  size: 0
-  type: STT_NOTYPE
-  bind: STB_LOCAL
-  shndx: 3
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 0
-  size: 0
-  type: STT_SECTION
-  bind: STB_LOCAL
-  shndx: 4
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 0
-  size: 0
-  type: STT_SECTION
-  bind: STB_LOCAL
-  shndx: 5
-  visibility: STV_DEFAULT
-}
-symtab {
-  name: ""
-  value: 0
-  size: 0
-  type: STT_SECTION
-  bind: STB_LOCAL
-  shndx: 16
-  visibility: STV_DEFAULT
-}
+sections:
+  - type: SHT_NULL
+    flags: 0
+    address: 0
+    size: 0
+    offset: 0
+    name: ""
+  - type: SHT_STRTAB
+    flags: 0
+    address: 0
+    size: 206
+    offset: 3320
+    name: ".strtab"
+  - type: SHT_PROGBITS
+    flags: 6
+    address: 0
+    size: 0
+    offset: 52
+    name: ".text"
+  - type: SHT_PROGBITS
+    flags: 48
+    address: 0
+    size: 563
+    offset: 52
+    name: ".debug_str"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 145
+    offset: 615
+    name: ".debug_abbrev"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 820
+    offset: 760
+    name: ".debug_info"
+  - type: SHT_REL
+    flags: 0
+    address: 0
+    size: 320
+    offset: 2984
+    name: ".rel.debug_info"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 0
+    offset: 1580
+    name: ".debug_ranges"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 1
+    offset: 1580
+    name: ".debug_macinfo"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 42
+    offset: 1581
+    name: ".debug_pubnames"
+  - type: SHT_REL
+    flags: 0
+    address: 0
+    size: 8
+    offset: 3304
+    name: ".rel.debug_pubnames"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 104
+    offset: 1623
+    name: ".debug_pubtypes"
+  - type: SHT_REL
+    flags: 0
+    address: 0
+    size: 8
+    offset: 3312
+    name: ".rel.debug_pubtypes"
+  - type: SHT_PROGBITS
+    flags: 48
+    address: 0
+    size: 22
+    offset: 1727
+    name: ".comment"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 0
+    offset: 1749
+    name: ".note.GNU-stack"
+  - type: 1879048195
+    flags: 0
+    address: 0
+    size: 58
+    offset: 1749
+    name: ".ARM.attributes"
+  - type: SHT_PROGBITS
+    flags: 0
+    address: 0
+    size: 489
+    offset: 1807
+    name: ".debug_line"
+  - type: SHT_SYMTAB
+    flags: 0
+    address: 0
+    size: 688
+    offset: 2296
+    name: ".symtab"
+symtab:
+  - name: ""
+    value: 0
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 0
+    visibility: STV_DEFAULT
+  - name: "And64InlineHook.cpp"
+    value: 0
+    size: 0
+    type: STT_FILE
+    bind: STB_LOCAL
+    shndx: 65521
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 476
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 21
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 70
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 158
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 162
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 180
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 190
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 197
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 210
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 217
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 224
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 232
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 239
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 244
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 252
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 259
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 267
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 274
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 278
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 285
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 293
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 301
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 309
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 343
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 350
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 383
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 390
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 398
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 434
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 442
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 0
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 484
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 491
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 526
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 533
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 540
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 547
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 556
+    size: 0
+    type: STT_NOTYPE
+    bind: STB_LOCAL
+    shndx: 3
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 0
+    size: 0
+    type: STT_SECTION
+    bind: STB_LOCAL
+    shndx: 4
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 0
+    size: 0
+    type: STT_SECTION
+    bind: STB_LOCAL
+    shndx: 5
+    visibility: STV_DEFAULT
+  - name: ""
+    value: 0
+    size: 0
+    type: STT_SECTION
+    bind: STB_LOCAL
+    shndx: 16
+    visibility: STV_DEFAULT

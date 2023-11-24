@@ -92,6 +92,7 @@ pub fn scan() -> Command {
                 .required(false)
                 .value_name("VAR=VALUE")
                 .value_parser(external_var_parser)
+                .action(ArgAction::Append)
         )
 }
 
@@ -118,12 +119,17 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             );
         }
 
-        // TODO: implement Rules::deserialize_from reader
-        let mut file = File::open(rules_path.next().unwrap())?;
+        let rules_path = rules_path.next().unwrap();
+
+        let mut file = File::open(rules_path)
+            .with_context(|| format!("can not open {:?}", &rules_path))?;
+
         let mut data = Vec::new();
 
-        File::read_to_end(&mut file, &mut data)?;
+        File::read_to_end(&mut file, &mut data)
+            .with_context(|| format!("can not read {:?}", &rules_path))?;
 
+        // TODO: implement Rules::deserialize_from reader
         let rules = Rules::deserialize(data.as_slice())?;
 
         // If the user is defining external variables, make sure that these

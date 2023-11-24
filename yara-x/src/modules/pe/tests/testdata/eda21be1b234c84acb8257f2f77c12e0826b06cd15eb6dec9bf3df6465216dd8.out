@@ -1,22 +1,18 @@
 is_pe: true
 machine: MACHINE_I386
 subsystem: SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER
-os_version {
-  major: 0
-  minor: 0
-}
-subsystem_version {
-  major: 0
-  minor: 0
-}
-image_version {
-  major: 0
-  minor: 0
-}
-linker_version {
-  major: 0
-  minor: 0
-}
+os_version:
+    major: 0
+    minor: 0
+subsystem_version:
+    major: 0
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 0
+    minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 270
 dll_characteristics: 0
@@ -53,110 +49,73 @@ number_of_imports: 0
 number_of_delayed_imports: 0
 number_of_exports: 0
 pdb_path: "/home/ubuntu/edk2/Build/OvmfIa32/RELEASE_GCC5/IA32/OvmfPkg/Sec/SecMain/DEBUG/SecMain.dll"
-sections {
-  name: ".text"
-  full_name: ".text"
-  characteristics: 1610612768
-  raw_data_size: 10048
-  raw_data_offset: 576
-  virtual_address: 576
-  virtual_size: 10048
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-sections {
-  name: ".data"
-  full_name: ".data"
-  characteristics: 3221225536
-  raw_data_size: 192
-  raw_data_offset: 10624
-  virtual_address: 10624
-  virtual_size: 192
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-sections {
-  name: ".reloc"
-  full_name: ".reloc"
-  characteristics: 1107296320
-  raw_data_size: 128
-  raw_data_offset: 10816
-  virtual_address: 10816
-  virtual_size: 128
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 10816
-  size: 128
-}
-data_directories {
-  virtual_address: 10680
-  size: 28
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-overlay {
-  offset: 0
-  size: 0
-}
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 10048
+    raw_data_offset: 576
+    virtual_address: 576
+    virtual_size: 10048
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 192
+    raw_data_offset: 10624
+    virtual_address: 10624
+    virtual_size: 192
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 128
+    raw_data_offset: 10816
+    virtual_address: 10816
+    virtual_size: 128
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 10816
+    size: 128
+  - virtual_address: 10680
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+overlay:
+    offset: 0
+    size: 0

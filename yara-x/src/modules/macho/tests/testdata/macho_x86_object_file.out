@@ -1,34 +1,32 @@
-magic: 4277009102
+magic: 0xfeedface
 cputype: 7
 cpusubtype: 3
 filetype: 1
 ncmds: 3
 sizeofcmds: 228
-flags: 8192
+flags: 0x2000
 number_of_segments: 1
-segments {
-  cmd: 1
-  cmdsize: 124
-  segname: ""
-  vmaddr: 0
-  vmsize: 72
-  fileoff: 256
-  filesize: 72
-  maxprot: 7
-  initprot: 7
-  nsects: 1
-  flags: 0
-  sections {
-    segname: "__TEXT"
-    sectname: "__text"
-    addr: 0
-    size: 72
-    offset: 256
-    align: 4
-    reloff: 0
-    nreloc: 0
-    flags: 2147484672
-    reserved1: 0
-    reserved2: 0
-  }
-}
+segments:
+  - cmd: 1
+    cmdsize: 124
+    segname: ""
+    vmaddr: 0x0
+    vmsize: 0x48
+    fileoff: 256
+    filesize: 72
+    maxprot: 0x7
+    initprot: 0x7
+    nsects: 1
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x0
+        size: 0x48
+        offset: 256
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0

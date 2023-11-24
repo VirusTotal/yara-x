@@ -12,11 +12,10 @@ local_base_path: "C:\\test\\a.txt"
 relative_path: ".\\a.txt"
 working_dir: "C:\\test"
 overlay_size: 0
-tracker_data {
-  version: 0
-  machine_id: "chris-xps"
-  droid_volume_id: "94c77840-fa47-46c7-b356-5c2dc6b6d115"
-  droid_file_id: "7bcd46ec-7f22-11dd-9499-00137216874a"
-  droid_birth_volume_id: "94c77840-fa47-46c7-b356-5c2dc6b6d115"
-  droid_birth_file_id: "7bcd46ec-7f22-11dd-9499-00137216874a"
-}
+tracker_data:
+    version: 0
+    machine_id: "chris-xps"
+    droid_volume_id: "94c77840-fa47-46c7-b356-5c2dc6b6d115"
+    droid_file_id: "7bcd46ec-7f22-11dd-9499-00137216874a"
+    droid_birth_volume_id: "94c77840-fa47-46c7-b356-5c2dc6b6d115"
+    droid_birth_file_id: "7bcd46ec-7f22-11dd-9499-00137216874a"
