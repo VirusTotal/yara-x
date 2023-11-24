@@ -292,23 +292,21 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::FieldAccess(expr) => {
             let lhs = expr_from_ast(ctx, &expr.lhs)?;
 
-            // The left-side operand of a field access operation (i.e: foo.bar)
+            // The left-hand operand of a field access operation (i.e: foo.bar)
             // must be a struct.
             check_type(ctx, lhs.ty(), expr.lhs.span(), &[Type::Struct])?;
 
             // Set `current_struct` to the structure returned by the left-hand
-            // operand.
+            // operand. While processing the right-hand operand, the first
+            // symbol lookup will use `current_struct` instead of the top-level
+            // symbol table.
             ctx.current_struct = Some(lhs.type_value().as_struct());
 
-            // Now build the right-side expression. During the call to
-            // `build_expr` the symbol table of `current_struct` will be used
-            // for resolving symbols, instead of using the top-level symbol
-            // table.
+            // Now build the right-hand expression.
             let rhs = expr_from_ast(ctx, &expr.rhs)?;
 
-            // If the right-side expression is constant, the result is also
+            // If the right-hand expression is constant, the result is also
             // constant.
-
             if cfg!(feature = "constant-folding") {
                 if let Expr::Const { type_value, .. } = rhs {
                     // A constant always have a defined value.

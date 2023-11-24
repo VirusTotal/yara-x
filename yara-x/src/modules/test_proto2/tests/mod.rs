@@ -5,9 +5,13 @@ use tests::*;
 fn test_proto2_module() {
     condition_true!(r#"test_proto2.add(1,2) == 3"#);
     condition_true!(r#"test_proto2.add(1.0,2.0) == 3.0"#);
-
-    condition_true!(r#"test_proto2.uppercase("foo") == "FOO""#);
     condition_true!(r#"test_proto2.nested.nested_func()"#);
+    condition_true!(r#"test_proto2.uppercase("foo") == "FOO""#);
+
+    condition_true!(
+        r#"test_proto2.uppercase(test_proto2.string_foo) == "FOO""#
+    );
+
     condition_true!(
         r#"test_proto2.head(3) == "\x01\x02\x03""#,
         &[0x01, 0x02, 0x03, 0x04]
