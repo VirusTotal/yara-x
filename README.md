@@ -13,6 +13,18 @@ at the very least implementing a code formatting tool for YARA in the spirit of
 `rustfmt` and `gofmt`. In the best case scenario this could evolve into becoming
 a serious replacement for YARA.
 
+### Installation
+
+Requires rustc 1.70.0 or newer
+
+#### Linux
+
+```bash
+git clone https://github.com/VirusTotal/yara-x
+cd yara-x
+cargo build
+./target/debug/yr --help
+```
 
 ## Changes with respect to YARA 4.x
 
@@ -29,7 +41,7 @@ The expression `@a[-1]` is valid in YARA 4.x, but its value is always
 In YARA 4.x rules can have any number of `global` or `private`, for example the
 following is valid:
 
-```
+```yara
 global global global rule duplicated_global  {
    ... 
 }
