@@ -639,7 +639,9 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => Type::Integer,
 
-            Expr::FieldAccess { operands } => operands.last().unwrap().ty(),
+            Expr::FieldAccess { operands, .. } => {
+                operands.last().unwrap().ty()
+            }
             Expr::Ident { symbol, .. } => symbol.type_value().ty(),
             Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
@@ -708,7 +710,7 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
 
-            Expr::FieldAccess { operands } => {
+            Expr::FieldAccess { operands, .. } => {
                 operands.last().unwrap().type_value()
             }
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),

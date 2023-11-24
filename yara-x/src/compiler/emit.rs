@@ -353,7 +353,8 @@ fn emit_expr(
                 SymbolKind::Func(func) => {
                     emit_func_call(ctx, instr, func);
                 }
-                SymbolKind::FieldIndex(index) => {
+                SymbolKind::StructField(index)
+                | SymbolKind::RootStructField(index) => {
                     ctx.lookup_stack.push_back((*index).try_into().unwrap());
 
                     match symbol.type_value() {
@@ -417,7 +418,7 @@ fn emit_expr(
             emit_pattern_length(ctx, instr, expr);
         }
 
-        Expr::FieldAccess { operands } => {
+        Expr::FieldAccess { operands, .. } => {
             for operand in operands {
                 emit_expr(ctx, instr, operand);
             }

@@ -12,6 +12,7 @@ use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::MessageDyn;
 use serde::{Deserialize, Serialize};
 
+use crate::symbols::{Symbol, SymbolKind, SymbolLookup};
 use yara_x_proto::exts::enum_options;
 use yara_x_proto::exts::enum_value;
 use yara_x_proto::exts::field_options;
@@ -45,7 +46,7 @@ pub struct StructField {
 /// The structures that represent a YARA module are created from the protobuf
 /// associated to that module. Functions [`Struct::from_proto_msg`] and
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Struct {
     /// Fields in this structure.
     ///
@@ -56,17 +57,35 @@ pub struct Struct {
     /// order in which they appear in the .proto source file is
     /// irrelevant.
     fields: IndexMap<String, StructField>,
+    /// True if this is the root structure. The root structure is the top-level
+    /// structure that contains global variables and modules.
+    is_root: bool,
 }
 
-impl Default for Struct {
-    fn default() -> Self {
-        Struct::new()
+impl SymbolLookup for Struct {
+    fn lookup(&self, ident: &str) -> Option<Symbol> {
+        let (field, index) = self.field_and_index_by_name(ident)?;
+        Some(Symbol::new(
+            field.type_value.clone(),
+            if self.is_root {
+                SymbolKind::RootStructField(index)
+            } else {
+                SymbolKind::StructField(index)
+            },
+        ))
     }
 }
 
 impl Struct {
+    /// Creates a new, empty struct.
     pub fn new() -> Self {
-        Self { fields: IndexMap::new() }
+        Self { fields: IndexMap::new(), is_root: false }
+    }
+
+    /// Makes this the root structure.
+    pub fn make_root(mut self) -> Self {
+        self.is_root = true;
+        self
     }
 
     /// Adds a new field to the structure.
@@ -142,6 +161,15 @@ impl Struct {
     #[inline]
     pub fn field_by_name(&self, name: &str) -> Option<&StructField> {
         self.fields.get(name)
+    }
+
+    /// Get a field and its corresponding index by name.
+    #[inline]
+    pub fn field_and_index_by_name(
+        &self,
+        name: &str,
+    ) -> Option<(&StructField, usize)> {
+        self.fields.get_full(name).map(|(index, _, field)| (field, index))
     }
 
     /// Get a mutable field by name.
@@ -369,7 +397,7 @@ impl Struct {
             }
         }
 
-        Self { fields: field_index }
+        Self { fields: field_index, is_root: false }
     }
 
     /// Returns true if the given message is the YARA module's root message.

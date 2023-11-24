@@ -6,7 +6,7 @@ use std::rc::Rc;
 use bstr::{BStr, ByteSlice};
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{Func, Struct, TypeValue};
+use crate::types::{Func, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
@@ -30,7 +30,9 @@ pub(crate) enum SymbolKind {
     /// The symbol refers to a variable stored in the host.
     HostVar(Var),
     /// The symbol refers to some field in a structure.
-    FieldIndex(usize),
+    StructField(usize),
+    /// The symbol refers to some field in the root structure.
+    RootStructField(usize),
     /// The symbol refers to a rule.
     Rule(RuleId),
     /// The symbol refers to a function.
@@ -100,15 +102,6 @@ impl SymbolLookup for Option<Symbol> {
         } else {
             None
         }
-    }
-}
-
-impl SymbolLookup for Struct {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
-        Some(Symbol::new(
-            self.field_by_name(ident)?.type_value.clone(),
-            SymbolKind::FieldIndex(self.index_of(ident)),
-        ))
     }
 }
 

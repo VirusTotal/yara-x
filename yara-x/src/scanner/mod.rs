@@ -121,7 +121,7 @@ impl<'r> Scanner<'r> {
                 compiled_rules: rules,
                 string_pool: BStringPool::new(),
                 current_struct: None,
-                root_struct: rules.globals(),
+                root_struct: rules.globals().make_root(),
                 scanned_data: null(),
                 scanned_data_len: 0,
                 private_matching_rules: Vec::new(),
