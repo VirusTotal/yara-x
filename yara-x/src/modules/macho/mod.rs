@@ -1075,6 +1075,7 @@ fn parse_min_version_command(
     let (input, cmdsize) = le_u32(input)?;
     let (input, version) = le_u32(input)?;
     let (input, sdk) = le_u32(input)?;
+
     Ok((input, MinVersionCommand { cmd, cmdsize, version, sdk }))
 }
 
@@ -1777,7 +1778,7 @@ fn handle_min_version_command(
     size: usize,
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
-    if size < std::mem::size_of::<RPathCommand>() {
+    if size < std::mem::size_of::<MinVersionCommand>() {
         return Err(MachoError::FileSectionTooSmall(
             "MinVersionCommand".to_string(),
         ));
@@ -1802,7 +1803,7 @@ fn handle_min_version_command(
                 sdk: Some(mvc.sdk),
                 ..Default::default()
             };
-
+            
             macho_file.min_version_mac_os = MessageField::some(min_version_command);
         }
         LC_VERSION_MIN_IPHONEOS => {
