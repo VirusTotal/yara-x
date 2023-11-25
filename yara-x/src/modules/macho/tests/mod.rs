@@ -277,6 +277,24 @@ fn test_swap_rpath_command() {
 }
 
 #[test]
+fn test_swap_min_version_command() {
+    let mut command: MinVersionCommand = MinVersionCommand {
+        cmd: 0x11223344,
+        cmdsize: 0x55667788,
+        version: 0x99AABBCC,
+        sdk: 0xDDDDFFFF,
+        ..Default::default()
+    };
+
+    swap_min_version_command(&mut command);
+
+    assert_eq!(command.cmd, 0x44332211);
+    assert_eq!(command.cmdsize, 0x88776655);
+    assert_eq!(command.version, 0xCCBBAA99);
+    assert_eq!(command.sdk, 0xFFFFDDDD);
+}
+
+#[test]
 fn test_swap_segment_command() {
     let mut segment = SegmentCommand32 {
         cmd: 0x11223344,
