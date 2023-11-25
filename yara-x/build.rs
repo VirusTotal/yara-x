@@ -21,10 +21,15 @@ fn main() {
         .cargo_out_dir("protos")
         //.out_dir("src/modules/protos")
         .include("../yara-x-proto/src")
+        .include("../yara-x-proto-yaml/src")
         .include("src/modules/protos")
-        .input("../yara-x-proto/src/yara.proto");
+        .input("../yara-x-proto/src/yara.proto")
+        .input("../yara-x-proto-yaml/src/yaml.proto");
 
-    proto_parser.include("../yara-x-proto/src").include("src/modules/protos");
+    proto_parser
+        .include("../yara-x-proto/src")
+        .include("../yara-x-proto-yaml/src")
+        .include("src/modules/protos");
 
     for entry in fs::read_dir("src/modules/protos").unwrap() {
         let entry = entry.unwrap();

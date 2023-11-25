@@ -105,21 +105,10 @@ impl SymbolLookup for Option<Symbol> {
 
 impl SymbolLookup for Struct {
     fn lookup(&self, ident: &str) -> Option<Symbol> {
-        let field = self.field_by_name(ident)?;
-
-        let symbol = if let TypeValue::Func(func) = &field.type_value {
-            Symbol::new(
-                field.type_value.clone(),
-                SymbolKind::Func(func.clone()),
-            )
-        } else {
-            Symbol::new(
-                field.type_value.clone(),
-                SymbolKind::FieldIndex(self.index_of(ident)),
-            )
-        };
-
-        Some(symbol)
+        Some(Symbol::new(
+            self.field_by_name(ident)?.type_value.clone(),
+            SymbolKind::FieldIndex(self.index_of(ident)),
+        ))
     }
 }
 
@@ -236,6 +225,21 @@ impl<'a> StackedSymbolTable<'a> {
     /// was empty.
     pub(crate) fn pop(&mut self) -> Option<Rc<dyn SymbolLookup + 'a>> {
         self.stack.pop_back()
+    }
+
+    /// Returns the number of symbol tables in the stack.
+    #[inline]
+    pub(crate) fn len(&self) -> usize {
+        self.stack.len()
+    }
+
+    /// Removes the symbol tables at the top of the stack,
+    /// keeping only the bottom `len`.
+    ///
+    /// If the stack has more than `len` elements this has no effect.
+    #[inline]
+    pub(crate) fn truncate(&mut self, len: usize) {
+        self.stack.truncate(len)
     }
 }
 

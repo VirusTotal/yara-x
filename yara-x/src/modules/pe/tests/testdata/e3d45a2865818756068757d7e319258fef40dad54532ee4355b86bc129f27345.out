@@ -1,22 +1,18 @@
 is_pe: true
 machine: MACHINE_I386
 subsystem: SUBSYSTEM_WINDOWS_GUI
-os_version {
-  major: 5
-  minor: 0
-}
-subsystem_version {
-  major: 5
-  minor: 0
-}
-image_version {
-  major: 0
-  minor: 0
-}
-linker_version {
-  major: 9
-  minor: 0
-}
+os_version:
+    major: 5
+    minor: 0
+subsystem_version:
+    major: 5
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 9
+    minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 8450
 dll_characteristics: 0
@@ -54,221 +50,142 @@ number_of_version_infos: 0
 number_of_imports: 4
 number_of_delayed_imports: 0
 number_of_exports: 3
-rich_signature {
-  offset: 128
-  length: 88
-  key: 1992542663
-  raw_data: "\203\250\255%\307\311\303v\307\311\303v\307\311\303v\340\017\270v\305\311\303v\331\233Vv\306\311\303v\331\233Gv\305\311\303v8\351\307v\305\311\303v\331\233Pv\302\311\303v\307\311\302v\366\311\303v\331\233@v\311\311\303v\331\233Qv\306\311\303v\331\233Rv\306\311\303v"
-  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\'\306{\000\002\000\000\000\036R\225\000\001\000\000\000\036R\204\000\002\000\000\000\377 \004\000\002\000\000\000\036R\223\000\005\000\000\000\000\000\001\0001\000\000\000\036R\203\000\016\000\000\000\036R\222\000\001\000\000\000\036R\221\000\001\000\000\000"
-  tools {
-    toolid: 123
-    version: 50727
-    times: 2
-  }
-  tools {
-    toolid: 149
-    version: 21022
-    times: 1
-  }
-  tools {
-    toolid: 132
-    version: 21022
-    times: 2
-  }
-  tools {
-    toolid: 4
-    version: 8447
-    times: 2
-  }
-  tools {
-    toolid: 147
-    version: 21022
-    times: 5
-  }
-  tools {
-    toolid: 1
-    version: 0
-    times: 49
-  }
-  tools {
-    toolid: 131
-    version: 21022
-    times: 14
-  }
-  tools {
-    toolid: 146
-    version: 21022
-    times: 1
-  }
-  tools {
-    toolid: 145
-    version: 21022
-    times: 1
-  }
-}
-sections {
-  name: "UPX0"
-  full_name: "UPX0"
-  characteristics: 3758096512
-  raw_data_size: 0
-  raw_data_offset: 1024
-  virtual_address: 4096
-  virtual_size: 24576
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-sections {
-  name: "UPX1"
-  full_name: "UPX1"
-  characteristics: 3758096448
-  raw_data_size: 5120
-  raw_data_offset: 1024
-  virtual_address: 28672
-  virtual_size: 8192
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-sections {
-  name: "UPX2"
-  full_name: "UPX2"
-  characteristics: 3221225536
-  raw_data_size: 512
-  raw_data_offset: 6144
-  virtual_address: 36864
-  virtual_size: 4096
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-data_directories {
-  virtual_address: 37176
-  size: 128
-}
-data_directories {
-  virtual_address: 36864
-  size: 312
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 37304
-  size: 16
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 33628
-  size: 72
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-import_details {
-  library_name: "KERNEL32.DLL"
-  functions {
-    name: "LoadLibraryA"
-    rva: 36964
-  }
-  functions {
-    name: "GetProcAddress"
-    rva: 36968
-  }
-  functions {
-    name: "VirtualProtect"
-    rva: 36972
-  }
-  functions {
-    name: "VirtualAlloc"
-    rva: 36976
-  }
-  functions {
-    name: "VirtualFree"
-    rva: 36980
-  }
-}
-import_details {
-  library_name: "libglib-2.0-0.dll"
-  functions {
-    name: "g_log"
-    rva: 36988
-  }
-}
-import_details {
-  library_name: "libwireshark.dll"
-  functions {
-    name: "val_to_str"
-    rva: 36996
-  }
-}
-import_details {
-  library_name: "MSVCR90.dll"
-  functions {
-    name: "free"
-    rva: 37004
-  }
-}
-export_details {
-  name: "plugin_reg_handoff"
-  ordinal: 1
-  rva: 10656
-}
-export_details {
-  name: "plugin_register"
-  ordinal: 2
-  rva: 10624
-}
-export_details {
-  name: "version"
-  ordinal: 3
-  rva: 16652
-}
-overlay {
-  offset: 0
-  size: 0
-}
+rich_signature:
+    offset: 128
+    length: 88
+    key: 1992542663
+    raw_data: "\203\250\255%\307\311\303v\307\311\303v\307\311\303v\340\017\270v\305\311\303v\331\233Vv\306\311\303v\331\233Gv\305\311\303v8\351\307v\305\311\303v\331\233Pv\302\311\303v\307\311\302v\366\311\303v\331\233@v\311\311\303v\331\233Qv\306\311\303v\331\233Rv\306\311\303v"
+    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\'\306{\000\002\000\000\000\036R\225\000\001\000\000\000\036R\204\000\002\000\000\000\377 \004\000\002\000\000\000\036R\223\000\005\000\000\000\000\000\001\0001\000\000\000\036R\203\000\016\000\000\000\036R\222\000\001\000\000\000\036R\221\000\001\000\000\000"
+    tools:
+      - toolid: 123
+        version: 50727
+        times: 2
+      - toolid: 149
+        version: 21022
+        times: 1
+      - toolid: 132
+        version: 21022
+        times: 2
+      - toolid: 4
+        version: 8447
+        times: 2
+      - toolid: 147
+        version: 21022
+        times: 5
+      - toolid: 1
+        version: 0
+        times: 49
+      - toolid: 131
+        version: 21022
+        times: 14
+      - toolid: 146
+        version: 21022
+        times: 1
+      - toolid: 145
+        version: 21022
+        times: 1
+sections:
+  - name: "UPX0"
+    full_name: "UPX0"
+    characteristics: 3758096512
+    raw_data_size: 0
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 24576
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "UPX1"
+    full_name: "UPX1"
+    characteristics: 3758096448
+    raw_data_size: 5120
+    raw_data_offset: 1024
+    virtual_address: 28672
+    virtual_size: 8192
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "UPX2"
+    full_name: "UPX2"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 6144
+    virtual_address: 36864
+    virtual_size: 4096
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 37176
+    size: 128
+  - virtual_address: 36864
+    size: 312
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 37304
+    size: 16
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 33628
+    size: 72
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+import_details:
+  - library_name: "KERNEL32.DLL"
+    functions:
+      - name: "LoadLibraryA"
+        rva: 36964
+      - name: "GetProcAddress"
+        rva: 36968
+      - name: "VirtualProtect"
+        rva: 36972
+      - name: "VirtualAlloc"
+        rva: 36976
+      - name: "VirtualFree"
+        rva: 36980
+  - library_name: "libglib-2.0-0.dll"
+    functions:
+      - name: "g_log"
+        rva: 36988
+  - library_name: "libwireshark.dll"
+    functions:
+      - name: "val_to_str"
+        rva: 36996
+  - library_name: "MSVCR90.dll"
+    functions:
+      - name: "free"
+        rva: 37004
+export_details:
+  - name: "plugin_reg_handoff"
+    ordinal: 1
+    rva: 10656
+  - name: "plugin_register"
+    ordinal: 2
+    rva: 10624
+  - name: "version"
+    ordinal: 3
+    rva: 16652
+overlay:
+    offset: 0
+    size: 0

@@ -1,22 +1,18 @@
 is_pe: true
 machine: MACHINE_I386
 subsystem: SUBSYSTEM_WINDOWS_CUI
-os_version {
-  major: 5
-  minor: 1
-}
-subsystem_version {
-  major: 4
-  minor: 0
-}
-image_version {
-  major: 5
-  minor: 1
-}
-linker_version {
-  major: 7
-  minor: 0
-}
+os_version:
+    major: 5
+    minor: 1
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 5
+    minor: 1
+linker_version:
+    major: 7
+    minor: 0
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 271
 dll_characteristics: 32768
@@ -52,250 +48,159 @@ number_of_version_infos: 8
 number_of_imports: 5
 number_of_delayed_imports: 0
 number_of_exports: 0
-version_info_list {
-  key: "CompanyName"
-  value: "Microsoft Corporation"
-}
-version_info_list {
-  key: "FileDescription"
-  value: "Trivial File Transfer Protocol App"
-}
-version_info_list {
-  key: "FileVersion"
-  value: "5.1.2600.0 (xpclient.010817-1148)"
-}
-version_info_list {
-  key: "InternalName"
-  value: "tftp.exe"
-}
-version_info_list {
-  key: "LegalCopyright"
-  value: "\302\251 Microsoft Corporation. All rights reserved."
-}
-version_info_list {
-  key: "OriginalFilename"
-  value: "tftp.exe"
-}
-version_info_list {
-  key: "ProductName"
-  value: "Microsoft\302\256 Windows\302\256 Operating System"
-}
-version_info_list {
-  key: "ProductVersion"
-  value: "5.1.2600.0"
-}
-rich_signature {
-  offset: 128
-  length: 64
-  key: 2970887405
-  raw_data: "\251Ez\342\355$\024\261\355$\024\261\355$\024\261\027\007T\261\357$\024\261\355$\025\261\240$\024\261\027\007\r\261\346$\024\261z\007Q\261\354$\024\2617\007\010\261\371$\024\261\027\007)\261\354$\024\261"
-  clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\372#@\000\002\000\000\000\000\000\001\000M\000\000\000\372#\031\000\013\000\000\000\227#E\000\001\000\000\000\332#\034\000\024\000\000\000\372#=\000\001\000\000\000"
-  tools {
-    toolid: 64
-    version: 9210
-    times: 2
-  }
-  tools {
-    toolid: 1
-    version: 0
-    times: 77
-  }
-  tools {
-    toolid: 25
-    version: 9210
-    times: 11
-  }
-  tools {
-    toolid: 69
-    version: 9111
-    times: 1
-  }
-  tools {
-    toolid: 28
-    version: 9178
-    times: 20
-  }
-  tools {
-    toolid: 61
-    version: 9210
-    times: 1
-  }
-}
-sections {
-  name: "UPX0"
-  full_name: "UPX0"
-  characteristics: 3758096512
-  raw_data_size: 0
-  raw_data_offset: 1024
-  virtual_address: 4096
-  virtual_size: 24576
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-sections {
-  name: "UPX1"
-  full_name: "UPX1"
-  characteristics: 3758096448
-  raw_data_size: 7168
-  raw_data_offset: 1024
-  virtual_address: 28672
-  virtual_size: 8192
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-sections {
-  name: ".rsrc"
-  full_name: ".rsrc"
-  characteristics: 3221225536
-  raw_data_size: 1536
-  raw_data_offset: 8192
-  virtual_address: 36864
-  virtual_size: 4096
-  pointer_to_relocations: 0
-  pointer_to_line_numbers: 0
-  number_of_relocations: 0
-  number_of_line_numbers: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 37944
-  size: 356
-}
-data_directories {
-  virtual_address: 36864
-  size: 1080
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-data_directories {
-  virtual_address: 0
-  size: 0
-}
-resources {
-  length: 4628
-  rva: 21560
-  type: RESOURCE_TYPE_MESSAGETABLE
-  id: 1
-  language: 1033
-}
-resources {
-  length: 916
-  rva: 37028
-  offset: 8356
-  type: RESOURCE_TYPE_VERSION
-  id: 1
-  language: 1033
-}
-import_details {
-  library_name: "KERNEL32.DLL"
-  functions {
-    name: "LoadLibraryA"
-    rva: 38064
-  }
-  functions {
-    name: "GetProcAddress"
-    rva: 38068
-  }
-  functions {
-    name: "VirtualProtect"
-    rva: 38072
-  }
-  functions {
-    name: "VirtualAlloc"
-    rva: 38076
-  }
-  functions {
-    name: "VirtualFree"
-    rva: 38080
-  }
-  functions {
-    name: "ExitProcess"
-    rva: 38084
-  }
-}
-import_details {
-  library_name: "msvcrt.dll"
-  functions {
-    name: "putc"
-    rva: 38092
-  }
-}
-import_details {
-  library_name: "MSWSOCK.dll"
-  functions {
-    name: "s_perror"
-    rva: 38100
-  }
-}
-import_details {
-  library_name: "USER32.dll"
-  functions {
-    name: "CharNextExA"
-    rva: 38108
-  }
-}
-import_details {
-  library_name: "WS2_32.dll"
-  functions {
-    name: "sendto"
-    ordinal: 20
-    rva: 38116
-  }
-}
-overlay {
-  offset: 0
-  size: 0
-}
+version_info_list:
+  - key: "CompanyName"
+    value: "Microsoft Corporation"
+  - key: "FileDescription"
+    value: "Trivial File Transfer Protocol App"
+  - key: "FileVersion"
+    value: "5.1.2600.0 (xpclient.010817-1148)"
+  - key: "InternalName"
+    value: "tftp.exe"
+  - key: "LegalCopyright"
+    value: "\302\251 Microsoft Corporation. All rights reserved."
+  - key: "OriginalFilename"
+    value: "tftp.exe"
+  - key: "ProductName"
+    value: "Microsoft\302\256 Windows\302\256 Operating System"
+  - key: "ProductVersion"
+    value: "5.1.2600.0"
+rich_signature:
+    offset: 128
+    length: 64
+    key: 2970887405
+    raw_data: "\251Ez\342\355$\024\261\355$\024\261\355$\024\261\027\007T\261\357$\024\261\355$\025\261\240$\024\261\027\007\r\261\346$\024\261z\007Q\261\354$\024\2617\007\010\261\371$\024\261\027\007)\261\354$\024\261"
+    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\372#@\000\002\000\000\000\000\000\001\000M\000\000\000\372#\031\000\013\000\000\000\227#E\000\001\000\000\000\332#\034\000\024\000\000\000\372#=\000\001\000\000\000"
+    tools:
+      - toolid: 64
+        version: 9210
+        times: 2
+      - toolid: 1
+        version: 0
+        times: 77
+      - toolid: 25
+        version: 9210
+        times: 11
+      - toolid: 69
+        version: 9111
+        times: 1
+      - toolid: 28
+        version: 9178
+        times: 20
+      - toolid: 61
+        version: 9210
+        times: 1
+sections:
+  - name: "UPX0"
+    full_name: "UPX0"
+    characteristics: 3758096512
+    raw_data_size: 0
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 24576
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "UPX1"
+    full_name: "UPX1"
+    characteristics: 3758096448
+    raw_data_size: 7168
+    raw_data_offset: 1024
+    virtual_address: 28672
+    virtual_size: 8192
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 3221225536
+    raw_data_size: 1536
+    raw_data_offset: 8192
+    virtual_address: 36864
+    virtual_size: 4096
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 37944
+    size: 356
+  - virtual_address: 36864
+    size: 1080
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resources:
+  - length: 4628
+    rva: 21560
+    type: RESOURCE_TYPE_MESSAGETABLE
+    id: 1
+    language: 1033
+  - length: 916
+    rva: 37028
+    offset: 8356
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+import_details:
+  - library_name: "KERNEL32.DLL"
+    functions:
+      - name: "LoadLibraryA"
+        rva: 38064
+      - name: "GetProcAddress"
+        rva: 38068
+      - name: "VirtualProtect"
+        rva: 38072
+      - name: "VirtualAlloc"
+        rva: 38076
+      - name: "VirtualFree"
+        rva: 38080
+      - name: "ExitProcess"
+        rva: 38084
+  - library_name: "msvcrt.dll"
+    functions:
+      - name: "putc"
+        rva: 38092
+  - library_name: "MSWSOCK.dll"
+    functions:
+      - name: "s_perror"
+        rva: 38100
+  - library_name: "USER32.dll"
+    functions:
+      - name: "CharNextExA"
+        rva: 38108
+  - library_name: "WS2_32.dll"
+    functions:
+      - name: "sendto"
+        ordinal: 20
+        rva: 38116
+overlay:
+    offset: 0
+    size: 0

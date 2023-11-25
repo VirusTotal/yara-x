@@ -15,11 +15,10 @@ local_base_path: "C:\\Program Files\\PeaZip\\peazip.exe"
 relative_path: "..\\..\\..\\..\\..\\..\\..\\Program Files\\PeaZip\\peazip.exe"
 cmd_line_args: "-add2crypt"
 overlay_size: 0
-tracker_data {
-  version: 0
-  machine_id: "pc-proprietario"
-  droid_volume_id: "0a92d8cc-364f-44f6-a343-7ce76b0c19f5"
-  droid_file_id: "29a5ca2d-fae8-11de-a706-0016e6d383ac"
-  droid_birth_volume_id: "0a92d8cc-364f-44f6-a343-7ce76b0c19f5"
-  droid_birth_file_id: "29a5ca2d-fae8-11de-a706-0016e6d383ac"
-}
+tracker_data:
+    version: 0
+    machine_id: "pc-proprietario"
+    droid_volume_id: "0a92d8cc-364f-44f6-a343-7ce76b0c19f5"
+    droid_file_id: "29a5ca2d-fae8-11de-a706-0016e6d383ac"
+    droid_birth_volume_id: "0a92d8cc-364f-44f6-a343-7ce76b0c19f5"
+    droid_birth_file_id: "29a5ca2d-fae8-11de-a706-0016e6d383ac"

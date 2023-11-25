@@ -1,0 +1,28 @@
+int32_hex: 123
+timestamp: 999999999
+int32_dec: 123
+str: "foo"
+repeated_msg {
+  int32_dec: 456
+  str: "bar\nbar"
+}
+repeated_msg {
+  int32_dec: 789
+  str: "baz"
+  map_string_string {
+    key: "foo\nbar"
+    value: "bar"
+  }
+}
+nested_msg {
+  int32_dec: 1234
+  str: "qux\nfoo"
+  map_string_string {
+    key: "foo"
+    value: "bar"
+  }
+  map_string_string {
+    key: "bar"
+    value: "baz"
+  }
+}

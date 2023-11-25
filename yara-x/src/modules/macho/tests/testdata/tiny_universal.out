@@ -1,360 +1,312 @@
-fat_magic: 3405691582
+fat_magic: 0xcafebabe
 nfat_arch: 2
-fat_arch {
-  cputype: 7
-  cpusubtype: 3
-  offset: 4096
-  size: 8512
-  align: 12
-}
-fat_arch {
-  cputype: 16777223
-  cpusubtype: 2147483651
-  offset: 16384
-  size: 8544
-  align: 12
-}
-file {
-  magic: 4277009102
-  cputype: 7
-  cpusubtype: 3
-  filetype: 2
-  ncmds: 16
-  sizeofcmds: 1060
-  flags: 18874501
-  number_of_segments: 4
-  segments {
-    cmd: 1
-    cmdsize: 56
-    segname: "__PAGEZERO"
-    vmaddr: 0
-    vmsize: 4096
-    fileoff: 0
-    filesize: 0
-    maxprot: 0
-    initprot: 0
-    nsects: 0
-    flags: 0
-  }
-  segments {
-    cmd: 1
-    cmdsize: 396
-    segname: "__TEXT"
-    vmaddr: 4096
-    vmsize: 4096
-    fileoff: 0
-    filesize: 4096
-    maxprot: 7
-    initprot: 5
-    nsects: 5
-    flags: 0
-    sections {
-      segname: "__TEXT"
-      sectname: "__text"
-      addr: 7824
-      size: 214
-      offset: 3728
-      align: 4
-      reloff: 0
-      nreloc: 0
-      flags: 2147484672
-      reserved1: 0
-      reserved2: 0
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__symbol_stub"
-      addr: 8038
-      size: 12
-      offset: 3942
-      align: 1
-      reloff: 0
-      nreloc: 0
-      flags: 2147484936
-      reserved1: 0
-      reserved2: 6
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__stub_helper"
-      addr: 8052
-      size: 32
-      offset: 3956
-      align: 2
-      reloff: 0
-      nreloc: 0
-      flags: 2147484928
-      reserved1: 0
-      reserved2: 0
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__cstring"
-      addr: 8084
-      size: 25
-      offset: 3988
-      align: 0
-      reloff: 0
-      nreloc: 0
-      flags: 2
-      reserved1: 0
-      reserved2: 0
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__unwind_info"
-      addr: 8112
-      size: 72
-      offset: 4016
-      align: 2
-      reloff: 0
-      nreloc: 0
-      flags: 0
-      reserved1: 0
-      reserved2: 0
-    }
-  }
-  segments {
-    cmd: 1
-    cmdsize: 192
-    segname: "__DATA"
-    vmaddr: 8192
-    vmsize: 4096
-    fileoff: 4096
-    filesize: 4096
-    maxprot: 7
-    initprot: 3
-    nsects: 2
-    flags: 0
-    sections {
-      segname: "__DATA"
-      sectname: "__nl_symbol_ptr"
-      addr: 8192
-      size: 8
-      offset: 4096
-      align: 2
-      reloff: 0
-      nreloc: 0
-      flags: 6
-      reserved1: 2
-      reserved2: 0
-    }
-    sections {
-      segname: "__DATA"
-      sectname: "__la_symbol_ptr"
-      addr: 8200
-      size: 8
-      offset: 4104
-      align: 2
-      reloff: 0
-      nreloc: 0
-      flags: 7
-      reserved1: 4
-      reserved2: 0
-    }
-  }
-  segments {
-    cmd: 1
-    cmdsize: 56
-    segname: "__LINKEDIT"
-    vmaddr: 12288
-    vmsize: 4096
-    fileoff: 8192
-    filesize: 320
-    maxprot: 7
-    initprot: 1
-    nsects: 0
-    flags: 0
-  }
-  dylibs {
-    name: "/usr/lib/libSystem.B.dylib"
-    timestamp: 2
-    compatibility_version: 65536
-    current_version: 79495168
-  }
-  entry_point: 3808
-  stack_size: 0
-}
-file {
-  magic: 4277009103
-  cputype: 16777223
-  cpusubtype: 2147483651
-  filetype: 2
-  ncmds: 16
-  sizeofcmds: 1296
-  flags: 2097285
-  reserved: 0
-  number_of_segments: 4
-  segments {
-    cmd: 25
-    cmdsize: 72
-    segname: "__PAGEZERO"
-    vmaddr: 0
-    vmsize: 4294967296
-    fileoff: 0
-    filesize: 0
-    maxprot: 0
-    initprot: 0
-    nsects: 0
-    flags: 0
-  }
-  segments {
-    cmd: 25
-    cmdsize: 552
-    segname: "__TEXT"
-    vmaddr: 4294967296
-    vmsize: 4096
-    fileoff: 0
-    filesize: 4096
-    maxprot: 7
-    initprot: 5
-    nsects: 6
-    flags: 0
-    sections {
-      segname: "__TEXT"
-      sectname: "__text"
-      addr: 4294971024
-      size: 181
-      offset: 3728
-      align: 4
-      reloff: 0
-      nreloc: 0
-      flags: 2147484672
-      reserved1: 0
-      reserved2: 0
-      reserved3: 0
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__stubs"
-      addr: 4294971206
-      size: 12
-      offset: 3910
-      align: 1
-      reloff: 0
-      nreloc: 0
-      flags: 2147484680
-      reserved1: 0
-      reserved2: 6
-      reserved3: 0
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__stub_helper"
-      addr: 4294971220
-      size: 36
-      offset: 3924
-      align: 2
-      reloff: 0
-      nreloc: 0
-      flags: 2147484672
-      reserved1: 0
-      reserved2: 0
-      reserved3: 0
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__cstring"
-      addr: 4294971256
-      size: 25
-      offset: 3960
-      align: 0
-      reloff: 0
-      nreloc: 0
-      flags: 2
-      reserved1: 0
-      reserved2: 0
-      reserved3: 0
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__unwind_info"
-      addr: 4294971284
-      size: 72
-      offset: 3988
-      align: 2
-      reloff: 0
-      nreloc: 0
-      flags: 0
-      reserved1: 0
-      reserved2: 0
-      reserved3: 0
-    }
-    sections {
-      segname: "__TEXT"
-      sectname: "__eh_frame"
-      addr: 4294971360
-      size: 24
-      offset: 4064
-      align: 3
-      reloff: 0
-      nreloc: 0
-      flags: 0
-      reserved1: 0
-      reserved2: 0
-      reserved3: 0
-    }
-  }
-  segments {
-    cmd: 25
-    cmdsize: 232
-    segname: "__DATA"
-    vmaddr: 4294971392
-    vmsize: 4096
-    fileoff: 4096
-    filesize: 4096
-    maxprot: 7
-    initprot: 3
-    nsects: 2
-    flags: 0
-    sections {
-      segname: "__DATA"
-      sectname: "__nl_symbol_ptr"
-      addr: 4294971392
-      size: 16
-      offset: 4096
-      align: 3
-      reloff: 0
-      nreloc: 0
-      flags: 6
-      reserved1: 2
-      reserved2: 0
-      reserved3: 0
-    }
-    sections {
-      segname: "__DATA"
-      sectname: "__la_symbol_ptr"
-      addr: 4294971408
-      size: 16
-      offset: 4112
-      align: 3
-      reloff: 0
-      nreloc: 0
-      flags: 7
-      reserved1: 4
-      reserved2: 0
-      reserved3: 0
-    }
-  }
-  segments {
-    cmd: 25
-    cmdsize: 72
-    segname: "__LINKEDIT"
-    vmaddr: 4294975488
-    vmsize: 4096
-    fileoff: 8192
-    filesize: 352
-    maxprot: 7
-    initprot: 1
-    nsects: 0
-    flags: 0
-  }
-  dylibs {
-    name: "/usr/lib/libSystem.B.dylib"
-    timestamp: 2
-    compatibility_version: 65536
-    current_version: 79495168
-  }
-  entry_point: 3808
-  stack_size: 0
-}
+fat_arch:
+  - cputype: 7
+    cpusubtype: 3
+    offset: 4096
+    size: 8512
+    align: 12
+  - cputype: 16777223
+    cpusubtype: 2147483651
+    offset: 16384
+    size: 8544
+    align: 12
+file:
+  - magic: 0xfeedface
+    cputype: 7
+    cpusubtype: 3
+    filetype: 2
+    ncmds: 16
+    sizeofcmds: 1060
+    flags: 0x1200085
+    number_of_segments: 4
+    segments:
+      - cmd: 1
+        cmdsize: 56
+        segname: "__PAGEZERO"
+        vmaddr: 0x0
+        vmsize: 0x1000
+        fileoff: 0
+        filesize: 0
+        maxprot: 0x0
+        initprot: 0x0
+        nsects: 0
+        flags: 0x0
+      - cmd: 1
+        cmdsize: 396
+        segname: "__TEXT"
+        vmaddr: 0x1000
+        vmsize: 0x1000
+        fileoff: 0
+        filesize: 4096
+        maxprot: 0x7
+        initprot: 0x5
+        nsects: 5
+        flags: 0x0
+        sections:
+          - segname: "__TEXT"
+            sectname: "__text"
+            addr: 0x1e90
+            size: 0xd6
+            offset: 3728
+            align: 4
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000400
+            reserved1: 0
+            reserved2: 0
+          - segname: "__TEXT"
+            sectname: "__symbol_stub"
+            addr: 0x1f66
+            size: 0xc
+            offset: 3942
+            align: 1
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000508
+            reserved1: 0
+            reserved2: 6
+          - segname: "__TEXT"
+            sectname: "__stub_helper"
+            addr: 0x1f74
+            size: 0x20
+            offset: 3956
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000500
+            reserved1: 0
+            reserved2: 0
+          - segname: "__TEXT"
+            sectname: "__cstring"
+            addr: 0x1f94
+            size: 0x19
+            offset: 3988
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+          - segname: "__TEXT"
+            sectname: "__unwind_info"
+            addr: 0x1fb0
+            size: 0x48
+            offset: 4016
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+      - cmd: 1
+        cmdsize: 192
+        segname: "__DATA"
+        vmaddr: 0x2000
+        vmsize: 0x1000
+        fileoff: 4096
+        filesize: 4096
+        maxprot: 0x7
+        initprot: 0x3
+        nsects: 2
+        flags: 0x0
+        sections:
+          - segname: "__DATA"
+            sectname: "__nl_symbol_ptr"
+            addr: 0x2000
+            size: 0x8
+            offset: 4096
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x6
+            reserved1: 2
+            reserved2: 0
+          - segname: "__DATA"
+            sectname: "__la_symbol_ptr"
+            addr: 0x2008
+            size: 0x8
+            offset: 4104
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x7
+            reserved1: 4
+            reserved2: 0
+      - cmd: 1
+        cmdsize: 56
+        segname: "__LINKEDIT"
+        vmaddr: 0x3000
+        vmsize: 0x1000
+        fileoff: 8192
+        filesize: 320
+        maxprot: 0x7
+        initprot: 0x1
+        nsects: 0
+        flags: 0x0
+    dylibs:
+      - name: "/usr/lib/libSystem.B.dylib"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "1213.0.0"
+    entry_point: 3808
+    stack_size: 0
+  - magic: 0xfeedfacf
+    cputype: 16777223
+    cpusubtype: 2147483651
+    filetype: 2
+    ncmds: 16
+    sizeofcmds: 1296
+    flags: 0x200085
+    reserved: 0
+    number_of_segments: 4
+    segments:
+      - cmd: 25
+        cmdsize: 72
+        segname: "__PAGEZERO"
+        vmaddr: 0x0
+        vmsize: 0x100000000
+        fileoff: 0
+        filesize: 0
+        maxprot: 0x0
+        initprot: 0x0
+        nsects: 0
+        flags: 0x0
+      - cmd: 25
+        cmdsize: 552
+        segname: "__TEXT"
+        vmaddr: 0x100000000
+        vmsize: 0x1000
+        fileoff: 0
+        filesize: 4096
+        maxprot: 0x7
+        initprot: 0x5
+        nsects: 6
+        flags: 0x0
+        sections:
+          - segname: "__TEXT"
+            sectname: "__text"
+            addr: 0x100000e90
+            size: 0xb5
+            offset: 3728
+            align: 4
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000400
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__stubs"
+            addr: 0x100000f46
+            size: 0xc
+            offset: 3910
+            align: 1
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000408
+            reserved1: 0
+            reserved2: 6
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__stub_helper"
+            addr: 0x100000f54
+            size: 0x24
+            offset: 3924
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000400
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__cstring"
+            addr: 0x100000f78
+            size: 0x19
+            offset: 3960
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__unwind_info"
+            addr: 0x100000f94
+            size: 0x48
+            offset: 3988
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__eh_frame"
+            addr: 0x100000fe0
+            size: 0x18
+            offset: 4064
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+      - cmd: 25
+        cmdsize: 232
+        segname: "__DATA"
+        vmaddr: 0x100001000
+        vmsize: 0x1000
+        fileoff: 4096
+        filesize: 4096
+        maxprot: 0x7
+        initprot: 0x3
+        nsects: 2
+        flags: 0x0
+        sections:
+          - segname: "__DATA"
+            sectname: "__nl_symbol_ptr"
+            addr: 0x100001000
+            size: 0x10
+            offset: 4096
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x6
+            reserved1: 2
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__la_symbol_ptr"
+            addr: 0x100001010
+            size: 0x10
+            offset: 4112
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x7
+            reserved1: 4
+            reserved2: 0
+            reserved3: 0
+      - cmd: 25
+        cmdsize: 72
+        segname: "__LINKEDIT"
+        vmaddr: 0x100002000
+        vmsize: 0x1000
+        fileoff: 8192
+        filesize: 352
+        maxprot: 0x7
+        initprot: 0x1
+        nsects: 0
+        flags: 0x0
+    dylibs:
+      - name: "/usr/lib/libSystem.B.dylib"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "1213.0.0"
+    entry_point: 3808
+    stack_size: 0

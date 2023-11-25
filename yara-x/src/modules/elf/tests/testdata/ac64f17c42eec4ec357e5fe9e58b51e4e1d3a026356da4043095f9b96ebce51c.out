@@ -10,13 +10,12 @@ number_of_segments: 1
 symtab_entries: 0
 dynsym_entries: 0
 dynamic_section_entries: 0
-segments {
-  type: PT_LOAD
-  flags: 7
-  offset: 0
-  virtual_address: 134512640
-  physical_address: 134512640
-  file_size: 207
-  memory_size: 330
-  alignment: 4096
-}
+segments:
+  - type: PT_LOAD
+    flags: 7
+    offset: 0
+    virtual_address: 134512640
+    physical_address: 134512640
+    file_size: 207
+    memory_size: 330
+    alignment: 4096

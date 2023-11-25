@@ -135,12 +135,11 @@ fn test_modules() {
                 panic!("module `{}` should produce some output", module_name)
             });
 
-        // Get a text representation of the module's output.
-        let output = protobuf::text_format::print_to_string_pretty(output);
+        let output_file = mint.new_goldenfile(out_path).unwrap();
 
-        // Create a goldenfile test
-        let mut output_file = mint.new_goldenfile(out_path).unwrap();
+        // Render the module's output as YAML.
+        let mut yaml = yara_x_proto_yaml::Serializer::new(output_file);
 
-        write!(output_file, "{}", output).unwrap();
+        yaml.serialize(output).unwrap();
     }
 }
