@@ -418,155 +418,15 @@ fn emit_expr(
             emit_pattern_length(ctx, instr, expr);
         }
 
-        Expr::FieldAccess { operands, .. } => {
-            for operand in operands {
-                emit_expr(ctx, instr, operand);
-            }
+        Expr::FieldAccess { operands } => {
+            emit_field_access(ctx, instr, operands.as_mut());
         }
 
-        Expr::Defined { operand } => {
-            // The `defined` expression is emitted as:
-            //
-            //   try {
-            //     evaluate_operand()
-            //     true
-            //   } catch undefined {
-            //     false
-            //   }
-            //
-            catch_undef(ctx, instr, |ctx, instr| {
-                emit_bool_expr(ctx, instr, operand);
-                // Drop the operand's value as we are not interested in the
-                // value, we are interested only in whether it's defined or
-                // not.
-                instr.drop();
-                // Push a 1 in the stack indicating that the operand is
-                // defined. This point is not reached if the operand calls
-                // `throw_undef`.
-                instr.i32_const(1);
-            });
-        }
+        Expr::Defined { operand } => emit_defined(ctx, instr, operand),
+        Expr::Not { operand } => emit_not(ctx, instr, operand),
+        Expr::And { operands } => emit_and(ctx, instr, operands.as_mut()),
+        Expr::Or { operands } => emit_or(ctx, instr, operands.as_mut()),
 
-        Expr::Not { operand } => {
-            // The `not` expression is emitted as:
-            //
-            //   if (evaluate_operand()) {
-            //     false
-            //   } else {
-            //     true
-            //   }
-            //
-            emit_bool_expr(ctx, instr, operand);
-            instr.if_else(
-                I32,
-                |then| {
-                    then.i32_const(0);
-                },
-                |else_| {
-                    else_.i32_const(1);
-                },
-            );
-        }
-        Expr::And { operands } => {
-            // The `or` expression is emitted as:
-            //
-            // block {
-            //   try {
-            //     result = first_operand()
-            //   } catch undefined {
-            //     result = false
-            //   }
-            //   if !result {
-            //     push false
-            //     exit from block
-            //   }
-            //   try {
-            //     result = second_operand()
-            //   } catch undefined {
-            //     result = false
-            //   }
-            //   if !result {
-            //     push false
-            //     exit from block
-            //   }
-            //   ...
-            //   push true
-            // }
-            instr.block(
-                I32, // the block returns a bool
-                |block| {
-                    let block_id = block.id();
-                    for operand in operands {
-                        catch_undef(ctx, block, |ctx, instr| {
-                            emit_bool_expr(ctx, instr, operand);
-                        });
-                        // If the operand is `false`, exit from the block
-                        // with a `false` result.
-                        block.if_else(
-                            None,
-                            |_| {},
-                            |else_| {
-                                else_.i32_const(0);
-                                else_.br(block_id);
-                            },
-                        );
-                    }
-                    // If none of the operands was false, fallback to returning
-                    // true.
-                    block.i32_const(1);
-                },
-            );
-        }
-        Expr::Or { operands } => {
-            // The `or` expression is emitted as:
-            //
-            // block {
-            //   try {
-            //     result = first_operand()
-            //   } catch undefined {
-            //     result = false
-            //   }
-            //   if result {
-            //     push true
-            //     exit from block
-            //   }
-            //   try {
-            //     result = second_operand()
-            //   } catch undefined {
-            //     result = false
-            //   }
-            //   if result {
-            //     push true
-            //     exit from block
-            //   }
-            //   ...
-            //   push false
-            // }
-            instr.block(
-                I32, // the block returns a bool
-                |block| {
-                    let block_id = block.id();
-                    for operand in operands {
-                        catch_undef(ctx, block, |ctx, instr| {
-                            emit_bool_expr(ctx, instr, operand);
-                        });
-                        // If the operand is `true`, exit from the block
-                        // with a `true` result.
-                        block.if_else(
-                            None,
-                            |then_| {
-                                then_.i32_const(1);
-                                then_.br(block_id);
-                            },
-                            |_| {},
-                        );
-                    }
-                    // If none of the operands was true, fallback to returning
-                    // false.
-                    block.i32_const(0);
-                },
-            );
-        }
         Expr::Minus { operand } => {
             match operand.ty() {
                 Type::Float => {
@@ -599,49 +459,8 @@ fn emit_expr(
         Expr::Mul { operands } => {
             emit_arithmetic_op!(ctx, instr, operands, I64Mul, F64Mul);
         }
-        Expr::Div { operands } => {
-            let mut operands = operands.iter_mut();
-            let first_operand = operands.next().unwrap();
-            let mut is_float = matches!(first_operand.ty(), Type::Float);
-
-            emit_expr(ctx, instr, first_operand);
-
-            for operand in operands {
-                // The previous operand is not float but this one is float,
-                // we must convert the previous operand to float
-                if !is_float && matches!(operand.ty(), Type::Float) {
-                    instr.unop(UnaryOp::F64ConvertSI64);
-                    is_float = true;
-                }
-
-                emit_expr(ctx, instr, operand);
-
-                if is_float && matches!(operand.ty(), Type::Integer) {
-                    instr.unop(UnaryOp::F64ConvertSI64);
-                }
-
-                if is_float {
-                    instr.binop(BinaryOp::F64Div);
-                } else {
-                    // In integer division make sure that the divisor is not
-                    // zero, if that's the case the result is undefined.
-                    throw_undef_if_zero(ctx, instr);
-                    instr.binop(BinaryOp::I64DivS);
-                }
-            }
-        }
-        Expr::Mod { operands } => {
-            let mut operands = operands.iter_mut();
-            let first_operand = operands.next().unwrap();
-
-            emit_expr(ctx, instr, first_operand);
-
-            for operand in operands {
-                emit_expr(ctx, instr, operand);
-                throw_undef_if_zero(ctx, instr);
-                instr.binop(BinaryOp::I64RemS);
-            }
-        }
+        Expr::Div { operands } => emit_div(ctx, instr, operands.as_mut()),
+        Expr::Mod { operands } => emit_mod(ctx, instr, operands.as_mut()),
         Expr::Shl { lhs, rhs } => {
             emit_shift_op!(ctx, instr, lhs, rhs, I64Shl);
         }
@@ -836,6 +655,237 @@ fn emit_expr(
 
             ctx.current_signature = previous;
         }
+    }
+}
+
+/// Emits the code for `defined` operations.
+fn emit_defined(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operand: &mut Expr,
+) {
+    // The `defined` expression is emitted as:
+    //
+    //   try {
+    //     evaluate_operand()
+    //     true
+    //   } catch undefined {
+    //     false
+    //   }
+    //
+    catch_undef(ctx, instr, |ctx, instr| {
+        emit_bool_expr(ctx, instr, operand);
+        // Drop the operand's value as we are not interested in the
+        // value, we are interested only in whether it's defined or
+        // not.
+        instr.drop();
+        // Push a 1 in the stack indicating that the operand is
+        // defined. This point is not reached if the operand calls
+        // `throw_undef`.
+        instr.i32_const(1);
+    });
+}
+
+/// Emits the code for `not` operations.
+fn emit_not(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operand: &mut Expr,
+) {
+    // The `not` expression is emitted as:
+    //
+    //   if (evaluate_operand()) {
+    //     false
+    //   } else {
+    //     true
+    //   }
+    //
+    emit_bool_expr(ctx, instr, operand);
+    instr.if_else(
+        I32,
+        |then| {
+            then.i32_const(0);
+        },
+        |else_| {
+            else_.i32_const(1);
+        },
+    );
+}
+
+/// Emits the code for `and` operations.
+fn emit_and(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    // The `or` expression is emitted as:
+    //
+    // block {
+    //   try {
+    //     result = first_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   if !result {
+    //     push false
+    //     exit from block
+    //   }
+    //   try {
+    //     result = second_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   if !result {
+    //     push false
+    //     exit from block
+    //   }
+    //   ...
+    //   push true
+    // }
+    instr.block(
+        I32, // the block returns a bool
+        |block| {
+            let block_id = block.id();
+            for operand in operands {
+                catch_undef(ctx, block, |ctx, instr| {
+                    emit_bool_expr(ctx, instr, operand);
+                });
+                // If the operand is `false`, exit from the block
+                // with a `false` result.
+                block.if_else(
+                    None,
+                    |_| {},
+                    |else_| {
+                        else_.i32_const(0);
+                        else_.br(block_id);
+                    },
+                );
+            }
+            // If none of the operands was false, fallback to returning
+            // true.
+            block.i32_const(1);
+        },
+    );
+}
+
+/// Emits the code for `or` operations.
+fn emit_or(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    // The `or` expression is emitted as:
+    //
+    // block {
+    //   try {
+    //     result = first_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   if result {
+    //     push true
+    //     exit from block
+    //   }
+    //   try {
+    //     result = second_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   if result {
+    //     push true
+    //     exit from block
+    //   }
+    //   ...
+    //   push false
+    // }
+    instr.block(
+        I32, // the block returns a bool
+        |block| {
+            let block_id = block.id();
+            for operand in operands {
+                catch_undef(ctx, block, |ctx, instr| {
+                    emit_bool_expr(ctx, instr, operand);
+                });
+                // If the operand is `true`, exit from the block
+                // with a `true` result.
+                block.if_else(
+                    None,
+                    |then_| {
+                        then_.i32_const(1);
+                        then_.br(block_id);
+                    },
+                    |_| {},
+                );
+            }
+            // If none of the operands was true, fallback to returning
+            // false.
+            block.i32_const(0);
+        },
+    );
+}
+
+/// Emits the code for `div` operations.
+fn emit_div(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    let mut operands = operands.iter_mut();
+    let first_operand = operands.next().unwrap();
+    let mut is_float = matches!(first_operand.ty(), Type::Float);
+
+    emit_expr(ctx, instr, first_operand);
+
+    for operand in operands {
+        // The previous operand is not float but this one is float,
+        // we must convert the previous operand to float
+        if !is_float && matches!(operand.ty(), Type::Float) {
+            instr.unop(UnaryOp::F64ConvertSI64);
+            is_float = true;
+        }
+
+        emit_expr(ctx, instr, operand);
+
+        if is_float && matches!(operand.ty(), Type::Integer) {
+            instr.unop(UnaryOp::F64ConvertSI64);
+        }
+
+        if is_float {
+            instr.binop(BinaryOp::F64Div);
+        } else {
+            // In integer division make sure that the divisor is not
+            // zero, if that's the case the result is undefined.
+            throw_undef_if_zero(ctx, instr);
+            instr.binop(BinaryOp::I64DivS);
+        }
+    }
+}
+
+/// Emits the code for `mod` operations.
+fn emit_mod(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    let mut operands = operands.iter_mut();
+    let first_operand = operands.next().unwrap();
+
+    emit_expr(ctx, instr, first_operand);
+
+    for operand in operands {
+        emit_expr(ctx, instr, operand);
+        throw_undef_if_zero(ctx, instr);
+        instr.binop(BinaryOp::I64RemS);
+    }
+}
+
+fn emit_field_access(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    for operand in operands {
+        emit_expr(ctx, instr, operand);
     }
 }
 
