@@ -283,7 +283,6 @@ fn test_swap_min_version_command() {
         cmdsize: 0x55667788,
         version: 0x99AABBCC,
         sdk: 0xDDDDFFFF,
-        ..Default::default()
     };
 
     swap_min_version_command(&mut command);
