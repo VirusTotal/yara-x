@@ -67,11 +67,11 @@ const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
-const LC_VERSION_MIN_MACOSX: u32 = 0x24;
-const LC_VERSION_MIN_IPHONEOS: u32 = 0x25;
-const LC_VERSION_MIN_TVOS: u32 = 0x2f;
-const LC_VERSION_MIN_WATCHOS: u32 = 0x30;
+const LC_VERSION_MIN_MACOSX: u32 = 0x00000024;
+const LC_VERSION_MIN_IPHONEOS: u32 = 0x00000025;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
+const LC_VERSION_MIN_TVOS: u32 = 0x0000002f;
+const LC_VERSION_MIN_WATCHOS: u32 = 0x00000030;
 
 /// Enum that provides strongly-typed error system used in code
 /// Represents all possible errors that can occur during Mach-O parsing
