@@ -38,6 +38,7 @@ impl<'ast> FuncSignatureParser<'ast> {
             "RegexpId" => Ok(Cow::Borrowed("r")),
             "RuntimeString" => Ok(Cow::Borrowed("s")),
             "RuntimeObjectRef" => Ok(Cow::Borrowed("i")),
+            "Rc" => Ok(Cow::Borrowed("i")),
             type_ident => Err(syn::Error::new_spanned(
                 type_path,
                 format!(

@@ -227,6 +227,12 @@ impl ScanContext<'_> {
         obj_ref
     }
 
+    pub(crate) fn store_string(&mut self, s: Rc<String>) -> RuntimeObjectRef {
+        let obj_ref = RuntimeObjectRef(Rc::<String>::as_ptr(&s) as i64);
+        self.runtime_objects.insert_full(obj_ref, RuntimeObject::String(s));
+        obj_ref
+    }
+
     /// Called during the scan process when a global rule didn't match.
     ///
     /// When this happen any other global rule in the same namespace that
@@ -1230,6 +1236,7 @@ pub enum RuntimeObject {
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
+    String(Rc<String>),
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
@@ -1239,8 +1246,8 @@ impl RuntimeObjectRef {
     pub(crate) const NULL: Self = RuntimeObjectRef(-1);
 }
 
-impl From<&RuntimeObjectRef> for i64 {
-    fn from(value: &RuntimeObjectRef) -> Self {
+impl From<RuntimeObjectRef> for i64 {
+    fn from(value: RuntimeObjectRef) -> Self {
         value.0
     }
 }

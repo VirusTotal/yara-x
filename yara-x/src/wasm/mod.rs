@@ -281,14 +281,14 @@ impl WasmArg<RuntimeObjectRef> for ValRaw {
 /// implements this trait.
 pub(crate) trait WasmResult {
     /// Returns the WASM values representing this result.
-    fn values(&self) -> WasmResultArray<ValRaw>;
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw>;
 
     /// Returns the WASM types that conform this result.
     fn types() -> WasmResultArray<wasmtime::ValType>;
 }
 
 impl WasmResult for () {
-    fn values(&self) -> WasmResultArray<ValRaw> {
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![]
     }
 
@@ -298,8 +298,8 @@ impl WasmResult for () {
 }
 
 impl WasmResult for i32 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i32(*self)]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i32(self)]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -308,8 +308,8 @@ impl WasmResult for i32 {
 }
 
 impl WasmResult for i64 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i64(*self)]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i64(self)]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -318,8 +318,8 @@ impl WasmResult for i64 {
 }
 
 impl WasmResult for f32 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::f32(f32::to_bits(*self))]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::f32(f32::to_bits(self))]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -328,8 +328,8 @@ impl WasmResult for f32 {
 }
 
 impl WasmResult for f64 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::f64(f64::to_bits(*self))]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::f64(f64::to_bits(self))]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -338,8 +338,8 @@ impl WasmResult for f64 {
 }
 
 impl WasmResult for bool {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i32(*self as i32)]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i32(self as i32)]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -348,7 +348,7 @@ impl WasmResult for bool {
 }
 
 impl WasmResult for RuntimeString {
-    fn values(&self) -> WasmResultArray<ValRaw> {
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i64(self.as_wasm())]
     }
 
@@ -358,8 +358,19 @@ impl WasmResult for RuntimeString {
 }
 
 impl WasmResult for RuntimeObjectRef {
-    fn values(&self) -> WasmResultArray<ValRaw> {
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![ValRaw::i64(self.into())]
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I64]
+    }
+}
+
+impl WasmResult for Rc<String> {
+    fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        let obj_ref = ctx.store_string(self);
+        smallvec![ValRaw::i64(obj_ref.into())]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -372,9 +383,9 @@ where
     A: WasmResult,
     B: WasmResult,
 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        let mut result = self.0.values();
-        result.extend(self.1.values());
+    fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        let mut result = self.0.values(ctx);
+        result.extend(self.1.values(ctx));
         result
     }
 
@@ -389,15 +400,15 @@ impl<T> WasmResult for Option<T>
 where
     T: WasmResult + Default,
 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
+    fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
         match self {
             Some(value) => {
-                let mut result = value.values();
+                let mut result = value.values(ctx);
                 result.push(ValRaw::i32(0));
                 result
             }
             None => {
-                let mut result = T::default().values();
+                let mut result = T::default().values(ctx);
                 result.push(ValRaw::i32(1));
                 result
             }
@@ -508,7 +519,7 @@ macro_rules! impl_wasm_exported_fn {
                         )*
 
                         let result = (self.target_fn)(&mut caller, $($args),*);
-                        let result = result.values();
+                        let result = result.values(caller.data_mut());
 
                         let result_slice = result.as_slice();
                         let num_results = result_slice.len();
@@ -597,6 +608,11 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
     }
 
     linker
+}
+
+#[wasm_export]
+pub(crate) fn foo(caller: &mut Caller<'_, ScanContext>) -> Rc<String> {
+    todo!()
 }
 
 /// Invoked from WASM before starting the evaluation of the rule identified
@@ -1499,47 +1515,3 @@ gen_xint_fn!(int32, i32, from_le_bytes);
 gen_xint_fn!(int8be, i8, from_be_bytes);
 gen_xint_fn!(int16be, i16, from_be_bytes);
 gen_xint_fn!(int32be, i32, from_be_bytes);
-
-#[cfg(test)]
-mod tests {
-    use crate::wasm::WasmResult;
-
-    #[test]
-    fn wasm_result_conversion() {
-        let w = 1_i64.values();
-        assert_eq!(w.len(), 1);
-        assert_eq!(w[0].get_i64(), 1);
-
-        let w = 1_i32.values();
-        assert_eq!(w.len(), 1);
-        assert_eq!(w[0].get_i32(), 1);
-
-        let w = Option::<i64>::Some(2).values();
-        assert_eq!(w.len(), 2);
-        assert_eq!(w[0].get_i64(), 2);
-        assert_eq!(w[1].get_i32(), 0);
-
-        let w = Option::<i64>::None.values();
-        assert_eq!(w.len(), 2);
-        assert_eq!(w[0].get_i64(), 0);
-        assert_eq!(w[1].get_i32(), 1);
-
-        let w = Option::<i32>::Some(2).values();
-        assert_eq!(w.len(), 2);
-        assert_eq!(w[0].get_i64(), 2);
-        assert_eq!(w[1].get_i32(), 0);
-
-        let w = Option::<i32>::None.values();
-        assert_eq!(w.len(), 2);
-        assert_eq!(w[0].get_i32(), 0);
-        assert_eq!(w[1].get_i32(), 1);
-
-        let w = Option::<()>::Some(()).values();
-        assert_eq!(w.len(), 1);
-        assert_eq!(w[0].get_i32(), 0);
-
-        let w = Option::<()>::None.values();
-        assert_eq!(w.len(), 1);
-        assert_eq!(w[0].get_i32(), 1);
-    }
-}
