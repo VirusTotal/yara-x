@@ -255,10 +255,3 @@ fn test_proto2_module() {
         "#
     );
 }
-
-#[test]
-fn foo() {
-    condition_true!(
-        r#"for any k,v in test_proto2.map_int64_int64: ( k == 100 and v == 1000 )"#
-    );
-}

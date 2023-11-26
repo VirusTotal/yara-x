@@ -589,17 +589,19 @@ fn emit_expr(
         }
 
         Expr::Lookup(lookup) => {
+            // Emit code for the primary expression (array or map) that is
+            // being indexed.
+            emit_expr(ctx, instr, &mut lookup.primary);
             // Emit the code for the index expression, which leaves the
             // index in the stack.
             emit_expr(ctx, instr, &mut lookup.index);
-            // Emit code for the primary expression (array or map) that is
-            // being indexed.
-            //
+
+            // TODO: what about this
             // Notice that the index expression must be emitted before the
             // primary expression because the former may need to modify
             // `lookup_stack`, and we don't want to alter `lookup_stack`
             // until `emit_array_indexing` or `emit_map_lookup` is called.
-            emit_expr(ctx, instr, &mut lookup.primary);
+            //emit_expr(ctx, instr, &mut lookup.primary);
             // Emit a call instruction to the corresponding function, which
             // depends on the type of the primary expression (array or map)
             // and the type of the index expression.
@@ -1655,8 +1657,8 @@ fn emit_for_in_array(
             // Get the i-th item in the array and store it in the
             // local variable `next_item`.
             set_var(ctx, instr, next_item, |ctx, instr| {
-                load_var(ctx, instr, i);
                 load_var(ctx, instr, array_var);
+                load_var(ctx, instr, i);
                 emit_array_indexing(ctx, instr, &array);
             });
         },
@@ -1720,8 +1722,8 @@ fn emit_for_in_map(
         // Before each iteration.
         |ctx, instr, i| {
             set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
-                load_var(ctx, instr, i);
                 load_var(ctx, instr, map_var);
+                load_var(ctx, instr, i);
                 emit_map_lookup_by_index(ctx, instr, &map);
             });
         },
@@ -2257,7 +2259,11 @@ fn set_vars<B>(
                     MemArg { align: size_of::<i32>() as u32, offset: 0 },
                 );
             }
-            Type::Integer | Type::String => {
+            Type::Integer
+            | Type::String
+            | Type::Struct
+            | Type::Array
+            | Type::Map => {
                 instr.local_set(ctx.wasm_symbols.i64_tmp);
                 instr.i32_const(var.index * size_of::<i64>() as i32);
                 instr.local_get(ctx.wasm_symbols.i64_tmp);
