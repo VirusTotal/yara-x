@@ -151,6 +151,7 @@ file:
         current_version: "1213.0.0"
     entry_point: 3808
     stack_size: 0
+    uuid: "0443555D-A992-3B9E-8BCE-5D9FC8BAC0E9"
   - magic: 0xfeedfacf
     cputype: 16777223
     cpusubtype: 2147483651
@@ -310,3 +311,4 @@ file:
         current_version: "1213.0.0"
     entry_point: 3808
     stack_size: 0
+    uuid: "57199705-E3C0-352D-BBE8-3990B1A732B7"

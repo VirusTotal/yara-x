@@ -62,6 +62,7 @@ const LC_SEGMENT: u32 = 0x00000001;
 const LC_UNIXTHREAD: u32 = 0x00000005;
 const LC_LOAD_DYLIB: u32 = 0x0000000c;
 const LC_ID_DYLIB: u32 = 0x0000000d;
+const LC_UUID: u32 = 0x00000001b;
 const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
@@ -177,6 +178,16 @@ struct DylibObject {
     timestamp: u32,
     current_version: u32,
     compatibility_version: u32,
+}
+
+/// `UUIDCommand`: Represents a uuid command in the Mach-O file.
+/// Fields: cmd, cmdsize, uuid
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct UUIDCommand {
+    cmd: u32,
+    cmdsize: u32,
+    uuid: [u8; 16],
 }
 
 /// `DylibCommand`: Represents a dylib command in the Mach-O file.
@@ -673,6 +684,17 @@ fn swap_load_command(command: &mut LoadCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O UUID load command from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O uuid load command.
+fn swap_uuid_command(command: &mut UUIDCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a Mach-O dylib from BigEndian
 /// to LittleEndian in-place.
 ///
@@ -937,6 +959,29 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
     let (input, cmdsize) = le_u32(input)?;
 
     Ok((input, LoadCommand { cmd, cmdsize }))
+}
+
+/// Parse a Mach-O UUID load command, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw UUIDCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// UUIDCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_uuid_command(input: &[u8]) -> IResult<&[u8], UUIDCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, uuid) = take(16usize)(input)?;
+
+    Ok((input, UUIDCommand { cmd, cmdsize, uuid: *array_ref![uuid, 0, 16] }))
 }
 
 /// Parse a Mach-O Dylib object, transforming raw bytes into a structured
@@ -1568,6 +1613,69 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
     let (input, vrsave) = le_u32(input)?;
 
     Ok((input, PPCThreadState64 { srr0, srr1, r, cr, xer, lr, ctr, vrsave }))
+}
+
+/// Handles the LC_UUID commands for Mach-O files, parsing the data
+/// and populating a protobuf representation of the UUID load command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the rpath command.
+/// * `size`: The size of the UUID load command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected UUIDCommand struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   UUID load command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_uuid_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<UUIDCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "UUIDCommand".to_string(),
+        ));
+    }
+
+    let (_, mut uc) = parse_uuid_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_uuid_command(&mut uc);
+    }
+
+    let mut uuid_str = String::new();
+
+    for (idx, c) in uc.uuid.iter().enumerate() {
+        match idx {
+            3 | 5 | 7 | 9 => {
+                uuid_str.push_str(format!("{:02X}", c).as_str());
+                uuid_str.push('-');
+            }
+            _ => {
+                uuid_str.push_str(format!("{:02X}", c).as_str());
+            }
+        }
+    }
+
+    macho_file.set_uuid(uuid_str);
+
+    Ok(())
 }
 
 /// Handles the LC_LOAD_DYLIB, LC_ID_DYLIB, LC_LOAD_WEAK_DYLIB, and
@@ -2214,6 +2322,9 @@ fn handle_command(
             }
             LC_MAIN => {
                 handle_main(command_data, cmdsize, macho_file)?;
+            }
+            LC_UUID => {
+                handle_uuid_command(command_data, cmdsize, macho_file)?;
             }
             LC_LOAD_DYLIB | LC_ID_DYLIB | LC_LOAD_WEAK_DYLIB
             | LC_REEXPORT_DYLIB => {

@@ -233,6 +233,16 @@ fn test_swap_load_command() {
 }
 
 #[test]
+fn test_swap_uuid_command() {
+    let mut command: UUIDCommand = UUIDCommand { cmd: 0x11223344, cmdsize: 0x55667788, uuid: [0; 16]};
+
+    swap_uuid_command(&mut command);
+
+    assert_eq!(command.cmd, 0x44332211);
+    assert_eq!(command.cmdsize, 0x88776655);
+}
+
+#[test]
 fn test_swap_dylib() {
     let mut command = DylibObject {
         timestamp: 0x11223344,
