@@ -101,19 +101,20 @@ impl<'ast> FuncSignatureParser<'ast> {
 
         let mut arg_types = self.arg_types.take().unwrap();
 
-        // Make sure that the first argument is `Caller`.
-        let first_argument_is_ok =
-            if let Some(Type::Path(type_path)) = arg_types.pop_front() {
-                Self::type_ident(type_path) == "Caller"
-            } else {
-                false
-            };
+        let mut first_argument_is_ok = false;
+
+        // Make sure that the first argument is `&mut Caller`.
+        if let Some(Type::Reference(ref_type)) = arg_types.pop_front() {
+            if let Type::Path(type_) = ref_type.elem.as_ref() {
+                first_argument_is_ok = Self::type_ident(type_) == "Caller";
+            }
+        }
 
         if !first_argument_is_ok {
             return Err(syn::Error::new_spanned(
                 &func.sig,
                 format!(
-                    "the first argument for function `{}` must be `Caller<'_, ScanContext>`",
+                    "the first argument for function `{}` must be `&mut Caller<'_, ScanContext>`",
                     func.sig.ident),
             ));
         }
@@ -158,7 +159,7 @@ pub struct WasmExportArgs {
 ///
 /// ```text
 /// #[wasm_export]
-/// fn add(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
+/// fn add(caller: &mut Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
 ///     a + b
 /// }
 /// ```
@@ -176,7 +177,7 @@ pub struct WasmExportArgs {
 /// ```
 ///
 /// Notice that the generated code uses `WasmExportedFn2` because the function
-/// receives two parameters (not counting `caller: Caller<'_, ScanContext>`)
+/// receives two parameters (not counting `caller: &mut Caller<'_, ScanContext>`)
 ///
 pub(crate) fn impl_wasm_export_macro(
     attr_args: AttributeArgs,
@@ -195,7 +196,7 @@ pub(crate) fn impl_wasm_export_macro(
         return Err(syn::Error::new_spanned(
             &func.sig,
             format!(
-                "function `{}` must have at least one argument of type `Caller<'_, ScanContext>`", 
+                "function `{}` must have at least one argument of type `&mut Caller<'_, ScanContext>`", 
                 fn_name),
         ));
     }
@@ -239,61 +240,61 @@ mod tests {
         let mut parser = FuncSignatureParser::new();
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) {  }
+          fn foo(caller: &mut Caller<'_, ScanContext>) {  }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) -> i32 { 0 }
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> i32 { 0 }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@i");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) -> (i32, i32) { (0,0) }
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> (i32, i32) { (0,0) }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@ii");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>, a: i32, b: i32) -> i32 { a + b }
+          fn foo(caller: &mut Caller<'_, ScanContext>, a: i32, b: i32) -> i32 { a + b }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@ii@i");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) -> Option<()> { None }
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<()> { None }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@u");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) -> Option<i64> { None }
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<i64> { None }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@iu");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) -> Option<i64> { None }
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<i64> { None }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@iu");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) -> Option<(i64, f64)> { None }
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> Option<(i64, f64)> { None }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@ifu");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>)  {  }
+          fn foo(caller: &mut Caller<'_, ScanContext>)  {  }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@");
 
         let func = parse_quote! {
-          fn foo(caller: Caller<'_, ScanContext>) -> (i64, RuntimeString) {  }
+          fn foo(caller: &mut Caller<'_, ScanContext>) -> (i64, RuntimeString) {  }
         };
 
         assert_eq!(parser.parse(&func).unwrap(), "@@is");

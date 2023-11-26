@@ -465,7 +465,7 @@ macro_rules! impl_wasm_exported_fn {
             $($args: 'static,)*
             R: 'static,
         {
-            pub target_fn: &'static (dyn Fn(Caller<'_, ScanContext>, $($args),*) -> R
+            pub target_fn: &'static (dyn Fn(&mut Caller<'_, ScanContext>, $($args),*) -> R
                           + Send
                           + Sync
                           + 'static),
@@ -507,7 +507,7 @@ macro_rules! impl_wasm_exported_fn {
                             i += 1;
                         )*
 
-                        let result = (self.target_fn)(caller, $($args),*);
+                        let result = (self.target_fn)(&mut caller, $($args),*);
                         let result = result.values();
 
                         let result_slice = result.as_slice();
@@ -605,7 +605,7 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
 #[wasm_export]
 #[cfg(feature = "logging")]
 pub(crate) fn log_rule_eval_start(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
 ) {
     caller.data_mut().log_rule_eval_start(rule_id);
@@ -616,7 +616,7 @@ pub(crate) fn log_rule_eval_start(
 /// Returns `true` on success and `false` when a timeout occurs.
 #[wasm_export]
 pub(crate) fn search_for_patterns(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
 ) -> bool {
     match caller.data_mut().search_for_patterns() {
         Ok(_) => true,
@@ -628,7 +628,7 @@ pub(crate) fn search_for_patterns(
 /// Invoked from WASM to notify when a rule matches.
 #[wasm_export]
 pub(crate) fn rule_match(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
 ) {
     caller.data_mut().track_rule_match(rule_id);
@@ -637,7 +637,7 @@ pub(crate) fn rule_match(
 /// Invoked from WASM to notify when a global rule doesn't match.
 #[wasm_export]
 pub(crate) fn global_rule_no_match(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
 ) {
     caller.data_mut().track_global_rule_no_match(rule_id);
@@ -650,7 +650,7 @@ pub(crate) fn global_rule_no_match(
 /// or false if otherwise.
 #[wasm_export]
 pub(crate) fn is_pat_match_at(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     offset: i64,
 ) -> bool {
@@ -672,7 +672,7 @@ pub(crate) fn is_pat_match_at(
 /// offset in the range [`lower_bound`, `upper_bound`], both inclusive.
 #[wasm_export]
 pub(crate) fn is_pat_match_in(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     lower_bound: i64,
     upper_bound: i64,
@@ -689,7 +689,7 @@ pub(crate) fn is_pat_match_in(
 /// Invoked from WASM to ask for the number of matches for a pattern.
 #[wasm_export]
 pub(crate) fn pat_matches(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
 ) -> i64 {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
@@ -706,7 +706,7 @@ pub(crate) fn pat_matches(
 /// that start in the range [`lower_bound`, `upper_bound`], both inclusive.
 #[wasm_export]
 pub(crate) fn pat_matches_in(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     lower_bound: i64,
     upper_bound: i64,
@@ -725,7 +725,7 @@ pub(crate) fn pat_matches_in(
 /// has not matched or there are less than `index` matches.
 #[wasm_export]
 pub(crate) fn pat_length(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     index: i64,
 ) -> Option<i64> {
@@ -746,7 +746,7 @@ pub(crate) fn pat_length(
 /// has not matched or there are less than `index` matches.
 #[wasm_export]
 pub(crate) fn pat_offset(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     index: i64,
 ) -> Option<i64> {
@@ -768,7 +768,7 @@ pub(crate) fn pat_offset(
 /// If the variable doesn't exist or is not an array.
 #[wasm_export]
 pub(crate) fn array_len(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     array: RuntimeObjectRef,
 ) -> i64 {
     caller.data().runtime_objects.get(&array).unwrap().as_array().len() as i64
@@ -782,7 +782,7 @@ pub(crate) fn array_len(
 /// If the variable doesn't exist or is not a map.
 #[wasm_export]
 pub(crate) fn map_len(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     map: RuntimeObjectRef,
 ) -> i64 {
     caller.data().runtime_objects.get(&map).unwrap().as_map().len() as i64
@@ -886,11 +886,11 @@ fn lookup_field(
 /// See [`lookup_field`].
 #[wasm_export]
 pub(crate) fn lookup_string(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     structure: RuntimeObjectRef,
     num_lookup_indexes: i32,
 ) -> Option<RuntimeString> {
-    match lookup_field(&mut caller, structure, num_lookup_indexes) {
+    match lookup_field(caller, structure, num_lookup_indexes) {
         TypeValue::String(Value::Var(value)) => Some(RuntimeString::Owned(
             caller.data_mut().string_pool.get_or_intern(value),
         )),
@@ -907,11 +907,11 @@ pub(crate) fn lookup_string(
 /// See [`lookup_field`].
 #[wasm_export]
 pub(crate) fn lookup_object(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     structure: RuntimeObjectRef,
     num_lookup_indexes: i32,
 ) -> RuntimeObjectRef {
-    let type_value = lookup_field(&mut caller, structure, num_lookup_indexes);
+    let type_value = lookup_field(caller, structure, num_lookup_indexes);
     let ctx = caller.data_mut();
     match type_value {
         TypeValue::Struct(s) => ctx.store_struct(s),
@@ -925,12 +925,12 @@ macro_rules! gen_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             structure: RuntimeObjectRef,
             num_lookup_indexes: i32,
         ) -> Option<$return_type> {
             if let $type(value) =
-                lookup_field(&mut caller, structure, num_lookup_indexes)
+                lookup_field(caller, structure, num_lookup_indexes)
             {
                 value.extract().cloned()
             } else {
@@ -948,7 +948,7 @@ macro_rules! gen_array_indexing_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {
         #[wasm_export]
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             index: i64,
             array: RuntimeObjectRef,
         ) -> Option<$return_type> {
@@ -972,7 +972,7 @@ gen_array_indexing_fn!(array_indexing_bool, as_bool_array, bool);
 #[wasm_export]
 #[rustfmt::skip]
 pub(crate) fn array_indexing_string(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     index: i64,
     array: RuntimeObjectRef,
 ) -> Option<RuntimeString> {
@@ -993,7 +993,7 @@ pub(crate) fn array_indexing_string(
 #[wasm_export]
 #[rustfmt::skip]
 pub(crate) fn array_indexing_struct(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     index: i64,
     array: RuntimeObjectRef,
 ) -> Option<RuntimeObjectRef> {
@@ -1050,7 +1050,7 @@ macro_rules! gen_map_lookup_fn {
     ($name:ident, i64, $return_type:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             key: i64,
             map: RuntimeObjectRef,
         ) -> Option<$return_type> {
@@ -1068,7 +1068,7 @@ macro_rules! gen_map_lookup_fn {
     ($name:ident, RuntimeString, $return_type:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             key: RuntimeString,
             map: RuntimeObjectRef,
         ) -> Option<$return_type> {
@@ -1130,11 +1130,11 @@ gen_map_lookup_fn!(
 
 #[wasm_export]
 pub(crate) fn map_lookup_integer_string(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     key: i64,
     map: RuntimeObjectRef,
 ) -> Option<RuntimeString> {
-    /*lookup_field(&mut caller, num_lookup_indexes, struct_var)
+    /*lookup_field(caller, num_lookup_indexes, struct_var)
        .as_map()
        .with_integer_keys()
        .get(&key)
@@ -1146,13 +1146,13 @@ pub(crate) fn map_lookup_integer_string(
 
 #[wasm_export]
 pub(crate) fn map_lookup_string_string(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     key: RuntimeString,
     map: RuntimeObjectRef,
 ) -> Option<RuntimeString> {
     /*
     let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
+        lookup_field(caller, num_lookup_indexes, struct_var).as_map();
     let key = key.as_bstr(caller.data());
     map.with_string_keys()
         .get(key)
@@ -1164,7 +1164,7 @@ pub(crate) fn map_lookup_string_string(
 
 #[wasm_export]
 pub(crate) fn map_lookup_integer_struct(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     key: i64,
     map: RuntimeObjectRef,
 ) -> Option<RuntimeObjectRef> {
@@ -1183,7 +1183,7 @@ pub(crate) fn map_lookup_integer_struct(
 
 #[wasm_export]
 pub(crate) fn map_lookup_string_struct(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     key: RuntimeString,
     map: RuntimeObjectRef,
 ) -> Option<RuntimeObjectRef> {
@@ -1205,13 +1205,13 @@ macro_rules! gen_map_lookup_by_index_fn {
     ($name:ident, RuntimeString, $val:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             index: i64,
             map: RuntimeObjectRef,
         ) -> (RuntimeString, $val) {
             /*
             let map =
-                lookup_field(&mut caller, num_lookup_indexes, struct_var)
+                lookup_field(caller, num_lookup_indexes, struct_var)
                     .as_map();
             let (key, value) = map.$with().get_index(index as usize).unwrap();
             let key =
@@ -1226,7 +1226,7 @@ macro_rules! gen_map_lookup_by_index_fn {
     ($name:ident, $key:ty, $val:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             index: i64,
             map: RuntimeObjectRef,
         ) -> ($key, $val) {
@@ -1300,13 +1300,13 @@ gen_map_lookup_by_index_fn!(
 
 #[wasm_export]
 pub(crate) fn map_lookup_by_index_integer_string(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     index: i64,
     map: RuntimeObjectRef,
 ) -> (i64, RuntimeString) {
     /*
     let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
+        lookup_field(caller, num_lookup_indexes, struct_var).as_map();
     let (key, value) =
         map.with_integer_keys().get_index(index as usize).unwrap();
     let value = RuntimeString::from_bytes(caller.data_mut(), value.as_bstr());
@@ -1319,13 +1319,13 @@ pub(crate) fn map_lookup_by_index_integer_string(
 
 #[wasm_export]
 pub(crate) fn map_lookup_by_index_string_string(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     index: i64,
     map: RuntimeObjectRef,
 ) -> (RuntimeString, RuntimeString) {
     /*
     let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
+        lookup_field(caller, num_lookup_indexes, struct_var).as_map();
     let (key, value) =
         map.with_string_keys().get_index(index as usize).unwrap();
     let key = RuntimeString::from_bytes(caller.data_mut(), key.as_bstr());
@@ -1339,13 +1339,13 @@ pub(crate) fn map_lookup_by_index_string_string(
 
 #[wasm_export]
 pub(crate) fn map_lookup_by_index_integer_struct(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     index: i64,
     map: RuntimeObjectRef,
 ) -> (i64, RuntimeObjectRef) {
     /*
     let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
+        lookup_field(caller, num_lookup_indexes, struct_var).as_map();
     let (key, value) =
         map.with_integer_keys().get_index(index as usize).unwrap();
 
@@ -1372,13 +1372,13 @@ pub(crate) fn map_lookup_by_index_integer_struct(
 
 #[wasm_export]
 pub(crate) fn map_lookup_by_index_string_struct(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     index: i64,
     map: RuntimeObjectRef,
 ) -> (RuntimeString, RuntimeObjectRef) {
     /*
     let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
+        lookup_field(caller, num_lookup_indexes, struct_var).as_map();
     let (key, value) =
         map.with_string_keys().get_index(index as usize).unwrap();
 
@@ -1410,7 +1410,7 @@ macro_rules! gen_str_cmp_fn {
     ($name:ident, $op:tt) => {
         #[wasm_export]
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             lhs: RuntimeString,
             rhs: RuntimeString,
         ) -> bool {
@@ -1430,7 +1430,7 @@ macro_rules! gen_str_op_fn {
     ($name:ident, $op:tt, $case_insensitive:literal) => {
         #[wasm_export]
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             lhs: RuntimeString,
             rhs: RuntimeString,
         ) -> bool {
@@ -1449,7 +1449,7 @@ gen_str_op_fn!(str_iequals, equals, true);
 
 #[wasm_export]
 pub(crate) fn str_len(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     s: RuntimeString,
 ) -> i64 {
     s.len(caller.data()) as i64
@@ -1457,7 +1457,7 @@ pub(crate) fn str_len(
 
 #[wasm_export]
 pub(crate) fn str_matches(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     lhs: RuntimeString,
     rhs: RegexpId,
 ) -> bool {
@@ -1469,7 +1469,7 @@ macro_rules! gen_xint_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {
         #[wasm_export(public = true)]
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             offset: i64,
         ) -> Option<i64> {
             let offset = usize::try_from(offset).ok()?;
