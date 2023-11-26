@@ -242,7 +242,7 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.to_int("123") == 123"#);
 
     // This field is named `bool_proto` in the protobuf definition, but it's
-    // name for YARA wsa changed to `bool_yara`, with:
+    // name for YARA was changed to `bool_yara`, with:
     //
     //   [(yara.field_options).name = "bool_yara"];
     //
@@ -253,5 +253,12 @@ fn test_proto2_module() {
         test_proto2.add(test_proto2.int64_one, test_proto2.int64_one) == 2 and
         test_proto2.add(test_proto2.int64_one, test_proto2.int64_zero) == 1
         "#
+    );
+}
+
+#[test]
+fn foo() {
+    condition_true!(
+        r#"for any k,v in test_proto2.map_int64_int64: ( k == 100 and v == 1000 )"#
     );
 }

@@ -19,6 +19,7 @@ use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
+use indexmap::IndexMap;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
@@ -118,6 +119,7 @@ impl<'r> Scanner<'r> {
             &crate::wasm::ENGINE,
             ScanContext {
                 wasm_store: NonNull::dangling(),
+                runtime_objects: IndexMap::new(),
                 compiled_rules: rules,
                 string_pool: BStringPool::new(),
                 current_struct: None,
@@ -128,7 +130,6 @@ impl<'r> Scanner<'r> {
                 non_private_matching_rules: Vec::new(),
                 global_matching_rules: FxHashMap::default(),
                 main_memory: None,
-                vars_stack: Vec::new(),
                 module_outputs: FxHashMap::default(),
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
@@ -438,6 +439,9 @@ impl<'r> Scanner<'r> {
         if ctx.string_pool.size() > 1_000_000 {
             ctx.string_pool = BStringPool::new();
         }
+
+        // TODO
+        ctx.runtime_objects.clear();
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.

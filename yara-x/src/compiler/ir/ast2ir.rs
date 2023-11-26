@@ -735,7 +735,7 @@ fn for_of_expr_from_ast(
         "$",
         Symbol::new(
             TypeValue::Integer(Value::Unknown),
-            SymbolKind::WasmVar(next_pattern_id),
+            SymbolKind::Var(next_pattern_id),
         ),
     );
 
@@ -822,37 +822,13 @@ fn for_in_expr_from_ast(
 
     // TODO: raise warning when the loop identifier (e.g: "i") hides
     // an existing identifier with the same name.
-    for (var, type_value) in iter::zip(loop_vars, expected_vars) {
-        let symbol_kind = match type_value {
-            TypeValue::Integer(_) => {
-                let var = stack_frame.new_var(Type::Integer);
-                variables.push(var);
-                SymbolKind::WasmVar(var)
-            }
-            TypeValue::Bool(_) => {
-                let var = stack_frame.new_var(Type::Bool);
-                variables.push(var);
-                SymbolKind::WasmVar(var)
-            }
-            TypeValue::String(_) => {
-                let var = stack_frame.new_var(Type::String);
-                variables.push(var);
-                SymbolKind::WasmVar(var)
-            }
-            TypeValue::Float(_) => {
-                let var = stack_frame.new_var(Type::Float);
-                variables.push(var);
-                SymbolKind::WasmVar(var)
-            }
-            TypeValue::Struct(_) => {
-                let var = stack_frame.new_var(Type::Struct);
-                variables.push(var);
-                SymbolKind::HostVar(var)
-            }
-            _ => unreachable!(),
-        };
-
-        symbols.insert(var.name, Symbol::new(type_value, symbol_kind));
+    for (loop_var, type_value) in iter::zip(loop_vars, expected_vars) {
+        let var = stack_frame.new_var(type_value.ty());
+        variables.push(var);
+        symbols.insert(
+            loop_var.name,
+            Symbol::new(type_value, SymbolKind::Var(var)),
+        );
     }
 
     // Put the loop variables into scope.

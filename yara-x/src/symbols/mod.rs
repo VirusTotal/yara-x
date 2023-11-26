@@ -25,14 +25,14 @@ pub(crate) struct Symbol {
 /// accesses the symbol.
 #[derive(Clone, Debug)]
 pub(crate) enum SymbolKind {
-    /// The symbol refers to a variable stored in WASM memory.
-    WasmVar(Var),
-    /// The symbol refers to a variable stored in the host.
-    HostVar(Var),
-    /// The symbol refers to some field in a structure.
-    StructField(usize),
-    /// The symbol refers to some field in the root structure.
-    RootStructField(usize),
+    /// The symbol refers to a WASM-side variable.
+    Var(Var),
+    /// The symbol refers to a field in a structure. Fields in the tuple
+    /// are a `usize` containing the index the field occupies in the
+    /// structure and `bool` that is `true` if the symbol refers to a
+    /// field in the root structure. If it is `false` it refers to the
+    /// structure whose reference is at the top of the WASM stack.
+    Field(usize, bool),
     /// The symbol refers to a rule.
     Rule(RuleId),
     /// The symbol refers to a function.

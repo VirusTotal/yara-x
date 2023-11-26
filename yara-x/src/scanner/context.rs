@@ -17,6 +17,7 @@ use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
 use bstr::ByteSlice;
+use indexmap::IndexMap;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
 use rustc_hash::FxHashMap;
@@ -32,7 +33,7 @@ use crate::re::Action;
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
 use crate::scanner::{RuntimeStringId, HEARTBEAT_COUNTER};
 use crate::string_pool::BStringPool;
-use crate::types::{Struct, TypeValue};
+use crate::types::{Array, Map, Struct, TypeValue};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::ScanError;
 
@@ -40,6 +41,10 @@ use crate::ScanError;
 pub(crate) struct ScanContext<'r> {
     /// Pointer to the WASM store.
     pub wasm_store: NonNull<Store<ScanContext<'r>>>,
+
+    // TODO: cleanup runtime objects
+    pub runtime_objects: IndexMap<RuntimeObjectRef, RuntimeObject>,
+
     /// Pointer to the data being scanned.
     pub scanned_data: *const u8,
     /// Length of data being scanned.
@@ -70,12 +75,6 @@ pub(crate) struct ScanContext<'r> {
     pub string_pool: BStringPool<RuntimeStringId>,
     /// Module's main memory.
     pub main_memory: Option<wasmtime::Memory>,
-    /// The host-side stack of local variables.
-    ///
-    /// See [`crate::compiler::context::VarStack`] for a more detailed
-    /// description of what is this, and what "host-side" means in this
-    /// case.
-    pub vars_stack: Vec<TypeValue>,
     /// Hash map that contains the protobuf messages returned by YARA modules.
     /// Keys are the fully qualified protobuf message name, and values are
     /// the message returned by the corresponding module.
@@ -208,6 +207,24 @@ impl ScanContext<'_> {
             .unwrap();
 
         info!("Started rule evaluation: {}:{}", rule_namespace, rule_name);
+    }
+
+    pub(crate) fn store_struct(&mut self, s: Rc<Struct>) -> RuntimeObjectRef {
+        let obj_ref = RuntimeObjectRef(Rc::<Struct>::as_ptr(&s) as i64);
+        self.runtime_objects.insert_full(obj_ref, RuntimeObject::Struct(s));
+        obj_ref
+    }
+
+    pub(crate) fn store_array(&mut self, a: Rc<Array>) -> RuntimeObjectRef {
+        let obj_ref = RuntimeObjectRef(Rc::<Array>::as_ptr(&a) as i64);
+        self.runtime_objects.insert_full(obj_ref, RuntimeObject::Array(a));
+        obj_ref
+    }
+
+    pub(crate) fn store_map(&mut self, m: Rc<Map>) -> RuntimeObjectRef {
+        let obj_ref = RuntimeObjectRef(Rc::<Map>::as_ptr(&m) as i64);
+        self.runtime_objects.insert_full(obj_ref, RuntimeObject::Map(m));
+        obj_ref
     }
 
     /// Called during the scan process when a global rule didn't match.
@@ -1207,4 +1224,58 @@ fn verify_base64_match(
 struct VM<'r> {
     pike_vm: PikeVM<'r>,
     fast_vm: FastVM<'r>,
+}
+
+pub enum RuntimeObject {
+    Struct(Rc<Struct>),
+    Array(Rc<Array>),
+    Map(Rc<Map>),
+}
+
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
+pub struct RuntimeObjectRef(i64);
+
+impl RuntimeObjectRef {
+    pub(crate) const NULL: Self = RuntimeObjectRef(-1);
+}
+
+impl From<&RuntimeObjectRef> for i64 {
+    fn from(value: &RuntimeObjectRef) -> Self {
+        value.0
+    }
+}
+
+impl From<i64> for RuntimeObjectRef {
+    fn from(value: i64) -> Self {
+        Self(value)
+    }
+}
+
+impl RuntimeObject {
+    pub fn as_struct(&self) -> &Struct {
+        if let Self::Struct(s) = self {
+            s.as_ref()
+        } else {
+            panic!(
+                "calling `as_struct` in a RuntimeObject that is not a struct"
+            )
+        }
+    }
+
+    pub fn as_array(&self) -> &Array {
+        if let Self::Array(a) = self {
+            a.as_ref()
+        } else {
+            panic!(
+                "calling `as_array` in a RuntimeObject that is not an array"
+            )
+        }
+    }
+    pub fn as_map(&self) -> &Map {
+        if let Self::Map(a) = self {
+            a.as_ref()
+        } else {
+            panic!("calling `as_map` in a RuntimeObject that is not a map")
+        }
+    }
 }

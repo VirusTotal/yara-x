@@ -817,6 +817,8 @@ impl<'a> Compiler<'a> {
             }
         };
 
+        dbg!(&condition);
+
         // Create a new symbol of bool type for the rule.
         let new_symbol = Symbol::new(
             TypeValue::Bool(Value::Unknown),
@@ -880,7 +882,6 @@ impl<'a> Compiler<'a> {
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
-            lookup_start: None,
             lookup_stack: VecDeque::new(),
             vars: VarStack::new(),
         };

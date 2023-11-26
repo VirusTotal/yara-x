@@ -65,11 +65,7 @@ impl SymbolLookup for Struct {
         let (field, index) = self.field_and_index_by_name(ident)?;
         Some(Symbol::new(
             field.type_value.clone(),
-            if self.is_root {
-                SymbolKind::RootStructField(index)
-            } else {
-                SymbolKind::StructField(index)
-            },
+            SymbolKind::Field(index, self.is_root),
         ))
     }
 }
