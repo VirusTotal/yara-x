@@ -336,9 +336,9 @@ impl Struct {
                         fields.push((
                             item.name().to_owned(),
                             StructField {
-                                type_value: TypeValue::Integer(Value::Const(
+                                type_value: TypeValue::const_integer_from(
                                     Self::enum_value(&item),
-                                )),
+                                ),
                                 number: 0,
                             },
                         ));
@@ -352,9 +352,9 @@ impl Struct {
                         if enum_struct
                             .add_field(
                                 item.name(),
-                                TypeValue::Integer(Value::Const(
+                                TypeValue::const_integer_from(
                                     Self::enum_value(&item),
-                                )),
+                                ),
                             )
                             .is_some()
                         {
@@ -589,44 +589,44 @@ impl Struct {
             | RuntimeType::U64
             | RuntimeType::Enum(_) => {
                 if let Some(v) = value {
-                    TypeValue::Integer(Value::Var(Self::value_as_i64(v)))
+                    TypeValue::var_integer_from(Self::value_as_i64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::Integer(Value::Var(0))
+                    TypeValue::var_integer_from(0)
                 } else {
                     TypeValue::Integer(Value::Unknown)
                 }
             }
             RuntimeType::F32 | RuntimeType::F64 => {
                 if let Some(v) = value {
-                    TypeValue::Float(Value::Var(Self::value_as_f64(v)))
+                    TypeValue::var_float_from(Self::value_as_f64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::Float(Value::Var(0_f64))
+                    TypeValue::var_float_from(0_f64)
                 } else {
                     TypeValue::Float(Value::Unknown)
                 }
             }
             RuntimeType::Bool => {
                 if let Some(v) = value {
-                    TypeValue::variable_integer_from(Self::value_as_bool(v))
+                    TypeValue::var_bool_from(Self::value_as_bool(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::Bool(Value::Var(false))
+                    TypeValue::var_bool_from(false)
                 } else {
                     TypeValue::Bool(Value::Unknown)
                 }
             }
             RuntimeType::String | RuntimeType::VecU8 => {
                 if let Some(v) = value {
-                    TypeValue::variable_string_from(Self::value_as_string(v))
+                    TypeValue::var_string_from(Self::value_as_string(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::variable_string_from(b"")
+                    TypeValue::var_string_from(b"")
                 } else {
                     TypeValue::String(Value::Unknown)
                 }

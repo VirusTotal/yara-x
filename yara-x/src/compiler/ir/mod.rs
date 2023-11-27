@@ -737,8 +737,7 @@ impl Expr {
                 // also true.
                 if operands.is_empty() {
                     return Expr::Const {
-                        // TODO: create a method in TypeValue for making this simpler?
-                        type_value: TypeValue::Bool(Value::Const(true)),
+                        type_value: TypeValue::const_bool_from(true),
                     };
                 }
 
@@ -747,8 +746,7 @@ impl Expr {
                 // regardless of the operands with unknown values.
                 if operands.iter().any(|op| op.type_value().is_const()) {
                     return Expr::Const {
-                        // TODO: create a method in TypeValue for making this simpler?
-                        type_value: TypeValue::Bool(Value::Const(false)),
+                        type_value: TypeValue::const_bool_from(false),
                     };
                 }
 
@@ -770,8 +768,7 @@ impl Expr {
                 // also false.
                 if operands.is_empty() {
                     return Expr::Const {
-                        // TODO: create a method in TypeValue for making this simpler?
-                        type_value: TypeValue::Bool(Value::Const(false)),
+                        type_value: TypeValue::const_bool_from(false),
                     };
                 }
 
@@ -780,8 +777,7 @@ impl Expr {
                 // regardless of the operands with unknown values.
                 if operands.iter().any(|op| op.type_value().is_const()) {
                     return Expr::Const {
-                        // TODO: create a method in TypeValue for making this simpler?
-                        type_value: TypeValue::Bool(Value::Const(true)),
+                        type_value: TypeValue::const_bool_from(true),
                     };
                 }
 
@@ -805,13 +801,11 @@ impl Expr {
                 }
                 if is_float {
                     Expr::Const {
-                        type_value: TypeValue::Float(Value::Const(sum)),
+                        type_value: TypeValue::const_float_from(sum),
                     }
                 } else {
                     Expr::Const {
-                        type_value: TypeValue::Integer(Value::Const(
-                            sum as i64,
-                        )),
+                        type_value: TypeValue::const_integer_from(sum as i64),
                     }
                 }
             }

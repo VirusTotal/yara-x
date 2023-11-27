@@ -1,11 +1,12 @@
 /*! Functions for converting an AST into an IR. */
 
-use itertools::Itertools;
 use std::borrow::Borrow;
 use std::iter;
-use std::ops::{Deref, RangeInclusive};
+use std::ops::RangeInclusive;
 use std::rc::Rc;
 
+use bstr::ByteSlice;
+use itertools::Itertools;
 use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::{ast, ErrorInfo, Warning};
@@ -209,25 +210,23 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
 
         ast::Expr::True { .. } => {
-            Ok(Expr::Const { type_value: TypeValue::Bool(Value::Const(true)) })
+            Ok(Expr::Const { type_value: TypeValue::const_bool_from(true) })
         }
 
-        ast::Expr::False { .. } => Ok(Expr::Const {
-            type_value: TypeValue::Bool(Value::Const(false)),
-        }),
+        ast::Expr::False { .. } => {
+            Ok(Expr::Const { type_value: TypeValue::const_bool_from(false) })
+        }
 
         ast::Expr::LiteralInteger(literal) => Ok(Expr::Const {
-            type_value: TypeValue::Integer(Value::Const(literal.value)),
+            type_value: TypeValue::const_integer_from(literal.value),
         }),
 
         ast::Expr::LiteralFloat(literal) => Ok(Expr::Const {
-            type_value: TypeValue::Float(Value::Const(literal.value)),
+            type_value: TypeValue::const_float_from(literal.value),
         }),
 
         ast::Expr::LiteralString(literal) => Ok(Expr::Const {
-            type_value: TypeValue::String(Value::Const(
-                literal.value.deref().to_owned().into(),
-            )),
+            type_value: TypeValue::const_string_from(literal.value.as_bytes()),
         }),
 
         ast::Expr::Regexp(regexp) => {

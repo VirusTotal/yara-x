@@ -395,26 +395,50 @@ impl TypeValue {
 
     /// Creates a new [`TypeValue`] consisting on a variable integer.
     #[inline]
-    pub fn variable_integer_from<T: Into<i64>>(i: T) -> Self {
+    pub fn var_integer_from<T: Into<i64>>(i: T) -> Self {
         Self::Integer(Value::Var(i.into()))
     }
 
-    /// Creates a new [`TypeValue`] consisting on a variable string.
+    /// Creates a new [`TypeValue`] consisting on a variable float.
     #[inline]
-    pub fn variable_float_from<T: Into<f64>>(f: T) -> Self {
+    pub fn var_float_from<T: Into<f64>>(f: T) -> Self {
         Self::Float(Value::Var(f.into()))
     }
 
     /// Creates a new [`TypeValue`] consisting on a variable boolean.
     #[inline]
-    pub fn variable_bool_from<T: Into<bool>>(i: T) -> Self {
-        Self::Bool(Value::Var(i.into()))
+    pub fn var_bool_from(i: bool) -> Self {
+        Self::Bool(Value::Var(i))
     }
 
     /// Creates a new [`TypeValue`] consisting on a variable string.
     #[inline]
-    pub fn variable_string_from<T: AsRef<[u8]>>(s: T) -> Self {
+    pub fn var_string_from<T: AsRef<[u8]>>(s: T) -> Self {
         Self::String(Value::Var(BString::from(s.as_ref()).into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant integer.
+    #[inline]
+    pub fn const_integer_from<T: Into<i64>>(i: T) -> Self {
+        Self::Integer(Value::Const(i.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant float.
+    #[inline]
+    pub fn const_float_from<T: Into<f64>>(f: T) -> Self {
+        Self::Float(Value::Const(f.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant boolean.
+    #[inline]
+    pub fn const_bool_from(i: bool) -> Self {
+        Self::Bool(Value::Const(i))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant string.
+    #[inline]
+    pub fn const_string_from<T: AsRef<[u8]>>(s: T) -> Self {
+        Self::String(Value::Const(BString::from(s.as_ref()).into()))
     }
 }
 
