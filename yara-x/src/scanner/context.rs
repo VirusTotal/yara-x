@@ -33,7 +33,7 @@ use crate::re::Action;
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
 use crate::scanner::{RuntimeStringId, HEARTBEAT_COUNTER};
 use crate::string_pool::BStringPool;
-use crate::types::{Array, Map, Struct, TypeValue};
+use crate::types::{Array, Map, Struct};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::ScanError;
 

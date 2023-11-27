@@ -611,7 +611,7 @@ impl Struct {
             }
             RuntimeType::Bool => {
                 if let Some(v) = value {
-                    TypeValue::Bool(Value::Var(Self::value_as_bool(v)))
+                    TypeValue::variable_integer_from(Self::value_as_bool(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
@@ -622,11 +622,11 @@ impl Struct {
             }
             RuntimeType::String | RuntimeType::VecU8 => {
                 if let Some(v) = value {
-                    TypeValue::String(Value::Var(Self::value_as_bstring(v)))
+                    TypeValue::variable_string_from(Self::value_as_string(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::String(Value::Var(BString::default()))
+                    TypeValue::variable_string_from(b"")
                 } else {
                     TypeValue::String(Value::Unknown)
                 }
@@ -874,7 +874,7 @@ impl Struct {
             let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
                 result.insert(
-                    Self::value_as_bstring(key),
+                    BString::from(Self::value_as_string(key)),
                     Self::new_value(
                         value_ty,
                         Some(value),
@@ -939,10 +939,10 @@ impl Struct {
         }
     }
 
-    fn value_as_bstring(value: ReflectValueRef) -> BString {
+    fn value_as_string(value: ReflectValueRef) -> &[u8] {
         match value {
-            ReflectValueRef::String(v) => BString::from(v),
-            ReflectValueRef::Bytes(v) => BString::from(v),
+            ReflectValueRef::String(v) => v.as_bytes(),
+            ReflectValueRef::Bytes(v) => v,
             _ => panic!(),
         }
     }

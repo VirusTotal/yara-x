@@ -161,7 +161,7 @@ pub enum TypeValue {
     Integer(Value<i64>),
     Float(Value<f64>),
     Bool(Value<bool>),
-    String(Value<BString>),
+    String(Value<Rc<BString>>),
     Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
     Array(Rc<Array>),
@@ -391,6 +391,30 @@ impl TypeValue {
         } else {
             None
         }
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable integer.
+    #[inline]
+    pub fn variable_integer_from<T: Into<i64>>(i: T) -> Self {
+        Self::Integer(Value::Var(i.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable string.
+    #[inline]
+    pub fn variable_float_from<T: Into<f64>>(f: T) -> Self {
+        Self::Float(Value::Var(f.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable boolean.
+    #[inline]
+    pub fn variable_bool_from<T: Into<bool>>(i: T) -> Self {
+        Self::Bool(Value::Var(i.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable string.
+    #[inline]
+    pub fn variable_string_from<T: AsRef<[u8]>>(s: T) -> Self {
+        Self::String(Value::Var(BString::from(s.as_ref()).into()))
     }
 }
 

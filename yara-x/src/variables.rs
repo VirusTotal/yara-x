@@ -70,91 +70,91 @@ pub enum VariableError {
 impl TryFrom<bool> for Variable {
     type Error = VariableError;
     fn try_from(value: bool) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Bool(Value::Var(value))))
+        Ok(Variable(TypeValue::variable_bool_from(value)))
     }
 }
 
 impl TryFrom<i64> for Variable {
     type Error = VariableError;
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Integer(Value::Var(value))))
+        Ok(Variable(TypeValue::variable_integer_from(value)))
     }
 }
 
 impl TryFrom<i32> for Variable {
     type Error = VariableError;
     fn try_from(value: i32) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Integer(Value::Var(value.into()))))
+        Ok(Variable(TypeValue::variable_integer_from(value)))
     }
 }
 
 impl TryFrom<i16> for Variable {
     type Error = VariableError;
     fn try_from(value: i16) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Integer(Value::Var(value.into()))))
+        Ok(Variable(TypeValue::variable_integer_from(value)))
     }
 }
 
 impl TryFrom<i8> for Variable {
     type Error = VariableError;
     fn try_from(value: i8) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Integer(Value::Var(value.into()))))
+        Ok(Variable(TypeValue::variable_integer_from(value)))
     }
 }
 
 impl TryFrom<u32> for Variable {
     type Error = VariableError;
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Integer(Value::Var(value.into()))))
+        Ok(Variable(TypeValue::variable_integer_from(value)))
     }
 }
 
 impl TryFrom<u16> for Variable {
     type Error = VariableError;
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Integer(Value::Var(value.into()))))
+        Ok(Variable(TypeValue::variable_integer_from(value)))
     }
 }
 
 impl TryFrom<u8> for Variable {
     type Error = VariableError;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Integer(Value::Var(value.into()))))
+        Ok(Variable(TypeValue::variable_integer_from(value)))
     }
 }
 
 impl TryFrom<f64> for Variable {
     type Error = VariableError;
     fn try_from(value: f64) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Float(Value::Var(value))))
+        Ok(Variable(TypeValue::variable_float_from(value)))
     }
 }
 
 impl TryFrom<f32> for Variable {
     type Error = VariableError;
     fn try_from(value: f32) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::Float(Value::Var(value.into()))))
+        Ok(Variable(TypeValue::variable_float_from(value)))
     }
 }
 
 impl TryFrom<&str> for Variable {
     type Error = VariableError;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::String(Value::Var(BString::from(value)))))
+        Ok(Variable(TypeValue::variable_string_from(value)))
     }
 }
 
 impl TryFrom<&[u8]> for Variable {
     type Error = VariableError;
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::String(Value::Var(BString::from(value)))))
+        Ok(Variable(TypeValue::variable_string_from(value)))
     }
 }
 
 impl TryFrom<String> for Variable {
     type Error = VariableError;
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Ok(Variable(TypeValue::String(Value::Var(BString::from(value)))))
+        Ok(Variable(TypeValue::variable_string_from(value)))
     }
 }
 
@@ -187,9 +187,9 @@ impl TryFrom<&serde_json::Value> for Variable {
                     unreachable!()
                 }
             }
-            serde_json::Value::String(s) => Ok(Variable(TypeValue::String(
-                Value::Var(BString::from(s.as_str())),
-            ))),
+            serde_json::Value::String(s) => {
+                Ok(Variable(TypeValue::variable_string_from(s)))
+            }
             serde_json::Value::Array(values) => {
                 let mut array = None;
                 // Try to determine the type of the array by looking at the

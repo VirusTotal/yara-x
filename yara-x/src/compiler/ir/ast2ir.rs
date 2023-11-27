@@ -226,7 +226,7 @@ pub(in crate::compiler) fn expr_from_ast(
 
         ast::Expr::LiteralString(literal) => Ok(Expr::Const {
             type_value: TypeValue::String(Value::Const(
-                literal.value.deref().to_owned(),
+                literal.value.deref().to_owned().into(),
             )),
         }),
 

@@ -79,13 +79,12 @@ use wasmtime::{
     AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
 
-use crate::utils::cast;
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
-use crate::scanner::{RuntimeObject, RuntimeObjectRef, ScanContext};
-use crate::types::{Array, Struct, TypeValue, Value};
+use crate::scanner::{RuntimeObjectRef, ScanContext};
+use crate::types::{Array, TypeValue, Value};
 use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
 use crate::ScanError;
 
@@ -903,10 +902,10 @@ pub(crate) fn lookup_string(
 ) -> Option<RuntimeString> {
     match lookup_field(caller, structure, num_lookup_indexes) {
         TypeValue::String(Value::Var(value)) => Some(RuntimeString::Owned(
-            caller.data_mut().string_pool.get_or_intern(value),
+            caller.data_mut().string_pool.get_or_intern(value.as_slice()),
         )),
         TypeValue::String(Value::Const(value)) => Some(RuntimeString::Owned(
-            caller.data_mut().string_pool.get_or_intern(value),
+            caller.data_mut().string_pool.get_or_intern(value.as_slice()),
         )),
         TypeValue::String(Value::Unknown) => None,
         _ => unreachable!(),
