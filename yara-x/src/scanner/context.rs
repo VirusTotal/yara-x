@@ -40,11 +40,10 @@ use crate::ScanError;
 pub(crate) struct ScanContext<'r> {
     /// Pointer to the WASM store.
     pub wasm_store: NonNull<Store<ScanContext<'r>>>,
-    /// Map where keys are object references and keys are objects
-    /// used during the evaluation of rule conditions. Object references
-    /// are opaque integer values that can be passed to and received from
-    /// WASM code. Each of reference identify an object (string, struct,
-    /// array or map).
+    /// Map where keys are object handles and keys are objects used during the
+    /// evaluation of rule conditions. Handles are opaque integer values that
+    /// can be passed to and received from WASM code. Each handle identify an
+    /// object (string, struct, array or map).
     pub runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
     /// Pointer to the data being scanned.
     pub scanned_data: *const u8,
@@ -1240,9 +1239,9 @@ struct VM<'r> {
 /// evaluation of a rule condition. Instances of these types can't cross the
 /// WASM-Rust boundary, as integers and floats can do. Therefore, they are
 /// stored in a hash map in [`ScanContext`], using a [`RuntimeObjectHandler`]
-/// as the key that identifies each instance. Object handlers are actually
-/// 64-bits integers that can cross the WASM-Rust boundary, and used to
-/// retrieve the original object.
+/// as the key that identifies each object. Handlers are actually 64-bits
+/// integers that can cross the WASM-Rust boundary, and used to retrieve the
+/// original object from [`ScanContext`].
 pub enum RuntimeObject {
     Struct(Rc<Struct>),
     Array(Rc<Array>),

@@ -23,6 +23,7 @@ use crate::compiler::ir::{
     Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, Quantifier,
 };
 use crate::compiler::{LiteralId, RegexpId, RuleId, Var, VarStackFrame};
+use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::SymbolKind;
 use crate::types::{Array, Func, Map, Type, TypeValue, Value};
@@ -348,39 +349,44 @@ fn emit_expr(
                 SymbolKind::Field(index, root) => {
                     ctx.lookup_stack.push_back((*index).try_into().unwrap());
 
-                    if *root {
-                        instr.i64_const(-1);
-                    }
-
                     match symbol.type_value() {
                         TypeValue::Integer(_) => {
-                            emit_lookup_integer(ctx, instr);
+                            emit_lookup_integer(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::Float(_) => {
-                            emit_lookup_float(ctx, instr);
+                            emit_lookup_float(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::Bool(_) => {
-                            emit_lookup_bool(ctx, instr);
+                            emit_lookup_bool(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::String(_) => {
-                            emit_lookup_string(ctx, instr);
+                            emit_lookup_string(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::Struct(_) => {
-                            emit_lookup_object(ctx, instr);
+                            emit_lookup_object(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::Array(_) | TypeValue::Map(_) => {
-                            emit_lookup_object(ctx, instr);
+                            emit_lookup_object(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::Func(func) => {
-                            // Drop the reference to the struct.
-                            // TODO: is this the correct way to do this?
-                            instr.drop();
+                            // If the field doesn't belong to the root struct,
+                            // we have a handler for the struct object at the
+                            // top of the WASM stack. the handler is removed
+                            // from the stack because functions associated to
+                            // a structure don't to access the structure's
+                            // data. When we implement structure methods this
+                            // will change, as methods will need to access the
+                            // structure.
+                            if !*root {
+                                instr.drop();
+                            }
+
                             emit_func_call(ctx, instr, func);
                             ctx.lookup_stack.clear();
                         }
@@ -596,13 +602,6 @@ fn emit_expr(
             // Emit the code for the index expression, which leaves the
             // index in the stack.
             emit_expr(ctx, instr, &mut lookup.index);
-
-            // TODO: what about this
-            // Notice that the index expression must be emitted before the
-            // primary expression because the former may need to modify
-            // `lookup_stack`, and we don't want to alter `lookup_stack`
-            // until `emit_array_indexing` or `emit_map_lookup` is called.
-            //emit_expr(ctx, instr, &mut lookup.primary);
             // Emit a call instruction to the corresponding function, which
             // depends on the type of the primary expression (array or map)
             // and the type of the index expression.
@@ -2460,9 +2459,21 @@ fn emit_call_and_handle_undef(
 /// the starting point of the lookup operation. If the pushed value is -1
 /// it will start the lookup operation in the current structure, if any, or
 /// in the root structure as a last resort.
-fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_common(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
     let num_lookup_indexes = ctx.lookup_stack.len();
     let main_memory = ctx.wasm_symbols.main_memory;
+
+    // At the top of the stack we have the object handler for
+    // the structure containing the field identified by `index`
+    // except when the field belongs to the root structure, in
+    // which case we must push a null reference
+    if root {
+        instr.i64_const(RuntimeObjectHandle::NULL.into());
+    }
 
     for (i, field_index) in ctx.lookup_stack.drain(0..).enumerate() {
         let offset = (i * size_of::<i32>()) as i32;
@@ -2489,8 +2500,12 @@ fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_integer(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_integer(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -2499,8 +2514,12 @@ fn emit_lookup_integer(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_float(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_float(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -2509,8 +2528,12 @@ fn emit_lookup_float(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_bool(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_bool(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -2519,8 +2542,12 @@ fn emit_lookup_bool(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_string(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_string(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -2529,8 +2556,12 @@ fn emit_lookup_string(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_object(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_object(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     instr.call(ctx.function_id(wasm::export__lookup_object.mangled_name));
 }
 

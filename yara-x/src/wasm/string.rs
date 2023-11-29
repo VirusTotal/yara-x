@@ -23,11 +23,11 @@ use crate::utils::cast;
 ///    If the two lower bits are equal to 1, it's a literal string, where the
 ///    remaining bits represent the `LiteralId`.
 ///
-/// * `RuntimeString:Owned`  -> `RuntimeStringId << 2 | 2`
+/// * `RuntimeString:Rc`  -> `RuntimeStringId << 2 | 2`
 ///    If the two lower bits are equal to 2, it's a runtime string, where the
-///    remaining bits represent the `RuntimeStringId`.
+///    remaining bits represent the handle of a string object.
 ///
-/// * `RuntimeString:Owned`  -> `Offset << 18 | Len << 2 | 3)`
+/// * `RuntimeString:ScannedDataSlice` -> `Offset << 18 | Len << 2 | 3)`
 ///    If the two lower bits are 3, it's a string backed by the scanned data.
 ///    Bits 18:3 ar used for representing the string length (up to 64KB),
 ///    while bits 64:19 represents the offset (up to 70,368,744,177,663).
