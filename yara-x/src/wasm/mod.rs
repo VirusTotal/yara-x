@@ -301,13 +301,6 @@ impl WasmArg<Option<Rc<Struct>>> for ValRaw {
     }
 }
 
-impl WasmArg<RuntimeObjectHandle> for ValRaw {
-    #[inline]
-    fn raw_into(self, _: &mut ScanContext) -> RuntimeObjectHandle {
-        RuntimeObjectHandle::from(self.get_i64())
-    }
-}
-
 /// A trait for converting a function result into an array of [`ValRaw`] values
 /// suitable to be passed to WASM code.
 ///
@@ -504,9 +497,13 @@ fn type_id_to_wasmtime(
         return &[];
     } else if type_id == TypeId::of::<RuntimeString>() {
         return &[wasmtime::ValType::I64];
-    } else if type_id == TypeId::of::<RuntimeObjectHandle>() {
+    } else if type_id == TypeId::of::<Option<Rc<Struct>>>() {
+        return &[wasmtime::ValType::I64];
+    } else if type_id == TypeId::of::<Rc<Struct>>() {
         return &[wasmtime::ValType::I64];
     } else if type_id == TypeId::of::<Rc<Array>>() {
+        return &[wasmtime::ValType::I64];
+    } else if type_id == TypeId::of::<Rc<Map>>() {
         return &[wasmtime::ValType::I64];
     }
     panic!("type `{}` can't be an argument", type_name)

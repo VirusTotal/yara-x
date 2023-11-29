@@ -817,8 +817,6 @@ impl<'a> Compiler<'a> {
             }
         };
 
-        dbg!(&condition);
-
         // Create a new symbol of bool type for the rule.
         let new_symbol = Symbol::new(
             TypeValue::Bool(Value::Unknown),
