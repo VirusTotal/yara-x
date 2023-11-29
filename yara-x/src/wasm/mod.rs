@@ -85,7 +85,7 @@ use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
 use crate::scanner::{RuntimeObjectHandle, ScanContext};
 use crate::types::{Array, Map, Struct, TypeValue, Value};
-use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
+use crate::wasm::string::RuntimeString;
 use crate::ScanError;
 
 pub(crate) mod builder;
@@ -262,7 +262,7 @@ impl WasmArg<RegexpId> for ValRaw {
 impl WasmArg<RuntimeString> for ValRaw {
     #[inline]
     fn raw_into(self, ctx: &mut ScanContext) -> RuntimeString {
-        RuntimeString::from_wasm(ctx, RuntimeStringWasm::from(self.get_i64()))
+        RuntimeString::from_wasm(ctx, self.get_i64())
     }
 }
 
