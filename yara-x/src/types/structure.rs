@@ -12,6 +12,7 @@ use protobuf::reflect::{EnumValueDescriptor, Syntax};
 use protobuf::MessageDyn;
 use serde::{Deserialize, Serialize};
 
+use crate::symbols::{Symbol, SymbolKind, SymbolLookup};
 use yara_x_proto::exts::enum_options;
 use yara_x_proto::exts::enum_value;
 use yara_x_proto::exts::field_options;
@@ -22,8 +23,6 @@ use crate::types::{Array, Map, TypeValue, Value};
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StructField {
-    /// Field name.
-    pub name: String,
     /// For structures derived from a protobuf this contains the field number
     /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
@@ -45,7 +44,7 @@ pub struct StructField {
 /// The structures that represent a YARA module are created from the protobuf
 /// associated to that module. Functions [`Struct::from_proto_msg`] and
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Struct {
     /// Fields in this structure.
     ///
@@ -56,17 +55,31 @@ pub struct Struct {
     /// order in which they appear in the .proto source file is
     /// irrelevant.
     fields: IndexMap<String, StructField>,
+    /// True if this is the root structure. The root structure is the top-level
+    /// structure that contains global variables and modules.
+    is_root: bool,
 }
 
-impl Default for Struct {
-    fn default() -> Self {
-        Struct::new()
+impl SymbolLookup for Struct {
+    fn lookup(&self, ident: &str) -> Option<Symbol> {
+        let (field, index) = self.field_and_index_by_name(ident)?;
+        Some(Symbol::new(
+            field.type_value.clone(),
+            SymbolKind::Field(index, self.is_root),
+        ))
     }
 }
 
 impl Struct {
+    /// Creates a new, empty struct.
     pub fn new() -> Self {
-        Self { fields: IndexMap::new() }
+        Self { fields: IndexMap::new(), is_root: false }
+    }
+
+    /// Makes this the root structure.
+    pub fn make_root(mut self) -> Self {
+        self.is_root = true;
+        self
     }
 
     /// Adds a new field to the structure.
@@ -117,11 +130,7 @@ impl Struct {
         } else {
             self.fields.insert(
                 name.to_owned(),
-                StructField {
-                    type_value: value,
-                    name: name.to_owned(),
-                    number: 0,
-                },
+                StructField { type_value: value, number: 0 },
             )
         }
     }
@@ -144,6 +153,15 @@ impl Struct {
         self.fields.get(name)
     }
 
+    /// Get a field and its corresponding index by name.
+    #[inline]
+    pub fn field_and_index_by_name(
+        &self,
+        name: &str,
+    ) -> Option<(&StructField, usize)> {
+        self.fields.get_full(name).map(|(index, _, field)| (field, index))
+    }
+
     /// Get a mutable field by name.
     #[inline]
     pub fn field_by_name_mut(
@@ -151,12 +169,6 @@ impl Struct {
         name: &str,
     ) -> Option<&mut StructField> {
         self.fields.get_mut(name)
-    }
-
-    /// Returns the index of a field.
-    #[inline]
-    pub fn index_of(&self, name: &str) -> usize {
-        self.fields.get_index_of(name).unwrap()
     }
 
     /// Creates a [`Struct`] from a protobuf message.
@@ -287,16 +299,18 @@ impl Struct {
                 }
             };
 
-            fields.push(StructField {
-                // Index is initially zero, will be adjusted later.
-                type_value: value,
-                number,
+            fields.push((
                 name,
-            });
+                StructField {
+                    // Index is initially zero, will be adjusted later.
+                    type_value: value,
+                    number,
+                },
+            ));
         }
 
         // Sort fields by field numbers specified in the proto.
-        fields.sort_by(|a, b| a.number.cmp(&b.number));
+        fields.sort_by(|a, b| a.1.number.cmp(&b.1.number));
 
         if generate_fields_for_enums {
             // Enums declared inside a message are treated as a nested
@@ -319,13 +333,15 @@ impl Struct {
             for enum_ in enums {
                 if Self::enum_is_inline(&enum_) {
                     for item in enum_.values() {
-                        fields.push(StructField {
-                            type_value: TypeValue::Integer(Value::Const(
-                                Self::enum_value(&item),
-                            )),
-                            number: 0,
-                            name: item.name().to_owned(),
-                        });
+                        fields.push((
+                            item.name().to_owned(),
+                            StructField {
+                                type_value: TypeValue::const_integer_from(
+                                    Self::enum_value(&item),
+                                ),
+                                number: 0,
+                            },
+                        ));
                     }
                 } else {
                     // Create the structure where each field will be one of the
@@ -333,43 +349,44 @@ impl Struct {
                     let mut enum_struct = Struct::new();
 
                     for item in enum_.values() {
-                        if let Some(existing_field) = enum_struct.add_field(
-                            item.name(),
-                            TypeValue::Integer(Value::Const(
-                                Self::enum_value(&item),
-                            )),
-                        ) {
-                            panic!(
-                                "field '{}' already exists",
-                                existing_field.name
-                            );
+                        if enum_struct
+                            .add_field(
+                                item.name(),
+                                TypeValue::const_integer_from(
+                                    Self::enum_value(&item),
+                                ),
+                            )
+                            .is_some()
+                        {
+                            panic!("field '{}' already exists", item.name());
                         }
                     }
 
-                    fields.push(StructField {
-                        type_value: TypeValue::Struct(Rc::new(enum_struct)),
-                        number: 0,
-                        name: Self::enum_name(&enum_),
-                    });
+                    fields.push((
+                        Self::enum_name(&enum_),
+                        StructField {
+                            type_value: TypeValue::Struct(Rc::new(
+                                enum_struct,
+                            )),
+                            number: 0,
+                        },
+                    ));
                 }
             }
         }
 
         let mut field_index = IndexMap::new();
 
-        for field in fields {
-            if let Some(existing_field) =
-                field_index.insert(field.name.clone(), field)
-            {
+        for (name, field) in fields {
+            if field_index.insert(name, field).is_some() {
                 panic!(
-                    "duplicate field name `{}` in `{}`",
-                    existing_field.name,
+                    "duplicate field name in message `{}`",
                     msg_descriptor.name()
                 )
             }
         }
 
-        Self { fields: field_index }
+        Self { fields: field_index, is_root: false }
     }
 
     /// Returns true if the given message is the YARA module's root message.
@@ -572,44 +589,44 @@ impl Struct {
             | RuntimeType::U64
             | RuntimeType::Enum(_) => {
                 if let Some(v) = value {
-                    TypeValue::Integer(Value::Var(Self::value_as_i64(v)))
+                    TypeValue::var_integer_from(Self::value_as_i64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::Integer(Value::Var(0))
+                    TypeValue::var_integer_from(0)
                 } else {
                     TypeValue::Integer(Value::Unknown)
                 }
             }
             RuntimeType::F32 | RuntimeType::F64 => {
                 if let Some(v) = value {
-                    TypeValue::Float(Value::Var(Self::value_as_f64(v)))
+                    TypeValue::var_float_from(Self::value_as_f64(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::Float(Value::Var(0_f64))
+                    TypeValue::var_float_from(0_f64)
                 } else {
                     TypeValue::Float(Value::Unknown)
                 }
             }
             RuntimeType::Bool => {
                 if let Some(v) = value {
-                    TypeValue::Bool(Value::Var(Self::value_as_bool(v)))
+                    TypeValue::var_bool_from(Self::value_as_bool(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::Bool(Value::Var(false))
+                    TypeValue::var_bool_from(false)
                 } else {
                     TypeValue::Bool(Value::Unknown)
                 }
             }
             RuntimeType::String | RuntimeType::VecU8 => {
                 if let Some(v) = value {
-                    TypeValue::String(Value::Var(Self::value_as_bstring(v)))
+                    TypeValue::var_string_from(Self::value_as_string(v))
                 } else if syntax == Syntax::Proto3 {
                     // In proto3 unknown values are set to their default
                     // values.
-                    TypeValue::String(Value::Var(BString::default()))
+                    TypeValue::var_string_from(b"")
                 } else {
                     TypeValue::String(Value::Unknown)
                 }
@@ -720,7 +737,7 @@ impl Struct {
                         repeated
                             .into_iter()
                             .map(|value| {
-                                BString::from(value.to_str().unwrap())
+                                Rc::new(BString::from(value.to_str().unwrap()))
                             })
                             .collect(),
                     )
@@ -734,7 +751,9 @@ impl Struct {
                         repeated
                             .into_iter()
                             .map(|value| {
-                                BString::from(value.to_bytes().unwrap())
+                                Rc::new(BString::from(
+                                    value.to_bytes().unwrap(),
+                                ))
                             })
                             .collect(),
                     )
@@ -857,7 +876,7 @@ impl Struct {
             let mut result = IndexMap::default();
             for (key, value) in map.into_iter() {
                 result.insert(
-                    Self::value_as_bstring(key),
+                    BString::from(Self::value_as_string(key)),
                     Self::new_value(
                         value_ty,
                         Some(value),
@@ -922,10 +941,10 @@ impl Struct {
         }
     }
 
-    fn value_as_bstring(value: ReflectValueRef) -> BString {
+    fn value_as_string(value: ReflectValueRef) -> &[u8] {
         match value {
-            ReflectValueRef::String(v) => BString::from(v),
-            ReflectValueRef::Bytes(v) => BString::from(v),
+            ReflectValueRef::String(v) => v.as_bytes(),
+            ReflectValueRef::Bytes(v) => v,
             _ => panic!(),
         }
     }
@@ -959,7 +978,7 @@ impl PartialEq for Struct {
 #[cfg(test)]
 mod tests {
     use super::Struct;
-    use crate::types::{Array, TypeValue, Value};
+    use crate::types::{Array, Type, TypeValue, Value};
     use std::rc::Rc;
 
     #[test]
@@ -970,17 +989,11 @@ mod tests {
         root.add_field("foo", TypeValue::Struct(Rc::new(foo)));
         root.add_field("bar", TypeValue::Integer(Value::Var(1)));
 
-        let foo_index = root.index_of("foo");
-        let bar_index = root.index_of("bar");
-
-        assert_eq!(foo_index, 0);
-        assert_eq!(bar_index, 1);
-
         let field1 = root.field_by_name("foo").unwrap();
-        let field2 = root.field_by_index(foo_index).unwrap();
+        let field2 = root.field_by_index(0).unwrap();
 
-        assert_eq!(field1.name, "foo");
-        assert_eq!(field1.name, field2.name);
+        assert_eq!(field1.type_value.ty(), Type::Struct);
+        assert_eq!(field1.type_value.ty(), field2.type_value.ty());
 
         root.add_field("foo.bar", TypeValue::Integer(Value::Var(1)));
     }

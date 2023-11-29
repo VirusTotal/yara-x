@@ -242,7 +242,7 @@ fn test_proto2_module() {
     condition_true!(r#"test_proto2.to_int("123") == 123"#);
 
     // This field is named `bool_proto` in the protobuf definition, but it's
-    // name for YARA wsa changed to `bool_yara`, with:
+    // name for YARA was changed to `bool_yara`, with:
     //
     //   [(yara.field_options).name = "bool_yara"];
     //

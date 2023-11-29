@@ -202,30 +202,21 @@
     └─ rule test
        └─ condition
           └─ eq
-             ├─ <struct>.<field>
-             │  ├─ <struct>
-             │  │  └─ <expr>[<index>]
-             │  │     ├─ <expr>
-             │  │     │  └─ <struct>.<field>
-             │  │     │     ├─ <struct>
-             │  │     │     │  └─ foo
-             │  │     │     └─ <field>
-             │  │     │        └─ bar
-             │  │     └─ <index>
-             │  │        └─ 0
-             │  └─ <field>
-             │     └─ baz
+             ├─ field access
+             │  ├─ <expr>[<index>]
+             │  │  ├─ <expr>
+             │  │  │  └─ field access
+             │  │  │     ├─ foo
+             │  │  │     └─ bar
+             │  │  └─ <index>
+             │  │     └─ 0
+             │  └─ baz
              └─ <callable>()
                 └─ <callable>
-                   └─ <struct>.<field>
-                      ├─ <struct>
-                      │  └─ <struct>.<field>
-                      │     ├─ <struct>
-                      │     │  └─ foo
-                      │     └─ <field>
-                      │        └─ bar
-                      └─ <field>
-                         └─ baz
+                   └─ field access
+                      ├─ foo
+                      ├─ bar
+                      └─ baz
 
 ###############################################################################
 
@@ -238,21 +229,17 @@
     root
     └─ rule test
        └─ condition
-          └─ <struct>.<field>
-             ├─ <struct>
-             │  └─ <callable>(<arg0>, <arg1>)
-             │     ├─ <callable>
-             │     │  └─ <struct>.<field>
-             │     │     ├─ <struct>
-             │     │     │  └─ foo
-             │     │     └─ <field>
-             │     │        └─ bar
-             │     ├─ <arg0>
-             │     │  └─ 1
-             │     └─ <arg1>
-             │        └─ 2
-             └─ <field>
-                └─ baz
+          └─ field access
+             ├─ <callable>(<arg0>, <arg1>)
+             │  ├─ <callable>
+             │  │  └─ field access
+             │  │     ├─ foo
+             │  │     └─ bar
+             │  ├─ <arg0>
+             │  │  └─ 1
+             │  └─ <arg1>
+             │     └─ 2
+             └─ baz
 
 ###############################################################################
 
@@ -282,19 +269,15 @@
     root
     └─ rule test
        └─ condition
-          └─ <struct>.<field>
-             ├─ <struct>
-             │  └─ <expr>[<index>]
-             │     ├─ <expr>
-             │     │  └─ <struct>.<field>
-             │     │     ├─ <struct>
-             │     │     │  └─ foo
-             │     │     └─ <field>
-             │     │        └─ bar
-             │     └─ <index>
-             │        └─ 0
-             └─ <field>
-                └─ baz
+          └─ field access
+             ├─ <expr>[<index>]
+             │  ├─ <expr>
+             │  │  └─ field access
+             │  │     ├─ foo
+             │  │     └─ bar
+             │  └─ <index>
+             │     └─ 0
+             └─ baz
 
 ###############################################################################
 
