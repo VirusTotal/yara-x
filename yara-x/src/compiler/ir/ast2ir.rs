@@ -384,13 +384,15 @@ pub(in crate::compiler) fn expr_from_ast(
                 }
             }
 
-            let type_value = symbol.type_value();
-
-            if type_value.is_const() {
-                Ok(Expr::Const { type_value: type_value.clone() })
-            } else {
-                Ok(Expr::Ident { symbol })
+            #[cfg(feature = "constant-folding")]
+            {
+                let type_value = symbol.type_value();
+                if type_value.is_const() {
+                    return Ok(Expr::Const { type_value });
+                }
             }
+
+            Ok(Expr::Ident { symbol })
         }
 
         ast::Expr::PatternMatch(p) => {
