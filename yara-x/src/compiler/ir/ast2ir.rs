@@ -388,7 +388,7 @@ pub(in crate::compiler) fn expr_from_ast(
             {
                 let type_value = symbol.type_value();
                 if type_value.is_const() {
-                    return Ok(Expr::Const { type_value });
+                    return Ok(Expr::Const { type_value: type_value.clone() });
                 }
             }
 
