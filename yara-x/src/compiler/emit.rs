@@ -309,7 +309,8 @@ fn emit_expr(
                 // already there.
                 let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());
 
-                instr.i64_const(RuntimeString::Literal(literal_id).as_wasm());
+                instr
+                    .i64_const(RuntimeString::Literal(literal_id).into_wasm());
             }
             TypeValue::Regexp(Some(regexp)) => {
                 let re_id = ctx.regexp_pool.get_or_intern(regexp.as_str());

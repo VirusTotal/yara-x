@@ -376,7 +376,7 @@ impl WasmResult for bool {
 
 impl WasmResult for RuntimeString {
     fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i64(self.as_wasm_with_ctx(ctx))]
+        smallvec![ValRaw::i64(self.into_wasm_with_ctx(ctx))]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -397,7 +397,7 @@ impl WasmResult for RuntimeObjectHandle {
 impl WasmResult for Rc<BString> {
     fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
         let s = RuntimeString::Rc(self);
-        smallvec![ValRaw::i64(s.as_wasm_with_ctx(ctx))]
+        smallvec![ValRaw::i64(s.into_wasm_with_ctx(ctx))]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -1165,7 +1165,6 @@ macro_rules! gen_map_lookup_by_index_fn {
             map: Rc<Map>,
             index: i64,
         ) -> (Rc<BString>, $val) {
-            // TODO: optimize
             map.with_string_keys()
                 .get_index(index as usize)
                 .map(|(key, value)| (Rc::new(key.clone()), value.$as()))

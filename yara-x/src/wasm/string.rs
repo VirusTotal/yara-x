@@ -82,7 +82,7 @@ impl RuntimeString {
     /// doesn't need to copy the string data.
     ///
     /// In any other case it makes a copy of the string and return the
-    /// [`RuntimeString::Owned`] variant.
+    /// [`RuntimeString::Rc`] variant.
     pub(crate) fn from_bytes<S>(ctx: &mut ScanContext, s: S) -> Self
     where
         S: AsRef<[u8]>,
@@ -132,15 +132,15 @@ impl RuntimeString {
     }
 
     /// Returns this string as a primitive type suitable to be passed to WASM.
-    pub(crate) fn as_wasm_with_ctx(
+    pub(crate) fn into_wasm_with_ctx(
         self,
         ctx: &mut ScanContext,
     ) -> RuntimeStringWasm {
         match self {
             Self::Literal(id) => i64::from(id) << 2,
             Self::Rc(s) => {
-                let obj_ref: i64 = ctx.store_string(s).into();
-                obj_ref << 2 | 1
+                let handle: i64 = ctx.store_string(s).into();
+                handle << 2 | 1
             }
             Self::ScannedDataSlice { offset, length } => {
                 if length >= u16::MAX as usize {
@@ -155,7 +155,7 @@ impl RuntimeString {
     }
 
     /// Returns this string as a primitive type suitable to be passed to WASM.
-    pub(crate) fn as_wasm(self) -> RuntimeStringWasm {
+    pub(crate) fn into_wasm(self) -> RuntimeStringWasm {
         match self {
             Self::Literal(id) => i64::from(id) << 2,
             _ => unreachable!(),
@@ -170,9 +170,11 @@ impl RuntimeString {
         match s & 0x3 {
             0 => Self::Literal(LiteralId::from((s >> 2) as u32)),
             1 => {
-                let obj_ref = RuntimeObjectHandle::from((s >> 2) as i64);
-                let obj = ctx.runtime_objects.get(&obj_ref).unwrap();
-                let s = cast!(obj, RuntimeObject::String);
+                let handle = RuntimeObjectHandle::from(s >> 2);
+                let s = cast!(
+                    ctx.runtime_objects.get(&handle).unwrap(),
+                    RuntimeObject::String
+                );
                 Self::Rc(s.clone())
             }
             2 => Self::ScannedDataSlice {

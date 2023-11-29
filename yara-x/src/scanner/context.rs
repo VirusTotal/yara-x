@@ -1251,33 +1251,6 @@ pub enum RuntimeObject {
 }
 
 impl RuntimeObject {
-    pub fn as_struct_ref(&self) -> &Struct {
-        if let Self::Struct(s) = self {
-            s.as_ref()
-        } else {
-            panic!(
-                "calling `as_struct_ref` in a RuntimeObject that is not a struct"
-            )
-        }
-    }
-
-    pub fn as_array_ref(&self) -> &Array {
-        if let Self::Array(a) = self {
-            a.as_ref()
-        } else {
-            panic!(
-                "calling `as_array_ref` in a RuntimeObject that is not an array"
-            )
-        }
-    }
-    pub fn as_map_ref(&self) -> &Map {
-        if let Self::Map(a) = self {
-            a.as_ref()
-        } else {
-            panic!("calling `as_map_ref` in a RuntimeObject that is not a map")
-        }
-    }
-
     pub fn as_struct(&self) -> Rc<Struct> {
         if let Self::Struct(s) = self {
             s.clone()
