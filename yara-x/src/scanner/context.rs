@@ -16,7 +16,7 @@ use base64::Engine;
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
 use bitvec::vec::BitVec;
-use bstr::ByteSlice;
+use bstr::{BString, ByteSlice};
 use indexmap::IndexMap;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
@@ -31,8 +31,7 @@ use crate::re::fast::fastvm::FastVM;
 use crate::re::thompson::pikevm::PikeVM;
 use crate::re::Action;
 use crate::scanner::matches::{Match, MatchList, UnconfirmedMatch};
-use crate::scanner::{RuntimeStringId, HEARTBEAT_COUNTER};
-use crate::string_pool::BStringPool;
+use crate::scanner::HEARTBEAT_COUNTER;
 use crate::types::{Array, Map, Struct};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
 use crate::ScanError;
@@ -41,10 +40,12 @@ use crate::ScanError;
 pub(crate) struct ScanContext<'r> {
     /// Pointer to the WASM store.
     pub wasm_store: NonNull<Store<ScanContext<'r>>>,
-
-    // TODO: cleanup runtime objects
-    pub runtime_objects: IndexMap<RuntimeObjectRef, RuntimeObject>,
-
+    /// Map where keys are object references and keys are objects
+    /// used during the evaluation of rule conditions. Object references
+    /// are opaque integer values that can be passed to and received from
+    /// WASM code. Each of reference identify an object (string, struct,
+    /// array or map).
+    pub runtime_objects: IndexMap<RuntimeObjectHandle, RuntimeObject>,
     /// Pointer to the data being scanned.
     pub scanned_data: *const u8,
     /// Length of data being scanned.
@@ -70,9 +71,6 @@ pub(crate) struct ScanContext<'r> {
     /// Currently active structure that overrides the `root_struct` if
     /// set.
     pub current_struct: Option<Rc<Struct>>,
-    /// String pool where the strings produced at runtime are stored. This
-    /// for example stores the strings returned by YARA modules.
-    pub string_pool: BStringPool<RuntimeStringId>,
     /// Module's main memory.
     pub main_memory: Option<wasmtime::Memory>,
     /// Hash map that contains the protobuf messages returned by YARA modules.
@@ -209,26 +207,32 @@ impl ScanContext<'_> {
         info!("Started rule evaluation: {}:{}", rule_namespace, rule_name);
     }
 
-    pub(crate) fn store_struct(&mut self, s: Rc<Struct>) -> RuntimeObjectRef {
-        let obj_ref = RuntimeObjectRef(Rc::<Struct>::as_ptr(&s) as i64);
+    pub(crate) fn store_struct(
+        &mut self,
+        s: Rc<Struct>,
+    ) -> RuntimeObjectHandle {
+        let obj_ref = RuntimeObjectHandle(Rc::<Struct>::as_ptr(&s) as i64);
         self.runtime_objects.insert_full(obj_ref, RuntimeObject::Struct(s));
         obj_ref
     }
 
-    pub(crate) fn store_array(&mut self, a: Rc<Array>) -> RuntimeObjectRef {
-        let obj_ref = RuntimeObjectRef(Rc::<Array>::as_ptr(&a) as i64);
+    pub(crate) fn store_array(&mut self, a: Rc<Array>) -> RuntimeObjectHandle {
+        let obj_ref = RuntimeObjectHandle(Rc::<Array>::as_ptr(&a) as i64);
         self.runtime_objects.insert_full(obj_ref, RuntimeObject::Array(a));
         obj_ref
     }
 
-    pub(crate) fn store_map(&mut self, m: Rc<Map>) -> RuntimeObjectRef {
-        let obj_ref = RuntimeObjectRef(Rc::<Map>::as_ptr(&m) as i64);
+    pub(crate) fn store_map(&mut self, m: Rc<Map>) -> RuntimeObjectHandle {
+        let obj_ref = RuntimeObjectHandle(Rc::<Map>::as_ptr(&m) as i64);
         self.runtime_objects.insert_full(obj_ref, RuntimeObject::Map(m));
         obj_ref
     }
 
-    pub(crate) fn store_string(&mut self, s: Rc<String>) -> RuntimeObjectRef {
-        let obj_ref = RuntimeObjectRef(Rc::<String>::as_ptr(&s) as i64);
+    pub(crate) fn store_string(
+        &mut self,
+        s: Rc<BString>,
+    ) -> RuntimeObjectHandle {
+        let obj_ref = RuntimeObjectHandle(Rc::<BString>::as_ptr(&s) as i64);
         self.runtime_objects.insert_full(obj_ref, RuntimeObject::String(s));
         obj_ref
     }
@@ -1232,36 +1236,51 @@ struct VM<'r> {
     fast_vm: FastVM<'r>,
 }
 
+/// A runtime object is a struct, array, map or string used during the
+/// evaluation of a rule condition. Instances of these types can't cross the
+/// WASM-Rust boundary, as integers and floats can do. Therefore, they are
+/// stored in a hash map in [`ScanContext`], using a [`RuntimeObjectHandler`]
+/// as the key that identifies each instance. Object handlers are actually
+/// 64-bits integers that can cross the WASM-Rust boundary, and used to
+/// retrieve the original object.
 pub enum RuntimeObject {
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),
-    String(Rc<String>),
-}
-
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
-pub struct RuntimeObjectRef(i64);
-
-impl RuntimeObjectRef {
-    pub(crate) const NULL: Self = RuntimeObjectRef(-1);
-}
-
-impl From<RuntimeObjectRef> for i64 {
-    fn from(value: RuntimeObjectRef) -> Self {
-        value.0
-    }
-}
-
-impl From<i64> for RuntimeObjectRef {
-    fn from(value: i64) -> Self {
-        Self(value)
-    }
+    String(Rc<BString>),
 }
 
 impl RuntimeObject {
-    pub fn as_struct(&self) -> &Struct {
+    pub fn as_struct_ref(&self) -> &Struct {
         if let Self::Struct(s) = self {
             s.as_ref()
+        } else {
+            panic!(
+                "calling `as_struct_ref` in a RuntimeObject that is not a struct"
+            )
+        }
+    }
+
+    pub fn as_array_ref(&self) -> &Array {
+        if let Self::Array(a) = self {
+            a.as_ref()
+        } else {
+            panic!(
+                "calling `as_array_ref` in a RuntimeObject that is not an array"
+            )
+        }
+    }
+    pub fn as_map_ref(&self) -> &Map {
+        if let Self::Map(a) = self {
+            a.as_ref()
+        } else {
+            panic!("calling `as_map_ref` in a RuntimeObject that is not a map")
+        }
+    }
+
+    pub fn as_struct(&self) -> Rc<Struct> {
+        if let Self::Struct(s) = self {
+            s.clone()
         } else {
             panic!(
                 "calling `as_struct` in a RuntimeObject that is not a struct"
@@ -1269,20 +1288,41 @@ impl RuntimeObject {
         }
     }
 
-    pub fn as_array(&self) -> &Array {
+    pub fn as_array(&self) -> Rc<Array> {
         if let Self::Array(a) = self {
-            a.as_ref()
+            a.clone()
         } else {
             panic!(
                 "calling `as_array` in a RuntimeObject that is not an array"
             )
         }
     }
-    pub fn as_map(&self) -> &Map {
-        if let Self::Map(a) = self {
-            a.as_ref()
+    pub fn as_map(&self) -> Rc<Map> {
+        if let Self::Map(m) = self {
+            m.clone()
         } else {
             panic!("calling `as_map` in a RuntimeObject that is not a map")
         }
+    }
+}
+
+/// A runtime object handle is an opaque integer value that identifies a
+/// runtime object.
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
+pub struct RuntimeObjectHandle(i64);
+
+impl RuntimeObjectHandle {
+    pub(crate) const NULL: Self = RuntimeObjectHandle(-1);
+}
+
+impl From<RuntimeObjectHandle> for i64 {
+    fn from(value: RuntimeObjectHandle) -> Self {
+        value.0
+    }
+}
+
+impl From<i64> for RuntimeObjectHandle {
+    fn from(value: i64) -> Self {
+        Self(value)
     }
 }

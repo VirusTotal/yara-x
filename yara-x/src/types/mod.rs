@@ -1,8 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
-use bstr::ByteSlice;
-use bstr::{BStr, BString};
+use bstr::BString;
 use serde::{Deserialize, Serialize};
 use walrus::ValType;
 
@@ -278,14 +277,15 @@ impl TypeValue {
         }
     }
 
-    pub fn as_bstr(&self) -> &BStr {
-        if let TypeValue::String(v) = self {
-            v.extract()
+    pub fn as_string(&self) -> Rc<BString> {
+        if let TypeValue::String(value) = self {
+            value
+                .extract()
+                .cloned()
                 .expect("TypeValue doesn't have an associated value")
-                .as_bstr()
         } else {
             panic!(
-                "called `as_bstr` on a TypeValue that is not TypeValue::String, it is: {:?}",
+                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {:?}",
                 self
             )
         }

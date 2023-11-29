@@ -737,7 +737,7 @@ impl Struct {
                         repeated
                             .into_iter()
                             .map(|value| {
-                                BString::from(value.to_str().unwrap())
+                                Rc::new(BString::from(value.to_str().unwrap()))
                             })
                             .collect(),
                     )
@@ -751,7 +751,9 @@ impl Struct {
                         repeated
                             .into_iter()
                             .map(|value| {
-                                BString::from(value.to_bytes().unwrap())
+                                Rc::new(BString::from(
+                                    value.to_bytes().unwrap(),
+                                ))
                             })
                             .collect(),
                     )

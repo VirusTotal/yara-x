@@ -30,7 +30,6 @@ use wasmtime::{
 
 use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
 use crate::modules::{Module, BUILTIN_MODULES};
-use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
@@ -121,7 +120,6 @@ impl<'r> Scanner<'r> {
                 wasm_store: NonNull::dangling(),
                 runtime_objects: IndexMap::new(),
                 compiled_rules: rules,
-                string_pool: BStringPool::new(),
                 current_struct: None,
                 root_struct: rules.globals().make_root(),
                 scanned_data: null(),
@@ -432,15 +430,7 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = data.as_ref().as_ptr();
         ctx.scanned_data_len = data.as_ref().len();
 
-        // If the string pool is too large, destroy it and create a new empty
-        // one. Re-using the same string pool across multiple scans improves
-        // performance, but the price to pay is the accumulation of strings in
-        // the pool.
-        if ctx.string_pool.size() > 1_000_000 {
-            ctx.string_pool = BStringPool::new();
-        }
-
-        // TODO
+        // Free all runtime objects left around by previous scans.
         ctx.runtime_objects.clear();
 
         for module_name in ctx.compiled_rules.imports() {
@@ -915,5 +905,3 @@ pub struct Match<'a> {
     /// modifier, or `None` if otherwise.
     pub xor_key: Option<u8>,
 }
-
-pub(crate) type RuntimeStringId = u32;

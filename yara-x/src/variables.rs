@@ -265,7 +265,7 @@ impl TryFrom<&serde_json::Value> for Variable {
                         for v in values {
                             match v.as_str() {
                                 Some(v) => {
-                                    strings.push(BString::from(v));
+                                    strings.push(BString::from(v).into());
                                 }
                                 None => {
                                     return Err(VariableError::InvalidArray);
