@@ -423,3 +423,18 @@ fn section_index() {
         &pe
     );
 }
+
+#[test]
+fn image_directory_constants() {
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.IMAGE_DIRECTORY_ENTRY_COPYRIGHT == 7 and
+            pe.IMAGE_DIRECTORY_ENTRY_ARCHITECTURE == 7
+        }
+        "#,
+        &[]
+    );
+}
