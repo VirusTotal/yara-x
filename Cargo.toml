@@ -56,7 +56,9 @@ log = "0.4"
 md5 = "0.7.0"
 sha1 = "0.10.6"
 sha2 = "0.10.7"
-tlsh = "0.1.0"
+# Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
+# issue: https://github.com/1crcbl/tlsh-rs/issues/2.
+tlsh-fixed = "0.1.1"
 memchr = "2.6.4"
 memx = "0.1.28"
 nom = "7.1.3"
@@ -89,5 +91,5 @@ yara-x-proto-yaml = { path = "yara-x-proto-yaml" }
 
 [profile.release]
 # debug = 1   # Include debug information in the binary.
-#lto = true    # Enable link-time optimization.
-#strip = true  # Automatically strip symbols from the binary.
+lto = true    # Enable link-time optimization.
+strip = true  # Automatically strip symbols from the binary.

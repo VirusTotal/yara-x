@@ -37,7 +37,7 @@ rules-profiling = ["logging"]
 
 # The `elf` module parses ELF files.
 elf-module = [
-    "dep:tlsh"
+    "dep:tlsh-fixed"
 ]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,
@@ -132,7 +132,7 @@ smallvec = { workspace = true, features=["serde"] }
 serde = { workspace = true, features=["rc"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tlsh = { workspace = true, optional = true }
+tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features=["cranelift", "parallel-compilation"]  }
