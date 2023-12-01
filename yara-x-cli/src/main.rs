@@ -4,7 +4,7 @@ mod walk;
 
 use clap::{command, crate_authors};
 use crossterm::tty::IsTty;
-use std::io;
+use std::{io, panic, process};
 use yansi::Color::Red;
 use yansi::Paint;
 
@@ -54,6 +54,17 @@ fn main() -> anyhow::Result<()> {
         // it causes a deadlock in Linux.
         .blocklist(&["libc", "libgcc", "pthread", "vdso"])
         .build()?;
+
+    // Set our custom panic hook that kills the process when some panic
+    // occurs in a thread. By default, when a thread panics the main thread
+    // and all other threads keep running. We don't want that, we want the
+    // process exiting as soon as any of the threads panics.
+    let orig_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        // invoke the default handler and exit the process
+        orig_hook(panic_info);
+        process::exit(1);
+    }));
 
     let result = match args.subcommand() {
         Some(("debug", args)) => commands::exec_debug(args),
