@@ -10,7 +10,7 @@ license = "MIT"
 # When updating rust-version also update MSRV in:
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
-rust-version = "1.70.0"
+rust-version = "1.71.0"
 
 [workspace]
 members = [
