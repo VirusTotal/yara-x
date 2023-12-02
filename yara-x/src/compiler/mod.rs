@@ -6,7 +6,7 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
@@ -880,7 +880,7 @@ impl<'a> Compiler<'a> {
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
-            lookup_list: VecDeque::new(),
+            lookup_list: Vec::new(),
             vars: VarStack::new(),
         };
 

@@ -6,7 +6,6 @@ functions in the module which generate WASM code for specific kinds of
 expressions or language constructs.
  */
 
-use std::collections::VecDeque;
 use std::mem::size_of;
 use std::rc::Rc;
 
@@ -204,7 +203,7 @@ pub(in crate::compiler) struct EmitContext<'a> {
     /// must be also of type struct).
     ///
     /// See [`emit::emit_lookup_common`] for details.
-    pub(crate) lookup_list: VecDeque<(i32, bool)>,
+    pub(crate) lookup_list: Vec<(i32, bool)>,
 }
 
 impl<'a> EmitContext<'a> {
@@ -358,7 +357,7 @@ fn emit_expr(
                 }
                 SymbolKind::Field(index, root) => {
                     ctx.lookup_list
-                        .push_back(((*index).try_into().unwrap(), *root));
+                        .push(((*index).try_into().unwrap(), *root));
 
                     match symbol.type_value() {
                         TypeValue::Integer(_) => {
@@ -396,7 +395,7 @@ fn emit_expr(
                             // need to access the structure's data and therefore
                             // they don't need the handler, but this may change
                             // when structure methods are implemented.
-                            if let Some((_, false)) = ctx.lookup_list.front() {
+                            if let Some((_, false)) = ctx.lookup_list.first() {
                                 // The first item in the lookup is a field that
                                 // doesn't belong to the root structure, which
                                 // implies that the structure handler is now in
@@ -909,7 +908,7 @@ fn emit_field_access(
     for operand in operands.iter_mut().dropping_back(1) {
         if let Expr::Ident { symbol } = operand {
             if let SymbolKind::Field(index, root) = symbol.kind() {
-                ctx.lookup_list.push_back((*index as i32, *root));
+                ctx.lookup_list.push((*index as i32, *root));
                 continue;
             }
         }
@@ -2485,7 +2484,7 @@ fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     let num_lookup_indexes = ctx.lookup_list.len();
     let main_memory = ctx.wasm_symbols.main_memory;
 
-    let root = ctx.lookup_list.front().unwrap().1;
+    let root = ctx.lookup_list.first().unwrap().1;
 
     // At the top of the stack we have the object handler for
     // the structure containing the field identified by `index`
