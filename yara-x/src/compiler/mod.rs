@@ -880,7 +880,7 @@ impl<'a> Compiler<'a> {
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
-            lookup_stack: VecDeque::new(),
+            lookup_list: VecDeque::new(),
             vars: VarStack::new(),
         };
 
