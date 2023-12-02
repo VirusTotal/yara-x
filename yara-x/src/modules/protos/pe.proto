@@ -295,3 +295,25 @@ enum Characteristics {
   // Bytes of machine word are reversed.
   BYTES_REVERSED_HI       = 0x8000;
 }
+
+enum DirectoryEntry {
+  option (yara.enum_options).inline = true;
+  IMAGE_DIRECTORY_ENTRY_EXPORT        =  0  [(yara.enum_value).i64 = 0];
+  IMAGE_DIRECTORY_ENTRY_IMPORT        =  1  [(yara.enum_value).i64 = 1];
+  IMAGE_DIRECTORY_ENTRY_RESOURCE      =  2  [(yara.enum_value).i64 = 2];
+  IMAGE_DIRECTORY_ENTRY_EXCEPTION     =  3  [(yara.enum_value).i64 = 3];
+  IMAGE_DIRECTORY_ENTRY_SECURITY      =  4  [(yara.enum_value).i64 = 4];
+  IMAGE_DIRECTORY_ENTRY_BASERELOC     =  5  [(yara.enum_value).i64 = 5];
+  IMAGE_DIRECTORY_ENTRY_DEBUG         =  6  [(yara.enum_value).i64 = 6];
+  // IMAGE_DIRECTORY_ENTRY_COPYRIGHT and IMAGE_DIRECTORY_ENTRY_ARCHITECTURE
+  // have the same value (7).
+  IMAGE_DIRECTORY_ENTRY_COPYRIGHT     =  7  [(yara.enum_value).i64 = 7];
+  IMAGE_DIRECTORY_ENTRY_ARCHITECTURE  =  8  [(yara.enum_value).i64 = 7];
+  IMAGE_DIRECTORY_ENTRY_GLOBALPTR     =  9  [(yara.enum_value).i64 = 8];
+  IMAGE_DIRECTORY_ENTRY_TLS           =  10 [(yara.enum_value).i64 = 9];
+  IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG    = 11 [(yara.enum_value).i64 = 10];
+  IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT   = 12 [(yara.enum_value).i64 = 11];
+  IMAGE_DIRECTORY_ENTRY_IAT            = 13 [(yara.enum_value).i64 = 12];
+  IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   = 14 [(yara.enum_value).i64 = 13];
+  IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 15 [(yara.enum_value).i64 = 14];
+}

@@ -69,8 +69,9 @@ See the [`lookup_field`] function.
  */
 use std::any::{type_name, TypeId};
 use std::mem;
+use std::rc::Rc;
 
-use bstr::ByteSlice;
+use bstr::{BString, ByteSlice};
 use lazy_static::lazy_static;
 use linkme::distributed_slice;
 use smallvec::{smallvec, SmallVec};
@@ -78,14 +79,13 @@ use wasmtime::{
     AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
 };
 
-use crate::utils::cast;
 use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
-use crate::scanner::ScanContext;
-use crate::types::{TypeValue, Value};
-use crate::wasm::string::{RuntimeString, RuntimeStringWasm};
+use crate::scanner::{RuntimeObjectHandle, ScanContext};
+use crate::types::{Array, Map, Struct, TypeValue, Value};
+use crate::wasm::string::RuntimeString;
 use crate::ScanError;
 
 pub(crate) mod builder;
@@ -192,69 +192,112 @@ type TrampolineFn = Box<
 const MAX_RESULTS: usize = 4;
 type WasmResultArray<T> = SmallVec<[T; MAX_RESULTS]>;
 
-/// Represents an argument passed to a `#[wasm_export]` function.
+/// A trait for converting raw values received from WASM code into Rust types.
 ///
-/// The purpose of this type is converting [`ValRaw`] into Rust types
-/// (e.g: `i64`, `i32`, `f64`, `f32`, etc)
-struct WasmArg(ValRaw);
+/// Functions decorated with `#[wasm_export]` must have arguments of some type
+/// `T` so that [`WasmArg<T>`] is implemented for [`ValRaw`].
+///
+/// By implementing [`WasmArg<T>`] for [`ValRaw`], the raw values received from
+/// WASM code can be converted into Rust type `T`.
+trait WasmArg<T> {
+    fn raw_into(self, _: &mut ScanContext) -> T;
+}
 
-impl From<ValRaw> for WasmArg {
-    fn from(value: ValRaw) -> Self {
-        Self(value)
+impl WasmArg<i64> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> i64 {
+        self.get_i64()
     }
 }
 
-impl From<WasmArg> for i64 {
-    fn from(value: WasmArg) -> Self {
-        value.0.get_i64()
+impl WasmArg<i32> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> i32 {
+        self.get_i32()
     }
 }
 
-impl From<WasmArg> for i32 {
-    fn from(value: WasmArg) -> Self {
-        value.0.get_i32()
+impl WasmArg<f64> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> f64 {
+        f64::from_bits(self.get_f64())
     }
 }
 
-impl From<WasmArg> for f64 {
-    fn from(value: WasmArg) -> Self {
-        f64::from_bits(value.0.get_f64())
+impl WasmArg<f32> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> f32 {
+        f32::from_bits(self.get_f32())
     }
 }
 
-impl From<WasmArg> for f32 {
-    fn from(value: WasmArg) -> Self {
-        f32::from_bits(value.0.get_f32())
+impl WasmArg<RuleId> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> RuleId {
+        RuleId::from(self.get_i32())
     }
 }
 
-impl From<WasmArg> for RuleId {
-    fn from(value: WasmArg) -> Self {
-        RuleId::from(value.0.get_i32())
+impl WasmArg<PatternId> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> PatternId {
+        PatternId::from(self.get_i32())
     }
 }
 
-impl From<WasmArg> for PatternId {
-    fn from(value: WasmArg) -> Self {
-        PatternId::from(value.0.get_i32())
+impl WasmArg<LiteralId> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> LiteralId {
+        LiteralId::from(self.get_i32())
     }
 }
 
-impl From<WasmArg> for LiteralId {
-    fn from(value: WasmArg) -> Self {
-        LiteralId::from(value.0.get_i32())
+impl WasmArg<RegexpId> for ValRaw {
+    #[inline]
+    fn raw_into(self, _: &mut ScanContext) -> RegexpId {
+        RegexpId::from(self.get_i32())
     }
 }
 
-impl From<WasmArg> for RegexpId {
-    fn from(value: WasmArg) -> Self {
-        RegexpId::from(value.0.get_i32())
+impl WasmArg<RuntimeString> for ValRaw {
+    #[inline]
+    fn raw_into(self, ctx: &mut ScanContext) -> RuntimeString {
+        RuntimeString::from_wasm(ctx, self.get_i64())
     }
 }
 
-impl From<WasmArg> for RuntimeString {
-    fn from(value: WasmArg) -> Self {
-        Self::from_wasm(RuntimeStringWasm::from(value))
+impl WasmArg<Rc<Array>> for ValRaw {
+    #[inline]
+    fn raw_into(self, ctx: &mut ScanContext) -> Rc<Array> {
+        let handle = RuntimeObjectHandle::from(self.get_i64());
+        ctx.runtime_objects.get(&handle).unwrap().as_array()
+    }
+}
+
+impl WasmArg<Rc<Map>> for ValRaw {
+    #[inline]
+    fn raw_into(self, ctx: &mut ScanContext) -> Rc<Map> {
+        let handle = RuntimeObjectHandle::from(self.get_i64());
+        ctx.runtime_objects.get(&handle).unwrap().as_map()
+    }
+}
+
+impl WasmArg<Rc<Struct>> for ValRaw {
+    #[inline]
+    fn raw_into(self, ctx: &mut ScanContext) -> Rc<Struct> {
+        let handle = RuntimeObjectHandle::from(self.get_i64());
+        ctx.runtime_objects.get(&handle).unwrap().as_struct()
+    }
+}
+
+impl WasmArg<Option<Rc<Struct>>> for ValRaw {
+    #[inline]
+    fn raw_into(self, ctx: &mut ScanContext) -> Option<Rc<Struct>> {
+        let handle = RuntimeObjectHandle::from(self.get_i64());
+        if handle == RuntimeObjectHandle::NULL {
+            return None;
+        }
+        Some(ctx.runtime_objects.get(&handle).unwrap().as_struct())
     }
 }
 
@@ -264,15 +307,15 @@ impl From<WasmArg> for RuntimeString {
 /// Functions with the `#[wasm_export]` attribute must return a type that
 /// implements this trait.
 pub(crate) trait WasmResult {
-    // Returns the WASM values representing this result.
-    fn values(&self) -> WasmResultArray<ValRaw>;
+    /// Returns the WASM values representing this result.
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw>;
 
-    // Returns the WASM types that conform this result.
+    /// Returns the WASM types that conform this result.
     fn types() -> WasmResultArray<wasmtime::ValType>;
 }
 
 impl WasmResult for () {
-    fn values(&self) -> WasmResultArray<ValRaw> {
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
         smallvec![]
     }
 
@@ -282,8 +325,8 @@ impl WasmResult for () {
 }
 
 impl WasmResult for i32 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i32(*self)]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i32(self)]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -292,8 +335,8 @@ impl WasmResult for i32 {
 }
 
 impl WasmResult for i64 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i64(*self)]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i64(self)]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -302,8 +345,8 @@ impl WasmResult for i64 {
 }
 
 impl WasmResult for f32 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::f32(f32::to_bits(*self))]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::f32(f32::to_bits(self))]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -312,8 +355,8 @@ impl WasmResult for f32 {
 }
 
 impl WasmResult for f64 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::f64(f64::to_bits(*self))]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::f64(f64::to_bits(self))]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -322,8 +365,8 @@ impl WasmResult for f64 {
 }
 
 impl WasmResult for bool {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i32(*self as i32)]
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i32(self as i32)]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -332,8 +375,40 @@ impl WasmResult for bool {
 }
 
 impl WasmResult for RuntimeString {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        smallvec![ValRaw::i64(self.as_wasm())]
+    fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i64(self.into_wasm_with_ctx(ctx))]
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I64]
+    }
+}
+
+impl WasmResult for RuntimeObjectHandle {
+    fn values(self, _: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        smallvec![ValRaw::i64(self.into())]
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I64]
+    }
+}
+
+impl WasmResult for Rc<BString> {
+    fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        let s = RuntimeString::Rc(self);
+        smallvec![ValRaw::i64(s.into_wasm_with_ctx(ctx))]
+    }
+
+    fn types() -> WasmResultArray<wasmtime::ValType> {
+        smallvec![wasmtime::ValType::I64]
+    }
+}
+
+impl WasmResult for Rc<Struct> {
+    fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        let handle = ctx.store_struct(self);
+        smallvec![ValRaw::i64(handle.into())]
     }
 
     fn types() -> WasmResultArray<wasmtime::ValType> {
@@ -346,9 +421,9 @@ where
     A: WasmResult,
     B: WasmResult,
 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
-        let mut result = self.0.values();
-        result.extend(self.1.values());
+    fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
+        let mut result = self.0.values(ctx);
+        result.extend(self.1.values(ctx));
         result
     }
 
@@ -363,15 +438,15 @@ impl<T> WasmResult for Option<T>
 where
     T: WasmResult + Default,
 {
-    fn values(&self) -> WasmResultArray<ValRaw> {
+    fn values(self, ctx: &mut ScanContext) -> WasmResultArray<ValRaw> {
         match self {
             Some(value) => {
-                let mut result = value.values();
+                let mut result = value.values(ctx);
                 result.push(ValRaw::i32(0));
                 result
             }
             None => {
-                let mut result = T::default().values();
+                let mut result = T::default().values(ctx);
                 result.push(ValRaw::i32(1));
                 result
             }
@@ -422,6 +497,14 @@ fn type_id_to_wasmtime(
         return &[];
     } else if type_id == TypeId::of::<RuntimeString>() {
         return &[wasmtime::ValType::I64];
+    } else if type_id == TypeId::of::<Option<Rc<Struct>>>() {
+        return &[wasmtime::ValType::I64];
+    } else if type_id == TypeId::of::<Rc<Struct>>() {
+        return &[wasmtime::ValType::I64];
+    } else if type_id == TypeId::of::<Rc<Array>>() {
+        return &[wasmtime::ValType::I64];
+    } else if type_id == TypeId::of::<Rc<Map>>() {
+        return &[wasmtime::ValType::I64];
     }
     panic!("type `{}` can't be an argument", type_name)
 }
@@ -435,7 +518,7 @@ macro_rules! impl_wasm_exported_fn {
             $($args: 'static,)*
             R: 'static,
         {
-            pub target_fn: &'static (dyn Fn(Caller<'_, ScanContext>, $($args),*) -> R
+            pub target_fn: &'static (dyn Fn(&mut Caller<'_, ScanContext>, $($args),*) -> R
                           + Send
                           + Sync
                           + 'static),
@@ -443,7 +526,7 @@ macro_rules! impl_wasm_exported_fn {
 
         impl<$($args,)* R> WasmExportedFn for $name<$($args,)* R>
         where
-            $($args: From<WasmArg>,)*
+            $(ValRaw: WasmArg<$args>,)*
             R: WasmResult,
         {
             #[allow(unused_mut)]
@@ -468,17 +551,17 @@ macro_rules! impl_wasm_exported_fn {
             #[allow(unused_mut)]
             fn trampoline(&'static self) -> TrampolineFn {
                 Box::new(
-                    |caller: Caller<'_, ScanContext>,
+                    |mut caller: Caller<'_, ScanContext>,
                      args_and_results: &mut [ValRaw]|
                      -> anyhow::Result<()> {
                         let mut i = 0;
                         $(
-                            let $args = WasmArg::from(args_and_results[i].clone()).into();
+                            let $args = args_and_results[i].raw_into(caller.data_mut());
                             i += 1;
                         )*
 
-                        let result = (self.target_fn)(caller, $($args),*);
-                        let result = result.values();
+                        let result = (self.target_fn)(&mut caller, $($args),*);
+                        let result = result.values(caller.data_mut());
 
                         let result_slice = result.as_slice();
                         let num_results = result_slice.len();
@@ -575,7 +658,7 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
 #[wasm_export]
 #[cfg(feature = "logging")]
 pub(crate) fn log_rule_eval_start(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
 ) {
     caller.data_mut().log_rule_eval_start(rule_id);
@@ -586,7 +669,7 @@ pub(crate) fn log_rule_eval_start(
 /// Returns `true` on success and `false` when a timeout occurs.
 #[wasm_export]
 pub(crate) fn search_for_patterns(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
 ) -> bool {
     match caller.data_mut().search_for_patterns() {
         Ok(_) => true,
@@ -598,7 +681,7 @@ pub(crate) fn search_for_patterns(
 /// Invoked from WASM to notify when a rule matches.
 #[wasm_export]
 pub(crate) fn rule_match(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
 ) {
     caller.data_mut().track_rule_match(rule_id);
@@ -607,7 +690,7 @@ pub(crate) fn rule_match(
 /// Invoked from WASM to notify when a global rule doesn't match.
 #[wasm_export]
 pub(crate) fn global_rule_no_match(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     rule_id: RuleId,
 ) {
     caller.data_mut().track_global_rule_no_match(rule_id);
@@ -620,7 +703,7 @@ pub(crate) fn global_rule_no_match(
 /// or false if otherwise.
 #[wasm_export]
 pub(crate) fn is_pat_match_at(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     offset: i64,
 ) -> bool {
@@ -642,7 +725,7 @@ pub(crate) fn is_pat_match_at(
 /// offset in the range [`lower_bound`, `upper_bound`], both inclusive.
 #[wasm_export]
 pub(crate) fn is_pat_match_in(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     lower_bound: i64,
     upper_bound: i64,
@@ -659,7 +742,7 @@ pub(crate) fn is_pat_match_in(
 /// Invoked from WASM to ask for the number of matches for a pattern.
 #[wasm_export]
 pub(crate) fn pat_matches(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
 ) -> i64 {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
@@ -676,7 +759,7 @@ pub(crate) fn pat_matches(
 /// that start in the range [`lower_bound`, `upper_bound`], both inclusive.
 #[wasm_export]
 pub(crate) fn pat_matches_in(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     lower_bound: i64,
     upper_bound: i64,
@@ -695,7 +778,7 @@ pub(crate) fn pat_matches_in(
 /// has not matched or there are less than `index` matches.
 #[wasm_export]
 pub(crate) fn pat_length(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     index: i64,
 ) -> Option<i64> {
@@ -716,7 +799,7 @@ pub(crate) fn pat_length(
 /// has not matched or there are less than `index` matches.
 #[wasm_export]
 pub(crate) fn pat_offset(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     pattern_id: PatternId,
     index: i64,
 ) -> Option<i64> {
@@ -730,30 +813,19 @@ pub(crate) fn pat_offset(
     }
 }
 
-/// Given some local variable containing an array, returns the length of the
-/// array. The local variable is an index within `vars_stack`.
-///
-/// # Panics
-///
-/// If the variable doesn't exist or is not an array.
+/// Called from WASM to obtain the length of an array.
 #[wasm_export]
-pub(crate) fn array_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
-    let ctx = caller.data_mut();
-    let len = ctx.vars_stack.get(var as usize).unwrap().as_array().len();
-    len as i64
+pub(crate) fn array_len(
+    _: &mut Caller<'_, ScanContext>,
+    array: Rc<Array>,
+) -> i64 {
+    array.len() as i64
 }
 
-/// Given some local variable containing a map, returns the length of the
-/// map. The local variable is an index within `vars_stack`.
-///
-/// # Panics
-///
-/// If the variable doesn't exist or is not a map.
+/// Called from WASM to obtain the length of a map.
 #[wasm_export]
-pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
-    let ctx = caller.data_mut();
-    let len = ctx.vars_stack.get(var as usize).unwrap().as_map().len();
-    len as i64
+pub(crate) fn map_len(_: &mut Caller<'_, ScanContext>, map: Rc<Map>) -> i64 {
+    map.len() as i64
 }
 
 /// Given a structure and a series of fields indexes, walks the structure
@@ -778,20 +850,19 @@ pub(crate) fn map_len(mut caller: Caller<'_, ScanContext>, var: i32) -> i64 {
 /// structure. So starting at the outer structure and following the path: 1,0 we
 /// reach the inner `integer_field`.
 ///
-/// The initial structure is the one stored in the variable `struct_var`
-/// (`struct_var` is actually an index within `vars_stack`, so, the structure is
-/// stored in `vars_stack[struct_var]`). If `struct_var` is -1 the initial
-/// structure will be the current structure (`ScanContext.current_struct`), or
-/// the root structure (`ScanContext.root_struct`) as a last resort.
+/// The initial structure is the one passed in the `structure` argument, or the
+/// the root structure if this argument is `None`.
 ///
 /// The sequence of indexes is stored in WASM main memory, starting at
 /// `LOOKUP_INDEXES_START`, and the number of indexes is indicated by the
 /// argument `num_lookup_indexes`.
 fn lookup_field(
     caller: &mut Caller<'_, ScanContext>,
+    structure: Option<Rc<Struct>>,
     num_lookup_indexes: i32,
-    struct_var: i32,
-) -> TypeValue {
+) -> TypeValue /* TODO: make this a &TypeValue? */ {
+    assert!(num_lookup_indexes > 0);
+
     let mut store_ctx = caller.as_context_mut();
 
     let mem_ptr =
@@ -807,61 +878,41 @@ fn lookup_field(
         )
     };
 
-    let type_value = if !lookup_indexes.is_empty() {
-        let mut structure = if struct_var != -1 {
-            cast!(
-                &store_ctx.data().vars_stack[struct_var as usize],
-                TypeValue::Struct
-            )
-        } else if let Some(current_structure) =
-            &store_ctx.data().current_struct
-        {
-            current_structure.as_ref()
+    // If the passed structure is None, it means that we should start the
+    // at the root structure.
+    let mut structure =
+        structure.as_deref().unwrap_or(&store_ctx.data().root_struct);
+
+    let mut final_field = None;
+
+    for field_index in lookup_indexes {
+        // Integers in WASM memory are always stored as little-endian
+        // regardless of the endianness of the host platform. If we
+        // are in a big-endian platform the integers needs to be swapped
+        // for obtaining the original value.
+        let field_index = if cfg!(target_endian = "big") {
+            field_index.swap_bytes()
         } else {
-            &store_ctx.data().root_struct
+            *field_index
         };
 
-        let mut final_field = None;
+        let field = structure
+            .field_by_index(field_index as usize)
+            .unwrap_or_else(|| {
+                panic!(
+                    "expecting field with index {} in {:#?}",
+                    field_index, structure
+                )
+            });
 
-        for field_index in lookup_indexes {
-            // Integers in WASM memory are always stored as little-endian
-            // regardless of the endianness of the host platform. If we
-            // are in a big-endian platform the integers needs to be swapped
-            // for obtaining the original value.
-            let field_index = if cfg!(target_endian = "big") {
-                field_index.swap_bytes()
-            } else {
-                *field_index
-            };
+        final_field = Some(field);
 
-            let field = structure
-                .field_by_index(field_index as usize)
-                .unwrap_or_else(|| {
-                    panic!(
-                        "expecting field with index {} in {:#?}",
-                        field_index, structure
-                    )
-                });
-
-            final_field = Some(field);
-
-            if let TypeValue::Struct(s) = &field.type_value {
-                structure = s
-            }
+        if let TypeValue::Struct(s) = &field.type_value {
+            structure = s
         }
+    }
 
-        &final_field.unwrap().type_value
-    } else if struct_var != -1 {
-        &store_ctx.data().vars_stack[struct_var as usize]
-    } else {
-        unreachable!();
-    };
-
-    let type_value = type_value.clone();
-
-    caller.data_mut().current_struct = None;
-
-    type_value
+    final_field.unwrap().type_value.clone()
 }
 
 /// Lookup a field of string type and returns its value.
@@ -869,17 +920,13 @@ fn lookup_field(
 /// See [`lookup_field`].
 #[wasm_export]
 pub(crate) fn lookup_string(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
+    structure: Option<Rc<Struct>>,
     num_lookup_indexes: i32,
-    struct_var: i32,
 ) -> Option<RuntimeString> {
-    match lookup_field(&mut caller, num_lookup_indexes, struct_var) {
-        TypeValue::String(Value::Var(value)) => Some(RuntimeString::Owned(
-            caller.data_mut().string_pool.get_or_intern(value),
-        )),
-        TypeValue::String(Value::Const(value)) => Some(RuntimeString::Owned(
-            caller.data_mut().string_pool.get_or_intern(value),
-        )),
+    match lookup_field(caller, structure, num_lookup_indexes) {
+        TypeValue::String(Value::Var(s)) => Some(RuntimeString::Rc(s)),
+        TypeValue::String(Value::Const(s)) => Some(RuntimeString::Rc(s)),
         TypeValue::String(Value::Unknown) => None,
         _ => unreachable!(),
     }
@@ -889,33 +936,31 @@ pub(crate) fn lookup_string(
 ///
 /// See [`lookup_field`].
 #[wasm_export]
-pub(crate) fn lookup_value(
-    mut caller: Caller<'_, ScanContext>,
+pub(crate) fn lookup_object(
+    caller: &mut Caller<'_, ScanContext>,
+    structure: Option<Rc<Struct>>,
     num_lookup_indexes: i32,
-    struct_var: i32,
-    dst_var: i32,
-) {
-    let type_value = lookup_field(&mut caller, num_lookup_indexes, struct_var);
-    let index = dst_var as usize;
-    let vars = &mut caller.data_mut().vars_stack;
-
-    if vars.len() <= index {
-        vars.resize(index + 1, TypeValue::Unknown);
+) -> RuntimeObjectHandle {
+    let type_value = lookup_field(caller, structure, num_lookup_indexes);
+    let ctx = caller.data_mut();
+    match type_value {
+        TypeValue::Struct(s) => ctx.store_struct(s),
+        TypeValue::Array(a) => ctx.store_array(a),
+        TypeValue::Map(m) => ctx.store_map(m),
+        _ => unreachable!(),
     }
-
-    vars[index] = type_value;
 }
 
 macro_rules! gen_lookup_fn {
     ($name:ident, $return_type:ty, $type:path) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
+            structure: Option<Rc<Struct>>,
             num_lookup_indexes: i32,
-            struct_var: i32,
         ) -> Option<$return_type> {
             if let $type(value) =
-                lookup_field(&mut caller, num_lookup_indexes, struct_var)
+                lookup_field(caller, structure, num_lookup_indexes)
             {
                 value.extract().cloned()
             } else {
@@ -933,16 +978,11 @@ macro_rules! gen_array_indexing_fn {
     ($name:ident, $fn:ident, $return_type:ty) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            _: &mut Caller<'_, ScanContext>,
+            array: Rc<Array>,
             index: i64,
-            num_lookup_indexes: i32,
-            struct_var: i32,
         ) -> Option<$return_type> {
-            lookup_field(&mut caller, num_lookup_indexes, struct_var)
-                .as_array()
-                .$fn()
-                .get(index as usize)
-                .map(|value| *value as $return_type)
+            array.$fn().get(index as usize).map(|value| *value)
         }
     };
 }
@@ -954,44 +994,27 @@ gen_array_indexing_fn!(array_indexing_bool, as_bool_array, bool);
 #[wasm_export]
 #[rustfmt::skip]
 pub(crate) fn array_indexing_string(
-    mut caller: Caller<'_, ScanContext>,
+    _: &mut Caller<'_, ScanContext>,
+    array: Rc<Array>,
     index: i64,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-) -> Option<RuntimeString> {
-    lookup_field(&mut caller, num_lookup_indexes,struct_var )
-        .as_array()
+) -> Option<Rc<BString>> {
+    array
         .as_string_array()
         .get(index as usize)
-        .map(|s| {
-            RuntimeString::from_bytes(caller.data_mut(), s.as_bstr())
-        })
+        .cloned()
 }
 
 #[wasm_export]
 #[rustfmt::skip]
 pub(crate) fn array_indexing_struct(
-    mut caller: Caller<'_, ScanContext>,
+    _: &mut Caller<'_, ScanContext>,
+    array: Rc<Array>,
     index: i64,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-    dst_var: i32,
-) -> Option<()> {
-    lookup_field(&mut caller, num_lookup_indexes,struct_var )
-        .as_array()
+) -> Option<Rc<Struct>> { 
+    array
         .as_struct_array()
         .get(index as usize)
-        .map(|s| {
-            if dst_var != -1 {
-                let index = dst_var as usize;
-                let vars = &mut caller.data_mut().vars_stack;
-                if vars.len() <= index {
-                    vars.resize(index + 1, TypeValue::Unknown);
-                }
-                vars[index] = TypeValue::Struct(s.clone());
-            }
-            caller.data_mut().current_struct = Some(s.clone());
-        })
+        .cloned()
 }
 
 macro_rules! gen_map_lookup_fn {
@@ -1034,28 +1057,20 @@ macro_rules! gen_map_lookup_fn {
     ($name:ident, i64, $return_type:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            _: &mut Caller<'_, ScanContext>,
+            map: Rc<Map>,
             key: i64,
-            num_lookup_indexes: i32,
-            struct_var: i32,
         ) -> Option<$return_type> {
-            let map =
-                lookup_field(&mut caller, num_lookup_indexes, struct_var)
-                    .as_map();
             map.$with().get(&key).map(|v| v.$as())
         }
     };
     ($name:ident, RuntimeString, $return_type:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
+            map: Rc<Map>,
             key: RuntimeString,
-            num_lookup_indexes: i32,
-            struct_var: i32,
         ) -> Option<$return_type> {
-            let map =
-                lookup_field(&mut caller, num_lookup_indexes, struct_var)
-                    .as_map();
             let key = key.as_bstr(caller.data());
             map.$with().get(key).map(|v| v.$as())
         }
@@ -1106,93 +1121,67 @@ gen_map_lookup_fn!(
 
 #[wasm_export]
 pub(crate) fn map_lookup_integer_string(
-    mut caller: Caller<'_, ScanContext>,
+    _: &mut Caller<'_, ScanContext>,
+    map: Rc<Map>,
     key: i64,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-) -> Option<RuntimeString> {
-    lookup_field(&mut caller, num_lookup_indexes, struct_var)
-        .as_map()
-        .with_integer_keys()
-        .get(&key)
-        .map(|v| RuntimeString::from_bytes(caller.data_mut(), v.as_bstr()))
+) -> Option<Rc<BString>> {
+    map.with_integer_keys().get(&key).map(|s| s.as_string())
 }
 
 #[wasm_export]
 pub(crate) fn map_lookup_string_string(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
+    map: Rc<Map>,
     key: RuntimeString,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-) -> Option<RuntimeString> {
-    let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
+) -> Option<Rc<BString>> {
     let key = key.as_bstr(caller.data());
-    map.with_string_keys()
-        .get(key)
-        .map(|v| RuntimeString::from_bytes(caller.data_mut(), v.as_bstr()))
+    map.with_string_keys().get(key).map(|s| s.as_string())
 }
 
 #[wasm_export]
 pub(crate) fn map_lookup_integer_struct(
-    mut caller: Caller<'_, ScanContext>,
+    _: &mut Caller<'_, ScanContext>,
+    map: Rc<Map>,
     key: i64,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-) -> Option<()> {
-    lookup_field(&mut caller, num_lookup_indexes, struct_var)
-        .as_map()
-        .with_integer_keys()
-        .get(&key)
-        .map(|v| caller.data_mut().current_struct = Some(v.as_struct()))
+) -> Option<Rc<Struct>> {
+    map.with_integer_keys().get(&key).map(|v| v.as_struct())
 }
 
 #[wasm_export]
 pub(crate) fn map_lookup_string_struct(
-    mut caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
+    map: Rc<Map>,
     key: RuntimeString,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-) -> Option<()> {
-    let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
+) -> Option<Rc<Struct>> {
     let key = key.as_bstr(caller.data());
-    map.with_string_keys()
-        .get(key)
-        .map(|v| caller.data_mut().current_struct = Some(v.as_struct()))
+    map.with_string_keys().get(key).map(|v| v.as_struct())
 }
 
 macro_rules! gen_map_lookup_by_index_fn {
     ($name:ident, RuntimeString, $val:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            _: &mut Caller<'_, ScanContext>,
+            map: Rc<Map>,
             index: i64,
-            num_lookup_indexes: i32,
-            struct_var: i32,
-        ) -> (RuntimeString, $val) {
-            let map =
-                lookup_field(&mut caller, num_lookup_indexes, struct_var)
-                    .as_map();
-            let (key, value) = map.$with().get_index(index as usize).unwrap();
-            let key =
-                RuntimeString::from_bytes(caller.data_mut(), key.as_bstr());
-            (key, value.$as())
+        ) -> (Rc<BString>, $val) {
+            map.with_string_keys()
+                .get_index(index as usize)
+                .map(|(key, value)| (Rc::new(key.clone()), value.$as()))
+                .unwrap()
         }
     };
     ($name:ident, $key:ty, $val:ty, $with:ident, $as:ident) => {
         #[wasm_export]
         pub(crate) fn $name(
-            mut caller: Caller<'_, ScanContext>,
+            _: &mut Caller<'_, ScanContext>,
+            map: Rc<Map>,
             index: i64,
-            num_lookup_indexes: i32,
-            struct_var: i32,
         ) -> ($key, $val) {
-            let map =
-                lookup_field(&mut caller, num_lookup_indexes, struct_var)
-                    .as_map();
-            let (key, value) = map.$with().get_index(index as usize).unwrap();
-            (*key, value.$as())
+            map.$with()
+                .get_index(index as usize)
+                .map(|(key, value)| (*key, value.$as()))
+                .unwrap()
         }
     };
 }
@@ -1253,98 +1242,61 @@ gen_map_lookup_by_index_fn!(
 
 #[wasm_export]
 pub(crate) fn map_lookup_by_index_integer_string(
-    mut caller: Caller<'_, ScanContext>,
+    _: &mut Caller<'_, ScanContext>,
+    map: Rc<Map>,
     index: i64,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-) -> (i64, RuntimeString) {
-    let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
-    let (key, value) =
-        map.with_integer_keys().get_index(index as usize).unwrap();
-    let value = RuntimeString::from_bytes(caller.data_mut(), value.as_bstr());
-    (*key, value)
+) -> (i64, Rc<BString>) {
+    map.with_integer_keys()
+        .get_index(index as usize)
+        .map(|(key, value)| (*key, value.as_string()))
+        .unwrap()
 }
 
 #[wasm_export]
 pub(crate) fn map_lookup_by_index_string_string(
-    mut caller: Caller<'_, ScanContext>,
+    _: &mut Caller<'_, ScanContext>,
+    map: Rc<Map>,
     index: i64,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-) -> (RuntimeString, RuntimeString) {
-    let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
-    let (key, value) =
-        map.with_string_keys().get_index(index as usize).unwrap();
-    let key = RuntimeString::from_bytes(caller.data_mut(), key.as_bstr());
-    let value = RuntimeString::from_bytes(caller.data_mut(), value.as_bstr());
-    (key, value)
+) -> (Rc<BString>, Rc<BString>) {
+    map.with_string_keys()
+        .get_index(index as usize)
+        .map(|(key, value)| {
+            (Rc::new(key.as_bstr().to_owned()), value.as_string())
+        })
+        .unwrap()
 }
 
 #[wasm_export]
 pub(crate) fn map_lookup_by_index_integer_struct(
-    mut caller: Caller<'_, ScanContext>,
+    _: &mut Caller<'_, ScanContext>,
+    map: Rc<Map>,
     index: i64,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-    dst_var: i32,
-) -> i64 {
-    let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
-    let (key, value) =
-        map.with_integer_keys().get_index(index as usize).unwrap();
-
-    let value = value.as_struct();
-
-    if dst_var != -1 {
-        let index = dst_var as usize;
-        let vars = &mut caller.data_mut().vars_stack;
-        if vars.len() <= index {
-            vars.resize(index + 1, TypeValue::Unknown);
-        }
-        vars[index] = TypeValue::Struct(value.clone());
-    }
-
-    caller.data_mut().current_struct = Some(value);
-
-    *key
+) -> (i64, Rc<Struct>) {
+    map.with_integer_keys()
+        .get_index(index as usize)
+        .map(|(key, value)| (*key, value.as_struct()))
+        .unwrap()
 }
 
 #[wasm_export]
 pub(crate) fn map_lookup_by_index_string_struct(
-    mut caller: Caller<'_, ScanContext>,
+    _: &mut Caller<'_, ScanContext>,
+    map: Rc<Map>,
     index: i64,
-    num_lookup_indexes: i32,
-    struct_var: i32,
-    dst_var: i32,
-) -> RuntimeString {
-    let map =
-        lookup_field(&mut caller, num_lookup_indexes, struct_var).as_map();
-    let (key, value) =
-        map.with_string_keys().get_index(index as usize).unwrap();
-
-    let value = value.as_struct();
-
-    if dst_var != -1 {
-        let index = dst_var as usize;
-        let vars = &mut caller.data_mut().vars_stack;
-        if vars.len() <= index {
-            vars.resize(index + 1, TypeValue::Unknown);
-        }
-        vars[index] = TypeValue::Struct(value.clone());
-    }
-
-    caller.data_mut().current_struct = Some(value);
-
-    RuntimeString::from_bytes(caller.data_mut(), key.as_bstr())
+) -> (Rc<BString>, Rc<Struct>) {
+    map.with_string_keys()
+        .get_index(index as usize)
+        .map(|(key, value)| {
+            (Rc::new(key.as_bstr().to_owned()), value.as_struct())
+        })
+        .unwrap()
 }
 
 macro_rules! gen_str_cmp_fn {
     ($name:ident, $op:tt) => {
         #[wasm_export]
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             lhs: RuntimeString,
             rhs: RuntimeString,
         ) -> bool {
@@ -1364,7 +1316,7 @@ macro_rules! gen_str_op_fn {
     ($name:ident, $op:tt, $case_insensitive:literal) => {
         #[wasm_export]
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             lhs: RuntimeString,
             rhs: RuntimeString,
         ) -> bool {
@@ -1383,7 +1335,7 @@ gen_str_op_fn!(str_iequals, equals, true);
 
 #[wasm_export]
 pub(crate) fn str_len(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     s: RuntimeString,
 ) -> i64 {
     s.len(caller.data()) as i64
@@ -1391,7 +1343,7 @@ pub(crate) fn str_len(
 
 #[wasm_export]
 pub(crate) fn str_matches(
-    caller: Caller<'_, ScanContext>,
+    caller: &mut Caller<'_, ScanContext>,
     lhs: RuntimeString,
     rhs: RegexpId,
 ) -> bool {
@@ -1403,7 +1355,7 @@ macro_rules! gen_xint_fn {
     ($name:ident, $return_type:ty, $from_fn:ident) => {
         #[wasm_export(public = true)]
         pub(crate) fn $name(
-            caller: Caller<'_, ScanContext>,
+            caller: &mut Caller<'_, ScanContext>,
             offset: i64,
         ) -> Option<i64> {
             let offset = usize::try_from(offset).ok()?;
@@ -1433,47 +1385,3 @@ gen_xint_fn!(int32, i32, from_le_bytes);
 gen_xint_fn!(int8be, i8, from_be_bytes);
 gen_xint_fn!(int16be, i16, from_be_bytes);
 gen_xint_fn!(int32be, i32, from_be_bytes);
-
-#[cfg(test)]
-mod tests {
-    use crate::wasm::WasmResult;
-
-    #[test]
-    fn wasm_result_conversion() {
-        let w = 1_i64.values();
-        assert_eq!(w.len(), 1);
-        assert_eq!(w[0].get_i64(), 1);
-
-        let w = 1_i32.values();
-        assert_eq!(w.len(), 1);
-        assert_eq!(w[0].get_i32(), 1);
-
-        let w = Option::<i64>::Some(2).values();
-        assert_eq!(w.len(), 2);
-        assert_eq!(w[0].get_i64(), 2);
-        assert_eq!(w[1].get_i32(), 0);
-
-        let w = Option::<i64>::None.values();
-        assert_eq!(w.len(), 2);
-        assert_eq!(w[0].get_i64(), 0);
-        assert_eq!(w[1].get_i32(), 1);
-
-        let w = Option::<i32>::Some(2).values();
-        assert_eq!(w.len(), 2);
-        assert_eq!(w[0].get_i64(), 2);
-        assert_eq!(w[1].get_i32(), 0);
-
-        let w = Option::<i32>::None.values();
-        assert_eq!(w.len(), 2);
-        assert_eq!(w[0].get_i32(), 0);
-        assert_eq!(w[1].get_i32(), 1);
-
-        let w = Option::<()>::Some(()).values();
-        assert_eq!(w.len(), 1);
-        assert_eq!(w[0].get_i32(), 0);
-
-        let w = Option::<()>::None.values();
-        assert_eq!(w.len(), 1);
-        assert_eq!(w[0].get_i32(), 1);
-    }
-}

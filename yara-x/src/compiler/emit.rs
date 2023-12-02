@@ -23,6 +23,7 @@ use crate::compiler::ir::{
     Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, Quantifier,
 };
 use crate::compiler::{LiteralId, RegexpId, RuleId, Var, VarStackFrame};
+use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::SymbolKind;
 use crate::types::{Array, Func, Map, Type, TypeValue, Value};
@@ -194,10 +195,6 @@ pub(in crate::compiler) struct EmitContext<'a> {
     /// in the next field lookup operation. See [`emit::emit_lookup_common`]
     /// for details.
     pub(crate) lookup_stack: VecDeque<i32>,
-
-    /// The index of the host-side variable that contains the structure where
-    /// the lookup operation will be performed.
-    pub(crate) lookup_start: Option<Var>,
 }
 
 impl<'a> EmitContext<'a> {
@@ -313,7 +310,8 @@ fn emit_expr(
                 // already there.
                 let literal_id = ctx.lit_pool.get_or_intern(value.as_bstr());
 
-                instr.i64_const(RuntimeString::Literal(literal_id).as_wasm());
+                instr
+                    .i64_const(RuntimeString::Literal(literal_id).into_wasm());
             }
             TypeValue::Regexp(Some(regexp)) => {
                 let re_id = ctx.regexp_pool.get_or_intern(regexp.as_str());
@@ -340,47 +338,55 @@ fn emit_expr(
                     // zero or one at the top of the stack.
                     emit_check_for_rule_match(ctx, instr, *rule_id);
                 }
-                SymbolKind::WasmVar(var) => {
+                SymbolKind::Var(var) => {
                     // The symbol represents a variable in WASM memory,
                     // emit code for loading its value into the stack.
                     load_var(ctx, instr, *var);
                 }
-                SymbolKind::HostVar(var) => {
-                    // The symbol represents a host-side variable, so it must
-                    // be a structure, map or array.
-                    ctx.lookup_start = Some(*var);
-                }
                 SymbolKind::Func(func) => {
                     emit_func_call(ctx, instr, func);
                 }
-                SymbolKind::FieldIndex(index) => {
+                SymbolKind::Field(index, root) => {
                     ctx.lookup_stack.push_back((*index).try_into().unwrap());
 
                     match symbol.type_value() {
                         TypeValue::Integer(_) => {
-                            emit_lookup_integer(ctx, instr);
+                            emit_lookup_integer(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::Float(_) => {
-                            emit_lookup_float(ctx, instr);
+                            emit_lookup_float(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::Bool(_) => {
-                            emit_lookup_bool(ctx, instr);
+                            emit_lookup_bool(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::String(_) => {
-                            emit_lookup_string(ctx, instr);
+                            emit_lookup_string(ctx, instr, *root);
                             assert!(ctx.lookup_stack.is_empty());
                         }
-                        TypeValue::Struct(_)
-                        | TypeValue::Array(_)
-                        | TypeValue::Map(_) => {
-                            // Do nothing. For structs, arrays and maps pushing
-                            // the field index in `lookup_stack` is enough. We
-                            // don't need to emit a call for retrieving a value.
+                        TypeValue::Struct(_) => {
+                            emit_lookup_object(ctx, instr, *root);
+                            assert!(ctx.lookup_stack.is_empty());
+                        }
+                        TypeValue::Array(_) | TypeValue::Map(_) => {
+                            emit_lookup_object(ctx, instr, *root);
+                            assert!(ctx.lookup_stack.is_empty());
                         }
                         TypeValue::Func(func) => {
+                            // If the field doesn't belong to the root struct,
+                            // we have a handler for the struct object at the
+                            // top of the WASM stack. the handler is removed
+                            // from the stack because functions associated to
+                            // a structure don't to access the structure's
+                            // data. When we implement structure methods this
+                            // will change, as methods will need to access the
+                            // structure.
+                            if !*root {
+                                instr.drop();
+                            }
+
                             emit_func_call(ctx, instr, func);
                             ctx.lookup_stack.clear();
                         }
@@ -417,154 +423,15 @@ fn emit_expr(
             emit_pattern_length(ctx, instr, expr);
         }
 
-        Expr::FieldAccess { lhs, rhs } => {
-            emit_expr(ctx, instr, lhs);
-            emit_expr(ctx, instr, rhs);
+        Expr::FieldAccess { operands } => {
+            emit_field_access(ctx, instr, operands.as_mut());
         }
 
-        Expr::Defined { operand } => {
-            // The `defined` expression is emitted as:
-            //
-            //   try {
-            //     evaluate_operand()
-            //     true
-            //   } catch undefined {
-            //     false
-            //   }
-            //
-            catch_undef(ctx, instr, |ctx, instr| {
-                emit_bool_expr(ctx, instr, operand);
-                // Drop the operand's value as we are not interested in the
-                // value, we are interested only in whether it's defined or
-                // not.
-                instr.drop();
-                // Push a 1 in the stack indicating that the operand is
-                // defined. This point is not reached if the operand calls
-                // `throw_undef`.
-                instr.i32_const(1);
-            });
-        }
+        Expr::Defined { operand } => emit_defined(ctx, instr, operand),
+        Expr::Not { operand } => emit_not(ctx, instr, operand),
+        Expr::And { operands } => emit_and(ctx, instr, operands.as_mut()),
+        Expr::Or { operands } => emit_or(ctx, instr, operands.as_mut()),
 
-        Expr::Not { operand } => {
-            // The `not` expression is emitted as:
-            //
-            //   if (evaluate_operand()) {
-            //     false
-            //   } else {
-            //     true
-            //   }
-            //
-            emit_bool_expr(ctx, instr, operand);
-            instr.if_else(
-                I32,
-                |then| {
-                    then.i32_const(0);
-                },
-                |else_| {
-                    else_.i32_const(1);
-                },
-            );
-        }
-        Expr::And { operands } => {
-            // The `or` expression is emitted as:
-            //
-            // block {
-            //   try {
-            //     result = first_operand()
-            //   } catch undefined {
-            //     result = false
-            //   }
-            //   if !result {
-            //     push false
-            //     exit from block
-            //   }
-            //   try {
-            //     result = second_operand()
-            //   } catch undefined {
-            //     result = false
-            //   }
-            //   if !result {
-            //     push false
-            //     exit from block
-            //   }
-            //   ...
-            //   push true
-            // }
-            instr.block(
-                I32, // the block returns a bool
-                |block| {
-                    let block_id = block.id();
-                    for operand in operands {
-                        catch_undef(ctx, block, |ctx, instr| {
-                            emit_bool_expr(ctx, instr, operand);
-                        });
-                        // If the operand is `false`, exit from the block
-                        // with a `false` result.
-                        block.if_else(
-                            None,
-                            |_| {},
-                            |else_| {
-                                else_.i32_const(0);
-                                else_.br(block_id);
-                            },
-                        );
-                    }
-                    // If none of the operands was false, fallback to returning
-                    // true.
-                    block.i32_const(1);
-                },
-            );
-        }
-        Expr::Or { operands } => {
-            // The `or` expression is emitted as:
-            //
-            // block {
-            //   try {
-            //     result = first_operand()
-            //   } catch undefined {
-            //     result = false
-            //   }
-            //   if result {
-            //     push true
-            //     exit from block
-            //   }
-            //   try {
-            //     result = second_operand()
-            //   } catch undefined {
-            //     result = false
-            //   }
-            //   if result {
-            //     push true
-            //     exit from block
-            //   }
-            //   ...
-            //   push false
-            // }
-            instr.block(
-                I32, // the block returns a bool
-                |block| {
-                    let block_id = block.id();
-                    for operand in operands {
-                        catch_undef(ctx, block, |ctx, instr| {
-                            emit_bool_expr(ctx, instr, operand);
-                        });
-                        // If the operand is `true`, exit from the block
-                        // with a `true` result.
-                        block.if_else(
-                            None,
-                            |then_| {
-                                then_.i32_const(1);
-                                then_.br(block_id);
-                            },
-                            |_| {},
-                        );
-                    }
-                    // If none of the operands was true, fallback to returning
-                    // false.
-                    block.i32_const(0);
-                },
-            );
-        }
         Expr::Minus { operand } => {
             match operand.ty() {
                 Type::Float => {
@@ -597,49 +464,8 @@ fn emit_expr(
         Expr::Mul { operands } => {
             emit_arithmetic_op!(ctx, instr, operands, I64Mul, F64Mul);
         }
-        Expr::Div { operands } => {
-            let mut operands = operands.iter_mut();
-            let first_operand = operands.next().unwrap();
-            let mut is_float = matches!(first_operand.ty(), Type::Float);
-
-            emit_expr(ctx, instr, first_operand);
-
-            for operand in operands {
-                // The previous operand is not float but this one is float,
-                // we must convert the previous operand to float
-                if !is_float && matches!(operand.ty(), Type::Float) {
-                    instr.unop(UnaryOp::F64ConvertSI64);
-                    is_float = true;
-                }
-
-                emit_expr(ctx, instr, operand);
-
-                if is_float && matches!(operand.ty(), Type::Integer) {
-                    instr.unop(UnaryOp::F64ConvertSI64);
-                }
-
-                if is_float {
-                    instr.binop(BinaryOp::F64Div);
-                } else {
-                    // In integer division make sure that the divisor is not
-                    // zero, if that's the case the result is undefined.
-                    throw_undef_if_zero(ctx, instr);
-                    instr.binop(BinaryOp::I64DivS);
-                }
-            }
-        }
-        Expr::Mod { operands } => {
-            let mut operands = operands.iter_mut();
-            let first_operand = operands.next().unwrap();
-
-            emit_expr(ctx, instr, first_operand);
-
-            for operand in operands {
-                emit_expr(ctx, instr, operand);
-                throw_undef_if_zero(ctx, instr);
-                instr.binop(BinaryOp::I64RemS);
-            }
-        }
+        Expr::Div { operands } => emit_div(ctx, instr, operands.as_mut()),
+        Expr::Mod { operands } => emit_mod(ctx, instr, operands.as_mut()),
         Expr::Shl { lhs, rhs } => {
             emit_shift_op!(ctx, instr, lhs, rhs, I64Shl);
         }
@@ -770,23 +596,18 @@ fn emit_expr(
         }
 
         Expr::Lookup(lookup) => {
+            // Emit code for the primary expression (array or map) that is
+            // being indexed.
+            emit_expr(ctx, instr, &mut lookup.primary);
             // Emit the code for the index expression, which leaves the
             // index in the stack.
             emit_expr(ctx, instr, &mut lookup.index);
-            // Emit code for the primary expression (array or map) that is
-            // being indexed.
-            //
-            // Notice that the index expression must be emitted before the
-            // primary expression because the former may need to modify
-            // `lookup_stack`, and we don't want to alter `lookup_stack`
-            // until `emit_array_indexing` or `emit_map_lookup` is called.
-            emit_expr(ctx, instr, &mut lookup.primary);
             // Emit a call instruction to the corresponding function, which
             // depends on the type of the primary expression (array or map)
             // and the type of the index expression.
             match lookup.primary.type_value() {
                 TypeValue::Array(array) => {
-                    emit_array_indexing(ctx, instr, &array, None);
+                    emit_array_indexing(ctx, instr, &array);
                 }
                 TypeValue::Map(map) => {
                     emit_map_lookup(ctx, instr, &map);
@@ -834,6 +655,237 @@ fn emit_expr(
 
             ctx.current_signature = previous;
         }
+    }
+}
+
+/// Emits the code for `defined` operations.
+fn emit_defined(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operand: &mut Expr,
+) {
+    // The `defined` expression is emitted as:
+    //
+    //   try {
+    //     evaluate_operand()
+    //     true
+    //   } catch undefined {
+    //     false
+    //   }
+    //
+    catch_undef(ctx, instr, |ctx, instr| {
+        emit_bool_expr(ctx, instr, operand);
+        // Drop the operand's value as we are not interested in the
+        // value, we are interested only in whether it's defined or
+        // not.
+        instr.drop();
+        // Push a 1 in the stack indicating that the operand is
+        // defined. This point is not reached if the operand calls
+        // `throw_undef`.
+        instr.i32_const(1);
+    });
+}
+
+/// Emits the code for `not` operations.
+fn emit_not(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operand: &mut Expr,
+) {
+    // The `not` expression is emitted as:
+    //
+    //   if (evaluate_operand()) {
+    //     false
+    //   } else {
+    //     true
+    //   }
+    //
+    emit_bool_expr(ctx, instr, operand);
+    instr.if_else(
+        I32,
+        |then| {
+            then.i32_const(0);
+        },
+        |else_| {
+            else_.i32_const(1);
+        },
+    );
+}
+
+/// Emits the code for `and` operations.
+fn emit_and(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    // The `or` expression is emitted as:
+    //
+    // block {
+    //   try {
+    //     result = first_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   if !result {
+    //     push false
+    //     exit from block
+    //   }
+    //   try {
+    //     result = second_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   if !result {
+    //     push false
+    //     exit from block
+    //   }
+    //   ...
+    //   push true
+    // }
+    instr.block(
+        I32, // the block returns a bool
+        |block| {
+            let block_id = block.id();
+            for operand in operands {
+                catch_undef(ctx, block, |ctx, instr| {
+                    emit_bool_expr(ctx, instr, operand);
+                });
+                // If the operand is `false`, exit from the block
+                // with a `false` result.
+                block.if_else(
+                    None,
+                    |_| {},
+                    |else_| {
+                        else_.i32_const(0);
+                        else_.br(block_id);
+                    },
+                );
+            }
+            // If none of the operands was false, fallback to returning
+            // true.
+            block.i32_const(1);
+        },
+    );
+}
+
+/// Emits the code for `or` operations.
+fn emit_or(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    // The `or` expression is emitted as:
+    //
+    // block {
+    //   try {
+    //     result = first_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   if result {
+    //     push true
+    //     exit from block
+    //   }
+    //   try {
+    //     result = second_operand()
+    //   } catch undefined {
+    //     result = false
+    //   }
+    //   if result {
+    //     push true
+    //     exit from block
+    //   }
+    //   ...
+    //   push false
+    // }
+    instr.block(
+        I32, // the block returns a bool
+        |block| {
+            let block_id = block.id();
+            for operand in operands {
+                catch_undef(ctx, block, |ctx, instr| {
+                    emit_bool_expr(ctx, instr, operand);
+                });
+                // If the operand is `true`, exit from the block
+                // with a `true` result.
+                block.if_else(
+                    None,
+                    |then_| {
+                        then_.i32_const(1);
+                        then_.br(block_id);
+                    },
+                    |_| {},
+                );
+            }
+            // If none of the operands was true, fallback to returning
+            // false.
+            block.i32_const(0);
+        },
+    );
+}
+
+/// Emits the code for `div` operations.
+fn emit_div(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    let mut operands = operands.iter_mut();
+    let first_operand = operands.next().unwrap();
+    let mut is_float = matches!(first_operand.ty(), Type::Float);
+
+    emit_expr(ctx, instr, first_operand);
+
+    for operand in operands {
+        // The previous operand is not float but this one is float,
+        // we must convert the previous operand to float
+        if !is_float && matches!(operand.ty(), Type::Float) {
+            instr.unop(UnaryOp::F64ConvertSI64);
+            is_float = true;
+        }
+
+        emit_expr(ctx, instr, operand);
+
+        if is_float && matches!(operand.ty(), Type::Integer) {
+            instr.unop(UnaryOp::F64ConvertSI64);
+        }
+
+        if is_float {
+            instr.binop(BinaryOp::F64Div);
+        } else {
+            // In integer division make sure that the divisor is not
+            // zero, if that's the case the result is undefined.
+            throw_undef_if_zero(ctx, instr);
+            instr.binop(BinaryOp::I64DivS);
+        }
+    }
+}
+
+/// Emits the code for `mod` operations.
+fn emit_mod(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    let mut operands = operands.iter_mut();
+    let first_operand = operands.next().unwrap();
+
+    emit_expr(ctx, instr, first_operand);
+
+    for operand in operands {
+        emit_expr(ctx, instr, operand);
+        throw_undef_if_zero(ctx, instr);
+        instr.binop(BinaryOp::I64RemS);
+    }
+}
+
+fn emit_field_access(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    operands: &mut [Expr],
+) {
+    for operand in operands {
+        emit_expr(ctx, instr, operand);
     }
 }
 
@@ -892,7 +944,7 @@ fn emit_pattern_match(
         }
         // When the pattern ID is not known, the ID is taken from a variable.
         Expr::PatternMatchVar { symbol, anchor } => {
-            if let SymbolKind::WasmVar(var) = symbol.kind() {
+            if let SymbolKind::Var(var) = symbol.kind() {
                 load_var(ctx, instr, *var);
                 // load_var returns an I64, convert it to I32 because
                 // PatternId is an I32.
@@ -945,7 +997,7 @@ fn emit_pattern_count(
         }
         Expr::PatternCountVar { symbol, range } => {
             match symbol.kind() {
-                SymbolKind::WasmVar(var) => {
+                SymbolKind::Var(var) => {
                     load_var(ctx, instr, *var);
                     // load_var returns a I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);
@@ -989,7 +1041,7 @@ fn emit_pattern_offset(
         }
         Expr::PatternOffsetVar { symbol, index } => {
             match symbol.kind() {
-                SymbolKind::WasmVar(var) => {
+                SymbolKind::Var(var) => {
                     load_var(ctx, instr, *var);
                     // load_var returns a I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);
@@ -1037,7 +1089,7 @@ fn emit_pattern_length(
         }
         Expr::PatternLengthVar { symbol, index } => {
             match symbol.kind() {
-                SymbolKind::WasmVar(var) => {
+                SymbolKind::Var(var) => {
                     load_var(ctx, instr, *var);
                     // load_var returns a I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);
@@ -1169,51 +1221,17 @@ fn emit_check_for_pattern_match(
 /// This function must be called right after emitting the code that leaves the
 /// the index in the stack. The code emitted by this function assumes that the
 /// top of the stack is an i64 with the index.
-///
-/// The `var` argument only has effect when the array contains structs. If this
-/// argument is not `None`, it indicates the host-side variable where the
-/// resulting structure will be stored.
-///
-/// # Panics
-///
-/// If the `var` argument is not `None` for arrays that don't contain structs.
 fn emit_array_indexing(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     array: &Rc<Array>,
-    dst_var: Option<Var>,
 ) {
-    // Emit the code that fills the `lookup_stack` in WASM memory.
-    emit_lookup_common(ctx, instr);
-
     let func = match array.as_ref() {
-        Array::Integers(_) => {
-            assert!(dst_var.is_none());
-            &wasm::export__array_indexing_integer
-        }
-        Array::Floats(_) => {
-            assert!(dst_var.is_none());
-            &wasm::export__array_indexing_float
-        }
-        Array::Bools(_) => {
-            assert!(dst_var.is_none());
-            &wasm::export__array_indexing_bool
-        }
-        Array::Strings(_) => {
-            assert!(dst_var.is_none());
-            &wasm::export__array_indexing_string
-        }
-        Array::Structs(_) => {
-            // Push the index of the host-side variable where the structure
-            // will be stored. If `var` is None pushes -1 which will be
-            // ignored by the host-side function that performs the lookup.
-            if let Some(var) = dst_var {
-                instr.i32_const(var.index);
-            } else {
-                instr.i32_const(-1);
-            }
-            &wasm::export__array_indexing_struct
-        }
+        Array::Integers(_) => &wasm::export__array_indexing_integer,
+        Array::Floats(_) => &wasm::export__array_indexing_float,
+        Array::Bools(_) => &wasm::export__array_indexing_bool,
+        Array::Strings(_) => &wasm::export__array_indexing_string,
+        Array::Structs(_) => &wasm::export__array_indexing_struct,
     };
 
     emit_call_and_handle_undef(ctx, instr, ctx.function_id(func.mangled_name));
@@ -1236,42 +1254,26 @@ fn emit_map_lookup_by_index(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     map: &Rc<Map>,
-    dst_var: Option<Var>,
 ) {
-    // Emit the code that fills the `lookup_stack` in WASM memory.
-    emit_lookup_common(ctx, instr);
-
     let func = match map.as_ref() {
         Map::IntegerKeys { deputy, .. } => {
             match deputy.as_ref().unwrap().ty() {
                 Type::Integer => {
-                    assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_integer_integer
                         .mangled_name
                 }
                 Type::String => {
-                    assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_integer_string
                         .mangled_name
                 }
                 Type::Float => {
-                    assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_integer_float
                         .mangled_name
                 }
                 Type::Bool => {
-                    assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_integer_bool.mangled_name
                 }
                 Type::Struct => {
-                    // Push the index of the host-side variable where the structure
-                    // will be stored. If `var` is None pushes -1 which will be
-                    // ignored by the host-side function that performs the lookup.
-                    if let Some(var) = dst_var {
-                        instr.i32_const(var.index);
-                    } else {
-                        instr.i32_const(-1);
-                    }
                     wasm::export__map_lookup_by_index_integer_struct
                         .mangled_name
                 }
@@ -1281,31 +1283,20 @@ fn emit_map_lookup_by_index(
         Map::StringKeys { deputy, .. } => {
             match deputy.as_ref().unwrap().ty() {
                 Type::Integer => {
-                    assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_string_integer
                         .mangled_name
                 }
                 Type::String => {
-                    assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_string_string
                         .mangled_name
                 }
                 Type::Float => {
-                    assert!(dst_var.is_none());
                     wasm::export__map_lookup_by_index_string_float.mangled_name
                 }
                 Type::Bool => {
                     wasm::export__map_lookup_by_index_string_bool.mangled_name
                 }
                 Type::Struct => {
-                    // Push the index of the host-side variable where the structure
-                    // will be stored. If `var` is None pushes -1 which will be
-                    // ignored by the host-side function that performs the lookup.
-                    if let Some(var) = dst_var {
-                        instr.i32_const(var.index);
-                    } else {
-                        instr.i32_const(-1);
-                    }
                     wasm::export__map_lookup_by_index_string_struct
                         .mangled_name
                 }
@@ -1337,8 +1328,6 @@ fn emit_map_integer_key_lookup(
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
-    emit_lookup_common(ctx, instr);
-
     let func = match map_value.ty() {
         Type::Integer => &wasm::export__map_lookup_integer_integer,
         Type::Float => &wasm::export__map_lookup_integer_float,
@@ -1356,9 +1345,6 @@ fn emit_map_string_key_lookup(
     instr: &mut InstrSeqBuilder,
     map_value: &TypeValue,
 ) {
-    emit_lookup_common(ctx, instr);
-
-    // Generate the call depending on the type of the map values.
     let func = match map_value.ty() {
         Type::Integer => &wasm::export__map_lookup_string_integer,
         Type::Float => &wasm::export__map_lookup_string_float,
@@ -1629,18 +1615,15 @@ fn emit_for_in_array(
     // The only variable contains the loop's next item.
     let next_item = for_in.variables[0];
 
-    // When values in the array are structs, `next_item` is a host-side
-    // variable. For every other type it is a WASM-side variable.
-    let wasm_side_next_item = !matches!(next_item.ty, Type::Struct);
-
-    // Emit the expression that lookup the array.
-    emit_expr(ctx, instr, expr);
-
-    // Create a variable that will hold a reference to the array being
-    // iterated.
+    // Create a variable `array_var`that will hold a reference to the array
+    // being iterated.
     let array_var = for_in.stack_frame.new_var(Type::Array);
 
-    emit_lookup_value(ctx, instr, array_var);
+    // Emit the expression that returns the array and stores a reference to
+    // it in `array_var`.
+    set_var(ctx, instr, array_var, |ctx, instr| {
+        emit_expr(ctx, instr, expr);
+    });
 
     emit_for(
         ctx,
@@ -1650,7 +1633,7 @@ fn emit_for_in_array(
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the array's length.
             set_var(ctx, instr, n, |ctx, instr| {
-                instr.i32_const(array_var.index);
+                load_var(ctx, instr, array_var);
                 instr.call(
                     ctx.function_id(wasm::export__array_len.mangled_name),
                 );
@@ -1671,23 +1654,13 @@ fn emit_for_in_array(
         },
         // Before each iteration.
         |ctx, instr, i| {
-            // The next lookup operation starts at the local variable
-            // `array_var`.
-            ctx.lookup_start = Some(array_var);
-
-            if wasm_side_next_item {
-                // Get the i-th item in the array and store it in the
-                // WASM-side local variable `next_item`.
-                set_var(ctx, instr, next_item, |ctx, instr| {
-                    load_var(ctx, instr, i);
-                    emit_array_indexing(ctx, instr, &array, None);
-                });
-            } else {
-                // Get the i-th item in the array and store it in the
-                // host-side local variable `next_item`.
+            // Get the i-th item in the array and store it in the
+            // local variable `next_item`.
+            set_var(ctx, instr, next_item, |ctx, instr| {
+                load_var(ctx, instr, array_var);
                 load_var(ctx, instr, i);
-                emit_array_indexing(ctx, instr, &array, Some(next_item));
-            }
+                emit_array_indexing(ctx, instr, &array);
+            });
         },
         |ctx, instr| {
             emit_bool_expr(ctx, instr, &mut for_in.condition);
@@ -1712,16 +1685,13 @@ fn emit_for_in_map(
     let next_key = for_in.variables[0];
     let next_val = for_in.variables[1];
 
-    // When values in the map are structs, `next_val` is a host-side variable.
-    // For every other type it is a WASM-side variable.
-    let wasm_side_next_val = !matches!(next_val.ty, Type::Struct);
-
-    // Emit the expression that returns the map.
-    emit_expr(ctx, instr, expr);
-
     let map_var = for_in.stack_frame.new_var(Type::Map);
 
-    emit_lookup_value(ctx, instr, map_var);
+    // Emit the expression that returns the map and stores a reference to
+    // it in `map_var`.
+    set_var(ctx, instr, map_var, |ctx, instr| {
+        emit_expr(ctx, instr, expr);
+    });
 
     emit_for(
         ctx,
@@ -1731,7 +1701,7 @@ fn emit_for_in_map(
         |ctx, instr, n, loop_end| {
             // Initialize `n` to the map's length.
             set_var(ctx, instr, n, |ctx, instr| {
-                instr.i32_const(map_var.index);
+                load_var(ctx, instr, map_var);
                 instr
                     .call(ctx.function_id(wasm::export__map_len.mangled_name));
             });
@@ -1751,25 +1721,11 @@ fn emit_for_in_map(
         },
         // Before each iteration.
         |ctx, instr, i| {
-            // The next lookup operation starts at the local variable
-            // `map_var`.
-            ctx.lookup_start = Some(map_var);
-
-            // If `next_val` is a WASM-side variable, its value will be returned
-            // by the lookup function, and the WASM code must put it into the
-            // WASM-side variable. If not, it's a host-side variable that
-            // will be set directly by the lookup function.
-            if wasm_side_next_val {
-                set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
-                    load_var(ctx, instr, i);
-                    emit_map_lookup_by_index(ctx, instr, &map, None);
-                });
-            } else {
-                set_var(ctx, instr, next_key, |ctx, instr| {
-                    load_var(ctx, instr, i);
-                    emit_map_lookup_by_index(ctx, instr, &map, Some(next_val));
-                });
-            }
+            set_vars(ctx, instr, &[next_key, next_val], |ctx, instr| {
+                load_var(ctx, instr, map_var);
+                load_var(ctx, instr, i);
+                emit_map_lookup_by_index(ctx, instr, &map);
+            });
         },
         // Condition.
         |ctx, instr| {
@@ -2247,9 +2203,11 @@ fn set_var<B>(
     let (store_kind, alignment) = match var.ty {
         Type::Bool => (StoreKind::I32 { atomic: false }, size_of::<i32>()),
         Type::Float => (StoreKind::F64, size_of::<f64>()),
-        Type::Integer | Type::String | Type::Struct => {
-            (StoreKind::I64 { atomic: false }, size_of::<i64>())
-        }
+        Type::Integer
+        | Type::String
+        | Type::Struct
+        | Type::Array
+        | Type::Map => (StoreKind::I64 { atomic: false }, size_of::<i64>()),
         _ => unreachable!(),
     };
 
@@ -2301,7 +2259,11 @@ fn set_vars<B>(
                     MemArg { align: size_of::<i32>() as u32, offset: 0 },
                 );
             }
-            Type::Integer | Type::String => {
+            Type::Integer
+            | Type::String
+            | Type::Struct
+            | Type::Array
+            | Type::Map => {
                 instr.local_set(ctx.wasm_symbols.i64_tmp);
                 instr.i32_const(var.index * size_of::<i64>() as i32);
                 instr.local_get(ctx.wasm_symbols.i64_tmp);
@@ -2336,9 +2298,11 @@ fn load_var(ctx: &EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     let (load_kind, alignment) = match var.ty {
         Type::Bool => (LoadKind::I32 { atomic: false }, size_of::<i32>()),
         Type::Float => (LoadKind::F64, size_of::<i64>()),
-        Type::Integer | Type::String | Type::Struct => {
-            (LoadKind::I64 { atomic: false }, size_of::<i64>())
-        }
+        Type::Integer
+        | Type::String
+        | Type::Struct
+        | Type::Array
+        | Type::Map => (LoadKind::I64 { atomic: false }, size_of::<i64>()),
         _ => unreachable!(),
     };
 
@@ -2495,9 +2459,21 @@ fn emit_call_and_handle_undef(
 /// the starting point of the lookup operation. If the pushed value is -1
 /// it will start the lookup operation in the current structure, if any, or
 /// in the root structure as a last resort.
-fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
+fn emit_lookup_common(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
     let num_lookup_indexes = ctx.lookup_stack.len();
     let main_memory = ctx.wasm_symbols.main_memory;
+
+    // At the top of the stack we have the object handler for
+    // the structure containing the field identified by `index`
+    // except when the field belongs to the root structure, in
+    // which case we must push a null reference
+    if root {
+        instr.i64_const(RuntimeObjectHandle::NULL.into());
+    }
 
     for (i, field_index) in ctx.lookup_stack.drain(0..).enumerate() {
         let offset = (i * size_of::<i32>()) as i32;
@@ -2521,17 +2497,15 @@ fn emit_lookup_common(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     }
 
     instr.i32_const(num_lookup_indexes as i32);
-
-    if let Some(start) = ctx.lookup_start.take() {
-        instr.i32_const(start.index);
-    } else {
-        instr.i32_const(-1);
-    }
 }
 
 #[inline]
-fn emit_lookup_integer(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_integer(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -2540,8 +2514,12 @@ fn emit_lookup_integer(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_float(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_float(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -2550,8 +2528,12 @@ fn emit_lookup_float(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_bool(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_bool(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -2560,8 +2542,12 @@ fn emit_lookup_bool(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_string(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
-    emit_lookup_common(ctx, instr);
+fn emit_lookup_string(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    root: bool,
+) {
+    emit_lookup_common(ctx, instr, root);
     emit_call_and_handle_undef(
         ctx,
         instr,
@@ -2570,14 +2556,13 @@ fn emit_lookup_string(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 }
 
 #[inline]
-fn emit_lookup_value(
+fn emit_lookup_object(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    dst_var: Var,
+    root: bool,
 ) {
-    emit_lookup_common(ctx, instr);
-    instr.i32_const(dst_var.index);
-    instr.call(ctx.function_id(wasm::export__lookup_value.mangled_name));
+    emit_lookup_common(ctx, instr, root);
+    instr.call(ctx.function_id(wasm::export__lookup_object.mangled_name));
 }
 
 /// Emits code for catching exceptions caused by undefined values.

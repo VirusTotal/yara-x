@@ -1,8 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
-use bstr::ByteSlice;
-use bstr::{BStr, BString};
+use bstr::BString;
 use serde::{Deserialize, Serialize};
 use walrus::ValType;
 
@@ -161,7 +160,7 @@ pub enum TypeValue {
     Integer(Value<i64>),
     Float(Value<f64>),
     Bool(Value<bool>),
-    String(Value<BString>),
+    String(Value<Rc<BString>>),
     Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
     Array(Rc<Array>),
@@ -278,14 +277,15 @@ impl TypeValue {
         }
     }
 
-    pub fn as_bstr(&self) -> &BStr {
-        if let TypeValue::String(v) = self {
-            v.extract()
+    pub fn as_string(&self) -> Rc<BString> {
+        if let TypeValue::String(value) = self {
+            value
+                .extract()
+                .cloned()
                 .expect("TypeValue doesn't have an associated value")
-                .as_bstr()
         } else {
             panic!(
-                "called `as_bstr` on a TypeValue that is not TypeValue::String, it is: {:?}",
+                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {:?}",
                 self
             )
         }
@@ -391,6 +391,54 @@ impl TypeValue {
         } else {
             None
         }
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable integer.
+    #[inline]
+    pub fn var_integer_from<T: Into<i64>>(i: T) -> Self {
+        Self::Integer(Value::Var(i.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable float.
+    #[inline]
+    pub fn var_float_from<T: Into<f64>>(f: T) -> Self {
+        Self::Float(Value::Var(f.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable boolean.
+    #[inline]
+    pub fn var_bool_from(i: bool) -> Self {
+        Self::Bool(Value::Var(i))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable string.
+    #[inline]
+    pub fn var_string_from<T: AsRef<[u8]>>(s: T) -> Self {
+        Self::String(Value::Var(BString::from(s.as_ref()).into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant integer.
+    #[inline]
+    pub fn const_integer_from<T: Into<i64>>(i: T) -> Self {
+        Self::Integer(Value::Const(i.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant float.
+    #[inline]
+    pub fn const_float_from<T: Into<f64>>(f: T) -> Self {
+        Self::Float(Value::Const(f.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant boolean.
+    #[inline]
+    pub fn const_bool_from(i: bool) -> Self {
+        Self::Bool(Value::Const(i))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant string.
+    #[inline]
+    pub fn const_string_from<T: AsRef<[u8]>>(s: T) -> Self {
+        Self::String(Value::Const(BString::from(s.as_ref()).into()))
     }
 }
 

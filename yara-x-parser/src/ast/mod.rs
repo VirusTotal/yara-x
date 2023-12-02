@@ -465,7 +465,7 @@ pub enum Expr<'src> {
     Lookup(Box<Lookup<'src>>),
 
     /// A field lookup expression (e.g. `foo.bar`)
-    FieldAccess(Box<BinaryExpr<'src>>),
+    FieldAccess(Box<NAryExpr<'src>>),
 
     /// A function call expression (e.g. `foo()`, `bar(1,2)`)
     FuncCall(Box<FuncCall<'src>>),
@@ -791,6 +791,12 @@ impl<'src> NAryExpr<'src> {
     #[inline]
     pub fn as_slice(&self) -> &[Expr<'src>] {
         self.operands.as_slice()
+    }
+}
+
+impl<'src> From<Vec<Expr<'src>>> for NAryExpr<'src> {
+    fn from(value: Vec<Expr<'src>>) -> Self {
+        Self { operands: value }
     }
 }
 

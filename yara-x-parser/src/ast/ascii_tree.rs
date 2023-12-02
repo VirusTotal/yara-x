@@ -259,11 +259,8 @@ pub(crate) fn expr_ascii_tree(expr: &Expr) -> Tree {
             ],
         ),
         Expr::FieldAccess(expr) => Node(
-            "<struct>.<field>".to_string(),
-            vec![
-                Node("<struct>".to_string(), vec![expr_ascii_tree(&expr.lhs)]),
-                Node("<field>".to_string(), vec![expr_ascii_tree(&expr.rhs)]),
-            ],
+            "field access".to_string(),
+            expr.operands().map(expr_ascii_tree).collect(),
         ),
         Expr::FuncCall(expr) => {
             // Create a vector where each argument is accompanied by a label

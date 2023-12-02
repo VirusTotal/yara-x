@@ -138,6 +138,41 @@ fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
     Some(sum.into())
 }
 
+/// Returns the index in the section table of the first section with the given
+/// name.
+#[module_export(name = "section_index")]
+fn section_index_name(ctx: &ScanContext, name: RuntimeString) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
+    let name = name.as_bstr(ctx);
+
+    pe.sections
+        .iter()
+        .find_position(|section| {
+            section.name.as_deref().is_some_and(|n| n == name.as_bytes())
+        })
+        .map(|(index, _)| index as i64)
+}
+
+/// Returns the index in the section table of the first section that contains
+/// the given file offset.
+#[module_export(name = "section_index")]
+fn section_index_offset(ctx: &ScanContext, offset: i64) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
+    let offset: u32 = offset.try_into().ok()?;
+
+    pe.sections
+        .iter()
+        .find_position(|section| {
+            match (section.raw_data_offset, section.raw_data_size) {
+                (Some(section_offset), Some(section_size)) => (section_offset
+                    ..section_offset + section_size)
+                    .contains(&offset),
+                _ => false,
+            }
+        })
+        .map(|(index, _)| index as i64)
+}
+
 /// Returns the PE import hash.
 ///
 /// The import hash represents the MD5 checksum of the PE's import table

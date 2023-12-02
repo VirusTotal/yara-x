@@ -3328,10 +3328,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "tlsh"
-version = "0.1.0"
+name = "tlsh-fixed"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abc50ece64366799d89819a3a5ad910a860220439eefcffef9ca17720c89236e"
+checksum = "f762ca8308eda1e38512dc88a99f021e5214699ba133de157f588c8bfd0745c7"
 
 [[package]]
 name = "toml"
@@ -4270,7 +4270,7 @@ dependencies = [
  "sha2 0.10.8",
  "smallvec",
  "thiserror",
- "tlsh",
+ "tlsh-fixed",
  "uuid",
  "walrus",
  "wasmprinter",

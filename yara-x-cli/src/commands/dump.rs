@@ -4,13 +4,15 @@ use clap::{
 };
 
 use colored_json::ToColoredJson;
+use crossterm::tty::IsTty;
 use protobuf::MessageDyn;
 use protobuf_json_mapping::print_to_string;
 use std::fs::File;
+use std::io;
 use std::io::{stdin, stdout, Read};
 use std::path::PathBuf;
 use strum_macros::Display;
-use yansi::{Color::Cyan, Paint};
+use yansi::Color::Cyan;
 
 use yara_x_proto_yaml::Serializer;
 
@@ -50,8 +52,8 @@ pub fn dump() -> Command {
                 .required(false),
         )
         .arg(
-            arg!(-c - -"color")
-                .help("Use colorful output")
+            arg!(--"no-colors")
+                .help("Turn off colors in YAML output")
         )
         .arg(
             Arg::new("modules")
@@ -80,6 +82,7 @@ fn obtain_module_info(
     output_format: Option<&OutputFormats>,
     module: &SupportedModules,
     output: &dyn MessageDyn,
+    use_colors: bool,
 ) -> Result<(), Error> {
     match output_format {
         Some(OutputFormats::Json) => {
@@ -93,7 +96,7 @@ fn obtain_module_info(
             println!(">>>");
             let mut serializer = Serializer::new(stdout());
             serializer
-                .with_colors(true)
+                .with_colors(use_colors)
                 .serialize(output)
                 .expect("Failed to serialize");
             println!("\n<<<");
@@ -118,12 +121,11 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
     let file = args.get_one::<PathBuf>("FILE");
     let output_format = args.get_one::<OutputFormats>("output-format");
     let modules = args.get_many::<SupportedModules>("modules");
-    let colors_flag = args.get_flag("color");
+    let no_colors = args.get_flag("no-colors");
 
-    // Disable colors if the flag is not set.
-    if !colors_flag {
-        Paint::disable();
-    }
+    // By default use colors if output is stdout. When output is a standard
+    // file colors are disabled, and also when `--no-colors` is used.
+    let use_color = io::stdout().is_tty() && !no_colors;
 
     // Get the input.
     if let Some(file) = file {
@@ -148,11 +150,17 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                     yara_x::mods::invoke_mod_dyn::<yara_x::mods::PE>(&buffer)
                 }
             } {
-                obtain_module_info(output_format, module, &*output)?;
+                obtain_module_info(
+                    output_format,
+                    module,
+                    &*output,
+                    use_color,
+                )?;
             }
         }
     } else {
-        // Module was not specified therefore we have to obtain ouput for every supported module and decide which is valid.
+        // Module was not specified therefore we have to obtain output for every
+        // supported module and decide which is valid.
         if let Some(lnk_output) =
             yara_x::mods::invoke_mod::<yara_x::mods::Lnk>(&buffer)
         {
@@ -161,6 +169,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                     output_format,
                     &SupportedModules::Lnk,
                     &*lnk_output,
+                    use_color,
                 )?;
             }
         }
@@ -172,6 +181,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                     output_format,
                     &SupportedModules::Macho,
                     &*macho_output,
+                    use_color,
                 )?;
             }
         }
@@ -183,6 +193,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                     output_format,
                     &SupportedModules::Elf,
                     &*elf_output,
+                    use_color,
                 )?;
             }
         }
@@ -194,6 +205,7 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                     output_format,
                     &SupportedModules::Pe,
                     &*pe_output,
+                    use_color,
                 )?;
             }
         }

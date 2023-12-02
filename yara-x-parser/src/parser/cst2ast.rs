@@ -107,7 +107,7 @@ fn create_binary_expr<'src>(
 ) -> Result<Expr<'src>, Error> {
     match op {
         GrammarRule::DOT => {
-            Ok(Expr::FieldAccess(Box::new(BinaryExpr::new(lhs, rhs))))
+            new_n_ary_expr!(Expr::FieldAccess, lhs, rhs)
         }
         // Boolean
         GrammarRule::k_OR => {
@@ -1197,8 +1197,8 @@ fn primary_expr_from_cst<'src>(
 
     let expr = match node.as_rule() {
         GrammarRule::ident => {
-            let ident = ident_from_cst(ctx, node);
-            let mut expr = Expr::Ident(Box::new(ident));
+            let mut idents =
+                vec![Expr::Ident(Box::new(ident_from_cst(ctx, node)))];
 
             // The identifier can be followed by a field access operator,
             // (e.g. `foo.bar.baz`).
@@ -1206,16 +1206,15 @@ fn primary_expr_from_cst<'src>(
                 // In fact, if something follows the identifier it must
                 // be a field access operator `.`, nothing else.
                 expect!(node, GrammarRule::DOT);
-
                 let node = children.next().unwrap();
-
-                expr = Expr::FieldAccess(Box::new(BinaryExpr::new(
-                    expr,
-                    Expr::Ident(Box::new(ident_from_cst(ctx, node))),
-                )));
+                idents.push(Expr::Ident(Box::new(ident_from_cst(ctx, node))));
             }
 
-            expr
+            if idents.len() == 1 {
+                idents.pop().unwrap()
+            } else {
+                Expr::FieldAccess(Box::new(NAryExpr::from(idents)))
+            }
         }
         GrammarRule::k_FILESIZE => Expr::Filesize { span: ctx.span(&node) },
         GrammarRule::k_ENTRYPOINT => {
