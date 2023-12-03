@@ -893,7 +893,10 @@ fn re_code_17() {
 0004a: MATCH
 "#,
         // Atoms
-        vec![],
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![]),
+            code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0 },
+        },],
         // Epsilon closure starting at forward code 0.
         vec![0x4a, 0x47, 0x29, 0x13],
         // Epsilon closure starting at backward code 0.

@@ -198,12 +198,21 @@ impl Compiler {
         mut self,
         hir: &re::hir::Hir,
     ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
+        let start_loc = self.location();
+
         visit(&hir.inner, &mut self)?;
 
         self.forward_code_mut().emit_instr(Instr::MATCH)?;
         self.backward_code_mut().emit_instr(Instr::MATCH)?;
 
-        let atoms = self.best_atoms_stack.pop().unwrap().atoms;
+        let mut atoms = self.best_atoms_stack.pop().unwrap().atoms;
+
+        if atoms.is_empty() {
+            atoms.push(RegexpAtom {
+                atom: Atom::inexact([]),
+                code_loc: start_loc,
+            })
+        }
 
         assert!(atoms.len() <= MAX_ATOMS_PER_REGEXP);
 
