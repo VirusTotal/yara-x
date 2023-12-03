@@ -61,7 +61,7 @@ fn is_dll(ctx: &ScanContext) -> Option<bool> {
 fn rva_to_offset(ctx: &ScanContext, rva: i64) -> Option<i64> {
     let pe = ctx.module_output::<PE>()?;
     let offset = rva2off::rva_to_offset(
-        rva.try_into().unwrap(),
+        rva.try_into().ok()?,
         pe.sections.as_slice(),
         pe.file_alignment?,
         pe.section_alignment?,
