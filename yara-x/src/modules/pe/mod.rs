@@ -21,6 +21,7 @@ use crate::modules::protos::pe::*;
 mod tests;
 
 pub mod parser;
+mod rva2off;
 
 #[module_main]
 fn main(input: &[u8]) -> PE {
@@ -53,6 +54,19 @@ fn is_64bit(ctx: &ScanContext) -> Option<bool> {
 fn is_dll(ctx: &ScanContext) -> Option<bool> {
     let characteristics = ctx.module_output::<PE>()?.characteristics?;
     Some(characteristics & Characteristics::DLL as u32 != 0)
+}
+
+/// Convert a relative virtual address (RVA) to a file offset.
+#[module_export]
+fn rva_to_offset(ctx: &ScanContext, rva: i64) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
+    let offset = rva2off::rva_to_offset(
+        rva.try_into().unwrap(),
+        pe.sections.as_slice(),
+        pe.file_alignment?,
+        pe.section_alignment?,
+    )?;
+    Some(offset.try_into().unwrap())
 }
 
 /// Returns the PE checksum, as calculated by YARA.
