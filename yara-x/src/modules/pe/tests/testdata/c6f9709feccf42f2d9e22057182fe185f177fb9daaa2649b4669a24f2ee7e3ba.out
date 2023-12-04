@@ -360,6 +360,7 @@ import_details:
       - name: "ord67"
         ordinal: 67
         rva: 20968
+is_signed: false
 overlay:
     offset: 217600
     size: 17408

@@ -311,6 +311,7 @@ delayed_import_details:
         rva: 80000
       - name: "MessageBoxA"
         rva: 80004
+is_signed: false
 overlay:
     offset: 0
     size: 0

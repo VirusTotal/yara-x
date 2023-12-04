@@ -1,5 +1,7 @@
 syntax = "proto2";
+
 import "yara.proto";
+import "yaml.proto";
 
 package pe;
 
@@ -77,10 +79,13 @@ message PE {
   repeated Import import_details = 55;
   repeated Import delayed_import_details = 56;
   repeated Export export_details = 57;
+  optional bool is_signed = 58;
+  repeated Signature signatures = 59;
+
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 58;
+  optional Overlay overlay = 60;
 }
 
 message Version {
@@ -127,6 +132,54 @@ message Function {
   optional string name = 1;
   optional uint32 ordinal = 2;
   required uint32 rva = 3;
+}
+
+
+message Signature {
+  optional string subject = 1;
+  optional string issuer = 2;
+  optional string thumbprint = 3;
+  optional int64 version = 4;
+  optional string algorithm = 5;
+  optional string algorithm_oid = 6;
+  optional string serial = 7;
+  optional int64 not_before = 8 [(yaml.field).fmt = "t"];
+  optional int64 not_after = 9 [(yaml.field).fmt = "t"];
+  optional bool verified = 10;
+  optional string digest_alg = 11;
+  optional string digest = 12;
+  optional string file_digest = 13;
+
+  optional SignerInfo signer_info = 15;
+  repeated Certificate certificates = 14;
+  repeated CounterSignature countersignatures = 16;
+}
+
+message SignerInfo {
+  optional string program_name = 1;
+  optional string digest = 2;
+  optional string digest_alg = 3;
+  repeated Certificate chain = 4;
+}
+
+message Certificate {
+  optional string issuer = 1;
+  optional string subject = 2;
+  optional string thumbprint = 3;
+  optional int64 version = 4;
+  optional string algorithm = 5;
+  optional string algorithm_oid = 6;
+  optional string serial = 7;
+  optional int64 not_before = 8 [(yaml.field).fmt = "t"];
+  optional int64 not_after = 9 [(yaml.field).fmt = "t"];
+}
+
+message CounterSignature {
+  optional bool verified = 1;
+  optional int64 sign_time = 2 [(yaml.field).fmt = "t"];
+  optional string digest = 12;
+  optional string digest_alg = 3;
+  repeated Certificate chain = 4;
 }
 
 ///  https://learn.microsoft.com/en-us/windows/win32/menurc/resource-types?redirectedfrom=MSDN

@@ -106,6 +106,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
+is_signed: false
 overlay:
     offset: 0
     size: 0

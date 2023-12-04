@@ -1384,6 +1384,7 @@ import_details:
         rva: 5112
       - name: "VerQueryValueW"
         rva: 5116
+is_signed: false
 overlay:
     offset: 0
     size: 0

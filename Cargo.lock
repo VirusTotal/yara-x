@@ -159,6 +159,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "array-bytes"
+version = "6.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de17a919934ad8c5cc99a1a74de4e2dab95d6121a8f27f94755ff525b630382c"
+
+[[package]]
 name = "arrayref"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -185,6 +191,24 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.39",
+]
+
+[[package]]
+name = "authenticode-parser"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a157336d4bedbed5d11a2389a589dadfdd26aa4ed5e1425fe04681fb1a5518a0"
+dependencies = [
+ "authenticode-parser-sys",
+]
+
+[[package]]
+name = "authenticode-parser-sys"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "038c06837a7af6b971836a34532d905d29d4aac692b66fda9b9634912c2043e7"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -4232,8 +4256,10 @@ dependencies = [
  "aho-corasick",
  "anyhow",
  "ariadne",
+ "array-bytes",
  "arrayref",
  "ascii_tree",
+ "authenticode-parser",
  "base64 0.21.5",
  "bincode",
  "bitmask",

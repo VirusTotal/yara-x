@@ -258,6 +258,7 @@ export_details:
   - name: "xstrchr"
     ordinal: 37
     rva: 7640
+is_signed: false
 overlay:
     offset: 0
     size: 0

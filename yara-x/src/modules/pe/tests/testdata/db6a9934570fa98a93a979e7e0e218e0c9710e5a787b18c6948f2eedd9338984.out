@@ -2559,6 +2559,7 @@ import_details:
         rva: 4316084
       - name: "CreateFileA"
         rva: 4316092
+is_signed: false
 overlay:
     offset: 5197824
     size: 177664
