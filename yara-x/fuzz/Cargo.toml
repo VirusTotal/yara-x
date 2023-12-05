@@ -40,3 +40,9 @@ name = "pe_parser"
 path = "fuzz_targets/pe_parser.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "rule_compiler"
+path = "fuzz_targets/rule_compiler.rs"
+test = false
+doc = false
