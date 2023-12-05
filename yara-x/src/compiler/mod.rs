@@ -6,7 +6,7 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
@@ -299,7 +299,7 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
-            root_struct: Struct::new(),
+            root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
@@ -378,17 +378,13 @@ impl<'a> Compiler<'a> {
         let var: Variable = value.try_into()?;
         let type_value: TypeValue = var.into();
 
-        if self.root_struct.add_field(ident, type_value.clone()).is_some() {
+        if self.root_struct.add_field(ident, type_value).is_some() {
             return Err(VariableError::AlreadyExists(ident.to_string()));
         }
 
-        self.global_symbols.borrow_mut().insert(
-            ident,
-            Symbol::new(
-                type_value,
-                SymbolKind::FieldIndex(self.root_struct.index_of(ident)),
-            ),
-        );
+        self.global_symbols
+            .borrow_mut()
+            .insert(ident, self.root_struct.lookup(ident).unwrap());
 
         Ok(self)
     }
@@ -884,8 +880,7 @@ impl<'a> Compiler<'a> {
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
-            lookup_start: None,
-            lookup_stack: VecDeque::new(),
+            lookup_list: Vec::new(),
             vars: VarStack::new(),
         };
 
@@ -1497,18 +1492,7 @@ impl<'a> Compiler<'a> {
             if !symbol_table.contains(module_name) {
                 symbol_table.insert(
                     module_name,
-                    Symbol::new(
-                        // At this point the module must be found in
-                        // `self.root_struct`.
-                        self.root_struct
-                            .field_by_name(module_name)
-                            .unwrap()
-                            .type_value
-                            .clone(),
-                        SymbolKind::FieldIndex(
-                            self.root_struct.index_of(module_name),
-                        ),
-                    ),
+                    self.root_struct.lookup(module_name).unwrap(),
                 );
             }
         }

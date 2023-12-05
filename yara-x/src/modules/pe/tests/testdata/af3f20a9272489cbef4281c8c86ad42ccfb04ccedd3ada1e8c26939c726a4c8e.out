@@ -125,6 +125,44 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 1108344896
+is_signed: true
+signatures:
+  - subject: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
+    issuer: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
+    thumbprint: "5c8abbb5a8c8ce282d080578c150b83371933df0"
+    version: 3
+    algorithm: "sha256WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.11"
+    serial: "01"
+    not_before: 1615365865 # 2021-03-10 08:44:25 UTC
+    not_after: 2246431465 # 2041-03-09 08:44:25 UTC
+    verified: true
+    digest_alg: "sha256"
+    digest: "2a344e5a930211be79c3d2a867d8923d154af27c9be0f8e5b6fd7a5411934375"
+    file_digest: "2a344e5a930211be79c3d2a867d8923d154af27c9be0f8e5b6fd7a5411934375"
+    signer_info:
+        digest: "b34a9982f9ff7e33ae6be914e87df63f4623274e01557fd1cc567606fda4c659"
+        digest_alg: "sha256"
+        chain:
+          - issuer: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
+            subject: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
+            thumbprint: "5c8abbb5a8c8ce282d080578c150b83371933df0"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "01"
+            not_before: 1615365865 # 2021-03-10 08:44:25 UTC
+            not_after: 2246431465 # 2041-03-09 08:44:25 UTC
+    certificates:
+      - issuer: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
+        subject: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"
+        thumbprint: "5c8abbb5a8c8ce282d080578c150b83371933df0"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "01"
+        not_before: 1615365865 # 2021-03-10 08:44:25 UTC
+        not_after: 2246431465 # 2041-03-09 08:44:25 UTC
 overlay:
     offset: 3964192
     size: 2832

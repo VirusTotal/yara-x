@@ -201,6 +201,7 @@ import_details:
       - name: "sendto"
         ordinal: 20
         rva: 38116
+is_signed: false
 overlay:
     offset: 0
     size: 0

@@ -149,6 +149,7 @@ resources:
     type: RESOURCE_TYPE_RCDATA
     language: 0
     name_string: "T\000L\000F\000_\000P\000D\000_\000J\000O\000"
+is_signed: false
 overlay:
     offset: 0
     size: 0

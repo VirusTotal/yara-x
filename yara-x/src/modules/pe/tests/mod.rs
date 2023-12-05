@@ -392,3 +392,68 @@ fn is_dll() {
         &pe
     );
 }
+
+#[test]
+fn section_index() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/079a472d22290a94ebb212aa8015cdc8dd28a968c6b4d3b88acdd58ce2d3b885.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.section_index(".text") == 0 and
+            pe.section_index(".data") == 2
+        }
+        "#,
+        &pe
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.section_index(8192) == 3 and
+            pe.section_index(8193) == 3
+        }
+        "#,
+        &pe
+    );
+}
+
+#[test]
+fn image_directory_constants() {
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.IMAGE_DIRECTORY_ENTRY_COPYRIGHT == 7 and
+            pe.IMAGE_DIRECTORY_ENTRY_ARCHITECTURE == 7
+        }
+        "#,
+        &[]
+    );
+}
+
+#[test]
+fn rva_to_offset() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/c6f9709feccf42f2d9e22057182fe185f177fb9daaa2649b4669a24f2ee7e3ba.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.rva_to_offset(4096) == 1024 and 
+            pe.rva_to_offset(20481) == 17409
+        }
+        "#,
+        &pe
+    );
+}

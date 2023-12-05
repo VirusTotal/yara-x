@@ -55,8 +55,8 @@ use protobuf::MessageDyn;
 use protobuf_support::text_format::escape_bytes_to;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
-use yansi::Color;
 use yansi::Paint;
+use yansi::{Color, Style};
 
 use protobuf::descriptor::FieldDescriptorProto;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
@@ -75,10 +75,10 @@ const INDENTATION: u16 = 4;
 // A struct that represents colors for output
 #[derive(Default)]
 struct Colors {
-    string: Color,
-    field_name: Color,
-    repeated_name: Color,
-    comment: Color,
+    string: Style,
+    field_name: Style,
+    repeated_name: Style,
+    comment: Style,
 }
 
 /// A struct that represents options for a field values
@@ -112,10 +112,10 @@ impl<W: Write> Serializer<W> {
     pub fn with_colors(&mut self, b: bool) -> &mut Self {
         self.colors = if b {
             Colors {
-                string: Color::Green,
-                field_name: Color::Blue,
-                repeated_name: Color::Yellow,
-                comment: Color::RGB(222, 184, 135),
+                string: Color::Green.style(),
+                field_name: Color::Yellow.style(),
+                repeated_name: Color::Yellow.style(),
+                comment: Color::RGB(222, 184, 135).style(),
             }
         } else {
             Colors::default()

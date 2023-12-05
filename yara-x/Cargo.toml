@@ -37,7 +37,7 @@ rules-profiling = ["logging"]
 
 # The `elf` module parses ELF files.
 elf-module = [
-    "dep:tlsh"
+    "dep:tlsh-fixed"
 ]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,
@@ -62,7 +62,9 @@ macho-module = [
 ]
 
 # The `pe` module parses PE files.
-pe-module = []
+pe-module = [
+    "dep:authenticode-parser",
+]
 
 # The `string` modules offer some functions for parsing strings as integers,
 # determining a string length, etc.
@@ -101,8 +103,10 @@ default = [
 aho-corasick = { workspace = true, features=["logging"] }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
+array-bytes = { workspace = true }
 arrayref = { workspace = true, optional = true }
 ascii_tree = { workspace = true}
+authenticode-parser = { workspace = true, optional = true }
 base64 = { workspace = true }
 bincode = { workspace = true }
 bitmask = { workspace = true }
@@ -132,7 +136,7 @@ smallvec = { workspace = true, features=["serde"] }
 serde = { workspace = true, features=["rc"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tlsh = { workspace = true, optional = true }
+tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
 walrus = { workspace = true }
 wasmtime = { workspace = true, features=["cranelift", "parallel-compilation"]  }

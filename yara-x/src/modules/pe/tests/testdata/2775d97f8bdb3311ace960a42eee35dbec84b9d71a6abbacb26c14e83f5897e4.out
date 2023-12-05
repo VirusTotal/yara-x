@@ -217,6 +217,7 @@ delayed_import_details:
       - name: "socket"
         ordinal: 23
         rva: 4292
+is_signed: false
 overlay:
     offset: 0
     size: 0

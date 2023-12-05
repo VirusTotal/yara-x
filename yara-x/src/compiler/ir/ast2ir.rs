@@ -1,11 +1,12 @@
 /*! Functions for converting an AST into an IR. */
 
-use itertools::Itertools;
 use std::borrow::Borrow;
 use std::iter;
-use std::ops::{Deref, RangeInclusive};
+use std::ops::RangeInclusive;
 use std::rc::Rc;
 
+use bstr::ByteSlice;
+use itertools::Itertools;
 use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::{ast, ErrorInfo, Warning};
@@ -209,25 +210,23 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
 
         ast::Expr::True { .. } => {
-            Ok(Expr::Const { type_value: TypeValue::Bool(Value::Const(true)) })
+            Ok(Expr::Const { type_value: TypeValue::const_bool_from(true) })
         }
 
-        ast::Expr::False { .. } => Ok(Expr::Const {
-            type_value: TypeValue::Bool(Value::Const(false)),
-        }),
+        ast::Expr::False { .. } => {
+            Ok(Expr::Const { type_value: TypeValue::const_bool_from(false) })
+        }
 
         ast::Expr::LiteralInteger(literal) => Ok(Expr::Const {
-            type_value: TypeValue::Integer(Value::Const(literal.value)),
+            type_value: TypeValue::const_integer_from(literal.value),
         }),
 
         ast::Expr::LiteralFloat(literal) => Ok(Expr::Const {
-            type_value: TypeValue::Float(Value::Const(literal.value)),
+            type_value: TypeValue::const_float_from(literal.value),
         }),
 
         ast::Expr::LiteralString(literal) => Ok(Expr::Const {
-            type_value: TypeValue::String(Value::Const(
-                literal.value.deref().to_owned(),
-            )),
+            type_value: TypeValue::const_string_from(literal.value.as_bytes()),
         }),
 
         ast::Expr::Regexp(regexp) => {
@@ -290,40 +289,37 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::FuncCall(fn_call) => func_call_from_ast(ctx, fn_call),
 
         ast::Expr::FieldAccess(expr) => {
-            let lhs = expr_from_ast(ctx, &expr.lhs)?;
-
-            // The left-hand operand of a field access operation (i.e: foo.bar)
-            // must be a struct.
-            check_type(ctx, lhs.ty(), expr.lhs.span(), &[Type::Struct])?;
-
-            // Set `current_struct` to the structure returned by the left-hand
-            // operand. While processing the right-hand operand, the first
-            // symbol lookup will use `current_struct` instead of the top-level
-            // symbol table.
-            ctx.current_struct = Some(lhs.type_value().as_struct());
-
-            // Now build the right-hand expression.
-            let rhs = expr_from_ast(ctx, &expr.rhs)?;
-
-            // If the right-hand expression is constant, the result is also
-            // constant.
-            if cfg!(feature = "constant-folding") {
-                if let Expr::Const { type_value, .. } = rhs {
-                    // A constant always have a defined value.
-                    assert!(type_value.is_const());
-                    Ok(Expr::Const { type_value })
-                } else {
-                    Ok(Expr::FieldAccess {
-                        lhs: Box::new(lhs),
-                        rhs: Box::new(rhs),
-                    })
-                }
-            } else {
-                Ok(Expr::FieldAccess {
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                })
+            let mut operands = Vec::with_capacity(expr.operands.len());
+            // Iterate over all operands except the last one. These operands
+            // must be structures. For instance, in `foo.bar.baz`, `foo` and
+            // `bar` must be structures, while `baz` can be of any type.
+            for operand in expr.operands.iter().dropping_back(1) {
+                let expr = expr_from_ast(ctx, operand)?;
+                check_type(ctx, expr.ty(), operand.span(), &[Type::Struct])?;
+                // Set `current_struct` to the structure returned by this
+                // operand. While processing the next operand the first
+                // symbol lookup will use `current_struct` instead of the
+                // top-level symbol table.
+                ctx.current_struct = Some(expr.type_value().as_struct());
+                operands.push(expr);
             }
+
+            // Now process the last operand.
+            let last_operand =
+                expr_from_ast(ctx, expr.operands.last().unwrap())?;
+
+            // If the last operand is constant, the whole expression is
+            // constant.
+            #[cfg(feature = "constant-folding")]
+            if let Expr::Const { type_value, .. } = last_operand {
+                // A constant always have a defined value.
+                assert!(type_value.is_const());
+                return Ok(Expr::Const { type_value });
+            }
+
+            operands.push(last_operand);
+
+            Ok(Expr::FieldAccess { operands })
         }
 
         ast::Expr::Ident(ident) => {
@@ -388,13 +384,15 @@ pub(in crate::compiler) fn expr_from_ast(
                 }
             }
 
-            let type_value = symbol.type_value();
-
-            if type_value.is_const() {
-                Ok(Expr::Const { type_value: type_value.clone() })
-            } else {
-                Ok(Expr::Ident { symbol })
+            #[cfg(feature = "constant-folding")]
+            {
+                let type_value = symbol.type_value();
+                if type_value.is_const() {
+                    return Ok(Expr::Const { type_value: type_value.clone() });
+                }
             }
+
+            Ok(Expr::Ident { symbol })
         }
 
         ast::Expr::PatternMatch(p) => {
@@ -738,7 +736,7 @@ fn for_of_expr_from_ast(
         "$",
         Symbol::new(
             TypeValue::Integer(Value::Unknown),
-            SymbolKind::WasmVar(next_pattern_id),
+            SymbolKind::Var(next_pattern_id),
         ),
     );
 
@@ -825,37 +823,13 @@ fn for_in_expr_from_ast(
 
     // TODO: raise warning when the loop identifier (e.g: "i") hides
     // an existing identifier with the same name.
-    for (var, type_value) in iter::zip(loop_vars, expected_vars) {
-        let symbol_kind = match type_value {
-            TypeValue::Integer(_) => {
-                let var = stack_frame.new_var(Type::Integer);
-                variables.push(var);
-                SymbolKind::WasmVar(var)
-            }
-            TypeValue::Bool(_) => {
-                let var = stack_frame.new_var(Type::Bool);
-                variables.push(var);
-                SymbolKind::WasmVar(var)
-            }
-            TypeValue::String(_) => {
-                let var = stack_frame.new_var(Type::String);
-                variables.push(var);
-                SymbolKind::WasmVar(var)
-            }
-            TypeValue::Float(_) => {
-                let var = stack_frame.new_var(Type::Float);
-                variables.push(var);
-                SymbolKind::WasmVar(var)
-            }
-            TypeValue::Struct(_) => {
-                let var = stack_frame.new_var(Type::Struct);
-                variables.push(var);
-                SymbolKind::HostVar(var)
-            }
-            _ => unreachable!(),
-        };
-
-        symbols.insert(var.name, Symbol::new(type_value, symbol_kind));
+    for (loop_var, type_value) in iter::zip(loop_vars, expected_vars) {
+        let var = stack_frame.new_var(type_value.ty());
+        variables.push(var);
+        symbols.insert(
+            loop_var.name,
+            Symbol::new(type_value, SymbolKind::Var(var)),
+        );
     }
 
     // Put the loop variables into scope.

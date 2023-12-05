@@ -16,7 +16,7 @@ pub struct ModuleExportsArgs {
 /// This attribute is used for exporting functions from YARA modules, to make
 /// them callable from rules. The implementation is just a thin layer on top
 /// of `#[wasm_export]` that simply adds an intermediate function converts the
-/// argument `caller: Caller<'_, ScanContext>` into `ctx: &ScanContext`.
+/// argument `caller: &mut Caller<'_, ScanContext>` into `ctx: &ScanContext`.
 ///
 /// # Example
 ///
@@ -35,8 +35,8 @@ pub struct ModuleExportsArgs {
 /// use wasmtime::Caller;
 ///
 /// #[wasm_export(path = "add")]
-/// fn __thunk__add(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
-///   add(caller.data(), a, b)
+/// fn __thunk__add(caller: &mut Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
+///   add(caller.data_mut(), a, b)
 /// }
 ///
 /// fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {
@@ -57,11 +57,11 @@ pub(crate) fn impl_module_export_macro(
 
     // Create new arguments that are exactly the same arguments in the
     // original function, except the first one which changes from
-    // &ScanContext to Caller<'_, ScanContext>.
+    // `&ScanContext` to `&mut Caller<'_, ScanContext>`.
     let mut fn_args: Punctuated<FnArg, Comma> = Punctuated::new();
 
     fn_args.push(syn::parse2(quote! {
-        mut caller: Caller<'_, ScanContext>
+        caller: &mut Caller<'_, ScanContext>
     })?);
 
     fn_args.extend(func.sig.inputs.into_iter().skip(1));

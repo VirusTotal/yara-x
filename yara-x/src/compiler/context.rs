@@ -129,21 +129,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
 /// top of another. Each frame can contain one or more variables.
 ///
 /// This stack is stored in WASM main memory, in a memory region that goes
-/// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`]. The stack
-/// is also mirrored at host-side (with host-side we refer to Rust code
-/// called from WASM code), because values like structures, maps, and
-/// arrays can't be handled by WASM code directly, and they must be
-/// accessible to Rust functions called from WASM. These two stacks (the
-/// WASM-side stack and the host-side stack) could be fully independent,
-/// but they are mirrored for simplicity. This means that calls to this
-/// function reserves space in both stacks at the same time, and therefore
-/// their sizes are always the same.
-///
-/// However, each stack slot is used either by WASM-side code or by
-/// host-side code, but not by both. The slots that are used by WASM-side
-/// remain with empty values in the host-side stack, while the slots that
-/// are used by host-side code remain unused and undefined in WASM
-/// memory.
+/// from [`wasm::VARS_STACK_START`] to [`wasm::VARS_STACK_END`].
 pub(crate) struct VarStack {
     pub used: i32,
 }
@@ -187,7 +173,7 @@ impl VarStack {
 ///
 /// Frames are stacked one in top of another, individual variables are
 /// allocated within a frame.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct VarStackFrame {
     pub start: i32,
     pub used: i32,

@@ -260,6 +260,7 @@ import_details:
         rva: 25024
       - name: "vfprintf"
         rva: 25028
+is_signed: false
 overlay:
     offset: 0
     size: 0

@@ -275,6 +275,7 @@ export_details:
     ordinal: 4
     rva: 9930
     forward_name: "COMSVCS.SafeRef"
+is_signed: false
 overlay:
     offset: 0
     size: 0

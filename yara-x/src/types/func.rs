@@ -112,7 +112,7 @@ where
 ///
 /// YARA modules allow function overloading, therefore functions can have the
 /// same name but different arguments.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
@@ -149,7 +149,7 @@ impl From<String> for FuncSignature {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Func {
     signatures: Vec<FuncSignature>,
 }
