@@ -71,23 +71,20 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install OpenSSL on windows
+      - name: Install OpenSSL
         if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v10
-        id: runvcpkg
-        env:
-          VCPKG_DEFAULT_TRIPLET: ${{matrix.vcpkg_triplet}}
-          VCPKG_INSTALLED_DIR: '${{ runner.workspace }}/vcpkg/installed'
+        uses: johnwason/vcpkg-action@v5
         with:
-          appendedCacheKey: ${{matrix.vcpkg_triplet}}
-          vcpkgDirectory: '${{ runner.workspace }}/vcpkg'
-          vcpkgGitCommitId: '4cac260c4b7331538d31886f57739fea0bffa27e'
-          runVcpkgInstall: true
+          pkgs: openssl
+          triplet: x64-windows-release
+          cache-key: ${{ matrix.config.os }}
+          revision: master
+          token: ${{ github.token }}
 
       - name: Export OPENSSL_DIR env var
         if: runner.os == 'Windows'
         shell: bash
-        run: echo "OPENSSL_DIR=${{ runner.workspace }}\\vcpkg\\installed\\${{ matrix.vcpkg_triplet }}" >> $GITHUB_ENV
+        run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-release" >> $GITHUB_ENV
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
