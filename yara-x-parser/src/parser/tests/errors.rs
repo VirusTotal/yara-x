@@ -839,6 +839,23 @@ rule test {
         (
             line!(),
             r#"
+      rule test {
+        condition: "\ޘabc" == "abc"
+      }
+      "#,
+            r#"error: invalid escape sequence
+   ╭─[line:3:21]
+   │
+ 3 │         condition: "\ޘabc" == "abc"
+   │                     ─┬─  
+   │                      ╰─── invalid escape sequence `\ޘ`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
 rule test {
   strings: 
     $a = "foo" xor(256)
