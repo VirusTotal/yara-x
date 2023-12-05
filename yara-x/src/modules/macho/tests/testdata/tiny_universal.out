@@ -153,7 +153,9 @@ file:
         cmd: 36
         cmdsize: 16
         version: 657664
+        version_str: "10.9.0"
         sdk: 657920
+        sdk_str: "10.10.0"
     entry_point: 3808
     stack_size: 0
   - magic: 0xfeedfacf
@@ -317,6 +319,8 @@ file:
         cmd: 36
         cmdsize: 16
         version: 657664
+        version_str: "10.9.0"
         sdk: 657920
+        sdk_str: "10.10.0"
     entry_point: 3808
     stack_size: 0

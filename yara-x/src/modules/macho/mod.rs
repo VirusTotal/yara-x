@@ -1794,50 +1794,79 @@ fn handle_min_version_command(
         swap_min_version_command(&mut mvc);
     }
 
+    // X.Y.Z is encoded in nibbles xxxx.yy.zz
+    let mut ver_string: String = String::from("");
+    // X.Y.Z is encoded in nibbles xxxx.yy.zz
+    let mut sdk_string: String = String::from("");
+
+    ver_string.push_str((mvc.version >> (16) & 0xFF).to_string().as_str());
+    ver_string.push('.');
+    ver_string.push_str((mvc.version >> (8) & 0xF).to_string().as_str());
+    ver_string.push('.');
+    ver_string.push_str((mvc.version >> (0) & 0xF).to_string().as_str());
+
+    sdk_string.push_str((mvc.sdk >> (16) & 0xFF).to_string().as_str());
+    sdk_string.push('.');
+    sdk_string.push_str((mvc.sdk >> (8) & 0xF).to_string().as_str());
+    sdk_string.push('.');
+    sdk_string.push_str((mvc.sdk >> (0) & 0xF).to_string().as_str());
+
     match mvc.cmd {
         LC_VERSION_MIN_MACOSX => {
             let min_version_command = MinVersionMacOS {
                 cmd: Some(mvc.cmd),
                 cmdsize: Some(mvc.cmdsize),
                 version: Some(mvc.version),
+                version_str: Some(ver_string),
                 sdk: Some(mvc.sdk),
+                sdk_str: Some(sdk_string),
                 ..Default::default()
             };
-            
-            macho_file.min_version_mac_os = MessageField::some(min_version_command);
+
+            macho_file.min_version_mac_os =
+                MessageField::some(min_version_command);
         }
         LC_VERSION_MIN_IPHONEOS => {
             let min_version_command = MinVersionIphoneOS {
                 cmd: Some(mvc.cmd),
                 cmdsize: Some(mvc.cmdsize),
                 version: Some(mvc.version),
+                version_str: Some(ver_string),
                 sdk: Some(mvc.sdk),
+                sdk_str: Some(sdk_string),
                 ..Default::default()
             };
 
-            macho_file.min_version_iphone_os = MessageField::some(min_version_command);
+            macho_file.min_version_iphone_os =
+                MessageField::some(min_version_command);
         }
         LC_VERSION_MIN_TVOS => {
             let min_version_command = MinVersionTvOS {
                 cmd: Some(mvc.cmd),
                 cmdsize: Some(mvc.cmdsize),
                 version: Some(mvc.version),
+                version_str: Some(ver_string),
                 sdk: Some(mvc.sdk),
+                sdk_str: Some(sdk_string),
                 ..Default::default()
             };
 
-            macho_file.min_version_tv_os = MessageField::some(min_version_command);
+            macho_file.min_version_tv_os =
+                MessageField::some(min_version_command);
         }
         LC_VERSION_MIN_WATCHOS => {
             let min_version_command = MinVersionWatchOS {
                 cmd: Some(mvc.cmd),
                 cmdsize: Some(mvc.cmdsize),
                 version: Some(mvc.version),
+                version_str: Some(ver_string),
                 sdk: Some(mvc.sdk),
+                sdk_str: Some(sdk_string),
                 ..Default::default()
             };
 
-            macho_file.min_version_watch_os = MessageField::some(min_version_command);
+            macho_file.min_version_watch_os =
+                MessageField::some(min_version_command);
         }
         _ => {}
     }

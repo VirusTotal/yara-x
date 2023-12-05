@@ -27,28 +27,37 @@ message MinVersionMacOS {
   optional uint32 cmd = 1;
   optional uint32 cmdsize = 2;
   optional uint32 version = 3;
-  optional uint32 sdk = 4;
+  optional string version_str = 4;
+  optional uint32 sdk = 5;
+  optional string sdk_str = 6;
 }
 
 message MinVersionIphoneOS {
   optional uint32 cmd = 1;
   optional uint32 cmdsize = 2;
   optional uint32 version = 3;
-  optional uint32 sdk = 4;
+  optional string version_str = 4;
+  optional uint32 sdk = 5;
+  optional string sdk_str = 6;
+
 }
 
 message MinVersionTvOS {
   optional uint32 cmd = 1;
   optional uint32 cmdsize = 2;
   optional uint32 version = 3;
-  optional uint32 sdk = 4;
+  optional string version_str = 4;
+  optional uint32 sdk = 5;
+  optional string sdk_str = 6;
 }
 
 message MinVersionWatchOS {
   optional uint32 cmd = 1;
   optional uint32 cmdsize = 2;
   optional uint32 version = 3;
-  optional uint32 sdk = 4;
+  optional string version_str = 4;
+  optional uint32 sdk = 5;
+  optional string sdk_str = 6;
 }
 
 message Section {
