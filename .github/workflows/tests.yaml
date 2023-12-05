@@ -80,7 +80,7 @@ jobs:
           triplet: x64-windows-release
           token: ${{ github.token }}
 
-      - name: Export OPENSSL_DIR env var
+      - name: Set OPENSSL_DIR environment variable
         if: runner.os == 'Windows'
         shell: bash
         run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-release" >> $GITHUB_ENV
