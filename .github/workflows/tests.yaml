@@ -72,13 +72,12 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install OpenSSL
+        id: vcpkg
         if: runner.os == 'Windows'
         uses: johnwason/vcpkg-action@v5
         with:
           pkgs: openssl
           triplet: x64-windows-release
-          cache-key: ${{ matrix.config.os }}
-          revision: master
           token: ${{ github.token }}
 
       - name: Export OPENSSL_DIR env var
