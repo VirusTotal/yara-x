@@ -1803,13 +1803,13 @@ fn handle_min_version_command(
     ver_string.push('.');
     ver_string.push_str((mvc.version >> (8) & 0xF).to_string().as_str());
     ver_string.push('.');
-    ver_string.push_str((mvc.version >> (0) & 0xF).to_string().as_str());
+    ver_string.push_str((mvc.version & 0xF).to_string().as_str());
 
     sdk_string.push_str((mvc.sdk >> (16) & 0xFF).to_string().as_str());
     sdk_string.push('.');
     sdk_string.push_str((mvc.sdk >> (8) & 0xF).to_string().as_str());
     sdk_string.push('.');
-    sdk_string.push_str((mvc.sdk >> (0) & 0xF).to_string().as_str());
+    sdk_string.push_str((mvc.sdk & 0xF).to_string().as_str());
 
     match mvc.cmd {
         LC_VERSION_MIN_MACOSX => {
