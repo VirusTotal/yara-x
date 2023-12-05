@@ -1902,25 +1902,30 @@ fn string_lit_from_cst<'src>(
     // From now on ignore the quotes.
     let literal = &literal[1..literal.len() - 1];
 
-    // If the literal does not contain a backslash it can't contain escaped
-    // characters, the literal is exactly as it appears in the source code.
-    // Therefore we can return a reference to it in the form of a &BStr,
-    // allocating a new BString is not necessary.
-    if literal.find('\\').is_none() {
+    // Check if the string contains some backslash.
+    let backslash_pos = if let Some(backslash_pos) = literal.find('\\') {
+        if !allow_escape_char {
+            return Err(Error::from(ErrorInfo::unexpected_escape_sequence(
+                ctx.report_builder,
+                ctx.span(&string_lit),
+            )));
+        }
+        backslash_pos
+    } else {
+        // If the literal does not contain a backslash it can't contain escaped
+        // characters, the literal is exactly as it appears in the source code.
+        // Therefore we can return a reference to it in the form of a &BStr,
+        // allocating a new BString is not necessary.
         return Ok(Cow::from(BStr::new(literal)));
-    } else if !allow_escape_char {
-        return Err(Error::from(ErrorInfo::unexpected_escape_sequence(
-            ctx.report_builder,
-            ctx.span(&string_lit),
-        )));
-    }
+    };
 
-    // TODO: with some unsafe code we could use the position of the backslash
-    // returned by `find` for copying the chunk of literal that doesn't contain
-    // any backslashes directly into the resulting BString, instead of
-    // iterating the literal again from the very beginning.
+    // Initially the result is a copy of the literal string up to the first
+    // backslash found.
+    let mut result = BString::from(&literal[..backslash_pos]);
+
+    // Process the remaining part of the literal, starting at the backslash.
+    let literal = &literal[backslash_pos..];
     let mut chars = literal.char_indices();
-    let mut result = BString::new(Vec::with_capacity(literal.len()));
 
     while let Some((backslash_pos, b)) = chars.next() {
         match b {
