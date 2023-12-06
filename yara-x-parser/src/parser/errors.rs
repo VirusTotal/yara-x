@@ -306,6 +306,7 @@ impl ErrorInfo {
             GrammarRule::k_BASE64 => "`base64`",
             GrammarRule::k_BASE64WIDE => "`base64wide`",
             GrammarRule::k_CONDITION => "`condition`",
+            GrammarRule::k_DEFINED => "`defined`",
             GrammarRule::k_FALSE => "`false`",
             GrammarRule::k_FILESIZE => "`filesize`",
             GrammarRule::k_FOR => "`for`",
@@ -340,10 +341,12 @@ impl ErrorInfo {
             GrammarRule::float_lit => "number",
             GrammarRule::rule_decl => "rule declaration",
             GrammarRule::source_file => "YARA rules",
-            GrammarRule::pattern_ident => "pattern identifier",
             GrammarRule::string_lit => "string literal",
             GrammarRule::regexp => "regular expression",
             GrammarRule::pattern_mods => "pattern modifiers",
+
+            GrammarRule::pattern_ident
+            | GrammarRule::pattern_ident_wildcarded => "pattern identifier",
 
             GrammarRule::ADD
             | GrammarRule::k_AND
@@ -380,6 +383,10 @@ impl ErrorInfo {
             GrammarRule::PERCENT => "percent `%`",
             GrammarRule::MINUS => "`-`",
             GrammarRule::COLON => "colon `:`",
+            GrammarRule::HYPHEN => "hypen `-`",
+            GrammarRule::ASTERISK => "asterisk `*`",
+            GrammarRule::DOUBLE_QUOTES => "quotes `\"`",
+            GrammarRule::TILDE => "tilde `~`",
 
             GrammarRule::LPAREN => "opening parenthesis `(`",
             GrammarRule::RPAREN => "closing parenthesis `)`",
