@@ -795,7 +795,7 @@ impl<'a> Compiler<'a> {
         // (IR).
         let condition = bool_expr_from_ast(
             &mut CompileContext {
-                current_struct: None,
+                current_symbol_table: None,
                 symbol_table: &mut self.symbol_table,
                 ident_pool: &mut self.ident_pool,
                 report_builder: &self.report_builder,
@@ -806,6 +806,8 @@ impl<'a> Compiler<'a> {
             },
             &rule.condition,
         );
+
+        dbg!(&condition);
 
         // In case of error, restore the compiler to the state it was before
         // entering this function.

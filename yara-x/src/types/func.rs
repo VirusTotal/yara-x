@@ -47,7 +47,7 @@ use crate::types::{TypeValue, Value};
 /// foo() -> Option<(f64,f64)>     ->  foo@@ffu
 /// ```
 #[derive(Serialize, Deserialize)]
-pub struct MangledFnName(String);
+pub(crate) struct MangledFnName(String);
 
 impl MangledFnName {
     #[inline]
@@ -113,7 +113,7 @@ where
 /// YARA modules allow function overloading, therefore functions can have the
 /// same name but different arguments.
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct FuncSignature {
+pub(crate) struct FuncSignature {
     pub mangled_name: MangledFnName,
     pub args: Vec<TypeValue>,
     pub result: TypeValue,
@@ -150,7 +150,7 @@ impl From<String> for FuncSignature {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Func {
+pub(crate) struct Func {
     signatures: Vec<FuncSignature>,
 }
 

@@ -22,7 +22,7 @@ use crate::types::{Array, Map, TypeValue, Value};
 
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StructField {
+pub(crate) struct StructField {
     /// For structures derived from a protobuf this contains the field number
     /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
@@ -45,7 +45,7 @@ pub struct StructField {
 /// associated to that module. Functions [`Struct::from_proto_msg`] and
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct Struct {
+pub(crate) struct Struct {
     /// Fields in this structure.
     ///
     /// An `IndexMap` is used instead of a `HashMap` because we want to be
