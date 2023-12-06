@@ -2,10 +2,9 @@ use std::fmt::{Debug, Display, Formatter};
 use yara_x_macros::Error as Err;
 
 use crate::ast::Span;
+use crate::parser::grammar::Rule;
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
-
-use super::GrammarRule;
 
 /// An error occurred while parsing YARA rules.
 ///
@@ -199,12 +198,12 @@ impl From<ErrorInfo> for Error {
 
 impl ErrorInfo {
     pub(crate) fn syntax_error_message<F>(
-        expected: &[GrammarRule],
-        unexpected: &[GrammarRule],
+        expected: &[Rule],
+        unexpected: &[Rule],
         mut f: F,
     ) -> String
     where
-        F: FnMut(&GrammarRule) -> &str,
+        F: FnMut(&Rule) -> &str,
     {
         // Remove COMMENT and WHITESPACE from the lists of expected and not
         // expected rules. We don't want error messages like:
@@ -219,17 +218,13 @@ impl ErrorInfo {
         // probably an area of improvement for Pest.
         let expected: Vec<&str> = expected
             .iter()
-            .filter(|&&rule| {
-                rule != GrammarRule::COMMENT && rule != GrammarRule::WHITESPACE
-            })
+            .filter(|&&rule| rule != Rule::COMMENT && rule != Rule::WHITESPACE)
             .map(&mut f)
             .collect();
 
         let unexpected: Vec<&str> = unexpected
             .iter()
-            .filter(|&&rule| {
-                rule != GrammarRule::COMMENT && rule != GrammarRule::WHITESPACE
-            })
+            .filter(|&&rule| rule != Rule::COMMENT && rule != Rule::WHITESPACE)
             .map(&mut f)
             .collect();
 
@@ -296,107 +291,141 @@ impl ErrorInfo {
 
     /// Given a grammar rule returns a more appropriate string that will be used
     /// in error messages.
-    pub(crate) fn printable_string(rule: &GrammarRule) -> &str {
+    pub(crate) fn printable_string(rule: &Rule) -> &str {
         match rule {
             // Keywords
-            GrammarRule::k_ALL => "`all`",
-            GrammarRule::k_ANY => "`any`",
-            GrammarRule::k_ASCII => "`ascii`",
-            GrammarRule::k_AT => "`at`",
-            GrammarRule::k_BASE64 => "`base64`",
-            GrammarRule::k_BASE64WIDE => "`base64wide`",
-            GrammarRule::k_CONDITION => "`condition`",
-            GrammarRule::k_DEFINED => "`defined`",
-            GrammarRule::k_FALSE => "`false`",
-            GrammarRule::k_FILESIZE => "`filesize`",
-            GrammarRule::k_FOR => "`for`",
-            GrammarRule::k_FULLWORD => "`fullword`",
-            GrammarRule::k_GLOBAL => "`global`",
-            GrammarRule::k_IMPORT => "`import`",
-            GrammarRule::k_IN => "`in`",
-            GrammarRule::k_META => "`meta`",
-            GrammarRule::k_NOCASE => "`nocase`",
-            GrammarRule::k_NOT => "`not`",
-            GrammarRule::k_OF => "`of`",
-            GrammarRule::k_PRIVATE => "`private`",
-            GrammarRule::k_RULE => "`rule`",
-            GrammarRule::k_STRINGS => "`strings`",
-            GrammarRule::k_THEM => "`them`",
-            GrammarRule::k_TRUE => "`true`",
-            GrammarRule::k_WIDE => "`wide`",
-            GrammarRule::k_XOR => "`xor`",
+            Rule::k_ALL => "`all`",
+            Rule::k_ANY => "`any`",
+            Rule::k_ASCII => "`ascii`",
+            Rule::k_AT => "`at`",
+            Rule::k_BASE64 => "`base64`",
+            Rule::k_BASE64WIDE => "`base64wide`",
+            Rule::k_CONDITION => "`condition`",
+            Rule::k_DEFINED => "`defined`",
+            Rule::k_ENTRYPOINT => "`entrypoint`",
+            Rule::k_FALSE => "`false`",
+            Rule::k_FILESIZE => "`filesize`",
+            Rule::k_FOR => "`for`",
+            Rule::k_FULLWORD => "`fullword`",
+            Rule::k_GLOBAL => "`global`",
+            Rule::k_IMPORT => "`import`",
+            Rule::k_IN => "`in`",
+            Rule::k_META => "`meta`",
+            Rule::k_NOCASE => "`nocase`",
+            Rule::k_NONE => "`none`",
+            Rule::k_NOT => "`not`",
+            Rule::k_OF => "`of`",
+            Rule::k_PRIVATE => "`private`",
+            Rule::k_RULE => "`rule`",
+            Rule::k_STRINGS => "`strings`",
+            Rule::k_THEM => "`them`",
+            Rule::k_TRUE => "`true`",
+            Rule::k_WIDE => "`wide`",
+            Rule::k_XOR => "`xor`",
 
-            GrammarRule::boolean_expr | GrammarRule::boolean_term => {
-                "boolean expression"
+            Rule::boolean_expr | Rule::boolean_term => "boolean expression",
+
+            Rule::expr | Rule::primary_expr | Rule::term => "expression",
+
+            Rule::hex_byte => "byte",
+            Rule::hex_tokens => "bytes",
+            Rule::ident => "identifier",
+            Rule::integer_lit => "number",
+            Rule::float_lit => "number",
+            Rule::rule_decl => "rule declaration",
+            Rule::source_file => "YARA rules",
+            Rule::string_lit => "string literal",
+            Rule::regexp => "regular expression",
+            Rule::pattern_mods => "pattern modifiers",
+
+            Rule::pattern_ident | Rule::pattern_ident_wildcarded => {
+                "pattern identifier"
             }
 
-            GrammarRule::expr
-            | GrammarRule::primary_expr
-            | GrammarRule::term => "expression",
+            Rule::ADD
+            | Rule::k_AND
+            | Rule::k_OR
+            | Rule::SUB
+            | Rule::DIV
+            | Rule::MUL
+            | Rule::MOD
+            | Rule::SHL
+            | Rule::SHR
+            | Rule::BITWISE_AND
+            | Rule::BITWISE_OR
+            | Rule::BITWISE_XOR
+            | Rule::BITWISE_NOT
+            | Rule::EQ
+            | Rule::NE
+            | Rule::GE
+            | Rule::GT
+            | Rule::LE
+            | Rule::LT
+            | Rule::k_STARTSWITH
+            | Rule::k_ISTARTSWITH
+            | Rule::k_ENDSWITH
+            | Rule::k_IENDSWITH
+            | Rule::k_IEQUALS
+            | Rule::k_CONTAINS
+            | Rule::k_ICONTAINS
+            | Rule::k_MATCHES => "operator",
 
-            GrammarRule::hex_byte => "byte",
-            GrammarRule::hex_tokens => "bytes",
-            GrammarRule::ident => "identifier",
-            GrammarRule::integer_lit => "number",
-            GrammarRule::float_lit => "number",
-            GrammarRule::rule_decl => "rule declaration",
-            GrammarRule::source_file => "YARA rules",
-            GrammarRule::string_lit => "string literal",
-            GrammarRule::regexp => "regular expression",
-            GrammarRule::pattern_mods => "pattern modifiers",
+            Rule::PIPE => "pipe `|`",
+            Rule::COMMA => "comma `,`",
+            Rule::DOT => "dot `.`",
+            Rule::DOT_DOT => "`..`",
+            Rule::EQUAL => "equal `=` ",
+            Rule::PERCENT => "percent `%`",
+            Rule::MINUS => "`-`",
+            Rule::COLON => "colon `:`",
+            Rule::HYPHEN => "hypen `-`",
+            Rule::ASTERISK => "asterisk `*`",
+            Rule::DOUBLE_QUOTES => "quotes `\"`",
+            Rule::TILDE => "tilde `~`",
 
-            GrammarRule::pattern_ident
-            | GrammarRule::pattern_ident_wildcarded => "pattern identifier",
+            Rule::LPAREN => "opening parenthesis `(`",
+            Rule::RPAREN => "closing parenthesis `)`",
+            Rule::LBRACE => "opening brace `{`",
+            Rule::RBRACE => "closing brace `}`",
+            Rule::LBRACKET => "opening bracket `[`",
+            Rule::RBRACKET => "closing bracket `]`",
+            Rule::EOI => "end of file",
 
-            GrammarRule::ADD
-            | GrammarRule::k_AND
-            | GrammarRule::k_OR
-            | GrammarRule::SUB
-            | GrammarRule::DIV
-            | GrammarRule::MUL
-            | GrammarRule::MOD
-            | GrammarRule::SHL
-            | GrammarRule::SHR
-            | GrammarRule::BITWISE_AND
-            | GrammarRule::BITWISE_OR
-            | GrammarRule::BITWISE_XOR
-            | GrammarRule::EQ
-            | GrammarRule::NE
-            | GrammarRule::GE
-            | GrammarRule::GT
-            | GrammarRule::LE
-            | GrammarRule::LT
-            | GrammarRule::k_STARTSWITH
-            | GrammarRule::k_ISTARTSWITH
-            | GrammarRule::k_ENDSWITH
-            | GrammarRule::k_IENDSWITH
-            | GrammarRule::k_IEQUALS
-            | GrammarRule::k_CONTAINS
-            | GrammarRule::k_ICONTAINS
-            | GrammarRule::k_MATCHES => "operator",
-
-            GrammarRule::PIPE => "pipe `|`",
-            GrammarRule::COMMA => "comma `,`",
-            GrammarRule::DOT => "dot `.`",
-            GrammarRule::DOT_DOT => "`..`",
-            GrammarRule::EQUAL => "equal `=` ",
-            GrammarRule::PERCENT => "percent `%`",
-            GrammarRule::MINUS => "`-`",
-            GrammarRule::COLON => "colon `:`",
-            GrammarRule::HYPHEN => "hypen `-`",
-            GrammarRule::ASTERISK => "asterisk `*`",
-            GrammarRule::DOUBLE_QUOTES => "quotes `\"`",
-            GrammarRule::TILDE => "tilde `~`",
-
-            GrammarRule::LPAREN => "opening parenthesis `(`",
-            GrammarRule::RPAREN => "closing parenthesis `)`",
-            GrammarRule::LBRACE => "opening brace `{`",
-            GrammarRule::RBRACE => "closing brace `}`",
-            GrammarRule::LBRACKET => "opening bracket `[`",
-            GrammarRule::RBRACKET => "closing bracket `]`",
-            GrammarRule::EOI => "end of file",
-
-            _ => unreachable!("case `{:?}` is not handled", rule),
+            Rule::COMMENT
+            | Rule::WHITESPACE
+            | Rule::keyword
+            | Rule::arithmetic_op
+            | Rule::bitwise_op
+            | Rule::comparison_op
+            | Rule::string_op
+            | Rule::block_comment
+            | Rule::single_line_comment
+            | Rule::import_stmt
+            | Rule::ident_chars
+            | Rule::pattern_count
+            | Rule::pattern_offset
+            | Rule::pattern_length
+            | Rule::rule_mods
+            | Rule::rule_tags
+            | Rule::meta_defs
+            | Rule::meta_def
+            | Rule::pattern_defs
+            | Rule::pattern_def
+            | Rule::hex_pattern
+            | Rule::hex_alternative
+            | Rule::hex_jump
+            | Rule::indexing_expr
+            | Rule::func_call_expr
+            | Rule::of_expr
+            | Rule::for_expr
+            | Rule::iterable
+            | Rule::quantifier
+            | Rule::range
+            | Rule::expr_tuple
+            | Rule::boolean_expr_tuple
+            | Rule::pattern_ident_tuple => {
+                unreachable!()
+            }
         }
     }
 }
