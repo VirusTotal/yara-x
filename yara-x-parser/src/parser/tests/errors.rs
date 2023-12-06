@@ -847,8 +847,8 @@ rule test {
    ╭─[line:3:21]
    │
  3 │         condition: "\ޘabc" == "abc"
-   │                     ─┬─  
-   │                      ╰─── invalid escape sequence `\ޘ`
+   │                     ─┬  
+   │                      ╰── invalid escape sequence `\ޘ`
 ───╯
 "#,
         ),

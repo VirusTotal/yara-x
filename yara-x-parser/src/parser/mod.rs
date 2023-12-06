@@ -258,14 +258,22 @@ impl<'a> Parser<'a> {
 
         // Register the source code with the report builder, even if the code
         // is not valid UTF-8, so that we can build the report that tells
-        // about the invalid UTF-8.
+        // about the invalid UTF-8. In the registered source code invalid
+        // characters are replaced with the Unicode replacement character.
+        // https://www.compart.com/en/unicode/U+FFFD
         report_builder.register_source(&src);
 
         // If the code is not valid UTF-8 fail with an error.
         if let Err(err) = utf8_validation {
             let span_start = err.valid_up_to();
-            let span_end = if let Some(len) = err.error_len() {
-                span_start + len
+            let span_end = if let Some(error_len) = err.error_len() {
+                // `error_len` is the number of invalid UTF-8 bytes found
+                // after `span_start`. Round the number up to the next 3
+                // bytes boundary because invalid bytes are replaced with
+                // the Unicode replacement characters that takes 3 bytes.
+                // This way the span ends at a valid UTF-8 character
+                // boundary.
+                span_start + error_len.next_multiple_of(3)
             } else {
                 span_start
             };
