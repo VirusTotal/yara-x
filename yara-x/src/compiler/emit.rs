@@ -356,53 +356,55 @@ fn emit_expr(
                     emit_func_call(ctx, instr, func);
                 }
                 SymbolKind::Field(index, root) => {
-                    ctx.lookup_list
-                        .push(((*index).try_into().unwrap(), *root));
-
+                    let index: i32 = (*index).try_into().unwrap();
                     match symbol.type_value() {
                         TypeValue::Integer(_) => {
+                            ctx.lookup_list.push((index, *root));
                             emit_lookup_integer(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Float(_) => {
+                            ctx.lookup_list.push((index, *root));
                             emit_lookup_float(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Bool(_) => {
+                            ctx.lookup_list.push((index, *root));
                             emit_lookup_bool(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::String(_) => {
+                            ctx.lookup_list.push((index, *root));
                             emit_lookup_string(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Struct(_) => {
+                            ctx.lookup_list.push((index, *root));
                             emit_lookup_object(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Array(_) | TypeValue::Map(_) => {
+                            ctx.lookup_list.push((index, *root));
                             emit_lookup_object(ctx, instr);
                             assert!(ctx.lookup_list.is_empty());
                         }
                         TypeValue::Func(func) => {
                             // Take the first field in the lookup list and see
                             // if it belongs to the root structure. If that is
-                            // not the case, then at the top of the WASM stack
-                            // lays the handler of some non-root structure.
-                            // This handler must be removed from the stack
-                            // because functions associated to structures don't
-                            // expect to receive a handler to it (they don't
-                            // need to access the structure's data and therefore
-                            // they don't need the handler, but this may change
-                            // when structure methods are implemented.
-                            if let Some((_, false)) = ctx.lookup_list.first() {
-                                // The first item in the lookup is a field that
-                                // doesn't belong to the root structure, which
-                                // implies that the structure handler is now in
-                                // the stack and must be removed.
-                                instr.drop();
+                            // the case, and this function is a method, we need
+                            // to lookup the object and leave it in the stack
+                            // as the first argument to the method.
+                            //
+                            // When the function is not a method we don't need
+                            // to push any object into the stack. When the first
+                            // field in the lookup list doesn't belong to the
+                            // root structure, we know that the stack already
+                            // contains the object.
+                            if let Some((_, true)) = ctx.lookup_list.first() {
+                                if func.method_of().is_some() {
+                                    emit_lookup_object(ctx, instr);
+                                }
                             }
-
                             emit_func_call(ctx, instr, func);
                             ctx.lookup_list.clear();
                         }

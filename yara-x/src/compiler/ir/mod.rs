@@ -158,9 +158,8 @@ impl<'src> PatternInRule<'src> {
 /// This type represents a pattern independently of the rule in which it was
 /// declared. Multiple rules declaring exactly the same pattern will share the
 /// same instance of [`Pattern`]. For representing a pattern in the context of
-/// a specific rule we have the [`PatternInRule`], which contains a [`Pattern`]
-/// and additional information about how the pattern in declared or used in
-/// rule.
+/// a specific rule we have [`PatternInRule`], which contains a [`Pattern`] and
+/// additional information about how the pattern is used in a rule.
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub(in crate::compiler) enum Pattern {
     /// A literal pattern is one that doesn't contain wildcards, alternatives,
@@ -218,17 +217,17 @@ pub(in crate::compiler) enum Expr {
     Filesize,
     Entrypoint,
 
-    /// Boolean `not` expression
+    /// Boolean `not` expression.
     Not {
         operand: Box<Expr>,
     },
 
-    /// Boolean `and` expression
+    /// Boolean `and` expression.
     And {
         operands: Vec<Expr>,
     },
 
-    /// Boolean `or` expression
+    /// Boolean `or` expression.
     Or {
         operands: Vec<Expr>,
     },
