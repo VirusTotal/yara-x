@@ -376,16 +376,12 @@ impl Struct {
             }
         }
 
-        // Find the methods implemented for this struct type and add function
-        // fields for method.
-        let struct_type_name = msg_descriptor.full_name();
-        let struct_methods = WasmExport::find_functions(|export| {
-            export
-                .method_of
-                .is_some_and(|type_name| type_name == struct_type_name)
-        });
+        // Get the methods implemented for this struct type.
+        let methods = WasmExport::get_methods(msg_descriptor.full_name());
 
-        for (name, method) in struct_methods {
+        // For each method implemented by this struct field, add a field
+        // to the struct of function type.
+        for (name, method) in methods {
             fields.push((
                 name.to_owned(),
                 StructField {

@@ -1128,8 +1128,15 @@ fn func_call_from_ast(
     // Determine if any of the signatures for the called function matches
     // the provided arguments.
     for (i, signature) in func.signatures().iter().enumerate() {
-        let expected_arg_types: Vec<Type> =
-            signature.args.iter().map(|arg| arg.ty()).collect();
+        // If the function is actually a method, the first argument is always
+        // the type the method belongs to (i.e: the self pointer). This
+        // argument appears in the function's signature, but is not expected
+        // to appear among the arguments in the call statement.
+        let expected_arg_types: Vec<Type> = if func.method_of().is_some() {
+            signature.args.iter().skip(1).map(|arg| arg.ty()).collect()
+        } else {
+            signature.args.iter().map(|arg| arg.ty()).collect()
+        };
 
         if arg_types == expected_arg_types {
             matching_signature = Some((i, signature.result.clone()));

@@ -1,6 +1,8 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::test_proto2::NestedProto2;
 use crate::modules::protos::test_proto2::TestProto2;
+use crate::types::Struct;
+use std::rc::Rc;
 
 #[cfg(test)]
 mod tests;
@@ -25,6 +27,17 @@ pub(crate) fn uppercase(
 
 #[module_export(name = "nested.nested_func")]
 pub(crate) fn nested_func(_ctx: &mut ScanContext) -> bool {
+    true
+}
+
+#[module_export(
+    name = "nested_method",
+    method_of = "test_proto2.NestedProto2"
+)]
+pub(crate) fn nested_method(
+    _ctx: &mut ScanContext,
+    _structure: Rc<Struct>,
+) -> bool {
     true
 }
 
@@ -88,6 +101,9 @@ fn main(data: &[u8]) -> TestProto2 {
     test.set_bytes_foo("foo".as_bytes().to_vec());
     test.set_bytes_bar("bar".as_bytes().to_vec());
 
+    test.set_bool_proto(true);
+    test.set_file_size(data.len() as u64);
+
     test.array_int64.push(1);
     test.array_int64.push(10);
     test.array_int64.push(100);
@@ -109,13 +125,13 @@ fn main(data: &[u8]) -> TestProto2 {
     nested.set_nested_int64_zero(0);
     nested.set_nested_int32_one(1);
     nested.set_nested_int64_one(1);
+    nested.set_nested_bool(false);
+
     nested.nested_array_int64.push(1);
     nested.nested_array_int64.push(10);
     nested.nested_array_int64.push(100);
 
     test.nested = Some(nested.clone()).into();
-
-    test.array_struct.push(nested.clone());
 
     test.map_string_struct.insert("foo".to_string(), nested.clone());
     test.map_string_int64.insert("one".to_string(), 1);
@@ -129,9 +145,12 @@ fn main(data: &[u8]) -> TestProto2 {
     test.map_int64_string.insert(100, "one thousand".to_string());
     test.map_int64_bool.insert(100, true);
 
-    test.set_bool_proto(true);
+    test.array_struct.push(nested.clone());
 
-    test.set_file_size(data.len() as u64);
+    let mut nested = nested.clone();
+    nested.set_nested_bool(true);
+
+    test.array_struct.push(nested);
 
     test
 }

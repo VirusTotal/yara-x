@@ -672,7 +672,7 @@ impl<'a> Compiler<'a> {
         // yes, search for functions exported by the module.
         if let Some(rust_module_name) = module.rust_module_name {
             // Find all WASM public functions that belong to the current module.
-            let mut functions = WasmExport::find_functions(|e| {
+            let mut functions = WasmExport::get_functions(|e| {
                 e.public && e.rust_module_path.contains(rust_module_name)
             });
 

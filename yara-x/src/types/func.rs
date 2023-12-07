@@ -150,15 +150,36 @@ impl<T: Into<String>> From<T> for FuncSignature {
     }
 }
 
+/// A type representing a function.
+///
+/// Represents both functions and methods. As in any programming language
+/// methods are functions associated to a type that receive an instance
+/// of that type as their first argument.
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub(crate) struct Func {
+    /// The list of signatures for this function. Functions can be overloaded,
+    /// so they may more than one signature.
     signatures: Vec<FuncSignature>,
+    /// If this function is a method, contains the name of the type the method
+    /// is associated to. For standard functions this is [`None`].
+    method_of: Option<String>,
 }
 
 impl Func {
     /// Creates a new [`Func`] from a mangled function name.
     pub fn from_mangled_name(name: &str) -> Self {
-        Self { signatures: vec![FuncSignature::from(name)] }
+        Self { signatures: vec![FuncSignature::from(name)], method_of: None }
+    }
+
+    /// Makes this function a method of the specified type.
+    pub fn make_method_of(&mut self, type_name: &str) {
+        self.method_of = Some(type_name.to_string())
+    }
+
+    /// If this function is a method of some type, returns the name of the
+    /// type. Returns [`None`] if the function is not a method.
+    pub fn method_of(&self) -> Option<&str> {
+        self.method_of.as_deref()
     }
 
     /// Add a signature to the function.

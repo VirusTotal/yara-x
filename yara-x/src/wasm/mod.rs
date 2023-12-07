@@ -167,7 +167,7 @@ impl WasmExport {
     /// Keys are function names and values are [`Func`] structures. Overloaded
     /// functions appear in the map as a single entry where the [`Func`] has
     /// multiple signatures.
-    pub fn find_functions<P>(predicate: P) -> FxHashMap<&'static str, Func>
+    pub fn get_functions<P>(predicate: P) -> FxHashMap<&'static str, Func>
     where
         P: FnMut(&&WasmExport) -> bool,
     {
@@ -194,6 +194,28 @@ impl WasmExport {
         }
 
         functions
+    }
+
+    /// Returns the methods implemented for the type with the given name.
+    ///
+    /// `type_name` is one of the strings passed in the `method_of` field to
+    /// the `module_export` macro. For instance, in the example below we
+    /// specify that `some_method` is a method of `my_module.MyStructure`. If
+    /// we call `find_methods` with `"my_module.MyStructure"` it returns
+    /// a hash map that contains a [`Func`] describing `some_method`.
+    ///
+    /// ```text
+    /// #[module_export(method_of = "my_module.MyStructure")]
+    /// fn some_method(...) { ... }
+    /// ```
+    pub fn get_methods(type_name: &str) -> FxHashMap<&'static str, Func> {
+        let mut methods = WasmExport::get_functions(|export| {
+            export.method_of.is_some_and(|name| name == type_name)
+        });
+        for (_, func) in methods.iter_mut() {
+            func.make_method_of(type_name)
+        }
+        methods
     }
 }
 
