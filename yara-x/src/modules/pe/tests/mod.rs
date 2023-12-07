@@ -457,3 +457,39 @@ fn rva_to_offset() {
         &pe
     );
 }
+
+#[test]
+fn valid_on() {
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/079a472d22290a94ebb212aa8015cdc8dd28a968c6b4d3b88acdd58ce2d3b885.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            pe.signatures[0].valid_on(1491955200) and 
+            pe.signatures[0].valid_on(1559692799) and 
+            not pe.signatures[0].valid_on(1491955199) and
+            not pe.signatures[0].valid_on(1559692800)
+        }
+        "#,
+        &pe
+    );
+
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/pe/tests/testdata/2d80c403b5c50f8bbacb65f58e7a19f272c62d1889216b7a6f1141571ec12649.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            not defined pe.signatures[0].valid_on(1491955200)
+        }
+        "#,
+        &pe
+    );
+}
