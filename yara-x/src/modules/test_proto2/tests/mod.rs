@@ -257,19 +257,19 @@ fn test_proto2_module() {
 
     condition_true!(
         r#"
-        test_proto2.nested.nested_method()
+        not test_proto2.nested.nested_method()
         "#
     );
 
     condition_true!(
         r#"
-        test_proto2.array_struct[0].nested_method()
+        not test_proto2.array_struct[0].nested_method()
         "#
     );
 
     condition_true!(
         r#"
-        not test_proto2.array_struct[1].nested_method()
+        test_proto2.array_struct[1].nested_method()
         "#
     );
 }

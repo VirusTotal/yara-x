@@ -36,9 +36,9 @@ pub(crate) fn nested_func(_ctx: &mut ScanContext) -> bool {
 )]
 pub(crate) fn nested_method(
     _ctx: &mut ScanContext,
-    _structure: Rc<Struct>,
+    structure: Rc<Struct>,
 ) -> bool {
-    true
+    structure.field_by_name("nested_bool").unwrap().type_value.as_bool()
 }
 
 #[module_export]
