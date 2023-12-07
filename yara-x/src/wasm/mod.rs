@@ -74,6 +74,7 @@ use std::rc::Rc;
 use bstr::{BString, ByteSlice};
 use lazy_static::lazy_static;
 use linkme::distributed_slice;
+use rustc_hash::FxHashMap;
 use smallvec::{smallvec, SmallVec};
 use wasmtime::{
     AsContextMut, Caller, Config, Engine, FuncType, Linker, ValRaw,
@@ -84,7 +85,9 @@ use yara_x_macros::wasm_export;
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
 use crate::scanner::{RuntimeObjectHandle, ScanContext};
-use crate::types::{Array, Map, Struct, TypeValue, Value};
+use crate::types::{
+    Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
+};
 use crate::wasm::string::RuntimeString;
 use crate::ScanError;
 
@@ -129,6 +132,9 @@ pub(crate) struct WasmExport {
     /// Path of the module where the function resides. This an absolute path
     /// that includes the crate name (e.g: yara_x::modules::test_proto2)
     pub rust_module_path: &'static str,
+    /// If the function is a method of some type, this contains the name of
+    /// the type (i.e: `my_module.my_struct`).
+    pub method_of: Option<&'static str>,
     /// Reference to some type that implements the WasmExportedFn trait.
     pub func: &'static (dyn WasmExportedFn + Send + Sync),
 }
@@ -147,6 +153,47 @@ impl WasmExport {
             }
         }
         self.mangled_name.to_owned()
+    }
+
+    /// Returns true if this export comes from YARA itself, not for a YARA
+    /// module.
+    pub fn builtin(&self) -> bool {
+        self.rust_module_path.strip_prefix("yara_x::modules::").is_none()
+    }
+
+    /// Returns a hash map with all function exported to WASM that match the
+    /// given predicate.
+    ///
+    /// Keys are function names and values are [`Func`] structures. Overloaded
+    /// functions appear in the map as a single entry where the [`Func`] has
+    /// multiple signatures.
+    pub fn find_functions<P>(predicate: P) -> FxHashMap<&'static str, Func>
+    where
+        P: FnMut(&&WasmExport) -> bool,
+    {
+        let mut functions: FxHashMap<&'static str, Func> =
+            FxHashMap::default();
+
+        // Iterate over public functions in WASM_EXPORTS looking for those that
+        // match the predicate. Add them to `functions` map, or update the
+        // `Func` object with an additional signature if the function is
+        // overloaded.
+        for export in WASM_EXPORTS.iter().filter(predicate) {
+            let mangled_name = export.fully_qualified_mangled_name();
+            // If the function was already present in the map is because it has
+            // multiple signatures. If that's the case, add more signatures to
+            // the existing `Func` object.
+            if let Some(function) = functions.get_mut(export.name) {
+                function.add_signature(FuncSignature::from(mangled_name))
+            } else {
+                functions.insert(
+                    export.name,
+                    Func::from_mangled_name(mangled_name.as_str()),
+                );
+            }
+        }
+
+        functions
     }
 }
 

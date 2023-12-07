@@ -38,11 +38,11 @@ use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
-use crate::types::{Func, FuncSignature, Struct, TypeValue, Value};
+use crate::types::{Func, Struct, TypeValue, Value};
 use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{WasmSymbols, WASM_EXPORTS};
+use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
 
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
@@ -241,13 +241,15 @@ impl<'a> Compiler<'a> {
         let mut ident_pool = StringPool::new();
         let mut symbol_table = StackedSymbolTable::new();
 
-        // Add symbols for built-in functions like uint8, uint16, etc.
         let global_symbols = symbol_table.push_new();
 
-        for export in WASM_EXPORTS.iter().filter(|e| e.public) {
-            let func = Rc::new(Func::with_signature(FuncSignature::from(
-                export.mangled_name.to_string(),
-            )));
+        // Add symbols for built-in functions like uint8, uint16, etc.
+        for export in WASM_EXPORTS
+            .iter()
+            // Get only the public exports not belonging to a YARA module.
+            .filter(|e| e.public && e.builtin())
+        {
+            let func = Rc::new(Func::from_mangled_name(export.mangled_name));
 
             let symbol = Symbol::new(
                 TypeValue::Func(func.clone()),
@@ -668,37 +670,11 @@ impl<'a> Compiler<'a> {
 
         // Does the YARA module has an associated Rust module? If
         // yes, search for functions exported by the module.
-        if let Some(mod_name) = module.rust_module_name {
-            // This map will contain all the functions exported by the
-            // YARA module. Keys are the function names, and values
-            // are `Func` objects.
-            let mut functions: FxHashMap<&'static str, Func> =
-                FxHashMap::default();
-
-            // Iterate over public functions in WASM_EXPORTS looking
-            // for those that were exported by the current YARA module.
-            // Add them to `functions` map, or update the `Func` object
-            // an additional signature if the function is overloaded.
-            for export in WASM_EXPORTS.iter().filter(|e| e.public) {
-                if export.rust_module_path.contains(mod_name) {
-                    let signature = FuncSignature::from(format!(
-                        "{}.{}",
-                        module_name, export.mangled_name
-                    ));
-                    // If the function was already present in the map
-                    // is because it has multiple signatures. If that's
-                    // the case, add more signatures to the existing
-                    // `Func` object.
-                    if let Some(function) = functions.get_mut(export.name) {
-                        function.add_signature(signature)
-                    } else {
-                        functions.insert(
-                            export.name,
-                            Func::with_signature(signature),
-                        );
-                    }
-                }
-            }
+        if let Some(rust_module_name) = module.rust_module_name {
+            // Find all WASM public functions that belong to the current module.
+            let mut functions = WasmExport::find_functions(|e| {
+                e.public && e.rust_module_path.contains(rust_module_name)
+            });
 
             // Insert the functions in the module's struct.
             for (name, export) in functions.drain() {
@@ -806,8 +782,6 @@ impl<'a> Compiler<'a> {
             },
             &rule.condition,
         );
-
-        dbg!(&condition);
 
         // In case of error, restore the compiler to the state it was before
         // entering this function.

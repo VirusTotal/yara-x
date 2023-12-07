@@ -231,6 +231,9 @@ impl WasmModuleBuilder {
         self.wasm_symbols.clone()
     }
 
+    /// Returns a hash map where keys are fully qualified mangled function
+    /// names (i.e: `my_module.my_struct.my_func@ii@i`) and values are function
+    /// identifiers returned by the `walrus` crate. ([`walrus::FunctionId`]).
     pub fn wasm_exports(&self) -> FxHashMap<String, FunctionId> {
         self.wasm_exports.clone()
     }

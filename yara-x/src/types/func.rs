@@ -93,7 +93,8 @@ impl MangledFnName {
         (args, result)
     }
 
-    // Returns true if the function's result may be undefined.
+    /// Returns true if the function's result may be undefined.
+    #[inline]
     pub fn result_may_be_undef(&self) -> bool {
         self.0.ends_with('u')
     }
@@ -140,9 +141,9 @@ impl PartialEq for FuncSignature {
     }
 }
 
-impl From<String> for FuncSignature {
-    fn from(value: String) -> Self {
-        let mangled_name = MangledFnName::from(value);
+impl<T: Into<String>> From<T> for FuncSignature {
+    fn from(value: T) -> Self {
+        let mangled_name = MangledFnName::from(value.into());
         let result_may_be_undef = mangled_name.result_may_be_undef();
         let (args, result) = mangled_name.unmangle();
         Self { mangled_name, args, result, result_may_be_undef }
@@ -155,10 +156,16 @@ pub(crate) struct Func {
 }
 
 impl Func {
-    pub fn with_signature(signature: FuncSignature) -> Self {
-        Self { signatures: vec![signature] }
+    /// Creates a new [`Func`] from a mangled function name.
+    pub fn from_mangled_name(name: &str) -> Self {
+        Self { signatures: vec![FuncSignature::from(name)] }
     }
 
+    /// Add a signature to the function.
+    ///
+    /// # Panics
+    ///
+    /// If the function already has the given signature.
     pub fn add_signature(&mut self, signature: FuncSignature) {
         // Signatures are inserted into self.signatures sorted by
         // mangled named.
@@ -173,6 +180,8 @@ impl Func {
         }
     }
 
+    /// Returns all the signatures for this function.
+    #[inline]
     pub fn signatures(&self) -> &[FuncSignature] {
         self.signatures.as_slice()
     }

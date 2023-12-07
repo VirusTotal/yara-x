@@ -19,6 +19,7 @@ use yara_x_proto::exts::field_options;
 use yara_x_proto::exts::module_options;
 
 use crate::types::{Array, Map, TypeValue, Value};
+use crate::wasm::WasmExport;
 
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
@@ -375,6 +376,26 @@ impl Struct {
             }
         }
 
+        // Find the methods implemented for this struct type and add function
+        // fields for method.
+        let struct_type_name = msg_descriptor.full_name();
+        let struct_methods = WasmExport::find_functions(|export| {
+            export
+                .method_of
+                .is_some_and(|type_name| type_name == struct_type_name)
+        });
+
+        for (name, method) in struct_methods {
+            fields.push((
+                name.to_owned(),
+                StructField {
+                    number: 0,
+                    type_value: TypeValue::Func(Rc::new(method)),
+                },
+            ))
+        }
+
+        // Insert the fields in a map, checking for duplicate fields.
         let mut field_index = IndexMap::new();
 
         for (name, field) in fields {
