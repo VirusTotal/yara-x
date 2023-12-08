@@ -1998,12 +1998,7 @@ impl From<PE<'_>> for pe::PE {
             kv.key = Some(key.to_owned());
             kv.value = Some(value.to_owned());
             result.version_info_list.push(kv);
-            // TODO: populate the `version_info` map when we find a way for
-            // maintaining an stable order when dumping map fields in text
-            // form. The issue we have now is that the order changes every
-            // time the test cases are run, and the output produced don't
-            // match the golden files.
-            // result.version_info.insert(key.to_owned(), value.to_owned());
+            result.version_info.insert(key.to_owned(), value.to_owned());
         }
         
         if let Some(rich_header) = pe.get_rich_header() {
@@ -2030,7 +2025,6 @@ impl From<PE<'_>> for pe::PE {
             });
         }
         
-
         result.set_number_of_resources(
             result.sections.len().try_into().unwrap());
 
@@ -2046,12 +2040,9 @@ impl From<PE<'_>> for pe::PE {
         result.set_number_of_exports(
             result.export_details.len().try_into().unwrap());
 
-        // TODO
-        //result.set_number_of_signatures(
-        //    result.signatures.len().try_into().unwrap());
-        //result.set_number_of_certificates
-        //result.set_number_of_countersignatures
-
+        result.set_number_of_signatures(
+            result.signatures.len().try_into().unwrap());
+        
         // The overlay offset is the offset where the last section ends. The
         // last section is not the last one in the section table, but the one
         // with the highest raw_data_offset + raw_data_size.
@@ -2217,6 +2208,14 @@ impl From<&authenticode_parser::Authenticode<'_>> for pe::Signature {
 
         sig.signer_info = MessageField::from_option(
             value.signer().map(pe::SignerInfo::from),
+        );
+
+        sig.set_number_of_certificates(
+            sig.certificates.len().try_into().unwrap(),
+        );
+
+        sig.set_number_of_countersignatures(
+            sig.countersignatures.len().try_into().unwrap(),
         );
 
         sig.set_verified(

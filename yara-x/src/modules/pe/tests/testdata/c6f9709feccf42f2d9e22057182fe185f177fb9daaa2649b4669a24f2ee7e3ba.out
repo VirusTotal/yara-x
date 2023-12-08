@@ -48,6 +48,15 @@ number_of_version_infos: 7
 number_of_imports: 3
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "CompanyName": "Sybase, Inc."
+    "FileDescription": "Sybase, Inc. Product File"
+    "FileVersion": "1.0.0.1"
+    "InternalName": "PB 11.5"
+    "LegalCopyright": "Contains licensed copyright material by Sybase Inc. and others. Use and distribution of Sybase copyright material and licensed material is governed by Sybase End-user License Agreement."
+    "ProductName": "PowerBuilder Enterprise Series"
+    "ProductVersion": "1.0.0.1"
 version_info_list:
   - key: "CompanyName"
     value: "Sybase, Inc."

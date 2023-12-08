@@ -50,6 +50,19 @@ number_of_version_infos: 11
 number_of_imports: 2
 number_of_delayed_imports: 1
 number_of_exports: 5
+number_of_signatures: 1
+version_info:
+    "Build Date": "Tue Jun 5 21:07:13 IST 2018"
+    "Build Version": "27.1.9.33"
+    "CompanyName": "Quicken Inc."
+    "FileDescription": "Customer Profile Interface DLL"
+    "FileVersion": "27.1.9.33"
+    "InternalName": "CUSTPROF.DLL"
+    "LegalCopyright": "Copyright \302\251 2018 by Quicken Inc."
+    "OriginalFilename": "CUSTPROF.DLL"
+    "ProductName": "Quicken for Windows"
+    "ProductVersion": "27.1.9.33"
+    "Type": "QA"
 version_info_list:
   - key: "FileVersion"
     value: "27.1.9.33"
@@ -351,6 +364,8 @@ signatures:
     digest_alg: "sha1"
     digest: "f4ca190ec9052243b8882d492b1c12d04da7817f"
     file_digest: "f4ca190ec9052243b8882d492b1c12d04da7817f"
+    number_of_certificates: 4
+    number_of_countersignatures: 1
     signer_info:
         digest: "845555fec6e472a43b0714911d6c452a092e9632"
         digest_alg: "sha1"

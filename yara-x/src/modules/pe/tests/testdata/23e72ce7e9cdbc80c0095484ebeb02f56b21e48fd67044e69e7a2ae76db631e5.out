@@ -49,6 +49,16 @@ number_of_version_infos: 8
 number_of_imports: 2
 number_of_delayed_imports: 0
 number_of_exports: 4
+number_of_signatures: 0
+version_info:
+    "CompanyName": "Microsoft Corporation"
+    "FileDescription": "COM+"
+    "FileVersion": "2001.12.10941.16384 (WinBuild.160101.0800)"
+    "InternalName": "MTXEX.DLL"
+    "LegalCopyright": "\302\251 Microsoft Corporation. All rights reserved."
+    "OriginalFilename": "MTXEX.DLL"
+    "ProductName": "Microsoft\302\256 Windows\302\256 Operating System"
+    "ProductVersion": "10.0.17763.1"
 version_info_list:
   - key: "CompanyName"
     value: "Microsoft Corporation"

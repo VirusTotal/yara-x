@@ -47,6 +47,7 @@ number_of_version_infos: 0
 number_of_imports: 7
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 2
 sections:
   - name: ".text"
     full_name: ".text"
@@ -475,6 +476,8 @@ signatures:
     digest_alg: "sha1"
     digest: "7383d4bc5c4eb4c78f0358a815886ff643d71728"
     file_digest: "7383d4bc5c4eb4c78f0358a815886ff643d71728"
+    number_of_certificates: 4
+    number_of_countersignatures: 1
     signer_info:
         digest: "859e095a7acb33b439b554bcef8e463b137e891e"
         digest_alg: "sha1"
@@ -571,6 +574,8 @@ signatures:
     digest_alg: "sha256"
     digest: "b43e10921c479054beeb47518aa62be7f90d45f5e65791681ec687ecb294d502"
     file_digest: "b43e10921c479054beeb47518aa62be7f90d45f5e65791681ec687ecb294d502"
+    number_of_certificates: 4
+    number_of_countersignatures: 1
     signer_info:
         digest: "1a4bf55ecca0449d26287a98008c5f31500f4c5fe54d710a9830fefe91f6c1d6"
         digest_alg: "sha256"

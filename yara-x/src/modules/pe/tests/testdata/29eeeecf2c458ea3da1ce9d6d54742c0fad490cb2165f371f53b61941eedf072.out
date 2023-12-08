@@ -48,6 +48,17 @@ number_of_version_infos: 9
 number_of_imports: 10
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "CompanyName": "Ladislav Zezula"
+    "FileDescription": "Interactive File System API Test"
+    "FileVersion": "2, 7, 0, 601"
+    "InternalName": "FileTest"
+    "LegalCopyright": "Copyright \302\251 2004 - 2018 Ladislav Zezula"
+    "LegalTrademarks": "http://www.zezula.net"
+    "OriginalFilename": "FileTest.exe"
+    "ProductName": "FileTest"
+    "ProductVersion": "2, 7, 0, 601"
 version_info_list:
   - key: "CompanyName"
     value: "Ladislav Zezula"

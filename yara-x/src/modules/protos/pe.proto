@@ -65,27 +65,25 @@ message PE {
   optional uint64 number_of_imports = 42;
   optional uint64 number_of_delayed_imports = 43;
   optional uint64 number_of_exports = 44;
-  optional uint64 number_of_certificates = 45;
-  optional uint64 number_of_signatures = 46;
-  optional uint64 number_of_countersignatures = 47;
+  optional uint64 number_of_signatures = 45;
 
-  map<string, string> version_info = 48;
-  repeated KeyValue version_info_list = 49;
-  optional RichSignature rich_signature = 50;
-  optional string pdb_path = 51;
-  repeated Section sections = 52;
-  repeated DirEntry data_directories = 53;
-  repeated Resource resources = 54;
-  repeated Import import_details = 55;
-  repeated Import delayed_import_details = 56;
-  repeated Export export_details = 57;
-  optional bool is_signed = 58;
-  repeated Signature signatures = 59;
+  map<string, string> version_info = 46;
+  repeated KeyValue version_info_list = 47;
+  optional RichSignature rich_signature = 48;
+  optional string pdb_path = 49;
+  repeated Section sections = 50;
+  repeated DirEntry data_directories = 51;
+  repeated Resource resources = 52;
+  repeated Import import_details = 53;
+  repeated Import delayed_import_details = 54;
+  repeated Export export_details = 55;
+  optional bool is_signed = 56;
+  repeated Signature signatures = 57;
 
 
   // TODO: implement resource_version?
 
-  optional Overlay overlay = 60;
+  optional Overlay overlay = 58;
 }
 
 message Version {
@@ -149,10 +147,11 @@ message Signature {
   optional string digest_alg = 11;
   optional string digest = 12;
   optional string file_digest = 13;
-
-  optional SignerInfo signer_info = 15;
-  repeated Certificate certificates = 14;
-  repeated CounterSignature countersignatures = 16;
+  optional uint64 number_of_certificates = 14;
+  optional uint64 number_of_countersignatures = 15;
+  optional SignerInfo signer_info = 16;
+  repeated Certificate certificates = 17;
+  repeated CounterSignature countersignatures = 18;
 }
 
 message SignerInfo {

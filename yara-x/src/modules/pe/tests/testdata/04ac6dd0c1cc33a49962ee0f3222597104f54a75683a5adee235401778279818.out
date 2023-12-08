@@ -48,6 +48,7 @@ number_of_version_infos: 0
 number_of_imports: 1
 number_of_delayed_imports: 1
 number_of_exports: 0
+number_of_signatures: 0
 rich_signature:
     offset: 128
     length: 96
