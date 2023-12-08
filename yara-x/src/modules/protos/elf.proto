@@ -153,11 +153,11 @@ enum SymVisibility {
 }
 
 message Dyn {
-  optional DynTag tag = 1;
+  optional DynType type = 1;
   optional uint64 val = 2;
 }
 
-enum DynTag {
+enum DynType {
   option (yara.enum_options).inline = true;
   DT_NULL         = 0;   // End of the dynamic entries
   DT_NEEDED       = 1;   // Name of needed library
