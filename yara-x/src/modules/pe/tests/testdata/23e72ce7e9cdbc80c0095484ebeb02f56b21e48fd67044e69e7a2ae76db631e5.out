@@ -44,7 +44,7 @@ number_of_rva_and_sizes: 16
 number_of_sections: 6
 number_of_imported_functions: 24
 number_of_delayed_imported_functions: 0
-number_of_resources: 6
+number_of_resources: 1
 number_of_version_infos: 8
 number_of_imports: 2
 number_of_delayed_imports: 0
@@ -208,6 +208,10 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
 resources:
   - length: 888
     rva: 20576

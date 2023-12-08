@@ -70,8 +70,9 @@ pub struct PE<'a> {
     version_info: OnceCell<Option<Vec<(String, String)>>>,
 
     /// PE resources. Resources are parsed lazily when [`PE::get_resources`]
-    /// is called for the first time.
-    resources: OnceCell<Option<Vec<Resource<'a>>>>,
+    /// is called for the first time. The `u32` in the tuple is the resources
+    /// timestamp.
+    resources: OnceCell<Option<(ResourceDir, Vec<Resource<'a>>)>>,
 
     /// PE authenticode signatures.
     signatures: OnceCell<Option<AuthenticodeArray>>,
@@ -255,8 +256,19 @@ impl<'a> PE<'a> {
         // in subsequent calls the already parsed resources are returned.
         self.resources
             .get_or_init(|| self.parse_resources())
-            .as_deref()
+            .as_ref()
+            .map(|(_dir, resources)| resources.as_slice())
             .unwrap_or_default()
+    }
+
+    /// Get the directory entry corresponding to the PE resources.
+    pub fn get_resource_dir(&self) -> Option<&ResourceDir> {
+        // Resources are parsed only the first time this function is called,
+        // in subsequent calls the already parsed resources are returned.
+        self.resources
+            .get_or_init(|| self.parse_resources())
+            .as_ref()
+            .map(|(dir, _resources)| dir)
     }
 
     /// Returns the entries found in the PE directory table.
@@ -768,7 +780,7 @@ impl<'a> PE<'a> {
         )
     }
 
-    fn parse_rsrc_dir(input: &[u8]) -> IResult<&[u8], usize> {
+    fn parse_rsrc_dir(input: &[u8]) -> IResult<&[u8], ResourceDir> {
         map(
             tuple((
                 // characteristics must be 0
@@ -781,14 +793,19 @@ impl<'a> PE<'a> {
             )),
             |(
                 _characteristics,
-                _timestamp,
-                _major_version,
-                _minor_version,
+                timestamp,
+                major_version,
+                minor_version,
                 number_of_named_entries,
                 number_of_id_entries,
             )| {
-                number_of_id_entries as usize
-                    + number_of_named_entries as usize
+                ResourceDir {
+                    timestamp,
+                    major_version,
+                    minor_version,
+                    number_of_entries: number_of_id_entries as usize
+                        + number_of_named_entries as usize,
+                }
             },
         )(input)
     }
@@ -1171,12 +1188,13 @@ impl<'a> PE<'a> {
     /// string table, menu, etc. The children of each type correspond to
     /// individual resources of that type, and the children of each individual
     /// resource represent the resource in a specific language.
-    fn parse_resources(&self) -> Option<Vec<Resource<'a>>> {
+    fn parse_resources(&self) -> Option<(ResourceDir, Vec<Resource<'a>>)> {
         let (_, _, rsrc_section) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE)?;
 
         let mut queue = VecDeque::new();
         let mut resources = vec![];
+        let mut resources_info = ResourceDir::default();
 
         let ids = (
             ResourceId::Unknown, // type
@@ -1191,20 +1209,24 @@ impl<'a> PE<'a> {
 
         while let Some((level, ids, rsrc_dir)) = queue.pop_front() {
             // Parse the IMAGE_RESOURCE_DIRECTORY structure.
-            let (raw_entries, num_entries) =
-                match Self::parse_rsrc_dir(rsrc_dir) {
-                    Ok(result) => result,
-                    Err(_) => continue,
-                };
+            let (raw_entries, rsrc_dir) = match Self::parse_rsrc_dir(rsrc_dir)
+            {
+                Ok(result) => result,
+                Err(_) => continue,
+            };
 
             // Parse a series of IMAGE_RESOURCE_DIRECTORY_ENTRY that come
             // right after the IMAGE_RESOURCE_DIRECTORY. The number of entries
             // is extracted from the IMAGE_RESOURCE_DIRECTORY structure.
             let dir_entries = count(
                 Self::parse_rsrc_dir_entry(rsrc_section),
-                num_entries,
+                rsrc_dir.number_of_entries,
             )(raw_entries)
             .map(|(_, dir_entries)| dir_entries);
+
+            if level == 0 {
+                resources_info = rsrc_dir;
+            }
 
             // Iterate over the directory entries. Each entry can be either a
             // subdirectory or a leaf.
@@ -1241,7 +1263,7 @@ impl<'a> PE<'a> {
                         Self::parse_rsrc_entry(entry_data)
                     {
                         if resources.len() == Self::MAX_PE_RESOURCES {
-                            return Some(resources);
+                            return Some((resources_info, resources));
                         }
 
                         resources.push(Resource {
@@ -1260,7 +1282,11 @@ impl<'a> PE<'a> {
             }
         }
 
-        Some(resources)
+        if resources.is_empty() {
+            return None;
+        }
+
+        Some((resources_info, resources))
     }
 
     fn parse_signatures(&self) -> Option<AuthenticodeArray> {
@@ -2025,7 +2051,20 @@ impl From<PE<'_>> for pe::PE {
             });
         }
         
+        if let Some(res) = pe.get_resource_dir() {
+            result.resource_timestamp = Some(res.timestamp as u64);
+            result.resource_version = MessageField::some(pe::Version {
+                major: Some(res.major_version.into()),
+                minor: Some(res.minor_version.into()),
+                ..Default::default()
+            });
+        };
+        
+            
         result.set_number_of_resources(
+            result.resources.len().try_into().unwrap());
+        
+        result.set_number_of_sections(
             result.sections.len().try_into().unwrap());
 
         result.set_number_of_version_infos(
@@ -2356,6 +2395,14 @@ impl From<&DirEntry> for pe::DirEntry {
         entry.size = Some(value.size);
         entry
     }
+}
+
+#[derive(Debug, Default)]
+pub struct ResourceDir {
+    timestamp: u32,
+    major_version: u16,
+    minor_version: u16,
+    number_of_entries: usize,
 }
 
 #[derive(Debug)]

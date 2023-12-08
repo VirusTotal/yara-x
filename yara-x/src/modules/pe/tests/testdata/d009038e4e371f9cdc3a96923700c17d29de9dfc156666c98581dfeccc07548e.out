@@ -39,7 +39,7 @@ pointer_to_symbol_table: 0
 win32_version_value: 0
 number_of_symbols: 0
 number_of_rva_and_sizes: 16
-number_of_sections: 6
+number_of_sections: 0
 number_of_imported_functions: 0
 number_of_delayed_imported_functions: 0
 number_of_resources: 0

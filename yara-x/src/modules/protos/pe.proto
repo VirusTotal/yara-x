@@ -73,17 +73,18 @@ message PE {
   optional string pdb_path = 49;
   repeated Section sections = 50;
   repeated DirEntry data_directories = 51;
-  repeated Resource resources = 52;
-  repeated Import import_details = 53;
-  repeated Import delayed_import_details = 54;
-  repeated Export export_details = 55;
-  optional bool is_signed = 56;
-  repeated Signature signatures = 57;
 
-
+  optional uint64 resource_timestamp = 52 [(yaml.field).fmt = "t"];
   // TODO: implement resource_version?
-
-  optional Overlay overlay = 58;
+  optional Version resource_version = 53;
+  repeated Resource resources = 54;
+  repeated Import import_details = 55;
+  repeated Import delayed_import_details = 56;
+  repeated Export export_details = 57;
+  optional bool is_signed = 58;
+  repeated Signature signatures = 59;
+  
+  optional Overlay overlay = 60;
 }
 
 message Version {
