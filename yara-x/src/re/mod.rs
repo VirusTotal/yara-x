@@ -64,7 +64,7 @@ pub enum Error {
     TooManyAlternatives,
 
     /// The regular expression doesn't meet the requirements for being
-    /// executed by [`re::fast::FastVM`].
+    /// executed by [`fast::fastvm::FastVM`].
     #[error("regexp is incompatible with FastVM")]
     FastIncompatible,
 }
