@@ -116,6 +116,13 @@ enum SegmentType {
   PT_GNU_PROPERTY = 0x6474e553;
 }
 
+enum SegmentFlags {
+  option (yara.enum_options).inline = true;
+  PF_X = 0x1;  // Segment is executable
+  PF_W = 0x2;  // Segment is writable
+  PF_R = 0x4;  // Segment is readable
+}
+
 message Sym {
   optional string name = 1;
   required uint64 value = 2;
