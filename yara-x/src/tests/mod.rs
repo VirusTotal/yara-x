@@ -1000,6 +1000,9 @@ fn regexp_patterns_1() {
     pattern_false!(r#"/ab.{1,2}cdef/"#, b"abcdef");
     pattern_match!(r#"/abcd.{1,2}ef/"#, b"abcdxef", b"abcdxef");
     pattern_match!(r#"/ab.{1,2}cdef/"#, b"abxcdef", b"abxcdef");
+    pattern_match!(r#"/(.*)*/"#, b"", b"");
+    pattern_match!(r#"/(.*){2}/"#, b"", b"");
+    pattern_match!(r#"/a(.*){2,4}/"#, b"a", b"a");
 
     // TODO: known issue related to exact atoms. The matching string
     // should be "abbb" and not "abb".

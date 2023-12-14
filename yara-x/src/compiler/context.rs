@@ -20,10 +20,10 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     /// functions, etc.
     pub symbol_table: &'a mut StackedSymbolTable<'sym>,
 
-    /// Symbol table for the currently active structure. When this contains
-    /// some value, symbols are looked up in this table and the main symbol
-    /// table (i.e: `symbol_table`) is ignored.
-    pub current_struct: Option<Rc<dyn SymbolLookup + 'a>>,
+    /// Symbol table for the currently active type. When this contains some
+    /// value, symbols are looked up in this table, and the main symbol table
+    /// (i.e: `symbol_table`) is ignored.
+    pub current_symbol_table: Option<Rc<dyn SymbolLookup + 'a>>,
 
     /// Information about the rules compiled so far.
     pub rules: &'a Vec<RuleInfo>,

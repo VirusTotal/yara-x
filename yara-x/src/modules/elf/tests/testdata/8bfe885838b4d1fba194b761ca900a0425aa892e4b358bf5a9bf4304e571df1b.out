@@ -733,51 +733,51 @@ dynsym:
     shndx: 12
     visibility: STV_PROTECTED
 dynamic:
-  - tag: DT_NEEDED
+  - type: DT_NEEDED
     val: 242
-  - tag: DT_NEEDED
+  - type: DT_NEEDED
     val: 252
-  - tag: DT_INIT
+  - type: DT_INIT
     val: 4096
-  - tag: DT_FINI
+  - type: DT_FINI
     val: 4660
-  - tag: DT_INIT_ARRAY
+  - type: DT_INIT_ARRAY
     val: 15840
-  - tag: DT_INIT_ARRAYSZ
+  - type: DT_INIT_ARRAYSZ
     val: 8
-  - tag: DT_FINI_ARRAY
+  - type: DT_FINI_ARRAY
     val: 15848
-  - tag: DT_FINI_ARRAYSZ
+  - type: DT_FINI_ARRAYSZ
     val: 8
-  - tag: 1879047925
+  - type: 1879047925
     val: 768
-  - tag: DT_STRTAB
+  - type: DT_STRTAB
     val: 1312
-  - tag: DT_SYMTAB
+  - type: DT_SYMTAB
     val: 808
-  - tag: DT_STRSZ
+  - type: DT_STRSZ
     val: 274
-  - tag: DT_SYMENT
+  - type: DT_SYMENT
     val: 24
-  - tag: DT_PLTGOT
+  - type: DT_PLTGOT
     val: 16360
-  - tag: DT_PLTRELSZ
+  - type: DT_PLTRELSZ
     val: 312
-  - tag: DT_PLTREL
+  - type: DT_PLTREL
     val: 7
-  - tag: DT_JMPREL
+  - type: DT_JMPREL
     val: 1856
-  - tag: DT_RELA
+  - type: DT_RELA
     val: 1664
-  - tag: DT_RELASZ
+  - type: DT_RELASZ
     val: 192
-  - tag: DT_RELAENT
+  - type: DT_RELAENT
     val: 24
-  - tag: DT_VERNEED
+  - type: DT_VERNEED
     val: 1632
-  - tag: DT_VERNEEDNUM
+  - type: DT_VERNEEDNUM
     val: 1
-  - tag: DT_VERSYM
+  - type: DT_VERSYM
     val: 1586
-  - tag: DT_RELACOUNT
+  - type: DT_RELACOUNT
     val: 3

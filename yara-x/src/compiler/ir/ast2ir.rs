@@ -292,15 +292,19 @@ pub(in crate::compiler) fn expr_from_ast(
             let mut operands = Vec::with_capacity(expr.operands.len());
             // Iterate over all operands except the last one. These operands
             // must be structures. For instance, in `foo.bar.baz`, `foo` and
-            // `bar` must be structures, while `baz` can be of any type.
+            // `bar` must be structures, while `baz` can be of any type. This
+            // will change in the future when other types can have methods.
             for operand in expr.operands.iter().dropping_back(1) {
                 let expr = expr_from_ast(ctx, operand)?;
                 check_type(ctx, expr.ty(), operand.span(), &[Type::Struct])?;
-                // Set `current_struct` to the structure returned by this
-                // operand. While processing the next operand the first
-                // symbol lookup will use `current_struct` instead of the
-                // top-level symbol table.
-                ctx.current_struct = Some(expr.type_value().as_struct());
+                // Set `current_symbol_table` to the symbol table for the type
+                // of the expression at the left the field access operator (.).
+                // In the expression `foo.bar`, the `current_symbol_table` is
+                // set to the symbol table for foo's type, which should have
+                // a field or method named `bar`.
+                ctx.current_symbol_table =
+                    Some(expr.type_value().symbol_table());
+
                 operands.push(expr);
             }
 
@@ -323,10 +327,10 @@ pub(in crate::compiler) fn expr_from_ast(
         }
 
         ast::Expr::Ident(ident) => {
-            let current_struct = ctx.current_struct.take();
+            let current_symbol_table = ctx.current_symbol_table.take();
 
-            let symbol = if let Some(structure) = &current_struct {
-                structure.lookup(ident.name)
+            let symbol = if let Some(symbol_table) = &current_symbol_table {
+                symbol_table.lookup(ident.name)
             } else {
                 ctx.symbol_table.lookup(ident.name)
             };
@@ -339,7 +343,7 @@ pub(in crate::compiler) fn expr_from_ast(
                         ident.span(),
                         // Add a note about the missing import statement if
                         // the unknown identifier is a module name.
-                        if current_struct.is_none()
+                        if current_symbol_table.is_none()
                             && BUILTIN_MODULES.contains_key(ident.name)
                         {
                             Some(format!(
@@ -1124,8 +1128,15 @@ fn func_call_from_ast(
     // Determine if any of the signatures for the called function matches
     // the provided arguments.
     for (i, signature) in func.signatures().iter().enumerate() {
-        let expected_arg_types: Vec<Type> =
-            signature.args.iter().map(|arg| arg.ty()).collect();
+        // If the function is actually a method, the first argument is always
+        // the type the method belongs to (i.e: the self pointer). This
+        // argument appears in the function's signature, but is not expected
+        // to appear among the arguments in the call statement.
+        let expected_arg_types: Vec<Type> = if func.method_of().is_some() {
+            signature.args.iter().skip(1).map(|arg| arg.ty()).collect()
+        } else {
+            signature.args.iter().map(|arg| arg.ty()).collect()
+        };
 
         if arg_types == expected_arg_types {
             matching_signature = Some((i, signature.result.clone()));

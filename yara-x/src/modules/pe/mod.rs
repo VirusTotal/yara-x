@@ -4,6 +4,7 @@ This allows creating YARA rules based on PE metadata, including sections,
 imports and exports, resources, etc.
  */
 
+use std::rc::Rc;
 use std::slice::Iter;
 
 use bstr::BStr;
@@ -16,11 +17,13 @@ use nom::number::complete::{le_u16, le_u32};
 use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::pe::*;
+use crate::types::Struct;
 
 #[cfg(test)]
 mod tests;
 
 pub mod parser;
+mod rva2off;
 
 #[module_main]
 fn main(input: &[u8]) -> PE {
@@ -53,6 +56,19 @@ fn is_64bit(ctx: &ScanContext) -> Option<bool> {
 fn is_dll(ctx: &ScanContext) -> Option<bool> {
     let characteristics = ctx.module_output::<PE>()?.characteristics?;
     Some(characteristics & Characteristics::DLL as u32 != 0)
+}
+
+/// Convert a relative virtual address (RVA) to a file offset.
+#[module_export]
+fn rva_to_offset(ctx: &ScanContext, rva: i64) -> Option<i64> {
+    let pe = ctx.module_output::<PE>()?;
+    let offset = rva2off::rva_to_offset(
+        rva.try_into().ok()?,
+        pe.sections.as_slice(),
+        pe.file_alignment?,
+        pe.section_alignment?,
+    )?;
+    Some(offset.try_into().unwrap())
 }
 
 /// Returns the PE checksum, as calculated by YARA.
@@ -590,6 +606,28 @@ fn language(ctx: &ScanContext, lang: i64) -> Option<bool> {
     Some(pe.resources.iter().any(|resource| {
         resource.language.is_some_and(|rsrc_lang| rsrc_lang & 0xff == lang)
     }))
+}
+
+/// Returns true if the signature was valid on the date indicated by `timestamp`.
+#[module_export(method_of = "pe.Signature")]
+fn valid_on(
+    _ctx: &ScanContext,
+    signature: Rc<Struct>,
+    timestamp: i64,
+) -> Option<bool> {
+    let not_before = signature
+        .field_by_name("not_before")
+        .unwrap()
+        .type_value
+        .try_as_integer()?;
+
+    let not_after = signature
+        .field_by_name("not_after")
+        .unwrap()
+        .type_value
+        .try_as_integer()?;
+
+    Some(timestamp >= not_before && timestamp <= not_after)
 }
 
 enum MatchCriteria<'a> {

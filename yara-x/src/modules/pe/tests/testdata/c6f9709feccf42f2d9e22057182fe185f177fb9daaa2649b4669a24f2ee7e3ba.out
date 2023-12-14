@@ -1,0 +1,379 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 1
+    minor: 11
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 2
+    minor: 18
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 386
+dll_characteristics: 0
+timestamp: 1616191348
+image_base: 4194304
+checksum: 0
+base_of_code: 4096
+base_of_data: 20480
+entry_point: 1360
+entry_point_raw: 4432
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 16384
+size_of_initialized_data: 4608
+size_of_uninitialized_data: 4096
+size_of_image: 233472
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 51200
+size_of_heap_reserve: 8192
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 6
+number_of_imported_functions: 49
+number_of_delayed_imported_functions: 0
+number_of_resources: 15
+number_of_version_infos: 7
+number_of_imports: 3
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "CompanyName": "Sybase, Inc."
+    "FileDescription": "Sybase, Inc. Product File"
+    "FileVersion": "1.0.0.1"
+    "InternalName": "PB 11.5"
+    "LegalCopyright": "Contains licensed copyright material by Sybase Inc. and others. Use and distribution of Sybase copyright material and licensed material is governed by Sybase End-user License Agreement."
+    "ProductName": "PowerBuilder Enterprise Series"
+    "ProductVersion": "1.0.0.1"
+version_info_list:
+  - key: "CompanyName"
+    value: "Sybase, Inc."
+  - key: "FileDescription"
+    value: "Sybase, Inc. Product File"
+  - key: "FileVersion"
+    value: "1.0.0.1"
+  - key: "InternalName"
+    value: "PB 11.5"
+  - key: "LegalCopyright"
+    value: "Contains licensed copyright material by Sybase Inc. and others. Use and distribution of Sybase copyright material and licensed material is governed by Sybase End-user License Agreement."
+  - key: "ProductName"
+    value: "PowerBuilder Enterprise Series"
+  - key: "ProductVersion"
+    value: "1.0.0.1"
+sections:
+  - name: "AUTO"
+    full_name: "AUTO"
+    characteristics: 1610612768
+    raw_data_size: 16384
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 0
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".idata"
+    full_name: ".idata"
+    characteristics: 3221225536
+    raw_data_size: 1536
+    raw_data_offset: 17408
+    virtual_address: 20480
+    virtual_size: 0
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "DGROUP"
+    full_name: "DGROUP"
+    characteristics: 3221225536
+    raw_data_size: 3072
+    raw_data_offset: 18944
+    virtual_address: 24576
+    virtual_size: 0
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".bss"
+    full_name: ".bss"
+    characteristics: 3221225600
+    raw_data_size: 4096
+    raw_data_offset: 0
+    virtual_address: 28672
+    virtual_size: 0
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 1536
+    raw_data_offset: 22016
+    virtual_address: 32768
+    virtual_size: 0
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 194048
+    raw_data_offset: 23552
+    virtual_address: 36864
+    virtual_size: 0
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 20480
+    size: 1410
+  - virtual_address: 36864
+    size: 194048
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 32768
+    size: 1440
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 1616191348 # 2021-03-19 22:02:28 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 24329
+    rva: 37696
+    offset: 24384
+    type: RESOURCE_TYPE_ICON
+    id: 1
+    language: 0
+  - length: 1640
+    rva: 62028
+    offset: 48716
+    type: RESOURCE_TYPE_ICON
+    id: 2
+    language: 0
+  - length: 744
+    rva: 63668
+    offset: 50356
+    type: RESOURCE_TYPE_ICON
+    id: 3
+    language: 0
+  - length: 296
+    rva: 64412
+    offset: 51100
+    type: RESOURCE_TYPE_ICON
+    id: 4
+    language: 0
+  - length: 35889
+    rva: 64708
+    offset: 51396
+    type: RESOURCE_TYPE_ICON
+    id: 5
+    language: 0
+  - length: 3752
+    rva: 100600
+    offset: 87288
+    type: RESOURCE_TYPE_ICON
+    id: 6
+    language: 0
+  - length: 2216
+    rva: 104352
+    offset: 91040
+    type: RESOURCE_TYPE_ICON
+    id: 7
+    language: 0
+  - length: 1384
+    rva: 106568
+    offset: 93256
+    type: RESOURCE_TYPE_ICON
+    id: 8
+    language: 0
+  - length: 105783
+    rva: 107952
+    offset: 94640
+    type: RESOURCE_TYPE_ICON
+    id: 9
+    language: 0
+  - length: 9640
+    rva: 213736
+    offset: 200424
+    type: RESOURCE_TYPE_ICON
+    id: 10
+    language: 0
+  - length: 4264
+    rva: 223376
+    offset: 210064
+    type: RESOURCE_TYPE_ICON
+    id: 11
+    language: 0
+  - length: 1128
+    rva: 227640
+    offset: 214328
+    type: RESOURCE_TYPE_ICON
+    id: 12
+    language: 0
+  - length: 174
+    rva: 228768
+    offset: 215456
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 1000
+    language: 0
+  - length: 1024
+    rva: 228944
+    offset: 215632
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 0
+  - length: 647
+    rva: 229968
+    offset: 216656
+    type: RESOURCE_TYPE_MANIFEST
+    id: 1
+    language: 0
+import_details:
+  - library_name: "USER32.dll"
+    functions:
+      - name: "CharUpperBuffA"
+        rva: 20768
+  - library_name: "KERNEL32.dll"
+    functions:
+      - name: "CloseHandle"
+        rva: 20776
+      - name: "CreateEventA"
+        rva: 20780
+      - name: "CreateFileA"
+        rva: 20784
+      - name: "CreateThread"
+        rva: 20788
+      - name: "DeleteCriticalSection"
+        rva: 20792
+      - name: "EnterCriticalSection"
+        rva: 20796
+      - name: "ExitProcess"
+        rva: 20800
+      - name: "ExitThread"
+        rva: 20804
+      - name: "FreeEnvironmentStringsA"
+        rva: 20808
+      - name: "GetACP"
+        rva: 20812
+      - name: "GetCPInfo"
+        rva: 20816
+      - name: "GetCommandLineA"
+        rva: 20820
+      - name: "GetCommandLineW"
+        rva: 20824
+      - name: "GetCurrentThreadId"
+        rva: 20828
+      - name: "GetCurrentThread"
+        rva: 20832
+      - name: "GetEnvironmentStrings"
+        rva: 20836
+      - name: "GetFileType"
+        rva: 20840
+      - name: "GetLastError"
+        rva: 20844
+      - name: "GetModuleFileNameA"
+        rva: 20848
+      - name: "GetModuleFileNameW"
+        rva: 20852
+      - name: "GetModuleHandleA"
+        rva: 20856
+      - name: "GetOEMCP"
+        rva: 20860
+      - name: "GetProcAddress"
+        rva: 20864
+      - name: "GetStdHandle"
+        rva: 20868
+      - name: "GetVersion"
+        rva: 20872
+      - name: "InitializeCriticalSection"
+        rva: 20876
+      - name: "LeaveCriticalSection"
+        rva: 20880
+      - name: "LoadLibraryA"
+        rva: 20884
+      - name: "MultiByteToWideChar"
+        rva: 20888
+      - name: "SetConsoleCtrlHandler"
+        rva: 20892
+      - name: "SetEnvironmentVariableA"
+        rva: 20896
+      - name: "SetEnvironmentVariableW"
+        rva: 20900
+      - name: "SetEvent"
+        rva: 20904
+      - name: "SetLastError"
+        rva: 20908
+      - name: "SetStdHandle"
+        rva: 20912
+      - name: "SetUnhandledExceptionFilter"
+        rva: 20916
+      - name: "TlsAlloc"
+        rva: 20920
+      - name: "TlsFree"
+        rva: 20924
+      - name: "TlsGetValue"
+        rva: 20928
+      - name: "TlsSetValue"
+        rva: 20932
+      - name: "UnhandledExceptionFilter"
+        rva: 20936
+      - name: "VirtualAlloc"
+        rva: 20940
+      - name: "VirtualFree"
+        rva: 20944
+      - name: "VirtualQuery"
+        rva: 20948
+      - name: "WaitForSingleObject"
+        rva: 20952
+      - name: "WideCharToMultiByte"
+        rva: 20956
+      - name: "WriteFile"
+        rva: 20960
+  - library_name: "PBVM115.DLL"
+    functions:
+      - name: "ord67"
+        ordinal: 67
+        rva: 20968
+is_signed: false
+overlay:
+    offset: 217600
+    size: 17408

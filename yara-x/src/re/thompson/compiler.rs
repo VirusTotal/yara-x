@@ -78,7 +78,7 @@ pub(super) struct RegexpAtom {
 /// that are are extracted from the regexp and must present in any matching
 /// string. Idealistically, the compiler will extract a single, long-enough
 /// atom from the regexp, but in those cases where extracting a single atom is
-/// is not possible (or would be too short), the compiler can extract multiple
+/// not possible (or would be too short), the compiler can extract multiple
 /// atoms from the regexp. When any of the atom is found in the scanned data
 /// by the Aho-Corasick algorithm, the scanner proceeds to verify if the regexp
 /// matches by executing the Pike VM code.
@@ -135,8 +135,22 @@ impl Compiler {
     pub fn new() -> Self {
         let mut lit_extractor = hir::literal::Extractor::new();
 
+        // Maximum number of atoms extracted for a character class.
         lit_extractor.limit_class(256);
-        lit_extractor.limit_total(512);
+
+        // Maximum number of atoms extracted from each pattern. The literal
+        // extractor will try to keep the number of atoms per pattern below
+        // this limit, but if it fails to do so it will result in a 0-length
+        // atom used for that pattern, with a significant negative effect on
+        // performance. For very complex patterns this number may be too low
+        // to accommodate all the atoms the literal extractor will produce,
+        // but an explosion in the number of atoms is not desirable neither,
+        // so this is a tradeoff. Perhaps this could be configurable, so that
+        // users can increase the number if they start getting warnings due
+        // to 0-length atoms, but for the time being let's use a number that
+        // seems to work fine in most cases.
+        lit_extractor.limit_total(2048);
+
         lit_extractor.limit_literal_len(DESIRED_ATOM_SIZE);
         lit_extractor.limit_repeat(DESIRED_ATOM_SIZE);
 
@@ -198,12 +212,21 @@ impl Compiler {
         mut self,
         hir: &re::hir::Hir,
     ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
+        let start_loc = self.location();
+
         visit(&hir.inner, &mut self)?;
 
         self.forward_code_mut().emit_instr(Instr::MATCH)?;
         self.backward_code_mut().emit_instr(Instr::MATCH)?;
 
-        let atoms = self.best_atoms_stack.pop().unwrap().atoms;
+        let mut atoms = self.best_atoms_stack.pop().unwrap().atoms;
+
+        if atoms.is_empty() {
+            atoms.push(RegexpAtom {
+                atom: Atom::inexact([]),
+                code_loc: start_loc,
+            })
+        }
 
         assert!(atoms.len() <= MAX_ATOMS_PER_REGEXP);
 

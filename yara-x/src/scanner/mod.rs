@@ -179,10 +179,9 @@ impl<'r> Scanner<'r> {
         // bitmap starts right after the bitmap that contains matching
         // information for rules.
         //
-        // TODO: `div_ceil` will be included in `std` in the future
-        // but is currently unstable. When it gets stabilized we can stop
-        // using `num`.
-        // https://doc.rust-lang.org/std/primitive.i8.html#method.div_ceil
+        // TODO: `u32::div_ceil` was stabilized in Rust 1.73. Once we bump
+        // the MSRV to 1.73 we can stop using `num`.
+        // https://doc.rust-lang.org/std/primitive.u32.html#method.div_ceil
         let matching_patterns_bitmap_base = MATCHING_RULES_BITMAP_BASE as u32
             + num::Integer::div_ceil(&num_rules, &8);
 

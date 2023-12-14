@@ -1242,7 +1242,7 @@ struct VM<'r> {
 /// as the key that identifies each object. Handlers are actually 64-bits
 /// integers that can cross the WASM-Rust boundary, and used to retrieve the
 /// original object from [`ScanContext`].
-pub enum RuntimeObject {
+pub(crate) enum RuntimeObject {
     Struct(Rc<Struct>),
     Array(Rc<Array>),
     Map(Rc<Map>),

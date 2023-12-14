@@ -1,0 +1,321 @@
+magic: 0xcefaedfe
+cputype: 18
+cpusubtype: 0
+filetype: 2
+ncmds: 18
+sizeofcmds: 2616
+flags: 0x85
+number_of_segments: 5
+segments:
+  - cmd: 1
+    cmdsize: 56
+    segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x1000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x0
+  - cmd: 1
+    cmdsize: 328
+    segname: "__TEXT"
+    vmaddr: 0x1000
+    vmsize: 0x3000
+    fileoff: 0
+    filesize: 12288
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 4
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x1c14
+        size: 0x185c
+        offset: 3092
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__symbol_stub1"
+        addr: 0x3470
+        size: 0x160
+        offset: 9328
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000408
+        reserved1: 0
+        reserved2: 16
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x35d0
+        size: 0x9ff
+        offset: 9680
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x3fd0
+        size: 0x30
+        offset: 12240
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+  - cmd: 1
+    cmdsize: 464
+    segname: "__DATA"
+    vmaddr: 0x4000
+    vmsize: 0x1000
+    fileoff: 12288
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x3
+    nsects: 6
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__dyld"
+        addr: 0x4000
+        size: 0x8
+        offset: 12288
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__nl_symbol_ptr"
+        addr: 0x4008
+        size: 0x24
+        offset: 12296
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 22
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__la_symbol_ptr"
+        addr: 0x402c
+        size: 0x58
+        offset: 12332
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x7
+        reserved1: 31
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__cfstring"
+        addr: 0x4084
+        size: 0xf0
+        offset: 12420
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0x4174
+        size: 0x1c
+        offset: 12660
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__common"
+        addr: 0x4190
+        size: 0x3a
+        offset: 0
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+  - cmd: 1
+    cmdsize: 736
+    segname: "__OBJC"
+    vmaddr: 0x5000
+    vmsize: 0x1000
+    fileoff: 16384
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x3
+    nsects: 10
+    flags: 0x0
+    sections:
+      - segname: "__OBJC"
+        sectname: "__message_refs"
+        addr: 0x5000
+        size: 0x108
+        offset: 16384
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x5
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__cls_refs"
+        addr: 0x5108
+        size: 0x30
+        offset: 16648
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x5
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__class"
+        addr: 0x5138
+        size: 0x180
+        offset: 16696
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__meta_class"
+        addr: 0x52b8
+        size: 0x180
+        offset: 17080
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__inst_meth"
+        addr: 0x5438
+        size: 0x160
+        offset: 17464
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__instance_vars"
+        addr: 0x5598
+        size: 0x9c
+        offset: 17816
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__module_info"
+        addr: 0x5634
+        size: 0x80
+        offset: 17972
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__symbols"
+        addr: 0x56b4
+        size: 0x80
+        offset: 18100
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__cls_meth"
+        addr: 0x5734
+        size: 0x14
+        offset: 18228
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__OBJC"
+        sectname: "__image_info"
+        addr: 0x5748
+        size: 0x8
+        offset: 18248
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+  - cmd: 1
+    cmdsize: 56
+    segname: "__LINKEDIT"
+    vmaddr: 0x6000
+    vmsize: 0x3000
+    fileoff: 20480
+    filesize: 8648
+    maxprot: 0x7
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "11.0.0"
+  - name: "@executable_path/libbassmod.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/usr/lib/libgcc_s.1.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "88.3.11"
+  - name: "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "18.0.0"
+  - name: "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "22.0.0"
+  - name: "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "300.0.0"
+    current_version: "567.42.0"
+  - name: "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "45.0.0"
+    current_version: "824.48.0"
+entry_point: 3092

@@ -9,6 +9,7 @@ use syn::{AttributeArgs, Expr, FnArg, ItemFn, Pat};
 /// Arguments received by the `#[module_export]` macro.
 pub struct ModuleExportsArgs {
     name: Option<String>,
+    method_of: Option<String>,
 }
 
 /// Implementation for the `#[module_export]` attribute macro.
@@ -80,26 +81,27 @@ pub(crate) fn impl_module_export_macro(
         }
     }
 
-    let fn_name_str = if let Some(name) = attr_args.name {
-        name
-    } else {
-        func.sig.ident.to_string()
-    };
-
-    let fn_name = func.sig.ident;
+    let rust_fn_name = func.sig.ident;
+    let fn_name = attr_args.name.unwrap_or(rust_fn_name.to_string());
 
     // Modify the original function and convert it into the thunk function.
-    func.sig.ident = format_ident!("__thunk__{}", fn_name);
+    func.sig.ident = format_ident!("__thunk__{}", rust_fn_name);
     func.sig.inputs = fn_args;
 
     func.block = syn::parse2(quote! {{
-        #fn_name(caller.data_mut(), #arg_pats)
+        #rust_fn_name(caller.data_mut(), #arg_pats)
     }})
     .unwrap();
 
+    let wasm_export = if let Some(method_of) = attr_args.method_of {
+        quote! { #[wasm_export(name = #fn_name, public = true, method_of = #method_of)] }
+    } else {
+        quote! { #[wasm_export(name = #fn_name, public = true)] }
+    };
+
     // Add the thunk function to the output.
     token_stream.extend(quote! {
-        #[wasm_export(name = #fn_name_str, public = true)]
+        #wasm_export
         #[inline(always)]
         #[allow(non_snake_case)]
         #func

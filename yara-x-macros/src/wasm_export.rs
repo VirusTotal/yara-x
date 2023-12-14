@@ -143,6 +143,7 @@ impl<'ast> Visit<'ast> for FuncSignatureParser<'ast> {
 /// Arguments received by the `#[wasm_export]` macro.
 pub struct WasmExportArgs {
     name: Option<String>,
+    method_of: Option<String>,
     #[darling(default)]
     public: bool,
 }
@@ -173,6 +174,7 @@ pub struct WasmExportArgs {
 ///     name: "add",
 ///     mangled_name: "add@ii@i",
 ///     rust_module_path: "yara_x::modules::my_module",
+///     method_of: None,
 ///     func: &WasmExportedFn2 { target_fn: &add },
 /// };
 /// ```
@@ -185,43 +187,47 @@ pub(crate) fn impl_wasm_export_macro(
     func: ItemFn,
 ) -> syn::Result<TokenStream> {
     let attr_args = WasmExportArgs::from_list(&attr_args)?;
-
-    let fn_name = &func.sig.ident;
-    let fn_name_str = if let Some(name) = attr_args.name {
-        name
-    } else {
-        fn_name.to_string()
-    };
+    let rust_fn_name = &func.sig.ident;
 
     if func.sig.inputs.is_empty() {
         return Err(syn::Error::new_spanned(
             &func.sig,
             format!(
-                "function `{}` must have at least one argument of type `&mut Caller<'_, ScanContext>`", 
-                fn_name),
+                "function `{}` must have at least one argument of type `&mut Caller<'_, ScanContext>`",
+                rust_fn_name),
         ));
     }
 
+    // By default, the name of the function in YARA is equal to the name in
+    // Rust, but the YARA name can be changed with the `name` argument, as
+    // in: #[wasm_export(name = "some_other_name")].
+    let fn_name = attr_args.name.unwrap_or(rust_fn_name.to_string());
+
+    // The real number of argument is one less than in the Rust function's
+    // signature. The first argument &mut Caller<'_, ScanContext> doesn't
+    // count.
     let num_args = func.sig.inputs.len() - 1;
 
-    let export_ident = format_ident!("export__{}", fn_name);
-    let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
     let public = attr_args.public;
-
-    let mut func_sig_parser = FuncSignatureParser::new();
+    let export_ident = format_ident!("export__{}", rust_fn_name);
+    let exported_fn_ident = format_ident!("WasmExportedFn{}", num_args);
+    let method_of = attr_args
+        .method_of
+        .map_or_else(|| quote! { None}, |m| quote! { Some(#m) });
 
     let mangled_fn_name =
-        format!("{}{}", fn_name_str, func_sig_parser.parse(&func)?);
+        format!("{}{}", fn_name, FuncSignatureParser::new().parse(&func)?);
 
     let fn_descriptor = quote! {
         #[allow(non_upper_case_globals)]
         #[distributed_slice(WASM_EXPORTS)]
         pub(crate) static #export_ident: WasmExport = WasmExport {
-            name: #fn_name_str,
+            name: #fn_name,
             mangled_name: #mangled_fn_name,
             public: #public,
             rust_module_path: module_path!(),
-            func: &#exported_fn_ident { target_fn: &#fn_name },
+            method_of: #method_of,
+            func: &#exported_fn_ident { target_fn: &#rust_fn_name },
         };
     };
 

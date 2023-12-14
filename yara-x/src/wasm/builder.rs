@@ -231,6 +231,9 @@ impl WasmModuleBuilder {
         self.wasm_symbols.clone()
     }
 
+    /// Returns a hash map where keys are fully qualified mangled function
+    /// names (i.e: `my_module.my_struct.my_func@ii@i`) and values are function
+    /// identifiers returned by the `walrus` crate. ([`walrus::FunctionId`]).
     pub fn wasm_exports(&self) -> FxHashMap<String, FunctionId> {
         self.wasm_exports.clone()
     }
@@ -467,38 +470,38 @@ mod tests {
         assert_eq!(
             text,
             r#"(module
-  (func (;124;) (type 1) (result i32)
+  (func (;127;) (type 1) (result i32)
     i32.const 0
     global.set 2
     i32.const 0
     global.set 3
-    call 125
-    call 126
+    call 128
+    call 129
     global.get 3
   )
-  (func (;125;) (type 0)
-    block ;; label = @1
-      call 127
-    end
-    block ;; label = @1
-      call 128
-    end
-  )
-  (func (;126;) (type 0)
-    block ;; label = @1
-      call 129
-    end
-  )
-  (func (;127;) (type 0)
-    i32.const 4
-  )
   (func (;128;) (type 0)
-    i32.const 5
+    block ;; label = @1
+      call 130
+    end
+    block ;; label = @1
+      call 131
+    end
   )
   (func (;129;) (type 0)
+    block ;; label = @1
+      call 132
+    end
+  )
+  (func (;130;) (type 0)
+    i32.const 4
+  )
+  (func (;131;) (type 0)
+    i32.const 5
+  )
+  (func (;132;) (type 0)
     i32.const 6
   )
-  (export "main" (func 124))
+  (export "main" (func 127))
 )"#
         );
     }
