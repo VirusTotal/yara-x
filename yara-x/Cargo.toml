@@ -35,6 +35,10 @@ rules-profiling = ["logging"]
 # a given module is built or not. For instance, if the feature `foo-module` is
 # enabled, the module `foo` will be built into YARA.
 
+# The `dotnet` module parsers .NET files.
+dotnet-module = []
+
+
 # The `elf` module parses ELF files.
 elf-module = [
     "dep:tlsh-fixed"
@@ -89,6 +93,7 @@ time-module = []
 default = [
     "constant-folding",
     "fast-regexp",
+    "dotnet-module",
     "elf-module",
     "macho-module",
     "hash-module",
@@ -128,6 +133,8 @@ memchr = { workspace = true }
 memx = { workspace = true }
 nom = { workspace = true, optional = true }
 num = { workspace = true }
+num-derive = { workspace = true }
+num-traits = { workspace = true }
 protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
