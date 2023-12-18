@@ -1,6 +1,12 @@
 is_dotnet: true
 module_name: "Microsoft.VisualC.dll"
 version: "v4.0.30319"
+number_of_streams: 5
+number_of_guids: 1
+number_of_resources: 0
+number_of_classes: 12
+number_of_assembly_refs: 1
+number_of_constants: 40
 streams:
   - name: "#~"
     offset: 808
@@ -80,18 +86,22 @@ classes:
     name: "Consts"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Object"
   - fullname: "Locale"
     name: "Locale"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 3
+    base_types:
+      - "System.Object"
     methods:
       - name: ".ctor"
         visibility: "private"
@@ -99,6 +109,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "GetText"
         visibility: "public"
         abstract: false
@@ -106,6 +117,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: "msg"
             type: "string"
@@ -116,6 +128,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 2
         parameters:
           - name: "fmt"
             type: "string"
@@ -126,10 +139,12 @@ classes:
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -137,15 +152,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "Microsoft.VisualC.DecoratedNameAttribute"
     name: "DecoratedNameAttribute"
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -153,15 +171,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsCXXReferenceModifier"
     name: "IsCXXReferenceModifier"
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -169,15 +190,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsConstModifier"
     name: "IsConstModifier"
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -185,15 +209,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsLongModifier"
     name: "IsLongModifier"
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -201,15 +228,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsSignedModifier"
     name: "IsSignedModifier"
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -217,15 +247,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsVolatileModifier"
     name: "IsVolatileModifier"
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -233,15 +266,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "Microsoft.VisualC.MiscellaneousBitsAttribute"
     name: "MiscellaneousBitsAttribute"
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -249,6 +285,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 1
         parameters:
           - name: "miscellaneousBits"
             type: "int"
@@ -257,10 +294,12 @@ classes:
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -268,15 +307,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "Microsoft.VisualC.NoSignSpecifiedModifier"
     name: "NoSignSpecifiedModifier"
     namespace: "Microsoft.VisualC"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -284,3 +326,4 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0

@@ -1,6 +1,12 @@
 is_dotnet: true
 module_name: "System.Net.NameResolution.dll"
 version: "v4.0.30319"
+number_of_streams: 5
+number_of_guids: 1
+number_of_resources: 1
+number_of_classes: 31
+number_of_assembly_refs: 2
+number_of_constants: 0
 streams:
   - name: "#~"
     offset: 9608
@@ -51,10 +57,12 @@ classes:
     namespace: "Microsoft.CodeAnalysis"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -62,15 +70,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "System.Runtime.CompilerServices.NullableAttribute"
     name: "NullableAttribute"
     namespace: "System.Runtime.CompilerServices"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -78,6 +89,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "byte"
@@ -86,10 +98,12 @@ classes:
     namespace: "System.Runtime.CompilerServices"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -97,6 +111,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "byte"
@@ -105,10 +120,12 @@ classes:
     namespace: "System.Runtime.CompilerServices"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Attribute"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Attribute"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -116,6 +133,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "bool"
@@ -123,19 +141,23 @@ classes:
     name: "Interop"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Object"
   - fullname: "Interop.Kernel32"
     name: "Kernel32"
     namespace: "Interop"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Object"
     methods:
       - name: "LoadLibraryEx"
         visibility: "internal"
@@ -144,6 +166,7 @@ classes:
         virtual: false
         final: false
         return_type: "IntPtr"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "string"
@@ -156,10 +179,12 @@ classes:
     namespace: "Interop"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 13
+    base_types:
+      - "System.Object"
     methods:
       - name: "closesocket"
         visibility: "internal"
@@ -168,6 +193,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.Sockets.SocketError"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "IntPtr"
@@ -178,6 +204,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.Sockets.SocketError"
+        number_of_parameters: 2
         parameters:
           - name: ""
             type: "Ptr<byte>"
@@ -190,6 +217,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.Sockets.SocketError"
+        number_of_parameters: 7
         parameters:
           - name: ""
             type: "Ptr<byte>"
@@ -212,6 +240,7 @@ classes:
         virtual: false
         final: false
         return_type: "int"
+        number_of_parameters: 4
         parameters:
           - name: ""
             type: "string"
@@ -228,6 +257,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "Ptr<Interop.Winsock.AddressInfo>"
@@ -238,6 +268,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "WSAStartup"
         visibility: "private"
         abstract: false
@@ -245,6 +276,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.Sockets.SocketError"
+        number_of_parameters: 2
         parameters:
           - name: ""
             type: "short"
@@ -257,6 +289,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.Sockets.SocketError"
+        number_of_parameters: 0
       - name: "WSASocketW"
         visibility: "internal"
         abstract: false
@@ -264,6 +297,7 @@ classes:
         virtual: false
         final: false
         return_type: "IntPtr"
+        number_of_parameters: 6
         parameters:
           - name: ""
             type: "System.Net.Sockets.AddressFamily"
@@ -284,6 +318,7 @@ classes:
         virtual: false
         final: false
         return_type: "int"
+        number_of_parameters: 10
         parameters:
           - name: ""
             type: "string"
@@ -312,6 +347,7 @@ classes:
         virtual: false
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "Ptr<IntPtr>"
@@ -322,6 +358,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "Ptr<Interop.Winsock.AddressInfoEx>"
@@ -332,51 +369,62 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 0
   - fullname: "Interop.Winsock.AddressInfo"
     name: "AddressInfo"
     namespace: "Interop.Winsock"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.ValueType"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.ValueType"
   - fullname: "Interop.Winsock.WSAData"
     name: "WSAData"
     namespace: "Interop.Winsock"
     visibility: "private"
     type: "class"
-    base_types:
-      - "System.ValueType"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.ValueType"
   - fullname: "Interop.Winsock.AddressInfoEx"
     name: "AddressInfoEx"
     namespace: "Interop.Winsock"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.ValueType"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.ValueType"
   - fullname: "FxResources.System.Net.NameResolution.SR"
     name: "SR"
     namespace: "FxResources.System.Net.NameResolution"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Object"
   - fullname: "Microsoft.Extensions.Internal.ValueStopwatch"
     name: "ValueStopwatch"
     namespace: "Microsoft.Extensions.Internal"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.ValueType"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 5
+    base_types:
+      - "System.ValueType"
     methods:
       - name: "get_IsActive"
         visibility: "public"
@@ -385,12 +433,14 @@ classes:
         virtual: false
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: ".ctor"
         visibility: "private"
         abstract: false
         static: false
         virtual: false
         final: false
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "long"
@@ -401,6 +451,7 @@ classes:
         virtual: false
         final: false
         return_type: "Microsoft.Extensions.Internal.ValueStopwatch"
+        number_of_parameters: 0
       - name: "GetElapsedTime"
         visibility: "public"
         abstract: false
@@ -408,21 +459,25 @@ classes:
         virtual: false
         final: false
         return_type: "System.TimeSpan"
+        number_of_parameters: 0
       - name: ".cctor"
         visibility: "private"
         abstract: false
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "System.SR"
     name: "SR"
     namespace: "System"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 8
+    base_types:
+      - "System.Object"
     methods:
       - name: "UsingResourceKeys"
         visibility: "private"
@@ -431,6 +486,7 @@ classes:
         virtual: false
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "GetResourceString"
         visibility: "internal"
         abstract: false
@@ -438,6 +494,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "string"
@@ -448,6 +505,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 2
         parameters:
           - name: ""
             type: "string"
@@ -460,6 +518,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "string"
@@ -474,6 +533,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Resources.ResourceManager"
+        number_of_parameters: 0
       - name: "get_net_toolong"
         visibility: "internal"
         abstract: false
@@ -481,6 +541,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_net_invalid_ip_addr"
         visibility: "internal"
         abstract: false
@@ -488,21 +549,25 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: ".cctor"
         visibility: "private"
         abstract: false
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "System.Net.Dns"
     name: "Dns"
     namespace: "System.Net"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 21
+    base_types:
+      - "System.Object"
     methods:
       - name: "GetHostName"
         visibility: "public"
@@ -511,6 +576,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "GetHostEntryAsync"
         visibility: "public"
         abstract: false
@@ -518,6 +584,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task<System.Net.IPHostEntry>"
+        number_of_parameters: 2
         parameters:
           - name: ""
             type: "string"
@@ -530,6 +597,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task<System.Net.IPHostEntry>"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "string"
@@ -544,6 +612,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress[]"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "string"
@@ -554,6 +623,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress[]"
+        number_of_parameters: 2
         parameters:
           - name: ""
             type: "string"
@@ -566,6 +636,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task<System.Net.IPAddress[]>"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "string"
@@ -580,6 +651,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPHostEntry"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "string"
@@ -594,6 +666,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress[]"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "string"
@@ -608,6 +681,7 @@ classes:
         virtual: false
         final: false
         return_type: "object"
+        number_of_parameters: 4
         parameters:
           - name: ""
             type: "string"
@@ -624,6 +698,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPHostEntry"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "System.Net.IPAddress"
@@ -638,6 +713,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress[]"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "System.Net.IPAddress"
@@ -652,6 +728,7 @@ classes:
         virtual: false
         final: false
         return_type: "object"
+        number_of_parameters: 4
         parameters:
           - name: "thisOrContextObject"
             type: "System.Net.IPAddress"
@@ -668,6 +745,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task<System.Net.IPHostEntry>"
+        number_of_parameters: 5
         parameters:
           - name: "thisOrContextObject"
             type: "string"
@@ -686,6 +764,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task"
+        number_of_parameters: 6
         parameters:
           - name: "thisOrContextObject"
             type: "string"
@@ -706,6 +785,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task<TResult>"
+        number_of_parameters: 4
         parameters:
           - name: "thisOrContextObject"
             type: "string"
@@ -722,6 +802,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPHostEntry"
+        number_of_parameters: 1
         parameters:
           - name: "thisOrContextObject"
             type: "System.Net.IPAddress"
@@ -732,6 +813,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "thisOrContextObject"
             type: "string"
@@ -742,6 +824,7 @@ classes:
         virtual: false
         final: false
         return_type: "bool"
+        number_of_parameters: 1
         parameters:
           - name: "thisOrContextObject"
             type: "Microsoft.Extensions.Internal.ValueStopwatch"
@@ -752,6 +835,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task<TResult>"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "System.Func<object,Microsoft.Extensions.Internal.ValueStopwatch,TResult>"
@@ -765,6 +849,7 @@ classes:
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "<GetAddrInfoWithTelemetryAsync>g__CompleteAsync|34_0"
         visibility: "internal"
         abstract: false
@@ -772,6 +857,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task<TResult>"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "System.Threading.Tasks.Task"
@@ -784,10 +870,12 @@ classes:
     namespace: "System.Net.Dns"
     visibility: "private"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 5
+    base_types:
+      - "System.Object"
     methods:
       - name: ".cctor"
         visibility: "private"
@@ -795,12 +883,14 @@ classes:
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: ".ctor"
         visibility: "public"
         abstract: false
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "<GetHostEntryAsync>b__6_0"
         visibility: "internal"
         abstract: false
@@ -808,6 +898,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 2
         parameters:
           - name: "thisOrContextObject"
             type: "System.Threading.Tasks.Task<System.Net.IPHostEntry>"
@@ -820,6 +911,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress[]"
+        number_of_parameters: 2
         parameters:
           - name: "thisOrContextObject"
             type: "object"
@@ -832,6 +924,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPHostEntry"
+        number_of_parameters: 2
         parameters:
           - name: "thisOrContextObject"
             type: "object"
@@ -842,10 +935,12 @@ classes:
     namespace: "System.Net.Dns"
     visibility: "private"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 2
+    base_types:
+      - "System.Object"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -853,6 +948,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "<RunAsync>b__0"
         visibility: "internal"
         abstract: false
@@ -860,6 +956,7 @@ classes:
         virtual: false
         final: false
         return_type: "TResult"
+        number_of_parameters: 2
         parameters:
           - name: "thisOrContextObject"
             type: "System.Threading.Tasks.Task"
@@ -870,10 +967,12 @@ classes:
     namespace: "System.Net.Dns"
     visibility: "private"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 3
+    base_types:
+      - "System.Object"
     methods:
       - name: ".cctor"
         visibility: "private"
@@ -881,12 +980,14 @@ classes:
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: ".ctor"
         visibility: "public"
         abstract: false
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "<RunAsync>b__39_1"
         visibility: "internal"
         abstract: false
@@ -894,6 +995,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 2
         parameters:
           - name: "thisOrContextObject"
             type: "System.Threading.Tasks.Task<TResult>"
@@ -904,11 +1006,13 @@ classes:
     namespace: "System.Net.Dns"
     visibility: "private"
     type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 2
+    number_of_methods: 2
     base_types:
       - "System.ValueType"
       - "System.Runtime.CompilerServices.IAsyncStateMachine"
-    abstract: false
-    sealed: true
     methods:
       - name: "MoveNext"
         visibility: "private"
@@ -917,6 +1021,7 @@ classes:
         virtual: true
         final: true
         return_type: "void"
+        number_of_parameters: 0
       - name: "SetStateMachine"
         visibility: "private"
         abstract: false
@@ -924,6 +1029,7 @@ classes:
         virtual: true
         final: true
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "thisOrContextObject"
             type: "System.Runtime.CompilerServices.IAsyncStateMachine"
@@ -932,10 +1038,12 @@ classes:
     namespace: "System.Net"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: false
     sealed: false
+    number_of_base_types: 1
+    number_of_methods: 6
+    base_types:
+      - "System.Object"
     methods:
       - name: "get_HostName"
         visibility: "public"
@@ -944,6 +1052,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_HostName"
         visibility: "public"
         abstract: false
@@ -951,6 +1060,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "thisOrContextObject"
             type: "string"
@@ -961,6 +1071,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "thisOrContextObject"
             type: "string[]"
@@ -971,6 +1082,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress[]"
+        number_of_parameters: 0
       - name: "set_AddressList"
         visibility: "public"
         abstract: false
@@ -978,6 +1090,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "thisOrContextObject"
             type: "System.Net.IPAddress[]"
@@ -987,15 +1100,18 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "System.Net.NetEventSource"
     name: "NetEventSource"
     namespace: "System.Net"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Diagnostics.Tracing.EventSource"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 12
+    base_types:
+      - "System.Diagnostics.Tracing.EventSource"
     methods:
       - name: "Info"
         visibility: "public"
@@ -1004,6 +1120,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "object"
@@ -1018,6 +1135,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "object"
@@ -1032,6 +1150,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "string"
@@ -1046,6 +1165,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "object"
@@ -1060,6 +1180,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "object"
@@ -1074,6 +1195,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "thisOrContextObject"
             type: "string"
@@ -1088,6 +1210,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: "value"
             type: "object"
@@ -1098,6 +1221,7 @@ classes:
         virtual: false
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "value"
             type: "object"
@@ -1108,6 +1232,7 @@ classes:
         virtual: false
         final: false
         return_type: "object"
+        number_of_parameters: 1
         parameters:
           - name: "value"
             type: "object"
@@ -1118,6 +1243,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: "s"
             type: "System.FormattableString"
@@ -1127,30 +1253,36 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: ".cctor"
         visibility: "private"
         abstract: false
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "System.Net.NetEventSource.Keywords"
     name: "Keywords"
     namespace: "System.Net.NetEventSource"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Object"
   - fullname: "System.Net.NameResolutionTelemetry"
     name: "NameResolutionTelemetry"
     namespace: "System.Net"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Diagnostics.Tracing.EventSource"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 10
+    base_types:
+      - "System.Diagnostics.Tracing.EventSource"
     methods:
       - name: "OnEventCommand"
         visibility: "protected"
@@ -1159,6 +1291,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "command"
             type: "System.Diagnostics.Tracing.EventCommandEventArgs"
@@ -1169,6 +1302,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "hostNameOrAddress"
             type: "string"
@@ -1179,6 +1313,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "ResolutionFailed"
         visibility: "private"
         abstract: false
@@ -1186,6 +1321,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "BeforeResolution"
         visibility: "public"
         abstract: false
@@ -1193,6 +1329,7 @@ classes:
         virtual: false
         final: false
         return_type: "Microsoft.Extensions.Internal.ValueStopwatch"
+        number_of_parameters: 1
         parameters:
           - name: "hostNameOrAddress"
             type: "object"
@@ -1203,6 +1340,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 2
         parameters:
           - name: "stopwatch"
             type: "Microsoft.Extensions.Internal.ValueStopwatch"
@@ -1214,12 +1352,14 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: ".cctor"
         visibility: "private"
         abstract: false
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "<OnEventCommand>b__9_0"
         visibility: "private"
         abstract: false
@@ -1227,6 +1367,7 @@ classes:
         virtual: false
         final: false
         return_type: "double"
+        number_of_parameters: 0
       - name: "<OnEventCommand>b__9_1"
         visibility: "private"
         abstract: false
@@ -1234,15 +1375,18 @@ classes:
         virtual: false
         final: false
         return_type: "double"
+        number_of_parameters: 0
   - fullname: "System.Net.SocketProtocolSupportPal"
     name: "SocketProtocolSupportPal"
     namespace: "System.Net"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 4
+    base_types:
+      - "System.Object"
     methods:
       - name: "get_OSSupportsIPv6"
         visibility: "public"
@@ -1251,6 +1395,7 @@ classes:
         virtual: false
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "IsIPv6Disabled"
         visibility: "private"
         abstract: false
@@ -1258,6 +1403,7 @@ classes:
         virtual: false
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "IsSupported"
         visibility: "private"
         abstract: false
@@ -1265,6 +1411,7 @@ classes:
         virtual: false
         final: false
         return_type: "bool"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "System.Net.Sockets.AddressFamily"
@@ -1274,15 +1421,18 @@ classes:
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "System.Net.NameResolutionPal"
     name: "NameResolutionPal"
     namespace: "System.Net"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 12
+    base_types:
+      - "System.Object"
     methods:
       - name: "get_SupportsGetAddrInfoAsync"
         visibility: "public"
@@ -1291,6 +1441,7 @@ classes:
         virtual: false
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "TryGetAddrInfo"
         visibility: "public"
         abstract: false
@@ -1298,6 +1449,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.Sockets.SocketError"
+        number_of_parameters: 7
         parameters:
           - name: ""
             type: "string"
@@ -1320,6 +1472,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "System.Net.IPAddress"
@@ -1334,6 +1487,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "GetAddrInfoAsync"
         visibility: "public"
         abstract: false
@@ -1341,6 +1495,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task"
+        number_of_parameters: 0
       - name: "GetAddressInfoExCallback"
         visibility: "private"
         abstract: false
@@ -1348,6 +1503,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "int"
@@ -1362,6 +1518,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 2
         parameters:
           - name: ""
             type: "System.Net.Sockets.SocketError"
@@ -1374,6 +1531,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress[]"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "Ptr<Interop.Winsock.AddressInfo>"
@@ -1388,6 +1546,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress[]"
+        number_of_parameters: 0
       - name: "CreateIPv4Address"
         visibility: "private"
         abstract: false
@@ -1395,6 +1554,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "System.ReadOnlySpan<byte>"
@@ -1405,6 +1565,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.IPAddress"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "System.ReadOnlySpan<byte>"
@@ -1415,16 +1576,19 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 0
   - fullname: "System.Net.NameResolutionPal.GetAddrInfoExState"
     name: "GetAddrInfoExState"
     namespace: "System.Net.NameResolutionPal"
     visibility: "private"
     type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 2
+    number_of_methods: 12
     base_types:
       - "Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid"
       - "System.Threading.IThreadPoolWorkItem"
-    abstract: false
-    sealed: true
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -1432,6 +1596,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "get_HostName"
         visibility: "public"
         abstract: false
@@ -1439,6 +1604,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_JustAddresses"
         visibility: "public"
         abstract: false
@@ -1446,6 +1612,7 @@ classes:
         virtual: false
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "get_Task"
         visibility: "public"
         abstract: false
@@ -1453,6 +1620,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.Tasks.Task"
+        number_of_parameters: 0
       - name: "get_Context"
         visibility: "internal"
         abstract: false
@@ -1460,6 +1628,7 @@ classes:
         virtual: false
         final: false
         return_type: "Ptr<System.Net.NameResolutionPal.GetAddrInfoExContext>"
+        number_of_parameters: 0
       - name: "RegisterForCancellation"
         visibility: "public"
         abstract: false
@@ -1467,6 +1636,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "System.Threading.CancellationToken"
@@ -1477,6 +1647,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Threading.CancellationToken"
+        number_of_parameters: 0
       - name: "SetResult"
         visibility: "public"
         abstract: false
@@ -1484,6 +1655,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "object"
@@ -1494,6 +1666,7 @@ classes:
         virtual: true
         final: true
         return_type: "void"
+        number_of_parameters: 0
       - name: "FromHandleAndFree"
         visibility: "public"
         abstract: false
@@ -1501,6 +1674,7 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.NameResolutionPal.GetAddrInfoExState"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "IntPtr"
@@ -1511,6 +1685,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "CreateHandle"
         visibility: "private"
         abstract: false
@@ -1518,15 +1693,18 @@ classes:
         virtual: false
         final: false
         return_type: "IntPtr"
+        number_of_parameters: 0
   - fullname: "System.Net.NameResolutionPal.GetAddrInfoExState.<>c"
     name: "<>c"
     namespace: "System.Net.NameResolutionPal.GetAddrInfoExState"
     visibility: "private"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 3
+    base_types:
+      - "System.Object"
     methods:
       - name: ".cctor"
         visibility: "private"
@@ -1534,12 +1712,14 @@ classes:
         static: true
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: ".ctor"
         visibility: "public"
         abstract: false
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "<RegisterForCancellation>b__16_0"
         visibility: "internal"
         abstract: false
@@ -1547,6 +1727,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "object"
@@ -1555,10 +1736,12 @@ classes:
     namespace: "System.Net.NameResolutionPal"
     visibility: "private"
     type: "class"
-    base_types:
-      - "System.ValueType"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 2
+    base_types:
+      - "System.ValueType"
     methods:
       - name: "AllocateContext"
         visibility: "public"
@@ -1567,6 +1750,7 @@ classes:
         virtual: false
         final: false
         return_type: "Ptr<System.Net.NameResolutionPal.GetAddrInfoExContext>"
+        number_of_parameters: 0
       - name: "FreeContext"
         visibility: "public"
         abstract: false
@@ -1574,6 +1758,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "Ptr<System.Net.NameResolutionPal.GetAddrInfoExContext>"
@@ -1582,10 +1767,12 @@ classes:
     namespace: "System.Net"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 2
+    base_types:
+      - "System.Object"
     methods:
       - name: "GetIPv4Address"
         visibility: "public"
@@ -1594,6 +1781,7 @@ classes:
         virtual: false
         final: false
         return_type: "uint"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "System.ReadOnlySpan<byte>"
@@ -1604,33 +1792,40 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 0
   - fullname: "System.Net.Sockets.AddressInfoHints"
     name: "AddressInfoHints"
     namespace: "System.Net.Sockets"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "System.Net.Internals.SocketType"
     name: "SocketType"
     namespace: "System.Net.Internals"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "System.Net.Internals.SocketExceptionFactory"
     name: "SocketExceptionFactory"
     namespace: "System.Net.Internals"
     visibility: "internal"
     type: "class"
-    base_types:
-      - "System.Object"
     abstract: true
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 1
+    base_types:
+      - "System.Object"
     methods:
       - name: "CreateSocketException"
         visibility: "public"
@@ -1639,3 +1834,4 @@ classes:
         virtual: false
         final: false
         return_type: "System.Net.Sockets.SocketException"
+        number_of_parameters: 0

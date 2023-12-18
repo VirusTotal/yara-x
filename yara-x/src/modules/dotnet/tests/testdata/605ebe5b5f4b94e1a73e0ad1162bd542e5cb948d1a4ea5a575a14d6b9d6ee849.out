@@ -1,6 +1,12 @@
 is_dotnet: true
 module_name: "RDMCOLib.dll"
 version: "v4.0.30319"
+number_of_streams: 5
+number_of_guids: 1
+number_of_resources: 0
+number_of_classes: 24
+number_of_assembly_refs: 1
+number_of_constants: 0
 streams:
   - name: "#~"
     offset: 3736
@@ -40,10 +46,12 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "interface"
-    base_types:
-      - "<Module>"
     abstract: true
     sealed: false
+    number_of_base_types: 1
+    number_of_methods: 5
+    base_types:
+      - "<Module>"
     methods:
       - name: "DataEvent"
         visibility: "public"
@@ -52,6 +60,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "int"
@@ -62,6 +71,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "EventNumber"
             type: "int"
@@ -76,6 +86,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 4
         parameters:
           - name: "ResultCode"
             type: "int"
@@ -92,6 +103,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "OutputID"
             type: "int"
@@ -102,6 +114,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Data"
             type: "int"
@@ -110,13 +123,15 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 4
+    number_of_methods: 206
     base_types:
       - "System.Object"
       - "RDMCOLib.IRDMOPOS"
       - "RDMCOLib.RDMOPOS"
       - "RDMCOLib._IRDMOPOSEvents_Event"
-    abstract: false
-    sealed: false
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -124,6 +139,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "get_CheckHealthText"
         visibility: "public"
         abstract: false
@@ -131,6 +147,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_Claimed"
         visibility: "public"
         abstract: false
@@ -138,6 +155,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "get_DataEventEnabled"
         visibility: "public"
         abstract: false
@@ -145,6 +163,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_DataEventEnabled"
         visibility: "public"
         abstract: false
@@ -152,6 +171,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pDataEventEnabled"
             type: "bool"
@@ -162,6 +182,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_DeviceEnabled"
         visibility: "public"
         abstract: false
@@ -169,6 +190,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pDeviceEnabled"
             type: "bool"
@@ -179,6 +201,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_FreezeEvents"
         visibility: "public"
         abstract: false
@@ -186,6 +209,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pFreezeEvents"
             type: "bool"
@@ -196,6 +220,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ResultCodeExtended"
         visibility: "public"
         abstract: false
@@ -203,6 +228,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_State"
         visibility: "public"
         abstract: false
@@ -210,6 +236,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ControlObjectDescription"
         visibility: "public"
         abstract: false
@@ -217,6 +244,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_ControlObjectVersion"
         visibility: "public"
         abstract: false
@@ -224,6 +252,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ServiceObjectDescription"
         visibility: "public"
         abstract: false
@@ -231,6 +260,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_ServiceObjectVersion"
         visibility: "public"
         abstract: false
@@ -238,6 +268,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_DeviceDescription"
         visibility: "public"
         abstract: false
@@ -245,6 +276,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_DeviceName"
         visibility: "public"
         abstract: false
@@ -252,6 +284,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_AccountNumber"
         visibility: "public"
         abstract: false
@@ -259,6 +292,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_Amount"
         visibility: "public"
         abstract: false
@@ -266,6 +300,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_BankNumber"
         visibility: "public"
         abstract: false
@@ -273,6 +308,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_CapValidationDevice"
         visibility: "public"
         abstract: false
@@ -280,6 +316,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "get_CheckType"
         visibility: "public"
         abstract: false
@@ -287,6 +324,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_CountryCode"
         visibility: "public"
         abstract: false
@@ -294,6 +332,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_EPC"
         visibility: "public"
         abstract: false
@@ -301,6 +340,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_RawData"
         visibility: "public"
         abstract: false
@@ -308,6 +348,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_SerialNumber"
         visibility: "public"
         abstract: false
@@ -315,6 +356,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_TransitNumber"
         visibility: "public"
         abstract: false
@@ -322,6 +364,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_AutoDisable"
         visibility: "public"
         abstract: false
@@ -329,6 +372,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_AutoDisable"
         visibility: "public"
         abstract: false
@@ -336,6 +380,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pAutoDisable"
             type: "bool"
@@ -346,6 +391,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_BinaryConversion"
         visibility: "public"
         abstract: false
@@ -353,6 +399,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pBinaryConversion"
             type: "int"
@@ -363,6 +410,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_DataCount"
         visibility: "public"
         abstract: false
@@ -370,6 +418,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_PowerNotify"
         visibility: "public"
         abstract: false
@@ -377,6 +426,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_PowerNotify"
         visibility: "public"
         abstract: false
@@ -384,6 +434,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pPowerNotify"
             type: "int"
@@ -394,6 +445,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_CheckNumber"
         visibility: "public"
         abstract: false
@@ -401,6 +453,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_DateTime"
         visibility: "public"
         abstract: false
@@ -408,6 +461,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_DateTime"
         visibility: "public"
         abstract: false
@@ -415,6 +469,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pDateTime"
             type: "string"
@@ -425,6 +480,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_FtpStatus"
         visibility: "public"
         abstract: false
@@ -432,6 +488,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_IRN"
         visibility: "public"
         abstract: false
@@ -439,6 +496,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_IRN"
         visibility: "public"
         abstract: false
@@ -446,6 +504,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pIRN"
             type: "string"
@@ -456,6 +515,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ImageOptions"
         visibility: "public"
         abstract: false
@@ -463,6 +523,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.ImageOptionsEnum"
+        number_of_parameters: 0
       - name: "set_ImageOptions"
         visibility: "public"
         abstract: false
@@ -470,6 +531,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pImageOptions"
             type: "RDMCOLib.ImageOptionsEnum"
@@ -480,6 +542,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_TranCode"
         visibility: "public"
         abstract: false
@@ -487,6 +550,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_KeyedAccountNumber"
         visibility: "public"
         abstract: false
@@ -494,6 +558,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_KeyedAccountNumber"
         visibility: "public"
         abstract: false
@@ -501,6 +566,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pKeyedAccountNumber"
             type: "string"
@@ -511,6 +577,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_KeyedAmount"
         visibility: "public"
         abstract: false
@@ -518,6 +585,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pKeyedAmount"
             type: "string"
@@ -528,6 +596,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_KeyedBankNumber"
         visibility: "public"
         abstract: false
@@ -535,6 +604,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pKeyedBankNumber"
             type: "string"
@@ -545,6 +615,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_KeyedSerialNumber"
         visibility: "public"
         abstract: false
@@ -552,6 +623,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pKeyedSerialNumber"
             type: "string"
@@ -562,6 +634,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_OCRAActive"
         visibility: "public"
         abstract: false
@@ -569,6 +642,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRAActive"
             type: "bool"
@@ -579,6 +653,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "set_OCRAConfidenceLevel"
         visibility: "public"
         abstract: false
@@ -586,6 +661,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRAConfidenceLevel"
             type: "short"
@@ -596,6 +672,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 2
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -608,6 +685,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_OCRAMicrDetect"
         visibility: "public"
         abstract: false
@@ -615,6 +693,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRAMicrDetect"
             type: "bool"
@@ -625,6 +704,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 1
         parameters:
           - name: "NumericID"
             type: "short"
@@ -635,6 +715,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 2
         parameters:
           - name: "NumericID"
             type: "short"
@@ -647,6 +728,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "string"
@@ -657,6 +739,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_OutputID"
         visibility: "public"
         abstract: false
@@ -664,6 +747,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ScannerMemory"
         visibility: "public"
         abstract: false
@@ -671,6 +755,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ScannerStatus"
         visibility: "public"
         abstract: false
@@ -678,6 +763,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_StoredImageCount"
         visibility: "public"
         abstract: false
@@ -685,6 +771,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_vConfig"
         visibility: "public"
         abstract: false
@@ -692,6 +779,7 @@ classes:
         virtual: true
         final: false
         return_type: "object"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "RDMCOLib.ConfigItemEnum"
@@ -706,6 +794,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 4
         parameters:
           - name: "CfgItem"
             type: "RDMCOLib.ConfigItemEnum"
@@ -722,6 +811,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "int"
@@ -732,6 +822,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "EventNumber"
             type: "int"
@@ -746,6 +837,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 4
         parameters:
           - name: "ResultCode"
             type: "int"
@@ -762,6 +854,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "OutputID"
             type: "int"
@@ -772,6 +865,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Data"
             type: "int"
@@ -782,6 +876,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "CheckHealth"
         visibility: "public"
         abstract: false
@@ -789,6 +884,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Level"
             type: "int"
@@ -799,6 +895,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Timeout"
             type: "int"
@@ -809,6 +906,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "ClearOutput"
         visibility: "public"
         abstract: false
@@ -816,6 +914,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "Close"
         visibility: "public"
         abstract: false
@@ -823,6 +922,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "DirectIO"
         visibility: "public"
         abstract: false
@@ -830,6 +930,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 3
         parameters:
           - name: "Command"
             type: "int"
@@ -844,6 +945,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "DeviceName"
             type: "string"
@@ -854,6 +956,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "BeginInsertion"
         visibility: "public"
         abstract: false
@@ -861,6 +964,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Timeout"
             type: "int"
@@ -871,6 +975,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Timeout"
             type: "int"
@@ -881,6 +986,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "EndRemoval"
         visibility: "public"
         abstract: false
@@ -888,6 +994,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "DeleteStoredImage"
         visibility: "public"
         abstract: false
@@ -895,6 +1002,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "Block"
             type: "int"
@@ -907,6 +1015,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 3
         parameters:
           - name: "SessionDescriptor"
             type: "int"
@@ -921,6 +1030,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 4
         parameters:
           - name: "CfgItem"
             type: "RDMCOLib.ConfigItemEnum"
@@ -937,6 +1047,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "Block"
             type: "int"
@@ -949,6 +1060,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 3
         parameters:
           - name: "Block"
             type: "int"
@@ -963,6 +1075,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 7
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -985,6 +1098,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -995,6 +1109,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "pvBuffer"
             type: "ref object"
@@ -1007,6 +1122,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 4
         parameters:
           - name: "CfgItem"
             type: "RDMCOLib.ConfigItemEnum"
@@ -1023,6 +1139,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Block"
             type: "int"
@@ -1033,6 +1150,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_OCRActive"
         visibility: "public"
         abstract: false
@@ -1040,6 +1158,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRActive"
             type: "bool"
@@ -1050,6 +1169,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "set_OCRConfidenceLevel"
         visibility: "public"
         abstract: false
@@ -1057,6 +1177,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRConfidenceLevel"
             type: "short"
@@ -1067,6 +1188,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 2
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -1079,6 +1201,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_OCRMicrDetect"
         visibility: "public"
         abstract: false
@@ -1086,6 +1209,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRMicrDetect"
             type: "bool"
@@ -1096,6 +1220,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "string"
@@ -1106,6 +1231,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 8
         parameters:
           - name: "OCRType"
             type: "short"
@@ -1130,6 +1256,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -1140,6 +1267,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "pv"
             type: "ref object"
@@ -1152,6 +1280,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "v"
             type: "object"
@@ -1164,6 +1293,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ScannerSerialNumber"
         visibility: "public"
         abstract: false
@@ -1171,6 +1301,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_FtpProgressMax"
         visibility: "public"
         abstract: false
@@ -1178,6 +1309,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_FtpProgressCount"
         visibility: "public"
         abstract: false
@@ -1185,6 +1317,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_PortCData"
         visibility: "public"
         abstract: false
@@ -1192,6 +1325,7 @@ classes:
         virtual: true
         final: false
         return_type: "object"
+        number_of_parameters: 0
       - name: "get_DocumentHeight"
         visibility: "public"
         abstract: false
@@ -1199,6 +1333,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "get_DocumentWidth"
         visibility: "public"
         abstract: false
@@ -1206,6 +1341,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "get_DocumentDestination"
         visibility: "public"
         abstract: false
@@ -1213,6 +1349,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.DocumentDestinationEnum"
+        number_of_parameters: 0
       - name: "set_DocumentDestination"
         visibility: "public"
         abstract: false
@@ -1220,6 +1357,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pDocumentDestination"
             type: "RDMCOLib.DocumentDestinationEnum"
@@ -1230,6 +1368,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_FRANKingActive"
         visibility: "public"
         abstract: false
@@ -1237,6 +1376,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pFRANKingActive"
             type: "bool"
@@ -1247,6 +1387,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "set_MICRReadErrorHandling"
         visibility: "public"
         abstract: false
@@ -1254,6 +1395,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pMICRReadErrorHandling"
             type: "short"
@@ -1264,6 +1406,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "Offset"
             type: "short"
@@ -1276,6 +1419,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 3
         parameters:
           - name: "vBuffer"
             type: "object"
@@ -1290,6 +1434,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_VtcVersion"
         visibility: "public"
         abstract: false
@@ -1297,6 +1442,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "VtcUpdate"
         visibility: "public"
         abstract: false
@@ -1304,6 +1450,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 4
         parameters:
           - name: "TerminalID"
             type: "string"
@@ -1320,6 +1467,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_RcpUpdateStatus"
         visibility: "public"
         abstract: false
@@ -1327,6 +1475,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "RcpUpdate"
         visibility: "public"
         abstract: false
@@ -1334,6 +1483,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Rcp"
             type: "string"
@@ -1344,6 +1494,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_FRANKingText"
         visibility: "public"
         abstract: false
@@ -1351,6 +1502,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_FRANKingText"
         visibility: "public"
         abstract: false
@@ -1358,6 +1510,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pFRANKingText"
             type: "string"
@@ -1368,6 +1521,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_ParseMsrData"
         visibility: "public"
         abstract: false
@@ -1375,6 +1529,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pParseMsrData"
             type: "bool"
@@ -1385,6 +1540,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -1395,6 +1551,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -1405,6 +1562,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -1415,6 +1573,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -1425,6 +1584,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_MsrTracksToRead"
         visibility: "public"
         abstract: false
@@ -1432,6 +1592,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pMsrTracksToRead"
             type: "int"
@@ -1442,6 +1603,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_MsrFirstName"
         visibility: "public"
         abstract: false
@@ -1449,6 +1611,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_MsrMiddleInitial"
         visibility: "public"
         abstract: false
@@ -1456,6 +1619,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_MsrSurname"
         visibility: "public"
         abstract: false
@@ -1463,6 +1627,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_MsrExpirationDate"
         visibility: "public"
         abstract: false
@@ -1470,6 +1635,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -1480,6 +1646,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -1490,6 +1657,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.ScanningModeEnum"
+        number_of_parameters: 0
       - name: "set_ScanningMode"
         visibility: "public"
         abstract: false
@@ -1497,6 +1665,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pScanningMode"
             type: "RDMCOLib.ScanningModeEnum"
@@ -1507,6 +1676,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ConnectionType"
         visibility: "public"
         abstract: false
@@ -1514,6 +1684,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.ConnectionTypeEnum"
+        number_of_parameters: 0
       - name: "set_ConnectionType"
         visibility: "public"
         abstract: false
@@ -1521,6 +1692,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pVal"
             type: "RDMCOLib.ConnectionTypeEnum"
@@ -1531,6 +1703,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 1
         parameters:
           - name: "nCapability"
             type: "RDMCOLib.DeviceCapabilityEnum"
@@ -1541,6 +1714,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_PortCTargetDevice"
         visibility: "public"
         abstract: false
@@ -1548,6 +1722,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.PortCTargetDeviceEnum"
+        number_of_parameters: 0
       - name: "set_PortCTargetDevice"
         visibility: "public"
         abstract: false
@@ -1555,6 +1730,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pVal"
             type: "RDMCOLib.PortCTargetDeviceEnum"
@@ -1565,6 +1741,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_EndorsingActive"
         visibility: "public"
         abstract: false
@@ -1572,6 +1749,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pEndorsingActive"
             type: "bool"
@@ -1582,6 +1760,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_EndorsementText"
         visibility: "public"
         abstract: false
@@ -1589,6 +1768,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pEndorsementText"
             type: "string"
@@ -1599,6 +1779,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_EndorsementLeadingEdgeOffset"
         visibility: "public"
         abstract: false
@@ -1606,6 +1787,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOffset"
             type: "int"
@@ -1616,6 +1798,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_EndorsementTrailingEdgeOffset"
         visibility: "public"
         abstract: false
@@ -1623,6 +1806,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOffset"
             type: "int"
@@ -1633,6 +1817,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_EndorseFromTrailingEdge"
         visibility: "public"
         abstract: false
@@ -1640,6 +1825,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pFromTrailingEdge"
             type: "bool"
@@ -1650,6 +1836,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_ButtonEventsActive"
         visibility: "public"
         abstract: false
@@ -1657,6 +1844,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pButtonEventsActive"
             type: "bool"
@@ -1667,6 +1855,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "PurgeEndorserCartridge"
         visibility: "public"
         abstract: false
@@ -1674,6 +1863,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "purgelevel"
             type: "RDMCOLib.EndorserPurgeLevelEnum"
@@ -1684,6 +1874,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_IQAActive"
         visibility: "public"
         abstract: false
@@ -1691,6 +1882,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_IQAActive"
         visibility: "public"
         abstract: false
@@ -1698,6 +1890,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pIQAActive"
             type: "bool"
@@ -1708,6 +1901,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Surface"
             type: "RDMCOLib.ImageSurfaceEnum"
@@ -1718,6 +1912,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 1
         parameters:
           - name: "LicenseId"
             type: "RDMCOLib.LicenseIdEnum"
@@ -1728,6 +1923,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "get_HandleWarningAsError"
         visibility: "public"
         abstract: false
@@ -1735,6 +1931,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 1
         parameters:
           - name: "WarningNumber"
             type: "int"
@@ -1745,6 +1942,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 2
         parameters:
           - name: "WarningNumber"
             type: "int"
@@ -1757,6 +1955,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_VirtualTextEndorsingActive"
         visibility: "public"
         abstract: false
@@ -1764,6 +1963,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pEndorsingActive"
             type: "bool"
@@ -1774,6 +1974,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_VirtualEndorsementText"
         visibility: "public"
         abstract: false
@@ -1781,6 +1982,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "EndorseText"
             type: "string"
@@ -1791,6 +1993,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.VEndorsementTextOrientationEnum"
+        number_of_parameters: 0
       - name: "set_VirtualEndorsementTextOrientation"
         visibility: "public"
         abstract: false
@@ -1798,6 +2001,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "EndorseOrient"
             type: "RDMCOLib.VEndorsementTextOrientationEnum"
@@ -1808,6 +2012,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_VirtualEndorsementFont"
         visibility: "public"
         abstract: false
@@ -1815,6 +2020,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "EndorseFontName"
             type: "string"
@@ -1825,6 +2031,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_VirtualEndorsementFontSize"
         visibility: "public"
         abstract: false
@@ -1832,6 +2039,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "EndorseFontSize"
             type: "int"
@@ -1842,6 +2050,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 5
         parameters:
           - name: "DocEdge"
             type: "RDMCOLib.VEndorsementReferenceEdgeEnum"
@@ -1860,6 +2069,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 5
         parameters:
           - name: "pDocEdge"
             type: "ref RDMCOLib.VEndorsementReferenceEdgeEnum"
@@ -1878,6 +2088,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "add_DataEvent"
         visibility: "public"
         abstract: false
@@ -1885,6 +2096,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
@@ -1895,6 +2107,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
@@ -1905,6 +2118,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
@@ -1915,6 +2129,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
@@ -1925,6 +2140,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
@@ -1935,6 +2151,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
@@ -1945,6 +2162,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
@@ -1955,6 +2173,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
@@ -1965,6 +2184,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
@@ -1975,6 +2195,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
@@ -1983,10 +2204,12 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "interface"
-    base_types:
-      - "<Module>"
     abstract: true
     sealed: false
+    number_of_base_types: 1
+    number_of_methods: 10
+    base_types:
+      - "<Module>"
     methods:
       - name: "add_DataEvent"
         visibility: "public"
@@ -1995,6 +2218,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
@@ -2005,6 +2229,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
@@ -2015,6 +2240,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
@@ -2025,6 +2251,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
@@ -2035,6 +2262,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
@@ -2045,6 +2273,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
@@ -2055,6 +2284,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
@@ -2065,6 +2295,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
@@ -2075,6 +2306,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
@@ -2085,6 +2317,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
@@ -2093,10 +2326,12 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.MulticastDelegate"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -2104,6 +2339,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 2
         parameters:
           - name: "Status"
             type: "object"
@@ -2116,6 +2352,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "int"
@@ -2124,10 +2361,12 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.MulticastDelegate"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -2135,6 +2374,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 2
         parameters:
           - name: "EventNumber"
             type: "object"
@@ -2147,6 +2387,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "EventNumber"
             type: "int"
@@ -2159,10 +2400,12 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.MulticastDelegate"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -2170,6 +2413,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 2
         parameters:
           - name: "ResultCode"
             type: "object"
@@ -2182,6 +2426,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 4
         parameters:
           - name: "ResultCode"
             type: "int"
@@ -2196,10 +2441,12 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.MulticastDelegate"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -2207,6 +2454,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 2
         parameters:
           - name: "OutputID"
             type: "object"
@@ -2219,6 +2467,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "OutputID"
             type: "int"
@@ -2227,10 +2476,12 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.MulticastDelegate"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
     methods:
       - name: ".ctor"
         visibility: "public"
@@ -2238,6 +2489,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_parameters: 2
         parameters:
           - name: "Data"
             type: "object"
@@ -2250,6 +2502,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Data"
             type: "int"
@@ -2258,21 +2511,25 @@ classes:
     namespace: "RDMCOLib"
     visibility: "public"
     type: "interface"
+    abstract: true
+    sealed: false
+    number_of_base_types: 3
+    number_of_methods: 0
     base_types:
       - "<Module>"
       - "RDMCOLib.IRDMOPOS"
       - "RDMCOLib._IRDMOPOSEvents_Event"
-    abstract: true
-    sealed: false
   - fullname: "RDMCOLib.IRDMOPOS"
     name: "IRDMOPOS"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "interface"
-    base_types:
-      - "<Module>"
     abstract: true
     sealed: false
+    number_of_base_types: 1
+    number_of_methods: 195
+    base_types:
+      - "<Module>"
     methods:
       - name: "get_CheckHealthText"
         visibility: "public"
@@ -2281,6 +2538,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_Claimed"
         visibility: "public"
         abstract: true
@@ -2288,6 +2546,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "get_DataEventEnabled"
         visibility: "public"
         abstract: true
@@ -2295,6 +2554,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_DataEventEnabled"
         visibility: "public"
         abstract: true
@@ -2302,6 +2562,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pDataEventEnabled"
             type: "bool"
@@ -2312,6 +2573,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_DeviceEnabled"
         visibility: "public"
         abstract: true
@@ -2319,6 +2581,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pDeviceEnabled"
             type: "bool"
@@ -2329,6 +2592,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_FreezeEvents"
         visibility: "public"
         abstract: true
@@ -2336,6 +2600,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pFreezeEvents"
             type: "bool"
@@ -2346,6 +2611,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ResultCodeExtended"
         visibility: "public"
         abstract: true
@@ -2353,6 +2619,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_State"
         visibility: "public"
         abstract: true
@@ -2360,6 +2627,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ControlObjectDescription"
         visibility: "public"
         abstract: true
@@ -2367,6 +2635,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_ControlObjectVersion"
         visibility: "public"
         abstract: true
@@ -2374,6 +2643,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ServiceObjectDescription"
         visibility: "public"
         abstract: true
@@ -2381,6 +2651,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_ServiceObjectVersion"
         visibility: "public"
         abstract: true
@@ -2388,6 +2659,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_DeviceDescription"
         visibility: "public"
         abstract: true
@@ -2395,6 +2667,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_DeviceName"
         visibility: "public"
         abstract: true
@@ -2402,6 +2675,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_AccountNumber"
         visibility: "public"
         abstract: true
@@ -2409,6 +2683,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_Amount"
         visibility: "public"
         abstract: true
@@ -2416,6 +2691,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_BankNumber"
         visibility: "public"
         abstract: true
@@ -2423,6 +2699,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_CapValidationDevice"
         visibility: "public"
         abstract: true
@@ -2430,6 +2707,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "get_CheckType"
         visibility: "public"
         abstract: true
@@ -2437,6 +2715,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_CountryCode"
         visibility: "public"
         abstract: true
@@ -2444,6 +2723,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_EPC"
         visibility: "public"
         abstract: true
@@ -2451,6 +2731,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_RawData"
         visibility: "public"
         abstract: true
@@ -2458,6 +2739,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_SerialNumber"
         visibility: "public"
         abstract: true
@@ -2465,6 +2747,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_TransitNumber"
         visibility: "public"
         abstract: true
@@ -2472,6 +2755,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_AutoDisable"
         visibility: "public"
         abstract: true
@@ -2479,6 +2763,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_AutoDisable"
         visibility: "public"
         abstract: true
@@ -2486,6 +2771,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pAutoDisable"
             type: "bool"
@@ -2496,6 +2782,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_BinaryConversion"
         visibility: "public"
         abstract: true
@@ -2503,6 +2790,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pBinaryConversion"
             type: "int"
@@ -2513,6 +2801,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_DataCount"
         visibility: "public"
         abstract: true
@@ -2520,6 +2809,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_PowerNotify"
         visibility: "public"
         abstract: true
@@ -2527,6 +2817,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_PowerNotify"
         visibility: "public"
         abstract: true
@@ -2534,6 +2825,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pPowerNotify"
             type: "int"
@@ -2544,6 +2836,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_CheckNumber"
         visibility: "public"
         abstract: true
@@ -2551,6 +2844,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_DateTime"
         visibility: "public"
         abstract: true
@@ -2558,6 +2852,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_DateTime"
         visibility: "public"
         abstract: true
@@ -2565,6 +2860,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pDateTime"
             type: "string"
@@ -2575,6 +2871,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_FtpStatus"
         visibility: "public"
         abstract: true
@@ -2582,6 +2879,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_IRN"
         visibility: "public"
         abstract: true
@@ -2589,6 +2887,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_IRN"
         visibility: "public"
         abstract: true
@@ -2596,6 +2895,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pIRN"
             type: "string"
@@ -2606,6 +2906,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ImageOptions"
         visibility: "public"
         abstract: true
@@ -2613,6 +2914,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.ImageOptionsEnum"
+        number_of_parameters: 0
       - name: "set_ImageOptions"
         visibility: "public"
         abstract: true
@@ -2620,6 +2922,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pImageOptions"
             type: "RDMCOLib.ImageOptionsEnum"
@@ -2630,6 +2933,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_TranCode"
         visibility: "public"
         abstract: true
@@ -2637,6 +2941,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_KeyedAccountNumber"
         visibility: "public"
         abstract: true
@@ -2644,6 +2949,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_KeyedAccountNumber"
         visibility: "public"
         abstract: true
@@ -2651,6 +2957,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pKeyedAccountNumber"
             type: "string"
@@ -2661,6 +2968,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_KeyedAmount"
         visibility: "public"
         abstract: true
@@ -2668,6 +2976,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pKeyedAmount"
             type: "string"
@@ -2678,6 +2987,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_KeyedBankNumber"
         visibility: "public"
         abstract: true
@@ -2685,6 +2995,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pKeyedBankNumber"
             type: "string"
@@ -2695,6 +3006,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_KeyedSerialNumber"
         visibility: "public"
         abstract: true
@@ -2702,6 +3014,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pKeyedSerialNumber"
             type: "string"
@@ -2712,6 +3025,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_OCRAActive"
         visibility: "public"
         abstract: true
@@ -2719,6 +3033,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRAActive"
             type: "bool"
@@ -2729,6 +3044,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "set_OCRAConfidenceLevel"
         visibility: "public"
         abstract: true
@@ -2736,6 +3052,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRAConfidenceLevel"
             type: "short"
@@ -2746,6 +3063,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 2
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -2758,6 +3076,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_OCRAMicrDetect"
         visibility: "public"
         abstract: true
@@ -2765,6 +3084,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRAMicrDetect"
             type: "bool"
@@ -2775,6 +3095,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 1
         parameters:
           - name: "NumericID"
             type: "short"
@@ -2785,6 +3106,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 2
         parameters:
           - name: "NumericID"
             type: "short"
@@ -2797,6 +3119,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "string"
@@ -2807,6 +3130,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_OutputID"
         visibility: "public"
         abstract: true
@@ -2814,6 +3138,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ScannerMemory"
         visibility: "public"
         abstract: true
@@ -2821,6 +3146,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ScannerStatus"
         visibility: "public"
         abstract: true
@@ -2828,6 +3154,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_StoredImageCount"
         visibility: "public"
         abstract: true
@@ -2835,6 +3162,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_vConfig"
         visibility: "public"
         abstract: true
@@ -2842,6 +3170,7 @@ classes:
         virtual: true
         final: false
         return_type: "object"
+        number_of_parameters: 3
         parameters:
           - name: ""
             type: "RDMCOLib.ConfigItemEnum"
@@ -2856,6 +3185,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 4
         parameters:
           - name: "CfgItem"
             type: "RDMCOLib.ConfigItemEnum"
@@ -2872,6 +3202,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Status"
             type: "int"
@@ -2882,6 +3213,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 3
         parameters:
           - name: "EventNumber"
             type: "int"
@@ -2896,6 +3228,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 4
         parameters:
           - name: "ResultCode"
             type: "int"
@@ -2912,6 +3245,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "OutputID"
             type: "int"
@@ -2922,6 +3256,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "Data"
             type: "int"
@@ -2932,6 +3267,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "CheckHealth"
         visibility: "public"
         abstract: true
@@ -2939,6 +3275,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Level"
             type: "int"
@@ -2949,6 +3286,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Timeout"
             type: "int"
@@ -2959,6 +3297,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "ClearOutput"
         visibility: "public"
         abstract: true
@@ -2966,6 +3305,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "Close"
         visibility: "public"
         abstract: true
@@ -2973,6 +3313,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "DirectIO"
         visibility: "public"
         abstract: true
@@ -2980,6 +3321,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 3
         parameters:
           - name: "Command"
             type: "int"
@@ -2994,6 +3336,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "DeviceName"
             type: "string"
@@ -3004,6 +3347,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "BeginInsertion"
         visibility: "public"
         abstract: true
@@ -3011,6 +3355,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Timeout"
             type: "int"
@@ -3021,6 +3366,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Timeout"
             type: "int"
@@ -3031,6 +3377,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "EndRemoval"
         visibility: "public"
         abstract: true
@@ -3038,6 +3385,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "DeleteStoredImage"
         visibility: "public"
         abstract: true
@@ -3045,6 +3393,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "Block"
             type: "int"
@@ -3057,6 +3406,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 3
         parameters:
           - name: "SessionDescriptor"
             type: "int"
@@ -3071,6 +3421,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 4
         parameters:
           - name: "CfgItem"
             type: "RDMCOLib.ConfigItemEnum"
@@ -3087,6 +3438,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "Block"
             type: "int"
@@ -3099,6 +3451,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 3
         parameters:
           - name: "Block"
             type: "int"
@@ -3113,6 +3466,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 7
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -3135,6 +3489,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -3145,6 +3500,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "pvBuffer"
             type: "ref object"
@@ -3157,6 +3513,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 4
         parameters:
           - name: "CfgItem"
             type: "RDMCOLib.ConfigItemEnum"
@@ -3173,6 +3530,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Block"
             type: "int"
@@ -3183,6 +3541,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_OCRActive"
         visibility: "public"
         abstract: true
@@ -3190,6 +3549,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRActive"
             type: "bool"
@@ -3200,6 +3560,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "set_OCRConfidenceLevel"
         visibility: "public"
         abstract: true
@@ -3207,6 +3568,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRConfidenceLevel"
             type: "short"
@@ -3217,6 +3579,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 2
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -3229,6 +3592,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_OCRMicrDetect"
         visibility: "public"
         abstract: true
@@ -3236,6 +3600,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOCRMicrDetect"
             type: "bool"
@@ -3246,6 +3611,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "string"
@@ -3256,6 +3622,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 8
         parameters:
           - name: "OCRType"
             type: "short"
@@ -3280,6 +3647,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "ZoneID"
             type: "string"
@@ -3290,6 +3658,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "pv"
             type: "ref object"
@@ -3302,6 +3671,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "v"
             type: "object"
@@ -3314,6 +3684,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ScannerSerialNumber"
         visibility: "public"
         abstract: true
@@ -3321,6 +3692,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_FtpProgressMax"
         visibility: "public"
         abstract: true
@@ -3328,6 +3700,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_FtpProgressCount"
         visibility: "public"
         abstract: true
@@ -3335,6 +3708,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_PortCData"
         visibility: "public"
         abstract: true
@@ -3342,6 +3716,7 @@ classes:
         virtual: true
         final: false
         return_type: "object"
+        number_of_parameters: 0
       - name: "get_DocumentHeight"
         visibility: "public"
         abstract: true
@@ -3349,6 +3724,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "get_DocumentWidth"
         visibility: "public"
         abstract: true
@@ -3356,6 +3732,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "get_DocumentDestination"
         visibility: "public"
         abstract: true
@@ -3363,6 +3740,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.DocumentDestinationEnum"
+        number_of_parameters: 0
       - name: "set_DocumentDestination"
         visibility: "public"
         abstract: true
@@ -3370,6 +3748,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pDocumentDestination"
             type: "RDMCOLib.DocumentDestinationEnum"
@@ -3380,6 +3759,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_FRANKingActive"
         visibility: "public"
         abstract: true
@@ -3387,6 +3767,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pFRANKingActive"
             type: "bool"
@@ -3397,6 +3778,7 @@ classes:
         virtual: true
         final: false
         return_type: "short"
+        number_of_parameters: 0
       - name: "set_MICRReadErrorHandling"
         visibility: "public"
         abstract: true
@@ -3404,6 +3786,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pMICRReadErrorHandling"
             type: "short"
@@ -3414,6 +3797,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 2
         parameters:
           - name: "Offset"
             type: "short"
@@ -3426,6 +3810,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 3
         parameters:
           - name: "vBuffer"
             type: "object"
@@ -3440,6 +3825,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_VtcVersion"
         visibility: "public"
         abstract: true
@@ -3447,6 +3833,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "VtcUpdate"
         visibility: "public"
         abstract: true
@@ -3454,6 +3841,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 4
         parameters:
           - name: "TerminalID"
             type: "string"
@@ -3470,6 +3858,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_RcpUpdateStatus"
         visibility: "public"
         abstract: true
@@ -3477,6 +3866,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "RcpUpdate"
         visibility: "public"
         abstract: true
@@ -3484,6 +3874,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Rcp"
             type: "string"
@@ -3494,6 +3885,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_FRANKingText"
         visibility: "public"
         abstract: true
@@ -3501,6 +3893,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_FRANKingText"
         visibility: "public"
         abstract: true
@@ -3508,6 +3901,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pFRANKingText"
             type: "string"
@@ -3518,6 +3912,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_ParseMsrData"
         visibility: "public"
         abstract: true
@@ -3525,6 +3920,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pParseMsrData"
             type: "bool"
@@ -3535,6 +3931,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -3545,6 +3942,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -3555,6 +3953,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -3565,6 +3964,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -3575,6 +3975,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_MsrTracksToRead"
         visibility: "public"
         abstract: true
@@ -3582,6 +3983,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pMsrTracksToRead"
             type: "int"
@@ -3592,6 +3994,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_MsrFirstName"
         visibility: "public"
         abstract: true
@@ -3599,6 +4002,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_MsrMiddleInitial"
         visibility: "public"
         abstract: true
@@ -3606,6 +4010,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_MsrSurname"
         visibility: "public"
         abstract: true
@@ -3613,6 +4018,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_MsrExpirationDate"
         visibility: "public"
         abstract: true
@@ -3620,6 +4026,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -3630,6 +4037,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 1
         parameters:
           - name: ""
             type: "int"
@@ -3640,6 +4048,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.ScanningModeEnum"
+        number_of_parameters: 0
       - name: "set_ScanningMode"
         visibility: "public"
         abstract: true
@@ -3647,6 +4056,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pScanningMode"
             type: "RDMCOLib.ScanningModeEnum"
@@ -3657,6 +4067,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_ConnectionType"
         visibility: "public"
         abstract: true
@@ -3664,6 +4075,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.ConnectionTypeEnum"
+        number_of_parameters: 0
       - name: "set_ConnectionType"
         visibility: "public"
         abstract: true
@@ -3671,6 +4083,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pVal"
             type: "RDMCOLib.ConnectionTypeEnum"
@@ -3681,6 +4094,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 1
         parameters:
           - name: "nCapability"
             type: "RDMCOLib.DeviceCapabilityEnum"
@@ -3691,6 +4105,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "get_PortCTargetDevice"
         visibility: "public"
         abstract: true
@@ -3698,6 +4113,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.PortCTargetDeviceEnum"
+        number_of_parameters: 0
       - name: "set_PortCTargetDevice"
         visibility: "public"
         abstract: true
@@ -3705,6 +4121,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pVal"
             type: "RDMCOLib.PortCTargetDeviceEnum"
@@ -3715,6 +4132,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_EndorsingActive"
         visibility: "public"
         abstract: true
@@ -3722,6 +4140,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pEndorsingActive"
             type: "bool"
@@ -3732,6 +4151,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_EndorsementText"
         visibility: "public"
         abstract: true
@@ -3739,6 +4159,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pEndorsementText"
             type: "string"
@@ -3749,6 +4170,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_EndorsementLeadingEdgeOffset"
         visibility: "public"
         abstract: true
@@ -3756,6 +4178,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOffset"
             type: "int"
@@ -3766,6 +4189,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_EndorsementTrailingEdgeOffset"
         visibility: "public"
         abstract: true
@@ -3773,6 +4197,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pOffset"
             type: "int"
@@ -3783,6 +4208,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_EndorseFromTrailingEdge"
         visibility: "public"
         abstract: true
@@ -3790,6 +4216,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pFromTrailingEdge"
             type: "bool"
@@ -3800,6 +4227,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_ButtonEventsActive"
         visibility: "public"
         abstract: true
@@ -3807,6 +4235,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pButtonEventsActive"
             type: "bool"
@@ -3817,6 +4246,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "PurgeEndorserCartridge"
         visibility: "public"
         abstract: true
@@ -3824,6 +4254,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "purgelevel"
             type: "RDMCOLib.EndorserPurgeLevelEnum"
@@ -3834,6 +4265,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "get_IQAActive"
         visibility: "public"
         abstract: true
@@ -3841,6 +4273,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_IQAActive"
         visibility: "public"
         abstract: true
@@ -3848,6 +4281,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pIQAActive"
             type: "bool"
@@ -3858,6 +4292,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 1
         parameters:
           - name: "Surface"
             type: "RDMCOLib.ImageSurfaceEnum"
@@ -3868,6 +4303,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 1
         parameters:
           - name: "LicenseId"
             type: "RDMCOLib.LicenseIdEnum"
@@ -3878,6 +4314,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "get_HandleWarningAsError"
         visibility: "public"
         abstract: true
@@ -3885,6 +4322,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 1
         parameters:
           - name: "WarningNumber"
             type: "int"
@@ -3895,6 +4333,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 2
         parameters:
           - name: "WarningNumber"
             type: "int"
@@ -3907,6 +4346,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
       - name: "set_VirtualTextEndorsingActive"
         visibility: "public"
         abstract: true
@@ -3914,6 +4354,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "pEndorsingActive"
             type: "bool"
@@ -3924,6 +4365,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_VirtualEndorsementText"
         visibility: "public"
         abstract: true
@@ -3931,6 +4373,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "EndorseText"
             type: "string"
@@ -3941,6 +4384,7 @@ classes:
         virtual: true
         final: false
         return_type: "RDMCOLib.VEndorsementTextOrientationEnum"
+        number_of_parameters: 0
       - name: "set_VirtualEndorsementTextOrientation"
         visibility: "public"
         abstract: true
@@ -3948,6 +4392,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "EndorseOrient"
             type: "RDMCOLib.VEndorsementTextOrientationEnum"
@@ -3958,6 +4403,7 @@ classes:
         virtual: true
         final: false
         return_type: "string"
+        number_of_parameters: 0
       - name: "set_VirtualEndorsementFont"
         visibility: "public"
         abstract: true
@@ -3965,6 +4411,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "EndorseFontName"
             type: "string"
@@ -3975,6 +4422,7 @@ classes:
         virtual: true
         final: false
         return_type: "int"
+        number_of_parameters: 0
       - name: "set_VirtualEndorsementFontSize"
         visibility: "public"
         abstract: true
@@ -3982,6 +4430,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 1
         parameters:
           - name: "EndorseFontSize"
             type: "int"
@@ -3992,6 +4441,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 5
         parameters:
           - name: "DocEdge"
             type: "RDMCOLib.VEndorsementReferenceEdgeEnum"
@@ -4010,6 +4460,7 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 5
         parameters:
           - name: "pDocEdge"
             type: "ref RDMCOLib.VEndorsementReferenceEdgeEnum"
@@ -4028,124 +4479,151 @@ classes:
         virtual: true
         final: false
         return_type: "bool"
+        number_of_parameters: 0
   - fullname: "RDMCOLib.ImageOptionsEnum"
     name: "ImageOptionsEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.ConfigItemEnum"
     name: "ConfigItemEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.DocumentDestinationEnum"
     name: "DocumentDestinationEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.ScanningModeEnum"
     name: "ScanningModeEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.ConnectionTypeEnum"
     name: "ConnectionTypeEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.DeviceCapabilityEnum"
     name: "DeviceCapabilityEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.PortCTargetDeviceEnum"
     name: "PortCTargetDeviceEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.EndorserPurgeLevelEnum"
     name: "EndorserPurgeLevelEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.ImageSurfaceEnum"
     name: "ImageSurfaceEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.LicenseIdEnum"
     name: "LicenseIdEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.VEndorsementTextOrientationEnum"
     name: "VEndorsementTextOrientationEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib.VEndorsementReferenceEdgeEnum"
     name: "VEndorsementReferenceEdgeEnum"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
-    base_types:
-      - "System.Enum"
     abstract: false
     sealed: true
+    number_of_base_types: 1
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
   - fullname: "RDMCOLib._IRDMOPOSEvents_SinkHelper"
     name: "_IRDMOPOSEvents_SinkHelper"
     namespace: "RDMCOLib"
     visibility: "public"
     type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 2
+    number_of_methods: 6
     base_types:
       - "System.Object"
       - "RDMCOLib._IRDMOPOSEvents"
-    abstract: false
-    sealed: true
     methods:
       - name: "DataEvent"
         visibility: "public"
@@ -4154,6 +4632,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "DirectIOEvent"
         visibility: "public"
         abstract: false
@@ -4161,6 +4640,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "ErrorEvent"
         visibility: "public"
         abstract: false
@@ -4168,6 +4648,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "OutputCompleteEvent"
         visibility: "public"
         abstract: false
@@ -4175,6 +4656,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "StatusUpdateEvent"
         visibility: "public"
         abstract: false
@@ -4182,23 +4664,27 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: ".ctor"
         visibility: "internal"
         abstract: false
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
   - fullname: "RDMCOLib._IRDMOPOSEvents_EventProvider"
     name: "_IRDMOPOSEvents_EventProvider"
     namespace: "RDMCOLib"
     visibility: "internal"
     type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 3
+    number_of_methods: 14
     base_types:
       - "System.Object"
       - "RDMCOLib._IRDMOPOSEvents_Event"
       - "System.IDisposable"
-    abstract: false
-    sealed: true
     methods:
       - name: "Init"
         visibility: "private"
@@ -4207,6 +4693,7 @@ classes:
         virtual: false
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "add_DataEvent"
         visibility: "public"
         abstract: false
@@ -4214,6 +4701,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "remove_DataEvent"
         visibility: "public"
         abstract: false
@@ -4221,6 +4709,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "add_DirectIOEvent"
         visibility: "public"
         abstract: false
@@ -4228,6 +4717,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "remove_DirectIOEvent"
         visibility: "public"
         abstract: false
@@ -4235,6 +4725,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "add_ErrorEvent"
         visibility: "public"
         abstract: false
@@ -4242,6 +4733,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "remove_ErrorEvent"
         visibility: "public"
         abstract: false
@@ -4249,6 +4741,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "add_OutputCompleteEvent"
         visibility: "public"
         abstract: false
@@ -4256,6 +4749,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "remove_OutputCompleteEvent"
         visibility: "public"
         abstract: false
@@ -4263,6 +4757,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "add_StatusUpdateEvent"
         visibility: "public"
         abstract: false
@@ -4270,6 +4765,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "remove_StatusUpdateEvent"
         visibility: "public"
         abstract: false
@@ -4277,12 +4773,14 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: ".ctor"
         visibility: "public"
         abstract: false
         static: false
         virtual: false
         final: false
+        number_of_parameters: 0
       - name: "Finalize"
         visibility: "public"
         abstract: false
@@ -4290,6 +4788,7 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0
       - name: "Dispose"
         visibility: "public"
         abstract: false
@@ -4297,3 +4796,4 @@ classes:
         virtual: true
         final: false
         return_type: "void"
+        number_of_parameters: 0

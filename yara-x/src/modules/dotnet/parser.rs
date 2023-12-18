@@ -2435,6 +2435,22 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
             .constants
             .extend(dotnet.get_string_constants().map(|c| c.to_vec()));
 
+        result.set_number_of_streams(result.streams.len().try_into().unwrap());
+        result.set_number_of_guids(result.guids.len().try_into().unwrap());
+        result.set_number_of_classes(result.classes.len().try_into().unwrap());
+
+        result.set_number_of_assembly_refs(
+            result.assembly_refs.len().try_into().unwrap(),
+        );
+
+        result.set_number_of_resources(
+            result.resources.len().try_into().unwrap(),
+        );
+
+        result.set_number_of_constants(
+            result.constants.len().try_into().unwrap(),
+        );
+
         result
     }
 }
@@ -2513,6 +2529,12 @@ impl From<&Class<'_>> for protos::dotnet::Class {
         class
             .methods
             .extend(value.methods.iter().map(protos::dotnet::Method::from));
+
+        class.set_number_of_methods(class.methods.len().try_into().unwrap());
+        class.set_number_of_base_types(
+            class.base_types.len().try_into().unwrap(),
+        );
+
         class
     }
 }
@@ -2529,6 +2551,11 @@ impl From<&Method<'_>> for protos::dotnet::Method {
         method
             .parameters
             .extend(value.parameters.iter().map(protos::dotnet::Param::from));
+
+        method.set_number_of_parameters(
+            method.parameters.len().try_into().unwrap(),
+        );
+
         method.return_type = value.return_type.clone();
         method
     }
