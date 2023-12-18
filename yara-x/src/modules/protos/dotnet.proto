@@ -49,7 +49,7 @@ message AssemblyRef {
 }
 
 message Stream {
-  required string name = 1;
+  optional string name = 1;
   required uint32 offset = 2;
   required uint32 size = 3;
 }
@@ -62,17 +62,17 @@ message Version {
 }
 
 message Resource {
-  required uint32 offset = 1;
-  required uint32 length = 2;
-  required string name = 3;
+  optional uint32 offset = 1;
+  optional uint32 length = 2;
+  optional string name = 3;
 }
 
 message Class {
-  required string fullname = 1;
-  required string name = 2;
+  optional string fullname = 1;
+  optional string name = 2;
   optional string namespace = 3;
-  required string visibility = 4;
-  required string type = 5;
+  optional string visibility = 4;
+  optional string type = 5;
   required bool abstract = 6;
   required bool sealed = 7;
   required uint64 number_of_base_types = 8;
@@ -82,8 +82,8 @@ message Class {
 }
 
 message Method {
-  required string name = 1;
-  required string visibility = 2;
+  optional string name = 1;
+  optional string visibility = 2;
   required bool abstract = 3;
   required bool static= 4;
   required bool virtual = 5;

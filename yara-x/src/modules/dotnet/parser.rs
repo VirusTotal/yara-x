@@ -214,8 +214,9 @@ impl<'a> Dotnet<'a> {
 
 impl<'a> Dotnet<'a> {
     const MAX_PARAMS: usize = 1000;
-    const MAX_ROWS_PER_TABLE: usize = 1000;
+    const MAX_ROWS_PER_TABLE: u32 = 1000;
     const MAX_ARRAY_DIMENSION: usize = 50;
+    const MAX_RECURSION: usize = 16;
 
     /// Given an index into the `#Strings` stream, returns the string.
     fn get_string(&self, index: StringIndex) -> Option<&'a str> {
@@ -751,11 +752,12 @@ impl<'a> Dotnet<'a> {
             // `base_types` will contain the names of the classes the current
             // class inherits from.
             let mut base_types = Vec::new();
+            let mut depth = 0;
 
             // If the current class extends some other class, add the full name
             // of this other class to `base_types`.
             if let Some(name) =
-                self.type_def_or_ref_fullname(&type_def.extends)
+                self.type_def_or_ref_fullname(&type_def.extends, &mut depth)
             {
                 base_types.push(name)
             }
@@ -767,6 +769,7 @@ impl<'a> Dotnet<'a> {
                     if interface_impl.class == idx {
                         self.type_def_or_ref_fullname(
                             &interface_impl.interface,
+                            &mut depth,
                         )
                     } else {
                         None
@@ -807,8 +810,11 @@ impl<'a> Dotnet<'a> {
             .ok()?;
 
         let mut return_type = String::new();
-        let mut remainder =
-            self.parse_type_spec(remainder, &mut return_type).ok()?;
+        let mut depth = 0;
+
+        let mut remainder = self
+            .parse_type_spec(remainder, &mut return_type, &mut depth)
+            .ok()?;
 
         let parameters = self
             .params
@@ -819,8 +825,9 @@ impl<'a> Dotnet<'a> {
         if let Some(parameters) = parameters {
             for param in parameters {
                 let mut param_type = String::new();
-                remainder =
-                    self.parse_type_spec(remainder, &mut param_type).ok()?;
+                remainder = self
+                    .parse_type_spec(remainder, &mut param_type, &mut depth)
+                    .ok()?;
                 method_params.push(MethodParam {
                     name: param.name,
                     type_: Some(param_type),
@@ -871,12 +878,17 @@ impl<'a> Dotnet<'a> {
             // exist where `nested_class` is the index of the current type
             // and `enclosing_class` is the index of the parent type. Both
             // are indexes into the `type_defs` table. `next_idx` will
-            // contain the index of the parent type.
+            // contain the index of the parent type. In normal files
+            // `enclosing_class` is different from `nested_class` because
+            // types can not be nested inside themselves, but we need to check
+            // for that case because this can happen in corrupted files.
             if type_def.is_nested() {
                 next_idx = self
                     .nested_classes
                     .iter()
-                    .find(|c| c.nested_class == idx)
+                    .find(|c| {
+                        c.nested_class == idx && c.enclosing_class != idx
+                    })
                     .map(|c| c.enclosing_class);
             }
         }
@@ -887,7 +899,11 @@ impl<'a> Dotnet<'a> {
         Some(result.iter().rev().join("."))
     }
 
-    fn type_def_or_ref_fullname(&self, index: &CodedIndex) -> Option<String> {
+    fn type_def_or_ref_fullname(
+        &self,
+        index: &CodedIndex,
+        depth: &mut usize,
+    ) -> Option<String> {
         match index.table {
             Table::TypeDef => self.type_full_name(index.index),
             Table::TypeRef => self.get_type_ref(index).and_then(|t| {
@@ -902,7 +918,7 @@ impl<'a> Dotnet<'a> {
                 let mut name = String::new();
                 self.get_type_spec(index)
                     .and_then(|blob_index| self.get_blob(blob_index))
-                    .map(|data| self.parse_type_spec(data, &mut name));
+                    .map(|data| self.parse_type_spec(data, &mut name, depth));
                 Some(name)
             }
             _ => unreachable!(),
@@ -916,7 +932,14 @@ impl<'a> Dotnet<'a> {
         &self,
         input: &'a [u8],
         output: &mut dyn Write,
+        depth: &mut usize,
     ) -> Result<&'a [u8], std::fmt::Error> {
+        if *depth == Self::MAX_RECURSION {
+            return Err(std::fmt::Error);
+        }
+
+        *depth += 1;
+
         let (mut remainder, type_) =
             map_opt(u8, num::FromPrimitive::from_u8)(input)
                 .map_err(|_: NomError| std::fmt::Error)?;
@@ -942,12 +965,12 @@ impl<'a> Dotnet<'a> {
             Type::U => write!(output, "UintPtr")?,
             Type::Ptr => {
                 write!(output, "Ptr<")?;
-                remainder = self.parse_type_spec(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output, depth)?;
                 write!(output, ">")?;
             }
             Type::ByRef => {
                 write!(output, "ref ")?;
-                remainder = self.parse_type_spec(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output, depth)?;
             }
             Type::ValueType | Type::Class => {
                 let index;
@@ -962,7 +985,7 @@ impl<'a> Dotnet<'a> {
                 write!(
                     output,
                     "{}",
-                    self.type_def_or_ref_fullname(coded_index)
+                    self.type_def_or_ref_fullname(coded_index, depth)
                         .ok_or(std::fmt::Error)?
                 )?;
             }
@@ -985,7 +1008,7 @@ impl<'a> Dotnet<'a> {
                 let sizes;
                 let lower_bounds;
 
-                remainder = self.parse_type_spec(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output, depth)?;
 
                 (remainder, (dimensions, sizes, lower_bounds)) = tuple((
                     // dimensions, limited to a sane limit of 50 as a
@@ -1025,13 +1048,13 @@ impl<'a> Dotnet<'a> {
                 write!(output, "]")?;
             }
             Type::SzArray => {
-                remainder = self.parse_type_spec(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output, depth)?;
                 write!(output, "[]")?;
             }
             Type::GenericInst => {
                 let count;
 
-                remainder = self.parse_type_spec(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output, depth)?;
 
                 (remainder, count) =
                     verify(varint, |count| *count < Self::MAX_PARAMS)(
@@ -1041,7 +1064,8 @@ impl<'a> Dotnet<'a> {
 
                 write!(output, "<")?;
                 for i in 1..=count {
-                    remainder = self.parse_type_spec(remainder, output)?;
+                    remainder =
+                        self.parse_type_spec(remainder, output, depth)?;
                     if i < count {
                         write!(output, ",")?;
                     }
@@ -1060,10 +1084,11 @@ impl<'a> Dotnet<'a> {
                 .map_err(|_: NomError| std::fmt::Error)?;
 
                 write!(output, "FnPtr<")?;
-                remainder = self.parse_type_spec(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output, depth)?;
                 write!(output, "(")?;
                 for i in 1..=count {
-                    remainder = self.parse_type_spec(remainder, output)?;
+                    remainder =
+                        self.parse_type_spec(remainder, output, depth)?;
                     if i < count {
                         write!(output, ", ")?;
                     }
@@ -1073,9 +1098,9 @@ impl<'a> Dotnet<'a> {
             Type::CModReqd | Type::CModOpt => {
                 (remainder, _) = varint(remainder)
                     .map_err(|_: NomError| std::fmt::Error)?;
-                remainder = self.parse_type_spec(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output, depth)?;
             }
-            _ => {}
+            _ => return Err(std::fmt::Error),
         };
 
         Ok(remainder)
@@ -2452,7 +2477,7 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
         result.set_is_dotnet(true);
         result.set_version(dotnet.version.to_vec());
         result.guids.extend(dotnet.get_guids().map(|guid| guid.to_string()));
-        presult.module_name = dotnet
+        result.module_name = dotnet
             .modules
             .first()
             .and_then(|first| *first)
