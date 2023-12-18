@@ -7,12 +7,11 @@ use bits::complete::take as bits_take;
 use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{take, take_till};
-use nom::combinator::{map, map_opt, map_parser, map_res};
-use nom::error::ErrorKind;
+use nom::combinator::{cond, map, map_opt, map_parser, map_res};
 use nom::multi::{count, length_count, length_data, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
-use nom::{bits, Err, IResult, Parser};
+use nom::{bits, AsChar, IResult, Parser};
 use num_derive::FromPrimitive;
 use protobuf::MessageField;
 use uuid::Uuid;
@@ -20,13 +19,18 @@ use uuid::Uuid;
 use crate::modules::pe::parser::{DirEntry, PE};
 use crate::modules::protos;
 
-type Error<'a> = nom::error::Error<&'a [u8]>;
+type NomError<'a> = nom::Err<nom::error::Error<&'a [u8]>>;
+
+pub enum Error<'a> {
+    InvalidDotNet,
+    ParseError(NomError<'a>),
+}
 
 /// An .NET file parser.
 #[derive(Default)]
 pub struct Dotnet<'a> {
-    /// A reference to a PE object describing this .NET file.
-    pe: PE<'a>,
+    /// Slice that contains the whole .NET file.
+    data: &'a [u8],
     /// Version string.
     version: &'a [u8],
     /// Headers of the streams found in the .NET file.
@@ -38,30 +42,14 @@ pub struct Dotnet<'a> {
     /// Size of the indexes used for referencing a GUID in the `#GUID` stream.
     guid_index_size: IndexSize,
     /// Vector that contains the number of rows on each table. Indexes in this
-    /// vector corresponds table numbers [`Dotnet::MODULE`], [`Dotnet::TYPEREF`],
-    /// [`Dotnet::TYPEDEF`], etc.
+    /// vector corresponds table numbers [`Table::Module`], [`Table::TypeRef`],
+    /// [`Table::TypeDef`], etc.
     num_rows: Vec<usize>,
-    /// If true, indexes in the `#Strings` stream are 4 bytes. Indexes are
-    /// 2 bytes if otherwise.
-    long_string_indexes: bool,
-    /// If true, indexes in the `#GUID` stream are 4 bytes. Indexes are
-    /// 2 bytes if otherwise.
-    long_guid_indexes: bool,
-    /// If true, indexes in the `#Blob` stream are 4 bytes. Indexes are
-    /// 2 bytes if otherwise.
-    long_blob_indexes: bool,
-    /// Slice containing all the .NET metadata. Offsets .NET structures are
-    /// relative to this slice.
-    raw_metadata: &'a [u8],
-    /// Offset of `raw_metadata` relative to the start of the PE file.
-    raw_metadata_offset: u32,
     /// Slice containing all the .NET resources.
-    raw_resources: &'a [u8],
+    raw_resources: Option<&'a [u8]>,
     /// Offset of `raw_resources` relative to the start of the PE file. If the
     /// offset could not be computed it is [`None`].
     raw_resources_offset: Option<u32>,
-    /// Slice containing the data of all tables.
-    tables: &'a [u8],
     /// Index within `stream_headers` for the `#~` stream.
     tilde_stream: Option<usize>,
     /// Index within `stream_headers` for the `#Strings` stream.
@@ -76,53 +64,75 @@ pub struct Dotnet<'a> {
     guids: OnceCell<Option<Vec<Uuid>>>,
     /// User types.
     user_types: OnceCell<Vec<Class<'a>>>,
-
+    /// Modules table.
     modules: Vec<&'a str>,
+    /// TypeRef table.
     type_refs: Vec<TypeRef<'a>>,
+    /// TypeDef table.
     type_defs: Vec<TypeDef<'a>>,
+    /// TypeSpec table.
     type_specs: Vec<BlobIndex>,
+    /// MemberRef table.
     member_refs: Vec<MemberRef<'a>>,
+    /// InterfaceImpl table.
     interface_impls: Vec<InterfaceImpl>,
+    /// FieldRVA table.
     field_rvas: Vec<u32>,
+    /// Constant table.
     constants: Vec<Constant<'a>>,
+    /// CustomAttribute table.
     custom_attributes: Vec<CustomAttribute<'a>>,
+    /// ModuleRef table.
     module_refs: Vec<Option<&'a str>>,
+    /// Assembly table.
     assemblies: Vec<Assembly<'a>>,
+    /// AssemblyRef table.
     assembly_refs: Vec<AssemblyRef<'a>>,
+    /// Resource table.
     resources: Vec<Resource<'a>>,
+    /// NestedClass table.
     nested_classes: Vec<NestedClass>,
+    /// GenericParam table.
+    generic_params: Vec<GenericParam<'a>>,
+    /// Param table.
+    params: Vec<Param<'a>>,
+    /// MethodDef table.
+    method_defs: Vec<MethodDef<'a>>,
 }
 
 impl<'a> Dotnet<'a> {
     /// Parses a .NET file and produces a [`Dotnet`] structure containing
     /// metadata extracted from the file.
-    pub fn parse(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
-        let pe = PE::parse(data)?;
+    pub fn parse(data: &'a [u8]) -> Result<Self, Error<'a>> {
+        let pe = PE::parse(data).map_err(Error::ParseError)?;
 
         let (_, _, cli_header) = pe
             .get_dir_entry_data(PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR)
-            .ok_or(Err::Error(Error::new(data, ErrorKind::Tag)))?; // TODO: better error kind?
+            .ok_or(Error::InvalidDotNet)?;
 
-        let (_, cli_header) = Self::parse_cli_header(cli_header)?;
+        let (_, cli_header) =
+            Self::parse_cli_header(cli_header).map_err(Error::ParseError)?;
 
-        // TODO: offsets in stream headers must made relative the start of the file
-        let raw_metadata_offset =
-            pe.rva_to_offset(cli_header.metadata.addr)
-                .ok_or(Err::Error(Error::new(data, ErrorKind::Tag)))?; // TODO: better error kind?;
+        let raw_metadata_offset = pe
+            .rva_to_offset(cli_header.metadata.addr)
+            .ok_or(Error::InvalidDotNet)?;
+
+        let raw_metadata = pe
+            .data_at_rva_with_size(
+                cli_header.metadata.addr,
+                cli_header.metadata.size as usize,
+            )
+            .ok_or(Error::InvalidDotNet)?;
 
         let raw_resources_offset = pe.rva_to_offset(cli_header.resources.addr);
 
-        let raw_metadata = pe
-            .data_at_rva(cli_header.metadata.addr)
-            .ok_or(Err::Error(Error::new(data, ErrorKind::Tag)))?; // TODO: better error kind?;
+        let raw_resources = pe.data_at_rva_with_size(
+            cli_header.resources.addr,
+            cli_header.resources.size as usize,
+        );
 
-        let raw_resources = pe
-            .data_at_rva(cli_header.resources.addr)
-            .ok_or(Err::Error(Error::new(data, ErrorKind::Tag)))?; // TODO: better error kind?;
-
-        // TODO: limit raw_metadata and raw_resources to its actual size
-
-        let (_, metadata) = Self::parse_metadata_root(raw_metadata)?;
+        let (_, mut metadata) = Self::parse_metadata_root(raw_metadata)
+            .map_err(Error::ParseError)?;
 
         let mut tilde_stream = None;
         let mut strings_stream = None;
@@ -130,7 +140,11 @@ impl<'a> Dotnet<'a> {
         let mut blob_stream = None;
         let mut guid_stream = None;
 
-        for (i, header) in metadata.stream_headers.iter().enumerate() {
+        for (i, header) in metadata.stream_headers.iter_mut().enumerate() {
+            // Offsets in stream headers are relative to the start of the
+            // metadata, but here we make them relative to the start of the
+            // file.
+            header.offset = header.offset.saturating_add(raw_metadata_offset);
             match header.name {
                 // Tilde stream, the "#-" name is not documented, but
                 // represents an unoptimized metadata stream.
@@ -150,11 +164,9 @@ impl<'a> Dotnet<'a> {
         }
 
         let mut dotnet = Self {
-            pe,
+            data,
             stream_headers: metadata.stream_headers,
             version: metadata.version,
-            raw_metadata,
-            raw_metadata_offset,
             raw_resources,
             raw_resources_offset,
             tilde_stream,
@@ -165,9 +177,11 @@ impl<'a> Dotnet<'a> {
             ..Default::default()
         };
 
-        dotnet.parse_tilde_stream(
-            dotnet.get_stream(dotnet.tilde_stream.unwrap()).unwrap(),
-        )?;
+        dotnet
+            .parse_tilde_stream(
+                dotnet.get_stream(dotnet.tilde_stream.unwrap()).unwrap(),
+            )
+            .map_err(Error::ParseError)?;
 
         Ok(dotnet)
     }
@@ -224,7 +238,7 @@ impl<'a> Dotnet<'a> {
         let header = self.stream_headers.get(index)?;
         let start_offset = header.offset as usize;
         let end_offset = start_offset.saturating_add(header.size as usize);
-        self.raw_metadata.get(start_offset..end_offset)
+        self.data.get(start_offset..end_offset)
     }
 
     #[inline]
@@ -373,7 +387,10 @@ impl<'a> Dotnet<'a> {
         let (_, guids) = many_m_n(
             0,
             16, // returns up to 16 GUIDs.
-            map_res(take::<u8, &[u8], Error>(16_u8), Uuid::from_slice_le),
+            map_res(
+                take::<u8, &[u8], nom::error::Error<&'a [u8]>>(16_u8),
+                Uuid::from_slice_le,
+            ),
         )
         .parse(guid_stream)
         .ok()?;
@@ -383,11 +400,15 @@ impl<'a> Dotnet<'a> {
 
     /// Parse the `#~` stream.
     ///
+    /// The `#~` stream contains all the tables, after parsing this stream
+    /// all tables in the [`Dotnet`] structure are populated.
+    ///
     /// ECMA-335 Section II.24.2.6.
     fn parse_tilde_stream(
         &mut self,
         input: &'a [u8],
     ) -> IResult<&'a [u8], ()> {
+        // The `#~` starts with a header that is followed the tables.
         let (remainder, (_, _, _, heap_sizes, _, valid, _sorted)) =
             tuple((
                 le_u32, // reserved, always 0
@@ -399,11 +420,12 @@ impl<'a> Dotnet<'a> {
                 le_u64, // sorted
             ))(input)?;
 
-        // The number of tables is the number of bits set to 1 in `valid`.
+        // The number of tables is the number of bits set to 1 in the `valid`
+        // field.
         let num_tables = u64::count_ones(valid);
 
-        // Now follows an array of `num_tables` items with the number of
-        // rows per each present table.
+        // Then follows an array of `num_tables` items with the number of rows
+        // per each table that is present.
         let (mut remainder, num_rows_per_present_table) = count(
             map(le_u32, |v| v as usize),
             num_tables as usize,
@@ -436,8 +458,8 @@ impl<'a> Dotnet<'a> {
             if heap_sizes & 4 != 0 { IndexSize::U32 } else { IndexSize::U16 };
 
         // Parse the tables, which are one after the other. Some tables are
-        // not interesting, but we need to parse them anyways because their
-        // lengths are variable, and we can't skip them without some amount
+        // not interesting, but we need to parse them anyways because they
+        // have a variable length, and we can't skip them without some amount
         // of parsing.
 
         (remainder, self.modules) = count(
@@ -470,7 +492,7 @@ impl<'a> Dotnet<'a> {
             self.num_rows(Table::MethodDefPtr),
         )(remainder)?;
 
-        (remainder, _) = count(
+        (remainder, self.method_defs) = count(
             self.parse_method_def_row(),
             self.num_rows(Table::MethodDef),
         )(remainder)?;
@@ -480,7 +502,7 @@ impl<'a> Dotnet<'a> {
             self.num_rows(Table::ParamPtr),
         )(remainder)?;
 
-        (remainder, _) = count(
+        (remainder, self.params) = count(
             self.parse_param_row(),
             self.num_rows(Table::Param),
         )(remainder)?;
@@ -646,7 +668,7 @@ impl<'a> Dotnet<'a> {
             self.num_rows(Table::NestedClass),
         )(remainder)?;
 
-        (remainder, _) = count(
+        (remainder, self.generic_params) = count(
             self.parse_generic_param_row(),
             self.num_rows(Table::GenericParam),
         )(remainder)?;
@@ -672,6 +694,41 @@ impl<'a> Dotnet<'a> {
             if !type_def.name.is_some_and(|name| name != "<Module>") {
                 continue;
             }
+
+            let generic_param_names: Vec<_> = self
+                .generic_params
+                .iter()
+                .filter_map(|param| {
+                    if param.owner.index == idx {
+                        Some(param.name)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            // The methods belonging to this type in in the MethodDef table
+            // go from the index specified by `method_list` to the index specified
+            // by the next type's `method_list`. If this is the last type, then
+            // it goes to the end of the MethodDef table.
+            let method_defs =
+                if let Some(next_type_def) = self.type_defs.get(idx + 1) {
+                    self.method_defs
+                        .get(type_def.method_list..next_type_def.method_list)
+                } else {
+                    self.method_defs.get(type_def.method_list..)
+                };
+
+            let methods = if let Some(method_defs) = method_defs {
+                method_defs
+                    .iter()
+                    .filter_map(|method_def| {
+                        self.convert_method_def(method_def)
+                    })
+                    .collect()
+            } else {
+                vec![]
+            };
 
             // `base_types` will contain the names of the classes the current
             // class inherits from.
@@ -707,9 +764,71 @@ impl<'a> Dotnet<'a> {
                 semantics: type_def.class_semantics(),
                 is_abstract: type_def.is_abstract(),
                 is_sealed: type_def.is_sealed(),
+                methods,
             });
         }
         classes
+    }
+
+    fn convert_method_def(
+        &self,
+        method_def: &MethodDef<'a>,
+    ) -> Option<Method<'a>> {
+        let (remainder, flags) =
+            u8::<&[u8], nom::error::Error<&'a [u8]>>(method_def.signature?)
+                .ok()?;
+
+        let (remainder, (_generic_param_count, param_count)) =
+            tuple((
+                // Generic param count, present only if
+                // SIG_FLAG_GENERIC flag is set.
+                cond(flags & 0x10 != 0, varint),
+                // Regular param count.
+                varint,
+            ))(remainder)
+            .ok()?;
+
+        let mut return_type = String::new();
+        let mut remainder =
+            self.parse_type_spec(remainder, &mut return_type).ok()?;
+
+        let parameters = self
+            .params
+            .get(method_def.param_list..method_def.param_list + param_count);
+
+        let mut method_params = Vec::new();
+
+        if let Some(parameters) = parameters {
+            for param in parameters {
+                let mut param_type = String::new();
+                remainder =
+                    self.parse_type_spec(remainder, &mut param_type).ok()?;
+                method_params.push(MethodParam {
+                    name: param.name,
+                    type_: Some(param_type),
+                })
+            }
+        }
+
+        // Return type for constructors is always set to None, which is YARA sees
+        // as undefined, for FileInfo compatibility.
+        let return_type =
+            if matches!(method_def.name, Some(".ctor") | Some(".cctor")) {
+                None
+            } else {
+                Some(return_type)
+            };
+
+        Some(Method {
+            name: method_def.name?,
+            parameters: method_params,
+            return_type,
+            visibility: method_def.visibility(),
+            is_final: method_def.is_final(),
+            is_abstract: method_def.is_abstract(),
+            is_virtual: method_def.is_virtual(),
+            is_static: method_def.is_static(),
+        })
     }
 
     /// Given an index into the `type_defs` table, returns its full name.
@@ -765,21 +884,24 @@ impl<'a> Dotnet<'a> {
                 let mut name = String::new();
                 self.get_type_spec(index)
                     .and_then(|blob_index| self.get_blob(blob_index))
-                    .map(|data| self.parse_signature_type(data, &mut name));
+                    .map(|data| self.parse_type_spec(data, &mut name));
                 Some(name)
             }
             _ => unreachable!(),
         }
     }
 
-    fn parse_signature_type(
+    /// Parses a type spec blob.
+    ///
+    /// ECMA-335 Section II.23.2.12
+    fn parse_type_spec(
         &self,
         input: &'a [u8],
         output: &mut dyn Write,
     ) -> Result<&'a [u8], std::fmt::Error> {
         let (mut remainder, type_) =
             map_opt(u8, num::FromPrimitive::from_u8)(input)
-                .map_err(|_: nom::Err<Error>| std::fmt::Error)?;
+                .map_err(|_: NomError| std::fmt::Error)?;
 
         match type_ {
             Type::Void => write!(output, "void")?,
@@ -802,61 +924,123 @@ impl<'a> Dotnet<'a> {
             Type::U => write!(output, "UintPtr")?,
             Type::Ptr => {
                 write!(output, "Ptr<")?;
-                remainder = self.parse_signature_type(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output)?;
                 write!(output, ">")?;
             }
             Type::ByRef => {
-                todo!()
+                write!(output, "ref ")?;
+                remainder = self.parse_type_spec(remainder, output)?;
             }
             Type::ValueType | Type::Class => {
                 let index;
 
                 (remainder, index) = varint(remainder)
-                    .map_err(|_: nom::Err<Error>| std::fmt::Error)?;
-
-                let coded_index =
-                    CodedIndex::new(Table::TYPE_DEF_OR_REF, index);
+                    .map_err(|_: NomError| std::fmt::Error)?;
 
                 write!(
                     output,
                     "{}",
-                    self.type_def_or_ref_fullname(&coded_index)
-                        .ok_or(std::fmt::Error)?
+                    self.type_def_or_ref_fullname(&CodedIndex::new(
+                        Table::TYPE_DEF_OR_REF,
+                        index
+                    ))
+                    .ok_or(std::fmt::Error)?
                 )?;
             }
             Type::Var | Type::MVar => {
-                todo!()
+                let index;
+
+                (remainder, index) = varint(remainder)
+                    .map_err(|_: NomError| std::fmt::Error)?;
+
+                let name = self
+                    .generic_params
+                    .get(index)
+                    .and_then(|p| p.name)
+                    .ok_or(std::fmt::Error)?;
+
+                write!(output, "{}", name)?;
             }
             Type::Array => {
-                todo!()
+                let dimensions;
+                let sizes;
+                let lower_bounds;
+
+                remainder = self.parse_type_spec(remainder, output)?;
+
+                (remainder, (dimensions, sizes, lower_bounds)) =
+                    tuple((
+                        // dimensions
+                        varint,
+                        // number of sizes and the sizes themselves.
+                        length_count(varint, varint),
+                        // number of lower bounds and the lower bounds themselves.
+                        length_count(varint, varint),
+                    ))(remainder)
+                    .map_err(|_: NomError| std::fmt::Error)?;
+
+                write!(output, "[")?;
+                for i in 0..dimensions {
+                    let size = sizes.get(i).cloned().unwrap_or(0);
+                    if size > 0 {
+                        let l = lower_bounds.get(i).cloned().unwrap_or(0);
+                        let h = l + size - 1;
+                        write!(output, "{}...{}", l, h)?;
+                    }
+                    // If not the last item, prepend a comma.
+                    if i + 1 != dimensions {
+                        write!(output, ",")?;
+                    }
+                }
+                write!(output, "]")?;
             }
             Type::SzArray => {
-                todo!()
+                remainder = self.parse_type_spec(remainder, output)?;
+                write!(output, "[]")?;
             }
             Type::GenericInst => {
-                let mut gen_count = 0;
+                let gen_count;
 
-                remainder = self.parse_signature_type(remainder, output)?;
+                remainder = self.parse_type_spec(remainder, output)?;
+
                 (remainder, gen_count) = varint(remainder)
-                    .map_err(|_: nom::Err<Error>| std::fmt::Error)?;
+                    .map_err(|_: NomError| std::fmt::Error)?;
+
+                // TODO: gen_count > MAX_GEN_COUNT
 
                 write!(output, "<")?;
-
                 for i in 1..=gen_count {
-                    remainder =
-                        self.parse_signature_type(remainder, output)?;
+                    remainder = self.parse_type_spec(remainder, output)?;
                     if i < gen_count {
                         write!(output, ",")?;
                     }
                 }
-
                 write!(output, ">")?;
             }
             Type::FnPtr => {
-                todo!()
+                let param_count;
+
+                // Skip flags and read param count.
+                (remainder, (_, param_count)) = tuple((u8, varint))(remainder)
+                    .map_err(|_: NomError| std::fmt::Error)?;
+
+                // TODO: check param_count <= MAX_PARAM_COUNT
+
+                write!(output, "FnPtr<")?;
+                remainder = self.parse_type_spec(remainder, output)?;
+                write!(output, "(")?;
+                for i in 1..=param_count {
+                    remainder = self.parse_type_spec(remainder, output)?;
+                    if i < param_count {
+                        write!(output, ", ")?;
+                    }
+                }
+                write!(output, ")>")?;
             }
             Type::CModReqd | Type::CModOpt => {
-                todo!()
+                (remainder, _) = varint(remainder)
+                    .map_err(|_: NomError| std::fmt::Error)?;
+                remainder = self.parse_type_spec(remainder, output)?;
             }
             _ => {}
         };
@@ -1058,7 +1242,7 @@ impl<'a> Dotnet<'a> {
                 // method list
                 self.table_index(Table::MethodDef),
             )),
-            |(flags, name, namespace, extends, _field_list, _method_list)| {
+            |(flags, name, namespace, extends, _field_list, method_list)| {
                 TypeDef {
                     flags,
                     name: name.and_then(|v| {
@@ -1076,6 +1260,7 @@ impl<'a> Dotnet<'a> {
                             Some(v)
                         }
                     }),
+                    method_list,
                     extends,
                 }
             },
@@ -1106,23 +1291,28 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.26.
     fn parse_method_def_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MethodDef> + '_ {
         map(
             tuple((
                 // rva
                 le_u32,
                 // impl_flags
                 le_u16,
-                // flags_
+                // flags
                 le_u16,
                 // name (index into the `#String` heap)
-                self.string_index(),
+                map(self.string_index(), |index| self.get_string(index)),
                 // signature (index into the `#Blob` heap)
-                self.blob_index(),
+                map(self.blob_index(), |index| self.get_blob(index)),
                 // param_list (index into the param table)
                 self.table_index(Table::Param),
             )),
-            |_| (),
+            |(_, _, flags, name, signature, param_list)| MethodDef {
+                flags,
+                name,
+                signature,
+                param_list,
+            },
         )
     }
 
@@ -1131,14 +1321,15 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.33.
     fn parse_param_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Param<'a>> + '_ {
         map(
             tuple((
-                le_u16,              // flags
-                le_u16,              // sequence
-                self.string_index(), // name
+                le_u16, // flags
+                le_u16, // sequence
+                // name
+                map(self.string_index(), |index| self.get_string(index)),
             )),
-            |_| (),
+            |(_flags, _sequence, name)| Param { name },
         )
     }
 
@@ -1606,25 +1797,41 @@ impl<'a> Dotnet<'a> {
                 ]),
             )),
             |(offset, _, name, _)| {
+                if self.raw_resources.is_none() {
+                    return Resource { name, data: None, offset: None };
+                }
+
                 // The length is encoded as a 32-bits integer at the start of
                 // the resource data.
                 let length = self
                     .raw_resources
+                    .unwrap()
                     .get(offset as usize..)
-                    .and_then(|data| le_u32::<&[u8], Error>(data).ok())
-                    .map(|(_, length)| length);
+                    .and_then(|data| {
+                        le_u32::<&[u8], nom::error::Error<&'a [u8]>>(data).ok()
+                    })
+                    .map(|(_, length)| length as usize);
 
-                // Add 4 to skip the blob size.
-                let offset = offset.saturating_add(4);
+                if let Some(length) = length {
+                    // Add 4 to skip the blob size.
+                    let offset = offset.saturating_add(4);
 
-                // The value in `offset` is relative to the start of
-                // `self.raw_resources`. But we want it relative to the start
-                // of the PE file, so we add `self.raw_resources_offset`.
-                let offset = self
-                    .raw_resources_offset
-                    .map(|base| base.saturating_add(offset));
+                    let data = self.raw_resources.unwrap().get(
+                        offset as usize
+                            ..(offset as usize).saturating_add(length),
+                    );
 
-                Resource { length, offset, name }
+                    // The value in `offset` is relative to the start of
+                    // `raw_resources`. But we want it relative to the start
+                    // of the PE file, so we add `self.raw_resources_offset`.
+                    let offset = self
+                        .raw_resources_offset
+                        .map(|base| base.saturating_add(offset));
+
+                    Resource { name, data, offset }
+                } else {
+                    Resource { name, data: None, offset: None }
+                }
             },
         )
     }
@@ -1652,15 +1859,17 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.20.
     fn parse_generic_param_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], ()> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], GenericParam> + '_ {
         map(
             tuple((
-                le_u16,                                      // number
-                le_u16,                                      // flags
-                self.coded_index(Table::TYPE_OR_METHOD_DEF), // owner
-                self.string_index(),                         // name
+                le_u16, // number
+                le_u16, // flags
+                // owner
+                self.coded_index(Table::TYPE_OR_METHOD_DEF),
+                // name
+                map(self.string_index(), |index| self.get_string(index)),
             )),
-            |_| (),
+            |(_number, _flags, owner, name)| GenericParam { owner, name },
         )
     }
 
@@ -1933,6 +2142,12 @@ struct TypeDef<'a> {
     name: Option<&'a str>,
     namespace: Option<&'a str>,
     extends: CodedIndex,
+    /// An index into the MethodDef table; it marks the first of a contiguous
+    /// run of Methods owned by this Type. The run continues to the smaller of:
+    ///  * the last row of the MethodDef table
+    ///  * the next run of Methods, found by inspecting the method_list of the
+    ///    types that comes after this one in the TypeDef table.
+    method_list: usize,
 }
 
 impl<'a> TypeDef<'a> {
@@ -2048,6 +2263,48 @@ impl Display for ClassSemantics {
 }
 
 #[derive(Debug)]
+pub struct MethodDef<'a> {
+    flags: u16,
+    name: Option<&'a str>,
+    signature: Option<&'a [u8]>,
+    param_list: usize,
+}
+
+impl MethodDef<'_> {
+    #[inline]
+    fn is_abstract(&self) -> bool {
+        self.flags & 0x400 != 0
+    }
+
+    #[inline]
+    fn is_final(&self) -> bool {
+        self.flags & 0x20 != 0
+    }
+
+    #[inline]
+    fn is_static(&self) -> bool {
+        self.flags & 0x10 != 0
+    }
+
+    #[inline]
+    fn is_virtual(&self) -> bool {
+        self.flags & 0x40 != 0
+    }
+
+    fn visibility(&self) -> Visibility {
+        match self.flags & 0x7 {
+            1 => Visibility::Private,
+            2 => Visibility::PrivateProtected,
+            3 => Visibility::Internal,
+            4 => Visibility::Protected,
+            5 => Visibility::ProtectedInternal,
+            6 => Visibility::Public,
+            _ => Visibility::Private,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct MemberRef<'a> {
     class: CodedIndex,
     name: Option<&'a str>,
@@ -2091,8 +2348,19 @@ pub struct CustomAttribute<'a> {
 
 #[derive(Debug)]
 pub struct Resource<'a> {
+    name: Option<&'a str>,
     offset: Option<u32>,
-    length: Option<u32>,
+    data: Option<&'a [u8]>,
+}
+
+#[derive(Debug)]
+pub struct Param<'a> {
+    name: Option<&'a str>,
+}
+
+#[derive(Debug)]
+pub struct GenericParam<'a> {
+    owner: CodedIndex,
     name: Option<&'a str>,
 }
 
@@ -2105,6 +2373,25 @@ pub struct Class<'a> {
     semantics: ClassSemantics,
     is_abstract: bool,
     is_sealed: bool,
+    methods: Vec<Method<'a>>,
+}
+
+#[derive(Debug)]
+pub struct Method<'a> {
+    name: &'a str,
+    parameters: Vec<MethodParam<'a>>,
+    return_type: Option<String>,
+    visibility: Visibility,
+    is_abstract: bool,
+    is_static: bool,
+    is_virtual: bool,
+    is_final: bool,
+}
+
+#[derive(Debug)]
+pub struct MethodParam<'a> {
+    name: Option<&'a str>,
+    type_: Option<String>,
 }
 
 #[derive(Debug)]
@@ -2201,7 +2488,7 @@ impl From<&Resource<'_>> for protos::dotnet::Resource {
         let mut resource = protos::dotnet::Resource::new();
         resource.name = value.name.map(|n| n.to_string());
         resource.offset = value.offset;
-        resource.length = value.length;
+        resource.length = value.data.and_then(|d| d.len().try_into().ok());
         resource
     }
 }
@@ -2210,12 +2497,49 @@ impl From<&Class<'_>> for protos::dotnet::Class {
     fn from(value: &Class<'_>) -> Self {
         let mut class = protos::dotnet::Class::new();
         class.fullname = value.full_name.clone();
+        if let Some(fullname) = &value.full_name {
+            if let Some((namespace, name)) = fullname.rsplit_once('.') {
+                class.set_namespace(namespace.to_string());
+                class.set_name(name.to_string());
+            } else {
+                class.set_name(fullname.to_string());
+            }
+        }
         class.set_type(value.semantics.to_string());
         class.base_types = value.base_types.clone();
         class.set_sealed(value.is_sealed);
         class.set_abstract(value.is_abstract);
         class.set_visibility(value.visibility.to_string());
         class
+            .methods
+            .extend(value.methods.iter().map(protos::dotnet::Method::from));
+        class
+    }
+}
+
+impl From<&Method<'_>> for protos::dotnet::Method {
+    fn from(value: &Method<'_>) -> Self {
+        let mut method = protos::dotnet::Method::new();
+        method.set_name(value.name.to_string());
+        method.set_visibility(value.visibility.to_string());
+        method.set_abstract(value.is_abstract);
+        method.set_virtual(value.is_virtual);
+        method.set_final(value.is_final);
+        method.set_static(value.is_static);
+        method
+            .parameters
+            .extend(value.parameters.iter().map(protos::dotnet::Param::from));
+        method.return_type = value.return_type.clone();
+        method
+    }
+}
+
+impl From<&MethodParam<'_>> for protos::dotnet::Param {
+    fn from(value: &MethodParam<'_>) -> Self {
+        let mut param = protos::dotnet::Param::new();
+        param.name = value.name.map(|n| n.to_string());
+        param.type_ = value.type_.clone();
+        param
     }
 }
 

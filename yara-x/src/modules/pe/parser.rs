@@ -185,12 +185,26 @@ impl<'a> PE<'a> {
         )
     }
 
-    /// Given a RVA, return a byte slice with the content of the PE that
+    /// Given a RVA, returns a byte slice with the content of the PE that
     /// goes from that RVA to the end of the file.
     #[inline]
     pub fn data_at_rva(&self, rva: u32) -> Option<&'a [u8]> {
         let offset = self.rva_to_offset(rva)?;
         self.data.get(offset as usize..)
+    }
+
+    /// Given a RVA, returns a byte slice with the content of the PE that
+    /// goes from that RVA to the end of the file, or to the given size,
+    /// whatever comes first.
+    #[inline]
+    pub fn data_at_rva_with_size(
+        &self,
+        rva: u32,
+        size: usize,
+    ) -> Option<&'a [u8]> {
+        let start = self.rva_to_offset(rva)? as usize;
+        let end = min(start.saturating_add(size), self.data.len());
+        self.data.get(start..end)
     }
 
     /// Returns the PE entry point as a file offset.

@@ -71,9 +71,29 @@ message Resource {
 
 message Class {
   required string fullname = 1;
+  required string name = 2;
+  optional string namespace = 3;
+  required string visibility = 4;
+  required string type = 5;
+  repeated string base_types = 6;
+  required bool abstract = 7;
+  required bool sealed = 8;
+  repeated Method methods = 9;
+}
+
+message Method {
+  required string name = 1;
   required string visibility = 2;
-  required string type = 3;
-  repeated string base_types = 4;
-  required bool abstract = 5;
-  required bool sealed = 6;
+  required bool abstract = 3;
+  required bool static= 4;
+  required bool virtual = 5;
+  required bool final = 6;
+  repeated string generic_parameters = 7;
+  optional string return_type = 8;
+  repeated Param parameters = 9;
+}
+
+message Param {
+  optional string name = 1;
+  optional string type = 2;
 }
