@@ -7,7 +7,7 @@ use bits::complete::take as bits_take;
 use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{take, take_till};
-use nom::combinator::{cond, map, map_opt, map_parser, map_res};
+use nom::combinator::{cond, map, map_opt, map_parser, map_res, verify};
 use nom::error::ErrorKind;
 use nom::multi::{count, length_count, length_data, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
@@ -65,7 +65,7 @@ pub struct Dotnet<'a> {
     /// User types.
     user_types: OnceCell<Vec<Class<'a>>>,
     /// Modules table.
-    modules: Vec<&'a str>,
+    modules: Vec<Option<&'a str>>,
     /// TypeRef table.
     type_refs: Vec<TypeRef<'a>>,
     /// TypeDef table.
@@ -164,9 +164,6 @@ impl<'a> Dotnet<'a> {
             }
         }
 
-        // The `#~`` must be present for the .NET file to be valid.
-        let tilde_stream = tilde_stream.ok_or(Error::InvalidDotNet)?;
-
         let mut dotnet = Self {
             data,
             stream_headers: metadata.stream_headers,
@@ -180,10 +177,11 @@ impl<'a> Dotnet<'a> {
             ..Default::default()
         };
 
-        let tilde_stream =
-            dotnet.get_stream(tilde_stream).ok_or(Error::InvalidDotNet)?;
-
-        dotnet.parse_tilde_stream(tilde_stream).map_err(Error::ParseError)?;
+        // Parse the `#~` stream. The stream can be missing or the parsing can
+        // fail, but the file is still considered a valid .NET file.
+        let _ = tilde_stream
+            .and_then(|index| dotnet.get_stream(index))
+            .map(|tilde_stream| dotnet.parse_tilde_stream(tilde_stream));
 
         Ok(dotnet)
     }
@@ -330,15 +328,23 @@ impl<'a> Dotnet<'a> {
                 le_u16, // major_version
                 le_u16, // minor_version
                 le_u32, // reserved
-                // length + version string. The length is <= 255 according to
-                // the specification, but we don't enforce it. The length
-                // includes any padding added to align the next field to a
-                // 4 byte boundary. The string is null-terminated.
-                map_parser(length_data(le_u32), take_till(|c| c == 0)),
+                // length + version string. According to the specification
+                // length must be <= 255. The length includes any padding
+                // added to align the next field to a 4 byte boundary. The
+                // string is null-terminated.
+                map_parser(
+                    length_data(verify(le_u32, |length| *length <= 255)),
+                    take_till(|c| c == 0),
+                ),
                 le_u16, // flags (reserved)
                 // number of streams, say N, followed by array of N stream
-                // headers
-                length_count(le_u16, Self::parse_stream_header),
+                // headers. The specification doesn't set a limit to the number
+                // of streams, but as a sanity check we make sure it doesn't
+                // exceed 64.
+                length_count(
+                    verify(le_u16, |n| *n <= 64),
+                    Self::parse_stream_header,
+                ),
             )),
             |(
                 _magic,
@@ -427,9 +433,10 @@ impl<'a> Dotnet<'a> {
         let num_tables = u64::count_ones(valid);
 
         // Then follows an array of `num_tables` items with the number of rows
-        // per each table that is present.
+        // per each table that is present. Limit the number of rows per table
+        // to a reasonable number of 1000.
         let (mut remainder, num_rows_per_present_table) = count(
-            map(le_u32, |v| v as usize),
+            map(verify(le_u32, |num_rows| *num_rows <= 1000), |v| v as usize),
             num_tables as usize,
         )(remainder)?;
 
@@ -946,7 +953,7 @@ impl<'a> Dotnet<'a> {
                 write!(
                     output,
                     "{}",
-                    self.type_def_or_ref_fullname(&coded_index)
+                    self.type_def_or_ref_fullname(coded_index)
                         .ok_or(std::fmt::Error)?
                 )?;
             }
@@ -973,12 +980,14 @@ impl<'a> Dotnet<'a> {
 
                 (remainder, (dimensions, sizes, lower_bounds)) =
                     tuple((
-                        // dimensions
-                        varint,
-                        // number of sizes and the sizes themselves.
-                        length_count(varint, varint),
+                        // dimensions, limited to a sane limit of 50 as a
+                        // protection against corrupted files.
+                        verify(varint, |dimension| *dimension <= 50),
+                        // number of sizes, followed by the sizes as varints.
+                        // The number of sizes is also limited to 50.
+                        length_count(verify(varint, |n| *n <= 50), varint),
                         // number of lower bounds and the lower bounds themselves.
-                        length_count(varint, varint),
+                        length_count(verify(varint, |n| *n <= 50), varint),
                     ))(remainder)
                     .map_err(|_: NomError| std::fmt::Error)?;
 
@@ -1002,39 +1011,42 @@ impl<'a> Dotnet<'a> {
                 write!(output, "[]")?;
             }
             Type::GenericInst => {
-                let gen_count;
+                let count;
 
                 remainder = self.parse_type_spec(remainder, output)?;
 
-                (remainder, gen_count) = varint(remainder)
-                    .map_err(|_: NomError| std::fmt::Error)?;
-
-                // TODO: gen_count > MAX_GEN_COUNT
+                (remainder, count) =
+                    verify(varint, |count| *count < 1000)(remainder)
+                        .map_err(|_: NomError| std::fmt::Error)?;
 
                 write!(output, "<")?;
-                for i in 1..=gen_count {
+                for i in 1..=count {
                     remainder = self.parse_type_spec(remainder, output)?;
-                    if i < gen_count {
+                    if i < count {
                         write!(output, ",")?;
                     }
                 }
                 write!(output, ">")?;
             }
             Type::FnPtr => {
-                let param_count;
+                let count;
 
-                // Skip flags and read param count.
-                (remainder, (_, param_count)) = tuple((u8, varint))(remainder)
-                    .map_err(|_: NomError| std::fmt::Error)?;
+                // Skip flags and read param count. Param count is limited
+                // to 1000.
+                (remainder, (_, count)) = tuple((
+                    u8,
+                    verify(varint, |count| *count < 1000),
+                ))(remainder)
+                .map_err(|_: NomError| std::fmt::Error)?;
 
                 // TODO: check param_count <= MAX_PARAM_COUNT
 
                 write!(output, "FnPtr<")?;
                 remainder = self.parse_type_spec(remainder, output)?;
                 write!(output, "(")?;
-                for i in 1..=param_count {
+                for i in 1..=count {
                     remainder = self.parse_type_spec(remainder, output)?;
-                    if i < param_count {
+                    if i < count {
                         write!(output, ", ")?;
                     }
                 }
@@ -1186,13 +1198,13 @@ impl<'a> Dotnet<'a> {
     /// ECMA-335 Section II.22.30
     fn parse_module_row(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], &'a str> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Option<&'a str>> + '_ {
         map(
             tuple((
                 // generation (reserved, shall be zero).
                 le_u16,
                 // name (index into the `#String` heap)
-                map_opt(self.string_index(), |index| self.get_string(index)),
+                map(self.string_index(), |index| self.get_string(index)),
                 // mvid (index into the `#GUID` heap)
                 self.guid_index(),
                 // enc_id (index into the `#GUID` heap)
@@ -2422,7 +2434,11 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
         result.set_is_dotnet(true);
         result.set_version(dotnet.version.to_vec());
         result.guids.extend(dotnet.get_guids().map(|guid| guid.to_string()));
-        result.module_name = dotnet.modules.first().map(|s| s.to_string());
+        result.module_name = dotnet
+            .modules
+            .first()
+            .and_then(|first| *first)
+            .map(|first| first.to_string());
 
         result.assembly = dotnet
             .assemblies
