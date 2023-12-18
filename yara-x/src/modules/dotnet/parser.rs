@@ -8,10 +8,11 @@ use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, map, map_opt, map_parser, map_res};
+use nom::error::ErrorKind;
 use nom::multi::{count, length_count, length_data, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
-use nom::{bits, AsChar, IResult, Parser};
+use nom::{bits, IResult, Parser};
 use num_derive::FromPrimitive;
 use protobuf::MessageField;
 use uuid::Uuid;
@@ -23,6 +24,7 @@ type NomError<'a> = nom::Err<nom::error::Error<&'a [u8]>>;
 
 pub enum Error<'a> {
     InvalidDotNet,
+    InvalidCodedIndex,
     ParseError(NomError<'a>),
 }
 
@@ -50,8 +52,6 @@ pub struct Dotnet<'a> {
     /// Offset of `raw_resources` relative to the start of the PE file. If the
     /// offset could not be computed it is [`None`].
     raw_resources_offset: Option<u32>,
-    /// Index within `stream_headers` for the `#~` stream.
-    tilde_stream: Option<usize>,
     /// Index within `stream_headers` for the `#Strings` stream.
     strings_stream: Option<usize>,
     /// Index within `stream_headers` for the `#US` stream.
@@ -145,6 +145,7 @@ impl<'a> Dotnet<'a> {
             // metadata, but here we make them relative to the start of the
             // file.
             header.offset = header.offset.saturating_add(raw_metadata_offset);
+
             match header.name {
                 // Tilde stream, the "#-" name is not documented, but
                 // represents an unoptimized metadata stream.
@@ -163,13 +164,15 @@ impl<'a> Dotnet<'a> {
             }
         }
 
+        // The `#~`` must be present for the .NET file to be valid.
+        let tilde_stream = tilde_stream.ok_or(Error::InvalidDotNet)?;
+
         let mut dotnet = Self {
             data,
             stream_headers: metadata.stream_headers,
             version: metadata.version,
             raw_resources,
             raw_resources_offset,
-            tilde_stream,
             strings_stream,
             us_stream,
             blob_stream,
@@ -177,11 +180,10 @@ impl<'a> Dotnet<'a> {
             ..Default::default()
         };
 
-        dotnet
-            .parse_tilde_stream(
-                dotnet.get_stream(dotnet.tilde_stream.unwrap()).unwrap(),
-            )
-            .map_err(Error::ParseError)?;
+        let tilde_stream =
+            dotnet.get_stream(tilde_stream).ok_or(Error::InvalidDotNet)?;
+
+        dotnet.parse_tilde_stream(tilde_stream).map_err(Error::ParseError)?;
 
         Ok(dotnet)
     }
@@ -937,14 +939,15 @@ impl<'a> Dotnet<'a> {
                 (remainder, index) = varint(remainder)
                     .map_err(|_: NomError| std::fmt::Error)?;
 
+                let coded_index =
+                    &CodedIndex::new(Table::TYPE_DEF_OR_REF, index)
+                        .map_err(|_| std::fmt::Error)?;
+
                 write!(
                     output,
                     "{}",
-                    self.type_def_or_ref_fullname(&CodedIndex::new(
-                        Table::TYPE_DEF_OR_REF,
-                        index
-                    ))
-                    .ok_or(std::fmt::Error)?
+                    self.type_def_or_ref_fullname(&coded_index)
+                        .ok_or(std::fmt::Error)?
                 )?;
             }
             Type::Var | Type::MVar => {
@@ -1166,7 +1169,15 @@ impl<'a> Dotnet<'a> {
         move |input: &'a [u8]| {
             let (remainder, index) = self.index(index_size)(input)?;
 
-            Ok((remainder, CodedIndex::new(tables, index as usize)))
+            let coded_index = CodedIndex::new(tables, index as usize)
+                .map_err(|_| {
+                    nom::Err::Error(nom::error::Error {
+                        input,
+                        code: ErrorKind::Verify,
+                    })
+                })?;
+
+            Ok((remainder, coded_index))
         }
     }
 
@@ -2102,17 +2113,21 @@ struct CodedIndex {
 }
 
 impl CodedIndex {
-    fn new(tables: &[Table], index: usize) -> Self {
+    fn new(tables: &[Table], index: usize) -> Result<Self, Error> {
         let tag_size = f64::log2(tables.len() as f64).ceil() as u32;
         let table_index = index & ((1 << tag_size) - 1);
-        let table = tables[table_index];
+        let table = tables
+            .get(table_index)
+            .cloned()
+            .ok_or(Error::InvalidCodedIndex)?;
+
         let index = index >> tag_size;
 
         // Indexes in are 1-based, but here we make them 0-based, so that
         // we can use them as Rust vector indexes.
         let index = index.saturating_sub(1);
 
-        Self { table, index }
+        Ok(Self { table, index })
     }
 }
 
