@@ -767,6 +767,7 @@ impl<'a> Dotnet<'a> {
             base_types.extend(self.interface_impls.iter().filter_map(
                 |interface_impl| {
                     if interface_impl.class == idx {
+                        depth = 0;
                         self.type_def_or_ref_fullname(
                             &interface_impl.interface,
                             &mut depth,
@@ -938,11 +939,11 @@ impl<'a> Dotnet<'a> {
             return Err(std::fmt::Error);
         }
 
-        *depth += 1;
-
         let (mut remainder, type_) =
             map_opt(u8, num::FromPrimitive::from_u8)(input)
                 .map_err(|_: NomError| std::fmt::Error)?;
+
+        *depth += 1;
 
         match type_ {
             Type::Void => write!(output, "void")?,
@@ -1102,6 +1103,8 @@ impl<'a> Dotnet<'a> {
             }
             _ => return Err(std::fmt::Error),
         };
+
+        *depth -= 1;
 
         Ok(remainder)
     }
