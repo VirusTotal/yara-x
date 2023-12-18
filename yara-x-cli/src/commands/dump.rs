@@ -22,6 +22,7 @@ enum SupportedModules {
     Macho,
     Elf,
     Pe,
+    Dotnet,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -149,6 +150,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                 SupportedModules::Pe => {
                     yara_x::mods::invoke_mod_dyn::<yara_x::mods::PE>(&buffer)
                 }
+                SupportedModules::Dotnet => yara_x::mods::invoke_mod_dyn::<
+                    yara_x::mods::Dotnet,
+                >(&buffer),
             } {
                 obtain_module_info(
                     output_format,
@@ -205,6 +209,18 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
                     output_format,
                     &SupportedModules::Pe,
                     &*pe_output,
+                    use_color,
+                )?;
+            }
+        }
+        if let Some(dotnet_output) =
+            yara_x::mods::invoke_mod::<yara_x::mods::Dotnet>(&buffer)
+        {
+            if dotnet_output.is_dotnet() {
+                obtain_module_info(
+                    output_format,
+                    &SupportedModules::Dotnet,
+                    &*dotnet_output,
                     use_color,
                 )?;
             }
