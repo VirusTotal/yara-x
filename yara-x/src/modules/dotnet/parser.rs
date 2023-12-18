@@ -213,6 +213,10 @@ impl<'a> Dotnet<'a> {
 }
 
 impl<'a> Dotnet<'a> {
+    const MAX_PARAMS: usize = 1000;
+    const MAX_ROWS_PER_TABLE: usize = 1000;
+    const MAX_ARRAY_DIMENSION: usize = 50;
+
     /// Given an index into the `#Strings` stream, returns the string.
     fn get_string(&self, index: StringIndex) -> Option<&'a str> {
         CStr::from_bytes_until_nul(
@@ -434,9 +438,14 @@ impl<'a> Dotnet<'a> {
 
         // Then follows an array of `num_tables` items with the number of rows
         // per each table that is present. Limit the number of rows per table
-        // to a reasonable number of 1000.
+        // to a reasonable number of MAX_ROWS_PER_TABLE.
         let (mut remainder, num_rows_per_present_table) = count(
-            map(verify(le_u32, |num_rows| *num_rows <= 1000), |v| v as usize),
+            map(
+                verify(le_u32, |num_rows| {
+                    *num_rows <= Self::MAX_ROWS_PER_TABLE
+                }),
+                |v| v as usize,
+            ),
             num_tables as usize,
         )(remainder)?;
 
@@ -978,18 +987,27 @@ impl<'a> Dotnet<'a> {
 
                 remainder = self.parse_type_spec(remainder, output)?;
 
-                (remainder, (dimensions, sizes, lower_bounds)) =
-                    tuple((
-                        // dimensions, limited to a sane limit of 50 as a
-                        // protection against corrupted files.
-                        verify(varint, |dimension| *dimension <= 50),
-                        // number of sizes, followed by the sizes as varints.
-                        // The number of sizes is also limited to 50.
-                        length_count(verify(varint, |n| *n <= 50), varint),
-                        // number of lower bounds and the lower bounds themselves.
-                        length_count(verify(varint, |n| *n <= 50), varint),
-                    ))(remainder)
-                    .map_err(|_: NomError| std::fmt::Error)?;
+                (remainder, (dimensions, sizes, lower_bounds)) = tuple((
+                    // dimensions, limited to a sane limit of 50 as a
+                    // protection against corrupted files.
+                    verify(varint, |dimension| {
+                        *dimension <= Self::MAX_ARRAY_DIMENSION
+                    }),
+                    // number of sizes, followed by the sizes as varints.
+                    // The number of sizes is also limited to 50.
+                    length_count(
+                        verify(varint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
+                        varint,
+                    ),
+                    // number of lower bounds and the lower bounds themselves.
+                    length_count(
+                        verify(varint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
+                        varint,
+                    ),
+                ))(
+                    remainder
+                )
+                .map_err(|_: NomError| std::fmt::Error)?;
 
                 write!(output, "[")?;
                 for i in 0..dimensions {
@@ -1016,8 +1034,10 @@ impl<'a> Dotnet<'a> {
                 remainder = self.parse_type_spec(remainder, output)?;
 
                 (remainder, count) =
-                    verify(varint, |count| *count < 1000)(remainder)
-                        .map_err(|_: NomError| std::fmt::Error)?;
+                    verify(varint, |count| *count < Self::MAX_PARAMS)(
+                        remainder,
+                    )
+                    .map_err(|_: NomError| std::fmt::Error)?;
 
                 write!(output, "<")?;
                 for i in 1..=count {
@@ -1032,14 +1052,12 @@ impl<'a> Dotnet<'a> {
                 let count;
 
                 // Skip flags and read param count. Param count is limited
-                // to 1000.
+                // to MAX_PARAMS.
                 (remainder, (_, count)) = tuple((
                     u8,
-                    verify(varint, |count| *count < 1000),
+                    verify(varint, |count| *count < Self::MAX_PARAMS),
                 ))(remainder)
                 .map_err(|_: NomError| std::fmt::Error)?;
-
-                // TODO: check param_count <= MAX_PARAM_COUNT
 
                 write!(output, "FnPtr<")?;
                 remainder = self.parse_type_spec(remainder, output)?;
@@ -2434,7 +2452,7 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
         result.set_is_dotnet(true);
         result.set_version(dotnet.version.to_vec());
         result.guids.extend(dotnet.get_guids().map(|guid| guid.to_string()));
-        result.module_name = dotnet
+        presult.module_name = dotnet
             .modules
             .first()
             .and_then(|first| *first)
