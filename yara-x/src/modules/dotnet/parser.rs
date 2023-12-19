@@ -869,6 +869,11 @@ impl<'a> Dotnet<'a> {
         while let Some(idx) = next_idx.take() {
             let type_def = self.type_defs.get(idx)?;
 
+            // Protect against corrupted files.
+            if result.len() >= Self::MAX_RECURSION {
+                return None;
+            }
+
             result.push(type_def.plain_name()?);
 
             if let Some(namespace) = type_def.namespace {
