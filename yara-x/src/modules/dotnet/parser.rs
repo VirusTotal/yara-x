@@ -25,7 +25,22 @@ type NomError<'a> = nom::Err<nom::error::Error<&'a [u8]>>;
 pub enum Error<'a> {
     InvalidDotNet,
     InvalidCodedIndex,
-    ParseError(NomError<'a>),
+    InvalidType,
+    RecursionLimit,
+    Parse(NomError<'a>),
+    OutputWrite(std::fmt::Error),
+}
+
+impl<'a> From<std::fmt::Error> for Error<'a> {
+    fn from(value: std::fmt::Error) -> Self {
+        Self::OutputWrite(value)
+    }
+}
+
+impl<'a> From<NomError<'a>> for Error<'a> {
+    fn from(value: NomError<'a>) -> Self {
+        Self::Parse(value)
+    }
 }
 
 /// An .NET file parser.
@@ -104,14 +119,13 @@ impl<'a> Dotnet<'a> {
     /// Parses a .NET file and produces a [`Dotnet`] structure containing
     /// metadata extracted from the file.
     pub fn parse(data: &'a [u8]) -> Result<Self, Error<'a>> {
-        let pe = PE::parse(data).map_err(Error::ParseError)?;
+        let pe = PE::parse(data)?;
 
         let (_, _, cli_header) = pe
             .get_dir_entry_data(PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR)
             .ok_or(Error::InvalidDotNet)?;
 
-        let (_, cli_header) =
-            Self::parse_cli_header(cli_header).map_err(Error::ParseError)?;
+        let (_, cli_header) = Self::parse_cli_header(cli_header)?;
 
         let raw_metadata_offset = pe
             .rva_to_offset(cli_header.metadata.addr)
@@ -131,8 +145,7 @@ impl<'a> Dotnet<'a> {
             cli_header.resources.size as usize,
         );
 
-        let (_, mut metadata) = Self::parse_metadata_root(raw_metadata)
-            .map_err(Error::ParseError)?;
+        let (_, mut metadata) = Self::parse_metadata_root(raw_metadata)?;
 
         let mut tilde_stream = None;
         let mut strings_stream = None;
@@ -857,7 +870,7 @@ impl<'a> Dotnet<'a> {
         })
     }
 
-    /// Given an index into the `type_defs` table, returns its full name.
+    /// Given an index into the TypeDef table, returns its full name.
     ///
     /// When the type is not nested the full name is simply `namespace.name`,
     /// when the type is a nested one, the full name includes the name of
@@ -905,6 +918,8 @@ impl<'a> Dotnet<'a> {
         Some(result.iter().rev().join("."))
     }
 
+    /// Given a [`CodedIndex`] that can point either to the TypeDef, TypeRef or
+    /// TypeSpec tables, returns a string that the describes the type.
     fn type_def_or_ref_fullname(
         &self,
         index: &CodedIndex,
@@ -922,16 +937,30 @@ impl<'a> Dotnet<'a> {
             }),
             Table::TypeSpec => {
                 let mut name = String::new();
-                self.get_type_spec(index)
+                if self
+                    .get_type_spec(index)
                     .and_then(|blob_index| self.get_blob(blob_index))
-                    .map(|data| self.parse_type_spec(data, &mut name, depth));
-                Some(name)
+                    .and_then(|data| {
+                        self.parse_type_spec(data, &mut name, depth).ok()
+                    })
+                    .is_some()
+                {
+                    Some(name)
+                } else {
+                    None
+                }
             }
             _ => unreachable!(),
         }
     }
 
-    /// Parses a type spec blob.
+    /// Parses a type spec blob, writing a textual representation of the
+    /// type into the `output` writer.
+    ///
+    /// This function can call itself recursively, and the `depth` argument
+    /// serves the purpose of controlling the recursion depth. It is a
+    /// reference to a `usize` that gets incremented when entering a recursive
+    /// call. Initially `depth` must be zero.
     ///
     /// ECMA-335 Section II.23.2.12
     fn parse_type_spec(
@@ -939,14 +968,13 @@ impl<'a> Dotnet<'a> {
         input: &'a [u8],
         output: &mut dyn Write,
         depth: &mut usize,
-    ) -> Result<&'a [u8], std::fmt::Error> {
+    ) -> Result<&'a [u8], Error<'a>> {
         if *depth == Self::MAX_RECURSION {
-            return Err(std::fmt::Error);
+            return Err(Error::RecursionLimit);
         }
 
         let (mut remainder, type_) =
-            map_opt(u8, num::FromPrimitive::from_u8)(input)
-                .map_err(|_: NomError| std::fmt::Error)?;
+            map_opt(u8, num::FromPrimitive::from_u8)(input)?;
 
         *depth += 1;
 
@@ -981,31 +1009,28 @@ impl<'a> Dotnet<'a> {
             Type::ValueType | Type::Class => {
                 let index;
 
-                (remainder, index) = varint(remainder)
-                    .map_err(|_: NomError| std::fmt::Error)?;
+                (remainder, index) = varint(remainder)?;
 
                 let coded_index =
-                    &CodedIndex::new(Table::TYPE_DEF_OR_REF, index)
-                        .map_err(|_| std::fmt::Error)?;
+                    &CodedIndex::new(Table::TYPE_DEF_OR_REF, index)?;
 
                 write!(
                     output,
                     "{}",
                     self.type_def_or_ref_fullname(coded_index, depth)
-                        .ok_or(std::fmt::Error)?
+                        .ok_or(Error::InvalidType)?
                 )?;
             }
             Type::Var | Type::MVar => {
                 let index;
 
-                (remainder, index) = varint(remainder)
-                    .map_err(|_: NomError| std::fmt::Error)?;
+                (remainder, index) = varint(remainder)?;
 
                 let name = self
                     .generic_params
                     .get(index)
                     .and_then(|p| p.name)
-                    .ok_or(std::fmt::Error)?;
+                    .ok_or(Error::InvalidType)?;
 
                 write!(output, "{}", name)?;
             }
@@ -1017,13 +1042,15 @@ impl<'a> Dotnet<'a> {
                 remainder = self.parse_type_spec(remainder, output, depth)?;
 
                 (remainder, (dimensions, sizes, lower_bounds)) = tuple((
-                    // dimensions, limited to a sane limit of 50 as a
-                    // protection against corrupted files.
+                    // dimensions, limited to a sane limit of
+                    // MAX_ARRAY_DIMENSION as a protection against corrupted
+                    // files.
                     verify(varint, |dimension| {
                         *dimension <= Self::MAX_ARRAY_DIMENSION
                     }),
                     // number of sizes, followed by the sizes as varints.
-                    // The number of sizes is also limited to 50.
+                    // The number of sizes is also limited to
+                    // MAX_ARRAY_DIMENSION.
                     length_count(
                         verify(varint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
                         varint,
@@ -1035,8 +1062,7 @@ impl<'a> Dotnet<'a> {
                     ),
                 ))(
                     remainder
-                )
-                .map_err(|_: NomError| std::fmt::Error)?;
+                )?;
 
                 write!(output, "[")?;
                 for i in 0..dimensions {
@@ -1065,8 +1091,7 @@ impl<'a> Dotnet<'a> {
                 (remainder, count) =
                     verify(varint, |count| *count < Self::MAX_PARAMS)(
                         remainder,
-                    )
-                    .map_err(|_: NomError| std::fmt::Error)?;
+                    )?;
 
                 write!(output, "<")?;
                 for i in 1..=count {
@@ -1086,8 +1111,7 @@ impl<'a> Dotnet<'a> {
                 (remainder, (_, count)) = tuple((
                     u8,
                     verify(varint, |count| *count < Self::MAX_PARAMS),
-                ))(remainder)
-                .map_err(|_: NomError| std::fmt::Error)?;
+                ))(remainder)?;
 
                 write!(output, "FnPtr<")?;
                 remainder = self.parse_type_spec(remainder, output, depth)?;
@@ -1102,11 +1126,10 @@ impl<'a> Dotnet<'a> {
                 write!(output, ")>")?;
             }
             Type::CModReqd | Type::CModOpt => {
-                (remainder, _) = varint(remainder)
-                    .map_err(|_: NomError| std::fmt::Error)?;
+                (remainder, _) = varint(remainder)?;
                 remainder = self.parse_type_spec(remainder, output, depth)?;
             }
-            _ => return Err(std::fmt::Error),
+            _ => return Err(Error::InvalidType),
         };
 
         *depth -= 1;
