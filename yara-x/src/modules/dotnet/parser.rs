@@ -366,9 +366,10 @@ impl<'a> Dotnet<'a> {
                 // number of streams, say N, followed by array of N stream
                 // headers. The specification doesn't set a limit to the number
                 // of streams, but as a sanity check we make sure it doesn't
-                // exceed 64.
+                // exceed 256. There are files with 163 streams, like
+                // 6d72a599724c4ff367b2c00b48030a62d286de5493c25c000a00f5fbc6e7b746
                 length_count(
-                    verify(le_u16, |n| *n <= 64),
+                    verify(le_u16, |n| *n <= 256),
                     Self::parse_stream_header,
                 ),
             )),
