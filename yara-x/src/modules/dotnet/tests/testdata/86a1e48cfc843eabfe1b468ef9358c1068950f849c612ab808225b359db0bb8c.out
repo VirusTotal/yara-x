@@ -90,6 +90,7 @@ classes:
     abstract: true
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 0
     base_types:
       - "System.Object"
@@ -100,6 +101,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 3
     base_types:
       - "System.Object"
@@ -110,6 +112,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
       - name: "GetText"
         visibility: "public"
@@ -118,6 +121,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_generic_parameters: 0
         number_of_parameters: 1
         parameters:
           - name: "msg"
@@ -129,6 +133,7 @@ classes:
         virtual: false
         final: false
         return_type: "string"
+        number_of_generic_parameters: 0
         number_of_parameters: 2
         parameters:
           - name: "fmt"
@@ -143,6 +148,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -153,6 +159,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
   - fullname: "Microsoft.VisualC.DecoratedNameAttribute"
     name: "DecoratedNameAttribute"
@@ -162,6 +169,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -172,6 +180,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsCXXReferenceModifier"
     name: "IsCXXReferenceModifier"
@@ -181,6 +190,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -191,6 +201,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsConstModifier"
     name: "IsConstModifier"
@@ -200,6 +211,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -210,6 +222,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsLongModifier"
     name: "IsLongModifier"
@@ -219,6 +232,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -229,6 +243,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsSignedModifier"
     name: "IsSignedModifier"
@@ -238,6 +253,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -248,6 +264,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
   - fullname: "Microsoft.VisualC.IsVolatileModifier"
     name: "IsVolatileModifier"
@@ -257,6 +274,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -267,6 +285,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
   - fullname: "Microsoft.VisualC.MiscellaneousBitsAttribute"
     name: "MiscellaneousBitsAttribute"
@@ -276,6 +295,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -286,6 +306,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 1
         parameters:
           - name: "miscellaneousBits"
@@ -298,6 +319,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -308,6 +330,7 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0
   - fullname: "Microsoft.VisualC.NoSignSpecifiedModifier"
     name: "NoSignSpecifiedModifier"
@@ -317,6 +340,7 @@ classes:
     abstract: false
     sealed: true
     number_of_base_types: 1
+    number_of_generic_parameters: 0
     number_of_methods: 1
     base_types:
       - "System.Attribute"
@@ -327,4 +351,5 @@ classes:
         static: false
         virtual: false
         final: false
+        number_of_generic_parameters: 0
         number_of_parameters: 0

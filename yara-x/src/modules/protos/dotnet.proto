@@ -77,9 +77,11 @@ message Class {
   required bool abstract = 6;
   required bool sealed = 7;
   required uint64 number_of_base_types = 8;
-  required uint64 number_of_methods = 9;
-  repeated string base_types = 10;
-  repeated Method methods = 11;
+  required uint64 number_of_generic_parameters = 9;
+  required uint64 number_of_methods = 10;
+  repeated string base_types = 11;
+  repeated string generic_parameters = 12;
+  repeated Method methods = 13;
 }
 
 message Method {
@@ -89,10 +91,11 @@ message Method {
   required bool static= 4;
   required bool virtual = 5;
   required bool final = 6;
-  repeated string generic_parameters = 7;
-  optional string return_type = 8;
+  optional string return_type = 7;
+  required uint64 number_of_generic_parameters = 8;
   required uint64 number_of_parameters = 9;
-  repeated Param parameters = 10;
+  repeated string generic_parameters = 10;
+  repeated Param parameters = 11;
 }
 
 message Param {

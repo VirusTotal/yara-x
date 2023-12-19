@@ -8,7 +8,6 @@ use itertools::Itertools;
 use nom::branch::alt;
 use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, map, map_opt, map_parser, map_res, verify};
-use nom::error::ErrorKind;
 use nom::multi::{count, length_count, length_data, many0, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
@@ -235,9 +234,9 @@ impl<'a> Dotnet<'a> {
 }
 
 impl<'a> Dotnet<'a> {
-    const MAX_PARAMS: usize = 1000;
+    const MAX_PARAMS: u32 = 1000;
     const MAX_ROWS_PER_TABLE: u32 = 1000;
-    const MAX_ARRAY_DIMENSION: usize = 50;
+    const MAX_ARRAY_DIMENSION: u32 = 50;
     const MAX_RECURSION: usize = 16;
 
     /// Given an index into the `#Strings` stream, returns the string.
@@ -256,7 +255,7 @@ impl<'a> Dotnet<'a> {
         let blob_stream = self.get_stream(self.blob_stream?)?;
         let data = blob_stream.get(index.0 as usize..)?;
         let (data, length) = varint(data).ok()?;
-        data.get(0..length)
+        data.get(0..length as usize)
     }
 
     /// Returns the raw data for the stream that has the given `index` in the
@@ -771,12 +770,14 @@ impl<'a> Dotnet<'a> {
                 continue;
             }
 
-            let generic_param_names: Vec<_> = self
+            let generic_params: Vec<_> = self
                 .generic_params
                 .iter()
                 .filter_map(|param| {
-                    if param.owner.index == idx {
-                        Some(param.name)
+                    if param.owner.table == Table::TypeDef
+                        && param.owner.index == idx
+                    {
+                        param.name
                     } else {
                         None
                     }
@@ -798,8 +799,12 @@ impl<'a> Dotnet<'a> {
             let methods = if let Some(method_defs) = method_defs {
                 method_defs
                     .iter()
-                    .filter_map(|method_def| {
-                        self.convert_method_def(method_def)
+                    .enumerate()
+                    .filter_map(|(idx, method_def)| {
+                        self.convert_method_def(
+                            type_def.method_list + idx,
+                            method_def,
+                        )
                     })
                     .collect()
             } else {
@@ -844,6 +849,7 @@ impl<'a> Dotnet<'a> {
                 is_abstract: type_def.is_abstract(),
                 is_sealed: type_def.is_sealed(),
                 methods,
+                generic_params,
             });
         }
         classes
@@ -851,6 +857,7 @@ impl<'a> Dotnet<'a> {
 
     fn convert_method_def(
         &self,
+        method_def_idx: usize,
         method_def: &MethodDef<'a>,
     ) -> Option<Method<'a>> {
         let (remainder, flags) =
@@ -867,6 +874,20 @@ impl<'a> Dotnet<'a> {
             ))(remainder)
             .ok()?;
 
+        let generic_params: Vec<_> = self
+            .generic_params
+            .iter()
+            .filter_map(|param| {
+                if param.owner.table == Table::MethodDef
+                    && param.owner.index == method_def_idx
+                {
+                    param.name
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         let mut return_type = String::new();
         let mut depth = 0;
 
@@ -874,9 +895,10 @@ impl<'a> Dotnet<'a> {
             .parse_type_spec(remainder, &mut return_type, &mut depth)
             .ok()?;
 
-        let parameters = self
-            .params
-            .get(method_def.param_list..method_def.param_list + param_count);
+        let parameters = self.params.get(
+            method_def.param_list
+                ..method_def.param_list + param_count as usize,
+        );
 
         let mut method_params = Vec::new();
 
@@ -904,7 +926,8 @@ impl<'a> Dotnet<'a> {
 
         Some(Method {
             name: method_def.name?,
-            parameters: method_params,
+            generic_params,
+            params: method_params,
             return_type,
             visibility: method_def.visibility(),
             is_final: method_def.is_final(),
@@ -1051,17 +1074,16 @@ impl<'a> Dotnet<'a> {
                 remainder = self.parse_type_spec(remainder, output, depth)?;
             }
             Type::ValueType | Type::Class => {
-                let index;
+                let coded_index;
 
-                (remainder, index) = varint(remainder)?;
-
-                let coded_index =
-                    &CodedIndex::new(Table::TYPE_DEF_OR_REF, index)?;
+                (remainder, coded_index) = map_res(varint, |v| {
+                    CodedIndex::from_u32(Table::TYPE_DEF_OR_REF, v)
+                })(remainder)?;
 
                 write!(
                     output,
                     "{}",
-                    self.type_def_or_ref_fullname(coded_index, depth)
+                    self.type_def_or_ref_fullname(&coded_index, depth)
                         .ok_or(Error::InvalidType)?
                 )?;
             }
@@ -1072,7 +1094,7 @@ impl<'a> Dotnet<'a> {
 
                 let name = self
                     .generic_params
-                    .get(index)
+                    .get(index as usize)
                     .and_then(|p| p.name)
                     .ok_or(Error::InvalidType)?;
 
@@ -1110,9 +1132,10 @@ impl<'a> Dotnet<'a> {
 
                 write!(output, "[")?;
                 for i in 0..dimensions {
-                    let size = sizes.get(i).cloned().unwrap_or(0);
+                    let size = sizes.get(i as usize).cloned().unwrap_or(0);
                     if size > 0 {
-                        let l = lower_bounds.get(i).cloned().unwrap_or(0);
+                        let l =
+                            lower_bounds.get(i as usize).cloned().unwrap_or(0);
                         let h = l + size - 1;
                         write!(output, "{}...{}", l, h)?;
                     }
@@ -1297,17 +1320,9 @@ impl<'a> Dotnet<'a> {
         };
 
         move |input: &'a [u8]| {
-            let (remainder, index) = self.index(index_size)(input)?;
-
-            let coded_index = CodedIndex::new(tables, index as usize)
-                .map_err(|_| {
-                    nom::Err::Error(nom::error::Error {
-                        input,
-                        code: ErrorKind::Verify,
-                    })
-                })?;
-
-            Ok((remainder, coded_index))
+            map_res(self.index(index_size), |v| {
+                CodedIndex::from_u32(tables, v)
+            })(input)
         }
     }
 
@@ -2243,19 +2258,26 @@ struct CodedIndex {
 }
 
 impl CodedIndex {
-    fn new(tables: &[Table], index: usize) -> Result<Self, Error> {
+    /// Creates a [`CodedIndex`] from an `u32` value.
+    ///
+    /// The `tables` slice must contain the tables that the index can refer
+    /// to. The lowest N bits in `u32` value are used for determining which
+    /// of the tables the coded index is actually being referring to, while
+    /// the upper 32-N bits are used for the index itself. The value of N
+    /// depends on the number of tables.
+    fn from_u32(tables: &[Table], u: u32) -> Result<Self, Error> {
         let tag_size = f64::log2(tables.len() as f64).ceil() as u32;
-        let table_index = index & ((1 << tag_size) - 1);
+        let table_index = u & ((1 << tag_size) - 1);
         let table = tables
-            .get(table_index)
+            .get(table_index as usize)
             .cloned()
             .ok_or(Error::InvalidCodedIndex)?;
 
-        let index = index >> tag_size;
+        let index = u >> tag_size;
 
         // Indexes in are 1-based, but here we make them 0-based, so that
         // we can use them as Rust vector indexes.
-        let index = index.saturating_sub(1);
+        let index = index.saturating_sub(1) as usize;
 
         Ok(Self { table, index })
     }
@@ -2518,13 +2540,15 @@ pub struct Class<'a> {
     semantics: ClassSemantics,
     is_abstract: bool,
     is_sealed: bool,
+    generic_params: Vec<&'a str>,
     methods: Vec<Method<'a>>,
 }
 
 #[derive(Debug)]
 pub struct Method<'a> {
     name: &'a str,
-    parameters: Vec<MethodParam<'a>>,
+    generic_params: Vec<&'a str>,
+    params: Vec<MethodParam<'a>>,
     return_type: Option<String>,
     visibility: Visibility,
     is_abstract: bool,
@@ -2682,13 +2706,23 @@ impl From<&Class<'_>> for protos::dotnet::Class {
         class.set_sealed(value.is_sealed);
         class.set_abstract(value.is_abstract);
         class.set_visibility(value.visibility.to_string());
+
         class
             .methods
             .extend(value.methods.iter().map(protos::dotnet::Method::from));
 
+        class
+            .generic_parameters
+            .extend(value.generic_params.iter().map(|s| s.to_string()));
+
         class.set_number_of_methods(class.methods.len().try_into().unwrap());
+
         class.set_number_of_base_types(
             class.base_types.len().try_into().unwrap(),
+        );
+
+        class.set_number_of_generic_parameters(
+            class.generic_parameters.len().try_into().unwrap(),
         );
 
         class
@@ -2706,10 +2740,18 @@ impl From<&Method<'_>> for protos::dotnet::Method {
         method.set_static(value.is_static);
         method
             .parameters
-            .extend(value.parameters.iter().map(protos::dotnet::Param::from));
+            .extend(value.params.iter().map(protos::dotnet::Param::from));
+
+        method
+            .generic_parameters
+            .extend(value.generic_params.iter().map(|s| s.to_string()));
 
         method.set_number_of_parameters(
             method.parameters.len().try_into().unwrap(),
+        );
+
+        method.set_number_of_generic_parameters(
+            method.generic_parameters.len().try_into().unwrap(),
         );
 
         method.return_type = value.return_type.clone();
@@ -2740,7 +2782,7 @@ impl From<&MethodParam<'_>> for protos::dotnet::Param {
 ///
 /// * If the most significant bits are 110, the integer is encoded as 4 bytes,
 ///   and the value is stored the remaining 29 bits.
-fn varint(input: &[u8]) -> IResult<&[u8], usize> {
+fn varint(input: &[u8]) -> IResult<&[u8], u32> {
     let (remainder, (_, value)) =
         bits::bits::<_, _, nom::error::Error<(&[u8], usize)>, _, _>(alt((
             bits_tag(0b0, 1u8).and(bits_take(7u8)),
@@ -2757,32 +2799,32 @@ mod test {
     fn varint() {
         assert_eq!(
             super::varint(&[0x00, 0x00]).unwrap(),
-            ([0x00_u8].as_slice(), 0_usize)
+            ([0x00_u8].as_slice(), 0)
         );
 
         assert_eq!(
             super::varint(&[0x01, 0x00]).unwrap(),
-            ([0x00_u8].as_slice(), 1_usize)
+            ([0x00_u8].as_slice(), 1)
         );
 
         assert_eq!(
             super::varint(&[0x7F, 0x00]).unwrap(),
-            ([0x00_u8].as_slice(), 0x7F_usize)
+            ([0x00_u8].as_slice(), 0x7F)
         );
 
         assert_eq!(
             super::varint(&[0x8A, 0x00]).unwrap(),
-            ([].as_slice(), 0x0A00_usize)
+            ([].as_slice(), 0x0A00)
         );
 
         assert_eq!(
             super::varint(&[0xC1, 0x02, 0x03, 0x04]).unwrap(),
-            ([].as_slice(), 0x01020304_usize)
+            ([].as_slice(), 0x01020304)
         );
 
         assert_eq!(
             super::varint(&[0xDF, 0xFF, 0xFF, 0xFF]).unwrap(),
-            ([].as_slice(), 0x1FFFFFFF_usize)
+            ([].as_slice(), 0x1FFFFFFF)
         );
     }
 }
