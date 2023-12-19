@@ -1633,7 +1633,16 @@ classes:
         final: false
         return_type: "System.Threading.Tasks.Task"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: ""
+            type: "string"
+          - name: ""
+            type: "bool"
+          - name: ""
+            type: "System.Net.Sockets.AddressFamily"
+          - name: "P_3"
+            type: "System.Threading.CancellationToken"
       - name: "GetAddressInfoExCallback"
         visibility: "private"
         abstract: false
@@ -1688,7 +1697,14 @@ classes:
         final: false
         return_type: "System.Net.IPAddress[]"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: ""
+            type: "Ptr<Interop.Winsock.AddressInfoEx>"
+          - name: ""
+            type: "bool"
+          - name: "P_2"
+            type: "ref string"
       - name: "CreateIPv4Address"
         visibility: "private"
         abstract: false
@@ -1743,7 +1759,12 @@ classes:
         virtual: false
         final: false
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: ""
+            type: "string"
+          - name: "P_1"
+            type: "bool"
       - name: "get_HostName"
         visibility: "public"
         abstract: false
@@ -1960,7 +1981,14 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: ""
+            type: "System.ReadOnlySpan<byte>"
+          - name: "P_1"
+            type: "System.Span<byte>"
+          - name: "P_2"
+            type: "ref uint"
   - fullname: "System.Net.Sockets.AddressInfoHints"
     name: "AddressInfoHints"
     namespace: "System.Net.Sockets"
@@ -2006,7 +2034,12 @@ classes:
         final: false
         return_type: "System.Net.Sockets.SocketException"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "P_0"
+            type: "System.Net.Sockets.SocketError"
+          - name: "P_1"
+            type: "int"
 user_strings:
   - "A\000n\000 \000u\000n\000i\000n\000i\000t\000i\000a\000l\000i\000z\000e\000d\000,\000 \000o\000r\000 \000\'\000d\000e\000f\000a\000u\000l\000t\000\'\000,\000 \000V\000a\000l\000u\000e\000S\000t\000o\000p\000w\000a\000t\000c\000h\000 \000c\000a\000n\000n\000o\000t\000 \000b\000e\000 \000u\000s\000e\000d\000 \000t\000o\000 \000g\000e\000t\000 \000e\000l\000a\000p\000s\000e\000d\000 \000t\000i\000m\000e\000.\000"
   - ",\000 \000"

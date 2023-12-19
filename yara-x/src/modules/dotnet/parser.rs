@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::OnceCell;
 use std::ffi::CStr;
 use std::fmt::{Display, Formatter, Write};
@@ -896,24 +897,28 @@ impl<'a> Dotnet<'a> {
             .parse_type_spec(remainder, &mut return_type, &mut depth)
             .ok()?;
 
-        let parameters = self.params.get(
-            method_def.param_list
-                ..method_def.param_list + param_count as usize,
-        );
-
         let mut method_params = Vec::new();
 
-        if let Some(parameters) = parameters {
-            for param in parameters {
-                let mut param_type = String::new();
-                remainder = self
-                    .parse_type_spec(remainder, &mut param_type, &mut depth)
-                    .ok()?;
-                method_params.push(MethodParam {
-                    name: param.name,
-                    type_: Some(param_type),
-                })
-            }
+        for i in 0..param_count {
+            // Try to find the param in the Param table. Params for the current
+            // method start at the index indicated by `method_def.param_list`.
+            // If found, and the Param struct has a name, use it. If not found,
+            // or the Param struct doesn't have a name use P_xx, where xx is the
+            // argument number.
+            let name = self
+                .params
+                .get(method_def.param_list.saturating_add(i as usize))
+                .and_then(|param| param.name)
+                .map(Cow::Borrowed)
+                .unwrap_or_else(|| Cow::Owned(format!("P_{}", i)));
+
+            let mut param_type = String::new();
+
+            remainder = self
+                .parse_type_spec(remainder, &mut param_type, &mut depth)
+                .ok()?;
+
+            method_params.push(MethodParam { name, type_: Some(param_type) })
         }
 
         // Return type for constructors is always set to None, which is YARA sees
@@ -2560,7 +2565,7 @@ pub struct Method<'a> {
 
 #[derive(Debug)]
 pub struct MethodParam<'a> {
-    name: Option<&'a str>,
+    name: Cow<'a, str>,
     type_: Option<String>,
 }
 
@@ -2763,7 +2768,7 @@ impl From<&Method<'_>> for protos::dotnet::Method {
 impl From<&MethodParam<'_>> for protos::dotnet::Param {
     fn from(value: &MethodParam<'_>) -> Self {
         let mut param = protos::dotnet::Param::new();
-        param.name = value.name.map(|n| n.to_string());
+        param.set_name(value.name.to_string());
         param.type_ = value.type_.clone();
         param
     }

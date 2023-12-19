@@ -99,6 +99,6 @@ message Method {
 }
 
 message Param {
-  optional string name = 1;
+  required string name = 1;
   optional string type = 2;
 }

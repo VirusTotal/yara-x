@@ -5083,7 +5083,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "int"
       - name: "DirectIOEvent"
         visibility: "public"
         abstract: false
@@ -5092,7 +5095,14 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "P_0"
+            type: "int"
+          - name: "P_1"
+            type: "ref int"
+          - name: "P_2"
+            type: "ref string"
       - name: "ErrorEvent"
         visibility: "public"
         abstract: false
@@ -5101,7 +5111,16 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "P_0"
+            type: "int"
+          - name: "P_1"
+            type: "int"
+          - name: "P_2"
+            type: "int"
+          - name: "P_3"
+            type: "ref int"
       - name: "OutputCompleteEvent"
         visibility: "public"
         abstract: false
@@ -5110,7 +5129,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "int"
       - name: "StatusUpdateEvent"
         visibility: "public"
         abstract: false
@@ -5119,7 +5141,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "int"
       - name: ".ctor"
         visibility: "internal"
         abstract: false
@@ -5160,7 +5185,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
       - name: "remove_DataEvent"
         visibility: "public"
         abstract: false
@@ -5169,7 +5197,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
       - name: "add_DirectIOEvent"
         visibility: "public"
         abstract: false
@@ -5178,7 +5209,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
       - name: "remove_DirectIOEvent"
         visibility: "public"
         abstract: false
@@ -5187,7 +5221,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
       - name: "add_ErrorEvent"
         visibility: "public"
         abstract: false
@@ -5196,7 +5233,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
       - name: "remove_ErrorEvent"
         visibility: "public"
         abstract: false
@@ -5205,7 +5245,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
       - name: "add_OutputCompleteEvent"
         visibility: "public"
         abstract: false
@@ -5214,7 +5257,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
       - name: "remove_OutputCompleteEvent"
         visibility: "public"
         abstract: false
@@ -5223,7 +5269,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
       - name: "add_StatusUpdateEvent"
         visibility: "public"
         abstract: false
@@ -5232,7 +5281,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
       - name: "remove_StatusUpdateEvent"
         visibility: "public"
         abstract: false
@@ -5241,7 +5293,10 @@ classes:
         final: false
         return_type: "void"
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
       - name: ".ctor"
         visibility: "public"
         abstract: false
@@ -5249,7 +5304,10 @@ classes:
         virtual: false
         final: false
         number_of_generic_parameters: 0
-        number_of_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "object"
       - name: "Finalize"
         visibility: "public"
         abstract: false
