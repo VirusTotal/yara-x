@@ -6,6 +6,7 @@ number_of_guids: 1
 number_of_resources: 0
 number_of_classes: 24
 number_of_assembly_refs: 1
+number_of_user_strings: 1
 number_of_constants: 0
 streams:
   - name: "#~"
@@ -4797,3 +4798,5 @@ classes:
         final: false
         return_type: "void"
         number_of_parameters: 0
+user_strings:
+  - " \000"

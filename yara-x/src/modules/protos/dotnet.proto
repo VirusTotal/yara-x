@@ -34,6 +34,7 @@ message Dotnet {
   repeated Resource resources = 21;
   repeated Class classes = 22;
   repeated uint32 field_offsets = 23;
+  repeated bytes user_strings = 24;
 }
 
 message Assembly {

@@ -9,7 +9,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{take, take_till};
 use nom::combinator::{cond, map, map_opt, map_parser, map_res, verify};
 use nom::error::ErrorKind;
-use nom::multi::{count, length_count, length_data, many_m_n};
+use nom::multi::{count, length_count, length_data, many0, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
 use nom::{bits, IResult, Parser};
@@ -79,6 +79,8 @@ pub struct Dotnet<'a> {
     guids: OnceCell<Option<Vec<Uuid>>>,
     /// User types.
     user_types: OnceCell<Vec<Class<'a>>>,
+    /// All strings in the `#US` stream.
+    user_strings: OnceCell<Vec<&'a [u8]>>,
     /// Modules table.
     modules: Vec<Option<&'a str>>,
     /// TypeRef table.
@@ -210,6 +212,13 @@ impl<'a> Dotnet<'a> {
     pub fn get_user_types(&self) -> impl Iterator<Item = &Class<'a>> {
         self.user_types
             .get_or_init(|| self.parse_user_types())
+            .as_slice()
+            .iter()
+    }
+
+    pub fn get_user_strings(&self) -> impl Iterator<Item = &&[u8]> {
+        self.user_strings
+            .get_or_init(|| self.parse_user_strings())
             .as_slice()
             .iter()
     }
@@ -716,6 +725,41 @@ impl<'a> Dotnet<'a> {
         )(remainder)?;
 
         Ok((remainder, ()))
+    }
+
+    /// Parses the `#US` stream, and returns all the string contained
+    /// in it.
+    fn parse_user_strings(&self) -> Vec<&'a [u8]> {
+        let strings = if let Some(us_stream) =
+            self.us_stream.and_then(|index| self.get_stream(index))
+        {
+            // The `#US` stream is composed of a series of varints followed by
+            // the number of bytes indicated by the varint.
+            many0(length_data(varint))(us_stream)
+                .map(|(_, strings)| strings)
+                .ok()
+        } else {
+            None
+        };
+
+        let mut strings = match strings {
+            Some(strings) => strings,
+            None => return vec![],
+        };
+
+        // Retain only the strings with length >= 3. All non-empty strings have
+        // at least 3 bytes because strings are UTF-16 (2 bytes per character)
+        // plus an extra byte that can be 0x00 or 0x01, and indicates whether
+        // any of the UTF-16 characters have a non-zero bit in the top byte.
+        // This is described in ECMA-335 II.24.2.4.
+        strings.retain(|s| s.len() >= 3);
+
+        // Discard the extra byte from all strings.
+        for string in strings.iter_mut() {
+            *string = &string[0..string.len() - 1];
+        }
+
+        strings
     }
 
     fn parse_user_types(&self) -> Vec<Class<'a>> {
@@ -2540,9 +2584,16 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
             .constants
             .extend(dotnet.get_string_constants().map(|c| c.to_vec()));
 
+        result
+            .user_strings
+            .extend(dotnet.get_user_strings().map(|c| c.to_vec()));
+
         result.set_number_of_streams(result.streams.len().try_into().unwrap());
         result.set_number_of_guids(result.guids.len().try_into().unwrap());
         result.set_number_of_classes(result.classes.len().try_into().unwrap());
+        result.set_number_of_user_strings(
+            result.user_strings.len().try_into().unwrap(),
+        );
 
         result.set_number_of_assembly_refs(
             result.assembly_refs.len().try_into().unwrap(),
