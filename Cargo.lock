@@ -2089,6 +2089,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-derive"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfb77679af88f8b125209d354a202862602672222e7f2313fdd6dc349bad4712"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.39",
+]
+
+[[package]]
 name = "num-format"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3261,7 +3272,7 @@ dependencies = [
  "log",
  "memmem",
  "nix 0.24.3",
- "num-derive",
+ "num-derive 0.3.3",
  "num-traits",
  "ordered-float",
  "pest",
@@ -4284,6 +4295,8 @@ dependencies = [
  "memx",
  "nom 7.1.3",
  "num",
+ "num-derive 0.4.1",
+ "num-traits",
  "pretty_assertions",
  "protobuf",
  "protobuf-codegen",

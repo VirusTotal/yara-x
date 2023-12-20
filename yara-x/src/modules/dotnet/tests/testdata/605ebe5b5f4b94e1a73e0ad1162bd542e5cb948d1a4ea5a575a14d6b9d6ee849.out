@@ -1,0 +1,5331 @@
+is_dotnet: true
+module_name: "RDMCOLib.dll"
+version: "v4.0.30319"
+number_of_streams: 5
+number_of_guids: 1
+number_of_resources: 0
+number_of_classes: 24
+number_of_assembly_refs: 1
+number_of_user_strings: 1
+number_of_constants: 0
+typelib: "63ca6b3c-208c-47ef-9294-fbc91c947d15"
+streams:
+  - name: "#~"
+    offset: 3736
+    size: 19848
+  - name: "#Strings"
+    offset: 23584
+    size: 10520
+  - name: "#US"
+    offset: 34104
+    size: 8
+  - name: "#GUID"
+    offset: 34112
+    size: 16
+  - name: "#Blob"
+    offset: 34128
+    size: 2804
+guids:
+  - "5bd514fb-7c75-4e0c-b827-7d125a564ae9"
+assembly:
+    name: "Interop.RDMCOLib"
+    version:
+        major: 1
+        minor: 0
+        build_number: 0
+        revision_number: 0
+assembly_refs:
+  - name: "mscorlib"
+    public_key_or_token: "\267z\\V\0314\340\211"
+    version:
+        major: 4
+        minor: 0
+        build_number: 0
+        revision_number: 0
+classes:
+  - fullname: "RDMCOLib._IRDMOPOSEvents"
+    name: "_IRDMOPOSEvents"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "interface"
+    abstract: true
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 5
+    base_types:
+      - "<Module>"
+    methods:
+      - name: "DataEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "int"
+      - name: "DirectIOEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "EventNumber"
+            type: "int"
+          - name: "pData"
+            type: "ref int"
+          - name: "pString"
+            type: "ref string"
+      - name: "ErrorEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "ResultCode"
+            type: "int"
+          - name: "ResultCodeExtended"
+            type: "int"
+          - name: "ErrorLocus"
+            type: "int"
+          - name: "pErrorResponse"
+            type: "ref int"
+      - name: "OutputCompleteEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "OutputID"
+            type: "int"
+      - name: "StatusUpdateEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Data"
+            type: "int"
+  - fullname: "RDMCOLib.RDMOPOSClass"
+    name: "RDMOPOSClass"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 4
+    number_of_generic_parameters: 0
+    number_of_methods: 206
+    base_types:
+      - "System.Object"
+      - "RDMCOLib.IRDMOPOS"
+      - "RDMCOLib.RDMOPOS"
+      - "RDMCOLib._IRDMOPOSEvents_Event"
+    methods:
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CheckHealthText"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_Claimed"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DataEventEnabled"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_DataEventEnabled"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pDataEventEnabled"
+            type: "bool"
+      - name: "get_DeviceEnabled"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_DeviceEnabled"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pDeviceEnabled"
+            type: "bool"
+      - name: "get_FreezeEvents"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_FreezeEvents"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pFreezeEvents"
+            type: "bool"
+      - name: "get_ResultCode"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ResultCodeExtended"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_State"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ControlObjectDescription"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ControlObjectVersion"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ServiceObjectDescription"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ServiceObjectVersion"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DeviceDescription"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DeviceName"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_AccountNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_Amount"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_BankNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CapValidationDevice"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CheckType"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CountryCode"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_EPC"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_RawData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_SerialNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_TransitNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_AutoDisable"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_AutoDisable"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pAutoDisable"
+            type: "bool"
+      - name: "get_BinaryConversion"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_BinaryConversion"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pBinaryConversion"
+            type: "int"
+      - name: "get_CapPowerReporting"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DataCount"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_PowerNotify"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_PowerNotify"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pPowerNotify"
+            type: "int"
+      - name: "get_PowerState"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CheckNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DateTime"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_DateTime"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pDateTime"
+            type: "string"
+      - name: "get_FirmwareVersion"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_FtpStatus"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_IRN"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_IRN"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pIRN"
+            type: "string"
+      - name: "get_ImageData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ImageOptions"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.ImageOptionsEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ImageOptions"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pImageOptions"
+            type: "RDMCOLib.ImageOptionsEnum"
+      - name: "get_ImageSize"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_TranCode"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_KeyedAccountNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_KeyedAccountNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pKeyedAccountNumber"
+            type: "string"
+      - name: "get_KeyedAmount"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_KeyedAmount"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pKeyedAmount"
+            type: "string"
+      - name: "get_KeyedBankNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_KeyedBankNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pKeyedBankNumber"
+            type: "string"
+      - name: "get_KeyedSerialNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_KeyedSerialNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pKeyedSerialNumber"
+            type: "string"
+      - name: "get_OCRAActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRAActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRAActive"
+            type: "bool"
+      - name: "get_OCRAConfidenceLevel"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRAConfidenceLevel"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRAConfidenceLevel"
+            type: "short"
+      - name: "get_OCRAConfidenceResult"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+          - name: "CharacterPosition"
+            type: "short"
+      - name: "get_OCRAMicrDetect"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRAMicrDetect"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRAMicrDetect"
+            type: "bool"
+      - name: "get_OCRANumeric"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "NumericID"
+            type: "short"
+      - name: "set_OCRANumeric"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "NumericID"
+            type: "short"
+          - name: "pOCRANumeric"
+            type: "short"
+      - name: "get_OCRARecognitionResult"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "string"
+      - name: "get_OpenResult"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_OutputID"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ScannerMemory"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ScannerStatus"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_StoredImageCount"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_vConfig"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "object"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: ""
+            type: "RDMCOLib.ConfigItemEnum"
+          - name: "CfgItem"
+            type: "int"
+          - name: "CfgDirective"
+            type: "int"
+      - name: "set_vConfig"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "CfgItem"
+            type: "RDMCOLib.ConfigItemEnum"
+          - name: "CfgDirective"
+            type: "int"
+          - name: "CfgOption"
+            type: "int"
+          - name: "pvConfig"
+            type: "object"
+      - name: "SOData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "int"
+      - name: "SODirectIO"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "EventNumber"
+            type: "int"
+          - name: "pData"
+            type: "ref int"
+          - name: "pString"
+            type: "ref string"
+      - name: "SOError"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "ResultCode"
+            type: "int"
+          - name: "ResultCodeExtended"
+            type: "int"
+          - name: "ErrorLocus"
+            type: "int"
+          - name: "pErrorResponse"
+            type: "ref int"
+      - name: "SOOutputComplete"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "OutputID"
+            type: "int"
+      - name: "SOStatusUpdate"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Data"
+            type: "int"
+      - name: "SOProcessID"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "CheckHealth"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Level"
+            type: "int"
+      - name: "ClaimDevice"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Timeout"
+            type: "int"
+      - name: "ClearInput"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "ClearOutput"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "Close"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "DirectIO"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "Command"
+            type: "int"
+          - name: "pData"
+            type: "ref int"
+          - name: "pString"
+            type: "ref string"
+      - name: "Open"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "DeviceName"
+            type: "string"
+      - name: "ReleaseDevice"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "BeginInsertion"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Timeout"
+            type: "int"
+      - name: "BeginRemoval"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Timeout"
+            type: "int"
+      - name: "EndInsertion"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "EndRemoval"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "DeleteStoredImage"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "Block"
+            type: "int"
+          - name: "ImageID"
+            type: "string"
+      - name: "FtpImageUpload"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "SessionDescriptor"
+            type: "int"
+          - name: "ByBatch"
+            type: "bool"
+          - name: "SendOption"
+            type: "short"
+      - name: "GetConfiguration"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "CfgItem"
+            type: "RDMCOLib.ConfigItemEnum"
+          - name: "CfgDirective"
+            type: "int"
+          - name: "pCfgString"
+            type: "ref string"
+          - name: "pCfgBytes"
+            type: "ref int"
+      - name: "GetImage"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "Block"
+            type: "int"
+          - name: "HeaderOnly"
+            type: "bool"
+      - name: "GetStoredImage"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "Block"
+            type: "int"
+          - name: "ImageID"
+            type: "string"
+          - name: "HeaderOnly"
+            type: "bool"
+      - name: "OCRAZoneAdd"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 7
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+          - name: "x"
+            type: "short"
+          - name: "y"
+            type: "short"
+          - name: "w"
+            type: "short"
+          - name: "h"
+            type: "short"
+          - name: "Orientation"
+            type: "short"
+          - name: "StoreInTiff"
+            type: "bool"
+      - name: "OCRAZoneClear"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+      - name: "ScannerPrint"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "pvBuffer"
+            type: "ref object"
+          - name: "nBufferSz"
+            type: "int"
+      - name: "SetConfiguration"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "CfgItem"
+            type: "RDMCOLib.ConfigItemEnum"
+          - name: "CfgDirective"
+            type: "int"
+          - name: "CfgString"
+            type: "string"
+          - name: "CfgBytes"
+            type: "int"
+      - name: "SaveImage"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Block"
+            type: "int"
+      - name: "get_OCRActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRActive"
+            type: "bool"
+      - name: "get_OCRConfidenceLevel"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRConfidenceLevel"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRConfidenceLevel"
+            type: "short"
+      - name: "get_OCRConfidenceResult"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+          - name: "CharacterPosition"
+            type: "short"
+      - name: "get_OCRMicrDetect"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRMicrDetect"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRMicrDetect"
+            type: "bool"
+      - name: "get_OCRRecognitionResult"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "string"
+      - name: "OCRZoneAdd"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 8
+        parameters:
+          - name: "OCRType"
+            type: "short"
+          - name: "ZoneID"
+            type: "string"
+          - name: "x"
+            type: "short"
+          - name: "y"
+            type: "short"
+          - name: "w"
+            type: "short"
+          - name: "h"
+            type: "short"
+          - name: "Orientation"
+            type: "short"
+          - name: "StoreInTiff"
+            type: "bool"
+      - name: "OCRZoneClear"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+      - name: "PortCRead"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "pv"
+            type: "ref object"
+          - name: "Count"
+            type: "short"
+      - name: "PortCWrite"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "v"
+            type: "object"
+          - name: "nBufferSz"
+            type: "int"
+      - name: "get_DocumentCounter"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ScannerSerialNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_FtpProgressMax"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_FtpProgressCount"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_PortCData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "object"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DocumentHeight"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DocumentWidth"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DocumentDestination"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.DocumentDestinationEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_DocumentDestination"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pDocumentDestination"
+            type: "RDMCOLib.DocumentDestinationEnum"
+      - name: "get_FRANKingActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_FRANKingActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pFRANKingActive"
+            type: "bool"
+      - name: "get_MICRReadErrorHandling"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_MICRReadErrorHandling"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pMICRReadErrorHandling"
+            type: "short"
+      - name: "FRANKRegionOverride"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "Offset"
+            type: "short"
+          - name: "Length"
+            type: "short"
+      - name: "PortCWriteRead"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "vBuffer"
+            type: "object"
+          - name: "Wait"
+            type: "int"
+          - name: "ReadCount"
+            type: "int"
+      - name: "get_VtcUpdateStatus"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_VtcVersion"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "VtcUpdate"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "TerminalID"
+            type: "string"
+          - name: "TerminalModel"
+            type: "string"
+          - name: "ApplicationID"
+            type: "string"
+          - name: "ModemPhonenumber"
+            type: "string"
+      - name: "VtcUpdateAbort"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_RcpUpdateStatus"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "RcpUpdate"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Rcp"
+            type: "string"
+      - name: "RcpUpdateAbort"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_FRANKingText"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_FRANKingText"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pFRANKingText"
+            type: "string"
+      - name: "get_ParseMsrData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ParseMsrData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pParseMsrData"
+            type: "bool"
+      - name: "get_MsrPrimaryAccountNumber"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrTrackData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrAdditionalData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrDiscretionaryData"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrTracksToRead"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_MsrTracksToRead"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pMsrTracksToRead"
+            type: "int"
+      - name: "get_MsrFullName"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_MsrFirstName"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_MsrMiddleInitial"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_MsrSurname"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_MsrExpirationDate"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrServiceCode"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_ScanningMode"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.ScanningModeEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ScanningMode"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pScanningMode"
+            type: "RDMCOLib.ScanningModeEnum"
+      - name: "GenerateIRN"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ConnectionType"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.ConnectionTypeEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ConnectionType"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pVal"
+            type: "RDMCOLib.ConnectionTypeEnum"
+      - name: "CanDo"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "nCapability"
+            type: "RDMCOLib.DeviceCapabilityEnum"
+      - name: "get_ModelName"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_PortCTargetDevice"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.PortCTargetDeviceEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_PortCTargetDevice"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pVal"
+            type: "RDMCOLib.PortCTargetDeviceEnum"
+      - name: "get_EndorsingActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorsingActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pEndorsingActive"
+            type: "bool"
+      - name: "get_EndorsementText"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorsementText"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pEndorsementText"
+            type: "string"
+      - name: "get_EndorsementLeadingEdgeOffset"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorsementLeadingEdgeOffset"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOffset"
+            type: "int"
+      - name: "get_EndorsementTrailingEdgeOffset"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorsementTrailingEdgeOffset"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOffset"
+            type: "int"
+      - name: "get_EndorseFromTrailingEdge"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorseFromTrailingEdge"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pFromTrailingEdge"
+            type: "bool"
+      - name: "get_ButtonEventsActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ButtonEventsActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pButtonEventsActive"
+            type: "bool"
+      - name: "get_EndorserDotCount"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "PurgeEndorserCartridge"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "purgelevel"
+            type: "RDMCOLib.EndorserPurgeLevelEnum"
+      - name: "ResetEndorserInkLevel"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_IQAActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_IQAActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pIQAActive"
+            type: "bool"
+      - name: "get_IQAResults"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Surface"
+            type: "RDMCOLib.ImageSurfaceEnum"
+      - name: "get_IsScannerLicensed"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "LicenseId"
+            type: "RDMCOLib.LicenseIdEnum"
+      - name: "SuspendDoubleFeedDetection"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_HandleWarningAsError"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "WarningNumber"
+            type: "int"
+      - name: "set_HandleWarningAsError"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "WarningNumber"
+            type: "int"
+          - name: "pTreatAsError"
+            type: "bool"
+      - name: "get_VirtualTextEndorsingActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualTextEndorsingActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pEndorsingActive"
+            type: "bool"
+      - name: "get_VirtualEndorsementText"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualEndorsementText"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "EndorseText"
+            type: "string"
+      - name: "get_VirtualEndorsementTextOrientation"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.VEndorsementTextOrientationEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualEndorsementTextOrientation"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "EndorseOrient"
+            type: "RDMCOLib.VEndorsementTextOrientationEnum"
+      - name: "get_VirtualEndorsementFont"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualEndorsementFont"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "EndorseFontName"
+            type: "string"
+      - name: "get_VirtualEndorsementFontSize"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualEndorsementFontSize"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "EndorseFontSize"
+            type: "int"
+      - name: "SetVirtualEndorsementZone"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 5
+        parameters:
+          - name: "DocEdge"
+            type: "RDMCOLib.VEndorsementReferenceEdgeEnum"
+          - name: "x"
+            type: "int"
+          - name: "y"
+            type: "int"
+          - name: "cx"
+            type: "int"
+          - name: "cy"
+            type: "int"
+      - name: "GetVirtualEndorsementZone"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 5
+        parameters:
+          - name: "pDocEdge"
+            type: "ref RDMCOLib.VEndorsementReferenceEdgeEnum"
+          - name: "px"
+            type: "ref int"
+          - name: "py"
+            type: "ref int"
+          - name: "pcx"
+            type: "ref int"
+          - name: "pcy"
+            type: "ref int"
+      - name: "get_IsServiceActive"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "add_DataEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
+      - name: "remove_DataEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
+      - name: "add_DirectIOEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
+      - name: "remove_DirectIOEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
+      - name: "add_ErrorEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
+      - name: "remove_ErrorEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
+      - name: "add_OutputCompleteEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
+      - name: "remove_OutputCompleteEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
+      - name: "add_StatusUpdateEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
+      - name: "remove_StatusUpdateEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
+  - fullname: "RDMCOLib._IRDMOPOSEvents_Event"
+    name: "_IRDMOPOSEvents_Event"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "interface"
+    abstract: true
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 10
+    base_types:
+      - "<Module>"
+    methods:
+      - name: "add_DataEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
+      - name: "remove_DataEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
+      - name: "add_DirectIOEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
+      - name: "remove_DirectIOEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
+      - name: "add_ErrorEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
+      - name: "remove_ErrorEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
+      - name: "add_OutputCompleteEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
+      - name: "remove_OutputCompleteEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
+      - name: "add_StatusUpdateEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
+      - name: "remove_StatusUpdateEvent"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
+  - fullname: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
+    name: "_IRDMOPOSEvents_DataEventEventHandler"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
+    methods:
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "Status"
+            type: "object"
+          - name: "EventNumber"
+            type: "UintPtr"
+      - name: "Invoke"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "int"
+  - fullname: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
+    name: "_IRDMOPOSEvents_DirectIOEventEventHandler"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
+    methods:
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "EventNumber"
+            type: "object"
+          - name: "pData"
+            type: "UintPtr"
+      - name: "Invoke"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "EventNumber"
+            type: "int"
+          - name: "pData"
+            type: "ref int"
+          - name: "pString"
+            type: "ref string"
+  - fullname: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
+    name: "_IRDMOPOSEvents_ErrorEventEventHandler"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
+    methods:
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "ResultCode"
+            type: "object"
+          - name: "ResultCodeExtended"
+            type: "UintPtr"
+      - name: "Invoke"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "ResultCode"
+            type: "int"
+          - name: "ResultCodeExtended"
+            type: "int"
+          - name: "ErrorLocus"
+            type: "int"
+          - name: "pErrorResponse"
+            type: "ref int"
+  - fullname: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
+    name: "_IRDMOPOSEvents_OutputCompleteEventEventHandler"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
+    methods:
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "OutputID"
+            type: "object"
+          - name: "Data"
+            type: "UintPtr"
+      - name: "Invoke"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "OutputID"
+            type: "int"
+  - fullname: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
+    name: "_IRDMOPOSEvents_StatusUpdateEventEventHandler"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 2
+    base_types:
+      - "System.MulticastDelegate"
+    methods:
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "Data"
+            type: "object"
+          - name: ""
+            type: "UintPtr"
+      - name: "Invoke"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Data"
+            type: "int"
+  - fullname: "RDMCOLib.RDMOPOS"
+    name: "RDMOPOS"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "interface"
+    abstract: true
+    sealed: false
+    number_of_base_types: 3
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "<Module>"
+      - "RDMCOLib.IRDMOPOS"
+      - "RDMCOLib._IRDMOPOSEvents_Event"
+  - fullname: "RDMCOLib.IRDMOPOS"
+    name: "IRDMOPOS"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "interface"
+    abstract: true
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 195
+    base_types:
+      - "<Module>"
+    methods:
+      - name: "get_CheckHealthText"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_Claimed"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DataEventEnabled"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_DataEventEnabled"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pDataEventEnabled"
+            type: "bool"
+      - name: "get_DeviceEnabled"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_DeviceEnabled"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pDeviceEnabled"
+            type: "bool"
+      - name: "get_FreezeEvents"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_FreezeEvents"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pFreezeEvents"
+            type: "bool"
+      - name: "get_ResultCode"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ResultCodeExtended"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_State"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ControlObjectDescription"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ControlObjectVersion"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ServiceObjectDescription"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ServiceObjectVersion"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DeviceDescription"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DeviceName"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_AccountNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_Amount"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_BankNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CapValidationDevice"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CheckType"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CountryCode"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_EPC"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_RawData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_SerialNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_TransitNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_AutoDisable"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_AutoDisable"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pAutoDisable"
+            type: "bool"
+      - name: "get_BinaryConversion"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_BinaryConversion"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pBinaryConversion"
+            type: "int"
+      - name: "get_CapPowerReporting"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DataCount"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_PowerNotify"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_PowerNotify"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pPowerNotify"
+            type: "int"
+      - name: "get_PowerState"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_CheckNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DateTime"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_DateTime"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pDateTime"
+            type: "string"
+      - name: "get_FirmwareVersion"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_FtpStatus"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_IRN"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_IRN"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pIRN"
+            type: "string"
+      - name: "get_ImageData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ImageOptions"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.ImageOptionsEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ImageOptions"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pImageOptions"
+            type: "RDMCOLib.ImageOptionsEnum"
+      - name: "get_ImageSize"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_TranCode"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_KeyedAccountNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_KeyedAccountNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pKeyedAccountNumber"
+            type: "string"
+      - name: "get_KeyedAmount"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_KeyedAmount"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pKeyedAmount"
+            type: "string"
+      - name: "get_KeyedBankNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_KeyedBankNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pKeyedBankNumber"
+            type: "string"
+      - name: "get_KeyedSerialNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_KeyedSerialNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pKeyedSerialNumber"
+            type: "string"
+      - name: "get_OCRAActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRAActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRAActive"
+            type: "bool"
+      - name: "get_OCRAConfidenceLevel"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRAConfidenceLevel"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRAConfidenceLevel"
+            type: "short"
+      - name: "get_OCRAConfidenceResult"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+          - name: "CharacterPosition"
+            type: "short"
+      - name: "get_OCRAMicrDetect"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRAMicrDetect"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRAMicrDetect"
+            type: "bool"
+      - name: "get_OCRANumeric"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "NumericID"
+            type: "short"
+      - name: "set_OCRANumeric"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "NumericID"
+            type: "short"
+          - name: "pOCRANumeric"
+            type: "short"
+      - name: "get_OCRARecognitionResult"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "string"
+      - name: "get_OpenResult"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_OutputID"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ScannerMemory"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ScannerStatus"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_StoredImageCount"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_vConfig"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "object"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: ""
+            type: "RDMCOLib.ConfigItemEnum"
+          - name: "CfgItem"
+            type: "int"
+          - name: "CfgDirective"
+            type: "int"
+      - name: "set_vConfig"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "CfgItem"
+            type: "RDMCOLib.ConfigItemEnum"
+          - name: "CfgDirective"
+            type: "int"
+          - name: "CfgOption"
+            type: "int"
+          - name: "pvConfig"
+            type: "object"
+      - name: "SOData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Status"
+            type: "int"
+      - name: "SODirectIO"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "EventNumber"
+            type: "int"
+          - name: "pData"
+            type: "ref int"
+          - name: "pString"
+            type: "ref string"
+      - name: "SOError"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "ResultCode"
+            type: "int"
+          - name: "ResultCodeExtended"
+            type: "int"
+          - name: "ErrorLocus"
+            type: "int"
+          - name: "pErrorResponse"
+            type: "ref int"
+      - name: "SOOutputComplete"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "OutputID"
+            type: "int"
+      - name: "SOStatusUpdate"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Data"
+            type: "int"
+      - name: "SOProcessID"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "CheckHealth"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Level"
+            type: "int"
+      - name: "ClaimDevice"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Timeout"
+            type: "int"
+      - name: "ClearInput"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "ClearOutput"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "Close"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "DirectIO"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "Command"
+            type: "int"
+          - name: "pData"
+            type: "ref int"
+          - name: "pString"
+            type: "ref string"
+      - name: "Open"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "DeviceName"
+            type: "string"
+      - name: "ReleaseDevice"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "BeginInsertion"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Timeout"
+            type: "int"
+      - name: "BeginRemoval"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Timeout"
+            type: "int"
+      - name: "EndInsertion"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "EndRemoval"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "DeleteStoredImage"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "Block"
+            type: "int"
+          - name: "ImageID"
+            type: "string"
+      - name: "FtpImageUpload"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "SessionDescriptor"
+            type: "int"
+          - name: "ByBatch"
+            type: "bool"
+          - name: "SendOption"
+            type: "short"
+      - name: "GetConfiguration"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "CfgItem"
+            type: "RDMCOLib.ConfigItemEnum"
+          - name: "CfgDirective"
+            type: "int"
+          - name: "pCfgString"
+            type: "ref string"
+          - name: "pCfgBytes"
+            type: "ref int"
+      - name: "GetImage"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "Block"
+            type: "int"
+          - name: "HeaderOnly"
+            type: "bool"
+      - name: "GetStoredImage"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "Block"
+            type: "int"
+          - name: "ImageID"
+            type: "string"
+          - name: "HeaderOnly"
+            type: "bool"
+      - name: "OCRAZoneAdd"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 7
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+          - name: "x"
+            type: "short"
+          - name: "y"
+            type: "short"
+          - name: "w"
+            type: "short"
+          - name: "h"
+            type: "short"
+          - name: "Orientation"
+            type: "short"
+          - name: "StoreInTiff"
+            type: "bool"
+      - name: "OCRAZoneClear"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+      - name: "ScannerPrint"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "pvBuffer"
+            type: "ref object"
+          - name: "nBufferSz"
+            type: "int"
+      - name: "SetConfiguration"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "CfgItem"
+            type: "RDMCOLib.ConfigItemEnum"
+          - name: "CfgDirective"
+            type: "int"
+          - name: "CfgString"
+            type: "string"
+          - name: "CfgBytes"
+            type: "int"
+      - name: "SaveImage"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Block"
+            type: "int"
+      - name: "get_OCRActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRActive"
+            type: "bool"
+      - name: "get_OCRConfidenceLevel"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRConfidenceLevel"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRConfidenceLevel"
+            type: "short"
+      - name: "get_OCRConfidenceResult"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+          - name: "CharacterPosition"
+            type: "short"
+      - name: "get_OCRMicrDetect"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_OCRMicrDetect"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOCRMicrDetect"
+            type: "bool"
+      - name: "get_OCRRecognitionResult"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "string"
+      - name: "OCRZoneAdd"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 8
+        parameters:
+          - name: "OCRType"
+            type: "short"
+          - name: "ZoneID"
+            type: "string"
+          - name: "x"
+            type: "short"
+          - name: "y"
+            type: "short"
+          - name: "w"
+            type: "short"
+          - name: "h"
+            type: "short"
+          - name: "Orientation"
+            type: "short"
+          - name: "StoreInTiff"
+            type: "bool"
+      - name: "OCRZoneClear"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "ZoneID"
+            type: "string"
+      - name: "PortCRead"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "pv"
+            type: "ref object"
+          - name: "Count"
+            type: "short"
+      - name: "PortCWrite"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "v"
+            type: "object"
+          - name: "nBufferSz"
+            type: "int"
+      - name: "get_DocumentCounter"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ScannerSerialNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_FtpProgressMax"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_FtpProgressCount"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_PortCData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "object"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DocumentHeight"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DocumentWidth"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_DocumentDestination"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.DocumentDestinationEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_DocumentDestination"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pDocumentDestination"
+            type: "RDMCOLib.DocumentDestinationEnum"
+      - name: "get_FRANKingActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_FRANKingActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pFRANKingActive"
+            type: "bool"
+      - name: "get_MICRReadErrorHandling"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "short"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_MICRReadErrorHandling"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pMICRReadErrorHandling"
+            type: "short"
+      - name: "FRANKRegionOverride"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "Offset"
+            type: "short"
+          - name: "Length"
+            type: "short"
+      - name: "PortCWriteRead"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "vBuffer"
+            type: "object"
+          - name: "Wait"
+            type: "int"
+          - name: "ReadCount"
+            type: "int"
+      - name: "get_VtcUpdateStatus"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_VtcVersion"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "VtcUpdate"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "TerminalID"
+            type: "string"
+          - name: "TerminalModel"
+            type: "string"
+          - name: "ApplicationID"
+            type: "string"
+          - name: "ModemPhonenumber"
+            type: "string"
+      - name: "VtcUpdateAbort"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_RcpUpdateStatus"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "RcpUpdate"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Rcp"
+            type: "string"
+      - name: "RcpUpdateAbort"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_FRANKingText"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_FRANKingText"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pFRANKingText"
+            type: "string"
+      - name: "get_ParseMsrData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ParseMsrData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pParseMsrData"
+            type: "bool"
+      - name: "get_MsrPrimaryAccountNumber"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrTrackData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrAdditionalData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrDiscretionaryData"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrTracksToRead"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_MsrTracksToRead"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pMsrTracksToRead"
+            type: "int"
+      - name: "get_MsrFullName"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_MsrFirstName"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_MsrMiddleInitial"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_MsrSurname"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_MsrExpirationDate"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_MsrServiceCode"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: ""
+            type: "int"
+      - name: "get_ScanningMode"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.ScanningModeEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ScanningMode"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pScanningMode"
+            type: "RDMCOLib.ScanningModeEnum"
+      - name: "GenerateIRN"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_ConnectionType"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.ConnectionTypeEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ConnectionType"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pVal"
+            type: "RDMCOLib.ConnectionTypeEnum"
+      - name: "CanDo"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "nCapability"
+            type: "RDMCOLib.DeviceCapabilityEnum"
+      - name: "get_ModelName"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_PortCTargetDevice"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.PortCTargetDeviceEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_PortCTargetDevice"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pVal"
+            type: "RDMCOLib.PortCTargetDeviceEnum"
+      - name: "get_EndorsingActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorsingActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pEndorsingActive"
+            type: "bool"
+      - name: "get_EndorsementText"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorsementText"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pEndorsementText"
+            type: "string"
+      - name: "get_EndorsementLeadingEdgeOffset"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorsementLeadingEdgeOffset"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOffset"
+            type: "int"
+      - name: "get_EndorsementTrailingEdgeOffset"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorsementTrailingEdgeOffset"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pOffset"
+            type: "int"
+      - name: "get_EndorseFromTrailingEdge"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_EndorseFromTrailingEdge"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pFromTrailingEdge"
+            type: "bool"
+      - name: "get_ButtonEventsActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_ButtonEventsActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pButtonEventsActive"
+            type: "bool"
+      - name: "get_EndorserDotCount"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "PurgeEndorserCartridge"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "purgelevel"
+            type: "RDMCOLib.EndorserPurgeLevelEnum"
+      - name: "ResetEndorserInkLevel"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_IQAActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_IQAActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pIQAActive"
+            type: "bool"
+      - name: "get_IQAResults"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Surface"
+            type: "RDMCOLib.ImageSurfaceEnum"
+      - name: "get_IsScannerLicensed"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "LicenseId"
+            type: "RDMCOLib.LicenseIdEnum"
+      - name: "SuspendDoubleFeedDetection"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_HandleWarningAsError"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "WarningNumber"
+            type: "int"
+      - name: "set_HandleWarningAsError"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "WarningNumber"
+            type: "int"
+          - name: "pTreatAsError"
+            type: "bool"
+      - name: "get_VirtualTextEndorsingActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualTextEndorsingActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "pEndorsingActive"
+            type: "bool"
+      - name: "get_VirtualEndorsementText"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualEndorsementText"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "EndorseText"
+            type: "string"
+      - name: "get_VirtualEndorsementTextOrientation"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "RDMCOLib.VEndorsementTextOrientationEnum"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualEndorsementTextOrientation"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "EndorseOrient"
+            type: "RDMCOLib.VEndorsementTextOrientationEnum"
+      - name: "get_VirtualEndorsementFont"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualEndorsementFont"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "EndorseFontName"
+            type: "string"
+      - name: "get_VirtualEndorsementFontSize"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_VirtualEndorsementFontSize"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "EndorseFontSize"
+            type: "int"
+      - name: "SetVirtualEndorsementZone"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 5
+        parameters:
+          - name: "DocEdge"
+            type: "RDMCOLib.VEndorsementReferenceEdgeEnum"
+          - name: "x"
+            type: "int"
+          - name: "y"
+            type: "int"
+          - name: "cx"
+            type: "int"
+          - name: "cy"
+            type: "int"
+      - name: "GetVirtualEndorsementZone"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 5
+        parameters:
+          - name: "pDocEdge"
+            type: "ref RDMCOLib.VEndorsementReferenceEdgeEnum"
+          - name: "px"
+            type: "ref int"
+          - name: "py"
+            type: "ref int"
+          - name: "pcx"
+            type: "ref int"
+          - name: "pcy"
+            type: "ref int"
+      - name: "get_IsServiceActive"
+        visibility: "public"
+        abstract: true
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "RDMCOLib.ImageOptionsEnum"
+    name: "ImageOptionsEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.ConfigItemEnum"
+    name: "ConfigItemEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.DocumentDestinationEnum"
+    name: "DocumentDestinationEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.ScanningModeEnum"
+    name: "ScanningModeEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.ConnectionTypeEnum"
+    name: "ConnectionTypeEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.DeviceCapabilityEnum"
+    name: "DeviceCapabilityEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.PortCTargetDeviceEnum"
+    name: "PortCTargetDeviceEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.EndorserPurgeLevelEnum"
+    name: "EndorserPurgeLevelEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.ImageSurfaceEnum"
+    name: "ImageSurfaceEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.LicenseIdEnum"
+    name: "LicenseIdEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.VEndorsementTextOrientationEnum"
+    name: "VEndorsementTextOrientationEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib.VEndorsementReferenceEdgeEnum"
+    name: "VEndorsementReferenceEdgeEnum"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 0
+    base_types:
+      - "System.Enum"
+  - fullname: "RDMCOLib._IRDMOPOSEvents_SinkHelper"
+    name: "_IRDMOPOSEvents_SinkHelper"
+    namespace: "RDMCOLib"
+    visibility: "public"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 2
+    number_of_generic_parameters: 0
+    number_of_methods: 6
+    base_types:
+      - "System.Object"
+      - "RDMCOLib._IRDMOPOSEvents"
+    methods:
+      - name: "DataEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "int"
+      - name: "DirectIOEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "P_0"
+            type: "int"
+          - name: "P_1"
+            type: "ref int"
+          - name: "P_2"
+            type: "ref string"
+      - name: "ErrorEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "P_0"
+            type: "int"
+          - name: "P_1"
+            type: "int"
+          - name: "P_2"
+            type: "int"
+          - name: "P_3"
+            type: "ref int"
+      - name: "OutputCompleteEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "int"
+      - name: "StatusUpdateEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "int"
+      - name: ".ctor"
+        visibility: "internal"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "RDMCOLib._IRDMOPOSEvents_EventProvider"
+    name: "_IRDMOPOSEvents_EventProvider"
+    namespace: "RDMCOLib"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 3
+    number_of_generic_parameters: 0
+    number_of_methods: 14
+    base_types:
+      - "System.Object"
+      - "RDMCOLib._IRDMOPOSEvents_Event"
+      - "System.IDisposable"
+    methods:
+      - name: "Init"
+        visibility: "private"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "add_DataEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
+      - name: "remove_DataEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_DataEventEventHandler"
+      - name: "add_DirectIOEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
+      - name: "remove_DirectIOEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_DirectIOEventEventHandler"
+      - name: "add_ErrorEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
+      - name: "remove_ErrorEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_ErrorEventEventHandler"
+      - name: "add_OutputCompleteEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
+      - name: "remove_OutputCompleteEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_OutputCompleteEventEventHandler"
+      - name: "add_StatusUpdateEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
+      - name: "remove_StatusUpdateEvent"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "RDMCOLib._IRDMOPOSEvents_StatusUpdateEventEventHandler"
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "object"
+      - name: "Finalize"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "Dispose"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+user_strings:
+  - " \000"
