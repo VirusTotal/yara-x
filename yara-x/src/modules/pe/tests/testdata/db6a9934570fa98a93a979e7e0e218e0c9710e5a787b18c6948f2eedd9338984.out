@@ -42,11 +42,12 @@ number_of_rva_and_sizes: 16
 number_of_sections: 9
 number_of_imported_functions: 783
 number_of_delayed_imported_functions: 0
-number_of_resources: 9
+number_of_resources: 113
 number_of_version_infos: 0
 number_of_imports: 18
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
 rich_signature:
     offset: 128
     length: 144
@@ -235,6 +236,10 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 4
+    minor: 0
 resources:
   - length: 308
     rva: 4744512

@@ -103,7 +103,6 @@ fn language(ctx: &ScanContext) -> Option<i64> {
         lingua::Language::French => Language::French,
         lingua::Language::German => Language::German,
         lingua::Language::Spanish => Language::Spanish,
-        _ => unreachable!(),
     };
 
     Some(language as i64)

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::TypeValue;
 
 #[derive(Serialize, Deserialize)]
-pub enum Map {
+pub(crate) enum Map {
     /// A map that has integer keys.
     IntegerKeys {
         // The deputy value is one that acts as a representative of the values

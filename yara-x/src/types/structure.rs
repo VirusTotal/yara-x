@@ -19,10 +19,11 @@ use yara_x_proto::exts::field_options;
 use yara_x_proto::exts::module_options;
 
 use crate::types::{Array, Map, TypeValue, Value};
+use crate::wasm::WasmExport;
 
 /// A field in a [`Struct`].
 #[derive(Debug, Serialize, Deserialize)]
-pub struct StructField {
+pub(crate) struct StructField {
     /// For structures derived from a protobuf this contains the field number
     /// specified in the .proto file. For other structures this is set to 0.
     pub number: u64,
@@ -45,7 +46,7 @@ pub struct StructField {
 /// associated to that module. Functions [`Struct::from_proto_msg`] and
 /// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
 #[derive(Debug, Serialize, Deserialize, Default)]
-pub struct Struct {
+pub(crate) struct Struct {
     /// Fields in this structure.
     ///
     /// An `IndexMap` is used instead of a `HashMap` because we want to be
@@ -375,6 +376,22 @@ impl Struct {
             }
         }
 
+        // Get the methods implemented for this struct type.
+        let methods = WasmExport::get_methods(msg_descriptor.full_name());
+
+        // For each method implemented by this struct field, add a field
+        // to the struct of function type.
+        for (name, method) in methods {
+            fields.push((
+                name.to_owned(),
+                StructField {
+                    number: 0,
+                    type_value: TypeValue::Func(Rc::new(method)),
+                },
+            ))
+        }
+
+        // Insert the fields in a map, checking for duplicate fields.
         let mut field_index = IndexMap::new();
 
         for (name, field) in fields {

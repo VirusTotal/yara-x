@@ -42,11 +42,12 @@ number_of_rva_and_sizes: 6
 number_of_sections: 4
 number_of_imported_functions: 0
 number_of_delayed_imported_functions: 0
-number_of_resources: 4
+number_of_resources: 0
 number_of_version_infos: 0
 number_of_imports: 0
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 1
 sections:
   - name: ".setup"
     full_name: ".setup"
@@ -140,6 +141,8 @@ signatures:
     digest_alg: "sha256"
     digest: "2a344e5a930211be79c3d2a867d8923d154af27c9be0f8e5b6fd7a5411934375"
     file_digest: "2a344e5a930211be79c3d2a867d8923d154af27c9be0f8e5b6fd7a5411934375"
+    number_of_certificates: 1
+    number_of_countersignatures: 0
     signer_info:
         digest: "b34a9982f9ff7e33ae6be914e87df63f4623274e01557fd1cc567606fda4c659"
         digest_alg: "sha256"

@@ -132,6 +132,8 @@ pub mod mods {
     capabilities for their own purposes.
      */
 
+    /// Data structure returned by the `dotnet` module.
+    pub use super::protos::dotnet::Dotnet;
     /// Data structure returned by the `elf` module.
     pub use super::protos::elf::ELF;
     /// Data structure returned by the `lnk` module.

@@ -45,11 +45,12 @@ number_of_rva_and_sizes: 16
 number_of_sections: 3
 number_of_imported_functions: 8
 number_of_delayed_imported_functions: 0
-number_of_resources: 3
+number_of_resources: 0
 number_of_version_infos: 0
 number_of_imports: 4
 number_of_delayed_imports: 0
 number_of_exports: 3
+number_of_signatures: 0
 rich_signature:
     offset: 128
     length: 88

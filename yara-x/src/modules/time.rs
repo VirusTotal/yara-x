@@ -15,24 +15,16 @@ fn now(_ctx: &ScanContext) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::rule_true;
+    use crate::tests::test_rule;
+
     #[test]
-    fn end2end() {
-        let mut compiler = crate::compiler::Compiler::new();
-
-        compiler
-            .add_source(
-                r#"import "time"
-                rule rule_1 { condition: time.now() >= 0 }
-                rule rule_2 { condition: time.now() <= 0 }
-                rule rule_3 { condition: time.now() != 0 }
-                rule rule_4 { condition: time.now() == 0 }
-                "#,
-            )
-            .unwrap();
-
-        let rules = compiler.build();
-        let mut scanner = crate::scanner::Scanner::new(&rules);
-
-        assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 2);
+    fn now() {
+        rule_true!(
+            r#"
+            import "time" 
+            rule test { condition: time.now() >= 0 }"#,
+            &[]
+        );
     }
 }

@@ -65,26 +65,25 @@ message PE {
   optional uint64 number_of_imports = 42;
   optional uint64 number_of_delayed_imports = 43;
   optional uint64 number_of_exports = 44;
-  optional uint64 number_of_certificates = 45;
-  optional uint64 number_of_signatures = 46;
-  optional uint64 number_of_countersignatures = 47;
+  optional uint64 number_of_signatures = 45;
 
-  map<string, string> version_info = 48;
-  repeated KeyValue version_info_list = 49;
-  optional RichSignature rich_signature = 50;
-  optional string pdb_path = 51;
-  repeated Section sections = 52;
-  repeated DirEntry data_directories = 53;
+  map<string, string> version_info = 46;
+  repeated KeyValue version_info_list = 47;
+  optional RichSignature rich_signature = 48;
+  optional string pdb_path = 49;
+  repeated Section sections = 50;
+  repeated DirEntry data_directories = 51;
+
+  optional uint64 resource_timestamp = 52 [(yaml.field).fmt = "t"];
+  // TODO: implement resource_version?
+  optional Version resource_version = 53;
   repeated Resource resources = 54;
   repeated Import import_details = 55;
   repeated Import delayed_import_details = 56;
   repeated Export export_details = 57;
   optional bool is_signed = 58;
   repeated Signature signatures = 59;
-
-
-  // TODO: implement resource_version?
-
+  
   optional Overlay overlay = 60;
 }
 
@@ -149,10 +148,11 @@ message Signature {
   optional string digest_alg = 11;
   optional string digest = 12;
   optional string file_digest = 13;
-
-  optional SignerInfo signer_info = 15;
-  repeated Certificate certificates = 14;
-  repeated CounterSignature countersignatures = 16;
+  optional uint64 number_of_certificates = 14;
+  optional uint64 number_of_countersignatures = 15;
+  optional SignerInfo signer_info = 16;
+  repeated Certificate certificates = 17;
+  repeated CounterSignature countersignatures = 18;
 }
 
 message SignerInfo {
@@ -349,6 +349,13 @@ enum Characteristics {
   BYTES_REVERSED_HI       = 0x8000;
 }
 
+enum OptionalMagic {
+  option (yara.enum_options).inline = true;
+  IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
+  IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b;
+  IMAGE_ROM_OPTIONAL_HDR_MAGIC  = 0x107;
+}
+
 enum DirectoryEntry {
   option (yara.enum_options).inline = true;
   IMAGE_DIRECTORY_ENTRY_EXPORT        =  0  [(yara.enum_value).i64 = 0];
@@ -369,4 +376,42 @@ enum DirectoryEntry {
   IMAGE_DIRECTORY_ENTRY_IAT            = 13 [(yara.enum_value).i64 = 12];
   IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   = 14 [(yara.enum_value).i64 = 13];
   IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR = 15 [(yara.enum_value).i64 = 14];
+}
+
+enum SectionCharacteristics {
+  option (yara.enum_options).inline = true;
+  SECTION_NO_PAD                 = 1 [(yara.enum_value).i64 = 0x00000008];
+  SECTION_CNT_CODE               = 2 [(yara.enum_value).i64 = 0x00000020];
+  SECTION_CNT_INITIALIZED_DATA   = 3 [(yara.enum_value).i64 = 0x00000040];
+  SECTION_CNT_UNINITIALIZED_DATA = 4 [(yara.enum_value).i64 = 0x00000080];
+  SECTION_LNK_OTHER              = 5 [(yara.enum_value).i64 = 0x00000100];
+  SECTION_LNK_INFO               = 6 [(yara.enum_value).i64 = 0x00000200];
+  SECTION_LNK_REMOVE             = 7 [(yara.enum_value).i64 = 0x00000800];
+  SECTION_LNK_COMDAT             = 8 [(yara.enum_value).i64 = 0x00001000];
+  SECTION_NO_DEFER_SPEC_EXC      = 9 [(yara.enum_value).i64 = 0x00004000];
+  SECTION_GPREL                  = 10 [(yara.enum_value).i64 = 0x00008000];
+  SECTION_ALIGN_1BYTES           = 11 [(yara.enum_value).i64 = 0x00100000];
+  SECTION_ALIGN_2BYTES           = 12 [(yara.enum_value).i64 = 0x00200000];
+  SECTION_ALIGN_4BYTES           = 13 [(yara.enum_value).i64 = 0x00300000];
+  SECTION_ALIGN_8BYTES           = 14 [(yara.enum_value).i64 = 0x00400000];
+  SECTION_ALIGN_16BYTES          = 15 [(yara.enum_value).i64 = 0x00500000];
+  SECTION_ALIGN_32BYTES          = 16 [(yara.enum_value).i64 = 0x00600000];
+  SECTION_ALIGN_64BYTES          = 17 [(yara.enum_value).i64 = 0x00700000];
+  SECTION_ALIGN_128BYTES         = 18 [(yara.enum_value).i64 = 0x00800000];
+  SECTION_ALIGN_256BYTES         = 19 [(yara.enum_value).i64 = 0x00900000];
+  SECTION_ALIGN_512BYTES         = 20 [(yara.enum_value).i64 = 0x00A00000];
+  SECTION_ALIGN_1024BYTES        = 21 [(yara.enum_value).i64 = 0x00B00000];
+  SECTION_ALIGN_2048BYTES        = 22 [(yara.enum_value).i64 = 0x00C00000];
+  SECTION_ALIGN_4096BYTES        = 23 [(yara.enum_value).i64 = 0x00D00000];
+  SECTION_ALIGN_8192BYTES        = 24 [(yara.enum_value).i64 = 0x00E00000];
+  SECTION_ALIGN_MASK             = 25 [(yara.enum_value).i64 = 0x00F00000];
+  SECTION_LNK_NRELOC_OVFL        = 26 [(yara.enum_value).i64 = 0x01000000];
+  SECTION_MEM_DISCARDABLE        = 27 [(yara.enum_value).i64 = 0x02000000];
+  SECTION_MEM_NOT_CACHED         = 28 [(yara.enum_value).i64 = 0x04000000];
+  SECTION_MEM_NOT_PAGED          = 29 [(yara.enum_value).i64 = 0x08000000];
+  SECTION_MEM_SHARED             = 30 [(yara.enum_value).i64 = 0x10000000];
+  SECTION_MEM_EXECUTE            = 31 [(yara.enum_value).i64 = 0x20000000];
+  SECTION_MEM_READ               = 32 [(yara.enum_value).i64 = 0x40000000];
+  SECTION_MEM_WRITE              = 33 [(yara.enum_value).i64 = 0x80000000];
+  SECTION_SCALE_INDEX            = 34 [(yara.enum_value).i64 = 0x00000001];
 }

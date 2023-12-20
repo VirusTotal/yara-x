@@ -166,7 +166,7 @@ fn test_proto2_module() {
     );
 
     condition_false!(
-        r#"for 2 s in test_proto2.array_struct : (
+        r#"for 3 s in test_proto2.array_struct : (
             s.nested_int32_zero == 0
           )"#
     );
@@ -252,6 +252,24 @@ fn test_proto2_module() {
         r#"
         test_proto2.add(test_proto2.int64_one, test_proto2.int64_one) == 2 and
         test_proto2.add(test_proto2.int64_one, test_proto2.int64_zero) == 1
+        "#
+    );
+
+    condition_true!(
+        r#"
+        not test_proto2.nested.nested_method()
+        "#
+    );
+
+    condition_true!(
+        r#"
+        not test_proto2.array_struct[0].nested_method()
+        "#
+    );
+
+    condition_true!(
+        r#"
+        test_proto2.array_struct[1].nested_method()
         "#
     );
 }

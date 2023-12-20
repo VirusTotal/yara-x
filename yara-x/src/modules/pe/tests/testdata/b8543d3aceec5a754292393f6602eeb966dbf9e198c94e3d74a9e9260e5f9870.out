@@ -42,11 +42,21 @@ number_of_rva_and_sizes: 16
 number_of_sections: 6
 number_of_imported_functions: 37
 number_of_delayed_imported_functions: 0
-number_of_resources: 6
+number_of_resources: 2
 number_of_version_infos: 8
 number_of_imports: 12
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "CompanyName": "Microsoft Corporation"
+    "FileDescription": "Task Manager Launcher"
+    "FileVersion": "10.0.19041.1202 (WinBuild.160101.0800)"
+    "InternalName": "LaunchTM.exe"
+    "LegalCopyright": "\302\251 Microsoft Corporation. All rights reserved."
+    "OriginalFilename": "LaunchTM.exe"
+    "ProductName": "Microsoft\302\256 Windows\302\256 Operating System"
+    "ProductVersion": "10.0.19041.1202"
 version_info_list:
   - key: "CompanyName"
     value: "Microsoft Corporation"
@@ -199,6 +209,10 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
 resources:
   - length: 928
     rva: 21864
