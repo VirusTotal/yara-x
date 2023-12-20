@@ -65,6 +65,9 @@ macho-module = [
     "dep:arrayref",
 ]
 
+# The `math` module.
+math-module = []
+
 # The `pe` module parses PE files.
 pe-module = [
     "dep:authenticode-parser",
@@ -96,6 +99,7 @@ default = [
     "dotnet-module",
     "elf-module",
     "macho-module",
+    "math-module",
     "hash-module",
     "pe-module",
     "time-module",
