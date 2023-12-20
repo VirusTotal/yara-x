@@ -34,36 +34,53 @@ fn length(ctx: &ScanContext, string: RuntimeString) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::rule_false;
+    use crate::tests::rule_true;
+    use crate::tests::test_rule;
+
     #[test]
-    fn end2end() {
-        let rules = crate::compile(
-            r#"import "string"
-                // True
-                rule rule_1 { condition: string.length("AXsx00ERS") == 9 }
-                rule rule_2 { condition: string.length("AXsx00ERS") == 9 }
-                // False
-                rule rule_3 { condition: string.length("AXsx00ERS") > 9 }
-                rule rule_4 { condition: string.length("AXsx00ERS") < 9 }
+    fn length() {
+        rule_true!(
+            r#"rule test { condition: string.length("AXsx00ERS") == 9 }"#,
+            &[]
+        );
 
+        rule_false!(
+            r#"rule test { condition: string.length("AXsx00ERS") > 9 }"#,
+            &[]
+        );
 
-                // True
-                rule rule_5 { condition: string.to_int("1234") == 1234 }
-                rule rule_6 { condition: string.to_int("-10") == -10 }
-                // False
-                rule rule_7 { condition: string.to_int("-10") == -8 }
-                
+        rule_false!(
+            r#"rule test { condition: string.length("AXsx00ERS") < 9 }"#,
+            &[]
+        );
+    }
 
-                // True
-                rule rule_8 { condition: string.to_int("A", 16) == 10 }
-                rule rule_9 { condition: string.to_int("011", 8) == 9 }
-                // False
-                rule rule_10 { condition: string.to_int("-011", 0) == -9 }
-                "#,
-        )
-        .unwrap();
+    #[test]
+    fn to_int() {
+        rule_true!(
+            r#"rule test { condition: string.to_int("1234") == 1234 }"#,
+            &[]
+        );
 
-        let mut scanner = crate::scanner::Scanner::new(&rules);
+        rule_true!(
+            r#"rule test { condition: string.to_int("-10") == -10 }"#,
+            &[]
+        );
 
-        assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 6);
+        rule_true!(
+            r#"rule test { condition: string.to_int("A", 16) == 10 }"#,
+            &[]
+        );
+
+        rule_true!(
+            r#"rule test { condition: string.to_int("011", 8) == 9 }"#,
+            &[]
+        );
+
+        rule_true!(
+            r#"rule test { condition: string.to_int("-011", 8) == -9 }"#,
+            &[]
+        );
     }
 }
