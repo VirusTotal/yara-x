@@ -1,0 +1,452 @@
+is_dotnet: true
+module_name: "My Project.Resources.Designer.vb.dll.dll"
+version: "v4.0.30319"
+number_of_streams: 5
+number_of_guids: 1
+number_of_resources: 0
+number_of_classes: 8
+number_of_assembly_refs: 3
+number_of_user_strings: 8
+number_of_constants: 0
+streams:
+  - name: "#~"
+    offset: 1592
+    size: 1856
+  - name: "#Strings"
+    offset: 3448
+    size: 1768
+  - name: "#US"
+    offset: 5216
+    size: 184
+  - name: "#GUID"
+    offset: 5400
+    size: 16
+  - name: "#Blob"
+    offset: 5416
+    size: 884
+guids:
+  - "4699c8b3-49a5-4441-8da7-5f947f0d3891"
+assembly:
+    name: "My Project.Resources.Designer.vb.dll"
+    version:
+        major: 0
+        minor: 0
+        build_number: 0
+        revision_number: 0
+assembly_refs:
+  - name: "mscorlib"
+    public_key_or_token: "\267z\\V\0314\340\211"
+    version:
+        major: 4
+        minor: 0
+        build_number: 0
+        revision_number: 0
+  - name: "System"
+    public_key_or_token: "\267z\\V\0314\340\211"
+    version:
+        major: 4
+        minor: 0
+        build_number: 0
+        revision_number: 0
+  - name: "Microsoft.VisualBasic"
+    public_key_or_token: "\260?_\177\021\325\n:"
+    version:
+        major: 10
+        minor: 0
+        build_number: 0
+        revision_number: 0
+classes:
+  - fullname: "gslTimer.My.MyApplication"
+    name: "MyApplication"
+    namespace: "gslTimer.My"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 1
+    base_types:
+      - "Microsoft.VisualBasic.ApplicationServices.ApplicationBase"
+    methods:
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "gslTimer.My.MyComputer"
+    name: "MyComputer"
+    namespace: "gslTimer.My"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: false
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 1
+    base_types:
+      - "Microsoft.VisualBasic.Devices.Computer"
+    methods:
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "gslTimer.My.MyProject"
+    name: "MyProject"
+    namespace: "gslTimer.My"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 5
+    base_types:
+      - "System.Object"
+    methods:
+      - name: ".cctor"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_Computer"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "gslTimer.My.MyComputer"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_Application"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "gslTimer.My.MyApplication"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_User"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "Microsoft.VisualBasic.ApplicationServices.User"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_WebServices"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "gslTimer.My.MyProject.MyWebServices"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "gslTimer.My.Resources.Resources"
+    name: "Resources"
+    namespace: "gslTimer.My.Resources"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 10
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "get_ResourceManager"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.Resources.ResourceManager"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_Culture"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.Globalization.CultureInfo"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "set_Culture"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "Value"
+            type: "System.Globalization.CultureInfo"
+      - name: "get_base"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.IO.UnmanagedMemoryStream"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_gets_in_the_way"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.IO.UnmanagedMemoryStream"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_just_like_that"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.IO.UnmanagedMemoryStream"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_knob"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.IO.UnmanagedMemoryStream"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_put_down"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.IO.UnmanagedMemoryStream"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_quiet_knock"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.IO.UnmanagedMemoryStream"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_your_turn"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.IO.UnmanagedMemoryStream"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "gslTimer.My.MySettings"
+    name: "MySettings"
+    namespace: "gslTimer.My"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 3
+    base_types:
+      - "System.Configuration.ApplicationSettingsBase"
+    methods:
+      - name: ".cctor"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "get_Default"
+        visibility: "public"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "gslTimer.My.MySettings"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "gslTimer.My.MySettingsProperty"
+    name: "MySettingsProperty"
+    namespace: "gslTimer.My"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 1
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "get_Settings"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "gslTimer.My.MySettings"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "gslTimer.My.MyProject.MyWebServices"
+    name: "MyWebServices"
+    namespace: "gslTimer.My.MyProject"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 7
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "Equals"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "o"
+            type: "object"
+      - name: "GetHashCode"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "int"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "GetType"
+        visibility: "internal"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "System.Type"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "ToString"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: true
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "Create__Instance__"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "T"
+        number_of_generic_parameters: 1
+        number_of_parameters: 1
+        generic_parameters:
+          - "T"
+        parameters:
+          - name: "instance"
+            type: "T"
+      - name: "Dispose__Instance__"
+        visibility: "private"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 1
+        number_of_parameters: 1
+        generic_parameters:
+          - "T"
+        parameters:
+          - name: "instance"
+            type: "ref T"
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "gslTimer.My.MyProject.ThreadSafeObjectProvider"
+    name: "ThreadSafeObjectProvider"
+    namespace: "gslTimer.My.MyProject"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 1
+    number_of_methods: 2
+    base_types:
+      - "System.Object"
+    generic_parameters:
+      - "T"
+    methods:
+      - name: "get_GetInstance"
+        visibility: "internal"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "T"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+user_strings:
+  - "g\000s\000l\000T\000i\000m\000e\000r\000.\000R\000e\000s\000o\000u\000r\000c\000e\000s\000"
+  - "b\000a\000s\000e\000"
+  - "g\000e\000t\000s\000_\000i\000n\000_\000t\000h\000e\000_\000w\000a\000y\000"
+  - "j\000u\000s\000t\000_\000l\000i\000k\000e\000_\000t\000h\000a\000t\000"
+  - "k\000n\000o\000b\000"
+  - "p\000u\000t\000_\000d\000o\000w\000n\000"
+  - "q\000u\000i\000e\000t\000_\000k\000n\000o\000c\000k\000"
+  - "y\000o\000u\000r\000_\000t\000u\000r\000n\000"

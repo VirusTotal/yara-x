@@ -349,6 +349,13 @@ enum Characteristics {
   BYTES_REVERSED_HI       = 0x8000;
 }
 
+enum OptionalMagic {
+  option (yara.enum_options).inline = true;
+  IMAGE_NT_OPTIONAL_HDR32_MAGIC = 0x10b;
+  IMAGE_NT_OPTIONAL_HDR64_MAGIC = 0x20b;
+  IMAGE_ROM_OPTIONAL_HDR_MAGIC  = 0x107;
+}
+
 enum DirectoryEntry {
   option (yara.enum_options).inline = true;
   IMAGE_DIRECTORY_ENTRY_EXPORT        =  0  [(yara.enum_value).i64 = 0];

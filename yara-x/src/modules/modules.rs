@@ -11,6 +11,10 @@ mod elf;
 mod text;
 #[cfg(feature = "hash-module")]
 mod hash;
+#[cfg(feature = "dotnet-module")]
+mod dotnet;
+#[cfg(feature = "math-module")]
+mod math;
 #[cfg(feature = "test_proto2-module")]
 mod test_proto2;
 #[cfg(feature = "lnk-module")]

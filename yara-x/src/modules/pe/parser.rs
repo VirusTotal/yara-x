@@ -29,7 +29,7 @@ use nom::{Err, IResult, Parser, ToUsize};
 use protobuf::{EnumOrUnknown, MessageField};
 
 use crate::modules::pe::rva2off;
-use crate::modules::protos::pe;
+use crate::modules::protos;
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
@@ -111,15 +111,15 @@ pub struct PE<'a> {
 impl<'a> PE<'a> {
     /// Given the content of PE file, parses it and returns a [`PE`] object
     /// representing the file.
-    pub fn parse(input: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
+    pub fn parse(data: &'a [u8]) -> Result<Self, Err<Error<'a>>> {
         // Parse the MZ header.
-        let (_, dos_hdr) = Self::parse_dos_header(input)?;
+        let (_, dos_hdr) = Self::parse_dos_header(data)?;
 
         // The PE header starts at the offset indicated by `dos_hdr.e_lfanew`.
         // Everything between offset 0 and `dos_hdr.e_lfanew` is stored in the
         // `dos_stub` slice, including the DOS header, the MS-DOS stub and the
         // rich signature.
-        let (pe, dos_stub) = take(dos_hdr.e_lfanew)(input)?;
+        let (pe, dos_stub) = take(dos_hdr.e_lfanew)(data)?;
 
         // Parse the PE header (IMAGE_FILE_HEADER)
         let (optional_hdr, pe_hdr) = Self::parse_pe_header(pe)?;
@@ -133,7 +133,7 @@ impl<'a> PE<'a> {
             pe_hdr.number_of_symbols.saturating_mul(Self::SIZE_OF_SYMBOL),
         );
 
-        let string_table = input.get(string_table_offset as usize..);
+        let string_table = data.get(string_table_offset as usize..);
 
         // Parse the section table. The section table is located right after
         // NT headers, which starts at pe_hdr and is composed of a the PE
@@ -160,7 +160,7 @@ impl<'a> PE<'a> {
         };
 
         Ok(PE {
-            data: input,
+            data,
             sections: sections.unwrap_or_default(),
             dos_hdr,
             pe_hdr,
@@ -183,6 +183,28 @@ impl<'a> PE<'a> {
             self.optional_hdr.file_alignment,
             self.optional_hdr.section_alignment,
         )
+    }
+
+    /// Given a RVA, returns a byte slice with the content of the PE that
+    /// goes from that RVA to the end of the file.
+    #[inline]
+    pub fn data_at_rva(&self, rva: u32) -> Option<&'a [u8]> {
+        let offset = self.rva_to_offset(rva)?;
+        self.data.get(offset as usize..)
+    }
+
+    /// Given a RVA, returns a byte slice with the content of the PE that
+    /// goes from that RVA to the end of the file, or to the given size,
+    /// whatever comes first.
+    #[inline]
+    pub fn data_at_rva_with_size(
+        &self,
+        rva: u32,
+        size: usize,
+    ) -> Option<&'a [u8]> {
+        let start = self.rva_to_offset(rva)? as usize;
+        let end = min(start.saturating_add(size), self.data.len());
+        self.data.get(start..end)
     }
 
     /// Returns the PE entry point as a file offset.
@@ -384,14 +406,15 @@ impl<'a> PE<'a> {
 }
 
 impl<'a> PE<'a> {
-    const IMAGE_NT_OPTIONAL_HDR32_MAGIC: u16 = 0x10b;
-    const IMAGE_NT_OPTIONAL_HDR64_MAGIC: u16 = 0x20b;
+    pub const IMAGE_NT_OPTIONAL_HDR32_MAGIC: u16 = 0x10b;
+    pub const IMAGE_NT_OPTIONAL_HDR64_MAGIC: u16 = 0x20b;
 
-    const IMAGE_DIRECTORY_ENTRY_EXPORT: usize = 0;
-    const IMAGE_DIRECTORY_ENTRY_IMPORT: usize = 1;
-    const IMAGE_DIRECTORY_ENTRY_RESOURCE: usize = 2;
-    const IMAGE_DIRECTORY_ENTRY_DEBUG: usize = 6;
-    const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT: usize = 13;
+    pub const IMAGE_DIRECTORY_ENTRY_EXPORT: usize = 0;
+    pub const IMAGE_DIRECTORY_ENTRY_IMPORT: usize = 1;
+    pub const IMAGE_DIRECTORY_ENTRY_RESOURCE: usize = 2;
+    pub const IMAGE_DIRECTORY_ENTRY_DEBUG: usize = 6;
+    pub const IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT: usize = 13;
+    pub const IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR: usize = 14;
 
     const IMAGE_DEBUG_TYPE_CODEVIEW: u32 = 2;
 
@@ -774,7 +797,7 @@ impl<'a> PE<'a> {
         }
     }
 
-    fn parse_dir_entry(input: &[u8]) -> IResult<&[u8], DirEntry> {
+    pub fn parse_dir_entry(input: &[u8]) -> IResult<&[u8], DirEntry> {
         map(tuple((le_u32, le_u32)), |(addr, size)| DirEntry { addr, size })(
             input,
         )
@@ -920,7 +943,7 @@ impl<'a> PE<'a> {
         let version_info_rsrc = self.get_resources().iter().find(|r| {
             r.type_id
                 == ResourceId::Id(
-                    pe::ResourceType::RESOURCE_TYPE_VERSION as u32,
+                    protos::pe::ResourceType::RESOURCE_TYPE_VERSION as u32,
                 )
         })?;
 
@@ -1151,14 +1174,6 @@ impl<'a> PE<'a> {
     fn round_up<O: ToUsize>(offset: O) -> usize {
         // TODO: use usize:div_ceil when we bump the MSRV to 1.73.0.
         num::Integer::div_ceil(&offset.to_usize(), &4) * 4
-    }
-
-    /// Given a RVA, return a byte slice with the content of the PE that
-    /// goes from that RVA to the end of the file.
-    #[inline]
-    fn data_at_rva(&self, rva: u32) -> Option<&'a [u8]> {
-        let offset = self.rva_to_offset(rva)?;
-        self.data.get(offset as usize..)
     }
 
     /// Parses the PE resources.
@@ -1888,9 +1903,9 @@ impl<'a> PE<'a> {
 }
 
 #[rustfmt::skip]
-impl From<PE<'_>> for pe::PE {
+impl From<PE<'_>> for protos::pe::PE {
     fn from(pe: PE) -> Self {
-        let mut result = pe::PE::new();
+        let mut result = protos::pe::PE::new();
         
         result.set_is_pe(true);
         result.machine = pe
@@ -1898,7 +1913,7 @@ impl From<PE<'_>> for pe::PE {
             .machine
             .try_into()
             .ok()
-            .map(EnumOrUnknown::<pe::Machine>::from_i32);
+            .map(EnumOrUnknown::<protos::pe::Machine>::from_i32);
 
         result.set_timestamp(pe.pe_hdr.timestamp);
         result.set_characteristics(pe.pe_hdr.characteristics.into());
@@ -1912,14 +1927,14 @@ impl From<PE<'_>> for pe::PE {
             .magic
             .try_into()
             .ok()
-            .map(EnumOrUnknown::<pe::OptHdrMagic>::from_i32);
+            .map(EnumOrUnknown::<protos::pe::OptHdrMagic>::from_i32);
         
         result.subsystem = pe
             .optional_hdr
             .subsystem
             .try_into()
             .ok()
-            .map(EnumOrUnknown::<pe::Subsystem>::from_i32);
+            .map(EnumOrUnknown::<protos::pe::Subsystem>::from_i32);
         
         result.set_size_of_code(pe.optional_hdr.size_of_code);
         result.set_base_of_code(pe.optional_hdr.base_of_code);
@@ -1944,25 +1959,25 @@ impl From<PE<'_>> for pe::PE {
         result.set_size_of_initialized_data(pe.optional_hdr.size_of_initialized_data);
         result.set_size_of_uninitialized_data(pe.optional_hdr.size_of_uninitialized_data);
         
-        result.linker_version = MessageField::some(pe::Version {
+        result.linker_version = MessageField::some(protos::pe::Version {
             major: Some(pe.optional_hdr.major_linker_version.into()),
             minor: Some(pe.optional_hdr.minor_linker_version.into()),
             ..Default::default()
         });
 
-        result.os_version = MessageField::some(pe::Version {
+        result.os_version = MessageField::some(protos::pe::Version {
             major: Some(pe.optional_hdr.major_os_version.into()),
             minor: Some(pe.optional_hdr.minor_os_version.into()),
             ..Default::default()
         });
 
-        result.image_version = MessageField::some(pe::Version {
+        result.image_version = MessageField::some(protos::pe::Version {
             major: Some(pe.optional_hdr.major_image_version.into()),
             minor: Some(pe.optional_hdr.minor_image_version.into()),
             ..Default::default()
         });
 
-        result.subsystem_version = MessageField::some(pe::Version {
+        result.subsystem_version = MessageField::some(protos::pe::Version {
             major: Some(pe.optional_hdr.major_subsystem_version.into()),
             minor: Some(pe.optional_hdr.minor_subsystem_version.into()),
             ..Default::default()
@@ -1970,19 +1985,19 @@ impl From<PE<'_>> for pe::PE {
         
         result
             .data_directories
-            .extend(pe.get_dir_entries().iter().map(pe::DirEntry::from));
+            .extend(pe.get_dir_entries().iter().map(protos::pe::DirEntry::from));
 
         result
             .sections
-            .extend(pe.get_sections().iter().map(pe::Section::from));
+            .extend(pe.get_sections().iter().map(protos::pe::Section::from));
 
         result
             .resources
-            .extend(pe.get_resources().iter().map(pe::Resource::from));
+            .extend(pe.get_resources().iter().map(protos::pe::Resource::from));
         
         result
             .signatures
-            .extend(pe.get_signatures().iter().map(pe::Signature::from));
+            .extend(pe.get_signatures().iter().map(protos::pe::Signature::from));
         
         result.set_is_signed(
             result.signatures.iter().any(|signature| signature.verified.is_some_and(|v| v)));
@@ -1992,9 +2007,9 @@ impl From<PE<'_>> for pe::PE {
         
         if let Some(imports) = pe.get_imports() {
             for (dll_name, functions) in imports {
-                let mut import = pe::Import::new();
+                let mut import = protos::pe::Import::new();
                 import.library_name = Some(dll_name.to_owned());
-                import.functions = functions.iter().map(pe::Function::from).collect();
+                import.functions = functions.iter().map(protos::pe::Function::from).collect();
                 num_imported_funcs += import.functions.len();
                 result.import_details.push(import);
             }
@@ -2002,9 +2017,9 @@ impl From<PE<'_>> for pe::PE {
         
         if let Some(delayed_imports) = pe.get_delayed_imports() {
             for (dll_name, functions) in delayed_imports {
-                let mut import = pe::Import::new();
+                let mut import = protos::pe::Import::new();
                 import.library_name = Some(dll_name.to_owned());
-                import.functions = functions.iter().map(pe::Function::from).collect();
+                import.functions = functions.iter().map(protos::pe::Function::from).collect();
                 num_delayed_imported_funcs += import.functions.len();
                 result.delayed_import_details.push(import);
             }
@@ -2016,11 +2031,11 @@ impl From<PE<'_>> for pe::PE {
         if let Some(exports) = pe.get_exports() {
             result.dll_name = exports.dll_name.map(|name| name.to_owned());
             result.export_timestamp = Some(exports.timestamp);
-            result.export_details.extend(exports.functions.iter().map(pe::Export::from));
+            result.export_details.extend(exports.functions.iter().map(protos::pe::Export::from));
         }
         
         for (key, value) in pe.get_version_info() {
-            let mut kv = pe::KeyValue::new();
+            let mut kv = protos::pe::KeyValue::new();
             kv.key = Some(key.to_owned());
             kv.value = Some(value.to_owned());
             result.version_info_list.push(kv);
@@ -2028,7 +2043,7 @@ impl From<PE<'_>> for pe::PE {
         }
         
         if let Some(rich_header) = pe.get_rich_header() {
-            result.rich_signature = MessageField::some(pe::RichSignature {
+            result.rich_signature = MessageField::some(protos::pe::RichSignature {
                 offset: Some(rich_header.offset.try_into().unwrap()),
                 length: Some(rich_header.raw_data.len().try_into().unwrap()),
                 key: Some(rich_header.key),
@@ -2040,7 +2055,7 @@ impl From<PE<'_>> for pe::PE {
                     .tools
                     .iter()
                     .map(|(version, toolid, times)| {
-                        let mut entry = pe::RichTool::new();
+                        let mut entry = protos::pe::RichTool::new();
                         entry.toolid = Some((*toolid).into());
                         entry.version = Some((*version).into());
                         entry.times = Some(*times);
@@ -2053,7 +2068,7 @@ impl From<PE<'_>> for pe::PE {
         
         if let Some(res) = pe.get_resource_dir() {
             result.resource_timestamp = Some(res.timestamp as u64);
-            result.resource_version = MessageField::some(pe::Version {
+            result.resource_version = MessageField::some(protos::pe::Version {
                 major: Some(res.major_version.into()),
                 minor: Some(res.minor_version.into()),
                 ..Default::default()
@@ -2100,12 +2115,12 @@ impl From<PE<'_>> for pe::PE {
 
         result.overlay =
             MessageField::some(match (overlay_offset, overlay_size) {
-                (Some(offset), Some(size)) if size > 0 => pe::Overlay {
+                (Some(offset), Some(size)) if size > 0 => protos::pe::Overlay {
                     offset: Some(offset),
                     size: Some(size),
                     ..Default::default()
                 },
-                _ => pe::Overlay {
+                _ => protos::pe::Overlay {
                     offset: Some(0),
                     size: Some(0),
                     ..Default::default()
@@ -2206,9 +2221,9 @@ pub struct Section<'a> {
     characteristics: u32,
 }
 
-impl From<&Section<'_>> for pe::Section {
+impl From<&Section<'_>> for protos::pe::Section {
     fn from(value: &Section) -> Self {
-        let mut sec = pe::Section::new();
+        let mut sec = protos::pe::Section::new();
         sec.name = Some(value.name.to_vec());
         sec.full_name = value
             .full_name
@@ -2227,9 +2242,9 @@ impl From<&Section<'_>> for pe::Section {
     }
 }
 
-impl From<&authenticode_parser::Authenticode<'_>> for pe::Signature {
+impl From<&authenticode_parser::Authenticode<'_>> for protos::pe::Signature {
     fn from(value: &authenticode_parser::Authenticode) -> Self {
-        let mut sig = pe::Signature::new();
+        let mut sig = protos::pe::Signature::new();
 
         sig.digest = value.digest().map(|v| bytes2hex("", v));
         sig.digest_alg = value
@@ -2239,14 +2254,14 @@ impl From<&authenticode_parser::Authenticode<'_>> for pe::Signature {
         sig.file_digest = value.file_digest().map(|v| bytes2hex("", v));
 
         sig.certificates
-            .extend(value.certs().iter().map(pe::Certificate::from));
+            .extend(value.certs().iter().map(protos::pe::Certificate::from));
 
         sig.countersignatures.extend(
-            value.countersigs().iter().map(pe::CounterSignature::from),
+            value.countersigs().iter().map(protos::pe::CounterSignature::from),
         );
 
         sig.signer_info = MessageField::from_option(
-            value.signer().map(pe::SignerInfo::from),
+            value.signer().map(protos::pe::SignerInfo::from),
         );
 
         sig.set_number_of_certificates(
@@ -2285,9 +2300,9 @@ impl From<&authenticode_parser::Authenticode<'_>> for pe::Signature {
     }
 }
 
-impl From<authenticode_parser::Signer<'_>> for pe::SignerInfo {
+impl From<authenticode_parser::Signer<'_>> for protos::pe::SignerInfo {
     fn from(value: authenticode_parser::Signer) -> Self {
-        let mut signer_info = pe::SignerInfo::new();
+        let mut signer_info = protos::pe::SignerInfo::new();
 
         signer_info.digest = value.digest().map(|v| bytes2hex("", v));
         signer_info.digest_alg = value
@@ -2299,7 +2314,10 @@ impl From<authenticode_parser::Signer<'_>> for pe::SignerInfo {
             .and_then(|v| String::from_utf8(v.to_vec()).ok());
 
         signer_info.chain.extend(
-            value.certificate_chain().iter().map(pe::Certificate::from),
+            value
+                .certificate_chain()
+                .iter()
+                .map(protos::pe::Certificate::from),
         );
 
         signer_info
@@ -2307,10 +2325,10 @@ impl From<authenticode_parser::Signer<'_>> for pe::SignerInfo {
 }
 
 impl From<&authenticode_parser::Countersignature<'_>>
-    for pe::CounterSignature
+    for protos::pe::CounterSignature
 {
     fn from(value: &authenticode_parser::Countersignature) -> Self {
-        let mut cs = pe::CounterSignature::new();
+        let mut cs = protos::pe::CounterSignature::new();
 
         cs.digest = value.digest().map(|v| bytes2hex("", v));
         cs.digest_alg = value
@@ -2326,16 +2344,19 @@ impl From<&authenticode_parser::Countersignature<'_>>
         cs.set_sign_time(value.sign_time());
 
         cs.chain.extend(
-            value.certificate_chain().iter().map(pe::Certificate::from),
+            value
+                .certificate_chain()
+                .iter()
+                .map(protos::pe::Certificate::from),
         );
 
         cs
     }
 }
 
-impl From<&authenticode_parser::Certificate<'_>> for pe::Certificate {
+impl From<&authenticode_parser::Certificate<'_>> for protos::pe::Certificate {
     fn from(value: &authenticode_parser::Certificate) -> Self {
-        let mut cert = pe::Certificate::new();
+        let mut cert = protos::pe::Certificate::new();
 
         // Versions are 0-based, add 1 for getting the actual version.
         cert.set_version(value.version() + 1);
@@ -2384,13 +2405,13 @@ impl rva2off::Section for Section<'_> {
 }
 
 pub struct DirEntry {
-    addr: u32,
-    size: u32,
+    pub addr: u32,
+    pub size: u32,
 }
 
-impl From<&DirEntry> for pe::DirEntry {
+impl From<&DirEntry> for protos::pe::DirEntry {
     fn from(value: &DirEntry) -> Self {
-        let mut entry = pe::DirEntry::new();
+        let mut entry = protos::pe::DirEntry::new();
         entry.virtual_address = Some(value.addr);
         entry.size = Some(value.size);
         entry
@@ -2446,9 +2467,9 @@ pub struct ImportedFunc {
     rva: u32,
 }
 
-impl From<&ImportedFunc> for pe::Function {
+impl From<&ImportedFunc> for protos::pe::Function {
     fn from(value: &ImportedFunc) -> Self {
-        let mut func = pe::Function::new();
+        let mut func = protos::pe::Function::new();
         func.rva = Some(value.rva);
         func.ordinal = value.ordinal.map(|ordinal| ordinal.into());
         func.name = value.name.clone();
@@ -2471,9 +2492,9 @@ pub struct ExportedFunc<'a> {
     forward_name: Option<&'a str>,
 }
 
-impl From<&ExportedFunc<'_>> for pe::Export {
+impl From<&ExportedFunc<'_>> for protos::pe::Export {
     fn from(value: &ExportedFunc<'_>) -> Self {
-        let mut exp = pe::Export::new();
+        let mut exp = protos::pe::Export::new();
         exp.name = value.name.map(|name| name.to_owned());
         exp.ordinal = Some(value.ordinal);
         exp.rva = Some(value.rva);
@@ -2508,9 +2529,9 @@ pub struct Resource<'a> {
     rva: u32,
 }
 
-impl From<&Resource<'_>> for pe::Resource {
+impl From<&Resource<'_>> for protos::pe::Resource {
     fn from(value: &Resource) -> Self {
-        let mut resource = pe::Resource::new();
+        let mut resource = protos::pe::Resource::new();
         resource.rva = Some(value.rva);
         resource.length = Some(value.length);
         resource.offset = value.offset;
@@ -2520,7 +2541,7 @@ impl From<&Resource<'_>> for pe::Resource {
                 resource.type_ = id
                     .try_into()
                     .ok()
-                    .map(EnumOrUnknown::<pe::ResourceType>::from_i32);
+                    .map(EnumOrUnknown::<protos::pe::ResourceType>::from_i32);
             }
             ResourceId::Name(name) => {
                 resource.type_string = Some(name.to_vec())
