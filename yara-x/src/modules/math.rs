@@ -68,17 +68,14 @@ fn entropy(data: &[u8]) -> Option<f64> {
     }
 
     let mut distribution = [0u64; 256];
-
     for byte in data {
         distribution[*byte as usize] += 1;
     }
 
-    let total: u64 = distribution.iter().sum();
     let mut entropy: f64 = 0.0;
-
     for value in &distribution {
         if *value != 0 {
-            let x = *value as f64 / total as f64;
+            let x = *value as f64 / data.len() as f64;
             entropy -= x * f64::log2(x);
         }
     }
@@ -92,20 +89,16 @@ fn deviation(data: &[u8], mean: f64) -> Option<f64> {
     }
 
     let mut distribution = [0u64; 256];
-
     for byte in data {
         distribution[*byte as usize] += 1;
     }
 
-    let mut total: f64 = 0.0;
     let mut sum: f64 = 0.0;
-
     for (i, value) in distribution.iter().enumerate() {
-        total += *value as f64;
         sum += f64::abs(i as f64 - mean) * *value as f64;
     }
 
-    Some(sum / total)
+    Some(sum / data.len() as f64)
 }
 
 fn mean(data: &[u8]) -> Option<f64> {
@@ -114,20 +107,16 @@ fn mean(data: &[u8]) -> Option<f64> {
     }
 
     let mut distribution = [0u64; 256];
-
     for byte in data {
         distribution[*byte as usize] += 1;
     }
 
-    let mut total: f64 = 0.0;
     let mut sum: f64 = 0.0;
-
     for (i, value) in distribution.iter().enumerate() {
-        total += *value as f64;
         sum += i as f64 * *value as f64;
     }
 
-    Some(sum / total)
+    Some(sum / data.len() as f64)
 }
 
 #[cfg(test)]
