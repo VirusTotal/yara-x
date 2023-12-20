@@ -50,6 +50,18 @@ fn deviation_string(
     deviation(s.as_bstr(ctx).as_bytes(), mean)
 }
 
+#[module_export(name = "mean")]
+fn mean_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
+    let start = offset as usize;
+    let end = start.saturating_add(length as usize);
+    mean(ctx.scanned_data().get(start..end)?)
+}
+
+#[module_export(name = "mean")]
+fn mean_string(ctx: &ScanContext, s: RuntimeString) -> Option<f64> {
+    mean(s.as_bstr(ctx).as_bytes())
+}
+
 fn entropy(data: &[u8]) -> Option<f64> {
     if data.is_empty() {
         return None;
@@ -91,6 +103,28 @@ fn deviation(data: &[u8], mean: f64) -> Option<f64> {
     for (i, value) in distribution.iter().enumerate() {
         total += *value as f64;
         sum += f64::abs(i as f64 - mean) * *value as f64;
+    }
+
+    Some(sum / total)
+}
+
+fn mean(data: &[u8]) -> Option<f64> {
+    if data.is_empty() {
+        return None;
+    }
+
+    let mut distribution = [0u64; 256];
+
+    for byte in data {
+        distribution[*byte as usize] += 1;
+    }
+
+    let mut total: f64 = 0.0;
+    let mut sum: f64 = 0.0;
+
+    for (i, value) in distribution.iter().enumerate() {
+        total += *value as f64;
+        sum += i as f64 * *value as f64;
     }
 
     Some(sum / total)
@@ -195,6 +229,29 @@ mod tests {
                     math.deviation(2, 4, 65.0) == 0.5
             }"#,
             b"ABABABAB"
+        );
+    }
+
+    #[test]
+    fn mean() {
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.mean("ABCABC") == 66.0
+            }"#,
+            &[]
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.mean(0, 3) == 66.0
+            }"#,
+            b"ABCABC"
         );
     }
 }
