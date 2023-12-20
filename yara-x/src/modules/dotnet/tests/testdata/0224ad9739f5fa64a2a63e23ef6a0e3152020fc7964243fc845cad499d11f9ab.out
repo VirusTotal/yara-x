@@ -8,6 +8,7 @@ number_of_classes: 4
 number_of_assembly_refs: 4
 number_of_user_strings: 10
 number_of_constants: 3
+typelib: "286e82a5-8e28-4288-b175-0099b68f4880"
 streams:
   - name: "#-"
     offset: 2840

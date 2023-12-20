@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::cell::OnceCell;
 use std::ffi::CStr;
 use std::fmt::{Display, Formatter, Write};
+use std::str::from_utf8;
 
 use bits::complete::tag as bits_tag;
 use bits::complete::take as bits_take;
@@ -81,6 +82,8 @@ pub struct Dotnet<'a> {
     user_types: OnceCell<Vec<Class<'a>>>,
     /// All strings in the `#US` stream.
     user_strings: OnceCell<Vec<&'a [u8]>>,
+    /// The value of a custom attribute named `GuidAttribute`.
+    typelib: OnceCell<Option<&'a str>>,
     /// Modules table.
     modules: Vec<Option<&'a str>>,
     /// TypeRef table.
@@ -90,7 +93,7 @@ pub struct Dotnet<'a> {
     /// TypeSpec table.
     type_specs: Vec<BlobIndex>,
     /// MemberRef table.
-    member_refs: Vec<MemberRef<'a>>,
+    member_refs: Vec<MemberRef>,
     /// InterfaceImpl table.
     interface_impls: Vec<InterfaceImpl>,
     /// FieldRVA table.
@@ -232,6 +235,10 @@ impl<'a> Dotnet<'a> {
             }
         })
     }
+
+    pub fn get_typelib(&self) -> Option<&'a str> {
+        *self.typelib.get_or_init(|| self.parse_typelib())
+    }
 }
 
 impl<'a> Dotnet<'a> {
@@ -273,20 +280,6 @@ impl<'a> Dotnet<'a> {
         self.num_rows[table as usize]
     }
 
-    fn get_constant(&self, index: &CodedIndex) -> Option<&Constant> {
-        if index.table != Table::Constant {
-            return None;
-        }
-        self.constants.get(index.index)
-    }
-
-    fn get_member_ref(&self, index: &CodedIndex) -> Option<&MemberRef> {
-        if index.table != Table::MemberRef {
-            return None;
-        }
-        self.member_refs.get(index.index)
-    }
-
     fn get_type_ref(&self, index: &CodedIndex) -> Option<&TypeRef> {
         if index.table != Table::TypeRef {
             return None;
@@ -294,18 +287,18 @@ impl<'a> Dotnet<'a> {
         self.type_refs.get(index.index)
     }
 
-    fn get_type_spec(&self, index: &CodedIndex) -> Option<BlobIndex> {
+    fn get_type_spec(&self, index: &CodedIndex) -> Option<&BlobIndex> {
         if index.table != Table::TypeSpec {
             return None;
         }
-        self.type_specs.get(index.index).cloned()
+        self.type_specs.get(index.index)
     }
 
-    fn get_assembly_ref(&self, index: &CodedIndex) -> Option<&Assembly> {
-        if index.table != Table::AssemblyRef {
+    fn get_member_ref(&self, index: &CodedIndex) -> Option<&MemberRef> {
+        if index.table != Table::MemberRef {
             return None;
         }
-        self.assemblies.get(index.index)
+        self.member_refs.get(index.index)
     }
 }
 
@@ -324,24 +317,14 @@ impl<'a> Dotnet<'a> {
             )),
             |(
                 _,
-                major_runtime_version,
-                minor_runtime_version,
+                _major_runtime_version,
+                _minor_runtime_version,
                 metadata,
-                flags,
-                entry_point_token,
+                _flags,
+                _entry_point_token,
                 resources,
-                strong_name_signature,
-            )| {
-                CLIHeader {
-                    major_runtime_version,
-                    minor_runtime_version,
-                    metadata,
-                    flags,
-                    entry_point_token,
-                    resources,
-                    strong_name_signature,
-                }
-            },
+                _strong_name_signature,
+            )| { CLIHeader { metadata, resources } },
         )(input)
     }
 
@@ -376,20 +359,13 @@ impl<'a> Dotnet<'a> {
             )),
             |(
                 _magic,
-                major_version,
-                minor_version,
+                _major_version,
+                _minor_version,
                 _reserved,
                 version,
                 _flags,
                 stream_headers,
-            )| {
-                CLIMetadata {
-                    major_version,
-                    minor_version,
-                    stream_headers,
-                    version,
-                }
-            },
+            )| { CLIMetadata { stream_headers, version } },
         )(input)
     }
 
@@ -763,6 +739,35 @@ impl<'a> Dotnet<'a> {
         strings
     }
 
+    /// Try to find a custom attribute named `GuidAttribute` and return the
+    /// string associated it.
+    fn parse_typelib(&self) -> Option<&'a str> {
+        // Find the `GuidAttribute`.
+        let guid_attribute = self.custom_attributes.iter().find(|attr| {
+            if attr.parent.table == Table::Assembly
+                && attr.type_.table == Table::MemberRef
+            {
+                return self
+                    .get_member_ref(&attr.type_)
+                    .and_then(|m_ref| self.get_type_ref(&m_ref.class))
+                    .map(|class| matches!(class.name, Some("GuidAttribute")))
+                    .unwrap_or(false);
+            }
+            false
+        });
+
+        guid_attribute
+            .and_then(|guid_attribute| guid_attribute.value)
+            .and_then(|value_blob| {
+                let (_, (_prolog, name)) = tuple((
+                    le_u16::<&[u8], nom::error::Error<&'a [u8]>>, // prolog
+                    map_res(length_data(u8), from_utf8), // string size followed by string
+                ))(value_blob)
+                .ok()?;
+                Some(name)
+            })
+    }
+
     fn parse_user_types(&self) -> Vec<Class<'a>> {
         let mut classes = Vec::new();
         for (idx, type_def) in self.type_defs.iter().enumerate() {
@@ -843,7 +848,6 @@ impl<'a> Dotnet<'a> {
             ));
 
             classes.push(Class {
-                name: type_def.plain_name().unwrap(),
                 full_name: self.type_full_name(idx),
                 base_types,
                 visibility: type_def.visibility(),
@@ -1012,7 +1016,7 @@ impl<'a> Dotnet<'a> {
                 let mut name = String::new();
                 if self
                     .get_type_spec(index)
-                    .and_then(|blob_index| self.get_blob(blob_index))
+                    .and_then(|blob_index| self.get_blob(*blob_index))
                     .and_then(|data| {
                         self.parse_type_spec(data, &mut name, depth).ok()
                     })
@@ -1375,8 +1379,7 @@ impl<'a> Dotnet<'a> {
                 // type namespace
                 map(self.string_index(), |index| self.get_string(index)),
             )),
-            |(resolution_scope, type_name, type_namespace)| TypeRef {
-                resolution_scope,
+            |(_resolution_scope, type_name, type_namespace)| TypeRef {
                 name: type_name,
                 namespace: type_namespace,
             },
@@ -1527,11 +1530,11 @@ impl<'a> Dotnet<'a> {
                     Table::TypeSpec,
                 ]),
                 // name
-                map(self.string_index(), |index| self.get_string(index)),
+                self.string_index(),
                 // signature
-                map(self.blob_index(), |index| self.get_blob(index)),
+                self.blob_index(),
             )),
-            |(class, name, signature)| MemberRef { class, name, signature },
+            |(class, _name, _signature)| MemberRef { class },
         )
     }
 
@@ -2070,21 +2073,14 @@ impl<'a> Dotnet<'a> {
 ///
 /// ECMA-335 Section II.25.3.3
 struct CLIHeader {
-    major_runtime_version: u16,
-    minor_runtime_version: u16,
     metadata: DirEntry,
-    flags: u32,
-    entry_point_token: u32,
     resources: DirEntry,
-    strong_name_signature: DirEntry,
 }
 
 /// CLIMetadata
 ///
 /// ECMA-335 Section II.24.2.1
 struct CLIMetadata<'a> {
-    major_version: u16,
-    minor_version: u16,
     stream_headers: Vec<StreamHeader<'a>>,
     version: &'a [u8],
 }
@@ -2291,7 +2287,6 @@ impl CodedIndex {
 
 #[derive(Debug)]
 struct TypeRef<'a> {
-    resolution_scope: CodedIndex,
     name: Option<&'a str>,
     namespace: Option<&'a str>,
 }
@@ -2478,10 +2473,8 @@ impl MethodDef<'_> {
 }
 
 #[derive(Debug)]
-pub struct MemberRef<'a> {
+pub struct MemberRef {
     class: CodedIndex,
-    name: Option<&'a str>,
-    signature: Option<&'a [u8]>,
 }
 
 #[derive(Debug)]
@@ -2539,7 +2532,6 @@ pub struct GenericParam<'a> {
 
 #[derive(Debug)]
 pub struct Class<'a> {
-    name: &'a str,
     full_name: Option<String>,
     base_types: Vec<String>,
     visibility: Visibility,
@@ -2582,6 +2574,9 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
         result.set_is_dotnet(true);
         result.set_version(dotnet.version.to_vec());
         result.guids.extend(dotnet.get_guids().map(|guid| guid.to_string()));
+        result.typelib =
+            dotnet.get_typelib().map(|typelib| typelib.to_string());
+
         result.module_name = dotnet
             .modules
             .first()

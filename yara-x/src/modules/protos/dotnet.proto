@@ -25,16 +25,17 @@ message Dotnet {
   optional uint64 number_of_constants = 14;
   optional uint64 number_of_field_offsets = 15;
 
-  repeated Stream streams = 16;
+  optional string typelib = 16;
+  repeated Stream streams = 17;
 
-  repeated string guids = 17;
-  repeated bytes constants = 18;
-  optional Assembly assembly = 19;
-  repeated AssemblyRef assembly_refs = 20; 
-  repeated Resource resources = 21;
-  repeated Class classes = 22;
-  repeated uint32 field_offsets = 23;
-  repeated bytes user_strings = 24;
+  repeated string guids = 18;
+  repeated bytes constants = 19;
+  optional Assembly assembly = 20;
+  repeated AssemblyRef assembly_refs = 21; 
+  repeated Resource resources = 22;
+  repeated Class classes = 23;
+  repeated uint32 field_offsets = 24;
+  repeated bytes user_strings = 25;
 }
 
 message Assembly {
