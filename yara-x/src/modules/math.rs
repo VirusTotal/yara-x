@@ -161,7 +161,7 @@ mod tests {
         rule_true!(
             r#"
             import "math"
-            rule test { condition: math.min(-1,0) == 0 }"#,
+            rule test { condition: math.max(-1,0) == 0 }"#,
             &[]
         );
     }
