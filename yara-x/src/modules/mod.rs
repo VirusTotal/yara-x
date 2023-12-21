@@ -122,11 +122,11 @@ lazy_static! {
 pub mod mods {
     /*! Utility functions and structures for invoking YARA modules directly.
 
-    The utility functions [`invoke_mod`] and [`invoke_mod_dyn`] allow leveraging
-    YARA modules for parsing some file formats independently of any YARA rule.
-    With these functions you can pass arbitrary data to a YARA module and obtain
-    the same data structure that is accessible to YARA rules and which you use
-    in your rule conditions.
+    The utility functions [`invoke_mod`], [`invoke_mod_dyn`] and [`invoke_all`]
+    allow leveraging YARA modules for parsing some file formats independently
+    of any YARA rule. With these functions you can pass arbitrary data to a
+    YARA module and obtain the same data structure that is accessible to YARA
+    rules and which you use in your rule conditions.
 
     This allows external projects to benefit from YARA's file-parsing
     capabilities for their own purposes.
@@ -142,6 +142,9 @@ pub mod mods {
     pub use super::protos::macho::Macho;
     /// Data structure returned by the `pe` module.
     pub use super::protos::pe::PE;
+
+    /// A data structure contains the data returned by all modules.
+    pub use super::protos::mods::Modules;
 
     /// Invoke a YARA module with arbitrary data.
     ///
@@ -192,5 +195,26 @@ pub mod mods {
             })?;
 
         Some(module.main_fn?(data))
+    }
+
+    /// Invoke all YARA modules and return the data produced by them.
+    ///
+    /// This function is similar to [`invoke_mod`], but it returns the
+    /// information produced by all modules at once.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use yara_x;
+    /// # let data = &[];
+    /// let modules_output = yara_x::mods::invoke_all(data);
+    /// ```
+    pub fn invoke_all(data: &[u8]) -> Box<Modules> {
+        let mut info = Box::new(Modules::new());
+        info.pe = protobuf::MessageField(invoke_mod::<PE>(data));
+        info.elf = protobuf::MessageField(invoke_mod::<ELF>(data));
+        info.dotnet = protobuf::MessageField(invoke_mod::<Dotnet>(data));
+        info.macho = protobuf::MessageField(invoke_mod::<Macho>(data));
+        info.lnk = protobuf::MessageField(invoke_mod::<Lnk>(data));
+        info
     }
 }
