@@ -1229,7 +1229,7 @@ impl<'a> Dotnet<'a> {
         }
     }
 
-    /// Returns a parser of an index in the `#Strings` stream.
+    /// Returns a parser for an index in the `#Strings` stream.
     #[inline]
     fn string_index(
         &self,

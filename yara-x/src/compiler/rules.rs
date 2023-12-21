@@ -73,7 +73,7 @@ pub struct Rules {
     /// where the sub-pattern belongs to.
     pub(in crate::compiler) sub_patterns: Vec<(PatternId, SubPattern)>,
 
-    /// Vector that contains the [`SubPatternId`] and for sub-patterns that can
+    /// Vector that contains the [`SubPatternId`] for sub-patterns that can
     /// match only at a fixed offset within the scanned data. These sub-patterns
     /// are not added to the Aho-Corasick automaton.
     pub(in crate::compiler) anchored_sub_patterns: Vec<SubPatternId>,
@@ -248,6 +248,28 @@ impl Rules {
         unsafe { self.sub_patterns.get_unchecked(sub_pattern_id.0 as usize) }
     }
 
+    /// Given a [`SubPatternId`], returns the [`RuleId`] corresponding to the
+    /// rule that contains the sub-pattern, and the [`IdentId`] for the pattern's
+    /// identifier.
+    ///
+    /// This operation is slow, because it implies iterating over all the rules
+    /// and their sub-patterns until finding the one we are looking for.
+    #[cfg(feature = "logging")]
+    pub(crate) fn get_rule_and_pattern_by_sub_pattern_id(
+        &self,
+        sub_pattern_id: SubPatternId,
+    ) -> Option<(RuleId, IdentId)> {
+        let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
+        for (rule_id, rule) in self.rules().iter().enumerate() {
+            for (ident_id, pattern_id) in &rule.patterns {
+                if pattern_id == target_pattern_id {
+                    return Some((rule_id.into(), *ident_id));
+                };
+            }
+        }
+        None
+    }
+
     #[inline]
     pub(crate) fn atoms(&self) -> &[SubPatternAtom] {
         self.atoms.as_slice()
@@ -257,6 +279,7 @@ impl Rules {
     pub(crate) fn anchored_sub_patterns(&self) -> &[SubPatternId] {
         self.anchored_sub_patterns.as_slice()
     }
+
     #[inline]
     pub(crate) fn re_code(&self) -> &[u8] {
         self.re_code.as_slice()
@@ -285,16 +308,41 @@ impl Rules {
         #[cfg(feature = "logging")]
         let mut num_atoms = [0_usize; 6];
 
-        self.ac = Some(
-            AhoCorasick::new(self.atoms.iter().map(|x| {
-                #[cfg(feature = "logging")]
+        let atoms = self.atoms.iter().map(|x| {
+            #[cfg(feature = "logging")]
+            {
                 match x.atom.len() {
                     atom_len @ 0..=4 => num_atoms[atom_len] += 1,
                     _ => num_atoms[num_atoms.len() - 1] += 1,
                 }
-                x.atom.as_slice()
-            }))
-            .expect("failed to build Aho-Corasick automaton"),
+
+                if x.atom.len() < 2 {
+                    let (rule_id, pattern_ident_id) = self
+                        .get_rule_and_pattern_by_sub_pattern_id(
+                            x.sub_pattern_id,
+                        )
+                        .unwrap();
+
+                    let rule = self.get(rule_id);
+
+                    info!(
+                            "Very short atom in pattern `{}` in rule `{}:{}` (length: {})",
+                            self.ident_pool.get(pattern_ident_id).unwrap(),
+                            self.ident_pool
+                                .get(rule.namespace_ident_id)
+                                .unwrap(),
+                            self.ident_pool.get(rule.ident_id).unwrap(),
+                            x.atom.len()
+                        );
+                }
+            }
+
+            x.atom.as_slice()
+        });
+
+        self.ac = Some(
+            AhoCorasick::new(atoms)
+                .expect("failed to build Aho-Corasick automaton"),
         );
 
         #[cfg(feature = "logging")]
