@@ -51,6 +51,7 @@ of `0xAA`. Stated differently, the opcode `0xAA` serves as a special case that
 solely matches the `0xAA` byte.
  */
 
+use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 use std::u8;
 
@@ -74,6 +75,12 @@ pub struct SplitId(u16);
 impl From<SplitId> for usize {
     fn from(value: SplitId) -> Self {
         value.0 as Self
+    }
+}
+
+impl Display for SplitId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

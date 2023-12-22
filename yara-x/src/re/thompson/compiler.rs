@@ -1498,7 +1498,7 @@ impl Display for InstrSeq {
                 Instr::SplitA(id, offset) => {
                     writeln!(
                         f,
-                        "{:05x}: SPLIT_A({:?}) {:05x}",
+                        "{:05x}: SPLIT_A({}) {:05x}",
                         addr,
                         id,
                         addr as isize + offset as isize,
@@ -1507,14 +1507,14 @@ impl Display for InstrSeq {
                 Instr::SplitB(id, offset) => {
                     writeln!(
                         f,
-                        "{:05x}: SPLIT_B({:?}) {:05x}",
+                        "{:05x}: SPLIT_B({}) {:05x}",
                         addr,
                         id,
                         addr as isize + offset as isize,
                     )?;
                 }
                 Instr::SplitN(split) => {
-                    write!(f, "{:05x}: SPLIT_N({:?})", addr, split.id())?;
+                    write!(f, "{:05x}: SPLIT_N({})", addr, split.id())?;
                     for offset in split.offsets() {
                         write!(f, " {:05x}", addr as isize + offset as isize)?;
                     }
