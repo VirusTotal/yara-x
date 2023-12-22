@@ -243,7 +243,7 @@ impl<'a> Dotnet<'a> {
 
 impl<'a> Dotnet<'a> {
     const MAX_PARAMS: u32 = 1000;
-    const MAX_ROWS_PER_TABLE: u32 = 1000;
+    const MAX_ROWS_PER_TABLE: u32 = 10000;
     const MAX_ARRAY_DIMENSION: u32 = 50;
     const MAX_RECURSION: usize = 16;
 
