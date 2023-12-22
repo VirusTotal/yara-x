@@ -1114,7 +1114,11 @@ impl AsRef<[u8]> for InstrSeq {
 impl InstrSeq {
     /// Creates a new [`InstrSeq`].
     pub fn new() -> Self {
-        Self { seq_id: 0, seq: Cursor::new(Vec::new()), split_id: 0 }
+        Self {
+            seq_id: 0,
+            seq: Cursor::new(Vec::new()),
+            split_id: SplitId::default(),
+        }
     }
 
     /// Creates a new [`InstrSeq`] with an ID that is `self.seq_id() + 1`.
@@ -1172,11 +1176,11 @@ impl InstrSeq {
                 // the split. Each split in the same regexp have a unique
                 // value.
                 self.seq
-                    .write_all(SplitId::to_le_bytes(self.split_id).as_slice())
+                    .write_all(self.split_id.to_le_bytes().as_slice())
                     .unwrap();
                 // Increment the split ID, so that the next split has a
                 // different ID.
-                if let Some(incremented) = self.split_id.checked_add(1) {
+                if let Some(incremented) = self.split_id.add(1) {
                     self.split_id = incremented
                 } else {
                     return Err(Error::TooLarge);
@@ -1206,11 +1210,9 @@ impl InstrSeq {
         let location = self.location();
 
         self.seq.write_all(&[OPCODE_PREFIX, Instr::SPLIT_N]).unwrap();
-        self.seq
-            .write_all(SplitId::to_le_bytes(self.split_id).as_slice())
-            .unwrap();
+        self.seq.write_all(self.split_id.to_le_bytes().as_slice()).unwrap();
 
-        if let Some(incremented) = self.split_id.checked_add(1) {
+        if let Some(incremented) = self.split_id.add(1) {
             self.split_id = incremented
         } else {
             return Err(Error::TooLarge);
@@ -1335,7 +1337,7 @@ impl InstrSeq {
                             self.split_id.to_le_bytes().as_slice(),
                         );
 
-                    if let Some(incremented) = self.split_id.checked_add(1) {
+                    if let Some(incremented) = self.split_id.add(1) {
                         self.split_id = incremented
                     } else {
                         return Err(Error::TooLarge);
@@ -1496,7 +1498,7 @@ impl Display for InstrSeq {
                 Instr::SplitA(id, offset) => {
                     writeln!(
                         f,
-                        "{:05x}: SPLIT_A({}) {:05x}",
+                        "{:05x}: SPLIT_A({:?}) {:05x}",
                         addr,
                         id,
                         addr as isize + offset as isize,
@@ -1505,14 +1507,14 @@ impl Display for InstrSeq {
                 Instr::SplitB(id, offset) => {
                     writeln!(
                         f,
-                        "{:05x}: SPLIT_B({}) {:05x}",
+                        "{:05x}: SPLIT_B({:?}) {:05x}",
                         addr,
                         id,
                         addr as isize + offset as isize,
                     )?;
                 }
                 Instr::SplitN(split) => {
-                    write!(f, "{:05x}: SPLIT_N({})", addr, split.id())?;
+                    write!(f, "{:05x}: SPLIT_N({:?})", addr, split.id())?;
                     for offset in split.offsets() {
                         write!(f, " {:05x}", addr as isize + offset as isize)?;
                     }

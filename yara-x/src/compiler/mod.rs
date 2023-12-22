@@ -1077,9 +1077,9 @@ impl<'a> Compiler<'a> {
             return Ok(());
         }
 
-        // This is a standard, a pattern that can't be split into
-        // multiple chained patterns, and is neither a literal or
-        // alternation of literals.
+        // If this point is reached, this is a pattern that can't be split into
+        // multiple chained patterns, and is neither a literal or alternation
+        // of literals. Most patterns fall in this category.
         let mut flags = SubPatternFlagSet::none();
 
         if pattern.flags.contains(PatternFlags::Nocase) {
