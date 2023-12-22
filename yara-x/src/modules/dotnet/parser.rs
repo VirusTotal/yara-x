@@ -262,7 +262,7 @@ impl<'a> Dotnet<'a> {
     fn get_blob(&self, index: BlobIndex) -> Option<&'a [u8]> {
         let blob_stream = self.get_stream(self.blob_stream?)?;
         let data = blob_stream.get(index.0 as usize..)?;
-        let (data, length) = varint(data).ok()?;
+        let (data, length) = var_uint(data).ok()?;
         data.get(0..length as usize)
     }
 
@@ -712,7 +712,7 @@ impl<'a> Dotnet<'a> {
         {
             // The `#US` stream is composed of a series of varints followed by
             // the number of bytes indicated by the varint.
-            many0(length_data(varint))(us_stream)
+            many0(length_data(var_uint))(us_stream)
                 .map(|(_, strings)| strings)
                 .ok()
         } else {
@@ -874,9 +874,9 @@ impl<'a> Dotnet<'a> {
             tuple((
                 // Generic param count, present only if
                 // SIG_FLAG_GENERIC flag is set.
-                cond(flags & 0x10 != 0, varint),
+                cond(flags & 0x10 != 0, var_uint),
                 // Regular param count.
-                varint,
+                var_uint,
             ))(remainder)
             .ok()?;
 
@@ -1086,7 +1086,7 @@ impl<'a> Dotnet<'a> {
             Type::ValueType | Type::Class => {
                 let coded_index;
 
-                (remainder, coded_index) = map_res(varint, |v| {
+                (remainder, coded_index) = map_res(var_uint, |v| {
                     CodedIndex::from_u32(Table::TYPE_DEF_OR_REF, v)
                 })(remainder)?;
 
@@ -1100,7 +1100,7 @@ impl<'a> Dotnet<'a> {
             Type::Var | Type::MVar => {
                 let index;
 
-                (remainder, index) = varint(remainder)?;
+                (remainder, index) = var_uint(remainder)?;
 
                 let name = self
                     .generic_params
@@ -1121,20 +1121,22 @@ impl<'a> Dotnet<'a> {
                     // dimensions, limited to a sane limit of
                     // MAX_ARRAY_DIMENSION as a protection against corrupted
                     // files.
-                    verify(varint, |dimension| {
+                    verify(var_uint, |dimension| {
                         *dimension <= Self::MAX_ARRAY_DIMENSION
                     }),
-                    // number of sizes, followed by the sizes as varints.
-                    // The number of sizes is also limited to
-                    // MAX_ARRAY_DIMENSION.
+                    // number of sizes, followed by the sizes as variable
+                    // length unsigned ints. The number of sizes is also limited
+                    // to MAX_ARRAY_DIMENSION.
                     length_count(
-                        verify(varint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
-                        varint,
+                        verify(var_uint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
+                        var_uint,
                     ),
-                    // number of lower bounds and the lower bounds themselves.
+                    // number of lower bounds, followed by the lower bounds as
+                    // variable length *signed* ints. This is the only place
+                    // where signed ints are used.
                     length_count(
-                        verify(varint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
-                        varint,
+                        verify(var_uint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
+                        var_sint,
                     ),
                 ))(
                     remainder
@@ -1146,7 +1148,7 @@ impl<'a> Dotnet<'a> {
                     if size > 0 {
                         let l =
                             lower_bounds.get(i as usize).cloned().unwrap_or(0);
-                        let h = l + size - 1;
+                        let h = l + (size as i32) - 1;
                         write!(output, "{}...{}", l, h)?;
                     }
                     // If not the last item, prepend a comma.
@@ -1166,7 +1168,7 @@ impl<'a> Dotnet<'a> {
                 remainder = self.parse_type_spec(remainder, output, depth)?;
 
                 (remainder, count) =
-                    verify(varint, |count| *count < Self::MAX_PARAMS)(
+                    verify(var_uint, |count| *count < Self::MAX_PARAMS)(
                         remainder,
                     )?;
 
@@ -1187,7 +1189,7 @@ impl<'a> Dotnet<'a> {
                 // to MAX_PARAMS.
                 (remainder, (_, count)) = tuple((
                     u8,
-                    verify(varint, |count| *count < Self::MAX_PARAMS),
+                    verify(var_uint, |count| *count < Self::MAX_PARAMS),
                 ))(remainder)?;
 
                 write!(output, "FnPtr<")?;
@@ -1203,7 +1205,7 @@ impl<'a> Dotnet<'a> {
                 write!(output, ")>")?;
             }
             Type::CModReqd | Type::CModOpt => {
-                (remainder, _) = varint(remainder)?;
+                (remainder, _) = var_uint(remainder)?;
                 remainder = self.parse_type_spec(remainder, output, depth)?;
             }
             _ => return Err(Error::InvalidType),
@@ -2769,7 +2771,7 @@ impl From<&MethodParam<'_>> for protos::dotnet::Param {
     }
 }
 
-/// Parses a variable-length integer.
+/// Parses a variable-length unsigned integer.
 ///
 /// Blob sizes and other integers in the ECMA-335 specification are encoded
 /// as variable-length integers that can occupy 1, 2 or 4 bytes. The number
@@ -2783,7 +2785,7 @@ impl From<&MethodParam<'_>> for protos::dotnet::Param {
 ///
 /// * If the most significant bits are 110, the integer is encoded as 4 bytes,
 ///   and the value is stored the remaining 29 bits.
-fn varint(input: &[u8]) -> IResult<&[u8], u32> {
+fn var_uint(input: &[u8]) -> IResult<&[u8], u32> {
     let (remainder, (_, value)) =
         bits::bits::<_, _, nom::error::Error<(&[u8], usize)>, _, _>(alt((
             bits_tag(0b0, 1u8).and(bits_take(7u8)),
@@ -2794,38 +2796,110 @@ fn varint(input: &[u8]) -> IResult<&[u8], u32> {
     Ok((remainder, value))
 }
 
+/// Parses a variable-length signed integer.
+///
+/// Similar to [`var_uint`] but for signed integers instead of unsigned.
+/// The encoding mechanism is a bit more convoluted, and is described in
+/// ECMA-325 II.23.2.
+fn var_sint(input: &[u8]) -> IResult<&[u8], i32> {
+    let (remainder, value) = bits::bits::<
+        _,
+        _,
+        nom::error::Error<(&[u8], usize)>,
+        _,
+        _,
+    >(alt((
+        map(bits_tag(0b0, 1u8).and(bits_take(7u8)), |(_, x): (_, i32)| {
+            if x & 0x01 != 0 {
+                (x >> 1) - 0x40
+            } else {
+                x >> 1
+            }
+        }),
+        map(bits_tag(0b10, 2u8).and(bits_take(14u8)), |(_, x): (_, i32)| {
+            if x & 0x01 != 0 {
+                (x >> 1) - 0x2000
+            } else {
+                x >> 1
+            }
+        }),
+        map(bits_tag(0b110, 3u8).and(bits_take(29u8)), |(_, x): (_, i32)| {
+            if x & 0x01 != 0 {
+                (x >> 1) - 0x10000000
+            } else {
+                x >> 1
+            }
+        }),
+    )))(input)?;
+
+    Ok((remainder, value))
+}
+
 #[cfg(test)]
 mod test {
     #[test]
-    fn varint() {
+    fn var_uint() {
         assert_eq!(
-            super::varint(&[0x00, 0x00]).unwrap(),
+            super::var_uint(&[0x00, 0x00]).unwrap(),
             ([0x00_u8].as_slice(), 0)
         );
 
         assert_eq!(
-            super::varint(&[0x01, 0x00]).unwrap(),
+            super::var_uint(&[0x01, 0x00]).unwrap(),
             ([0x00_u8].as_slice(), 1)
         );
 
         assert_eq!(
-            super::varint(&[0x7F, 0x00]).unwrap(),
+            super::var_uint(&[0x7F, 0x00]).unwrap(),
             ([0x00_u8].as_slice(), 0x7F)
         );
 
         assert_eq!(
-            super::varint(&[0x8A, 0x00]).unwrap(),
+            super::var_uint(&[0x8A, 0x00]).unwrap(),
             ([].as_slice(), 0x0A00)
         );
 
         assert_eq!(
-            super::varint(&[0xC1, 0x02, 0x03, 0x04]).unwrap(),
+            super::var_uint(&[0xC1, 0x02, 0x03, 0x04]).unwrap(),
             ([].as_slice(), 0x01020304)
         );
 
         assert_eq!(
-            super::varint(&[0xDF, 0xFF, 0xFF, 0xFF]).unwrap(),
+            super::var_uint(&[0xDF, 0xFF, 0xFF, 0xFF]).unwrap(),
             ([].as_slice(), 0x1FFFFFFF)
+        );
+    }
+
+    #[test]
+    fn var_sint() {
+        assert_eq!(super::var_sint(&[0x6]).unwrap(), ([].as_slice(), 3));
+        assert_eq!(super::var_sint(&[0x7B]).unwrap(), ([].as_slice(), -3));
+
+        assert_eq!(
+            super::var_sint(&[0x80, 0x80]).unwrap(),
+            ([].as_slice(), 64)
+        );
+
+        assert_eq!(super::var_sint(&[0x01]).unwrap(), ([].as_slice(), -64));
+
+        assert_eq!(
+            super::var_sint(&[0xC0, 0x00, 0x40, 0x00]).unwrap(),
+            ([].as_slice(), 8192)
+        );
+
+        assert_eq!(
+            super::var_sint(&[0x80, 0x01]).unwrap(),
+            ([].as_slice(), -8192)
+        );
+
+        assert_eq!(
+            super::var_sint(&[0xDF, 0xFF, 0xFF, 0xFE]).unwrap(),
+            ([].as_slice(), 268435455)
+        );
+
+        assert_eq!(
+            super::var_sint(&[0xC0, 0x00, 0x00, 0x01]).unwrap(),
+            ([].as_slice(), -268435456)
         );
     }
 }
