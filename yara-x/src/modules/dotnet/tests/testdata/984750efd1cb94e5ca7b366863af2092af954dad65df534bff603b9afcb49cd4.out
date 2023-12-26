@@ -844,7 +844,7 @@ classes:
         static: true
         virtual: false
         final: false
-        return_type: "System.Threading.Tasks.Task<TResult>"
+        return_type: "System.Threading.Tasks.Task<T>"
         number_of_generic_parameters: 1
         number_of_parameters: 4
         generic_parameters:
@@ -926,7 +926,7 @@ classes:
         static: true
         virtual: false
         final: false
-        return_type: "System.Threading.Tasks.Task<TResult>"
+        return_type: "System.Threading.Tasks.Task<T>"
         number_of_generic_parameters: 1
         number_of_parameters: 3
         generic_parameters:

@@ -777,7 +777,7 @@ impl<'a> Dotnet<'a> {
                 continue;
             }
 
-            let generic_params: Vec<_> = self
+            let generic_class_params: Vec<_> = self
                 .generic_params
                 .iter()
                 .filter_map(|param| {
@@ -811,6 +811,7 @@ impl<'a> Dotnet<'a> {
                         self.convert_method_def(
                             type_def.method_list + idx,
                             method_def,
+                            generic_class_params.as_slice(),
                         )
                     })
                     .collect()
@@ -825,9 +826,12 @@ impl<'a> Dotnet<'a> {
 
             // If the current class extends some other class, add the full name
             // of this other class to `base_types`.
-            if let Some(name) =
-                self.type_def_or_ref_fullname(&type_def.extends, &mut depth)
-            {
+            if let Some(name) = self.type_def_or_ref_fullname(
+                &type_def.extends,
+                &mut depth,
+                generic_class_params.as_slice(),
+                &[],
+            ) {
                 base_types.push(name)
             }
 
@@ -840,6 +844,8 @@ impl<'a> Dotnet<'a> {
                         self.type_def_or_ref_fullname(
                             &interface_impl.interface,
                             &mut depth,
+                            generic_class_params.as_slice(),
+                            &[],
                         )
                     } else {
                         None
@@ -855,7 +861,7 @@ impl<'a> Dotnet<'a> {
                 is_abstract: type_def.is_abstract(),
                 is_sealed: type_def.is_sealed(),
                 methods,
-                generic_params,
+                generic_params: generic_class_params,
             });
         }
         classes
@@ -865,6 +871,7 @@ impl<'a> Dotnet<'a> {
         &self,
         method_def_idx: usize,
         method_def: &MethodDef<'a>,
+        generic_class_params: &[&'a str],
     ) -> Option<Method<'a>> {
         let (remainder, flags) =
             u8::<&[u8], nom::error::Error<&'a [u8]>>(method_def.signature?)
@@ -880,7 +887,7 @@ impl<'a> Dotnet<'a> {
             ))(remainder)
             .ok()?;
 
-        let generic_params: Vec<_> = self
+        let generic_method_params: Vec<_> = self
             .generic_params
             .iter()
             .filter_map(|param| {
@@ -898,7 +905,13 @@ impl<'a> Dotnet<'a> {
         let mut depth = 0;
 
         let mut remainder = self
-            .parse_type_spec(remainder, &mut return_type, &mut depth)
+            .parse_type_spec(
+                remainder,
+                &mut return_type,
+                &mut depth,
+                generic_class_params,
+                generic_method_params.as_slice(),
+            )
             .ok()?;
 
         let mut method_params = Vec::new();
@@ -919,7 +932,13 @@ impl<'a> Dotnet<'a> {
             let mut param_type = String::new();
 
             remainder = self
-                .parse_type_spec(remainder, &mut param_type, &mut depth)
+                .parse_type_spec(
+                    remainder,
+                    &mut param_type,
+                    &mut depth,
+                    generic_class_params,
+                    generic_method_params.as_slice(),
+                )
                 .ok()?;
 
             method_params.push(MethodParam { name, type_: Some(param_type) })
@@ -936,7 +955,7 @@ impl<'a> Dotnet<'a> {
 
         Some(Method {
             name: method_def.name?,
-            generic_params,
+            generic_params: generic_method_params,
             params: method_params,
             return_type,
             visibility: method_def.visibility(),
@@ -1001,6 +1020,8 @@ impl<'a> Dotnet<'a> {
         &self,
         index: &CodedIndex,
         depth: &mut usize,
+        generic_class_params: &[&'a str],
+        generic_method_params: &[&'a str],
     ) -> Option<String> {
         match index.table {
             Table::TypeDef => self.type_full_name(index.index),
@@ -1018,7 +1039,14 @@ impl<'a> Dotnet<'a> {
                     .get_type_spec(index)
                     .and_then(|blob_index| self.get_blob(*blob_index))
                     .and_then(|data| {
-                        self.parse_type_spec(data, &mut name, depth).ok()
+                        self.parse_type_spec(
+                            data,
+                            &mut name,
+                            depth,
+                            generic_class_params,
+                            generic_method_params,
+                        )
+                        .ok()
                     })
                     .is_some()
                 {
@@ -1045,6 +1073,8 @@ impl<'a> Dotnet<'a> {
         input: &'a [u8],
         output: &mut dyn Write,
         depth: &mut usize,
+        generic_class_params: &[&'a str],
+        generic_method_params: &[&'a str],
     ) -> Result<&'a [u8], Error<'a>> {
         if *depth == Self::MAX_RECURSION {
             return Err(Error::RecursionLimit);
@@ -1076,12 +1106,24 @@ impl<'a> Dotnet<'a> {
             Type::U => write!(output, "UintPtr")?,
             Type::Ptr => {
                 write!(output, "Ptr<")?;
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
                 write!(output, ">")?;
             }
             Type::ByRef => {
                 write!(output, "ref ")?;
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
             }
             Type::ValueType | Type::Class => {
                 let coded_index;
@@ -1093,8 +1135,13 @@ impl<'a> Dotnet<'a> {
                 write!(
                     output,
                     "{}",
-                    self.type_def_or_ref_fullname(&coded_index, depth)
-                        .ok_or(Error::InvalidType)?
+                    self.type_def_or_ref_fullname(
+                        &coded_index,
+                        depth,
+                        generic_class_params,
+                        generic_method_params
+                    )
+                    .ok_or(Error::InvalidType)?
                 )?;
             }
             Type::Var | Type::MVar => {
@@ -1102,11 +1149,15 @@ impl<'a> Dotnet<'a> {
 
                 (remainder, index) = var_uint(remainder)?;
 
-                let name = self
-                    .generic_params
-                    .get(index as usize)
-                    .and_then(|p| p.name)
-                    .ok_or(Error::InvalidType)?;
+                let name = if matches!(type_, Type::Var) {
+                    generic_class_params
+                        .get(index as usize)
+                        .ok_or(Error::InvalidType)?
+                } else {
+                    generic_method_params
+                        .get(index as usize)
+                        .ok_or(Error::InvalidType)?
+                };
 
                 write!(output, "{}", name)?;
             }
@@ -1115,7 +1166,13 @@ impl<'a> Dotnet<'a> {
                 let sizes;
                 let lower_bounds;
 
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
 
                 (remainder, (dimensions, sizes, lower_bounds)) = tuple((
                     // dimensions, limited to a sane limit of
@@ -1163,13 +1220,25 @@ impl<'a> Dotnet<'a> {
                 write!(output, "]")?;
             }
             Type::SzArray => {
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
                 write!(output, "[]")?;
             }
             Type::GenericInst => {
                 let count;
 
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
 
                 (remainder, count) =
                     verify(var_uint, |count| *count < Self::MAX_PARAMS)(
@@ -1178,8 +1247,13 @@ impl<'a> Dotnet<'a> {
 
                 write!(output, "<")?;
                 for i in 1..=count {
-                    remainder =
-                        self.parse_type_spec(remainder, output, depth)?;
+                    remainder = self.parse_type_spec(
+                        remainder,
+                        output,
+                        depth,
+                        generic_class_params,
+                        generic_method_params,
+                    )?;
                     if i < count {
                         write!(output, ",")?;
                     }
@@ -1197,11 +1271,22 @@ impl<'a> Dotnet<'a> {
                 ))(remainder)?;
 
                 write!(output, "FnPtr<")?;
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
                 write!(output, "(")?;
                 for i in 1..=count {
-                    remainder =
-                        self.parse_type_spec(remainder, output, depth)?;
+                    remainder = self.parse_type_spec(
+                        remainder,
+                        output,
+                        depth,
+                        generic_class_params,
+                        generic_method_params,
+                    )?;
                     if i < count {
                         write!(output, ", ")?;
                     }
@@ -1210,7 +1295,13 @@ impl<'a> Dotnet<'a> {
             }
             Type::CModReqd | Type::CModOpt => {
                 (remainder, _) = var_uint(remainder)?;
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
             }
             _ => return Err(Error::InvalidType),
         };
