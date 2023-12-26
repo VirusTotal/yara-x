@@ -232,6 +232,7 @@ resources:
     language: 1033
 import_details:
   - library_name: "MSVCR100.dll"
+    number_of_functions: 16
     functions:
       - name: "_crt_debugger_hook"
         rva: 12380
@@ -266,6 +267,7 @@ import_details:
       - name: "free"
         rva: 12440
   - library_name: "KERNEL32.dll"
+    number_of_functions: 22
     functions:
       - name: "Sleep"
         rva: 12288
@@ -313,6 +315,7 @@ import_details:
         rva: 12372
 delayed_import_details:
   - library_name: "QDB.dll"
+    number_of_functions: 6
     functions:
       - name: "ord116"
         ordinal: 116

@@ -161,6 +161,7 @@ resources:
     language: 0
 import_details:
   - library_name: "mscoree.dll"
+    number_of_functions: 1
     functions:
       - name: "_CorDllMain"
         rva: 8192

@@ -221,6 +221,7 @@ resources:
     language: 1033
 import_details:
   - library_name: "msvcrt.dll"
+    number_of_functions: 6
     functions:
       - name: "__C_specific_handler"
         rva: 8624
@@ -235,6 +236,7 @@ import_details:
       - name: "_amsg_exit"
         rva: 8664
   - library_name: "KERNEL32.dll"
+    number_of_functions: 18
     functions:
       - name: "LoadLibraryExW"
         rva: 8472
