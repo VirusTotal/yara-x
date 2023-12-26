@@ -18,6 +18,11 @@ fn min(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
 }
 
 #[module_export]
+fn max(_ctx: &ScanContext, a: i64, b: i64) -> i64 {
+    i64::max(a, b)
+}
+
+#[module_export]
 fn abs(_ctx: &ScanContext, x: i64) -> i64 {
     x.abs()
 }
