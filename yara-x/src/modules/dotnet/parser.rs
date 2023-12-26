@@ -1148,8 +1148,12 @@ impl<'a> Dotnet<'a> {
                     if size > 0 {
                         let l =
                             lower_bounds.get(i as usize).cloned().unwrap_or(0);
-                        let h = l + (size as i32) - 1;
-                        write!(output, "{}...{}", l, h)?;
+                        let h = l + (size as i32);
+                        if l == 0 {
+                            write!(output, "{}", size)?;
+                        } else {
+                            write!(output, "{}...{}", l, h)?;
+                        }
                     }
                     // If not the last item, prepend a comma.
                     if i + 1 != dimensions {
