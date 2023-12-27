@@ -337,7 +337,7 @@ impl Rules {
                 }
             }
 
-            x.atom.as_slice()
+            x.atom.as_ref()
         });
 
         self.ac = Some(
@@ -500,7 +500,7 @@ impl SubPatternAtom {
 
     #[inline]
     pub(crate) fn as_slice(&self) -> &[u8] {
-        self.atom.as_slice()
+        self.atom.as_ref()
     }
 
     #[inline]

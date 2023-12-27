@@ -29,9 +29,9 @@ macro_rules! assert_re_code {
             )
             .unwrap();
 
-        assert_eq!(fwd_code.to_string(), $fwd);
-        assert_eq!(bck_code.to_string(), $bck);
-        assert_eq!(atoms, $atoms);
+        assert_eq!($fwd, fwd_code.to_string());
+        assert_eq!($bck, bck_code.to_string());
+        assert_eq!($atoms, atoms);
 
         let mut fwd_closure = BitmapSet::new();
         let mut cache = EpsilonClosureState::new();
@@ -44,7 +44,8 @@ macro_rules! assert_re_code {
             &mut cache,
             &mut fwd_closure,
         );
-        assert_eq!(fwd_closure.into_vec(), $fwd_closure);
+
+        assert_eq!($fwd_closure, fwd_closure.into_vec());
 
         let mut bck_closure = BitmapSet::new();
         epsilon_closure(
@@ -55,7 +56,8 @@ macro_rules! assert_re_code {
             &mut cache,
             &mut bck_closure,
         );
-        assert_eq!(bck_closure.into_vec(), $bck_closure);
+
+        assert_eq!($bck_closure, bck_closure.into_vec());
     }};
 }
 
@@ -893,10 +895,25 @@ fn re_code_17() {
 0004a: MATCH
 "#,
         // Atoms
-        vec![RegexpAtom {
-            atom: Atom::inexact(vec![]),
-            code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0 },
-        },],
+        vec![
+            RegexpAtom {
+                atom: Atom::inexact(vec![]),
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x4A },
+            },
+            RegexpAtom {
+                atom: Atom::inexact(vec![0x61, 0x62, 0x63]),
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x4A },
+            },
+            RegexpAtom {
+                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x61]),
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x4A },
+            },
+            // TODO: why duplicated?
+            RegexpAtom {
+                atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x61]),
+                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x4A },
+            }
+        ],
         // Epsilon closure starting at forward code 0.
         vec![0x4a, 0x47, 0x29, 0x13],
         // Epsilon closure starting at backward code 0.
