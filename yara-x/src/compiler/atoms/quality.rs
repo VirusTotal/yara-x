@@ -1,9 +1,8 @@
-use std::cmp;
-use std::cmp::Ordering;
+use std::cmp::{min, Ordering};
 use std::collections::VecDeque;
 use std::iter;
 use std::iter::zip;
-use std::ops::Range;
+use std::ops::{Range, Sub};
 
 use bitvec::array::BitArray;
 use regex_syntax::hir::literal::Seq;
@@ -175,89 +174,162 @@ where
     }
 }
 
-#[derive(PartialEq)]
-pub(crate) struct SeqQuality {
-    seq_len: u32,
-    min_atom_len: u32,
+/// Represents the quality of a set of atoms.
+///
+/// Instances of [`AtomsQuality`] are compared for determining which set of
+/// atoms is better.
+pub(crate) struct AtomsQuality {
+    num_exact_atoms: usize,
+    num_inexact_atoms: usize,
+    min_atom_len: usize,
     min_atom_quality: i32,
+    sum_atom_quality: i64,
 }
 
-impl SeqQuality {
+impl AtomsQuality {
+    fn new<I, T, F>(atoms: I, mut is_exact: F) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: AsRef<[u8]>,
+        F: FnMut(&T) -> bool,
+    {
+        let mut num_inexact_atoms = 0;
+        let mut num_exact_atoms = 0;
+        let mut sum_quality = 0_i64;
+        let mut min_quality = i32::MAX;
+        let mut min_len = usize::MAX;
+
+        for atom in atoms.into_iter() {
+            if is_exact(&atom) {
+                num_exact_atoms += 1;
+            } else {
+                num_inexact_atoms += 1;
+            }
+            let atom = atom.as_ref();
+            let quality = atom_quality(atom);
+            sum_quality = sum_quality.saturating_add(quality as i64);
+            min_quality = min(min_quality, quality);
+            min_len = min(min_len, atom.len());
+        }
+
+        Self {
+            num_inexact_atoms,
+            num_exact_atoms,
+            min_atom_len: min_len,
+            sum_atom_quality: sum_quality,
+            min_atom_quality: min_quality,
+        }
+    }
+
+    #[inline]
+    pub fn from_seq(seq: &Seq) -> Self {
+        AtomsQuality::new(seq.literals().unwrap_or(&[]), |lit| lit.is_exact())
+    }
+
+    pub fn from_atoms<T: AsRef<[Atom]>>(atoms: T) -> Self {
+        AtomsQuality::new(atoms.as_ref().iter(), |atom| atom.is_exact())
+    }
+
+    #[inline]
+    pub fn avg_atom_quality(&self) -> f64 {
+        self.sum_atom_quality as f64
+            / (self.num_inexact_atoms + self.num_exact_atoms) as f64
+    }
+
+    pub fn merge(&mut self, other: Self) -> &mut Self {
+        self.num_exact_atoms =
+            self.num_exact_atoms.saturating_add(other.num_exact_atoms);
+
+        self.num_inexact_atoms =
+            self.num_inexact_atoms.saturating_add(other.num_inexact_atoms);
+
+        self.sum_atom_quality =
+            self.sum_atom_quality.saturating_add(other.sum_atom_quality);
+
+        self.min_atom_len = min(self.min_atom_len, other.min_atom_len);
+
+        self.min_atom_quality =
+            min(self.min_atom_quality, other.min_atom_quality);
+
+        self
+    }
+
+    #[inline]
     pub fn min() -> Self {
-        Self { seq_len: u32::MAX, min_atom_len: 0, min_atom_quality: i32::MIN }
+        Self {
+            num_inexact_atoms: 0,
+            num_exact_atoms: 0,
+            min_atom_len: 0,
+            min_atom_quality: i32::MIN,
+            sum_atom_quality: i64::MIN,
+        }
     }
 }
 
-impl PartialOrd for SeqQuality {
+impl PartialEq for AtomsQuality {
+    fn eq(&self, other: &Self) -> bool {
+        self.num_inexact_atoms == other.num_inexact_atoms
+            && self.min_atom_len == other.min_atom_len
+            && self.min_atom_quality == other.min_atom_quality
+            && self.sum_atom_quality == other.sum_atom_quality
+    }
+}
+
+impl Eq for AtomsQuality {}
+
+impl PartialOrd<Self> for AtomsQuality {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        // This sequence is better than the other if its worst atom is better
-        // the other's worst atom.
-        if self.min_atom_quality > other.min_atom_quality {
-            return Some(Ordering::Greater);
-        }
-        // If the shortest atom in both sequences have the same length, the
-        // best sequence is the one that has the higher min_atom_quality. If
-        // both have the same min_atom_quality, then the shorter sequence is
-        // the best.
-        if self.min_atom_len == other.min_atom_len {
-            return match (self.min_atom_quality, other.min_atom_quality) {
-                (q1, q2) if q1 == q2 => {
-                    if self.seq_len < other.seq_len {
-                        Some(Ordering::Greater)
-                    } else {
-                        Some(Ordering::Less)
-                    }
-                }
-                (q1, q2) if q1 > q2 => Some(Ordering::Greater),
-                _ => Some(Ordering::Less),
-            };
-        }
-        // If the minimum atom length for this sequence is exactly one byte
-        // more than the other, this sequence still can be better than the
-        // other if it has exactly 255 atoms less. This covers the case where a
-        // single atom of length N is preferred over 256 atoms of length N+1.
-        if self.min_atom_len + 1 == other.min_atom_len {
-            return if (self.seq_len as usize * 256) <= (other.seq_len as usize)
-            {
-                Some(Ordering::Greater)
-            } else {
-                Some(Ordering::Less)
-            };
-        }
-
-        if self.min_atom_len == other.min_atom_len + 1 {
-            return if (self.seq_len as usize) < (other.seq_len as usize * 256)
-            {
-                Some(Ordering::Greater)
-            } else {
-                Some(Ordering::Less)
-            };
-        }
-
-        // In general, this sequence is better than the other only if
-        // its minimum atom length is greater.
-        if self.min_atom_quality > other.min_atom_quality
-            || self.min_atom_len > other.min_atom_len
-        {
-            Some(Ordering::Greater)
-        } else {
-            Some(Ordering::Less)
-        }
+        Some(self.cmp(other))
     }
 }
 
-pub(crate) fn seq_quality(seq: &Seq) -> Option<SeqQuality> {
-    seq.len().map(|len| SeqQuality {
-        seq_len: len as u32,
-        min_atom_len: seq.min_literal_len().unwrap_or(0) as u32,
-        min_atom_quality: seq
-            .literals()
-            .unwrap_or(&[])
-            .iter()
-            .map(|l| atom_quality(l.as_bytes()))
-            .min()
-            .unwrap_or(i32::MIN),
-    })
+impl Ord for AtomsQuality {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // If one set has 255 atoms more than the other, but the minimum
+        // atom length in the largest set is only 1 byte more than in the
+        // smaller set, the largest set with longer atoms is not the best.
+        // It's better to have a set with a single 3-bytes atom, than a set
+        // with 256 4-bytes atoms.
+        if self.num_inexact_atoms.abs_diff(other.num_inexact_atoms) >= 255
+            && self.min_atom_len.abs_diff(other.min_atom_len) == 1
+        {
+            return other.num_inexact_atoms.cmp(&self.num_inexact_atoms);
+        }
+
+        let quality_self = self.avg_atom_quality();
+        let quality_other = other.avg_atom_quality();
+
+        let quality_diff = quality_self.sub(quality_other).abs();
+
+        // If the difference between the average atom quality of one set and
+        // the other is large enough, the one with the highest average quality
+        // is the better one. If the difference is not that large enough use
+        // other criteria for determining which set is the best.
+        if quality_diff > 15.0 {
+            return quality_self.total_cmp(&quality_other);
+        }
+
+        // The difference between average atom qualities is not large enough,
+        // use the minimum atom length for determining which set is the best,
+        // the one with the largest minimum atom is the best.
+        if self.min_atom_len != other.min_atom_len {
+            return self.min_atom_len.cmp(&other.min_atom_len);
+        }
+
+        // If both sets have the same minimum atom length, then use the minimum
+        // atom quality for determining which set is better.
+        if self.min_atom_quality != other.min_atom_quality {
+            return self.min_atom_quality.cmp(&other.min_atom_quality);
+        }
+
+        // When both the average atom quality and the minimum atom quality are
+        // equal, the best set is the one with less atoms.
+        if self.num_inexact_atoms != other.num_inexact_atoms {
+            return other.num_inexact_atoms.cmp(&self.num_inexact_atoms);
+        }
+
+        other.num_exact_atoms.cmp(&self.num_exact_atoms)
+    }
 }
 
 /// Returns the range for the best possible atom that can be extracted from
@@ -269,7 +341,7 @@ pub(crate) fn best_range_in_bytes(
     let mut best_range = None;
 
     for i in 0..=bytes.len().saturating_sub(DESIRED_ATOM_SIZE) {
-        let range = i..cmp::min(bytes.len(), i + DESIRED_ATOM_SIZE);
+        let range = i..min(bytes.len(), i + DESIRED_ATOM_SIZE);
         let quality = atom_quality(&bytes[range.clone()]);
         if quality > best_quality {
             best_quality = quality;
@@ -325,9 +397,8 @@ where
 #[cfg(test)]
 mod test {
     use super::atom_quality;
-    use super::seq_quality;
-    use crate::compiler::atoms;
     use crate::compiler::atoms::quality::masked_atom_quality;
+    use crate::compiler::{atoms, AtomsQuality};
     use regex_syntax::hir::literal::Literal;
     use regex_syntax::hir::literal::Seq;
 
@@ -426,74 +497,55 @@ mod test {
 
     #[test]
     fn test_seq_quality() {
-        assert!(
-            seq_quality(&Seq::new(vec![Literal::inexact("abcd")]))
-                > seq_quality(&Seq::new(vec![Literal::inexact("abc")]))
-        );
+        let s1 = &Seq::new(vec![Literal::exact("abcd")]);
+        let s2 = &Seq::new(vec![Literal::exact("abc")]);
 
-        assert!(
-            seq_quality(&Seq::new(vec![Literal::inexact("abc"),]))
-                > seq_quality(&Seq::new(vec![
-                    Literal::inexact("abc"),
-                    Literal::inexact("ab")
-                ]))
-        );
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
 
-        assert!(
-            seq_quality(&Seq::new(vec![
-                Literal::inexact("ab"),
-                Literal::inexact("cd")
-            ])) > seq_quality(&Seq::new(vec![
-                Literal::inexact("abc"),
-                Literal::inexact("a")
-            ]))
-        );
+        let s1 = &Seq::new(vec![Literal::exact("abc")]);
+        let s2 = &Seq::new(vec![Literal::exact("abc"), Literal::exact("ab")]);
 
-        assert!(
-            seq_quality(&Seq::new(vec![
-                Literal::inexact("abc"),
-                Literal::inexact("cde")
-            ])) > seq_quality(&Seq::new(vec![
-                Literal::inexact("abc"),
-                Literal::inexact("cde"),
-                Literal::inexact("fgh")
-            ]))
-        );
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
 
-        assert!(
-            seq_quality(&Seq::new(vec![Literal::inexact("abcd"),]))
-                > seq_quality(&Seq::new(vec![Literal::inexact(
-                    "\x00\x00\x00\x00"
-                ),]))
-        );
+        let s1 = &Seq::new(vec![Literal::exact("ab"), Literal::exact("cd")]);
+        let s2 = &Seq::new(vec![Literal::exact("abc"), Literal::exact("a")]);
 
-        assert!(
-            seq_quality(&Seq::new(vec![Literal::inexact("abc"),]))
-                > seq_quality(&Seq::new(vec![Literal::inexact(
-                    "\x00\x00\x00\x00"
-                ),]))
-        );
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
 
-        assert!(
-            seq_quality(&Seq::new(vec![Literal::inexact("abc"),]))
-                > seq_quality(&Seq::new(vec![Literal::inexact(
-                    "\x00\x00\x00\x01"
-                ),]))
-        );
+        let s1 = &Seq::new(vec![Literal::exact("abc"), Literal::exact("cde")]);
 
-        assert!(
-            seq_quality(&Seq::new(vec![Literal::inexact("\x01\0x02\0x03"),]))
-                > seq_quality(&Seq::new(vec![Literal::inexact(
-                    "\x00\x00\x00\x01"
-                ),]))
-        );
+        let s2 = &Seq::new(vec![
+            Literal::exact("abc"),
+            Literal::exact("cde"),
+            Literal::exact("fgh"),
+        ]);
 
-        assert!(
-            seq_quality(&Seq::new(vec![Literal::inexact("ab"),]))
-                > seq_quality(&Seq::new(vec![Literal::inexact(
-                    "\x00\x00\x00\x00"
-                ),]))
-        );
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+
+        let s1 = &Seq::new(vec![Literal::exact("abcd")]);
+        let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x00")]);
+
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+
+        let s1 = &Seq::new(vec![Literal::exact("abc")]);
+        let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x00")]);
+
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+
+        let s1 = &Seq::new(vec![Literal::exact("abc")]);
+        let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x01")]);
+
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+
+        let s1 = &Seq::new(vec![Literal::exact("\x01\0x02\0x03")]);
+        let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x01")]);
+
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
+
+        let s1 = &Seq::new(vec![Literal::exact("ab")]);
+        let s2 = &Seq::new(vec![Literal::exact("\x00\x00\x00\x00")]);
+
+        assert!(AtomsQuality::from_seq(s1) > AtomsQuality::from_seq(s2));
     }
 
     #[test]
