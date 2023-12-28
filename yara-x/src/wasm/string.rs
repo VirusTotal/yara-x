@@ -75,6 +75,12 @@ impl Default for RuntimeString {
 }
 
 impl RuntimeString {
+    /// Creates a [`RuntimeString`] from a [`String`], a [`Vec<u8>`] or any
+    /// type that implements [`Into<Vec<u8>>`].
+    pub(crate) fn new<S: Into<Vec<u8>>>(s: S) -> Self {
+        Self::Rc(Rc::new(BString::new(s.into())))
+    }
+
     /// Creates a [`RuntimeString`] from a reference to a byte slice.
     ///
     /// If the original slice is contained withing the scanned data, this
@@ -83,12 +89,8 @@ impl RuntimeString {
     ///
     /// In any other case it makes a copy of the string and return the
     /// [`RuntimeString::Rc`] variant.
-    pub(crate) fn from_bytes<S>(ctx: &mut ScanContext, s: S) -> Self
-    where
-        S: AsRef<[u8]>,
-    {
+    pub(crate) fn from_slice(ctx: &ScanContext, s: &[u8]) -> Self {
         let data = ctx.scanned_data();
-        let s = s.as_ref();
 
         let data_start = data.as_ptr() as usize;
         let data_end = data_start + data.len();
