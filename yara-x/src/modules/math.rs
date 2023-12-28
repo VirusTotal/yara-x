@@ -1,3 +1,4 @@
+use std::cmp;
 use std::f64::consts::PI;
 
 use itertools::Itertools;
@@ -30,6 +31,28 @@ fn abs(_ctx: &ScanContext, x: i64) -> i64 {
 #[module_export]
 fn in_range(_ctx: &ScanContext, x: i64, min: i64, max: i64) -> bool {
     min <= x && x <= max
+}
+
+#[module_export(name = "count")]
+fn count_range(
+    ctx: &ScanContext,
+    byte: i64,
+    offset: i64,
+    length: i64,
+) -> Option<i64> {
+    let byte: u8 = byte.try_into().ok()?;
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
+    let data = ctx.scanned_data().get(start..end)?;
+
+    Some(data.iter().filter(|b| **b == byte).count() as i64)
+}
+
+#[module_export(name = "count")]
+fn count_global(ctx: &ScanContext, byte: i64) -> Option<i64> {
+    let byte: u8 = byte.try_into().ok()?;
+    Some(ctx.scanned_data().iter().filter(|b| **b == byte).count() as i64)
 }
 
 #[module_export(name = "entropy")]
@@ -459,6 +482,69 @@ mod tests {
                     math.monte_carlo_pi("ABCDEF123456987") < 0.3
             }"#,
             &[]
+        );
+    }
+
+    #[test]
+    fn count() {
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.count(0x41, 0, 3) == 2
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.count(0x41, 4, 10) == 1
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.count(0x41) == 4
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.count(-1)
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.count(0x41, 10, 4)
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.count(0x41, 0, -3)
+            }"#,
+            b"AABAAB"
         );
     }
 }
