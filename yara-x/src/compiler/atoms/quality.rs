@@ -293,63 +293,42 @@ impl Ord for AtomsQuality {
         if self.num_inexact_atoms.abs_diff(other.num_inexact_atoms) >= 255
             && self.min_atom_len.abs_diff(other.min_atom_len) == 1
         {
-            return if self.num_inexact_atoms < other.num_inexact_atoms {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            };
+            return other.num_inexact_atoms.cmp(&self.num_inexact_atoms);
         }
 
-        let distance =
-            self.avg_atom_quality().sub(other.avg_atom_quality()).abs();
+        let quality_self = self.avg_atom_quality();
+        let quality_other = other.avg_atom_quality();
 
-        if distance < 30.0
-            && self.num_inexact_atoms.abs_diff(other.num_inexact_atoms) > 256
-        {
-            return if self.num_inexact_atoms < other.num_inexact_atoms {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            };
+        let quality_diff = quality_self.sub(quality_other).abs();
+
+        // If the difference between the average atom quality of one set and
+        // the other is large enough, the one with the highest average quality
+        // is the better one. If the difference is not that large enough use
+        // other criteria for determining which set is the best.
+        if quality_diff > 15.0 {
+            return quality_self.total_cmp(&quality_other);
         }
 
-        if distance > 60.0 {
-            return if self.avg_atom_quality() > other.avg_atom_quality() {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            };
+        // The difference between average atom qualities is not large enough,
+        // use the minimum atom length for determining which set is the best,
+        // the one with the largest minimum atom is the best.
+        if self.min_atom_len != other.min_atom_len {
+            return self.min_atom_len.cmp(&other.min_atom_len);
         }
 
-        // When the average atom quality is the same, the set with the highest
-        // minimum atom quality is the best one.
+        // If both sets have the same minimum atom length, then use the minimum
+        // atom quality for determining which set is better.
         if self.min_atom_quality != other.min_atom_quality {
-            return if self.min_atom_quality > other.min_atom_quality {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            };
+            return self.min_atom_quality.cmp(&other.min_atom_quality);
         }
 
         // When both the average atom quality and the minimum atom quality are
         // equal, the best set is the one with less atoms.
         if self.num_inexact_atoms != other.num_inexact_atoms {
-            return if self.num_inexact_atoms < other.num_inexact_atoms {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            };
+            return other.num_inexact_atoms.cmp(&self.num_inexact_atoms);
         }
 
-        if self.num_exact_atoms != other.num_exact_atoms {
-            return if self.num_exact_atoms < other.num_exact_atoms {
-                Ordering::Greater
-            } else {
-                Ordering::Less
-            };
-        }
-
-        self.min_atom_len.cmp(&other.min_atom_len)
+        other.num_exact_atoms.cmp(&self.num_exact_atoms)
     }
 }
 

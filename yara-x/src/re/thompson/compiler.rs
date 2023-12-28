@@ -1528,7 +1528,7 @@ impl Display for InstrSeq {
     }
 }
 
-fn simplify_seq(seq: Seq) -> Seq {
+fn simplify_seq(mut seq: Seq) -> Seq {
     // If the literal extractor produced exactly 256 atoms, and those atoms
     // have a common prefix that is one byte shorter than the longest atom,
     // we are in the case where we have 256 atoms that differ only in the
@@ -1547,6 +1547,7 @@ fn simplify_seq(seq: Seq) -> Seq {
             }
         }
     }
+    seq.dedup();
     seq
 }
 
