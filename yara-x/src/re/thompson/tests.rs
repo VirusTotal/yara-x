@@ -61,10 +61,9 @@ macro_rules! assert_re_code {
     }};
 }
 
-macro_rules! assert_re_atoms {
-    ($re:expr, $atoms:expr) => {{
+macro_rules! assert_re_atoms_impl {
+    ($re:expr) => {{
         let parser = re::parser::Parser::new();
-
         let (_, _, atoms) = Compiler::new()
             .compile_internal(
                 &parser
@@ -79,10 +78,23 @@ macro_rules! assert_re_atoms {
             )
             .unwrap();
 
+        atoms
+    }};
+}
+
+macro_rules! assert_re_atoms {
+    ($re:expr, $atoms:expr) => {{
+        let atoms = assert_re_atoms_impl!($re);
         let atoms: Vec<Atom> =
             atoms.into_iter().map(|re_atom| re_atom.atom).collect();
-
         assert_eq!(atoms, $atoms);
+    }};
+}
+
+macro_rules! assert_re_num_atoms {
+    ($re:expr, $num_atoms:expr) => {{
+        let atoms = assert_re_atoms_impl!($re);
+        assert_eq!($num_atoms, atoms.len());
     }};
 }
 
@@ -1077,98 +1089,6 @@ fn re_code_21() {
 }
 
 #[test]
-fn re_code_22() {
-    assert_re_code!(
-        r#""\([0-9]([(-\\][0-9]){2,}[0-3]?([1-2][0-9]){2,}"#,
-        // Forward code
-        r#"
-00000: LIT 0x22
-00001: LIT 0x28
-00002: CLASS_RANGES [0x30-0x39] 
-00007: CLASS_RANGES [0x28-0x5c] 
-0000c: CLASS_RANGES [0x30-0x39] 
-00011: SPLIT_B(0) 00007
-00019: CLASS_RANGES [0x28-0x5c] 
-0001e: CLASS_RANGES [0x30-0x39] 
-00023: SPLIT_A(1) 0002f
-0002b: MASKED_BYTE 0x30 0xfc
-0002f: CLASS_RANGES [0x31-0x32] 
-00034: CLASS_RANGES [0x30-0x39] 
-00039: SPLIT_B(2) 0002f
-00041: CLASS_RANGES [0x31-0x32] 
-00046: CLASS_RANGES [0x30-0x39] 
-0004b: MATCH
-"#,
-        // Backward code
-        r#"
-00000: CLASS_RANGES [0x30-0x39] 
-00005: CLASS_RANGES [0x31-0x32] 
-0000a: SPLIT_B(2) 00000
-00012: CLASS_RANGES [0x30-0x39] 
-00017: CLASS_RANGES [0x31-0x32] 
-0001c: SPLIT_A(1) 00028
-00024: MASKED_BYTE 0x30 0xfc
-00028: CLASS_RANGES [0x30-0x39] 
-0002d: CLASS_RANGES [0x28-0x5c] 
-00032: SPLIT_B(0) 00028
-0003a: CLASS_RANGES [0x30-0x39] 
-0003f: CLASS_RANGES [0x28-0x5c] 
-00044: CLASS_RANGES [0x30-0x39] 
-00049: LIT 0x28
-0004a: LIT 0x22
-0004b: MATCH
-"#,
-        // Atoms
-        vec![
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x30]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 0x4B }
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x31]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x32]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x33]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x34]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x35]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x36]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x37]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x38]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            },
-            RegexpAtom {
-                atom: Atom::inexact(vec![0x22, 0x28, 0x39]),
-                code_loc: CodeLoc { fwd: 0, bck_seq_id: 0, bck: 75 },
-            }
-        ],
-        // Epsilon closure starting at forward code 0.
-        vec![0x00],
-        // Epsilon closure starting at backward code 0.
-        vec![0x00]
-    );
-}
-
-#[test]
 fn re_atoms() {
     assert_re_atoms!(r#"abcd"#, vec![Atom::exact(b"abcd")]);
     assert_re_atoms!(r#"abcd1234"#, vec![Atom::inexact(b"1234")]);
@@ -1233,5 +1153,15 @@ fn re_atoms() {
     assert_re_atoms!(
         r#"(?s)a(b.b|c.c|d.d|e.e|f.f|g.g|h.h|i.i|j.j|k.k|l.l|m.m|n.n|o.o|p.p|q.q|r.r)"#,
         vec![Atom::inexact(b"a")]
+    );
+
+    assert_re_atoms!(
+        r#"(?s)abc.d(((xy|xz)w.)|[a-c])(((xy|xz)w.)|[a-c])"#,
+        vec![Atom::inexact(b"abc")]
+    );
+
+    assert_re_num_atoms!(
+        r#""\([0-9]([(-\\][0-9]){2,}[0-3]?([1-2][0-9]){2,}"#,
+        400
     );
 }

@@ -285,17 +285,46 @@ impl PartialOrd<Self> for AtomsQuality {
 
 impl Ord for AtomsQuality {
     fn cmp(&self, other: &Self) -> Ordering {
-        // If one set has 255 atoms more than the other, but the minimum
-        // atom length in the largest set is only 1 byte more than in the
-        // smaller set, the largest set with longer atoms is not the best.
-        // It's better to have a set with a single 3-bytes atom, than a set
-        // with 256 4-bytes atoms.
-        if self.num_inexact_atoms.abs_diff(other.num_inexact_atoms) >= 255
-            && self.min_atom_len.abs_diff(other.min_atom_len) == 1
-        {
-            return other.num_inexact_atoms.cmp(&self.num_inexact_atoms);
+        // If the minimum atom length of set A is exactly 1 byte shorter than
+        // the minimum atom length of set B, but set B has 256 times the number
+        // of atoms of A, then A is better than B even if it has shorter atoms.
+        // It's better to have a set with a single 3-bytes atom than a set with
+        // 256 4-bytes atoms.
+        if self.min_atom_len.abs_diff(other.min_atom_len) == 1 {
+            // The `other` set has 256 times more atoms than the `self` set.
+            // `self` is better.
+            if self.num_inexact_atoms.saturating_mul(256)
+                == other.num_inexact_atoms
+            {
+                return Ordering::Greater;
+            }
+            // The `self` set has 256 times more atoms than the `other` set.
+            // `other` is better.
+            if other.num_inexact_atoms.saturating_mul(256)
+                == self.num_inexact_atoms
+            {
+                return Ordering::Less;
+            }
         }
 
+        // The most important criteria for determining if a set of atoms is
+        // better than another one is the minimum atom quality. The minimum
+        // atom quality is the quality of the worst atom in the set, and the
+        // set set with the highest minimum is the best.
+        if self.min_atom_quality != other.min_atom_quality {
+            return self.min_atom_quality.cmp(&other.min_atom_quality);
+        }
+
+        // If the minimum atom quality is the same, use the minimum atom length
+        // as the criteria for determining which set is better. The set with
+        // the longest atom is the best.
+        if self.min_atom_len != other.min_atom_len {
+            return self.min_atom_len.cmp(&other.min_atom_len);
+        }
+
+        // When the minimum atom quality and the minimum atom length are equal,
+        // use the average atom quality for determining which set of atoms is
+        // better.
         let quality_self = self.avg_atom_quality();
         let quality_other = other.avg_atom_quality();
 
@@ -303,27 +332,15 @@ impl Ord for AtomsQuality {
 
         // If the difference between the average atom quality of one set and
         // the other is large enough, the one with the highest average quality
-        // is the better one. If the difference is not that large enough use
-        // other criteria for determining which set is the best.
+        // is the better one.
         if quality_diff > 15.0 {
             return quality_self.total_cmp(&quality_other);
         }
 
-        // The difference between average atom qualities is not large enough,
-        // use the minimum atom length for determining which set is the best,
-        // the one with the largest minimum atom is the best.
-        if self.min_atom_len != other.min_atom_len {
-            return self.min_atom_len.cmp(&other.min_atom_len);
-        }
-
-        // If both sets have the same minimum atom length, then use the minimum
-        // atom quality for determining which set is better.
-        if self.min_atom_quality != other.min_atom_quality {
-            return self.min_atom_quality.cmp(&other.min_atom_quality);
-        }
-
-        // When both the average atom quality and the minimum atom quality are
-        // equal, the best set is the one with less atoms.
+        // If the difference between the average atom qualities is not large
+        // enough use the number of atoms as the criteria for determining which
+        // is the best set of atoms. The set with the lowest number of atoms
+        // is better.
         if self.num_inexact_atoms != other.num_inexact_atoms {
             return other.num_inexact_atoms.cmp(&self.num_inexact_atoms);
         }
