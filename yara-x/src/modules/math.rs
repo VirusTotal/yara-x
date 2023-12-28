@@ -45,8 +45,50 @@ fn count_range(
     let start: usize = offset.try_into().ok()?;
     let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
     let data = ctx.scanned_data().get(start..end)?;
-
     Some(data.iter().filter(|b| **b == byte).count() as i64)
+}
+
+#[module_export(name = "percentage")]
+fn percentage_global(ctx: &ScanContext, byte: i64) -> Option<f64> {
+    let byte: u8 = byte.try_into().ok()?;
+    let data = ctx.scanned_data();
+    if data.is_empty() {
+        return None;
+    }
+    let count = data.iter().filter(|b| **b == byte).count();
+    Some(count as f64 / data.len() as f64)
+}
+
+#[module_export(name = "percentage")]
+fn percentage_range(
+    ctx: &ScanContext,
+    byte: i64,
+    offset: i64,
+    length: i64,
+) -> Option<f64> {
+    let byte: u8 = byte.try_into().ok()?;
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
+    let data = ctx.scanned_data().get(start..end)?;
+    if data.is_empty() {
+        return None;
+    }
+    let count = data.iter().filter(|b| **b == byte).count();
+    Some(count as f64 / data.len() as f64)
+}
+
+#[module_export(name = "mode")]
+fn mode_global(ctx: &ScanContext) -> Option<i64> {
+    mode(ctx.scanned_data())
+}
+
+#[module_export(name = "mode")]
+fn mode_range(ctx: &ScanContext, offset: i64, length: i64) -> Option<i64> {
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
+    mode(ctx.scanned_data().get(start..end)?)
 }
 
 #[module_export(name = "count")]
@@ -190,6 +232,26 @@ fn mean(data: &[u8]) -> Option<f64> {
     }
 
     Some(sum / data.len() as f64)
+}
+
+fn mode(data: &[u8]) -> Option<i64> {
+    if data.is_empty() {
+        return None;
+    }
+
+    let mut distribution = [0u64; 256];
+    for byte in data {
+        distribution[*byte as usize] += 1;
+    }
+
+    let mut mode = 0;
+    for (i, x) in distribution.iter().enumerate() {
+        if *x > distribution[mode] {
+            mode = i
+        }
+    }
+
+    Some(mode as i64)
 }
 
 fn serial_correlation(data: &[u8]) -> Option<f64> {
@@ -545,6 +607,122 @@ mod tests {
                     not defined math.count(0x41, 0, -3)
             }"#,
             b"AABAAB"
+        );
+    }
+
+    #[test]
+    fn percentage() {
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.percentage(0x41, 0, 3) >= 0.66
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.percentage(0x41, 4, 10) == 0.5
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.percentage(0x41, 0, 0)
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.percentage(0x41, 0, 10)
+            }"#,
+            b""
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.percentage(0x41) > 0.66
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.percentage(-1)
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.percentage(0x41, 10, 4)
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.percentage(0x41, 0, -3)
+            }"#,
+            b"AABAAB"
+        );
+    }
+
+    #[test]
+    fn mode() {
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.mode() == 0x41
+            }"#,
+            b"ABABA"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.mode() == 0x41
+            }"#,
+            b"ABAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.mode(2,3) == 0x41
+            }"#,
+            b"CCABACC"
         );
     }
 }
