@@ -1009,6 +1009,9 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
     pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
 
+    // TODO: should this match "foo" instead of ""?
+    pattern_match!(r#"/(foo|bar|baz|)/"#, b"foo", b"");
+
     pattern_match!(
         r#"/the (caterpillar|cat)/"#,
         b"the caterpillar",
