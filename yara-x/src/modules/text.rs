@@ -56,7 +56,7 @@ fn get_line(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     let cursor = io::Cursor::new(ctx.scanned_data());
 
     if let Some(Ok(line)) = cursor.lines().nth(n as usize) {
-        Some(RuntimeString::new(ctx, line))
+        Some(RuntimeString::new(line))
     } else {
         None
     }
