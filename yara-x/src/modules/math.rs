@@ -28,8 +28,13 @@ fn abs(_ctx: &ScanContext, x: i64) -> i64 {
     x.abs()
 }
 
-#[module_export]
-fn in_range(_ctx: &ScanContext, x: i64, min: i64, max: i64) -> bool {
+#[module_export(name = "in_range")]
+fn in_range_float(_ctx: &ScanContext, x: f64, min: f64, max: f64) -> bool {
+    min <= x && x <= max
+}
+
+#[module_export(name = "in_range")]
+fn in_range_int(_ctx: &ScanContext, x: i64, min: i64, max: i64) -> bool {
     min <= x && x <= max
 }
 
@@ -417,6 +422,13 @@ mod tests {
             r#"
             import "math"
             rule test { condition: math.in_range(0,-1,1)}"#,
+            &[]
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test { condition: math.in_range(0.5,0.0,0.6)}"#,
             &[]
         );
     }
