@@ -33,6 +33,25 @@ fn in_range(_ctx: &ScanContext, x: i64, min: i64, max: i64) -> bool {
     min <= x && x <= max
 }
 
+#[module_export(name = "to_string")]
+fn to_string(_ctx: &ScanContext, x: i64) -> RuntimeString {
+    RuntimeString::new(x.to_string())
+}
+
+#[module_export(name = "to_string")]
+fn to_string_base(
+    _ctx: &ScanContext,
+    x: i64,
+    base: i64,
+) -> Option<RuntimeString> {
+    match base {
+        8 => Some(RuntimeString::new(format!("{:o}", x))),
+        10 => Some(RuntimeString::new(format!("{}", x))),
+        16 => Some(RuntimeString::new(format!("{:x}", x))),
+        _ => None,
+    }
+}
+
 #[module_export(name = "count")]
 fn count_range(
     ctx: &ScanContext,
@@ -723,6 +742,69 @@ mod tests {
                     math.mode(2,3) == 0x41
             }"#,
             b"CCABACC"
+        );
+    }
+
+    #[test]
+    fn to_string() {
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.to_string(1234) == "1234" 
+            }"#,
+            b""
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.to_string(-1) == "-1" 
+            }"#,
+            b""
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.to_string(32, 16) == "20" 
+            }"#,
+            b""
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.to_string(32, 8) == "40" 
+            }"#,
+            b""
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.to_string(32, 10) == "32" 
+            }"#,
+            b""
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    not defined math.to_string(32, 7) 
+            }"#,
+            b""
         );
     }
 }
