@@ -166,6 +166,7 @@ data_directories:
     size: 0
 import_details:
   - library_name: "KERNEL32.dll"
+    number_of_functions: 69
     functions:
       - name: "RaiseException"
         rva: 53248
@@ -307,6 +308,7 @@ import_details:
         rva: 53520
 delayed_import_details:
   - library_name: "USER32.dll"
+    number_of_functions: 2
     functions:
       - name: "MessageBeep"
         rva: 80000

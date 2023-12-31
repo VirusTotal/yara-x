@@ -986,12 +986,15 @@ impl<'a> Compiler<'a> {
 
                         self.add_sub_pattern(
                             sub_pattern,
-                            iter::once(
-                                best_atom_in_bytes(base64_pattern.as_slice())
-                                    // Atoms for base64 patterns are always
-                                    // inexact, they require verification.
-                                    .make_inexact(),
-                            ),
+                            iter::once({
+                                let mut atom = best_atom_in_bytes(
+                                    base64_pattern.as_slice(),
+                                );
+                                // Atoms for base64 patterns are always
+                                // inexact, they require verification.
+                                atom.make_inexact();
+                                atom
+                            }),
                             SubPatternAtom::from_atom,
                         );
                     }
@@ -1023,12 +1026,14 @@ impl<'a> Compiler<'a> {
 
                         self.add_sub_pattern(
                             sub_pattern,
-                            iter::once(
-                                best_atom_in_bytes(wide.as_slice())
-                                    // Atoms for base64 patterns are always
-                                    // inexact, they require verification.
-                                    .make_inexact(),
-                            ),
+                            iter::once({
+                                let mut atom =
+                                    best_atom_in_bytes(wide.as_slice());
+                                // Atoms for base64 patterns are always
+                                // inexact, they require verification.
+                                atom.make_inexact();
+                                atom
+                            }),
                             SubPatternAtom::from_atom,
                         );
                     }
@@ -1077,9 +1082,9 @@ impl<'a> Compiler<'a> {
             return Ok(());
         }
 
-        // This is a standard, a pattern that can't be split into
-        // multiple chained patterns, and is neither a literal or
-        // alternation of literals.
+        // If this point is reached, this is a pattern that can't be split into
+        // multiple chained patterns, and is neither a literal or alternation
+        // of literals. Most patterns fall in this category.
         let mut flags = SubPatternFlagSet::none();
 
         if pattern.flags.contains(PatternFlags::Nocase) {

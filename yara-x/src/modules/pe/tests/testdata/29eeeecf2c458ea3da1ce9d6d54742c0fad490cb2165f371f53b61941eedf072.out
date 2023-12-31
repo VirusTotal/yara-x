@@ -673,6 +673,7 @@ resources:
     language: 1033
 import_details:
   - library_name: "ADVAPI32.dll"
+    number_of_functions: 35
     functions:
       - name: "GetUserNameW"
         rva: 4096
@@ -745,6 +746,7 @@ import_details:
       - name: "GetSecurityDescriptorOwner"
         rva: 4232
   - library_name: "KERNEL32.dll"
+    number_of_functions: 85
     functions:
       - name: "InitializeCriticalSection"
         rva: 4312
@@ -917,6 +919,7 @@ import_details:
       - name: "GetLocaleInfoW"
         rva: 4648
   - library_name: "GDI32.dll"
+    number_of_functions: 11
     functions:
       - name: "TextOutW"
         rva: 4264
@@ -941,6 +944,7 @@ import_details:
       - name: "GetObjectW"
         rva: 4304
   - library_name: "USER32.dll"
+    number_of_functions: 107
     functions:
       - name: "GetTopWindow"
         rva: 4676
@@ -1157,6 +1161,7 @@ import_details:
       - name: "SetTimer"
         rva: 5100
   - library_name: "msvcrt.dll"
+    number_of_functions: 52
     functions:
       - name: "_controlfp"
         rva: 5136
@@ -1263,6 +1268,7 @@ import_details:
       - name: "wcstol"
         rva: 5340
   - library_name: "COMCTL32.dll"
+    number_of_functions: 5
     functions:
       - name: "CreatePropertySheetPageW"
         rva: 4240
@@ -1276,6 +1282,7 @@ import_details:
       - name: "PropertySheetW"
         rva: 4256
   - library_name: "ntdll.dll"
+    number_of_functions: 49
     functions:
       - name: "RtlCreateUnicodeString"
         rva: 5348
@@ -1376,6 +1383,7 @@ import_details:
       - name: "NtClose"
         rva: 5540
   - library_name: "SHELL32.dll"
+    number_of_functions: 4
     functions:
       - name: "SHGetMalloc"
         rva: 4656
@@ -1386,12 +1394,14 @@ import_details:
       - name: "ShellExecuteW"
         rva: 4668
   - library_name: "comdlg32.dll"
+    number_of_functions: 2
     functions:
       - name: "GetSaveFileNameW"
         rva: 5124
       - name: "GetOpenFileNameW"
         rva: 5128
   - library_name: "VERSION.dll"
+    number_of_functions: 3
     functions:
       - name: "GetFileVersionInfoW"
         rva: 5108

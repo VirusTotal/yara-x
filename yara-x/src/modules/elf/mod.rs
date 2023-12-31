@@ -47,7 +47,7 @@ fn import_md5(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let digest = format!("{:x}", md5::compute(comma_separated_names));
 
-    Some(RuntimeString::from_bytes(ctx, digest.as_bytes()))
+    Some(RuntimeString::new(digest))
 }
 
 lazy_static! {
@@ -128,5 +128,5 @@ fn telfhash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let tlsh = builder.build().ok()?;
 
-    Some(RuntimeString::from_bytes(ctx, tlsh.hash()))
+    Some(RuntimeString::new(tlsh.hash()))
 }

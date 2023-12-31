@@ -228,6 +228,7 @@ resources:
     language: 1033
 import_details:
   - library_name: "msvcrt.dll"
+    number_of_functions: 15
     functions:
       - name: "__set_app_type"
         rva: 8752
@@ -260,10 +261,12 @@ import_details:
       - name: "memset"
         rva: 8864
   - library_name: "api-ms-win-core-heap-l1-1-0.dll"
+    number_of_functions: 1
     functions:
       - name: "HeapSetInformation"
         rva: 8560
   - library_name: "api-ms-win-core-processthreads-l1-1-0.dll"
+    number_of_functions: 6
     functions:
       - name: "GetStartupInfoW"
         rva: 8608
@@ -278,16 +281,19 @@ import_details:
       - name: "SetPriorityClass"
         rva: 8648
   - library_name: "api-ms-win-core-com-l1-1-0.dll"
+    number_of_functions: 2
     functions:
       - name: "CoInitializeEx"
         rva: 8504
       - name: "CoUninitialize"
         rva: 8512
   - library_name: "api-ms-win-core-processenvironment-l1-1-0.dll"
+    number_of_functions: 1
     functions:
       - name: "ExpandEnvironmentStringsW"
         rva: 8592
   - library_name: "api-ms-win-core-errorhandling-l1-1-0.dll"
+    number_of_functions: 3
     functions:
       - name: "GetLastError"
         rva: 8528
@@ -296,24 +302,29 @@ import_details:
       - name: "SetUnhandledExceptionFilter"
         rva: 8544
   - library_name: "api-ms-win-core-synch-l1-2-0.dll"
+    number_of_functions: 1
     functions:
       - name: "Sleep"
         rva: 8712
   - library_name: "api-ms-win-core-libraryloader-l1-2-0.dll"
+    number_of_functions: 1
     functions:
       - name: "GetModuleHandleW"
         rva: 8576
   - library_name: "api-ms-win-core-profile-l1-1-0.dll"
+    number_of_functions: 1
     functions:
       - name: "QueryPerformanceCounter"
         rva: 8664
   - library_name: "api-ms-win-core-sysinfo-l1-1-0.dll"
+    number_of_functions: 2
     functions:
       - name: "GetTickCount"
         rva: 8728
       - name: "GetSystemTimeAsFileTime"
         rva: 8736
   - library_name: "api-ms-win-core-rtlsupport-l1-1-0.dll"
+    number_of_functions: 3
     functions:
       - name: "RtlVirtualUnwind"
         rva: 8680
@@ -322,6 +333,7 @@ import_details:
       - name: "RtlCaptureContext"
         rva: 8696
   - library_name: "SHELL32.dll"
+    number_of_functions: 1
     functions:
       - name: "ShellExecuteExW"
         rva: 8488

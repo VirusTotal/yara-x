@@ -47,9 +47,9 @@ fn md5_data(
     size: i64,
 ) -> Option<RuntimeString> {
     let cached = MD5_CACHE.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_bytes(
+        Some(RuntimeString::from_slice(
             ctx,
-            cache.borrow().get(&(offset, size))?,
+            cache.borrow().get(&(offset, size))?.as_bytes(),
         ))
     });
 
@@ -60,21 +60,20 @@ fn md5_data(
     let range = offset.try_into().ok()?..(offset + size).try_into().ok()?;
     let data = ctx.scanned_data().get(range)?;
     let digest = format!("{:x}", md5_hash::compute(data));
-    let result = RuntimeString::from_bytes(ctx, digest.as_bytes());
 
     MD5_CACHE.with(|cache| {
-        cache.borrow_mut().insert((offset, size), digest);
+        cache.borrow_mut().insert((offset, size), digest.clone());
     });
 
-    Some(result)
+    Some(RuntimeString::new(digest))
 }
 
 #[module_export(name = "md5")]
 fn md5_str(ctx: &mut ScanContext, s: RuntimeString) -> Option<RuntimeString> {
-    Some(RuntimeString::from_bytes(
-        ctx,
-        format!("{:x}", md5_hash::compute(s.as_bstr(ctx))),
-    ))
+    Some(RuntimeString::new(format!(
+        "{:x}",
+        md5_hash::compute(s.as_bstr(ctx))
+    )))
 }
 
 #[module_export(name = "sha1")]
@@ -84,9 +83,9 @@ fn sha1_data(
     size: i64,
 ) -> Option<RuntimeString> {
     let cached = SHA1_CACHE.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_bytes(
+        Some(RuntimeString::from_slice(
             ctx,
-            cache.borrow().get(&(offset, size))?,
+            cache.borrow().get(&(offset, size))?.as_bytes(),
         ))
     });
 
@@ -101,13 +100,12 @@ fn sha1_data(
     hasher.update(data);
 
     let digest = format!("{:x}", hasher.finalize());
-    let result = RuntimeString::from_bytes(ctx, digest.as_bytes());
 
     SHA1_CACHE.with(|cache| {
-        cache.borrow_mut().insert((offset, size), digest);
+        cache.borrow_mut().insert((offset, size), digest.clone());
     });
 
-    Some(result)
+    Some(RuntimeString::new(digest))
 }
 
 #[module_export(name = "sha1")]
@@ -115,7 +113,7 @@ fn sha1_str(ctx: &mut ScanContext, s: RuntimeString) -> Option<RuntimeString> {
     let mut hasher = Sha1::new();
     hasher.update(s.as_bstr(ctx));
 
-    Some(RuntimeString::from_bytes(ctx, format!("{:x}", hasher.finalize())))
+    Some(RuntimeString::new(format!("{:x}", hasher.finalize())))
 }
 
 #[module_export(name = "sha256")]
@@ -125,9 +123,9 @@ fn sha256_data(
     size: i64,
 ) -> Option<RuntimeString> {
     let cached = SHA256_CACHE.with(|cache| -> Option<RuntimeString> {
-        Some(RuntimeString::from_bytes(
+        Some(RuntimeString::from_slice(
             ctx,
-            cache.borrow().get(&(offset, size))?,
+            cache.borrow().get(&(offset, size))?.as_bytes(),
         ))
     });
 
@@ -142,13 +140,12 @@ fn sha256_data(
     hasher.update(data);
 
     let digest = format!("{:x}", hasher.finalize());
-    let result = RuntimeString::from_bytes(ctx, digest.as_bytes());
 
     SHA256_CACHE.with(|cache| {
-        cache.borrow_mut().insert((offset, size), digest);
+        cache.borrow_mut().insert((offset, size), digest.clone());
     });
 
-    Some(result)
+    Some(RuntimeString::new(digest))
 }
 
 #[module_export(name = "sha256")]
@@ -159,7 +156,7 @@ fn sha256_str(
     let mut hasher = Sha256::new();
     hasher.update(s.as_bstr(ctx));
 
-    Some(RuntimeString::from_bytes(ctx, format!("{:x}", hasher.finalize())))
+    Some(RuntimeString::new(format!("{:x}", hasher.finalize())))
 }
 
 #[module_export(name = "crc32")]

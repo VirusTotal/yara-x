@@ -921,6 +921,7 @@ resources:
     language: 1033
 import_details:
   - library_name: "KERNEL32.dll"
+    number_of_functions: 192
     functions:
       - name: "GetConsoleMode"
         rva: 3183888
@@ -1307,6 +1308,7 @@ import_details:
       - name: "WriteConsoleW"
         rva: 3185416
   - library_name: "USER32.dll"
+    number_of_functions: 242
     functions:
       - name: "GetAsyncKeyState"
         rva: 3186008
@@ -1793,6 +1795,7 @@ import_details:
       - name: "UpdateLayeredWindow"
         rva: 3187936
   - library_name: "GDI32.dll"
+    number_of_functions: 140
     functions:
       - name: "GetCurrentPositionEx"
         rva: 3182728
@@ -2075,12 +2078,14 @@ import_details:
       - name: "DeleteDC"
         rva: 3183840
   - library_name: "MSIMG32.dll"
+    number_of_functions: 2
     functions:
       - name: "TransparentBlt"
         rva: 3185432
       - name: "AlphaBlend"
         rva: 3185440
   - library_name: "WINSPOOL.DRV"
+    number_of_functions: 4
     functions:
       - name: "GetJobW"
         rva: 3188072
@@ -2091,6 +2096,7 @@ import_details:
       - name: "DocumentPropertiesW"
         rva: 3188096
   - library_name: "ADVAPI32.dll"
+    number_of_functions: 14
     functions:
       - name: "RegSetValueW"
         rva: 3182592
@@ -2121,6 +2127,7 @@ import_details:
       - name: "RegOpenKeyExW"
         rva: 3182696
   - library_name: "SHELL32.dll"
+    number_of_functions: 13
     functions:
       - name: "DragQueryFileW"
         rva: 3185832
@@ -2149,10 +2156,12 @@ import_details:
       - name: "ShellExecuteW"
         rva: 3185928
   - library_name: "COMCTL32.dll"
+    number_of_functions: 1
     functions:
       - name: "InitCommonControlsEx"
         rva: 3182712
   - library_name: "SHLWAPI.dll"
+    number_of_functions: 7
     functions:
       - name: "PathFindFileNameW"
         rva: 3185944
@@ -2169,6 +2178,7 @@ import_details:
       - name: "PathFindExtensionW"
         rva: 3185992
   - library_name: "UxTheme.dll"
+    number_of_functions: 12
     functions:
       - name: "CloseThemeData"
         rva: 3187952
@@ -2195,6 +2205,7 @@ import_details:
       - name: "GetWindowTheme"
         rva: 3188040
   - library_name: "ole32.dll"
+    number_of_functions: 77
     functions:
       - name: "DoDragDrop"
         rva: 3188320
@@ -2351,6 +2362,7 @@ import_details:
       - name: "ReleaseStgMedium"
         rva: 3188928
   - library_name: "OLEAUT32.dll"
+    number_of_functions: 42
     functions:
       - name: "VarBstrFromDate"
         ordinal: 114
@@ -2479,10 +2491,12 @@ import_details:
         ordinal: 185
         rva: 3185816
   - library_name: "oledlg.dll"
+    number_of_functions: 1
     functions:
       - name: "OleUIBusyW"
         rva: 3188944
   - library_name: "gdiplus.dll"
+    number_of_functions: 25
     functions:
       - name: "GdipBitmapUnlockBits"
         rva: 3188112
@@ -2535,6 +2549,7 @@ import_details:
       - name: "GdipCreateBitmapFromFile"
         rva: 3188304
   - library_name: "OLEACC.dll"
+    number_of_functions: 3
     functions:
       - name: "LresultFromObject"
         rva: 3185456
@@ -2543,6 +2558,7 @@ import_details:
       - name: "CreateStdAccessibleObject"
         rva: 3185472
   - library_name: "IMM32.dll"
+    number_of_functions: 3
     functions:
       - name: "ImmGetContext"
         rva: 3183856
@@ -2551,10 +2567,12 @@ import_details:
       - name: "ImmReleaseContext"
         rva: 3183872
   - library_name: "WINMM.dll"
+    number_of_functions: 1
     functions:
       - name: "PlaySoundW"
         rva: 3188056
   - library_name: "kernel32.dll"
+    number_of_functions: 4
     functions:
       - name: "VirtualFree"
         rva: 4316068

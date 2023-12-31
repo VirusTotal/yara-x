@@ -2010,6 +2010,7 @@ impl From<PE<'_>> for protos::pe::PE {
                 let mut import = protos::pe::Import::new();
                 import.library_name = Some(dll_name.to_owned());
                 import.functions = functions.iter().map(protos::pe::Function::from).collect();
+                import.set_number_of_functions(functions.len().try_into().unwrap());
                 num_imported_funcs += import.functions.len();
                 result.import_details.push(import);
             }
@@ -2020,6 +2021,7 @@ impl From<PE<'_>> for protos::pe::PE {
                 let mut import = protos::pe::Import::new();
                 import.library_name = Some(dll_name.to_owned());
                 import.functions = functions.iter().map(protos::pe::Function::from).collect();
+                import.set_number_of_functions(functions.len().try_into().unwrap());
                 num_delayed_imported_funcs += import.functions.len();
                 result.delayed_import_details.push(import);
             }

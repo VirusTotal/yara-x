@@ -116,7 +116,8 @@ message Resource {
 
 message Import {
   required string library_name = 1;
-  repeated Function functions = 2;
+  required uint64 number_of_functions = 2;
+  repeated Function functions = 3;
 }
 
 message Export {

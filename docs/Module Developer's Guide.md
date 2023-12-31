@@ -447,7 +447,7 @@ fn get_line(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     let cursor = io::Cursor::new(ctx.scanned_data());
 
     if let Some(Ok(line)) = cursor.lines().nth(n as usize) {
-        Some(RuntimeString::from_bytes(ctx, line))
+        Some(RuntimeString::from_slice(ctx, line))
     } else {
         None
     }
@@ -586,7 +586,7 @@ use the `RuntimeString` type. This type is an enum with three variants:
 
 * `RuntimeString::Literal`
 * `RuntimeString::ScannedDataSlice`
-* `RuntimeString::Owned`
+* `RuntimeString::Rc`
 
 `RuntimeString::Literal` is used when the string is a literal in the YARA rule.
 For example, if your rule uses the expression `my_module.my_func("foo")`, `"foo"`
@@ -601,9 +601,10 @@ is part of the scanned  data, without having to make a copy of it. Internally,
 this variant simply contains the offset within the data where the string starts
 and its length, so it's a very similar to Rust slices.
 
-`RuntimeString::Owned` is a string owned by the function. This is the variant
-used when the string you are returning from your function is not part of the
-scanned data, and therefore needs to reside in its own memory.
+`RuntimeString::Rc` is a reference-counted string that is released when all 
+references are dropped. This is the variant used when the string you are 
+returning from your function is not part of the scanned data, and therefore 
+needs to reside in its own memory.
 
 Regardless of the variant, `RuntimeString` has a `as_bstr` method that allows 
 you to obtain a reference to the actual string. This method receives a `&ScanContext`
@@ -613,20 +614,21 @@ require that the string must be a valid UTF-8, as `&str` does. Aside from that,
 more information in the documentation for the [bstr](https://docs.rs/bstr/latest/bstr/) 
 crate.
 
-For creating an instance of `RuntimeString` you must use the associated function
-`RuntimeString::from_bytes`. This function accepts any type implementing the 
-trait `AsRef<[u8]>`, so you can pass either a `&str`, `&[u8]` or `String` to it.
-The `from_bytes` function is smart enough to figure out which variant of
-`RuntimeString` is the most appropriate, depending on what you passed to it. If
-a slice (e.g: `&str`, `&[u8]`) that lies within the boundaries of the scanned
-data, it will return the `RuntimeString::ScannedDataSlice` variant. In all other
-cases it will return the`RuntimeString::Owned` variant.
+For creating an instance of `RuntimeString` you must either use `RuntimeString::new`
+or `RuntimeString::from_slice`. `RuntimeString::new` creates the runtime string
+by taking ownership of a `String`, `Vec<u8>`, or any type that implements 
+`Into<Vec<u8>`. 
+
+In the other hand, `RuntimeString::from_slice` receives a `&[u8]`
+and creates the runtime string by making a copy of the slice, except if the 
+slice lies within the boundaries of the scanned data, in which case the returned
+variant is `RuntimeString::ScannedDataSlice`.
 
 ```rust
 /// A function that always returns the string "foo".
 #[module_export]
 fn foo(ctx: &mut ScanContext) -> RuntimeString {
-    RuntimeString::from_bytes(ctx, "foo")
+    RuntimeString::from_slice("foo".as_bytes())
 }
 ```
 
@@ -638,8 +640,8 @@ fn uppercase(ctx: &mut ScanContext, s: RuntimeString) -> RuntimeString {
     let s = s.as_bstr(ctx);
     // &BStr has the same methods than &str, including to_uppercase. 
     let s = s.to_uppercase();
-    // Returns RuntimeString::Owned with the new string.
-    RuntimeString::from_bytes(ctx, s)
+    // Returns RuntimeString::Rc with the new string.
+    RuntimeString::new(s)
 }
 ```
 
@@ -654,7 +656,7 @@ fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     let head = ctx.scanned_data().get(0..n as usize)?;
     // Returns RuntimeString::ScannedDataSlice, as the `head` slice is contained
     // within the scanned data.
-    Some(RuntimeString::from_bytes(ctx, head))
+    Some(RuntimeString::from_slice(ctx, head))
 }
 ```
 
