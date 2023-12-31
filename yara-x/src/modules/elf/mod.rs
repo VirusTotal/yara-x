@@ -7,6 +7,7 @@ and sections information, exported symbols, target platform, etc.
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use rustc_hash::FxHashSet;
+use tlsh_fixed as tlsh;
 
 use crate::modules::prelude::*;
 use crate::modules::protos::elf::*;

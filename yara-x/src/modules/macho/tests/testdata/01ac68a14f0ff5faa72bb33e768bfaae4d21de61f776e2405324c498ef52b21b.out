@@ -1,0 +1,254 @@
+magic: 0xfeedfacf
+cputype: 16777223
+cpusubtype: 3
+filetype: 8
+ncmds: 28
+sizeofcmds: 2936
+flags: 0x18085
+reserved: 0
+number_of_segments: 3
+segments:
+  - cmd: 25
+    cmdsize: 712
+    segname: "__TEXT"
+    vmaddr: 0x0
+    vmsize: 0x6000
+    fileoff: 0
+    filesize: 24576
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 8
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0xbc0
+        size: 0x3baa
+        offset: 3008
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__stubs"
+        addr: 0x476a
+        size: 0x198
+        offset: 18282
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000408
+        reserved1: 0
+        reserved2: 6
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__stub_helper"
+        addr: 0x4904
+        size: 0x2a4
+        offset: 18692
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__gcc_except_tab"
+        addr: 0x4ba8
+        size: 0x964
+        offset: 19368
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x550c
+        size: 0x3e6
+        offset: 21772
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x58f4
+        size: 0x4d8
+        offset: 22772
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__unwind_info"
+        addr: 0x5dcc
+        size: 0x1f0
+        offset: 24012
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__eh_frame"
+        addr: 0x5fc0
+        size: 0x38
+        offset: 24512
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - cmd: 25
+    cmdsize: 392
+    segname: "__DATA"
+    vmaddr: 0x6000
+    vmsize: 0x1000
+    fileoff: 24576
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x3
+    nsects: 4
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__nl_symbol_ptr"
+        addr: 0x6000
+        size: 0x10
+        offset: 24576
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 68
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__got"
+        addr: 0x6010
+        size: 0x50
+        offset: 24592
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 70
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__la_symbol_ptr"
+        addr: 0x6060
+        size: 0x220
+        offset: 24672
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x7
+        reserved1: 80
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__const"
+        addr: 0x6280
+        size: 0x58
+        offset: 25216
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - cmd: 25
+    cmdsize: 72
+    segname: "__LINKEDIT"
+    vmaddr: 0x7000
+    vmsize: 0x9000
+    fileoff: 28672
+    filesize: 33600
+    maxprot: 0x7
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "/System/Library/Frameworks/WebKit.framework/Versions/A/WebKit"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "604.4.7"
+  - name: "/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "275.0.0"
+  - name: "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "22.0.0"
+  - name: "/System/Library/Frameworks/AudioToolbox.framework/Versions/A/AudioToolbox"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "492.0.0"
+  - name: "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/System/Library/Frameworks/QTKit.framework/Versions/A/QTKit"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/Library/Application Support/EFI/Calibrator3/libAPFInterface.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "0.0.0"
+    current_version: "0.0.0"
+  - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxp10.framework/hcxp10"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxpgasetup.framework/hcxpgasetup"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxpglobobj.framework/hcxpglobobj"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxpmtx.framework/hcxpmtx"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxppcat.framework/hcxppcat"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/Library/Application Support/EFI/Calibrator3/lib/hcxp/hcxpefim.framework/hcxpefim"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/Library/Application Support/EFI/Calibrator3/lib/libwx_mac-3.1_xc_9.2.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "3.1.0"
+    current_version: "3.1.1"
+  - name: "/usr/lib/libc++.1.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "400.9.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1252.0.0"

@@ -169,25 +169,25 @@ dynsym:
     shndx: 9
     visibility: STV_DEFAULT
 dynamic:
-  - tag: DT_FLAGS
+  - type: DT_FLAGS
     val: 2
-  - tag: DT_REL
+  - type: DT_REL
     val: 412
-  - tag: DT_RELSZ
+  - type: DT_RELSZ
     val: 192
-  - tag: DT_RELENT
+  - type: DT_RELENT
     val: 8
-  - tag: DT_RELCOUNT
+  - type: DT_RELCOUNT
     val: 24
-  - tag: DT_SYMTAB
+  - type: DT_SYMTAB
     val: 308
-  - tag: DT_SYMENT
+  - type: DT_SYMENT
     val: 16
-  - tag: DT_STRTAB
+  - type: DT_STRTAB
     val: 392
-  - tag: DT_STRSZ
+  - type: DT_STRSZ
     val: 20
-  - tag: 1879047925
+  - type: 1879047925
     val: 340
-  - tag: DT_HASH
+  - type: DT_HASH
     val: 368

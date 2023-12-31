@@ -1,0 +1,413 @@
+is_dotnet: true
+module_name: "OctopusRPA.Csv.dll"
+version: "v4.0.30319"
+number_of_streams: 5
+number_of_guids: 1
+number_of_resources: 1
+number_of_classes: 4
+number_of_assembly_refs: 4
+number_of_user_strings: 10
+number_of_constants: 3
+typelib: "286e82a5-8e28-4288-b175-0099b68f4880"
+streams:
+  - name: "#-"
+    offset: 2840
+    size: 1917
+  - name: "#Strings"
+    offset: 4757
+    size: 2012
+  - name: "#US"
+    offset: 6769
+    size: 669
+  - name: "#GUID"
+    offset: 7438
+    size: 21
+  - name: "#Blob"
+    offset: 7459
+    size: 984
+guids:
+  - "d56eef0e-b964-4c2b-8e58-30441730866d"
+constants:
+  - "C\000o\000l\000u\000m\000n\000"
+  - "C\000o\000l\000u\000m\000n\000"
+  - ",\000"
+assembly:
+    name: "OctopusRPA.Csv"
+    version:
+        major: 1
+        minor: 0
+        build_number: 0
+        revision_number: 0
+assembly_refs:
+  - name: "mscorlib"
+    public_key_or_token: "\267z\\V\0314\340\211"
+    version:
+        major: 4
+        minor: 0
+        build_number: 0
+        revision_number: 0
+  - name: "System.Data"
+    public_key_or_token: "\267z\\V\0314\340\211"
+    version:
+        major: 4
+        minor: 0
+        build_number: 0
+        revision_number: 0
+  - name: "CsvHelper"
+    public_key_or_token: "\214IY\010+\345\310#"
+    version:
+        major: 28
+        minor: 0
+        build_number: 0
+        revision_number: 0
+  - name: "System.Core"
+    public_key_or_token: "\267z\\V\0314\340\211"
+    version:
+        major: 4
+        minor: 0
+        build_number: 0
+        revision_number: 0
+resources:
+  - name: "\r\n\006\004\003"
+classes:
+  - fullname: "OctopusRPA.Csv.CsvHelper"
+    name: "CsvHelper"
+    namespace: "OctopusRPA.Csv"
+    visibility: "public"
+    type: "class"
+    abstract: true
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 6
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "ReadToDataTable"
+        visibility: "public"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.Data.DataTable"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "filePath"
+            type: "string"
+          - name: "firstRowAsHeader"
+            type: "bool"
+          - name: "encoding"
+            type: "System.Text.Encoding"
+          - name: "defaultColumnName"
+            type: "string"
+      - name: "SaveAsCsv"
+        visibility: "public"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 5
+        parameters:
+          - name: "filePath"
+            type: "string"
+          - name: "dataTable"
+            type: "System.Data.DataTable"
+          - name: "withHeader"
+            type: "bool"
+          - name: "delimiter"
+            type: "string"
+          - name: "encoding"
+            type: "System.Text.Encoding"
+      - name: "ReadToDataTable"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "System.Data.DataTable"
+        number_of_generic_parameters: 0
+        number_of_parameters: 4
+        parameters:
+          - name: "filePath"
+            type: "string"
+          - name: "firstRowAsHeader"
+            type: "bool"
+          - name: "defaultColumnName"
+            type: "string"
+          - name: "csvConfig"
+            type: "CsvHelper.Configuration.CsvConfiguration"
+      - name: "<ReadToDataTable>g__ReadRowToDataTable|3_0"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 3
+        parameters:
+          - name: "csvReader"
+            type: "CsvHelper.CsvReader"
+          - name: "table"
+            type: "System.Data.DataTable"
+          - name: "columnCount"
+            type: "int"
+      - name: ".cctor"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "OctopusRPA.Csv.CsvHelper.<>c"
+    name: "<>c"
+    namespace: "OctopusRPA.Csv.CsvHelper"
+    visibility: "private"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 5
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "<ReadToDataTable>b__3_2"
+        visibility: "internal"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "h"
+            type: "string"
+      - name: "<ReadToDataTable>b__3_3"
+        visibility: "internal"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "System.Collections.Generic.IEnumerable<string>"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "g"
+            type: "System.Linq.IGrouping<string,string>"
+      - name: "<ReadToDataTable>b__3_4"
+        visibility: "internal"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "x"
+            type: "string"
+          - name: "i"
+            type: "int"
+      - name: ".ctor"
+        visibility: "public"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "<ReadToDataTable>b__1"
+        visibility: "internal"
+        abstract: false
+        static: false
+        virtual: false
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "h"
+            type: "string"
+  - fullname: "OctopusRPA.Csv.CsvHelper.<>c__DisplayClass3_0"
+    name: "<>c__DisplayClass3_0"
+    namespace: "OctopusRPA.Csv.CsvHelper"
+    visibility: "private"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 3
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "CheckString"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "P_0"
+            type: "int"
+          - name: "P_1"
+            type: "int"
+      - name: "CheckString"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "string"
+        number_of_generic_parameters: 0
+        number_of_parameters: 2
+        parameters:
+          - name: "P_0"
+            type: "int"
+          - name: "P_1"
+            type: "int"
+      - name: ".cctor"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+  - fullname: "ZYXDNGuarder"
+    name: "ZYXDNGuarder"
+    visibility: "internal"
+    type: "class"
+    abstract: false
+    sealed: true
+    number_of_base_types: 1
+    number_of_generic_parameters: 0
+    number_of_methods: 9
+    base_types:
+      - "System.Object"
+    methods:
+      - name: "CheckRuntime"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "int"
+      - name: "CheckRuntime64"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 1
+        parameters:
+          - name: "P_0"
+            type: "int"
+      - name: "RunHVM"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "RunHVM"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "bool"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "Startup"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "void"
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: ".cctor"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: ".cctor"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: ".cctor"
+        visibility: "private"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        number_of_generic_parameters: 0
+        number_of_parameters: 0
+      - name: "a"
+        visibility: "internal"
+        abstract: false
+        static: true
+        virtual: false
+        final: false
+        return_type: "object"
+        number_of_generic_parameters: 0
+        number_of_parameters: 6
+        parameters:
+          - name: "P_0"
+            type: "object"
+          - name: "P_1"
+            type: "object"
+          - name: "P_2"
+            type: "object"
+          - name: "P_3"
+            type: "int"
+          - name: "P_4"
+            type: "IntPtr"
+          - name: "P_5"
+            type: "int"
+user_strings:
+  - "d\000e\000l\000i\000m\000i\000t\000e\000r\000"
+  - "f\000i\000l\000e\000P\000a\000t\000h\000"
+  - "d\000a\000t\000a\000T\000a\000b\000l\000e\000"
+  - "d\000e\000f\000a\000u\000l\000t\000C\000o\000l\000u\000m\000n\000N\000a\000m\000e\000"
+  - "{\0000\000}\000{\0001\000}\000"
+  - "{\0000\000}\000(\000{\0001\000}\000)\000"
+  - "*\000=\000L\000o\000a\000d\000 \000D\000N\000G\000u\000a\000r\000d\000 \000R\000u\000n\000t\000i\000m\000e\000 \000l\000i\000b\000r\000a\000r\000y\000 \000f\000a\000i\000l\000e\000d\000,\000 \000r\000u\000n\000t\000i\000m\000e\000 \000l\000i\000b\000r\000a\000r\000y\000 \000n\000o\000t\000 \000f\000o\000u\000n\000d\000 \000o\000r\000 \000A\000c\000c\000e\000s\000s\000 \000D\000e\000n\000i\000e\000d\000.\000=\000*\000[\000O\000c\000t\000o\000p\000u\000s\000R\000P\000A\000.\000C\000s\000v\000.\000d\000l\000l\000]\000"
+  - "E\000r\000r\000o\000r\000,\000 \000D\000N\000G\000u\000a\000r\000d\000 \000R\000u\000n\000t\000i\000m\000e\000 \000l\000i\000b\000r\000a\000r\000y\000 \000n\000o\000t\000 \000l\000o\000a\000d\000e\000d\000!\000"
+  - "A\000 \000n\000e\000w\000e\000r\000 \000v\000e\000r\000s\000i\000o\000n\000 \000o\000f\000 \000D\000N\000G\000u\000a\000r\000d\000 \000R\000u\000n\000t\000i\000m\000e\000 \000l\000i\000b\000r\000a\000r\000y\000 \000i\000s\000 \000n\000e\000e\000d\000e\000d\000 \000t\000o\000 \000r\000u\000n\000 \000t\000h\000i\000s\000 \000a\000p\000p\000l\000i\000c\000a\000t\000i\000o\000n\000.\000"
+  - "[\000*\000=\000*\000]\000T\000h\000i\000s\000 \000a\000p\000p\000l\000i\000c\000a\000t\000i\000o\000n\000 \000i\000s\000 \000e\000x\000p\000i\000r\000e\000d\000 \000!\000[\000*\000=\000*\000]\000"

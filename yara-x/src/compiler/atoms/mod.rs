@@ -115,21 +115,30 @@ pub(crate) struct Atom {
 impl From<&[u8]> for Atom {
     #[inline]
     fn from(value: &[u8]) -> Self {
-        Self { bytes: value.to_smallvec(), backtrack: 0, exact: true }
+        Self {
+            bytes: value.to_smallvec(),
+            backtrack: 0,
+            exact: !value.is_empty(),
+        }
     }
 }
 
 impl From<Vec<u8>> for Atom {
     #[inline]
     fn from(value: Vec<u8>) -> Self {
-        Self { bytes: value.to_smallvec(), backtrack: 0, exact: true }
+        Self {
+            bytes: value.to_smallvec(),
+            backtrack: 0,
+            exact: !value.is_empty(),
+        }
     }
 }
 
 impl From<SmallVec<[u8; DESIRED_ATOM_SIZE]>> for Atom {
     #[inline]
     fn from(value: SmallVec<[u8; DESIRED_ATOM_SIZE]>) -> Self {
-        Self { bytes: value, backtrack: 0, exact: true }
+        let exact = !value.is_empty();
+        Self { bytes: value, backtrack: 0, exact }
     }
 }
 

@@ -43,11 +43,12 @@ number_of_rva_and_sizes: 16
 number_of_sections: 4
 number_of_imported_functions: 69
 number_of_delayed_imported_functions: 2
-number_of_resources: 4
+number_of_resources: 0
 number_of_version_infos: 0
 number_of_imports: 1
 number_of_delayed_imports: 1
 number_of_exports: 0
+number_of_signatures: 0
 rich_signature:
     offset: 128
     length: 96
@@ -311,6 +312,7 @@ delayed_import_details:
         rva: 80000
       - name: "MessageBoxA"
         rva: 80004
+is_signed: false
 overlay:
     offset: 0
     size: 0

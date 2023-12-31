@@ -158,9 +158,8 @@ impl<'src> PatternInRule<'src> {
 /// This type represents a pattern independently of the rule in which it was
 /// declared. Multiple rules declaring exactly the same pattern will share the
 /// same instance of [`Pattern`]. For representing a pattern in the context of
-/// a specific rule we have the [`PatternInRule`], which contains a [`Pattern`]
-/// and additional information about how the pattern in declared or used in
-/// rule.
+/// a specific rule we have [`PatternInRule`], which contains a [`Pattern`] and
+/// additional information about how the pattern is used in a rule.
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub(in crate::compiler) enum Pattern {
     /// A literal pattern is one that doesn't contain wildcards, alternatives,
@@ -207,6 +206,7 @@ pub(in crate::compiler) struct RegexpPattern {
 }
 
 /// Intermediate representation (IR) for an expression.
+#[derive(Debug)]
 pub(in crate::compiler) enum Expr {
     /// Constant value (i.e: the value is known at compile time). The value
     /// in `type_value` is not `None`.
@@ -217,17 +217,17 @@ pub(in crate::compiler) enum Expr {
     Filesize,
     Entrypoint,
 
-    /// Boolean `not` expression
+    /// Boolean `not` expression.
     Not {
         operand: Box<Expr>,
     },
 
-    /// Boolean `and` expression
+    /// Boolean `and` expression.
     And {
         operands: Vec<Expr>,
     },
 
-    /// Boolean `or` expression
+    /// Boolean `or` expression.
     Or {
         operands: Vec<Expr>,
     },
@@ -381,10 +381,9 @@ pub(in crate::compiler) enum Expr {
         lhs: Box<Expr>,
     },
 
-    /// Field access expression (e.g. `foo.bar`)
+    /// Field access expression (e.g. `foo.bar.baz`)
     FieldAccess {
-        rhs: Box<Expr>,
-        lhs: Box<Expr>,
+        operands: Vec<Expr>,
     },
 
     /// A `defined` expression (e.g. `defined foo`)
@@ -461,6 +460,7 @@ pub(in crate::compiler) enum Expr {
 }
 
 /// A lookup operation in an array or dictionary.
+#[derive(Debug)]
 pub(in crate::compiler) struct Lookup {
     pub type_value: TypeValue,
     pub primary: Box<Expr>,
@@ -468,6 +468,7 @@ pub(in crate::compiler) struct Lookup {
 }
 
 /// An expression representing a function call.
+#[derive(Debug)]
 pub(in crate::compiler) struct FuncCall {
     /// The callable expression, which must resolve in some function identifier.
     pub callable: Expr,
@@ -483,6 +484,7 @@ pub(in crate::compiler) struct FuncCall {
 
 /// An `of` expression (e.g. `1 of ($a, $b)`, `all of them`,
 /// `any of (true, false)`)
+#[derive(Debug)]
 pub(in crate::compiler) struct Of {
     pub quantifier: Quantifier,
     pub items: OfItems,
@@ -492,6 +494,7 @@ pub(in crate::compiler) struct Of {
 
 /// A `for .. of` expression (e.g `for all of them : (..)`,
 /// `for 1 of ($a,$b) : (..)`)
+#[derive(Debug)]
 pub(in crate::compiler) struct ForOf {
     pub quantifier: Quantifier,
     pub variable: Var,
@@ -501,6 +504,7 @@ pub(in crate::compiler) struct ForOf {
 }
 
 /// A `for .. in` expression (e.g `for all x in iterator : (..)`)
+#[derive(Debug)]
 pub(in crate::compiler) struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
@@ -510,6 +514,7 @@ pub(in crate::compiler) struct ForIn {
 }
 
 /// A quantifier used in `for` and `of` expressions.
+#[derive(Debug)]
 pub(in crate::compiler) enum Quantifier {
     None,
     All,
@@ -524,6 +529,7 @@ pub(in crate::compiler) enum Quantifier {
 /// The anchor is the part of the expression that restricts the offset range
 /// where the match can occur.
 /// (e.g. `at <expr>`, `in <range>`).
+#[derive(Debug)]
 pub(in crate::compiler) enum MatchAnchor {
     None,
     At(Box<Expr>),
@@ -549,18 +555,21 @@ impl MatchAnchor {
 }
 
 /// Items in a `of` expression.
+#[derive(Debug)]
 pub(in crate::compiler) enum OfItems {
     PatternSet(Vec<PatternId>),
     BoolExprTuple(Vec<Expr>),
 }
 
 /// A pair of values conforming a range (e.g. `(0..10)`).
+#[derive(Debug)]
 pub(in crate::compiler) struct Range {
     pub lower_bound: Box<Expr>,
     pub upper_bound: Box<Expr>,
 }
 
 /// Possible iterable expressions that can use in a [`ForIn`].
+#[derive(Debug)]
 pub(in crate::compiler) enum Iterable {
     Range(Range),
     ExprTuple(Vec<Expr>),
@@ -629,7 +638,9 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => Type::Integer,
 
-            Expr::FieldAccess { rhs, .. } => rhs.ty(),
+            Expr::FieldAccess { operands, .. } => {
+                operands.last().unwrap().ty()
+            }
             Expr::Ident { symbol, .. } => symbol.type_value().ty(),
             Expr::FuncCall(fn_call) => fn_call.type_value.ty(),
             Expr::Lookup(lookup) => lookup.type_value.ty(),
@@ -698,7 +709,9 @@ impl Expr {
             | Expr::Shl { .. }
             | Expr::Shr { .. } => TypeValue::Integer(Value::Unknown),
 
-            Expr::FieldAccess { rhs, .. } => rhs.type_value(),
+            Expr::FieldAccess { operands, .. } => {
+                operands.last().unwrap().type_value()
+            }
             Expr::Ident { symbol, .. } => symbol.type_value().clone(),
             Expr::FuncCall(fn_call) => fn_call.type_value.clone(),
             Expr::Lookup(lookup) => lookup.type_value.clone(),
@@ -723,8 +736,7 @@ impl Expr {
                 // also true.
                 if operands.is_empty() {
                     return Expr::Const {
-                        // TODO: create a method in TypeValue for making this simpler?
-                        type_value: TypeValue::Bool(Value::Const(true)),
+                        type_value: TypeValue::const_bool_from(true),
                     };
                 }
 
@@ -733,8 +745,7 @@ impl Expr {
                 // regardless of the operands with unknown values.
                 if operands.iter().any(|op| op.type_value().is_const()) {
                     return Expr::Const {
-                        // TODO: create a method in TypeValue for making this simpler?
-                        type_value: TypeValue::Bool(Value::Const(false)),
+                        type_value: TypeValue::const_bool_from(false),
                     };
                 }
 
@@ -756,8 +767,7 @@ impl Expr {
                 // also false.
                 if operands.is_empty() {
                     return Expr::Const {
-                        // TODO: create a method in TypeValue for making this simpler?
-                        type_value: TypeValue::Bool(Value::Const(false)),
+                        type_value: TypeValue::const_bool_from(false),
                     };
                 }
 
@@ -766,8 +776,7 @@ impl Expr {
                 // regardless of the operands with unknown values.
                 if operands.iter().any(|op| op.type_value().is_const()) {
                     return Expr::Const {
-                        // TODO: create a method in TypeValue for making this simpler?
-                        type_value: TypeValue::Bool(Value::Const(true)),
+                        type_value: TypeValue::const_bool_from(true),
                     };
                 }
 
@@ -791,13 +800,11 @@ impl Expr {
                 }
                 if is_float {
                     Expr::Const {
-                        type_value: TypeValue::Float(Value::Const(sum)),
+                        type_value: TypeValue::const_float_from(sum),
                     }
                 } else {
                     Expr::Const {
-                        type_value: TypeValue::Integer(Value::Const(
-                            sum as i64,
-                        )),
+                        type_value: TypeValue::const_integer_from(sum as i64),
                     }
                 }
             }

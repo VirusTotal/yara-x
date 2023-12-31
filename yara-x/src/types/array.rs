@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::types::{Struct, TypeValue, Value};
 
 #[derive(Serialize, Deserialize)]
-pub enum Array {
+pub(crate) enum Array {
     Integers(Vec<i64>),
     Floats(Vec<f64>),
     Bools(Vec<bool>),
-    Strings(Vec<BString>),
+    Strings(Vec<Rc<BString>>),
     Structs(Vec<Rc<Struct>>),
 }
 
@@ -59,7 +59,7 @@ impl Array {
         }
     }
 
-    pub fn as_string_array(&self) -> &Vec<BString> {
+    pub fn as_string_array(&self) -> &Vec<Rc<BString>> {
         if let Self::Strings(v) = self {
             v
         } else {

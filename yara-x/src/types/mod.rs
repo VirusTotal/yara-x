@@ -1,8 +1,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
-use bstr::ByteSlice;
-use bstr::{BStr, BString};
+use bstr::BString;
 use serde::{Deserialize, Serialize};
 use walrus::ValType;
 
@@ -11,14 +10,16 @@ mod func;
 mod map;
 mod structure;
 
-pub use array::*;
-pub use func::*;
-pub use map::*;
-pub use structure::*;
+use crate::symbols::SymbolLookup;
+
+pub(crate) use array::*;
+pub(crate) use func::*;
+pub(crate) use map::*;
+pub(crate) use structure::*;
 
 /// The type of a YARA expression or identifier.
 #[derive(Clone, Copy, PartialEq)]
-pub enum Type {
+pub(crate) enum Type {
     Unknown,
     Integer,
     Float,
@@ -68,7 +69,7 @@ impl From<Type> for ValType {
 
 /// Contains information about a value.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
-pub enum Value<T> {
+pub(crate) enum Value<T> {
     /// Constant value. The value is known at compile time and it cannot
     /// change at runtime.
     Const(T),
@@ -156,12 +157,12 @@ impl Regexp {
 /// which are the fields in a struct, or what's the type of the items in an
 /// array.
 #[derive(Clone, Serialize, Deserialize)]
-pub enum TypeValue {
+pub(crate) enum TypeValue {
     Unknown,
     Integer(Value<i64>),
     Float(Value<f64>),
     Bool(Value<bool>),
-    String(Value<BString>),
+    String(Value<Rc<BString>>),
     Regexp(Option<Regexp>),
     Struct(Rc<Struct>),
     Array(Rc<Array>),
@@ -170,6 +171,10 @@ pub enum TypeValue {
 }
 
 impl TypeValue {
+    /// Returns true if the [`TypeValue`] is a constant value.
+    ///
+    /// A constant value is one that is known at compile time and can't be
+    /// changed at runtime.
     pub fn is_const(&self) -> bool {
         match self {
             TypeValue::Unknown => false,
@@ -214,6 +219,18 @@ impl TypeValue {
         }
     }
 
+    /// Returns the symbol table associated to this [`TypeValue`].
+    ///
+    /// The symbol table contains the methods and/or fields associated to the
+    /// type.
+    pub fn symbol_table(&self) -> Rc<dyn SymbolLookup> {
+        match self {
+            Self::Struct(s) => s.clone(),
+            _ => unreachable!(),
+        }
+    }
+
+    /// Returns the type associated to the [`TypeValue`].
     pub fn ty(&self) -> Type {
         match self {
             Self::Unknown => Type::Unknown,
@@ -278,14 +295,15 @@ impl TypeValue {
         }
     }
 
-    pub fn as_bstr(&self) -> &BStr {
-        if let TypeValue::String(v) = self {
-            v.extract()
+    pub fn as_string(&self) -> Rc<BString> {
+        if let TypeValue::String(value) = self {
+            value
+                .extract()
+                .cloned()
                 .expect("TypeValue doesn't have an associated value")
-                .as_bstr()
         } else {
             panic!(
-                "called `as_bstr` on a TypeValue that is not TypeValue::String, it is: {:?}",
+                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {:?}",
                 self
             )
         }
@@ -391,6 +409,54 @@ impl TypeValue {
         } else {
             None
         }
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable integer.
+    #[inline]
+    pub fn var_integer_from<T: Into<i64>>(i: T) -> Self {
+        Self::Integer(Value::Var(i.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable float.
+    #[inline]
+    pub fn var_float_from<T: Into<f64>>(f: T) -> Self {
+        Self::Float(Value::Var(f.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable boolean.
+    #[inline]
+    pub fn var_bool_from(i: bool) -> Self {
+        Self::Bool(Value::Var(i))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a variable string.
+    #[inline]
+    pub fn var_string_from<T: AsRef<[u8]>>(s: T) -> Self {
+        Self::String(Value::Var(BString::from(s.as_ref()).into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant integer.
+    #[inline]
+    pub fn const_integer_from<T: Into<i64>>(i: T) -> Self {
+        Self::Integer(Value::Const(i.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant float.
+    #[inline]
+    pub fn const_float_from<T: Into<f64>>(f: T) -> Self {
+        Self::Float(Value::Const(f.into()))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant boolean.
+    #[inline]
+    pub fn const_bool_from(i: bool) -> Self {
+        Self::Bool(Value::Const(i))
+    }
+
+    /// Creates a new [`TypeValue`] consisting on a constant string.
+    #[inline]
+    pub fn const_string_from<T: AsRef<[u8]>>(s: T) -> Self {
+        Self::String(Value::Const(BString::from(s.as_ref()).into()))
     }
 }
 

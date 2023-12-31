@@ -42,11 +42,12 @@ number_of_rva_and_sizes: 16
 number_of_sections: 3
 number_of_imported_functions: 0
 number_of_delayed_imported_functions: 0
-number_of_resources: 3
+number_of_resources: 0
 number_of_version_infos: 0
 number_of_imports: 0
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
 pdb_path: "2AC71AF3-A338-495C-834E-977A6DD5C6FD"
 sections:
   - name: ".text"
@@ -115,6 +116,7 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
+is_signed: false
 overlay:
     offset: 1984
     size: 4

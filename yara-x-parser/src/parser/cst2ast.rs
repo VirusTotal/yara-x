@@ -6,7 +6,7 @@ use std::iter::Iterator;
 use std::str;
 
 use crate::ast;
-use bstr::{BStr, BString, ByteSlice};
+use bstr::{BStr, BString, ByteSlice, ByteVec};
 use lazy_static::lazy_static;
 use num::{Bounded, CheckedMul, FromPrimitive, Integer};
 use pest::iterators::Pair;
@@ -107,7 +107,7 @@ fn create_binary_expr<'src>(
 ) -> Result<Expr<'src>, Error> {
     match op {
         GrammarRule::DOT => {
-            Ok(Expr::FieldAccess(Box::new(BinaryExpr::new(lhs, rhs))))
+            new_n_ary_expr!(Expr::FieldAccess, lhs, rhs)
         }
         // Boolean
         GrammarRule::k_OR => {
@@ -1197,8 +1197,8 @@ fn primary_expr_from_cst<'src>(
 
     let expr = match node.as_rule() {
         GrammarRule::ident => {
-            let ident = ident_from_cst(ctx, node);
-            let mut expr = Expr::Ident(Box::new(ident));
+            let mut idents =
+                vec![Expr::Ident(Box::new(ident_from_cst(ctx, node)))];
 
             // The identifier can be followed by a field access operator,
             // (e.g. `foo.bar.baz`).
@@ -1206,16 +1206,15 @@ fn primary_expr_from_cst<'src>(
                 // In fact, if something follows the identifier it must
                 // be a field access operator `.`, nothing else.
                 expect!(node, GrammarRule::DOT);
-
                 let node = children.next().unwrap();
-
-                expr = Expr::FieldAccess(Box::new(BinaryExpr::new(
-                    expr,
-                    Expr::Ident(Box::new(ident_from_cst(ctx, node))),
-                )));
+                idents.push(Expr::Ident(Box::new(ident_from_cst(ctx, node))));
             }
 
-            expr
+            if idents.len() == 1 {
+                idents.pop().unwrap()
+            } else {
+                Expr::FieldAccess(Box::new(NAryExpr::from(idents)))
+            }
         }
         GrammarRule::k_FILESIZE => Expr::Filesize { span: ctx.span(&node) },
         GrammarRule::k_ENTRYPOINT => {
@@ -1903,48 +1902,48 @@ fn string_lit_from_cst<'src>(
     // From now on ignore the quotes.
     let literal = &literal[1..literal.len() - 1];
 
-    // If the literal does not contain a backslash it can't contain escaped
-    // characters, the literal is exactly as it appears in the source code.
-    // Therefore we can return a reference to it in the form of a &BStr,
-    // allocating a new BString is not necessary.
-    if literal.find('\\').is_none() {
+    // Check if the string contains some backslash.
+    let backslash_pos = if let Some(backslash_pos) = literal.find('\\') {
+        if !allow_escape_char {
+            return Err(Error::from(ErrorInfo::unexpected_escape_sequence(
+                ctx.report_builder,
+                ctx.span(&string_lit),
+            )));
+        }
+        backslash_pos
+    } else {
+        // If the literal does not contain a backslash it can't contain escaped
+        // characters, the literal is exactly as it appears in the source code.
+        // Therefore we can return a reference to it in the form of a &BStr,
+        // allocating a new BString is not necessary.
         return Ok(Cow::from(BStr::new(literal)));
-    } else if !allow_escape_char {
-        return Err(Error::from(ErrorInfo::unexpected_escape_sequence(
-            ctx.report_builder,
-            ctx.span(&string_lit),
-        )));
-    }
+    };
 
-    // TODO: with some unsafe code we could use the position of the backslash
-    // returned by find for copying the chunk of literal that doesn't contain
-    // any backslashes directly into the resulting BString, instead of
-    // iterating the literal again from the very beginning.
-    let mut bytes = literal.bytes().enumerate();
-    let mut result = BString::new(Vec::with_capacity(literal.len()));
+    // Initially the result is a copy of the literal string up to the first
+    // backslash found.
+    let mut result = BString::from(&literal[..backslash_pos]);
 
-    while let Some((backslash_pos, b)) = bytes.next() {
+    // Process the remaining part of the literal, starting at the backslash.
+    let literal = &literal[backslash_pos..];
+    let mut chars = literal.char_indices();
+
+    while let Some((backslash_pos, b)) = chars.next() {
         match b {
             // The backslash indicates an escape sequence.
-            b'\\' => {
-                // Consume the backslash and see what's next.
-                let next_byte = bytes.next();
+            '\\' => {
+                // Consume the backslash and see what's next. A character must
+                // follow the backslash, this is guaranteed by the grammar
+                // itself.
+                let escaped_char = chars.next().unwrap();
 
-                // A character must follow the backslash. This is guaranteed by
-                // the grammar itself.
-                assert!(next_byte.is_some());
-
-                let next_byte = next_byte.unwrap();
-
-                let (_, b) = next_byte;
-                match b {
-                    b'\\' => result.push(b'\\'),
-                    b'n' => result.push(b'\n'),
-                    b'r' => result.push(b'\r'),
-                    b't' => result.push(b'\t'),
-                    b'0' => result.push(b'\0'),
-                    b'"' => result.push(b'"'),
-                    b'x' => match (bytes.next(), bytes.next()) {
+                match escaped_char.1 {
+                    '\\' => result.push(b'\\'),
+                    'n' => result.push(b'\n'),
+                    'r' => result.push(b'\r'),
+                    't' => result.push(b'\t'),
+                    '0' => result.push(b'\0'),
+                    '"' => result.push(b'"'),
+                    'x' => match (chars.next(), chars.next()) {
                         (Some((start, _)), Some((end, _))) => {
                             if let Ok(hex_value) =
                                 u8::from_str_radix(&literal[start..=end], 16)
@@ -1971,29 +1970,37 @@ fn string_lit_from_cst<'src>(
                                         .to_string(),
                                     string_span.subspan(
                                         backslash_pos,
-                                        backslash_pos + 2,
+                                        escaped_char.0 + 1,
                                     ),
                                 ),
                             ));
                         }
                     },
                     _ => {
+                        let (escaped_char_pos, escaped_char) = escaped_char;
+
+                        let escaped_char_end_pos =
+                            escaped_char_pos + escaped_char.len_utf8();
+
                         return Err(Error::from(
                             ErrorInfo::invalid_escape_sequence(
                                 ctx.report_builder,
                                 format!(
                                     "invalid escape sequence `{}`",
-                                    &literal[backslash_pos..backslash_pos + 2]
+                                    &literal
+                                        [backslash_pos..escaped_char_end_pos]
                                 ),
-                                string_span
-                                    .subspan(backslash_pos, backslash_pos + 2),
+                                string_span.subspan(
+                                    backslash_pos,
+                                    escaped_char_end_pos,
+                                ),
                             ),
                         ));
                     }
                 }
             }
-            // Any not escaped byte is copies as is.
-            b => result.push(b),
+            // Non-escaped characters are copied as is.
+            c => result.push_char(c),
         }
     }
 

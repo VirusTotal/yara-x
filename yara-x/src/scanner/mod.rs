@@ -19,6 +19,7 @@ use std::{cmp, fs, thread};
 
 use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
+use indexmap::IndexMap;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 use thiserror::Error;
@@ -29,7 +30,6 @@ use wasmtime::{
 
 use crate::compiler::{IdentId, PatternId, RuleId, RuleInfo, Rules};
 use crate::modules::{Module, BUILTIN_MODULES};
-use crate::string_pool::BStringPool;
 use crate::types::{Struct, TypeValue};
 use crate::variables::VariableError;
 use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
@@ -118,17 +118,16 @@ impl<'r> Scanner<'r> {
             &crate::wasm::ENGINE,
             ScanContext {
                 wasm_store: NonNull::dangling(),
+                runtime_objects: IndexMap::new(),
                 compiled_rules: rules,
-                string_pool: BStringPool::new(),
                 current_struct: None,
-                root_struct: rules.globals(),
+                root_struct: rules.globals().make_root(),
                 scanned_data: null(),
                 scanned_data_len: 0,
                 private_matching_rules: Vec::new(),
                 non_private_matching_rules: Vec::new(),
                 global_matching_rules: FxHashMap::default(),
                 main_memory: None,
-                vars_stack: Vec::new(),
                 module_outputs: FxHashMap::default(),
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
@@ -180,10 +179,9 @@ impl<'r> Scanner<'r> {
         // bitmap starts right after the bitmap that contains matching
         // information for rules.
         //
-        // TODO: `div_ceil` will be included in `std` in the future
-        // but is currently unstable. When it gets stabilized we can stop
-        // using `num`.
-        // https://doc.rust-lang.org/std/primitive.i8.html#method.div_ceil
+        // TODO: `u32::div_ceil` was stabilized in Rust 1.73. Once we bump
+        // the MSRV to 1.73 we can stop using `num`.
+        // https://doc.rust-lang.org/std/primitive.u32.html#method.div_ceil
         let matching_patterns_bitmap_base = MATCHING_RULES_BITMAP_BASE as u32
             + num::Integer::div_ceil(&num_rules, &8);
 
@@ -431,13 +429,8 @@ impl<'r> Scanner<'r> {
         ctx.scanned_data = data.as_ref().as_ptr();
         ctx.scanned_data_len = data.as_ref().len();
 
-        // If the string pool is too large, destroy it and create a new empty
-        // one. Re-using the same string pool across multiple scans improves
-        // performance, but the price to pay is the accumulation of strings in
-        // the pool.
-        if ctx.string_pool.size() > 1_000_000 {
-            ctx.string_pool = BStringPool::new();
-        }
+        // Free all runtime objects left around by previous scans.
+        ctx.runtime_objects.clear();
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
@@ -911,5 +904,3 @@ pub struct Match<'a> {
     /// modifier, or `None` if otherwise.
     pub xor_key: Option<u8>,
 }
-
-pub(crate) type RuntimeStringId = u32;

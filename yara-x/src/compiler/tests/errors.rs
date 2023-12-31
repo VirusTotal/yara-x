@@ -1231,3 +1231,31 @@ fn errors_2() {
 "
     );
 }
+
+#[test]
+fn errors_3() {
+    assert_eq!(
+        Compiler::new()
+            .add_source(
+                r#"
+rule test
+{
+  strings:
+    $a = "©©©©©©©©"
+    $b = /abc{}/
+  condition:
+    any of them
+}"#
+            )
+            .unwrap_err()
+            .to_string(),
+        "error: invalid regular expression
+   ╭─[line:6:15]
+   │
+ 6 │     $b = /abc{}/
+   │               │ 
+   │               ╰─ repetition quantifier expects a valid decimal
+───╯
+"
+    );
+}

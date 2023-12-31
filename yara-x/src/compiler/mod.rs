@@ -6,7 +6,7 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
@@ -38,11 +38,11 @@ use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::{
     StackedSymbolTable, Symbol, SymbolKind, SymbolLookup, SymbolTable,
 };
-use crate::types::{Func, FuncSignature, Struct, TypeValue, Value};
+use crate::types::{Func, Struct, TypeValue, Value};
 use crate::utils::cast;
 use crate::variables::{is_valid_identifier, Variable, VariableError};
 use crate::wasm::builder::WasmModuleBuilder;
-use crate::wasm::{WasmSymbols, WASM_EXPORTS};
+use crate::wasm::{WasmExport, WasmSymbols, WASM_EXPORTS};
 
 pub(crate) use crate::compiler::atoms::*;
 pub(crate) use crate::compiler::context::*;
@@ -241,13 +241,15 @@ impl<'a> Compiler<'a> {
         let mut ident_pool = StringPool::new();
         let mut symbol_table = StackedSymbolTable::new();
 
-        // Add symbols for built-in functions like uint8, uint16, etc.
         let global_symbols = symbol_table.push_new();
 
-        for export in WASM_EXPORTS.iter().filter(|e| e.public) {
-            let func = Rc::new(Func::with_signature(FuncSignature::from(
-                export.mangled_name.to_string(),
-            )));
+        // Add symbols for built-in functions like uint8, uint16, etc.
+        for export in WASM_EXPORTS
+            .iter()
+            // Get only the public exports not belonging to a YARA module.
+            .filter(|e| e.public && e.builtin())
+        {
+            let func = Rc::new(Func::from_mangled_name(export.mangled_name));
 
             let symbol = Symbol::new(
                 TypeValue::Func(func.clone()),
@@ -299,7 +301,7 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
-            root_struct: Struct::new(),
+            root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
@@ -378,17 +380,13 @@ impl<'a> Compiler<'a> {
         let var: Variable = value.try_into()?;
         let type_value: TypeValue = var.into();
 
-        if self.root_struct.add_field(ident, type_value.clone()).is_some() {
+        if self.root_struct.add_field(ident, type_value).is_some() {
             return Err(VariableError::AlreadyExists(ident.to_string()));
         }
 
-        self.global_symbols.borrow_mut().insert(
-            ident,
-            Symbol::new(
-                type_value,
-                SymbolKind::FieldIndex(self.root_struct.index_of(ident)),
-            ),
-        );
+        self.global_symbols
+            .borrow_mut()
+            .insert(ident, self.root_struct.lookup(ident).unwrap());
 
         Ok(self)
     }
@@ -672,37 +670,11 @@ impl<'a> Compiler<'a> {
 
         // Does the YARA module has an associated Rust module? If
         // yes, search for functions exported by the module.
-        if let Some(mod_name) = module.rust_module_name {
-            // This map will contain all the functions exported by the
-            // YARA module. Keys are the function names, and values
-            // are `Func` objects.
-            let mut functions: FxHashMap<&'static str, Func> =
-                FxHashMap::default();
-
-            // Iterate over public functions in WASM_EXPORTS looking
-            // for those that were exported by the current YARA module.
-            // Add them to `functions` map, or update the `Func` object
-            // an additional signature if the function is overloaded.
-            for export in WASM_EXPORTS.iter().filter(|e| e.public) {
-                if export.rust_module_path.contains(mod_name) {
-                    let signature = FuncSignature::from(format!(
-                        "{}.{}",
-                        module_name, export.mangled_name
-                    ));
-                    // If the function was already present in the map
-                    // is because it has multiple signatures. If that's
-                    // the case, add more signatures to the existing
-                    // `Func` object.
-                    if let Some(function) = functions.get_mut(export.name) {
-                        function.add_signature(signature)
-                    } else {
-                        functions.insert(
-                            export.name,
-                            Func::with_signature(signature),
-                        );
-                    }
-                }
-            }
+        if let Some(rust_module_name) = module.rust_module_name {
+            // Find all WASM public functions that belong to the current module.
+            let mut functions = WasmExport::get_functions(|e| {
+                e.public && e.rust_module_path.contains(rust_module_name)
+            });
 
             // Insert the functions in the module's struct.
             for (name, export) in functions.drain() {
@@ -799,7 +771,7 @@ impl<'a> Compiler<'a> {
         // (IR).
         let condition = bool_expr_from_ast(
             &mut CompileContext {
-                current_struct: None,
+                current_symbol_table: None,
                 symbol_table: &mut self.symbol_table,
                 ident_pool: &mut self.ident_pool,
                 report_builder: &self.report_builder,
@@ -884,8 +856,7 @@ impl<'a> Compiler<'a> {
             wasm_symbols: &self.wasm_symbols,
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
-            lookup_start: None,
-            lookup_stack: VecDeque::new(),
+            lookup_list: Vec::new(),
             vars: VarStack::new(),
         };
 
@@ -1497,18 +1468,7 @@ impl<'a> Compiler<'a> {
             if !symbol_table.contains(module_name) {
                 symbol_table.insert(
                     module_name,
-                    Symbol::new(
-                        // At this point the module must be found in
-                        // `self.root_struct`.
-                        self.root_struct
-                            .field_by_name(module_name)
-                            .unwrap()
-                            .type_value
-                            .clone(),
-                        SymbolKind::FieldIndex(
-                            self.root_struct.index_of(module_name),
-                        ),
-                    ),
+                    self.root_struct.lookup(module_name).unwrap(),
                 );
             }
         }

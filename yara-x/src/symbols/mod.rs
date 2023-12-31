@@ -6,14 +6,14 @@ use std::rc::Rc;
 use bstr::{BStr, ByteSlice};
 
 use crate::compiler::{RuleId, Var};
-use crate::types::{Func, Struct, TypeValue};
+use crate::types::{Func, TypeValue};
 
 /// Trait implemented by types that allow looking up for a symbol.
 pub(crate) trait SymbolLookup {
     fn lookup(&self, ident: &str) -> Option<Symbol>;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct Symbol {
     type_value: TypeValue,
     kind: SymbolKind,
@@ -23,14 +23,16 @@ pub(crate) struct Symbol {
 ///
 /// Used by the compiler to determine how to generate code that
 /// accesses the symbol.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) enum SymbolKind {
-    /// The symbol refers to a variable stored in WASM memory.
-    WasmVar(Var),
-    /// The symbol refers to a variable stored in the host.
-    HostVar(Var),
-    /// The symbol refers to some field in a structure.
-    FieldIndex(usize),
+    /// The symbol refers to a WASM-side variable.
+    Var(Var),
+    /// The symbol refers to a field in a structure. Fields in the tuple
+    /// are a `usize` containing the index the field occupies in the
+    /// structure and `bool` that is `true` if the symbol refers to a
+    /// field in the root structure. If it is `false` it refers to the
+    /// structure whose reference is at the top of the WASM stack.
+    Field(usize, bool),
     /// The symbol refers to a rule.
     Rule(RuleId),
     /// The symbol refers to a function.
@@ -103,15 +105,6 @@ impl SymbolLookup for Option<Symbol> {
     }
 }
 
-impl SymbolLookup for Struct {
-    fn lookup(&self, ident: &str) -> Option<Symbol> {
-        Some(Symbol::new(
-            self.field_by_name(ident)?.type_value.clone(),
-            SymbolKind::FieldIndex(self.index_of(ident)),
-        ))
-    }
-}
-
 /// A symbol table is a structure used for resolving symbols during the
 /// compilation process.
 ///
@@ -131,7 +124,7 @@ pub(crate) struct SymbolTable {
 
 impl SymbolTable {
     /// Creates a new symbol table.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { map: HashMap::new() }
     }
 
@@ -140,11 +133,7 @@ impl SymbolTable {
     /// If the symbol was already in the table it gets updated and the old
     /// value is returned. If the symbol was not in the table [`None`] is
     /// returned.
-    pub(crate) fn insert<I>(
-        &mut self,
-        ident: I,
-        symbol: Symbol,
-    ) -> Option<Symbol>
+    pub fn insert<I>(&mut self, ident: I, symbol: Symbol) -> Option<Symbol>
     where
         I: Into<String>,
     {
@@ -154,7 +143,7 @@ impl SymbolTable {
     /// Returns true if the symbol table already contains a symbol with
     /// the given identifier.
     #[inline]
-    pub(crate) fn contains<I>(&self, ident: I) -> bool
+    pub fn contains<I>(&self, ident: I) -> bool
     where
         I: AsRef<str>,
     {

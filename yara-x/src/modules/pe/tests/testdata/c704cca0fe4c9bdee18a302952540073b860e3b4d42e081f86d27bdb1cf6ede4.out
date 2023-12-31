@@ -43,11 +43,12 @@ number_of_rva_and_sizes: 16
 number_of_sections: 7
 number_of_imported_functions: 48
 number_of_delayed_imported_functions: 0
-number_of_resources: 7
+number_of_resources: 0
 number_of_version_infos: 0
 number_of_imports: 2
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
 sections:
   - name: ".text"
     full_name: ".text"
@@ -260,6 +261,7 @@ import_details:
         rva: 25024
       - name: "vfprintf"
         rva: 25028
+is_signed: false
 overlay:
     offset: 0
     size: 0

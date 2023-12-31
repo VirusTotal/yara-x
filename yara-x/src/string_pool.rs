@@ -197,12 +197,6 @@ where
                     .expect("using BStringPool::get_str with a string that is not valid UTF-8")
             })
     }
-
-    /// Returns the total size in bytes of all the strings stored in the pool.
-    #[inline]
-    pub fn size(&self) -> usize {
-        self.size
-    }
 }
 
 impl<T> Serialize for BStringPool<T>

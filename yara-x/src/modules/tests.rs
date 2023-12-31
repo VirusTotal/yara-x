@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::Read;
-use std::io::Write;
 use std::path::Path;
 
 /// Utility function that receives the content of an [`Intel HEX`][1] (ihex)

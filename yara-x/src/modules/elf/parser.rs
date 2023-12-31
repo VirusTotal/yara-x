@@ -566,7 +566,7 @@ impl ElfParser {
                 // with tag == ELF_DT_NULL is found.
                 let parser_result = many0(verify(
                     tuple((
-                        // tag
+                        // tag (a.k.a type)
                         self.off_or_addr(),
                         // value
                         self.off_or_addr(),
@@ -578,10 +578,10 @@ impl ElfParser {
                 if let Ok((_, tuples)) = parser_result {
                     for (tag, value) in tuples {
                         let mut dyn_entry = elf::Dyn::new();
-                        dyn_entry.tag = tag
+                        dyn_entry.type_ = tag
                             .try_into()
                             .ok()
-                            .map(EnumOrUnknown::<elf::DynTag>::from_i32);
+                            .map(EnumOrUnknown::<elf::DynType>::from_i32);
                         dyn_entry.val = Some(value);
                         result.push(dyn_entry);
                     }
