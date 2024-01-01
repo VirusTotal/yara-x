@@ -961,41 +961,41 @@ dynsym:
     shndx: 0
     visibility: STV_DEFAULT
 dynamic:
-  - tag: DT_NEEDED
+  - type: DT_NEEDED
     val: 1032
-  - tag: DT_NEEDED
+  - type: DT_NEEDED
     val: 1044
-  - tag: DT_INIT
+  - type: DT_INIT
     val: 76784
-  - tag: DT_FINI
+  - type: DT_FINI
     val: 76840
-  - tag: DT_VERNEED
+  - type: DT_VERNEED
     val: 69400
-  - tag: DT_VERNEEDNUM
+  - type: DT_VERNEEDNUM
     val: 2
-  - tag: DT_HASH
+  - type: DT_HASH
     val: 65768
-  - tag: DT_STRTAB
+  - type: DT_STRTAB
     val: 68344
-  - tag: DT_STRSZ
+  - type: DT_STRSZ
     val: 1054
-  - tag: DT_SYMTAB
+  - type: DT_SYMTAB
     val: 66600
-  - tag: DT_SYMENT
+  - type: DT_SYMENT
     val: 16
-  - tag: DT_DEBUG
+  - type: DT_DEBUG
     val: 0
-  - tag: DT_PLTGOT
+  - type: DT_PLTGOT
     val: 143136
-  - tag: DT_PLTRELSZ
+  - type: DT_PLTRELSZ
     val: 360
-  - tag: DT_PLTREL
+  - type: DT_PLTREL
     val: 7
-  - tag: DT_JMPREL
+  - type: DT_JMPREL
     val: 69524
-  - tag: DT_RELA
+  - type: DT_RELA
     val: 69464
-  - tag: DT_RELASZ
+  - type: DT_RELASZ
     val: 420
-  - tag: DT_RELAENT
+  - type: DT_RELAENT
     val: 12

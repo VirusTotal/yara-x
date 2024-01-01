@@ -1,0 +1,512 @@
+is_dotnet: true
+version: "v4.0.30319"
+number_of_streams: 163
+number_of_guids: 1
+number_of_resources: 0
+number_of_classes: 0
+number_of_assembly_refs: 0
+number_of_user_strings: 10
+number_of_constants: 0
+streams:
+  - name: "#~"
+    offset: 79516
+    size: 32524
+  - name: "#Strings"
+    offset: 112040
+    size: 47880
+  - name: "#US"
+    offset: 159920
+    size: 260
+  - name: "#GUID"
+    offset: 160180
+    size: 16
+  - name: "#Blob"
+    offset: 160196
+    size: 6332
+  - name: "#GUID"
+    offset: 166528
+    size: 16
+  - name: "#Strings"
+    offset: 166544
+    size: 4
+  - name: "#Blob"
+    offset: 166548
+    size: 4
+  - name: "#Schema"
+    offset: 166552
+    size: 4
+  - name: "#DarksProtector"
+    offset: 166556
+    size: 4
+  - name: "<Module>"
+    offset: 166560
+    size: 4
+  - name: "BoobiesProtector"
+    offset: 166564
+    size: 4
+  - name: "<Module>"
+    offset: 166568
+    size: 4
+  - name: "#lolProtector"
+    offset: 166572
+    size: 4
+  - name: "<Module>"
+    offset: 166576
+    size: 4
+  - name: "#CursedSheepV3"
+    offset: 166580
+    size: 4
+  - name: "<Module>"
+    offset: 166584
+    size: 4
+  - name: "#BootyProtector"
+    offset: 166588
+    size: 4
+  - name: "<Module>"
+    offset: 166592
+    size: 4
+  - name: "#VmProtect"
+    offset: 166596
+    size: 4
+  - name: "<Module>"
+    offset: 166600
+    size: 4
+  - name: "Hot-Steamy-Cum"
+    offset: 166604
+    size: 4
+  - name: "<Module>"
+    offset: 166608
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 166612
+    size: 4
+  - name: "<Module>"
+    offset: 166616
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 166620
+    size: 4
+  - name: "<Module>"
+    offset: 166624
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 166628
+    size: 4
+  - name: "<Module>"
+    offset: 166632
+    size: 4
+  - name: "Pheonix-Protector"
+    offset: 166636
+    size: 4
+  - name: "#DarksProtector"
+    offset: 166640
+    size: 4
+  - name: "<Module>"
+    offset: 166644
+    size: 4
+  - name: "BoobiesProtector"
+    offset: 166648
+    size: 4
+  - name: "<Module>"
+    offset: 166652
+    size: 4
+  - name: "#lolProtector"
+    offset: 166656
+    size: 4
+  - name: "<Module>"
+    offset: 166660
+    size: 4
+  - name: "#CursedSheepV3"
+    offset: 166664
+    size: 4
+  - name: "<Module>"
+    offset: 166668
+    size: 4
+  - name: "#BootyProtector"
+    offset: 166672
+    size: 4
+  - name: "<Module>"
+    offset: 166676
+    size: 4
+  - name: "#VmProtect"
+    offset: 166680
+    size: 4
+  - name: "<Module>"
+    offset: 166684
+    size: 4
+  - name: "Hot-Steamy-Cum"
+    offset: 166688
+    size: 4
+  - name: "<Module>"
+    offset: 166692
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 166696
+    size: 4
+  - name: "<Module>"
+    offset: 166700
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 166704
+    size: 4
+  - name: "<Module>"
+    offset: 166708
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 166712
+    size: 4
+  - name: "<Module>"
+    offset: 166716
+    size: 4
+  - name: "Pheonix-Protector"
+    offset: 166720
+    size: 4
+  - name: "#DarksProtector"
+    offset: 166724
+    size: 4
+  - name: "<Module>"
+    offset: 166728
+    size: 4
+  - name: "BoobiesProtector"
+    offset: 166732
+    size: 4
+  - name: "<Module>"
+    offset: 166736
+    size: 4
+  - name: "#lolProtector"
+    offset: 166740
+    size: 4
+  - name: "<Module>"
+    offset: 166744
+    size: 4
+  - name: "#CursedSheepV3"
+    offset: 166748
+    size: 4
+  - name: "<Module>"
+    offset: 166752
+    size: 4
+  - name: "#BootyProtector"
+    offset: 166756
+    size: 4
+  - name: "<Module>"
+    offset: 166760
+    size: 4
+  - name: "#VmProtect"
+    offset: 166764
+    size: 4
+  - name: "<Module>"
+    offset: 166768
+    size: 4
+  - name: "Hot-Steamy-Cum"
+    offset: 166772
+    size: 4
+  - name: "<Module>"
+    offset: 166776
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 166780
+    size: 4
+  - name: "<Module>"
+    offset: 166784
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 166788
+    size: 4
+  - name: "<Module>"
+    offset: 166792
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 166796
+    size: 4
+  - name: "<Module>"
+    offset: 166800
+    size: 4
+  - name: "Pheonix-Protector"
+    offset: 166804
+    size: 4
+  - name: "#DarksProtector"
+    offset: 166808
+    size: 4
+  - name: "<Module>"
+    offset: 166812
+    size: 4
+  - name: "BoobiesProtector"
+    offset: 166816
+    size: 4
+  - name: "<Module>"
+    offset: 166820
+    size: 4
+  - name: "#lolProtector"
+    offset: 166824
+    size: 4
+  - name: "<Module>"
+    offset: 166828
+    size: 4
+  - name: "#CursedSheepV3"
+    offset: 166832
+    size: 4
+  - name: "<Module>"
+    offset: 166836
+    size: 4
+  - name: "#BootyProtector"
+    offset: 166840
+    size: 4
+  - name: "<Module>"
+    offset: 166844
+    size: 4
+  - name: "#VmProtect"
+    offset: 166848
+    size: 4
+  - name: "<Module>"
+    offset: 166852
+    size: 4
+  - name: "Hot-Steamy-Cum"
+    offset: 166856
+    size: 4
+  - name: "<Module>"
+    offset: 166860
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 166864
+    size: 4
+  - name: "<Module>"
+    offset: 166868
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 166872
+    size: 4
+  - name: "<Module>"
+    offset: 166876
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 166880
+    size: 4
+  - name: "<Module>"
+    offset: 166884
+    size: 4
+  - name: "Pheonix-Protector"
+    offset: 166888
+    size: 4
+  - name: "#DarksProtector"
+    offset: 166892
+    size: 4
+  - name: "<Module>"
+    offset: 166896
+    size: 4
+  - name: "BoobiesProtector"
+    offset: 166900
+    size: 4
+  - name: "<Module>"
+    offset: 166904
+    size: 4
+  - name: "#lolProtector"
+    offset: 166908
+    size: 4
+  - name: "<Module>"
+    offset: 166912
+    size: 4
+  - name: "#CursedSheepV3"
+    offset: 166916
+    size: 4
+  - name: "<Module>"
+    offset: 166920
+    size: 4
+  - name: "#BootyProtector"
+    offset: 166924
+    size: 4
+  - name: "<Module>"
+    offset: 166928
+    size: 4
+  - name: "#VmProtect"
+    offset: 166932
+    size: 4
+  - name: "<Module>"
+    offset: 166936
+    size: 4
+  - name: "Hot-Steamy-Cum"
+    offset: 166940
+    size: 4
+  - name: "<Module>"
+    offset: 166944
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 166948
+    size: 4
+  - name: "<Module>"
+    offset: 166952
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 166956
+    size: 4
+  - name: "<Module>"
+    offset: 166960
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 166964
+    size: 4
+  - name: "<Module>"
+    offset: 166968
+    size: 4
+  - name: "Pheonix-Protector"
+    offset: 166972
+    size: 4
+  - name: "<Module>"
+    offset: 166976
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 166980
+    size: 4
+  - name: "<Module>"
+    offset: 166984
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 166988
+    size: 4
+  - name: "<Module>"
+    offset: 166992
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 166996
+    size: 4
+  - name: "<Module>"
+    offset: 167000
+    size: 4
+  - name: "<Module>"
+    offset: 167004
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 167008
+    size: 4
+  - name: "<Module>"
+    offset: 167012
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 167016
+    size: 4
+  - name: "<Module>"
+    offset: 167020
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 167024
+    size: 4
+  - name: "<Module>"
+    offset: 167028
+    size: 4
+  - name: "<Module>"
+    offset: 167032
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 167036
+    size: 4
+  - name: "<Module>"
+    offset: 167040
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 167044
+    size: 4
+  - name: "<Module>"
+    offset: 167048
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 167052
+    size: 4
+  - name: "<Module>"
+    offset: 167056
+    size: 4
+  - name: "<Module>"
+    offset: 167060
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 167064
+    size: 4
+  - name: "<Module>"
+    offset: 167068
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 167072
+    size: 4
+  - name: "<Module>"
+    offset: 167076
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 167080
+    size: 4
+  - name: "<Module>"
+    offset: 167084
+    size: 4
+  - name: "<Module>"
+    offset: 167088
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 167092
+    size: 4
+  - name: "<Module>"
+    offset: 167096
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 167100
+    size: 4
+  - name: "<Module>"
+    offset: 167104
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 167108
+    size: 4
+  - name: "<Module>"
+    offset: 167112
+    size: 4
+  - name: "<Module>"
+    offset: 167116
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 167120
+    size: 4
+  - name: "<Module>"
+    offset: 167124
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 167128
+    size: 4
+  - name: "<Module>"
+    offset: 167132
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 167136
+    size: 4
+  - name: "<Module>"
+    offset: 167140
+    size: 4
+  - name: "<Module>"
+    offset: 167144
+    size: 4
+  - name: "Stop-Decompiling"
+    offset: 167148
+    size: 4
+  - name: "<Module>"
+    offset: 167152
+    size: 4
+  - name: "Fucking-Imbread"
+    offset: 167156
+    size: 4
+  - name: "<Module>"
+    offset: 167160
+    size: 4
+  - name: "Stop-Cracking-Me"
+    offset: 167164
+    size: 4
+  - name: "<Module>"
+    offset: 167168
+    size: 4
+guids:
+  - "c6fcb421-e1b3-43a7-b9dd-0d013b9c3d93"
+user_strings:
+  - "T\000r\000i\000n\000i\000t\000y\000"
+  - "f\000i\000l\000e\000:\000/\000/\000/\000"
+  - "/\000"
+  - "\\\000"
+  - "@\000E\000C\000H\000O\000 \000O\000F\000F\000\n\000"
+  - "s\000h\000u\000t\000d\000o\000w\000n\000.\000e\000x\000e\000 \000/\000r\000 \000/\000t\000 \0000\0000\000\n\000"
+  - "e\000c\000h\000o\000 \000j\000 \000|\000 \000d\000e\000l\000 \000/\000F\000 \000"
+  - "\n\000"
+  - "e\000c\000h\000o\000 \000j\000 \000|\000 \000d\000e\000l\000 \000B\000o\000o\000b\000i\000e\000s\000 \000P\000r\000i\000v\000a\000t\000e\000.\000b\000a\000t\000"
+  - "B\000o\000o\000b\000i\000e\000s\000 \000P\000r\000i\000v\000a\000t\000e\000.\000b\000a\000t\000"

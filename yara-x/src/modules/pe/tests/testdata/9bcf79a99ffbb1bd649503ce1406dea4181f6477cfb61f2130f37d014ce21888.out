@@ -43,11 +43,20 @@ number_of_rva_and_sizes: 16
 number_of_sections: 3
 number_of_imported_functions: 1
 number_of_delayed_imported_functions: 0
-number_of_resources: 3
+number_of_resources: 1
 number_of_version_infos: 7
 number_of_imports: 1
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "Assembly Version": "0.0.0.0"
+    "FileDescription": " "
+    "FileVersion": "0.0.0.0"
+    "InternalName": "UnityEngine.Purchasing.AppleStub.dll"
+    "LegalCopyright": " "
+    "OriginalFilename": "UnityEngine.Purchasing.AppleStub.dll"
+    "ProductVersion": "0.0.0.0"
 version_info_list:
   - key: "FileDescription"
     value: " "
@@ -131,6 +140,10 @@ data_directories:
     size: 72
   - virtual_address: 0
     size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
 resources:
   - length: 684
     rva: 16472

@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
+use std::ops::Range;
 
 use ariadne::{Color, Label, ReportKind, Source};
 use pest::error::ErrorVariant::{CustomError, ParsingError};
@@ -57,7 +58,20 @@ struct Cache {
 
 /// Each of the entries stored in [`Cache`].
 struct CacheEntry {
+    /// The source code, as stored by [`ariadne`].
     source: Source,
+    /// A copy of the source code. The field is used only by
+    /// [`ReportBuilder::ast_span_to_ariadne`] for converting AST byte-wise
+    /// spans to character-wise spans expected by [`ariadne`]. Unfortunately
+    /// the `source` field above is not an exact copy of the source code
+    /// (trailing spaces are removed) and therefore can't be used for this
+    /// purpose. Having two copies of each source file, and making these span
+    /// conversions is quite inefficient, but the alternative is adapting
+    /// [`ariadne`] to our needs or switching to a similar crate that works
+    /// with byte-wise spans.
+    /// TODO: consider adapting ariadne to our needs by allowing byte-wise
+    /// spans.
+    code: String,
     origin: Option<String>,
 }
 
@@ -149,7 +163,8 @@ impl ReportBuilder {
                 String::from_utf8_lossy(src.raw.as_ref())
             };
             CacheEntry {
-                source: ariadne::Source::from(s),
+                source: ariadne::Source::from(s.as_ref()),
+                code: s.to_string(),
                 origin: src.origin.clone(),
             }
         });
@@ -180,8 +195,13 @@ impl ReportBuilder {
             Color::Unset.paint(title)
         };
 
+        let source_id = span.source_id();
+        // The span specified in the AST are byte-wise, but the spans expected
+        // by Ariadne are character-wise. Some conversion is required.
+        let span = self.ast_span_to_ariadne(span);
+
         let mut report_builder =
-            ariadne::Report::build(kind, span.source_id(), span.start())
+            ariadne::Report::build(kind, source_id, span.start)
                 .with_config(
                     ariadne::Config::default().with_color(self.with_colors),
                 )
@@ -193,10 +213,12 @@ impl ReportBuilder {
             } else {
                 Color::Unset.paint(label)
             };
-            report_builder = report_builder.with_label(
-                Label::new((span.source_id(), span.start()..span.end()))
-                    .with_message(label),
-            );
+
+            let source_id = span.source_id();
+            let span = self.ast_span_to_ariadne(span);
+
+            report_builder = report_builder
+                .with_label(Label::new((source_id, span)).with_message(label));
         }
 
         if let Some(note) = note {
@@ -273,6 +295,35 @@ impl ReportBuilder {
             error_msg,
             error_span,
         })
+    }
+
+    /// Converts an AST [`Span`] to an ariadne span.
+    ///
+    /// AST spans are bytewise ranges within the source code (i.e: the
+    /// `start` and `end` fields in [`Span`] are byte offsets. The
+    /// [`ariadne`] crate however works with character-wise spans (they
+    /// indicate the starting and ending characters within the source
+    /// code).
+    ///
+    /// For pure ASCII source codes, where each character is represented
+    /// by a single byte, this is not an issue, but UTF-8 characters are
+    /// not always 1-byte long. This means that AST span must converted
+    /// to character-wise spans before being passed to [`ariadne`]
+    fn ast_span_to_ariadne(&self, span: Span) -> Range<usize> {
+        let cache = self.cache.borrow();
+        let cache_entry = cache.data.get(&span.source_id()).unwrap();
+        let code = cache_entry.code.as_str();
+
+        // `char_start` is the number of UTF-8 characters (not bytes) that are
+        // from the start of the code to the start of the span.
+        let char_start = code[0..span.start()].chars().count();
+
+        // `char_end` is the number of UTF-8 characters from the start of the
+        // code to the end of the span.
+        let char_end =
+            char_start + code[span.start()..span.end()].chars().count();
+
+        char_start..char_end
     }
 
     fn color(&self, c: Color) -> Color {

@@ -43,11 +43,12 @@ number_of_rva_and_sizes: 16
 number_of_sections: 3
 number_of_imported_functions: 0
 number_of_delayed_imported_functions: 0
-number_of_resources: 3
+number_of_resources: 0
 number_of_version_infos: 0
 number_of_imports: 0
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
 pdb_path: "/home/ubuntu/edk2/Build/OvmfIa32/RELEASE_GCC5/IA32/OvmfPkg/Sec/SecMain/DEBUG/SecMain.dll"
 sections:
   - name: ".text"

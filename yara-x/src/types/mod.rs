@@ -10,14 +10,16 @@ mod func;
 mod map;
 mod structure;
 
-pub use array::*;
-pub use func::*;
-pub use map::*;
-pub use structure::*;
+use crate::symbols::SymbolLookup;
+
+pub(crate) use array::*;
+pub(crate) use func::*;
+pub(crate) use map::*;
+pub(crate) use structure::*;
 
 /// The type of a YARA expression or identifier.
 #[derive(Clone, Copy, PartialEq)]
-pub enum Type {
+pub(crate) enum Type {
     Unknown,
     Integer,
     Float,
@@ -67,7 +69,7 @@ impl From<Type> for ValType {
 
 /// Contains information about a value.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
-pub enum Value<T> {
+pub(crate) enum Value<T> {
     /// Constant value. The value is known at compile time and it cannot
     /// change at runtime.
     Const(T),
@@ -155,7 +157,7 @@ impl Regexp {
 /// which are the fields in a struct, or what's the type of the items in an
 /// array.
 #[derive(Clone, Serialize, Deserialize)]
-pub enum TypeValue {
+pub(crate) enum TypeValue {
     Unknown,
     Integer(Value<i64>),
     Float(Value<f64>),
@@ -169,6 +171,10 @@ pub enum TypeValue {
 }
 
 impl TypeValue {
+    /// Returns true if the [`TypeValue`] is a constant value.
+    ///
+    /// A constant value is one that is known at compile time and can't be
+    /// changed at runtime.
     pub fn is_const(&self) -> bool {
         match self {
             TypeValue::Unknown => false,
@@ -213,6 +219,18 @@ impl TypeValue {
         }
     }
 
+    /// Returns the symbol table associated to this [`TypeValue`].
+    ///
+    /// The symbol table contains the methods and/or fields associated to the
+    /// type.
+    pub fn symbol_table(&self) -> Rc<dyn SymbolLookup> {
+        match self {
+            Self::Struct(s) => s.clone(),
+            _ => unreachable!(),
+        }
+    }
+
+    /// Returns the type associated to the [`TypeValue`].
     pub fn ty(&self) -> Type {
         match self {
             Self::Unknown => Type::Unknown,

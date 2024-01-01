@@ -156,16 +156,16 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 /// The `module_main` macro is used for indicating which is the main function
 /// in a YARA module.
 ///
-/// The main function in a YARA module must receive a reference to `ScanContext`]
-/// and must return the protobuf structure that corresponds to the module. The
-/// function can have any name, as long as it is marked with `#[module_main]`, but
-/// it's a good practice to name it `main`.
+/// The main function in a YARA module receives a slice that contains the
+/// data being scanned, and must return the protobuf structure that corresponds
+/// to the module. The function can have any name, as long as it is marked with
+/// `#[module_main]`, but it's a good practice to name it `main`.
 ///
 /// # Example
 ///
 /// ```text
 /// #[module_main]
-/// fn main(ctx: &ScanContext) -> SomeProto {   
+/// fn main(data: &[u8]) -> SomeProto {   
 ///     let some_proto = SomeProto::new();
 ///     // ... fill some_proto with data ...
 ///     some_proto
@@ -195,6 +195,11 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// - `f64`
 /// - `bool`
 /// - `RuntimeString`
+/// - `RuleId`
+/// - `PatternId`
+/// - `Rc<Struct>`
+/// - `Rc<Map>`
+/// - `Rc<Array>`
 ///
 /// # Example
 ///

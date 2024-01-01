@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::{Struct, TypeValue, Value};
 
 #[derive(Serialize, Deserialize)]
-pub enum Array {
+pub(crate) enum Array {
     Integers(Vec<i64>),
     Floats(Vec<f64>),
     Bools(Vec<bool>),

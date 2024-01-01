@@ -124,7 +124,7 @@ pub(crate) struct SymbolTable {
 
 impl SymbolTable {
     /// Creates a new symbol table.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self { map: HashMap::new() }
     }
 
@@ -133,11 +133,7 @@ impl SymbolTable {
     /// If the symbol was already in the table it gets updated and the old
     /// value is returned. If the symbol was not in the table [`None`] is
     /// returned.
-    pub(crate) fn insert<I>(
-        &mut self,
-        ident: I,
-        symbol: Symbol,
-    ) -> Option<Symbol>
+    pub fn insert<I>(&mut self, ident: I, symbol: Symbol) -> Option<Symbol>
     where
         I: Into<String>,
     {
@@ -147,7 +143,7 @@ impl SymbolTable {
     /// Returns true if the symbol table already contains a symbol with
     /// the given identifier.
     #[inline]
-    pub(crate) fn contains<I>(&self, ident: I) -> bool
+    pub fn contains<I>(&self, ident: I) -> bool
     where
         I: AsRef<str>,
     {

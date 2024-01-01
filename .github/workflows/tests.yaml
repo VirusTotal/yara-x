@@ -56,7 +56,7 @@ jobs:
           - build: no-default-features
             os: ubuntu-latest
             rust: stable
-            args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,time-module,hash-module,macho-module,lnk-module,elf-module,pe-module"
+            args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,time-module,hash-module,macho-module,math-module,lnk-module,elf-module,pe-module,dotnet-module"
 
     steps:
       - name: Checkout sources
@@ -70,6 +70,20 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install OpenSSL
+        id: vcpkg
+        if: runner.os == 'Windows'
+        uses: johnwason/vcpkg-action@v5
+        with:
+          pkgs: openssl
+          triplet: x64-windows-release
+          token: ${{ github.token }}
+
+      - name: Set OPENSSL_DIR environment variable
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-release" >> $GITHUB_ENV
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master

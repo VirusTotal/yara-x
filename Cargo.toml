@@ -10,6 +10,8 @@ license = "MIT"
 # When updating rust-version also update MSRV in:
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
+#
+# TODO: after bumping to 1.73 stop using the `num` crate.
 rust-version = "1.71.0"
 
 [workspace]
@@ -65,6 +67,8 @@ memchr = "2.6.4"
 memx = "0.1.28"
 nom = "7.1.3"
 num = "0.4.1"
+num-traits = "0.2"
+num-derive = "0.4.1"
 pest = "2.7.5"
 pest_derive = "2.7.5"
 pretty_assertions = "1.4.0"

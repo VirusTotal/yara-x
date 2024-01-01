@@ -43,11 +43,23 @@ number_of_rva_and_sizes: 16
 number_of_sections: 3
 number_of_imported_functions: 1
 number_of_delayed_imported_functions: 0
-number_of_resources: 3
+number_of_resources: 1
 number_of_version_infos: 10
 number_of_imports: 1
 number_of_delayed_imports: 0
 number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "Assembly Version": "4.0.0.0"
+    "Comments": "System.Linq.Queryable.dll"
+    "CompanyName": "Xamarin, Inc."
+    "FileDescription": "System.Linq.Queryable.dll"
+    "FileVersion": "4.0.0.0"
+    "InternalName": "System.Linq.Queryable.dll"
+    "LegalCopyright": "Copyright (c) 2013 Xamarin Inc. (http://www.xamarin.com)"
+    "OriginalFilename": "System.Linq.Queryable.dll"
+    "ProductName": "Mono Common Language Infrastructure"
+    "ProductVersion": "4.0.0.0"
 version_info_list:
   - key: "Comments"
     value: "System.Linq.Queryable.dll"
@@ -136,6 +148,10 @@ data_directories:
     size: 72
   - virtual_address: 0
     size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
 resources:
   - length: 1036
     rva: 16472
