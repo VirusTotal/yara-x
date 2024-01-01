@@ -1795,21 +1795,9 @@ fn handle_min_version_command(
     }
 
     // X.Y.Z is encoded in nibbles xxxx.yy.zz
-    let mut ver_string: String = String::from("");
+    let ver_string: String = convert_to_version_string(mvc.version);
     // X.Y.Z is encoded in nibbles xxxx.yy.zz
-    let mut sdk_string: String = String::from("");
-
-    ver_string.push_str((mvc.version >> (16) & 0xFF).to_string().as_str());
-    ver_string.push('.');
-    ver_string.push_str((mvc.version >> (8) & 0xF).to_string().as_str());
-    ver_string.push('.');
-    ver_string.push_str((mvc.version & 0xF).to_string().as_str());
-
-    sdk_string.push_str((mvc.sdk >> (16) & 0xFF).to_string().as_str());
-    sdk_string.push('.');
-    sdk_string.push_str((mvc.sdk >> (8) & 0xF).to_string().as_str());
-    sdk_string.push('.');
-    sdk_string.push_str((mvc.sdk & 0xF).to_string().as_str());
+    let sdk_string: String = convert_to_version_string(mvc.sdk);
 
     match mvc.cmd {
         LC_VERSION_MIN_MACOSX => {
