@@ -1816,10 +1816,8 @@ fn handle_min_version_command(
             let min_version_command = MinVersionMacOS {
                 cmd: Some(mvc.cmd),
                 cmdsize: Some(mvc.cmdsize),
-                version: Some(mvc.version),
-                version_str: Some(ver_string),
-                sdk: Some(mvc.sdk),
-                sdk_str: Some(sdk_string),
+                version: Some(ver_string),
+                sdk: Some(sdk_string),
                 ..Default::default()
             };
 
@@ -1830,10 +1828,8 @@ fn handle_min_version_command(
             let min_version_command = MinVersionIphoneOS {
                 cmd: Some(mvc.cmd),
                 cmdsize: Some(mvc.cmdsize),
-                version: Some(mvc.version),
-                version_str: Some(ver_string),
-                sdk: Some(mvc.sdk),
-                sdk_str: Some(sdk_string),
+                version: Some(ver_string),
+                sdk: Some(sdk_string),
                 ..Default::default()
             };
 
@@ -1844,10 +1840,8 @@ fn handle_min_version_command(
             let min_version_command = MinVersionTvOS {
                 cmd: Some(mvc.cmd),
                 cmdsize: Some(mvc.cmdsize),
-                version: Some(mvc.version),
-                version_str: Some(ver_string),
-                sdk: Some(mvc.sdk),
-                sdk_str: Some(sdk_string),
+                version: Some(ver_string),
+                sdk: Some(sdk_string),
                 ..Default::default()
             };
 
@@ -1858,10 +1852,8 @@ fn handle_min_version_command(
             let min_version_command = MinVersionWatchOS {
                 cmd: Some(mvc.cmd),
                 cmdsize: Some(mvc.cmdsize),
-                version: Some(mvc.version),
-                version_str: Some(ver_string),
-                sdk: Some(mvc.sdk),
-                sdk_str: Some(sdk_string),
+                version: Some(ver_string),
+                sdk: Some(sdk_string),
                 ..Default::default()
             };
 
