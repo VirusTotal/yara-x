@@ -23,6 +23,18 @@ message RPath {
   optional string path = 3;
 }
 
+message BuildVersion {
+  optional uint32 platform = 1;
+  optional string minos = 2;
+  optional string sdk = 3;
+  optional uint32 ntools = 4;
+}
+
+message BuildTools {
+  optional uint32 tool = 1;
+  optional uint32 version = 2;
+}
+
 message Section {
   optional string segname = 1;
   optional string sectname = 2;
@@ -77,6 +89,8 @@ message File {
   repeated RPath rpaths = 12;
   optional uint64 entry_point = 13;
   optional uint64 stack_size = 14;
+  optional BuildVersion build_version = 15;
+  repeated BuildTools build_tools = 16;
 }
 
 message Macho {
@@ -100,9 +114,12 @@ message Macho {
   optional uint32 fat_magic = 15 [(yaml.field).fmt = "x"];
   optional uint32 nfat_arch = 16;
   repeated FatArch fat_arch = 17;
+  optional BuildVersion build_version = 18;
+  repeated BuildTools build_tools = 19;
+
 
   // Nested Mach-O files
-  repeated File file = 18;
+  repeated File file = 20;
 }
 
 enum HEADER {
@@ -333,4 +350,20 @@ enum SECTION_ATTRIBUTES {
   S_ATTR_SOME_INSTRUCTIONS = 0x00000400;
   S_ATTR_EXT_RELOC = 0x00000200;
   S_ATTR_LOC_RELOC = 0x00000100;
+}
+
+enum PLATFORM {
+  option (yara.enum_options).inline = true;
+  PLATFORM_MACOS = 1;
+  PLATFORM_IOS = 2;
+  PLATFORM_TVOS = 3;
+  PLATFORM_WATCHOS = 4;
+  PLATFORM_BRIDGEOS = 5;
+}
+
+enum TOOLS {
+  option (yara.enum_options).inline = true;
+  TOOL_CLANG = 1;
+  TOOL_SWIFT = 2;
+  TOOL_LD	= 3;
 }

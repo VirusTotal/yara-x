@@ -15,6 +15,7 @@ use nom::{
     sequence::tuple,
     IResult,
 };
+use protobuf::MessageField;
 use thiserror::Error;
 
 use crate::modules::prelude::*;
@@ -67,6 +68,7 @@ const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
+const LC_BUILD_VERSION: u32 = 0x00000032;
 
 /// Enum that provides strongly-typed error system used in code
 /// Represents all possible errors that can occur during Mach-O parsing
@@ -197,6 +199,29 @@ struct RPathCommand {
     cmd: u32,
     cmdsize: u32,
     path: Vec<u8>,
+}
+
+/// `BuildVersionCommand`: Represents a build version command in the Mach-O file.
+/// Fields: cmd, cmdsize, platform, minos, sdk, ntools
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct BuildVersionCommand {
+    cmd: u32,
+    cmdsize: u32,
+    platform: u32,
+    minos: u32,
+    sdk: u32,
+    ntools: u32,
+}
+
+/// `BuildTool`: Represents a build Tool struct in the Mach-O file following the
+/// BuildVersionCommand
+/// Fields: tool, version
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct BuildTool {
+    tool: u32,
+    version: u32,
 }
 
 /// `SegmentCommand32`: Represents a 32-bit segment command in the Mach-O file.
@@ -709,6 +734,32 @@ fn swap_rpath_command(command: &mut RPathCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O BuildVersionCommand command from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O build version command.
+fn swap_build_version_command(command: &mut BuildVersionCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.platform = BigEndian::read_u32(&command.platform.to_le_bytes());
+    command.minos = BigEndian::read_u32(&command.minos.to_le_bytes());
+    command.sdk = BigEndian::read_u32(&command.sdk.to_le_bytes());
+    command.ntools = BigEndian::read_u32(&command.ntools.to_le_bytes());
+}
+
+/// Swaps the endianness of fields within a Mach-O BuildTool struct from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O build tool struct.
+fn swap_build_tool(command: &mut BuildTool) {
+    command.tool = BigEndian::read_u32(&command.tool.to_le_bytes());
+    command.version = BigEndian::read_u32(&command.version.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a 32-bit Mach-O segment command from
 /// BigEndian to LittleEndian in-place.
 ///
@@ -1022,6 +1073,68 @@ fn parse_rpath_command(input: &[u8]) -> IResult<&[u8], RPathCommand> {
     let (input, path) = take(cmdsize - offset)(input)?;
 
     Ok((input, RPathCommand { cmd, cmdsize, path: path.into() }))
+}
+
+/// Parse a Mach-O BuildVersionCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw BuildVersionCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// BuildVersionCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_build_version_command(
+    input: &[u8],
+) -> IResult<&[u8], BuildVersionCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, platform) = le_u32(input)?;
+    let (input, minos) = le_u32(input)?;
+    let (input, sdk) = le_u32(input)?;
+    let (input, ntools) = le_u32(input)?;
+
+    Ok((
+        input,
+        BuildVersionCommand { cmd, cmdsize, platform, minos, sdk, ntools },
+    ))
+}
+
+/// Parse a Mach-O BuiltTool struct, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw BuildTool data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// BuildTool structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_build_tool(
+    input: &[u8],
+) -> IResult<&[u8], BuildTool> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, platform) = le_u32(input)?;
+    let (input, minos) = le_u32(input)?;
+    let (input, sdk) = le_u32(input)?;
+    let (input, ntools) = le_u32(input)?;
+
+    Ok((
+        input,
+        BuildTool { cmd, cmdsize, platform, minos, sdk, ntools },
+    ))
 }
 
 /// Parse the 32-bit segment command of a Mach-O file, offering a structured
@@ -1694,6 +1807,45 @@ fn handle_rpath_command(
     Ok(())
 }
 
+fn handle_build_version_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<BuildVersionCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "BuildVersionCommand".to_string(),
+        ));
+    }
+
+    let swap = should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    );
+
+    let (_, mut bc) = parse_build_version_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    if swap {
+        swap_build_version_command(&mut bc);
+    }
+
+    macho_file.build_version = MessageField::some(BuildVersion {
+        platform: Some(bc.platform),
+        minos: Some(convert_to_version_string(bc.minos)),
+        sdk: Some(convert_to_version_string(bc.sdk)),
+        ntools: Some(bc.ntools),
+    });
+
+    for n in 0..bc.ntools {
+        let (_, mut bt) = parse_build_tool(command_data)
+            .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+    }
+
+    Ok(())
+}
+
 /// Handles the LC_SEGMENT command for 32-bit Mach-O files, parsing the data
 /// and populating a protobuf representation of the segment and its associated
 /// file sections.
@@ -2221,6 +2373,13 @@ fn handle_command(
             }
             LC_RPATH => {
                 handle_rpath_command(command_data, cmdsize, macho_file)?;
+            }
+            LC_BUILD_VERSION => {
+                handle_build_version_command(
+                    command_data,
+                    cmdsize,
+                    macho_file,
+                )?;
             }
             _ => {}
         }
