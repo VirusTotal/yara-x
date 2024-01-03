@@ -969,6 +969,8 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
 /// # Arguments
 ///
 /// * `input`: A slice of bytes containing the raw dylib object data.
+/// * `cmdsize`: the size of the load command data
+/// * `swap`: indicator the endianness needs to be swapped
 ///
 /// # Returns
 ///
@@ -1012,6 +1014,7 @@ fn parse_dylib(
 /// # Arguments
 ///
 /// * `input`: A slice of bytes containing the raw DylibCommand data.
+/// * `swap`: indicator the endianness needs to be swapped
 ///
 /// # Returns
 ///
@@ -1046,6 +1049,7 @@ fn parse_dylib_command(
 /// # Arguments
 ///
 /// * `input`: A slice of bytes containing the raw DylinkerCommand data.
+/// * `swap`: indicator the endianness needs to be swapped
 ///
 /// # Returns
 ///
@@ -1083,7 +1087,8 @@ fn parse_dylinker_command(
 /// # Arguments
 ///
 /// * `input`: A slice of bytes containing the raw RPathCommand data.
-///
+/// * `swap`: indicator the endianness needs to be swapped
+/// 
 /// # Returns
 ///
 /// A `nom` IResult containing the remaining unparsed input and the parsed
@@ -1688,7 +1693,9 @@ fn handle_dylib_command(
     size: usize,
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
-    if size < 20 {
+    // 24 bytes for all integer fields and offset in Dylib/DylibCommand
+    // fat pointer of vec makes for inaccurate count
+    if size < 24 {
         dbg!("here, oopsie");
         return Err(MachoError::FileSectionTooSmall(
             "DylibCommand".to_string(),
@@ -1756,6 +1763,7 @@ fn handle_dylinker_command(
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
     // 4 bytes for cmd, 4 bytes for cmdsize, 4 bytes for offset
+    // fat pointer of vec makes for inaccurate count
     if size < 12 {
         return Err(MachoError::FileSectionTooSmall(
             "DylinkerCommand".to_string(),
@@ -1810,6 +1818,7 @@ fn handle_rpath_command(
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
     // 4 bytes for cmd, 4 bytes for cmdsize, 4 bytes for offset
+    // fat pointer of vec makes for inaccurate count
     if size < 12 {
         return Err(MachoError::FileSectionTooSmall(
             "RPathCommand".to_string(),
