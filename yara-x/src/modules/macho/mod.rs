@@ -1696,7 +1696,6 @@ fn handle_dylib_command(
     // 24 bytes for all integer fields and offset in Dylib/DylibCommand
     // fat pointer of vec makes for inaccurate count
     if size < 24 {
-        dbg!("here, oopsie");
         return Err(MachoError::FileSectionTooSmall(
             "DylibCommand".to_string(),
         ));
