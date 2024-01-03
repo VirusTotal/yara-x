@@ -7,14 +7,7 @@
 
 use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
-use nom::{
-    bytes::complete::{tag, take, take_till},
-    combinator::map_res,
-    multi::count,
-    number::complete::*,
-    sequence::tuple,
-    IResult,
-};
+use nom::{bytes::complete::take, multi::count, number::complete::*, IResult};
 use thiserror::Error;
 
 use crate::modules::prelude::*;
@@ -62,10 +55,14 @@ const LC_SEGMENT: u32 = 0x00000001;
 const LC_UNIXTHREAD: u32 = 0x00000005;
 const LC_LOAD_DYLIB: u32 = 0x0000000c;
 const LC_ID_DYLIB: u32 = 0x0000000d;
+const LC_LOAD_DYLINKER: u32 = 0x0000000e;
+const LC_ID_DYLINKER: u32 = 0x0000000f;
+
 const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
+const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
 
 /// Enum that provides strongly-typed error system used in code
@@ -173,10 +170,11 @@ struct LoadCommand {
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct DylibObject {
-    name: Vec<u8>,
+    offset: u32,
     timestamp: u32,
     current_version: u32,
     compatibility_version: u32,
+    name: Vec<u8>,
 }
 
 /// `DylibCommand`: Represents a dylib command in the Mach-O file.
@@ -189,6 +187,17 @@ struct DylibCommand {
     dylib: DylibObject,
 }
 
+/// `DylinkerCommand`: Represents an dynamic linker command in the Mach-O file.
+/// Fields: cmd, cmdsize, name
+#[repr(C)]
+#[derive(Debug, Default, Clone)]
+struct DylinkerCommand {
+    cmd: u32,
+    cmdsize: u32,
+    offset: u32,
+    name: Vec<u8>,
+}
+
 /// `RPathCommand`: Represents an rpath command in the Mach-O file.
 /// Fields: cmd, cmdsize, path
 #[repr(C)]
@@ -196,6 +205,7 @@ struct DylibCommand {
 struct RPathCommand {
     cmd: u32,
     cmdsize: u32,
+    offset: u32,
     path: Vec<u8>,
 }
 
@@ -680,6 +690,7 @@ fn swap_load_command(command: &mut LoadCommand) {
 ///
 /// * `dylib`: A mutable reference to the Mach-O dylib.
 fn swap_dylib(dylib: &mut DylibObject) {
+    dylib.offset = BigEndian::read_u32(&dylib.offset.to_le_bytes());
     dylib.timestamp = BigEndian::read_u32(&dylib.timestamp.to_le_bytes());
     dylib.compatibility_version =
         BigEndian::read_u32(&dylib.compatibility_version.to_le_bytes());
@@ -698,6 +709,18 @@ fn swap_dylib_command(command: &mut DylibCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O dylinker command from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O dylinker command.
+fn swap_dylinker_command(command: &mut DylinkerCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.offset = BigEndian::read_u32(&command.offset.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a Mach-O rpath command from
 /// BigEndian to LittleEndian in-place.
 ///
@@ -707,6 +730,7 @@ fn swap_dylib_command(command: &mut DylibCommand) {
 fn swap_rpath_command(command: &mut RPathCommand) {
     command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.offset = BigEndian::read_u32(&command.offset.to_le_bytes());
 }
 
 /// Swaps the endianness of fields within a 32-bit Mach-O segment command from
@@ -954,27 +978,32 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
 /// # Errors
 ///
 /// Returns a `nom` error if the input data is insufficient or malformed.
-fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
-    // offset but we don't need it
-    let (input, _) = le_u32(input)?;
+fn parse_dylib(
+    input: &[u8],
+    cmdsize: u32,
+    swap: bool,
+) -> IResult<&[u8], DylibObject> {
+    let (input, offset) = le_u32(input)?;
     let (input, timestamp) = le_u32(input)?;
     let (input, current_version) = le_u32(input)?;
     let (input, compatibility_version) = le_u32(input)?;
 
-    let (input, name) = map_res(
-        tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-        |(s, _)| std::str::from_utf8(s),
-    )(input)?;
+    let mut dy = DylibObject {
+        offset,
+        timestamp,
+        current_version,
+        compatibility_version,
+        ..Default::default()
+    };
 
-    Ok((
-        input,
-        DylibObject {
-            name: name.into(),
-            timestamp,
-            compatibility_version,
-            current_version,
-        },
-    ))
+    if swap {
+        swap_dylib(&mut dy);
+    }
+
+    let (input, name) = take(cmdsize - dy.offset)(input)?;
+    dy.name = name.into();
+
+    Ok((input, dy))
 }
 
 /// Parse a Mach-O DylibCommand, transforming raw bytes into a structured
@@ -992,12 +1021,60 @@ fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
 /// # Errors
 ///
 /// Returns a `nom` error if the input data is insufficient or malformed.
-fn parse_dylib_command(input: &[u8]) -> IResult<&[u8], DylibCommand> {
+fn parse_dylib_command(
+    input: &[u8],
+    swap: bool,
+) -> IResult<&[u8], DylibCommand> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
-    let (input, dylib) = parse_dylib(input)?;
 
-    Ok((input, DylibCommand { cmd, cmdsize, dylib }))
+    let mut dy = DylibCommand { cmd, cmdsize, ..Default::default() };
+
+    if swap {
+        swap_dylib_command(&mut dy);
+    }
+
+    let (input, dylib) = parse_dylib(input, dy.cmdsize, swap)?;
+    dy.dylib = dylib;
+
+    Ok((input, dy))
+}
+
+/// Parse a Mach-O DylinkerCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw DylinkerCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// DylinkerCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_dylinker_command(
+    input: &[u8],
+    swap: bool,
+) -> IResult<&[u8], DylinkerCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, offset) = le_u32(input)?;
+
+    let mut dyl =
+        DylinkerCommand { cmd, cmdsize, offset, ..Default::default() };
+
+    if swap {
+        swap_dylinker_command(&mut dyl);
+    }
+
+    let (input, name) = take(dyl.cmdsize - dyl.offset)(input)?;
+
+    dyl.name = name.into();
+
+    Ok((input, dyl))
 }
 
 /// Parse a Mach-O RPathCommand, transforming raw bytes into a structured
@@ -1015,13 +1092,25 @@ fn parse_dylib_command(input: &[u8]) -> IResult<&[u8], DylibCommand> {
 /// # Errors
 ///
 /// Returns a `nom` error if the input data is insufficient or malformed.
-fn parse_rpath_command(input: &[u8]) -> IResult<&[u8], RPathCommand> {
+fn parse_rpath_command(
+    input: &[u8],
+    swap: bool,
+) -> IResult<&[u8], RPathCommand> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
     let (input, offset) = le_u32(input)?;
+
+    let mut rp = RPathCommand { cmd, cmdsize, offset, ..Default::default() };
+
+    if swap {
+        swap_rpath_command(&mut rp);
+    }
+
     let (input, path) = take(cmdsize - offset)(input)?;
 
-    Ok((input, RPathCommand { cmd, cmdsize, path: path.into() }))
+    rp.path = path.into();
+
+    Ok((input, rp))
 }
 
 /// Parse the 32-bit segment command of a Mach-O file, offering a structured
@@ -1599,27 +1688,27 @@ fn handle_dylib_command(
     size: usize,
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
-    if size < std::mem::size_of::<DylibCommand>() {
+    if size < 20 {
+        dbg!("here, oopsie");
         return Err(MachoError::FileSectionTooSmall(
             "DylibCommand".to_string(),
         ));
     }
 
-    let (_, mut dy) = parse_dylib_command(command_data)
-        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
-    if should_swap_bytes(
+    let swap = should_swap_bytes(
         macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
-    ) {
-        swap_dylib_command(&mut dy);
-        swap_dylib(&mut dy.dylib);
-    }
+    );
+
+    let (_, dy) = parse_dylib_command(command_data, swap)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
     let dylib = Dylib {
         name: Some(
             std::str::from_utf8(&dy.dylib.name)
                 .unwrap_or_default()
+                .trim_end_matches('\0')
                 .to_string(),
         ),
         timestamp: Some(dy.dylib.timestamp),
@@ -1631,7 +1720,64 @@ fn handle_dylib_command(
         )),
         ..Default::default()
     };
+
     macho_file.dylibs.push(dylib);
+
+    Ok(())
+}
+
+/// Handles the LC_ID_DYLINKER, LC_LOAD_DYLINKER and LC_DYLD_ENVIRONMENT
+/// commands for Mach-O files, parsing the data and populating a protobuf
+/// representation of the rpath command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the rpath command.
+/// * `size`: The size of the Dylinker command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected DylinkerCommand struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   dylinker command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_dylinker_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    // 4 bytes for cmd, 4 bytes for cmdsize, 4 bytes for offset
+    if size < 12 {
+        return Err(MachoError::FileSectionTooSmall(
+            "DylinkerCommand".to_string(),
+        ));
+    }
+
+    let swap = should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    );
+
+    let (_, dyl) = parse_dylinker_command(command_data, swap)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    macho_file.dynamic_linker = Some(
+        std::str::from_utf8(&dyl.name)
+            .unwrap_or_default()
+            .trim_end_matches('\0')
+            .to_string(),
+    );
+
     Ok(())
 }
 
@@ -1663,21 +1809,21 @@ fn handle_rpath_command(
     size: usize,
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
-    if size < std::mem::size_of::<RPathCommand>() {
+    // 4 bytes for cmd, 4 bytes for cmdsize, 4 bytes for offset
+    if size < 12 {
         return Err(MachoError::FileSectionTooSmall(
             "RPathCommand".to_string(),
         ));
     }
 
-    let (_, mut rp) = parse_rpath_command(command_data)
-        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
-    if should_swap_bytes(
+    let swap = should_swap_bytes(
         macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
-    ) {
-        swap_rpath_command(&mut rp);
-    }
+    );
+
+    let (_, rp) = parse_rpath_command(command_data, swap)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
     let rpath = RPath {
         cmd: Some(rp.cmd),
@@ -2221,6 +2367,9 @@ fn handle_command(
             }
             LC_RPATH => {
                 handle_rpath_command(command_data, cmdsize, macho_file)?;
+            }
+            LC_ID_DYLINKER | LC_LOAD_DYLINKER | LC_DYLD_ENVIRONMENT => {
+                handle_dylinker_command(command_data, cmdsize, macho_file)?;
             }
             _ => {}
         }
