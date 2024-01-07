@@ -1,0 +1,964 @@
+fat_magic: 0xcafebabe
+nfat_arch: 2
+fat_arch:
+  - cputype: 16777223
+    cpusubtype: 3
+    offset: 16384
+    size: 110480
+    align: 14
+  - cputype: 16777228
+    cpusubtype: 0
+    offset: 131072
+    size: 110384
+    align: 14
+file:
+  - magic: 0xfeedfacf
+    cputype: 16777223
+    cpusubtype: 3
+    filetype: 2
+    ncmds: 25
+    sizeofcmds: 3832
+    flags: 0x200085
+    reserved: 0
+    number_of_segments: 5
+    segments:
+      - cmd: 25
+        cmdsize: 72
+        segname: "__PAGEZERO"
+        vmaddr: 0x0
+        vmsize: 0x100000000
+        fileoff: 0
+        filesize: 0
+        maxprot: 0x0
+        initprot: 0x0
+        nsects: 0
+        flags: 0x0
+      - cmd: 25
+        cmdsize: 1032
+        segname: "__TEXT"
+        vmaddr: 0x100000000
+        vmsize: 0xc000
+        fileoff: 0
+        filesize: 49152
+        maxprot: 0x5
+        initprot: 0x5
+        nsects: 12
+        flags: 0x0
+        sections:
+          - segname: "__TEXT"
+            sectname: "__text"
+            addr: 0x100004698
+            size: 0x55a4
+            offset: 18072
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000400
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__stubs"
+            addr: 0x100009c3c
+            size: 0x180
+            offset: 39996
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000408
+            reserved1: 0
+            reserved2: 6
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__stub_helper"
+            addr: 0x100009dbc
+            size: 0x290
+            offset: 40380
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000400
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__gcc_except_tab"
+            addr: 0x10000a04c
+            size: 0x84
+            offset: 41036
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__cstring"
+            addr: 0x10000a0d0
+            size: 0xb24
+            offset: 41168
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__objc_methname"
+            addr: 0x10000abf4
+            size: 0xa5c
+            offset: 44020
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__const"
+            addr: 0x10000b650
+            size: 0x30
+            offset: 46672
+            align: 4
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__objc_classname"
+            addr: 0x10000b680
+            size: 0x64
+            offset: 46720
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__objc_methtype"
+            addr: 0x10000b6e4
+            size: 0x221
+            offset: 46820
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__info_plist"
+            addr: 0x10000b905
+            size: 0x417
+            offset: 47365
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__launchd_plist"
+            addr: 0x10000bd1c
+            size: 0x1a4
+            offset: 48412
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__unwind_info"
+            addr: 0x10000bec0
+            size: 0x140
+            offset: 48832
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+      - cmd: 25
+        cmdsize: 552
+        segname: "__DATA_CONST"
+        vmaddr: 0x10000c000
+        vmsize: 0x4000
+        fileoff: 49152
+        filesize: 16384
+        maxprot: 0x3
+        initprot: 0x3
+        nsects: 6
+        flags: 0x10
+        sections:
+          - segname: "__DATA_CONST"
+            sectname: "__got"
+            addr: 0x10000c000
+            size: 0x98
+            offset: 49152
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x6
+            reserved1: 64
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__const"
+            addr: 0x10000c098
+            size: 0xa0
+            offset: 49304
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__cfstring"
+            addr: 0x10000c138
+            size: 0xcc0
+            offset: 49464
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__objc_classlist"
+            addr: 0x10000cdf8
+            size: 0x18
+            offset: 52728
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x10000000
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__objc_protolist"
+            addr: 0x10000ce10
+            size: 0x18
+            offset: 52752
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__objc_imageinfo"
+            addr: 0x10000ce28
+            size: 0x8
+            offset: 52776
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+      - cmd: 25
+        cmdsize: 952
+        segname: "__DATA"
+        vmaddr: 0x100010000
+        vmsize: 0x4000
+        fileoff: 65536
+        filesize: 16384
+        maxprot: 0x3
+        initprot: 0x3
+        nsects: 11
+        flags: 0x0
+        sections:
+          - segname: "__DATA"
+            sectname: "__la_symbol_ptr"
+            addr: 0x100010000
+            size: 0x200
+            offset: 65536
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x7
+            reserved1: 83
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_const"
+            addr: 0x100010200
+            size: 0x848
+            offset: 66048
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_selrefs"
+            addr: 0x100010a48
+            size: 0x3d0
+            offset: 68168
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x10000005
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_protorefs"
+            addr: 0x100010e18
+            size: 0x8
+            offset: 69144
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x1000000b
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_classrefs"
+            addr: 0x100010e20
+            size: 0xd8
+            offset: 69152
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x10000000
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_superrefs"
+            addr: 0x100010ef8
+            size: 0x8
+            offset: 69368
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x10000000
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_ivar"
+            addr: 0x100010f00
+            size: 0x10
+            offset: 69376
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_data"
+            addr: 0x100010f10
+            size: 0xf0
+            offset: 69392
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__data"
+            addr: 0x100011000
+            size: 0x128
+            offset: 69632
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__common"
+            addr: 0x100011128
+            size: 0x10
+            offset: 0
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x1
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__bss"
+            addr: 0x100011138
+            size: 0x20
+            offset: 0
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x1
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+      - cmd: 25
+        cmdsize: 72
+        segname: "__LINKEDIT"
+        vmaddr: 0x100014000
+        vmsize: 0x8000
+        fileoff: 81920
+        filesize: 28560
+        maxprot: 0x1
+        initprot: 0x1
+        nsects: 0
+        flags: 0x0
+    dylibs:
+      - name: "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "300.0.0"
+        current_version: "2202.0.0"
+      - name: "/usr/lib/libobjc.A.dylib"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "228.0.0"
+      - name: "/usr/lib/libSystem.B.dylib"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "1336.61.1"
+      - name: "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "45.0.0"
+        current_version: "2487.30.104"
+      - name: "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "64.0.0"
+      - name: "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "150.0.0"
+        current_version: "2202.0.0"
+      - name: "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "1226.0.0"
+      - name: "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "61040.61.1"
+      - name: "/System/Library/Frameworks/SystemConfiguration.framework/Versions/A/SystemConfiguration"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "1296.60.3"
+    entry_point: 39825
+    stack_size: 0
+    build_version:
+        platform: 1
+        minos: "10.15.0"
+        sdk: "14.2.0"
+        ntools: 1
+    build_tools:
+      - tool: 50
+        version: 32
+  - magic: 0xfeedfacf
+    cputype: 16777228
+    cpusubtype: 0
+    filetype: 2
+    ncmds: 25
+    sizeofcmds: 3992
+    flags: 0x200085
+    reserved: 0
+    number_of_segments: 5
+    segments:
+      - cmd: 25
+        cmdsize: 72
+        segname: "__PAGEZERO"
+        vmaddr: 0x0
+        vmsize: 0x100000000
+        fileoff: 0
+        filesize: 0
+        maxprot: 0x0
+        initprot: 0x0
+        nsects: 0
+        flags: 0x0
+      - cmd: 25
+        cmdsize: 1192
+        segname: "__TEXT"
+        vmaddr: 0x100000000
+        vmsize: 0xc000
+        fileoff: 0
+        filesize: 49152
+        maxprot: 0x5
+        initprot: 0x5
+        nsects: 14
+        flags: 0x0
+        sections:
+          - segname: "__TEXT"
+            sectname: "__text"
+            addr: 0x1000041a0
+            size: 0x4850
+            offset: 16800
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000400
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__stubs"
+            addr: 0x1000089f0
+            size: 0x300
+            offset: 35312
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000408
+            reserved1: 0
+            reserved2: 12
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__stub_helper"
+            addr: 0x100008cf0
+            size: 0x318
+            offset: 36080
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000400
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__objc_stubs"
+            addr: 0x100009008
+            size: 0xf20
+            offset: 36872
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x80000400
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__objc_methlist"
+            addr: 0x100009f28
+            size: 0xd0
+            offset: 40744
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__gcc_except_tab"
+            addr: 0x100009ff8
+            size: 0x84
+            offset: 40952
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__cstring"
+            addr: 0x10000a07c
+            size: 0xb24
+            offset: 41084
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__const"
+            addr: 0x10000aba0
+            size: 0x50
+            offset: 43936
+            align: 4
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__objc_classname"
+            addr: 0x10000abf0
+            size: 0x64
+            offset: 44016
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__objc_methname"
+            addr: 0x10000ac54
+            size: 0xa5c
+            offset: 44116
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__objc_methtype"
+            addr: 0x10000b6b0
+            size: 0x221
+            offset: 46768
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x2
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__info_plist"
+            addr: 0x10000b8d1
+            size: 0x417
+            offset: 47313
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__launchd_plist"
+            addr: 0x10000bce8
+            size: 0x1a4
+            offset: 48360
+            align: 0
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__TEXT"
+            sectname: "__unwind_info"
+            addr: 0x10000be8c
+            size: 0x170
+            offset: 48780
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+      - cmd: 25
+        cmdsize: 552
+        segname: "__DATA_CONST"
+        vmaddr: 0x10000c000
+        vmsize: 0x4000
+        fileoff: 49152
+        filesize: 16384
+        maxprot: 0x3
+        initprot: 0x3
+        nsects: 6
+        flags: 0x10
+        sections:
+          - segname: "__DATA_CONST"
+            sectname: "__got"
+            addr: 0x10000c000
+            size: 0x90
+            offset: 49152
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x6
+            reserved1: 64
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__const"
+            addr: 0x10000c090
+            size: 0xa0
+            offset: 49296
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__cfstring"
+            addr: 0x10000c130
+            size: 0xcc0
+            offset: 49456
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__objc_classlist"
+            addr: 0x10000cdf0
+            size: 0x18
+            offset: 52720
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x10000000
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__objc_protolist"
+            addr: 0x10000ce08
+            size: 0x18
+            offset: 52744
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA_CONST"
+            sectname: "__objc_imageinfo"
+            addr: 0x10000ce20
+            size: 0x8
+            offset: 52768
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+      - cmd: 25
+        cmdsize: 952
+        segname: "__DATA"
+        vmaddr: 0x100010000
+        vmsize: 0x4000
+        fileoff: 65536
+        filesize: 16384
+        maxprot: 0x3
+        initprot: 0x3
+        nsects: 11
+        flags: 0x0
+        sections:
+          - segname: "__DATA"
+            sectname: "__la_symbol_ptr"
+            addr: 0x100010000
+            size: 0x200
+            offset: 65536
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x7
+            reserved1: 82
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_const"
+            addr: 0x100010200
+            size: 0x6c8
+            offset: 66048
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_selrefs"
+            addr: 0x1000108c8
+            size: 0x410
+            offset: 67784
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x10000005
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_protorefs"
+            addr: 0x100010cd8
+            size: 0x8
+            offset: 68824
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x1000000b
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_classrefs"
+            addr: 0x100010ce0
+            size: 0xd8
+            offset: 68832
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x10000000
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_superrefs"
+            addr: 0x100010db8
+            size: 0x8
+            offset: 69048
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x10000000
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_ivar"
+            addr: 0x100010dc0
+            size: 0x8
+            offset: 69056
+            align: 2
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__objc_data"
+            addr: 0x100010dc8
+            size: 0xf0
+            offset: 69064
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__data"
+            addr: 0x100010eb8
+            size: 0x128
+            offset: 69304
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x0
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__common"
+            addr: 0x100010fe0
+            size: 0x10
+            offset: 0
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x1
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+          - segname: "__DATA"
+            sectname: "__bss"
+            addr: 0x100010ff0
+            size: 0x20
+            offset: 0
+            align: 3
+            reloff: 0
+            nreloc: 0
+            flags: 0x1
+            reserved1: 0
+            reserved2: 0
+            reserved3: 0
+      - cmd: 25
+        cmdsize: 72
+        segname: "__LINKEDIT"
+        vmaddr: 0x100014000
+        vmsize: 0x8000
+        fileoff: 81920
+        filesize: 28464
+        maxprot: 0x1
+        initprot: 0x1
+        nsects: 0
+        flags: 0x0
+    dylibs:
+      - name: "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "300.0.0"
+        current_version: "2202.0.0"
+      - name: "/usr/lib/libobjc.A.dylib"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "228.0.0"
+      - name: "/usr/lib/libSystem.B.dylib"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "1336.61.1"
+      - name: "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "45.0.0"
+        current_version: "2487.30.104"
+      - name: "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "64.0.0"
+      - name: "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "150.0.0"
+        current_version: "2202.0.0"
+      - name: "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "1226.0.0"
+      - name: "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "61040.61.1"
+      - name: "/System/Library/Frameworks/SystemConfiguration.framework/Versions/A/SystemConfiguration"
+        timestamp: 2 # 1970-01-01 00:00:02 UTC
+        compatibility_version: "1.0.0"
+        current_version: "1296.60.3"
+    entry_point: 35152
+    stack_size: 0
+    build_version:
+        platform: 1
+        minos: "11.0.0"
+        sdk: "14.2.0"
+        ntools: 1
+    build_tools:
+      - tool: 50
+        version: 32
