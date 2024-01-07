@@ -30,7 +30,7 @@ message BuildVersion {
   optional uint32 ntools = 4;
 }
 
-message BuildTools {
+message BuildTool {
   optional uint32 tool = 1;
   optional uint32 version = 2;
 }
@@ -90,7 +90,7 @@ message File {
   optional uint64 entry_point = 13;
   optional uint64 stack_size = 14;
   optional BuildVersion build_version = 15;
-  repeated BuildTools build_tools = 16;
+  repeated BuildTool build_tools = 16;
 }
 
 message Macho {
@@ -115,7 +115,7 @@ message Macho {
   optional uint32 nfat_arch = 16;
   repeated FatArch fat_arch = 17;
   optional BuildVersion build_version = 18;
-  repeated BuildTools build_tools = 19;
+  repeated BuildTool build_tools = 19;
 
 
   // Nested Mach-O files

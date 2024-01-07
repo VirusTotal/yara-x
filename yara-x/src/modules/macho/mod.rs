@@ -214,12 +214,12 @@ struct BuildVersionCommand {
     ntools: u32,
 }
 
-/// `BuildTool`: Represents a build Tool struct in the Mach-O file following the
+/// `BuildToolObject`: Represents a build Tool struct in the Mach-O file following the
 /// BuildVersionCommand
 /// Fields: tool, version
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
-struct BuildTool {
+struct BuildToolObject {
     tool: u32,
     version: u32,
 }
@@ -755,7 +755,7 @@ fn swap_build_version_command(command: &mut BuildVersionCommand) {
 /// # Arguments
 ///
 /// * `command`: A mutable reference to the Mach-O build tool struct.
-fn swap_build_tool(command: &mut BuildTool) {
+fn swap_build_tool(command: &mut BuildToolObject) {
     command.tool = BigEndian::read_u32(&command.tool.to_le_bytes());
     command.version = BigEndian::read_u32(&command.version.to_le_bytes());
 }
@@ -1111,30 +1111,21 @@ fn parse_build_version_command(
 ///
 /// # Arguments
 ///
-/// * `input`: A slice of bytes containing the raw BuildTool data.
+/// * `input`: A slice of bytes containing the raw BuildToolObject data.
 ///
 /// # Returns
 ///
 /// A `nom` IResult containing the remaining unparsed input and the parsed
-/// BuildTool structure, or a `nom` error if the parsing fails.
+/// BuildToolObject structure, or a `nom` error if the parsing fails.
 ///
 /// # Errors
 ///
 /// Returns a `nom` error if the input data is insufficient or malformed.
-fn parse_build_tool(
-    input: &[u8],
-) -> IResult<&[u8], BuildTool> {
-    let (input, cmd) = le_u32(input)?;
-    let (input, cmdsize) = le_u32(input)?;
-    let (input, platform) = le_u32(input)?;
-    let (input, minos) = le_u32(input)?;
-    let (input, sdk) = le_u32(input)?;
-    let (input, ntools) = le_u32(input)?;
+fn parse_build_tool(input: &[u8]) -> IResult<&[u8], BuildToolObject> {
+    let (input, tool) = le_u32(input)?;
+    let (input, version) = le_u32(input)?;
 
-    Ok((
-        input,
-        BuildTool { cmd, cmdsize, platform, minos, sdk, ntools },
-    ))
+    Ok((input, BuildToolObject { tool, version }))
 }
 
 /// Parse the 32-bit segment command of a Mach-O file, offering a structured
@@ -1836,16 +1827,26 @@ fn handle_build_version_command(
         minos: Some(convert_to_version_string(bc.minos)),
         sdk: Some(convert_to_version_string(bc.sdk)),
         ntools: Some(bc.ntools),
+        ..Default::default()
     });
 
-    for n in 0..bc.ntools {
+    for _n in 0..bc.ntools {
         let (_, mut bt) = parse_build_tool(command_data)
             .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+        if swap {
+            swap_build_tool(&mut bt)
+        }
+
+        macho_file.build_tools.push(BuildTool {
+            tool: Some(bt.tool),
+            version: Some(bt.version),
+            ..Default::default()
+        });
     }
 
     Ok(())
 }
-
 /// Handles the LC_SEGMENT command for 32-bit Mach-O files, parsing the data
 /// and populating a protobuf representation of the segment and its associated
 /// file sections.
