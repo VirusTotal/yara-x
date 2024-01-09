@@ -1088,7 +1088,7 @@ fn parse_dylinker_command(
 ///
 /// * `input`: A slice of bytes containing the raw RPathCommand data.
 /// * `swap`: indicator the endianness needs to be swapped
-/// 
+///
 /// # Returns
 ///
 /// A `nom` IResult containing the remaining unparsed input and the parsed
@@ -2833,6 +2833,46 @@ fn ep_for_arch_subtype(
     }
 
     None
+}
+
+/// The function for checking if any dylib name present in the main Mach-O or embedded Mach-O files
+/// contain a dylib wit
+///
+/// # Arguments
+///
+/// * `ctx`: A mutable reference to the scanning context.
+/// * `dylib_name`: The name of the dylib to check if present
+///
+/// # Returns
+///
+/// An `Option<bool>` containing if the name is found
+#[module_export(name = "dylib_present")]
+fn dylibs_present(
+    ctx: &ScanContext,
+    dylib_name: RuntimeString,
+) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected_name = dylib_name.as_bstr(ctx);
+
+    for dylib in macho.dylibs.iter() {
+        if dylib.name.as_ref().is_some_and(|name| {
+            expected_name.eq_ignore_ascii_case(name.as_bytes())
+        }) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for dylib in file.dylibs.iter() {
+            if dylib.name.as_ref().is_some_and(|name| {
+                expected_name.eq_ignore_ascii_case(name.as_bytes())
+            }) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
 }
 
 /// The primary function for processing a Mach-O file, extracting its

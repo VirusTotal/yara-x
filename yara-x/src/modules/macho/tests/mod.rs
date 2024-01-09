@@ -625,4 +625,25 @@ fn test_macho_module() {
         "#,
         &[]
     );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+            condition:
+                macho.dylib_present("totally not present dylib")
+        }
+        "#
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.dylib_present("/usr/lib/libSystem.B.dylib")
+        }
+        "#,
+        &macho_data
+    );
 }
