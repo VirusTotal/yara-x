@@ -2836,7 +2836,7 @@ fn ep_for_arch_subtype(
 }
 
 /// The function for checking if any dylib name present in the main Mach-O or embedded Mach-O files
-/// contain a dylib wit
+/// contain a dylib with the desired name
 ///
 /// # Arguments
 ///
@@ -2866,6 +2866,43 @@ fn dylibs_present(
         for dylib in file.dylibs.iter() {
             if dylib.name.as_ref().is_some_and(|name| {
                 expected_name.eq_ignore_ascii_case(name.as_bytes())
+            }) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
+}
+
+/// The function for checking if any rpath present in the main Mach-O or embedded Mach-O files
+/// contain an rpath with the desired path
+///
+/// # Arguments
+///
+/// * `ctx`: A mutable reference to the scanning context.
+/// * `rpath`: The name of the dylib to check if present
+///
+/// # Returns
+///
+/// An `Option<bool>` containing if the path is found
+#[module_export(name = "rpath_present")]
+fn rpaths_present(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected_rpath = rpath.as_bstr(ctx);
+
+    for rp in macho.rpaths.iter() {
+        if rp.path.as_ref().is_some_and(|path| {
+            expected_rpath.eq_ignore_ascii_case(path.as_bytes())
+        }) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for rp in file.rpaths.iter() {
+            if rp.path.as_ref().is_some_and(|path| {
+                expected_rpath.eq_ignore_ascii_case(path.as_bytes())
             }) {
                 return Some(true);
             }

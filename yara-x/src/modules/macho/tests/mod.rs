@@ -415,8 +415,12 @@ fn test_swap_entry_point_command() {
 
 #[test]
 fn test_macho_module() {
-    let macho_data = create_binary_from_zipped_ihex(
+    let tiny_universal_macho_data = create_binary_from_zipped_ihex(
         "src/modules/macho/tests/testdata/tiny_universal.in.zip",
+    );
+
+    let x86_macho_data = create_binary_from_zipped_ihex(
+        "src/modules/macho/tests/testdata/macho_x86_file.in.zip",
     );
 
     rule_true!(
@@ -469,7 +473,7 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000007) == 0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -480,7 +484,7 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x01000007) == 1
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_false!(
@@ -491,7 +495,7 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000008) == 0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -513,7 +517,7 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000007, 0x00000003) == 0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -524,7 +528,7 @@ fn test_macho_module() {
             macho.file_index_for_arch(16777223, 2147483651) == 1
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_false!(
@@ -535,7 +539,7 @@ fn test_macho_module() {
             macho.file_index_for_arch(0x00000008, 0x00000004) == 0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -546,7 +550,7 @@ fn test_macho_module() {
             not defined macho.file_index_for_arch(0x00000008, 0x00000004)
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -568,7 +572,7 @@ fn test_macho_module() {
             macho.entry_point_for_arch(0x00000007) == 0x00001EE0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -579,7 +583,7 @@ fn test_macho_module() {
             macho.entry_point_for_arch(0x01000007) == 0x00004EE0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -590,7 +594,7 @@ fn test_macho_module() {
             macho.entry_point_for_arch(0x00000007, 0x00000003) == 0x00001EE0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -601,7 +605,7 @@ fn test_macho_module() {
             macho.entry_point_for_arch(16777223, 2147483651) == 0x00004EE0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_false!(
@@ -612,7 +616,7 @@ fn test_macho_module() {
             macho.entry_point_for_arch(0x00000008, 0x00000003) == 0x00001EE0
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
     );
 
     rule_true!(
@@ -644,6 +648,38 @@ fn test_macho_module() {
                 macho.dylib_present("/usr/lib/libSystem.B.dylib")
         }
         "#,
-        &macho_data
+        &tiny_universal_macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule test {
+            condition:
+                macho.rpath_present("totally not present rpath")
+        }
+        "#
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.rpath_present("@loader_path/../Frameworks")
+        }
+        "#,
+        &tiny_universal_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.rpath_present("@loader_path/../Frameworks")
+        }
+        "#,
+        &x86_macho_data
     );
 }
