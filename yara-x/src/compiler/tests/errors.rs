@@ -857,6 +857,26 @@ rule test {
             line!(),
             r#"
 rule test {
+  strings:
+    $a = /(foo|)/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:10]
+   │
+ 4 │     $a = /(foo|)/
+   │          ────┬───  
+   │              ╰───── this regexp can match empty strings
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
   condition:
     all of ($a*)
 }

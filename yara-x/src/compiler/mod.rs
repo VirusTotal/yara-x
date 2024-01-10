@@ -1397,6 +1397,14 @@ impl<'a> Compiler<'a> {
             _ => unreachable!(),
         })?;
 
+        if matches!(hir.minimum_len(), Some(0)) {
+            return Err(CompileError::from(CompileErrorInfo::invalid_regexp(
+                &self.report_builder,
+                "this regexp can match empty strings".to_string(),
+                span,
+            )));
+        }
+
         let mut slow_pattern = false;
 
         for atom in &atoms {

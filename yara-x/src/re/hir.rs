@@ -168,6 +168,19 @@ impl Hir {
         self.inner
     }
 
+    /// Returns the length (in bytes) of the smallest string matched by this HIR.
+    ///
+    /// A return value of `0` is possible and occurs when the HIR can match an
+    /// empty string.
+    ///
+    /// `None` is returned when there is no minimum length. This occurs in
+    /// precisely the cases where the HIR matches nothing. i.e., The language
+    /// the regex matches is empty. An example of such a regex is `\P{any}`.
+    #[inline]
+    pub fn minimum_len(&self) -> Option<usize> {
+        self.inner.properties().minimum_len()
+    }
+
     /// Returns true if this HIR is either a simple literal or an alternation
     /// of simple literals.
     ///
