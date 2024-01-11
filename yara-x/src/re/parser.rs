@@ -72,6 +72,11 @@ impl Parser {
 
         let greedy = Validator::new().validate(&ast);
 
+        // `greedy` is set to Some(true) if all regexp quantifiers are greedy,
+        // Some(false) if all are non-greedy, and None if there's a mix of
+        // greedy and non-greedy quantifiers, like in `foo.*bar.*?baz`. Mixed
+        // greediness is allowed only if allow_mixed_greediness is true, an
+        // error is returned if otherwise.
         let greedy = if self.allow_mixed_greediness {
             greedy.unwrap_or(None)
         } else {

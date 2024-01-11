@@ -10,10 +10,12 @@ use crate::utils::cast;
 
 pub use regex_syntax::hir::Class;
 pub use regex_syntax::hir::ClassBytes;
+pub use regex_syntax::hir::ClassBytesRange;
+pub use regex_syntax::hir::ClassUnicode;
+pub use regex_syntax::hir::ClassUnicodeRange;
+pub use regex_syntax::hir::Dot;
 pub use regex_syntax::hir::HirKind;
-use regex_syntax::hir::{
-    visit, ClassBytesRange, ClassUnicode, ClassUnicodeRange, Visitor,
-};
+pub use regex_syntax::hir::Repetition;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ChainedPattern {
@@ -28,12 +30,15 @@ pub(crate) struct ChainedPattern {
 #[derive(Clone, Eq, Debug)]
 pub(crate) struct Hir {
     pub(super) inner: regex_syntax::hir::Hir,
+    /// Indicates whether the regexp is all greedy (`Some(true)`), all
+    /// non-greedy (`Some(false)`), or has a mixture of greedy and non-greedy
+    /// quantifiers (`None`).
     pub(super) greedy: Option<bool>,
 }
 
 impl Hash for Hir {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        visit(&self.inner, HirHasher { state }).unwrap();
+        regex_syntax::hir::visit(&self.inner, HirHasher { state }).unwrap();
     }
 }
 
@@ -67,6 +72,14 @@ impl Hir {
     /// value don't cause the splitting of the pattern.
     const PATTERN_CHAINING_THRESHOLD: u32 = 200;
 
+    /// Controls the minimum allowed length for chained patterns. When splitting
+    /// a pattern into a chain of smaller patterns, every piece in the chain
+    /// must be larger than [`MIN_PATTERN_LENGTH_IN_CHAIN`]. For instance,
+    /// pattern `{ 01 02 [0-2000] 03 }` won't be split at `[0-2000]` into
+    /// `{01 02}` and `{ 03 }`, because `{ 03 }` is too short for being an
+    /// independent pattern.
+    const MIN_PATTERN_LENGTH_IN_CHAIN: usize = 2;
+
     /// Splits a pattern into multiple pieces if it contains gaps that are larger
     /// than [`PATTERN_CHAINING_THRESHOLD`]. Notice that this only applies to
     /// gaps that can contain any arbitrary character, therefore a regexp like
@@ -88,59 +101,84 @@ impl Hir {
     /// If the pattern doesn't contain any gap that is long enough, the pattern
     /// won't be split, and the leading piece will contain the whole pattern
     /// while the vector will be empty.
+    ///
+    /// Each pattern in the final chain is guaranteed to match at least
+    /// [`MIN_PATTERN_LENGTH_IN_CHAIN`] bytes. The original pattern won't be
+    /// split at points where the resulting sub-patterns are very short. For
+    /// instance, `{ 01 02 [0-2000] 03 }` is not split because `{ 03 }` would
+    /// be too short.
     pub fn split_at_large_gaps(self) -> (Self, Vec<ChainedPattern>) {
         if !matches!(self.kind(), HirKind::Concat(_)) {
             return (self, vec![]);
         }
 
         let greedy = self.greedy;
-        let mut heading = None;
-        let mut trailing = Vec::new();
+        let mut gap_min = 0;
+        let mut gap_max = None;
+        let mut gap_greedy = false;
+        let mut chunks = Vec::new();
+        let mut chain = Vec::new();
 
-        let mut push = |gap: Option<RangeInclusive<u32>>, fragment| {
-            if let Some(gap) = gap {
-                trailing.push(ChainedPattern {
-                    gap,
-                    hir: Hir::from(regex_syntax::hir::Hir::concat(fragment))
-                        .set_greedy(greedy),
-                });
-            } else {
-                heading = Some(
-                    Hir::from(regex_syntax::hir::Hir::concat(fragment))
-                        .set_greedy(greedy),
-                );
-            }
-        };
+        for item in cast!(self.into_kind(), HirKind::Concat) {
+            if let HirKind::Repetition(rep) = item.kind() {
+                let num_repetitions =
+                    rep.max.unwrap_or(u32::MAX).saturating_sub(rep.min);
 
-        let items = cast!(self.into_kind(), HirKind::Concat);
-
-        let mut prev_gap = None;
-        let mut pattern_chunk = Vec::new();
-
-        for item in items {
-            if let HirKind::Repetition(repetition) = item.kind() {
-                let max_gap =
-                    repetition.max.unwrap_or(u32::MAX) - repetition.min;
-                if max_gap > Self::PATTERN_CHAINING_THRESHOLD
-                    && any_byte(repetition.sub.as_ref().kind())
+                if !chunks.is_empty()
+                    && num_repetitions > Self::PATTERN_CHAINING_THRESHOLD
+                    && any_byte(rep.sub.as_ref().kind())
                 {
-                    push(prev_gap, pattern_chunk);
-                    prev_gap = Some(
-                        repetition.min..=repetition.max.unwrap_or(u32::MAX),
-                    );
-
-                    pattern_chunk = Vec::new();
+                    let hir: Hir = Hir::concat(chunks).set_greedy(greedy);
+                    if hir.minimum_len().unwrap_or(0)
+                        >= Self::MIN_PATTERN_LENGTH_IN_CHAIN
+                    {
+                        chain.push(ChainedPattern {
+                            gap: gap_min..=gap_max.unwrap_or(u32::MAX),
+                            hir,
+                        });
+                        gap_min = rep.min;
+                        gap_max = rep.max;
+                        gap_greedy = rep.greedy;
+                        chunks = Vec::new();
+                    } else {
+                        chunks = vec![hir, item.into()];
+                    }
                 } else {
-                    pattern_chunk.push(item);
+                    chunks.push(item.into());
                 }
             } else {
-                pattern_chunk.push(item)
+                chunks.push(item.into())
             }
         }
 
-        push(prev_gap, pattern_chunk);
+        if chunks.is_empty() {
+            return (chain.remove(0).hir, chain);
+        }
 
-        (heading.unwrap(), trailing)
+        let hir = Hir::concat(chunks).set_greedy(greedy);
+
+        if chain.is_empty()
+            || hir.minimum_len().unwrap_or(0)
+                >= Self::MIN_PATTERN_LENGTH_IN_CHAIN
+        {
+            chain.push(ChainedPattern {
+                gap: gap_min..=gap_max.unwrap_or(u32::MAX),
+                hir,
+            });
+        } else {
+            let mut last = chain.pop().unwrap();
+
+            last.hir = Hir::concat(vec![
+                last.hir,
+                Hir::any_byte_repetition(gap_min, gap_max, gap_greedy),
+                hir,
+            ])
+            .set_greedy(greedy);
+
+            chain.push(last);
+        }
+
+        (chain.remove(0).hir, chain)
     }
 
     pub fn set_greedy(mut self, greediness: Option<bool>) -> Self {
@@ -208,12 +246,13 @@ impl Hir {
     }
 }
 
-#[cfg(test)]
 impl Hir {
+    #[cfg(test)]
     pub fn literal<B: Into<Box<[u8]>>>(lit: B) -> Hir {
         regex_syntax::hir::Hir::literal(lit).into()
     }
 
+    /// Returns the concatenation of the given expressions.
     pub fn concat(subs: Vec<Hir>) -> Hir {
         regex_syntax::hir::Hir::concat(
             subs.into_iter().map(|s| s.inner).collect(),
@@ -221,12 +260,20 @@ impl Hir {
         .into()
     }
 
-    pub fn repetition(rep: regex_syntax::hir::Repetition) -> Hir {
-        regex_syntax::hir::Hir::repetition(rep).into()
-    }
-
-    pub fn dot(dot: regex_syntax::hir::Dot) -> Hir {
-        regex_syntax::hir::Hir::dot(dot).into()
+    /// Returns an expression that is a repetition of any byte
+    /// that repeats at least `min` times and at most `max` time, w
+    pub fn any_byte_repetition(
+        min: u32,
+        max: Option<u32>,
+        greedy: bool,
+    ) -> Hir {
+        regex_syntax::hir::Hir::repetition(Repetition {
+            min,
+            max,
+            greedy,
+            sub: Box::new(regex_syntax::hir::Hir::dot(Dot::AnyByte)),
+        })
+        .into()
     }
 }
 
@@ -234,7 +281,7 @@ struct HirHasher<'a, H: Hasher> {
     state: &'a mut H,
 }
 
-impl<'a, H: Hasher> Visitor for HirHasher<'a, H> {
+impl<'a, H: Hasher> regex_syntax::hir::Visitor for HirHasher<'a, H> {
     type Output = ();
     type Err = ();
 
@@ -413,7 +460,6 @@ pub fn class_to_masked_bytes_alternation(
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use regex_syntax::hir::{Dot, Repetition};
 
     use super::Hir;
     use crate::re::hir::ChainedPattern;
@@ -447,12 +493,11 @@ mod tests {
             // Input
             Hir::concat(vec![
                 Hir::literal([0x01]),
-                Hir::repetition(Repetition {
-                    min: 0,
-                    max: Some(Hir::PATTERN_CHAINING_THRESHOLD),
-                    greedy: false,
-                    sub: Box::new(Hir::dot(Dot::AnyByte).inner),
-                }),
+                Hir::any_byte_repetition(
+                    0,
+                    Some(Hir::PATTERN_CHAINING_THRESHOLD),
+                    false
+                ),
                 Hir::literal([0x02, 0x03]),
             ])
             // Output
@@ -461,12 +506,11 @@ mod tests {
                 Hir::concat(vec![
                     // Input
                     Hir::literal([0x01]),
-                    Hir::repetition(Repetition {
-                        min: 0,
-                        max: Some(Hir::PATTERN_CHAINING_THRESHOLD),
-                        greedy: false,
-                        sub: Box::new(Hir::dot(Dot::AnyByte).inner),
-                    }),
+                    Hir::any_byte_repetition(
+                        0,
+                        Some(Hir::PATTERN_CHAINING_THRESHOLD),
+                        false
+                    ),
                     Hir::literal([0x02, 0x03]),
                 ]),
                 vec![]
@@ -478,35 +522,51 @@ mod tests {
             // Input
             Hir::concat(vec![
                 Hir::literal([0x01, 0x02, 0x03]),
-                Hir::repetition(Repetition {
-                    min: 0,
-                    max: None,
-                    greedy: false,
-                    sub: Box::new(Hir::dot(Dot::AnyByte).inner),
-                }),
+                Hir::any_byte_repetition(0, None, false),
                 Hir::literal([0x05]),
-                Hir::repetition(Repetition {
-                    min: 10,
-                    max: Some(11 + Hir::PATTERN_CHAINING_THRESHOLD),
-                    greedy: false,
-                    sub: Box::new(Hir::dot(Dot::AnyByte).inner),
-                }),
+                Hir::any_byte_repetition(
+                    10,
+                    Some(11 + Hir::PATTERN_CHAINING_THRESHOLD),
+                    false
+                ),
                 Hir::literal([0x06, 0x07]),
             ])
             .split_at_large_gaps(),
             // Output
             (
                 Hir::literal([0x01, 0x02, 0x03]),
-                vec![
-                    ChainedPattern {
-                        gap: 0..=u32::MAX,
-                        hir: Hir::literal([0x05])
-                    },
-                    ChainedPattern {
-                        gap: 10..=11 + Hir::PATTERN_CHAINING_THRESHOLD,
-                        hir: Hir::literal([0x06, 0x07])
-                    }
-                ]
+                vec![ChainedPattern {
+                    gap: 0..=u32::MAX,
+                    hir: Hir::concat(vec![
+                        Hir::literal([0x05]),
+                        Hir::any_byte_repetition(
+                            10,
+                            Some(11 + Hir::PATTERN_CHAINING_THRESHOLD),
+                            false
+                        ),
+                        Hir::literal([0x06, 0x07])
+                    ])
+                }]
+            )
+        );
+
+        // Do not split because the trailing fragment ([0x05]) is too short.
+        assert_eq!(
+            // Input
+            Hir::concat(vec![
+                Hir::literal([0x01, 0x02, 0x03]),
+                Hir::any_byte_repetition(0, None, false),
+                Hir::literal([0x05]),
+            ])
+            .split_at_large_gaps(),
+            // Output
+            (
+                Hir::concat(vec![
+                    Hir::literal([0x01, 0x02, 0x03]),
+                    Hir::any_byte_repetition(0, None, false),
+                    Hir::literal([0x05]),
+                ]),
+                vec![]
             )
         );
 
@@ -515,12 +575,7 @@ mod tests {
             // Input
             Hir::concat(vec![
                 Hir::literal([0x01, 0x02, 0x03]),
-                Hir::repetition(Repetition {
-                    min: 0,
-                    max: None,
-                    greedy: true,
-                    sub: Box::new(Hir::dot(Dot::AnyByte).inner),
-                }),
+                Hir::any_byte_repetition(0, None, true),
                 Hir::literal([0x04, 0x05]),
             ])
             .split_at_large_gaps(),
@@ -531,6 +586,24 @@ mod tests {
                     gap: 0..=u32::MAX,
                     hir: Hir::literal([0x04, 0x05])
                 },]
+            )
+        );
+
+        // If the pattern starts with a jump, it is not split
+        assert_eq!(
+            // Input
+            Hir::concat(vec![
+                Hir::any_byte_repetition(0, None, true),
+                Hir::literal([0x04, 0x05]),
+            ])
+            .split_at_large_gaps(),
+            // Output
+            (
+                Hir::concat(vec![
+                    Hir::any_byte_repetition(0, None, true),
+                    Hir::literal([0x04, 0x05]),
+                ]),
+                vec![]
             )
         );
     }
