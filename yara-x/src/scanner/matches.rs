@@ -44,24 +44,22 @@ impl MatchList {
         let mut insertion_index = self.matches.len();
 
         while insertion_index > 0 {
-            if m.range.start == self.matches[insertion_index - 1].range.start {
+            let existing_match = &mut self.matches[insertion_index - 1];
+            if m.range.start == existing_match.range.start {
                 // We have found another match that start at same offset, than
                 // the new match. Such cases the new match should replace the
                 // existing one if `replace` is true. In that case the new
                 // match must be longer than the existing one.
                 if replace {
-                    assert!(
-                        m.range.end
-                            >= self.matches[insertion_index - 1].range.end
-                    );
-                    self.matches[insertion_index - 1].range.end = m.range.end;
+                    assert!(existing_match.range.end <= m.range.end);
+                    existing_match.range.end = m.range.end;
                 }
                 return;
             }
             // The match just before `insertion_index` starts at some offset
             // that is lower than the match being inserted, so this is the
             // final insertion index.
-            if m.range.start > self.matches[insertion_index - 1].range.start {
+            if m.range.start > existing_match.range.start {
                 break;
             }
             insertion_index -= 1;
