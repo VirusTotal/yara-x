@@ -1005,8 +1005,13 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a(.*){2,4}/"#, b"a", b"a");
 
     // TODO: known issue related to exact atoms. The matching string
-    // should be "abbb" and not "abb".
+    // should be "abbb" and not "abb". When the `exact-atoms` feature
+    // is disabled it works correctly.
+    #[cfg(not(feature = "exact-atoms"))]
+    pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abbb");
+    #[cfg(feature = "exact-atoms")]
     pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
+
     pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
 
     pattern_match!(
