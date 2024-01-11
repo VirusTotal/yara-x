@@ -483,6 +483,9 @@ mod test {
         assert!(q_00010203 > q_010203);
         assert!(q_010203 > q_0102);
         assert!(q_010203 > q_00000000);
+        assert!(q_010203 > q_90909090);
+        assert!(q_0102 > q_90909090);
+        assert!(q_909090 > q_01);
         assert!(q_0102 > q_01);
         assert!(q_01x203 > q_0102);
         assert!(q_01x203 > q_0001);
@@ -491,7 +494,6 @@ mod test {
         assert_eq!(q_cccccccc, q_ffffffff);
         assert_eq!(q_cccccccc, q_90909090);
         assert_eq!(q_cccccccc, q_20202020);
-        assert!(q_909090 > q_01);
         assert!(q_01xx03 <= q_0102);
         assert!(q_01xx03 < q_010x03);
         assert!(q_01xx03 < q_010203);
