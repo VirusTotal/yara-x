@@ -16,6 +16,16 @@ rust-version.workspace = true
 # actually computes the expression.
 constant-folding = []
 
+# Enables the use of exact atoms for speeding up matches. Exact atoms are those
+# that don't require further verification, the sole presence of the atom 
+# indicates that the pattern containing the atom matches. For instance, in
+# pattern /abc(d|e)/, the atom "abcd" is an exact atom, by finding the atom 
+# "abcd" we can be sure that the whole regexp matches. However, the atom "abc"
+# is not exact, finding "abc" is not enough, the regexp must be evaluated in
+# order to verify if it matches. If this feature is not enabled exact atoms are
+# treated as standard (non-exact) atoms.
+exact-atoms = []
+
 # Enables the use of FastVM for matching regular expression, as an alternative
 # to PikeVM. This feature is enabled by default, and its purpose is disabling
 # the fast regexp matching mechanism for testing purposes.
@@ -95,6 +105,7 @@ time-module = []
 # Features that are enabled by default.
 default = [
     "constant-folding",
+    "exact-atoms",
     "fast-regexp",
     "dotnet-module",
     "elf-module",

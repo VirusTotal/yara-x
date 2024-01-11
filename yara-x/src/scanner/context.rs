@@ -401,9 +401,13 @@ impl ScanContext<'_> {
                 continue;
             }
 
+            #[cfg(feature = "rules-profiling")]
+            let verification_start = Instant::now();
+
             // If the atom is exact no further verification is needed, except
             // for making sure that the fullword requirements are met. An exact
             // atom is enough to guarantee that the whole sub-pattern matched.
+            #[cfg(feature = "exact-atoms")]
             if atom.is_exact() {
                 let flags = match sub_pattern {
                     SubPattern::Literal { flags, .. }
@@ -428,9 +432,6 @@ impl ScanContext<'_> {
 
                 continue;
             }
-
-            #[cfg(feature = "rules-profiling")]
-            let verification_start = Instant::now();
 
             match sub_pattern {
                 SubPattern::Literal { pattern, flags, .. }
