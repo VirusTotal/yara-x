@@ -64,6 +64,7 @@ const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
 const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
+const LC_SOURCE_VERSION: u32 = 0x0000002a;
 
 /// Enum that provides strongly-typed error system used in code
 /// Represents all possible errors that can occur during Mach-O parsing
@@ -163,6 +164,17 @@ struct FatArch64 {
 struct LoadCommand {
     cmd: u32,
     cmdsize: u32,
+}
+
+/// `SourceVersionCommand`: Represents a source version load command
+/// in the Mach-O file.
+/// Fields: cmd, cmdsize, version
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct SourceVersionCommand {
+    cmd: u32,
+    cmdsize: u32,
+    version: u64,
 }
 
 /// `DylibObject`: Represents a dylib struct in the Mach-O file.
@@ -568,6 +580,27 @@ fn convert_to_version_string(decimal_number: u32) -> String {
     format!("{}.{}.{}", major, minor, patch)
 }
 
+/// Convert a decimal number representation to a source version string representation in a Mach-O.
+/// The decimal number is expected to be in the format
+/// `A.B.C.D.E packed as a24.b10.c10.d10.e10`.
+///
+/// # Arguments
+///
+/// * `decimal_number`: The decimal number to convert.
+///
+/// # Returns
+///
+/// A string representation of the version number.
+fn convert_to_source_version_string(decimal_number: u64) -> String {
+    let mask = 0x3f;
+    let a = decimal_number >> 40;
+    let b = (decimal_number >> 30) & mask;
+    let c = (decimal_number >> 20) & mask;
+    let d = (decimal_number >> 10) & mask;
+    let e = decimal_number & mask;
+    format!("{}.{}.{}.{}.{}", a, b, c, d, e)
+}
+
 /// Convert a Mach-O Relative Virtual Address (RVA) to an offset within the
 /// file.
 ///
@@ -681,6 +714,18 @@ fn swap_mach_header(header: &mut MachOHeader64) {
 fn swap_load_command(command: &mut LoadCommand) {
     command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+}
+
+/// Swaps the endianness of fields within a Mach-O source version load command
+/// from BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O load command.
+fn swap_source_version_command(command: &mut SourceVersionCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.version = BigEndian::read_u64(&command.version.to_le_bytes());
 }
 
 /// Swaps the endianness of fields within a Mach-O dylib from BigEndian
@@ -961,6 +1006,30 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
     let (input, cmdsize) = le_u32(input)?;
 
     Ok((input, LoadCommand { cmd, cmdsize }))
+}
+
+/// Parse a Mach-O SourceVersionCommand, transforming raw bytes into a
+/// structured format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw SourceVersionCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// SourceVersionCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_source_version_command(
+    input: &[u8],
+) -> IResult<&[u8], SourceVersionCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, version) = le_u64(input)?;
+    Ok((input, SourceVersionCommand { cmd, cmdsize, version }))
 }
 
 /// Parse a Mach-O Dylib object, transforming raw bytes into a structured
@@ -1788,6 +1857,58 @@ fn handle_dylinker_command(
     Ok(())
 }
 
+/// Handles the LC_ID_DYLINKER, LC_LOAD_DYLINKER and LC_DYLD_ENVIRONMENT
+/// commands for Mach-O files, parsing the data and populating a protobuf
+/// representation of the rpath command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the SourceVersion command.
+/// * `size`: The size of the SourceVersion command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected SourceVersion struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   SourceVersion data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_source_version_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<SourceVersionCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "SourceVersion".to_string(),
+        ));
+    }
+
+    let (_, mut sv) = parse_source_version_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_source_version_command(&mut sv);
+    };
+
+    macho_file.source_version =
+        Some(convert_to_source_version_string(sv.version));
+
+    Ok(())
+}
+
 /// Handles the LC_RPATH commands for Mach-O files, parsing the data
 /// and populating a protobuf representation of the rpath command.
 ///
@@ -2378,6 +2499,13 @@ fn handle_command(
             }
             LC_ID_DYLINKER | LC_LOAD_DYLINKER | LC_DYLD_ENVIRONMENT => {
                 handle_dylinker_command(command_data, cmdsize, macho_file)?;
+            }
+            LC_SOURCE_VERSION => {
+                handle_source_version_command(
+                    command_data,
+                    cmdsize,
+                    macho_file,
+                )?;
             }
             _ => {}
         }

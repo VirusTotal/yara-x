@@ -152,6 +152,7 @@ file:
     dynamic_linker: "/usr/lib/dyld"
     entry_point: 3808
     stack_size: 0
+    source_version: "0.0.0.0.0"
   - magic: 0xfeedfacf
     cputype: 16777223
     cpusubtype: 2147483651
@@ -312,3 +313,4 @@ file:
     dynamic_linker: "/usr/lib/dyld"
     entry_point: 3808
     stack_size: 0
+    source_version: "0.0.0.0.0"
