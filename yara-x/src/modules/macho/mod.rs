@@ -7,14 +7,8 @@
 
 use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
-use nom::{
-    bytes::complete::{tag, take, take_till},
-    combinator::map_res,
-    multi::count,
-    number::complete::*,
-    sequence::tuple,
-    IResult,
-};
+use nom::{bytes::complete::take, multi::count, number::complete::*, IResult};
+use protobuf::MessageField;
 use thiserror::Error;
 
 use crate::modules::prelude::*;
@@ -60,13 +54,19 @@ const LC_REQ_DYLD: u32 = 0x80000000;
 /// Define Mach-O load commands
 const LC_SEGMENT: u32 = 0x00000001;
 const LC_UNIXTHREAD: u32 = 0x00000005;
+const LC_DYSYMTAB: u32 = 0x0000000b;
 const LC_LOAD_DYLIB: u32 = 0x0000000c;
 const LC_ID_DYLIB: u32 = 0x0000000d;
+const LC_LOAD_DYLINKER: u32 = 0x0000000e;
+const LC_ID_DYLINKER: u32 = 0x0000000f;
+
 const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
+const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
+const LC_SOURCE_VERSION: u32 = 0x0000002a;
 
 /// Enum that provides strongly-typed error system used in code
 /// Represents all possible errors that can occur during Mach-O parsing
@@ -168,15 +168,55 @@ struct LoadCommand {
     cmdsize: u32,
 }
 
+/// `DysymtabCommand`: Represents a dynamic symbol table
+/// load command in the Mach-O file.
+/// Fields: cmd, cmdsize, ilocalsym, nlocalsym, iextdefsym, nextdefsym,
+/// tocoff, ntoc, modtaboff, nmodtab, extrefsymoff, nextrefsyms, indirectsymoff,
+/// nindirectsyms, extreloff, nextrel, locreloff, nlocrel
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct DysymtabCommand {
+    cmd: u32,
+    cmdsize: u32,
+    ilocalsym: u32,
+    nlocalsym: u32,
+    iextdefsym: u32,
+    nextdefsym: u32,
+    tocoff: u32,
+    ntoc: u32,
+    modtaboff: u32,
+    nmodtab: u32,
+    extrefsymoff: u32,
+    nextrefsyms: u32,
+    indirectsymoff: u32,
+    nindirectsyms: u32,
+    extreloff: u32,
+    nextrel: u32,
+    locreloff: u32,
+    nlocrel: u32,
+}
+
+/// `SourceVersionCommand`: Represents a source version load command
+/// in the Mach-O file.
+/// Fields: cmd, cmdsize, version
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct SourceVersionCommand {
+    cmd: u32,
+    cmdsize: u32,
+    version: u64,
+}
+
 /// `DylibObject`: Represents a dylib struct in the Mach-O file.
 /// Fields: name, timestamp, current_version, compatibility_version
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
 struct DylibObject {
-    name: Vec<u8>,
+    offset: u32,
     timestamp: u32,
     current_version: u32,
     compatibility_version: u32,
+    name: Vec<u8>,
 }
 
 /// `DylibCommand`: Represents a dylib command in the Mach-O file.
@@ -189,6 +229,17 @@ struct DylibCommand {
     dylib: DylibObject,
 }
 
+/// `DylinkerCommand`: Represents an dynamic linker command in the Mach-O file.
+/// Fields: cmd, cmdsize, name
+#[repr(C)]
+#[derive(Debug, Default, Clone)]
+struct DylinkerCommand {
+    cmd: u32,
+    cmdsize: u32,
+    offset: u32,
+    name: Vec<u8>,
+}
+
 /// `RPathCommand`: Represents an rpath command in the Mach-O file.
 /// Fields: cmd, cmdsize, path
 #[repr(C)]
@@ -196,6 +247,7 @@ struct DylibCommand {
 struct RPathCommand {
     cmd: u32,
     cmdsize: u32,
+    offset: u32,
     path: Vec<u8>,
 }
 
@@ -558,6 +610,27 @@ fn convert_to_version_string(decimal_number: u32) -> String {
     format!("{}.{}.{}", major, minor, patch)
 }
 
+/// Convert a decimal number representation to a source version string representation in a Mach-O.
+/// The decimal number is expected to be in the format
+/// `A.B.C.D.E packed as a24.b10.c10.d10.e10`.
+///
+/// # Arguments
+///
+/// * `decimal_number`: The decimal number to convert.
+///
+/// # Returns
+///
+/// A string representation of the version number.
+fn convert_to_source_version_string(decimal_number: u64) -> String {
+    let mask = 0x3f;
+    let a = decimal_number >> 40;
+    let b = (decimal_number >> 30) & mask;
+    let c = (decimal_number >> 20) & mask;
+    let d = (decimal_number >> 10) & mask;
+    let e = decimal_number & mask;
+    format!("{}.{}.{}.{}.{}", a, b, c, d, e)
+}
+
 /// Convert a Mach-O Relative Virtual Address (RVA) to an offset within the
 /// file.
 ///
@@ -673,6 +746,18 @@ fn swap_load_command(command: &mut LoadCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O source version load command
+/// from BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O load command.
+fn swap_source_version_command(command: &mut SourceVersionCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.version = BigEndian::read_u64(&command.version.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a Mach-O dylib from BigEndian
 /// to LittleEndian in-place.
 ///
@@ -680,6 +765,7 @@ fn swap_load_command(command: &mut LoadCommand) {
 ///
 /// * `dylib`: A mutable reference to the Mach-O dylib.
 fn swap_dylib(dylib: &mut DylibObject) {
+    dylib.offset = BigEndian::read_u32(&dylib.offset.to_le_bytes());
     dylib.timestamp = BigEndian::read_u32(&dylib.timestamp.to_le_bytes());
     dylib.compatibility_version =
         BigEndian::read_u32(&dylib.compatibility_version.to_le_bytes());
@@ -698,6 +784,18 @@ fn swap_dylib_command(command: &mut DylibCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O dylinker command from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O dylinker command.
+fn swap_dylinker_command(command: &mut DylinkerCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.offset = BigEndian::read_u32(&command.offset.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a Mach-O rpath command from
 /// BigEndian to LittleEndian in-place.
 ///
@@ -707,6 +805,40 @@ fn swap_dylib_command(command: &mut DylibCommand) {
 fn swap_rpath_command(command: &mut RPathCommand) {
     command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.offset = BigEndian::read_u32(&command.offset.to_le_bytes());
+}
+
+/// Swaps the endianness of fields within a Mach-O DysymtabCommand command from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O DysymtabCommand command.
+fn swap_dysymtab_command(command: &mut DysymtabCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.ilocalsym = BigEndian::read_u32(&command.ilocalsym.to_le_bytes());
+    command.nlocalsym = BigEndian::read_u32(&command.nlocalsym.to_le_bytes());
+    command.iextdefsym =
+        BigEndian::read_u32(&command.iextdefsym.to_le_bytes());
+    command.nextdefsym =
+        BigEndian::read_u32(&command.nextdefsym.to_le_bytes());
+    command.tocoff = BigEndian::read_u32(&command.tocoff.to_le_bytes());
+    command.ntoc = BigEndian::read_u32(&command.ntoc.to_le_bytes());
+    command.modtaboff = BigEndian::read_u32(&command.modtaboff.to_le_bytes());
+    command.nmodtab = BigEndian::read_u32(&command.nmodtab.to_le_bytes());
+    command.extrefsymoff =
+        BigEndian::read_u32(&command.extrefsymoff.to_le_bytes());
+    command.nextrefsyms =
+        BigEndian::read_u32(&command.nextrefsyms.to_le_bytes());
+    command.indirectsymoff =
+        BigEndian::read_u32(&command.indirectsymoff.to_le_bytes());
+    command.nindirectsyms =
+        BigEndian::read_u32(&command.nindirectsyms.to_le_bytes());
+    command.extreloff = BigEndian::read_u32(&command.extreloff.to_le_bytes());
+    command.nextrel = BigEndian::read_u32(&command.nextrel.to_le_bytes());
+    command.locreloff = BigEndian::read_u32(&command.locreloff.to_le_bytes());
+    command.nlocrel = BigEndian::read_u32(&command.nlocrel.to_le_bytes());
 }
 
 /// Swaps the endianness of fields within a 32-bit Mach-O segment command from
@@ -939,12 +1071,38 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
     Ok((input, LoadCommand { cmd, cmdsize }))
 }
 
+/// Parse a Mach-O SourceVersionCommand, transforming raw bytes into a
+/// structured format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw SourceVersionCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// SourceVersionCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_source_version_command(
+    input: &[u8],
+) -> IResult<&[u8], SourceVersionCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, version) = le_u64(input)?;
+    Ok((input, SourceVersionCommand { cmd, cmdsize, version }))
+}
+
 /// Parse a Mach-O Dylib object, transforming raw bytes into a structured
 /// format.
 ///
 /// # Arguments
 ///
 /// * `input`: A slice of bytes containing the raw dylib object data.
+/// * `cmdsize`: the size of the load command data
+/// * `swap`: indicator the endianness needs to be swapped
 ///
 /// # Returns
 ///
@@ -954,27 +1112,32 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
 /// # Errors
 ///
 /// Returns a `nom` error if the input data is insufficient or malformed.
-fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
-    // offset but we don't need it
-    let (input, _) = le_u32(input)?;
+fn parse_dylib(
+    input: &[u8],
+    cmdsize: u32,
+    swap: bool,
+) -> IResult<&[u8], DylibObject> {
+    let (input, offset) = le_u32(input)?;
     let (input, timestamp) = le_u32(input)?;
     let (input, current_version) = le_u32(input)?;
     let (input, compatibility_version) = le_u32(input)?;
 
-    let (input, name) = map_res(
-        tuple((take_till(|b| b == b'\x00'), tag(b"\x00"))),
-        |(s, _)| std::str::from_utf8(s),
-    )(input)?;
+    let mut dy = DylibObject {
+        offset,
+        timestamp,
+        current_version,
+        compatibility_version,
+        ..Default::default()
+    };
 
-    Ok((
-        input,
-        DylibObject {
-            name: name.into(),
-            timestamp,
-            compatibility_version,
-            current_version,
-        },
-    ))
+    if swap {
+        swap_dylib(&mut dy);
+    }
+
+    let (input, name) = take(cmdsize - dy.offset)(input)?;
+    dy.name = name.into();
+
+    Ok((input, dy))
 }
 
 /// Parse a Mach-O DylibCommand, transforming raw bytes into a structured
@@ -983,6 +1146,7 @@ fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
 /// # Arguments
 ///
 /// * `input`: A slice of bytes containing the raw DylibCommand data.
+/// * `swap`: indicator the endianness needs to be swapped
 ///
 /// # Returns
 ///
@@ -992,12 +1156,61 @@ fn parse_dylib(input: &[u8]) -> IResult<&[u8], DylibObject> {
 /// # Errors
 ///
 /// Returns a `nom` error if the input data is insufficient or malformed.
-fn parse_dylib_command(input: &[u8]) -> IResult<&[u8], DylibCommand> {
+fn parse_dylib_command(
+    input: &[u8],
+    swap: bool,
+) -> IResult<&[u8], DylibCommand> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
-    let (input, dylib) = parse_dylib(input)?;
 
-    Ok((input, DylibCommand { cmd, cmdsize, dylib }))
+    let mut dy = DylibCommand { cmd, cmdsize, ..Default::default() };
+
+    if swap {
+        swap_dylib_command(&mut dy);
+    }
+
+    let (input, dylib) = parse_dylib(input, dy.cmdsize, swap)?;
+    dy.dylib = dylib;
+
+    Ok((input, dy))
+}
+
+/// Parse a Mach-O DylinkerCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw DylinkerCommand data.
+/// * `swap`: indicator the endianness needs to be swapped
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// DylinkerCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_dylinker_command(
+    input: &[u8],
+    swap: bool,
+) -> IResult<&[u8], DylinkerCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, offset) = le_u32(input)?;
+
+    let mut dyl =
+        DylinkerCommand { cmd, cmdsize, offset, ..Default::default() };
+
+    if swap {
+        swap_dylinker_command(&mut dyl);
+    }
+
+    let (input, name) = take(dyl.cmdsize - dyl.offset)(input)?;
+
+    dyl.name = name.into();
+
+    Ok((input, dyl))
 }
 
 /// Parse a Mach-O RPathCommand, transforming raw bytes into a structured
@@ -1006,6 +1219,7 @@ fn parse_dylib_command(input: &[u8]) -> IResult<&[u8], DylibCommand> {
 /// # Arguments
 ///
 /// * `input`: A slice of bytes containing the raw RPathCommand data.
+/// * `swap`: indicator the endianness needs to be swapped
 ///
 /// # Returns
 ///
@@ -1015,13 +1229,70 @@ fn parse_dylib_command(input: &[u8]) -> IResult<&[u8], DylibCommand> {
 /// # Errors
 ///
 /// Returns a `nom` error if the input data is insufficient or malformed.
-fn parse_rpath_command(input: &[u8]) -> IResult<&[u8], RPathCommand> {
+fn parse_rpath_command(
+    input: &[u8],
+    swap: bool,
+) -> IResult<&[u8], RPathCommand> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
     let (input, offset) = le_u32(input)?;
-    let (input, path) = take(cmdsize - offset)(input)?;
 
-    Ok((input, RPathCommand { cmd, cmdsize, path: path.into() }))
+    let mut rp = RPathCommand { cmd, cmdsize, offset, ..Default::default() };
+
+    if swap {
+        swap_rpath_command(&mut rp);
+    }
+
+    let (input, path) = take(rp.cmdsize - rp.offset)(input)?;
+
+    rp.path = path.into();
+
+    Ok((input, rp))
+}
+
+fn parse_dysymtab_command(input: &[u8]) -> IResult<&[u8], DysymtabCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, ilocalsym) = le_u32(input)?;
+    let (input, nlocalsym) = le_u32(input)?;
+    let (input, iextdefsym) = le_u32(input)?;
+    let (input, nextdefsym) = le_u32(input)?;
+    let (input, tocoff) = le_u32(input)?;
+    let (input, ntoc) = le_u32(input)?;
+    let (input, modtaboff) = le_u32(input)?;
+    let (input, nmodtab) = le_u32(input)?;
+    let (input, extrefsymoff) = le_u32(input)?;
+    let (input, nextrefsyms) = le_u32(input)?;
+    let (input, indirectsymoff) = le_u32(input)?;
+    let (input, nindirectsyms) = le_u32(input)?;
+    let (input, extreloff) = le_u32(input)?;
+    let (input, nextrel) = le_u32(input)?;
+    let (input, locreloff) = le_u32(input)?;
+    let (input, nlocrel) = le_u32(input)?;
+
+    Ok((
+        input,
+        DysymtabCommand {
+            cmd,
+            cmdsize,
+            ilocalsym,
+            nlocalsym,
+            iextdefsym,
+            nextdefsym,
+            tocoff,
+            ntoc,
+            modtaboff,
+            nmodtab,
+            extrefsymoff,
+            nextrefsyms,
+            indirectsymoff,
+            nindirectsyms,
+            extreloff,
+            nextrel,
+            locreloff,
+            nlocrel,
+        },
+    ))
 }
 
 /// Parse the 32-bit segment command of a Mach-O file, offering a structured
@@ -1599,27 +1870,28 @@ fn handle_dylib_command(
     size: usize,
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
-    if size < std::mem::size_of::<DylibCommand>() {
+    // 24 bytes for all integer fields and offset in Dylib/DylibCommand
+    // fat pointer of vec makes for inaccurate count
+    if size < 24 {
         return Err(MachoError::FileSectionTooSmall(
             "DylibCommand".to_string(),
         ));
     }
 
-    let (_, mut dy) = parse_dylib_command(command_data)
-        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
-    if should_swap_bytes(
+    let swap = should_swap_bytes(
         macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
-    ) {
-        swap_dylib_command(&mut dy);
-        swap_dylib(&mut dy.dylib);
-    }
+    );
+
+    let (_, dy) = parse_dylib_command(command_data, swap)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
     let dylib = Dylib {
         name: Some(
             std::str::from_utf8(&dy.dylib.name)
                 .unwrap_or_default()
+                .trim_end_matches('\0')
                 .to_string(),
         ),
         timestamp: Some(dy.dylib.timestamp),
@@ -1631,7 +1903,117 @@ fn handle_dylib_command(
         )),
         ..Default::default()
     };
+
     macho_file.dylibs.push(dylib);
+
+    Ok(())
+}
+
+/// Handles the LC_ID_DYLINKER, LC_LOAD_DYLINKER and LC_DYLD_ENVIRONMENT
+/// commands for Mach-O files, parsing the data and populating a protobuf
+/// representation of the rpath command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the rpath command.
+/// * `size`: The size of the Dylinker command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected DylinkerCommand struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   dylinker command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_dylinker_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    // 4 bytes for cmd, 4 bytes for cmdsize, 4 bytes for offset
+    // fat pointer of vec makes for inaccurate count
+    if size < 12 {
+        return Err(MachoError::FileSectionTooSmall(
+            "DylinkerCommand".to_string(),
+        ));
+    }
+
+    let swap = should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    );
+
+    let (_, dyl) = parse_dylinker_command(command_data, swap)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    macho_file.dynamic_linker = Some(
+        std::str::from_utf8(&dyl.name)
+            .unwrap_or_default()
+            .trim_end_matches('\0')
+            .to_string(),
+    );
+
+    Ok(())
+}
+
+/// Handles the LC_ID_DYLINKER, LC_LOAD_DYLINKER and LC_DYLD_ENVIRONMENT
+/// commands for Mach-O files, parsing the data and populating a protobuf
+/// representation of the rpath command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the SourceVersion command.
+/// * `size`: The size of the SourceVersion command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected SourceVersion struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   SourceVersion data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_source_version_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<SourceVersionCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "SourceVersion".to_string(),
+        ));
+    }
+
+    let (_, mut sv) = parse_source_version_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_source_version_command(&mut sv);
+    };
+
+    macho_file.source_version =
+        Some(convert_to_source_version_string(sv.version));
+
     Ok(())
 }
 
@@ -1663,21 +2045,22 @@ fn handle_rpath_command(
     size: usize,
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
-    if size < std::mem::size_of::<RPathCommand>() {
+    // 4 bytes for cmd, 4 bytes for cmdsize, 4 bytes for offset
+    // fat pointer of vec makes for inaccurate count
+    if size < 12 {
         return Err(MachoError::FileSectionTooSmall(
             "RPathCommand".to_string(),
         ));
     }
 
-    let (_, mut rp) = parse_rpath_command(command_data)
-        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
-    if should_swap_bytes(
+    let swap = should_swap_bytes(
         macho_file
             .magic
             .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
-    ) {
-        swap_rpath_command(&mut rp);
-    }
+    );
+
+    let (_, rp) = parse_rpath_command(command_data, swap)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
     let rpath = RPath {
         cmd: Some(rp.cmd),
@@ -1690,10 +2073,57 @@ fn handle_rpath_command(
         ),
         ..Default::default()
     };
+
     macho_file.rpaths.push(rpath);
     Ok(())
 }
 
+fn handle_dysymtab_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<DysymtabCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "DysymtabCommand".to_string(),
+        ));
+    }
+
+    let (_, mut dysym) = parse_dysymtab_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_dysymtab_command(&mut dysym);
+    };
+
+    macho_file.dysymtab = MessageField::some(Dysymtab {
+        cmd: Some(dysym.cmd),
+        cmdsize: Some(dysym.cmdsize),
+        ilocalsym: Some(dysym.ilocalsym),
+        nlocalsym: Some(dysym.nlocalsym),
+        iextdefsym: Some(dysym.iextdefsym),
+        nextdefsym: Some(dysym.nextdefsym),
+        tocoff: Some(dysym.tocoff),
+        ntoc: Some(dysym.ntoc),
+        modtaboff: Some(dysym.modtaboff),
+        nmodtab: Some(dysym.nmodtab),
+        extrefsymoff: Some(dysym.extrefsymoff),
+        nextrefsyms: Some(dysym.nextrefsyms),
+        indirectsymoff: Some(dysym.indirectsymoff),
+        nindirectsyms: Some(dysym.nindirectsyms),
+        extreloff: Some(dysym.extreloff),
+        nextrel: Some(dysym.nextrel),
+        locreloff: Some(dysym.locreloff),
+        nlocrel: Some(dysym.nlocrel),
+        ..Default::default()
+    });
+
+    Ok(())
+}
 /// Handles the LC_SEGMENT command for 32-bit Mach-O files, parsing the data
 /// and populating a protobuf representation of the segment and its associated
 /// file sections.
@@ -2222,6 +2652,19 @@ fn handle_command(
             LC_RPATH => {
                 handle_rpath_command(command_data, cmdsize, macho_file)?;
             }
+            LC_ID_DYLINKER | LC_LOAD_DYLINKER | LC_DYLD_ENVIRONMENT => {
+                handle_dylinker_command(command_data, cmdsize, macho_file)?;
+            }
+            LC_SOURCE_VERSION => {
+                handle_source_version_command(
+                    command_data,
+                    cmdsize,
+                    macho_file,
+                )?;
+            }
+            LC_DYSYMTAB => {
+                handle_dysymtab_command(command_data, cmdsize, macho_file)?;
+            }
             _ => {}
         }
     }
@@ -2676,6 +3119,83 @@ fn ep_for_arch_subtype(
     }
 
     None
+}
+
+/// The function for checking if any dylib name present in the main Mach-O or embedded Mach-O files
+/// contain a dylib with the desired name
+///
+/// # Arguments
+///
+/// * `ctx`: A mutable reference to the scanning context.
+/// * `dylib_name`: The name of the dylib to check if present
+///
+/// # Returns
+///
+/// An `Option<bool>` containing if the name is found
+#[module_export(name = "dylib_present")]
+fn dylibs_present(
+    ctx: &ScanContext,
+    dylib_name: RuntimeString,
+) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected_name = dylib_name.as_bstr(ctx);
+
+    for dylib in macho.dylibs.iter() {
+        if dylib.name.as_ref().is_some_and(|name| {
+            expected_name.eq_ignore_ascii_case(name.as_bytes())
+        }) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for dylib in file.dylibs.iter() {
+            if dylib.name.as_ref().is_some_and(|name| {
+                expected_name.eq_ignore_ascii_case(name.as_bytes())
+            }) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
+}
+
+/// The function for checking if any rpath present in the main Mach-O or embedded Mach-O files
+/// contain an rpath with the desired path
+///
+/// # Arguments
+///
+/// * `ctx`: A mutable reference to the scanning context.
+/// * `rpath`: The name of the dylib to check if present
+///
+/// # Returns
+///
+/// An `Option<bool>` containing if the path is found
+#[module_export(name = "rpath_present")]
+fn rpaths_present(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected_rpath = rpath.as_bstr(ctx);
+
+    for rp in macho.rpaths.iter() {
+        if rp.path.as_ref().is_some_and(|path| {
+            expected_rpath.eq_ignore_ascii_case(path.as_bytes())
+        }) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for rp in file.rpaths.iter() {
+            if rp.path.as_ref().is_some_and(|path| {
+                expected_rpath.eq_ignore_ascii_case(path.as_bytes())
+            }) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
 }
 
 /// The primary function for processing a Mach-O file, extracting its
