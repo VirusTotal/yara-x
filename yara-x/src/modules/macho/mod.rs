@@ -8,6 +8,7 @@
 use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
 use nom::{bytes::complete::take, multi::count, number::complete::*, IResult};
+use protobuf::MessageField;
 use thiserror::Error;
 
 use crate::modules::prelude::*;
@@ -53,6 +54,7 @@ const LC_REQ_DYLD: u32 = 0x80000000;
 /// Define Mach-O load commands
 const LC_SEGMENT: u32 = 0x00000001;
 const LC_UNIXTHREAD: u32 = 0x00000005;
+const LC_DYSYMTAB: u32 = 0x0000000b;
 const LC_LOAD_DYLIB: u32 = 0x0000000c;
 const LC_ID_DYLIB: u32 = 0x0000000d;
 const LC_LOAD_DYLINKER: u32 = 0x0000000e;
@@ -164,6 +166,34 @@ struct FatArch64 {
 struct LoadCommand {
     cmd: u32,
     cmdsize: u32,
+}
+
+/// `DysymtabCommand`: Represents a dynamic symbol table
+/// load command in the Mach-O file.
+/// Fields: cmd, cmdsize, ilocalsym, nlocalsym, iextdefsym, nextdefsym,
+/// tocoff, ntoc, modtaboff, nmodtab, extrefsymoff, nextrefsyms, indirectsymoff,
+/// nindirectsyms, extreloff, nextrel, locreloff, nlocrel
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+struct DysymtabCommand {
+    cmd: u32,
+    cmdsize: u32,
+    ilocalsym: u32,
+    nlocalsym: u32,
+    iextdefsym: u32,
+    nextdefsym: u32,
+    tocoff: u32,
+    ntoc: u32,
+    modtaboff: u32,
+    nmodtab: u32,
+    extrefsymoff: u32,
+    nextrefsyms: u32,
+    indirectsymoff: u32,
+    nindirectsyms: u32,
+    extreloff: u32,
+    nextrel: u32,
+    locreloff: u32,
+    nlocrel: u32,
 }
 
 /// `SourceVersionCommand`: Represents a source version load command
@@ -778,6 +808,39 @@ fn swap_rpath_command(command: &mut RPathCommand) {
     command.offset = BigEndian::read_u32(&command.offset.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O DysymtabCommand command from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O DysymtabCommand command.
+fn swap_dysymtab_command(command: &mut DysymtabCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.ilocalsym = BigEndian::read_u32(&command.ilocalsym.to_le_bytes());
+    command.nlocalsym = BigEndian::read_u32(&command.nlocalsym.to_le_bytes());
+    command.iextdefsym =
+        BigEndian::read_u32(&command.iextdefsym.to_le_bytes());
+    command.nextdefsym =
+        BigEndian::read_u32(&command.nextdefsym.to_le_bytes());
+    command.tocoff = BigEndian::read_u32(&command.tocoff.to_le_bytes());
+    command.ntoc = BigEndian::read_u32(&command.ntoc.to_le_bytes());
+    command.modtaboff = BigEndian::read_u32(&command.modtaboff.to_le_bytes());
+    command.nmodtab = BigEndian::read_u32(&command.nmodtab.to_le_bytes());
+    command.extrefsymoff =
+        BigEndian::read_u32(&command.extrefsymoff.to_le_bytes());
+    command.nextrefsyms =
+        BigEndian::read_u32(&command.nextrefsyms.to_le_bytes());
+    command.indirectsymoff =
+        BigEndian::read_u32(&command.indirectsymoff.to_le_bytes());
+    command.nindirectsyms =
+        BigEndian::read_u32(&command.nindirectsyms.to_le_bytes());
+    command.extreloff = BigEndian::read_u32(&command.extreloff.to_le_bytes());
+    command.nextrel = BigEndian::read_u32(&command.nextrel.to_le_bytes());
+    command.locreloff = BigEndian::read_u32(&command.locreloff.to_le_bytes());
+    command.nlocrel = BigEndian::read_u32(&command.nlocrel.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a 32-bit Mach-O segment command from
 /// BigEndian to LittleEndian in-place.
 ///
@@ -1185,6 +1248,51 @@ fn parse_rpath_command(
     rp.path = path.into();
 
     Ok((input, rp))
+}
+
+fn parse_dysymtab_command(input: &[u8]) -> IResult<&[u8], DysymtabCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, ilocalsym) = le_u32(input)?;
+    let (input, nlocalsym) = le_u32(input)?;
+    let (input, iextdefsym) = le_u32(input)?;
+    let (input, nextdefsym) = le_u32(input)?;
+    let (input, tocoff) = le_u32(input)?;
+    let (input, ntoc) = le_u32(input)?;
+    let (input, modtaboff) = le_u32(input)?;
+    let (input, nmodtab) = le_u32(input)?;
+    let (input, extrefsymoff) = le_u32(input)?;
+    let (input, nextrefsyms) = le_u32(input)?;
+    let (input, indirectsymoff) = le_u32(input)?;
+    let (input, nindirectsyms) = le_u32(input)?;
+    let (input, extreloff) = le_u32(input)?;
+    let (input, nextrel) = le_u32(input)?;
+    let (input, locreloff) = le_u32(input)?;
+    let (input, nlocrel) = le_u32(input)?;
+
+    Ok((
+        input,
+        DysymtabCommand {
+            cmd,
+            cmdsize,
+            ilocalsym,
+            nlocalsym,
+            iextdefsym,
+            nextdefsym,
+            tocoff,
+            ntoc,
+            modtaboff,
+            nmodtab,
+            extrefsymoff,
+            nextrefsyms,
+            indirectsymoff,
+            nindirectsyms,
+            extreloff,
+            nextrel,
+            locreloff,
+            nlocrel,
+        },
+    ))
 }
 
 /// Parse the 32-bit segment command of a Mach-O file, offering a structured
@@ -1965,10 +2073,57 @@ fn handle_rpath_command(
         ),
         ..Default::default()
     };
+
     macho_file.rpaths.push(rpath);
     Ok(())
 }
 
+fn handle_dysymtab_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<DysymtabCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "DysymtabCommand".to_string(),
+        ));
+    }
+
+    let (_, mut dysym) = parse_dysymtab_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_dysymtab_command(&mut dysym);
+    };
+
+    macho_file.dysymtab = MessageField::some(Dysymtab {
+        cmd: Some(dysym.cmd),
+        cmdsize: Some(dysym.cmdsize),
+        ilocalsym: Some(dysym.ilocalsym),
+        nlocalsym: Some(dysym.nlocalsym),
+        iextdefsym: Some(dysym.iextdefsym),
+        nextdefsym: Some(dysym.nextdefsym),
+        tocoff: Some(dysym.tocoff),
+        ntoc: Some(dysym.ntoc),
+        modtaboff: Some(dysym.modtaboff),
+        nmodtab: Some(dysym.nmodtab),
+        extrefsymoff: Some(dysym.extrefsymoff),
+        nextrefsyms: Some(dysym.nextrefsyms),
+        indirectsymoff: Some(dysym.indirectsymoff),
+        nindirectsyms: Some(dysym.nindirectsyms),
+        extreloff: Some(dysym.extreloff),
+        nextrel: Some(dysym.nextrel),
+        locreloff: Some(dysym.locreloff),
+        nlocrel: Some(dysym.nlocrel),
+        ..Default::default()
+    });
+
+    Ok(())
+}
 /// Handles the LC_SEGMENT command for 32-bit Mach-O files, parsing the data
 /// and populating a protobuf representation of the segment and its associated
 /// file sections.
@@ -2506,6 +2661,9 @@ fn handle_command(
                     cmdsize,
                     macho_file,
                 )?;
+            }
+            LC_DYSYMTAB => {
+                handle_dysymtab_command(command_data, cmdsize, macho_file)?;
             }
             _ => {}
         }

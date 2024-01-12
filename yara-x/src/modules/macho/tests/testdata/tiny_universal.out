@@ -153,6 +153,25 @@ file:
     entry_point: 3808
     stack_size: 0
     source_version: "0.0.0.0.0"
+    dysymtab:
+        cmd: 11
+        cmdsize: 80
+        ilocalsym: 0
+        nlocalsym: 0
+        iextdefsym: 0
+        nextdefsym: 3
+        tocoff: 3
+        ntoc: 3
+        modtaboff: 0
+        nmodtab: 0
+        extrefsymoff: 0
+        nextrefsyms: 0
+        indirectsymoff: 0
+        nindirectsyms: 0
+        extreloff: 8416
+        nextrel: 6
+        locreloff: 0
+        nlocrel: 0
   - magic: 0xfeedfacf
     cputype: 16777223
     cpusubtype: 2147483651
@@ -314,3 +333,22 @@ file:
     entry_point: 3808
     stack_size: 0
     source_version: "0.0.0.0.0"
+    dysymtab:
+        cmd: 11
+        cmdsize: 80
+        ilocalsym: 0
+        nlocalsym: 0
+        iextdefsym: 0
+        nextdefsym: 3
+        tocoff: 3
+        ntoc: 3
+        modtaboff: 0
+        nmodtab: 0
+        extrefsymoff: 0
+        nextrefsyms: 0
+        indirectsymoff: 0
+        nindirectsyms: 0
+        extreloff: 8448
+        nextrel: 6
+        locreloff: 0
+        nlocrel: 0

@@ -23,6 +23,29 @@ message RPath {
   optional string path = 3;
 }
 
+message Dysymtab {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional uint32 ilocalsym = 3;
+  optional uint32 nlocalsym = 4;
+  optional uint32 iextdefsym = 5;
+  optional uint32 nextdefsym = 6;
+  optional uint32 iundefsym = 7;
+  optional uint32 nundefsym = 8;
+  optional uint32 tocoff = 9;
+  optional uint32 ntoc = 10;
+  optional uint32 modtaboff = 11;
+  optional uint32 nmodtab = 12;
+  optional uint32 extrefsymoff = 13;
+  optional uint32 nextrefsyms = 14;
+  optional uint32 indirectsymoff = 15;
+  optional uint32 nindirectsyms = 16;
+  optional uint32 extreloff = 17;
+  optional uint32 nextrel = 18;
+  optional uint32 locreloff = 19;
+  optional uint32 nlocrel = 20;
+}
+
 message Section {
   optional string segname = 1;
   optional string sectname = 2;
@@ -79,6 +102,7 @@ message File {
   optional uint64 entry_point = 14;
   optional uint64 stack_size = 15;
   optional string source_version = 16;
+  optional Dysymtab dysymtab = 17;
 }
 
 message Macho {
@@ -99,15 +123,16 @@ message Macho {
   optional uint64 entry_point = 14;
   optional uint64 stack_size = 15;
   optional string source_version = 16;
+  optional Dysymtab dysymtab = 17;
 
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 17 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 18;
-  repeated FatArch fat_arch = 19;
+  optional uint32 fat_magic = 18 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 19;
+  repeated FatArch fat_arch = 20;
 
   // Nested Mach-O files
-  repeated File file = 20;
+  repeated File file = 21;
 }
 
 enum HEADER {
