@@ -2,6 +2,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{stdin, stdout, Cursor, Seek, Write};
 use std::path::PathBuf;
+use std::process;
 
 use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use yara_x_fmt::Formatter;
@@ -18,27 +19,38 @@ pub fn fmt() -> Command {
             arg!(-w  --write ... "Write output to source file instead of stdout")
                 .action(ArgAction::SetTrue),
         )
+        .arg(
+            arg!(-t  --test ... "Exit with failure if reformatting changed the file")
+                .action(ArgAction::SetTrue),
+        )
 }
 
 pub fn exec_fmt(args: &ArgMatches) -> anyhow::Result<()> {
     let files = args.get_many::<PathBuf>("FILE");
     let write = args.get_one::<bool>("write");
+    let test = args.get_one::<bool>("test");
 
     let formatter = Formatter::new();
 
     if let Some(files) = files {
         for file in files {
             let input = fs::read(file.as_path())?;
+
+            let mut formatted = Cursor::new(Vec::new());
+
+            formatter.format(input.as_slice(), &mut formatted)?;
+            formatted.rewind()?;
+
+            let output = formatted.into_inner();
+
+            if *test.unwrap() && input != output {
+                process::exit(3)
+            }
+
             if *write.unwrap() {
-                let mut formatted = Cursor::new(Vec::new());
-
-                formatter.format(input.as_slice(), &mut formatted)?;
-                formatted.rewind()?;
-
-                File::create(file.as_path())?
-                    .write_all(formatted.into_inner().as_slice())?;
+                File::create(file.as_path())?.write_all(output.as_slice())?;
             } else {
-                formatter.format(input.as_slice(), stdout())?;
+                print!("{}", String::from_utf8(output)?);
             };
         }
     } else {
