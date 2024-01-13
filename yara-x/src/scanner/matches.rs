@@ -28,8 +28,10 @@ impl MatchList {
 
     /// Adds a new match to the list while keeping the matches sorted by
     /// start offset in ascending order. If a match at the same offset already
-    /// exits, the old match will be replaced if `replace` is true. The length
-    /// of the match being replaced must be shorter than the new match.
+    /// exits, and the length of the new match is longer than the existing one,
+    /// the old match will be replaced if `replace_if_longer` is true. If it
+    /// is false, the existing match will remain untouched and the new one will
+    /// be ignored.
     ///
     /// This operation is O(n), where the worst case is adding a new match
     /// with a start offset that is lower than all the other matches in the
@@ -40,28 +42,25 @@ impl MatchList {
     /// order, which means that the operation will be the best possible case,
     /// when the new match has a start offset larger or equal than the last
     /// match in the list.
-    pub fn add(&mut self, m: Match, replace: bool) {
+    pub fn add(&mut self, m: Match, replace_if_longer: bool) {
         let mut insertion_index = self.matches.len();
 
         while insertion_index > 0 {
-            if m.range.start == self.matches[insertion_index - 1].range.start {
+            let existing_match = &mut self.matches[insertion_index - 1];
+            if m.range.start == existing_match.range.start {
                 // We have found another match that start at same offset, than
-                // the new match. Such cases the new match should replace the
-                // existing one if `replace` is true. In that case the new
-                // match must be longer than the existing one.
-                if replace {
-                    assert!(
-                        m.range.end
-                            >= self.matches[insertion_index - 1].range.end
-                    );
-                    self.matches[insertion_index - 1].range.end = m.range.end;
+                // the new match. Replace the existing match if the new one is
+                // longer and `replace_if_longer` is true.
+                if replace_if_longer && existing_match.range.end < m.range.end
+                {
+                    existing_match.range.end = m.range.end;
                 }
                 return;
             }
             // The match just before `insertion_index` starts at some offset
             // that is lower than the match being inserted, so this is the
             // final insertion index.
-            if m.range.start > self.matches[insertion_index - 1].range.start {
+            if m.range.start > existing_match.range.start {
                 break;
             }
             insertion_index -= 1;

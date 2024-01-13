@@ -976,10 +976,10 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a(b|x)c/"#, b"axc", b"axc");
     pattern_match!(r#"/a(b|.)c/"#, b"axc", b"axc");
     pattern_match!(r#"/a(b|x|y)c/"#, b"ayc", b"ayc");
-    pattern_match!(r#"/(a+|b)*/"#, b"a", b"a");
-    pattern_match!(r#"/(a+|b)*/"#, b"aa", b"aa");
-    pattern_match!(r#"/(a+|b)*/"#, b"ab", b"ab");
-    pattern_match!(r#"/(a+|b)*/"#, b"aab", b"aab");
+    pattern_match!(r#"/(a+|b)+/"#, b"a", b"a");
+    pattern_match!(r#"/(a+|b)+/"#, b"aa", b"aa");
+    pattern_match!(r#"/(a+|b)+/"#, b"ab", b"ab");
+    pattern_match!(r#"/(a+|b)+/"#, b"aab", b"aab");
     pattern_match!(r#"/a|b|c|d|e/"#, b"e", b"e");
     pattern_match!(r#"/(a|b|c|d|e)f/"#, b"ef", b"ef");
     pattern_match!(r#"/a|b/"#, b"a", b"a");
@@ -1000,17 +1000,19 @@ fn regexp_patterns_1() {
     pattern_false!(r#"/ab.{1,2}cdef/"#, b"abcdef");
     pattern_match!(r#"/abcd.{1,2}ef/"#, b"abcdxef", b"abcdxef");
     pattern_match!(r#"/ab.{1,2}cdef/"#, b"abxcdef", b"abxcdef");
-    pattern_match!(r#"/(.*)*/"#, b"", b"");
-    pattern_match!(r#"/(.*){2}/"#, b"", b"");
+    pattern_match!(r#"/a(.*)*/"#, b"a", b"a");
+    pattern_match!(r#"/a(.*){2}/"#, b"a", b"a");
     pattern_match!(r#"/a(.*){2,4}/"#, b"a", b"a");
 
     // TODO: known issue related to exact atoms. The matching string
-    // should be "abbb" and not "abb".
+    // should be "abbb" and not "abb". When the `exact-atoms` feature
+    // is disabled it works correctly.
+    #[cfg(not(feature = "exact-atoms"))]
+    pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abbb");
+    #[cfg(feature = "exact-atoms")]
     pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
-    pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
 
-    // TODO: should this match "foo" instead of ""?
-    pattern_match!(r#"/(foo|bar|baz|)/"#, b"foo", b"");
+    pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
 
     pattern_match!(
         r#"/the (caterpillar|cat)/"#,
@@ -1147,8 +1149,8 @@ fn regexp_patterns_3() {
     pattern_match!(r#"/[a-z]-b/"#, b"c-b-c", b"c-b");
     pattern_match!(r#"/a[]-]b/"#, b"a]b", b"a]b");
     pattern_match!(r#"/a[]-]b/"#, b"a-b", b"a-b");
-    pattern_match!(r#"/[\.-z]*/"#, b"...abc", b"...abc");
-    pattern_match!(r#"/[\.-]*/"#, b"...abc", b"...");
+    pattern_match!(r#"/[\.-z]+/"#, b"...abc", b"...abc");
+    pattern_match!(r#"/[\.-]+/"#, b"...abc", b"...");
     pattern_match!(r#"/a[\]]b/"#, b"a]b", b"a]b");
     pattern_match!(r#"/a[^bc]d/"#, b"aed", b"aed");
     pattern_false!(r#"/a[^bc]d/"#, b"abd");
@@ -1156,7 +1158,7 @@ fn regexp_patterns_3() {
     pattern_false!(r#"/a[^-b]c/"#, b"a-c");
     pattern_false!(r#"/a[^]b]c/"#, b"a]c");
     pattern_match!(r#"/a[^]b]c/"#, b"adc", b"adc");
-    pattern_match!(r#"/[^ab]*/"#, b"cde", b"cde");
+    pattern_match!(r#"/[^ab]+/"#, b"cde", b"cde");
     pattern_match!(r#"/a[\s]b/"#, b"a b", b"a b");
     pattern_false!(r#"/a[\S]b/"#, b"a b");
     pattern_match!(r#"/a[\d]b/"#, b"a1b", b"a1b");

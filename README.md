@@ -3,16 +3,9 @@
 
 ## What's YARA-X?
 
-This is an experimental project for evaluating the feasibility of writing a 
-full-fledged implementation of [YARA](https://github.com/VirusTotal/yara) in Rust. 
-For the time being don't take this project very seriously, it may be abandoned 
-at any time if it doesn't prove to be worth the effort.
-
-However, I would like to get something useful out of this, so the intention is
-at the very least implementing a code formatting tool for YARA in the spirit of
-`rustfmt` and `gofmt`. In the best case scenario this could evolve into becoming
-a serious replacement for YARA.
-
+YARA-X is completely new implementation of [YARA](https://github.com/VirusTotal/yara) in Rust. This project is
+not production-ready yet, but it is mostly usable and evolving very quickly.
+The ultimate goal of YARA-X is to serve as the future replacement for YARA.
 
 ## Changes with respect to YARA 4.x
 
@@ -126,9 +119,46 @@ This is because the jump's upper and lower bounds can be expressed in base 10
 only, `0x00` and `0x100` are not valid bounds. In YARA-X hex and octal values 
 are accepted.
 
-### Repetition quantifiers in regexps need an explicit minimum
+### Stricter escaped characters in regular expressions
 
-In YARA 4.x this is a valid regexp `/ab{,2}c`, which is equivalent to `/ab{0,2}c`.
-Most regular expression engines don't support this syntax, including the popular
-ones PCRE and RE2, as far as I know only Python does it. YARA-X uses the 
-`regex-syntax` crate for parsing regexps and therefore this is not supported.
+YARA 4.x accepts invalid escaped characters in regular expressions, and simply
+treat them as the character itself. For instance, in `/foo\gbar/` the `\g` 
+sequence is not a valid escaped character and YARA translates `\g` into `g`, 
+so `/foo\gbar/` is equivalent to `/foogbar/`. 
+
+This has proven to be problematic, because it's rarely the desired behaviour
+and often hides errors in the regular expression. For example, these are 
+real-life patterns where the relaxed policy around escaped characters is 
+backfiring:
+
+```
+/\\x64\Release\\create.pdb/
+```
+
+In the pattern above notice the `\R` in `\Release`. The intention was obviously
+to match `\\x64\\Release\\create.pdb/`, but the missing "\" goes unnoticed and 
+the resulting regular expression is `/\\x64Release\\create.pdb/`, which is 
+incorrect. Some other examples are:
+```
+/%TEMP%\NewGame/
+```
+
+```
+/(debug|release)\eda2.pdb/
+```
+
+```
+/\\AppData\\Roaming\\[0-9]{9,12}\VMwareCplLauncher\.exe/
+```
+
+```
+/To: [^<]*?<[^@]*?@[^>]*?.\gov[^>]*?>/
+```
+
+```
+/[a-z,A-Z]:\\SAM\\clients\\Sam3\\enc\\SAM\obj\\Release\\samsam\.pdb/
+```
+
+YARA 4.4 introduces the `--strict-escape` argument that turn-on a strict 
+check on escaped characters and return an error in such cases. This is also
+the default behaviour in YARA-X.

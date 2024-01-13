@@ -23,6 +23,29 @@ message RPath {
   optional string path = 3;
 }
 
+message Dysymtab {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional uint32 ilocalsym = 3;
+  optional uint32 nlocalsym = 4;
+  optional uint32 iextdefsym = 5;
+  optional uint32 nextdefsym = 6;
+  optional uint32 iundefsym = 7;
+  optional uint32 nundefsym = 8;
+  optional uint32 tocoff = 9;
+  optional uint32 ntoc = 10;
+  optional uint32 modtaboff = 11;
+  optional uint32 nmodtab = 12;
+  optional uint32 extrefsymoff = 13;
+  optional uint32 nextrefsyms = 14;
+  optional uint32 indirectsymoff = 15;
+  optional uint32 nindirectsyms = 16;
+  optional uint32 extreloff = 17;
+  optional uint32 nextrel = 18;
+  optional uint32 locreloff = 19;
+  optional uint32 nlocrel = 20;
+}
+
 message Section {
   optional string segname = 1;
   optional string sectname = 2;
@@ -75,9 +98,12 @@ message File {
   repeated Segment segments = 10;
   repeated Dylib dylibs = 11;
   repeated RPath rpaths = 12;
-  optional uint64 entry_point = 13;
-  optional uint64 stack_size = 14;
-  optional string uuid = 15;
+   optional string uuid = 13;
+  optional string dynamic_linker = 14;
+  optional uint64 entry_point = 15;
+  optional uint64 stack_size = 16;
+  optional string source_version = 17;
+  optional Dysymtab dysymtab = 18;
 }
 
 message Macho {
@@ -94,17 +120,21 @@ message Macho {
   repeated Segment segments = 10;
   repeated Dylib dylibs = 11;
   repeated RPath rpaths = 12;
-  optional uint64 entry_point = 13;
-  optional uint64 stack_size = 14;
-  optional string uuid = 15;
+  optional string uuid = 13;
+  optional string dynamic_linker = 14;
+  optional uint64 entry_point = 15;
+  optional uint64 stack_size = 16;
+  optional string source_version = 17;
+  optional Dysymtab dysymtab = 18;
+
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 16 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 17;
-  repeated FatArch fat_arch = 18;
+  optional uint32 fat_magic = 19 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 20;
+  repeated FatArch fat_arch = 21;
 
   // Nested Mach-O files
-  repeated File file = 19;
+  repeated File file = 22;
 }
 
 enum HEADER {

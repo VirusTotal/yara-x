@@ -156,7 +156,7 @@ where
             // the queue corresponds to that unique byte.
             match self.queue.front().unwrap().1 {
                 0x00 | 0x20 | 0x90 | 0xcc | 0xff => {
-                    q -= 10 * self.queue.len() as i32
+                    q -= 5;
                 }
                 _ => {
                     q += 2;
@@ -439,6 +439,7 @@ mod test {
         let q_01020000 = atom_quality(&[0x01, 0x02, 0x00, 0x00]);
         let q_ffffffff = atom_quality(&[0xff, 0xff, 0xff, 0xff]);
         let q_cccccccc = atom_quality(&[0xcc, 0xcc, 0xcc, 0xcc]);
+        let q_909090 = atom_quality(&[0x90, 0x90, 0x90]);
         let q_90909090 = atom_quality(&[0x90, 0x90, 0x90, 0x90]);
         let q_20202020 = atom_quality(&[0x20, 0x20, 0x20, 0x20]);
         let q_aa = atom_quality(b"aa");
@@ -482,6 +483,9 @@ mod test {
         assert!(q_00010203 > q_010203);
         assert!(q_010203 > q_0102);
         assert!(q_010203 > q_00000000);
+        assert!(q_010203 > q_90909090);
+        assert!(q_0102 > q_90909090);
+        assert!(q_909090 > q_01);
         assert!(q_0102 > q_01);
         assert!(q_01x203 > q_0102);
         assert!(q_01x203 > q_0001);
@@ -507,8 +511,6 @@ mod test {
         assert!(q_ab > q_01);
         assert!(q_aa > q_01);
         assert!(q_ab > q_aa);
-
-        
         assert!(q_ab > q_000001);
     }
 

@@ -543,9 +543,7 @@ impl<'a> Compiler<'a> {
         if let SubPattern::Literal { anchored_at: Some(_), .. } = sub_pattern {
             self.anchored_sub_patterns.push(sub_pattern_id);
         } else {
-            for atom in atoms {
-                self.atoms.push(f(sub_pattern_id, atom))
-            }
+            self.atoms.extend(atoms.map(|atom| f(sub_pattern_id, atom)));
         }
 
         self.sub_patterns.push((self.current_pattern_id, sub_pattern));
@@ -1386,7 +1384,7 @@ impl<'a> Compiler<'a> {
             false,
         );
 
-        let atoms = result.map_err(|err| match err {
+        let mut atoms = result.map_err(|err| match err {
             re::Error::TooLarge => {
                 CompileError::from(CompileErrorInfo::invalid_regexp(
                     &self.report_builder,
@@ -1397,9 +1395,17 @@ impl<'a> Compiler<'a> {
             _ => unreachable!(),
         })?;
 
+        if matches!(hir.minimum_len(), Some(0)) {
+            return Err(CompileError::from(CompileErrorInfo::invalid_regexp(
+                &self.report_builder,
+                "this regexp can match empty strings".to_string(),
+                span,
+            )));
+        }
+
         let mut slow_pattern = false;
 
-        for atom in &atoms {
+        for atom in atoms.iter_mut() {
             if atom.atom.len() < 2 {
                 slow_pattern = true;
             }

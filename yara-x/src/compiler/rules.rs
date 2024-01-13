@@ -483,6 +483,7 @@ impl SubPatternAtom {
         self.sub_pattern_id
     }
 
+    #[cfg(feature = "exact-atoms")]
     #[inline]
     pub(crate) fn is_exact(&self) -> bool {
         self.atom.is_exact()
