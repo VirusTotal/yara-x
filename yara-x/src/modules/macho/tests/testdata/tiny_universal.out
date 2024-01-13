@@ -172,6 +172,13 @@ file:
         nextrel: 6
         locreloff: 0
         nlocrel: 0
+    symtab:
+        cmd: 2
+        cmdsize: 24
+        symoff: 8344
+        nsyms: 6
+        stroff: 8440
+        strsize: 72
   - magic: 0xfeedfacf
     cputype: 16777223
     cpusubtype: 2147483651
@@ -352,3 +359,10 @@ file:
         nextrel: 6
         locreloff: 0
         nlocrel: 0
+    symtab:
+        cmd: 2
+        cmdsize: 24
+        symoff: 8352
+        nsyms: 6
+        stroff: 8472
+        strsize: 72

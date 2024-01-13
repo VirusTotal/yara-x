@@ -53,6 +53,7 @@ const LC_REQ_DYLD: u32 = 0x80000000;
 
 /// Define Mach-O load commands
 const LC_SEGMENT: u32 = 0x00000001;
+const LC_SYMTAB: u32 = 0x00000002;
 const LC_UNIXTHREAD: u32 = 0x00000005;
 const LC_DYSYMTAB: u32 = 0x0000000b;
 const LC_LOAD_DYLIB: u32 = 0x0000000c;
@@ -166,6 +167,18 @@ struct FatArch64 {
 struct LoadCommand {
     cmd: u32,
     cmdsize: u32,
+}
+
+/// `SymtabCommand`: Represents a symbol table load command in the Mach-O file.
+/// Fields: cmd, cmdsize, symoff, nsyms, stroff, strsize
+///
+struct SymtabCommand {
+    cmd: u32,
+    cmdsize: u32,
+    symoff: u32,
+    nsyms: u32,
+    stroff: u32,
+    strsize: u32,
 }
 
 /// `DysymtabCommand`: Represents a dynamic symbol table
@@ -808,6 +821,21 @@ fn swap_rpath_command(command: &mut RPathCommand) {
     command.offset = BigEndian::read_u32(&command.offset.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O SymtabCommand command from
+/// BigEndian to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O DysymtabCommand command.
+fn swap_symtab_command(command: &mut SymtabCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.symoff = BigEndian::read_u32(&command.symoff.to_le_bytes());
+    command.nsyms = BigEndian::read_u32(&command.nsyms.to_le_bytes());
+    command.stroff = BigEndian::read_u32(&command.stroff.to_le_bytes());
+    command.strsize = BigEndian::read_u32(&command.strsize.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a Mach-O DysymtabCommand command from
 /// BigEndian to LittleEndian in-place.
 ///
@@ -1250,6 +1278,47 @@ fn parse_rpath_command(
     Ok((input, rp))
 }
 
+/// Parse a Mach-O SymtabCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw SymtabCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// SymtabCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_symtab_command(input: &[u8]) -> IResult<&[u8], SymtabCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, symoff) = le_u32(input)?;
+    let (input, nsyms) = le_u32(input)?;
+    let (input, stroff) = le_u32(input)?;
+    let (input, strsize) = le_u32(input)?;
+
+    Ok((input, SymtabCommand { cmd, cmdsize, symoff, nsyms, stroff, strsize }))
+}
+
+/// Parse a Mach-O DysymtabCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw DysymtabCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// DysymtabCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_dysymtab_command(input: &[u8]) -> IResult<&[u8], DysymtabCommand> {
     let (input, cmd) = le_u32(input)?;
     let (input, cmdsize) = le_u32(input)?;
@@ -2023,7 +2092,7 @@ fn handle_source_version_command(
 /// # Arguments
 ///
 /// * `command_data`: The raw byte data of the rpath command.
-/// * `size`: The size of the dylib command data.
+/// * `size`: The size of the rpath command data.
 /// * `macho_file`: Mutable reference to the protobuf representation of the
 ///   Mach-O file.
 ///
@@ -2078,6 +2147,87 @@ fn handle_rpath_command(
     Ok(())
 }
 
+/// Handles the LC_SYMTAB command for Mach-O files, parsing the data
+/// and populating a protobuf representation of the symtab command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the symtab command.
+/// * `size`: The size of the symtab command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected SymtabCommand struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   symtab command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_symtab_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<SymtabCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "SymtabCommand".to_string(),
+        ));
+    }
+
+    let (_, mut sym) = parse_symtab_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_symtab_command(&mut sym);
+    };
+
+    macho_file.symtab = MessageField::some(Symtab {
+        cmd: Some(sym.cmd),
+        cmdsize: Some(sym.cmdsize),
+        symoff: Some(sym.symoff),
+        nsyms: Some(sym.nsyms),
+        stroff: Some(sym.stroff),
+        strsize: Some(sym.strsize),
+        ..Default::default()
+    });
+
+    Ok(())
+}
+
+/// Handles the LC_DYSYMTAB command for Mach-O files, parsing the data
+/// and populating a protobuf representation of the dysymtab command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the dysymtab command.
+/// * `size`: The size of the dysymtab command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected SymtabCommand struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   dysymtab command data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
 fn handle_dysymtab_command(
     command_data: &[u8],
     size: usize,
@@ -2662,6 +2812,9 @@ fn handle_command(
                     macho_file,
                 )?;
             }
+            LC_SYMTAB => {
+                handle_symtab_command(command_data, cmdsize, macho_file)?;
+            }
             LC_DYSYMTAB => {
                 handle_dysymtab_command(command_data, cmdsize, macho_file)?;
             }
@@ -3167,7 +3320,7 @@ fn dylibs_present(
 /// # Arguments
 ///
 /// * `ctx`: A mutable reference to the scanning context.
-/// * `rpath`: The name of the dylib to check if present
+/// * `rpath`: The name of the rpath to check if present
 ///
 /// # Returns
 ///
