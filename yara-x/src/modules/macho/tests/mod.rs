@@ -285,7 +285,6 @@ fn test_swap_symtab_command() {
         nsyms: 0xDDDDFFFF,
         stroff: 0xEEEEEEEE,
         strsize: 0x11111111,
-        ..Default::default()
     };
 
     swap_symtab_command(&mut command);
