@@ -277,6 +277,28 @@ fn test_swap_rpath_command() {
 }
 
 #[test]
+fn test_swap_symtab_command() {
+    let mut command = SymtabCommand {
+        cmd: 0x11223344,
+        cmdsize: 0x55667788,
+        symoff: 0x99AABBCC,
+        nsyms: 0xDDDDFFFF,
+        stroff: 0xEEEEEEEE,
+        strsize: 0x11111111,
+        ..Default::default()
+    };
+
+    swap_symtab_command(&mut command);
+
+    assert_eq!(command.cmd, 0x44332211);
+    assert_eq!(command.cmdsize, 0x88776655);
+    assert_eq!(command.symoff, 0xCCBBAA99);
+    assert_eq!(command.nsyms, 0xFFFFDDDD);
+    assert_eq!(command.stroff, 0xEEEEEEEE);
+    assert_eq!(command.strsize, 0x11111111);
+}
+
+#[test]
 fn test_swap_segment_command() {
     let mut segment = SegmentCommand32 {
         cmd: 0x11223344,

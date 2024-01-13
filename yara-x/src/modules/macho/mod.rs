@@ -171,7 +171,7 @@ struct LoadCommand {
 
 /// `SymtabCommand`: Represents a symbol table load command in the Mach-O file.
 /// Fields: cmd, cmdsize, symoff, nsyms, stroff, strsize
-///
+#[derive(Debug, Default, Clone, Copy)]
 struct SymtabCommand {
     cmd: u32,
     cmdsize: u32,
