@@ -150,6 +150,19 @@ file:
         compatibility_version: "1.0.0"
         current_version: "1213.0.0"
     dynamic_linker: "/usr/lib/dyld"
+    dyld_info:
+        cmd: 2147483682
+        cmdsize: 48
+        rebase_off: 8192
+        rebase_size: 16
+        bind_off: 8208
+        bind_size: 24
+        weak_bind_off: 0
+        weak_bind_size: 0
+        lazy_bind_off: 8232
+        lazy_bind_size: 28
+        export_off: 8260
+        export_size: 60
     entry_point: 3808
     stack_size: 0
     source_version: "0.0.0.0.0"
@@ -344,6 +357,19 @@ file:
         compatibility_version: "1.0.0"
         current_version: "1213.0.0"
     dynamic_linker: "/usr/lib/dyld"
+    dyld_info:
+        cmd: 2147483682
+        cmdsize: 48
+        rebase_off: 8192
+        rebase_size: 8
+        bind_off: 8200
+        bind_size: 24
+        weak_bind_off: 0
+        weak_bind_size: 0
+        lazy_bind_off: 8224
+        lazy_bind_size: 32
+        export_off: 8256
+        export_size: 64
     entry_point: 3808
     stack_size: 0
     source_version: "0.0.0.0.0"

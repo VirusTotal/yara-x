@@ -76,6 +76,19 @@ dylibs:
     timestamp: 2 # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1213.0.0"
+dyld_info:
+    cmd: 2147483682
+    cmdsize: 48
+    rebase_off: 0
+    rebase_size: 0
+    bind_off: 0
+    bind_size: 0
+    weak_bind_off: 0
+    weak_bind_size: 0
+    lazy_bind_off: 0
+    lazy_bind_size: 0
+    export_off: 4096
+    export_size: 24
 source_version: "0.0.0.0.0"
 dysymtab:
     cmd: 11

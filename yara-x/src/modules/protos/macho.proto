@@ -17,6 +17,21 @@ message Dylib {
   optional string current_version = 4;
 }
 
+message DyldInfo {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional uint32 rebase_off = 3;
+  optional uint32 rebase_size = 4;
+  optional uint32 bind_off = 5;
+  optional uint32 bind_size = 6;  
+  optional uint32 weak_bind_off = 7;
+  optional uint32 weak_bind_size = 8;
+  optional uint32 lazy_bind_off = 9;
+  optional uint32 lazy_bind_size = 10;
+  optional uint32 export_off = 11;
+  optional uint32 export_size = 12;
+}
+
 message RPath {
   optional uint32 cmd = 1;
   optional uint32 cmdsize = 2;
@@ -109,11 +124,12 @@ message File {
   repeated Dylib dylibs = 11;
   repeated RPath rpaths = 12;
   optional string dynamic_linker = 13;
-  optional uint64 entry_point = 14;
-  optional uint64 stack_size = 15;
-  optional string source_version = 16;
-  optional Dysymtab dysymtab = 17;
-  optional Symtab symtab = 18;
+  optional DyldInfo dyld_info = 14;
+  optional uint64 entry_point = 15;
+  optional uint64 stack_size = 16;
+  optional string source_version = 17;
+  optional Dysymtab dysymtab = 18;
+  optional Symtab symtab = 19;
 }
 
 message Macho {
@@ -131,20 +147,21 @@ message Macho {
   repeated Dylib dylibs = 11;
   repeated RPath rpaths = 12;
   optional string dynamic_linker = 13;
-  optional uint64 entry_point = 14;
-  optional uint64 stack_size = 15;
-  optional string source_version = 16;
-  optional Dysymtab dysymtab = 17;
-  optional Symtab symtab = 18;
+  optional DyldInfo dyld_info = 14;
+  optional uint64 entry_point = 15;
+  optional uint64 stack_size = 16;
+  optional string source_version = 17;
+  optional Dysymtab dysymtab = 18;
+  optional Symtab symtab = 19;
 
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 19 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 20;
-  repeated FatArch fat_arch = 21;
+  optional uint32 fat_magic = 20 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 21;
+  repeated FatArch fat_arch = 22;
 
   // Nested Mach-O files
-  repeated File file = 22;
+  repeated File file = 23;
 }
 
 enum HEADER {
