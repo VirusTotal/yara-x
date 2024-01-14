@@ -277,6 +277,39 @@ fn test_swap_rpath_command() {
 }
 
 #[test]
+fn test_swap_dyld_info_command() {
+    let mut command = DyldInfoCommand {
+        cmd: 0x11223344,
+        cmdsize: 0x55667788,
+        rebase_off: 0x99AABBCC,
+        rebase_size: 0xDDDDFFFF,
+        bind_off: 0xFFFFDDDD,
+        bind_size: 0xEEEEAAAA,
+        weak_bind_off: 0xAAAAEEEE,
+        weak_bind_size: 0x22223333,
+        lazy_bind_off: 0x33332222,
+        lazy_bind_size: 0x44445555,
+        export_off: 0x55554444,
+        export_size: 0x66667777,
+    };
+
+    swap_dyld_info_command(&mut command);
+
+    assert_eq!(command.cmd, 0x44332211);
+    assert_eq!(command.cmdsize, 0x88776655);
+    assert_eq!(command.rebase_off, 0xCCBBAA99);
+    assert_eq!(command.rebase_size, 0xFFFFDDDD);
+    assert_eq!(command.bind_off, 0xDDDDFFFF);
+    assert_eq!(command.bind_size, 0xAAAAEEEE);
+    assert_eq!(command.weak_bind_off, 0xEEEEAAAA);
+    assert_eq!(command.weak_bind_size, 0x33332222);
+    assert_eq!(command.lazy_bind_off, 0x22223333);
+    assert_eq!(command.lazy_bind_size, 0x55554444);
+    assert_eq!(command.export_off, 0x44445555);
+    assert_eq!(command.export_size, 0x77776666);
+}
+
+#[test]
 fn test_swap_symtab_command() {
     let mut command = SymtabCommand {
         cmd: 0x11223344,
