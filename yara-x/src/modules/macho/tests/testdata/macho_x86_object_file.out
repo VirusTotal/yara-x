@@ -56,3 +56,5 @@ symtab:
     nsyms: 1
     stroff: 340
     strsize: 16
+    strings:
+      - "__Z9factoriali"

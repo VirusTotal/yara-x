@@ -30,6 +30,7 @@ message Symtab {
   optional uint32 nsyms = 4;
   optional uint32 stroff = 5;
   optional uint32 strsize = 6;
+  repeated string strings = 7;
 }
 
 message Dysymtab {
@@ -135,7 +136,6 @@ message Macho {
   optional string source_version = 16;
   optional Dysymtab dysymtab = 17;
   optional Symtab symtab = 18;
-
 
 
   // Add fields for Mach-O fat binary header

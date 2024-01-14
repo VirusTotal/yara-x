@@ -2825,6 +2825,36 @@ fn handle_command(
     Ok(seg_count)
 }
 
+fn parse_macho_symtab_tables(
+    data: &[u8],
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if macho_file.symtab.is_some() {
+        let symtab = macho_file.symtab.as_mut().unwrap();
+
+        let str_offset = symtab.stroff() as usize;
+        let str_end = symtab.strsize() as usize;
+        // We don't want the dyld_shared_cache ones for now
+        if str_offset < data.len() {
+            let string_table: &[u8] = &data[str_offset..str_offset + str_end];
+            let strings: Vec<String> = string_table
+                .split(|&c| c == b'\0')
+                .map(|line| {
+                    std::str::from_utf8(line)
+                        .unwrap_or_default()
+                        .trim_end_matches('\0')
+                        .to_string()
+                })
+                .filter(|s| !s.trim().is_empty())
+                .collect();
+
+            symtab.strings = strings;
+        }
+    }
+
+    Ok(())
+}
+
 /// Parses the Mach-O command data from the binary and populates the provided
 /// protobuf representation.
 ///
@@ -2923,8 +2953,6 @@ fn parse_macho_commands(
         command_offset += command.cmdsize as usize;
     }
 
-
-
     Ok(seg_count)
 }
 
@@ -2986,6 +3014,9 @@ pub fn parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
 
     // Populate other fields
     parse_macho_commands(data, &mut macho_file, false)?;
+
+    // Populate symbol table
+    parse_macho_symtab_tables(data, &mut macho_file)?;
 
     Ok(macho_file)
 }

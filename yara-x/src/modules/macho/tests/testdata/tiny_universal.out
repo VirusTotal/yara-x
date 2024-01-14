@@ -179,6 +179,13 @@ file:
         nsyms: 6
         stroff: 8440
         strsize: 72
+        strings:
+          - "__mh_execute_header"
+          - "_factorial"
+          - "_main"
+          - "_printf"
+          - "_scanf"
+          - "dyld_stub_binder"
   - magic: 0xfeedfacf
     cputype: 16777223
     cpusubtype: 2147483651
@@ -366,3 +373,10 @@ file:
         nsyms: 6
         stroff: 8472
         strsize: 72
+        strings:
+          - "__mh_execute_header"
+          - "_factorial"
+          - "_main"
+          - "_printf"
+          - "_scanf"
+          - "dyld_stub_binder"
