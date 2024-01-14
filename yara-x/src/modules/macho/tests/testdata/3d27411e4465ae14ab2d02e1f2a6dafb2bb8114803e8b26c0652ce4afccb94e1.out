@@ -244,4 +244,31 @@ dylibs:
     timestamp: 2 # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "38.0.0"
+dynamic_linker: "/usr/lib/dyld"
 entry_point: 2752
+dysymtab:
+    cmd: 11
+    cmdsize: 80
+    ilocalsym: 0
+    nlocalsym: 1
+    iextdefsym: 1
+    nextdefsym: 6
+    tocoff: 7
+    ntoc: 47
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 12980
+    nextrel: 91
+    locreloff: 12964
+    nlocrel: 2
+symtab:
+    cmd: 2
+    cmdsize: 24
+    symoff: 12316
+    nsyms: 54
+    stroff: 13344
+    strsize: 760

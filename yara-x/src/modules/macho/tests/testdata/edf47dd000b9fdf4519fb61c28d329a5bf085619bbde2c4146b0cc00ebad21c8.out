@@ -721,3 +721,29 @@ rpaths:
   - cmd: 2147483676
     cmdsize: 40
     path: "@loader_path/Frameworks"
+dysymtab:
+    cmd: 11
+    cmdsize: 80
+    ilocalsym: 0
+    nlocalsym: 22
+    iextdefsym: 22
+    nextdefsym: 9803
+    tocoff: 9825
+    ntoc: 8268
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 20016808
+    nextrel: 11353
+    locreloff: 0
+    nlocrel: 0
+symtab:
+    cmd: 2
+    cmdsize: 24
+    symoff: 19727320
+    nsyms: 18093
+    stroff: 20062220
+    strsize: 950608

@@ -2923,6 +2923,8 @@ fn parse_macho_commands(
         command_offset += command.cmdsize as usize;
     }
 
+
+
     Ok(seg_count)
 }
 
@@ -3403,6 +3405,10 @@ fn main(data: &[u8]) -> Macho {
                 macho_proto.segments = file_data.segments;
                 macho_proto.dylibs = file_data.dylibs;
                 macho_proto.rpaths = file_data.rpaths;
+                macho_proto.symtab = file_data.symtab;
+                macho_proto.source_version = file_data.source_version;
+                macho_proto.dynamic_linker = file_data.dynamic_linker;
+                macho_proto.dysymtab = file_data.dysymtab;
                 macho_proto.entry_point = file_data.entry_point;
                 macho_proto.stack_size = file_data.stack_size;
             }

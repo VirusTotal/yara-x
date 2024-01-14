@@ -76,3 +76,30 @@ dylibs:
     timestamp: 2 # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1213.0.0"
+source_version: "0.0.0.0.0"
+dysymtab:
+    cmd: 11
+    cmdsize: 80
+    ilocalsym: 0
+    nlocalsym: 0
+    iextdefsym: 0
+    nextdefsym: 1
+    tocoff: 1
+    ntoc: 1
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
+symtab:
+    cmd: 2
+    cmdsize: 24
+    symoff: 4152
+    nsyms: 2
+    stroff: 4184
+    strsize: 40

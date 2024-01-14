@@ -30,3 +30,29 @@ segments:
         flags: 0x80000400
         reserved1: 0
         reserved2: 0
+dysymtab:
+    cmd: 11
+    cmdsize: 80
+    ilocalsym: 0
+    nlocalsym: 0
+    iextdefsym: 0
+    nextdefsym: 1
+    tocoff: 1
+    ntoc: 0
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
+symtab:
+    cmd: 2
+    cmdsize: 24
+    symoff: 328
+    nsyms: 1
+    stroff: 340
+    strsize: 16

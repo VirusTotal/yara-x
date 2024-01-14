@@ -139,5 +139,33 @@ rpaths:
   - cmd: 2147483676
     cmdsize: 38
     path: "@loader_path/../Frameworks"
+dynamic_linker: "/usr/lib/dyld"
 entry_point: 3728
 stack_size: 0
+source_version: "0.0.0.0.0"
+dysymtab:
+    cmd: 11
+    cmdsize: 80
+    ilocalsym: 0
+    nlocalsym: 0
+    iextdefsym: 0
+    nextdefsym: 2
+    tocoff: 2
+    ntoc: 3
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 8388
+    nextrel: 6
+    locreloff: 0
+    nlocrel: 0
+symtab:
+    cmd: 2
+    cmdsize: 24
+    symoff: 8328
+    nsyms: 5
+    stroff: 8412
+    strsize: 60
