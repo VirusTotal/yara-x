@@ -2825,6 +2825,18 @@ fn handle_command(
     Ok(seg_count)
 }
 
+/// Processes the symbol table and string table based on the values calculated
+/// from the LC_SYMTAB load command.
+///
+/// # Arguments
+///
+/// * `data`: The raw byte data of the Mach-O file.
+/// * `macho_file`: The protobuf representation of the Mach-O file to be populated.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// parsing operation.
 fn parse_macho_symtab_tables(
     data: &[u8],
     macho_file: &mut File,
