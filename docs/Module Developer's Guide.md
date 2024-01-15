@@ -28,7 +28,15 @@ words
     - [Inline enums](#inline-enums)
   - [Tests](#tests)
     - [Structuring Testdata Input](#structuring-testdata-input)
+      - [Linux](#linux)
+      - [MacOS](#macos)
+      - [Other Operating Systems](#other-operating-systems)
+      - [Archiving the test data](#archiving-the-test-data)
     - [Converting the Files back to Original Format](#converting-the-files-back-to-original-format)
+      - [Unarchiving the test data](#unarchiving-the-test-data)
+      - [Linux](#linux-1)
+      - [MacOS](#macos-1)
+      - [Other Operating Systems](#other-operating-systems-1)
 
 ## Defining the module's structure
 
@@ -985,12 +993,32 @@ You'll notice that each module in `/yara-x/src/modules/` has a `tests/` director
 3. End file named <sha_256>.in.zip
    
 ### Structuring Testdata Input
-To convert the binary to Intel Hex format, we can use the scripts provided at [python-intelhex/intelhex](https://github.com/python-intelhex/intelhex/).
+To convert the binary to Intel Hex format, we can use the various tools, depending on the operating system.
 
-To start, we need the raw binary with the sha256 of the binary as its identifier.
+To start, we need the raw binary with the sha256 of the binary as its identifier. This can be done differently on various platforms. These steps assume the binary is named its sha256 hash (`<sha256_hash>` is used as a placeholer).
 
+#### Linux
+You can leverage [objcopy](https://man7.org/linux/man-pages/man1/objcopy.1.html).
+```bash
+objcopy -I binary -O ihex <sha256_hash> <sha256_hash>.in
+```
+
+#### MacOS
+You can leverage [llvm-objcopy](https://llvm.org/docs/CommandGuide/llvm-objcopy.html#supported-formats).
+```bash
+llvm-objcopy -I binary -O ihex <sha256_hash> <sha256_hash>.in
+```
+
+#### Other Operating Systems
+If you cannot use `objcopy` or `llvm-objcopy` on your current OS, you can use the provided scripts at [python-intelhex/intelhex](https://github.com/python-intelhex/intelhex/), assuming you can run Python.
 ```bash
 bin2hex.py <sha256_hash> <sha256_hash>.in
+```
+
+#### Archiving the test data
+You can then archive the file into a zip archive using an archival utility and move it to the appropriate test directory. An example of that is below:
+
+```bash
 zip <sha256_hash>.in.zip <sha256_hash>.in
 mv <sha256_hash>.in.zip <location_of_yara-x>/yara-x/src/modules/<module>/tests/testdata/
 ```
@@ -998,7 +1026,27 @@ mv <sha256_hash>.in.zip <location_of_yara-x>/yara-x/src/modules/<module>/tests/t
 ### Converting the Files back to Original Format
 If you need the files back in binary form, you can inverse the steps above.
 
+#### Unarchiving the test data
+You can then unarchive the file using an archival utility. An example of that is below:
+
 ```bash
 unzip <sha256_hash>.in.zip
+```
+
+#### Linux
+You can leverage [objcopy](https://man7.org/linux/man-pages/man1/objcopy.1.html).
+```bash
+objcopy -I ihex -O binary <sha256_hash>.in <sha256_hash>
+```
+
+#### MacOS
+You can leverage [llvm-objcopy](https://llvm.org/docs/CommandGuide/llvm-objcopy.html#supported-formats).
+```bash
+llvm-objcopy -I ihex -O binary <sha256_hash>.in <sha256_hash>
+```
+
+#### Other Operating Systems
+If you cannot use `objcopy` or `llvm-objcopy` on your current OS, you can use the provided scripts at [python-intelhex/intelhex](https://github.com/python-intelhex/intelhex/), assuming you can run Python.
+```bash
 hex2bin.py <sha256_hash>.in <sha256_hash>
 ```
