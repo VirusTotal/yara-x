@@ -1900,7 +1900,7 @@ fn parse_m88k_thread_state(input: &[u8]) -> IResult<&[u8], M88KThreadState> {
 ///
 /// # Errors
 ///
-/// Returns a `nom` error if the input data is insuffidyl.exports_offcient or malformed.
+/// Returns a `nom` error if the input data is insufficient or malformed.
 fn parse_x86_thread_state64(input: &[u8]) -> IResult<&[u8], X86ThreadState64> {
     let (input, rax) = le_u64(input)?;
     let (input, rbx) = le_u64(input)?;
