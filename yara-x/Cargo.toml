@@ -49,7 +49,9 @@ rules-profiling = ["logging"]
 console-module = []
 
 # The `dotnet` module parsers .NET files.
-dotnet-module = []
+dotnet-module = [
+    "pe-module"
+]
 
 # The `elf` module parses ELF files.
 elf-module = [
