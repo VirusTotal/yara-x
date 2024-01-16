@@ -36,7 +36,6 @@ use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
 use crate::{modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::*;
-pub use crate::scanner::matches::*;
 
 mod context;
 mod matches;
