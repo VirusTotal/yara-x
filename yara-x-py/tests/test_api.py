@@ -103,3 +103,17 @@ def test_scanner_timeout():
   scanner.timeout(1)
   with pytest.raises(Exception, match='timeout'):
     scanner.scan(b'foobar')
+
+
+def test_console_log():
+  ok = False 
+  def callback(msg):
+    nonlocal ok
+    if msg == 'foo':
+      ok = True
+  compiler = yara_x.Compiler()
+  compiler.add_source('import "console" rule foo {condition: console.log("foo")}')
+  scanner = yara_x.Scanner(compiler.build())
+  scanner.console_log(callback)
+  scanner.scan(b'')
+  assert ok

@@ -120,6 +120,7 @@ impl<'r> Scanner<'r> {
                 wasm_store: NonNull::dangling(),
                 runtime_objects: IndexMap::new(),
                 compiled_rules: rules,
+                console_log: None,
                 current_struct: None,
                 root_struct: rules.globals().make_root(),
                 scanned_data: null(),
@@ -273,6 +274,21 @@ impl<'r> Scanner<'r> {
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
         self.wasm_store.data_mut().max_matches_per_pattern = n;
+        self
+    }
+
+    /// Sets a callback that is invoked every time a YARA rule calls the
+    /// `console` module.
+    ///
+    /// The `callback` function is invoked with a string representing the
+    /// message being logged. The function can print the message to stdout,
+    /// append it to a file, etc. If no callback is set these messages are
+    /// ignored.
+    pub fn console_log<F>(&mut self, callback: F) -> &mut Self
+    where
+        F: FnMut(String) + 'r,
+    {
+        self.wasm_store.data_mut().console_log = Some(Box::new(callback));
         self
     }
 

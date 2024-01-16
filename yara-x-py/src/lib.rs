@@ -188,6 +188,25 @@ impl Scanner {
         self.inner.timeout(Duration::from_secs(seconds));
     }
 
+    /// Sets a callback that is invoked every time a YARA rule calls the
+    /// `console` module.
+    ///
+    /// The `callback` function is invoked with a string representing the
+    /// message being logged. The function can print the message to stdout,
+    /// append it to a file, etc. If no callback is set these messages are
+    /// ignored.
+    fn console_log(&mut self, callback: PyObject) -> PyResult<()> {
+        if !Python::with_gil(|py| callback.as_ref(py).is_callable()) {
+            return Err(PyValueError::new_err("callback is not callable"));
+        }
+        self.inner.console_log(move |msg| {
+            let _ = Python::with_gil(|py| -> PyResult<PyObject> {
+                callback.call1(py, (msg,))
+            });
+        });
+        Ok(())
+    }
+
     /// Scans in-memory data.
     #[pyo3(signature = (data))]
     fn scan(&mut self, data: &[u8]) -> PyResult<Py<PyTuple>> {

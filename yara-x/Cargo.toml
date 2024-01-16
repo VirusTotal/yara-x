@@ -36,7 +36,7 @@ logging = ["dep:log"]
 
 # Enables rules profiling. When this is enabled together with `logging` the
 # logs will contain information about the most expensive rules after each 
-# scan. Notice that profiling itself has an noticeable impact on performance.
+# scan. Notice that profiling itself has a noticeable impact on performance.
 rules-profiling = ["logging"]
 
 # Features for enabling/disabling modules.
@@ -45,9 +45,11 @@ rules-profiling = ["logging"]
 # a given module is built or not. For instance, if the feature `foo-module` is
 # enabled, the module `foo` will be built into YARA.
 
+# The `console` module exports functions for printing text from YARA rules.
+console-module = []
+
 # The `dotnet` module parsers .NET files.
 dotnet-module = []
-
 
 # The `elf` module parses ELF files.
 elf-module = [
@@ -107,6 +109,7 @@ default = [
     "constant-folding",
     "exact-atoms",
     "fast-regexp",
+    "console-module",
     "dotnet-module",
     "elf-module",
     "macho-module",
