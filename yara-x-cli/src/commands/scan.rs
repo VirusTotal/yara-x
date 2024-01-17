@@ -9,7 +9,6 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Error};
 use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 use crossbeam::channel::Sender;
-use indent::indent_all_by;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
