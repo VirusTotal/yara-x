@@ -310,6 +310,23 @@ fn test_swap_dyld_info_command() {
 }
 
 #[test]
+fn test_swap_linkedit_data_command() {
+    let mut command = LinkedItDataCommand {
+        cmd: 0x11223344,
+        cmdsize: 0x55667788,
+        dataoff: 0x99AABBCC,
+        datasize: 0xDDDDFFFF,
+    };
+
+    swap_linkedit_data_command(&mut command);
+
+    assert_eq!(command.cmd, 0x44332211);
+    assert_eq!(command.cmdsize, 0x88776655);
+    assert_eq!(command.dataoff, 0xCCBBAA99);
+    assert_eq!(command.datasize, 0xFFFFDDDD);
+}
+
+#[test]
 fn test_swap_symtab_command() {
     let mut command = SymtabCommand {
         cmd: 0x11223344,

@@ -64,6 +64,7 @@ const LC_ID_DYLINKER: u32 = 0x0000000f;
 const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
+const LC_CODE_SIGNATURE: u32 = 0x0000001d;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
 const LC_DYLD_INFO: u32 = 0x00000022;
 const LC_DYLD_INFO_ONLY: u32 = 0x22 | LC_REQ_DYLD;
@@ -160,6 +161,15 @@ struct FatArch64 {
     size: u64,
     align: u32,
     reserved: u32,
+}
+
+/// `LinkedItDataCommand`: Represents a LinkedIt Data load command in the Mach-O file.
+/// Fields: cmd, cmdsize, dataoff, datasize
+struct LinkedItDataCommand {
+    cmd: u32,
+    cmdsize: u32,
+    dataoff: u32,
+    datasize: u32,
 }
 
 /// `LoadCommand`: Represents a load command in the Mach-O file.
@@ -780,6 +790,19 @@ fn swap_load_command(command: &mut LoadCommand) {
     command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
 }
 
+/// Swaps the endianness of fields within a Mach-O LinkedItDataCommand load command from BigEndian
+/// to LittleEndian in-place.
+///
+/// # Arguments
+///
+/// * `command`: A mutable reference to the Mach-O LinkedItDataCommand.
+fn swap_linkedit_data_command(command: &mut LinkedItDataCommand) {
+    command.cmd = BigEndian::read_u32(&command.cmd.to_le_bytes());
+    command.cmdsize = BigEndian::read_u32(&command.cmdsize.to_le_bytes());
+    command.dataoff = BigEndian::read_u32(&command.dataoff.to_le_bytes());
+    command.datasize = BigEndian::read_u32(&command.datasize.to_le_bytes());
+}
+
 /// Swaps the endianness of fields within a Mach-O source version load command
 /// from BigEndian to LittleEndian in-place.
 ///
@@ -1147,6 +1170,32 @@ fn parse_load_command(input: &[u8]) -> IResult<&[u8], LoadCommand> {
     let (input, cmdsize) = le_u32(input)?;
 
     Ok((input, LoadCommand { cmd, cmdsize }))
+}
+
+/// Parse a Mach-O LinkedItDataCommand, transforming raw bytes into a structured
+/// format.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw LinkedItDataCommand data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining unparsed input and the parsed
+/// LinkedItDataCommand structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_linkedit_data_command(
+    input: &[u8],
+) -> IResult<&[u8], LinkedItDataCommand> {
+    let (input, cmd) = le_u32(input)?;
+    let (input, cmdsize) = le_u32(input)?;
+    let (input, dataoff) = le_u32(input)?;
+    let (input, datasize) = le_u32(input)?;
+
+    Ok((input, LinkedItDataCommand { cmd, cmdsize, dataoff, datasize }))
 }
 
 /// Parse a Mach-O SourceVersionCommand, transforming raw bytes into a
@@ -2008,6 +2057,70 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
     Ok((input, PPCThreadState64 { srr0, srr1, r, cr, xer, lr, ctr, vrsave }))
 }
 
+/// Handles the LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS,
+/// LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS commands for Mach-O files, parsing the data
+/// and populating a protobuf representation of the symtab command.
+///
+/// # Arguments
+///
+/// * `command_data`: The raw byte data of the LinkedItDataCommand.
+/// * `size`: The size of the LinkedItDataCommand command data.
+/// * `macho_file`: Mutable reference to the protobuf representation of the
+///   Mach-O file.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// operation.
+///
+/// # Errors
+///
+/// * `MachoError::FileSectionTooSmall`: Returned when the segment size is
+///   smaller than the expected LinkedItDataCommand struct size.
+/// * `MachoError::ParsingError`: Returned when there is an error parsing the
+///   LinkedItDataCommand data.
+/// * `MachoError::MissingHeaderValue`: Returned when the "magic" header value
+///   is missing, needed for determining if bytes should be swapped.
+fn handle_linkedit_data_command(
+    command_data: &[u8],
+    size: usize,
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if size < std::mem::size_of::<LinkedItDataCommand>() {
+        return Err(MachoError::FileSectionTooSmall(
+            "LinkedItDataCommand".to_string(),
+        ));
+    }
+
+    let (_, mut lid) = parse_linkedit_data_command(command_data)
+        .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+    if should_swap_bytes(
+        macho_file
+            .magic
+            .ok_or(MachoError::MissingHeaderValue("magic".to_string()))?,
+    ) {
+        swap_linkedit_data_command(&mut lid);
+    };
+
+    // TODO: handle the other ones mentioned in the header
+    match lid.cmd {
+        LC_CODE_SIGNATURE => {
+            macho_file.code_signature_data =
+                MessageField::some(LinkedItData {
+                    cmd: Some(lid.cmd),
+                    cmdsize: Some(lid.cmdsize),
+                    dataoff: Some(lid.dataoff),
+                    datasize: Some(lid.datasize),
+                    ..Default::default()
+                });
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
 /// Handles the LC_LOAD_DYLIB, LC_ID_DYLIB, LC_LOAD_WEAK_DYLIB, and
 /// LC_REEXPORT_DYLIB commands for Mach-O files, parsing the data
 /// and populating a protobuf representation of the dylib.
@@ -2139,6 +2252,7 @@ fn handle_dyld_info_command(
 
     Ok(())
 }
+
 /// Handles the LC_ID_DYLINKER, LC_LOAD_DYLINKER and LC_DYLD_ENVIRONMENT
 /// commands for Mach-O files, parsing the data and populating a protobuf
 /// representation of the rpath command.
@@ -2982,6 +3096,13 @@ fn handle_command(
             LC_DYSYMTAB => {
                 handle_dysymtab_command(command_data, cmdsize, macho_file)?;
             }
+            LC_CODE_SIGNATURE => {
+                handle_linkedit_data_command(
+                    command_data,
+                    cmdsize,
+                    macho_file,
+                )?;
+            }
             _ => {}
         }
     }
@@ -3617,6 +3738,7 @@ fn main(data: &[u8]) -> Macho {
                 macho_proto.dynamic_linker = file_data.dynamic_linker;
                 macho_proto.dyld_info = file_data.dyld_info;
                 macho_proto.dysymtab = file_data.dysymtab;
+                macho_proto.code_signature_data = file_data.code_signature_data;
                 macho_proto.entry_point = file_data.entry_point;
                 macho_proto.stack_size = file_data.stack_size;
             }

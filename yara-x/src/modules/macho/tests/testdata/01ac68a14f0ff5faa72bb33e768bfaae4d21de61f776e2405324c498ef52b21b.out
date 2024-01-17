@@ -459,3 +459,8 @@ symtab:
       - "GCC_except_table14"
       - "GCC_except_table15"
       - "__ZL12openSessions"
+code_signature_data:
+    cmd: 29
+    cmdsize: 16
+    dataoff: 43472
+    datasize: 18800

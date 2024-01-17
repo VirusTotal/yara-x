@@ -38,6 +38,13 @@ message RPath {
   optional string path = 3;
 }
 
+message LinkedItData {
+  optional uint32 cmd = 1;
+  optional uint32 cmdsize = 2;
+  optional uint32 dataoff = 3;
+  optional uint32 datasize = 4;
+}
+
 message Symtab {
   optional uint32 cmd = 1;
   optional uint32 cmdsize = 2;
@@ -130,6 +137,7 @@ message File {
   optional string source_version = 17;
   optional Dysymtab dysymtab = 18;
   optional Symtab symtab = 19;
+  optional LinkedItData code_signature_data = 20;
 }
 
 message Macho {
@@ -153,15 +161,17 @@ message Macho {
   optional string source_version = 17;
   optional Dysymtab dysymtab = 18;
   optional Symtab symtab = 19;
+  optional LinkedItData code_signature_data = 20;
+
 
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 20 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 21;
-  repeated FatArch fat_arch = 22;
+  optional uint32 fat_magic = 21 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 22;
+  repeated FatArch fat_arch = 23;
 
   // Nested Mach-O files
-  repeated File file = 23;
+  repeated File file = 24;
 }
 
 enum HEADER {
