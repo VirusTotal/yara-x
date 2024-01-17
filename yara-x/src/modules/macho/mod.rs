@@ -2104,18 +2104,14 @@ fn handle_linkedit_data_command(
     };
 
     // TODO: handle the other ones mentioned in the header
-    match lid.cmd {
-        LC_CODE_SIGNATURE => {
-            macho_file.code_signature_data =
-                MessageField::some(LinkedItData {
-                    cmd: Some(lid.cmd),
-                    cmdsize: Some(lid.cmdsize),
-                    dataoff: Some(lid.dataoff),
-                    datasize: Some(lid.datasize),
-                    ..Default::default()
-                });
-        }
-        _ => {}
+    if lid.cmd == LC_CODE_SIGNATURE {
+        macho_file.code_signature_data = MessageField::some(LinkedItData {
+            cmd: Some(lid.cmd),
+            cmdsize: Some(lid.cmdsize),
+            dataoff: Some(lid.dataoff),
+            datasize: Some(lid.datasize),
+            ..Default::default()
+        });
     }
 
     Ok(())
@@ -3738,7 +3734,8 @@ fn main(data: &[u8]) -> Macho {
                 macho_proto.dynamic_linker = file_data.dynamic_linker;
                 macho_proto.dyld_info = file_data.dyld_info;
                 macho_proto.dysymtab = file_data.dysymtab;
-                macho_proto.code_signature_data = file_data.code_signature_data;
+                macho_proto.code_signature_data =
+                    file_data.code_signature_data;
                 macho_proto.entry_point = file_data.entry_point;
                 macho_proto.stack_size = file_data.stack_size;
             }
