@@ -894,11 +894,8 @@ impl<'a> Iterator for Matches<'a> {
     type Item = Match<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(iter) = &mut self.iterator {
-            Some(Match { inner: iter.next()?, data: self.data })
-        } else {
-            None
-        }
+        let iter = self.iterator.as_mut()?;
+        Some(Match { inner: iter.next()?, data: self.data })
     }
 }
 
