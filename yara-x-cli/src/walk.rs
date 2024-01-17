@@ -225,20 +225,20 @@ impl<'a> DirWalker<'a> {
 /// walker.walk(
 ///     // The path to be walked.
 ///     "."
-///     // The first argument is the initial state. This must have some type
-///     // `S` that implements the `Component` trait.
+///     // The initial state. This must have some type `S` that implements the
+///     // `Component` trait.
 ///     state
 ///     // This is the thread initialization function. This is called once
 ///     // per thread, and each thread will own the value returned by this
 ///     // function. A mutable reference to this value is passed as the
 ///     // last argument to the next function.
-///     || {
+///     |state, output| {
 ///         scanner.Scanner::new(rules)
 ///     },
 ///     // This function is called for each file, `state` is a reference to
 ///     // the initial state (it's type is `&S`), `output` is of type
 ///     // `Sender<Message>`.
-///     |file_path, state, output, scanner| {
+///     |state, output, file_path, scanner| {
 ///         scanner.scan_file(file_path);
 ///     }
 ///     // This function is called with every error that occurs during the
@@ -308,8 +308,8 @@ impl<'a> ParDirWalker<'a> {
     ) -> thread::Result<()>
     where
         S: Component + Send + Sync,
-        I: Fn() -> T + Send + Copy + Sync,
-        F: Fn(PathBuf, &S, &Sender<Message>, &mut T) -> anyhow::Result<()>
+        I: Fn(&S, &Sender<Message>) -> T + Send + Copy + Sync,
+        F: Fn(&S, &Sender<Message>, PathBuf, &mut T) -> anyhow::Result<()>
             + Send
             + Sync
             + Copy,
@@ -347,12 +347,12 @@ impl<'a> ParDirWalker<'a> {
                 let msg_send = msg_send.clone();
                 let state = state.clone();
                 threads.push(s.spawn(move |_| {
-                    let mut per_thread_obj = init();
+                    let mut per_thread_obj = init(&state, &msg_send);
                     for path in paths_recv {
                         let res = func(
-                            path.to_path_buf(),
                             &state,
                             &msg_send,
+                            path.to_path_buf(),
                             &mut per_thread_obj,
                         );
                         if let Err(err) = res {

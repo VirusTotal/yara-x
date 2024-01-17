@@ -53,6 +53,10 @@ pub fn scan() -> Command {
                 .help("Dumps the data produced by modules")
         )
         .arg(
+            arg!(--"disable-console-logs")
+                .help("Disable printing console log messages")
+        )
+        .arg(
             arg!(-n - -"negate")
                 .help("Print non-satisfied rules only")
         )
@@ -105,6 +109,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
     let dump_module_output = args.get_flag("dump-module-output");
+    let disable_console_logs = args.get_flag("disable-console-logs");
     let timeout = args.get_one::<u64>("timeout");
 
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
@@ -174,8 +179,17 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     w.walk(
         path,
         state,
-        || {
+        // Initialization
+        |_, output| {
             let mut scanner = Scanner::new(rules_ref);
+
+            if !disable_console_logs {
+                let output = output.clone();
+                scanner.console_log(move |msg| {
+                    output.send(Message::Info(msg)).unwrap();
+                });
+            }
+
             if let Some(ref vars) = external_vars {
                 for (ident, value) in vars {
                     // It's ok to use `unwrap()`, this can not fail because
@@ -183,9 +197,11 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                     scanner.set_global(ident.as_str(), value).unwrap();
                 }
             }
+
             scanner
         },
-        |file_path, state, output, scanner| {
+        // File handler. Called for every file found while walking the path.
+        |state, output, file_path, scanner| {
             let elapsed_time = Instant::elapsed(&start_time);
 
             if let Some(timeout) = timeout.checked_sub(elapsed_time) {
@@ -260,6 +276,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             Ok(())
         },
+        // Error handler
         |err, output| {
             let _ = output.send(Message::Error(format!(
                 "{} {}: {}",

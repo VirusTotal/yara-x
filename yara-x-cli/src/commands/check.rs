@@ -70,8 +70,8 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
     w.walk(
         rules_path,
         CheckState::new(),
-        || {},
-        |file_path, state, output, _| {
+        |_, _| {},
+        |state, output, file_path, _| {
             let src = fs::read(file_path.clone())
                 .with_context(|| {
                     format!("can not read `{}`", file_path.display())
