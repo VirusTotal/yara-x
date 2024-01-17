@@ -49,10 +49,6 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(usize))
         )
         .arg(
-            arg!(-D --"dump-module-output")
-                .help("Dumps the data produced by modules")
-        )
-        .arg(
             arg!(--"disable-console-logs")
                 .help("Disable printing console log messages")
         )
@@ -108,7 +104,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
-    let dump_module_output = args.get_flag("dump-module-output");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let timeout = args.get_one::<u64>("timeout");
 
@@ -255,24 +250,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                     output,
                 );
             };
-
-            if dump_module_output {
-                for (mod_name, mod_output) in scan_results.module_outputs() {
-                    output
-                        .send(Message::Info(format!(
-                            ">>> {} {}\n{}<<<",
-                            Yellow.paint(mod_name).bold(),
-                            file_path.display(),
-                            indent_all_by(
-                                4,
-                                protobuf::text_format::print_to_string_pretty(
-                                    mod_output,
-                                )
-                            ),
-                        )))
-                        .unwrap();
-                }
-            }
 
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
 
