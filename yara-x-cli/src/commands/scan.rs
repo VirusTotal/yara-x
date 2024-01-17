@@ -186,7 +186,9 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             if !disable_console_logs {
                 let output = output.clone();
                 scanner.console_log(move |msg| {
-                    output.send(Message::Info(msg)).unwrap();
+                    output
+                        .send(Message::Error(format!("{}", Yellow.paint(msg))))
+                        .unwrap();
                 });
             }
 
