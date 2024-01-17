@@ -132,7 +132,7 @@ macro_rules! pattern_match {
             .matches()
             .next()
             .unwrap()
-            .data;
+            .data();
 
         assert_eq!(
             matching_data, $expected_result,

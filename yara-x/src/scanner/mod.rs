@@ -895,13 +895,7 @@ impl<'a> Iterator for Matches<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(iter) = &mut self.iterator {
-            let match_ = iter.next()?;
-            Some(Match {
-                range: match_.range.clone(),
-                data: &self.data.as_ref()
-                    [match_.range.start..match_.range.end],
-                xor_key: match_.xor_key,
-            })
+            Some(Match { inner: iter.next()?, data: self.data })
         } else {
             None
         }
@@ -909,13 +903,28 @@ impl<'a> Iterator for Matches<'a> {
 }
 
 /// Represents a match.
-#[derive(PartialEq, Debug)]
 pub struct Match<'a> {
+    inner: &'a matches::Match,
+    data: &'a ScannedData<'a>,
+}
+
+impl<'a> Match<'a> {
     /// Range within the original data where the match occurred.
-    pub range: Range<usize>,
+    #[inline]
+    pub fn range(&self) -> Range<usize> {
+        self.inner.range.clone()
+    }
+
     /// Slice containing the data that matched.
-    pub data: &'a [u8],
+    #[inline]
+    pub fn data(&self) -> &'a [u8] {
+        self.data.as_ref().get(self.inner.range.clone()).unwrap()
+    }
+
     /// XOR key used for decrypting the data if the pattern had the `xor`
     /// modifier, or `None` if otherwise.
-    pub xor_key: Option<u8>,
+    #[inline]
+    pub fn xor_key(&self) -> Option<u8> {
+        self.inner.xor_key
+    }
 }

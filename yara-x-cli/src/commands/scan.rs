@@ -314,14 +314,17 @@ fn print_matching_rules(
             let limit = print_strings_limit.unwrap_or(&120);
             for p in matching_rule.patterns() {
                 for m in p.matches() {
+                    let match_range = m.range();
+                    let match_data = m.data();
+
                     let mut msg = format!(
                         "{:#x}:{}:{}: ",
-                        m.range.start,
-                        m.range.len(),
+                        match_range.start,
+                        match_range.len(),
                         p.identifier(),
                     );
 
-                    for b in &m.data[..min(m.data.len(), *limit)] {
+                    for b in &match_data[..min(match_data.len(), *limit)] {
                         for c in b.escape_ascii() {
                             msg.push_str(format!("{}", c as char).as_str());
                         }
