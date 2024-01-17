@@ -18,7 +18,7 @@ macro_rules! gen_bench {
                 let mut scanner = rules.scanner().unwrap();
 
                 b.iter(|| {
-                    scanner.scan_mem($data).unwrap();
+                    let _ = scanner.scan_mem($data).unwrap();
                 })
             });
 
@@ -27,7 +27,7 @@ macro_rules! gen_bench {
                 let mut scanner = yara_x::Scanner::new(&rules);
 
                 b.iter(|| {
-                    scanner.scan($data);
+                    let _ = scanner.scan($data);
                 });
             });
         }
