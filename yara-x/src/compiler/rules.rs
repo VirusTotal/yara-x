@@ -1,4 +1,4 @@
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Read, Write};
 #[cfg(feature = "logging")]
 use std::time::Instant;
 
@@ -126,6 +126,16 @@ impl Rules {
         self.warnings.as_slice()
     }
 
+    /// Serializes the rules as a sequence of bytes.
+    ///
+    /// The [`Rules`] can be restored back by passing the bytes to
+    /// [`Rules::deserialize`].
+    pub fn serialize(&self) -> Result<Vec<u8>, SerializationError> {
+        let mut bytes = Vec::new();
+        self.serialize_into(&mut bytes)?;
+        Ok(bytes)
+    }
+
     /// Deserializes the rules from a sequence of bytes produced by
     /// [`Rules::serialize`].
     pub fn deserialize<B>(bytes: B) -> Result<Self, SerializationError>
@@ -155,17 +165,7 @@ impl Rules {
         Ok(rules)
     }
 
-    /// Serializes the rules as a sequence of bytes.
-    ///
-    /// The [`Rules`] can be restored back by passing the bytes to
-    /// [`Rules::deserialize`].
-    pub fn serialize(&self) -> Result<Vec<u8>, SerializationError> {
-        let mut bytes = Vec::new();
-        self.serialize_into(&mut bytes)?;
-        Ok(bytes)
-    }
-
-    /// Serializes the rules and writes the bytes into a `writer`.
+    /// Serializes the rules into a `writer`.
     pub fn serialize_into<W>(
         &self,
         writer: W,
@@ -182,6 +182,18 @@ impl Rules {
         Ok(bincode::DefaultOptions::new()
             .with_varint_encoding()
             .serialize_into(writer, self)?)
+    }
+
+    /// Deserializes the rules from a `reader`.
+    pub fn deserialize_from<R>(
+        mut reader: R,
+    ) -> Result<Self, SerializationError>
+    where
+        R: Read,
+    {
+        let mut bytes = Vec::new();
+        let _ = reader.read_to_end(&mut bytes)?;
+        Self::deserialize(bytes)
     }
 
     /// Returns a [`RuleInfo`] given its [`RuleId`].

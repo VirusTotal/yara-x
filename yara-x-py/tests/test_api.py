@@ -1,3 +1,4 @@
+import io
 import pytest
 import yara_x
 
@@ -145,6 +146,15 @@ def test_module_outputs():
   module_outputs = rules.scan(b'').module_outputs
   assert module_outputs['test_proto2']['int32One'] == 1
 
+
+def test_serialization():
+  rules = yara_x.compile('rule foo {condition: true}')
+  f = io.BytesIO()
+  rules.serialize_into(f)
+  f.seek(0)
+  rules = yara_x.Rules.deserialize_from(f)
+  assert len(rules.scan(b'').matching_rules) == 1
+  
 
 def test_console_log():
   ok = False 

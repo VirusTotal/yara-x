@@ -34,13 +34,10 @@ use ::yara_x as yrx;
 /// variables. For more complex use cases you will need to use a [`Compiler`].
 #[pyfunction]
 fn compile(src: &str) -> PyResult<Rules> {
-    Ok(Rules {
-        inner: Box::pin(PinnedRules {
-            rules: yrx::compile(src)
-                .map_err(|err| PyValueError::new_err(err.to_string()))?,
-            _pinned: PhantomPinned,
-        }),
-    })
+    let rules = yrx::compile(src)
+        .map_err(|err| PyValueError::new_err(err.to_string()))?;
+
+    Ok(Rules::new(rules))
 }
 
 /// Compiles YARA source code producing a set of compiled [`Rules`].
@@ -112,12 +109,7 @@ impl Compiler {
     /// to its initial empty state.
     fn build(&mut self) -> Rules {
         let compiler = mem::replace(&mut self.inner, yrx::Compiler::new());
-        Rules {
-            inner: Box::pin(PinnedRules {
-                rules: compiler.build(),
-                _pinned: PhantomPinned,
-            }),
-        }
+        Rules::new(compiler.build())
     }
 }
 
@@ -345,6 +337,14 @@ struct PinnedRules {
     _pinned: PhantomPinned,
 }
 
+impl Rules {
+    fn new(rules: yrx::Rules) -> Self {
+        Rules {
+            inner: Box::pin(PinnedRules { rules, _pinned: PhantomPinned }),
+        }
+    }
+}
+
 #[pymethods]
 impl Rules {
     /// Scans in-memory data with these rules.
@@ -360,12 +360,23 @@ impl Rules {
         })
     }
 
+    /// Serializes the rules into a file-like object.
     fn serialize_into(&self, file: PyObject) -> PyResult<()> {
         let f = PyFileLikeObject::with_requirements(file, false, true, false)?;
         self.inner
             .rules
             .serialize_into(f)
             .map_err(|err| PyIOError::new_err(err.to_string()))
+    }
+
+    /// Deserializes rules from a file-like object.
+    #[staticmethod]
+    fn deserialize_from(file: PyObject) -> PyResult<Py<Rules>> {
+        let f = PyFileLikeObject::with_requirements(file, true, false, false)?;
+        let rules = yrx::Rules::deserialize_from(f)
+            .map_err(|err| PyIOError::new_err(err.to_string()))?;
+
+        Python::with_gil(|py| Py::new(py, Rules::new(rules)))
     }
 
     fn warnings(&self) -> Vec<String> {
