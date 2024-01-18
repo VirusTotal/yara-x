@@ -4469,6 +4469,7 @@ dependencies = [
 name = "yara-x-py"
 version = "0.1.0"
 dependencies = [
+ "protobuf-json-mapping",
  "pyo3",
  "pyo3-build-config",
  "pyo3-file",

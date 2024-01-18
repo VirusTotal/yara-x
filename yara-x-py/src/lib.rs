@@ -18,13 +18,20 @@ use std::ops::Deref;
 use std::pin::Pin;
 use std::time::Duration;
 
+use protobuf_json_mapping::print_to_string;
 use pyo3::exceptions::{PyIOError, PySyntaxError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyBytes, PyFloat, PyInt, PyString, PyTuple};
+use pyo3::types::{
+    PyBool, PyBytes, PyDict, PyFloat, PyInt, PyString, PyTuple,
+};
 use pyo3_file::PyFileLikeObject;
 
 use ::yara_x as yrx;
 
+/// Compiles a YARA source code producing a set of compiled [`Rules`].
+///
+/// This function allows compiling simple rules that don't depend on external
+/// variables. For more complex use cases you will need to use a [`Compiler`].
 #[pyfunction]
 fn compile(src: &str) -> PyResult<Rules> {
     Ok(Rules {
@@ -208,33 +215,120 @@ impl Scanner {
     }
 
     /// Scans in-memory data.
-    #[pyo3(signature = (data))]
-    fn scan(&mut self, data: &[u8]) -> PyResult<Py<PyTuple>> {
-        let scan_results = self
-            .inner
-            .scan(data)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-
-        Ok(matching_rules_to_py(scan_results.matching_rules()))
+    fn scan(&mut self, data: &[u8]) -> PyResult<Py<ScanResults>> {
+        Python::with_gil(|py| {
+            scan_results_to_py(
+                py,
+                self.inner
+                    .scan(data)
+                    .map_err(|err| PyValueError::new_err(err.to_string()))?,
+            )
+        })
     }
 }
 
+/// Results produced by a scan operation.
 #[pyclass]
-struct MatchingRule {
-    name: String,
-    namespace: String,
+struct ScanResults {
+    /// Vector that contains all the rules that matched during the scan.
+    matching_rules: Vec<Py<Rule>>,
+    /// Dictionary where keys are module names and values are other
+    /// dictionaries with the information produced by the corresponding module.
+    module_outputs: Py<PyDict>,
 }
 
 #[pymethods]
-impl MatchingRule {
+impl ScanResults {
     #[getter]
+    /// Rules that matched during the scan.
+    fn matching_rules(&self) -> Py<PyTuple> {
+        Python::with_gil(|py| PyTuple::new(py, &self.matching_rules).into())
+    }
+
+    #[getter]
+    /// Rules that matched during the scan.
+    fn module_outputs<'py>(&'py self, py: Python<'py>) -> &'py PyDict {
+        self.module_outputs.as_ref(py)
+    }
+}
+
+/// Represents a rule that matched while scanning some data.
+#[pyclass]
+struct Rule {
+    name: String,
+    namespace: String,
+    patterns: Vec<Py<Pattern>>,
+}
+
+#[pymethods]
+impl Rule {
+    #[getter]
+    /// Returns the rule's name.
     fn name(&self) -> &str {
         self.name.as_str()
     }
 
+    /// Returns the rule's namespace.
     #[getter]
     fn namespace(&self) -> &str {
         self.namespace.as_str()
+    }
+
+    /// Patterns defined by the rule.
+    #[getter]
+    fn patterns(&self) -> Py<PyTuple> {
+        Python::with_gil(|py| PyTuple::new(py, &self.patterns).into())
+    }
+}
+
+/// Represents a pattern in a YARA rule.
+#[pyclass]
+struct Pattern {
+    identifier: String,
+    matches: Vec<Py<Match>>,
+}
+
+#[pymethods]
+impl Pattern {
+    /// Pattern identifier (e.g: '$a', '$foo').
+    #[getter]
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
+    }
+
+    /// Matches found for this pattern.
+    #[getter]
+    fn matches(&self) -> Py<PyTuple> {
+        Python::with_gil(|py| PyTuple::new(py, &self.matches).into())
+    }
+}
+
+#[pyclass]
+struct Match {
+    offset: usize,
+    length: usize,
+    xor_key: Option<u8>,
+}
+
+#[pymethods]
+impl Match {
+    /// Offset where the match occurred.
+    #[getter]
+    fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Length of the match in bytes.
+    #[getter]
+    fn length(&self) -> usize {
+        self.length
+    }
+
+    /// XOR key used for decrypting the data if the pattern had the xor
+    /// modifier, or None if otherwise.
+    #[getter]
+    fn xor_key(&self) -> Option<u8> {
+        self.xor_key
     }
 }
 
@@ -254,15 +348,16 @@ struct PinnedRules {
 #[pymethods]
 impl Rules {
     /// Scans in-memory data with these rules.
-    #[pyo3(signature = (data))]
-    fn scan(&self, data: &[u8]) -> PyResult<Py<PyTuple>> {
+    fn scan(&self, data: &[u8]) -> PyResult<Py<ScanResults>> {
         let mut scanner = yrx::Scanner::new(&self.inner.rules);
-
-        let scan_results = scanner
-            .scan(data)
-            .map_err(|err| PyValueError::new_err(err.to_string()))?;
-
-        Ok(matching_rules_to_py(scan_results.matching_rules()))
+        Python::with_gil(|py| {
+            scan_results_to_py(
+                py,
+                scanner
+                    .scan(data)
+                    .map_err(|err| PyValueError::new_err(err.to_string()))?,
+            )
+        })
     }
 
     fn serialize_into(&self, file: PyObject) -> PyResult<()> {
@@ -278,20 +373,67 @@ impl Rules {
     }
 }
 
-fn matching_rules_to_py(matching_rules: yrx::MatchingRules) -> Py<PyTuple> {
-    Python::with_gil(|py| {
-        PyTuple::new(
-            py,
-            matching_rules.map(|rule| {
-                MatchingRule {
-                    name: rule.name().to_string(),
-                    namespace: rule.namespace().to_string(),
-                }
-                .into_py(py)
-            }),
-        )
-        .into()
-    })
+fn scan_results_to_py(
+    py: Python,
+    scan_results: yrx::ScanResults,
+) -> PyResult<Py<ScanResults>> {
+    let matching_rules = scan_results
+        .matching_rules()
+        .map(|rule| rule_to_py(py, rule))
+        .collect::<PyResult<Vec<_>>>()?;
+
+    let json = PyModule::import(py, "json")?;
+    let json_loads = json.getattr("loads")?;
+
+    let module_outputs = PyDict::new(py);
+    for (module, output) in scan_results.module_outputs() {
+        let module_output_json = print_to_string(output).unwrap();
+        let module_output = json_loads.call((module_output_json,), None)?;
+        module_outputs.set_item(module, module_output)?;
+    }
+
+    Py::new(
+        py,
+        ScanResults { matching_rules, module_outputs: module_outputs.into() },
+    )
+}
+
+fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
+    Py::new(
+        py,
+        Rule {
+            name: rule.name().to_string(),
+            namespace: rule.namespace().to_string(),
+            patterns: rule
+                .patterns()
+                .map(|pattern| pattern_to_py(py, pattern))
+                .collect::<Result<Vec<_>, _>>()?,
+        },
+    )
+}
+
+fn pattern_to_py(py: Python, pattern: yrx::Pattern) -> PyResult<Py<Pattern>> {
+    Py::new(
+        py,
+        Pattern {
+            identifier: pattern.identifier().to_string(),
+            matches: pattern
+                .matches()
+                .map(|match_| match_to_py(py, match_))
+                .collect::<Result<Vec<_>, _>>()?,
+        },
+    )
+}
+
+fn match_to_py(py: Python, match_: yrx::Match) -> PyResult<Py<Match>> {
+    Py::new(
+        py,
+        Match {
+            offset: match_.range().start,
+            length: match_.range().len(),
+            xor_key: match_.xor_key(),
+        },
+    )
 }
 
 /// Python module for compiling YARA rules and scanning data with them.
@@ -308,6 +450,8 @@ fn yara_x(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Rules>()?;
     m.add_class::<Scanner>()?;
     m.add_class::<Compiler>()?;
-    m.add_class::<MatchingRule>()?;
+    m.add_class::<Rule>()?;
+    m.add_class::<Pattern>()?;
+    m.add_class::<Match>()?;
     Ok(())
 }
