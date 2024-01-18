@@ -37,7 +37,7 @@ import "yaml.proto";
 
 message MyMessage {
   optional int32 some_field = 1 [(yaml.field).fmt = "x"];
-  optional int64 some_timestamp = 2 [(yaml.field).fmt = "x"];
+  optional int64 some_timestamp = 2 [(yaml.field).fmt = "t"];
 }
 ```
 
