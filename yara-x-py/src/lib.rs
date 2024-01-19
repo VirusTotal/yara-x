@@ -15,6 +15,7 @@ matches = rules.scan(b'some dummy data')
 use std::marker::PhantomPinned;
 use std::mem;
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::time::Duration;
 
@@ -213,6 +214,18 @@ impl Scanner {
                 py,
                 self.inner
                     .scan(data)
+                    .map_err(|err| PyValueError::new_err(err.to_string()))?,
+            )
+        })
+    }
+
+    /// Scans a file.
+    fn scan_file(&mut self, path: PathBuf) -> PyResult<Py<ScanResults>> {
+        Python::with_gil(|py| {
+            scan_results_to_py(
+                py,
+                self.inner
+                    .scan_file(path)
                     .map_err(|err| PyValueError::new_err(err.to_string()))?,
             )
         })
