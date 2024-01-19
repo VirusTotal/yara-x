@@ -32,6 +32,10 @@ use crate::modules::protos;
 
 type Error<'a> = nom::error::Error<&'a [u8]>;
 
+/// Tuple that contains a DLL name and a vector with functions imported from
+/// that DLL.
+type DllImports<'a> = Vec<(&'a str, Vec<ImportedFunc>)>;
+
 /// The initialization token needed by the authenticode_parser library must be
 /// created only once per process, and it must be done in a thread-safe way.
 static AUTHENTICODE_INIT_TOKEN: OnceLock<
@@ -88,10 +92,10 @@ pub struct PE<'a> {
     /// contains information about each function imported from the DLL. The
     /// vector can contain multiple entries for the same DLL, each with a
     /// subset of the functions imported by from that DLL.
-    imports: OnceCell<Option<Vec<(&'a str, Vec<ImportedFunc>)>>>,
+    imports: OnceCell<Option<DllImports<'a>>>,
 
     /// Similar to `imports` but contains the delayed imports.
-    delayed_imports: OnceCell<Option<Vec<(&'a str, Vec<ImportedFunc>)>>>,
+    delayed_imports: OnceCell<Option<DllImports<'a>>>,
 
     /// Export information about this PE file.
     exports: OnceCell<Option<ExportInfo<'a>>>,
