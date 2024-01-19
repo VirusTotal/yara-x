@@ -38,8 +38,12 @@ const FAT_CIGAM: u32 = 0xbebafeca;
 const FAT_MAGIC_64: u32 = 0xcafebabf;
 const FAT_CIGAM_64: u32 = 0xbfbafeca;
 
-/// Define Mach-O Code Signing MAgic Constants
+/// Define Mach-O Code Signing Magic Constants
+const _CS_MAGIC_REQUIREMENT: u32 = 0xfade0c00;
+const _CS_MAGIC_REQUIREMENTS: u32 = 0xfade0c01;
+const _CS_MAGIC_CODEDIRECTORY: u32 = 0xfade0c02;
 const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
+const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
 const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 
 /// Define Mach-O CPU type constants
