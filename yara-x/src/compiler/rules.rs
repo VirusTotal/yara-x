@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io::{BufWriter, Read, Write};
 #[cfg(feature = "logging")]
 use std::time::Instant;
@@ -428,6 +429,30 @@ where
     unsafe {
         wasmtime::Module::deserialize(&crate::wasm::ENGINE, bytes)
             .map_err(|err| serde::de::Error::custom(err.to_string()))
+    }
+}
+
+impl fmt::Debug for Rules {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (id, rule) in self.rules.iter().enumerate() {
+            let name = self.ident_pool.get(rule.ident_id).unwrap();
+            let namespace =
+                self.ident_pool.get(rule.namespace_ident_id).unwrap();
+            writeln!(f, "RuleId({})", id)?;
+            writeln!(f, "  namespace: {}", namespace)?;
+            writeln!(f, "  name: {}", name)?;
+            writeln!(f, "  patterns:")?;
+            for (pattern_ident_id, pattern_id) in &rule.patterns {
+                let ident = self.ident_pool.get(*pattern_ident_id).unwrap();
+                writeln!(f, "    {:?} {} ", pattern_id, ident)?;
+            }
+        }
+
+        for (id, (pattern_id, _)) in self.sub_patterns.iter().enumerate() {
+            writeln!(f, "SubPatternId({}) -> {:?}", id, pattern_id)?;
+        }
+
+        Ok(())
     }
 }
 
