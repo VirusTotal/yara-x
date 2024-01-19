@@ -1,0 +1,261 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 2
+    minor: 25
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 41358
+dll_characteristics: 1
+timestamp: 708992537
+image_base: 8388608
+checksum: 0
+base_of_code: 4096
+base_of_data: 12288
+entry_point: 5272
+entry_point_raw: 8344
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 4608
+size_of_initialized_data: 3072
+size_of_uninitialized_data: 0
+size_of_image: 36864
+size_of_headers: 1024
+size_of_stack_reserve: 0
+size_of_stack_commit: 0
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 7
+number_of_imported_functions: 28
+number_of_delayed_imported_functions: 0
+number_of_resources: 3
+number_of_version_infos: 0
+number_of_imports: 5
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+sections:
+  - name: "CODE"
+    full_name: "CODE"
+    characteristics: 1610612768
+    raw_data_size: 4608
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 4288
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "DATA"
+    full_name: "DATA"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 5632
+    virtual_address: 12288
+    virtual_size: 164
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "BSS"
+    full_name: "BSS"
+    characteristics: 3221225472
+    raw_data_size: 0
+    raw_data_offset: 6144
+    virtual_address: 16384
+    virtual_size: 2037
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".idata"
+    full_name: ".idata"
+    characteristics: 3221225536
+    raw_data_size: 1024
+    raw_data_offset: 6144
+    virtual_address: 20480
+    virtual_size: 786
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1342177344
+    raw_data_size: 512
+    raw_data_offset: 7168
+    virtual_address: 24576
+    virtual_size: 19
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1342177344
+    raw_data_size: 512
+    raw_data_offset: 7680
+    virtual_address: 28672
+    virtual_size: 472
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1342177344
+    raw_data_size: 512
+    raw_data_offset: 8192
+    virtual_address: 32768
+    virtual_size: 512
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 20480
+    size: 786
+  - virtual_address: 32768
+    size: 512
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 28672
+    size: 472
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 24576
+    size: 19
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 1116228524 # 2005-05-16 07:28:44 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 40
+    rva: 33016
+    offset: 8440
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "D\000E\000S\000C\000R\000I\000P\000T\000I\000O\000N\000"
+  - length: 16
+    rva: 33056
+    offset: 8480
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "D\000V\000C\000L\000A\000L\000"
+  - length: 60
+    rva: 33072
+    offset: 8496
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "P\000A\000C\000K\000A\000G\000E\000I\000N\000F\000O\000"
+import_details:
+  - library_name: "kernel32.dll"
+    number_of_functions: 15
+    functions:
+      - name: "DeleteCriticalSection"
+        rva: 20600
+      - name: "LeaveCriticalSection"
+        rva: 20604
+      - name: "EnterCriticalSection"
+        rva: 20608
+      - name: "VirtualFree"
+        rva: 20612
+      - name: "LocalFree"
+        rva: 20616
+      - name: "GetCurrentThreadId"
+        rva: 20620
+      - name: "GetStartupInfoA"
+        rva: 20624
+      - name: "GetCommandLineA"
+        rva: 20628
+      - name: "FreeLibrary"
+        rva: 20632
+      - name: "ExitProcess"
+        rva: 20636
+      - name: "WriteFile"
+        rva: 20640
+      - name: "UnhandledExceptionFilter"
+        rva: 20644
+      - name: "RtlUnwind"
+        rva: 20648
+      - name: "RaiseException"
+        rva: 20652
+      - name: "GetStdHandle"
+        rva: 20656
+  - library_name: "user32.dll"
+    number_of_functions: 2
+    functions:
+      - name: "GetKeyboardType"
+        rva: 20664
+      - name: "MessageBoxA"
+        rva: 20668
+  - library_name: "advapi32.dll"
+    number_of_functions: 3
+    functions:
+      - name: "RegQueryValueExA"
+        rva: 20676
+      - name: "RegOpenKeyExA"
+        rva: 20680
+      - name: "RegCloseKey"
+        rva: 20684
+  - library_name: "kernel32.dll"
+    number_of_functions: 6
+    functions:
+      - name: "TlsSetValue"
+        rva: 20692
+      - name: "TlsGetValue"
+        rva: 20696
+      - name: "TlsFree"
+        rva: 20700
+      - name: "TlsAlloc"
+        rva: 20704
+      - name: "LocalFree"
+        rva: 20708
+      - name: "LocalAlloc"
+        rva: 20712
+  - library_name: "kernel32.dll"
+    number_of_functions: 2
+    functions:
+      - name: "LoadLibraryA"
+        rva: 20720
+      - name: "GetModuleFileNameA"
+        rva: 20724
+is_signed: false
+overlay:
+    offset: 0
+    size: 0

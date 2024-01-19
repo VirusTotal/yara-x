@@ -13,7 +13,6 @@ use authenticode_parser::{
 };
 use bstr::{BStr, ByteSlice};
 use byteorder::{ByteOrder, LE};
-use indexmap::IndexMap;
 use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
@@ -84,16 +83,15 @@ pub struct PE<'a> {
     /// Path to PDB file containing debug information for the PE.
     pdb_path: OnceCell<Option<&'a str>>,
 
-    /// Map that with the DLLs imported by this PE file. Keys are DLL names,
-    /// and values are vectors of [`ImportedFunc`] that contain information
-    /// about each function imported from the DLL. We use an [`IndexMap`]
-    /// instead of a [`HashMap`] because we want to maintain the order in
-    /// which the DLLs appear in the import table, which is important while
-    /// computing the imphash.
-    imports: OnceCell<Option<IndexMap<&'a str, Vec<ImportedFunc>>>>,
+    /// Vector with the DLLs imported by this PE file. Each item in the vector
+    /// is a tuple composed of a DLL name and a vector of [`ImportedFunc`] that
+    /// contains information about each function imported from the DLL. The
+    /// vector can contain multiple entries for the same DLL, each with a
+    /// subset of the functions imported by from that DLL.
+    imports: OnceCell<Option<Vec<(&'a str, Vec<ImportedFunc>)>>>,
 
     /// Similar to `imports` but contains the delayed imports.
-    delayed_imports: OnceCell<Option<IndexMap<&'a str, Vec<ImportedFunc>>>>,
+    delayed_imports: OnceCell<Option<Vec<(&'a str, Vec<ImportedFunc>)>>>,
 
     /// Export information about this PE file.
     exports: OnceCell<Option<ExportInfo<'a>>>,
@@ -1463,7 +1461,7 @@ impl<'a> PE<'a> {
     }
 
     /// Parses PE imports.
-    fn parse_imports(&self) -> Option<IndexMap<&'a str, Vec<ImportedFunc>>> {
+    fn parse_imports(&self) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
         let (_, _, import_data) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT)?;
         self.parse_import_impl(import_data, Self::parse_import_descriptor)
@@ -1472,7 +1470,7 @@ impl<'a> PE<'a> {
     /// Parses PE delayed imports.
     fn parse_delayed_imports(
         &self,
-    ) -> Option<IndexMap<&'a str, Vec<ImportedFunc>>> {
+    ) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
         let (_, _, import_data) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT)?;
         self.parse_import_impl(import_data, Self::parse_delay_load_descriptor)
@@ -1508,7 +1506,7 @@ impl<'a> PE<'a> {
         &self,
         input: &'a [u8],
         descriptor_parser: P,
-    ) -> Option<IndexMap<&'a str, Vec<ImportedFunc>>>
+    ) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>>
     where
         P: FnMut(&'a [u8]) -> IResult<&'a [u8], ImportDescriptor>,
     {
@@ -1528,8 +1526,7 @@ impl<'a> PE<'a> {
         let is_32_bits =
             self.optional_hdr.magic == Self::IMAGE_NT_OPTIONAL_HDR32_MAGIC;
 
-        let mut imported_funcs: IndexMap<&str, Vec<ImportedFunc>> =
-            IndexMap::new();
+        let mut imported_funcs = Vec::new();
 
         for mut descriptor in import_descriptors {
             // If the values in the descriptor are virtual addresses, convert
@@ -1583,6 +1580,8 @@ impl<'a> PE<'a> {
                 verify(uint(is_32_bits), |thunk| *thunk != 0),
             );
 
+            let mut funcs = Vec::new();
+
             for (i, mut thunk) in &mut thunks.enumerate() {
                 // If the most significant bit is set, this is an import by
                 // ordinal. The most significant bit depends on whether this
@@ -1623,9 +1622,11 @@ impl<'a> PE<'a> {
                 }
 
                 if func.ordinal.is_some() || func.name.is_some() {
-                    imported_funcs.entry(dll_name).or_default().push(func)
+                    funcs.push(func);
                 }
             }
+
+            imported_funcs.push((dll_name, funcs));
         }
 
         Some(imported_funcs)
