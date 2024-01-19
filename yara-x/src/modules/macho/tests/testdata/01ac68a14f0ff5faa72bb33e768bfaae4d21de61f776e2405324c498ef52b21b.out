@@ -464,3 +464,10 @@ code_signature_data:
     cmdsize: 16
     dataoff: 43472
     datasize: 18800
+certificates:
+    common_names:
+      - "Developer ID Certification Authority"
+      - "Apple Root CA"
+      - "Developer ID Application: EFI Inc (82PCFB3NFC)"
+    signer_names:
+      - "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"

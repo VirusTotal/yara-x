@@ -10,6 +10,11 @@ option (yara.module_options) = {
   rust_module: "macho"
 };
 
+message CodeSignature {
+  repeated string common_names = 1;
+  repeated string signer_names = 2;
+}
+
 message Dylib {
   optional string name = 1;
   optional uint32 timestamp = 2 [(yaml.field).fmt = "t"];
@@ -138,6 +143,8 @@ message File {
   optional Dysymtab dysymtab = 18;
   optional Symtab symtab = 19;
   optional LinkedItData code_signature_data = 20;
+  optional CodeSignature certificates = 21;
+
 }
 
 message Macho {
@@ -162,16 +169,17 @@ message Macho {
   optional Dysymtab dysymtab = 18;
   optional Symtab symtab = 19;
   optional LinkedItData code_signature_data = 20;
+  optional CodeSignature certificates = 21;
 
 
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 21 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 22;
-  repeated FatArch fat_arch = 23;
+  optional uint32 fat_magic = 22 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 23;
+  repeated FatArch fat_arch = 24;
 
   // Nested Mach-O files
-  repeated File file = 24;
+  repeated File file = 25;
 }
 
 enum HEADER {

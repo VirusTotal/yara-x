@@ -7,6 +7,7 @@
 
 use arrayref::array_ref;
 use byteorder::{BigEndian, ByteOrder};
+use cryptographic_message_syntax::SignedData;
 use nom::{bytes::complete::take, multi::count, number::complete::*, IResult};
 use protobuf::MessageField;
 use thiserror::Error;
@@ -36,6 +37,10 @@ const FAT_MAGIC: u32 = 0xcafebabe;
 const FAT_CIGAM: u32 = 0xbebafeca;
 const FAT_MAGIC_64: u32 = 0xcafebabf;
 const FAT_CIGAM_64: u32 = 0xbfbafeca;
+
+/// Define Mach-O Code Signing MAgic Constants
+const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
+const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 
 /// Define Mach-O CPU type constants
 const CPU_TYPE_MC680X0: u32 = 0x00000006;
@@ -163,8 +168,36 @@ struct FatArch64 {
     reserved: u32,
 }
 
+/// `CSBlob`: Represents a CSBlob structure in the Mach-O file.
+/// Fields: magic, length
+#[derive(Debug, Default, Clone, Copy)]
+struct CSBlob {
+    magic: u32,
+    length: u32,
+}
+
+/// `CSBlobIndex`: Represents a BlobIndex structure in the Mach-O file.
+/// Fields: blobtype, offset, blob
+#[derive(Debug, Default, Clone, Copy)]
+struct CSBlobIndex {
+    _blobtype: u32,
+    offset: u32,
+    blob: CSBlob,
+}
+
+/// `CSSuperBlob`: Represents a CSSuperBlob structure in the Mach-O file.
+/// Fields: magic, length, count, index
+#[derive(Debug, Default, Clone)]
+struct CSSuperBlob {
+    _magic: u32,
+    _length: u32,
+    count: u32,
+    index: Vec<CSBlobIndex>,
+}
+
 /// `LinkedItDataCommand`: Represents a LinkedIt Data load command in the Mach-O file.
 /// Fields: cmd, cmdsize, dataoff, datasize
+#[derive(Debug, Default, Clone, Copy)]
 struct LinkedItDataCommand {
     cmd: u32,
     cmdsize: u32,
@@ -2057,6 +2090,95 @@ fn parse_ppc_thread_state64(input: &[u8]) -> IResult<&[u8], PPCThreadState64> {
     Ok((input, PPCThreadState64 { srr0, srr1, r, cr, xer, lr, ctr, vrsave }))
 }
 
+/// Parse the embedded-signature CSBlob structure for code signature data for a Mach-O.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw code signature blob.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining input and the parsed
+/// CSBlob structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_cs_blob(input: &[u8]) -> IResult<&[u8], CSBlob> {
+    let (input, magic) = be_u32(input)?;
+    let (input, length) = be_u32(input)?;
+
+    Ok((input, CSBlob { magic, length }))
+}
+
+/// Parse the embedded-signature CSBlobIndex structure for code signature data for a Mach-O.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw code signature blob index.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining input and the parsed
+/// CSBlobIndex structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_cs_index(input: &[u8]) -> IResult<&[u8], CSBlobIndex> {
+    let (input, blobtype) = be_u32(input)?;
+    let (input, offset) = be_u32(input)?;
+
+    Ok((
+        input,
+        CSBlobIndex { _blobtype: blobtype, offset, ..Default::default() },
+    ))
+}
+
+/// Parse the embedded-signature SuperBlob for code signature data for a Mach-O.
+///
+/// # Arguments
+///
+/// * `input`: A slice of bytes containing the raw code signature superblob data.
+///
+/// # Returns
+///
+/// A `nom` IResult containing the remaining input and the parsed
+/// CSSuperBlob structure, or a `nom` error if the parsing fails.
+///
+/// # Errors
+///
+/// Returns a `nom` error if the input data is insufficient or malformed.
+fn parse_cs_superblob(data: &[u8]) -> IResult<&[u8], CSSuperBlob> {
+    // CSSuperBlobs are already network byte order, which is BE
+    let (input, magic) = be_u32(data)?;
+    let (input, length) = be_u32(input)?;
+    let (input, count) = be_u32(input)?;
+
+    let mut super_blob = CSSuperBlob {
+        _magic: magic,
+        _length: length,
+        count,
+        ..Default::default()
+    };
+
+    let mut input: &[u8] = input;
+    let mut cs_index: CSBlobIndex;
+
+    for _ in 0..super_blob.count {
+        (input, cs_index) = parse_cs_index(input)?;
+
+        let offset = cs_index.offset as usize;
+
+        let (_, blob) = parse_cs_blob(&data[offset..])?;
+
+        cs_index.blob = blob;
+        super_blob.index.push(cs_index);
+    }
+
+    Ok((input, super_blob))
+}
+
 /// Handles the LC_CODE_SIGNATURE, LC_SEGMENT_SPLIT_INFO, LC_FUNCTION_STARTS,
 /// LC_DATA_IN_CODE, LC_DYLIB_CODE_SIGN_DRS commands for Mach-O files, parsing the data
 /// and populating a protobuf representation of the symtab command.
@@ -3106,6 +3228,71 @@ fn handle_command(
     Ok(seg_count)
 }
 
+/// Processes the code signature data based on the values calculated
+/// from the LC_CODE_SIGNATURE load command.
+///
+/// # Arguments
+///
+/// * `data`: The raw byte data of the Mach-O file.
+/// * `macho_file`: The protobuf representation of the Mach-O file to be populated.
+///
+/// # Returns
+///
+/// Returns a `Result<(), MachoError>` indicating the success or failure of the
+/// parsing operation.
+fn parse_macho_code_signature(
+    data: &[u8],
+    macho_file: &mut File,
+) -> Result<(), MachoError> {
+    if macho_file.code_signature_data.is_some() {
+        let certificates = macho_file.certificates.mut_or_insert_default();
+        let code_signature_data =
+            macho_file.code_signature_data.as_mut().unwrap();
+        let data_offset = code_signature_data.dataoff() as usize;
+        let data_size = code_signature_data.datasize() as usize;
+
+        if data_offset < data.len() {
+            let super_data = &data[data_offset..data_offset + data_size];
+            let (_, super_blob) = parse_cs_superblob(super_data)
+                .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
+
+            for blob_index in super_blob.index {
+                if blob_index.blob.magic == CS_MAGIC_BLOBWRAPPER {
+                    let offset = blob_index.offset as usize;
+                    let length = blob_index.blob.length as usize;
+                    let size_of_blob = std::mem::size_of::<CSBlob>();
+
+                    let signage = SignedData::parse_ber(
+                        &super_data[offset + size_of_blob
+                            ..offset + size_of_blob + length],
+                    )
+                    .map_err(|e| {
+                        MachoError::ParsingError(format!("{:?}", e))
+                    })?;
+                    // .unwrap();
+
+                    let signers = signage.signers();
+                    let certs = signage.certificates();
+
+                    certs.for_each(|cert| {
+                        let name = cert.subject_common_name().unwrap();
+                        certificates.common_names.push(name);
+                    });
+
+                    signers.for_each(|signer| {
+                        let (name, _) =
+                            signer.certificate_issuer_and_serial().unwrap();
+                        certificates.signer_names.push(
+                            name.user_friendly_str().unwrap().to_string(),
+                        );
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Processes the symbol table and string table based on the values calculated
 /// from the LC_SYMTAB load command.
 ///
@@ -3310,6 +3497,9 @@ pub fn parse_macho_file(data: &[u8]) -> Result<File, MachoError> {
 
     // Populate symbol table
     parse_macho_symtab_tables(data, &mut macho_file)?;
+
+    // parse code signature data
+    parse_macho_code_signature(data, &mut macho_file)?;
 
     Ok(macho_file)
 }
@@ -3736,6 +3926,7 @@ fn main(data: &[u8]) -> Macho {
                 macho_proto.dysymtab = file_data.dysymtab;
                 macho_proto.code_signature_data =
                     file_data.code_signature_data;
+                macho_proto.certificates = file_data.certificates;
                 macho_proto.entry_point = file_data.entry_point;
                 macho_proto.stack_size = file_data.stack_size;
             }
