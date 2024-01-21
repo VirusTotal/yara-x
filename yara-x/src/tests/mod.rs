@@ -1652,6 +1652,25 @@ fn match_at() {
         b"fofofofo"
     );
 
+    rule_true!(
+        r#"
+        rule test1 {
+            strings:
+                $a = "bar"
+            condition:
+                $a at 0
+        }
+        
+        rule test2 {
+            strings:
+                $a = "bar"
+            condition:
+                $a
+        }
+        "#,
+        b"foobar"
+    );
+
     #[cfg(feature = "test_proto2-module")]
     rule_false!(
         r#"

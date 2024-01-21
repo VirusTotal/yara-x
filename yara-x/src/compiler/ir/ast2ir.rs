@@ -15,11 +15,9 @@ use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, FuncCall, Iterable, LiteralPattern, Lookup,
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
-    PatternInRule, Quantifier, Range, RegexpPattern,
+    PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
-use crate::compiler::{
-    CompileContext, CompileError, CompileErrorInfo, PatternId,
-};
+use crate::compiler::{CompileContext, CompileError, CompileErrorInfo};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::parser::Error;
@@ -104,12 +102,13 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 
     Ok(PatternInRule {
         identifier: pattern.identifier.name,
-        anchored_at: None,
         pattern: Pattern::Literal(LiteralPattern {
             flags,
             xor_range,
             base64_alphabet: base64_alphabet.map(String::from),
             base64wide_alphabet: base64wide_alphabet.map(String::from),
+            anchored_at: None,
+
             text: pattern.text.as_ref().into(),
         }),
     })
@@ -121,10 +120,10 @@ pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
 ) -> Result<PatternInRule<'src>, CompileError> {
     Ok(PatternInRule {
         identifier: pattern.identifier.name,
-        anchored_at: None,
         pattern: Pattern::Regexp(RegexpPattern {
             flags: PatternFlagSet::from(PatternFlags::Ascii),
             hir: re::hir::Hir::from(hex_pattern_hir_from_ast(pattern)),
+            anchored_at: None,
         }),
     })
 }
@@ -195,8 +194,11 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
 
     Ok(PatternInRule {
         identifier: pattern.identifier.name,
-        anchored_at: None,
-        pattern: Pattern::Regexp(RegexpPattern { flags, hir }),
+        pattern: Pattern::Regexp(RegexpPattern {
+            flags,
+            hir,
+            anchored_at: None,
+        }),
     })
 }
 
@@ -422,7 +424,7 @@ pub(in crate::compiler) fn expr_from_ast(
                     }
 
                     Ok(Expr::PatternMatch {
-                        pattern_id: ctx.get_pattern_id(p.identifier.name),
+                        pattern: ctx.get_pattern_index(p.identifier.name),
                         anchor,
                     })
                 }
@@ -449,14 +451,14 @@ pub(in crate::compiler) fn expr_from_ast(
                 (_, Some(range)) => {
                     ctx.get_pattern_mut(p.name).make_non_anchorable();
                     Ok(Expr::PatternCount {
-                        pattern_id: ctx.get_pattern_id(p.name),
+                        pattern: ctx.get_pattern_index(p.name),
                         range: Some(range_from_ast(ctx, range)?),
                     })
                 }
                 (_, None) => {
                     ctx.get_pattern_mut(p.name).make_non_anchorable();
                     Ok(Expr::PatternCount {
-                        pattern_id: ctx.get_pattern_id(p.name),
+                        pattern: ctx.get_pattern_index(p.name),
                         range: None,
                     })
                 }
@@ -487,7 +489,7 @@ pub(in crate::compiler) fn expr_from_ast(
                 (_, Some(index)) => {
                     ctx.get_pattern_mut(p.name).make_non_anchorable();
                     Ok(Expr::PatternOffset {
-                        pattern_id: ctx.get_pattern_id(p.name),
+                        pattern: ctx.get_pattern_index(p.name),
                         index: Some(Box::new(integer_in_range_from_ast(
                             ctx,
                             index,
@@ -498,7 +500,7 @@ pub(in crate::compiler) fn expr_from_ast(
                 (_, None) => {
                     ctx.get_pattern_mut(p.name).make_non_anchorable();
                     Ok(Expr::PatternOffset {
-                        pattern_id: ctx.get_pattern_id(p.name),
+                        pattern: ctx.get_pattern_index(p.name),
                         index: None,
                     })
                 }
@@ -529,7 +531,7 @@ pub(in crate::compiler) fn expr_from_ast(
                 (_, Some(index)) => {
                     ctx.get_pattern_mut(p.name).make_non_anchorable();
                     Ok(Expr::PatternLength {
-                        pattern_id: ctx.get_pattern_id(p.name),
+                        pattern: ctx.get_pattern_index(p.name),
                         index: Some(Box::new(integer_in_range_from_ast(
                             ctx,
                             index,
@@ -540,7 +542,7 @@ pub(in crate::compiler) fn expr_from_ast(
                 (_, None) => {
                     ctx.get_pattern_mut(p.name).make_non_anchorable();
                     Ok(Expr::PatternLength {
-                        pattern_id: ctx.get_pattern_id(p.name),
+                        pattern: ctx.get_pattern_index(p.name),
                         index: None,
                     })
                 }
@@ -645,9 +647,9 @@ fn of_expr_from_ast(
         }
         // `x of them`, `x of ($a*, $b)`
         ast::OfItems::PatternSet(pattern_set) => {
-            let pattern_ids = pattern_set_from_ast(ctx, pattern_set)?;
-            let num_patterns = pattern_ids.len();
-            (OfItems::PatternSet(pattern_ids), num_patterns)
+            let pattern_indexes = pattern_set_from_ast(ctx, pattern_set)?;
+            let num_patterns = pattern_indexes.len();
+            (OfItems::PatternSet(pattern_indexes), num_patterns)
         }
     };
 
@@ -1032,17 +1034,16 @@ fn quantifier_from_ast(
 fn pattern_set_from_ast(
     ctx: &mut CompileContext,
     pattern_set: &ast::PatternSet,
-) -> Result<Vec<PatternId>, CompileError> {
-    let pattern_ids = match pattern_set {
+) -> Result<Vec<PatternIdx>, CompileError> {
+    let pattern_indexes = match pattern_set {
         // `x of them`
         ast::PatternSet::Them { span } => {
-            let pattern_ids: Vec<PatternId> = ctx
-                .current_rule_patterns
-                .iter()
-                .map(|(pattern_id, _)| *pattern_id)
-                .collect();
+            let pattern_indexes: Vec<PatternIdx> =
+                (0..ctx.current_rule_patterns.len())
+                    .map(|i| i.into())
+                    .collect();
 
-            if pattern_ids.is_empty() {
+            if pattern_indexes.is_empty() {
                 return Err(CompileError::from(
                     CompileErrorInfo::empty_pattern_set(
                         ctx.report_builder,
@@ -1056,11 +1057,11 @@ fn pattern_set_from_ast(
             }
 
             // Make all the patterns in the set non-anchorable.
-            for (_, pattern) in ctx.current_rule_patterns.iter_mut() {
+            for pattern in ctx.current_rule_patterns.iter_mut() {
                 pattern.make_non_anchorable();
             }
 
-            pattern_ids
+            pattern_indexes
         }
         // `x of ($a*, $b)`
         ast::PatternSet::Set(ref set) => {
@@ -1068,7 +1069,7 @@ fn pattern_set_from_ast(
                 if !ctx
                     .current_rule_patterns
                     .iter()
-                    .any(|(_, p)| item.matches(p.identifier()))
+                    .any(|pattern| item.matches(pattern.identifier()))
                 {
                     return Err(CompileError::from(
                         CompileErrorInfo::empty_pattern_set(
@@ -1082,21 +1083,23 @@ fn pattern_set_from_ast(
                     ));
                 }
             }
-            let mut pattern_ids = Vec::new();
-            for (pattern_id, pattern) in ctx.current_rule_patterns.iter_mut() {
+            let mut pattern_indexes = Vec::new();
+            for (i, pattern) in
+                ctx.current_rule_patterns.iter_mut().enumerate()
+            {
                 // Iterate over the patterns in the set (e.g: $foo, $foo*) and
                 // check if some of them matches the identifier.
                 if set.iter().any(|p| p.matches(pattern.identifier())) {
-                    pattern_ids.push(*pattern_id);
+                    pattern_indexes.push(i.into());
                     // All the patterns in the set are made non-anchorable.
                     pattern.make_non_anchorable();
                 }
             }
-            pattern_ids
+            pattern_indexes
         }
     };
 
-    Ok(pattern_ids)
+    Ok(pattern_indexes)
 }
 
 fn func_call_from_ast(
