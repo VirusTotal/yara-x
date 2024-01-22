@@ -144,7 +144,7 @@ message File {
   optional Symtab symtab = 19;
   optional LinkedItData code_signature_data = 20;
   optional CodeSignature certificates = 21;
-
+  repeated string entitlements = 22;
 }
 
 message Macho {
@@ -170,16 +170,17 @@ message Macho {
   optional Symtab symtab = 19;
   optional LinkedItData code_signature_data = 20;
   optional CodeSignature certificates = 21;
+  repeated string entitlements = 22;
 
 
 
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 22 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 23;
-  repeated FatArch fat_arch = 24;
+  optional uint32 fat_magic = 23 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 24;
+  repeated FatArch fat_arch = 25;
 
   // Nested Mach-O files
-  repeated File file = 25;
+  repeated File file = 26;
 }
 
 enum HEADER {

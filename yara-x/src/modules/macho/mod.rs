@@ -45,6 +45,7 @@ const _CS_MAGIC_CODEDIRECTORY: u32 = 0xfade0c02;
 const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
 const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
 const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
+const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
 
 /// Define Mach-O CPU type constants
 const CPU_TYPE_MC680X0: u32 = 0x00000006;
@@ -3249,7 +3250,6 @@ fn parse_macho_code_signature(
     macho_file: &mut File,
 ) -> Result<(), MachoError> {
     if macho_file.code_signature_data.is_some() {
-        let certificates = macho_file.certificates.mut_or_insert_default();
         let code_signature_data =
             macho_file.code_signature_data.as_mut().unwrap();
         let data_offset = code_signature_data.dataoff() as usize;
@@ -3261,35 +3261,72 @@ fn parse_macho_code_signature(
                 .map_err(|e| MachoError::ParsingError(format!("{:?}", e)))?;
 
             for blob_index in super_blob.index {
-                if blob_index.blob.magic == CS_MAGIC_BLOBWRAPPER {
-                    let offset = blob_index.offset as usize;
-                    let length = blob_index.blob.length as usize;
-                    let size_of_blob = std::mem::size_of::<CSBlob>();
+                let offset = blob_index.offset as usize;
+                let length = blob_index.blob.length as usize;
+                let size_of_blob = std::mem::size_of::<CSBlob>();
 
-                    let signage = SignedData::parse_ber(
-                        &super_data[offset + size_of_blob
-                            ..offset + size_of_blob + length],
-                    )
-                    .map_err(|e| {
-                        MachoError::ParsingError(format!("{:?}", e))
-                    })?;
-                    // .unwrap();
+                match blob_index.blob.magic {
+                    CS_MAGIC_BLOBWRAPPER => {
+                        let certificates =
+                            macho_file.certificates.mut_or_insert_default();
 
-                    let signers = signage.signers();
-                    let certs = signage.certificates();
+                        let signage = SignedData::parse_ber(
+                            &super_data
+                                [offset + size_of_blob..offset + length],
+                        )
+                        .map_err(|e| {
+                            MachoError::ParsingError(format!("{:?}", e))
+                        })?;
+                        // .unwrap();
 
-                    certs.for_each(|cert| {
-                        let name = cert.subject_common_name().unwrap();
-                        certificates.common_names.push(name);
-                    });
+                        let signers = signage.signers();
+                        let certs = signage.certificates();
 
-                    signers.for_each(|signer| {
-                        let (name, _) =
-                            signer.certificate_issuer_and_serial().unwrap();
-                        certificates.signer_names.push(
-                            name.user_friendly_str().unwrap().to_string(),
-                        );
-                    });
+                        certs.for_each(|cert| {
+                            let name = cert.subject_common_name().unwrap();
+                            certificates.common_names.push(name);
+                        });
+
+                        signers.for_each(|signer| {
+                            let (name, _) = signer
+                                .certificate_issuer_and_serial()
+                                .unwrap();
+                            certificates.signer_names.push(
+                                name.user_friendly_str().unwrap().to_string(),
+                            );
+                        });
+                    }
+                    CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
+                        let xml_data = &super_data
+                            [offset + size_of_blob..offset + length];
+                        let xml_string =
+                            std::str::from_utf8(xml_data).unwrap_or_default();
+
+                        let opt = roxmltree::ParsingOptions {
+                            allow_dtd: true,
+                            ..roxmltree::ParsingOptions::default()
+                        };
+
+                        let parsed_xml =
+                            roxmltree::Document::parse_with_options(
+                                xml_string, opt,
+                            )
+                            .map_err(|e| {
+                                MachoError::ParsingError(format!("{:?}", e))
+                            })?;
+
+                        for node in parsed_xml
+                            .descendants()
+                            .filter(|n| n.has_tag_name("key"))
+                        {
+                            if let Some(entitlement) = node.text() {
+                                macho_file
+                                    .entitlements
+                                    .push(entitlement.to_string());
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -3931,6 +3968,7 @@ fn main(data: &[u8]) -> Macho {
                 macho_proto.code_signature_data =
                     file_data.code_signature_data;
                 macho_proto.certificates = file_data.certificates;
+                macho_proto.entitlements = file_data.entitlements;
                 macho_proto.entry_point = file_data.entry_point;
                 macho_proto.stack_size = file_data.stack_size;
             }

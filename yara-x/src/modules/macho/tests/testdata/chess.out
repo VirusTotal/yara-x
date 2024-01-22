@@ -839,3 +839,10 @@ certificates:
       - "Software Signing"
     signer_names:
       - "CN=Apple Code Signing Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+entitlements:
+  - "com.apple.developer.game-center"
+  - "com.apple.private.tcc.allow"
+  - "com.apple.security.app-sandbox"
+  - "com.apple.security.device.microphone"
+  - "com.apple.security.files.user-selected.read-write"
+  - "com.apple.security.network.client"
