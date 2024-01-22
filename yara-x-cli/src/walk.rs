@@ -108,32 +108,29 @@ impl<'a> DirWalker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        if path.is_file() {
-            match path
-                .metadata()
-                .with_context(|| format!("can't open {}", path.display()))
-            {
-                Ok(metadata) => {
-                    if self.pass_metadata_filter(metadata) {
-                        if let Err(err) = f(path) {
-                            return e(err);
-                        }
-                    }
-                }
-                Err(err) => {
+        let metadata = match path
+            .metadata()
+            .with_context(|| format!("can't open {}", path.display()))
+        {
+            Ok(metadata) => metadata,
+            Err(err) => {
+                return e(err);
+            }
+        };
+
+        if metadata.is_file() {
+            if self.pass_metadata_filter(metadata) {
+                if let Err(err) = f(path) {
                     return e(err);
                 }
             };
             return Ok(());
         }
 
-        let path = match path
-            .canonicalize()
-            .with_context(|| format!("can't open {}", path.display()))
-        {
+        let path = match path.canonicalize() {
             Ok(path) => path,
             Err(err) => {
-                return e(err);
+                return e(err.into());
             }
         };
 
@@ -365,12 +362,6 @@ impl<'a> ParDirWalker<'a> {
                 }));
             }
 
-            // Drop the `msg_send` so that `msg_recv` is closed. This won't
-            // happen at this point, because there are scan threads retaining
-            // copies of `msg_send`, however, when all the scan threads end
-            // `msg_recv` is closed.
-            drop(msg_send);
-
             // Span a thread that walks the directory and puts file paths in
             // the channel.
             threads.push(s.spawn(move |_| {
@@ -383,8 +374,15 @@ impl<'a> ParDirWalker<'a> {
                         if err.is::<SendError<PathBuf>>() {
                             return Err(err);
                         }
-                        // For other types of error (e.g: permission denied)
-                        // keep walking the directory tree.
+
+                        // Invoke the error callback and abort the walk if the
+                        // callback returns error.
+                        if let Err(err) = e(err, &msg_send) {
+                            let _ = msg_send.send(Message::Abort);
+                            return Err(err);
+                        }
+
+                        // Keep walking the directory tree.
                         Ok(())
                     },
                 );
