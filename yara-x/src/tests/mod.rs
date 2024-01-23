@@ -2035,6 +2035,25 @@ fn match_offset() {
         "#,
         b"foobarfoobar"
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_true!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                // The index in @a[<index>] must be 1 or more, if not
+                // the result must be undefined. We use test_proto2.add(0,0)
+                // because using a literal causes a compilation error when
+                // the compiler notices that the index is 0.
+                not defined @a[test_proto2.add(0,0)] 
+        }
+        "#,
+        b"foo"
+    );
 }
 
 #[test]
@@ -2111,6 +2130,25 @@ fn match_length() {
         }
         "#,
         b"foobarfoobar"
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_true!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                // The index in !a[<index>] must be 1 or more, if not
+                // the result must be undefined. We use test_proto2.add(0,0)
+                // because using a literal causes a compilation error when
+                // the compiler notices that the index is 0.
+                not defined !a[test_proto2.add(0,0)] 
+        }
+        "#,
+        b"foo"
     );
 }
 
