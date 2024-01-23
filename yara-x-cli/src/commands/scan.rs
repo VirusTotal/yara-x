@@ -1,6 +1,5 @@
 use std::cmp::min;
 use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -120,16 +119,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
         let rules_path = rules_path.next().unwrap();
 
-        let mut file = File::open(rules_path)
+        let file = File::open(rules_path)
             .with_context(|| format!("can not open {:?}", &rules_path))?;
 
-        let mut data = Vec::new();
-
-        File::read_to_end(&mut file, &mut data)
-            .with_context(|| format!("can not read {:?}", &rules_path))?;
-
-        // TODO: implement Rules::deserialize_from reader
-        let rules = Rules::deserialize(data.as_slice())?;
+        let rules = Rules::deserialize_from(file)?;
 
         // If the user is defining external variables, make sure that these
         // variables are valid. A scanner is created only with the purpose
