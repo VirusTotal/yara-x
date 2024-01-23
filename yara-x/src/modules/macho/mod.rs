@@ -3830,17 +3830,16 @@ fn ep_for_arch_subtype(
     None
 }
 
-/// The function for checking if any dylib name present in the main Mach-O or embedded Mach-O files
-/// contain a dylib with the desired name
+/// The function for checking if a given entitlement is present in the main Mach-O or embedded Mach-O files
 ///
 /// # Arguments
 ///
 /// * `ctx`: A mutable reference to the scanning context.
-/// * `dylib_name`: The name of the dylib to check if present
+/// * `entitlement`: The name of the entitlement to check if present
 ///
 /// # Returns
 ///
-/// An `Option<bool>` containing if the name is found
+/// An `Option<bool>` containing if the entitlement is found
 #[module_export(name = "entitlement_present")]
 fn entitlements_present(
     ctx: &ScanContext,
