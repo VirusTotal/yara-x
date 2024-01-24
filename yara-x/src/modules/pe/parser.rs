@@ -1,6 +1,6 @@
 use std::cell::OnceCell;
 use std::cmp::min;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::default::Default;
 use std::iter::zip;
 use std::str::{from_utf8, FromStr};
@@ -2647,529 +2647,541 @@ fn ord_to_name(dll_name: &str, ordinal: u16) -> Option<String> {
 
 /// Convert ordinal number to function name for oleaut32.dll.
 fn oleaut32_ord_to_name(ordinal: u16) -> Option<&'static str> {
-    match ordinal {
-        2 => Some("SysAllocString"),
-        3 => Some("SysReAllocString"),
-        4 => Some("SysAllocStringLen"),
-        5 => Some("SysReAllocStringLen"),
-        6 => Some("SysFreeString"),
-        7 => Some("SysStringLen"),
-        8 => Some("VariantInit"),
-        9 => Some("VariantClear"),
-        10 => Some("VariantCopy"),
-        11 => Some("VariantCopyInd"),
-        12 => Some("VariantChangeType"),
-        13 => Some("VariantTimeToDosDateTime"),
-        14 => Some("DosDateTimeToVariantTime"),
-        15 => Some("SafeArrayCreate"),
-        16 => Some("SafeArrayDestroy"),
-        17 => Some("SafeArrayGetDim"),
-        18 => Some("SafeArrayGetElemsize"),
-        19 => Some("SafeArrayGetUBound"),
-        20 => Some("SafeArrayGetLBound"),
-        21 => Some("SafeArrayLock"),
-        22 => Some("SafeArrayUnlock"),
-        23 => Some("SafeArrayAccessData"),
-        24 => Some("SafeArrayUnaccessData"),
-        25 => Some("SafeArrayGetElement"),
-        26 => Some("SafeArrayPutElement"),
-        27 => Some("SafeArrayCopy"),
-        28 => Some("DispGetParam"),
-        29 => Some("DispGetIDsOfNames"),
-        30 => Some("DispInvoke"),
-        31 => Some("CreateDispTypeInfo"),
-        32 => Some("CreateStdDispatch"),
-        33 => Some("RegisterActiveObject"),
-        34 => Some("RevokeActiveObject"),
-        35 => Some("GetActiveObject"),
-        36 => Some("SafeArrayAllocDescriptor"),
-        37 => Some("SafeArrayAllocData"),
-        38 => Some("SafeArrayDestroyDescriptor"),
-        39 => Some("SafeArrayDestroyData"),
-        40 => Some("SafeArrayRedim"),
-        41 => Some("SafeArrayAllocDescriptorEx"),
-        42 => Some("SafeArrayCreateEx"),
-        43 => Some("SafeArrayCreateVectorEx"),
-        44 => Some("SafeArraySetRecordInfo"),
-        45 => Some("SafeArrayGetRecordInfo"),
-        46 => Some("VarParseNumFromStr"),
-        47 => Some("VarNumFromParseNum"),
-        48 => Some("VarI2FromUI1"),
-        49 => Some("VarI2FromI4"),
-        50 => Some("VarI2FromR4"),
-        51 => Some("VarI2FromR8"),
-        52 => Some("VarI2FromCy"),
-        53 => Some("VarI2FromDate"),
-        54 => Some("VarI2FromStr"),
-        55 => Some("VarI2FromDisp"),
-        56 => Some("VarI2FromBool"),
-        57 => Some("SafeArraySetIID"),
-        58 => Some("VarI4FromUI1"),
-        59 => Some("VarI4FromI2"),
-        60 => Some("VarI4FromR4"),
-        61 => Some("VarI4FromR8"),
-        62 => Some("VarI4FromCy"),
-        63 => Some("VarI4FromDate"),
-        64 => Some("VarI4FromStr"),
-        65 => Some("VarI4FromDisp"),
-        66 => Some("VarI4FromBool"),
-        67 => Some("SafeArrayGetIID"),
-        68 => Some("VarR4FromUI1"),
-        69 => Some("VarR4FromI2"),
-        70 => Some("VarR4FromI4"),
-        71 => Some("VarR4FromR8"),
-        72 => Some("VarR4FromCy"),
-        73 => Some("VarR4FromDate"),
-        74 => Some("VarR4FromStr"),
-        75 => Some("VarR4FromDisp"),
-        76 => Some("VarR4FromBool"),
-        77 => Some("SafeArrayGetVartype"),
-        78 => Some("VarR8FromUI1"),
-        79 => Some("VarR8FromI2"),
-        80 => Some("VarR8FromI4"),
-        81 => Some("VarR8FromR4"),
-        82 => Some("VarR8FromCy"),
-        83 => Some("VarR8FromDate"),
-        84 => Some("VarR8FromStr"),
-        85 => Some("VarR8FromDisp"),
-        86 => Some("VarR8FromBool"),
-        87 => Some("VarFormat"),
-        88 => Some("VarDateFromUI1"),
-        89 => Some("VarDateFromI2"),
-        90 => Some("VarDateFromI4"),
-        91 => Some("VarDateFromR4"),
-        92 => Some("VarDateFromR8"),
-        93 => Some("VarDateFromCy"),
-        94 => Some("VarDateFromStr"),
-        95 => Some("VarDateFromDisp"),
-        96 => Some("VarDateFromBool"),
-        97 => Some("VarFormatDateTime"),
-        98 => Some("VarCyFromUI1"),
-        99 => Some("VarCyFromI2"),
-        100 => Some("VarCyFromI4"),
-        101 => Some("VarCyFromR4"),
-        102 => Some("VarCyFromR8"),
-        103 => Some("VarCyFromDate"),
-        104 => Some("VarCyFromStr"),
-        105 => Some("VarCyFromDisp"),
-        106 => Some("VarCyFromBool"),
-        107 => Some("VarFormatNumber"),
-        108 => Some("VarBstrFromUI1"),
-        109 => Some("VarBstrFromI2"),
-        110 => Some("VarBstrFromI4"),
-        111 => Some("VarBstrFromR4"),
-        112 => Some("VarBstrFromR8"),
-        113 => Some("VarBstrFromCy"),
-        114 => Some("VarBstrFromDate"),
-        115 => Some("VarBstrFromDisp"),
-        116 => Some("VarBstrFromBool"),
-        117 => Some("VarFormatPercent"),
-        118 => Some("VarBoolFromUI1"),
-        119 => Some("VarBoolFromI2"),
-        120 => Some("VarBoolFromI4"),
-        121 => Some("VarBoolFromR4"),
-        122 => Some("VarBoolFromR8"),
-        123 => Some("VarBoolFromDate"),
-        124 => Some("VarBoolFromCy"),
-        125 => Some("VarBoolFromStr"),
-        126 => Some("VarBoolFromDisp"),
-        127 => Some("VarFormatCurrency"),
-        128 => Some("VarWeekdayName"),
-        129 => Some("VarMonthName"),
-        130 => Some("VarUI1FromI2"),
-        131 => Some("VarUI1FromI4"),
-        132 => Some("VarUI1FromR4"),
-        133 => Some("VarUI1FromR8"),
-        134 => Some("VarUI1FromCy"),
-        135 => Some("VarUI1FromDate"),
-        136 => Some("VarUI1FromStr"),
-        137 => Some("VarUI1FromDisp"),
-        138 => Some("VarUI1FromBool"),
-        139 => Some("VarFormatFromTokens"),
-        140 => Some("VarTokenizeFormatString"),
-        141 => Some("VarAdd"),
-        142 => Some("VarAnd"),
-        143 => Some("VarDiv"),
-        144 => Some("DllCanUnloadNow"),
-        145 => Some("DllGetClassObject"),
-        146 => Some("DispCallFunc"),
-        147 => Some("VariantChangeTypeEx"),
-        148 => Some("SafeArrayPtrOfIndex"),
-        149 => Some("SysStringByteLen"),
-        150 => Some("SysAllocStringByteLen"),
-        151 => Some("DllRegisterServer"),
-        152 => Some("VarEqv"),
-        153 => Some("VarIdiv"),
-        154 => Some("VarImp"),
-        155 => Some("VarMod"),
-        156 => Some("VarMul"),
-        157 => Some("VarOr"),
-        158 => Some("VarPow"),
-        159 => Some("VarSub"),
-        160 => Some("CreateTypeLib"),
-        161 => Some("LoadTypeLib"),
-        162 => Some("LoadRegTypeLib"),
-        163 => Some("RegisterTypeLib"),
-        164 => Some("QueryPathOfRegTypeLib"),
-        165 => Some("LHashValOfNameSys"),
-        166 => Some("LHashValOfNameSysA"),
-        167 => Some("VarXor"),
-        168 => Some("VarAbs"),
-        169 => Some("VarFix"),
-        170 => Some("OaBuildVersion"),
-        171 => Some("ClearCustData"),
-        172 => Some("VarInt"),
-        173 => Some("VarNeg"),
-        174 => Some("VarNot"),
-        175 => Some("VarRound"),
-        176 => Some("VarCmp"),
-        177 => Some("VarDecAdd"),
-        178 => Some("VarDecDiv"),
-        179 => Some("VarDecMul"),
-        180 => Some("CreateTypeLib2"),
-        181 => Some("VarDecSub"),
-        182 => Some("VarDecAbs"),
-        183 => Some("LoadTypeLibEx"),
-        184 => Some("SystemTimeToVariantTime"),
-        185 => Some("VariantTimeToSystemTime"),
-        186 => Some("UnRegisterTypeLib"),
-        187 => Some("VarDecFix"),
-        188 => Some("VarDecInt"),
-        189 => Some("VarDecNeg"),
-        190 => Some("VarDecFromUI1"),
-        191 => Some("VarDecFromI2"),
-        192 => Some("VarDecFromI4"),
-        193 => Some("VarDecFromR4"),
-        194 => Some("VarDecFromR8"),
-        195 => Some("VarDecFromDate"),
-        196 => Some("VarDecFromCy"),
-        197 => Some("VarDecFromStr"),
-        198 => Some("VarDecFromDisp"),
-        199 => Some("VarDecFromBool"),
-        200 => Some("GetErrorInfo"),
-        201 => Some("SetErrorInfo"),
-        202 => Some("CreateErrorInfo"),
-        203 => Some("VarDecRound"),
-        204 => Some("VarDecCmp"),
-        205 => Some("VarI2FromI1"),
-        206 => Some("VarI2FromUI2"),
-        207 => Some("VarI2FromUI4"),
-        208 => Some("VarI2FromDec"),
-        209 => Some("VarI4FromI1"),
-        210 => Some("VarI4FromUI2"),
-        211 => Some("VarI4FromUI4"),
-        212 => Some("VarI4FromDec"),
-        213 => Some("VarR4FromI1"),
-        214 => Some("VarR4FromUI2"),
-        215 => Some("VarR4FromUI4"),
-        216 => Some("VarR4FromDec"),
-        217 => Some("VarR8FromI1"),
-        218 => Some("VarR8FromUI2"),
-        219 => Some("VarR8FromUI4"),
-        220 => Some("VarR8FromDec"),
-        221 => Some("VarDateFromI1"),
-        222 => Some("VarDateFromUI2"),
-        223 => Some("VarDateFromUI4"),
-        224 => Some("VarDateFromDec"),
-        225 => Some("VarCyFromI1"),
-        226 => Some("VarCyFromUI2"),
-        227 => Some("VarCyFromUI4"),
-        228 => Some("VarCyFromDec"),
-        229 => Some("VarBstrFromI1"),
-        230 => Some("VarBstrFromUI2"),
-        231 => Some("VarBstrFromUI4"),
-        232 => Some("VarBstrFromDec"),
-        233 => Some("VarBoolFromI1"),
-        234 => Some("VarBoolFromUI2"),
-        235 => Some("VarBoolFromUI4"),
-        236 => Some("VarBoolFromDec"),
-        237 => Some("VarUI1FromI1"),
-        238 => Some("VarUI1FromUI2"),
-        239 => Some("VarUI1FromUI4"),
-        240 => Some("VarUI1FromDec"),
-        241 => Some("VarDecFromI1"),
-        242 => Some("VarDecFromUI2"),
-        243 => Some("VarDecFromUI4"),
-        244 => Some("VarI1FromUI1"),
-        245 => Some("VarI1FromI2"),
-        246 => Some("VarI1FromI4"),
-        247 => Some("VarI1FromR4"),
-        248 => Some("VarI1FromR8"),
-        249 => Some("VarI1FromDate"),
-        250 => Some("VarI1FromCy"),
-        251 => Some("VarI1FromStr"),
-        252 => Some("VarI1FromDisp"),
-        253 => Some("VarI1FromBool"),
-        254 => Some("VarI1FromUI2"),
-        255 => Some("VarI1FromUI4"),
-        256 => Some("VarI1FromDec"),
-        257 => Some("VarUI2FromUI1"),
-        258 => Some("VarUI2FromI2"),
-        259 => Some("VarUI2FromI4"),
-        260 => Some("VarUI2FromR4"),
-        261 => Some("VarUI2FromR8"),
-        262 => Some("VarUI2FromDate"),
-        263 => Some("VarUI2FromCy"),
-        264 => Some("VarUI2FromStr"),
-        265 => Some("VarUI2FromDisp"),
-        266 => Some("VarUI2FromBool"),
-        267 => Some("VarUI2FromI1"),
-        268 => Some("VarUI2FromUI4"),
-        269 => Some("VarUI2FromDec"),
-        270 => Some("VarUI4FromUI1"),
-        271 => Some("VarUI4FromI2"),
-        272 => Some("VarUI4FromI4"),
-        273 => Some("VarUI4FromR4"),
-        274 => Some("VarUI4FromR8"),
-        275 => Some("VarUI4FromDate"),
-        276 => Some("VarUI4FromCy"),
-        277 => Some("VarUI4FromStr"),
-        278 => Some("VarUI4FromDisp"),
-        279 => Some("VarUI4FromBool"),
-        280 => Some("VarUI4FromI1"),
-        281 => Some("VarUI4FromUI2"),
-        282 => Some("VarUI4FromDec"),
-        283 => Some("BSTR_UserSize"),
-        284 => Some("BSTR_UserMarshal"),
-        285 => Some("BSTR_UserUnmarshal"),
-        286 => Some("BSTR_UserFree"),
-        287 => Some("VARIANT_UserSize"),
-        288 => Some("VARIANT_UserMarshal"),
-        289 => Some("VARIANT_UserUnmarshal"),
-        290 => Some("VARIANT_UserFree"),
-        291 => Some("LPSAFEARRAY_UserSize"),
-        292 => Some("LPSAFEARRAY_UserMarshal"),
-        293 => Some("LPSAFEARRAY_UserUnmarshal"),
-        294 => Some("LPSAFEARRAY_UserFree"),
-        295 => Some("LPSAFEARRAY_Size"),
-        296 => Some("LPSAFEARRAY_Marshal"),
-        297 => Some("LPSAFEARRAY_Unmarshal"),
-        298 => Some("VarDecCmpR8"),
-        299 => Some("VarCyAdd"),
-        300 => Some("DllUnregisterServer"),
-        301 => Some("OACreateTypeLib2"),
-        303 => Some("VarCyMul"),
-        304 => Some("VarCyMulI4"),
-        305 => Some("VarCySub"),
-        306 => Some("VarCyAbs"),
-        307 => Some("VarCyFix"),
-        308 => Some("VarCyInt"),
-        309 => Some("VarCyNeg"),
-        310 => Some("VarCyRound"),
-        311 => Some("VarCyCmp"),
-        312 => Some("VarCyCmpR8"),
-        313 => Some("VarBstrCat"),
-        314 => Some("VarBstrCmp"),
-        315 => Some("VarR8Pow"),
-        316 => Some("VarR4CmpR8"),
-        317 => Some("VarR8Round"),
-        318 => Some("VarCat"),
-        319 => Some("VarDateFromUdateEx"),
-        322 => Some("GetRecordInfoFromGuids"),
-        323 => Some("GetRecordInfoFromTypeInfo"),
-        325 => Some("SetVarConversionLocaleSetting"),
-        326 => Some("GetVarConversionLocaleSetting"),
-        327 => Some("SetOaNoCache"),
-        329 => Some("VarCyMulI8"),
-        330 => Some("VarDateFromUdate"),
-        331 => Some("VarUdateFromDate"),
-        332 => Some("GetAltMonthNames"),
-        333 => Some("VarI8FromUI1"),
-        334 => Some("VarI8FromI2"),
-        335 => Some("VarI8FromR4"),
-        336 => Some("VarI8FromR8"),
-        337 => Some("VarI8FromCy"),
-        338 => Some("VarI8FromDate"),
-        339 => Some("VarI8FromStr"),
-        340 => Some("VarI8FromDisp"),
-        341 => Some("VarI8FromBool"),
-        342 => Some("VarI8FromI1"),
-        343 => Some("VarI8FromUI2"),
-        344 => Some("VarI8FromUI4"),
-        345 => Some("VarI8FromDec"),
-        346 => Some("VarI2FromI8"),
-        347 => Some("VarI2FromUI8"),
-        348 => Some("VarI4FromI8"),
-        349 => Some("VarI4FromUI8"),
-        360 => Some("VarR4FromI8"),
-        361 => Some("VarR4FromUI8"),
-        362 => Some("VarR8FromI8"),
-        363 => Some("VarR8FromUI8"),
-        364 => Some("VarDateFromI8"),
-        365 => Some("VarDateFromUI8"),
-        366 => Some("VarCyFromI8"),
-        367 => Some("VarCyFromUI8"),
-        368 => Some("VarBstrFromI8"),
-        369 => Some("VarBstrFromUI8"),
-        370 => Some("VarBoolFromI8"),
-        371 => Some("VarBoolFromUI8"),
-        372 => Some("VarUI1FromI8"),
-        373 => Some("VarUI1FromUI8"),
-        374 => Some("VarDecFromI8"),
-        375 => Some("VarDecFromUI8"),
-        376 => Some("VarI1FromI8"),
-        377 => Some("VarI1FromUI8"),
-        378 => Some("VarUI2FromI8"),
-        379 => Some("VarUI2FromUI8"),
-        401 => Some("OleLoadPictureEx"),
-        402 => Some("OleLoadPictureFileEx"),
-        411 => Some("SafeArrayCreateVector"),
-        412 => Some("SafeArrayCopyData"),
-        413 => Some("VectorFromBstr"),
-        414 => Some("BstrFromVector"),
-        415 => Some("OleIconToCursor"),
-        416 => Some("OleCreatePropertyFrameIndirect"),
-        417 => Some("OleCreatePropertyFrame"),
-        418 => Some("OleLoadPicture"),
-        419 => Some("OleCreatePictureIndirect"),
-        420 => Some("OleCreateFontIndirect"),
-        421 => Some("OleTranslateColor"),
-        422 => Some("OleLoadPictureFile"),
-        423 => Some("OleSavePictureFile"),
-        424 => Some("OleLoadPicturePath"),
-        425 => Some("VarUI4FromI8"),
-        426 => Some("VarUI4FromUI8"),
-        427 => Some("VarI8FromUI8"),
-        428 => Some("VarUI8FromI8"),
-        429 => Some("VarUI8FromUI1"),
-        430 => Some("VarUI8FromI2"),
-        431 => Some("VarUI8FromR4"),
-        432 => Some("VarUI8FromR8"),
-        433 => Some("VarUI8FromCy"),
-        434 => Some("VarUI8FromDate"),
-        435 => Some("VarUI8FromStr"),
-        436 => Some("VarUI8FromDisp"),
-        437 => Some("VarUI8FromBool"),
-        438 => Some("VarUI8FromI1"),
-        439 => Some("VarUI8FromUI2"),
-        440 => Some("VarUI8FromUI4"),
-        441 => Some("VarUI8FromDec"),
-        442 => Some("RegisterTypeLibForUser"),
-        443 => Some("UnRegisterTypeLibForUser"),
-        _ => None,
-    }
+    static OLEAUT32_ORD_TO_NAME: OnceLock<HashMap<u16, &'static str>> =
+        OnceLock::new();
+
+    let m = OLEAUT32_ORD_TO_NAME.get_or_init(|| {
+        let mut m = HashMap::new();
+        m.insert(2, "SysAllocString");
+        m.insert(3, "SysReAllocString");
+        m.insert(4, "SysAllocStringLen");
+        m.insert(5, "SysReAllocStringLen");
+        m.insert(6, "SysFreeString");
+        m.insert(7, "SysStringLen");
+        m.insert(8, "VariantInit");
+        m.insert(9, "VariantClear");
+        m.insert(10, "VariantCopy");
+        m.insert(11, "VariantCopyInd");
+        m.insert(12, "VariantChangeType");
+        m.insert(13, "VariantTimeToDosDateTime");
+        m.insert(14, "DosDateTimeToVariantTime");
+        m.insert(15, "SafeArrayCreate");
+        m.insert(16, "SafeArrayDestroy");
+        m.insert(17, "SafeArrayGetDim");
+        m.insert(18, "SafeArrayGetElemsize");
+        m.insert(19, "SafeArrayGetUBound");
+        m.insert(20, "SafeArrayGetLBound");
+        m.insert(21, "SafeArrayLock");
+        m.insert(22, "SafeArrayUnlock");
+        m.insert(23, "SafeArrayAccessData");
+        m.insert(24, "SafeArrayUnaccessData");
+        m.insert(25, "SafeArrayGetElement");
+        m.insert(26, "SafeArrayPutElement");
+        m.insert(27, "SafeArrayCopy");
+        m.insert(28, "DispGetParam");
+        m.insert(29, "DispGetIDsOfNames");
+        m.insert(30, "DispInvoke");
+        m.insert(31, "CreateDispTypeInfo");
+        m.insert(32, "CreateStdDispatch");
+        m.insert(33, "RegisterActiveObject");
+        m.insert(34, "RevokeActiveObject");
+        m.insert(35, "GetActiveObject");
+        m.insert(36, "SafeArrayAllocDescriptor");
+        m.insert(37, "SafeArrayAllocData");
+        m.insert(38, "SafeArrayDestroyDescriptor");
+        m.insert(39, "SafeArrayDestroyData");
+        m.insert(40, "SafeArrayRedim");
+        m.insert(41, "SafeArrayAllocDescriptorEx");
+        m.insert(42, "SafeArrayCreateEx");
+        m.insert(43, "SafeArrayCreateVectorEx");
+        m.insert(44, "SafeArraySetRecordInfo");
+        m.insert(45, "SafeArrayGetRecordInfo");
+        m.insert(46, "VarParseNumFromStr");
+        m.insert(47, "VarNumFromParseNum");
+        m.insert(48, "VarI2FromUI1");
+        m.insert(49, "VarI2FromI4");
+        m.insert(50, "VarI2FromR4");
+        m.insert(51, "VarI2FromR8");
+        m.insert(52, "VarI2FromCy");
+        m.insert(53, "VarI2FromDate");
+        m.insert(54, "VarI2FromStr");
+        m.insert(55, "VarI2FromDisp");
+        m.insert(56, "VarI2FromBool");
+        m.insert(57, "SafeArraySetIID");
+        m.insert(58, "VarI4FromUI1");
+        m.insert(59, "VarI4FromI2");
+        m.insert(60, "VarI4FromR4");
+        m.insert(61, "VarI4FromR8");
+        m.insert(62, "VarI4FromCy");
+        m.insert(63, "VarI4FromDate");
+        m.insert(64, "VarI4FromStr");
+        m.insert(65, "VarI4FromDisp");
+        m.insert(66, "VarI4FromBool");
+        m.insert(67, "SafeArrayGetIID");
+        m.insert(68, "VarR4FromUI1");
+        m.insert(69, "VarR4FromI2");
+        m.insert(70, "VarR4FromI4");
+        m.insert(71, "VarR4FromR8");
+        m.insert(72, "VarR4FromCy");
+        m.insert(73, "VarR4FromDate");
+        m.insert(74, "VarR4FromStr");
+        m.insert(75, "VarR4FromDisp");
+        m.insert(76, "VarR4FromBool");
+        m.insert(77, "SafeArrayGetVartype");
+        m.insert(78, "VarR8FromUI1");
+        m.insert(79, "VarR8FromI2");
+        m.insert(80, "VarR8FromI4");
+        m.insert(81, "VarR8FromR4");
+        m.insert(82, "VarR8FromCy");
+        m.insert(83, "VarR8FromDate");
+        m.insert(84, "VarR8FromStr");
+        m.insert(85, "VarR8FromDisp");
+        m.insert(86, "VarR8FromBool");
+        m.insert(87, "VarFormat");
+        m.insert(88, "VarDateFromUI1");
+        m.insert(89, "VarDateFromI2");
+        m.insert(90, "VarDateFromI4");
+        m.insert(91, "VarDateFromR4");
+        m.insert(92, "VarDateFromR8");
+        m.insert(93, "VarDateFromCy");
+        m.insert(94, "VarDateFromStr");
+        m.insert(95, "VarDateFromDisp");
+        m.insert(96, "VarDateFromBool");
+        m.insert(97, "VarFormatDateTime");
+        m.insert(98, "VarCyFromUI1");
+        m.insert(99, "VarCyFromI2");
+        m.insert(100, "VarCyFromI4");
+        m.insert(101, "VarCyFromR4");
+        m.insert(102, "VarCyFromR8");
+        m.insert(103, "VarCyFromDate");
+        m.insert(104, "VarCyFromStr");
+        m.insert(105, "VarCyFromDisp");
+        m.insert(106, "VarCyFromBool");
+        m.insert(107, "VarFormatNumber");
+        m.insert(108, "VarBstrFromUI1");
+        m.insert(109, "VarBstrFromI2");
+        m.insert(110, "VarBstrFromI4");
+        m.insert(111, "VarBstrFromR4");
+        m.insert(112, "VarBstrFromR8");
+        m.insert(113, "VarBstrFromCy");
+        m.insert(114, "VarBstrFromDate");
+        m.insert(115, "VarBstrFromDisp");
+        m.insert(116, "VarBstrFromBool");
+        m.insert(117, "VarFormatPercent");
+        m.insert(118, "VarBoolFromUI1");
+        m.insert(119, "VarBoolFromI2");
+        m.insert(120, "VarBoolFromI4");
+        m.insert(121, "VarBoolFromR4");
+        m.insert(122, "VarBoolFromR8");
+        m.insert(123, "VarBoolFromDate");
+        m.insert(124, "VarBoolFromCy");
+        m.insert(125, "VarBoolFromStr");
+        m.insert(126, "VarBoolFromDisp");
+        m.insert(127, "VarFormatCurrency");
+        m.insert(128, "VarWeekdayName");
+        m.insert(129, "VarMonthName");
+        m.insert(130, "VarUI1FromI2");
+        m.insert(131, "VarUI1FromI4");
+        m.insert(132, "VarUI1FromR4");
+        m.insert(133, "VarUI1FromR8");
+        m.insert(134, "VarUI1FromCy");
+        m.insert(135, "VarUI1FromDate");
+        m.insert(136, "VarUI1FromStr");
+        m.insert(137, "VarUI1FromDisp");
+        m.insert(138, "VarUI1FromBool");
+        m.insert(139, "VarFormatFromTokens");
+        m.insert(140, "VarTokenizeFormatString");
+        m.insert(141, "VarAdd");
+        m.insert(142, "VarAnd");
+        m.insert(143, "VarDiv");
+        m.insert(144, "DllCanUnloadNow");
+        m.insert(145, "DllGetClassObject");
+        m.insert(146, "DispCallFunc");
+        m.insert(147, "VariantChangeTypeEx");
+        m.insert(148, "SafeArrayPtrOfIndex");
+        m.insert(149, "SysStringByteLen");
+        m.insert(150, "SysAllocStringByteLen");
+        m.insert(151, "DllRegisterServer");
+        m.insert(152, "VarEqv");
+        m.insert(153, "VarIdiv");
+        m.insert(154, "VarImp");
+        m.insert(155, "VarMod");
+        m.insert(156, "VarMul");
+        m.insert(157, "VarOr");
+        m.insert(158, "VarPow");
+        m.insert(159, "VarSub");
+        m.insert(160, "CreateTypeLib");
+        m.insert(161, "LoadTypeLib");
+        m.insert(162, "LoadRegTypeLib");
+        m.insert(163, "RegisterTypeLib");
+        m.insert(164, "QueryPathOfRegTypeLib");
+        m.insert(165, "LHashValOfNameSys");
+        m.insert(166, "LHashValOfNameSysA");
+        m.insert(167, "VarXor");
+        m.insert(168, "VarAbs");
+        m.insert(169, "VarFix");
+        m.insert(170, "OaBuildVersion");
+        m.insert(171, "ClearCustData");
+        m.insert(172, "VarInt");
+        m.insert(173, "VarNeg");
+        m.insert(174, "VarNot");
+        m.insert(175, "VarRound");
+        m.insert(176, "VarCmp");
+        m.insert(177, "VarDecAdd");
+        m.insert(178, "VarDecDiv");
+        m.insert(179, "VarDecMul");
+        m.insert(180, "CreateTypeLib2");
+        m.insert(181, "VarDecSub");
+        m.insert(182, "VarDecAbs");
+        m.insert(183, "LoadTypeLibEx");
+        m.insert(184, "SystemTimeToVariantTime");
+        m.insert(185, "VariantTimeToSystemTime");
+        m.insert(186, "UnRegisterTypeLib");
+        m.insert(187, "VarDecFix");
+        m.insert(188, "VarDecInt");
+        m.insert(189, "VarDecNeg");
+        m.insert(190, "VarDecFromUI1");
+        m.insert(191, "VarDecFromI2");
+        m.insert(192, "VarDecFromI4");
+        m.insert(193, "VarDecFromR4");
+        m.insert(194, "VarDecFromR8");
+        m.insert(195, "VarDecFromDate");
+        m.insert(196, "VarDecFromCy");
+        m.insert(197, "VarDecFromStr");
+        m.insert(198, "VarDecFromDisp");
+        m.insert(199, "VarDecFromBool");
+        m.insert(200, "GetErrorInfo");
+        m.insert(201, "SetErrorInfo");
+        m.insert(202, "CreateErrorInfo");
+        m.insert(203, "VarDecRound");
+        m.insert(204, "VarDecCmp");
+        m.insert(205, "VarI2FromI1");
+        m.insert(206, "VarI2FromUI2");
+        m.insert(207, "VarI2FromUI4");
+        m.insert(208, "VarI2FromDec");
+        m.insert(209, "VarI4FromI1");
+        m.insert(210, "VarI4FromUI2");
+        m.insert(211, "VarI4FromUI4");
+        m.insert(212, "VarI4FromDec");
+        m.insert(213, "VarR4FromI1");
+        m.insert(214, "VarR4FromUI2");
+        m.insert(215, "VarR4FromUI4");
+        m.insert(216, "VarR4FromDec");
+        m.insert(217, "VarR8FromI1");
+        m.insert(218, "VarR8FromUI2");
+        m.insert(219, "VarR8FromUI4");
+        m.insert(220, "VarR8FromDec");
+        m.insert(221, "VarDateFromI1");
+        m.insert(222, "VarDateFromUI2");
+        m.insert(223, "VarDateFromUI4");
+        m.insert(224, "VarDateFromDec");
+        m.insert(225, "VarCyFromI1");
+        m.insert(226, "VarCyFromUI2");
+        m.insert(227, "VarCyFromUI4");
+        m.insert(228, "VarCyFromDec");
+        m.insert(229, "VarBstrFromI1");
+        m.insert(230, "VarBstrFromUI2");
+        m.insert(231, "VarBstrFromUI4");
+        m.insert(232, "VarBstrFromDec");
+        m.insert(233, "VarBoolFromI1");
+        m.insert(234, "VarBoolFromUI2");
+        m.insert(235, "VarBoolFromUI4");
+        m.insert(236, "VarBoolFromDec");
+        m.insert(237, "VarUI1FromI1");
+        m.insert(238, "VarUI1FromUI2");
+        m.insert(239, "VarUI1FromUI4");
+        m.insert(240, "VarUI1FromDec");
+        m.insert(241, "VarDecFromI1");
+        m.insert(242, "VarDecFromUI2");
+        m.insert(243, "VarDecFromUI4");
+        m.insert(244, "VarI1FromUI1");
+        m.insert(245, "VarI1FromI2");
+        m.insert(246, "VarI1FromI4");
+        m.insert(247, "VarI1FromR4");
+        m.insert(248, "VarI1FromR8");
+        m.insert(249, "VarI1FromDate");
+        m.insert(250, "VarI1FromCy");
+        m.insert(251, "VarI1FromStr");
+        m.insert(252, "VarI1FromDisp");
+        m.insert(253, "VarI1FromBool");
+        m.insert(254, "VarI1FromUI2");
+        m.insert(255, "VarI1FromUI4");
+        m.insert(256, "VarI1FromDec");
+        m.insert(257, "VarUI2FromUI1");
+        m.insert(258, "VarUI2FromI2");
+        m.insert(259, "VarUI2FromI4");
+        m.insert(260, "VarUI2FromR4");
+        m.insert(261, "VarUI2FromR8");
+        m.insert(262, "VarUI2FromDate");
+        m.insert(263, "VarUI2FromCy");
+        m.insert(264, "VarUI2FromStr");
+        m.insert(265, "VarUI2FromDisp");
+        m.insert(266, "VarUI2FromBool");
+        m.insert(267, "VarUI2FromI1");
+        m.insert(268, "VarUI2FromUI4");
+        m.insert(269, "VarUI2FromDec");
+        m.insert(270, "VarUI4FromUI1");
+        m.insert(271, "VarUI4FromI2");
+        m.insert(272, "VarUI4FromI4");
+        m.insert(273, "VarUI4FromR4");
+        m.insert(274, "VarUI4FromR8");
+        m.insert(275, "VarUI4FromDate");
+        m.insert(276, "VarUI4FromCy");
+        m.insert(277, "VarUI4FromStr");
+        m.insert(278, "VarUI4FromDisp");
+        m.insert(279, "VarUI4FromBool");
+        m.insert(280, "VarUI4FromI1");
+        m.insert(281, "VarUI4FromUI2");
+        m.insert(282, "VarUI4FromDec");
+        m.insert(283, "BSTR_UserSize");
+        m.insert(284, "BSTR_UserMarshal");
+        m.insert(285, "BSTR_UserUnmarshal");
+        m.insert(286, "BSTR_UserFree");
+        m.insert(287, "VARIANT_UserSize");
+        m.insert(288, "VARIANT_UserMarshal");
+        m.insert(289, "VARIANT_UserUnmarshal");
+        m.insert(290, "VARIANT_UserFree");
+        m.insert(291, "LPSAFEARRAY_UserSize");
+        m.insert(292, "LPSAFEARRAY_UserMarshal");
+        m.insert(293, "LPSAFEARRAY_UserUnmarshal");
+        m.insert(294, "LPSAFEARRAY_UserFree");
+        m.insert(295, "LPSAFEARRAY_Size");
+        m.insert(296, "LPSAFEARRAY_Marshal");
+        m.insert(297, "LPSAFEARRAY_Unmarshal");
+        m.insert(298, "VarDecCmpR8");
+        m.insert(299, "VarCyAdd");
+        m.insert(300, "DllUnregisterServer");
+        m.insert(301, "OACreateTypeLib2");
+        m.insert(303, "VarCyMul");
+        m.insert(304, "VarCyMulI4");
+        m.insert(305, "VarCySub");
+        m.insert(306, "VarCyAbs");
+        m.insert(307, "VarCyFix");
+        m.insert(308, "VarCyInt");
+        m.insert(309, "VarCyNeg");
+        m.insert(310, "VarCyRound");
+        m.insert(311, "VarCyCmp");
+        m.insert(312, "VarCyCmpR8");
+        m.insert(313, "VarBstrCat");
+        m.insert(314, "VarBstrCmp");
+        m.insert(315, "VarR8Pow");
+        m.insert(316, "VarR4CmpR8");
+        m.insert(317, "VarR8Round");
+        m.insert(318, "VarCat");
+        m.insert(319, "VarDateFromUdateEx");
+        m.insert(322, "GetRecordInfoFromGuids");
+        m.insert(323, "GetRecordInfoFromTypeInfo");
+        m.insert(325, "SetVarConversionLocaleSetting");
+        m.insert(326, "GetVarConversionLocaleSetting");
+        m.insert(327, "SetOaNoCache");
+        m.insert(329, "VarCyMulI8");
+        m.insert(330, "VarDateFromUdate");
+        m.insert(331, "VarUdateFromDate");
+        m.insert(332, "GetAltMonthNames");
+        m.insert(333, "VarI8FromUI1");
+        m.insert(334, "VarI8FromI2");
+        m.insert(335, "VarI8FromR4");
+        m.insert(336, "VarI8FromR8");
+        m.insert(337, "VarI8FromCy");
+        m.insert(338, "VarI8FromDate");
+        m.insert(339, "VarI8FromStr");
+        m.insert(340, "VarI8FromDisp");
+        m.insert(341, "VarI8FromBool");
+        m.insert(342, "VarI8FromI1");
+        m.insert(343, "VarI8FromUI2");
+        m.insert(344, "VarI8FromUI4");
+        m.insert(345, "VarI8FromDec");
+        m.insert(346, "VarI2FromI8");
+        m.insert(347, "VarI2FromUI8");
+        m.insert(348, "VarI4FromI8");
+        m.insert(349, "VarI4FromUI8");
+        m.insert(360, "VarR4FromI8");
+        m.insert(361, "VarR4FromUI8");
+        m.insert(362, "VarR8FromI8");
+        m.insert(363, "VarR8FromUI8");
+        m.insert(364, "VarDateFromI8");
+        m.insert(365, "VarDateFromUI8");
+        m.insert(366, "VarCyFromI8");
+        m.insert(367, "VarCyFromUI8");
+        m.insert(368, "VarBstrFromI8");
+        m.insert(369, "VarBstrFromUI8");
+        m.insert(370, "VarBoolFromI8");
+        m.insert(371, "VarBoolFromUI8");
+        m.insert(372, "VarUI1FromI8");
+        m.insert(373, "VarUI1FromUI8");
+        m.insert(374, "VarDecFromI8");
+        m.insert(375, "VarDecFromUI8");
+        m.insert(376, "VarI1FromI8");
+        m.insert(377, "VarI1FromUI8");
+        m.insert(378, "VarUI2FromI8");
+        m.insert(379, "VarUI2FromUI8");
+        m.insert(401, "OleLoadPictureEx");
+        m.insert(402, "OleLoadPictureFileEx");
+        m.insert(411, "SafeArrayCreateVector");
+        m.insert(412, "SafeArrayCopyData");
+        m.insert(413, "VectorFromBstr");
+        m.insert(414, "BstrFromVector");
+        m.insert(415, "OleIconToCursor");
+        m.insert(416, "OleCreatePropertyFrameIndirect");
+        m.insert(417, "OleCreatePropertyFrame");
+        m.insert(418, "OleLoadPicture");
+        m.insert(419, "OleCreatePictureIndirect");
+        m.insert(420, "OleCreateFontIndirect");
+        m.insert(421, "OleTranslateColor");
+        m.insert(422, "OleLoadPictureFile");
+        m.insert(423, "OleSavePictureFile");
+        m.insert(424, "OleLoadPicturePath");
+        m.insert(425, "VarUI4FromI8");
+        m.insert(426, "VarUI4FromUI8");
+        m.insert(427, "VarI8FromUI8");
+        m.insert(428, "VarUI8FromI8");
+        m.insert(429, "VarUI8FromUI1");
+        m.insert(430, "VarUI8FromI2");
+        m.insert(431, "VarUI8FromR4");
+        m.insert(432, "VarUI8FromR8");
+        m.insert(433, "VarUI8FromCy");
+        m.insert(434, "VarUI8FromDate");
+        m.insert(435, "VarUI8FromStr");
+        m.insert(436, "VarUI8FromDisp");
+        m.insert(437, "VarUI8FromBool");
+        m.insert(438, "VarUI8FromI1");
+        m.insert(439, "VarUI8FromUI2");
+        m.insert(440, "VarUI8FromUI4");
+        m.insert(441, "VarUI8FromDec");
+        m.insert(442, "RegisterTypeLibForUser");
+        m.insert(443, "UnRegisterTypeLibForUser");
+        m
+    });
+
+    m.get(&ordinal).copied()
 }
 
 /// Convert ordinal number to function name for wsock32.dll and ws2_32.dll.
 fn wsock32_ord_to_name(ordinal: u16) -> Option<&'static str> {
-    match ordinal {
-        1 => Some("accept"),
-        2 => Some("bind"),
-        3 => Some("closesocket"),
-        4 => Some("connect"),
-        5 => Some("setpeername"),
-        6 => Some("setsockname"),
-        7 => Some("setsockopt"),
-        8 => Some("htonl"),
-        9 => Some("htons"),
-        10 => Some("ioctlsocket"),
-        11 => Some("inet_addr"),
-        12 => Some("inet_ntoa"),
-        13 => Some("listen"),
-        14 => Some("ntohl"),
-        15 => Some("ntohs"),
-        16 => Some("recv"),
-        17 => Some("recvfrom"),
-        18 => Some("select"),
-        19 => Some("send"),
-        20 => Some("sendto"),
-        21 => Some("setsockopt"),
-        22 => Some("shutdown"),
-        23 => Some("socket"),
-        24 => Some("GetAddrInfoW"),
-        25 => Some("GetNameInfoW"),
-        26 => Some("WSApSetPostRoutine"),
-        27 => Some("FreeAddrInfoW"),
-        28 => Some("WPUCompleteOverlappedRequest"),
-        29 => Some("WSAAccept"),
-        30 => Some("WSAAddressToStringA"),
-        31 => Some("WSAAddressToStringW"),
-        32 => Some("WSACloseEvent"),
-        33 => Some("WSAConnect"),
-        34 => Some("WSACreateEvent"),
-        35 => Some("WSADuplicateSocketA"),
-        36 => Some("WSADuplicateSocketW"),
-        37 => Some("WSAEnumNameSpaceProvidersA"),
-        38 => Some("WSAEnumNameSpaceProvidersW"),
-        39 => Some("WSAEnumNetworkEvents"),
-        40 => Some("WSAEnumProtocolsA"),
-        41 => Some("WSAEnumProtocolsW"),
-        42 => Some("WSAEventSelect"),
-        43 => Some("WSAGetOverlappedResult"),
-        44 => Some("WSAGetQOSByName"),
-        45 => Some("WSAGetServiceClassInfoA"),
-        46 => Some("WSAGetServiceClassInfoW"),
-        47 => Some("WSAGetServiceClassNameByClassIdA"),
-        48 => Some("WSAGetServiceClassNameByClassIdW"),
-        49 => Some("WSAHtonl"),
-        50 => Some("WSAHtons"),
-        51 => Some("gethostbyaddr"),
-        52 => Some("gethostbyname"),
-        53 => Some("getprotobyname"),
-        54 => Some("getprotobynumber"),
-        55 => Some("getservbyname"),
-        56 => Some("getservbyport"),
-        57 => Some("gethostname"),
-        58 => Some("WSAInstallServiceClassA"),
-        59 => Some("WSAInstallServiceClassW"),
-        60 => Some("WSAIoctl"),
-        61 => Some("WSAJoinLeaf"),
-        62 => Some("WSALookupServiceBeginA"),
-        63 => Some("WSALookupServiceBeginW"),
-        64 => Some("WSALookupServiceEnd"),
-        65 => Some("WSALookupServiceNextA"),
-        66 => Some("WSALookupServiceNextW"),
-        67 => Some("WSANSPIoctl"),
-        68 => Some("WSANtohl"),
-        69 => Some("WSANtohs"),
-        70 => Some("WSAProviderConfigChange"),
-        71 => Some("WSARecv"),
-        72 => Some("WSARecvDisconnect"),
-        73 => Some("WSARecvFrom"),
-        74 => Some("WSARemoveServiceClass"),
-        75 => Some("WSAResetEvent"),
-        76 => Some("WSASend"),
-        77 => Some("WSASendDisconnect"),
-        78 => Some("WSASendTo"),
-        79 => Some("WSASetEvent"),
-        80 => Some("WSASetServiceA"),
-        81 => Some("WSASetServiceW"),
-        82 => Some("WSASocketA"),
-        83 => Some("WSASocketW"),
-        84 => Some("WSAStringToAddressA"),
-        85 => Some("WSAStringToAddressW"),
-        86 => Some("WSAWaitForMultipleEvents"),
-        87 => Some("WSCDeinstallProvider"),
-        88 => Some("WSCEnableNSProvider"),
-        89 => Some("WSCEnumProtocols"),
-        90 => Some("WSCGetProviderPath"),
-        91 => Some("WSCInstallNameSpace"),
-        92 => Some("WSCInstallProvider"),
-        93 => Some("WSCUnInstallNameSpace"),
-        94 => Some("WSCUpdateProvider"),
-        95 => Some("WSCWriteNameSpaceOrder"),
-        96 => Some("WSCWriteProviderOrder"),
-        97 => Some("freeaddrinfo"),
-        98 => Some("getaddrinfo"),
-        99 => Some("getnameinfo"),
-        101 => Some("WSAAsyncSelect"),
-        102 => Some("WSAAsyncGetHostByAddr"),
-        103 => Some("WSAAsyncGetHostByName"),
-        104 => Some("WSAAsyncGetProtoByNumber"),
-        105 => Some("WSAAsyncGetProtoByName"),
-        106 => Some("WSAAsyncGetServByPort"),
-        107 => Some("WSAAsyncGetServByName"),
-        108 => Some("WSACancelAsyncRequest"),
-        109 => Some("WSASetBlockingHook"),
-        110 => Some("WSAUnhookBlockingHook"),
-        111 => Some("WSAGetLastError"),
-        112 => Some("WSASetLastError"),
-        113 => Some("WSACancelBlockingCall"),
-        114 => Some("WSAIsBlocking"),
-        115 => Some("WSAStartup"),
-        116 => Some("WSACleanup"),
-        151 => Some("__WSAFDIsSet"),
-        500 => Some("WEP"),
-        _ => None,
-    }
+    static WSOCK32_ORD_TO_NAME: OnceLock<HashMap<u16, &'static str>> =
+        OnceLock::new();
+
+    let m = WSOCK32_ORD_TO_NAME.get_or_init(|| {
+        let mut m = HashMap::new();
+        m.insert(1, "accept");
+        m.insert(2, "bind");
+        m.insert(3, "closesocket");
+        m.insert(4, "connect");
+        m.insert(5, "getpeername");
+        m.insert(6, "getsockname");
+        m.insert(7, "getsockopt");
+        m.insert(8, "htonl");
+        m.insert(9, "htons");
+        m.insert(10, "ioctlsocket");
+        m.insert(11, "inet_addr");
+        m.insert(12, "inet_ntoa");
+        m.insert(13, "listen");
+        m.insert(14, "ntohl");
+        m.insert(15, "ntohs");
+        m.insert(16, "recv");
+        m.insert(17, "recvfrom");
+        m.insert(18, "select");
+        m.insert(19, "send");
+        m.insert(20, "sendto");
+        m.insert(21, "setsockopt");
+        m.insert(22, "shutdown");
+        m.insert(23, "socket");
+        m.insert(24, "GetAddrInfoW");
+        m.insert(25, "GetNameInfoW");
+        m.insert(26, "WSApSetPostRoutine");
+        m.insert(27, "FreeAddrInfoW");
+        m.insert(28, "WPUCompleteOverlappedRequest");
+        m.insert(29, "WSAAccept");
+        m.insert(30, "WSAAddressToStringA");
+        m.insert(31, "WSAAddressToStringW");
+        m.insert(32, "WSACloseEvent");
+        m.insert(33, "WSAConnect");
+        m.insert(34, "WSACreateEvent");
+        m.insert(35, "WSADuplicateSocketA");
+        m.insert(36, "WSADuplicateSocketW");
+        m.insert(37, "WSAEnumNameSpaceProvidersA");
+        m.insert(38, "WSAEnumNameSpaceProvidersW");
+        m.insert(39, "WSAEnumNetworkEvents");
+        m.insert(40, "WSAEnumProtocolsA");
+        m.insert(41, "WSAEnumProtocolsW");
+        m.insert(42, "WSAEventSelect");
+        m.insert(43, "WSAGetOverlappedResult");
+        m.insert(44, "WSAGetQOSByName");
+        m.insert(45, "WSAGetServiceClassInfoA");
+        m.insert(46, "WSAGetServiceClassInfoW");
+        m.insert(47, "WSAGetServiceClassNameByClassIdA");
+        m.insert(48, "WSAGetServiceClassNameByClassIdW");
+        m.insert(49, "WSAHtonl");
+        m.insert(50, "WSAHtons");
+        m.insert(51, "gethostbyaddr");
+        m.insert(52, "gethostbyname");
+        m.insert(53, "getprotobyname");
+        m.insert(54, "getprotobynumber");
+        m.insert(55, "getservbyname");
+        m.insert(56, "getservbyport");
+        m.insert(57, "gethostname");
+        m.insert(58, "WSAInstallServiceClassA");
+        m.insert(59, "WSAInstallServiceClassW");
+        m.insert(60, "WSAIoctl");
+        m.insert(61, "WSAJoinLeaf");
+        m.insert(62, "WSALookupServiceBeginA");
+        m.insert(63, "WSALookupServiceBeginW");
+        m.insert(64, "WSALookupServiceEnd");
+        m.insert(65, "WSALookupServiceNextA");
+        m.insert(66, "WSALookupServiceNextW");
+        m.insert(67, "WSANSPIoctl");
+        m.insert(68, "WSANtohl");
+        m.insert(69, "WSANtohs");
+        m.insert(70, "WSAProviderConfigChange");
+        m.insert(71, "WSARecv");
+        m.insert(72, "WSARecvDisconnect");
+        m.insert(73, "WSARecvFrom");
+        m.insert(74, "WSARemoveServiceClass");
+        m.insert(75, "WSAResetEvent");
+        m.insert(76, "WSASend");
+        m.insert(77, "WSASendDisconnect");
+        m.insert(78, "WSASendTo");
+        m.insert(79, "WSASetEvent");
+        m.insert(80, "WSASetServiceA");
+        m.insert(81, "WSASetServiceW");
+        m.insert(82, "WSASocketA");
+        m.insert(83, "WSASocketW");
+        m.insert(84, "WSAStringToAddressA");
+        m.insert(85, "WSAStringToAddressW");
+        m.insert(86, "WSAWaitForMultipleEvents");
+        m.insert(87, "WSCDeinstallProvider");
+        m.insert(88, "WSCEnableNSProvider");
+        m.insert(89, "WSCEnumProtocols");
+        m.insert(90, "WSCGetProviderPath");
+        m.insert(91, "WSCInstallNameSpace");
+        m.insert(92, "WSCInstallProvider");
+        m.insert(93, "WSCUnInstallNameSpace");
+        m.insert(94, "WSCUpdateProvider");
+        m.insert(95, "WSCWriteNameSpaceOrder");
+        m.insert(96, "WSCWriteProviderOrder");
+        m.insert(97, "freeaddrinfo");
+        m.insert(98, "getaddrinfo");
+        m.insert(99, "getnameinfo");
+        m.insert(101, "WSAAsyncSelect");
+        m.insert(102, "WSAAsyncGetHostByAddr");
+        m.insert(103, "WSAAsyncGetHostByName");
+        m.insert(104, "WSAAsyncGetProtoByNumber");
+        m.insert(105, "WSAAsyncGetProtoByName");
+        m.insert(106, "WSAAsyncGetServByPort");
+        m.insert(107, "WSAAsyncGetServByName");
+        m.insert(108, "WSACancelAsyncRequest");
+        m.insert(109, "WSASetBlockingHook");
+        m.insert(110, "WSAUnhookBlockingHook");
+        m.insert(111, "WSAGetLastError");
+        m.insert(112, "WSASetLastError");
+        m.insert(113, "WSACancelBlockingCall");
+        m.insert(114, "WSAIsBlocking");
+        m.insert(115, "WSAStartup");
+        m.insert(116, "WSACleanup");
+        m.insert(151, "__WSAFDIsSet");
+        m.insert(500, "WEP");
+        m
+    });
+
+    m.get(&ordinal).copied()
 }
