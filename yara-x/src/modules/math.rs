@@ -123,8 +123,9 @@ fn count_global(ctx: &ScanContext, byte: i64) -> Option<i64> {
 
 #[module_export(name = "entropy")]
 fn entropy_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
-    let start = offset as usize;
-    let end = start.saturating_add(length as usize);
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
     entropy(ctx.scanned_data().get(start..end)?)
 }
 
@@ -140,8 +141,9 @@ fn deviation_data(
     length: i64,
     mean: f64,
 ) -> Option<f64> {
-    let start = offset as usize;
-    let end = start.saturating_add(length as usize);
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
     deviation(ctx.scanned_data().get(start..end)?, mean)
 }
 
@@ -156,8 +158,9 @@ fn deviation_string(
 
 #[module_export(name = "mean")]
 fn mean_data(ctx: &ScanContext, offset: i64, length: i64) -> Option<f64> {
-    let start = offset as usize;
-    let end = start.saturating_add(length as usize);
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
     mean(ctx.scanned_data().get(start..end)?)
 }
 
@@ -172,8 +175,9 @@ fn serial_correlation_data(
     offset: i64,
     length: i64,
 ) -> Option<f64> {
-    let start = offset as usize;
-    let end = start.saturating_add(length as usize);
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
     serial_correlation(ctx.scanned_data().get(start..end)?)
 }
 
@@ -191,8 +195,9 @@ fn monte_carlo_pi_data(
     offset: i64,
     length: i64,
 ) -> Option<f64> {
-    let start = offset as usize;
-    let end = start.saturating_add(length as usize);
+    let length: usize = length.try_into().ok()?;
+    let start: usize = offset.try_into().ok()?;
+    let end = cmp::min(ctx.scanned_data().len(), start.saturating_add(length));
     monte_carlo_pi(ctx.scanned_data().get(start..end)?)
 }
 
@@ -462,7 +467,17 @@ mod tests {
                 condition:
                     math.entropy(2,3) == 0.0
             }"#,
-            b"CCAAACC"
+            b"CCAAACCC"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.entropy(2,100) == 1.0
+            }"#,
+            b"CCAAACCC"
         );
     }
 
@@ -520,6 +535,16 @@ mod tests {
             }"#,
             b"ABCABC"
         );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.mean(0, 1000) == 66.0
+            }"#,
+            b"ABCABC"
+        );
     }
 
     #[test]
@@ -550,6 +575,16 @@ mod tests {
             rule test {
                 condition:
                     math.serial_correlation(0, 0) == -100000.0
+            }"#,
+            b"ABCABC"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.serial_correlation(0, 100) == -0.5
             }"#,
             b"ABCABC"
         )
@@ -636,6 +671,16 @@ mod tests {
             rule test {
                 condition:
                     not defined math.count(0x41, 0, -3)
+            }"#,
+            b"AABAAB"
+        );
+
+        rule_true!(
+            r#"
+            import "math"
+            rule test {
+                condition:
+                    math.count(0x41, 0, 100) == 4
             }"#,
             b"AABAAB"
         );
