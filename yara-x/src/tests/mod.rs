@@ -132,7 +132,7 @@ macro_rules! pattern_match {
             .matches()
             .next()
             .unwrap()
-            .data;
+            .data();
 
         assert_eq!(
             matching_data, $expected_result,
@@ -1652,6 +1652,25 @@ fn match_at() {
         b"fofofofo"
     );
 
+    rule_true!(
+        r#"
+        rule test1 {
+            strings:
+                $a = "bar"
+            condition:
+                $a at 0
+        }
+        
+        rule test2 {
+            strings:
+                $a = "bar"
+            condition:
+                $a
+        }
+        "#,
+        b"foobar"
+    );
+
     #[cfg(feature = "test_proto2-module")]
     rule_false!(
         r#"
@@ -2016,6 +2035,25 @@ fn match_offset() {
         "#,
         b"foobarfoobar"
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_true!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                // The index in @a[<index>] must be 1 or more, if not
+                // the result must be undefined. We use test_proto2.add(0,0)
+                // because using a literal causes a compilation error when
+                // the compiler notices that the index is 0.
+                not defined @a[test_proto2.add(0,0)] 
+        }
+        "#,
+        b"foo"
+    );
 }
 
 #[test]
@@ -2092,6 +2130,25 @@ fn match_length() {
         }
         "#,
         b"foobarfoobar"
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_true!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                // The index in !a[<index>] must be 1 or more, if not
+                // the result must be undefined. We use test_proto2.add(0,0)
+                // because using a literal causes a compilation error when
+                // the compiler notices that the index is 0.
+                not defined !a[test_proto2.add(0,0)] 
+        }
+        "#,
+        b"foo"
     );
 }
 

@@ -867,9 +867,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -883,9 +881,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -903,9 +899,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -960,9 +954,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -976,9 +968,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -1529,6 +1519,7 @@ impl Display for InstrSeq {
 }
 
 fn simplify_seq(mut seq: Seq) -> Seq {
+    seq.dedup();
     // If the literal extractor produced exactly 256 atoms, and those atoms
     // have a common prefix that is one byte shorter than the longest atom,
     // we are in the case where we have 256 atoms that differ only in the
@@ -1547,7 +1538,6 @@ fn simplify_seq(mut seq: Seq) -> Seq {
             }
         }
     }
-    seq.dedup();
     seq
 }
 
@@ -1620,7 +1610,9 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
 }
 
 fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
-    seq.literals().map(|literals| literals.iter().map(Atom::from).collect())
+    simplify_seq(seq)
+        .literals()
+        .map(|literals| literals.iter().map(Atom::from).collect())
 }
 
 /// A list of [`RegexpAtom`] that contains additional information, like the

@@ -104,6 +104,8 @@ pub(crate) struct ScanContext<'r> {
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
     pub regexp_cache: RefCell<FxHashMap<RegexpId, Regex>>,
+    /// Callback invoked every time a YARA rule calls `console.log`.
+    pub console_log: Option<Box<dyn FnMut(String) + 'r>>,
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
@@ -204,6 +206,12 @@ impl ScanContext<'_> {
             .unwrap();
 
         info!("Started rule evaluation: {}:{}", rule_namespace, rule_name);
+    }
+
+    pub(crate) fn console_log(&mut self, message: String) {
+        if let Some(console_log) = &mut self.console_log {
+            console_log(message)
+        }
     }
 
     pub(crate) fn store_struct(

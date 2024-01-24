@@ -1,4 +1,5 @@
-use std::io::{BufWriter, Write};
+use std::fmt;
+use std::io::{BufWriter, Read, Write};
 #[cfg(feature = "logging")]
 use std::time::Instant;
 
@@ -126,6 +127,16 @@ impl Rules {
         self.warnings.as_slice()
     }
 
+    /// Serializes the rules as a sequence of bytes.
+    ///
+    /// The [`Rules`] can be restored back by passing the bytes to
+    /// [`Rules::deserialize`].
+    pub fn serialize(&self) -> Result<Vec<u8>, SerializationError> {
+        let mut bytes = Vec::new();
+        self.serialize_into(&mut bytes)?;
+        Ok(bytes)
+    }
+
     /// Deserializes the rules from a sequence of bytes produced by
     /// [`Rules::serialize`].
     pub fn deserialize<B>(bytes: B) -> Result<Self, SerializationError>
@@ -155,17 +166,7 @@ impl Rules {
         Ok(rules)
     }
 
-    /// Serializes the rules as a sequence of bytes.
-    ///
-    /// The [`Rules`] can be restored back by passing the bytes to
-    /// [`Rules::deserialize`].
-    pub fn serialize(&self) -> Result<Vec<u8>, SerializationError> {
-        let mut bytes = Vec::new();
-        self.serialize_into(&mut bytes)?;
-        Ok(bytes)
-    }
-
-    /// Serializes the rules and writes the bytes into a `writer`.
+    /// Serializes the rules into a `writer`.
     pub fn serialize_into<W>(
         &self,
         writer: W,
@@ -182,6 +183,18 @@ impl Rules {
         Ok(bincode::DefaultOptions::new()
             .with_varint_encoding()
             .serialize_into(writer, self)?)
+    }
+
+    /// Deserializes the rules from a `reader`.
+    pub fn deserialize_from<R>(
+        mut reader: R,
+    ) -> Result<Self, SerializationError>
+    where
+        R: Read,
+    {
+        let mut bytes = Vec::new();
+        let _ = reader.read_to_end(&mut bytes)?;
+        Self::deserialize(bytes)
     }
 
     /// Returns a [`RuleInfo`] given its [`RuleId`].
@@ -416,6 +429,30 @@ where
     unsafe {
         wasmtime::Module::deserialize(&crate::wasm::ENGINE, bytes)
             .map_err(|err| serde::de::Error::custom(err.to_string()))
+    }
+}
+
+impl fmt::Debug for Rules {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (id, rule) in self.rules.iter().enumerate() {
+            let name = self.ident_pool.get(rule.ident_id).unwrap();
+            let namespace =
+                self.ident_pool.get(rule.namespace_ident_id).unwrap();
+            writeln!(f, "RuleId({})", id)?;
+            writeln!(f, "  namespace: {}", namespace)?;
+            writeln!(f, "  name: {}", name)?;
+            writeln!(f, "  patterns:")?;
+            for (pattern_ident_id, pattern_id) in &rule.patterns {
+                let ident = self.ident_pool.get(*pattern_ident_id).unwrap();
+                writeln!(f, "    {:?} {} ", pattern_id, ident)?;
+            }
+        }
+
+        for (id, (pattern_id, _)) in self.sub_patterns.iter().enumerate() {
+            writeln!(f, "SubPatternId({}) -> {:?}", id, pattern_id)?;
+        }
+
+        Ok(())
     }
 }
 

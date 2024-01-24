@@ -1787,12 +1787,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "indent"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9f1a0777d972970f204fdf8ef319f1f4f8459131636d7e3c96c5d59570d0fa6"
-
-[[package]]
 name = "indenter"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3329,9 +3323,9 @@ dependencies = [
 
 [[package]]
 name = "shlex"
-version = "1.2.0"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7cee0529a6d40f580e7a5e6c495c8fbfe21b7b52795ed4bb5e62cdf92bc6380"
+checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "signal-hook"
@@ -5004,7 +4998,6 @@ dependencies = [
  "enable-ansi-support",
  "env_logger",
  "globwalk",
- "indent",
  "log",
  "pprof",
  "protobuf",
@@ -5093,6 +5086,7 @@ dependencies = [
 name = "yara-x-py"
 version = "0.1.0"
 dependencies = [
+ "protobuf-json-mapping",
  "pyo3",
  "pyo3-build-config",
  "pyo3-file",

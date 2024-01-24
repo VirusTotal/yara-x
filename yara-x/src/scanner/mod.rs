@@ -36,7 +36,6 @@ use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
 use crate::{modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::*;
-pub use crate::scanner::matches::*;
 
 mod context;
 mod matches;
@@ -120,6 +119,7 @@ impl<'r> Scanner<'r> {
                 wasm_store: NonNull::dangling(),
                 runtime_objects: IndexMap::new(),
                 compiled_rules: rules,
+                console_log: None,
                 current_struct: None,
                 root_struct: rules.globals().make_root(),
                 scanned_data: null(),
@@ -273,6 +273,21 @@ impl<'r> Scanner<'r> {
     /// produce more matches.
     pub fn max_matches_per_pattern(&mut self, n: usize) -> &mut Self {
         self.wasm_store.data_mut().max_matches_per_pattern = n;
+        self
+    }
+
+    /// Sets a callback that is invoked every time a YARA rule calls the
+    /// `console` module.
+    ///
+    /// The `callback` function is invoked with a string representing the
+    /// message being logged. The function can print the message to stdout,
+    /// append it to a file, etc. If no callback is set these messages are
+    /// ignored.
+    pub fn console_log<F>(&mut self, callback: F) -> &mut Self
+    where
+        F: FnMut(String) + 'r,
+    {
+        self.wasm_store.data_mut().console_log = Some(Box::new(callback));
         self
     }
 
@@ -879,28 +894,34 @@ impl<'a> Iterator for Matches<'a> {
     type Item = Match<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(iter) = &mut self.iterator {
-            let match_ = iter.next()?;
-            Some(Match {
-                range: match_.range.clone(),
-                data: &self.data.as_ref()
-                    [match_.range.start..match_.range.end],
-                xor_key: match_.xor_key,
-            })
-        } else {
-            None
-        }
+        let iter = self.iterator.as_mut()?;
+        Some(Match { inner: iter.next()?, data: self.data })
     }
 }
 
 /// Represents a match.
-#[derive(PartialEq, Debug)]
 pub struct Match<'a> {
+    inner: &'a matches::Match,
+    data: &'a ScannedData<'a>,
+}
+
+impl<'a> Match<'a> {
     /// Range within the original data where the match occurred.
-    pub range: Range<usize>,
+    #[inline]
+    pub fn range(&self) -> Range<usize> {
+        self.inner.range.clone()
+    }
+
     /// Slice containing the data that matched.
-    pub data: &'a [u8],
+    #[inline]
+    pub fn data(&self) -> &'a [u8] {
+        self.data.as_ref().get(self.inner.range.clone()).unwrap()
+    }
+
     /// XOR key used for decrypting the data if the pattern had the `xor`
     /// modifier, or `None` if otherwise.
-    pub xor_key: Option<u8>,
+    #[inline]
+    pub fn xor_key(&self) -> Option<u8> {
+        self.inner.xor_key
+    }
 }

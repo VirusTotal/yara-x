@@ -1,7 +1,6 @@
 use pretty_assertions::assert_eq;
 use protobuf::MessageDyn;
 
-use crate::scanner;
 use crate::scanner::Scanner;
 use crate::variables::VariableError;
 
@@ -64,7 +63,7 @@ fn matches() {
             matches.extend(
                 pattern
                     .matches()
-                    .map(|x| (pattern.identifier(), x.range, x.data)),
+                    .map(|x| (pattern.identifier(), x.range(), x.data())),
             )
         }
     }
@@ -100,7 +99,7 @@ fn xor_matches() {
             matches.extend(
                 pattern
                     .matches()
-                    .map(|x| (pattern.identifier(), x.range, x.xor_key)),
+                    .map(|x| (pattern.identifier(), x.range(), x.xor_key())),
             )
         }
     }
@@ -461,10 +460,10 @@ fn max_matches_per_pattern() {
 
     // Only one match is returned for pattern $a because the limit has been set
     // to 1.
-    assert_eq!(
-        matches.next(),
-        Some(scanner::Match { range: (0..3), data: b"foo", xor_key: None })
-    );
+    let match_ = matches.next().unwrap();
 
-    assert_eq!(matches.next(), None);
+    assert_eq!(match_.range(), (0..3));
+    assert_eq!(match_.data(), b"foo");
+
+    assert!(matches.next().is_none());
 }
