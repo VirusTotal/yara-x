@@ -1450,6 +1450,18 @@ fn regexp_wide() {
         b"f\x00o\x00o\x00o\x00b\x00a\x00r\x00",
         b"f\x00o\x00o\x00o\x00b\x00a\x00r\x00"
     );
+
+    pattern_match!(
+        r#"/foo(xxx|yyy)bazqux/ wide"#,
+        b"f\x00o\x00o\x00x\x00x\x00x\x00b\x00a\x00z\x00q\x00u\x00x\x00",
+        b"f\x00o\x00o\x00x\x00x\x00x\x00b\x00a\x00z\x00q\x00u\x00x\x00"
+    );
+
+    pattern_match!(
+        r#"/foobar(baz|qux)/ wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00b\x00a\x00z\x00",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00b\x00a\x00z\x00"
+    );
 }
 
 #[test]

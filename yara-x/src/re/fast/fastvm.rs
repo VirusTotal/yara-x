@@ -376,7 +376,7 @@ impl FastVM<'_> {
             if input.len() < literal.len() * 2 {
                 return false;
             }
-            input.iter().step_by(2).eq(literal.iter())
+            input.iter().step_by(2).take(literal.len()).eq(literal.iter())
         } else {
             if input.len() < literal.len() {
                 return false;
@@ -401,6 +401,7 @@ impl FastVM<'_> {
                 .rev() // in reverse order
                 .skip(1) // skipping the last byte that should be 0
                 .step_by(2) // two bytes at a time
+                .take(literal.len())
                 .eq(literal.iter().rev())
         } else {
             if input.len() < literal.len() {

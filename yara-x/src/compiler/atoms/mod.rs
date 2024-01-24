@@ -224,6 +224,7 @@ impl Atom {
 
     pub fn make_wide(mut self) -> Self {
         let atom_len = self.bytes.len();
+        self.backtrack *= 2;
         self.bytes = self
             .bytes
             .into_iter()
@@ -442,7 +443,6 @@ impl Iterator for XorCombinations {
 mod test {
     use pretty_assertions::assert_eq;
 
-    use crate::compiler::atoms;
     use crate::compiler::atoms::Atom;
 
     #[test]
@@ -498,9 +498,16 @@ mod test {
 
     #[test]
     fn make_wide() {
+        let mut atom = Atom::exact([0x01_u8, 0x02, 0x03]);
+        atom.set_backtrack(2);
+
+        let atom = atom.make_wide();
+
         assert_eq!(
-            atoms::make_wide(&[0x01, 0x02, 0x03]),
+            atom.bytes.as_slice(),
             &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]
-        )
+        );
+
+        assert_eq!(atom.backtrack, 4);
     }
 }
