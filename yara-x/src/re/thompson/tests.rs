@@ -1089,6 +1089,61 @@ fn re_code_21() {
 }
 
 #[test]
+fn re_code_22() {
+    assert_re_code!(
+        r#"(0?F1?|2?f3?)abcd"#,
+        // Forward code
+        r#"
+00000: SPLIT_N(0) 0000d 00026
+0000d: SPLIT_A(1) 00016
+00015: LIT 0x30
+00016: LIT 0x46
+00017: SPLIT_A(2) 00020
+0001f: LIT 0x31
+00020: JUMP 00039
+00026: SPLIT_A(3) 0002f
+0002e: LIT 0x32
+0002f: LIT 0x66
+00030: SPLIT_A(4) 00039
+00038: LIT 0x33
+00039: LIT 0x61
+0003a: LIT 0x62
+0003b: LIT 0x63
+0003c: LIT 0x64
+0003d: MATCH
+"#, // Backward code
+        r#"
+00000: LIT 0x64
+00001: LIT 0x63
+00002: LIT 0x62
+00003: LIT 0x61
+00004: SPLIT_N(0) 00011 0002a
+00011: SPLIT_A(2) 0001a
+00019: LIT 0x31
+0001a: LIT 0x46
+0001b: SPLIT_A(1) 00024
+00023: LIT 0x30
+00024: JUMP 0003d
+0002a: SPLIT_A(4) 00033
+00032: LIT 0x33
+00033: LIT 0x66
+00034: SPLIT_A(3) 0003d
+0003c: LIT 0x32
+0003d: MATCH
+"#,
+        // Atoms
+        vec![RegexpAtom {
+            atom: Atom::inexact(vec![0x61, 0x62, 0x63, 0x64]),
+            code_loc: CodeLoc { fwd: 0x39, bck_seq_id: 0, bck: 0x04 }
+        },],
+        // Epsilon closure starting at forward code 0.
+        vec![0x15, 0x16, 0x2e, 0x2f],
+        // Epsilon closure starting at backward code 0.
+        vec![0x00]
+    );
+}
+
+#[test]
 fn re_atoms() {
     assert_re_atoms!(r#"abcd"#, vec![Atom::exact(b"abcd")]);
     assert_re_atoms!(r#"abcd1234"#, vec![Atom::inexact(b"1234")]);

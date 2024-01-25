@@ -983,6 +983,8 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a|b|c|d|e/"#, b"e", b"e");
     pattern_match!(r#"/(a|b|c|d|e)f/"#, b"ef", b"ef");
     pattern_match!(r#"/a|b/"#, b"a", b"a");
+    pattern_match!(r#"/(F?FF?|f?ff?)abcd/"#, b"fabcd", b"fabcd");
+    pattern_match!(r#"/(F?FF?|f?ff?)abcd/"#, b"ffabcd", b"ffabcd");
 
     pattern_match!(r#"/abcd.*ef/"#, b"abcdef", b"abcdef");
     pattern_match!(r#"/ab.*cdef/"#, b"abcdef", b"abcdef");

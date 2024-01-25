@@ -390,14 +390,23 @@ impl Compiler {
             .backward_code_chunks
             .split_off(self.backward_code_chunks.len() - n);
 
-        // Obtain a reference to the backward code, which can be either the
-        // chunk at the top of the `backward_code_chunks` stack or
-        // `self.backward_code` if the stack is empty.
-        //let backward_code = self.backward_code_mut();
+        // Obtain a reference to the backward code corresponding to the `Concat`
+        // node. It would be better to use `self.backward_code_mut()`, but it
+        // causes a mutable borrow on `self`, while the code below borrows
+        // `self.backward_code_chunks` or `self.backward_code` but not `self.
         let backward_code = self
             .backward_code_chunks
             .last_mut()
             .unwrap_or(&mut self.backward_code);
+
+        // Update the split ID for the `Concat` node. If any of the children
+        // emitted a split instruction, and therefore incremented its split_id,
+        // this increment must be reflected in the parent node (`Concat`), so
+        // that any other node emitted after the parent doesn't reuse an already
+        // existing split ID.
+        if let Some(last_chunks) = last_n_chunks.last() {
+            backward_code.split_id = last_chunks.split_id;
+        }
 
         // The top N bookmarks corresponds to the beginning of the code for
         // each expression in the concatenation.
