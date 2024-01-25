@@ -1108,7 +1108,9 @@ impl<'a> PE<'a> {
     ///             boundary
     /// value     - arbitrary bytes, its size is indicated in value_len. If
     ///             type is 1 (text) value_len is the number of UTF-16LE
-    ///             characters, not bytes.
+    ///             characters, not bytes. However there are PE files that
+    ///             don't respect this, and value_len is always in bytes
+    ///             regardless of the type of value.
     /// padding1  - 0 or more bytes that align the next field to a 32-bits
     ///             boundary
     /// children  - data that corresponds to the children of this structure
@@ -1134,7 +1136,7 @@ impl<'a> PE<'a> {
             let (remainder, structure) = take(length)(input)?;
 
             // Parse the structure's first fields.
-            let (_, (consumed, (_, mut value_len, type_, key))) =
+            let (_, (consumed, (_, value_len, type_, key))) =
                 consumed(tuple((
                     le_u16,            // length
                     le_u16,            // value_length
@@ -1151,22 +1153,43 @@ impl<'a> PE<'a> {
             // Then take `alignment` bytes from the start of the structure.
             let (data, _) = take(alignment)(structure)?;
 
-            // If type is 1 the value is of text type and it's length is in
-            // characters. As characters are UTF-16, multiply by two to get
-            // the size in bytes.
-            if type_ == 1 {
-                value_len = value_len.saturating_mul(2);
-            }
-
-            let value_len = Self::round_up(value_len);
-
             // Parse the value, if value_len is greater than zero.
-            let (data, value) = cond(
-                value_len > 0,
-                take(value_len).and_then(|v| value_parser.parse(v)),
-            )(data)?;
+            let (raw_children, value) = if value_len > 0 {
+                // The PE specification seems to suggest that when `type` is 1,
+                // the value is a text and `value_length` indicates its size
+                // in UTF-16 characters (half the size in bytes). That's true
+                // for many files, like:
+                // 0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f
+                //
+                // However, there are many PE files for which `value_length` is
+                // in bytes, even if `type` is 1, that's the case of:
+                // db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984
+                //
+                // For this reason when `type` is 1, we first assume that
+                // `value_length` is in bytes, and if the value parser fails,
+                // then try again assuming that `value_length` is the number of
+                // UTF-16 characters.
+                let (data, value) = if type_ == 1 {
+                    take(value_len)
+                        .and_then(|v| value_parser.parse(v))
+                        .parse(data)
+                        .or_else(|_| {
+                            take(value_len * 2)
+                                .and_then(|v| value_parser.parse(v))
+                                .parse(data)
+                        })?
+                } else {
+                    take(value_len)
+                        .and_then(|v| value_parser.parse(v))
+                        .parse(data)?
+                };
 
-            let (_, children) = children_parser.parse(data)?;
+                (data, Some(value))
+            } else {
+                (data, None)
+            };
+
+            let (_, children) = children_parser.parse(raw_children)?;
 
             Ok((remainder, (key, value, children)))
         }
