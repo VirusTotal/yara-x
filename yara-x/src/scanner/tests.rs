@@ -458,12 +458,16 @@ fn max_matches_per_pattern() {
         .unwrap()
         .matches();
 
-    // Only one match is returned for pattern $a because the limit has been set
-    // to 1.
+    // Only one match is returned for pattern $a because the limit has been
+    // set to 1.
     let match_ = matches.next().unwrap();
 
     assert_eq!(match_.range(), (0..3));
     assert_eq!(match_.data(), b"foo");
 
     assert!(matches.next().is_none());
+
+    // If the scanner is used again it should produce results because the
+    // number of matches must be reset to 0 for the new scan.
+    assert_eq!(scanner.scan(b"foo").unwrap().matching_rules().len(), 1);
 }

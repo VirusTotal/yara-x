@@ -21,7 +21,7 @@ use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
 use indexmap::IndexMap;
 use protobuf::MessageDyn;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
@@ -132,7 +132,7 @@ impl<'r> Scanner<'r> {
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
-                limit_reached: BitVec::repeat(false, num_patterns as usize),
+                limit_reached: FxHashSet::default(),
                 max_matches_per_pattern: Self::DEFAULT_MAX_MATCHES_PER_PATTERN,
                 regexp_cache: RefCell::new(FxHashMap::default()),
                 #[cfg(feature = "rules-profiling")]
@@ -381,7 +381,7 @@ impl<'r> Scanner<'r> {
         data: ScannedData<'a>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
-        self.clear_matches();
+        self.reset();
 
         // Timeout in seconds. This is either the value provided by the user or
         // 315.360.000 which is the number of seconds in a year. Using u64::MAX
@@ -570,11 +570,16 @@ impl<'r> Scanner<'r> {
         }
     }
 
-    // Clear information about previous matches.
-    fn clear_matches(&mut self) {
+    /// Resets the scanner to its initial state, making it ready for another
+    /// scan. This clears all the information generated the previous scan.
+    fn reset(&mut self) {
         let ctx = self.wasm_store.data_mut();
         let num_rules = ctx.compiled_rules.rules().len();
         let num_patterns = ctx.compiled_rules.num_patterns();
+
+        // Clear the array that tracks the patterns that reached the maximum
+        // number of patterns.
+        ctx.limit_reached.clear();
 
         // Clear the unconfirmed matches.
         for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
@@ -587,6 +592,7 @@ impl<'r> Scanner<'r> {
         // not found.
         if !ctx.pattern_matches.is_empty()
             || !ctx.non_private_matching_rules.is_empty()
+            || !ctx.private_matching_rules.is_empty()
         {
             // The hash map that tracks the pattern matches is not completely
             // cleared with pattern_matches.clear() because that would cause
@@ -598,8 +604,9 @@ impl<'r> Scanner<'r> {
                 matches.clear()
             }
 
-            // Clear the list of matching rules.
+            // Clear the lists of matching rules.
             ctx.non_private_matching_rules.clear();
+            ctx.private_matching_rules.clear();
 
             let mem = ctx
                 .main_memory
