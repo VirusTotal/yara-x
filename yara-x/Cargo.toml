@@ -121,6 +121,7 @@ default = [
     "math-module",
     "hash-module",
     "pe-module",
+    "string-module",
     "time-module",
     "lnk-module",
     "test_proto2-module",
