@@ -6,7 +6,7 @@ use nom::bytes::complete::take;
 use nom::combinator::{cond, map, verify};
 use nom::error::ErrorKind;
 use nom::multi::{count, length_count};
-use nom::number::complete::{be_u32, le_u32, le_u64, u32, u64};
+use nom::number::complete::{be_u32, le_u32, u16, u32, u64};
 use nom::number::Endianness;
 use nom::sequence::tuple;
 use nom::{Err, IResult, Parser};
@@ -642,22 +642,22 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
         map(
             tuple((
-                le_u32, // eax
-                le_u32, // ebx
-                le_u32, // ecx
-                le_u32, // edx
-                le_u32, // edi
-                le_u32, // esi
-                le_u32, // ebp
-                le_u32, // esp
-                le_u32, // ss
-                le_u32, // eflags
-                le_u32, // eip
-                le_u32, // cs
-                le_u32, // ds
-                le_u32, // es
-                le_u32, // fs
-                le_u32, // gs
+                u32(self.endianness), // eax
+                u32(self.endianness), // ebx
+                u32(self.endianness), // ecx
+                u32(self.endianness), // edx
+                u32(self.endianness), // edi
+                u32(self.endianness), // esi
+                u32(self.endianness), // ebp
+                u32(self.endianness), // esp
+                u32(self.endianness), // ss
+                u32(self.endianness), // eflags
+                u32(self.endianness), // eip
+                u32(self.endianness), // cs
+                u32(self.endianness), // ds
+                u32(self.endianness), // es
+                u32(self.endianness), // fs
+                u32(self.endianness), // gs
             )),
             |reg| reg.10 as u64, // eip,
         )
@@ -668,27 +668,27 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
         map(
             tuple((
-                le_u64, // rax
-                le_u64, // rbx
-                le_u64, // rcx
-                le_u64, // rdx
-                le_u64, // rdi
-                le_u64, // rsi
-                le_u64, // rbp
-                le_u64, // rsp
-                le_u64, // r8
-                le_u64, // r9
-                le_u64, // r10
-                le_u64, // r11
-                le_u64, // r12
-                le_u64, // r13
-                le_u64, // r14
-                le_u64, // r15
-                le_u64, // rip
-                le_u64, // rflags
-                le_u64, // cs
-                le_u64, // fs
-                le_u64, // gs
+                u64(self.endianness), // rax
+                u64(self.endianness), // rbx
+                u64(self.endianness), // rcx
+                u64(self.endianness), // rdx
+                u64(self.endianness), // rdi
+                u64(self.endianness), // rsi
+                u64(self.endianness), // rbp
+                u64(self.endianness), // rsp
+                u64(self.endianness), // r8
+                u64(self.endianness), // r9
+                u64(self.endianness), // r10
+                u64(self.endianness), // r11
+                u64(self.endianness), // r12
+                u64(self.endianness), // r13
+                u64(self.endianness), // r14
+                u64(self.endianness), // r15
+                u64(self.endianness), // rip
+                u64(self.endianness), // rflags
+                u64(self.endianness), // cs
+                u64(self.endianness), // fs
+                u64(self.endianness), // gs
             )),
             |reg| reg.16, // eip,
         )
@@ -699,11 +699,11 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
         map(
             tuple((
-                count(le_u32, 13), // r
-                le_u32,            // sp
-                le_u32,            // lr
-                le_u32,            // pc
-                le_u32,            // cpsr
+                count(u32(self.endianness), 13), // r
+                u32(self.endianness),            // sp
+                u32(self.endianness),            // lr
+                u32(self.endianness),            // pc
+                u32(self.endianness),            // cpsr
             )),
             |(_, _, _, pc, _)| pc as u64,
         )
@@ -714,12 +714,12 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
         map(
             tuple((
-                count(le_u64, 29), // r
-                le_u64,            // fp
-                le_u64,            // lr
-                le_u64,            // sp
-                le_u64,            // pc
-                le_u32,            // cpsr
+                count(u64(self.endianness), 29), // r
+                u64(self.endianness),            // fp
+                u64(self.endianness),            // lr
+                u64(self.endianness),            // sp
+                u64(self.endianness),            // pc
+                u32(self.endianness),            // cpsr
             )),
             |(_, _, _, _, pc, _)| pc,
         )
@@ -767,12 +767,12 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
         map(
             tuple((
-                le_u32,           // psr
-                le_u32,           // pc
-                le_u32,           // npc
-                le_u32,           // y
-                count(le_u32, 7), // g
-                count(le_u32, 7), // o
+                u32(self.endianness),           // psr
+                u32(self.endianness),           // pc
+                u32(self.endianness),           // npc
+                u32(self.endianness),           // y
+                count(u32(self.endianness), 7), // g
+                count(u32(self.endianness), 7), // o
             )),
             |(_, pc, _, _, _, _)| pc as u64,
         )
@@ -783,11 +783,11 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
         map(
             tuple((
-                count(le_u32, 8), // dreg
-                count(le_u32, 8), // areg
-                le_u32,           // pad
-                le_u32,           // sr
-                le_u32,           // pc
+                count(u32(self.endianness), 8), // dreg
+                count(u32(self.endianness), 8), // areg
+                u16(self.endianness),           // pad
+                u16(self.endianness),           // sr
+                u32(self.endianness),           // pc
             )),
             |(_, _, _, _, pc)| pc as u64,
         )
@@ -798,10 +798,10 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
         map(
             tuple((
-                count(le_u32, 31), // r
-                le_u32,            // xip
-                le_u32,            // xip_in_bd
-                le_u32,            // nip
+                count(u32(self.endianness), 31), // r
+                u32(self.endianness),            // xip
+                u32(self.endianness),            // xip_in_bd
+                u32(self.endianness),            // nip
             )),
             |(_, xip, _, _)| xip as u64,
         )
