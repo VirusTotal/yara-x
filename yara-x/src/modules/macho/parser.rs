@@ -165,10 +165,12 @@ impl<'a> MachO<'a> {
             if let Some(macho) = data.get(start..end) {
                 match Self::parse_macho_file(macho) {
                     Ok(macho) => files.push(macho),
+                    #[cfg(feature = "logging")]
                     Err(err) => {
-                        #[cfg(feature = "logging")]
                         error!("Error parsing Mach-O file: {:?}", err);
                     }
+                    #[cfg(not(feature = "logging"))]
+                    Err(_) => {}
                 }
             };
         }
@@ -227,7 +229,6 @@ impl<'a> MachO<'a> {
             },
         )(remainder)?;
 
-        let ncmds = header.ncmds as usize;
         let mut macho = MachOFile {
             endianness,
             is_32_bits,
@@ -243,7 +244,7 @@ impl<'a> MachO<'a> {
             stack_size: None,
         };
 
-        for _ in 0..ncmds {
+        for _ in 0..macho.header.ncmds as usize {
             match macho.command()(commands) {
                 Ok((c, _)) => commands = c,
                 Err(err) => {
