@@ -1,4 +1,4 @@
-magic: 0xfeedface
+magic: 0xcefaedfe
 cputype: 7
 cpusubtype: 3
 filetype: 2
@@ -6,10 +6,29 @@ ncmds: 17
 sizeofcmds: 1098
 flags: 0x1200085
 number_of_segments: 4
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 3728
+stack_size: 0
+source_version: "0.0.0.0.0"
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 0
+    iextdefsym: 0
+    nextdefsym: 2
+    tocoff: 2
+    ntoc: 3
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 8388
+    nextrel: 6
+    locreloff: 0
+    nlocrel: 0
 segments:
-  - cmd: 1
-    cmdsize: 56
-    segname: "__PAGEZERO"
+  - segname: "__PAGEZERO"
     vmaddr: 0x0
     vmsize: 0x1000
     fileoff: 0
@@ -18,9 +37,7 @@ segments:
     initprot: 0x0
     nsects: 0
     flags: 0x0
-  - cmd: 1
-    cmdsize: 396
-    segname: "__TEXT"
+  - segname: "__TEXT"
     vmaddr: 0x1000
     vmsize: 0x1000
     fileoff: 0
@@ -41,6 +58,7 @@ segments:
         flags: 0x80000400
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__symbol_stub"
         addr: 0x1f36
@@ -52,6 +70,7 @@ segments:
         flags: 0x80000508
         reserved1: 0
         reserved2: 6
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__stub_helper"
         addr: 0x1f44
@@ -63,6 +82,7 @@ segments:
         flags: 0x80000500
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__cstring"
         addr: 0x1f64
@@ -74,6 +94,7 @@ segments:
         flags: 0x2
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__unwind_info"
         addr: 0x1fac
@@ -85,9 +106,8 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-  - cmd: 1
-    cmdsize: 192
-    segname: "__DATA"
+        reserved3: 0
+  - segname: "__DATA"
     vmaddr: 0x2000
     vmsize: 0x1000
     fileoff: 4096
@@ -108,6 +128,7 @@ segments:
         flags: 0x6
         reserved1: 2
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__la_symbol_ptr"
         addr: 0x2008
@@ -119,9 +140,8 @@ segments:
         flags: 0x7
         reserved1: 4
         reserved2: 0
-  - cmd: 1
-    cmdsize: 56
-    segname: "__LINKEDIT"
+        reserved3: 0
+  - segname: "__LINKEDIT"
     vmaddr: 0x3000
     vmsize: 0x1000
     fileoff: 8192
@@ -136,8 +156,4 @@ dylibs:
     compatibility_version: "1.0.0"
     current_version: "1213.0.0"
 rpaths:
-  - cmd: 2147483676
-    cmdsize: 38
-    path: "@loader_path/../Frameworks"
-entry_point: 3728
-stack_size: 0
+  - "@loader_path/../Frameworks"

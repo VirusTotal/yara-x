@@ -1,4 +1,4 @@
-magic: 0xfeedface
+magic: 0xcefaedfe
 cputype: 7
 cpusubtype: 3
 filetype: 2
@@ -6,10 +6,27 @@ ncmds: 20
 sizeofcmds: 2120
 flags: 0x1000085
 number_of_segments: 4
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 2752
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 1
+    iextdefsym: 1
+    nextdefsym: 6
+    tocoff: 7
+    ntoc: 47
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 12980
+    nextrel: 91
+    locreloff: 12964
+    nlocrel: 2
 segments:
-  - cmd: 1
-    cmdsize: 56
-    segname: "__PAGEZERO"
+  - segname: "__PAGEZERO"
     vmaddr: 0x0
     vmsize: 0x1000
     fileoff: 0
@@ -18,9 +35,7 @@ segments:
     initprot: 0x0
     nsects: 0
     flags: 0x0
-  - cmd: 1
-    cmdsize: 464
-    segname: "__TEXT"
+  - segname: "__TEXT"
     vmaddr: 0x1000
     vmsize: 0x2000
     fileoff: 0
@@ -41,6 +56,7 @@ segments:
         flags: 0x80000400
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__symbol_stub"
         addr: 0x296e
@@ -52,6 +68,7 @@ segments:
         flags: 0x80000408
         reserved1: 0
         reserved2: 6
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__stub_helper"
         addr: 0x2a7c
@@ -63,6 +80,7 @@ segments:
         flags: 0x80000400
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__cstring"
         addr: 0x2c96
@@ -74,6 +92,7 @@ segments:
         flags: 0x2
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__const"
         addr: 0x2fa8
@@ -85,6 +104,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__unwind_info"
         addr: 0x2fac
@@ -96,9 +116,8 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-  - cmd: 1
-    cmdsize: 600
-    segname: "__DATA"
+        reserved3: 0
+  - segname: "__DATA"
     vmaddr: 0x3000
     vmsize: 0x1000
     fileoff: 8192
@@ -119,6 +138,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__nl_symbol_ptr"
         addr: 0x301c
@@ -130,6 +150,7 @@ segments:
         flags: 0x6
         reserved1: 45
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__la_symbol_ptr"
         addr: 0x3020
@@ -141,6 +162,7 @@ segments:
         flags: 0x7
         reserved1: 46
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__data"
         addr: 0x30d4
@@ -152,6 +174,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__const"
         addr: 0x30e8
@@ -163,6 +186,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__cfstring"
         addr: 0x315c
@@ -174,6 +198,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__bss"
         addr: 0x317c
@@ -185,6 +210,7 @@ segments:
         flags: 0x1
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__common"
         addr: 0x326c
@@ -196,9 +222,8 @@ segments:
         flags: 0x1
         reserved1: 0
         reserved2: 0
-  - cmd: 1
-    cmdsize: 56
-    segname: "__LINKEDIT"
+        reserved3: 0
+  - segname: "__LINKEDIT"
     vmaddr: 0x4000
     vmsize: 0x718
     fileoff: 12288
@@ -244,4 +269,3 @@ dylibs:
     timestamp: 2 # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "38.0.0"
-entry_point: 2752

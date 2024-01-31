@@ -1,4 +1,4 @@
-magic: 0xfeedface
+magic: 0xcefaedfe
 cputype: 7
 cpusubtype: 3
 filetype: 2
@@ -6,10 +6,9 @@ ncmds: 2
 sizeofcmds: 136
 flags: 0x1200000
 number_of_segments: 1
+entry_point: 116
 segments:
-  - cmd: 1
-    cmdsize: 56
-    segname: ""
+  - segname: "SP1\300\211\347j\010Wj\001P\260\004\353\260"
     vmaddr: 0x1000
     vmsize: 0x1000
     fileoff: 0
@@ -18,4 +17,3 @@ segments:
     initprot: 0x5
     nsects: 0
     flags: 0x0
-entry_point: 116

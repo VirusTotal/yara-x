@@ -1,4 +1,4 @@
-magic: 0xcefaedfe
+magic: 0xfeedface
 cputype: 18
 cpusubtype: 0
 filetype: 2
@@ -6,10 +6,27 @@ ncmds: 18
 sizeofcmds: 2616
 flags: 0x85
 number_of_segments: 5
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 3092
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 177
+    iextdefsym: 177
+    nextdefsym: 28
+    tocoff: 205
+    ntoc: 49
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 23648
+    nextrel: 53
+    locreloff: 23528
+    nlocrel: 15
 segments:
-  - cmd: 1
-    cmdsize: 56
-    segname: "__PAGEZERO"
+  - segname: "__PAGEZERO"
     vmaddr: 0x0
     vmsize: 0x1000
     fileoff: 0
@@ -18,9 +35,7 @@ segments:
     initprot: 0x0
     nsects: 0
     flags: 0x0
-  - cmd: 1
-    cmdsize: 328
-    segname: "__TEXT"
+  - segname: "__TEXT"
     vmaddr: 0x1000
     vmsize: 0x3000
     fileoff: 0
@@ -41,6 +56,7 @@ segments:
         flags: 0x80000400
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__symbol_stub1"
         addr: 0x3470
@@ -52,6 +68,7 @@ segments:
         flags: 0x80000408
         reserved1: 0
         reserved2: 16
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__cstring"
         addr: 0x35d0
@@ -63,6 +80,7 @@ segments:
         flags: 0x2
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__TEXT"
         sectname: "__const"
         addr: 0x3fd0
@@ -74,9 +92,8 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-  - cmd: 1
-    cmdsize: 464
-    segname: "__DATA"
+        reserved3: 0
+  - segname: "__DATA"
     vmaddr: 0x4000
     vmsize: 0x1000
     fileoff: 12288
@@ -97,6 +114,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__nl_symbol_ptr"
         addr: 0x4008
@@ -108,6 +126,7 @@ segments:
         flags: 0x6
         reserved1: 22
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__la_symbol_ptr"
         addr: 0x402c
@@ -119,6 +138,7 @@ segments:
         flags: 0x7
         reserved1: 31
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__cfstring"
         addr: 0x4084
@@ -130,6 +150,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__data"
         addr: 0x4174
@@ -141,6 +162,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__DATA"
         sectname: "__common"
         addr: 0x4190
@@ -152,9 +174,8 @@ segments:
         flags: 0x1
         reserved1: 0
         reserved2: 0
-  - cmd: 1
-    cmdsize: 736
-    segname: "__OBJC"
+        reserved3: 0
+  - segname: "__OBJC"
     vmaddr: 0x5000
     vmsize: 0x1000
     fileoff: 16384
@@ -175,6 +196,7 @@ segments:
         flags: 0x5
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__cls_refs"
         addr: 0x5108
@@ -186,6 +208,7 @@ segments:
         flags: 0x5
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__class"
         addr: 0x5138
@@ -197,6 +220,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__meta_class"
         addr: 0x52b8
@@ -208,6 +232,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__inst_meth"
         addr: 0x5438
@@ -219,6 +244,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__instance_vars"
         addr: 0x5598
@@ -230,6 +256,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__module_info"
         addr: 0x5634
@@ -241,6 +268,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__symbols"
         addr: 0x56b4
@@ -252,6 +280,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__cls_meth"
         addr: 0x5734
@@ -263,6 +292,7 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
+        reserved3: 0
       - segname: "__OBJC"
         sectname: "__image_info"
         addr: 0x5748
@@ -274,9 +304,8 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-  - cmd: 1
-    cmdsize: 56
-    segname: "__LINKEDIT"
+        reserved3: 0
+  - segname: "__LINKEDIT"
     vmaddr: 0x6000
     vmsize: 0x3000
     fileoff: 20480
@@ -318,4 +347,3 @@ dylibs:
     timestamp: 2 # 1970-01-01 00:00:02 UTC
     compatibility_version: "45.0.0"
     current_version: "824.48.0"
-entry_point: 3092

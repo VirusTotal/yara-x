@@ -50,12 +50,14 @@ console-module = []
 
 # The `dotnet` module parsers .NET files.
 dotnet-module = [
-    "pe-module"
+    "pe-module",
+    "dep:nom",
 ]
 
 # The `elf` module parses ELF files.
 elf-module = [
-    "dep:tlsh-fixed"
+    "dep:tlsh-fixed",
+    "dep:nom",
 ]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,
@@ -70,13 +72,13 @@ hash-module = [
 # The `lnk` module parses LNK files.
 lnk-module = [
     "dep:uuid",
+    "dep:nom",
 ]
 
 # The `macho` module parses Mach-O files.
 macho-module = [
     "dep:byteorder",
     "dep:nom",
-    "dep:arrayref",
 ]
 
 # The `math` module.
@@ -85,6 +87,7 @@ math-module = []
 # The `pe` module parses PE files.
 pe-module = [
     "dep:authenticode-parser",
+    "dep:nom",
 ]
 
 # The `string` modules offer some functions for parsing strings as integers,
@@ -108,6 +111,7 @@ time-module = []
 
 # Features that are enabled by default.
 default = [
+    "logging",
     "constant-folding",
     "exact-atoms",
     "fast-regexp",
@@ -129,7 +133,6 @@ aho-corasick = { workspace = true, features=["logging"] }
 anyhow = { workspace = true }
 ariadne = { workspace = true }
 array-bytes = { workspace = true }
-arrayref = { workspace = true, optional = true }
 ascii_tree = { workspace = true}
 authenticode-parser = { workspace = true, optional = true }
 base64 = { workspace = true }
