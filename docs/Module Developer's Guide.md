@@ -12,15 +12,31 @@ For illustrative purposes we are going to create a `text` module that allows
 creating YARA rules for plain-text files, based on the number of lines and
 words
 
-* [Defining the module's structure](#defining-the-modules-structure)
-* [Proto2 vs Proto3](#proto2-vs-proto3)
-* [Implementing the module's main function](#implementing-the-modules-main-function)
-* [Building your module](#building-your-module)
-* [Adding functions to your module](#adding-functions-to-your-module)
-* [String types in module functions](#string-types-in-module-functions)
-* [Accessing module's structure from a function](#accessing-the-modules-structure-from-a-function)
-* [Adding dependencies](#adding-dependencies)
-* [Using enums](#using-enums)
+- [Module Developer's Guide](#module-developers-guide)
+  - [Defining the module's structure](#defining-the-modules-structure)
+  - [Proto2 vs Proto3](#proto2-vs-proto3)
+  - [Tweaking the module's YAML output](#tweaking-the-modules-yaml-output)
+  - [Implementing the module's main function](#implementing-the-modules-main-function)
+  - [Building your module](#building-your-module)
+  - [Adding functions to your module](#adding-functions-to-your-module)
+          - [Valid function arguments](#valid-function-arguments)
+          - [Valid return types](#valid-return-types)
+  - [String types in module functions](#string-types-in-module-functions)
+  - [Accessing the module's structure from a function](#accessing-the-modules-structure-from-a-function)
+  - [Adding dependencies](#adding-dependencies)
+  - [Using enums](#using-enums)
+    - [Inline enums](#inline-enums)
+  - [Tests](#tests)
+    - [Structuring Testdata Input](#structuring-testdata-input)
+      - [Linux](#linux)
+      - [MacOS](#macos)
+      - [Other Operating Systems](#other-operating-systems)
+      - [Archiving the test data](#archiving-the-test-data)
+    - [Converting the Files back to Original Format](#converting-the-files-back-to-original-format)
+      - [Unarchiving the test data](#unarchiving-the-test-data)
+      - [Linux](#linux-1)
+      - [MacOS](#macos-1)
+      - [Other Operating Systems](#other-operating-systems-1)
 
 ## Defining the module's structure
 
@@ -474,31 +490,31 @@ and return types:
 
 ###### Valid function arguments
 
-| Rust type       | YARA type | 
-|-----------------|-----------|
+| Rust type       | YARA type |
+| --------------- | --------- |
 | `i32`           | integer   |
 | `i64`           | integer   |
 | `f32`           | float     |
 | `f64`           | float     |
-| `bool`          | bool      | 
+| `bool`          | bool      |
 | `RuntimeString` | string    |
 
 
 ###### Valid return types
 
-| Rust type               | YARA type                     | 
-|-------------------------|-------------------------------|
+| Rust type               | YARA type                     |
+| ----------------------- | ----------------------------- |
 | `i32`                   | integer                       |
 | `i64`                   | integer                       |
 | `f32`                   | float                         |
 | `f64`                   | float                         |
-| `bool`                  | bool                          | 
+| `bool`                  | bool                          |
 | `RuntimeString`         | string                        |
 | `Option<i32>`           | integer / undefined if `None` |
 | `Option<i64>`           | integer / undefined if `None` |
 | `Option<f32>`           | float / undefined if `None`   |
 | `Option<f64>`           | float  / undefined if `None`  |
-| `Option<bool>`          | bool  / undefined if `None`   |  
+| `Option<bool>`          | bool  / undefined if `None`   |
 | `Option<RuntimeString>` | string / undefined if `None`  |
 
 
@@ -970,4 +986,67 @@ enum CPU_SUBTYPE_ARM {
 With the enums above you can refer to `macho.CPU_TYPE_X86` and instead of 
 `macho.CPU_TYPE.CPU_TYPE_X86` and `macho.CPU_SUBTYPE_INTEL.CPU_SUBTYPE_I386`. 
 
+## Tests
+You'll notice that each module in `/yara-x/src/modules/` has a `tests/` directory with a nested `testdata/` directory. The testing framework is expecting a particular format and input structure to use them:
+1. File conveted to [Intel Hex](https://developer.arm.com/documentation/ka003292/latest/) format format
+2. Intel Hex format output zipped
+3. End file named <sha_256>.in.zip
+   
+### Structuring Testdata Input
+To convert the binary to Intel Hex format, we can use the various tools, depending on the operating system.
 
+To start, we need the raw binary with the sha256 of the binary as its identifier. This can be done differently on various platforms. These steps assume the binary is named its sha256 hash (`<sha256_hash>` is used as a placeholer).
+
+#### Linux
+You can leverage [objcopy](https://man7.org/linux/man-pages/man1/objcopy.1.html).
+```bash
+objcopy -I binary -O ihex <sha256_hash> <sha256_hash>.in
+```
+
+#### MacOS
+You can leverage [llvm-objcopy](https://llvm.org/docs/CommandGuide/llvm-objcopy.html#supported-formats).
+```bash
+llvm-objcopy -I binary -O ihex <sha256_hash> <sha256_hash>.in
+```
+
+#### Other Operating Systems
+If you cannot use `objcopy` or `llvm-objcopy` on your current OS, you can use the provided scripts at [python-intelhex/intelhex](https://github.com/python-intelhex/intelhex/), assuming you can run Python.
+```bash
+bin2hex.py <sha256_hash> <sha256_hash>.in
+```
+
+#### Archiving the test data
+You can then archive the file into a zip archive using an archival utility and move it to the appropriate test directory. An example of that is below:
+
+```bash
+zip <sha256_hash>.in.zip <sha256_hash>.in
+mv <sha256_hash>.in.zip <location_of_yara-x>/yara-x/src/modules/<module>/tests/testdata/
+```
+
+### Converting the Files back to Original Format
+If you need the files back in binary form, you can inverse the steps above.
+
+#### Unarchiving the test data
+You can then unarchive the file using an archival utility. An example of that is below:
+
+```bash
+unzip <sha256_hash>.in.zip
+```
+
+#### Linux
+You can leverage [objcopy](https://man7.org/linux/man-pages/man1/objcopy.1.html).
+```bash
+objcopy -I ihex -O binary <sha256_hash>.in <sha256_hash>
+```
+
+#### MacOS
+You can leverage [llvm-objcopy](https://llvm.org/docs/CommandGuide/llvm-objcopy.html#supported-formats).
+```bash
+llvm-objcopy -I ihex -O binary <sha256_hash>.in <sha256_hash>
+```
+
+#### Other Operating Systems
+If you cannot use `objcopy` or `llvm-objcopy` on your current OS, you can use the provided scripts at [python-intelhex/intelhex](https://github.com/python-intelhex/intelhex/), assuming you can run Python.
+```bash
+hex2bin.py <sha256_hash>.in <sha256_hash>
+```
