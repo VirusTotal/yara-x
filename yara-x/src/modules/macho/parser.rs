@@ -4,6 +4,7 @@ use bstr::{BStr, ByteSlice};
 use log::error;
 use nom::bytes::complete::take;
 use nom::combinator::{cond, map, verify};
+use nom::error::ErrorKind;
 use nom::multi::{count, length_count};
 use nom::number::complete::{be_u32, le_u32, le_u64, u32, u64};
 use nom::number::Endianness;
@@ -248,6 +249,17 @@ impl<'a> MachO<'a> {
                 Err(err) => {
                     #[cfg(feature = "logging")]
                     error!("Error parsing Mach-O file: {:?}", err);
+                    // Break the loop when the end of file has been reached.
+                    // With other types of errors we keep trying to parse more
+                    // commands as one individual command structure could be
+                    // corrupted while the rest are ok. But when the end of
+                    // the file is reached there are no more commands that can
+                    // be parsed.
+                    if let Err::Error(e) = err {
+                        if e.code == ErrorKind::Eof {
+                            break;
+                        }
+                    }
                 }
             }
         }
