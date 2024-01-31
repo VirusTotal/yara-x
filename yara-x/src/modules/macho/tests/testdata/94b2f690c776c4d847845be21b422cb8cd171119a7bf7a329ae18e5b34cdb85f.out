@@ -1,0 +1,136 @@
+magic: 0xfeedface
+cputype: 0x6
+cpusubtype: 0x1
+filetype: 2
+ncmds: 7
+sizeofcmds: 928
+flags: 0x1
+number_of_segments: 4
+entry_point: 3952
+segments:
+  - segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x2000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x4
+  - segname: "__TEXT"
+    vmaddr: 0x2000
+    vmsize: 0x8000
+    fileoff: 0
+    filesize: 32768
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 5
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x2f70
+        size: 0x5dc0
+        offset: 3952
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__fvmlib_init0"
+        addr: 0x8d30
+        size: 0x130
+        offset: 27952
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__fvmlib_init1"
+        addr: 0x8e60
+        size: 0x0
+        offset: 28256
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x8e60
+        size: 0x508
+        offset: 28256
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x9368
+        size: 0xc97
+        offset: 29544
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+  - segname: "__DATA"
+    vmaddr: 0xa000
+    vmsize: 0x6000
+    fileoff: 32768
+    filesize: 8192
+    maxprot: 0x7
+    initprot: 0x7
+    nsects: 3
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0xa000
+        size: 0x20
+        offset: 32768
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__bss"
+        addr: 0xa020
+        size: 0x458
+        offset: 0
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+      - segname: "__DATA"
+        sectname: "__common"
+        addr: 0xa480
+        size: 0x4b0c
+        offset: 0
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+  - segname: "__LINKEDIT"
+    vmaddr: 0x10000
+    vmsize: 0x16000
+    fileoff: 40960
+    filesize: 85803
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 0
+    flags: 0x4

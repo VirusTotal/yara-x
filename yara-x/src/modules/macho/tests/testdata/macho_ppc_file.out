@@ -1,15 +1,32 @@
-magic: 0xcefaedfe
-cputype: 18
-cpusubtype: 0
+magic: 0xfeedface
+cputype: 0x12
+cpusubtype: 0x0
 filetype: 2
 ncmds: 10
 sizeofcmds: 1484
 flags: 0x85
 number_of_segments: 4
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 3768
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 2170
+    iextdefsym: 2170
+    nextdefsym: 111
+    tocoff: 2281
+    ntoc: 86
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 94284
+    nextrel: 191
+    locreloff: 0
+    nlocrel: 0
 segments:
-  - cmd: 1
-    cmdsize: 56
-    segname: "__PAGEZERO"
+  - segname: "__PAGEZERO"
     vmaddr: 0x0
     vmsize: 0x1000
     fileoff: 0
@@ -18,9 +35,7 @@ segments:
     initprot: 0x0
     nsects: 0
     flags: 0x4
-  - cmd: 1
-    cmdsize: 532
-    segname: "__TEXT"
+  - segname: "__TEXT"
     vmaddr: 0x1000
     vmsize: 0xf000
     fileoff: 0
@@ -107,9 +122,7 @@ segments:
         flags: 0x6800000b
         reserved1: 0
         reserved2: 0
-  - cmd: 1
-    cmdsize: 464
-    segname: "__DATA"
+  - segname: "__DATA"
     vmaddr: 0x10000
     vmsize: 0x1000
     fileoff: 61440
@@ -185,9 +198,7 @@ segments:
         flags: 0x1
         reserved1: 0
         reserved2: 0
-  - cmd: 1
-    cmdsize: 56
-    segname: "__LINKEDIT"
+  - segname: "__LINKEDIT"
     vmaddr: 0x11000
     vmsize: 0xc000
     fileoff: 65536
@@ -201,4 +212,3 @@ dylibs:
     timestamp: 1111112572 # 2005-03-18 02:22:52 UTC
     compatibility_version: "1.0.0"
     current_version: "71.1.1"
-entry_point: 3768

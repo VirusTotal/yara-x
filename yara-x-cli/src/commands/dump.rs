@@ -127,7 +127,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if !module_output.lnk.is_lnk() {
             module_output.lnk = MessageField::none()
         }
-        if !module_output.macho.has_magic() {
+        if !module_output.macho.has_magic()
+            && !module_output.macho.has_fat_magic()
+        {
             module_output.macho = MessageField::none()
         }
         if !module_output.pe.is_pe() {

@@ -41,17 +41,23 @@ mod tests {
     #[test]
     fn length() {
         rule_true!(
-            r#"rule test { condition: string.length("AXsx00ERS") == 9 }"#,
+            r#"
+            import "string"
+            rule test { condition: string.length("AXsx00ERS") == 9 }"#,
             &[]
         );
 
         rule_false!(
-            r#"rule test { condition: string.length("AXsx00ERS") > 9 }"#,
+            r#"
+            import "string"
+            rule test { condition: string.length("AXsx00ERS") > 9 }"#,
             &[]
         );
 
         rule_false!(
-            r#"rule test { condition: string.length("AXsx00ERS") < 9 }"#,
+            r#"
+            import "string"
+            rule test { condition: string.length("AXsx00ERS") < 9 }"#,
             &[]
         );
     }
@@ -59,27 +65,37 @@ mod tests {
     #[test]
     fn to_int() {
         rule_true!(
-            r#"rule test { condition: string.to_int("1234") == 1234 }"#,
+            r#"
+            import "string"
+            rule test { condition: string.to_int("1234") == 1234 }"#,
             &[]
         );
 
         rule_true!(
-            r#"rule test { condition: string.to_int("-10") == -10 }"#,
+            r#"
+            import "string"
+            rule test { condition: string.to_int("-10") == -10 }"#,
             &[]
         );
 
         rule_true!(
-            r#"rule test { condition: string.to_int("A", 16) == 10 }"#,
+            r#"
+            import "string"
+            rule test { condition: string.to_int("A", 16) == 10 }"#,
             &[]
         );
 
         rule_true!(
-            r#"rule test { condition: string.to_int("011", 8) == 9 }"#,
+            r#"
+            import "string"
+            rule test { condition: string.to_int("011", 8) == 9 }"#,
             &[]
         );
 
         rule_true!(
-            r#"rule test { condition: string.to_int("-011", 8) == -9 }"#,
+            r#"
+            import "string"
+            rule test { condition: string.to_int("-011", 8) == -9 }"#,
             &[]
         );
     }

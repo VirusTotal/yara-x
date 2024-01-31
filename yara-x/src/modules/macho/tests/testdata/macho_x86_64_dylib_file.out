@@ -1,16 +1,32 @@
-magic: 0xfeedfacf
-cputype: 16777223
-cpusubtype: 3
+magic: 0xcffaedfe
+cputype: 0x1000007
+cpusubtype: 0x3
 filetype: 6
 ncmds: 13
 sizeofcmds: 744
 flags: 0x100085
 reserved: 1
 number_of_segments: 2
+source_version: "0.0.0.0.0"
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 0
+    iextdefsym: 0
+    nextdefsym: 1
+    tocoff: 1
+    ntoc: 1
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
 segments:
-  - cmd: 25
-    cmdsize: 312
-    segname: "__TEXT"
+  - segname: "__TEXT"
     vmaddr: 0x0
     vmsize: 0x1000
     fileoff: 0
@@ -56,9 +72,7 @@ segments:
         reserved1: 0
         reserved2: 0
         reserved3: 0
-  - cmd: 25
-    cmdsize: 72
-    segname: "__LINKEDIT"
+  - segname: "__LINKEDIT"
     vmaddr: 0x1000
     vmsize: 0x1000
     fileoff: 4096

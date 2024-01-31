@@ -1,16 +1,31 @@
-magic: 0xfeedfacf
-cputype: 16777228
-cpusubtype: 0
+magic: 0xcffaedfe
+cputype: 0x100000c
+cpusubtype: 0x0
 filetype: 6
 ncmds: 107
 sizeofcmds: 11416
 flags: 0x2918085
 reserved: 0
 number_of_segments: 5
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 22
+    iextdefsym: 22
+    nextdefsym: 9803
+    tocoff: 9825
+    ntoc: 8268
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 20016808
+    nextrel: 11353
+    locreloff: 0
+    nlocrel: 0
 segments:
-  - cmd: 25
-    cmdsize: 1512
-    segname: "__TEXT"
+  - segname: "__TEXT"
     vmaddr: 0x0
     vmsize: 0xb48000
     fileoff: 0
@@ -236,9 +251,7 @@ segments:
         reserved1: 0
         reserved2: 0
         reserved3: 0
-  - cmd: 25
-    cmdsize: 712
-    segname: "__DATA_CONST"
+  - segname: "__DATA_CONST"
     vmaddr: 0xb48000
     vmsize: 0x100000
     fileoff: 11829248
@@ -344,9 +357,7 @@ segments:
         reserved1: 0
         reserved2: 0
         reserved3: 0
-  - cmd: 25
-    cmdsize: 1352
-    segname: "__DATA"
+  - segname: "__DATA"
     vmaddr: 0xc48000
     vmsize: 0x1fc000
     fileoff: 12877824
@@ -548,9 +559,7 @@ segments:
         reserved1: 0
         reserved2: 0
         reserved3: 0
-  - cmd: 25
-    cmdsize: 392
-    segname: "__RODATA"
+  - segname: "__RODATA"
     vmaddr: 0xe44000
     vmsize: 0x3cc000
     fileoff: 14860288
@@ -608,9 +617,7 @@ segments:
         reserved1: 0
         reserved2: 0
         reserved3: 0
-  - cmd: 25
-    cmdsize: 72
-    segname: "__LINKEDIT"
+  - segname: "__LINKEDIT"
     vmaddr: 0x1210000
     vmsize: 0x254000
     fileoff: 18841600
@@ -709,15 +716,7 @@ dylibs:
     compatibility_version: "1.0.0"
     current_version: "1226.0.0"
 rpaths:
-  - cmd: 2147483676
-    cmdsize: 32
-    path: "/usr/lib/swift"
-  - cmd: 2147483676
-    cmdsize: 40
-    path: "@executable_path/Frameworks"
-  - cmd: 2147483676
-    cmdsize: 40
-    path: "@executable_path/Frameworks"
-  - cmd: 2147483676
-    cmdsize: 40
-    path: "@loader_path/Frameworks"
+  - "/usr/lib/swift"
+  - "@executable_path/Frameworks"
+  - "@executable_path/Frameworks"
+  - "@loader_path/Frameworks"
