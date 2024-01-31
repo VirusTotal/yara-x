@@ -512,7 +512,7 @@ impl<'a> MachOFile<'a> {
         move |input: &'a [u8]| {
             let (
                 remainder,
-                (offset, timestamp, current_version, compatibility_version),
+                (_offset, timestamp, current_version, compatibility_version),
             ) = tuple((
                 u32(self.endianness), // offset,
                 u32(self.endianness), // timestamp,
@@ -524,7 +524,6 @@ impl<'a> MachOFile<'a> {
                 &[],
                 Dylib {
                     name: BStr::new(remainder).trim_end_with(|c| c == '\0'),
-                    offset, // todo: take offset into account?
                     timestamp,
                     current_version,
                     compatibility_version,
@@ -602,13 +601,12 @@ impl<'a> MachOFile<'a> {
         &self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Dylinker> + '_ {
         move |input: &'a [u8]| {
-            let (remainder, offset) = u32(self.endianness)(input)?;
+            let (remainder, _offset) = u32(self.endianness)(input)?;
 
             Ok((
                 &[],
                 Dylinker {
                     name: BStr::new(remainder).trim_end_with(|c| c == '\0'),
-                    offset,
                 },
             ))
         }
@@ -735,7 +733,7 @@ impl<'a> MachOFile<'a> {
                 uint(self.endianness, true),            // mq
                 uint(self.endianness, true),            // vrsavead
             )),
-            |(srr0, _, _, _, _, _, _, _, _)| srr0 as u64,
+            |(srr0, _, _, _, _, _, _, _, _)| srr0,
         )
     }
 
@@ -753,7 +751,7 @@ impl<'a> MachOFile<'a> {
                 uint(self.endianness, false),            // ctr
                 uint(self.endianness, false),            // vrsave
             )),
-            |(srr0, _, _, _, _, _, _, _)| srr0 as u64,
+            |(srr0, _, _, _, _, _, _, _)| srr0,
         )
     }
 
@@ -853,7 +851,6 @@ struct Section<'a> {
 
 struct Dylib<'a> {
     name: &'a [u8],
-    offset: u32,
     timestamp: u32,
     current_version: u32,
     compatibility_version: u32,
@@ -861,7 +858,6 @@ struct Dylib<'a> {
 
 struct Dylinker<'a> {
     name: &'a [u8],
-    offset: u32,
 }
 
 struct Dysymtab {
