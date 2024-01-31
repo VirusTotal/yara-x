@@ -56,7 +56,6 @@ segments:
         flags: 0x80000400
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__picsymbol_stub"
         addr: 0xd6f0
@@ -68,7 +67,6 @@ segments:
         flags: 0x80000008
         reserved1: 0
         reserved2: 36
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__symbol_stub"
         addr: 0xd6f0
@@ -80,7 +78,6 @@ segments:
         flags: 0x80000008
         reserved1: 0
         reserved2: 20
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__picsymbolstub1"
         addr: 0xd6f0
@@ -92,7 +89,6 @@ segments:
         flags: 0x80000408
         reserved1: 0
         reserved2: 32
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__cstring"
         addr: 0xe0f0
@@ -104,7 +100,6 @@ segments:
         flags: 0x2
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__literal8"
         addr: 0xff78
@@ -116,7 +111,6 @@ segments:
         flags: 0x4
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__eh_frame"
         addr: 0xffc8
@@ -128,7 +122,6 @@ segments:
         flags: 0x6800000b
         reserved1: 0
         reserved2: 0
-        reserved3: 0
   - segname: "__DATA"
     vmaddr: 0x10000
     vmsize: 0x1000
@@ -150,7 +143,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__la_symbol_ptr"
         addr: 0x10254
@@ -162,7 +154,6 @@ segments:
         flags: 0x7
         reserved1: 80
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__nl_symbol_ptr"
         addr: 0x10394
@@ -174,7 +165,6 @@ segments:
         flags: 0x6
         reserved1: 160
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__dyld"
         addr: 0x10410
@@ -186,7 +176,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__bss"
         addr: 0x1042c
@@ -198,7 +187,6 @@ segments:
         flags: 0x1
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__common"
         addr: 0x10840
@@ -210,7 +198,6 @@ segments:
         flags: 0x1
         reserved1: 0
         reserved2: 0
-        reserved3: 0
   - segname: "__LINKEDIT"
     vmaddr: 0x11000
     vmsize: 0xc000

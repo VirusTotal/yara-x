@@ -56,7 +56,6 @@ segments:
         flags: 0x80000400
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__symbol_stub1"
         addr: 0x3470
@@ -68,7 +67,6 @@ segments:
         flags: 0x80000408
         reserved1: 0
         reserved2: 16
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__cstring"
         addr: 0x35d0
@@ -80,7 +78,6 @@ segments:
         flags: 0x2
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__TEXT"
         sectname: "__const"
         addr: 0x3fd0
@@ -92,7 +89,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
   - segname: "__DATA"
     vmaddr: 0x4000
     vmsize: 0x1000
@@ -114,7 +110,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__nl_symbol_ptr"
         addr: 0x4008
@@ -126,7 +121,6 @@ segments:
         flags: 0x6
         reserved1: 22
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__la_symbol_ptr"
         addr: 0x402c
@@ -138,7 +132,6 @@ segments:
         flags: 0x7
         reserved1: 31
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__cfstring"
         addr: 0x4084
@@ -150,7 +143,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__data"
         addr: 0x4174
@@ -162,7 +154,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__DATA"
         sectname: "__common"
         addr: 0x4190
@@ -174,7 +165,6 @@ segments:
         flags: 0x1
         reserved1: 0
         reserved2: 0
-        reserved3: 0
   - segname: "__OBJC"
     vmaddr: 0x5000
     vmsize: 0x1000
@@ -196,7 +186,6 @@ segments:
         flags: 0x5
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__cls_refs"
         addr: 0x5108
@@ -208,7 +197,6 @@ segments:
         flags: 0x5
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__class"
         addr: 0x5138
@@ -220,7 +208,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__meta_class"
         addr: 0x52b8
@@ -232,7 +219,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__inst_meth"
         addr: 0x5438
@@ -244,7 +230,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__instance_vars"
         addr: 0x5598
@@ -256,7 +241,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__module_info"
         addr: 0x5634
@@ -268,7 +252,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__symbols"
         addr: 0x56b4
@@ -280,7 +263,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__cls_meth"
         addr: 0x5734
@@ -292,7 +274,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
       - segname: "__OBJC"
         sectname: "__image_info"
         addr: 0x5748
@@ -304,7 +285,6 @@ segments:
         flags: 0x0
         reserved1: 0
         reserved2: 0
-        reserved3: 0
   - segname: "__LINKEDIT"
     vmaddr: 0x6000
     vmsize: 0x3000

@@ -57,7 +57,6 @@ file:
             flags: 0x80000400
             reserved1: 0
             reserved2: 0
-            reserved3: 0
           - segname: "__TEXT"
             sectname: "__symbol_stub"
             addr: 0x1f66
@@ -69,7 +68,6 @@ file:
             flags: 0x80000508
             reserved1: 0
             reserved2: 6
-            reserved3: 0
           - segname: "__TEXT"
             sectname: "__stub_helper"
             addr: 0x1f74
@@ -81,7 +79,6 @@ file:
             flags: 0x80000500
             reserved1: 0
             reserved2: 0
-            reserved3: 0
           - segname: "__TEXT"
             sectname: "__cstring"
             addr: 0x1f94
@@ -93,7 +90,6 @@ file:
             flags: 0x2
             reserved1: 0
             reserved2: 0
-            reserved3: 0
           - segname: "__TEXT"
             sectname: "__unwind_info"
             addr: 0x1fb0
@@ -105,7 +101,6 @@ file:
             flags: 0x0
             reserved1: 0
             reserved2: 0
-            reserved3: 0
       - segname: "__DATA"
         vmaddr: 0x2000
         vmsize: 0x1000
@@ -127,7 +122,6 @@ file:
             flags: 0x6
             reserved1: 2
             reserved2: 0
-            reserved3: 0
           - segname: "__DATA"
             sectname: "__la_symbol_ptr"
             addr: 0x2008
@@ -139,7 +133,6 @@ file:
             flags: 0x7
             reserved1: 4
             reserved2: 0
-            reserved3: 0
       - segname: "__LINKEDIT"
         vmaddr: 0x3000
         vmsize: 0x1000

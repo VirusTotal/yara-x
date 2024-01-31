@@ -341,7 +341,7 @@ impl<'a> MachOFile<'a> {
                     flags,
                     reserved1,
                     reserved2,
-                    reserved3: reserved3.unwrap_or_default(),
+                    reserved3,
                 }
             },
         )
@@ -846,7 +846,7 @@ struct Section<'a> {
     flags: u32,
     reserved1: u32,
     reserved2: u32,
-    reserved3: u32,
+    reserved3: Option<u32>, // Only set in 64-bits binaries
 }
 
 struct Dylib<'a> {
@@ -1031,7 +1031,7 @@ impl From<&Section<'_>> for protos::macho::Section {
         result.set_flags(sec.flags);
         result.set_reserved1(sec.reserved1);
         result.set_reserved2(sec.reserved2);
-        result.set_reserved3(sec.reserved3);
+        result.reserved3 = sec.reserved3;
         result
     }
 }
