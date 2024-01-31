@@ -1,22 +1,22 @@
 fat_magic: 0xcafebabe
 nfat_arch: 2
 fat_arch:
-  - cputype: 7
-    cpusubtype: 3
+  - cputype: 0x7
+    cpusubtype: 0x3
     offset: 4096
     size: 8512
     align: 12
     reserved: 0
-  - cputype: 16777223
-    cpusubtype: 2147483651
+  - cputype: 0x1000007
+    cpusubtype: 0x80000003
     offset: 16384
     size: 8544
     align: 12
     reserved: 0
 file:
   - magic: 0xcefaedfe
-    cputype: 7
-    cpusubtype: 3
+    cputype: 0x7
+    cpusubtype: 0x3
     filetype: 2
     ncmds: 16
     sizeofcmds: 1060
@@ -165,8 +165,8 @@ file:
         locreloff: 0
         nlocrel: 0
   - magic: 0xcffaedfe
-    cputype: 16777223
-    cpusubtype: 2147483651
+    cputype: 0x1000007
+    cpusubtype: 0x80000003
     filetype: 2
     ncmds: 16
     sizeofcmds: 1296

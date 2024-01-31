@@ -1,6 +1,6 @@
 magic: 0xcffaedfe
-cputype: 16777228
-cpusubtype: 0
+cputype: 0x100000c
+cpusubtype: 0x0
 filetype: 6
 ncmds: 107
 sizeofcmds: 11416
