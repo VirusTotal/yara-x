@@ -111,7 +111,6 @@ time-module = []
 
 # Features that are enabled by default.
 default = [
-    "logging",
     "constant-folding",
     "exact-atoms",
     "fast-regexp",
