@@ -96,6 +96,6 @@ yara-x-proto-yaml = { path = "yara-x-proto-yaml" }
 
 
 [profile.release]
-debug = 1   # Include debug information in the binary.
+# debug = 1   # Include debug information in the binary.
 # lto = true    # Enable link-time optimization.
 # strip = true  # Automatically strip symbols from the binary.
