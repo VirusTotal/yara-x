@@ -414,7 +414,7 @@ impl<'a> MachOFile<'a> {
                 }
                 LC_ID_DYLINKER | LC_LOAD_DYLINKER | LC_DYLD_ENVIRONMENT => {
                     let (_, dylinker) = self.dylinker_command()(command_data)?;
-                    self.dynamic_linker = Some(dylinker.name);
+                    self.dynamic_linker = Some(dylinker);
                 }
                 LC_DYSYMTAB => {
                     let (_, dysymtab) = self.dysymtab_command()(command_data)?;
@@ -611,16 +611,11 @@ impl<'a> MachOFile<'a> {
     /// LC_DYLD_ENVIRONMENT  command.
     fn dylinker_command(
         &self,
-    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Dylinker> + '_ {
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> + '_ {
         move |input: &'a [u8]| {
             let (remainder, _offset) = u32(self.endianness)(input)?;
 
-            Ok((
-                &[],
-                Dylinker {
-                    name: BStr::new(remainder).trim_end_with(|c| c == '\0'),
-                },
-            ))
+            Ok((&[], BStr::new(remainder).trim_end_with(|c| c == '\0')))
         }
     }
 
@@ -866,10 +861,6 @@ struct Dylib<'a> {
     timestamp: u32,
     current_version: u32,
     compatibility_version: u32,
-}
-
-struct Dylinker<'a> {
-    name: &'a [u8],
 }
 
 struct Dysymtab {
