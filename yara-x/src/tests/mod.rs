@@ -1355,11 +1355,20 @@ fn regexp_wide() {
 
     pattern_match!(r#"/bar/ wide"#, b"b\0a\0r\0", b"b\0a\0r\0");
     pattern_false!(r#"/bar/ wide"#, b"b\x01a\0r\0");
+    pattern_false!(r#"/bar/ wide"#, b"bar");
+
     pattern_false!(r#"/foobar/ wide"#, b"f\0o\0o\0b\0a\0r\x01");
     pattern_false!(r#"/foobar/i wide"#, b"f\0o\0o\0b\0a\0r\x01");
-    pattern_true!(r#"/fo.{1,3}1234/is wide"#, b"f\0o\0o\01\02\03\04\0");
-    pattern_false!(r#"/fo.{1,3}1234/is wide"#, b"f\0x01o\0o\01\02\03\04\0");
-    pattern_false!(r#"/bar/ wide"#, b"bar");
+
+    pattern_true!(
+        r#"/fo.{1,3}1234/is wide"#,
+        b"f\0o\0o\x001\x002\x003\x004\0"
+    );
+    pattern_false!(
+        r#"/fo.{1,3}1234/is wide"#,
+        b"f\0x01o\0o\x01\x02\x03\x04\0"
+    );
+
     pattern_match!(r#"/foo.*?bar/s ascii wide nocase"#, b"FOOBAR", b"FOOBAR");
     pattern_match!(r#"/foo.*?bar/s ascii wide nocase"#, b"foobar", b"foobar");
 
