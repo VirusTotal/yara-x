@@ -513,7 +513,7 @@ fn patterns_from_cst<'src>(
         }
 
         // String identifiers are also stored in `unused_patterns`, they will
-        // be removed from the the set when they are used in the condition.
+        // be removed from the set when they are used in the condition.
         // Any identifier left in the set when the condition has been fully
         // parsed is an unused pattern. Notice that identifiers are stored
         // without the `$` prefix.
@@ -678,7 +678,7 @@ fn regexp_from_cst<'src>(
     debug_assert!(re.starts_with('/'));
 
     // It must contain a closing slash too, but not necessarily at the end
-    // because the closing slash may be follow by a regexp modifier like "i"
+    // because the closing slash may be followed by a regexp modifier like "i"
     // and "s" (e.g. /foo/i)
     let closing_slash = re.rfind('/').unwrap();
 
@@ -922,7 +922,7 @@ fn meta_from_cst<'src>(
 //
 //  <expr> ( <infix op> <expr> )*
 //
-// Notice that the a single <expr> is also acceptable.
+// Notice that a single <expr> is also acceptable.
 //
 // All the expressions are passed through a "map" function (the argument to
 // map_primary), which transforms each expression in a certain value of any
@@ -1914,7 +1914,7 @@ fn string_lit_from_cst<'src>(
     } else {
         // If the literal does not contain a backslash it can't contain escaped
         // characters, the literal is exactly as it appears in the source code.
-        // Therefore we can return a reference to it in the form of a &BStr,
+        // Therefore, we can return a reference to it in the form of a &BStr,
         // allocating a new BString is not necessary.
         return Ok(Cow::from(BStr::new(literal)));
     };
