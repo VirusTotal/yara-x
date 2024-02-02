@@ -209,10 +209,10 @@ pub(in crate::compiler) fn expr_from_ast(
 ) -> Result<Expr, CompileError> {
     match expr {
         ast::Expr::Entrypoint { span } => {
-            Err(CompileError::from(CompileErrorInfo::deprecated_entrypoint(
+            Err(CompileError::from(CompileErrorInfo::entrypoint_unsupported(
                 ctx.report_builder,
                 *span,
-                Some("use `pe.entry_point`, `elf.entry_point`".to_string()),
+                Some("use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`".to_string()),
             )))
         }
         ast::Expr::Filesize { .. } => Ok(Expr::Filesize),

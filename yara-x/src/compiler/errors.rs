@@ -219,10 +219,10 @@ pub enum CompileErrorInfo {
         note: Option<String>,
     },
 
-    #[error("`entrypoint` is deprecated`")]
-    #[label("the `entrypoint` keyword is deprecated", span)]
+    #[error("`entrypoint` is unsupported`")]
+    #[label("the `entrypoint` keyword is not supported anymore", span)]
     #[note(note)]
-    DeprecatedEntrypoint {
+    EntrypointUnsupported {
         detailed_report: String,
         span: Span,
         note: Option<String>,
