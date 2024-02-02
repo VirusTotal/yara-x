@@ -59,8 +59,7 @@ pub enum ScanError {
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
 ///
-/// This counter is used for determining the when a scan operation has timed
-/// out.
+/// This counter is used for determining when a scan operation has timed out.
 static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
@@ -357,7 +356,7 @@ impl<'r> Scanner<'r> {
         if let Some(field) = ctx.root_struct.field_by_name_mut(ident) {
             let variable: Variable = value.try_into()?;
             let type_value: TypeValue = variable.into();
-            // The new type must match the the old one.
+            // The new type must match the old one.
             if type_value.eq_type(&field.type_value) {
                 field.type_value = type_value;
             } else {
@@ -389,8 +388,8 @@ impl<'r> Scanner<'r> {
         // will cause an overflow. We need an integer large enough, but that
         // has room before the u64 limit is reached. For this same reason if
         // the user specifies a value larger than 315.360.000 we limit it to
-        // 315.360.000 anyways. One year should be enough, I hope you don't
-        // plan to run a YARA scan that takes longer.
+        // 315.360.000 anyway. One year should be enough, I hope you don't plan
+        // to run a YARA scan that takes longer.
         let timeout_secs =
             self.timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
                 cmp::min(
