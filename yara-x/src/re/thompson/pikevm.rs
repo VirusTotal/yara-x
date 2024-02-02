@@ -43,7 +43,7 @@ impl<'r> PikeVM<'r> {
     /// VM before aborting.
     ///
     /// This sets a limit on the number of bytes that the VM will read from the
-    /// input while trying find a match. Without a limit, the VM will can incur
+    /// input while trying to find a match. Without a limit, the VM can incur
     /// in excessive execution time for regular expressions that are unbounded,
     /// like `foo.*bar`. For inputs that starts with `foo`, this regexp will
     /// try to scan the whole input, and that would take a long time if the
