@@ -218,4 +218,13 @@ pub enum CompileErrorInfo {
         span: Span,
         note: Option<String>,
     },
+
+    #[error("`entrypoint` is unsupported`")]
+    #[label("the `entrypoint` keyword is not supported anymore", span)]
+    #[note(note)]
+    EntrypointUnsupported {
+        detailed_report: String,
+        span: Span,
+        note: Option<String>,
+    },
 }

@@ -281,8 +281,8 @@ pub(in crate::compiler) enum Expr {
         type_value: TypeValue,
     },
 
+    /// `filesize` expression.
     Filesize,
-    Entrypoint,
 
     /// Boolean `not` expression.
     Not {
@@ -690,7 +690,6 @@ impl Expr {
             }
 
             Expr::Filesize
-            | Expr::Entrypoint
             | Expr::PatternCount { .. }
             | Expr::PatternCountVar { .. }
             | Expr::PatternOffset { .. }
@@ -761,7 +760,6 @@ impl Expr {
             }
 
             Expr::Filesize
-            | Expr::Entrypoint
             | Expr::PatternCount { .. }
             | Expr::PatternCountVar { .. }
             | Expr::PatternOffset { .. }
