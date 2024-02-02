@@ -10,6 +10,11 @@ option (yara.module_options) = {
   rust_module: "macho"
 };
 
+message LinkedItData {
+  optional uint32 dataoff = 1;
+  optional uint32 datasize = 2;
+}
+
 message Dylib {
   optional bytes name = 1;
   optional uint32 timestamp = 2 [(yaml.field).fmt = "t"];
@@ -93,6 +98,7 @@ message File {
   repeated Dylib dylibs = 15;
   repeated bytes rpaths = 16;
   optional Dysymtab dysymtab = 17;
+  optional LinkedItData code_signature_data = 18;
 }
 
 message Macho {
@@ -111,17 +117,18 @@ message Macho {
   optional uint64 stack_size = 12;
   optional string source_version = 13;
   optional Dysymtab dysymtab = 14;
-  repeated Segment segments = 15;
-  repeated Dylib dylibs = 16;
-  repeated bytes rpaths = 17;
+  optional LinkedItData code_signature_data = 15;
+  repeated Segment segments = 16;
+  repeated Dylib dylibs = 17;
+  repeated bytes rpaths = 18;
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 18 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 19;
-  repeated FatArch fat_arch = 20;
+  optional uint32 fat_magic = 19 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 20;
+  repeated FatArch fat_arch = 21;
 
   // Nested Mach-O files
-  repeated File file = 21;
+  repeated File file = 22;
 }
 
 enum HEADER {

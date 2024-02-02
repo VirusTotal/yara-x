@@ -25,6 +25,9 @@ dysymtab:
     nextrel: 148
     locreloff: 0
     nlocrel: 0
+code_signature_data:
+    dataoff: 43472
+    datasize: 18800
 segments:
   - segname: "__TEXT"
     vmaddr: 0x0

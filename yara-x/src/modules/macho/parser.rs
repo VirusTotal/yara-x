@@ -40,6 +40,7 @@ const LC_ID_DYLINKER: u32 = 0x0000000f;
 const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
+const LC_CODE_SIGNATURE: u32 = 0x0000001d;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
 const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
@@ -242,6 +243,7 @@ impl<'a> MachO<'a> {
             entry_point_offset: None,
             entry_point_rva: None,
             stack_size: None,
+            code_signature_data: None,
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -286,6 +288,7 @@ pub struct MachOFile<'a> {
     dynamic_linker: Option<&'a [u8]>,
     source_version: Option<String>,
     rpaths: Vec<&'a [u8]>,
+    code_signature_data: Option<LinkedItData>,
 }
 
 impl<'a> MachOFile<'a> {
@@ -420,6 +423,10 @@ impl<'a> MachOFile<'a> {
                 LC_DYSYMTAB => {
                     let (_, dysymtab) = self.dysymtab_command()(command_data)?;
                     self.dysymtab = Some(dysymtab);
+                }
+                LC_CODE_SIGNATURE => {
+                    let (_, lid) = self.linkeditdata_command()(command_data)?;
+                    self.code_signature_data = Some(lid);
                 }
                 _ => {}
             }
@@ -603,6 +610,25 @@ impl<'a> MachOFile<'a> {
                     nextrel,
                     locreloff,
                     nlocrel,
+                }
+            },
+        )
+    }
+
+    /// Parser that parses a LC_CODESIGNATURE command
+    fn linkeditdata_command(&self,) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], LinkedItData> + '_ {
+        map(
+            tuple((
+                u32(self.endianness), //  dataoff
+                u32(self.endianness), //  datasize
+            )),
+            |(
+                dataoff,
+                datasize,
+            )| {
+                LinkedItData {
+                    dataoff,
+                    datasize,
                 }
             },
         )
@@ -864,6 +890,11 @@ struct Dylib<'a> {
     compatibility_version: u32,
 }
 
+struct LinkedItData {
+    dataoff: u32,
+    datasize: u32,
+}
+
 struct Dysymtab {
     ilocalsym: u32,
     nlocalsym: u32,
@@ -944,6 +975,10 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 result.dysymtab = MessageField::some(dysymtab.into());
             }
 
+            if let Some (cs_data) = &m.code_signature_data {
+                result.code_signature_data = MessageField::some(cs_data.into());
+            }
+
             result.segments.extend(m.segments.iter().map(|seg| seg.into()));
             result.dylibs.extend(m.dylibs.iter().map(|dylib| dylib.into()));
             result.rpaths.extend(m.rpaths.iter().map(|rpath| rpath.to_vec()));
@@ -978,6 +1013,10 @@ impl From<&MachOFile<'_>> for protos::macho::File {
 
         if let Some(dysymtab) = &macho.dysymtab {
             result.dysymtab = MessageField::some(dysymtab.into());
+        }
+
+        if let Some (cs_data) = &macho.code_signature_data {
+            result.code_signature_data = MessageField::some(cs_data.into());
         }
 
         result.segments.extend(macho.segments.iter().map(|seg| seg.into()));
@@ -1074,6 +1113,15 @@ impl From<&Dysymtab> for protos::macho::Dysymtab {
         result.set_nextrel(dysymtab.nextrel);
         result.set_locreloff(dysymtab.locreloff);
         result.set_nlocrel(dysymtab.nlocrel);
+        result
+    }
+}
+
+impl From<&LinkedItData> for protos::macho::LinkedItData {
+    fn from(lid: &LinkedItData) -> Self {
+        let mut result = protos::macho::LinkedItData::new();
+        result.set_dataoff(lid.dataoff);
+        result.set_datasize(lid.datasize);
         result
     }
 }
