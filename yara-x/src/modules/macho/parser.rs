@@ -32,7 +32,7 @@ const _CS_MAGIC_REQUIREMENTS: u32 = 0xfade0c01;
 const _CS_MAGIC_CODEDIRECTORY: u32 = 0xfade0c02;
 const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
 const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
-const _CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
+const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
 
 /// Mach-O dynamic linker constant
@@ -285,18 +285,14 @@ impl<'a> MachO<'a> {
             let offset = code_signature_data.dataoff as usize;
             let size = code_signature_data.datasize as usize;
             let super_data = &data[offset..offset + size];
-            match macho.cs_superblob()(&super_data) {
-                Err(_err) => {
-                    #[cfg(feature = "logging")]
-                    error!("Error parsing Mach-O file: {:?}", _err);
-                    // fail silently if it fails, data was not formatted
-                    // correctly but parsing should still proceed for
-                    // everything else
-                }
-                _ => {}
-            }
+            if let Err(_err) = macho.cs_superblob()(super_data) {
+                #[cfg(feature = "logging")]
+                error!("Error parsing Mach-O file: {:?}", _err);
+                // fail silently if it fails, data was not formatted
+                // correctly but parsing should still proceed for
+                // everything else
+            };
         }
-
         Ok(macho)
     }
 }
@@ -741,6 +737,9 @@ impl<'a> MachOFile<'a> {
                                     }
                                 }
                             }
+                        }
+                        CS_MAGIC_BLOBWRAPPER => {
+                            // TODO: Parse certificates
                         }
                         _ => {}
                     }
