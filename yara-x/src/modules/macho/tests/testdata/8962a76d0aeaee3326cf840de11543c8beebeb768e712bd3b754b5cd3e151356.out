@@ -1,0 +1,81 @@
+magic: 0xcefaedfe
+cputype: 0xc
+cpusubtype: 0x6
+filetype: 2
+ncmds: 6
+sizeofcmds: 536
+flags: 0x2001
+number_of_segments: 4
+entry_point: 3476
+segments:
+  - segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x1000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x4
+  - segname: "__TEXT"
+    vmaddr: 0x1000
+    vmsize: 0x3000
+    fileoff: 0
+    filesize: 12288
+    maxprot: 0x7
+    initprot: 0x5
+    nsects: 2
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x1d94
+        size: 0x2044
+        offset: 3476
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x3de0
+        size: 0x210
+        offset: 11744
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+  - segname: "__DATA"
+    vmaddr: 0x4000
+    vmsize: 0x1000
+    fileoff: 12288
+    filesize: 4096
+    maxprot: 0x7
+    initprot: 0x3
+    nsects: 1
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0x4000
+        size: 0x4
+        offset: 12288
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+  - segname: "__LINKEDIT"
+    vmaddr: 0x5000
+    vmsize: 0x1000
+    fileoff: 16384
+    filesize: 88
+    maxprot: 0x7
+    initprot: 0x1
+    nsects: 0
+    flags: 0x4
