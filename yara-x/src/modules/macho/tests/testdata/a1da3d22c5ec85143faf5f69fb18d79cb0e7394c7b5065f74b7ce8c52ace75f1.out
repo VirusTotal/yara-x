@@ -336,3 +336,6 @@ file:
         nextrel: 4
         locreloff: 0
         nlocrel: 0
+    code_signature_data:
+        dataoff: 33120
+        datasize: 408
