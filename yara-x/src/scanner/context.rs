@@ -813,7 +813,7 @@ impl ScanContext<'_> {
                 } => {
                     // Iterate over the list of unconfirmed matches of the
                     // sub-pattern that comes before in the chain. For example,
-                    // if the chain is P1 <- P2 and we just found a match for
+                    // if the chain is P1 <- P2, and we just found a match for
                     // P2, iterate over the unconfirmed matches for P1.
                     if let Some(unconfirmed_matches) =
                         self.unconfirmed_matches.get_mut(chained_to)

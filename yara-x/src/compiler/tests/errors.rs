@@ -913,6 +913,26 @@ rule test {
 "#,
         ),
         ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    entrypoint == 0x1000
+}
+"#,
+            r#"error: `entrypoint` is unsupported`
+   ╭─[line:4:5]
+   │
+ 4 │     entrypoint == 0x1000
+   │     ─────┬────  
+   │          ╰────── the `entrypoint` keyword is not supported anymore
+   │ 
+   │ Note: use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
         #[cfg(feature = "test_proto2-module")]
         (
             line!(),

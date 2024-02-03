@@ -348,12 +348,6 @@ fn emit_expr(
             instr.global_get(ctx.wasm_symbols.filesize);
         }
 
-        Expr::Entrypoint { .. } => {
-            // TODO
-            // todo!()
-            instr.i64_const(0);
-        }
-
         Expr::Ident { symbol } => {
             match symbol.kind() {
                 SymbolKind::Rule(rule_id) => {
