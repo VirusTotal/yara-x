@@ -2776,6 +2776,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "roxmltree"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3cd14fd5e3b777a7422cca79358c57a8f6e3a703d9ac187448d0daf220c2407f"
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4333,6 +4339,7 @@ dependencies = [
  "protobuf-parse",
  "regex-automata 0.3.8",
  "regex-syntax 0.7.5 (git+https://github.com/plusvic/regex.git?rev=423493d)",
+ "roxmltree",
  "rustc-hash",
  "serde",
  "serde_json",

@@ -97,8 +97,9 @@ message File {
   repeated Segment segments = 14;
   repeated Dylib dylibs = 15;
   repeated bytes rpaths = 16;
-  optional Dysymtab dysymtab = 17;
-  optional LinkedItData code_signature_data = 18;
+  repeated string entitlements = 17;
+  optional Dysymtab dysymtab = 18;
+  optional LinkedItData code_signature_data = 19;
 }
 
 message Macho {
@@ -121,14 +122,15 @@ message Macho {
   repeated Segment segments = 16;
   repeated Dylib dylibs = 17;
   repeated bytes rpaths = 18;
+  repeated string entitlements = 19;
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 19 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 20;
-  repeated FatArch fat_arch = 21;
+  optional uint32 fat_magic = 20 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 21;
+  repeated FatArch fat_arch = 22;
 
   // Nested Mach-O files
-  repeated File file = 22;
+  repeated File file = 23;
 }
 
 enum HEADER {

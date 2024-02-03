@@ -26,6 +26,15 @@ const FAT_CIGAM: u32 = 0xbebafeca;
 const FAT_MAGIC_64: u32 = 0xcafebabf;
 const FAT_CIGAM_64: u32 = 0xbfbafeca;
 
+/// Mach-O code signature constants
+const _CS_MAGIC_REQUIREMENT: u32 = 0xfade0c00;
+const _CS_MAGIC_REQUIREMENTS: u32 = 0xfade0c01;
+const _CS_MAGIC_CODEDIRECTORY: u32 = 0xfade0c02;
+const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
+const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
+const _CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
+const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
+
 /// Mach-O dynamic linker constant
 const LC_REQ_DYLD: u32 = 0x80000000;
 
@@ -244,6 +253,7 @@ impl<'a> MachO<'a> {
             entry_point_rva: None,
             stack_size: None,
             code_signature_data: None,
+            entitlements: Vec::new(),
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -271,6 +281,22 @@ impl<'a> MachO<'a> {
             macho.entry_point_offset = macho.rva_to_offset(entry_point_rva);
         }
 
+        if let Some(ref code_signature_data) = macho.code_signature_data {
+            let offset = code_signature_data.dataoff as usize;
+            let size = code_signature_data.datasize as usize;
+            let super_data = &data[offset..offset + size];
+            match macho.cs_superblob()(&super_data) {
+                Err(_err) => {
+                    #[cfg(feature = "logging")]
+                    error!("Error parsing Mach-O file: {:?}", _err);
+                    // fail silently if it fails, data was not formatted
+                    // correctly but parsing should still proceed for
+                    // everything else
+                }
+                _ => {}
+            }
+        }
+
         Ok(macho)
     }
 }
@@ -289,6 +315,7 @@ pub struct MachOFile<'a> {
     source_version: Option<String>,
     rpaths: Vec<&'a [u8]>,
     code_signature_data: Option<LinkedItData>,
+    entitlements: Vec<String>,
 }
 
 impl<'a> MachOFile<'a> {
@@ -616,22 +643,112 @@ impl<'a> MachOFile<'a> {
     }
 
     /// Parser that parses a LC_CODESIGNATURE command
-    fn linkeditdata_command(&self,) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], LinkedItData> + '_ {
+    fn linkeditdata_command(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], LinkedItData> + '_ {
         map(
             tuple((
                 u32(self.endianness), //  dataoff
                 u32(self.endianness), //  datasize
             )),
-            |(
-                dataoff,
-                datasize,
-            )| {
-                LinkedItData {
-                    dataoff,
-                    datasize,
-                }
-            },
+            |(dataoff, datasize)| LinkedItData { dataoff, datasize },
         )
+    }
+
+    fn cs_blob(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSBlob> + '_ {
+        move |input: &'a [u8]| {
+            let (_, (magic, length)) = tuple((
+                u32(Endianness::Big), // magic
+                u32(Endianness::Big), // length,
+            ))(input)?;
+
+            Ok((&[], CSBlob { magic, length }))
+        }
+    }
+
+    fn cs_index(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSBlobIndex> + '_ {
+        move |input: &'a [u8]| {
+            let (input, (blobtype, offset)) = tuple((
+                u32(Endianness::Big), // blobtype
+                u32(Endianness::Big), // offset,
+            ))(input)?;
+
+            Ok((input, CSBlobIndex { blobtype, offset, blob: None }))
+        }
+    }
+
+    fn cs_superblob(
+        &mut self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], CSSuperBlob> + '_ {
+        move |data: &'a [u8]| {
+            let (remainder, (_magic, _length, count)) = tuple((
+                u32(Endianness::Big), // magic
+                u32(Endianness::Big), // offset,
+                u32(Endianness::Big), // count,
+            ))(data)?;
+
+            let mut super_blob =
+                CSSuperBlob { _magic, _length, count, index: Vec::new() };
+
+            let mut input: &[u8] = remainder;
+            let mut cs_index: CSBlobIndex;
+
+            for _ in 0..super_blob.count {
+                (input, cs_index) = self.cs_index()(input)?;
+                let offset: usize = cs_index.offset as usize;
+                let (_, blob) = self.cs_blob()(&data[offset..])?;
+
+                cs_index.blob = Some(blob);
+                super_blob.index.push(cs_index);
+            }
+
+            let super_data = data;
+
+            for blob_index in &super_blob.index {
+                let _blob_type = blob_index.blobtype as usize;
+                if let Some(blob) = &blob_index.blob {
+                    let offset = blob_index.offset as usize;
+                    let length = blob.length as usize;
+                    let size_of_blob = std::mem::size_of::<CSBlob>();
+                    match blob.magic {
+                        CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
+                            let xml_data = &super_data
+                                [offset + size_of_blob..offset + length];
+                            let xml_string = std::str::from_utf8(xml_data)
+                                .unwrap_or_default();
+
+                            let opt = roxmltree::ParsingOptions {
+                                allow_dtd: true,
+                                ..roxmltree::ParsingOptions::default()
+                            };
+
+                            if let Ok(parsed_xml) =
+                                roxmltree::Document::parse_with_options(
+                                    xml_string, opt,
+                                )
+                            {
+                                for node in parsed_xml
+                                    .descendants()
+                                    .filter(|n| n.has_tag_name("key"))
+                                {
+                                    if let Some(entitlement) = node.text() {
+                                        self.entitlements
+                                            .push(entitlement.to_string());
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            Ok((&[], super_blob))
+        }
     }
 
     /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
@@ -890,6 +1007,24 @@ struct Dylib<'a> {
     compatibility_version: u32,
 }
 
+struct CSBlob {
+    magic: u32,
+    length: u32,
+}
+
+struct CSBlobIndex {
+    blobtype: u32,
+    offset: u32,
+    blob: Option<CSBlob>,
+}
+
+struct CSSuperBlob {
+    _magic: u32,
+    _length: u32,
+    count: u32,
+    index: Vec<CSBlobIndex>,
+}
+
 struct LinkedItData {
     dataoff: u32,
     datasize: u32,
@@ -975,13 +1110,17 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 result.dysymtab = MessageField::some(dysymtab.into());
             }
 
-            if let Some (cs_data) = &m.code_signature_data {
-                result.code_signature_data = MessageField::some(cs_data.into());
+            if let Some(cs_data) = &m.code_signature_data {
+                result.code_signature_data =
+                    MessageField::some(cs_data.into());
             }
 
             result.segments.extend(m.segments.iter().map(|seg| seg.into()));
             result.dylibs.extend(m.dylibs.iter().map(|dylib| dylib.into()));
-            result.rpaths.extend(m.rpaths.iter().map(|rpath| rpath.to_vec()));
+            result
+                .rpaths
+                .extend(m.rpaths.iter().map(|rpath: &&[u8]| rpath.to_vec()));
+            result.entitlements.extend(m.entitlements.clone());
 
             result
                 .set_number_of_segments(m.segments.len().try_into().unwrap());
@@ -1015,13 +1154,14 @@ impl From<&MachOFile<'_>> for protos::macho::File {
             result.dysymtab = MessageField::some(dysymtab.into());
         }
 
-        if let Some (cs_data) = &macho.code_signature_data {
+        if let Some(cs_data) = &macho.code_signature_data {
             result.code_signature_data = MessageField::some(cs_data.into());
         }
 
         result.segments.extend(macho.segments.iter().map(|seg| seg.into()));
         result.dylibs.extend(macho.dylibs.iter().map(|dylib| dylib.into()));
         result.rpaths.extend(macho.rpaths.iter().map(|rpath| rpath.to_vec()));
+        result.entitlements.extend(macho.entitlements.clone());
 
         result
             .set_number_of_segments(result.segments.len().try_into().unwrap());
