@@ -15,6 +15,11 @@ message LinkedItData {
   optional uint32 datasize = 2;
 }
 
+message Certificates {
+  repeated string common_names = 1;
+  repeated string signer_names = 2;
+}
+
 message Dylib {
   optional bytes name = 1;
   optional uint32 timestamp = 2 [(yaml.field).fmt = "t"];
@@ -100,6 +105,7 @@ message File {
   repeated string entitlements = 17;
   optional Dysymtab dysymtab = 18;
   optional LinkedItData code_signature_data = 19;
+  optional Certificates certificates = 20;
 }
 
 message Macho {
@@ -123,14 +129,15 @@ message Macho {
   repeated Dylib dylibs = 17;
   repeated bytes rpaths = 18;
   repeated string entitlements = 19;
+  optional Certificates certificates = 20;
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 20 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 21;
-  repeated FatArch fat_arch = 22;
+  optional uint32 fat_magic = 21 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 22;
+  repeated FatArch fat_arch = 23;
 
   // Nested Mach-O files
-  repeated File file = 23;
+  repeated File file = 24;
 }
 
 enum HEADER {

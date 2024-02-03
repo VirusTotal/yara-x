@@ -1,5 +1,6 @@
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
+use cryptographic_message_syntax::SignedData;
 #[cfg(feature = "logging")]
 use log::error;
 use nom::bytes::complete::take;
@@ -254,6 +255,7 @@ impl<'a> MachO<'a> {
             stack_size: None,
             code_signature_data: None,
             entitlements: Vec::new(),
+            certificates: None,
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -312,6 +314,7 @@ pub struct MachOFile<'a> {
     rpaths: Vec<&'a [u8]>,
     code_signature_data: Option<LinkedItData>,
     entitlements: Vec<String>,
+    certificates: Option<Certificates>,
 }
 
 impl<'a> MachOFile<'a> {
@@ -739,7 +742,36 @@ impl<'a> MachOFile<'a> {
                             }
                         }
                         CS_MAGIC_BLOBWRAPPER => {
-                            // TODO: Parse certificates
+                            if let Ok(signage) = SignedData::parse_ber(
+                                &super_data
+                                    [offset + size_of_blob..offset + length],
+                            ) {
+                                let signers = signage.signers();
+                                let certs = signage.certificates();
+                                let mut cert_info = Certificates {
+                                    common_names: Vec::new(),
+                                    signer_names: Vec::new(),
+                                };
+
+                                certs.for_each(|cert| {
+                                    let name =
+                                        cert.subject_common_name().unwrap();
+                                    cert_info.common_names.push(name);
+                                });
+
+                                signers.for_each(|signer| {
+                                    let (name, _) = signer
+                                        .certificate_issuer_and_serial()
+                                        .unwrap();
+                                    cert_info.signer_names.push(
+                                        name.user_friendly_str()
+                                            .unwrap()
+                                            .to_string(),
+                                    );
+                                });
+
+                                self.certificates = Some(cert_info);
+                            }
                         }
                         _ => {}
                     }
@@ -1006,6 +1038,11 @@ struct Dylib<'a> {
     compatibility_version: u32,
 }
 
+struct Certificates {
+    common_names: Vec<String>,
+    signer_names: Vec<String>,
+}
+
 struct CSBlob {
     magic: u32,
     length: u32,
@@ -1114,6 +1151,10 @@ impl From<MachO<'_>> for protos::macho::Macho {
                     MessageField::some(cs_data.into());
             }
 
+            if let Some(cert_data) = &m.certificates {
+                result.certificates = MessageField::some(cert_data.into());
+            }
+
             result.segments.extend(m.segments.iter().map(|seg| seg.into()));
             result.dylibs.extend(m.dylibs.iter().map(|dylib| dylib.into()));
             result
@@ -1155,6 +1196,10 @@ impl From<&MachOFile<'_>> for protos::macho::File {
 
         if let Some(cs_data) = &macho.code_signature_data {
             result.code_signature_data = MessageField::some(cs_data.into());
+        }
+
+        if let Some(cert_data) = &macho.certificates {
+            result.certificates = MessageField::some(cert_data.into());
         }
 
         result.segments.extend(macho.segments.iter().map(|seg| seg.into()));
@@ -1261,6 +1306,15 @@ impl From<&LinkedItData> for protos::macho::LinkedItData {
         let mut result = protos::macho::LinkedItData::new();
         result.set_dataoff(lid.dataoff);
         result.set_datasize(lid.datasize);
+        result
+    }
+}
+
+impl From<&Certificates> for protos::macho::Certificates {
+    fn from(cert: &Certificates) -> Self {
+        let mut result = protos::macho::Certificates::new();
+        result.common_names.extend(cert.common_names.clone());
+        result.signer_names.extend(cert.signer_names.clone());
         result
     }
 }

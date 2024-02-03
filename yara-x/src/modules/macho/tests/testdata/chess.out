@@ -496,3 +496,10 @@ entitlements:
   - "com.apple.security.device.microphone"
   - "com.apple.security.files.user-selected.read-write"
   - "com.apple.security.network.client"
+certificates:
+    common_names:
+      - "Apple Code Signing Certification Authority"
+      - "Apple Root CA"
+      - "Software Signing"
+    signer_names:
+      - "CN=Apple Code Signing Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
