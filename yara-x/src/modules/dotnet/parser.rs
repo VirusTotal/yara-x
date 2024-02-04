@@ -15,6 +15,7 @@ use nom::number::complete::{le_u16, le_u32, le_u64, u8};
 use nom::sequence::tuple;
 use nom::{bits, IResult, Parser};
 use num_derive::FromPrimitive;
+use num_traits;
 use protobuf::MessageField;
 use uuid::Uuid;
 
@@ -379,11 +380,7 @@ impl<'a> Dotnet<'a> {
 
         // The name is padded with zeroes up to the next 4 bytes boundary,
         // lets consume the padding, which includes the null-terminator.
-        // TODO: `usize::next_multiple_of` was stabilized in Rust 1.73.
-        // Once we bump the MSRV to 1.73 we can stop using `num`.
-        // https://doc.rust-lang.org/std/primitive.u32.html#method.div_ceil
-        let padding =
-            num::Integer::next_multiple_of(&(name.len() + 1), &4) - name.len();
+        let padding = (name.len() + 1).next_multiple_of(4) - name.len();
 
         let (remaining, _) = take(padding)(remaining)?;
 
@@ -1081,7 +1078,7 @@ impl<'a> Dotnet<'a> {
         }
 
         let (mut remainder, type_) =
-            map_opt(u8, num::FromPrimitive::from_u8)(input)?;
+            map_opt(u8, num_traits::FromPrimitive::from_u8)(input)?;
 
         *depth += 1;
 
@@ -1643,8 +1640,8 @@ impl<'a> Dotnet<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Constant> + '_ {
         map(
             tuple((
-                map_opt(u8, num::FromPrimitive::from_u8), // type
-                u8,                                       // padding
+                map_opt(u8, num_traits::FromPrimitive::from_u8), // type
+                u8,                                              // padding
                 self.coded_index(&[
                     Table::Field,
                     Table::Param,

@@ -177,18 +177,13 @@ impl<'r> Scanner<'r> {
         // the N-th bit is set if pattern with PatternId = N matched. The
         // bitmap starts right after the bitmap that contains matching
         // information for rules.
-        //
-        // TODO: `u32::div_ceil` was stabilized in Rust 1.73. Once we bump
-        // the MSRV to 1.73 we can stop using `num`.
-        // https://doc.rust-lang.org/std/primitive.u32.html#method.div_ceil
-        let matching_patterns_bitmap_base = MATCHING_RULES_BITMAP_BASE as u32
-            + num::Integer::div_ceil(&num_rules, &8);
+        let matching_patterns_bitmap_base =
+            MATCHING_RULES_BITMAP_BASE as u32 + num_rules.div_ceil(8);
 
         // Compute the required memory size in 64KB pages.
-        let mem_size = num::Integer::div_ceil(
-            &(matching_patterns_bitmap_base
-                + num::Integer::div_ceil(&num_patterns, &8)),
-            &65536,
+        let mem_size = u32::div_ceil(
+            matching_patterns_bitmap_base + num_patterns.div_ceil(8),
+            65536,
         );
 
         let matching_patterns_bitmap_base = Global::new(

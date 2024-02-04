@@ -1197,8 +1197,7 @@ impl<'a> PE<'a> {
 
     /// Round up an offset to the next 32-bit boundary.
     fn round_up<O: ToUsize>(offset: O) -> usize {
-        // TODO: use usize:div_ceil when we bump the MSRV to 1.73.0.
-        num::Integer::div_ceil(&offset.to_usize(), &4) * 4
+        offset.to_usize().div_ceil(4) * 4
     }
 
     /// Parses the PE resources.

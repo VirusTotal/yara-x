@@ -114,8 +114,8 @@ fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
     let data = ctx.scanned_data();
     let mut sum: u32 = 0;
 
-    // The parser first try to read a u32, if not enough data is available,
-    // it tries to read a u16, and if still there's no data available it
+    // The parser first try to read an u32, if not enough data is available,
+    // it tries to read an u16, and if still there's no data available it
     // tries to read a byte. In all cases the result is promoted to u32. This
     // emulates the padding at the end of the data if necessary.
     let data_parser = alt((

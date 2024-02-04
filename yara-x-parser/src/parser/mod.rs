@@ -273,10 +273,7 @@ impl<'a> Parser<'a> {
                 // the Unicode replacement characters that takes 3 bytes.
                 // This way the span ends at a valid UTF-8 character
                 // boundary.
-                // TODO: `usize::next_multiple_of` was stabilized in Rust 1.73.
-                // Once we bump the MSRV to 1.73 we can stop using `num`.
-                // https://doc.rust-lang.org/std/primitive.u32.html#method.div_ceil
-                span_start + num::Integer::next_multiple_of(&error_len, &3)
+                span_start + error_len.next_multiple_of(3)
             } else {
                 span_start
             };

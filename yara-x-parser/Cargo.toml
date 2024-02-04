@@ -28,7 +28,7 @@ bitmask =  { workspace = true }
 bstr = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
-num = { workspace = true }
+num-traits = { workspace = true }
 pest = { workspace = true }
 pest_derive = { workspace = true }
 thiserror = { workspace = true }

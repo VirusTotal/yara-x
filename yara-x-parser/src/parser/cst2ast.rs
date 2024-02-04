@@ -8,7 +8,7 @@ use std::str;
 use crate::ast;
 use bstr::{BStr, BString, ByteSlice, ByteVec};
 use lazy_static::lazy_static;
-use num::{Bounded, CheckedMul, FromPrimitive, Integer};
+use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
 use pest::iterators::Pair;
 use pest::pratt_parser::{Assoc, Op, PrattParser};
 
@@ -1779,14 +1779,14 @@ fn iterator_from_cst<'src>(
 }
 
 /// From a CST node corresponding to the grammar rule `integer_lit`, returns
-/// the the corresponding integer. This is a generic function that can be used
+/// the corresponding integer. This is a generic function that can be used
 /// for obtaining any type of integer, like u8, i64, etc.
 fn integer_lit_from_cst<'src, T>(
     ctx: &Context<'src, '_>,
     integer_lit: CSTNode<'src>,
 ) -> Result<T, Error>
 where
-    T: Integer + Bounded + CheckedMul + FromPrimitive + std::fmt::Display,
+    T: Num + Bounded + CheckedMul + FromPrimitive + std::fmt::Display,
 {
     expect!(integer_lit, GrammarRule::integer_lit);
 
