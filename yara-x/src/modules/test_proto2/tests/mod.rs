@@ -44,7 +44,7 @@ fn test_proto2_module() {
         r#"test_proto2.double_one * test_proto2.float_one == 1.0"#
     );
 
-    condition_true!(r#"test_proto2.double_one \ 2 == 0.5"#);
+    condition_true!(r"test_proto2.double_one \ 2 == 0.5");
 
     condition_true!(r#"test_proto2.nested.nested_int64_zero == 0"#);
     condition_true!(r#"test_proto2.nested.nested_int64_one == 1"#);
