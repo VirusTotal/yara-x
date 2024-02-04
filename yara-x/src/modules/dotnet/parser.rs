@@ -2320,6 +2320,7 @@ enum Type {
     String = 0xe,
     Ptr = 0xf,
     ByRef = 0x10,
+    #[allow(clippy::enum_variant_names)]
     ValueType = 0x11,
     Class = 0x12,
     Var = 0x13,

@@ -655,7 +655,7 @@ impl<'a> PE<'a> {
                 .ok_or(Err::Error(Error::new(input, ErrorKind::Tag)))?;
 
             // The u32 that follows the "Rich" tag is the XOR key used for
-            // for encrypting the Rich data.
+            // encrypting the Rich data.
             let (remainder, key) = le_u32(&input[rich_tag_pos + 4..])?;
 
             // Search for the "DanS" tag that indicates the start of the rich
@@ -1935,12 +1935,10 @@ impl From<PE<'_>> for protos::pe::PE {
         let mut result = protos::pe::PE::new();
         
         result.set_is_pe(true);
-        result.machine = pe
+        result.machine = Some(EnumOrUnknown::<protos::pe::Machine>::from_i32(pe
             .pe_hdr
             .machine
-            .try_into()
-            .ok()
-            .map(EnumOrUnknown::<protos::pe::Machine>::from_i32);
+            .into()));
 
         result.set_timestamp(pe.pe_hdr.timestamp);
         result.set_characteristics(pe.pe_hdr.characteristics.into());
@@ -1949,19 +1947,13 @@ impl From<PE<'_>> for protos::pe::PE {
         result.set_number_of_symbols(pe.pe_hdr.number_of_symbols);
         result.set_size_of_optional_header(pe.pe_hdr.size_of_optional_header.into());
         
-        result.opthdr_magic = pe
+        result.opthdr_magic = Some(EnumOrUnknown::<protos::pe::OptHdrMagic>::from_i32(pe
             .optional_hdr
-            .magic
-            .try_into()
-            .ok()
-            .map(EnumOrUnknown::<protos::pe::OptHdrMagic>::from_i32);
+            .magic.into()));
         
-        result.subsystem = pe
+        result.subsystem = Some(EnumOrUnknown::<protos::pe::Subsystem>::from_i32(pe
             .optional_hdr
-            .subsystem
-            .try_into()
-            .ok()
-            .map(EnumOrUnknown::<protos::pe::Subsystem>::from_i32);
+            .subsystem.into()));
         
         result.set_size_of_code(pe.optional_hdr.size_of_code);
         result.set_base_of_code(pe.optional_hdr.base_of_code);

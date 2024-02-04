@@ -2,7 +2,7 @@ use std::mem;
 use std::ops::Range;
 
 use nom::bytes::complete::{take, take_till};
-use nom::combinator::{map_res, verify};
+use nom::combinator::{map, map_res, verify};
 use nom::multi::{count, many0};
 use nom::number::complete::{le_u32, u16, u32, u64, u8};
 use nom::number::Endianness;
@@ -79,17 +79,11 @@ impl ElfParser {
         // Parse the executable header.
         let (_remainder, ehdr) = self.parse_ehdr()(remainder)?;
 
-        self.result.type_ = ehdr
-            .type_
-            .try_into()
-            .ok()
-            .map(EnumOrUnknown::<elf::Type>::from_i32);
+        self.result.type_ =
+            Some(EnumOrUnknown::<elf::Type>::from_i32(ehdr.type_.into()));
 
-        self.result.machine = ehdr
-            .machine
-            .try_into()
-            .ok()
-            .map(EnumOrUnknown::<elf::Machine>::from_i32);
+        self.result.machine =
+            Some(EnumOrUnknown::<elf::Machine>::from_i32(ehdr.machine.into()));
 
         self.result.sh_offset = Some(ehdr.sh_offset);
         self.result.sh_entry_size = Some(ehdr.sh_entry_size.into());
@@ -376,14 +370,14 @@ impl ElfParser {
                     phdr.alignment,
                 ),
             ) = tuple((
-                u32(self.endianness),                            // type_
-                map_res(u32(self.endianness), |v| v.try_into()), // offset
-                map_res(u32(self.endianness), |v| v.try_into()), // virt_addr
-                map_res(u32(self.endianness), |v| v.try_into()), // phys_addr
-                map_res(u32(self.endianness), |v| v.try_into()), // file_size
-                map_res(u32(self.endianness), |v| v.try_into()), // mem_size
-                u32(self.endianness),                            // flags
-                map_res(u32(self.endianness), |v| v.try_into()), // alignment
+                u32(self.endianness),                    // type_
+                map(u32(self.endianness), |v| v.into()), // offset
+                map(u32(self.endianness), |v| v.into()), // virt_addr
+                map(u32(self.endianness), |v| v.into()), // phys_addr
+                map(u32(self.endianness), |v| v.into()), // file_size
+                map(u32(self.endianness), |v| v.into()), // mem_size
+                u32(self.endianness),                    // flags
+                map(u32(self.endianness), |v| v.into()), // alignment
             ))(input)?;
 
             Ok((remainder, phdr))
@@ -499,12 +493,12 @@ impl ElfParser {
                     sym.shndx,
                 ),
             ) = tuple((
-                u32(self.endianness),                            // name
-                map_res(u32(self.endianness), |v| v.try_into()), // value
-                map_res(u32(self.endianness), |v| v.try_into()), // size
-                u8,                                              // info
-                u8,                                              // other
-                u16(self.endianness),                            // shndx
+                u32(self.endianness),                    // name
+                map(u32(self.endianness), |v| v.into()), // value
+                map(u32(self.endianness), |v| v.into()), // size
+                u8,                                      // info
+                u8,                                      // other
+                u16(self.endianness),                    // shndx
             ))(input)?;
 
             Ok((remainder, sym))

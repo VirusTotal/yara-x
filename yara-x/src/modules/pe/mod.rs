@@ -68,7 +68,7 @@ fn rva_to_offset(ctx: &ScanContext, rva: i64) -> Option<i64> {
         pe.file_alignment?,
         pe.section_alignment?,
     )?;
-    Some(offset.try_into().unwrap())
+    Some(offset.into())
 }
 
 /// Returns the PE checksum, as calculated by YARA.

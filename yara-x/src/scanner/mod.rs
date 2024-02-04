@@ -408,17 +408,15 @@ impl<'r> Scanner<'r> {
         if self.timeout.is_some() {
             INIT_HEARTBEAT.call_once(|| {
                 thread::spawn(|| loop {
-                    loop {
-                        thread::sleep(Duration::from_secs(1));
-                        ENGINE.increment_epoch();
-                        HEARTBEAT_COUNTER
-                            .fetch_update(
-                                Ordering::SeqCst,
-                                Ordering::SeqCst,
-                                |x| Some(x + 1),
-                            )
-                            .unwrap();
-                    }
+                    thread::sleep(Duration::from_secs(1));
+                    ENGINE.increment_epoch();
+                    HEARTBEAT_COUNTER
+                        .fetch_update(
+                            Ordering::SeqCst,
+                            Ordering::SeqCst,
+                            |x| Some(x + 1),
+                        )
+                        .unwrap();
                 });
             });
         }
