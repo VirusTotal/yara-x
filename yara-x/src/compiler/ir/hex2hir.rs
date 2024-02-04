@@ -98,11 +98,11 @@ mod tests {
     fn hex_byte_to_hir() {
         let hir =
             super::hex_byte_hir_from_ast(&HexByte { value: 0x00, mask: 0x00 });
-        assert_eq!(hir.to_string(), r#"(?-u:[\x00-\xFF])"#);
+        assert_eq!(hir.to_string(), r"(?-u:[\x00-\xFF])");
 
         let hir =
             super::hex_byte_hir_from_ast(&HexByte { value: 0x10, mask: 0xf0 });
-        assert_eq!(hir.to_string(), r#"(?-u:[\x10-\x1F])"#);
+        assert_eq!(hir.to_string(), r"(?-u:[\x10-\x1F])");
 
         let hir =
             super::hex_byte_hir_from_ast(&HexByte { value: 0x02, mask: 0x0f });

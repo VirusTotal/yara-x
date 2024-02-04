@@ -1144,16 +1144,16 @@ fn regexp_patterns_3() {
     pattern_match!(r#"/[a-c-e]/"#, b"b", b"b");
     pattern_match!(r#"/[a-c-e]/"#, b"-", b"-");
     pattern_false!(r#"/[a-c-e]/"#, b"d");
-    pattern_match!(r#"/a[\-b]/"#, b"a-", b"a-");
-    pattern_match!(r#"/a[\-b]/"#, b"ab", b"ab");
+    pattern_match!(r"/a[\-b]/", b"a-", b"a-");
+    pattern_match!(r"/a[\-b]/", b"ab", b"ab");
     pattern_match!(r#"/a]/"#, b"a]", b"a]");
     pattern_match!(r#"/a[]]b/"#, b"a]b", b"a]b");
     pattern_match!(r#"/[a-z]-b/"#, b"c-b-c", b"c-b");
     pattern_match!(r#"/a[]-]b/"#, b"a]b", b"a]b");
     pattern_match!(r#"/a[]-]b/"#, b"a-b", b"a-b");
-    pattern_match!(r#"/[\.-z]+/"#, b"...abc", b"...abc");
-    pattern_match!(r#"/[\.-]+/"#, b"...abc", b"...");
-    pattern_match!(r#"/a[\]]b/"#, b"a]b", b"a]b");
+    pattern_match!(r"/[\.-z]+/", b"...abc", b"...abc");
+    pattern_match!(r"/[\.-]+/", b"...abc", b"...");
+    pattern_match!(r"/a[\]]b/", b"a]b", b"a]b");
     pattern_match!(r#"/a[^bc]d/"#, b"aed", b"aed");
     pattern_false!(r#"/a[^bc]d/"#, b"abd");
     pattern_match!(r#"/a[^-b]c/"#, b"adc", b"adc");
@@ -1161,50 +1161,46 @@ fn regexp_patterns_3() {
     pattern_false!(r#"/a[^]b]c/"#, b"a]c");
     pattern_match!(r#"/a[^]b]c/"#, b"adc", b"adc");
     pattern_match!(r#"/[^ab]+/"#, b"cde", b"cde");
-    pattern_match!(r#"/a[\s]b/"#, b"a b", b"a b");
-    pattern_false!(r#"/a[\S]b/"#, b"a b");
-    pattern_match!(r#"/a[\d]b/"#, b"a1b", b"a1b");
-    pattern_false!(r#"/a[\D]b/"#, b"a1b");
-    pattern_match!(r#"/a\sb/"#, b"a b", b"a b");
-    pattern_match!(r#"/a\sb/"#, b"a\tb", b"a\tb");
-    pattern_match!(r#"/a\sb/"#, b"a\rb", b"a\rb");
-    pattern_match!(r#"/a\sb/"#, b"a\nb", b"a\nb");
-    pattern_match!(r#"/a\sb/"#, b"a\x0bb", b"a\x0bb");
-    pattern_match!(r#"/a\sb/"#, b"a\x0cb", b"a\x0cb");
-    pattern_false!(r#"/a\Sb/"#, b"a b");
-    pattern_false!(r#"/a\Sb/"#, b"a\tb");
-    pattern_false!(r#"/a\Sb/"#, b"a\rb");
-    pattern_false!(r#"/a\Sb/"#, b"a\nb");
-    pattern_false!(r#"/a\Sb/"#, b"a\x0bb");
-    pattern_false!(r#"/a\Sb/"#, b"a\x0cb");
-    pattern_match!(r#"/a[\s]*b/"#, b"a \t\r\n\x0b\x0cb", b"a \t\r\n\x0b\x0cb");
+    pattern_match!(r"/a[\s]b/", b"a b", b"a b");
+    pattern_false!(r"/a[\S]b/", b"a b");
+    pattern_match!(r"/a[\d]b/", b"a1b", b"a1b");
+    pattern_false!(r"/a[\D]b/", b"a1b");
+    pattern_match!(r"/a\sb/", b"a b", b"a b");
+    pattern_match!(r"/a\sb/", b"a\tb", b"a\tb");
+    pattern_match!(r"/a\sb/", b"a\rb", b"a\rb");
+    pattern_match!(r"/a\sb/", b"a\nb", b"a\nb");
+    pattern_match!(r"/a\sb/", b"a\x0bb", b"a\x0bb");
+    pattern_match!(r"/a\sb/", b"a\x0cb", b"a\x0cb");
+    pattern_false!(r"/a\Sb/", b"a b");
+    pattern_false!(r"/a\Sb/", b"a\tb");
+    pattern_false!(r"/a\Sb/", b"a\rb");
+    pattern_false!(r"/a\Sb/", b"a\nb");
+    pattern_false!(r"/a\Sb/", b"a\x0bb");
+    pattern_false!(r"/a\Sb/", b"a\x0cb");
+    pattern_match!(r"/a[\s]*b/", b"a \t\r\n\x0b\x0cb", b"a \t\r\n\x0b\x0cb");
+    pattern_match!(r"/a[^\S]*b/", b"a \t\r\n\x0b\x0cb", b"a \t\r\n\x0b\x0cb");
+    pattern_match!(r"/foo[^\s]*/", b"foobar\n", b"foobar");
+    pattern_match!(r"/foo[^\s]*/", b"foobar\r\n", b"foobar");
+    pattern_match!(r"/\n\r\t\f\a/", b"\n\r\t\x0c\x07", b"\n\r\t\x0c\x07");
     pattern_match!(
-        r#"/a[^\S]*b/"#,
-        b"a \t\r\n\x0b\x0cb",
-        b"a \t\r\n\x0b\x0cb"
-    );
-    pattern_match!(r#"/foo[^\s]*/"#, b"foobar\n", b"foobar");
-    pattern_match!(r#"/foo[^\s]*/"#, b"foobar\r\n", b"foobar");
-    pattern_match!(r#"/\n\r\t\f\a/"#, b"\n\r\t\x0c\x07", b"\n\r\t\x0c\x07");
-    pattern_match!(
-        r#"/[\n][\r][\t][\f][\a]/"#,
+        r"/[\n][\r][\t][\f][\a]/",
         b"\n\r\t\x0c\x07",
         b"\n\r\t\x0c\x07"
     );
-    pattern_match!(r#"/\x01\x02\x03/"#, b"\x01\x02\x03", b"\x01\x02\x03");
-    pattern_match!(r#"/[\x01-\x03]+/"#, b"\x01\x02\x03", b"\x01\x02\x03");
-    pattern_false!(r#"/[\x00-\x02]+/"#, b"\x03\x04\x05");
-    pattern_match!(r#"/[\x5D]/"#, b"]", b"]");
-    pattern_match!(r#"/a\wc/"#, b"abc", b"abc");
-    pattern_match!(r#"/a\wc/"#, b"a_c", b"a_c");
-    pattern_match!(r#"/a\wc/"#, b"a0c", b"a0c");
-    pattern_false!(r#"/a\wc/"#, b"a*c");
-    pattern_match!(r#"/\w+/"#, b"--ab_cd0123--", b"ab_cd0123");
-    pattern_match!(r#"/[\w]+/"#, b"--ab_cd0123--", b"ab_cd0123");
-    pattern_match!(r#"/\D+/"#, b"1234abc5678", b"abc");
-    pattern_match!(r#"/[\d]+/"#, b"0123456789", b"0123456789");
-    pattern_match!(r#"/[\D]+/"#, b"1234abc5678", b"abc");
-    pattern_match!(r#"/[\da-fA-F]+/"#, b"123abcDEF", b"123abcDEF");
+    pattern_match!(r"/\x01\x02\x03/", b"\x01\x02\x03", b"\x01\x02\x03");
+    pattern_match!(r"/[\x01-\x03]+/", b"\x01\x02\x03", b"\x01\x02\x03");
+    pattern_false!(r"/[\x00-\x02]+/", b"\x03\x04\x05");
+    pattern_match!(r"/[\x5D]/", b"]", b"]");
+    pattern_match!(r"/a\wc/", b"abc", b"abc");
+    pattern_match!(r"/a\wc/", b"a_c", b"a_c");
+    pattern_match!(r"/a\wc/", b"a0c", b"a0c");
+    pattern_false!(r"/a\wc/", b"a*c");
+    pattern_match!(r"/\w+/", b"--ab_cd0123--", b"ab_cd0123");
+    pattern_match!(r"/[\w]+/", b"--ab_cd0123--", b"ab_cd0123");
+    pattern_match!(r"/\D+/", b"1234abc5678", b"abc");
+    pattern_match!(r"/[\d]+/", b"0123456789", b"0123456789");
+    pattern_match!(r"/[\D]+/", b"1234abc5678", b"abc");
+    pattern_match!(r"/[\da-fA-F]+/", b"123abcDEF", b"123abcDEF");
     pattern_match!(r#"/(abc|)ef/"#, b"abcdef", b"ef");
     pattern_match!(r#"/(abc|)ef/"#, b"abcef", b"abcef");
     pattern_match!(r#"/(abc|)ef/"#, b"abcef", b"abcef");
@@ -1220,7 +1216,7 @@ fn regexp_patterns_3() {
     pattern_match!(r#"/a([bc]*)(c+d)/"#, b"abcd", b"abcd");
     pattern_match!(r#"/a[bcd]*dcdcde/"#, b"adcdcde", b"adcdcde");
     pattern_false!(r#"/a[bcd]+dcdcde/"#, b"adcdcde");
-    pattern_match!(r#"/\((.*), (.*)\)/"#, b"(a, b)", b"(a, b)");
+    pattern_match!(r"/\((.*), (.*)\)/", b"(a, b)", b"(a, b)");
     pattern_match!(r#"/whatever|   x.   x/"#, b"   xy   x", b"   xy   x");
     pattern_match!(r#"/^abc/"#, b"abc", b"abc");
     pattern_match!(r#"/^abc/"#, b"abcd", b"abc");
@@ -1244,26 +1240,26 @@ fn regexp_patterns_3() {
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"effg");
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"bcdd");
     pattern_match!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"reffgz", b"effgz");
-    pattern_match!(r#"/\babc/"#, b"abc", b"abc");
-    pattern_match!(r#"/abc\b/"#, b"abc", b"abc");
-    pattern_false!(r#"/\babc/"#, b"1abc");
-    pattern_false!(r#"/abc\b/"#, b"abc1");
-    pattern_match!(r#"/abc\s\b/"#, b"abc x", b"abc ");
-    pattern_false!(r#"/abc\s\b/"#, b"abc  ");
-    pattern_match!(r#"/\babc\b/"#, b" abc ", b"abc");
-    pattern_match!(r#"/\b\w\w\w\b/"#, b" abc ", b"abc");
-    pattern_match!(r#"/\w\w\w\b/"#, b"abcd", b"bcd");
-    pattern_match!(r#"/\b\w\w\w/"#, b"abcd", b"abc");
-    pattern_false!(r#"/\b\w\w\w\b/"#, b"abcd");
-    pattern_false!(r#"/\Babc/"#, b"abc");
-    pattern_false!(r#"/abc\B/"#, b"abc");
-    pattern_match!(r#"/\Babc/"#, b"1abc", b"abc");
-    pattern_match!(r#"/abc\B/"#, b"abc1", b"abc");
-    pattern_false!(r#"/abc\s\B/"#, b"abc x");
-    pattern_match!(r#"/abc\s\B/"#, b"abc  ", b"abc ");
-    pattern_match!(r#"/\w\w\w\B/"#, b"abcd", b"abc");
-    pattern_match!(r#"/\B\w\w\w/"#, b"abcd", b"bcd");
-    pattern_false!(r#"/\B\w\w\w\B/"#, b"abcd");
+    pattern_match!(r"/\babc/", b"abc", b"abc");
+    pattern_match!(r"/abc\b/", b"abc", b"abc");
+    pattern_false!(r"/\babc/", b"1abc");
+    pattern_false!(r"/abc\b/", b"abc1");
+    pattern_match!(r"/abc\s\b/", b"abc x", b"abc ");
+    pattern_false!(r"/abc\s\b/", b"abc  ");
+    pattern_match!(r"/\babc\b/", b" abc ", b"abc");
+    pattern_match!(r"/\b\w\w\w\b/", b" abc ", b"abc");
+    pattern_match!(r"/\w\w\w\b/", b"abcd", b"bcd");
+    pattern_match!(r"/\b\w\w\w/", b"abcd", b"abc");
+    pattern_false!(r"/\b\w\w\w\b/", b"abcd");
+    pattern_false!(r"/\Babc/", b"abc");
+    pattern_false!(r"/abc\B/", b"abc");
+    pattern_match!(r"/\Babc/", b"1abc", b"abc");
+    pattern_match!(r"/abc\B/", b"abc1", b"abc");
+    pattern_false!(r"/abc\s\B/", b"abc x");
+    pattern_match!(r"/abc\s\B/", b"abc  ", b"abc ");
+    pattern_match!(r"/\w\w\w\B/", b"abcd", b"abc");
+    pattern_match!(r"/\B\w\w\w/", b"abcd", b"bcd");
+    pattern_false!(r"/\B\w\w\w\B/", b"abcd");
     pattern_false!(r#"/a.b/"#, b"a\nb");
     pattern_false!(r#"/a.*b/"#, b"acc\nccb");
     pattern_match!(r#"/foo/"#, b"foo", b"foo");
@@ -1286,7 +1282,7 @@ fn regexp_patterns_3() {
     pattern_match!(r#"/foo|bar|baz/i"#, b"BAR", b"BAR");
     pattern_match!(r#"/foo|bar|baz/i"#, b"BAZ", b"BAZ");
 
-    pattern_match!(r#"/foo\x01bar/"#, b"foo\x01bar", b"foo\x01bar");
+    pattern_match!(r"/foo\x01bar/", b"foo\x01bar", b"foo\x01bar");
 
     /*
     TODO: YARA accepts unicode characters in regexps but regexp_syntax either
