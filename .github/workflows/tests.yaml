@@ -22,7 +22,7 @@ jobs:
         include:
           - build: msrv
             os: ubuntu-latest
-            rust: 1.71.0
+            rust: 1.73.0
             args: ""
 
           - build: stable
