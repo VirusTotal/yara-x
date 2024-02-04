@@ -70,4 +70,15 @@ fn test_hash_module() {
         "#,
         b"foobarbaz"
     );
+
+    rule_true!(
+        r#"
+        import "hash"
+        rule test {
+          condition:
+            hash.checksum32(0, filesize) == 0x337
+        }
+        "#,
+        b"TEST STRING"
+    );
 }
