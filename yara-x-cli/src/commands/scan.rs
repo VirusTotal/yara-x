@@ -1,6 +1,5 @@
 use std::cmp::min;
 use std::fs::File;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -9,7 +8,6 @@ use std::time::{Duration, Instant};
 use anyhow::{bail, Context, Error};
 use clap::{arg, value_parser, Arg, ArgAction, ArgMatches, Command};
 use crossbeam::channel::Sender;
-use indent::indent_all_by;
 use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
@@ -49,8 +47,8 @@ pub fn scan() -> Command {
                 .value_parser(value_parser!(usize))
         )
         .arg(
-            arg!(-D --"dump-module-output")
-                .help("Dumps the data produced by modules")
+            arg!(--"disable-console-logs")
+                .help("Disable printing console log messages")
         )
         .arg(
             arg!(-n - -"negate")
@@ -104,7 +102,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");
-    let dump_module_output = args.get_flag("dump-module-output");
+    let disable_console_logs = args.get_flag("disable-console-logs");
     let timeout = args.get_one::<u64>("timeout");
 
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
@@ -121,16 +119,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
         let rules_path = rules_path.next().unwrap();
 
-        let mut file = File::open(rules_path)
+        let file = File::open(rules_path)
             .with_context(|| format!("can not open {:?}", &rules_path))?;
 
-        let mut data = Vec::new();
-
-        File::read_to_end(&mut file, &mut data)
-            .with_context(|| format!("can not read {:?}", &rules_path))?;
-
-        // TODO: implement Rules::deserialize_from reader
-        let rules = Rules::deserialize(data.as_slice())?;
+        let rules = Rules::deserialize_from(file)?;
 
         // If the user is defining external variables, make sure that these
         // variables are valid. A scanner is created only with the purpose
@@ -174,8 +166,19 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     w.walk(
         path,
         state,
-        || {
+        // Initialization
+        |_, output| {
             let mut scanner = Scanner::new(rules_ref);
+
+            if !disable_console_logs {
+                let output = output.clone();
+                scanner.console_log(move |msg| {
+                    output
+                        .send(Message::Error(format!("{}", Yellow.paint(msg))))
+                        .unwrap();
+                });
+            }
+
             if let Some(ref vars) = external_vars {
                 for (ident, value) in vars {
                     // It's ok to use `unwrap()`, this can not fail because
@@ -183,9 +186,11 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                     scanner.set_global(ident.as_str(), value).unwrap();
                 }
             }
+
             scanner
         },
-        |file_path, state, output, scanner| {
+        // File handler. Called for every file found while walking the path.
+        |state, output, file_path, scanner| {
             let elapsed_time = Instant::elapsed(&start_time);
 
             if let Some(timeout) = timeout.checked_sub(elapsed_time) {
@@ -238,28 +243,11 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 );
             };
 
-            if dump_module_output {
-                for (mod_name, mod_output) in scan_results.module_outputs() {
-                    output
-                        .send(Message::Info(format!(
-                            ">>> {} {}\n{}<<<",
-                            Yellow.paint(mod_name).bold(),
-                            file_path.display(),
-                            indent_all_by(
-                                4,
-                                protobuf::text_format::print_to_string_pretty(
-                                    mod_output,
-                                )
-                            ),
-                        )))
-                        .unwrap();
-                }
-            }
-
             state.num_scanned_files.fetch_add(1, Ordering::Relaxed);
 
             Ok(())
         },
+        // Error handler
         |err, output| {
             let _ = output.send(Message::Error(format!(
                 "{} {}: {}",
@@ -319,14 +307,17 @@ fn print_matching_rules(
             let limit = print_strings_limit.unwrap_or(&120);
             for p in matching_rule.patterns() {
                 for m in p.matches() {
+                    let match_range = m.range();
+                    let match_data = m.data();
+
                     let mut msg = format!(
                         "{:#x}:{}:{}: ",
-                        m.range.start,
-                        m.range.len(),
+                        match_range.start,
+                        match_range.len(),
                         p.identifier(),
                     );
 
-                    for b in &m.data[..min(m.data.len(), *limit)] {
+                    for b in &match_data[..min(match_data.len(), *limit)] {
                         for c in b.escape_ascii() {
                             msg.push_str(format!("{}", c as char).as_str());
                         }

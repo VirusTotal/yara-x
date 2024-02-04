@@ -11,21 +11,36 @@ option (yara.module_options) = {
 };
 
 message Dylib {
-  optional string name = 1;
+  optional bytes name = 1;
   optional uint32 timestamp = 2 [(yaml.field).fmt = "t"];
   optional string compatibility_version = 3;
   optional string current_version = 4;
 }
 
-message RPath {
-  optional uint32 cmd = 1;
-  optional uint32 cmdsize = 2;
-  optional string path = 3;
+message Dysymtab {
+  optional uint32 ilocalsym = 3;
+  optional uint32 nlocalsym = 4;
+  optional uint32 iextdefsym = 5;
+  optional uint32 nextdefsym = 6;
+  optional uint32 iundefsym = 7;
+  optional uint32 nundefsym = 8;
+  optional uint32 tocoff = 9;
+  optional uint32 ntoc = 10;
+  optional uint32 modtaboff = 11;
+  optional uint32 nmodtab = 12;
+  optional uint32 extrefsymoff = 13;
+  optional uint32 nextrefsyms = 14;
+  optional uint32 indirectsymoff = 15;
+  optional uint32 nindirectsyms = 16;
+  optional uint32 extreloff = 17;
+  optional uint32 nextrel = 18;
+  optional uint32 locreloff = 19;
+  optional uint32 nlocrel = 20;
 }
 
 message Section {
-  optional string segname = 1;
-  optional string sectname = 2;
+  optional bytes segname = 1;
+  optional bytes sectname = 2;
   optional uint64 addr = 3 [(yaml.field).fmt = "x"];
   optional uint64 size = 4 [(yaml.field).fmt = "x"];
   optional uint32 offset = 5;
@@ -39,9 +54,7 @@ message Section {
 }
 
 message Segment {
-  optional uint32 cmd = 1;
-  optional uint32 cmdsize = 2;
-  optional string segname = 3;
+  optional bytes segname = 3;
   optional uint64 vmaddr = 4 [(yaml.field).fmt = "x"];
   optional uint64 vmsize = 5 [(yaml.field).fmt = "x"];
   optional uint64 fileoff = 6;
@@ -54,8 +67,8 @@ message Segment {
 }
 
 message FatArch {
-  optional uint32 cputype = 1;
-  optional uint32 cpusubtype = 2;
+  optional uint32 cputype = 1 [(yaml.field).fmt = "x"];
+  optional uint32 cpusubtype = 2 [(yaml.field).fmt = "x"];
   optional uint64 offset = 3;
   optional uint64 size = 4;
   optional uint32 align = 5;
@@ -64,45 +77,51 @@ message FatArch {
 
 message File {
   optional uint32 magic = 1 [(yaml.field).fmt = "x"];
-  optional uint32 cputype = 2;
-  optional uint32 cpusubtype = 3;
+  optional uint32 cputype = 2 [(yaml.field).fmt = "x"];
+  optional uint32 cpusubtype = 3 [(yaml.field).fmt = "x"];
   optional uint32 filetype = 4;
   optional uint32 ncmds = 5;
   optional uint32 sizeofcmds = 6;
   optional uint32 flags = 7 [(yaml.field).fmt = "x"];
   optional uint32 reserved = 8;
   optional uint64 number_of_segments = 9;
-  repeated Segment segments = 10;
-  repeated Dylib dylibs = 11;
-  repeated RPath rpaths = 12;
-  optional uint64 entry_point = 13;
-  optional uint64 stack_size = 14;
+  optional bytes dynamic_linker = 10;
+  optional uint64 entry_point = 11;
+  optional uint64 stack_size = 12;
+  optional string source_version = 13;
+  repeated Segment segments = 14;
+  repeated Dylib dylibs = 15;
+  repeated bytes rpaths = 16;
+  optional Dysymtab dysymtab = 17;
 }
 
 message Macho {
   // Set Mach-O header and basic fields
   optional uint32 magic = 1 [(yaml.field).fmt = "x"];
-  optional uint32 cputype = 2;
-  optional uint32 cpusubtype = 3;
+  optional uint32 cputype = 2 [(yaml.field).fmt = "x"];
+  optional uint32 cpusubtype = 3 [(yaml.field).fmt = "x"];
   optional uint32 filetype = 4;
   optional uint32 ncmds = 5;
   optional uint32 sizeofcmds = 6;
   optional uint32 flags = 7 [(yaml.field).fmt = "x"];
   optional uint32 reserved = 8;
   optional uint64 number_of_segments = 9;
-  repeated Segment segments = 10;
-  repeated Dylib dylibs = 11;
-  repeated RPath rpaths = 12;
-  optional uint64 entry_point = 13;
-  optional uint64 stack_size = 14;
-
+  optional bytes dynamic_linker = 10;
+  optional uint64 entry_point = 11;
+  optional uint64 stack_size = 12;
+  optional string source_version = 13;
+  optional Dysymtab dysymtab = 14;
+  repeated Segment segments = 15;
+  repeated Dylib dylibs = 16;
+  repeated bytes rpaths = 17;
+  
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 15 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 16;
-  repeated FatArch fat_arch = 17;
+  optional uint32 fat_magic = 18 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 19;
+  repeated FatArch fat_arch = 20;
 
   // Nested Mach-O files
-  repeated File file = 18;
+  repeated File file = 21;
 }
 
 enum HEADER {

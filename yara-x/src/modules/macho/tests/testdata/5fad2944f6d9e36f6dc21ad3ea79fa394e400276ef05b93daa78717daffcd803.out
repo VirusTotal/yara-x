@@ -1,0 +1,113 @@
+magic: 0xcefaedfe
+cputype: 0xc
+cpusubtype: 0x9
+filetype: 1
+ncmds: 4
+sizeofcmds: 652
+flags: 0x2000
+number_of_segments: 1
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 3
+    iextdefsym: 3
+    nextdefsym: 21
+    tocoff: 24
+    ntoc: 1
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
+segments:
+  - segname: ""
+    vmaddr: 0x0
+    vmsize: 0xa04
+    fileoff: 680
+    filesize: 2564
+    maxprot: 0x7
+    initprot: 0x7
+    nsects: 7
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x0
+        size: 0x664
+        offset: 680
+        align: 2
+        reloff: 3244
+        nreloc: 36
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__textcoal_nt"
+        addr: 0x664
+        size: 0x0
+        offset: 2316
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x8000000b
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__const_coal"
+        addr: 0x664
+        size: 0x0
+        offset: 2316
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0xb
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__picsymbolstub4"
+        addr: 0x664
+        size: 0x0
+        offset: 2316
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x8
+        reserved1: 0
+        reserved2: 16
+      - segname: "__TEXT"
+        sectname: "__StaticInit"
+        addr: 0x664
+        size: 0x0
+        offset: 2316
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000000
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x664
+        size: 0xa0
+        offset: 2316
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x704
+        size: 0x300
+        offset: 2476
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0

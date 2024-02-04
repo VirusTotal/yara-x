@@ -15,12 +15,11 @@ use std::time::Instant;
 use base64::Engine;
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
-use bitvec::vec::BitVec;
 use bstr::{BString, ByteSlice};
 use indexmap::IndexMap;
 use protobuf::{MessageDyn, MessageFull};
 use regex_automata::meta::Regex;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use wasmtime::Store;
 
 use crate::compiler::{
@@ -89,10 +88,9 @@ pub(crate) struct ScanContext<'r> {
     /// matching offset.
     pub unconfirmed_matches:
         FxHashMap<SubPatternId, VecDeque<UnconfirmedMatch>>,
-    /// Bit vector that contains one bit per pattern. The N-th bit is set if
-    /// pattern with PatternId = N has reached the maximum number of matches
-    /// indicated by `max_matches_per_pattern`.
-    pub limit_reached: BitVec,
+    /// Set that contains the PatternId for those patterns that have reached
+    /// the maximum number of matches indicated by `max_matches_per_pattern`.
+    pub limit_reached: FxHashSet<PatternId>,
     /// Maximum number of matches per pattern.
     pub max_matches_per_pattern: usize,
     /// When [`HEARTBEAT_COUNTER`] is larger than this value, the scan is
@@ -104,6 +102,8 @@ pub(crate) struct ScanContext<'r> {
     /// is evaluated, it is compiled the first time and stored in this hash
     /// map.
     pub regexp_cache: RefCell<FxHashMap<RegexpId, Regex>>,
+    /// Callback invoked every time a YARA rule calls `console.log`.
+    pub console_log: Option<Box<dyn FnMut(String) + 'r>>,
     /// Hash map that tracks the time spend on each pattern. Keys are pattern
     /// PatternIds and values are the cumulative time spent on verifying each
     /// pattern.
@@ -204,6 +204,12 @@ impl ScanContext<'_> {
             .unwrap();
 
         info!("Started rule evaluation: {}:{}", rule_namespace, rule_name);
+    }
+
+    pub(crate) fn console_log(&mut self, message: String) {
+        if let Some(console_log) = &mut self.console_log {
+            console_log(message)
+        }
     }
 
     pub(crate) fn store_struct(
@@ -313,9 +319,9 @@ impl ScanContext<'_> {
         let matches_list = self.pattern_matches.entry(pattern_id).or_default();
 
         if matches_list.len() < self.max_matches_per_pattern {
-            matches_list.add(match_, replace)
+            matches_list.add(match_, replace);
         } else {
-            self.limit_reached.set(pattern_id.into(), true);
+            self.limit_reached.insert(pattern_id);
         }
     }
 
@@ -393,17 +399,17 @@ impl ScanContext<'_> {
             // verifying the match. `get_unchecked` is used for performance
             // reasons, the number of bits in the bit vector is guaranteed to
             // to be the number of patterns.
-            if unsafe {
-                *self
-                    .limit_reached
-                    .get_unchecked::<usize>((*pattern_id).into())
-            } {
+            if self.limit_reached.contains(pattern_id) {
                 continue;
             }
+
+            #[cfg(feature = "rules-profiling")]
+            let verification_start = Instant::now();
 
             // If the atom is exact no further verification is needed, except
             // for making sure that the fullword requirements are met. An exact
             // atom is enough to guarantee that the whole sub-pattern matched.
+            #[cfg(feature = "exact-atoms")]
             if atom.is_exact() {
                 let flags = match sub_pattern {
                     SubPattern::Literal { flags, .. }
@@ -428,9 +434,6 @@ impl ScanContext<'_> {
 
                 continue;
             }
-
-            #[cfg(feature = "rules-profiling")]
-            let verification_start = Instant::now();
 
             match sub_pattern {
                 SubPattern::Literal { pattern, flags, .. }
@@ -810,7 +813,7 @@ impl ScanContext<'_> {
                 } => {
                     // Iterate over the list of unconfirmed matches of the
                     // sub-pattern that comes before in the chain. For example,
-                    // if the chain is P1 <- P2 and we just found a match for
+                    // if the chain is P1 <- P2, and we just found a match for
                     // P2, iterate over the unconfirmed matches for P1.
                     if let Some(unconfirmed_matches) =
                         self.unconfirmed_matches.get_mut(chained_to)

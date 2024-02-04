@@ -43,7 +43,7 @@ impl<'r> PikeVM<'r> {
     /// VM before aborting.
     ///
     /// This sets a limit on the number of bytes that the VM will read from the
-    /// input while trying find a match. Without a limit, the VM will can incur
+    /// input while trying to find a match. Without a limit, the VM can incur
     /// in excessive execution time for regular expressions that are unbounded,
     /// like `foo.*bar`. For inputs that starts with `foo`, this regexp will
     /// try to scan the whole input, and that would take a long time if the
@@ -231,21 +231,33 @@ pub struct EpsilonClosureState {
     /// This bit array has one bit per possible value of SplitId. If the
     /// split instruction with SplitId = N is executed, the N-th bit in the
     /// array is set to 1.
-    executed_splits: BitArray<[u64; (1 << SplitId::BITS as usize) / 64]>,
+    executed_splits: BitArray<[u64; (1 << SplitId::BITS) / 64]>,
+    /// Indicates whether the `executed_splits` bit array needs to be
+    /// cleared during the next call to [`EpsilonClosureState::executed`].
+    dirty: bool,
 }
 
 impl EpsilonClosureState {
     pub fn new() -> Self {
-        Self { threads: Vec::new(), executed_splits: Default::default() }
+        Self {
+            threads: Vec::new(),
+            executed_splits: Default::default(),
+            dirty: false,
+        }
     }
 
     #[inline(always)]
     pub fn executed(&mut self, split_id: SplitId) -> bool {
+        if self.dirty {
+            self.executed_splits.fill(false);
+            self.dirty = false;
+        }
         unsafe {
-            let executed =
-                *self.executed_splits.get_unchecked(split_id as usize);
+            let executed = *self
+                .executed_splits
+                .get_unchecked(std::convert::Into::<usize>::into(split_id));
             if !executed {
-                self.executed_splits.set_unchecked(split_id as usize, true)
+                self.executed_splits.set_unchecked(split_id.into(), true);
             }
             executed
         }
@@ -287,7 +299,7 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     closure: &mut BitmapSet,
 ) {
     state.threads.push(start.location());
-    state.executed_splits.fill(false);
+    state.dirty = true;
 
     while let Some(ip) = state.threads.pop() {
         let (instr, size) =

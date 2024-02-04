@@ -21,7 +21,7 @@ use bitvec::prelude::*;
 use fmmap::{MmapFile, MmapFileExt};
 use indexmap::IndexMap;
 use protobuf::MessageDyn;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use thiserror::Error;
 use wasmtime::{
     AsContext, AsContextMut, Global, GlobalType, MemoryType, Mutability,
@@ -36,7 +36,6 @@ use crate::wasm::{ENGINE, MATCHING_RULES_BITMAP_BASE};
 use crate::{modules, wasm, Variable};
 
 pub(crate) use crate::scanner::context::*;
-pub use crate::scanner::matches::*;
 
 mod context;
 mod matches;
@@ -60,8 +59,7 @@ pub enum ScanError {
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
 ///
-/// This counter is used for determining the when a scan operation has timed
-/// out.
+/// This counter is used for determining when a scan operation has timed out.
 static HEARTBEAT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Used for spawning the thread that increments `HEARTBEAT_COUNTER`.
@@ -120,6 +118,7 @@ impl<'r> Scanner<'r> {
                 wasm_store: NonNull::dangling(),
                 runtime_objects: IndexMap::new(),
                 compiled_rules: rules,
+                console_log: None,
                 current_struct: None,
                 root_struct: rules.globals().make_root(),
                 scanned_data: null(),
@@ -132,7 +131,7 @@ impl<'r> Scanner<'r> {
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
-                limit_reached: BitVec::repeat(false, num_patterns as usize),
+                limit_reached: FxHashSet::default(),
                 max_matches_per_pattern: Self::DEFAULT_MAX_MATCHES_PER_PATTERN,
                 regexp_cache: RefCell::new(FxHashMap::default()),
                 #[cfg(feature = "rules-profiling")]
@@ -276,6 +275,21 @@ impl<'r> Scanner<'r> {
         self
     }
 
+    /// Sets a callback that is invoked every time a YARA rule calls the
+    /// `console` module.
+    ///
+    /// The `callback` function is invoked with a string representing the
+    /// message being logged. The function can print the message to stdout,
+    /// append it to a file, etc. If no callback is set these messages are
+    /// ignored.
+    pub fn console_log<F>(&mut self, callback: F) -> &mut Self
+    where
+        F: FnMut(String) + 'r,
+    {
+        self.wasm_store.data_mut().console_log = Some(Box::new(callback));
+        self
+    }
+
     /// Scans a file.
     pub fn scan_file<'a, P>(
         &'a mut self,
@@ -342,7 +356,7 @@ impl<'r> Scanner<'r> {
         if let Some(field) = ctx.root_struct.field_by_name_mut(ident) {
             let variable: Variable = value.try_into()?;
             let type_value: TypeValue = variable.into();
-            // The new type must match the the old one.
+            // The new type must match the old one.
             if type_value.eq_type(&field.type_value) {
                 field.type_value = type_value;
             } else {
@@ -366,7 +380,7 @@ impl<'r> Scanner<'r> {
         data: ScannedData<'a>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
-        self.clear_matches();
+        self.reset();
 
         // Timeout in seconds. This is either the value provided by the user or
         // 315.360.000 which is the number of seconds in a year. Using u64::MAX
@@ -374,8 +388,8 @@ impl<'r> Scanner<'r> {
         // will cause an overflow. We need an integer large enough, but that
         // has room before the u64 limit is reached. For this same reason if
         // the user specifies a value larger than 315.360.000 we limit it to
-        // 315.360.000 anyways. One year should be enough, I hope you don't
-        // plan to run a YARA scan that takes longer.
+        // 315.360.000 anyway. One year should be enough, I hope you don't plan
+        // to run a YARA scan that takes longer.
         let timeout_secs =
             self.timeout.map_or(Self::DEFAULT_SCAN_TIMEOUT, |t| {
                 cmp::min(
@@ -555,11 +569,16 @@ impl<'r> Scanner<'r> {
         }
     }
 
-    // Clear information about previous matches.
-    fn clear_matches(&mut self) {
+    /// Resets the scanner to its initial state, making it ready for another
+    /// scan. This clears all the information generated the previous scan.
+    fn reset(&mut self) {
         let ctx = self.wasm_store.data_mut();
         let num_rules = ctx.compiled_rules.rules().len();
         let num_patterns = ctx.compiled_rules.num_patterns();
+
+        // Clear the array that tracks the patterns that reached the maximum
+        // number of patterns.
+        ctx.limit_reached.clear();
 
         // Clear the unconfirmed matches.
         for (_, matches) in ctx.unconfirmed_matches.iter_mut() {
@@ -572,6 +591,7 @@ impl<'r> Scanner<'r> {
         // not found.
         if !ctx.pattern_matches.is_empty()
             || !ctx.non_private_matching_rules.is_empty()
+            || !ctx.private_matching_rules.is_empty()
         {
             // The hash map that tracks the pattern matches is not completely
             // cleared with pattern_matches.clear() because that would cause
@@ -583,8 +603,9 @@ impl<'r> Scanner<'r> {
                 matches.clear()
             }
 
-            // Clear the list of matching rules.
+            // Clear the lists of matching rules.
             ctx.non_private_matching_rules.clear();
+            ctx.private_matching_rules.clear();
 
             let mem = ctx
                 .main_memory
@@ -879,28 +900,34 @@ impl<'a> Iterator for Matches<'a> {
     type Item = Match<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(iter) = &mut self.iterator {
-            let match_ = iter.next()?;
-            Some(Match {
-                range: match_.range.clone(),
-                data: &self.data.as_ref()
-                    [match_.range.start..match_.range.end],
-                xor_key: match_.xor_key,
-            })
-        } else {
-            None
-        }
+        let iter = self.iterator.as_mut()?;
+        Some(Match { inner: iter.next()?, data: self.data })
     }
 }
 
 /// Represents a match.
-#[derive(PartialEq, Debug)]
 pub struct Match<'a> {
+    inner: &'a matches::Match,
+    data: &'a ScannedData<'a>,
+}
+
+impl<'a> Match<'a> {
     /// Range within the original data where the match occurred.
-    pub range: Range<usize>,
+    #[inline]
+    pub fn range(&self) -> Range<usize> {
+        self.inner.range.clone()
+    }
+
     /// Slice containing the data that matched.
-    pub data: &'a [u8],
+    #[inline]
+    pub fn data(&self) -> &'a [u8] {
+        self.data.as_ref().get(self.inner.range.clone()).unwrap()
+    }
+
     /// XOR key used for decrypting the data if the pattern had the `xor`
     /// modifier, or `None` if otherwise.
-    pub xor_key: Option<u8>,
+    #[inline]
+    pub fn xor_key(&self) -> Option<u8> {
+        self.inner.xor_key
+    }
 }

@@ -185,6 +185,7 @@ resources:
     language: 1033
 import_details:
   - library_name: "KERNEL32.DLL"
+    number_of_functions: 6
     functions:
       - name: "LoadLibraryA"
         rva: 38064
@@ -199,18 +200,22 @@ import_details:
       - name: "ExitProcess"
         rva: 38084
   - library_name: "msvcrt.dll"
+    number_of_functions: 1
     functions:
       - name: "putc"
         rva: 38092
   - library_name: "MSWSOCK.dll"
+    number_of_functions: 1
     functions:
       - name: "s_perror"
         rva: 38100
   - library_name: "USER32.dll"
+    number_of_functions: 1
     functions:
       - name: "CharNextExA"
         rva: 38108
   - library_name: "WS2_32.dll"
+    number_of_functions: 1
     functions:
       - name: "sendto"
         ordinal: 20

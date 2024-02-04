@@ -852,9 +852,9 @@ pub(crate) fn pat_length(
     index: i64,
 ) -> Option<i64> {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
-        // Make sure that index >= 1.
-        debug_assert!(index >= 1);
-        let m = matches.get(index as usize - 1)?;
+        let index: usize = index.try_into().ok()?;
+        // Index is 1-based, convert it to 0-based before calling `matches.get`
+        let m = matches.get(index.checked_sub(1)?)?;
         Some(ExactSizeIterator::len(&m.range) as i64)
     } else {
         None
@@ -873,9 +873,9 @@ pub(crate) fn pat_offset(
     index: i64,
 ) -> Option<i64> {
     if let Some(matches) = caller.data().pattern_matches.get(&pattern_id) {
-        // Make sure that index >= 1.
-        debug_assert!(index >= 1);
-        let m = matches.get(index as usize - 1)?;
+        let index: usize = index.try_into().ok()?;
+        // Index is 1-based, convert it to 0-based before calling `matches.get`
+        let m = matches.get(index.checked_sub(1)?)?;
         Some(m.range.start as i64)
     } else {
         None

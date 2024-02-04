@@ -67,12 +67,10 @@ use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec, ToSmallVec};
 
 pub(crate) use crate::compiler::atoms::mask::ByteMaskCombinator;
-pub(crate) use crate::compiler::atoms::quality::atom_quality;
 pub(crate) use crate::compiler::atoms::quality::best_atom_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_bytes;
 pub(crate) use crate::compiler::atoms::quality::best_range_in_masked_bytes;
-pub(crate) use crate::compiler::atoms::quality::seq_quality;
-pub(crate) use crate::compiler::atoms::quality::SeqQuality;
+pub(crate) use crate::compiler::atoms::quality::AtomsQuality;
 
 use crate::compiler::{SubPatternFlagSet, SubPatternFlags};
 
@@ -110,6 +108,12 @@ pub(crate) struct Atom {
     bytes: SmallVec<[u8; DESIRED_ATOM_SIZE]>,
     exact: bool,
     backtrack: u16,
+}
+
+impl AsRef<[u8]> for Atom {
+    fn as_ref(&self) -> &[u8] {
+        self.bytes.as_ref()
+    }
 }
 
 impl From<&[u8]> for Atom {
@@ -188,11 +192,6 @@ impl Atom {
     }
 
     #[inline]
-    pub fn as_slice(&self) -> &[u8] {
-        self.bytes.as_ref()
-    }
-
-    #[inline]
     pub fn len(&self) -> usize {
         self.bytes.len()
     }
@@ -207,12 +206,6 @@ impl Atom {
         self.backtrack = b;
     }
 
-    /// Compute the atom's quality
-    #[inline]
-    pub fn quality(&self) -> i32 {
-        atom_quality(&self.bytes)
-    }
-
     #[inline]
     pub fn is_exact(&self) -> bool {
         self.exact
@@ -224,13 +217,14 @@ impl Atom {
     }
 
     #[inline]
-    pub fn make_inexact(mut self) -> Self {
+    pub fn make_inexact(&mut self) -> &mut Self {
         self.exact = false;
         self
     }
 
     pub fn make_wide(mut self) -> Self {
         let atom_len = self.bytes.len();
+        self.backtrack *= 2;
         self.bytes = self
             .bytes
             .into_iter()
@@ -294,18 +288,17 @@ pub(crate) fn extract_atoms(
     literal_bytes: &[u8],
     flags: SubPatternFlagSet,
 ) -> Box<dyn Iterator<Item = Atom>> {
-    let best_atom = best_atom_in_bytes(literal_bytes);
+    let mut best_atom = best_atom_in_bytes(literal_bytes);
 
     // TODO: this is making all atoms in the chain inexact, even
     // those that are in the middle of a chain and therefore don't
     // have FullwordRight nor FullwordLeft. This logic could be
     // improved.
-    let best_atom = match flags.intersects(
+    if flags.intersects(
         SubPatternFlags::FullwordLeft | SubPatternFlags::FullwordRight,
     ) {
-        true => best_atom.make_inexact(),
-        false => best_atom,
-    };
+        best_atom.make_inexact();
+    }
 
     if flags.contains(SubPatternFlags::Nocase) {
         Box::new(CaseCombinations::new(best_atom))
@@ -450,7 +443,6 @@ impl Iterator for XorCombinations {
 mod test {
     use pretty_assertions::assert_eq;
 
-    use crate::compiler::atoms;
     use crate::compiler::atoms::Atom;
 
     #[test]
@@ -506,9 +498,16 @@ mod test {
 
     #[test]
     fn make_wide() {
+        let mut atom = Atom::exact([0x01_u8, 0x02, 0x03]);
+        atom.set_backtrack(2);
+
+        let atom = atom.make_wide();
+
         assert_eq!(
-            atoms::make_wide(&[0x01, 0x02, 0x03]),
+            atom.bytes.as_slice(),
             &[0x01, 0x00, 0x02, 0x00, 0x03, 0x00]
-        )
+        );
+
+        assert_eq!(atom.backtrack, 4);
     }
 }

@@ -37,7 +37,6 @@ use bstr::BString;
 use serde::{Deserialize, Serialize};
 
 use crate::compiler::context::{Var, VarStackFrame};
-use crate::compiler::PatternId;
 use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue, Value};
 
@@ -87,18 +86,12 @@ bitmask! {
 pub(in crate::compiler) struct PatternInRule<'src> {
     identifier: &'src str,
     pattern: Pattern,
-    anchored_at: Option<usize>,
 }
 
 impl<'src> PatternInRule<'src> {
     #[inline]
     pub fn identifier(&self) -> &'src str {
         self.identifier
-    }
-
-    #[inline]
-    pub fn anchored_at(&self) -> Option<usize> {
-        self.anchored_at
     }
 
     #[inline]
@@ -111,9 +104,14 @@ impl<'src> PatternInRule<'src> {
         &self.pattern
     }
 
+    #[inline]
+    pub fn anchored_at(&self) -> Option<usize> {
+        self.pattern.anchored_at()
+    }
+
     /// Anchor the pattern to a given offset. This means that the pattern can
     /// match only at that offset and nowhere else. This is a no-op for
-    /// regexp patterns, and for patterns that are flagged as non-anchorable.
+    /// for patterns that are flagged as non-anchorable.
     ///
     /// Also, if this function is called twice with different offsets, the
     /// pattern becomes non-anchorable because it can't be anchored to two
@@ -123,19 +121,7 @@ impl<'src> PatternInRule<'src> {
     /// in order to indicate that the pattern (the `$a` pattern in this case)
     /// can match only at a fixed offset.
     pub fn anchor_at(&mut self, offset: usize) {
-        match self.anchored_at {
-            Some(o) if o != offset => {
-                self.anchored_at = None;
-                self.pattern.flags_mut().set(PatternFlags::NonAnchorable);
-            }
-            None => {
-                if !self.pattern.flags().contains(PatternFlags::NonAnchorable)
-                {
-                    self.anchored_at = Some(offset);
-                }
-            }
-            _ => {}
-        }
+        self.pattern.anchor_at(offset);
     }
 
     /// Make the pattern non-anchorable. Any existing anchor is removed and
@@ -148,8 +134,7 @@ impl<'src> PatternInRule<'src> {
     /// the number of occurrences of `$a`), makes `$a` non-anchorable because
     /// we need to find all occurrences of `$a`.
     pub fn make_non_anchorable(&mut self) {
-        self.pattern.flags_mut().set(PatternFlags::NonAnchorable);
-        self.anchored_at = None;
+        self.pattern.make_non_anchorable();
     }
 }
 
@@ -188,12 +173,72 @@ impl Pattern {
             Pattern::Regexp(regexp) => &mut regexp.flags,
         }
     }
+
+    #[inline]
+    pub fn anchored_at(&self) -> Option<usize> {
+        match self {
+            Pattern::Literal(literal) => literal.anchored_at,
+            Pattern::Regexp(regexp) => regexp.anchored_at,
+        }
+    }
+
+    /// Anchor the pattern to a given offset. This means that the pattern can
+    /// match only at that offset and nowhere else. This is a no-op for
+    /// for patterns that are flagged as non-anchorable.
+    ///
+    /// Also, if this function is called twice with different offsets, the
+    /// pattern becomes non-anchorable because it can't be anchored to two
+    /// different offsets.
+    ///
+    /// This is used when the condition contains an expression like `$a at 0`
+    /// in order to indicate that the pattern (the `$a` pattern in this case)
+    /// can match only at a fixed offset.
+    pub fn anchor_at(&mut self, offset: usize) {
+        let is_anchorable =
+            !self.flags().contains(PatternFlags::NonAnchorable);
+
+        let anchored_at = match self {
+            Pattern::Literal(literal) => &mut literal.anchored_at,
+            Pattern::Regexp(regexp) => &mut regexp.anchored_at,
+        };
+
+        match anchored_at {
+            Some(o) if *o != offset => {
+                *anchored_at = None;
+                self.flags_mut().set(PatternFlags::NonAnchorable);
+            }
+            None => {
+                if is_anchorable {
+                    *anchored_at = Some(offset);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Make the pattern non-anchorable. Any existing anchor is removed and
+    /// future calls to [`PatternInRule::anchor_at`] are ignored.
+    ///
+    /// This function is used to indicate that a certain pattern can't be
+    /// anchored at any fixed offset because it is used in ways that require
+    /// require finding all the possible matches. For example, in a condition
+    /// condition like `#a > 0 and $a at 0`, the use of `#a` (which returns
+    /// the number of occurrences of `$a`), makes `$a` non-anchorable because
+    /// we need to find all occurrences of `$a`.
+    pub fn make_non_anchorable(&mut self) {
+        match self {
+            Pattern::Literal(literal) => literal.anchored_at = None,
+            Pattern::Regexp(regexp) => regexp.anchored_at = None,
+        };
+        self.flags_mut().set(PatternFlags::NonAnchorable);
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub(in crate::compiler) struct LiteralPattern {
     pub flags: PatternFlagSet,
     pub text: BString,
+    pub anchored_at: Option<usize>,
     pub xor_range: Option<RangeInclusive<u8>>,
     pub base64_alphabet: Option<String>,
     pub base64wide_alphabet: Option<String>,
@@ -203,6 +248,28 @@ pub(in crate::compiler) struct LiteralPattern {
 pub(in crate::compiler) struct RegexpPattern {
     pub flags: PatternFlagSet,
     pub hir: re::hir::Hir,
+    pub anchored_at: Option<usize>,
+}
+
+/// The index of a pattern in the rule that declares it.
+///
+/// The first pattern in the rule has index 0, the second has index 1, and
+/// so on.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::compiler) struct PatternIdx(usize);
+
+impl PatternIdx {
+    #[inline]
+    pub fn as_usize(&self) -> usize {
+        self.0
+    }
+}
+
+impl From<usize> for PatternIdx {
+    #[inline]
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
 }
 
 /// Intermediate representation (IR) for an expression.
@@ -214,8 +281,8 @@ pub(in crate::compiler) enum Expr {
         type_value: TypeValue,
     },
 
+    /// `filesize` expression.
     Filesize,
-    Entrypoint,
 
     /// Boolean `not` expression.
     Not {
@@ -397,7 +464,7 @@ pub(in crate::compiler) enum Expr {
 
     /// Pattern match expression (e.g. `$a`)
     PatternMatch {
-        pattern_id: PatternId,
+        pattern: PatternIdx,
         anchor: MatchAnchor,
     },
 
@@ -409,7 +476,7 @@ pub(in crate::compiler) enum Expr {
 
     /// Pattern count expression (e.g. `#a`, `#a in (0..10)`)
     PatternCount {
-        pattern_id: PatternId,
+        pattern: PatternIdx,
         range: Option<Range>,
     },
 
@@ -421,7 +488,7 @@ pub(in crate::compiler) enum Expr {
 
     /// Pattern offset expression (e.g. `@a`, `@a[1]`)
     PatternOffset {
-        pattern_id: PatternId,
+        pattern: PatternIdx,
         index: Option<Box<Expr>>,
     },
 
@@ -433,7 +500,7 @@ pub(in crate::compiler) enum Expr {
 
     /// Pattern length expression (e.g. `!a`, `!a[1]`)
     PatternLength {
-        pattern_id: PatternId,
+        pattern: PatternIdx,
         index: Option<Box<Expr>>,
     },
 
@@ -498,7 +565,7 @@ pub(in crate::compiler) struct Of {
 pub(in crate::compiler) struct ForOf {
     pub quantifier: Quantifier,
     pub variable: Var,
-    pub pattern_set: Vec<PatternId>,
+    pub pattern_set: Vec<PatternIdx>,
     pub condition: Expr,
     pub stack_frame: VarStackFrame,
 }
@@ -557,7 +624,7 @@ impl MatchAnchor {
 /// Items in a `of` expression.
 #[derive(Debug)]
 pub(in crate::compiler) enum OfItems {
-    PatternSet(Vec<PatternId>),
+    PatternSet(Vec<PatternIdx>),
     BoolExprTuple(Vec<Expr>),
 }
 
@@ -623,7 +690,6 @@ impl Expr {
             }
 
             Expr::Filesize
-            | Expr::Entrypoint
             | Expr::PatternCount { .. }
             | Expr::PatternCountVar { .. }
             | Expr::PatternOffset { .. }
@@ -694,7 +760,6 @@ impl Expr {
             }
 
             Expr::Filesize
-            | Expr::Entrypoint
             | Expr::PatternCount { .. }
             | Expr::PatternCountVar { .. }
             | Expr::PatternOffset { .. }

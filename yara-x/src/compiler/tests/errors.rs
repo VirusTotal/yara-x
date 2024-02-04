@@ -857,6 +857,26 @@ rule test {
             line!(),
             r#"
 rule test {
+  strings:
+    $a = /(foo|)/
+  condition:
+    $a
+}
+"#,
+            r#"error: invalid regular expression
+   ╭─[line:4:10]
+   │
+ 4 │     $a = /(foo|)/
+   │          ────┬───  
+   │              ╰───── this regexp can match empty strings
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
   condition:
     all of ($a*)
 }
@@ -889,6 +909,26 @@ rule test {
    │              ╰─── there's no pattern in this set
    │ 
    │ Note: this rule doesn't define any patterns
+───╯
+"#,
+        ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+rule test {
+  condition:
+    entrypoint == 0x1000
+}
+"#,
+            r#"error: `entrypoint` is unsupported`
+   ╭─[line:4:5]
+   │
+ 4 │     entrypoint == 0x1000
+   │     ─────┬────  
+   │          ╰────── the `entrypoint` keyword is not supported anymore
+   │ 
+   │ Note: use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`
 ───╯
 "#,
         ),

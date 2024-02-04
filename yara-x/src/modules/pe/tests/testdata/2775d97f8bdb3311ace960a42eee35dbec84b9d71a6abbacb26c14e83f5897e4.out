@@ -137,6 +137,7 @@ data_directories:
     size: 0
 import_details:
   - library_name: "KERNEL32.dll"
+    number_of_functions: 17
     functions:
       - name: "GetModuleHandleA"
         rva: 2560
@@ -174,18 +175,21 @@ import_details:
         rva: 2624
 delayed_import_details:
   - library_name: "USER32.dll"
+    number_of_functions: 2
     functions:
       - name: "CreateMenu"
         rva: 4268
       - name: "DestroyMenu"
         rva: 4272
   - library_name: "GDI32.dll"
+    number_of_functions: 2
     functions:
       - name: "DeleteObject"
         rva: 4256
       - name: "CreateBitmap"
         rva: 4260
   - library_name: "ADVAPI32.dll"
+    number_of_functions: 3
     functions:
       - name: "RegOpenKeyExA"
         rva: 4228
@@ -194,10 +198,12 @@ delayed_import_details:
       - name: "RegQueryValueExA"
         rva: 4236
   - library_name: "ole32.dll"
+    number_of_functions: 1
     functions:
       - name: "OleInitialize"
         rva: 4300
   - library_name: "COMCTL32.dll"
+    number_of_functions: 2
     functions:
       - name: "ord17"
         ordinal: 17
@@ -205,6 +211,7 @@ delayed_import_details:
       - name: "InitCommonControlsEx"
         rva: 4248
   - library_name: "WS2_32.dll"
+    number_of_functions: 4
     functions:
       - name: "WSAStartup"
         ordinal: 115

@@ -225,7 +225,7 @@ fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     }
 
     let digest = format!("{:x}", md5_hash.compute());
-    Some(RuntimeString::from_bytes(ctx, digest.as_bytes()))
+    Some(RuntimeString::new(digest))
 }
 
 #[module_export(name = "rich_signature.toolid")]

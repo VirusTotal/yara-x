@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+import "yara.proto";
+import "dotnet.proto";
+import "elf.proto";
+import "pe.proto";
+import "lnk.proto";
+import "macho.proto";
+
+package mods;
+
+// Structure that contains the results of all modules together.
+message Modules {
+    optional pe.PE pe = 1;
+    optional elf.ELF elf = 2;
+    optional dotnet.Dotnet dotnet = 3;
+    optional macho.Macho macho = 4;
+    optional lnk.Lnk lnk = 5;
+}

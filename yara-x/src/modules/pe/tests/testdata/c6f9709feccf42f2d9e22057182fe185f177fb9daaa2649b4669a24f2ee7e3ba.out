@@ -269,10 +269,12 @@ resources:
     language: 0
 import_details:
   - library_name: "USER32.dll"
+    number_of_functions: 1
     functions:
       - name: "CharUpperBuffA"
         rva: 20768
   - library_name: "KERNEL32.dll"
+    number_of_functions: 47
     functions:
       - name: "CloseHandle"
         rva: 20776
@@ -369,6 +371,7 @@ import_details:
       - name: "WriteFile"
         rva: 20960
   - library_name: "PBVM115.DLL"
+    number_of_functions: 1
     functions:
       - name: "ord67"
         ordinal: 67

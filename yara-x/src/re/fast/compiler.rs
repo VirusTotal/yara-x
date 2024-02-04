@@ -103,9 +103,12 @@ impl Compiler {
                 }
             };
 
+            // Find the quality of the worst piece.
             let quality =
                 *piece_atoms.iter().map(|(_, _, _, q)| q).min().unwrap();
 
+            // If the quality of the worst piece is higher than the current
+            // best quality, replace the best atoms and best quality.
             if quality > best_quality {
                 best_piece = i;
                 best_quality = quality;
@@ -154,7 +157,12 @@ impl Compiler {
 
         let mut atoms = Vec::new();
 
-        for (best_bytes, best_mask, best_range, _) in best_atoms.unwrap() {
+        let best_atoms = match best_atoms {
+            Some(best_atoms) => best_atoms,
+            None => return Err(Error::FastIncompatible),
+        };
+
+        for (best_bytes, best_mask, best_range, _) in best_atoms {
             match (best_bytes, best_mask, best_range) {
                 (Some(bytes), Some(mask), Some(range)) => {
                     let atom = Atom::from_slice_range(bytes, range.clone());
@@ -184,14 +192,15 @@ impl Compiler {
             }
         }
 
-        let min_atom_len = atoms.iter().map(|atom| atom.len()).min();
+        let min_atom_len =
+            atoms.iter().map(|atom| atom.len()).min().unwrap_or(0);
 
         // If the minimum atom length is < 2, return Error::FastIncompatible
         // and force the use of the Thompson's compiler with this regexp. The
         // Thompson's compiler does a better a job at extracting longer atoms
         // from regexps, and in cases of extremely short atoms it's better to
         // give it a try than using FastVM with short atoms.
-        if matches!(min_atom_len, Some(len) if len < 2) {
+        if min_atom_len < 2 {
             return Err(Error::FastIncompatible);
         }
 

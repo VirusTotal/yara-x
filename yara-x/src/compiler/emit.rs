@@ -20,9 +20,12 @@ use yara_x_parser::ast::{RuleFlag, RuleFlags};
 
 use crate::compiler::context::VarStack;
 use crate::compiler::ir::{
-    Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, Quantifier,
+    Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, PatternIdx,
+    Quantifier,
 };
-use crate::compiler::{LiteralId, RegexpId, RuleId, Var, VarStackFrame};
+use crate::compiler::{
+    LiteralId, PatternId, RegexpId, RuleId, RuleInfo, Var, VarStackFrame,
+};
 use crate::scanner::RuntimeObjectHandle;
 use crate::string_pool::{BStringPool, StringPool};
 use crate::symbols::SymbolKind;
@@ -171,6 +174,9 @@ pub(in crate::compiler) struct EmitContext<'a> {
     /// this tells which specific signature must be used.
     pub current_signature: Option<usize>,
 
+    /// Information about the rule whose condition is being emitted.
+    pub current_rule: &'a RuleInfo,
+
     /// Table with all the symbols (functions, variables) used by WASM.
     pub wasm_symbols: &'a WasmSymbols,
 
@@ -216,6 +222,14 @@ impl<'a> EmitContext<'a> {
         *self.wasm_exports.get(fn_mangled_name).unwrap_or_else(|| {
             panic!("can't find function `{}`", fn_mangled_name)
         })
+    }
+
+    /// Given the index of a pattern in a rule, returns its [`PatternId`].
+    ///
+    /// The index of a pattern is the position of the pattern in the `strings`
+    /// section of the rule.
+    pub fn pattern_id(&self, index: PatternIdx) -> PatternId {
+        self.current_rule.patterns[index.as_usize()].1
     }
 }
 
@@ -332,12 +346,6 @@ fn emit_expr(
 
         Expr::Filesize { .. } => {
             instr.global_get(ctx.wasm_symbols.filesize);
-        }
-
-        Expr::Entrypoint { .. } => {
-            // TODO
-            // todo!()
-            instr.i64_const(0);
         }
 
         Expr::Ident { symbol } => {
@@ -969,8 +977,8 @@ fn emit_pattern_match(
 
     let anchor = match expr {
         // When the pattern ID is known, simply push the ID into the stack.
-        Expr::PatternMatch { pattern_id, anchor } => {
-            instr.i32_const((*pattern_id).into());
+        Expr::PatternMatch { pattern, anchor } => {
+            instr.i32_const(ctx.pattern_id(*pattern).into());
             anchor
         }
         // When the pattern ID is not known, the ID is taken from a variable.
@@ -1022,8 +1030,8 @@ fn emit_pattern_count(
     let range = match expr {
         // Cases where the pattern ID is known, simply push the ID into the
         // stack.
-        Expr::PatternCount { pattern_id, range } => {
-            instr.i32_const((*pattern_id).into());
+        Expr::PatternCount { pattern, range } => {
+            instr.i32_const(ctx.pattern_id(*pattern).into());
             range
         }
         Expr::PatternCountVar { symbol, range } => {
@@ -1066,8 +1074,8 @@ fn emit_pattern_offset(
     let index = match expr {
         // Cases where the pattern ID is known, simply push the ID into the
         // stack.
-        Expr::PatternOffset { pattern_id, index } => {
-            instr.i32_const((*pattern_id).into());
+        Expr::PatternOffset { pattern, index } => {
+            instr.i32_const(ctx.pattern_id(*pattern).into());
             index
         }
         Expr::PatternOffsetVar { symbol, index } => {
@@ -1114,8 +1122,8 @@ fn emit_pattern_length(
     let index = match expr {
         // Cases where the pattern ID is known, simply push the ID into the
         // stack.
-        Expr::PatternLength { pattern_id, index } => {
-            instr.i32_const((*pattern_id).into());
+        Expr::PatternLength { pattern, index } => {
+            instr.i32_const(ctx.pattern_id(*pattern).into());
             index
         }
         Expr::PatternLengthVar { symbol, index } => {
@@ -1393,12 +1401,12 @@ fn emit_of_pattern_set(
     instr: &mut InstrSeqBuilder,
     of: &mut Of,
 ) {
-    let pattern_ids = cast!(&mut of.items, OfItems::PatternSet);
+    let patterns = cast!(&mut of.items, OfItems::PatternSet);
 
-    debug_assert!(!pattern_ids.is_empty());
+    debug_assert!(!patterns.is_empty());
 
-    let num_patterns = pattern_ids.len();
-    let mut pattern_ids = pattern_ids.iter().cloned();
+    let num_patterns = patterns.len();
+    let mut patterns = patterns.iter().cloned();
     let next_pattern_id = of.stack_frame.new_var(Type::Integer);
 
     // Make sure the pattern search phase is executed, as the `of` statement
@@ -1421,9 +1429,9 @@ fn emit_of_pattern_set(
             // Get the i-th pattern ID, and store it in `next_pattern_id`.
             set_var(ctx, instr, next_pattern_id, |ctx, instr| {
                 load_var(ctx, instr, i);
-                emit_switch(ctx, I64, instr, |_, instr| {
-                    if let Some(pattern_id) = pattern_ids.next() {
-                        instr.i64_const(pattern_id.into());
+                emit_switch(ctx, I64, instr, |ctx, instr| {
+                    if let Some(pattern) = patterns.next() {
+                        instr.i64_const(ctx.pattern_id(pattern).into());
                         return true;
                     }
                     false
@@ -1512,7 +1520,7 @@ fn emit_for_of_pattern_set(
     for_of: &mut ForOf,
 ) {
     let num_patterns = for_of.pattern_set.len();
-    let mut pattern_ids = for_of.pattern_set.iter();
+    let mut patterns = for_of.pattern_set.iter();
     let next_pattern_id = for_of.variable;
 
     emit_for(
@@ -1531,9 +1539,9 @@ fn emit_for_of_pattern_set(
             // Get the i-th pattern ID, and store it in `next_pattern_id`.
             set_var(ctx, instr, next_pattern_id, |ctx, instr| {
                 load_var(ctx, instr, i);
-                emit_switch(ctx, I64, instr, |_, instr| {
-                    if let Some(pattern_id) = pattern_ids.next() {
-                        instr.i64_const((*pattern_id).into());
+                emit_switch(ctx, I64, instr, |ctx, instr| {
+                    if let Some(pattern) = patterns.next() {
+                        instr.i64_const(ctx.pattern_id(*pattern).into());
                         return true;
                     }
                     false

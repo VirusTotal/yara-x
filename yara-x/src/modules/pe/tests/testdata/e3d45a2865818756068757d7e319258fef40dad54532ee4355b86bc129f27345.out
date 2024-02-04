@@ -154,6 +154,7 @@ data_directories:
     size: 0
 import_details:
   - library_name: "KERNEL32.DLL"
+    number_of_functions: 5
     functions:
       - name: "LoadLibraryA"
         rva: 36964
@@ -166,14 +167,17 @@ import_details:
       - name: "VirtualFree"
         rva: 36980
   - library_name: "libglib-2.0-0.dll"
+    number_of_functions: 1
     functions:
       - name: "g_log"
         rva: 36988
   - library_name: "libwireshark.dll"
+    number_of_functions: 1
     functions:
       - name: "val_to_str"
         rva: 36996
   - library_name: "MSVCR90.dll"
+    number_of_functions: 1
     functions:
       - name: "free"
         rva: 37004

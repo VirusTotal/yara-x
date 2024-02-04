@@ -42,7 +42,7 @@ enable-ansi-support = { workspace = true }
 env_logger = { workspace = true , optional = true }
 log = { workspace = true, optional = true }
 protobuf = { workspace = true }
-protobuf-json-mapping = "3.3.0"
+protobuf-json-mapping = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 yansi = { workspace = true }
 yara-x = { workspace = true }
@@ -53,7 +53,6 @@ yara-x-fmt = { workspace = true }
 colored_json = "4.0.0"
 crossbeam = "0.8.2"
 crossterm = "0.27.0"
-indent = "0.1.1"
 pprof = { version = "0.13.0", features = ["flamegraph"], optional=true }
 strum_macros = "0.25"
 superconsole = "0.2.0"

@@ -1,15 +1,30 @@
-magic: 0xfeedface
-cputype: 7
-cpusubtype: 3
+magic: 0xcefaedfe
+cputype: 0x7
+cpusubtype: 0x3
 filetype: 1
 ncmds: 3
 sizeofcmds: 228
 flags: 0x2000
 number_of_segments: 1
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 0
+    iextdefsym: 0
+    nextdefsym: 1
+    tocoff: 1
+    ntoc: 0
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 0
+    nextrel: 0
+    locreloff: 0
+    nlocrel: 0
 segments:
-  - cmd: 1
-    cmdsize: 124
-    segname: ""
+  - segname: ""
     vmaddr: 0x0
     vmsize: 0x48
     fileoff: 256

@@ -1,10 +1,12 @@
+use itertools::Itertools;
 use std::mem::size_of;
 use std::rc::Rc;
 
 use yara_x_parser::report::ReportBuilder;
 use yara_x_parser::Warning;
 
-use crate::compiler::{ir, IdentId, PatternId, RuleId, RuleInfo};
+use crate::compiler::ir::PatternIdx;
+use crate::compiler::{ir, IdentId, RuleId, RuleInfo};
 use crate::string_pool::StringPool;
 use crate::symbols::{StackedSymbolTable, SymbolLookup};
 use crate::types::Type;
@@ -28,10 +30,9 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     /// Information about the rules compiled so far.
     pub rules: &'a Vec<RuleInfo>,
 
-    /// A vector that contains the IR for the patterns declared in the current
-    /// rule, accompanied by their corresponding [`PatternId`].
-    pub current_rule_patterns:
-        &'a mut Vec<(PatternId, ir::PatternInRule<'src>)>,
+    /// A slice that contains the IR for the patterns declared in the current
+    /// rule.
+    pub current_rule_patterns: &'a mut [ir::PatternInRule<'src>],
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Vec<Warning>,
@@ -63,7 +64,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     }
 
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
-    /// the current rule and return its [`PatternID`].
+    /// the current rule and return its position.
     ///
     /// Notice that this function accepts identifiers with any of the valid
     /// prefixes `$`, `#`, `@` and `!`.
@@ -71,7 +72,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     /// # Panics
     ///
     /// Panics if the current rule does not have the requested pattern.
-    pub fn get_pattern_id(&self, ident: &str) -> PatternId {
+    pub fn get_pattern_index(&self, ident: &str) -> PatternIdx {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident
@@ -80,15 +81,13 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
                 .expect("identifier must be at least 1 character long")
         ));
 
-        for (pattern_id, pattern) in self.current_rule_patterns.iter() {
-            // Ignore the first character (`$`, `#`, `@` or `!`) while
-            // comparing the identifiers.
-            if pattern.identifier()[1..] == ident[1..] {
-                return *pattern_id;
-            }
-        }
+        let (position, _) = self
+            .current_rule_patterns
+            .iter()
+            .find_position(|pattern| pattern.identifier()[1..] == ident[1..])
+            .expect("pattern not found");
 
-        panic!("pattern `{}` not found", ident);
+        position.into()
     }
 
     /// Given a pattern identifier (e.g. `$a`, `#a`, `@a`) search for it in
@@ -113,7 +112,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
                 .expect("identifier must be at least 1 character long")
         ));
 
-        for (_, pattern) in self.current_rule_patterns.iter_mut() {
+        for pattern in self.current_rule_patterns.iter_mut() {
             if pattern.identifier()[1..] == ident[1..] {
                 return pattern;
             }

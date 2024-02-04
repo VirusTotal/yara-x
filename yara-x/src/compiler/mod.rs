@@ -17,6 +17,7 @@ use std::{fmt, iter, u32};
 use bincode::Options;
 use bitmask::bitmask;
 use bstr::ByteSlice;
+use itertools::izip;
 #[cfg(feature = "logging")]
 use log::*;
 use regex_syntax::hir;
@@ -538,14 +539,11 @@ impl<'a> Compiler<'a> {
 
         // Sub-patterns that are anchored at some fixed offset are not added to
         // the Aho-Corasick automata. Instead their IDs are added to the
-        // sub_patterns_anchored_at_0 list, together with the offset they are
-        // anchored to.
+        // anchored_sub_patterns list.
         if let SubPattern::Literal { anchored_at: Some(_), .. } = sub_pattern {
             self.anchored_sub_patterns.push(sub_pattern_id);
         } else {
-            for atom in atoms {
-                self.atoms.push(f(sub_pattern_id, atom))
-            }
+            self.atoms.extend(atoms.map(|atom| f(sub_pattern_id, atom)));
         }
 
         self.sub_patterns.push((self.current_pattern_id, sub_pattern));
@@ -716,59 +714,34 @@ impl<'a> Compiler<'a> {
         let snapshot = self.take_snapshot();
 
         // Convert the patterns from AST to IR.
-        let patterns_in_rule =
+        let mut patterns_in_rule =
             patterns_from_ast(&self.report_builder, rule.patterns.as_ref())?;
 
-        // Create vector with pairs (IdentId, PatternId).
-        let mut ident_and_pattern_ids =
-            Vec::with_capacity(patterns_in_rule.len());
-
-        // Create vector with pairs (PatternId, Pattern).
-        let mut patterns_with_ids = Vec::with_capacity(patterns_in_rule.len());
-        let mut pending_patterns = HashSet::new();
-
-        for pattern in patterns_in_rule {
-            // Check if this pattern has been declared before, in this rule or
-            // in some other rule. In such cases the pattern ID is re-used, we
-            // don't need to process (i.e: extract atoms and add them to
-            // Aho-Corasick automaton) the pattern again.
-            let pattern_id =
-                match self.patterns.entry(pattern.pattern().clone()) {
-                    // The pattern already exists, return the existing ID.
-                    Entry::Occupied(entry) => *entry.get(),
-                    // The pattern didn't exist.
-                    Entry::Vacant(entry) => {
-                        let pattern_id = self.next_pattern_id;
-                        self.next_pattern_id.incr(1);
-                        pending_patterns.insert(pattern_id);
-                        entry.insert(pattern_id);
-                        pattern_id
-                    }
-                };
-            // Save pattern identifier (e.g: $a) in the pool of identifiers
-            // or reuse the IdentId if the identifier has been used already.
-            ident_and_pattern_ids.push((
-                self.ident_pool.get_or_intern(pattern.identifier()),
-                pattern_id,
-            ));
-
-            patterns_with_ids.push((pattern_id, pattern));
-        }
-
+        // The RuleId for the new rule is current length of `self.rules`. The
+        // first rule has RuleId = 0.
         let rule_id = RuleId(self.rules.len() as i32);
 
+        // Add the new rule to `self.rules`. The only information about the
+        // rule that we don't have right now is the PatternId corresponding to
+        // each pattern, that's why the `pattern` fields is initialized as
+        // an empty vector. The PatternId corresponding to each pattern can't
+        // be determined until `bool_expr_from_ast` processes the condition
+        // and determines which patterns are anchored, because this information
+        // is required for detecting duplicate patterns that can share the same
+        // PatternId.
         self.rules.push(RuleInfo {
             namespace_id: self.current_namespace.id,
             namespace_ident_id: self.current_namespace.ident_id,
             ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
             ident_span: rule.identifier.span,
-            patterns: ident_and_pattern_ids,
+            patterns: vec![],
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),
         });
 
         // Convert the rule condition's AST to the intermediate representation
-        // (IR).
+        // (IR). Also updates the patterns with information about whether they
+        // are anchored or not.
         let condition = bool_expr_from_ast(
             &mut CompileContext {
                 current_symbol_table: None,
@@ -776,7 +749,7 @@ impl<'a> Compiler<'a> {
                 ident_pool: &mut self.ident_pool,
                 report_builder: &self.report_builder,
                 rules: &self.rules,
-                current_rule_patterns: &mut patterns_with_ids,
+                current_rule_patterns: patterns_in_rule.as_mut_slice(),
                 warnings: &mut self.warnings,
                 vars: VarStack::new(),
             },
@@ -811,19 +784,52 @@ impl<'a> Compiler<'a> {
         // No other symbol with the same identifier should exist.
         assert!(existing_symbol.is_none());
 
-        let patterns_with_ids_and_span = iter::zip(
-            patterns_with_ids,
-            rule.patterns.iter().flatten().map(|p| p.span()),
-        );
+        let mut pattern_ids = Vec::with_capacity(patterns_in_rule.len());
+        let mut pending_patterns = HashSet::new();
+
+        let current_rule = self.rules.last_mut().unwrap();
+
+        for pattern in &patterns_in_rule {
+            // Check if this pattern has been declared before, in this rule or
+            // in some other rule. In such cases the pattern ID is re-used and
+            // we don't need to process (i.e: extract atoms and add them to
+            // Aho-Corasick automaton) the pattern again. Two patterns are
+            // considered equal if they are exactly the same, including any
+            // modifiers associated to the pattern, and both are non-anchored
+            // or anchored at the same file offset.
+            let pattern_id =
+                match self.patterns.entry(pattern.pattern().clone()) {
+                    // The pattern already exists, return the existing ID.
+                    Entry::Occupied(entry) => *entry.get(),
+                    // The pattern didn't exist.
+                    Entry::Vacant(entry) => {
+                        let pattern_id = self.next_pattern_id;
+                        self.next_pattern_id.incr(1);
+                        pending_patterns.insert(pattern_id);
+                        entry.insert(pattern_id);
+                        pattern_id
+                    }
+                };
+
+            current_rule.patterns.push((
+                self.ident_pool.get_or_intern(pattern.identifier()),
+                pattern_id,
+            ));
+
+            pattern_ids.push(pattern_id);
+        }
 
         // Process the patterns in the rule. This extract the best atoms
         // from each pattern, adding them to the `self.atoms` vector, it
         // also creates one or more sub-patterns per pattern and add them
         // to `self.sub_patterns`
-        for ((pattern_id, pattern), span) in patterns_with_ids_and_span {
-            let pending = pending_patterns.contains(&pattern_id);
-            if pending || pattern.anchored_at().is_some() {
-                self.current_pattern_id = pattern_id;
+        for (pattern_id, pattern, span) in izip!(
+            pattern_ids.iter(),
+            patterns_in_rule.into_iter(),
+            rule.patterns.iter().flatten().map(|p| p.span())
+        ) {
+            if pending_patterns.contains(pattern_id) {
+                self.current_pattern_id = *pattern_id;
                 let anchored_at = pattern.anchored_at();
                 match pattern.into_pattern() {
                     Pattern::Literal(pattern) => {
@@ -838,9 +844,7 @@ impl<'a> Compiler<'a> {
                         }
                     }
                 };
-                if pending {
-                    pending_patterns.remove(&pattern_id);
-                }
+                pending_patterns.remove(pattern_id);
             }
         }
 
@@ -850,6 +854,7 @@ impl<'a> Compiler<'a> {
         // that if this function fails after emitting the code, some code debris
         // will remain in the WASM module.
         let mut ctx = EmitContext {
+            current_rule: self.rules.last_mut().unwrap(),
             current_signature: None,
             lit_pool: &mut self.lit_pool,
             regexp_pool: &mut self.regexp_pool,
@@ -986,12 +991,15 @@ impl<'a> Compiler<'a> {
 
                         self.add_sub_pattern(
                             sub_pattern,
-                            iter::once(
-                                best_atom_in_bytes(base64_pattern.as_slice())
-                                    // Atoms for base64 patterns are always
-                                    // inexact, they require verification.
-                                    .make_inexact(),
-                            ),
+                            iter::once({
+                                let mut atom = best_atom_in_bytes(
+                                    base64_pattern.as_slice(),
+                                );
+                                // Atoms for base64 patterns are always
+                                // inexact, they require verification.
+                                atom.make_inexact();
+                                atom
+                            }),
                             SubPatternAtom::from_atom,
                         );
                     }
@@ -1023,12 +1031,14 @@ impl<'a> Compiler<'a> {
 
                         self.add_sub_pattern(
                             sub_pattern,
-                            iter::once(
-                                best_atom_in_bytes(wide.as_slice())
-                                    // Atoms for base64 patterns are always
-                                    // inexact, they require verification.
-                                    .make_inexact(),
-                            ),
+                            iter::once({
+                                let mut atom =
+                                    best_atom_in_bytes(wide.as_slice());
+                                // Atoms for base64 patterns are always
+                                // inexact, they require verification.
+                                atom.make_inexact();
+                                atom
+                            }),
                             SubPatternAtom::from_atom,
                         );
                     }
@@ -1077,9 +1087,9 @@ impl<'a> Compiler<'a> {
             return Ok(());
         }
 
-        // This is a standard, a pattern that can't be split into
-        // multiple chained patterns, and is neither a literal or
-        // alternation of literals.
+        // If this point is reached, this is a pattern that can't be split into
+        // multiple chained patterns, and is neither a literal or alternation
+        // of literals. Most patterns fall in this category.
         let mut flags = SubPatternFlagSet::none();
 
         if pattern.flags.contains(PatternFlags::Nocase) {
@@ -1381,7 +1391,7 @@ impl<'a> Compiler<'a> {
             false,
         );
 
-        let atoms = result.map_err(|err| match err {
+        let mut atoms = result.map_err(|err| match err {
             re::Error::TooLarge => {
                 CompileError::from(CompileErrorInfo::invalid_regexp(
                     &self.report_builder,
@@ -1392,9 +1402,17 @@ impl<'a> Compiler<'a> {
             _ => unreachable!(),
         })?;
 
+        if matches!(hir.minimum_len(), Some(0)) {
+            return Err(CompileError::from(CompileErrorInfo::invalid_regexp(
+                &self.report_builder,
+                "this regexp can match empty strings".to_string(),
+                span,
+            )));
+        }
+
         let mut slow_pattern = false;
 
-        for atom in &atoms {
+        for atom in atoms.iter_mut() {
             if atom.atom.len() < 2 {
                 slow_pattern = true;
             }

@@ -162,6 +162,7 @@ data_directories:
     size: 0
 import_details:
   - library_name: "KERNEL32.dll"
+    number_of_functions: 21
     functions:
       - name: "DeleteCriticalSection"
         rva: 24836
@@ -206,6 +207,7 @@ import_details:
       - name: "VirtualQuery"
         rva: 24916
   - library_name: "msvcrt.dll"
+    number_of_functions: 27
     functions:
       - name: "__dllonexit"
         rva: 24924

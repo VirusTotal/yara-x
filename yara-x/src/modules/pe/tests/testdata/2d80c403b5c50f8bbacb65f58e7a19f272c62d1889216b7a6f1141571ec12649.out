@@ -120,6 +120,7 @@ data_directories:
     size: 0
 import_details:
   - library_name: "KERNEL32.DLL"
+    number_of_functions: 5
     functions:
       - name: "LoadLibraryA"
         rva: 49272
@@ -132,18 +133,22 @@ import_details:
       - name: "VirtualFree"
         rva: 49288
   - library_name: "ADVAPI32.DLL"
+    number_of_functions: 1
     functions:
       - name: "RegCloseKey"
         rva: 49296
   - library_name: "msvcrt.dll"
+    number_of_functions: 1
     functions:
       - name: "_iob"
         rva: 49304
   - library_name: "USER32.dll"
+    number_of_functions: 1
     functions:
       - name: "wsprintfA"
         rva: 49312
   - library_name: "WSOCK32.DLL"
+    number_of_functions: 1
     functions:
       - name: "bind"
         rva: 49320

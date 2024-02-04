@@ -22,7 +22,7 @@ pub(crate) fn uppercase(
     ctx: &mut ScanContext,
     s: RuntimeString,
 ) -> RuntimeString {
-    RuntimeString::from_bytes(ctx, s.as_bstr(ctx).to_uppercase())
+    RuntimeString::new(s.as_bstr(ctx).to_uppercase())
 }
 
 #[module_export(name = "nested.nested_func")]
@@ -49,14 +49,14 @@ pub(crate) fn undef_i64(_ctx: &mut ScanContext) -> Option<i64> {
 #[module_export]
 fn head(ctx: &mut ScanContext, n: i64) -> Option<RuntimeString> {
     let head = ctx.scanned_data().get(0..n as usize)?;
-    Some(RuntimeString::from_bytes(ctx, head))
+    Some(RuntimeString::from_slice(ctx, head))
 }
 
 #[module_export]
 fn get_foo(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let proto = ctx.module_output::<TestProto2>()?;
     let foo = proto.string_foo.as_ref().cloned()?;
-    Some(RuntimeString::from_bytes(ctx, foo))
+    Some(RuntimeString::new(foo))
 }
 
 #[module_export]

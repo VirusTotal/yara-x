@@ -9,17 +9,19 @@ mod pe;
 mod elf;
 #[cfg(feature = "text-module")]
 mod text;
-#[cfg(feature = "hash-module")]
-mod hash;
 #[cfg(feature = "dotnet-module")]
 mod dotnet;
+#[cfg(feature = "lnk-module")]
+mod lnk;
+#[cfg(feature = "hash-module")]
+mod hash;
 #[cfg(feature = "math-module")]
 mod math;
 #[cfg(feature = "test_proto2-module")]
 mod test_proto2;
-#[cfg(feature = "lnk-module")]
-mod lnk;
 #[cfg(feature = "time-module")]
 mod time;
 #[cfg(feature = "test_proto3-module")]
 mod test_proto3;
+#[cfg(feature = "console-module")]
+mod console;

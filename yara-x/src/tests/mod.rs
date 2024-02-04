@@ -132,7 +132,7 @@ macro_rules! pattern_match {
             .matches()
             .next()
             .unwrap()
-            .data;
+            .data();
 
         assert_eq!(
             matching_data, $expected_result,
@@ -976,13 +976,15 @@ fn regexp_patterns_1() {
     pattern_match!(r#"/a(b|x)c/"#, b"axc", b"axc");
     pattern_match!(r#"/a(b|.)c/"#, b"axc", b"axc");
     pattern_match!(r#"/a(b|x|y)c/"#, b"ayc", b"ayc");
-    pattern_match!(r#"/(a+|b)*/"#, b"a", b"a");
-    pattern_match!(r#"/(a+|b)*/"#, b"aa", b"aa");
-    pattern_match!(r#"/(a+|b)*/"#, b"ab", b"ab");
-    pattern_match!(r#"/(a+|b)*/"#, b"aab", b"aab");
+    pattern_match!(r#"/(a+|b)+/"#, b"a", b"a");
+    pattern_match!(r#"/(a+|b)+/"#, b"aa", b"aa");
+    pattern_match!(r#"/(a+|b)+/"#, b"ab", b"ab");
+    pattern_match!(r#"/(a+|b)+/"#, b"aab", b"aab");
     pattern_match!(r#"/a|b|c|d|e/"#, b"e", b"e");
     pattern_match!(r#"/(a|b|c|d|e)f/"#, b"ef", b"ef");
     pattern_match!(r#"/a|b/"#, b"a", b"a");
+    pattern_match!(r#"/(F?FF?|f?ff?)abcd/"#, b"fabcd", b"fabcd");
+    pattern_match!(r#"/(F?FF?|f?ff?)abcd/"#, b"ffabcd", b"ffabcd");
 
     pattern_match!(r#"/abcd.*ef/"#, b"abcdef", b"abcdef");
     pattern_match!(r#"/ab.*cdef/"#, b"abcdef", b"abcdef");
@@ -1000,13 +1002,18 @@ fn regexp_patterns_1() {
     pattern_false!(r#"/ab.{1,2}cdef/"#, b"abcdef");
     pattern_match!(r#"/abcd.{1,2}ef/"#, b"abcdxef", b"abcdxef");
     pattern_match!(r#"/ab.{1,2}cdef/"#, b"abxcdef", b"abxcdef");
-    pattern_match!(r#"/(.*)*/"#, b"", b"");
-    pattern_match!(r#"/(.*){2}/"#, b"", b"");
+    pattern_match!(r#"/a(.*)*/"#, b"a", b"a");
+    pattern_match!(r#"/a(.*){2}/"#, b"a", b"a");
     pattern_match!(r#"/a(.*){2,4}/"#, b"a", b"a");
 
     // TODO: known issue related to exact atoms. The matching string
-    // should be "abbb" and not "abb".
+    // should be "abbb" and not "abb". When the `exact-atoms` feature
+    // is disabled it works correctly.
+    #[cfg(not(feature = "exact-atoms"))]
+    pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abbb");
+    #[cfg(feature = "exact-atoms")]
     pattern_match!(r#"/a(bb|b)b/"#, b"abbbbbbbb", b"abb");
+
     pattern_match!(r#"/a(b|bb)b/"#, b"abbbbbbbb", b"abb");
 
     pattern_match!(
@@ -1144,8 +1151,8 @@ fn regexp_patterns_3() {
     pattern_match!(r#"/[a-z]-b/"#, b"c-b-c", b"c-b");
     pattern_match!(r#"/a[]-]b/"#, b"a]b", b"a]b");
     pattern_match!(r#"/a[]-]b/"#, b"a-b", b"a-b");
-    pattern_match!(r#"/[\.-z]*/"#, b"...abc", b"...abc");
-    pattern_match!(r#"/[\.-]*/"#, b"...abc", b"...");
+    pattern_match!(r#"/[\.-z]+/"#, b"...abc", b"...abc");
+    pattern_match!(r#"/[\.-]+/"#, b"...abc", b"...");
     pattern_match!(r#"/a[\]]b/"#, b"a]b", b"a]b");
     pattern_match!(r#"/a[^bc]d/"#, b"aed", b"aed");
     pattern_false!(r#"/a[^bc]d/"#, b"abd");
@@ -1153,7 +1160,7 @@ fn regexp_patterns_3() {
     pattern_false!(r#"/a[^-b]c/"#, b"a-c");
     pattern_false!(r#"/a[^]b]c/"#, b"a]c");
     pattern_match!(r#"/a[^]b]c/"#, b"adc", b"adc");
-    pattern_match!(r#"/[^ab]*/"#, b"cde", b"cde");
+    pattern_match!(r#"/[^ab]+/"#, b"cde", b"cde");
     pattern_match!(r#"/a[\s]b/"#, b"a b", b"a b");
     pattern_false!(r#"/a[\S]b/"#, b"a b");
     pattern_match!(r#"/a[\d]b/"#, b"a1b", b"a1b");
@@ -1347,7 +1354,21 @@ fn regexp_wide() {
     );
 
     pattern_match!(r#"/bar/ wide"#, b"b\0a\0r\0", b"b\0a\0r\0");
+    pattern_false!(r#"/bar/ wide"#, b"b\x01a\0r\0");
     pattern_false!(r#"/bar/ wide"#, b"bar");
+
+    pattern_false!(r#"/foobar/ wide"#, b"f\0o\0o\0b\0a\0r\x01");
+    pattern_false!(r#"/foobar/i wide"#, b"f\0o\0o\0b\0a\0r\x01");
+
+    pattern_true!(
+        r#"/fo.{1,3}1234/is wide"#,
+        b"f\0o\0o\x001\x002\x003\x004\0"
+    );
+    pattern_false!(
+        r#"/fo.{1,3}1234/is wide"#,
+        b"f\0x01o\0o\x01\x02\x03\x04\0"
+    );
+
     pattern_match!(r#"/foo.*?bar/s ascii wide nocase"#, b"FOOBAR", b"FOOBAR");
     pattern_match!(r#"/foo.*?bar/s ascii wide nocase"#, b"foobar", b"foobar");
 
@@ -1444,6 +1465,18 @@ fn regexp_wide() {
         r#"/fo.{0,3}?bar/s wide"#,
         b"f\x00o\x00o\x00o\x00b\x00a\x00r\x00",
         b"f\x00o\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/foo(xxx|yyy)bazqux/ wide"#,
+        b"f\x00o\x00o\x00x\x00x\x00x\x00b\x00a\x00z\x00q\x00u\x00x\x00",
+        b"f\x00o\x00o\x00x\x00x\x00x\x00b\x00a\x00z\x00q\x00u\x00x\x00"
+    );
+
+    pattern_match!(
+        r#"/foobar(baz|qux)/ wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00b\x00a\x00z\x00",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00b\x00a\x00z\x00"
     );
 }
 
@@ -1645,6 +1678,25 @@ fn match_at() {
         }
         "#,
         b"fofofofo"
+    );
+
+    rule_true!(
+        r#"
+        rule test1 {
+            strings:
+                $a = "bar"
+            condition:
+                $a at 0
+        }
+        
+        rule test2 {
+            strings:
+                $a = "bar"
+            condition:
+                $a
+        }
+        "#,
+        b"foobar"
     );
 
     #[cfg(feature = "test_proto2-module")]
@@ -2011,6 +2063,25 @@ fn match_offset() {
         "#,
         b"foobarfoobar"
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_true!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                // The index in @a[<index>] must be 1 or more, if not
+                // the result must be undefined. We use test_proto2.add(0,0)
+                // because using a literal causes a compilation error when
+                // the compiler notices that the index is 0.
+                not defined @a[test_proto2.add(0,0)] 
+        }
+        "#,
+        b"foo"
+    );
 }
 
 #[test]
@@ -2087,6 +2158,25 @@ fn match_length() {
         }
         "#,
         b"foobarfoobar"
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    rule_true!(
+        r#"
+        import "test_proto2"
+
+        rule test {
+            strings:
+                $a = "foo"
+            condition:
+                // The index in !a[<index>] must be 1 or more, if not
+                // the result must be undefined. We use test_proto2.add(0,0)
+                // because using a literal causes a compilation error when
+                // the compiler notices that the index is 0.
+                not defined !a[test_proto2.add(0,0)] 
+        }
+        "#,
+        b"foo"
     );
 }
 

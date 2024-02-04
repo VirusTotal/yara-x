@@ -376,7 +376,15 @@ impl FastVM<'_> {
             if input.len() < literal.len() * 2 {
                 return false;
             }
-            input.iter().step_by(2).eq(literal.iter())
+            // Iterate the input in chunks of two bytes, where the first one
+            // must match a byte in the literal, and the second one is the
+            // interleaved zero.
+            for (input, byte) in izip!(input.chunks_exact(2), literal.iter()) {
+                if input[1] != 0 || (input[0] != *byte) {
+                    return false;
+                }
+            }
+            true
         } else {
             if input.len() < literal.len() {
                 return false;
@@ -393,15 +401,22 @@ impl FastVM<'_> {
         wide: bool,
     ) -> bool {
         if wide {
+            // The input must be twice the length of the literal, because of
+            // the interleaved zeroes.
             if input.len() < literal.len() * 2 {
                 return false;
             }
-            input
-                .iter() // iterate input
-                .rev() // in reverse order
-                .skip(1) // skipping the last byte that should be 0
-                .step_by(2) // two bytes at a time
-                .eq(literal.iter().rev())
+            // Iterate the input in chunks of two bytes, where the first one
+            // must match a byte in the literal, and the second one is the
+            // interleaved zero.
+            for (input, byte) in
+                izip!(input.chunks_exact(2).rev(), literal.iter().rev())
+            {
+                if input[1] != 0 || (input[0] != *byte) {
+                    return false;
+                }
+            }
+            true
         } else {
             if input.len() < literal.len() {
                 return false;
@@ -421,13 +436,18 @@ impl FastVM<'_> {
         debug_assert_eq!(literal.len(), mask.len());
 
         if wide {
+            // The input must be twice the length of the literal, because of
+            // the interleaved zeroes.
             if input.len() < literal.len() * 2 {
                 return false;
             }
+            // Iterate the input in chunks of two bytes, where the first one
+            // must match a byte in the literal, and the second one is the
+            // interleaved zero.
             for (input, byte, mask) in
-                izip!(input.iter().step_by(2), literal, mask)
+                izip!(input.chunks_exact(2), literal, mask)
             {
-                if *input & *mask != *byte & *mask {
+                if input[1] != 0 || (input[0] & *mask != *byte & *mask) {
                     return false;
                 }
             }
@@ -456,15 +476,20 @@ impl FastVM<'_> {
         debug_assert_eq!(literal.len(), mask.len());
 
         if wide {
+            // The input must be twice the length of the literal, because of
+            // the interleaved zeroes.
             if input.len() < literal.len() * 2 {
                 return false;
             }
+            // Iterate the input in chunks of two bytes, where the first one
+            // must match a byte in the literal, and the second one is the
+            // interleaved zero.
             for (input, byte, mask) in izip!(
-                input.iter().rev().step_by(2),
+                input.chunks_exact(2).rev(),
                 literal.iter().rev(),
                 mask.iter().rev()
             ) {
-                if *input & *mask != *byte & *mask {
+                if input[1] != 0 || (input[0] & *mask != *byte & *mask) {
                     return false;
                 }
             }

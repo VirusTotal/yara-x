@@ -51,6 +51,7 @@ of `0xAA`. Stated differently, the opcode `0xAA` serves as a special case that
 solely matches the `0xAA` byte.
  */
 
+use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 use std::u8;
 
@@ -66,8 +67,48 @@ pub type NumAlt = u8;
 
 /// Each split instruction in a regular expression has a unique ID represented
 /// by this type. This ID is used by [`super::pikevm::epsilon_closure`] for
-/// tracking which split instructions has been executed.  
-pub type SplitId = u16;
+/// tracking which split instructions has been executed. Even though the
+/// underlying type is `u16`, only the lower [`SplitId::BITS`] are used.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct SplitId(u16);
+
+impl From<SplitId> for usize {
+    fn from(value: SplitId) -> Self {
+        value.0 as Self
+    }
+}
+
+impl Display for SplitId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl SplitId {
+    pub const BITS: usize = 13;
+
+    #[inline]
+    pub fn to_le_bytes(self) -> [u8; size_of::<Self>()] {
+        self.0.to_le_bytes()
+    }
+
+    #[inline]
+    pub fn from_le_bytes(bytes: [u8; size_of::<Self>()]) -> Self {
+        Self(u16::from_le_bytes(bytes))
+    }
+
+    /// Add a given amount to the split id, returning [`None`] if the result
+    /// is exceeds the maximum allowed value, which depends on the number of
+    /// bits indicated by [`SplitId::BITS`].
+    #[inline]
+    pub fn add(self, amount: u16) -> Option<Self> {
+        let sum = self.0.checked_add(amount)?;
+        if sum >= 1 << Self::BITS {
+            return None;
+        }
+        Some(Self(sum))
+    }
+}
 
 /// Offset for jump and split instructions. The offset is always relative to
 /// the address where the instruction starts.

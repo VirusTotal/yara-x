@@ -243,7 +243,7 @@ impl<'a> Dotnet<'a> {
 
 impl<'a> Dotnet<'a> {
     const MAX_PARAMS: u32 = 1000;
-    const MAX_ROWS_PER_TABLE: u32 = 1000;
+    const MAX_ROWS_PER_TABLE: u32 = 10000;
     const MAX_ARRAY_DIMENSION: u32 = 50;
     const MAX_RECURSION: usize = 16;
 
@@ -262,7 +262,7 @@ impl<'a> Dotnet<'a> {
     fn get_blob(&self, index: BlobIndex) -> Option<&'a [u8]> {
         let blob_stream = self.get_stream(self.blob_stream?)?;
         let data = blob_stream.get(index.0 as usize..)?;
-        let (data, length) = varint(data).ok()?;
+        let (data, length) = var_uint(data).ok()?;
         data.get(0..length as usize)
     }
 
@@ -712,7 +712,7 @@ impl<'a> Dotnet<'a> {
         {
             // The `#US` stream is composed of a series of varints followed by
             // the number of bytes indicated by the varint.
-            many0(length_data(varint))(us_stream)
+            many0(length_data(var_uint))(us_stream)
                 .map(|(_, strings)| strings)
                 .ok()
         } else {
@@ -777,7 +777,7 @@ impl<'a> Dotnet<'a> {
                 continue;
             }
 
-            let generic_params: Vec<_> = self
+            let generic_class_params: Vec<_> = self
                 .generic_params
                 .iter()
                 .filter_map(|param| {
@@ -811,6 +811,7 @@ impl<'a> Dotnet<'a> {
                         self.convert_method_def(
                             type_def.method_list + idx,
                             method_def,
+                            generic_class_params.as_slice(),
                         )
                     })
                     .collect()
@@ -825,9 +826,12 @@ impl<'a> Dotnet<'a> {
 
             // If the current class extends some other class, add the full name
             // of this other class to `base_types`.
-            if let Some(name) =
-                self.type_def_or_ref_fullname(&type_def.extends, &mut depth)
-            {
+            if let Some(name) = self.type_def_or_ref_fullname(
+                &type_def.extends,
+                &mut depth,
+                generic_class_params.as_slice(),
+                &[],
+            ) {
                 base_types.push(name)
             }
 
@@ -840,6 +844,8 @@ impl<'a> Dotnet<'a> {
                         self.type_def_or_ref_fullname(
                             &interface_impl.interface,
                             &mut depth,
+                            generic_class_params.as_slice(),
+                            &[],
                         )
                     } else {
                         None
@@ -855,7 +861,7 @@ impl<'a> Dotnet<'a> {
                 is_abstract: type_def.is_abstract(),
                 is_sealed: type_def.is_sealed(),
                 methods,
-                generic_params,
+                generic_params: generic_class_params,
             });
         }
         classes
@@ -865,6 +871,7 @@ impl<'a> Dotnet<'a> {
         &self,
         method_def_idx: usize,
         method_def: &MethodDef<'a>,
+        generic_class_params: &[&'a str],
     ) -> Option<Method<'a>> {
         let (remainder, flags) =
             u8::<&[u8], nom::error::Error<&'a [u8]>>(method_def.signature?)
@@ -874,13 +881,13 @@ impl<'a> Dotnet<'a> {
             tuple((
                 // Generic param count, present only if
                 // SIG_FLAG_GENERIC flag is set.
-                cond(flags & 0x10 != 0, varint),
+                cond(flags & 0x10 != 0, var_uint),
                 // Regular param count.
-                varint,
+                var_uint,
             ))(remainder)
             .ok()?;
 
-        let generic_params: Vec<_> = self
+        let generic_method_params: Vec<_> = self
             .generic_params
             .iter()
             .filter_map(|param| {
@@ -898,7 +905,13 @@ impl<'a> Dotnet<'a> {
         let mut depth = 0;
 
         let mut remainder = self
-            .parse_type_spec(remainder, &mut return_type, &mut depth)
+            .parse_type_spec(
+                remainder,
+                &mut return_type,
+                &mut depth,
+                generic_class_params,
+                generic_method_params.as_slice(),
+            )
             .ok()?;
 
         let mut method_params = Vec::new();
@@ -919,7 +932,13 @@ impl<'a> Dotnet<'a> {
             let mut param_type = String::new();
 
             remainder = self
-                .parse_type_spec(remainder, &mut param_type, &mut depth)
+                .parse_type_spec(
+                    remainder,
+                    &mut param_type,
+                    &mut depth,
+                    generic_class_params,
+                    generic_method_params.as_slice(),
+                )
                 .ok()?;
 
             method_params.push(MethodParam { name, type_: Some(param_type) })
@@ -936,7 +955,7 @@ impl<'a> Dotnet<'a> {
 
         Some(Method {
             name: method_def.name?,
-            generic_params,
+            generic_params: generic_method_params,
             params: method_params,
             return_type,
             visibility: method_def.visibility(),
@@ -1001,6 +1020,8 @@ impl<'a> Dotnet<'a> {
         &self,
         index: &CodedIndex,
         depth: &mut usize,
+        generic_class_params: &[&'a str],
+        generic_method_params: &[&'a str],
     ) -> Option<String> {
         match index.table {
             Table::TypeDef => self.type_full_name(index.index),
@@ -1018,7 +1039,14 @@ impl<'a> Dotnet<'a> {
                     .get_type_spec(index)
                     .and_then(|blob_index| self.get_blob(*blob_index))
                     .and_then(|data| {
-                        self.parse_type_spec(data, &mut name, depth).ok()
+                        self.parse_type_spec(
+                            data,
+                            &mut name,
+                            depth,
+                            generic_class_params,
+                            generic_method_params,
+                        )
+                        .ok()
                     })
                     .is_some()
                 {
@@ -1045,6 +1073,8 @@ impl<'a> Dotnet<'a> {
         input: &'a [u8],
         output: &mut dyn Write,
         depth: &mut usize,
+        generic_class_params: &[&'a str],
+        generic_method_params: &[&'a str],
     ) -> Result<&'a [u8], Error<'a>> {
         if *depth == Self::MAX_RECURSION {
             return Err(Error::RecursionLimit);
@@ -1076,37 +1106,58 @@ impl<'a> Dotnet<'a> {
             Type::U => write!(output, "UintPtr")?,
             Type::Ptr => {
                 write!(output, "Ptr<")?;
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
                 write!(output, ">")?;
             }
             Type::ByRef => {
                 write!(output, "ref ")?;
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
             }
             Type::ValueType | Type::Class => {
                 let coded_index;
 
-                (remainder, coded_index) = map_res(varint, |v| {
+                (remainder, coded_index) = map_res(var_uint, |v| {
                     CodedIndex::from_u32(Table::TYPE_DEF_OR_REF, v)
                 })(remainder)?;
 
                 write!(
                     output,
                     "{}",
-                    self.type_def_or_ref_fullname(&coded_index, depth)
-                        .ok_or(Error::InvalidType)?
+                    self.type_def_or_ref_fullname(
+                        &coded_index,
+                        depth,
+                        generic_class_params,
+                        generic_method_params
+                    )
+                    .ok_or(Error::InvalidType)?
                 )?;
             }
             Type::Var | Type::MVar => {
                 let index;
 
-                (remainder, index) = varint(remainder)?;
+                (remainder, index) = var_uint(remainder)?;
 
-                let name = self
-                    .generic_params
-                    .get(index as usize)
-                    .and_then(|p| p.name)
-                    .ok_or(Error::InvalidType)?;
+                let name = if matches!(type_, Type::Var) {
+                    generic_class_params
+                        .get(index as usize)
+                        .ok_or(Error::InvalidType)?
+                } else {
+                    generic_method_params
+                        .get(index as usize)
+                        .ok_or(Error::InvalidType)?
+                };
 
                 write!(output, "{}", name)?;
             }
@@ -1115,26 +1166,34 @@ impl<'a> Dotnet<'a> {
                 let sizes;
                 let lower_bounds;
 
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
 
                 (remainder, (dimensions, sizes, lower_bounds)) = tuple((
                     // dimensions, limited to a sane limit of
                     // MAX_ARRAY_DIMENSION as a protection against corrupted
                     // files.
-                    verify(varint, |dimension| {
+                    verify(var_uint, |dimension| {
                         *dimension <= Self::MAX_ARRAY_DIMENSION
                     }),
-                    // number of sizes, followed by the sizes as varints.
-                    // The number of sizes is also limited to
-                    // MAX_ARRAY_DIMENSION.
+                    // number of sizes, followed by the sizes as variable
+                    // length unsigned ints. The number of sizes is also limited
+                    // to MAX_ARRAY_DIMENSION.
                     length_count(
-                        verify(varint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
-                        varint,
+                        verify(var_uint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
+                        var_uint,
                     ),
-                    // number of lower bounds and the lower bounds themselves.
+                    // number of lower bounds, followed by the lower bounds as
+                    // variable length *signed* ints. This is the only place
+                    // where signed ints are used.
                     length_count(
-                        verify(varint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
-                        varint,
+                        verify(var_uint, |n| *n <= Self::MAX_ARRAY_DIMENSION),
+                        var_sint,
                     ),
                 ))(
                     remainder
@@ -1146,8 +1205,12 @@ impl<'a> Dotnet<'a> {
                     if size > 0 {
                         let l =
                             lower_bounds.get(i as usize).cloned().unwrap_or(0);
-                        let h = l + size - 1;
-                        write!(output, "{}...{}", l, h)?;
+                        let h = l + (size as i32);
+                        if l == 0 {
+                            write!(output, "{}", size)?;
+                        } else {
+                            write!(output, "{}...{}", l, h)?;
+                        }
                     }
                     // If not the last item, prepend a comma.
                     if i + 1 != dimensions {
@@ -1157,23 +1220,40 @@ impl<'a> Dotnet<'a> {
                 write!(output, "]")?;
             }
             Type::SzArray => {
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
                 write!(output, "[]")?;
             }
             Type::GenericInst => {
                 let count;
 
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
 
                 (remainder, count) =
-                    verify(varint, |count| *count < Self::MAX_PARAMS)(
+                    verify(var_uint, |count| *count < Self::MAX_PARAMS)(
                         remainder,
                     )?;
 
                 write!(output, "<")?;
                 for i in 1..=count {
-                    remainder =
-                        self.parse_type_spec(remainder, output, depth)?;
+                    remainder = self.parse_type_spec(
+                        remainder,
+                        output,
+                        depth,
+                        generic_class_params,
+                        generic_method_params,
+                    )?;
                     if i < count {
                         write!(output, ",")?;
                     }
@@ -1187,15 +1267,26 @@ impl<'a> Dotnet<'a> {
                 // to MAX_PARAMS.
                 (remainder, (_, count)) = tuple((
                     u8,
-                    verify(varint, |count| *count < Self::MAX_PARAMS),
+                    verify(var_uint, |count| *count < Self::MAX_PARAMS),
                 ))(remainder)?;
 
                 write!(output, "FnPtr<")?;
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
                 write!(output, "(")?;
                 for i in 1..=count {
-                    remainder =
-                        self.parse_type_spec(remainder, output, depth)?;
+                    remainder = self.parse_type_spec(
+                        remainder,
+                        output,
+                        depth,
+                        generic_class_params,
+                        generic_method_params,
+                    )?;
                     if i < count {
                         write!(output, ", ")?;
                     }
@@ -1203,8 +1294,14 @@ impl<'a> Dotnet<'a> {
                 write!(output, ")>")?;
             }
             Type::CModReqd | Type::CModOpt => {
-                (remainder, _) = varint(remainder)?;
-                remainder = self.parse_type_spec(remainder, output, depth)?;
+                (remainder, _) = var_uint(remainder)?;
+                remainder = self.parse_type_spec(
+                    remainder,
+                    output,
+                    depth,
+                    generic_class_params,
+                    generic_method_params,
+                )?;
             }
             _ => return Err(Error::InvalidType),
         };
@@ -1229,7 +1326,7 @@ impl<'a> Dotnet<'a> {
         }
     }
 
-    /// Returns a parser of an index in the `#Strings` stream.
+    /// Returns a parser for an index in the `#Strings` stream.
     #[inline]
     fn string_index(
         &self,
@@ -2769,7 +2866,7 @@ impl From<&MethodParam<'_>> for protos::dotnet::Param {
     }
 }
 
-/// Parses a variable-length integer.
+/// Parses a variable-length unsigned integer.
 ///
 /// Blob sizes and other integers in the ECMA-335 specification are encoded
 /// as variable-length integers that can occupy 1, 2 or 4 bytes. The number
@@ -2783,7 +2880,7 @@ impl From<&MethodParam<'_>> for protos::dotnet::Param {
 ///
 /// * If the most significant bits are 110, the integer is encoded as 4 bytes,
 ///   and the value is stored the remaining 29 bits.
-fn varint(input: &[u8]) -> IResult<&[u8], u32> {
+fn var_uint(input: &[u8]) -> IResult<&[u8], u32> {
     let (remainder, (_, value)) =
         bits::bits::<_, _, nom::error::Error<(&[u8], usize)>, _, _>(alt((
             bits_tag(0b0, 1u8).and(bits_take(7u8)),
@@ -2794,38 +2891,110 @@ fn varint(input: &[u8]) -> IResult<&[u8], u32> {
     Ok((remainder, value))
 }
 
+/// Parses a variable-length signed integer.
+///
+/// Similar to [`var_uint`] but for signed integers instead of unsigned.
+/// The encoding mechanism is a bit more convoluted, and is described in
+/// ECMA-325 II.23.2.
+fn var_sint(input: &[u8]) -> IResult<&[u8], i32> {
+    let (remainder, value) = bits::bits::<
+        _,
+        _,
+        nom::error::Error<(&[u8], usize)>,
+        _,
+        _,
+    >(alt((
+        map(bits_tag(0b0, 1u8).and(bits_take(7u8)), |(_, x): (_, i32)| {
+            if x & 0x01 != 0 {
+                (x >> 1) - 0x40
+            } else {
+                x >> 1
+            }
+        }),
+        map(bits_tag(0b10, 2u8).and(bits_take(14u8)), |(_, x): (_, i32)| {
+            if x & 0x01 != 0 {
+                (x >> 1) - 0x2000
+            } else {
+                x >> 1
+            }
+        }),
+        map(bits_tag(0b110, 3u8).and(bits_take(29u8)), |(_, x): (_, i32)| {
+            if x & 0x01 != 0 {
+                (x >> 1) - 0x10000000
+            } else {
+                x >> 1
+            }
+        }),
+    )))(input)?;
+
+    Ok((remainder, value))
+}
+
 #[cfg(test)]
 mod test {
     #[test]
-    fn varint() {
+    fn var_uint() {
         assert_eq!(
-            super::varint(&[0x00, 0x00]).unwrap(),
+            super::var_uint(&[0x00, 0x00]).unwrap(),
             ([0x00_u8].as_slice(), 0)
         );
 
         assert_eq!(
-            super::varint(&[0x01, 0x00]).unwrap(),
+            super::var_uint(&[0x01, 0x00]).unwrap(),
             ([0x00_u8].as_slice(), 1)
         );
 
         assert_eq!(
-            super::varint(&[0x7F, 0x00]).unwrap(),
+            super::var_uint(&[0x7F, 0x00]).unwrap(),
             ([0x00_u8].as_slice(), 0x7F)
         );
 
         assert_eq!(
-            super::varint(&[0x8A, 0x00]).unwrap(),
+            super::var_uint(&[0x8A, 0x00]).unwrap(),
             ([].as_slice(), 0x0A00)
         );
 
         assert_eq!(
-            super::varint(&[0xC1, 0x02, 0x03, 0x04]).unwrap(),
+            super::var_uint(&[0xC1, 0x02, 0x03, 0x04]).unwrap(),
             ([].as_slice(), 0x01020304)
         );
 
         assert_eq!(
-            super::varint(&[0xDF, 0xFF, 0xFF, 0xFF]).unwrap(),
+            super::var_uint(&[0xDF, 0xFF, 0xFF, 0xFF]).unwrap(),
             ([].as_slice(), 0x1FFFFFFF)
+        );
+    }
+
+    #[test]
+    fn var_sint() {
+        assert_eq!(super::var_sint(&[0x6]).unwrap(), ([].as_slice(), 3));
+        assert_eq!(super::var_sint(&[0x7B]).unwrap(), ([].as_slice(), -3));
+
+        assert_eq!(
+            super::var_sint(&[0x80, 0x80]).unwrap(),
+            ([].as_slice(), 64)
+        );
+
+        assert_eq!(super::var_sint(&[0x01]).unwrap(), ([].as_slice(), -64));
+
+        assert_eq!(
+            super::var_sint(&[0xC0, 0x00, 0x40, 0x00]).unwrap(),
+            ([].as_slice(), 8192)
+        );
+
+        assert_eq!(
+            super::var_sint(&[0x80, 0x01]).unwrap(),
+            ([].as_slice(), -8192)
+        );
+
+        assert_eq!(
+            super::var_sint(&[0xDF, 0xFF, 0xFF, 0xFE]).unwrap(),
+            ([].as_slice(), 268435455)
+        );
+
+        assert_eq!(
+            super::var_sint(&[0xC0, 0x00, 0x00, 0x01]).unwrap(),
+            ([].as_slice(), -268435456)
         );
     }
 }

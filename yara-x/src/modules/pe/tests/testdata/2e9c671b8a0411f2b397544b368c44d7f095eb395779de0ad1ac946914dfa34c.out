@@ -214,6 +214,7 @@ resources:
     language: 2055
 import_details:
   - library_name: "advapi32.dll"
+    number_of_functions: 4
     functions:
       - name: "RegCloseKey"
         rva: 99472
@@ -224,10 +225,12 @@ import_details:
       - name: "RegQueryValueExA"
         rva: 99496
   - library_name: "comctl32.dll"
+    number_of_functions: 1
     functions:
       - name: "InitCommonControls"
         rva: 99512
   - library_name: "gdi32.dll"
+    number_of_functions: 5
     functions:
       - name: "CreateFontA"
         rva: 99528
@@ -240,6 +243,7 @@ import_details:
       - name: "SetTextColor"
         rva: 99560
   - library_name: "kernel32.dll"
+    number_of_functions: 83
     functions:
       - name: "AddVectoredExceptionHandler"
         rva: 99576
@@ -408,6 +412,7 @@ import_details:
       - name: "_lopen"
         rva: 100232
   - library_name: "ole32.dll"
+    number_of_functions: 3
     functions:
       - name: "CoCreateInstance"
         rva: 100248
@@ -416,6 +421,7 @@ import_details:
       - name: "OleUninitialize"
         rva: 100264
   - library_name: "oleaut32.dll"
+    number_of_functions: 3
     functions:
       - name: "SysAllocStringLen"
         rva: 100280
@@ -424,6 +430,7 @@ import_details:
       - name: "SysReAllocStringLen"
         rva: 100296
   - library_name: "user32.dll"
+    number_of_functions: 20
     functions:
       - name: "CharLowerBuffW"
         rva: 100312

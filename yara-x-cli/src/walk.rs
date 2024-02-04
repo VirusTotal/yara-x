@@ -108,32 +108,29 @@ impl<'a> DirWalker<'a> {
         F: FnMut(&Path) -> anyhow::Result<()>,
         E: FnMut(anyhow::Error) -> anyhow::Result<()>,
     {
-        if path.is_file() {
-            match path
-                .metadata()
-                .with_context(|| format!("can't open {}", path.display()))
-            {
-                Ok(metadata) => {
-                    if self.pass_metadata_filter(metadata) {
-                        if let Err(err) = f(path) {
-                            return e(err);
-                        }
-                    }
-                }
-                Err(err) => {
+        let metadata = match path
+            .metadata()
+            .with_context(|| format!("can't open {}", path.display()))
+        {
+            Ok(metadata) => metadata,
+            Err(err) => {
+                return e(err);
+            }
+        };
+
+        if metadata.is_file() {
+            if self.pass_metadata_filter(metadata) {
+                if let Err(err) = f(path) {
                     return e(err);
                 }
             };
             return Ok(());
         }
 
-        let path = match path
-            .canonicalize()
-            .with_context(|| format!("can't open {}", path.display()))
-        {
+        let path = match path.canonicalize() {
             Ok(path) => path,
             Err(err) => {
-                return e(err);
+                return e(err.into());
             }
         };
 
@@ -225,20 +222,20 @@ impl<'a> DirWalker<'a> {
 /// walker.walk(
 ///     // The path to be walked.
 ///     "."
-///     // The first argument is the initial state. This must have some type
-///     // `S` that implements the `Component` trait.
+///     // The initial state. This must have some type `S` that implements the
+///     // `Component` trait.
 ///     state
 ///     // This is the thread initialization function. This is called once
 ///     // per thread, and each thread will own the value returned by this
 ///     // function. A mutable reference to this value is passed as the
 ///     // last argument to the next function.
-///     || {
+///     |state, output| {
 ///         scanner.Scanner::new(rules)
 ///     },
 ///     // This function is called for each file, `state` is a reference to
 ///     // the initial state (it's type is `&S`), `output` is of type
 ///     // `Sender<Message>`.
-///     |file_path, state, output, scanner| {
+///     |state, output, file_path, scanner| {
 ///         scanner.scan_file(file_path);
 ///     }
 ///     // This function is called with every error that occurs during the
@@ -308,8 +305,8 @@ impl<'a> ParDirWalker<'a> {
     ) -> thread::Result<()>
     where
         S: Component + Send + Sync,
-        I: Fn() -> T + Send + Copy + Sync,
-        F: Fn(PathBuf, &S, &Sender<Message>, &mut T) -> anyhow::Result<()>
+        I: Fn(&S, &Sender<Message>) -> T + Send + Copy + Sync,
+        F: Fn(&S, &Sender<Message>, PathBuf, &mut T) -> anyhow::Result<()>
             + Send
             + Sync
             + Copy,
@@ -347,12 +344,12 @@ impl<'a> ParDirWalker<'a> {
                 let msg_send = msg_send.clone();
                 let state = state.clone();
                 threads.push(s.spawn(move |_| {
-                    let mut per_thread_obj = init();
+                    let mut per_thread_obj = init(&state, &msg_send);
                     for path in paths_recv {
                         let res = func(
-                            path.to_path_buf(),
                             &state,
                             &msg_send,
+                            path.to_path_buf(),
                             &mut per_thread_obj,
                         );
                         if let Err(err) = res {
@@ -364,12 +361,6 @@ impl<'a> ParDirWalker<'a> {
                     }
                 }));
             }
-
-            // Drop the `msg_send` so that `msg_recv` is closed. This won't
-            // happen at this point, because there are scan threads retaining
-            // copies of `msg_send`, however, when all the scan threads end
-            // `msg_recv` is closed.
-            drop(msg_send);
 
             // Span a thread that walks the directory and puts file paths in
             // the channel.
@@ -383,8 +374,15 @@ impl<'a> ParDirWalker<'a> {
                         if err.is::<SendError<PathBuf>>() {
                             return Err(err);
                         }
-                        // For other types of error (e.g: permission denied)
-                        // keep walking the directory tree.
+
+                        // Invoke the error callback and abort the walk if the
+                        // callback returns error.
+                        if let Err(err) = e(err, &msg_send) {
+                            let _ = msg_send.send(Message::Abort);
+                            return Err(err);
+                        }
+
+                        // Keep walking the directory tree.
                         Ok(())
                     },
                 );

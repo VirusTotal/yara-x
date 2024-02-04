@@ -1,3 +1,4 @@
+import io
 import pytest
 import yara_x
 
@@ -20,16 +21,16 @@ def test_int_globals():
   rules = compiler.build()
 
   scanner = yara_x.Scanner(rules)
-  matches = scanner.scan(b'')
-  assert len(matches) == 1
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
 
   scanner.set_global('some_int', 2)
-  matches = scanner.scan(b'')
-  assert len(matches) == 0
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 0
 
   scanner.set_global('some_int', 1)
-  matches = scanner.scan(b'')
-  assert len(matches) == 1
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
 
 
 def test_float_globals():
@@ -39,16 +40,16 @@ def test_float_globals():
   rules = compiler.build()
 
   scanner = yara_x.Scanner(rules)
-  matches = scanner.scan(b'')
-  assert len(matches) == 1
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
 
   scanner.set_global('some_float', 2.0)
-  matches = scanner.scan(b'')
-  assert len(matches) == 0
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 0
 
   scanner.set_global('some_float', 1.0)
-  matches = scanner.scan(b'')
-  assert len(matches) == 1
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
 
 
 def test_str_globals():
@@ -58,42 +59,77 @@ def test_str_globals():
   rules = compiler.build()
 
   scanner = yara_x.Scanner(rules)
-  matches = scanner.scan(b'')
-  assert len(matches) == 1
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
 
   scanner.set_global('some_str', 'bar')
-  matches = scanner.scan(b'')
-  assert len(matches) == 0
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 0
 
   scanner.set_global('some_str', 'foo')
-  matches = scanner.scan(b'')
-  assert len(matches) == 1
+  matching_rules = scanner.scan(b'').matching_rules
+  assert len(matching_rules) == 1
 
 
 def test_namespaces():
   compiler = yara_x.Compiler()
   compiler.new_namespace('foo')
-  compiler.add_source('rule foo {strings: $a = "foo" condition: $a}')
+  compiler.add_source('rule foo {strings: $foo = "foo" condition: $foo}')
   compiler.new_namespace('bar')
-  compiler.add_source('rule bar {strings: $a = "bar" condition: $a}')
-  scanner = yara_x.Scanner(compiler.build())
-  matches = scanner.scan(b'foobar')
-  assert len(matches) == 2
+  compiler.add_source('rule bar {strings: $bar = "bar" condition: $bar}')
+  rules = compiler.build()
+  matching_rules = rules.scan(b'foobar').matching_rules
+  
+  assert len(matching_rules) == 2
+  
+  assert matching_rules[0].name == 'foo'
+  assert matching_rules[0].namespace == 'foo'
+  assert len(matching_rules[0].patterns) == 1
+  assert matching_rules[0].patterns[0].identifier == '$foo'
+  assert len(matching_rules[0].patterns[0].matches) == 1
+  assert matching_rules[0].patterns[0].matches[0].offset == 0
+  assert matching_rules[0].patterns[0].matches[0].length == 3
+  assert matching_rules[0].patterns[0].matches[0].xor_key is None
 
+  assert matching_rules[1].name == 'bar'
+  assert matching_rules[1].namespace == 'bar'
+  assert len(matching_rules[1].patterns) == 1
+  assert matching_rules[1].patterns[0].identifier == '$bar'
+  assert len(matching_rules[1].patterns[0].matches) == 1
+  assert matching_rules[1].patterns[0].matches[0].offset == 3
+  assert matching_rules[1].patterns[0].matches[0].length == 3
+  assert matching_rules[1].patterns[0].matches[0].xor_key is None
 
 def test_compile_and_scan():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
-  matches = rules.scan(b'foobar')
-  assert len(matches) == 1
-  assert matches[0].name  == 'foo'
+  matching_rules = rules.scan(b'foobar').matching_rules
+  assert len(matching_rules) == 1
+  assert matching_rules[0].name == 'foo'
+  assert matching_rules[0].namespace == 'default'
+  assert len(matching_rules[0].patterns) == 1
+  assert matching_rules[0].patterns[0].identifier == '$a'
 
 
 def test_compiler_and_scanner():
-  compiler = yara_x.Compiler()
-  compiler.add_source('rule foo {strings: $a = "foo" condition: $a}')
-  scanner = yara_x.Scanner(compiler.build())
-  matches = scanner.scan(b'foobar')
-  assert len(matches) == 1
+  rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
+  matching_rules = rules.scan(b'foobar').matching_rules
+  assert len(matching_rules) == 1
+  assert matching_rules[0].name == 'foo'
+  assert matching_rules[0].namespace == 'default'
+  assert len(matching_rules[0].patterns) == 1
+  assert matching_rules[0].patterns[0].identifier == '$a'
+
+
+def test_xor_key():
+  rules = yara_x.compile('rule foo {strings: $a = "foo" xor condition: $a}')
+  matching_rules = rules.scan(b'\xCC\xC5\xC5').matching_rules
+  assert len(matching_rules) == 1
+  assert matching_rules[0].name == 'foo'
+  assert matching_rules[0].namespace == 'default'
+  assert len(matching_rules[0].patterns) == 1
+  assert matching_rules[0].patterns[0].identifier == '$a'
+  assert len(matching_rules[0].patterns[0].matches) == 1
+  assert matching_rules[0].patterns[0].matches[0].xor_key == 0xAA
 
 
 def test_scanner_timeout():
@@ -103,3 +139,32 @@ def test_scanner_timeout():
   scanner.timeout(1)
   with pytest.raises(Exception, match='timeout'):
     scanner.scan(b'foobar')
+
+
+def test_module_outputs():
+  rules = yara_x.compile('import "test_proto2" rule foo {condition: false}')
+  module_outputs = rules.scan(b'').module_outputs
+  assert module_outputs['test_proto2']['int32One'] == 1
+
+
+def test_serialization():
+  rules = yara_x.compile('rule foo {condition: true}')
+  f = io.BytesIO()
+  rules.serialize_into(f)
+  f.seek(0)
+  rules = yara_x.Rules.deserialize_from(f)
+  assert len(rules.scan(b'').matching_rules) == 1
+  
+
+def test_console_log():
+  ok = False 
+  def callback(msg):
+    nonlocal ok
+    if msg == 'foo':
+      ok = True
+  compiler = yara_x.Compiler()
+  compiler.add_source('import "console" rule foo {condition: console.log("foo")}')
+  scanner = yara_x.Scanner(compiler.build())
+  scanner.console_log(callback)
+  scanner.scan(b'')
+  assert ok

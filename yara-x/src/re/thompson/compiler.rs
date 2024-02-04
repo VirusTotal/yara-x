@@ -6,7 +6,6 @@ More specifically, the compiler produces two instruction sequences, one that
 matches the regexp left-to-right, and another one that matches right-to-left.
 */
 
-use std::cmp::min;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
@@ -29,7 +28,7 @@ use super::instr;
 use super::instr::{literal_code_length, Instr, NumAlt, OPCODE_PREFIX};
 
 use crate::compiler::{
-    best_atom_in_bytes, seq_quality, Atom, SeqQuality, DESIRED_ATOM_SIZE,
+    best_atom_in_bytes, Atom, AtomsQuality, DESIRED_ATOM_SIZE,
     MAX_ATOMS_PER_REGEXP,
 };
 
@@ -391,14 +390,23 @@ impl Compiler {
             .backward_code_chunks
             .split_off(self.backward_code_chunks.len() - n);
 
-        // Obtain a reference to the backward code, which can be either the
-        // chunk at the top of the `backward_code_chunks` stack or
-        // `self.backward_code` if the stack is empty.
-        //let backward_code = self.backward_code_mut();
+        // Obtain a reference to the backward code corresponding to the `Concat`
+        // node. It would be better to use `self.backward_code_mut()`, but it
+        // causes a mutable borrow on `self`, while the code below borrows
+        // `self.backward_code_chunks` or `self.backward_code` but not `self.
         let backward_code = self
             .backward_code_chunks
             .last_mut()
             .unwrap_or(&mut self.backward_code);
+
+        // Update the split ID for the `Concat` node. If any of the children
+        // emitted a split instruction, and therefore incremented its split_id,
+        // this increment must be reflected in the parent node (`Concat`), so
+        // that any other node emitted after the parent doesn't reuse an already
+        // existing split ID.
+        if let Some(last_chunks) = last_n_chunks.last() {
+            backward_code.split_id = last_chunks.split_id;
+        }
 
         // The top N bookmarks corresponds to the beginning of the code for
         // each expression in the concatenation.
@@ -510,13 +518,11 @@ impl Compiler {
         let last_n =
             self.best_atoms_stack.split_off(self.best_atoms_stack.len() - n);
 
-        // Join the atoms from all alternatives together. The quality
-        // is the quality of the worst alternative.
+        // Join the atoms from all alternatives together.
         let alternative_atoms = last_n
             .into_iter()
-            .reduce(|mut all, mut atoms| {
-                all.atoms.append(&mut atoms.atoms);
-                all.min_quality = min(all.min_quality, atoms.min_quality);
+            .reduce(|mut all, atoms| {
+                all.append(atoms);
                 all
             })
             .unwrap();
@@ -527,7 +533,7 @@ impl Compiler {
         // better than the best atoms found so far, and less than
         // MAX_ATOMS_PER_REGEXP.
         if alternative_atoms.len() <= MAX_ATOMS_PER_REGEXP
-            && best_atoms.min_quality < alternative_atoms.min_quality
+            && best_atoms.quality < alternative_atoms.quality
         {
             *best_atoms = alternative_atoms;
         }
@@ -870,9 +876,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -886,9 +890,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -906,9 +908,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -926,7 +926,7 @@ impl hir::Visitor for &mut Compiler {
                 }
 
                 let mut best_atoms = None;
-                let mut best_quality = SeqQuality::min();
+                let mut best_quality = AtomsQuality::min();
                 let mut code_loc = CodeLoc::default();
 
                 let seqs: Vec<_> = expressions
@@ -936,18 +936,17 @@ impl hir::Visitor for &mut Compiler {
 
                 for i in 0..seqs.len() {
                     if let Some(mut seq) = concat_seq(&seqs[i..]) {
-                        if let Some(quality) = seq_quality(&seq) {
-                            if quality > best_quality {
-                                // If this sequence doesn't start at the first
-                                // expression in the concatenation it must be
-                                // marked as inexact.
-                                if i > 0 {
-                                    seq.make_inexact()
-                                }
-                                best_quality = quality;
-                                best_atoms = seq_to_atoms(seq);
-                                code_loc = locations[i]
-                            }
+                        // If this sequence doesn't start at the first
+                        // expression in the concatenation it must be
+                        // marked as inexact.
+                        if i > 0 {
+                            seq.make_inexact()
+                        }
+                        let quality = AtomsQuality::from_seq(&seq);
+                        if quality > best_quality {
+                            best_quality = quality;
+                            best_atoms = seq_to_atoms(seq);
+                            code_loc = locations[i]
                         }
                     }
                 }
@@ -964,9 +963,7 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
@@ -980,16 +977,14 @@ impl hir::Visitor for &mut Compiler {
                     return Ok(());
                 }
 
-                let best_atoms = seq_to_atoms(simplify_seq(
-                    self.lit_extractor.extract(hir),
-                ));
+                let best_atoms = seq_to_atoms(self.lit_extractor.extract(hir));
 
                 (best_atoms, code_loc)
             }
         };
 
         // If no atoms where found, nothing more to do.
-        let atoms = match atoms {
+        let mut atoms = match atoms {
             None => return Ok(()),
             Some(atoms) if atoms.is_empty() => return Ok(()),
             Some(atoms) => atoms,
@@ -1024,34 +1019,23 @@ impl hir::Visitor for &mut Compiler {
         let can_be_exact =
             self.depth == 0 && hir.properties().look_set().is_empty();
 
+        if !can_be_exact {
+            for atom in atoms.iter_mut() {
+                atom.make_inexact();
+            }
+        }
+
         let best_atoms = self.best_atoms_stack.last_mut().unwrap();
+        let quality = AtomsQuality::from_atoms(atoms.iter());
 
-        // Compute the minimum quality across all atoms. A single low quality
-        // atom in a set good atoms has the potential of slowing down scanning.
-        let min_quality =
-            atoms.iter().map(|atom| atom.quality()).min().unwrap();
-
-        let exact_atoms = atoms.iter().filter(|atom| atom.is_exact()).count();
-
-        if min_quality > best_atoms.min_quality
-            || (min_quality == best_atoms.min_quality
-                && can_be_exact
-                && exact_atoms > best_atoms.exact_atoms)
-        {
-            let mut atoms = RegexpAtoms {
-                min_quality,
-                exact_atoms,
+        if quality > best_atoms.quality {
+            *best_atoms = RegexpAtoms {
+                quality,
                 atoms: atoms
                     .into_iter()
                     .map(|atom| RegexpAtom { atom, code_loc })
                     .collect(),
             };
-
-            if !can_be_exact {
-                atoms.make_inexact();
-            }
-
-            *best_atoms = atoms;
         }
 
         Ok(())
@@ -1114,7 +1098,11 @@ impl AsRef<[u8]> for InstrSeq {
 impl InstrSeq {
     /// Creates a new [`InstrSeq`].
     pub fn new() -> Self {
-        Self { seq_id: 0, seq: Cursor::new(Vec::new()), split_id: 0 }
+        Self {
+            seq_id: 0,
+            seq: Cursor::new(Vec::new()),
+            split_id: SplitId::default(),
+        }
     }
 
     /// Creates a new [`InstrSeq`] with an ID that is `self.seq_id() + 1`.
@@ -1172,11 +1160,11 @@ impl InstrSeq {
                 // the split. Each split in the same regexp have a unique
                 // value.
                 self.seq
-                    .write_all(SplitId::to_le_bytes(self.split_id).as_slice())
+                    .write_all(self.split_id.to_le_bytes().as_slice())
                     .unwrap();
                 // Increment the split ID, so that the next split has a
                 // different ID.
-                if let Some(incremented) = self.split_id.checked_add(1) {
+                if let Some(incremented) = self.split_id.add(1) {
                     self.split_id = incremented
                 } else {
                     return Err(Error::TooLarge);
@@ -1206,11 +1194,9 @@ impl InstrSeq {
         let location = self.location();
 
         self.seq.write_all(&[OPCODE_PREFIX, Instr::SPLIT_N]).unwrap();
-        self.seq
-            .write_all(SplitId::to_le_bytes(self.split_id).as_slice())
-            .unwrap();
+        self.seq.write_all(self.split_id.to_le_bytes().as_slice()).unwrap();
 
-        if let Some(incremented) = self.split_id.checked_add(1) {
+        if let Some(incremented) = self.split_id.add(1) {
             self.split_id = incremented
         } else {
             return Err(Error::TooLarge);
@@ -1335,7 +1321,7 @@ impl InstrSeq {
                             self.split_id.to_le_bytes().as_slice(),
                         );
 
-                    if let Some(incremented) = self.split_id.checked_add(1) {
+                    if let Some(incremented) = self.split_id.add(1) {
                         self.split_id = incremented
                     } else {
                         return Err(Error::TooLarge);
@@ -1541,7 +1527,8 @@ impl Display for InstrSeq {
     }
 }
 
-fn simplify_seq(seq: Seq) -> Seq {
+fn simplify_seq(mut seq: Seq) -> Seq {
+    seq.dedup();
     // If the literal extractor produced exactly 256 atoms, and those atoms
     // have a common prefix that is one byte shorter than the longest atom,
     // we are in the case where we have 256 atoms that differ only in the
@@ -1632,36 +1619,35 @@ fn concat_seq(seqs: &[Seq]) -> Option<Seq> {
 }
 
 fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
-    seq.literals().map(|literals| literals.iter().map(Atom::from).collect())
+    simplify_seq(seq)
+        .literals()
+        .map(|literals| literals.iter().map(Atom::from).collect())
 }
 
-/// A list of [`RegexpAtom`] that contains additional information about the
-/// atoms, like the quality of the worst atom.
+/// A list of [`RegexpAtom`] that contains additional information, like the
+/// quality of the the atoms.
 struct RegexpAtoms {
     atoms: Vec<RegexpAtom>,
-    /// Quality of the lowest quality atom.
-    min_quality: i32,
-    /// Number of atoms in the list that are exact.
-    exact_atoms: usize,
+    /// Quality of the atoms.
+    quality: AtomsQuality,
 }
 
 impl RegexpAtoms {
     /// Create a new empty empty list of atoms.
     fn empty() -> Self {
-        Self { atoms: Vec::new(), min_quality: i32::MIN, exact_atoms: 0 }
+        Self { atoms: Vec::new(), quality: AtomsQuality::min() }
+    }
+
+    /// Appends another [`RegexpAtoms`] to this one.
+    fn append(&mut self, atoms: RegexpAtoms) {
+        self.quality.merge(atoms.quality);
+        let mut atoms = atoms.atoms;
+        self.atoms.append(&mut atoms);
     }
 
     #[inline]
     fn len(&self) -> usize {
         self.atoms.len()
-    }
-
-    /// Make all the atoms in the list inexact.
-    fn make_inexact(&mut self) {
-        self.exact_atoms = 0;
-        for atom in self.atoms.iter_mut() {
-            atom.atom.set_exact(false);
-        }
     }
 
     #[inline]
