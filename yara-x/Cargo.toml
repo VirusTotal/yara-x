@@ -77,7 +77,6 @@ lnk-module = [
 
 # The `macho` module parses Mach-O files.
 macho-module = [
-    "dep:byteorder",
     "dep:nom",
 ]
 
@@ -140,7 +139,6 @@ bincode = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true, features=["serde"] }
-byteorder = { workspace = true, optional = true }
 crc32fast = { workspace = true, optional = true }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features=["serde"] }

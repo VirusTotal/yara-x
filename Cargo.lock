@@ -4287,7 +4287,6 @@ dependencies = [
  "bitmask",
  "bitvec",
  "bstr 1.9.0",
- "byteorder",
  "crc32fast",
  "criterion",
  "fmmap",

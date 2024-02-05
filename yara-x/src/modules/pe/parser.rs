@@ -12,7 +12,6 @@ use authenticode_parser::{
     CounterSignatureVerify,
 };
 use bstr::{BStr, ByteSlice};
-use byteorder::{ByteOrder, LE};
 use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
@@ -421,7 +420,7 @@ impl<'a> PE<'a> {
     const IMAGE_DEBUG_TYPE_CODEVIEW: u32 = 2;
 
     const RICH_TAG: &'static [u8] = &[0x52_u8, 0x69, 0x63, 0x68];
-    const DANS_TAG: &'static [u8] = &[0x44_u8, 0x61, 0x6e, 0x53];
+    const DANS_TAG: u32 = 0x536e6144;
 
     const SIZE_OF_PE_SIGNATURE: usize = 4; // size of PE signature (PE\0\0).
     const SIZE_OF_FILE_HEADER: usize = 20; // size of IMAGE_FILE_HEADER
@@ -660,7 +659,7 @@ impl<'a> PE<'a> {
 
             // Search for the "DanS" tag that indicates the start of the rich
             // data. This tag appears encrypted with the XOR key.
-            let dans_tag = key ^ LE::read_u32(Self::DANS_TAG);
+            let dans_tag = key ^ Self::DANS_TAG;
 
             let dans_tag_pos = memmem::rfind(
                 &input[..rich_tag_pos],
