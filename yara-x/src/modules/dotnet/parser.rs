@@ -2193,6 +2193,7 @@ struct StreamHeader<'a> {
 struct BlobIndex(u32);
 
 /// An index into the `#GUID` stream.
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 struct GuidIndex(u32);
 
