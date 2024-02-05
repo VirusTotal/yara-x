@@ -1,10 +1,13 @@
 name: Code coverage with grcov
 
 on:
-  schedule:
   # Run at every day at 2:15.
+  schedule:
   - cron: '15 2 * * *'
-
+  # Also run then this file is changed.
+  push:
+    paths:
+    - '.github/workflows/coverage.yaml'
 jobs:
   coverage:
     name: Coverage
