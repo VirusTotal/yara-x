@@ -92,8 +92,12 @@ yara-x-parser = { path = "yara-x-parser" }
 yara-x-proto = { path = "yara-x-proto" }
 yara-x-proto-yaml = { path = "yara-x-proto-yaml" }
 
-
-[profile.release]
-# debug = 1   # Include debug information in the binary.
-# lto = true    # Enable link-time optimization.
-# strip = true  # Automatically strip symbols from the binary.
+# Special profile that builds a release binary with link-time optimization. 
+# Compiling with this profile takes a while, but the resulting binary is
+# smaller and better optimized. For building with this profile use:
+#
+# cargo build --profile release-lto
+[profile.release-lto]
+inherits = "release"
+lto = true
+codegen-units = 1
