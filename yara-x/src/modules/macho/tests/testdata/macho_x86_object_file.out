@@ -11,6 +11,8 @@ symtab:
     nsyms: 1
     stroff: 340
     strsize: 16
+    entries:
+      - "__Z9factoriali"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 0

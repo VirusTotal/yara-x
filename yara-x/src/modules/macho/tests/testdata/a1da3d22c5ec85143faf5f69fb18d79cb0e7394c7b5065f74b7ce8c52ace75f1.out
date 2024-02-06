@@ -198,6 +198,13 @@ file:
         nsyms: 6
         stroff: 33120
         strsize: 112
+        entries:
+          - "__mh_execute_header"
+          - "_CallComponentDispatch"
+          - "_OpenDefaultComponent"
+          - "_exit"
+          - "dyld_stub_binder"
+          - "radr://5614542"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 1
@@ -340,6 +347,11 @@ file:
         nsyms: 4
         stroff: 33024
         strsize: 88
+        entries:
+          - "__mh_execute_header"
+          - "_CallComponentDispatch"
+          - "_OpenDefaultComponent"
+          - "radr://5614542"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 1

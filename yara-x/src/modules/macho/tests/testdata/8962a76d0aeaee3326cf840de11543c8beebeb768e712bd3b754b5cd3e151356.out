@@ -12,6 +12,11 @@ symtab:
     nsyms: 4
     stroff: 16432
     strsize: 40
+    entries:
+      - "__start"
+      - "_comment"
+      - "_shellcode"
+      - "_.str"
 segments:
   - segname: "__PAGEZERO"
     vmaddr: 0x0

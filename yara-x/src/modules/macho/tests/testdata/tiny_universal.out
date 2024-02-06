@@ -152,6 +152,13 @@ file:
         nsyms: 6
         stroff: 8440
         strsize: 72
+        entries:
+          - "__mh_execute_header"
+          - "_factorial"
+          - "_main"
+          - "_printf"
+          - "_scanf"
+          - "dyld_stub_binder"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 0
@@ -338,6 +345,13 @@ file:
         nsyms: 6
         stroff: 8472
         strsize: 72
+        entries:
+          - "__mh_execute_header"
+          - "_factorial"
+          - "_main"
+          - "_printf"
+          - "_scanf"
+          - "dyld_stub_binder"
     dysymtab:
         ilocalsym: 0
         nlocalsym: 0

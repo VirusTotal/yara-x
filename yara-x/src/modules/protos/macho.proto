@@ -45,6 +45,7 @@ message Symtab {
   optional uint32 nsyms = 2;
   optional uint32 stroff = 3;
   optional uint32 strsize = 4;
+  repeated bytes entries = 5;
 }
 
 message Dysymtab {

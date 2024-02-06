@@ -284,6 +284,24 @@ impl<'a> MachO<'a> {
             }
         }
 
+        if let Some(ref mut symtab) = macho.symtab {
+            let str_offset = symtab.stroff as usize;
+            let str_end = symtab.strsize as usize;
+
+            // We don't want the dyld_shared_cache ones for now
+            if str_offset < data.len() {
+                let string_table: &[u8] =
+                    &data[str_offset..str_offset + str_end];
+                let strings: Vec<&'a [u8]> = string_table
+                    .split(|&c| c == b'\0')
+                    .map(|line| BStr::new(line).trim_end_with(|c| c == '\0'))
+                    .filter(|s| !s.trim().is_empty())
+                    .collect();
+
+                symtab.entries.extend(strings);
+            }
+        }
+
         if let Some(entry_point_rva) = macho.entry_point_rva {
             macho.entry_point_offset = macho.rva_to_offset(entry_point_rva);
         }
@@ -313,7 +331,7 @@ pub struct MachOFile<'a> {
     header: MachOHeader,
     segments: Vec<Segment<'a>>,
     dylibs: Vec<Dylib<'a>>,
-    symtab: Option<Symtab>,
+    symtab: Option<Symtab<'a>>,
     dysymtab: Option<Dysymtab>,
     dyld_info: Option<DyldInfo>,
     dynamic_linker: Option<&'a [u8]>,
@@ -610,6 +628,7 @@ impl<'a> MachOFile<'a> {
                 nsyms,
                 stroff,
                 strsize,
+                entries: Vec::new(),
             },
         )
     }
@@ -1147,11 +1166,12 @@ struct LinkedItData {
     datasize: u32,
 }
 
-struct Symtab {
+struct Symtab<'a> {
     symoff: u32,
     nsyms: u32,
     stroff: u32,
     strsize: u32,
+    entries: Vec<&'a [u8]>,
 }
 
 struct Dysymtab {
@@ -1395,13 +1415,16 @@ impl From<&Dylib<'_>> for protos::macho::Dylib {
     }
 }
 
-impl From<&Symtab> for protos::macho::Symtab {
-    fn from(symtab: &Symtab) -> Self {
+impl From<&Symtab<'_>> for protos::macho::Symtab {
+    fn from(symtab: &Symtab<'_>) -> Self {
         let mut result = protos::macho::Symtab::new();
         result.set_symoff(symtab.symoff);
         result.set_nsyms(symtab.nsyms);
         result.set_stroff(symtab.stroff);
         result.set_strsize(symtab.strsize);
+        result
+            .entries
+            .extend(symtab.entries.iter().map(|entry| entry.to_vec()));
         result
     }
 }
