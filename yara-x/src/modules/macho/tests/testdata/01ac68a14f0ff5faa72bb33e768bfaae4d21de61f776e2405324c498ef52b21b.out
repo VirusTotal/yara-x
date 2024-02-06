@@ -267,6 +267,17 @@ dylibs:
     timestamp: 2 # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1252.0.0"
+dyld_info:
+    rebase_off: 28672
+    rebase_size: 8
+    bind_off: 28680
+    bind_size: 624
+    weak_bind_off: 29304
+    weak_bind_size: 48
+    lazy_bind_off: 29352
+    lazy_bind_size: 2464
+    export_off: 31816
+    export_size: 2448
 certificates:
     common_names:
       - "Developer ID Certification Authority"

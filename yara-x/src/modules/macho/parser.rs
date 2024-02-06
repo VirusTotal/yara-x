@@ -52,6 +52,8 @@ const LC_SEGMENT_64: u32 = 0x00000019;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_CODE_SIGNATURE: u32 = 0x0000001d;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
+const LC_DYLD_INFO: u32 = 0x00000022;
+const LC_DYLD_INFO_ONLY: u32 = 0x22 | LC_REQ_DYLD;
 const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
 const LC_SOURCE_VERSION: u32 = 0x0000002a;
@@ -249,6 +251,7 @@ impl<'a> MachO<'a> {
             rpaths: Vec::new(),
             dysymtab: None,
             dynamic_linker: None,
+            dyld_info: None,
             source_version: None,
             entry_point_offset: None,
             entry_point_rva: None,
@@ -309,6 +312,7 @@ pub struct MachOFile<'a> {
     segments: Vec<Segment<'a>>,
     dylibs: Vec<Dylib<'a>>,
     dysymtab: Option<Dysymtab>,
+    dyld_info: Option<DyldInfo>,
     dynamic_linker: Option<&'a [u8]>,
     source_version: Option<String>,
     rpaths: Vec<&'a [u8]>,
@@ -453,6 +457,11 @@ impl<'a> MachOFile<'a> {
                 LC_CODE_SIGNATURE => {
                     let (_, lid) = self.linkeditdata_command()(command_data)?;
                     self.code_signature_data = Some(lid);
+                }
+                LC_DYLD_INFO | LC_DYLD_INFO_ONLY => {
+                    let (_, dyld_info) =
+                        self.dyld_info_command()(command_data)?;
+                    self.dyld_info = Some(dyld_info);
                 }
                 _ => {}
             }
@@ -782,6 +791,51 @@ impl<'a> MachOFile<'a> {
         }
     }
 
+    /// Parser that parses LC_DYLD_INFO_ONLY and LC_DYLD_INFO commands
+    fn dyld_info_command(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], DyldInfo> + '_ {
+        map(
+            tuple((
+                u32(self.endianness), //  rebase_off
+                u32(self.endianness), //  rebase_size
+                u32(self.endianness), //  bind_off
+                u32(self.endianness), //  bind_size
+                u32(self.endianness), //  weak_bind_off
+                u32(self.endianness), //  weak_bind_size
+                u32(self.endianness), //  lazy_bind_off
+                u32(self.endianness), //  lazy_bind_size
+                u32(self.endianness), //  export_off
+                u32(self.endianness), //  export_size
+            )),
+            |(
+                rebase_off,
+                rebase_size,
+                bind_off,
+                bind_size,
+                weak_bind_off,
+                weak_bind_size,
+                lazy_bind_off,
+                lazy_bind_size,
+                export_off,
+                export_size,
+            )| {
+                DyldInfo {
+                    rebase_off,
+                    rebase_size,
+                    bind_off,
+                    bind_size,
+                    weak_bind_off,
+                    weak_bind_size,
+                    lazy_bind_off,
+                    lazy_bind_size,
+                    export_off,
+                    export_size,
+                }
+            },
+        )
+    }
+
     /// Parser that parses a LC_ID_DYLINKER, LC_LOAD_DYLINKER or
     /// LC_DYLD_ENVIRONMENT  command.
     fn dylinker_command(
@@ -1085,6 +1139,19 @@ struct Dysymtab {
     nlocrel: u32,
 }
 
+struct DyldInfo {
+    rebase_off: u32,
+    rebase_size: u32,
+    bind_off: u32,
+    bind_size: u32,
+    weak_bind_off: u32,
+    weak_bind_size: u32,
+    lazy_bind_off: u32,
+    lazy_bind_size: u32,
+    export_off: u32,
+    export_size: u32,
+}
+
 /// Parser that reads a 32-bits or 64-bits
 fn uint(
     endianness: Endianness,
@@ -1155,6 +1222,10 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 result.certificates = MessageField::some(cert_data.into());
             }
 
+            if let Some(dyld_info) = &m.dyld_info {
+                result.dyld_info = MessageField::some(dyld_info.into());
+            };
+
             result.segments.extend(m.segments.iter().map(|seg| seg.into()));
             result.dylibs.extend(m.dylibs.iter().map(|dylib| dylib.into()));
             result
@@ -1201,6 +1272,10 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         if let Some(cert_data) = &macho.certificates {
             result.certificates = MessageField::some(cert_data.into());
         }
+
+        if let Some(dyld_info) = &macho.dyld_info {
+            result.dyld_info = MessageField::some(dyld_info.into());
+        };
 
         result.segments.extend(macho.segments.iter().map(|seg| seg.into()));
         result.dylibs.extend(macho.dylibs.iter().map(|dylib| dylib.into()));
@@ -1315,6 +1390,23 @@ impl From<&Certificates> for protos::macho::Certificates {
         let mut result = protos::macho::Certificates::new();
         result.common_names.extend(cert.common_names.clone());
         result.signer_names.extend(cert.signer_names.clone());
+        result
+    }
+}
+
+impl From<&DyldInfo> for protos::macho::DyldInfo {
+    fn from(dyld_info: &DyldInfo) -> Self {
+        let mut result = protos::macho::DyldInfo::new();
+        result.set_rebase_off(dyld_info.rebase_off);
+        result.set_rebase_size(dyld_info.rebase_size);
+        result.set_bind_off(dyld_info.bind_off);
+        result.set_bind_size(dyld_info.bind_size);
+        result.set_weak_bind_off(dyld_info.weak_bind_off);
+        result.set_weak_bind_size(dyld_info.weak_bind_size);
+        result.set_lazy_bind_off(dyld_info.lazy_bind_off);
+        result.set_lazy_bind_size(dyld_info.lazy_bind_size);
+        result.set_export_off(dyld_info.export_off);
+        result.set_export_size(dyld_info.export_size);
         result
     }
 }

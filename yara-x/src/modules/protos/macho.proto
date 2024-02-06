@@ -27,6 +27,19 @@ message Dylib {
   optional string current_version = 4;
 }
 
+message DyldInfo {
+  optional uint32 rebase_off = 1;
+  optional uint32 rebase_size = 2;
+  optional uint32 bind_off = 3;
+  optional uint32 bind_size = 4;  
+  optional uint32 weak_bind_off = 5;
+  optional uint32 weak_bind_size = 6;
+  optional uint32 lazy_bind_off = 7;
+  optional uint32 lazy_bind_size = 8;
+  optional uint32 export_off = 9;
+  optional uint32 export_size = 10;
+}
+
 message Dysymtab {
   optional uint32 ilocalsym = 3;
   optional uint32 nlocalsym = 4;
@@ -104,8 +117,9 @@ message File {
   repeated bytes rpaths = 16;
   repeated string entitlements = 17;
   optional Dysymtab dysymtab = 18;
-  optional LinkedItData code_signature_data = 19;
-  optional Certificates certificates = 20;
+  optional DyldInfo dyld_info = 19;
+  optional LinkedItData code_signature_data = 20;
+  optional Certificates certificates = 21;
 }
 
 message Macho {
@@ -127,17 +141,18 @@ message Macho {
   optional LinkedItData code_signature_data = 15;
   repeated Segment segments = 16;
   repeated Dylib dylibs = 17;
-  repeated bytes rpaths = 18;
-  repeated string entitlements = 19;
-  optional Certificates certificates = 20;
+  optional DyldInfo dyld_info = 18;
+  repeated bytes rpaths = 19;
+  repeated string entitlements = 20;
+  optional Certificates certificates = 21;
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 21 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 22;
-  repeated FatArch fat_arch = 23;
+  optional uint32 fat_magic = 22 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 23;
+  repeated FatArch fat_arch = 24;
 
   // Nested Mach-O files
-  repeated File file = 24;
+  repeated File file = 25;
 }
 
 enum HEADER {

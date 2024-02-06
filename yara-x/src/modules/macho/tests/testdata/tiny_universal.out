@@ -164,6 +164,17 @@ file:
         nextrel: 6
         locreloff: 0
         nlocrel: 0
+    dyld_info:
+        rebase_off: 8192
+        rebase_size: 16
+        bind_off: 8208
+        bind_size: 24
+        weak_bind_off: 0
+        weak_bind_size: 0
+        lazy_bind_off: 8232
+        lazy_bind_size: 28
+        export_off: 8260
+        export_size: 60
   - magic: 0xcffaedfe
     cputype: 0x1000007
     cpusubtype: 0x80000003
@@ -334,3 +345,14 @@ file:
         nextrel: 6
         locreloff: 0
         nlocrel: 0
+    dyld_info:
+        rebase_off: 8192
+        rebase_size: 8
+        bind_off: 8200
+        bind_size: 24
+        weak_bind_off: 0
+        weak_bind_size: 0
+        lazy_bind_off: 8224
+        lazy_bind_size: 32
+        export_off: 8256
+        export_size: 64

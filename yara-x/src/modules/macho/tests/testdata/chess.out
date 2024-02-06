@@ -489,6 +489,17 @@ dylibs:
     timestamp: 2 # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "1.0.0"
+dyld_info:
+    rebase_off: 253952
+    rebase_size: 1312
+    bind_off: 255264
+    bind_size: 4104
+    weak_bind_off: 259368
+    weak_bind_size: 48
+    lazy_bind_off: 259416
+    lazy_bind_size: 4040
+    export_off: 263456
+    export_size: 32
 entitlements:
   - "com.apple.developer.game-center"
   - "com.apple.private.tcc.allow"

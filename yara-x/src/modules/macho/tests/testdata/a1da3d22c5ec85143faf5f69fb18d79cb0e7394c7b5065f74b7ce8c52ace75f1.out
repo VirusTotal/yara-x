@@ -210,6 +210,17 @@ file:
         nextrel: 8
         locreloff: 0
         nlocrel: 0
+    dyld_info:
+        rebase_off: 32768
+        rebase_size: 8
+        bind_off: 32776
+        bind_size: 24
+        weak_bind_off: 0
+        weak_bind_size: 0
+        lazy_bind_off: 32800
+        lazy_bind_size: 72
+        export_off: 32872
+        export_size: 112
   - magic: 0xcffaedfe
     cputype: 0x100000c
     cpusubtype: 0x0
