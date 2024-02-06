@@ -6,6 +6,11 @@ ncmds: 4
 sizeofcmds: 652
 flags: 0x2000
 number_of_segments: 1
+symtab:
+    symoff: 3540
+    nsyms: 25
+    stroff: 3840
+    strsize: 496
 dysymtab:
     ilocalsym: 0
     nlocalsym: 3

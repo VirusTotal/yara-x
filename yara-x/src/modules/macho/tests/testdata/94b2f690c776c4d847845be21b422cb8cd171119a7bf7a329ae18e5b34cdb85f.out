@@ -7,6 +7,11 @@ sizeofcmds: 928
 flags: 0x1
 number_of_segments: 4
 entry_point: 3952
+symtab:
+    symoff: 40960
+    nsyms: 3295
+    stroff: 80500
+    strsize: 46263
 segments:
   - segname: "__PAGEZERO"
     vmaddr: 0x0

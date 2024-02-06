@@ -41,6 +41,7 @@ const LC_REQ_DYLD: u32 = 0x80000000;
 
 /// Mach-O load commands
 const LC_SEGMENT: u32 = 0x00000001;
+const LC_SYMTAB: u32 = 0x00000002;
 const LC_UNIXTHREAD: u32 = 0x00000005;
 const LC_DYSYMTAB: u32 = 0x0000000b;
 const LC_LOAD_DYLIB: u32 = 0x0000000c;
@@ -249,6 +250,7 @@ impl<'a> MachO<'a> {
             segments: Vec::new(),
             dylibs: Vec::new(),
             rpaths: Vec::new(),
+            symtab: None,
             dysymtab: None,
             dynamic_linker: None,
             dyld_info: None,
@@ -311,6 +313,7 @@ pub struct MachOFile<'a> {
     header: MachOHeader,
     segments: Vec<Segment<'a>>,
     dylibs: Vec<Dylib<'a>>,
+    symtab: Option<Symtab>,
     dysymtab: Option<Dysymtab>,
     dyld_info: Option<DyldInfo>,
     dynamic_linker: Option<&'a [u8]>,
@@ -450,6 +453,10 @@ impl<'a> MachOFile<'a> {
                     let (_, dylinker) = self.dylinker_command()(command_data)?;
                     self.dynamic_linker = Some(dylinker);
                 }
+                LC_SYMTAB => {
+                    let (_, symtab) = self.symtab_command()(command_data)?;
+                    self.symtab = Some(symtab);
+                }
                 LC_DYSYMTAB => {
                     let (_, dysymtab) = self.dysymtab_command()(command_data)?;
                     self.dysymtab = Some(dysymtab);
@@ -585,6 +592,26 @@ impl<'a> MachOFile<'a> {
                 },
             ))
         }
+    }
+
+    /// Parser that parses a LC_DYSYMTAB command.
+    fn symtab_command(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Symtab> + '_ {
+        map(
+            tuple((
+                u32(self.endianness), //  symoff
+                u32(self.endianness), //  nsyms
+                u32(self.endianness), //  stroff
+                u32(self.endianness), //  strsize
+            )),
+            |(symoff, nsyms, stroff, strsize)| Symtab {
+                symoff,
+                nsyms,
+                stroff,
+                strsize,
+            },
+        )
     }
 
     /// Parser that parses a LC_DYSYMTAB command.
@@ -1120,6 +1147,13 @@ struct LinkedItData {
     datasize: u32,
 }
 
+struct Symtab {
+    symoff: u32,
+    nsyms: u32,
+    stroff: u32,
+    strsize: u32,
+}
+
 struct Dysymtab {
     ilocalsym: u32,
     nlocalsym: u32,
@@ -1209,6 +1243,10 @@ impl From<MachO<'_>> for protos::macho::Macho {
             result.source_version = m.source_version.to_owned();
             result.dynamic_linker = m.dynamic_linker.map(|dl| dl.into());
 
+            if let Some(symtab) = &m.symtab {
+                result.symtab = MessageField::some(symtab.into());
+            }
+
             if let Some(dysymtab) = &m.dysymtab {
                 result.dysymtab = MessageField::some(dysymtab.into());
             }
@@ -1260,6 +1298,10 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         result.stack_size = macho.stack_size;
         result.source_version = macho.source_version.to_owned();
         result.dynamic_linker = macho.dynamic_linker.map(|dl| dl.into());
+
+        if let Some(symtab) = &macho.symtab {
+            result.symtab = MessageField::some(symtab.into());
+        }
 
         if let Some(dysymtab) = &macho.dysymtab {
             result.dysymtab = MessageField::some(dysymtab.into());
@@ -1349,6 +1391,17 @@ impl From<&Dylib<'_>> for protos::macho::Dylib {
         result.set_current_version(convert_to_version_string(
             dylib.current_version,
         ));
+        result
+    }
+}
+
+impl From<&Symtab> for protos::macho::Symtab {
+    fn from(symtab: &Symtab) -> Self {
+        let mut result = protos::macho::Symtab::new();
+        result.set_symoff(symtab.symoff);
+        result.set_nsyms(symtab.nsyms);
+        result.set_stroff(symtab.stroff);
+        result.set_strsize(symtab.strsize);
         result
     }
 }

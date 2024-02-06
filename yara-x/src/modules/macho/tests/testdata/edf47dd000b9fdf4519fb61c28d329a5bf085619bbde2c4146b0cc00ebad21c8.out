@@ -7,6 +7,11 @@ sizeofcmds: 11416
 flags: 0x2918085
 reserved: 0
 number_of_segments: 5
+symtab:
+    symoff: 19727320
+    nsyms: 18093
+    stroff: 20062220
+    strsize: 950608
 dysymtab:
     ilocalsym: 0
     nlocalsym: 22

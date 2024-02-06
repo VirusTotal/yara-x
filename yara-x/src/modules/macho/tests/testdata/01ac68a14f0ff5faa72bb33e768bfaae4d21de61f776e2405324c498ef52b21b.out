@@ -8,6 +8,11 @@ flags: 0x18085
 reserved: 0
 number_of_segments: 3
 source_version: "0.0.0.0.0"
+symtab:
+    symoff: 34352
+    nsyms: 166
+    stroff: 37600
+    strsize: 5864
 dysymtab:
     ilocalsym: 0
     nlocalsym: 40

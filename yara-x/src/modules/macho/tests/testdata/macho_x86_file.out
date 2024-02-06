@@ -10,6 +10,11 @@ dynamic_linker: "/usr/lib/dyld"
 entry_point: 3728
 stack_size: 0
 source_version: "0.0.0.0.0"
+symtab:
+    symoff: 8328
+    nsyms: 5
+    stroff: 8412
+    strsize: 60
 dysymtab:
     ilocalsym: 0
     nlocalsym: 0

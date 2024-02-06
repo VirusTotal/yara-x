@@ -8,6 +8,11 @@ flags: 0x85
 number_of_segments: 5
 dynamic_linker: "/usr/lib/dyld"
 entry_point: 3092
+symtab:
+    symoff: 20480
+    nsyms: 254
+    stroff: 23860
+    strsize: 5268
 dysymtab:
     ilocalsym: 0
     nlocalsym: 177
