@@ -129,6 +129,7 @@ message File {
   optional DyldInfo dyld_info = 20;
   optional LinkedItData code_signature_data = 21;
   optional Certificates certificates = 22;
+  optional string uuid = 23;
 }
 
 message Macho {
@@ -155,14 +156,15 @@ message Macho {
   repeated bytes rpaths = 20;
   repeated string entitlements = 21;
   optional Certificates certificates = 22;
+  optional string uuid = 23;
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 23 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 24;
-  repeated FatArch fat_arch = 25;
+  optional uint32 fat_magic = 24 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 25;
+  repeated FatArch fat_arch = 26;
 
   // Nested Mach-O files
-  repeated File file = 26;
+  repeated File file = 27;
 }
 
 enum HEADER {

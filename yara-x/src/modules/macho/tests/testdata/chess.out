@@ -828,3 +828,4 @@ certificates:
       - "Software Signing"
     signer_names:
       - "CN=Apple Code Signing Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+uuid: "18455A71-F835-3D0F-8F7C-215BF86BC7AF"

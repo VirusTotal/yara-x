@@ -457,3 +457,4 @@ certificates:
       - "Developer ID Application: EFI Inc (82PCFB3NFC)"
     signer_names:
       - "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+uuid: "B23FC3D5-BDF8-3056-930A-C93E0F547B78"

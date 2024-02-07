@@ -233,6 +233,7 @@ file:
         lazy_bind_size: 72
         export_off: 32872
         export_size: 112
+    uuid: "58E31296-DF6F-3EA8-BA92-40781CECDA18"
   - magic: 0xcffaedfe
     cputype: 0x100000c
     cpusubtype: 0x0
@@ -372,3 +373,4 @@ file:
     code_signature_data:
         dataoff: 33120
         datasize: 408
+    uuid: "DDE8659B-7481-3A87-BF12-0DA778978AD8"

@@ -50,6 +50,7 @@ const LC_LOAD_DYLINKER: u32 = 0x0000000e;
 const LC_ID_DYLINKER: u32 = 0x0000000f;
 const LC_LOAD_WEAK_DYLIB: u32 = 0x18 | LC_REQ_DYLD;
 const LC_SEGMENT_64: u32 = 0x00000019;
+const LC_UUID: u32 = 0x00000001b;
 const LC_RPATH: u32 = 0x1c | LC_REQ_DYLD;
 const LC_CODE_SIGNATURE: u32 = 0x0000001d;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
@@ -261,6 +262,7 @@ impl<'a> MachO<'a> {
             code_signature_data: None,
             entitlements: Vec::new(),
             certificates: None,
+            uuid: None,
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -337,6 +339,7 @@ pub struct MachOFile<'a> {
     dynamic_linker: Option<&'a [u8]>,
     source_version: Option<String>,
     rpaths: Vec<&'a [u8]>,
+    uuid: Option<&'a [u8]>,
     code_signature_data: Option<LinkedItData>,
     entitlements: Vec<String>,
     certificates: Option<Certificates>,
@@ -487,6 +490,10 @@ impl<'a> MachOFile<'a> {
                     let (_, dyld_info) =
                         self.dyld_info_command()(command_data)?;
                     self.dyld_info = Some(dyld_info);
+                }
+                LC_UUID => {
+                    let (_, uuid) = self.uuid_command()(command_data)?;
+                    self.uuid = Some(uuid);
                 }
                 _ => {}
             }
@@ -894,6 +901,17 @@ impl<'a> MachOFile<'a> {
         }
     }
 
+    /// Parser that parses a LC_UUID command.
+    fn uuid_command(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], &'a [u8]> + '_ {
+        move |input: &'a [u8]| {
+            let (_, uuid) = take(16usize)(input)?;
+
+            Ok((&[], BStr::new(uuid).trim_end_with(|c| c == '\0')))
+        }
+    }
+
     /// Parser that parses a LC_SOURCE_VERSION command.
     fn source_version_command(
         &self,
@@ -1284,6 +1302,24 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 result.dyld_info = MessageField::some(dyld_info.into());
             };
 
+            if let Some(uuid) = &m.uuid {
+                let mut uuid_str = String::new();
+
+                for (idx, c) in uuid.iter().enumerate() {
+                    match idx {
+                        3 | 5 | 7 | 9 => {
+                            uuid_str.push_str(format!("{:02X}", c).as_str());
+                            uuid_str.push('-');
+                        }
+                        _ => {
+                            uuid_str.push_str(format!("{:02X}", c).as_str());
+                        }
+                    }
+                }
+
+                result.uuid = Some(uuid_str.clone());
+            }
+
             result.segments.extend(m.segments.iter().map(|seg| seg.into()));
             result.dylibs.extend(m.dylibs.iter().map(|dylib| dylib.into()));
             result
@@ -1338,6 +1374,24 @@ impl From<&MachOFile<'_>> for protos::macho::File {
         if let Some(dyld_info) = &macho.dyld_info {
             result.dyld_info = MessageField::some(dyld_info.into());
         };
+
+        if let Some(uuid) = &macho.uuid {
+            let mut uuid_str = String::new();
+
+            for (idx, c) in uuid.iter().enumerate() {
+                match idx {
+                    3 | 5 | 7 | 9 => {
+                        uuid_str.push_str(format!("{:02X}", c).as_str());
+                        uuid_str.push('-');
+                    }
+                    _ => {
+                        uuid_str.push_str(format!("{:02X}", c).as_str());
+                    }
+                }
+            }
+
+            result.uuid = Some(uuid_str.clone());
+        }
 
         result.segments.extend(macho.segments.iter().map(|seg| seg.into()));
         result.dylibs.extend(macho.dylibs.iter().map(|dylib| dylib.into()));

@@ -166,3 +166,4 @@ dyld_info:
     export_size: 44
 rpaths:
   - "@loader_path/../Frameworks"
+uuid: "5FB5950F-4025-3D4F-A8FB-9648C1740790"
