@@ -234,6 +234,10 @@ file:
         export_off: 32872
         export_size: 112
     uuid: "58E31296-DF6F-3EA8-BA92-40781CECDA18"
+    min_version:
+        device: 36
+        version: "10.6.0"
+        sdk: "12.6.0"
   - magic: 0xcffaedfe
     cputype: 0x100000c
     cpusubtype: 0x0

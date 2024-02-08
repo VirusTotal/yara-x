@@ -188,6 +188,10 @@ file:
         export_off: 8260
         export_size: 60
     uuid: "0443555D-A992-3B9E-8BCE-5D9FC8BAC0E9"
+    min_version:
+        device: 36
+        version: "10.9.0"
+        sdk: "10.10.0"
   - magic: 0xcffaedfe
     cputype: 0x1000007
     cpusubtype: 0x80000003
@@ -382,3 +386,7 @@ file:
         export_off: 8256
         export_size: 64
     uuid: "57199705-E3C0-352D-BBE8-3990B1A732B7"
+    min_version:
+        device: 36
+        version: "10.9.0"
+        sdk: "10.10.0"

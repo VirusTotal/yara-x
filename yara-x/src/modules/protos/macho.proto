@@ -10,6 +10,12 @@ option (yara.module_options) = {
   rust_module: "macho"
 };
 
+message MinVersion {
+  optional uint32 device = 1;
+  optional string version = 2;
+  optional string sdk = 3;
+}
+
 message BuildVersion {
   optional uint32 platform = 1;
   optional string minos = 2;
@@ -144,6 +150,7 @@ message File {
   optional Certificates certificates = 22;
   optional string uuid = 23;
   optional BuildVersion build_version = 24;
+  optional MinVersion min_version = 25;
 }
 
 message Macho {
@@ -172,14 +179,16 @@ message Macho {
   optional Certificates certificates = 22;
   optional string uuid = 23;
   optional BuildVersion build_version = 24;
+  optional MinVersion min_version = 25;
+
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 25 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 26;
-  repeated FatArch fat_arch = 27;
+  optional uint32 fat_magic = 26 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 27;
+  repeated FatArch fat_arch = 28;
 
   // Nested Mach-O files
-  repeated File file = 28;
+  repeated File file = 29;
 }
 
 enum HEADER {
@@ -410,4 +419,12 @@ enum SECTION_ATTRIBUTES {
   S_ATTR_SOME_INSTRUCTIONS = 0x00000400;
   S_ATTR_EXT_RELOC = 0x00000200;
   S_ATTR_LOC_RELOC = 0x00000100;
+}
+
+enum DEVICE_TYPE {
+  option (yara.enum_options).inline = true;
+  MACOSX = 0x00000024;
+  IPHONEOS = 0x00000025;
+  TVOS = 0x0000002f;
+  WATCHOS = 0x00000030;
 }

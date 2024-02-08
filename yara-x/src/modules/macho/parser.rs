@@ -56,9 +56,13 @@ const LC_CODE_SIGNATURE: u32 = 0x0000001d;
 const LC_REEXPORT_DYLIB: u32 = 0x1f | LC_REQ_DYLD;
 const LC_DYLD_INFO: u32 = 0x00000022;
 const LC_DYLD_INFO_ONLY: u32 = 0x22 | LC_REQ_DYLD;
+const LC_VERSION_MIN_MACOSX: u32 = 0x00000024;
+const LC_VERSION_MIN_IPHONEOS: u32 = 0x00000025;
 const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
 const LC_SOURCE_VERSION: u32 = 0x0000002a;
+const LC_VERSION_MIN_TVOS: u32 = 0x0000002f;
+const LC_VERSION_MIN_WATCHOS: u32 = 0x00000030;
 const LC_BUILD_VERSION: u32 = 0x00000032;
 
 /// Mach-O CPU types
@@ -265,6 +269,7 @@ impl<'a> MachO<'a> {
             certificates: None,
             uuid: None,
             build_version: None,
+            min_version: None,
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -346,6 +351,7 @@ pub struct MachOFile<'a> {
     entitlements: Vec<String>,
     certificates: Option<Certificates>,
     build_version: Option<BuildVersionCommand>,
+    min_version: Option<MinVersion>,
 }
 
 impl<'a> MachOFile<'a> {
@@ -501,6 +507,15 @@ impl<'a> MachOFile<'a> {
                 LC_BUILD_VERSION => {
                     let (_, bv) = self.build_version_command()(command_data)?;
                     self.build_version = Some(bv);
+                }
+                LC_VERSION_MIN_MACOSX
+                | LC_VERSION_MIN_IPHONEOS
+                | LC_VERSION_MIN_TVOS
+                | LC_VERSION_MIN_WATCHOS => {
+                    let (_, mut mv) =
+                        self.min_version_command()(command_data)?;
+                    mv.device = command;
+                    self.min_version = Some(mv);
                 }
                 _ => {}
             }
@@ -971,6 +986,19 @@ impl<'a> MachOFile<'a> {
         }
     }
 
+    fn min_version_command(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], MinVersion> + '_ {
+        move |input: &'a [u8]| {
+            let (input, (version, sdk)) = tuple((
+                u32(self.endianness), // version
+                u32(self.endianness), // sdk,
+            ))(input)?;
+
+            Ok((input, MinVersion { device: 0, version, sdk }))
+        }
+    }
+
     fn x86_thread_state(
         &self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
@@ -1278,6 +1306,12 @@ struct BuildToolObject {
     version: u32,
 }
 
+struct MinVersion {
+    device: u32,
+    version: u32,
+    sdk: u32,
+}
+
 /// Parser that reads a 32-bits or 64-bits
 fn uint(
     endianness: Endianness,
@@ -1385,6 +1419,10 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 result.build_version = MessageField::some(bv.into());
             }
 
+            if let Some(mv) = &m.min_version {
+                result.min_version = MessageField::some(mv.into());
+            }
+
             result.segments.extend(m.segments.iter().map(|seg| seg.into()));
             result.dylibs.extend(m.dylibs.iter().map(|dylib| dylib.into()));
             result
@@ -1460,6 +1498,10 @@ impl From<&MachOFile<'_>> for protos::macho::File {
 
         if let Some(bv) = &macho.build_version {
             result.build_version = MessageField::some(bv.into());
+        }
+
+        if let Some(mv) = &macho.min_version {
+            result.min_version = MessageField::some(mv.into());
         }
 
         result.segments.extend(macho.segments.iter().map(|seg| seg.into()));
@@ -1627,6 +1669,16 @@ impl From<&BuildToolObject> for protos::macho::BuildTool {
         let mut result = protos::macho::BuildTool::new();
         result.set_tool(bt.tool);
         result.set_version(convert_to_build_tool_version(bt.version));
+        result
+    }
+}
+
+impl From<&MinVersion> for protos::macho::MinVersion {
+    fn from(mv: &MinVersion) -> Self {
+        let mut result = protos::macho::MinVersion::new();
+        result.set_device(mv.device);
+        result.set_version(convert_to_version_string(mv.version));
+        result.set_sdk(convert_to_version_string(mv.sdk));
         result
     }
 }

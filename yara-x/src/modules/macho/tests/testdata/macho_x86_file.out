@@ -167,3 +167,7 @@ dyld_info:
 rpaths:
   - "@loader_path/../Frameworks"
 uuid: "5FB5950F-4025-3D4F-A8FB-9648C1740790"
+min_version:
+    device: 36
+    version: "10.9.0"
+    sdk: "10.10.0"
