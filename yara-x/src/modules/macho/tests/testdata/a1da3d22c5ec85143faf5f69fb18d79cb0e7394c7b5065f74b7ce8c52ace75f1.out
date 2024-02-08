@@ -374,3 +374,11 @@ file:
         dataoff: 33120
         datasize: 408
     uuid: "DDE8659B-7481-3A87-BF12-0DA778978AD8"
+    build_version:
+        platform: 1
+        minos: "12.6.0"
+        sdk: "12.6.0"
+        ntools: 1
+        tools:
+          - tool: 3
+            version: "760.0"

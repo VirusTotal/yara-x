@@ -59,6 +59,7 @@ const LC_DYLD_INFO_ONLY: u32 = 0x22 | LC_REQ_DYLD;
 const LC_DYLD_ENVIRONMENT: u32 = 0x00000027;
 const LC_MAIN: u32 = 0x28 | LC_REQ_DYLD;
 const LC_SOURCE_VERSION: u32 = 0x0000002a;
+const LC_BUILD_VERSION: u32 = 0x00000032;
 
 /// Mach-O CPU types
 const CPU_TYPE_MC680X0: u32 = 0x00000006;
@@ -263,6 +264,7 @@ impl<'a> MachO<'a> {
             entitlements: Vec::new(),
             certificates: None,
             uuid: None,
+            build_version: None,
         };
 
         for _ in 0..macho.header.ncmds as usize {
@@ -343,6 +345,7 @@ pub struct MachOFile<'a> {
     code_signature_data: Option<LinkedItData>,
     entitlements: Vec<String>,
     certificates: Option<Certificates>,
+    build_version: Option<BuildVersionCommand>,
 }
 
 impl<'a> MachOFile<'a> {
@@ -494,6 +497,10 @@ impl<'a> MachOFile<'a> {
                 LC_UUID => {
                     let (_, uuid) = self.uuid_command()(command_data)?;
                     self.uuid = Some(uuid);
+                }
+                LC_BUILD_VERSION => {
+                    let (_, bv) = self.build_version_command()(command_data)?;
+                    self.build_version = Some(bv);
                 }
                 _ => {}
             }
@@ -930,6 +937,40 @@ impl<'a> MachOFile<'a> {
         }
     }
 
+    /// Parser that parses a LC_BUILD_VERSION command.
+    fn build_version_command(
+        &self,
+    ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], BuildVersionCommand> + '_
+    {
+        move |input: &'a [u8]| {
+            let (mut remainder, (platform, minos, sdk, ntools)) =
+                tuple((
+                    u32(self.endianness), // platform,
+                    u32(self.endianness), // minos,
+                    u32(self.endianness), // sdk,
+                    u32(self.endianness), // ntools,
+                ))(input)?;
+
+            let mut tools = Vec::<BuildToolObject>::new();
+
+            for _ in 0..ntools {
+                let (data, (tool, version)) = tuple((
+                    u32(self.endianness), // tool,
+                    u32(self.endianness), // version,
+                ))(remainder)?;
+
+                remainder = data;
+
+                tools.push(BuildToolObject { tool, version })
+            }
+
+            Ok((
+                &[],
+                BuildVersionCommand { platform, minos, sdk, ntools, tools },
+            ))
+        }
+    }
+
     fn x86_thread_state(
         &self,
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], u64> + '_ {
@@ -1224,6 +1265,19 @@ struct DyldInfo {
     export_size: u32,
 }
 
+struct BuildVersionCommand {
+    platform: u32,
+    minos: u32,
+    sdk: u32,
+    ntools: u32,
+    tools: Vec<BuildToolObject>,
+}
+
+struct BuildToolObject {
+    tool: u32,
+    version: u32,
+}
+
 /// Parser that reads a 32-bits or 64-bits
 fn uint(
     endianness: Endianness,
@@ -1245,6 +1299,13 @@ fn convert_to_version_string(decimal_number: u32) -> String {
     let minor = (decimal_number >> 8) & 0xFF;
     let patch = decimal_number & 0xFF;
     format!("{}.{}.{}", major, minor, patch)
+}
+
+/// Convert a decimal number representation to a build version string representation.
+fn convert_to_build_tool_version(decimal_number: u32) -> String {
+    let a = decimal_number >> 16;
+    let b = (decimal_number >> 8) & 0xff;
+    format!("{}.{}", a, b)
 }
 
 /// Convert a decimal number representation to a source version string
@@ -1320,6 +1381,10 @@ impl From<MachO<'_>> for protos::macho::Macho {
                 result.uuid = Some(uuid_str.clone());
             }
 
+            if let Some(bv) = &m.build_version {
+                result.build_version = MessageField::some(bv.into());
+            }
+
             result.segments.extend(m.segments.iter().map(|seg| seg.into()));
             result.dylibs.extend(m.dylibs.iter().map(|dylib| dylib.into()));
             result
@@ -1391,6 +1456,10 @@ impl From<&MachOFile<'_>> for protos::macho::File {
             }
 
             result.uuid = Some(uuid_str.clone());
+        }
+
+        if let Some(bv) = &macho.build_version {
+            result.build_version = MessageField::some(bv.into());
         }
 
         result.segments.extend(macho.segments.iter().map(|seg| seg.into()));
@@ -1537,6 +1606,27 @@ impl From<&DyldInfo> for protos::macho::DyldInfo {
         result.set_lazy_bind_size(dyld_info.lazy_bind_size);
         result.set_export_off(dyld_info.export_off);
         result.set_export_size(dyld_info.export_size);
+        result
+    }
+}
+
+impl From<&BuildVersionCommand> for protos::macho::BuildVersion {
+    fn from(bv: &BuildVersionCommand) -> Self {
+        let mut result = protos::macho::BuildVersion::new();
+        result.set_platform(bv.platform);
+        result.set_ntools(bv.ntools);
+        result.set_minos(convert_to_version_string(bv.minos));
+        result.set_sdk(convert_to_version_string(bv.sdk));
+        result.tools.extend(bv.tools.iter().map(|tool| tool.into()));
+        result
+    }
+}
+
+impl From<&BuildToolObject> for protos::macho::BuildTool {
+    fn from(bt: &BuildToolObject) -> Self {
+        let mut result = protos::macho::BuildTool::new();
+        result.set_tool(bt.tool);
+        result.set_version(convert_to_build_tool_version(bt.version));
         result
     }
 }

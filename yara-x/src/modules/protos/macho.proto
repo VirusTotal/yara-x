@@ -10,6 +10,19 @@ option (yara.module_options) = {
   rust_module: "macho"
 };
 
+message BuildVersion {
+  optional uint32 platform = 1;
+  optional string minos = 2;
+  optional string sdk = 3;
+  optional uint32 ntools = 4;
+  repeated BuildTool tools = 5;
+}
+
+message BuildTool {
+  optional uint32 tool = 1;
+  optional string version = 2;
+}
+
 message LinkedItData {
   optional uint32 dataoff = 1;
   optional uint32 datasize = 2;
@@ -130,6 +143,7 @@ message File {
   optional LinkedItData code_signature_data = 21;
   optional Certificates certificates = 22;
   optional string uuid = 23;
+  optional BuildVersion build_version = 24;
 }
 
 message Macho {
@@ -157,14 +171,15 @@ message Macho {
   repeated string entitlements = 21;
   optional Certificates certificates = 22;
   optional string uuid = 23;
+  optional BuildVersion build_version = 24;
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 24 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 25;
-  repeated FatArch fat_arch = 26;
+  optional uint32 fat_magic = 25 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 26;
+  repeated FatArch fat_arch = 27;
 
   // Nested Mach-O files
-  repeated File file = 27;
+  repeated File file = 28;
 }
 
 enum HEADER {

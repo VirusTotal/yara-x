@@ -726,3 +726,11 @@ rpaths:
   - "@executable_path/Frameworks"
   - "@loader_path/Frameworks"
 uuid: "4C4C44DB-5555-3144-A11B-748AE9A63886"
+build_version:
+    platform: 2
+    minos: "13.4.0"
+    sdk: "17.0.0"
+    ntools: 1
+    tools:
+      - tool: 3
+        version: "16.0"
