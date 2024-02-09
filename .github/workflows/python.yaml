@@ -3,7 +3,7 @@ name: Python extension
 on:
   push:
     paths:
-      - 'yara-x-py/**'
+      - 'py/**'
       - '.github/workflows/python.yaml'
 
 permissions:
