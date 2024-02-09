@@ -55,11 +55,7 @@ jobs:
 
     - name: Build Rust library
       run: cargo build --release -p yara-x -p yara-x-c
-  
-    - name: Set LD_LIBRARY_PATH
-      if: runner.os == 'Linux'
-      run: export LD_LIBRARY_PATH=${{ github.workspace }}/target/release
-      
+        
     - name: Run Go tests
       run: |
           cd go

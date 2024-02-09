@@ -6,7 +6,7 @@
 package yara_x
 
 // #cgo CFLAGS: -I${SRCDIR}/../capi/include
-// #cgo !static_link LDFLAGS: -L${SRCDIR}/../target/release -lyara_x_c
+// #cgo !static_link LDFLAGS: -L${SRCDIR}/../target/release -Wl,-rpath,'${SRCDIR}/../target/release' -lyara_x_c
 // #cgo static_link LDFLAGS: ${SRCDIR}/../target/release/libyara_x_c.a
 // #include <yara-x.h>
 import "C"
