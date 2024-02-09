@@ -106,7 +106,8 @@ pub unsafe extern "C" fn yrx_scanner_scan(
     let data = slice::from_raw_parts(data, len);
     let scan_results = scanner.inner.scan(data);
 
-    if let Err(_) = scan_results {
+    if scan_results.is_err() {
+        // TODO: return appropriate error
         return YRX_ERROR::PANIC;
     }
 
