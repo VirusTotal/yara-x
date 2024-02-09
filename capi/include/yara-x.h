@@ -36,6 +36,12 @@ typedef struct YRX_RULES YRX_RULES;
 // A scanner that scans data with a set of compiled YARA rules.
 typedef struct YRX_SCANNER YRX_SCANNER;
 
+// Contains information about a pattern match.
+typedef struct YRX_MATCH {
+  size_t offset;
+  size_t length;
+} YRX_MATCH;
+
 // Callback function passed to the scanner via [`yrx_scanner_on_matching_rule`]
 // which receives notifications about matching rules.
 //
@@ -50,49 +56,12 @@ typedef struct YRX_SCANNER YRX_SCANNER;
 typedef void (*YRX_ON_MATCHING_RULE)(const struct YRX_RULE *rule,
                                      void *user_data);
 
-// Contains information about a pattern match.
-typedef struct YRX_MATCH {
-  size_t offset;
-  size_t length;
-} YRX_MATCH;
-
 // Compiles YARA source code and creates a [`YRX_RULES`] object that contains
 // the compiled rules.
 //
 // The rules must be destroyed with [`yrx_rules_destroy`].
 enum YRX_ERROR yrx_compile(const char *src,
                            struct YRX_RULES **rules);
-
-// Creates a [`YRX_SCANNER`] object that can be used for scanning data with
-// the provided [`YRX_RULES`].
-//
-// It's ok to pass the same [`YRX_RULES`] to multiple scanners, and use each
-// scanner from a different thread. The scanner can be used as many times as
-// you want, and it must be destroyed with [`yrx_scanner_destroy`]. Also, the
-// scanner is valid as long as the rules are not destroyed, so, always destroy
-// the [`YRX_SCANNER`] object before the [`YRX_RULES`] object.
-enum YRX_ERROR yrx_scanner_create(const struct YRX_RULES *rules,
-                                  struct YRX_SCANNER **scanner);
-
-// Scans a data buffer.
-enum YRX_ERROR yrx_scanner_scan(struct YRX_SCANNER *scanner,
-                                const uint8_t *data,
-                                size_t len);
-
-// Sets a callback function that is called by the scanner for each rule that
-// matched during a scan.
-//
-// The `user_data` pointer can be used to provide additional context to your
-// callback function. If the callback is not set, the scanner doesn't notify
-// about matching rules.
-//
-// See [`YRX_ON_MATCHING_RULE`] for more details.
-enum YRX_ERROR yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
-                                            YRX_ON_MATCHING_RULE callback,
-                                            void *user_data);
-
-// Destroys a [`YRX_SCANNER`] object.
-void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
 
 // Destroys a [`YRX_RULES`] object.
 void yrx_rules_destroy(struct YRX_RULES *rules);
@@ -158,5 +127,36 @@ enum YRX_ERROR yrx_pattern_identifier(const struct YRX_PATTERN *pattern,
 enum YRX_ERROR yrx_pattern_matches(const struct YRX_PATTERN *pattern,
                                    const struct YRX_MATCH **matches,
                                    size_t *len);
+
+// Creates a [`YRX_SCANNER`] object that can be used for scanning data with
+// the provided [`YRX_RULES`].
+//
+// It's ok to pass the same [`YRX_RULES`] to multiple scanners, and use each
+// scanner from a different thread. The scanner can be used as many times as
+// you want, and it must be destroyed with [`yrx_scanner_destroy`]. Also, the
+// scanner is valid as long as the rules are not destroyed, so, always destroy
+// the [`YRX_SCANNER`] object before the [`YRX_RULES`] object.
+enum YRX_ERROR yrx_scanner_create(const struct YRX_RULES *rules,
+                                  struct YRX_SCANNER **scanner);
+
+// Scans a data buffer.
+enum YRX_ERROR yrx_scanner_scan(struct YRX_SCANNER *scanner,
+                                const uint8_t *data,
+                                size_t len);
+
+// Sets a callback function that is called by the scanner for each rule that
+// matched during a scan.
+//
+// The `user_data` pointer can be used to provide additional context to your
+// callback function. If the callback is not set, the scanner doesn't notify
+// about matching rules.
+//
+// See [`YRX_ON_MATCHING_RULE`] for more details.
+enum YRX_ERROR yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
+                                            YRX_ON_MATCHING_RULE callback,
+                                            void *user_data);
+
+// Destroys a [`YRX_SCANNER`] object.
+void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
 
 #endif /* YARA_X */
