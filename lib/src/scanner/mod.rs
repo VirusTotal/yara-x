@@ -816,7 +816,7 @@ pub struct Rule<'a, 'r> {
 
 impl<'a, 'r> Rule<'a, 'r> {
     /// Returns the rule's name.
-    pub fn name(&self) -> &'r str {
+    pub fn identifier(&self) -> &'r str {
         self.rules.ident_pool().get(self.rule_info.ident_id).unwrap()
     }
 

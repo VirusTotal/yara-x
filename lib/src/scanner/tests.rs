@@ -22,18 +22,18 @@ rule rule_4 { condition: false }
     let mut iter = results.matching_rules();
 
     assert_eq!(iter.len(), 2);
-    assert_eq!(iter.next().unwrap().name(), "rule_1");
+    assert_eq!(iter.next().unwrap().identifier(), "rule_1");
     assert_eq!(iter.len(), 1);
-    assert_eq!(iter.next().unwrap().name(), "rule_3");
+    assert_eq!(iter.next().unwrap().identifier(), "rule_3");
     assert_eq!(iter.len(), 0);
     assert!(iter.next().is_none());
 
     let mut iter = results.non_matching_rules();
 
     assert_eq!(iter.len(), 2);
-    assert_eq!(iter.next().unwrap().name(), "rule_2");
+    assert_eq!(iter.next().unwrap().identifier(), "rule_2");
     assert_eq!(iter.len(), 1);
-    assert_eq!(iter.next().unwrap().name(), "rule_4");
+    assert_eq!(iter.next().unwrap().identifier(), "rule_4");
     assert_eq!(iter.len(), 0);
     assert!(iter.next().is_none());
 }
@@ -372,16 +372,16 @@ fn global_rules() {
     assert_eq!(results.matching_rules().len(), 1);
 
     let mut matching = results.matching_rules();
-    assert_eq!(matching.next().unwrap().name(), "matching");
+    assert_eq!(matching.next().unwrap().identifier(), "matching");
     assert!(matching.next().is_none());
 
     let mut non_matching = results.non_matching_rules();
 
     // `global_true` and `non_matching` don't match because they are in the
     // namespace as `global_false`.
-    assert_eq!(non_matching.next().unwrap().name(), "global_true");
-    assert_eq!(non_matching.next().unwrap().name(), "non_matching");
-    assert_eq!(non_matching.next().unwrap().name(), "global_false");
+    assert_eq!(non_matching.next().unwrap().identifier(), "global_true");
+    assert_eq!(non_matching.next().unwrap().identifier(), "non_matching");
+    assert_eq!(non_matching.next().unwrap().identifier(), "global_false");
 
     assert!(non_matching.next().is_none());
 }

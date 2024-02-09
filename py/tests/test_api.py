@@ -82,7 +82,7 @@ def test_namespaces():
   
   assert len(matching_rules) == 2
   
-  assert matching_rules[0].name == 'foo'
+  assert matching_rules[0].identifier == 'foo'
   assert matching_rules[0].namespace == 'foo'
   assert len(matching_rules[0].patterns) == 1
   assert matching_rules[0].patterns[0].identifier == '$foo'
@@ -91,7 +91,7 @@ def test_namespaces():
   assert matching_rules[0].patterns[0].matches[0].length == 3
   assert matching_rules[0].patterns[0].matches[0].xor_key is None
 
-  assert matching_rules[1].name == 'bar'
+  assert matching_rules[1].identifier == 'bar'
   assert matching_rules[1].namespace == 'bar'
   assert len(matching_rules[1].patterns) == 1
   assert matching_rules[1].patterns[0].identifier == '$bar'
@@ -104,7 +104,7 @@ def test_compile_and_scan():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
   matching_rules = rules.scan(b'foobar').matching_rules
   assert len(matching_rules) == 1
-  assert matching_rules[0].name == 'foo'
+  assert matching_rules[0].identifier == 'foo'
   assert matching_rules[0].namespace == 'default'
   assert len(matching_rules[0].patterns) == 1
   assert matching_rules[0].patterns[0].identifier == '$a'
@@ -114,7 +114,7 @@ def test_compiler_and_scanner():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
   matching_rules = rules.scan(b'foobar').matching_rules
   assert len(matching_rules) == 1
-  assert matching_rules[0].name == 'foo'
+  assert matching_rules[0].identifier == 'foo'
   assert matching_rules[0].namespace == 'default'
   assert len(matching_rules[0].patterns) == 1
   assert matching_rules[0].patterns[0].identifier == '$a'
@@ -124,7 +124,7 @@ def test_xor_key():
   rules = yara_x.compile('rule foo {strings: $a = "foo" xor condition: $a}')
   matching_rules = rules.scan(b'\xCC\xC5\xC5').matching_rules
   assert len(matching_rules) == 1
-  assert matching_rules[0].name == 'foo'
+  assert matching_rules[0].identifier == 'foo'
   assert matching_rules[0].namespace == 'default'
   assert len(matching_rules[0].patterns) == 1
   assert matching_rules[0].patterns[0].identifier == '$a'

@@ -47,8 +47,8 @@ jobs:
           pwd
           python -m pip install --upgrade pip maturin
           python -m pip install pytest
-          maturin develop --manifest-path yara-x-py/Cargo.toml
-          pytest yara-x-py
+          maturin develop --manifest-path py/Cargo.toml
+          pytest py
           
       # Non-windows
       - name: Test Python - Non-Windows
@@ -58,6 +58,6 @@ jobs:
           virtualenv venv; source venv/bin/activate
           python -m pip install --upgrade pip maturin
           python -m pip install pytest
-          maturin develop --manifest-path yara-x-py/Cargo.toml
-          pytest yara-x-py
+          maturin develop --manifest-path py/Cargo.toml
+          pytest py
 

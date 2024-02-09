@@ -260,7 +260,7 @@ impl ScanResults {
 /// Represents a rule that matched while scanning some data.
 #[pyclass]
 struct Rule {
-    name: String,
+    identifier: String,
     namespace: String,
     patterns: Vec<Py<Pattern>>,
 }
@@ -269,8 +269,8 @@ struct Rule {
 impl Rule {
     #[getter]
     /// Returns the rule's name.
-    fn name(&self) -> &str {
-        self.name.as_str()
+    fn identifier(&self) -> &str {
+        self.identifier.as_str()
     }
 
     /// Returns the rule's namespace.
@@ -426,7 +426,7 @@ fn rule_to_py(py: Python, rule: yrx::Rule) -> PyResult<Py<Rule>> {
     Py::new(
         py,
         Rule {
-            name: rule.name().to_string(),
+            identifier: rule.identifier().to_string(),
             namespace: rule.namespace().to_string(),
             patterns: rule
                 .patterns()

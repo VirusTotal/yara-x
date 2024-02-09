@@ -15,14 +15,15 @@ rust-version = "1.73.0"
 
 [workspace]
 members = [
-    "yara-x",
-    "yara-x-cli",
-    "yara-x-fmt",
-    "yara-x-macros",
-    "yara-x-parser",
-    "yara-x-proto",
-    "yara-x-proto-yaml",
-    "yara-x-py",
+    "lib",
+    "clib",
+    "cli",
+    "fmt",
+    "macros",
+    "parser",
+    "proto",
+    "proto-yaml",
+    "py",
 ]
 resolver = "2"
 
@@ -84,12 +85,12 @@ walrus = "0.20.2"
 wasmtime = "17.0.0"
 yaml-rust = "0.4.5"
 yansi = "0.5.1"
-yara-x = { path = "yara-x" }
-yara-x-fmt = { path = "yara-x-fmt" }
-yara-x-macros = { path = "yara-x-macros" }
-yara-x-parser = { path = "yara-x-parser" }
-yara-x-proto = { path = "yara-x-proto" }
-yara-x-proto-yaml = { path = "yara-x-proto-yaml" }
+yara-x = { path = "lib" }
+yara-x-fmt = { path = "fmt" }
+yara-x-macros = { path = "macros" }
+yara-x-parser = { path = "parser" }
+yara-x-proto = { path = "proto" }
+yara-x-proto-yaml = { path = "proto-yaml" }
 
 # Special profile that builds a release binary with link-time optimization. 
 # Compiling with this profile takes a while, but the resulting binary is

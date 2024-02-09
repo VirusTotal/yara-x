@@ -290,13 +290,13 @@ fn print_matching_rules(
             format!(
                 "{}:{} {}",
                 Cyan.paint(matching_rule.namespace()).bold(),
-                Cyan.paint(matching_rule.name()).bold(),
+                Cyan.paint(matching_rule.identifier()).bold(),
                 file_path.display(),
             )
         } else {
             format!(
                 "{} {}",
-                Cyan.paint(matching_rule.name()).bold(),
+                Cyan.paint(matching_rule.identifier()).bold(),
                 file_path.display()
             )
         };
