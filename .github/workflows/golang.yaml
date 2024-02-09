@@ -55,6 +55,9 @@ jobs:
 
     - name: Build Rust library
       run: cargo build --release -p yara-x -p yara-x-c
+
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3     
       
     - name: Run Go tests
       run: |
