@@ -8,7 +8,7 @@ package yara_x
 // #cgo CFLAGS: -I${SRCDIR}/../capi/include
 // #cgo !static_link LDFLAGS: -L${SRCDIR}/../target/release -lyara_x_c
 // #cgo static_link LDFLAGS: ${SRCDIR}/../target/release/libyara_x_c.a
-// #import <yara-x.h>
+// #include <yara-x.h>
 import "C"
 import (
 	"runtime"
@@ -104,7 +104,7 @@ func (r *Rule) Patterns() []Pattern {
 	r.patterns = make([]Pattern, numPatterns)
 
 	for i := 0; i < numPatterns; i++ {
-		pattern := C.yrx_patterns_get(r.cPatterns, C.ulong(i))
+		pattern := C.yrx_patterns_get(r.cPatterns, C.size_t(i))
 		if pattern == nil {
 			panic("yrx_patterns_get failed")
 		}

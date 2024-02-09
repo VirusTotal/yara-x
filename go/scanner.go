@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// #import <yara-x.h>
+// #include <yara-x.h>
 // void onMatchingRule(YRX_RULE*, void*);
 import "C"
 
