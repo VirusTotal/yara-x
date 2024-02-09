@@ -104,7 +104,7 @@ func (r *Rule) Patterns() []Pattern {
 	r.patterns = make([]Pattern, numPatterns)
 
 	for i := 0; i < numPatterns; i++ {
-		pattern := C.yrx_patterns_get(r.cPatterns, C.ulong(i))
+		pattern := C.yrx_patterns_get(r.cPatterns, C.size_t(i))
 		if pattern == nil {
 			panic("yrx_patterns_get failed")
 		}
