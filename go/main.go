@@ -6,9 +6,9 @@
 package yara_x
 
 // #cgo CFLAGS: -I${SRCDIR}/../capi/include
-// #cgo !static_link LDFLAGS: -L${SRCDIR}/../target/release -lyara_x_c
-// #cgo static_link LDFLAGS: ${SRCDIR}/../target/release/libyara_x_c.a
-// #include <yara-x.h>
+// #cgo !static_link LDFLAGS: -L${SRCDIR}/../target/release -lyara_x_capi
+// #cgo static_link LDFLAGS: ${SRCDIR}/../target/release/libyara_x_capi.a
+// #import <yara-x.h>
 import "C"
 import (
 	"runtime"

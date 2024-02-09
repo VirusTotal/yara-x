@@ -1,5 +1,5 @@
 [package]
-name = "yara-x-c"
+name = "yara-x-capi"
 description = """
 A C API for the YARA-X library.
 """
@@ -11,7 +11,7 @@ license.workspace = true
 homepage.workspace = true
 
 [lib]
-name = "yara_x_c"
+name = "yara_x_capi"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]

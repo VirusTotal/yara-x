@@ -4418,7 +4418,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "yara-x-c"
+name = "yara-x-capi"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
