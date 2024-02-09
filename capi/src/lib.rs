@@ -54,7 +54,7 @@ pub unsafe extern "C" fn yrx_compile(
 
     match yara_x::compile(c_str.to_bytes()) {
         Ok(r) => *rules = Box::into_raw(Box::new(YRX_RULES(r))),
-        Err(err) => return YRX_ERROR::SYNTAX_ERROR,
+        Err(_) => return YRX_ERROR::SYNTAX_ERROR,
     };
 
     YRX_ERROR::SUCCESS
