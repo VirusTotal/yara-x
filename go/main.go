@@ -5,7 +5,7 @@
 // its dependencies statically.
 package yara_x
 
-// #cgo CFLAGS: -I${SRCDIR}/../clib/include
+// #cgo CFLAGS: -I${SRCDIR}/../capi/include
 // #cgo !static_link LDFLAGS: -L${SRCDIR}/../target/release -lyara_x_c
 // #cgo static_link LDFLAGS: ${SRCDIR}/../target/release/libyara_x_c.a
 // #import <yara-x.h>

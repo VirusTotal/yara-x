@@ -9,7 +9,7 @@ func TestScanner1(t *testing.T) {
 	matchingRules := s.Scan([]byte{})
 
 	assert.Len(t, matchingRules, 1)
-	assert.Equal(t, "t", matchingRules[0].Name())
+	assert.Equal(t, "t", matchingRules[0].Identifier())
 	assert.Equal(t, "default", matchingRules[0].Namespace())
 	assert.Len(t, matchingRules[0].Patterns(), 0)
 }
@@ -19,7 +19,7 @@ func TestScanner2(t *testing.T) {
 	matchingRules := s.Scan([]byte("foobar"))
 
 	assert.Len(t, matchingRules, 1)
-	assert.Equal(t, "t", matchingRules[0].Name())
+	assert.Equal(t, "t", matchingRules[0].Identifier())
 	assert.Equal(t, "default", matchingRules[0].Namespace())
 
 	assert.Len(t, matchingRules[0].Patterns(), 1)

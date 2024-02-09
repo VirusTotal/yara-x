@@ -9,7 +9,6 @@ import (
 
 // #import <yara-x.h>
 // void onMatchingRule(YRX_RULE*, void*);
-// char fault(size_t p);
 import "C"
 
 // Scanner scans data with a set of compiled YARA rules.
