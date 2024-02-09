@@ -1,0 +1,19 @@
+[package]
+name = "yara-x-c"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[lib]
+name = "yara_x_c"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+yara-x = { workspace = true }
+
+[build-dependencies]
+cbindgen = "0.26.0"
