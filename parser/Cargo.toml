@@ -1,9 +1,11 @@
 [package]
 name = "yara-x-parser"
+description = """
+A parsing library for YARA rules.
+"""
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true

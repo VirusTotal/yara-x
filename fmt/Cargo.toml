@@ -1,9 +1,11 @@
 [package]
 name = "yara-x-fmt"
+description = """
+A code-formatting library for YARA rules.
+"""
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true

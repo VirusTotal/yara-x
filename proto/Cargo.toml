@@ -1,6 +1,8 @@
 [package]
 name = "yara-x-proto"
-description = "Protocol buffer with options for YARA modules"
+description = """
+Protocol buffer with options for YARA modules.
+"""
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

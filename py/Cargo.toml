@@ -1,5 +1,8 @@
 [package]
 name = "yara-x-py"
+description = """
+Python bindings for YARA-X library.
+"""
 version.workspace = true
 edition.workspace = true
 

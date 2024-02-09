@@ -1,7 +1,9 @@
 [package]
 name = "yara-x-proto-yaml"
+description = """
+Library the converts protocol buffers into YAML.
+"""
 version.workspace = true
-description.workspace = true
 authors.workspace = true
 edition.workspace = true
 homepage.workspace = true

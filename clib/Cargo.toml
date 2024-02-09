@@ -1,9 +1,11 @@
 [package]
 name = "yara-x-c"
+description = """
+A C API for the YARA-X library.
+"""
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description.workspace = true
 readme.workspace = true
 license.workspace = true
 homepage.workspace = true
