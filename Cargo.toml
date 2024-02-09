@@ -15,7 +15,7 @@ rust-version = "1.73.0"
 [workspace]
 members = [
     "lib",
-    "clib",
+    "capi",
     "cli",
     "fmt",
     "macros",
