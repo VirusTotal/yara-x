@@ -47,9 +47,9 @@ jobs:
       run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-static" >> $GITHUB_ENV
 
     - name: Build Rust library
-      run: cargo build --release
+      run: cargo build --release --features openssl-static -p yara-x -p yara-x-c
       
     - name: Run Go tests
       run: |
           cd go
-          go test
+          go test -tags static_link
