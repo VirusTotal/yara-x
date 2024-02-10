@@ -15,6 +15,10 @@ fn test_macho_module() {
         "src/modules/macho/tests/testdata/macho_x86_file.in.zip",
     );
 
+    let chess_macho_data = create_binary_from_zipped_ihex(
+        "src/modules/macho/tests/testdata/chess.in.zip",
+    );
+
     rule_true!(
         r#"
         import "macho"
@@ -273,5 +277,38 @@ fn test_macho_module() {
         }
         "#,
         &x86_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.entitlement_present("com.apple.security.network.client")
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.entitlement_present("COM.ApplE.security.NetWoRK.client")
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_false!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.entitlement_present("made-up-entitlement")
+        }
+        "#,
+        &chess_macho_data
     );
 }
