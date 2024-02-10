@@ -831,6 +831,7 @@ impl<'a, 'r> Rule<'a, 'r> {
             ctx: self.ctx,
             data: self.data,
             iterator: self.rule_info.patterns.iter(),
+            len: self.rule_info.patterns.len(),
         }
     }
 }
@@ -840,6 +841,7 @@ pub struct Patterns<'a, 'r> {
     ctx: &'a ScanContext<'r>,
     data: &'a ScannedData<'a>,
     iterator: Iter<'a, (IdentId, PatternId)>,
+    len: usize,
 }
 
 impl<'a, 'r> Iterator for Patterns<'a, 'r> {
@@ -853,6 +855,13 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
             pattern_id: *pattern_id,
             ident_id: *ident_id,
         })
+    }
+}
+
+impl<'a, 'r> ExactSizeIterator for Patterns<'a, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
     }
 }
 
