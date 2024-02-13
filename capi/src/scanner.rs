@@ -3,7 +3,6 @@ use std::slice;
 use std::time::Duration;
 use yara_x::ScanError;
 
-use crate::compiler::YRX_COMPILER;
 use crate::{YRX_RESULT, YRX_RULE, YRX_RULES};
 
 /// A scanner that scans data with a set of compiled YARA rules.
@@ -70,6 +69,10 @@ pub unsafe extern "C" fn yrx_scanner_timeout(
 }
 
 /// Scans a data buffer.
+///
+/// `data` can be null as long as `len` is 0. In such cases its handled as
+/// empty data. Some YARA rules (i.e: `rule dummy { condition: true }`) can
+/// match even with empty data.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_scan(
     scanner: *mut YRX_SCANNER,
@@ -80,14 +83,19 @@ pub unsafe extern "C" fn yrx_scanner_scan(
         return YRX_RESULT::INVALID_ARGUMENT;
     }
 
-    // Data is allowed to be null as long as len is 0. This case is handled
+    // `data` is allowed to be null as long as `len` is 0. This case is handled
     // as an empty slice.
     if data.is_null() && len > 0 {
         return YRX_RESULT::INVALID_ARGUMENT;
     }
 
+    let data = if data.is_null() || len == 0 {
+        &[]
+    } else {
+        slice::from_raw_parts(data, len)
+    };
+
     let scanner = scanner.as_mut().unwrap();
-    let data = slice::from_raw_parts(data, len);
     let scan_results = scanner.inner.scan(data);
 
     if let Err(err) = scan_results {

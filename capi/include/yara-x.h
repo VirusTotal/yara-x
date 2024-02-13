@@ -208,6 +208,10 @@ enum YRX_RESULT yrx_scanner_timeout(struct YRX_SCANNER *scanner,
                                     uint64_t timeout);
 
 // Scans a data buffer.
+//
+// `data` can be null as long as `len` is 0. In such cases its handled as
+// empty data. Some YARA rules (i.e: `rule dummy { condition: true }`) can
+// match even with empty data.
 enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner,
                                  const uint8_t *data,
                                  size_t len);

@@ -22,6 +22,9 @@ use std::ptr::slice_from_raw_parts_mut;
 mod compiler;
 mod scanner;
 
+#[cfg(test)]
+mod tests;
+
 pub use scanner::*;
 
 #[repr(C)]
