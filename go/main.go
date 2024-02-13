@@ -17,12 +17,12 @@ import (
 
 // Compile receives YARA source code and returns compiled Rules that can be
 // used for scanning data.
-func Compile(source string) *Rules {
-	s := C.CString(source)
-	r := &Rules{}
-	C.yrx_compile(s, &(r.cRules))
-	runtime.SetFinalizer(r, (*Rules).Destroy)
-	return r
+func Compile(source string) (*Rules, error) {
+	c := NewCompiler()
+	if err := c.AddSource(source); err != nil {
+		return nil, err
+	}
+	return c.Build(), nil
 }
 
 // Rules represents a set of compiled YARA rules.
@@ -45,7 +45,7 @@ type Rule struct {
 	namespace  string
 	identifier string
 	cPatterns  *C.YRX_PATTERNS
-	patterns  []Pattern
+	patterns   []Pattern
 }
 
 // Creates a new Rule from it's C counterpart.
@@ -65,22 +65,19 @@ func newRule(cRule *C.YRX_RULE) *Rule {
 
 	identifier := C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len))
 
-	cPatterns := C.yrx_rule_patterns(cRule)
-
-	if cPatterns == nil {
-		panic("yrx_rule_patterns failed")
+	rule := &Rule{
+		namespace,
+		identifier,
+		C.yrx_rule_patterns(cRule),
+		nil,
 	}
 
-	rule := &Rule{namespace, identifier, cPatterns, nil}
 	runtime.SetFinalizer(rule, (*Rule).destroy)
 	return rule
 }
 
 func (r *Rule) destroy() {
-	if r.cPatterns != nil {
-		C.yrx_patterns_destroy(r.cPatterns)
-		r.cPatterns = nil
-	}
+	C.yrx_patterns_destroy(r.cPatterns)
 	runtime.SetFinalizer(r, nil)
 }
 
@@ -96,52 +93,33 @@ func (r *Rule) Namespace() string {
 
 // Patterns returns the patterns defined by this rule.
 func (r *Rule) Patterns() []Pattern {
+	// If this method was called before, return the patterns already cached.
 	if r.patterns != nil {
 		return r.patterns
 	}
 
-	numPatterns := int(C.yrx_patterns_count(r.cPatterns))
+	numPatterns := int(r.cPatterns.num_patterns)
+	cPatterns := unsafe.Slice(r.cPatterns.patterns, numPatterns)
 	r.patterns = make([]Pattern, numPatterns)
 
-	for i := 0; i < numPatterns; i++ {
-		pattern := C.yrx_patterns_get(r.cPatterns, C.size_t(i))
-		if pattern == nil {
-			panic("yrx_patterns_get failed")
-		}
+	for i, pattern := range cPatterns {
+		numMatches := int(pattern.num_matches)
+		cMatches := unsafe.Slice(pattern.matches, numMatches)
+		matches := make([]Match, numMatches)
 
-		var str *C.uint8_t
-		var len C.size_t
-
-		if C.yrx_pattern_identifier(pattern, &str, &len) != C.SUCCESS {
-			panic("yrx_pattern_identifier failed")
-		}
-
-		identifier := C.GoStringN((*C.char)(unsafe.Pointer(str)), C.int(len))
-
-		var ptrMatches *C.YRX_MATCH
-		var numMatches C.size_t
-
-		if C.yrx_pattern_matches(pattern, &ptrMatches, &numMatches) != C.SUCCESS {
-			panic("yrx_pattern_matches failed")
-		}
-
-		matches := make([]Match, int(numMatches))
-
-		for i := 0; i < int(numMatches); i++ {
-			match := *(*C.YRX_MATCH)(unsafe.Add(
-				unsafe.Pointer(ptrMatches),
-				i*C.sizeof_YRX_MATCH))
-			matches[i] = Match{
+		for j, match := range cMatches {
+			matches[j] = Match{
 				offset: uint(match.offset),
 				length: uint(match.length),
 			}
 		}
 
 		r.patterns[i] = Pattern{
-			identifier: identifier,
+			identifier: C.GoString(pattern.identifier),
 			matches:    matches,
 		}
 	}
+
 	return r.patterns
 }
 

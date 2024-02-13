@@ -3,6 +3,7 @@ use std::io;
 
 use thiserror::Error;
 
+use crate::VariableError;
 use yara_x_macros::Error as DeriveError;
 use yara_x_parser::ast::Span;
 use yara_x_parser::report::ReportBuilder;
@@ -29,16 +30,20 @@ pub enum SerializationError {
 pub struct EmitWasmError(#[from] anyhow::Error);
 
 /// Errors returned by the compiler.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Eq, PartialEq)]
 pub enum Error {
     #[error(transparent)]
     ParseError(#[from] ParseError),
 
     #[error(transparent)]
     CompileError(#[from] CompileError),
+
+    #[error(transparent)]
+    VariableError(#[from] VariableError),
 }
 
 /// Error produced while compiling rules.
+#[derive(Eq, PartialEq)]
 pub struct CompileError(Box<CompileErrorInfo>);
 
 impl CompileError {
@@ -69,7 +74,7 @@ impl From<CompileErrorInfo> for CompileError {
 impl std::error::Error for CompileError {}
 
 /// An error occurred during the compilation process.
-#[derive(DeriveError)]
+#[derive(DeriveError, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CompileErrorInfo {
     #[error("wrong type")]

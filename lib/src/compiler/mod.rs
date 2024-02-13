@@ -370,19 +370,21 @@ impl<'a> Compiler<'a> {
         &mut self,
         ident: &str,
         value: T,
-    ) -> Result<&mut Self, VariableError>
+    ) -> Result<&mut Self, Error>
     where
-        VariableError: From<<T as TryInto<Variable>>::Error>,
+        Error: From<<T as TryInto<Variable>>::Error>,
     {
         if !is_valid_identifier(ident) {
-            return Err(VariableError::InvalidIdentifier(ident.to_string()));
+            return Err(
+                VariableError::InvalidIdentifier(ident.to_string()).into()
+            );
         }
 
         let var: Variable = value.try_into()?;
         let type_value: TypeValue = var.into();
 
         if self.root_struct.add_field(ident, type_value).is_some() {
-            return Err(VariableError::AlreadyExists(ident.to_string()));
+            return Err(VariableError::AlreadyExists(ident.to_string()).into());
         }
 
         self.global_symbols

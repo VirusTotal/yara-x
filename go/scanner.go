@@ -2,8 +2,11 @@ package yara_x
 
 import "C"
 import (
+	"errors"
+	"math"
 	"runtime"
 	"runtime/cgo"
+	"time"
 	"unsafe"
 )
 
@@ -14,7 +17,7 @@ import "C"
 // Scanner scans data with a set of compiled YARA rules.
 type Scanner struct {
 	// Pointer to C-side scanner.
-	inner *C.YRX_SCANNER
+	cScanner *C.YRX_SCANNER
 	// The Scanner holds a pointer to the Rules it uses in order to prevent
 	// Rules from being garbage collected while the scanner is in use. If Rules
 	// is garbage collected the associated C.YRX_RULES object is destroyed
@@ -46,8 +49,9 @@ type ScanResults struct{}
 // same set of rules.
 func NewScanner(r *Rules) *Scanner {
 	s := &Scanner{rules: r}
-	// TODO: handle error returned by yrx_scanner_create
-	C.yrx_scanner_create(r.cRules, &s.inner)
+	if C.yrx_scanner_create(r.cRules, &s.cScanner) != C.SUCCESS {
+		panic("yrx_scanner_create failed")
+	}
 
 	// Allocate the memory that will hold the handle. This memory is allocated
 	// using C.malloc because a pointer to it is passed to C code, and we don't
@@ -59,7 +63,7 @@ func NewScanner(r *Rules) *Scanner {
 	*s.handle = cgo.NewHandle(s)
 
 	C.yrx_scanner_on_matching_rule(
-		s.inner,
+		s.cScanner,
 		C.YRX_ON_MATCHING_RULE(C.onMatchingRule),
 		unsafe.Pointer(s.handle))
 
@@ -67,8 +71,22 @@ func NewScanner(r *Rules) *Scanner {
 	return s
 }
 
+// Timeout sets a timeout for scan operations.
+//
+// The Scan method will return a timeout error once the provided timeout
+// duration has elapsed. The scanner will make every effort to stop promptly
+// after the designated timeout duration. However, in some cases, particularly
+// with rules containing only a few patterns, the scanner could potentially
+// continue running for a longer period than the specified timeout.
+func (s *Scanner) Timeout(timeout time.Duration) {
+	C.yrx_scanner_timeout(s.cScanner, C.uint64_t(math.Ceil(timeout.Seconds())))
+	runtime.KeepAlive(s)
+}
+
+var ErrTimeout = errors.New("timeout")
+
 // Scan scans the provided data with the Rules associated to the Scanner.
-func (s *Scanner) Scan(buf []byte) []*Rule {
+func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 	var ptr *C.uint8_t
 	// When `buf` is an empty slice `ptr` will be nil. That's ok, because
 	// yrx_scanner_scan allows the data pointer to be null as long as the data
@@ -76,12 +94,20 @@ func (s *Scanner) Scan(buf []byte) []*Rule {
 	if len(buf) > 0 {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
+
 	s.matchingRules = nil
-	// TODO: handle errors
-	C.yrx_scanner_scan(s.inner, ptr, C.size_t(len(buf)))
-	// Ensure that s is not finalized until yrx_scanner_scan returns.
-	runtime.KeepAlive(s)
-	return s.matchingRules
+
+	var err error
+	switch r := C.yrx_scanner_scan(s.cScanner, ptr, C.size_t(len(buf))); r {
+	case C.SUCCESS:
+		err = nil
+	case C.SCAN_TIMEOUT:
+		err = ErrTimeout
+	default:
+		err = errors.New(C.GoString(C.yrx_scanner_last_error(s.cScanner)))
+	}
+
+	return s.matchingRules, err
 }
 
 // Destroy destroys the scanner.
@@ -89,11 +115,11 @@ func (s *Scanner) Scan(buf []byte) []*Rule {
 // Calling this method directly is not necessary, it will be invoked by the
 // garbage collector when the scanner is not used anymore.
 func (s *Scanner) Destroy() {
-	if s.inner != nil {
-		C.yrx_scanner_destroy(s.inner)
+	if s.cScanner != nil {
+		C.yrx_scanner_destroy(s.cScanner)
 		s.handle.Delete()
 		C.free(unsafe.Pointer(s.handle))
-		s.inner = nil
+		s.cScanner = nil
 	}
 	runtime.SetFinalizer(s, nil)
 }
@@ -109,7 +135,3 @@ func onMatchingRule(rule *C.YRX_RULE, handlePtr unsafe.Pointer) {
 	}
 	scanner.matchingRules = append(scanner.matchingRules, newRule(rule))
 }
-
-
-
-

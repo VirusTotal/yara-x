@@ -250,8 +250,7 @@ impl<'r> Scanner<'r> {
     /// Sets a timeout for scan operations.
     ///
     /// The scan functions will return an [ScanError::Timeout] once the
-    /// provided timeout duration has elapsed. It's important to note that the
-    /// timeout might not be entirely precise, the scanner will make every
+    /// provided timeout duration has elapsed. The scanner will make every
     /// effort to stop promptly after the designated timeout duration. However,
     /// in some cases, particularly with rules containing only a few patterns,
     /// the scanner could potentially continue running for a longer period than
