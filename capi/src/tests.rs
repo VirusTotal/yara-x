@@ -28,7 +28,7 @@ fn capi() {
                     some_bool and \
                     some_str == \"some_str\" and \
                     some_int == 1 and \
-                    some_float == 3.14 \
+                    some_float == 1.5 \
             }"
             .to_vec(),
         )
@@ -40,7 +40,7 @@ fn capi() {
         let some_float = CString::new(b"some_float".to_vec()).unwrap();
 
         yrx_compiler_define_global_int(compiler, some_int.as_ptr(), 1);
-        yrx_compiler_define_global_float(compiler, some_float.as_ptr(), 3.14);
+        yrx_compiler_define_global_float(compiler, some_float.as_ptr(), 1.5);
         yrx_compiler_define_global_bool(compiler, some_bool.as_ptr(), true);
         yrx_compiler_define_global_str(
             compiler,
