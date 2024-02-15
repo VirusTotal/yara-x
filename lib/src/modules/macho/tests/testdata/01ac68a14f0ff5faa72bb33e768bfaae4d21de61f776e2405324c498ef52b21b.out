@@ -459,6 +459,6 @@ certificates:
       - "CN=Developer ID Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
 uuid: "B23FC3D5-BDF8-3056-930A-C93E0F547B78"
 min_version:
-    device: 36
+    device: MACOSX
     version: "10.13.0"
     sdk: "10.13.0"

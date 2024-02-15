@@ -235,7 +235,7 @@ file:
         export_size: 112
     uuid: "58E31296-DF6F-3EA8-BA92-40781CECDA18"
     min_version:
-        device: 36
+        device: MACOSX
         version: "10.6.0"
         sdk: "12.6.0"
   - magic: 0xcffaedfe

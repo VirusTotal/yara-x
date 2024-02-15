@@ -11,7 +11,7 @@ option (yara.module_options) = {
 };
 
 message MinVersion {
-  optional uint32 device = 1;
+  optional DEVICE_TYPE device = 1;
   optional string version = 2;
   optional string sdk = 3;
 }

@@ -108,6 +108,6 @@ dyld_info:
     export_size: 24
 uuid: "8C904612-6253-3FA1-B8D2-D5829848A8FC"
 min_version:
-    device: 36
+    device: MACOSX
     version: "10.9.0"
     sdk: "10.10.0"

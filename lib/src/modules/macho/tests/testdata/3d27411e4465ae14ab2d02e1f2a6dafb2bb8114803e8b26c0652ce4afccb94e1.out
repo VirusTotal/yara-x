@@ -317,6 +317,6 @@ dylibs:
     current_version: "38.0.0"
 uuid: "EF07AAD0-F2AB-34DF-940C-2965C1872F0C"
 min_version:
-    device: 36
+    device: MACOSX
     version: "10.5.0"
     sdk: "0.0.0"
