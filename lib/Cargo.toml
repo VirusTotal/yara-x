@@ -93,6 +93,8 @@ lnk-module = [
 # The `macho` module parses Mach-O files.
 macho-module = [
     "dep:nom",
+    "dep:cryptographic-message-syntax",
+    "dep:roxmltree",
 ]
 
 # The `math` module.
@@ -155,6 +157,7 @@ bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true, features=["serde"] }
 crc32fast = { workspace = true, optional = true }
+cryptographic-message-syntax = { workspace = true, optional = true }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features=["serde"] }
 intaglio = { workspace = true }
@@ -174,6 +177,7 @@ protobuf = { workspace = true }
 rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }
+roxmltree = { workspace = true, optional = true }
 smallvec = { workspace = true, features=["serde"] }
 serde = { workspace = true, features=["rc"] }
 serde_json = { workspace = true }
@@ -188,8 +192,6 @@ yara-x-parser = { workspace = true }
 yara-x-proto = { workspace = true }
 
 lingua = { version = "1.6.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
-roxmltree = "0.19.0"
-cryptographic-message-syntax = "0.26.0"
 
 [build-dependencies]
 protobuf = { workspace = true }

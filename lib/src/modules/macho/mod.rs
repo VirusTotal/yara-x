@@ -182,17 +182,9 @@ fn ep_for_arch_subtype(
     None
 }
 
-/// The function for checking if any dylib name present in the main Mach-O or embedded Mach-O files
-/// contain a dylib with the desired name
+/// Returns true if the Mach-O parsed entitlements contain `entitlement`
 ///
-/// # Arguments
-///
-/// * `ctx`: A mutable reference to the scanning context.
-/// * `dylib_name`: The name of the dylib to check if present
-///
-/// # Returns
-///
-/// An `Option<bool>` containing if the name is found
+/// `entitlement` is case-insensitive.
 #[module_export(name = "entitlement_present")]
 fn entitlements_present(
     ctx: &ScanContext,
@@ -218,17 +210,9 @@ fn entitlements_present(
     Some(false)
 }
 
-/// The function for checking if any dylib name present in the main Mach-O or
-/// embedded Mach-O files contain a dylib with the desired name
+/// Returns true if the Mach-O parsed dylibs contain `dylib_name`
 ///
-/// # Arguments
-///
-/// * `ctx`: A mutable reference to the scanning context.
-/// * `dylib_name`: The name of the dylib to check if present
-///
-/// # Returns
-///
-/// An `Option<bool>` containing if the name is found
+/// `dylib_name` is case-insensitive.
 #[module_export(name = "dylib_present")]
 fn dylibs_present(
     ctx: &ScanContext,
@@ -258,17 +242,9 @@ fn dylibs_present(
     Some(false)
 }
 
-/// The function for checking if any rpath present in the main Mach-O or
-/// embedded Mach-O files contain a rpath with the desired path
+/// Returns true if the Mach-O parsed rpaths contain `rpath`
 ///
-/// # Arguments
-///
-/// * `ctx`: A mutable reference to the scanning context.
-/// * `rpath`: The name of the dylib to check if present
-///
-/// # Returns
-///
-/// An `Option<bool>` containing if the path is found
+/// `rpath` is case-insensitive.
 #[module_export(name = "rpath_present")]
 fn rpaths_present(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
     let macho = ctx.module_output::<Macho>()?;
