@@ -19,25 +19,54 @@ fn main() {
     proto_compiler
         .pure()
         .cargo_out_dir("protos")
-        //.out_dir("src/modules/protos")
         .include("../proto/src")
         .include("../proto-yaml/src")
-        .include("src/modules/protos")
         .input("../proto/src/yara.proto")
         .input("../proto-yaml/src/yaml.proto");
 
-    proto_parser
-        .include("../proto/src")
-        .include("../proto-yaml/src")
-        .include("src/modules/protos");
+    proto_parser.include("../proto/src").include("../proto-yaml/src");
 
-    for entry in fs::read_dir("src/modules/protos").unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if let Some(extension) = path.extension() {
-            if extension == "proto" {
-                proto_compiler.input(&path);
-                proto_parser.input(&path);
+    // These are the directories where we are going to search for the .proto
+    // files that contain module definitions. Initially, the only directory
+    // is the one included in this repository. But the YRX_MOD_PROTOS_DIRS
+    // environment variable specify additional directories. These directories
+    // are walked recursively looking for .proto files.
+    let mut proto_dirs = vec!["src/modules/protos".to_string()];
+
+    // The YRX_MOD_PROTOS_DIRS environment variable can contain a
+    // comma-separated list of directories with additional module definitions
+    // in `.proto` files. Notice however that these modules are data-only,
+    // they can't contain functions because for adding functions to a YARA
+    // module the `.proto` file must be accompanied by Rust source files that
+    // implement the functions.
+    if let Ok(var) = env::var("YRX_MOD_PROTO_DIRS") {
+        proto_dirs.extend(
+            var.split(',').map(|s| s.to_string()).collect::<Vec<String>>(),
+        );
+    }
+
+    for dir in &proto_dirs {
+        let dir = fs::canonicalize(dir).unwrap();
+        proto_compiler.include(&dir);
+        proto_parser.include(&dir);
+
+        let walker = globwalk::GlobWalkerBuilder::from_patterns(dir, &["**"])
+            .follow_links(true)
+            .build()
+            .unwrap();
+
+        for entry in walker {
+            let entry = entry.unwrap();
+            let path = fs::canonicalize(entry.path()).unwrap();
+
+            if let Some(extension) = path.extension() {
+                if extension == "proto" {
+                    proto_compiler.input(&path);
+                    proto_parser.input(&path);
+                    let dir = path.with_file_name("");
+                    proto_compiler.include(&dir);
+                    proto_parser.include(&dir);
+                }
             }
         }
     }
