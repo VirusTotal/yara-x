@@ -199,8 +199,8 @@ yara-x-proto = { workspace = true }
 [dev-dependencies]
 criterion = { workspace = true }
 globwalk = { workspace = true }
+goldenfile = { workspace = true }
 ihex = "3.0.0"
-goldenfile = "1.6.0"
 pretty_assertions = { workspace = true }
 wasmprinter = "0.2.73"
 yara = { version = "0.24.0", features = ["vendored"] }
