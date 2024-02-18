@@ -6,7 +6,6 @@ use std::{env, fs};
 use protobuf_codegen::Codegen;
 use protobuf_parse::Parser;
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 use yara_x_proto::exts::module_options as yara_module_options;
 
