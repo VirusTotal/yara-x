@@ -84,11 +84,11 @@ fn main() {
     // relative to this `build.rs` file.
     if let Ok(path) = env::var("YRX_PROTOC_CONFIG_FILE") {
         let file = File::open(path.as_str())
-            .expect(&*format!("error opening {}", path));
+            .expect(*format!("error opening {}", path));
 
         let reader = BufReader::new(file);
         let config: ProtocConfig = serde_json::from_reader(reader)
-            .expect(&*format!("invalid config file {}", path));
+            .expect(*format!("invalid config file {}", path));
 
         for path in config.includes {
             let path = fs::canonicalize(path).unwrap();
