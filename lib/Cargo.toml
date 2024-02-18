@@ -194,7 +194,7 @@ globwalk = { workspace = true }
 protobuf = { workspace = true }
 protobuf-codegen = { workspace = true }
 protobuf-parse = { workspace = true }
-serde = { workspace = true, features=["rc"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 yara-x-proto = { workspace = true }
 
