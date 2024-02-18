@@ -412,7 +412,7 @@ impl Struct {
         if let Some(options) =
             module_options.get(&file_descriptor.proto().options)
         {
-            options.root_message == msg_descriptor.full_name()
+            options.root_message.unwrap() == msg_descriptor.full_name()
         } else {
             false
         }
@@ -438,11 +438,7 @@ impl Struct {
         if let Some(options) =
             enum_options.get(&enum_descriptor.proto().options)
         {
-            if options.name.is_empty() {
-                enum_descriptor.name().to_owned()
-            } else {
-                options.name.clone()
-            }
+            options.name.unwrap_or_else(|| enum_descriptor.name().to_owned())
         } else {
             enum_descriptor.name().to_owned()
         }
@@ -484,7 +480,7 @@ impl Struct {
         if let Some(options) =
             enum_options.get(&enum_descriptor.proto().options)
         {
-            options.inline
+            options.inline.unwrap_or(false)
         } else {
             false
         }
@@ -529,7 +525,7 @@ impl Struct {
         if let Some(options) =
             enum_value.get(&enum_value_descriptor.proto().options)
         {
-            options.i64
+            options.i64.unwrap_or_else(|| enum_value_descriptor.value() as i64)
         } else {
             enum_value_descriptor.value() as i64
         }
@@ -552,11 +548,7 @@ impl Struct {
         if let Some(options) =
             field_options.get(&field_descriptor.proto().options)
         {
-            if options.name.is_empty() {
-                field_descriptor.name().to_owned()
-            } else {
-                options.name.clone()
-            }
+            options.name.unwrap_or_else(|| field_descriptor.name().to_owned())
         } else {
             field_descriptor.name().to_owned()
         }
@@ -575,7 +567,7 @@ impl Struct {
         if let Some(options) =
             field_options.get(&field_descriptor.proto().options)
         {
-            options.ignore
+            options.ignore.unwrap_or(false)
         } else {
             false
         }

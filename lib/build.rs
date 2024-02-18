@@ -121,7 +121,7 @@ fn main() {
             yara_module_options.get(&proto_file.options)
         {
             modules.push((
-                module_options.name,
+                module_options.name.unwrap(),
                 proto_file
                     .name
                     .unwrap()
@@ -129,7 +129,8 @@ fn main() {
                     .unwrap()
                     .to_string(),
                 module_options.rust_module,
-                module_options.root_message,
+                module_options.cargo_feature,
+                module_options.root_message.unwrap(),
             ));
         }
     }
@@ -164,37 +165,44 @@ fn main() {
         let name = m.0;
         let proto_mod = m.1;
         let rust_mod = m.2;
-        let root_message = m.3;
-
-        if !rust_mod.is_empty() {
-            write!(
-                modules_rs,
-                r#"
-#[cfg(feature = "{name}-module")]
-mod {rust_mod};"#,
-            )
-            .unwrap();
-        }
+        let cargo_feature = m.3;
+        let root_message = m.4;
 
         // If the YARA module has an associated Rust module, this module must
         // have a function named "main". If the YARA module doesn't have an
         // associated YARA module, the main function is set to None.
-        let main_fn = if !rust_mod.is_empty() {
+        let main_fn = if let Some(rust_mod) = &rust_mod {
             format!("Some({}::__main__ as MainFn)", rust_mod)
         } else {
             "None".to_string()
         };
 
-        let rust_mod_name = if !rust_mod.is_empty() {
+        let rust_mod_name = if let Some(rust_mod) = &rust_mod {
             format!(r#"Some("{}")"#, rust_mod)
         } else {
             "None".to_string()
         };
 
+        let cfg_feature = if let Some(cargo_feature) = &cargo_feature {
+            format!(r#"#[cfg(feature = "{cargo_feature}")]"#)
+        } else {
+            "".to_string()
+        };
+
+        if let Some(rust_mod) = &rust_mod {
+            write!(
+                modules_rs,
+                r#"
+{cfg_feature}
+mod {rust_mod};"#,
+            )
+            .unwrap();
+        }
+
         write!(
             add_modules_rs,
             r#"
-#[cfg(feature = "{name}-module")]
+{cfg_feature}
 add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {main_fn});"#,
         )
         .unwrap();

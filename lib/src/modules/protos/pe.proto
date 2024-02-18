@@ -9,6 +9,7 @@ option (yara.module_options) = {
   name : "pe"
   root_message: "pe.PE"
   rust_module: "pe"
+  cargo_feature: "pe-module"
 };
 
 message PE {

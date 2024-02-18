@@ -8,6 +8,7 @@ option (yara.module_options) = {
   name : "macho"
   root_message: "macho.Macho"
   rust_module: "macho"
+  cargo_feature: "macho-module"
 };
 
 message Dylib {
