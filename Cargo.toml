@@ -70,10 +70,10 @@ num-derive = "0.4.1"
 pest = "2.7.5"
 pest_derive = "2.7.5"
 pretty_assertions = "1.4.0"
-protobuf = "3.3.0"
-protobuf-codegen = "3.3.0"
-protobuf-json-mapping = "3.3.0"
-protobuf-parse = "3.3.0"
+protobuf = { git = "https://github.com/plusvic/rust-protobuf.git", rev="b484d8a7" }
+protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf.git", rev="b484d8a7" }
+protobuf-json-mapping = { git = "https://github.com/plusvic/rust-protobuf.git", rev="b484d8a7" }
+protobuf-parse = { git = "https://github.com/plusvic/rust-protobuf.git", rev="b484d8a7" }
 regex-syntax = { git = "https://github.com/plusvic/regex.git", rev="423493d" }
 regex-automata = { git = "https://github.com/plusvic/regex.git", rev="423493d" }
 rustc-hash = "1.1.0"

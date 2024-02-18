@@ -1,11 +1,20 @@
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufReader, Write};
 use std::path::Path;
 use std::{env, fs};
 
 use protobuf_codegen::Codegen;
 use protobuf_parse::Parser;
+use serde::{Deserialize, Serialize};
+use serde_json;
+
 use yara_x_proto::exts::module_options as yara_module_options;
+
+#[derive(Serialize, Deserialize)]
+struct ProtocConfig {
+    includes: Vec<String>,
+    inputs: Vec<String>,
+}
 
 fn main() {
     println!("cargo:rerun-if-changed=src/modules");
@@ -21,53 +30,76 @@ fn main() {
         .cargo_out_dir("protos")
         .include("../proto/src")
         .include("../proto-yaml/src")
+        .include("src/modules/protos")
         .input("../proto/src/yara.proto")
         .input("../proto-yaml/src/yaml.proto");
 
-    proto_parser.include("../proto/src").include("../proto-yaml/src");
+    proto_parser
+        .include("../proto/src")
+        .include("../proto-yaml/src")
+        .include("src/modules/protos");
 
-    // These are the directories where we are going to search for the .proto
-    // files that contain module definitions. Initially, the only directory
-    // is the one included in this repository. But the YRX_MOD_PROTOS_DIRS
-    // environment variable specify additional directories. These directories
-    // are walked recursively looking for .proto files.
-    let mut proto_dirs = vec!["src/modules/protos".to_string()];
-
-    // The YRX_MOD_PROTOS_DIRS environment variable can contain a
-    // comma-separated list of directories with additional module definitions
-    // in `.proto` files. Notice however that these modules are data-only,
-    // they can't contain functions because for adding functions to a YARA
-    // module the `.proto` file must be accompanied by Rust source files that
-    // implement the functions.
-    if let Ok(var) = env::var("YRX_MOD_PROTO_DIRS") {
-        proto_dirs.extend(
-            var.split(',').map(|s| s.to_string()).collect::<Vec<String>>(),
-        );
+    // All `.proto` files in src/modules/protos must be compiled
+    for entry in fs::read_dir("src/modules/protos").unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if let Some(extension) = path.extension() {
+            if extension == "proto" {
+                proto_compiler.input(&path);
+                proto_parser.input(&path);
+            }
+        }
     }
 
-    for dir in &proto_dirs {
-        let dir = fs::canonicalize(dir).unwrap();
-        proto_compiler.include(&dir);
-        proto_parser.include(&dir);
+    // If the YRX_PROTOC_CONFIG_FILE environment variable is set, it must
+    // contain the path to a JSON file that indicates additional include
+    // directories and input files passed to the `protoc` compiler. The path
+    // to the JSON file must be either an absolute path or a path relative to
+    // this `build.rs` file.
+    //
+    // The JSON file must be similar to this:
+    //
+    // {
+    //   "includes": [
+    //     "../../vt-protos/protos/tools",
+    //     "../../vt-protos/protos"
+    //   ],
+    //   "inputs": [
+    //     "../../vt-protos/protos/titan.proto",
+    //     "../../vt-protos/protos/filetypes.proto",
+    //     "../../vt-protos/protos/sandbox.proto",
+    //     "../../vt-protos/protos/vtnet.proto",
+    //     "../../vt-protos/protos/submitter.proto",
+    //     "../../vt-protos/protos/analysis.proto",
+    //     "../../vt-protos/protos/tools/net_analysis.proto",
+    //     "../../vt-protos/protos/tools/snort.proto",
+    //     "../../vt-protos/protos/tools/suricata.proto",
+    //     "../../vt-protos/protos/tools/tshark.proto",
+    //     "../../vt-protos/protos/sigma.proto",
+    //     "../../vt-protos/protos/relationships.proto"
+    //   ]
+    // }
+    //
+    // Paths in the "includes" and "inputs" lists must also be absolute or
+    // relative to this `build.rs` file.
+    if let Ok(path) = env::var("YRX_PROTOC_CONFIG_FILE") {
+        let file = File::open(path.as_str())
+            .expect(&*format!("error opening {}", path));
 
-        let walker = globwalk::GlobWalkerBuilder::from_patterns(dir, &["**"])
-            .follow_links(true)
-            .build()
-            .unwrap();
+        let reader = BufReader::new(file);
+        let config: ProtocConfig = serde_json::from_reader(reader)
+            .expect(&*format!("invalid config file {}", path));
 
-        for entry in walker {
-            let entry = entry.unwrap();
-            let path = fs::canonicalize(entry.path()).unwrap();
+        for path in config.includes {
+            let path = fs::canonicalize(path).unwrap();
+            proto_compiler.include(&path);
+            proto_parser.include(&path);
+        }
 
-            if let Some(extension) = path.extension() {
-                if extension == "proto" {
-                    proto_compiler.input(&path);
-                    proto_parser.input(&path);
-                    let dir = path.with_file_name("");
-                    proto_compiler.include(&dir);
-                    proto_parser.include(&dir);
-                }
-            }
+        for path in config.inputs {
+            let path = fs::canonicalize(path).unwrap();
+            proto_compiler.input(&path);
+            proto_parser.input(&path);
         }
     }
 
