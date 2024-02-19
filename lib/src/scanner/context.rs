@@ -73,8 +73,13 @@ pub(crate) struct ScanContext<'r> {
     pub main_memory: Option<wasmtime::Memory>,
     /// Hash map that contains the protobuf messages returned by YARA modules.
     /// Keys are the fully qualified protobuf message name, and values are
-    /// the message returned by the corresponding module.
+    /// the message returned by the main function of the corresponding module.
     pub module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
+    /// Hash map that contains the protobuf messages that has been explicitly
+    /// provided by the user to be used as module outputs during the next scan
+    /// operation. Keys are the fully qualified protobuf message names, and
+    /// values are the protobuf messages set with [`Scanner::set_module_output`].
+    pub user_provided_module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
     /// of matches.

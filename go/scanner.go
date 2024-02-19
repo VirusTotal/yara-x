@@ -10,6 +10,10 @@ import (
 	"unsafe"
 )
 
+import (
+	"github.com/golang/protobuf/proto"
+)
+
 // #include <yara-x.h>
 // void onMatchingRule(YRX_RULE*, void*);
 import "C"
@@ -84,6 +88,62 @@ func (s *Scanner) Timeout(timeout time.Duration) {
 }
 
 var ErrTimeout = errors.New("timeout")
+
+
+// SetModuleOutput sets the output data for a YARA module.
+//
+// Each YARA module generates an output consisting of a data structure that
+// contains information about the scanned file. This data structure is represented
+// by a Protocol Buffer. Typically, you won't need to provide this data yourself,
+// as the YARA module automatically generates different outputs for each file
+// it scans.
+//
+// However, there are two scenarios in which you may want to provide the output
+// for a module yourself:
+//
+// 1) When the module does not produce any output on its own.
+// 2) When you already know the output of the module for the upcoming file to
+// be scanned, and you prefer to reuse this data instead of generating it again.
+//
+// Case 1) applies to certain modules lacking a main function, thus incapable of
+// producing any output on their own. For such modules, you must set the output
+// before scanning the associated data. Since the module's output typically varies
+// with each scanned file, you need to call [yrx_scanner_set_module_output] prior
+// to each invocation of [yrx_scanner_scan]. Once [yrx_scanner_scan] is executed,
+// the module's output is consumed and will be empty unless set again before the
+// subsequent call.
+//
+// Case 2) applies when you have previously stored the module's output for certain
+// scanned data. In such cases, when rescanning the data, you can utilize this
+// function to supply the module's output, thereby preventing redundant computation
+// by the module. This optimization enhances performance by eliminating the need
+// for the module to reparse the scanned data.
+//
+// The data argument must be a Protocol Buffer message corresponding to any of
+// the existing YARA modules.
+func (s *Scanner) SetModuleOutput(data proto.Message) error {
+	var err error
+	var buf []byte
+
+	if buf, err = proto.Marshal(data); err != nil {
+		return err
+	}
+
+	var ptr *C.uint8_t
+	if len(buf) > 0 {
+		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
+	}
+
+	name := C.CString(proto.MessageReflect(data).Descriptor().FullName())
+	defer C.free(unsafe.Pointer(name))
+
+	if r := C.yrx_scanner_set_module_output(s.cScanner, name, ptr, C.size_t(len(buf))); r != C.SUCCESS {
+		err = errors.New(C.GoString(C.yrx_scanner_last_error(s.cScanner)))
+	}
+
+	runtime.KeepAlive(s)
+	return err
+}
 
 // Scan scans the provided data with the Rules associated to the Scanner.
 func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {

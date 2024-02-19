@@ -1,4 +1,4 @@
-use std::ffi::{c_char, CString};
+use std::ffi::{c_char, CStr, CString};
 use std::slice;
 use std::time::Duration;
 use yara_x::ScanError;
@@ -83,16 +83,9 @@ pub unsafe extern "C" fn yrx_scanner_scan(
         return YRX_RESULT::INVALID_ARGUMENT;
     }
 
-    // `data` is allowed to be null as long as `len` is 0. This case is handled
-    // as an empty slice.
-    if data.is_null() && len > 0 {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    }
-
-    let data = if data.is_null() || len == 0 {
-        &[]
-    } else {
-        slice::from_raw_parts(data, len)
+    let data = match slice_from_ptr_and_len(data, len) {
+        Some(data) => data,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
     };
 
     let scanner = scanner.as_mut().unwrap();
@@ -156,6 +149,70 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
     }
 }
 
+/// Specifies the output data structure for a module.
+///
+/// Each YARA module generates an output consisting of a data structure that
+/// contains information about the scanned file. This data structure is represented
+/// by a Protocol Buffer. Typically, you won't need to provide this output data
+/// yourself, as the YARA module automatically generates different outputs for
+/// each file it scans.
+///
+/// However, there are two scenarios in which you may want to provide the output
+/// for a module yourself:
+///
+/// 1) When the module does not produce any output on its own.
+/// 2) When you already know the output of the module for the upcoming file to
+/// be scanned, and you prefer to reuse this data instead of generating it again.
+///
+/// Case 1) applies to certain modules lacking a main function, thus incapable of
+/// producing any output on their own. For such modules, you must set the output
+/// before scanning the associated data. Since the module's output typically varies
+/// with each scanned file, you need to call [yrx_scanner_set_module_output] prior
+/// to each invocation of [yrx_scanner_scan]. Once [yrx_scanner_scan] is executed,
+/// the module's output is consumed and will be empty unless set again before the
+/// subsequent call.
+///
+/// Case 2) applies when you have previously stored the module's output for certain
+/// scanned data. In such cases, when rescanning the data, you can utilize this
+/// function to supply the module's output, thereby preventing redundant computation
+/// by the module. This optimization enhances performance by eliminating the need
+/// for the module to reparse the scanned data.
+///
+/// The `name` argument is either a YARA module name (i.e: "pe", "elf", "dotnet",
+/// etc.) or the fully-qualified name of the protobuf message associated to
+/// the module.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_set_module_output(
+    scanner: *mut YRX_SCANNER,
+    name: *const c_char,
+    data: *const u8,
+    len: usize,
+) -> YRX_RESULT {
+    if scanner.is_null() {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    }
+
+    let module_name = match CStr::from_ptr(name).to_str() {
+        Ok(name) => name,
+        Err(_) => return YRX_RESULT::INVALID_ARGUMENT,
+    };
+
+    let data = match slice_from_ptr_and_len(data, len) {
+        Some(data) => data,
+        None => return YRX_RESULT::INVALID_ARGUMENT,
+    };
+
+    let scanner = scanner.as_mut().unwrap();
+
+    match scanner.inner.set_module_output_raw(module_name, data) {
+        Ok(_) => YRX_RESULT::SUCCESS,
+        Err(err) => {
+            scanner.last_error = Some(CString::new(err.to_string()).unwrap());
+            YRX_RESULT::SCAN_ERROR
+        }
+    }
+}
+
 /// Returns the error message for the most recent error returned by the
 /// scanner.
 ///
@@ -179,4 +236,21 @@ pub unsafe extern "C" fn yrx_scanner_last_error(
     } else {
         std::ptr::null()
     }
+}
+
+unsafe fn slice_from_ptr_and_len<'a>(
+    data: *const u8,
+    len: usize,
+) -> Option<&'a [u8]> {
+    // `data` is allowed to be null as long as `len` is 0. That's equivalent
+    // to an empty slice.
+    if data.is_null() && len > 0 {
+        return None;
+    }
+    let data = if data.is_null() || len == 0 {
+        &[]
+    } else {
+        slice::from_raw_parts(data, len)
+    };
+    Some(data)
 }

@@ -153,7 +153,7 @@ pub mod mods {
     /// YARA modules typically parse specific file formats, returning structures
     /// that contain information about the file. These structures are used in YARA
     /// rules for expressing powerful and rich conditions. However, being able to
-    /// access this information outside of YARA rules can also be beneficial.
+    /// access this information outside YARA rules can also be beneficial.
     ///
     /// <br>
     ///
