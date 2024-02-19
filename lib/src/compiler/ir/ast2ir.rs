@@ -17,7 +17,7 @@ use crate::compiler::ir::{
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
-use crate::compiler::{CompileContext, CompileError, CompileErrorInfo};
+use crate::compiler::{CompileContext, CompileError};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
 use crate::re::parser::Error;
@@ -209,11 +209,11 @@ pub(in crate::compiler) fn expr_from_ast(
 ) -> Result<Expr, CompileError> {
     match expr {
         ast::Expr::Entrypoint { span } => {
-            Err(CompileError::from(CompileErrorInfo::entrypoint_unsupported(
+            Err(CompileError::entrypoint_unsupported(
                 ctx.report_builder,
                 *span,
                 Some("use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`".to_string()),
-            )))
+            ))
         }
         ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
 
@@ -344,8 +344,7 @@ pub(in crate::compiler) fn expr_from_ast(
             };
 
             if symbol.is_none() {
-                return Err(CompileError::from(
-                    CompileErrorInfo::unknown_identifier(
+                return Err(CompileError::unknown_identifier(
                         ctx.report_builder,
                         ident.name.to_string(),
                         ident.span(),
@@ -363,7 +362,7 @@ pub(in crate::compiler) fn expr_from_ast(
                             None
                         },
                     ),
-                ));
+                );
             }
 
             let symbol = symbol.unwrap();
@@ -380,8 +379,7 @@ pub(in crate::compiler) fn expr_from_ast(
                 let current_rule = ctx.get_current_rule();
                 let used_rule = ctx.get_rule(*rule_id);
                 if current_rule.is_global && !used_rule.is_global {
-                    return Err(CompileError::from(
-                        CompileErrorInfo::wrong_rule_dependency(
+                    return Err(CompileError::wrong_rule_dependency(
                             ctx.report_builder,
                             ctx.ident_pool
                                 .get(current_rule.ident_id)
@@ -392,7 +390,7 @@ pub(in crate::compiler) fn expr_from_ast(
                             used_rule.ident_span,
                             ident.span,
                         ),
-                    ));
+                    );
                 }
             }
 
@@ -588,14 +586,13 @@ pub(in crate::compiler) fn expr_from_ast(
                     // The type of the key/index expression should correspond
                     // with the type of the map's keys.
                     if key_ty != ty {
-                        return Err(CompileError::from(
-                            CompileErrorInfo::wrong_type(
+                        return Err(CompileError::wrong_type(
                                 ctx.report_builder,
                                 format!("`{}`", key_ty),
                                 ty.to_string(),
                                 expr.index.span(),
                             ),
-                        ));
+                        );
                     }
 
                     Ok(Expr::Lookup(Box::new(Lookup {
@@ -605,12 +602,12 @@ pub(in crate::compiler) fn expr_from_ast(
                     })))
                 }
                 type_value => {
-                    Err(CompileError::from(CompileErrorInfo::wrong_type(
+                    Err(CompileError::wrong_type(
                         ctx.report_builder,
                         format!("`{}` or `{}`", Type::Array, Type::Map),
                         type_value.ty().to_string(),
                         expr.primary.span(),
-                    )))
+                    ))
                 }
             }
         }
@@ -814,14 +811,12 @@ fn for_in_expr_from_ast(
     if loop_vars.len() != expected_vars.len() {
         let span = loop_vars.first().unwrap().span();
         let span = span.combine(&loop_vars.last().unwrap().span());
-        return Err(CompileError::from(
-            CompileErrorInfo::assignment_mismatch(
-                ctx.report_builder,
-                loop_vars.len() as u8,
-                expected_vars.len() as u8,
-                for_in.iterable.span(),
-                span,
-            ),
+        return Err(CompileError::assignment_mismatch(
+            ctx.report_builder,
+            loop_vars.len() as u8,
+            expected_vars.len() as u8,
+            for_in.iterable.span(),
+            span,
         ));
     }
 
@@ -898,14 +893,12 @@ fn iterable_from_ast(
                 // type mismatch.
                 if let Some((prev_ty, prev_span)) = prev {
                     if prev_ty != ty {
-                        return Err(CompileError::from(
-                            CompileErrorInfo::mismatching_types(
-                                ctx.report_builder,
-                                prev_ty.to_string(),
-                                ty.to_string(),
-                                prev_span,
-                                span,
-                            ),
+                        return Err(CompileError::mismatching_types(
+                            ctx.report_builder,
+                            prev_ty.to_string(),
+                            ty.to_string(),
+                            prev_span,
+                            span,
                         ));
                     }
                 }
@@ -952,10 +945,10 @@ fn range_from_ast(
     ) = (lower_bound.type_value(), upper_bound.type_value())
     {
         if lower_bound > upper_bound {
-            return Err(CompileError::from(CompileErrorInfo::invalid_range(
+            return Err(CompileError::invalid_range(
                 ctx.report_builder,
                 range.span,
-            )));
+            ));
         }
     }
 
@@ -974,11 +967,9 @@ fn non_negative_integer_from_ast(
 
     if let TypeValue::Integer(Value::Const(value)) = type_value {
         if value < 0 {
-            return Err(CompileError::from(
-                CompileErrorInfo::unexpected_negative_number(
-                    ctx.report_builder,
-                    span,
-                ),
+            return Err(CompileError::unexpected_negative_number(
+                ctx.report_builder,
+                span,
             ));
         }
     }
@@ -1001,13 +992,11 @@ fn integer_in_range_from_ast(
     // the given range.
     if let TypeValue::Integer(Value::Const(value)) = type_value {
         if !range.contains(&value) {
-            return Err(CompileError::from(
-                CompileErrorInfo::number_out_of_range(
-                    ctx.report_builder,
-                    *range.start(),
-                    *range.end(),
-                    span,
-                ),
+            return Err(CompileError::number_out_of_range(
+                ctx.report_builder,
+                *range.start(),
+                *range.end(),
+                span,
             ));
         }
     }
@@ -1050,15 +1039,10 @@ fn pattern_set_from_ast(
                     .collect();
 
             if pattern_indexes.is_empty() {
-                return Err(CompileError::from(
-                    CompileErrorInfo::empty_pattern_set(
-                        ctx.report_builder,
-                        *span,
-                        Some(
-                            "this rule doesn't define any patterns"
-                                .to_string(),
-                        ),
-                    ),
+                return Err(CompileError::empty_pattern_set(
+                    ctx.report_builder,
+                    *span,
+                    Some("this rule doesn't define any patterns".to_string()),
                 ));
             }
 
@@ -1077,15 +1061,13 @@ fn pattern_set_from_ast(
                     .iter()
                     .any(|pattern| item.matches(pattern.identifier()))
                 {
-                    return Err(CompileError::from(
-                        CompileErrorInfo::empty_pattern_set(
-                            ctx.report_builder,
-                            item.span(),
-                            Some(format!(
-                                "`{}` doesn't match any pattern identifier",
-                                item.identifier,
-                            )),
-                        ),
+                    return Err(CompileError::empty_pattern_set(
+                        ctx.report_builder,
+                        item.span(),
+                        Some(format!(
+                            "`{}` doesn't match any pattern identifier",
+                            item.identifier,
+                        )),
                     ));
                 }
             }
@@ -1158,7 +1140,7 @@ fn func_call_from_ast(
     // No matching signature was found, that means that the arguments
     // provided were incorrect.
     if matching_signature.is_none() {
-        return Err(CompileError::from(CompileErrorInfo::wrong_arguments(
+        return Err(CompileError::wrong_arguments(
             ctx.report_builder,
             func_call.args_span,
             Some(format!(
@@ -1177,7 +1159,7 @@ fn func_call_from_ast(
                     .collect::<Vec<String>>()
                     .join("\n   │       ")
             )),
-        )));
+        ));
     }
 
     let (signature_index, type_value) = matching_signature.unwrap();
@@ -1221,12 +1203,12 @@ fn check_type(
     if accepted_types.contains(&ty) {
         Ok(())
     } else {
-        Err(CompileError::from(CompileErrorInfo::wrong_type(
+        Err(CompileError::wrong_type(
             ctx.report_builder,
             ErrorInfo::join_with_or(accepted_types, true),
             ty.to_string(),
             span,
-        )))
+        ))
     }
 }
 
@@ -1239,12 +1221,12 @@ fn check_type2(
     if accepted_types.contains(&ty) {
         Ok(())
     } else {
-        Err(CompileError::from(CompileErrorInfo::wrong_type(
+        Err(CompileError::wrong_type(
             ctx.report_builder,
             ErrorInfo::join_with_or(accepted_types, true),
             ty.to_string(),
             expr.span(),
-        )))
+        ))
     }
 }
 
@@ -1276,13 +1258,13 @@ fn check_operands(
     };
 
     if !types_are_compatible {
-        return Err(CompileError::from(CompileErrorInfo::mismatching_types(
+        return Err(CompileError::mismatching_types(
             ctx.report_builder,
             lhs_ty.to_string(),
             rhs_ty.to_string(),
             lhs_span,
             rhs_span,
-        )));
+        ));
     }
 
     Ok(())
@@ -1295,27 +1277,27 @@ fn re_error_to_compile_error(
 ) -> CompileError {
     match err {
         Error::SyntaxError { msg, span } => {
-            CompileError::from(CompileErrorInfo::invalid_regexp(
+            CompileError::invalid_regexp(
                 report_builder,
                 msg,
                 // the error span is relative to the start of the regexp, not to
                 // the start of the source file, here we make it relative to the
                 // source file.
                 regexp.span.subspan(span.start.offset, span.end.offset),
-            ))
+            )
         }
         Error::MixedGreediness {
             is_greedy_1,
             is_greedy_2,
             span_1,
             span_2,
-        } => CompileError::from(CompileErrorInfo::mixed_greediness(
+        } => CompileError::mixed_greediness(
             report_builder,
             if is_greedy_1 { "greedy" } else { "non-greedy" }.to_string(),
             if is_greedy_2 { "greedy" } else { "non-greedy" }.to_string(),
             regexp.span.subspan(span_1.start.offset, span_1.end.offset),
             regexp.span.subspan(span_2.start.offset, span_2.end.offset),
-        )),
+        ),
     }
 }
 
@@ -1507,15 +1489,14 @@ macro_rules! gen_n_ary_operation {
                 };
 
                 if !types_are_compatible {
-                    return Err(CompileError::from(
-                        CompileErrorInfo::mismatching_types(
+                    return Err(CompileError::mismatching_types(
                             ctx.report_builder,
                             lhs_ty.to_string(),
                             rhs_ty.to_string(),
                             expr.first().span().combine(&lhs_ast.span()),
                             rhs_ast.span(),
                         ),
-                    ));
+                    );
                 }
             }
 
@@ -1630,11 +1611,9 @@ gen_binary_op!(
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
         if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
             if value < 0 {
-                return Err(CompileError::from(
-                    CompileErrorInfo::unexpected_negative_number(
-                        ctx.report_builder,
-                        rhs_span,
-                    ),
+                return Err(CompileError::unexpected_negative_number(
+                    ctx.report_builder,
+                    rhs_span,
                 ));
             }
         }
@@ -1650,11 +1629,9 @@ gen_binary_op!(
     Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
         if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
             if value < 0 {
-                return Err(CompileError::from(
-                    CompileErrorInfo::unexpected_negative_number(
-                        ctx.report_builder,
-                        rhs_span,
-                    ),
+                return Err(CompileError::unexpected_negative_number(
+                    ctx.report_builder,
+                    rhs_span,
                 ));
             }
         }

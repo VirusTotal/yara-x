@@ -562,19 +562,17 @@ impl<'a> Compiler<'a> {
         if let Some(symbol) = self.symbol_table.lookup(ident.name) {
             return match symbol.kind() {
                 SymbolKind::Rule(rule_id) => {
-                    Err(CompileError::from(CompileErrorInfo::duplicate_rule(
+                    Err(CompileError::duplicate_rule(
                         &self.report_builder,
                         ident.name.to_string(),
                         ident.span,
                         self.rules.get(rule_id.0 as usize).unwrap().ident_span,
-                    )))
+                    ))
                 }
-                _ => Err(CompileError::from(
-                    CompileErrorInfo::conflicting_rule_identifier(
-                        &self.report_builder,
-                        ident.name.to_string(),
-                        ident.span,
-                    ),
+                _ => Err(CompileError::conflicting_rule_identifier(
+                    &self.report_builder,
+                    ident.name.to_string(),
+                    ident.span,
                 )),
             };
         }
@@ -642,11 +640,11 @@ impl<'a> Compiler<'a> {
         // Does a module with the given name actually exist? ...
         if module.is_none() {
             // The module does not exist, that's an error.
-            return Err(CompileError::from(CompileErrorInfo::unknown_module(
+            return Err(CompileError::unknown_module(
                 &self.report_builder,
                 module_name.to_string(),
                 import.span(),
-            )));
+            ));
         }
 
         // Yes, module exists.
@@ -1394,22 +1392,20 @@ impl<'a> Compiler<'a> {
         );
 
         let mut atoms = result.map_err(|err| match err {
-            re::Error::TooLarge => {
-                CompileError::from(CompileErrorInfo::invalid_regexp(
-                    &self.report_builder,
-                    "regexp is too large".to_string(),
-                    span,
-                ))
-            }
+            re::Error::TooLarge => CompileError::invalid_regexp(
+                &self.report_builder,
+                "regexp is too large".to_string(),
+                span,
+            ),
             _ => unreachable!(),
         })?;
 
         if matches!(hir.minimum_len(), Some(0)) {
-            return Err(CompileError::from(CompileErrorInfo::invalid_regexp(
+            return Err(CompileError::invalid_regexp(
                 &self.report_builder,
                 "this regexp can match empty strings".to_string(),
                 span,
-            )));
+            ));
         }
 
         let mut slow_pattern = false;

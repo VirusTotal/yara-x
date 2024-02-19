@@ -42,41 +42,10 @@ pub enum Error {
     VariableError(#[from] VariableError),
 }
 
-/// Error produced while compiling rules.
-#[derive(Eq, PartialEq)]
-pub struct CompileError(Box<CompileErrorInfo>);
-
-impl CompileError {
-    /// Returns additional information about the error.
-    pub fn info(&self) -> &CompileErrorInfo {
-        self.0.as_ref()
-    }
-}
-
-impl Debug for CompileError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-impl Display for CompileError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<CompileErrorInfo> for CompileError {
-    fn from(value: CompileErrorInfo) -> Self {
-        Self(Box::new(value))
-    }
-}
-
-impl std::error::Error for CompileError {}
-
 /// An error occurred during the compilation process.
 #[derive(DeriveError, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum CompileErrorInfo {
+pub enum CompileError {
     #[error("wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",
