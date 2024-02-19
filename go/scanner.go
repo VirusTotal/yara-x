@@ -133,7 +133,7 @@ func (s *Scanner) SetModuleOutput(data proto.Message) error {
 		ptr = (*C.uint8_t)(unsafe.Pointer(&(buf[0])))
 	}
 
-	name := C.CString(proto.MessageReflect(data).Descriptor().FullName())
+	name := C.CString(string(proto.MessageReflect(data).Descriptor().FullName()))
 	defer C.free(unsafe.Pointer(name))
 
 	if r := C.yrx_scanner_set_module_output(s.cScanner, name, ptr, C.size_t(len(buf))); r != C.SUCCESS {
