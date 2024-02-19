@@ -89,7 +89,6 @@ func (s *Scanner) Timeout(timeout time.Duration) {
 
 var ErrTimeout = errors.New("timeout")
 
-
 // SetModuleOutput sets the output data for a YARA module.
 //
 // Each YARA module generates an output consisting of a data structure that
