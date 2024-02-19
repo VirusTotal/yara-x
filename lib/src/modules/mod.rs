@@ -130,6 +130,14 @@ pub mod mods {
 
     This allows external projects to benefit from YARA's file-parsing
     capabilities for their own purposes.
+
+    # Example
+
+    ```rust
+    # use yara_x;
+    # let data = &[];
+    let pe_info = yara_x::mods::invoke_mod::<yara_x::mods::PE>(data);
+    ```
      */
 
     /// Data structure returned by the `dotnet` module.
