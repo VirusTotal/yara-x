@@ -34,7 +34,7 @@ pub(crate) struct Module {
     /// module (e.g: "test_proto2").
     pub rust_module_name: Option<&'static str>,
     /// A [`MessageDescriptor`] that describes the module's structure. This
-    /// corresponds to the the protobuf message declared in the "root_message"
+    /// corresponds to the protobuf message declared in the "root_message"
     /// for the YARA module. It allows iterating the fields declared by the
     /// module and obtaining their names and types.
     pub root_struct_descriptor: MessageDescriptor,

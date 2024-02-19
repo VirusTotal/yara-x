@@ -30,14 +30,14 @@ use bstr::{BString, ByteVec};
 ///
 /// `LUxvcmVtIGlwc3VtIGRvbG9yIHNpdCBhbWV0`
 ///
-/// The good news is that there are only 3 string that we need to look for:
-/// `aXBzdW`, `lwc3Vt` or `pcHN1b`. If some string `S` contains "ipsum", the
+/// The good news is that there are only 3 strings that we need to look for:
+/// `aXBzdW`, `lwc3Vt` and `pcHN1b`. If some string `S` contains "ipsum", the
 /// result of `base64(S)` must contain one of these three patterns.
 ///
-/// These three patterns are the results of `base64(S)`, `base64("X" + S)`
+/// These three patterns are the result of `base64(S)`, `base64("X" + S)`
 /// and `base64("XX" + S)`, after removing the characters that are affected
 /// by the "X" at the beginning of the pattern, or that could be affected
-/// if more bytes bytes are added after "ipsum".
+/// if more bytes are added after "ipsum".
 ///
 /// padding + S        base64(padding + S)      final pattern
 /// "ipsum"         -> "aXBzdW0"            ->  "aXBzdW"
