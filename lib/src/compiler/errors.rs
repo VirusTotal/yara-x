@@ -36,7 +36,7 @@ pub enum Error {
     ParseError(#[from] ParseError),
 
     #[error(transparent)]
-    CompileError(#[from] CompileError),
+    CompileError(#[from] Box<CompileError>),
 
     #[error(transparent)]
     VariableError(#[from] VariableError),

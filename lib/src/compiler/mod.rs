@@ -558,22 +558,22 @@ impl<'a> Compiler<'a> {
     fn check_for_existing_identifier(
         &self,
         ident: &Ident,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Box<CompileError>> {
         if let Some(symbol) = self.symbol_table.lookup(ident.name) {
             return match symbol.kind() {
                 SymbolKind::Rule(rule_id) => {
-                    Err(CompileError::duplicate_rule(
+                    Err(Box::new(CompileError::duplicate_rule(
                         &self.report_builder,
                         ident.name.to_string(),
                         ident.span,
                         self.rules.get(rule_id.0 as usize).unwrap().ident_span,
-                    ))
+                    )))
                 }
-                _ => Err(CompileError::conflicting_rule_identifier(
+                _ => Err(Box::new(CompileError::conflicting_rule_identifier(
                     &self.report_builder,
                     ident.name.to_string(),
                     ident.span,
-                )),
+                ))),
             };
         }
         Ok(())
@@ -633,18 +633,21 @@ impl<'a> Compiler<'a> {
     /// creates a new field with the same name than the module in the
     /// top-level structure `self.root_struct` that contains all the
     /// imported modules. This field is created only if it don't exist yet.
-    fn import_module(&mut self, import: &Import) -> Result<(), CompileError> {
+    fn import_module(
+        &mut self,
+        import: &Import,
+    ) -> Result<(), Box<CompileError>> {
         let module_name = import.module_name.as_str();
         let module = BUILTIN_MODULES.get(module_name);
 
         // Does a module with the given name actually exist? ...
         if module.is_none() {
             // The module does not exist, that's an error.
-            return Err(CompileError::unknown_module(
+            return Err(Box::new(CompileError::unknown_module(
                 &self.report_builder,
                 module_name.to_string(),
                 import.span(),
-            ));
+            )));
         }
 
         // Yes, module exists.
@@ -701,7 +704,7 @@ impl<'a> Compiler<'a> {
 }
 
 impl<'a> Compiler<'a> {
-    fn c_rule(&mut self, rule: &ast::Rule) -> Result<(), CompileError> {
+    fn c_rule(&mut self, rule: &ast::Rule) -> Result<(), Box<CompileError>> {
         // Check if another rule, module or variable has the same identifier
         // and return an error in that case.
         self.check_for_existing_identifier(&rule.identifier)?;
@@ -1062,7 +1065,7 @@ impl<'a> Compiler<'a> {
         pattern: RegexpPattern,
         anchored_at: Option<usize>,
         span: Span,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Box<CompileError>> {
         // Try splitting the regexp into multiple chained sub-patterns if it
         // contains large gaps. For example, `{ 01 02 03 [-] 04 05 06 }` is
         // split into `{ 01 02 03 }` and `{ 04 05 06 }`, where `{ 04 05 06 }`
@@ -1225,7 +1228,7 @@ impl<'a> Compiler<'a> {
         trailing: &[ChainedPattern],
         flags: PatternFlagSet,
         span: Span,
-    ) -> Result<(), CompileError> {
+    ) -> Result<(), Box<CompileError>> {
         let ascii = flags.contains(PatternFlags::Ascii);
         let wide = flags.contains(PatternFlags::Wide);
         let case_insensitive = flags.contains(PatternFlags::Nocase);
@@ -1369,7 +1372,7 @@ impl<'a> Compiler<'a> {
         &mut self,
         hir: &re::hir::Hir,
         span: Span,
-    ) -> Result<(Vec<re::RegexpAtom>, bool), CompileError> {
+    ) -> Result<(Vec<re::RegexpAtom>, bool), Box<CompileError>> {
         // When the `fast-regexp` feature is enabled, try to compile the regexp
         // for `FastVM` first, if the it fails with `Error::FastIncompatible`,
         // the regexp is not compatible for `FastVM` and `PikeVM` must be used
@@ -1392,20 +1395,20 @@ impl<'a> Compiler<'a> {
         );
 
         let mut atoms = result.map_err(|err| match err {
-            re::Error::TooLarge => CompileError::invalid_regexp(
+            re::Error::TooLarge => Box::new(CompileError::invalid_regexp(
                 &self.report_builder,
                 "regexp is too large".to_string(),
                 span,
-            ),
+            )),
             _ => unreachable!(),
         })?;
 
         if matches!(hir.minimum_len(), Some(0)) {
-            return Err(CompileError::invalid_regexp(
+            return Err(Box::new(CompileError::invalid_regexp(
                 &self.report_builder,
                 "this regexp can match empty strings".to_string(),
                 span,
-            ));
+            )));
         }
 
         let mut slow_pattern = false;
@@ -1469,7 +1472,10 @@ impl<'a> Compiler<'a> {
         )
     }
 
-    fn c_imports(&mut self, imports: &[Import]) -> Result<(), CompileError> {
+    fn c_imports(
+        &mut self,
+        imports: &[Import],
+    ) -> Result<(), Box<CompileError>> {
         for import in imports {
             // Import the module. This updates `self.root_struct` if
             // necessary.
