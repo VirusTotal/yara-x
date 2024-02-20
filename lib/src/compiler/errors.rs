@@ -3,6 +3,7 @@ use std::io;
 
 use thiserror::Error;
 
+use crate::VariableError;
 use yara_x_macros::Error as DeriveError;
 use yara_x_parser::ast::Span;
 use yara_x_parser::report::ReportBuilder;
@@ -29,49 +30,22 @@ pub enum SerializationError {
 pub struct EmitWasmError(#[from] anyhow::Error);
 
 /// Errors returned by the compiler.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Eq, PartialEq)]
 pub enum Error {
     #[error(transparent)]
     ParseError(#[from] ParseError),
 
     #[error(transparent)]
-    CompileError(#[from] CompileError),
+    CompileError(#[from] Box<CompileError>),
+
+    #[error(transparent)]
+    VariableError(#[from] VariableError),
 }
-
-/// Error produced while compiling rules.
-pub struct CompileError(Box<CompileErrorInfo>);
-
-impl CompileError {
-    /// Returns additional information about the error.
-    pub fn info(&self) -> &CompileErrorInfo {
-        self.0.as_ref()
-    }
-}
-
-impl Debug for CompileError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-impl Display for CompileError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<CompileErrorInfo> for CompileError {
-    fn from(value: CompileErrorInfo) -> Self {
-        Self(Box::new(value))
-    }
-}
-
-impl std::error::Error for CompileError {}
 
 /// An error occurred during the compilation process.
-#[derive(DeriveError)]
+#[derive(DeriveError, Eq, PartialEq)]
 #[non_exhaustive]
-pub enum CompileErrorInfo {
+pub enum CompileError {
     #[error("wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",

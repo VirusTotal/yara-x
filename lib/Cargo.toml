@@ -194,16 +194,19 @@ yara-x-proto = { workspace = true }
 lingua = { version = "1.6.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 
 [build-dependencies]
+globwalk = { workspace = true }
 protobuf = { workspace = true }
 protobuf-codegen = { workspace = true }
 protobuf-parse = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 yara-x-proto = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
 globwalk = { workspace = true }
+goldenfile = { workspace = true }
 ihex = "3.0.0"
-goldenfile = "1.6.0"
 pretty_assertions = { workspace = true }
 wasmprinter = "0.2.73"
 yara = { version = "0.24.0", features = ["vendored"] }

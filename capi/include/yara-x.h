@@ -14,18 +14,19 @@
 #include <stdlib.h>
 
 
-typedef enum YRX_ERROR {
+typedef enum YRX_RESULT {
   SUCCESS,
   PANIC,
   SYNTAX_ERROR,
+  VARIABLE_ERROR,
+  SCAN_ERROR,
+  SCAN_TIMEOUT,
+  INVALID_IDENTIFIER,
   INVALID_ARGUMENT,
-} YRX_ERROR;
+} YRX_RESULT;
 
-// A pattern within a rule.
-typedef struct YRX_PATTERN YRX_PATTERN;
-
-// The set of patterns declared in a YARA rule.
-typedef struct YRX_PATTERNS YRX_PATTERNS;
+// A compiler that takes YARA source code and produces compiled rules.
+typedef struct YRX_COMPILER YRX_COMPILER;
 
 // A single YARA rule.
 typedef struct YRX_RULE YRX_RULE;
@@ -41,6 +42,28 @@ typedef struct YRX_MATCH {
   size_t offset;
   size_t length;
 } YRX_MATCH;
+
+// A pattern within a rule.
+typedef struct YRX_PATTERN {
+  // Pattern's identifier (i.e: $a, $foo)
+  char *identifier;
+  // Number of matches found for this pattern.
+  size_t num_matches;
+  // Pointer to an array of YRX_MATCH structures describing the matches
+  // for this pattern. The array has num_matches items. If num_matches is
+  // zero this pointer is invalid and should not be de-referenced.
+  struct YRX_MATCH *matches;
+} YRX_PATTERN;
+
+// A set of patterns declared in a YARA rule.
+typedef struct YRX_PATTERNS {
+  // Number of patterns.
+  size_t num_patterns;
+  // Pointer to an array of YRX_PATTERN structures. The array has
+  // num_patterns items. If num_patterns is zero this pointer is invalid
+  // and should not be de-referenced.
+  struct YRX_PATTERN *patterns;
+} YRX_PATTERNS;
 
 // Callback function passed to the scanner via [`yrx_scanner_on_matching_rule`]
 // which receives notifications about matching rules.
@@ -60,8 +83,8 @@ typedef void (*YRX_ON_MATCHING_RULE)(const struct YRX_RULE *rule,
 // the compiled rules.
 //
 // The rules must be destroyed with [`yrx_rules_destroy`].
-enum YRX_ERROR yrx_compile(const char *src,
-                           struct YRX_RULES **rules);
+enum YRX_RESULT yrx_compile(const char *src,
+                            struct YRX_RULES **rules);
 
 // Destroys a [`YRX_RULES`] object.
 void yrx_rules_destroy(struct YRX_RULES *rules);
@@ -74,9 +97,9 @@ void yrx_rules_destroy(struct YRX_RULES *rules);
 // null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
 // object that contains the rule is not freed. The name is guaranteed to be a
 // valid UTF-8 string.
-enum YRX_ERROR yrx_rule_identifier(const struct YRX_RULE *rule,
-                                   const uint8_t **ident,
-                                   size_t *len);
+enum YRX_RESULT yrx_rule_identifier(const struct YRX_RULE *rule,
+                                    const uint8_t **ident,
+                                    size_t *len);
 
 // Returns the namespace of the rule represented by [`YRX_RULE`].
 //
@@ -86,47 +109,79 @@ enum YRX_ERROR yrx_rule_identifier(const struct YRX_RULE *rule,
 // null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
 // object that contains the rule is not freed. The namespace is guaranteed to
 // be a valid UTF-8 string.
-enum YRX_ERROR yrx_rule_namespace(const struct YRX_RULE *rule,
-                                  const uint8_t **ns,
-                                  size_t *len);
+enum YRX_RESULT yrx_rule_namespace(const struct YRX_RULE *rule,
+                                   const uint8_t **ns,
+                                   size_t *len);
 
-// Returns the all patterns defined by a rule, each pattern contains
-// information about whether it matched or not, and where in the data it
-// matched.
+// Returns all the patterns defined by a rule.
 //
-// The [`YRX_PATTERNS`] object must be destroyed with [`yrx_patterns_destroy`].
-const struct YRX_PATTERNS *yrx_rule_patterns(const struct YRX_RULE *rule);
-
-// Returns the number of patterns in a given [`YRX_PATTERNS`] object.
-int32_t yrx_patterns_count(const struct YRX_PATTERNS *patterns);
-
-// Returns the pattern with the give `index`, from a set of patterns represented
-// by a [`YRX_PATTERNS`] object.
-//
-// The index must be between 0 and the value returned by [`yrx_patterns_count`],
-// otherwise the result will be a null pointer. The result is also a null
-// pointer if `patterns` is null.
-const struct YRX_PATTERN *yrx_patterns_get(struct YRX_PATTERNS *patterns,
-                                           size_t index);
+// Each pattern contains information about whether it matched or not, and where
+// in the data it matched. The patterns are represented by a [`YRX_PATTERNS`]
+// object that must be destroyed with [`yrx_patterns_destroy`] when not needed
+// anymore.
+struct YRX_PATTERNS *yrx_rule_patterns(const struct YRX_RULE *rule);
 
 // Destroys a [`YRX_PATTERNS`] object.
 void yrx_patterns_destroy(struct YRX_PATTERNS *patterns);
 
-// Returns the identifier of rule's pattern represented by [`YRX_PATTERN`].
-//
-// Arguments `ident` and `len` are output parameters that receive pointers to a
-// `const uint8_t*` and `size_t`, where this function will leave a pointer
-// to the rule's name and its length, respectively. The identifier is *NOT*
-// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
-// object that contains the rule is not freed. The name is guaranteed to be a
-// valid UTF-8 string.
-enum YRX_ERROR yrx_pattern_identifier(const struct YRX_PATTERN *pattern,
-                                      const uint8_t **ident,
-                                      size_t *len);
+// Creates a [`YRX_COMPILER`] object.
+enum YRX_RESULT yrx_compiler_create(struct YRX_COMPILER **compiler);
 
-enum YRX_ERROR yrx_pattern_matches(const struct YRX_PATTERN *pattern,
-                                   const struct YRX_MATCH **matches,
-                                   size_t *len);
+// Destroys a [`YRX_COMPILER`] object.
+void yrx_compiler_destroy(struct YRX_COMPILER *compiler);
+
+// Adds a YARA source code to be compiled.
+//
+// This function can be called multiple times.
+enum YRX_RESULT yrx_compiler_add_source(struct YRX_COMPILER *compiler,
+                                        const char *src);
+
+// Returns the error message for the most recent error returned by the
+// compiler.
+//
+// The returned pointer is only valid until the next call to any of the
+// yrx_compiler_xxxx functions. A call any of these functions can modify
+// the last error, rendering the pointer to a previous error message
+// invalid. Also, the pointer will be null if the compiler hasn't returned
+// any error.
+const char *yrx_compiler_last_error(const struct YRX_COMPILER *compiler);
+
+// Creates a new namespace.
+//
+// Further calls to `yrx_compiler_add_source` will put the rules under the
+// newly created namespace.
+//
+// The `namespace` argument must be pointer to null-terminated UTF-8 string.
+// If the string is not valid UTF-8 the result is an `INVALID_ARGUMENT` error.
+enum YRX_RESULT yrx_compiler_new_namespace(struct YRX_COMPILER *compiler,
+                                           const char *namespace_);
+
+// Defines a global variable of string type and sets its initial value.
+enum YRX_RESULT yrx_compiler_define_global_str(struct YRX_COMPILER *compiler,
+                                               const char *ident,
+                                               const char *value);
+
+// Defines a global variable of bool type and sets its initial value.
+enum YRX_RESULT yrx_compiler_define_global_bool(struct YRX_COMPILER *compiler,
+                                                const char *ident,
+                                                bool value);
+
+// Defines a global variable of integer type and sets its initial value.
+enum YRX_RESULT yrx_compiler_define_global_int(struct YRX_COMPILER *compiler,
+                                               const char *ident,
+                                               int64_t value);
+
+// Defines a global variable of float type and sets its initial value.
+enum YRX_RESULT yrx_compiler_define_global_float(struct YRX_COMPILER *compiler,
+                                                 const char *ident,
+                                                 double value);
+
+// Builds the source code previously added to the compiler.
+//
+// After calling this function the compiler is reset to its initial state,
+// you can keep using it by adding more sources and calling this function
+// again.
+struct YRX_RULES *yrx_compiler_build(struct YRX_COMPILER *compiler);
 
 // Creates a [`YRX_SCANNER`] object that can be used for scanning data with
 // the provided [`YRX_RULES`].
@@ -136,13 +191,30 @@ enum YRX_ERROR yrx_pattern_matches(const struct YRX_PATTERN *pattern,
 // you want, and it must be destroyed with [`yrx_scanner_destroy`]. Also, the
 // scanner is valid as long as the rules are not destroyed, so, always destroy
 // the [`YRX_SCANNER`] object before the [`YRX_RULES`] object.
-enum YRX_ERROR yrx_scanner_create(const struct YRX_RULES *rules,
-                                  struct YRX_SCANNER **scanner);
+enum YRX_RESULT yrx_scanner_create(const struct YRX_RULES *rules,
+                                   struct YRX_SCANNER **scanner);
+
+// Destroys a [`YRX_SCANNER`] object.
+void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
+
+// Sets a timeout (in seconds) for scan operations.
+//
+// The scan functions will return a timeout error once the provided timeout
+// duration has elapsed. The scanner will make every effort to stop promptly
+// after the designated timeout duration. However, in some cases, particularly
+// with rules containing only a few patterns, the scanner could potentially
+// continue running for a longer period than the specified timeout.
+enum YRX_RESULT yrx_scanner_timeout(struct YRX_SCANNER *scanner,
+                                    uint64_t timeout);
 
 // Scans a data buffer.
-enum YRX_ERROR yrx_scanner_scan(struct YRX_SCANNER *scanner,
-                                const uint8_t *data,
-                                size_t len);
+//
+// `data` can be null as long as `len` is 0. In such cases its handled as
+// empty data. Some YARA rules (i.e: `rule dummy { condition: true }`) can
+// match even with empty data.
+enum YRX_RESULT yrx_scanner_scan(struct YRX_SCANNER *scanner,
+                                 const uint8_t *data,
+                                 size_t len);
 
 // Sets a callback function that is called by the scanner for each rule that
 // matched during a scan.
@@ -152,11 +224,55 @@ enum YRX_ERROR yrx_scanner_scan(struct YRX_SCANNER *scanner,
 // about matching rules.
 //
 // See [`YRX_ON_MATCHING_RULE`] for more details.
-enum YRX_ERROR yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
-                                            YRX_ON_MATCHING_RULE callback,
-                                            void *user_data);
+enum YRX_RESULT yrx_scanner_on_matching_rule(struct YRX_SCANNER *scanner,
+                                             YRX_ON_MATCHING_RULE callback,
+                                             void *user_data);
 
-// Destroys a [`YRX_SCANNER`] object.
-void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
+// Specifies the output data structure for a module.
+//
+// Each YARA module generates an output consisting of a data structure that
+// contains information about the scanned file. This data structure is represented
+// by a Protocol Buffer. Typically, you won't need to provide this output data
+// yourself, as the YARA module automatically generates different outputs for
+// each file it scans.
+//
+// However, there are two scenarios in which you may want to provide the output
+// for a module yourself:
+//
+// 1) When the module does not produce any output on its own.
+// 2) When you already know the output of the module for the upcoming file to
+// be scanned, and you prefer to reuse this data instead of generating it again.
+//
+// Case 1) applies to certain modules lacking a main function, thus incapable of
+// producing any output on their own. For such modules, you must set the output
+// before scanning the associated data. Since the module's output typically varies
+// with each scanned file, you need to call [yrx_scanner_set_module_output] prior
+// to each invocation of [yrx_scanner_scan]. Once [yrx_scanner_scan] is executed,
+// the module's output is consumed and will be empty unless set again before the
+// subsequent call.
+//
+// Case 2) applies when you have previously stored the module's output for certain
+// scanned data. In such cases, when rescanning the data, you can utilize this
+// function to supply the module's output, thereby preventing redundant computation
+// by the module. This optimization enhances performance by eliminating the need
+// for the module to reparse the scanned data.
+//
+// The `name` argument is either a YARA module name (i.e: "pe", "elf", "dotnet",
+// etc.) or the fully-qualified name of the protobuf message associated to
+// the module.
+enum YRX_RESULT yrx_scanner_set_module_output(struct YRX_SCANNER *scanner,
+                                              const char *name,
+                                              const uint8_t *data,
+                                              size_t len);
+
+// Returns the error message for the most recent error returned by the
+// scanner.
+//
+// The returned pointer is only valid until the next call to any of the
+// yrx_scanner_xxxx functions. A call any of these functions can modify
+// the last error, rendering the pointer to a previous error message
+// invalid. Also, the pointer will be null if the scanner hasn't returned
+// any error.
+const char *yrx_scanner_last_error(const struct YRX_SCANNER *scanner);
 
 #endif /* YARA_X */

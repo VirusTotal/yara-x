@@ -3,7 +3,7 @@
 The parsing of regular expressions is actually done by the [`regex-syntax`][1]
 crate, which produces a high-level intermediate representation (HIR) for a
 given regular expression in text form. This crates provides its own [`hir::Hir`]
-type, but is is just a thin wrapper around the [`regex_syntax::hir::Hir`] type.
+type, but is just a thin wrapper around the [`regex_syntax::hir::Hir`] type.
 
 Both regexp patterns and hex patterns are converted into a [`hir::Hir`], as
 every YARA hex pattern can be boiled down to a regular expression. Both kinds

@@ -200,18 +200,18 @@ dependencies = [
 
 [[package]]
 name = "authenticode-parser"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "604103d623672bbfcea96b1f20b75ee433012a14421fc87660ada85e74add9f9"
+checksum = "b04c8a6168fa3d7733652b4604dbad1c0587b16382ad24b082d2de7ee7296087"
 dependencies = [
  "authenticode-parser-sys",
 ]
 
 [[package]]
 name = "authenticode-parser-sys"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "214a42da4790c46cf73660c83fe50bc1ecd4462362dfcf10f4a64de2776e2364"
+checksum = "d6fec48978e90f3740da7ba30f501beb08d1729dabdcc685e163226b564f3737"
 dependencies = [
  "cc",
 ]
@@ -528,9 +528,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chrono"
-version = "0.4.33"
+version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f13690e35a5e4ace198e7beea2895d29f3a9cc55015fcebe6336bd2010af9eb"
+checksum = "5bc015644b92d5890fab7489e49d21f879d5c990186827d42ec511919404f38b"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
@@ -2806,20 +2806,18 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "3.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b65f4a8ec18723a734e5dc09c173e0abf9690432da5340285d536edcb4dac190"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf.git?rev=b484d8a7#b484d8a7025db760c4fcf6994bda39f73452c6d7"
 dependencies = [
  "once_cell",
- "protobuf-support",
+ "protobuf-support 4.0.0-alpha.0",
  "thiserror",
 ]
 
 [[package]]
 name = "protobuf-codegen"
-version = "3.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e85514a216b1c73111d9032e26cc7a5ecb1bb3d4d9539e91fb72a4395060f78"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf.git?rev=b484d8a7#b484d8a7025db760c4fcf6994bda39f73452c6d7"
 dependencies = [
  "anyhow",
  "once_cell",
@@ -2832,26 +2830,24 @@ dependencies = [
 
 [[package]]
 name = "protobuf-json-mapping"
-version = "3.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "523039a90666b229b5260fb91c20686ef309b9d1b1fc3cacb283a0895753ec44"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf.git?rev=b484d8a7#b484d8a7025db760c4fcf6994bda39f73452c6d7"
 dependencies = [
  "protobuf",
- "protobuf-support",
+ "protobuf-support 4.0.0-alpha.0",
  "thiserror",
 ]
 
 [[package]]
 name = "protobuf-parse"
-version = "3.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77d6fbd6697c9e531873e81cec565a85e226b99a0f10e1acc079be057fe2fcba"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf.git?rev=b484d8a7#b484d8a7025db760c4fcf6994bda39f73452c6d7"
 dependencies = [
  "anyhow",
- "indexmap 1.9.3",
+ "indexmap 2.2.2",
  "log",
  "protobuf",
- "protobuf-support",
+ "protobuf-support 4.0.0-alpha.0",
  "tempfile",
  "thiserror",
  "which",
@@ -2862,6 +2858,14 @@ name = "protobuf-support"
 version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6872f4d4f4b98303239a2b5838f5bbbb77b01ffc892d627957f37a22d7cfe69c"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
+name = "protobuf-support"
+version = "4.0.0-alpha.0"
+source = "git+https://github.com/plusvic/rust-protobuf.git?rev=b484d8a7#b484d8a7025db760c4fcf6994bda39f73452c6d7"
 dependencies = [
  "thiserror",
 ]
@@ -5152,7 +5156,7 @@ dependencies = [
  "protobuf",
  "protobuf-codegen",
  "protobuf-parse",
- "protobuf-support",
+ "protobuf-support 3.3.0",
  "yansi 0.5.1",
 ]
 

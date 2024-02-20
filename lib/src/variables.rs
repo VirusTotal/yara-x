@@ -23,7 +23,7 @@ use crate::types::{Array, TypeValue, Value};
 pub struct Variable(TypeValue);
 
 /// Errors returned while defining or setting variables.
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, Eq, PartialEq)]
 pub enum VariableError {
     /// The variable has not being defined. Before calling
     /// [`crate::Scanner::set_global`] the variable must be defined with a

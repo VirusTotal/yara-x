@@ -7,6 +7,7 @@ option (yara.module_options) = {
   name : "dotnet"
   root_message: "dotnet.Dotnet"
   rust_module: "dotnet"
+  cargo_feature: "dotnet-module"
 };
 
 message Dotnet {

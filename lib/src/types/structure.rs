@@ -43,8 +43,8 @@ pub(crate) struct StructField {
 /// is also represented by one of these structures.
 ///
 /// The structures that represent a YARA module are created from the protobuf
-/// associated to that module. Functions [`Struct::from_proto_msg`] and
-/// [`Struct::from_proto_descriptor_and_msg`] are used for that purpose.
+/// associated to that module. Function [`Struct::from_proto_descriptor_and_msg`]
+/// is used for that purpose.
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub(crate) struct Struct {
     /// Fields in this structure.
@@ -170,21 +170,6 @@ impl Struct {
         name: &str,
     ) -> Option<&mut StructField> {
         self.fields.get_mut(name)
-    }
-
-    /// Creates a [`Struct`] from a protobuf message.
-    ///
-    /// See [`Self::from_proto_descriptor_and_msg`] for details.
-    #[inline]
-    pub fn from_proto_msg(
-        msg: &dyn MessageDyn,
-        generate_fields_for_enums: bool,
-    ) -> Self {
-        Self::from_proto_descriptor_and_msg(
-            &msg.descriptor_dyn(),
-            Some(msg),
-            generate_fields_for_enums,
-        )
     }
 
     /// Creates a [`Struct`] from a protobuf message descriptor.

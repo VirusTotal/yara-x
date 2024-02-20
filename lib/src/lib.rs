@@ -43,7 +43,6 @@ assert_eq!(results.matching_rules().len(), 1);
 
 pub use compiler::compile;
 pub use compiler::CompileError;
-pub use compiler::CompileErrorInfo;
 pub use compiler::Compiler;
 pub use compiler::Error;
 pub use compiler::Rules;
@@ -80,7 +79,7 @@ mod wasm;
 mod tests;
 
 mod utils {
-    /// Tries to match `target` as an the enum variant `pat`. Returns the
+    /// Tries to match `target` as the enum variant `pat`. Returns the
     /// inner value contained in the variant, or panics if `target` does
     /// not match `pat`.
     ///

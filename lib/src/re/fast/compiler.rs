@@ -184,8 +184,8 @@ impl Compiler {
         }
 
         // If the pattern was decomposed into more than one piece its atoms can
-        // not be exact. The atoms could be exact if the pattern was is a single
-        // piece and it fits completely in the atom.
+        // not be exact. The atoms could be exact if the pattern was a single
+        // piece, and it fits completely in the atom.
         if pieces.len() > 1 {
             for atom in atoms.iter_mut() {
                 atom.set_exact(false);
@@ -274,16 +274,15 @@ struct PatternSplitter {
 
 impl PatternSplitter {
     fn finish_literal(&mut self) -> Option<Pattern> {
-        // If the `bytes` is empty return `None` because empty literals
-        // are ignored, except when when we are inside an alternation,
-        // where empty literals are accepted in cases like `(abc|)`.
+        // If the `bytes` is empty return `None` because empty literals are
+        // ignored, except when we are inside an alternation, where empty
+        // literals are accepted in cases like `(abc|)`.
         if !self.in_alternation && self.bytes.is_empty() {
             return None;
         }
-        // If all bytes in the mask are 0xff the piece is a
-        // Literal and the mask is not necessary, if not,
-        // the piece is a MaskedLiteral. In both cases the mask
-        // and the bytes are reset to empty vectors.
+        // If all bytes in the mask are 0xff the piece is a Literal and the
+        // mask is not necessary, if not, the piece is a MaskedLiteral. In both
+        // cases the mask and the bytes are reset to empty vectors.
         if self.mask.iter().all(|&b| b == 0xff) {
             self.mask.clear();
             Some(Pattern::Literal(mem::take(&mut self.bytes)))

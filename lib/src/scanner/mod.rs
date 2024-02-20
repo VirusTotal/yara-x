@@ -55,6 +55,12 @@ pub enum ScanError {
     /// Could not map the scanned file into memory.
     #[error("can not map `{path}`: {source}")]
     MapError { path: PathBuf, source: fmmap::error::Error },
+    /// Could not deserialize the protobuf message for some YARA module.
+    #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
+    ProtoError { module: String, err: protobuf::Error },
+    /// The module is unknown.
+    #[error("unknown module")]
+    UnknownModule,
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
@@ -128,6 +134,7 @@ impl<'r> Scanner<'r> {
                 global_matching_rules: FxHashMap::default(),
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
+                user_provided_module_outputs: FxHashMap::default(),
                 pattern_matches: FxHashMap::default(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
@@ -250,8 +257,7 @@ impl<'r> Scanner<'r> {
     /// Sets a timeout for scan operations.
     ///
     /// The scan functions will return an [ScanError::Timeout] once the
-    /// provided timeout duration has elapsed. It's important to note that the
-    /// timeout might not be entirely precise, the scanner will make every
+    /// provided timeout duration has elapsed. The scanner will make every
     /// effort to stop promptly after the designated timeout duration. However,
     /// in some cases, particularly with rules containing only a few patterns,
     /// the scanner could potentially continue running for a longer period than
@@ -367,6 +373,103 @@ impl<'r> Scanner<'r> {
 
         Ok(self)
     }
+
+    /// Sets the output data for a YARA module.
+    ///
+    /// Each YARA module generates an output consisting of a data structure that
+    /// contains information about the scanned file. This data structure is
+    /// represented by a Protocol Buffer message. Typically, you won't need to
+    /// provide this data yourself, as the YARA module automatically generates
+    /// different outputs for each file it scans.
+    ///
+    /// However, there are two scenarios in which you may want to provide the
+    /// output for a module yourself:
+    ///
+    /// 1) When the module does not produce any output on its own.
+    /// 2) When you already know the output of the module for the upcoming file
+    /// to be scanned, and you prefer to reuse this data instead of generating
+    /// it again.
+    ///
+    /// Case 1) applies to certain modules lacking a main function, thus
+    /// incapable of producing any output on their own. For such modules, you
+    /// must set the output before scanning the associated data. Since the
+    /// module's output typically varies with each scanned file, you need to
+    /// call [`Scanner::set_module_output`] prior to each invocation of
+    /// [`Scanner::scan`]. Once [`Scanner::scan`] is executed, the module's
+    /// output is consumed and will be empty unless set again before the
+    /// subsequent call.
+    ///
+    /// Case 2) applies when you have previously stored the module's output for
+    /// certain scanned data. In such cases, when rescanning the data, you can
+    /// utilize this function to supply the module's output, thereby preventing
+    /// redundant computation by the module. This optimization enhances
+    /// performance by eliminating the need for the module to reparse the
+    /// scanned data.
+    ///
+    /// <br>
+    ///
+    /// The `data` argument must be a Protocol Buffer message corresponding
+    /// to any of the existing YARA modules.
+    pub fn set_module_output(
+        &mut self,
+        data: Box<dyn MessageDyn>,
+    ) -> Result<(), ScanError> {
+        let descriptor = data.descriptor_dyn();
+        let full_name = descriptor.full_name();
+
+        // Check if the protobuf message passed to this function corresponds
+        // with any of the existing modules.
+        if !BUILTIN_MODULES
+            .iter()
+            .any(|m| m.1.root_struct_descriptor.full_name() == full_name)
+        {
+            return Err(ScanError::UnknownModule);
+        }
+
+        self.wasm_store
+            .data_mut()
+            .user_provided_module_outputs
+            .insert(full_name.to_string(), data);
+
+        Ok(())
+    }
+
+    /// Similar to [`Scanner::set_module_output`], but receives a module name
+    /// and the protobuf message as raw data.
+    ///
+    /// `name` can be either the YARA module name (i.e: "pe", "elf", "dotnet",
+    /// etc.) or the fully-qualified name for the protobuf message associated
+    /// to the module (i.e: "pe.PE", "elf.ELF", "dotnet.Dotnet", etc.).
+    pub fn set_module_output_raw(
+        &mut self,
+        name: &str,
+        data: &[u8],
+    ) -> Result<(), ScanError> {
+        // Try to find the module by name first, if not found, then try
+        // to find a module where the fully-qualified name for its protobuf
+        // message matches the `name` arguments.
+        let descriptor = if let Some(module) = BUILTIN_MODULES.get(name) {
+            Some(&module.root_struct_descriptor)
+        } else {
+            BUILTIN_MODULES.values().find_map(|module| {
+                if module.root_struct_descriptor.full_name() == name {
+                    Some(&module.root_struct_descriptor)
+                } else {
+                    None
+                }
+            })
+        };
+
+        if descriptor.is_none() {
+            return Err(ScanError::UnknownModule);
+        }
+
+        self.set_module_output(
+            descriptor.unwrap().parse_from_bytes(data).map_err(|err| {
+                ScanError::ProtoError { module: name.to_string(), err }
+            })?,
+        )
+    }
 }
 
 impl<'r> Scanner<'r> {
@@ -442,41 +545,43 @@ impl<'r> Scanner<'r> {
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
             let module = modules::BUILTIN_MODULES.get(module_name).unwrap();
+            let root_struct_name = module.root_struct_descriptor.full_name();
 
-            // Call the module's main function, if any. This function returns
-            // a data structure serialized as a protocol buffer. The format of
-            // the data is specified by the .proto file associated to the
-            // module.
-            let module_output = if let Some(main_fn) = module.main_fn {
-                main_fn(data.as_ref())
+            // If the user already provided some output for the module by
+            // calling `Scanner::set_module_output`, use that output. If not,
+            // call the module's main function (if the module has a main
+            // function) for getting its output.
+            let module_output = if let Some(output) =
+                ctx.user_provided_module_outputs.remove(root_struct_name)
+            {
+                Some(output)
             } else {
-                // Implement the case in which the module doesn't have a main
-                // function and the serialized data should be provided by the
-                // user.
-                todo!()
+                module.main_fn.map(|main_fn| main_fn(data.as_ref()))
             };
 
-            // Make sure that the module is returning a protobuf message of the
-            // expected type.
-            debug_assert_eq!(
-                module_output.descriptor_dyn().full_name(),
-                module.root_struct_descriptor.full_name(),
-                "main function of module `{}` must return `{}`, but returned `{}`",
-                module_name,
-                module.root_struct_descriptor.full_name(),
-                module_output.descriptor_dyn().full_name(),
-            );
+            if let Some(module_output) = &module_output {
+                // Make sure that the module is returning a protobuf message of the
+                // expected type.
+                debug_assert_eq!(
+                    module_output.descriptor_dyn().full_name(),
+                    module.root_struct_descriptor.full_name(),
+                    "main function of module `{}` must return `{}`, but returned `{}`",
+                    module_name,
+                    module.root_struct_descriptor.full_name(),
+                    module_output.descriptor_dyn().full_name(),
+                );
 
-            // Make sure that the module is returning a protobuf message where
-            // all required fields are initialized. This only applies to
-            // proto2, proto3 doesn't have "required" fields, all
-            // fields are optional.
-            debug_assert!(
-                module_output.is_initialized_dyn(),
-                "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
-                module_name,
-                module.root_struct_descriptor.full_name()
-            );
+                // Make sure that the module is returning a protobuf message where
+                // all required fields are initialized. This only applies to
+                // proto2, proto3 doesn't have "required" fields, all
+                // fields are optional.
+                debug_assert!(
+                    module_output.is_initialized_dyn(),
+                    "module `{}` returned a protobuf `{}` where some required fields are not initialized ",
+                    module_name,
+                    module.root_struct_descriptor.full_name()
+                );
+            }
 
             // When constant folding is enabled we don't need to generate
             // structure fields for enums. This is because during the
@@ -492,16 +597,16 @@ impl<'r> Scanner<'r> {
             let generate_fields_for_enums =
                 !cfg!(feature = "constant-folding");
 
-            let module_struct = Struct::from_proto_msg(
-                module_output.deref(),
+            let module_struct = Struct::from_proto_descriptor_and_msg(
+                &module.root_struct_descriptor,
+                module_output.as_deref(),
                 generate_fields_for_enums,
             );
 
-            // Update the module's output in stored in ScanContext.
-            ctx.module_outputs.insert(
-                module_output.descriptor_dyn().full_name().to_string(),
-                module_output,
-            );
+            if let Some(module_output) = module_output {
+                ctx.module_outputs
+                    .insert(root_struct_name.to_string(), module_output);
+            }
 
             // The data structure obtained from the module is added to the
             // root structure. Any data from previous scans will be replaced
@@ -831,6 +936,7 @@ impl<'a, 'r> Rule<'a, 'r> {
             ctx: self.ctx,
             data: self.data,
             iterator: self.rule_info.patterns.iter(),
+            len: self.rule_info.patterns.len(),
         }
     }
 }
@@ -840,6 +946,7 @@ pub struct Patterns<'a, 'r> {
     ctx: &'a ScanContext<'r>,
     data: &'a ScannedData<'a>,
     iterator: Iter<'a, (IdentId, PatternId)>,
+    len: usize,
 }
 
 impl<'a, 'r> Iterator for Patterns<'a, 'r> {
@@ -853,6 +960,13 @@ impl<'a, 'r> Iterator for Patterns<'a, 'r> {
             pattern_id: *pattern_id,
             ident_id: *ident_id,
         })
+    }
+}
+
+impl<'a, 'r> ExactSizeIterator for Patterns<'a, 'r> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.len
     }
 }
 

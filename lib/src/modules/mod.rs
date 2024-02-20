@@ -34,7 +34,7 @@ pub(crate) struct Module {
     /// module (e.g: "test_proto2").
     pub rust_module_name: Option<&'static str>,
     /// A [`MessageDescriptor`] that describes the module's structure. This
-    /// corresponds to the the protobuf message declared in the "root_message"
+    /// corresponds to the protobuf message declared in the "root_message"
     /// for the YARA module. It allows iterating the fields declared by the
     /// module and obtaining their names and types.
     pub root_struct_descriptor: MessageDescriptor,
@@ -130,6 +130,14 @@ pub mod mods {
 
     This allows external projects to benefit from YARA's file-parsing
     capabilities for their own purposes.
+
+    # Example
+
+    ```rust
+    # use yara_x;
+    # let data = &[];
+    let pe_info = yara_x::mods::invoke_mod::<yara_x::mods::PE>(data);
+    ```
      */
 
     /// Data structure returned by the `dotnet` module.
@@ -153,7 +161,7 @@ pub mod mods {
     /// YARA modules typically parse specific file formats, returning structures
     /// that contain information about the file. These structures are used in YARA
     /// rules for expressing powerful and rich conditions. However, being able to
-    /// access this information outside of YARA rules can also be beneficial.
+    /// access this information outside YARA rules can also be beneficial.
     ///
     /// <br>
     ///

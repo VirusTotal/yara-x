@@ -15,6 +15,9 @@ option (yara.module_options) = {
   // The Rust module implementing this YARA module is named `text`. It can
   // be found in `src/modules/text.rs`.
   rust_module: "text"
+  // The feature that controls whether this module is compiled or not is named
+  // `text-module`.
+  cargo_feature: "text-module"
 };
 
 // This is the module's root structure.

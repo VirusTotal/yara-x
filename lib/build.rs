@@ -1,11 +1,19 @@
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufReader, Write};
 use std::path::Path;
 use std::{env, fs};
 
 use protobuf_codegen::Codegen;
 use protobuf_parse::Parser;
+use serde::{Deserialize, Serialize};
+
 use yara_x_proto::exts::module_options as yara_module_options;
+
+#[derive(Serialize, Deserialize)]
+struct ProtocConfig {
+    includes: Vec<String>,
+    inputs: Vec<String>,
+}
 
 fn main() {
     println!("cargo:rerun-if-changed=src/modules");
@@ -19,7 +27,6 @@ fn main() {
     proto_compiler
         .pure()
         .cargo_out_dir("protos")
-        //.out_dir("src/modules/protos")
         .include("../proto/src")
         .include("../proto-yaml/src")
         .include("src/modules/protos")
@@ -31,6 +38,7 @@ fn main() {
         .include("../proto-yaml/src")
         .include("src/modules/protos");
 
+    // All `.proto` files in src/modules/protos must be compiled
     for entry in fs::read_dir("src/modules/protos").unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
@@ -39,6 +47,58 @@ fn main() {
                 proto_compiler.input(&path);
                 proto_parser.input(&path);
             }
+        }
+    }
+
+    // If the YRX_PROTOC_CONFIG_FILE environment variable is set, it must
+    // contain the path to a JSON file that indicates additional include
+    // directories and input files passed to the `protoc` compiler. The path
+    // to the JSON file must be either an absolute path or a path relative to
+    // this `build.rs` file.
+    //
+    // The JSON file must be similar to this:
+    //
+    // {
+    //   "includes": [
+    //     "../../vt-protos/protos/tools",
+    //     "../../vt-protos/protos"
+    //   ],
+    //   "inputs": [
+    //     "../../vt-protos/protos/titan.proto",
+    //     "../../vt-protos/protos/filetypes.proto",
+    //     "../../vt-protos/protos/sandbox.proto",
+    //     "../../vt-protos/protos/vtnet.proto",
+    //     "../../vt-protos/protos/submitter.proto",
+    //     "../../vt-protos/protos/analysis.proto",
+    //     "../../vt-protos/protos/tools/net_analysis.proto",
+    //     "../../vt-protos/protos/tools/snort.proto",
+    //     "../../vt-protos/protos/tools/suricata.proto",
+    //     "../../vt-protos/protos/tools/tshark.proto",
+    //     "../../vt-protos/protos/sigma.proto",
+    //     "../../vt-protos/protos/relationships.proto"
+    //   ]
+    // }
+    //
+    // Paths in the "includes" and "inputs" lists must also be absolute or
+    // relative to this `build.rs` file.
+    if let Ok(path) = env::var("YRX_PROTOC_CONFIG_FILE") {
+        let file = File::open(path.as_str())
+            .unwrap_or_else(|_| panic!("error opening {}", path));
+
+        let reader = BufReader::new(file);
+        let config: ProtocConfig = serde_json::from_reader(reader)
+            .unwrap_or_else(|_| panic!("invalid config file {}", path));
+
+        for path in config.includes {
+            let path = fs::canonicalize(path).unwrap();
+            proto_compiler.include(&path);
+            proto_parser.include(&path);
+        }
+
+        for path in config.inputs {
+            let path = fs::canonicalize(path).unwrap();
+            proto_compiler.input(&path);
+            proto_parser.input(&path);
         }
     }
 
@@ -68,6 +128,7 @@ fn main() {
                     .unwrap()
                     .to_string(),
                 module_options.rust_module,
+                module_options.cargo_feature,
                 module_options.root_message.unwrap(),
             ));
         }
@@ -103,17 +164,8 @@ fn main() {
         let name = m.0;
         let proto_mod = m.1;
         let rust_mod = m.2;
-        let root_message = m.3;
-
-        if let Some(rust_mod) = &rust_mod {
-            write!(
-                modules_rs,
-                r#"
-#[cfg(feature = "{name}-module")]
-mod {rust_mod};"#,
-            )
-            .unwrap();
-        }
+        let cargo_feature = m.3;
+        let root_message = m.4;
 
         // If the YARA module has an associated Rust module, this module must
         // have a function named "main". If the YARA module doesn't have an
@@ -130,10 +182,26 @@ mod {rust_mod};"#,
             "None".to_string()
         };
 
+        let cfg_feature = if let Some(cargo_feature) = &cargo_feature {
+            format!(r#"#[cfg(feature = "{cargo_feature}")]"#)
+        } else {
+            "".to_string()
+        };
+
+        if let Some(rust_mod) = &rust_mod {
+            write!(
+                modules_rs,
+                r#"
+{cfg_feature}
+mod {rust_mod};"#,
+            )
+            .unwrap();
+        }
+
         write!(
             add_modules_rs,
             r#"
-#[cfg(feature = "{name}-module")]
+{cfg_feature}
 add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {main_fn});"#,
         )
         .unwrap();

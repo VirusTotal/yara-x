@@ -15,17 +15,27 @@ This crate is not intended to be used by other Rust programs.
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-use std::ffi::{c_char, CStr};
+use std::ffi::{c_char, CStr, CString};
+use std::mem::ManuallyDrop;
+use std::ptr::slice_from_raw_parts_mut;
 
+mod compiler;
 mod scanner;
+
+#[cfg(test)]
+mod tests;
 
 pub use scanner::*;
 
 #[repr(C)]
-pub enum YRX_ERROR {
+pub enum YRX_RESULT {
     SUCCESS,
     PANIC,
     SYNTAX_ERROR,
+    VARIABLE_ERROR,
+    SCAN_ERROR,
+    SCAN_TIMEOUT,
+    INVALID_IDENTIFIER,
     INVALID_ARGUMENT,
 }
 
@@ -35,10 +45,51 @@ pub struct YRX_RULES(yara_x::Rules);
 /// A single YARA rule.
 pub struct YRX_RULE<'a, 'r>(yara_x::Rule<'a, 'r>);
 
+/// A set of patterns declared in a YARA rule.
+#[repr(C)]
+pub struct YRX_PATTERNS {
+    /// Number of patterns.
+    num_patterns: usize,
+    /// Pointer to an array of YRX_PATTERN structures. The array has
+    /// num_patterns items. If num_patterns is zero this pointer is invalid
+    /// and should not be de-referenced.
+    patterns: *mut YRX_PATTERN,
+}
+
+impl Drop for YRX_PATTERNS {
+    fn drop(&mut self) {
+        unsafe {
+            drop(Box::from_raw(slice_from_raw_parts_mut(
+                self.patterns,
+                self.num_patterns,
+            )));
+        }
+    }
+}
+
 /// A pattern within a rule.
+#[repr(C)]
 pub struct YRX_PATTERN {
-    identifier: String,
-    matches: Vec<YRX_MATCH>,
+    /// Pattern's identifier (i.e: $a, $foo)
+    identifier: *mut c_char,
+    /// Number of matches found for this pattern.
+    num_matches: usize,
+    /// Pointer to an array of YRX_MATCH structures describing the matches
+    /// for this pattern. The array has num_matches items. If num_matches is
+    /// zero this pointer is invalid and should not be de-referenced.
+    matches: *mut YRX_MATCH,
+}
+
+impl Drop for YRX_PATTERN {
+    fn drop(&mut self) {
+        unsafe {
+            drop(CString::from_raw(self.identifier));
+            drop(Box::from_raw(slice_from_raw_parts_mut(
+                self.matches,
+                self.num_matches,
+            )));
+        }
+    }
 }
 
 /// Contains information about a pattern match.
@@ -48,9 +99,6 @@ pub struct YRX_MATCH {
     pub length: usize,
 }
 
-/// The set of patterns declared in a YARA rule.
-pub struct YRX_PATTERNS(Vec<YRX_PATTERN>);
-
 /// Compiles YARA source code and creates a [`YRX_RULES`] object that contains
 /// the compiled rules.
 ///
@@ -59,15 +107,18 @@ pub struct YRX_PATTERNS(Vec<YRX_PATTERN>);
 pub unsafe extern "C" fn yrx_compile(
     src: *const c_char,
     rules: &mut *mut YRX_RULES,
-) -> YRX_ERROR {
+) -> YRX_RESULT {
     let c_str = CStr::from_ptr(src);
 
     match yara_x::compile(c_str.to_bytes()) {
         Ok(r) => *rules = Box::into_raw(Box::new(YRX_RULES(r))),
-        Err(_) => return YRX_ERROR::SYNTAX_ERROR,
+        Err(_) => {
+            // TODO: handle error
+            return YRX_RESULT::SYNTAX_ERROR;
+        }
     };
 
-    YRX_ERROR::SUCCESS
+    YRX_RESULT::SUCCESS
 }
 
 /// Destroys a [`YRX_RULES`] object.
@@ -89,13 +140,13 @@ pub unsafe extern "C" fn yrx_rule_identifier(
     rule: *const YRX_RULE,
     ident: &mut *const u8,
     len: &mut usize,
-) -> YRX_ERROR {
+) -> YRX_RESULT {
     if let Some(rule) = rule.as_ref() {
         *ident = rule.0.identifier().as_ptr();
         *len = rule.0.identifier().len();
-        YRX_ERROR::SUCCESS
+        YRX_RESULT::SUCCESS
     } else {
-        YRX_ERROR::INVALID_ARGUMENT
+        YRX_RESULT::INVALID_ARGUMENT
     }
 }
 
@@ -112,118 +163,62 @@ pub unsafe extern "C" fn yrx_rule_namespace(
     rule: *const YRX_RULE,
     ns: &mut *const u8,
     len: &mut usize,
-) -> YRX_ERROR {
+) -> YRX_RESULT {
     if let Some(rule) = rule.as_ref() {
         *ns = rule.0.namespace().as_ptr();
         *len = rule.0.namespace().len();
-        YRX_ERROR::SUCCESS
+        YRX_RESULT::SUCCESS
     } else {
-        YRX_ERROR::INVALID_ARGUMENT
+        YRX_RESULT::INVALID_ARGUMENT
     }
 }
 
-/// Returns the all patterns defined by a rule, each pattern contains
-/// information about whether it matched or not, and where in the data it
-/// matched.
+/// Returns all the patterns defined by a rule.
 ///
-/// The [`YRX_PATTERNS`] object must be destroyed with [`yrx_patterns_destroy`].
+/// Each pattern contains information about whether it matched or not, and where
+/// in the data it matched. The patterns are represented by a [`YRX_PATTERNS`]
+/// object that must be destroyed with [`yrx_patterns_destroy`] when not needed
+/// anymore.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_rule_patterns(
     rule: *const YRX_RULE,
-) -> *const YRX_PATTERNS {
-    if let Some(rule) = rule.as_ref() {
-        return Box::into_raw(Box::new(YRX_PATTERNS(
-            rule.0
-                .patterns()
-                .map(|pat| YRX_PATTERN {
-                    identifier: pat.identifier().to_string(),
-                    matches: pat
-                        .matches()
-                        .map(|m| YRX_MATCH {
-                            offset: m.range().start,
-                            length: m.range().len(),
-                        })
-                        .collect(),
-                })
-                .collect(),
-        )));
-    } else {
-        std::ptr::null()
-    }
-}
+) -> *mut YRX_PATTERNS {
+    let patterns_iter = rule.as_ref().unwrap().0.patterns();
+    let mut patterns = Vec::with_capacity(patterns_iter.len());
 
-/// Returns the number of patterns in a given [`YRX_PATTERNS`] object.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_patterns_count(
-    patterns: *const YRX_PATTERNS,
-) -> i32 {
-    if let Some(patterns) = patterns.as_ref() {
-        patterns.0.len() as i32
-    } else {
-        -1
-    }
-}
+    for pattern in patterns_iter {
+        let matches = pattern
+            .matches()
+            .map(|m| YRX_MATCH {
+                offset: m.range().start,
+                length: m.range().len(),
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
 
-/// Returns the pattern with the give `index`, from a set of patterns represented
-/// by a [`YRX_PATTERNS`] object.
-///
-/// The index must be between 0 and the value returned by [`yrx_patterns_count`],
-/// otherwise the result will be a null pointer. The result is also a null
-/// pointer if `patterns` is null.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_patterns_get(
-    patterns: *mut YRX_PATTERNS,
-    index: usize,
-) -> *const YRX_PATTERN {
-    if let Some(pattern) =
-        patterns.as_ref().and_then(|patterns| patterns.0.get(index))
-    {
-        pattern
-    } else {
-        std::ptr::null()
+        // Prevent `matches` from being dropped at the end of the current
+        // scope. We are taking a pointer to `matches` and storing it in a
+        // YRX_PATTERN structure. The `YRX_PATTERN::drop` method takes care
+        // of dropping the slice of matches.
+        let mut matches = ManuallyDrop::new(matches);
+
+        patterns.push(YRX_PATTERN {
+            identifier: CString::new(pattern.identifier()).unwrap().into_raw(),
+            num_matches: matches.len(),
+            matches: matches.as_mut_ptr(),
+        });
     }
+
+    let mut patterns = ManuallyDrop::new(patterns);
+
+    Box::into_raw(Box::new(YRX_PATTERNS {
+        num_patterns: patterns.len(),
+        patterns: patterns.as_mut_ptr(),
+    }))
 }
 
 /// Destroys a [`YRX_PATTERNS`] object.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_patterns_destroy(patterns: *mut YRX_PATTERNS) {
-    drop(Box::from_raw(patterns))
-}
-
-/// Returns the identifier of rule's pattern represented by [`YRX_PATTERN`].
-///
-/// Arguments `ident` and `len` are output parameters that receive pointers to a
-/// `const uint8_t*` and `size_t`, where this function will leave a pointer
-/// to the rule's name and its length, respectively. The identifier is *NOT*
-/// null-terminated, and the pointer will be valid as long as the [`YRX_RULES`]
-/// object that contains the rule is not freed. The name is guaranteed to be a
-/// valid UTF-8 string.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_pattern_identifier(
-    pattern: *const YRX_PATTERN,
-    ident: &mut *const u8,
-    len: &mut usize,
-) -> YRX_ERROR {
-    if let Some(pattern) = pattern.as_ref() {
-        *ident = pattern.identifier.as_ptr();
-        *len = pattern.identifier.len();
-        YRX_ERROR::SUCCESS
-    } else {
-        YRX_ERROR::INVALID_ARGUMENT
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn yrx_pattern_matches(
-    pattern: *const YRX_PATTERN,
-    matches: &mut *const YRX_MATCH,
-    len: &mut usize,
-) -> YRX_ERROR {
-    if let Some(pattern) = pattern.as_ref() {
-        *matches = pattern.matches.as_ptr();
-        *len = pattern.matches.len();
-        YRX_ERROR::SUCCESS
-    } else {
-        YRX_ERROR::INVALID_ARGUMENT
-    }
+    drop(Box::from_raw(patterns));
 }

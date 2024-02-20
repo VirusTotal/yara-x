@@ -6,7 +6,7 @@ use crate::compiler::{
     SerializationError, SubPattern, Var, VarStack, VariableError,
 };
 use crate::types::Type;
-use crate::{compile, Compiler, Rules, Scanner};
+use crate::{compile, Compiler, Error, Rules, Scanner};
 
 mod errors;
 mod warnings;
@@ -123,7 +123,9 @@ fn globals() {
 
     assert_eq!(
         compiler.define_global("#invalid", true).err().unwrap(),
-        VariableError::InvalidIdentifier("#invalid".to_string())
+        Error::VariableError(VariableError::InvalidIdentifier(
+            "#invalid".to_string()
+        ))
     );
 
     let mut compiler = Compiler::new();
@@ -135,7 +137,7 @@ fn globals() {
             .define_global("a", false)
             .err()
             .unwrap(),
-        VariableError::AlreadyExists("a".to_string())
+        Error::VariableError(VariableError::AlreadyExists("a".to_string()))
     );
 
     let mut compiler = Compiler::new();
@@ -463,28 +465,28 @@ fn globals_json() {
         Compiler::new()
             .define_global("invalid_array", json!([1, "foo", 3]))
             .unwrap_err(),
-        VariableError::InvalidArray
+        Error::VariableError(VariableError::InvalidArray)
     );
 
     assert_eq!(
         Compiler::new()
             .define_global("invalid_array", json!([1, [2, 3], 4]))
             .unwrap_err(),
-        VariableError::InvalidArray
+        Error::VariableError(VariableError::InvalidArray)
     );
 
     assert_eq!(
         Compiler::new()
             .define_global("invalid_array", json!([1, null]))
             .unwrap_err(),
-        VariableError::InvalidArray
+        Error::VariableError(VariableError::InvalidArray)
     );
 
     assert_eq!(
         Compiler::new()
             .define_global("invalid_array", json!({ "foo": null }))
             .unwrap_err(),
-        VariableError::UnexpectedNull
+        Error::VariableError(VariableError::UnexpectedNull)
     );
 }
 

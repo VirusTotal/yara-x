@@ -12,6 +12,7 @@ use crate::report::ReportType;
 /// relevant for that specific error. This information is usually contained
 /// inside the detailed report itself, but having access to the individual
 /// pieces is useful for applications that can't rely on text-based reports.
+#[derive(Eq, PartialEq)]
 pub struct Error(Box<ErrorInfo>);
 
 impl Error {
@@ -37,7 +38,7 @@ impl std::error::Error for Error {}
 
 /// Additional information about an error occurred during parsing.
 #[rustfmt::skip]
-#[derive(Err)]
+#[derive(Err, Eq, PartialEq)]
 pub enum ErrorInfo {
     #[error("syntax error")]
     #[label("{error_msg}", error_span)]

@@ -1,6 +1,8 @@
 use pretty_assertions::assert_eq;
 use protobuf::MessageDyn;
+use protobuf::{Message, MessageFull};
 
+use crate::mods;
 use crate::scanner::Scanner;
 use crate::variables::VariableError;
 
@@ -470,4 +472,82 @@ fn max_matches_per_pattern() {
     // If the scanner is used again it should produce results because the
     // number of matches must be reset to 0 for the new scan.
     assert_eq!(scanner.scan(b"foo").unwrap().matching_rules().len(), 1);
+}
+
+#[test]
+fn set_module_output() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .add_source(
+            r#"
+        import "pe"
+        rule test {
+            condition:
+              pe.entry_point == 1
+        }
+        "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    let mut scanner = Scanner::new(&rules);
+    let mut pe_data = Box::new(mods::PE::new());
+
+    pe_data.set_entry_point(1);
+    pe_data.set_is_pe(true);
+
+    let pe_data_raw = pe_data.write_to_bytes().unwrap();
+
+    scanner.set_module_output(pe_data).unwrap();
+
+    // The data being scanned is empty, but we set the output for the PE module
+    // by ourselves.
+    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    assert_eq!(scan_results.matching_rules().len(), 1);
+
+    // In this second call we haven't set a value for entry point, so it's
+    // undefined.
+    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    assert_eq!(scan_results.matching_rules().len(), 0);
+
+    // This should fail because `foobar` is not a valid module name.
+    assert_eq!(
+        scanner
+            .set_module_output_raw("foobar", &[])
+            .err()
+            .unwrap()
+            .to_string()
+            .as_str(),
+        "unknown module"
+    );
+
+    // This should fail while trying to parse the empty slice as the protobuf
+    // corresponding to the `pe` module.
+    assert_eq!(
+        scanner
+            .set_module_output_raw("pe", &[])
+            .err()
+            .unwrap()
+            .to_string()
+            .as_str(),
+        "can not deserialize protobuf message for YARA module `pe`: Message `PE` is missing required fields"
+    );
+
+    // Now test by passing a valid protobuf for the PE module.
+    scanner.set_module_output_raw("pe", pe_data_raw.as_slice()).unwrap();
+    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    assert_eq!(scan_results.matching_rules().len(), 1);
+
+    // Try calling `set_module_output_raw` but this time pass the fully-qualified
+    // name of the protobuf message, instead of the module name.
+    scanner
+        .set_module_output_raw(
+            mods::PE::descriptor().full_name(),
+            pe_data_raw.as_slice(),
+        )
+        .unwrap();
+    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    assert_eq!(scan_results.matching_rules().len(), 1);
 }
