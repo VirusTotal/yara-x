@@ -1,0 +1,29 @@
+[package]
+name = "yara-x-proto-yaml"
+description = """
+Library the converts protocol buffers into YAML.
+"""
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+readme.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chrono = { workspace = true }
+protobuf = { workspace = true }
+itertools = { workspace = true }
+yansi = { workspace = true }
+
+protobuf-support = "3.3.0"
+
+[dev-dependencies]
+goldenfile = { workspace = true }
+globwalk = { workspace = true }
+
+[build-dependencies]
+protobuf =  { workspace = true }
+protobuf-codegen = { workspace = true }
+protobuf-parse = { workspace = true }

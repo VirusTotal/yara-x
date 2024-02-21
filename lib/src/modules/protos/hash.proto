@@ -1,0 +1,15 @@
+syntax = "proto2";
+import "yara.proto";
+
+package hash;
+
+option (yara.module_options) = {
+  name : "hash"
+  root_message: "hash.Hash"
+  rust_module: "hash"
+  cargo_feature: "hash-module"
+};
+
+message Hash {
+  // This module contains only exported functions, and doesn't return any data
+}

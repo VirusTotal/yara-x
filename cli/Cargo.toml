@@ -1,0 +1,61 @@
+[package]
+name = "yara-x-cli"
+description = """
+A command-line interface for YARA-X.
+"""
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "yr"
+path = "src/main.rs"
+
+[features]
+# When this feature is enabled the CLI program saves CPU profiling
+# information into a flamegraph.svg file when run. For unknown reasons
+# the `pprof` crate often causes segfaults in Mac OS X, but it seems
+# to work fine in Linux.
+profiling = ["pprof"]
+
+# When this feature is enabled the CLI program prints debug logs if
+# the RUST_LOG environment variable is set to any of the debug levels:
+#
+#   error
+#   warn
+#   info
+#   debug
+#   trace
+#
+# Example: RUST_LOG=info ./yr scan some_rule.yar some_file
+logging = ["dep:log", "dep:env_logger"]
+
+
+[dependencies]
+ascii_tree = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true, features=["cargo", "derive"] }
+globwalk = { workspace = true }
+enable-ansi-support = { workspace = true }
+env_logger = { workspace = true , optional = true, features = ["auto-color"] }
+log = { workspace = true, optional = true }
+protobuf = { workspace = true }
+protobuf-json-mapping = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+yansi = { workspace = true }
+yara-x = { workspace = true }
+yara-x-parser = { workspace = true, features = ["ascii-tree"] }
+yara-x-proto-yaml = { workspace = true }
+yara-x-fmt = { workspace = true }
+
+colored_json = "4.0.0"
+crossbeam = "0.8.2"
+crossterm = "0.27.0"
+pprof = { version = "0.13.0", features = ["flamegraph"], optional=true }
+strum_macros = "0.25"
+superconsole = "0.2.0"
+wild = "2.1.0"

@@ -1,0 +1,36 @@
+// Example "text" module described in the Module Developer's Guide.
+syntax = "proto2";
+import "yara.proto";
+
+package text;
+
+// This section is required for all protos that define a YARA module.
+option (yara.module_options) = {
+  // This is the module's name, the one used when importing the module in a
+  // YARA rule.
+  name : "text"
+  // The module's root structure is defined by the `Text` module, which can
+  // be found below.
+  root_message: "text.Text"
+  // The Rust module implementing this YARA module is named `text`. It can
+  // be found in `src/modules/text.rs`.
+  rust_module: "text"
+  // The feature that controls whether this module is compiled or not is named
+  // `text-module`.
+  cargo_feature: "text-module"
+};
+
+// This is the module's root structure.
+message Text {
+  optional int64 num_lines = 1;
+  optional int64 num_words = 2;
+}
+
+// Enum with the values returned by the `language` function.
+enum Language {
+  English = 1;
+  Spanish = 2;
+  French = 3;
+  German = 4;
+}
+

@@ -1,0 +1,136 @@
+//
+// Test module using proto3 syntax.
+//
+// This module is used in test cases, and also serves as an example of how to
+// define a YARA module using a protocol buffer.
+//
+
+// There are two versions of protobuf, "proto2" and "proto3". If this is omitted
+// the default is "proto2".
+syntax = "proto3";
+
+// This import is required for defining a YARA module, it contains definitions
+// that are common to all modules.
+import "yara.proto";
+
+// This is not strictly required, but it prevents name collisions with other
+// YARA modules.
+package test_proto3;
+
+// This option section is also required, it gives YARA information about
+// the module being defined.
+option (yara.module_options) = {
+  // The module's name. This is the string used in `import` statements in YARA
+  // rules (e.g. import "test_proto3"). This field is required.
+  name : "test_proto3"
+
+  // The protobuf message that defines the top-level structure of the module.
+  // A .proto file can contain multiple message definitions, usually organized
+  // in a hierarchical structure in which one message has fields that are other
+  // messages. YARA needs to know which of those message definitions describes
+  // the top-level structure for the module. In this case the root message is
+  // "test_proto3.TestProto3" which indicates that the "test_proto3" module
+  // will have the fields defined in the "TestProto3" message. Notice that the
+  // "test_proto2." prefix comes after the package name.
+  root_message: "test_proto3.TestProto3"
+
+  // The name of the Rust module that contains the code for this module. A
+  // module with this name must exists under src/modules. In this case the
+  // module name is "test_proto3", we can create a module with that name in
+  // two ways: by creating a file "test_proto3.rs" under src/modules, or by
+  // creating a "test_proto3" directory under src/modules and putting a
+  // "mod.rs" file inside of it.
+  //
+  // Notice however that this is optional, as YARA modules can consists only
+  // in the data structure defined by this proto file, and don't need to have
+  // any associated code.
+  rust_module: "test_proto3"
+
+  // The name of the feature that controls whether this module is compiled or
+  // not. A feature with this name must be added to the Cargo.toml file.
+  cargo_feature: "test_proto3-module"
+};
+
+/// Top-level structure for this module.
+///
+/// In a YARA rule, after importing the module with `import "test_proto3"`, you
+/// can access the fields in this structure, as in the following examples:
+///
+///  test_proto3.int32_zero == 0
+///  test_proto3.string_foo == "foo"
+//
+/// In proto3 you don't need to specify if fields are optional or required as
+//  you must do in proto2. In proto3 all fields are optional. However, fields
+//  for which you don't set a value explicitly are considered to have the
+//  default value for the type. Numeric values default to 0, and string values
+//  default to an empty string. These fields are never undefined to YARA, they
+//  always have some value, either their default values or the value explicitly
+//  set while filling the structure.
+message TestProto3 {
+
+  // Numeric values initialized to 0 by the module.
+
+  int32      int32_zero = 1;
+  int64      int64_zero = 2;
+
+  sint32     sint32_zero = 3;
+  sint64     sint64_zero = 4;
+
+  uint32     uint32_zero = 5;
+  uint64     uint64_zero = 6;
+
+  fixed32    fixed32_zero = 7;
+  fixed64    fixed64_zero = 8;
+
+  sfixed32   sfixed32_zero = 9;
+  sfixed64   sfixed64_zero = 10;
+
+  float      float_zero = 11;
+
+  // Numeric values initialized to 1 by the module.
+
+  int32      int32_one = 21;
+  int64      int64_one = 22;
+
+  sint32     sint32_one = 23;
+  sint64     sint64_one = 24;
+
+  uint32     uint32_one = 25;
+  uint64     uint64_one = 26;
+
+  fixed32    fixed32_one = 27;
+  fixed64    fixed64_one = 28;
+
+  sfixed32   sfixed32_one = 29;
+  sfixed64   sfixed64_one = 30;
+
+  float      float_one = 31;
+
+  // Numeric values that remain non-initialized.
+
+  int32      int32_undef = 41;
+  int64      int64_undef = 42;
+
+  sint32     sint32_undef  = 43;
+  sint64     sint64_undef  = 44;
+
+  uint32     uint32_undef  = 45;
+  uint64     uint64_undef  = 46;
+
+  fixed32    fixed32_undef  = 47;
+  fixed64    fixed64_undef  = 48;
+
+  sfixed32   sfixed32_undef  = 49;
+  sfixed64   sfixed64_undef  = 50;
+
+  float      float_undef  = 51;
+  bool       bool_undef = 52;
+
+  string     string_foo = 61;
+  string     string_bar = 62;
+  string     string_undef = 63;
+
+  bytes      bytes_foo = 64;
+  bytes      bytes_bar = 65;
+  bytes      bytes_undef = 66;
+}

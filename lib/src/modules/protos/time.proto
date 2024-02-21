@@ -1,0 +1,15 @@
+syntax = "proto2";
+import "yara.proto";
+
+package time;
+
+option (yara.module_options) = {
+  name : "time"
+  root_message: "time.Time"
+  rust_module: "time"
+  cargo_feature: "time-module"
+};
+
+message Time {
+  // This module contains only exported functions, and doesn't return any data
+}

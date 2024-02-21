@@ -12,7 +12,6 @@ For illustrative purposes we are going to create a `text` module that allows
 creating YARA rules for plain-text files, based on the number of lines and
 words
 
-- [Module Developer's Guide](#module-developers-guide)
   - [Defining the module's structure](#defining-the-modules-structure)
   - [Proto2 vs Proto3](#proto2-vs-proto3)
   - [Tweaking the module's YAML output](#tweaking-the-modules-yaml-output)
@@ -65,6 +64,7 @@ option (yara.module_options) = {
   name : "text"
   root_message: "text.Text"
   rust_module: "text"
+  cargo_feature: "text-module"
 };
 
 message Text {
@@ -121,6 +121,7 @@ option (yara.module_options) = {
   name : "text"
   root_message: "text.Text"
   rust_module: "text"
+  cargo_feature: "text-module"
 };
 ```
 
@@ -131,16 +132,24 @@ file, but one describing a module. In fact, you can put any `.proto` file in the
 files is describing a YARA module. Only files containing a `yara.module_options` 
 section will define a module.
 
-Options `name` and `root_message` are required, while `rust_module` is optional.
-The `name` option defines the module's name. This is the name that will be used
-for importing the module in a YARA rule, in this case our module will be imported
-with `import "text"`. The `root_message` option indicates which is the module's 
-root structure, it must contain the name of some structure (a.k.a message) defined 
-in the `.proto` file. In our case the value for `root_message` is `"text.Text"` 
-because we have defined our module's structure in a message named `Text`, which
-is under package `text`. In general the value in this field will have the form
-`package.Message`, except if the `package` statement is missing, in which case
-it would be the name of the message alone (i.e: `Text`).
+Options `name` and `root_message` are required, while `rust_module` and 
+`cargo_feature` are optional. The `name` option defines the module's name. This 
+is the name that will be used for importing the module in a YARA rule, in this 
+case our module will be imported with `import "text"`.
+
+The `cargo_feature` option indicates the name of the feature that controls whether
+the module is built or not. If this option is not specified the module is always
+built, but if you specify a feature name, this feature name must also be included
+in the `Cargo.toml` file, and the module will be built only when this `cargo`
+feature is enabled.
+
+The `root_message` option a very important option indicating which is the module's
+root structure, it must contain the name of some structure (a.k.a. message) 
+defined in the `.proto` file. In our case the value for `root_message` is 
+`"text.Text"` because we have defined our module's structure in a message named 
+`Text`, which is under package `text`. In general the value in this field will 
+have the form `package.Message`, except if the `package` statement is missing, 
+in which case it would be the name of the message alone (i.e: `Text`).
 
 The `root_message` field is required because your `.proto` file can define
 multiple messages, and YARA needs to know which of them is considered the root 

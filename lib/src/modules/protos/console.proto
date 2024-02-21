@@ -1,0 +1,15 @@
+syntax = "proto2";
+import "yara.proto";
+
+package console;
+
+option (yara.module_options) = {
+  name : "console"
+  root_message: "console.Console"
+  rust_module: "console"
+  cargo_feature: "console-module"
+};
+
+message Console {
+  // This module contains only exported functions, and doesn't return any data
+}

@@ -1,0 +1,106 @@
+syntax = "proto2";
+import "yara.proto";
+
+package dotnet;
+
+option (yara.module_options) = {
+  name : "dotnet"
+  root_message: "dotnet.Dotnet"
+  rust_module: "dotnet"
+  cargo_feature: "dotnet-module"
+};
+
+message Dotnet {
+  optional bool is_dotnet = 1;
+  optional string module_name = 2;
+  optional bytes version = 3;  // TODO: should be string?
+  
+  optional uint64 number_of_streams = 4;
+  optional uint64 number_of_guids = 5;
+  optional uint64 number_of_resources = 6;
+  optional uint64 number_of_generic_parameters = 7;
+  optional uint64 number_of_classes = 10;
+  optional uint64 number_of_assembly_refs = 11;
+  optional uint64 number_of_modulerefs = 12;
+  optional uint64 number_of_user_strings = 13;
+  optional uint64 number_of_constants = 14;
+  optional uint64 number_of_field_offsets = 15;
+
+  optional string typelib = 16;
+  repeated Stream streams = 17;
+
+  repeated string guids = 18;
+  repeated bytes constants = 19;
+  optional Assembly assembly = 20;
+  repeated AssemblyRef assembly_refs = 21; 
+  repeated Resource resources = 22;
+  repeated Class classes = 23;
+  repeated uint32 field_offsets = 24;
+  repeated bytes user_strings = 25;
+}
+
+message Assembly {
+  optional string name = 1;
+  optional string culture = 2;
+  required Version version = 3;
+}
+
+message AssemblyRef {
+  optional string name = 1;
+  optional bytes public_key_or_token = 2;
+  required Version version = 3;
+}
+
+message Stream {
+  optional string name = 1;
+  required uint32 offset = 2;
+  required uint32 size = 3;
+}
+
+message Version {
+  required uint32 major = 1;
+  required uint32 minor = 2;
+  required uint32 build_number = 3;
+  required uint32 revision_number = 4;
+}
+
+message Resource {
+  optional uint32 offset = 1;
+  optional uint32 length = 2;
+  optional string name = 3;
+}
+
+message Class {
+  optional string fullname = 1;
+  optional string name = 2;
+  optional string namespace = 3;
+  optional string visibility = 4;
+  optional string type = 5;
+  required bool abstract = 6;
+  required bool sealed = 7;
+  required uint64 number_of_base_types = 8;
+  required uint64 number_of_generic_parameters = 9;
+  required uint64 number_of_methods = 10;
+  repeated string base_types = 11;
+  repeated string generic_parameters = 12;
+  repeated Method methods = 13;
+}
+
+message Method {
+  optional string name = 1;
+  optional string visibility = 2;
+  required bool abstract = 3;
+  required bool static= 4;
+  required bool virtual = 5;
+  required bool final = 6;
+  optional string return_type = 7;
+  required uint64 number_of_generic_parameters = 8;
+  required uint64 number_of_parameters = 9;
+  repeated string generic_parameters = 10;
+  repeated Param parameters = 11;
+}
+
+message Param {
+  required string name = 1;
+  optional string type = 2;
+}

@@ -1,0 +1,20 @@
+[package]
+name = "yara-x-proto"
+description = """
+Protocol buffer with options for YARA modules.
+"""
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+protobuf = { workspace = true }
+
+[build-dependencies]
+protobuf =  { workspace = true }
+protobuf-codegen =  { workspace = true }
+protobuf-parse =  { workspace = true }

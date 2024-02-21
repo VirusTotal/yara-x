@@ -1,0 +1,15 @@
+syntax = "proto2";
+import "yara.proto";
+
+package math;
+
+option (yara.module_options) = {
+  name : "math"
+  root_message: "math.Math"
+  rust_module: "math"
+  cargo_feature: "math-module"
+};
+
+message Math {
+  // This module contains only exported functions, and doesn't return any data
+}
