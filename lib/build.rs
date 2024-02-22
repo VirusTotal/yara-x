@@ -1,20 +1,13 @@
 use anyhow::Context;
 use std::fs::File;
-use std::io::{BufReader, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use protobuf_codegen::Codegen;
 use protobuf_parse::Parser;
-use serde::{Deserialize, Serialize};
 
 use yara_x_proto::exts::module_options as yara_module_options;
-
-#[derive(Serialize, Deserialize)]
-struct ProtocConfig {
-    includes: Vec<String>,
-    inputs: Vec<String>,
-}
 
 fn main() {
     println!("cargo:rerun-if-changed=src/modules");
@@ -51,6 +44,32 @@ fn main() {
         }
     }
 
+    // The environment variable `YRX_EXTRA_PROTOS` allows passing a list of
+    // additional `.proto` files with YARA module definitions, in addition to
+    // those found in `src/modules/protos`. The value in this variable must be a
+    // space-separated list of file paths, and the paths must be either absolute
+    // or relative to the location of this `build.rs` file.
+    //
+    // If you need to provide a list of paths that are relative to some other
+    // location in the file system, you can specify a base path using the
+    // environment variable `YRX_EXTRA_PROTOS_BASE_PATH`. This base path must be
+    // also absolute or relative to the location of this `build.rs`, and the
+    // final path for the `.proto` files will be computed by combining the
+    // relative paths in `YRX_EXTRA_PROTOS` to the base path. For instance,
+    // if you have:
+    //
+    // YRX_EXTRA_PROTOS_BASE_PATH=../../my/dir
+    // YRX_EXTRA_PROTOS="foo.proto bar.proto qux/qux.proto"
+    //
+    // The final paths will be:
+    //
+    // ../../my/dir/foo.proto
+    // ../../my/dir/bar.proto
+    // ../../my/dir/qux/qux.proto
+    //
+    // All these final paths are relative to this `build.rs` file. Any absolute
+    // path in `YRX_EXTRA_PROTOS` is not affected by the base path specified in
+    // `YRX_EXTRA_PROTOS_BASE_PATH`, they remain untouched.
     if let Ok(proto_files) = env::var("YRX_EXTRA_PROTOS") {
         println!("cargo:warning=YRX_EXTRA_PROTOS={:?}", &proto_files);
 
@@ -77,58 +96,6 @@ fn main() {
 
             proto_compiler.include(&base_path);
             proto_parser.include(&base_path);
-            proto_compiler.input(&path);
-            proto_parser.input(&path);
-        }
-    }
-
-    // If the YRX_PROTOC_CONFIG_FILE environment variable is set, it must
-    // contain the path to a JSON file that indicates additional include
-    // directories and input files passed to the `protoc` compiler. The path
-    // to the JSON file must be either an absolute path or a path relative to
-    // this `build.rs` file.
-    //
-    // The JSON file must be similar to this:
-    //
-    // {
-    //   "includes": [
-    //     "../../vt-protos/protos/tools",
-    //     "../../vt-protos/protos"
-    //   ],
-    //   "inputs": [
-    //     "../../vt-protos/protos/titan.proto",
-    //     "../../vt-protos/protos/filetypes.proto",
-    //     "../../vt-protos/protos/sandbox.proto",
-    //     "../../vt-protos/protos/vtnet.proto",
-    //     "../../vt-protos/protos/submitter.proto",
-    //     "../../vt-protos/protos/analysis.proto",
-    //     "../../vt-protos/protos/tools/net_analysis.proto",
-    //     "../../vt-protos/protos/tools/snort.proto",
-    //     "../../vt-protos/protos/tools/suricata.proto",
-    //     "../../vt-protos/protos/tools/tshark.proto",
-    //     "../../vt-protos/protos/sigma.proto",
-    //     "../../vt-protos/protos/relationships.proto"
-    //   ]
-    // }
-    //
-    // Paths in the "includes" and "inputs" lists must also be absolute or
-    // relative to this `build.rs` file.
-    if let Ok(path) = env::var("YRX_PROTOC_CONFIG_FILE") {
-        let file = File::open(path.as_str())
-            .unwrap_or_else(|_| panic!("error opening {}", path));
-
-        let reader = BufReader::new(file);
-        let config: ProtocConfig = serde_json::from_reader(reader)
-            .unwrap_or_else(|_| panic!("invalid config file {}", path));
-
-        for path in config.includes {
-            let path = fs::canonicalize(path).unwrap();
-            proto_compiler.include(&path);
-            proto_parser.include(&path);
-        }
-
-        for path in config.inputs {
-            let path = fs::canonicalize(path).unwrap();
             proto_compiler.input(&path);
             proto_parser.input(&path);
         }
