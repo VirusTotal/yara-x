@@ -52,10 +52,16 @@ fn main() {
     }
 
     if let Ok(proto_files) = env::var("YRX_EXTRA_PROTOS") {
+        println!("cargo:warning=YRX_EXTRA_PROTOS={:?}", &proto_files);
+
         for path in proto_files.split(' ').collect::<Vec<_>>() {
-            let path = if let Some(base_path) =
-                env::var("YRX_EXTRA_PROTOS_BASE_PATH").ok()
+            let path = if let Ok(base_path) =
+                env::var("YRX_EXTRA_PROTOS_BASE_PATH")
             {
+                println!(
+                    "cargo:warning=YRX_EXTRA_PROTOS_BASE_PATH={:?}",
+                    &base_path
+                );
                 PathBuf::from(base_path).join(path)
             } else {
                 PathBuf::from(path)
@@ -64,6 +70,8 @@ fn main() {
             let path = fs::canonicalize(&path)
                 .with_context(|| format!("`{:?}`", &path))
                 .expect("can not read file");
+
+            println!("cargo:warning=adding {:?}", &path);
 
             let base_path = path.with_file_name("");
 
