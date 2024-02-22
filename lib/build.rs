@@ -1,3 +1,4 @@
+use anyhow::Context;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::Path;
@@ -47,6 +48,21 @@ fn main() {
                 proto_compiler.input(&path);
                 proto_parser.input(&path);
             }
+        }
+    }
+
+    if let Ok(proto_files) = env::var("YRX_EXTRA_PROTO_FILES") {
+        for path in proto_files.split(' ').collect::<Vec<_>>() {
+            let path = fs::canonicalize(path)
+                .with_context(|| format!("`{}`", path))
+                .expect("can not read file");
+
+            let base_path = path.with_file_name("");
+
+            proto_compiler.include(&base_path);
+            proto_parser.include(&base_path);
+            proto_compiler.input(&path);
+            proto_parser.input(&path);
         }
     }
 
@@ -204,7 +220,7 @@ mod {rust_mod};"#,
 {cfg_feature}
 add_module!(modules, "{name}", {proto_mod}, "{root_message}", {rust_mod_name}, {main_fn});"#,
         )
-        .unwrap();
+            .unwrap();
     }
 
     write!(add_modules_rs, "}}").unwrap();
