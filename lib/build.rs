@@ -1,7 +1,7 @@
 use anyhow::Context;
 use std::fs::File;
 use std::io::{BufReader, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use protobuf_codegen::Codegen;
@@ -51,10 +51,18 @@ fn main() {
         }
     }
 
-    if let Ok(proto_files) = env::var("YRX_EXTRA_PROTO_FILES") {
+    if let Ok(proto_files) = env::var("YRX_EXTRA_PROTOS") {
         for path in proto_files.split(' ').collect::<Vec<_>>() {
-            let path = fs::canonicalize(path)
-                .with_context(|| format!("`{}`", path))
+            let path = if let Some(base_path) =
+                env::var("YRX_EXTRA_PROTOS_BASE_PATH").ok()
+            {
+                PathBuf::from(base_path).join(path)
+            } else {
+                PathBuf::from(path)
+            };
+
+            let path = fs::canonicalize(&path)
+                .with_context(|| format!("`{:?}`", &path))
                 .expect("can not read file");
 
             let base_path = path.with_file_name("");
