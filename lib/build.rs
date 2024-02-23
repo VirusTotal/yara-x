@@ -71,16 +71,10 @@ fn main() {
     // path in `YRX_EXTRA_PROTOS` is not affected by the base path specified in
     // `YRX_EXTRA_PROTOS_BASE_PATH`, they remain untouched.
     if let Ok(proto_files) = env::var("YRX_EXTRA_PROTOS") {
-        println!("cargo:warning=YRX_EXTRA_PROTOS={:?}", &proto_files);
-
         for path in proto_files.split(' ').collect::<Vec<_>>() {
             let path = if let Ok(base_path) =
                 env::var("YRX_EXTRA_PROTOS_BASE_PATH")
             {
-                println!(
-                    "cargo:warning=YRX_EXTRA_PROTOS_BASE_PATH={:?}",
-                    &base_path
-                );
                 PathBuf::from(base_path).join(path)
             } else {
                 PathBuf::from(path)
@@ -90,7 +84,7 @@ fn main() {
                 .with_context(|| format!("`{:?}`", &path))
                 .expect("can not read file");
 
-            println!("cargo:warning=adding {:?}", &path);
+            println!("cargo:warning=using extra proto: {:?}", &path);
 
             let base_path = path.with_file_name("");
 
