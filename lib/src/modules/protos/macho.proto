@@ -11,11 +11,61 @@ option (yara.module_options) = {
   cargo_feature: "macho-module"
 };
 
+message MinVersion {
+  optional DEVICE_TYPE device = 1;
+  optional string version = 2;
+  optional string sdk = 3;
+}
+
+message BuildVersion {
+  optional uint32 platform = 1;
+  optional string minos = 2;
+  optional string sdk = 3;
+  optional uint32 ntools = 4;
+  repeated BuildTool tools = 5;
+}
+
+message BuildTool {
+  optional uint32 tool = 1;
+  optional string version = 2;
+}
+
+message LinkedItData {
+  optional uint32 dataoff = 1;
+  optional uint32 datasize = 2;
+}
+
+message Certificates {
+  repeated string common_names = 1;
+  repeated string signer_names = 2;
+}
+
 message Dylib {
   optional bytes name = 1;
   optional uint32 timestamp = 2 [(yaml.field).fmt = "t"];
   optional string compatibility_version = 3;
   optional string current_version = 4;
+}
+
+message DyldInfo {
+  optional uint32 rebase_off = 1;
+  optional uint32 rebase_size = 2;
+  optional uint32 bind_off = 3;
+  optional uint32 bind_size = 4;  
+  optional uint32 weak_bind_off = 5;
+  optional uint32 weak_bind_size = 6;
+  optional uint32 lazy_bind_off = 7;
+  optional uint32 lazy_bind_size = 8;
+  optional uint32 export_off = 9;
+  optional uint32 export_size = 10;
+}
+
+message Symtab {
+  optional uint32 symoff = 1;
+  optional uint32 nsyms = 2;
+  optional uint32 stroff = 3;
+  optional uint32 strsize = 4;
+  repeated bytes entries = 5;
 }
 
 message Dysymtab {
@@ -93,7 +143,15 @@ message File {
   repeated Segment segments = 14;
   repeated Dylib dylibs = 15;
   repeated bytes rpaths = 16;
-  optional Dysymtab dysymtab = 17;
+  repeated string entitlements = 17;
+  optional Symtab symtab = 18;
+  optional Dysymtab dysymtab = 19;
+  optional DyldInfo dyld_info = 20;
+  optional LinkedItData code_signature_data = 21;
+  optional Certificates certificates = 22;
+  optional string uuid = 23;
+  optional BuildVersion build_version = 24;
+  optional MinVersion min_version = 25;
 }
 
 message Macho {
@@ -111,18 +169,27 @@ message Macho {
   optional uint64 entry_point = 11;
   optional uint64 stack_size = 12;
   optional string source_version = 13;
-  optional Dysymtab dysymtab = 14;
-  repeated Segment segments = 15;
-  repeated Dylib dylibs = 16;
-  repeated bytes rpaths = 17;
+  optional Symtab symtab = 14;
+  optional Dysymtab dysymtab = 15;
+  optional LinkedItData code_signature_data = 16;
+  repeated Segment segments = 17;
+  repeated Dylib dylibs = 18;
+  optional DyldInfo dyld_info = 19;
+  repeated bytes rpaths = 20;
+  repeated string entitlements = 21;
+  optional Certificates certificates = 22;
+  optional string uuid = 23;
+  optional BuildVersion build_version = 24;
+  optional MinVersion min_version = 25;
+
   
   // Add fields for Mach-O fat binary header
-  optional uint32 fat_magic = 18 [(yaml.field).fmt = "x"];
-  optional uint32 nfat_arch = 19;
-  repeated FatArch fat_arch = 20;
+  optional uint32 fat_magic = 26 [(yaml.field).fmt = "x"];
+  optional uint32 nfat_arch = 27;
+  repeated FatArch fat_arch = 28;
 
   // Nested Mach-O files
-  repeated File file = 21;
+  repeated File file = 29;
 }
 
 enum HEADER {
@@ -353,4 +420,12 @@ enum SECTION_ATTRIBUTES {
   S_ATTR_SOME_INSTRUCTIONS = 0x00000400;
   S_ATTR_EXT_RELOC = 0x00000200;
   S_ATTR_LOC_RELOC = 0x00000100;
+}
+
+enum DEVICE_TYPE {
+  option (yara.enum_options).inline = true;
+  MACOSX = 0x00000024;
+  IPHONEOS = 0x00000025;
+  TVOS = 0x0000002f;
+  WATCHOS = 0x00000030;
 }

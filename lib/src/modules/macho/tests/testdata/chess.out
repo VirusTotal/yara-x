@@ -1,0 +1,839 @@
+magic: 0xcffaedfe
+cputype: 0x1000007
+cpusubtype: 0x3
+filetype: 2
+ncmds: 31
+sizeofcmds: 4328
+flags: 0x210085
+reserved: 0
+number_of_segments: 5
+dynamic_linker: "/usr/lib/dyld"
+entry_point: 7904
+stack_size: 0
+source_version: "369.0.0.0.0"
+symtab:
+    symoff: 264536
+    nsyms: 308
+    stroff: 271144
+    strsize: 6000
+    entries:
+      - "__mh_execute_header"
+      - "_AEGetParamPtr"
+      - "_AEInstallEventHandler"
+      - "_CFRelease"
+      - "_CGBitmapContextCreate"
+      - "_CGColorSpaceCreateDeviceRGB"
+      - "_CGColorSpaceRelease"
+      - "_CGContextClearRect"
+      - "_CGContextDrawImage"
+      - "_CGContextGetTextPosition"
+      - "_CGContextRelease"
+      - "_CGContextSelectFont"
+      - "_CGContextSetAlpha"
+      - "_CGContextSetShouldSubpixelQuantizeFonts"
+      - "_CGContextSetTextDrawingMode"
+      - "_CGContextShowTextAtPoint"
+      - "_CGImageGetHeight"
+      - "_CGImageGetWidth"
+      - "_CGImageRelease"
+      - "_CGImageSourceCreateImageAtIndex"
+      - "_CGImageSourceCreateWithURL"
+      - "_CGLDescribeRenderer"
+      - "_CGLQueryRendererInfo"
+      - "_GetCurrentProcess"
+      - "_NSAccessibilityActionDescription"
+      - "_NSAccessibilityButtonRole"
+      - "_NSAccessibilityChildrenAttribute"
+      - "_NSAccessibilityContentsAttribute"
+      - "_NSAccessibilityDescriptionAttribute"
+      - "_NSAccessibilityEnabledAttribute"
+      - "_NSAccessibilityFocusedAttribute"
+      - "_NSAccessibilityGroupRole"
+      - "_NSAccessibilityParentAttribute"
+      - "_NSAccessibilityPositionAttribute"
+      - "_NSAccessibilityPressAction"
+      - "_NSAccessibilityRoleAttribute"
+      - "_NSAccessibilityRoleDescription"
+      - "_NSAccessibilityRoleDescriptionAttribute"
+      - "_NSAccessibilitySelectedChildrenAttribute"
+      - "_NSAccessibilitySelectedChildrenChangedNotification"
+      - "_NSAccessibilitySelectedRowsChangedNotification"
+      - "_NSAccessibilitySizeAttribute"
+      - "_NSAccessibilityStaticTextRole"
+      - "_NSAccessibilityTitleAttribute"
+      - "_NSAccessibilityTopLevelUIElementAttribute"
+      - "_NSAccessibilityValueAttribute"
+      - "_NSAccessibilityWindowAttribute"
+      - "_NSApp"
+      - "_NSApplicationMain"
+      - "_NSBeep"
+      - "_NSCocoaErrorDomain"
+      - "_NSDefaultRunLoopMode"
+      - "_NSEventTrackingRunLoopMode"
+      - "_NSFullUserName"
+      - "_NSLocalizedDescriptionKey"
+      - "_NSLog"
+      - "_NSRectFill"
+      - "_NSVoiceDemoText"
+      - "_NSVoiceLocaleIdentifier"
+      - "_NSVoiceName"
+      - "_NSWindowWillCloseNotification"
+      - "_OBJC_CLASS_$_GKAchievement"
+      - "_OBJC_CLASS_$_GKDialogController"
+      - "_OBJC_CLASS_$_GKGameCenterViewController"
+      - "_OBJC_CLASS_$_GKLocalPlayer"
+      - "_OBJC_CLASS_$_GKMatchRequest"
+      - "_OBJC_CLASS_$_GKPlayer"
+      - "_OBJC_CLASS_$_GKTurnBasedMatch"
+      - "_OBJC_CLASS_$_GKTurnBasedMatchmakerViewController"
+      - "_OBJC_CLASS_$_NSAlert"
+      - "_OBJC_CLASS_$_NSAnimationContext"
+      - "_OBJC_CLASS_$_NSApplication"
+      - "_OBJC_CLASS_$_NSArray"
+      - "_OBJC_CLASS_$_NSAutoreleasePool"
+      - "_OBJC_CLASS_$_NSBundle"
+      - "_OBJC_CLASS_$_NSColor"
+      - "_OBJC_CLASS_$_NSCursor"
+      - "_OBJC_CLASS_$_NSData"
+      - "_OBJC_CLASS_$_NSDate"
+      - "_OBJC_CLASS_$_NSDictionary"
+      - "_OBJC_CLASS_$_NSDocument"
+      - "_OBJC_CLASS_$_NSDocumentController"
+      - "_OBJC_CLASS_$_NSError"
+      - "_OBJC_CLASS_$_NSEvent"
+      - "_OBJC_CLASS_$_NSFileHandle"
+      - "_OBJC_CLASS_$_NSFileManager"
+      - "_OBJC_CLASS_$_NSFont"
+      - "_OBJC_CLASS_$_NSImageView"
+      - "_OBJC_CLASS_$_NSInvocation"
+      - "_OBJC_CLASS_$_NSLocale"
+      - "_OBJC_CLASS_$_NSMutableArray"
+      - "_OBJC_CLASS_$_NSMutableDictionary"
+      - "_OBJC_CLASS_$_NSMutableString"
+      - "_OBJC_CLASS_$_NSNotification"
+      - "_OBJC_CLASS_$_NSNotificationCenter"
+      - "_OBJC_CLASS_$_NSNotificationQueue"
+      - "_OBJC_CLASS_$_NSNull"
+      - "_OBJC_CLASS_$_NSNumber"
+      - "_OBJC_CLASS_$_NSNumberFormatter"
+      - "_OBJC_CLASS_$_NSObject"
+      - "_OBJC_CLASS_$_NSOpenGLPixelFormat"
+      - "_OBJC_CLASS_$_NSOpenGLView"
+      - "_OBJC_CLASS_$_NSOperationQueue"
+      - "_OBJC_CLASS_$_NSPipe"
+      - "_OBJC_CLASS_$_NSPort"
+      - "_OBJC_CLASS_$_NSPortMessage"
+      - "_OBJC_CLASS_$_NSPropertyListSerialization"
+      - "_OBJC_CLASS_$_NSRegularExpression"
+      - "_OBJC_CLASS_$_NSRunLoop"
+      - "_OBJC_CLASS_$_NSScreen"
+      - "_OBJC_CLASS_$_NSSet"
+      - "_OBJC_CLASS_$_NSSpeechSynthesizer"
+      - "_OBJC_CLASS_$_NSString"
+      - "_OBJC_CLASS_$_NSTableView"
+      - "_OBJC_CLASS_$_NSTask"
+      - "_OBJC_CLASS_$_NSTextFieldCell"
+      - "_OBJC_CLASS_$_NSThread"
+      - "_OBJC_CLASS_$_NSTrackingArea"
+      - "_OBJC_CLASS_$_NSURL"
+      - "_OBJC_CLASS_$_NSUserDefaults"
+      - "_OBJC_CLASS_$_NSUserDefaultsController"
+      - "_OBJC_CLASS_$_NSValue"
+      - "_OBJC_CLASS_$_NSWindow"
+      - "_OBJC_CLASS_$_NSWindowController"
+      - "_OBJC_CLASS_$_NSWorkspace"
+      - "_OBJC_METACLASS_$_NSDocument"
+      - "_OBJC_METACLASS_$_NSImageView"
+      - "_OBJC_METACLASS_$_NSObject"
+      - "_OBJC_METACLASS_$_NSOpenGLView"
+      - "_OBJC_METACLASS_$_NSTableView"
+      - "_OBJC_METACLASS_$_NSTextFieldCell"
+      - "_OBJC_METACLASS_$_NSWindow"
+      - "_OBJC_METACLASS_$_NSWindowController"
+      - "_SCNetworkReachabilityCreateWithAddress"
+      - "_SCNetworkReachabilityGetFlags"
+      - "_SRAddLanguageObject"
+      - "_SRAddText"
+      - "_SRCloseRecognitionSystem"
+      - "_SRCountItems"
+      - "_SREmptyLanguageObject"
+      - "_SRGetIndexedItem"
+      - "_SRGetProperty"
+      - "_SRNewLanguageModel"
+      - "_SRNewPath"
+      - "_SRNewRecognizer"
+      - "_SROpenRecognitionSystem"
+      - "_SRReleaseObject"
+      - "_SRSetLanguageModel"
+      - "_SRSetProperty"
+      - "_SRStartListening"
+      - "_SRStopListening"
+      - "__Block_copy"
+      - "__Block_object_assign"
+      - "__Block_object_dispose"
+      - "__Block_release"
+      - "__DefaultRuneLocale"
+      - "__NSConcreteGlobalBlock"
+      - "__NSConcreteStackBlock"
+      - "__Unwind_Resume"
+      - "__ZdlPv"
+      - "__Znwm"
+      - "___CFConstantStringClassReference"
+      - "___bzero"
+      - "___cxa_guard_abort"
+      - "___cxa_guard_acquire"
+      - "___cxa_guard_release"
+      - "___error"
+      - "___gxx_personality_v0"
+      - "___maskrune"
+      - "___sincosf_stret"
+      - "___stack_chk_fail"
+      - "___stack_chk_guard"
+      - "___stderrp"
+      - "___stdinp"
+      - "___stdoutp"
+      - "___tolower"
+      - "___toupper"
+      - "__dispatch_main_q"
+      - "__objc_empty_cache"
+      - "_abort"
+      - "_arc4random"
+      - "_atan2f"
+      - "_atoi"
+      - "_calloc"
+      - "_creat"
+      - "_dispatch_after"
+      - "_dispatch_apply"
+      - "_dispatch_async"
+      - "_dispatch_get_global_queue"
+      - "_dispatch_once"
+      - "_dispatch_queue_create"
+      - "_dispatch_time"
+      - "_exit"
+      - "_fclose"
+      - "_fileno"
+      - "_fmodf"
+      - "_fopen"
+      - "_fprintf"
+      - "_fputc"
+      - "_fputs"
+      - "_free"
+      - "_funopen"
+      - "_fwrite"
+      - "_getenv"
+      - "_getrlimit"
+      - "_gettimeofday"
+      - "_glBegin"
+      - "_glBindTexture"
+      - "_glBlendFunc"
+      - "_glCallList"
+      - "_glClear"
+      - "_glClearColor"
+      - "_glColor3fv"
+      - "_glColor4f"
+      - "_glColor4fv"
+      - "_glColorMask"
+      - "_glCullFace"
+      - "_glDeleteTextures"
+      - "_glDepthMask"
+      - "_glDisable"
+      - "_glEnable"
+      - "_glEnd"
+      - "_glEndList"
+      - "_glFlush"
+      - "_glGenTextures"
+      - "_glGetDoublev"
+      - "_glGetFloatv"
+      - "_glGetIntegerv"
+      - "_glGetString"
+      - "_glHint"
+      - "_glLightModeli"
+      - "_glLightf"
+      - "_glLightfv"
+      - "_glLighti"
+      - "_glLoadIdentity"
+      - "_glMaterialf"
+      - "_glMaterialfv"
+      - "_glMatrixMode"
+      - "_glNewList"
+      - "_glNormal3f"
+      - "_glPixelStorei"
+      - "_glPopAttrib"
+      - "_glPopMatrix"
+      - "_glPushAttrib"
+      - "_glPushMatrix"
+      - "_glReadPixels"
+      - "_glRotatef"
+      - "_glScalef"
+      - "_glShadeModel"
+      - "_glStencilFunc"
+      - "_glStencilOp"
+      - "_glTexCoord2f"
+      - "_glTexEnvi"
+      - "_glTexParameterf"
+      - "_glTexParameteri"
+      - "_glTranslatef"
+      - "_glVertex3d"
+      - "_glVertex3f"
+      - "_glVertex3fv"
+      - "_glViewport"
+      - "_gluBuild2DMipmaps"
+      - "_gluCylinder"
+      - "_gluDeleteQuadric"
+      - "_gluDisk"
+      - "_gluLookAt"
+      - "_gluNewQuadric"
+      - "_gluOrtho2D"
+      - "_gluPartialDisk"
+      - "_gluPerspective"
+      - "_gluProject"
+      - "_gluQuadricNormals"
+      - "_gluQuadricOrientation"
+      - "_gluQuadricTexture"
+      - "_gluUnProject"
+      - "_hypotf"
+      - "_isatty"
+      - "_ldexpf"
+      - "_lroundf"
+      - "_malloc"
+      - "_memchr"
+      - "_memcpy"
+      - "_memset"
+      - "_objc_alloc"
+      - "_objc_autorelease"
+      - "_objc_enumerationMutation"
+      - "_objc_msgSend"
+      - "_objc_msgSendSuper2"
+      - "_objc_msgSend_stret"
+      - "_objc_release"
+      - "_objc_retain"
+      - "_objc_setProperty_nonatomic"
+      - "_pow"
+      - "_putenv"
+      - "_random"
+      - "_read"
+      - "_realloc"
+      - "_setrlimit"
+      - "_snprintf"
+      - "_srandom"
+      - "_strchr"
+      - "_strcspn"
+      - "_strlcpy"
+      - "_strlen"
+      - "_strspn"
+      - "_strstr"
+      - "_usleep"
+      - "dyld_stub_binder"
+      - "radr://5614542"
+dysymtab:
+    ilocalsym: 0
+    nlocalsym: 1
+    iextdefsym: 1
+    nextdefsym: 1
+    tocoff: 2
+    ntoc: 306
+    modtaboff: 0
+    nmodtab: 0
+    extrefsymoff: 0
+    nextrefsyms: 0
+    indirectsymoff: 0
+    nindirectsyms: 0
+    extreloff: 269464
+    nextrel: 420
+    locreloff: 0
+    nlocrel: 0
+code_signature_data:
+    dataoff: 277152
+    datasize: 21152
+segments:
+  - segname: "__PAGEZERO"
+    vmaddr: 0x0
+    vmsize: 0x1000
+    fileoff: 0
+    filesize: 0
+    maxprot: 0x0
+    initprot: 0x0
+    nsects: 0
+    flags: 0x0
+  - segname: "__TEXT"
+    vmaddr: 0x1000
+    vmsize: 0x2f000
+    fileoff: 0
+    filesize: 192512
+    maxprot: 0x5
+    initprot: 0x5
+    nsects: 11
+    flags: 0x0
+    sections:
+      - segname: "__TEXT"
+        sectname: "__text"
+        addr: 0x2ee0
+        size: 0x22755
+        offset: 7904
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__stubs"
+        addr: 0x25636
+        size: 0x46e
+        offset: 149046
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000408
+        reserved1: 0
+        reserved2: 6
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__stub_helper"
+        addr: 0x25aa4
+        size: 0x75e
+        offset: 150180
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x80000400
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__cstring"
+        addr: 0x26202
+        size: 0x1dfa
+        offset: 152066
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methname"
+        addr: 0x27ffc
+        size: 0x4983
+        offset: 159740
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__const"
+        addr: 0x2c980
+        size: 0x16f6
+        offset: 178560
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_classname"
+        addr: 0x2e076
+        size: 0x2eb
+        offset: 184438
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__objc_methtype"
+        addr: 0x2e361
+        size: 0x153e
+        offset: 185185
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x2
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__gcc_except_tab"
+        addr: 0x2f8a0
+        size: 0xc
+        offset: 190624
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__ustring"
+        addr: 0x2f8ac
+        size: 0x6
+        offset: 190636
+        align: 1
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__TEXT"
+        sectname: "__unwind_info"
+        addr: 0x2f8b4
+        size: 0x740
+        offset: 190644
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__DATA_CONST"
+    vmaddr: 0x30000
+    vmsize: 0x4000
+    fileoff: 192512
+    filesize: 16384
+    maxprot: 0x3
+    initprot: 0x3
+    nsects: 8
+    flags: 0x10
+    sections:
+      - segname: "__DATA_CONST"
+        sectname: "__got"
+        addr: 0x30000
+        size: 0x150
+        offset: 192512
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x6
+        reserved1: 189
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__mod_init_func"
+        addr: 0x30150
+        size: 0x8
+        offset: 192848
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x9
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__const"
+        addr: 0x30160
+        size: 0x6d0
+        offset: 192864
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__cfstring"
+        addr: 0x30830
+        size: 0x2c00
+        offset: 194608
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_classlist"
+        addr: 0x33430
+        size: 0xd8
+        offset: 205872
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_catlist"
+        addr: 0x33508
+        size: 0x0
+        offset: 206088
+        align: 0
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_protolist"
+        addr: 0x33508
+        size: 0x60
+        offset: 206088
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA_CONST"
+        sectname: "__objc_imageinfo"
+        addr: 0x33568
+        size: 0x8
+        offset: 206184
+        align: 2
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__DATA"
+    vmaddr: 0x34000
+    vmsize: 0xb000
+    fileoff: 208896
+    filesize: 45056
+    maxprot: 0x3
+    initprot: 0x3
+    nsects: 10
+    flags: 0x0
+    sections:
+      - segname: "__DATA"
+        sectname: "__la_symbol_ptr"
+        addr: 0x34000
+        size: 0x5e8
+        offset: 208896
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x7
+        reserved1: 231
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_const"
+        addr: 0x345e8
+        size: 0x7418
+        offset: 210408
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_selrefs"
+        addr: 0x3ba00
+        size: 0x14b8
+        offset: 240128
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000005
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_classrefs"
+        addr: 0x3ceb8
+        size: 0x238
+        offset: 245432
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_superrefs"
+        addr: 0x3d0f0
+        size: 0x90
+        offset: 246000
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x10000000
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_ivar"
+        addr: 0x3d180
+        size: 0x638
+        offset: 246144
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__objc_data"
+        addr: 0x3d7b8
+        size: 0x870
+        offset: 247736
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__data"
+        addr: 0x3e030
+        size: 0x548
+        offset: 249904
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x0
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__bss"
+        addr: 0x3e580
+        size: 0xa0
+        offset: 0
+        align: 4
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+      - segname: "__DATA"
+        sectname: "__common"
+        addr: 0x3e620
+        size: 0xc
+        offset: 0
+        align: 3
+        reloff: 0
+        nreloc: 0
+        flags: 0x1
+        reserved1: 0
+        reserved2: 0
+        reserved3: 0
+  - segname: "__LINKEDIT"
+    vmaddr: 0x3f000
+    vmsize: 0xb000
+    fileoff: 253952
+    filesize: 44352
+    maxprot: 0x1
+    initprot: 0x1
+    nsects: 0
+    flags: 0x0
+dylibs:
+  - name: "/System/Library/Frameworks/SystemConfiguration.framework/Versions/A/SystemConfiguration"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1061.140.1"
+  - name: "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "150.0.0"
+    current_version: "1677.103.0"
+  - name: "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "45.0.0"
+    current_version: "1894.60.100"
+  - name: "/System/Library/Frameworks/GameKit.framework/Versions/A/GameKit"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "665.26.0"
+  - name: "/System/Library/Frameworks/Cocoa.framework/Versions/A/Cocoa"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "23.0.0"
+  - name: "/System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+  - name: "/System/Library/Frameworks/Carbon.framework/Versions/A/Carbon"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "2.0.0"
+    current_version: "162.0.0"
+  - name: "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "300.0.0"
+    current_version: "1677.103.0"
+  - name: "/usr/lib/libobjc.A.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "228.0.0"
+  - name: "/usr/lib/libc++.1.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "902.1.0"
+  - name: "/usr/lib/libSystem.B.dylib"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1281.100.1"
+  - name: "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/ApplicationServices"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "52.0.0"
+  - name: "/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "64.0.0"
+    current_version: "1355.20.0"
+  - name: "/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1069.24.0"
+  - name: "/System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO"
+    timestamp: 2 # 1970-01-01 00:00:02 UTC
+    compatibility_version: "1.0.0"
+    current_version: "1.0.0"
+dyld_info:
+    rebase_off: 253952
+    rebase_size: 1312
+    bind_off: 255264
+    bind_size: 4104
+    weak_bind_off: 259368
+    weak_bind_size: 48
+    lazy_bind_off: 259416
+    lazy_bind_size: 4040
+    export_off: 263456
+    export_size: 32
+entitlements:
+  - "com.apple.developer.game-center"
+  - "com.apple.private.tcc.allow"
+  - "com.apple.security.app-sandbox"
+  - "com.apple.security.device.microphone"
+  - "com.apple.security.files.user-selected.read-write"
+  - "com.apple.security.network.client"
+certificates:
+    common_names:
+      - "Apple Code Signing Certification Authority"
+      - "Apple Root CA"
+      - "Software Signing"
+    signer_names:
+      - "CN=Apple Code Signing Certification Authority, OU=Apple Certification Authority, O=Apple Inc., C=US"
+uuid: "18455A71-F835-3D0F-8F7C-215BF86BC7AF"
+build_version:
+    platform: 1
+    minos: "10.15.0"
+    sdk: "10.15.6"
+    ntools: 1
+    tools:
+      - tool: 3
+        version: "556.4"
