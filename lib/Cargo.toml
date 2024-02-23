@@ -16,7 +16,7 @@ rust-version.workspace = true
 # However, you need to specify the path where the library and its header files
 # are located by setting the environment variable OPENSSL_DIR. For example:
 #
-# OPENSSL_DIR=/usr/local/Cellar/openssl@3/3.2.0_1/ cargo build --feature openssl-static
+# OPENSSL_DIR=/usr/local/Cellar/openssl@3/3.2.0_1/ cargo build --features=openssl-static
 #
 # The directory specified in OPENSSL_DIR must contain subdirectories /include 
 # and /lib. The latter must contain `libcrypto.a`.
