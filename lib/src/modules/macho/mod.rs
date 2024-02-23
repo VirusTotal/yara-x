@@ -185,8 +185,8 @@ fn ep_for_arch_subtype(
 /// Returns true if the Mach-O parsed entitlements contain `entitlement`
 ///
 /// `entitlement` is case-insensitive.
-#[module_export(name = "entitlement_present")]
-fn entitlements_present(
+#[module_export]
+fn has_entitlement(
     ctx: &ScanContext,
     entitlement: RuntimeString,
 ) -> Option<bool> {
@@ -213,11 +213,8 @@ fn entitlements_present(
 /// Returns true if the Mach-O parsed dylibs contain `dylib_name`
 ///
 /// `dylib_name` is case-insensitive.
-#[module_export(name = "dylib_present")]
-fn dylibs_present(
-    ctx: &ScanContext,
-    dylib_name: RuntimeString,
-) -> Option<bool> {
+#[module_export]
+fn has_dylib(ctx: &ScanContext, dylib_name: RuntimeString) -> Option<bool> {
     let macho = ctx.module_output::<Macho>()?;
     let expected_name = dylib_name.as_bstr(ctx);
 
@@ -245,8 +242,8 @@ fn dylibs_present(
 /// Returns true if the Mach-O parsed rpaths contain `rpath`
 ///
 /// `rpath` is case-insensitive.
-#[module_export(name = "rpath_present")]
-fn rpaths_present(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
+#[module_export]
+fn has_rpath(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
     let macho = ctx.module_output::<Macho>()?;
     let expected_rpath = rpath.as_bstr(ctx);
 
