@@ -94,19 +94,16 @@ impl MatchList {
         let start: usize = (*range.start()).try_into().unwrap_or(0);
         let end: usize = (*range.end()).try_into().unwrap();
 
-        // Find the index of the match that starts at `start`, or find the
-        // index where that match should be.
+        // Find the index of the match that starts at `start`, or the index
+        // where it should be. Any match starting at some offset >= `start`,
+        // must be located at `index` or higher in the matches array.
+        // Notice that the fact that two matches can't have the same starting
+        // offset is very helpful in this case. Because of this, we don't need
+        // to take into account matches at `index-1`, `index-2`, etc. Otherwise,
+        // we would like to take into account matches at those indexes because
+        // the `search` function does not guarantee that it returns the *first*
+        // match with a given offset, but *any* match with that offset.
         match self.search(start) {
-            // No matter if the match was found or not, in both cases the
-            // matches that start at the range [lower_bound, upper_bound], if
-            // any, must be at `index`, `index+1`, `index+2`, etc.
-            // Notice that the fact that two matches can't have the same
-            // starting offset is very helpful in this case. Because of this
-            // we don't need to take into account matches at `index-1`,
-            // `index-2`, etc. If matches could have the same starting offset
-            // we would like to take matches before `index` because the
-            // `search` function does not guarantee that it returns the *first*
-            // match with a given offset, but *any* match with that offset.
             Ok(index) | Err(index) => {
                 let mut count = 0;
                 for m in &self.matches.as_slice()[index..] {
