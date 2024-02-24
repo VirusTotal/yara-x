@@ -9,7 +9,7 @@ that can be found in the `target` directory.
 This crate is not intended to be used by other Rust programs.
 
 [1]: https://github.com/mozilla/cbindgen
-*/
+ */
 
 #![allow(non_camel_case_types)]
 #![allow(clippy::missing_safety_doc)]
@@ -18,6 +18,7 @@ This crate is not intended to be used by other Rust programs.
 use std::ffi::{c_char, CStr, CString};
 use std::mem::ManuallyDrop;
 use std::ptr::slice_from_raw_parts_mut;
+use std::slice;
 
 mod compiler;
 mod scanner;
@@ -99,6 +100,26 @@ pub struct YRX_MATCH {
     pub length: usize,
 }
 
+/// Represents a buffer with arbitrary data.
+#[repr(C)]
+pub struct YRX_BUFFER {
+    /// Pointer to the data contained in the buffer.
+    pub data: *mut u8,
+    /// Length of data in bytes.
+    pub length: usize,
+}
+
+impl Drop for YRX_BUFFER {
+    fn drop(&mut self) {
+        unsafe {
+            drop(Box::from_raw(slice_from_raw_parts_mut(
+                self.data,
+                self.length,
+            )));
+        }
+    }
+}
+
 /// Compiles YARA source code and creates a [`YRX_RULES`] object that contains
 /// the compiled rules.
 ///
@@ -119,6 +140,60 @@ pub unsafe extern "C" fn yrx_compile(
     };
 
     YRX_RESULT::SUCCESS
+}
+
+/// Serializes the rules as a sequence of bytes.
+///
+/// In the address indicated by the `buf` pointer, the function will copy a
+/// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
+/// that contains the serialized rules. This structure has a pointer to the
+/// data itself, and its length.
+///
+/// This [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_serialize(
+    rules: *mut YRX_RULES,
+    buf: &mut *mut YRX_BUFFER,
+) -> YRX_RESULT {
+    if let Some(rules) = rules.as_ref() {
+        match rules.0.serialize() {
+            Ok(serialized) => {
+                let serialized = serialized.into_boxed_slice();
+                let mut serialized = ManuallyDrop::new(serialized);
+                *buf = Box::into_raw(Box::new(YRX_BUFFER {
+                    data: serialized.as_mut_ptr(),
+                    length: serialized.len(),
+                }))
+            }
+            Err(_) => {
+                // TODO: handle error
+            }
+        }
+        YRX_RESULT::SUCCESS
+    } else {
+        YRX_RESULT::INVALID_ARGUMENT
+    }
+}
+
+/// Deserializes the rules from a sequence of bytes produced by
+/// [`yrx_rules_serialize`].
+///
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_deserialize(
+    data: *const u8,
+    len: usize,
+    rules: &mut *mut YRX_RULES,
+) -> YRX_RESULT {
+    match yara_x::Rules::deserialize(slice::from_raw_parts(data, len)) {
+        Ok(r) => {
+            *rules = Box::into_raw(Box::new(YRX_RULES(r)));
+            YRX_RESULT::SUCCESS
+        }
+        Err(_) => {
+            // TODO: handle error
+            todo!()
+        }
+    }
 }
 
 /// Destroys a [`YRX_RULES`] object.
@@ -221,4 +296,10 @@ pub unsafe extern "C" fn yrx_rule_patterns(
 #[no_mangle]
 pub unsafe extern "C" fn yrx_patterns_destroy(patterns: *mut YRX_PATTERNS) {
     drop(Box::from_raw(patterns));
+}
+
+/// Destroys a [`YRX_BUFFER`] object.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
+    drop(Box::from_raw(buf));
 }

@@ -5,8 +5,9 @@ use crate::compiler::{
     yrx_compiler_destroy, yrx_compiler_new_namespace,
 };
 use crate::{
+    yrx_buffer_destroy, yrx_rules_deserialize, yrx_rules_serialize,
     yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, YRX_RULE,
+    yrx_scanner_scan, YRX_BUFFER, YRX_RULE,
 };
 use std::ffi::{c_void, CString};
 
@@ -52,9 +53,15 @@ fn capi() {
         yrx_compiler_new_namespace(compiler, namespace.as_ptr());
         yrx_compiler_add_source(compiler, src.as_ptr());
 
-        let rules = yrx_compiler_build(compiler);
+        let mut rules = yrx_compiler_build(compiler);
 
         yrx_compiler_destroy(compiler);
+
+        let mut buf: *mut YRX_BUFFER = std::ptr::null_mut();
+
+        yrx_rules_serialize(rules, &mut buf);
+        yrx_rules_deserialize((*buf).data, (*buf).length, &mut rules);
+        yrx_buffer_destroy(buf);
 
         let mut scanner = std::ptr::null_mut();
         yrx_scanner_create(rules, &mut scanner);
