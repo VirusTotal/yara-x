@@ -18,6 +18,21 @@ func TestNamespaces(t *testing.T) {
 	assert.Len(t, matchingRules, 2)
 }
 
+func TestSerialization(t *testing.T) {
+	c := NewCompiler()
+	c.AddSource("rule test { condition: true }")
+	b, _ := c.Build().Serialize()
+	r, _ := Deserialize(b)
+
+	s := NewScanner(r)
+	matchingRules, _ := s.Scan([]byte{})
+
+	assert.Len(t, matchingRules, 1)
+
+	_, err := Deserialize(nil)
+	assert.NoError(t, err)
+}
+
 func TestVariables(t *testing.T) {
 	c := NewCompiler()
 

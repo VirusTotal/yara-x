@@ -11,6 +11,7 @@ package yara_x
 // #import <yara-x.h>
 import "C"
 import (
+	"errors"
 	"runtime"
 	"unsafe"
 )
@@ -25,8 +26,37 @@ func Compile(source string) (*Rules, error) {
 	return c.Build(), nil
 }
 
+func Deserialize(data []byte) (*Rules, error) {
+	var ptr *C.uint8_t
+	if len(data) > 0 {
+		ptr = (*C.uint8_t)(unsafe.Pointer(&(data[0])))
+	}
+
+	r := &Rules{cRules: nil}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if C.yrx_rules_deserialize(ptr, C.size_t(len(data)), &r.cRules) != C.SUCCESS {
+		return nil, errors.New(C.GoString(C.yrx_last_error()))
+	}
+
+	return r, nil
+}
+
 // Rules represents a set of compiled YARA rules.
 type Rules struct{ cRules *C.YRX_RULES }
+
+func (r *Rules) Serialize() ([]byte, error) {
+	var buf *C.YRX_BUFFER
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if C.yrx_rules_serialize(r.cRules, &buf) != C.SUCCESS {
+		return nil, errors.New(C.GoString(C.yrx_last_error()))
+	}
+	runtime.KeepAlive(r)
+	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length)), nil
+}
 
 // Destroy destroys the compiled YARA rules represented by Rules.
 //
