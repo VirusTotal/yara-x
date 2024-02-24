@@ -23,6 +23,7 @@ typedef enum YRX_RESULT {
   SCAN_TIMEOUT,
   INVALID_IDENTIFIER,
   INVALID_ARGUMENT,
+  SERIALIZATION_ERROR,
 } YRX_RESULT;
 
 // A compiler that takes YARA source code and produces compiled rules.
@@ -153,6 +154,15 @@ void yrx_patterns_destroy(struct YRX_PATTERNS *patterns);
 // Destroys a [`YRX_BUFFER`] object.
 void yrx_buffer_destroy(struct YRX_BUFFER *buf);
 
+// Returns the error message for the most recent function in this API
+// invoked by the current thread.
+//
+// The returned pointer is only valid until this thread calls some other
+// function, as it can modify the last error and render the pointer to
+// a previous error message invalid. Also, the pointer will be null if
+// the most recent function was successfully.
+const char *yrx_last_error(void);
+
 // Creates a [`YRX_COMPILER`] object.
 enum YRX_RESULT yrx_compiler_create(struct YRX_COMPILER **compiler);
 
@@ -164,16 +174,6 @@ void yrx_compiler_destroy(struct YRX_COMPILER *compiler);
 // This function can be called multiple times.
 enum YRX_RESULT yrx_compiler_add_source(struct YRX_COMPILER *compiler,
                                         const char *src);
-
-// Returns the error message for the most recent error returned by the
-// compiler.
-//
-// The returned pointer is only valid until the next call to any of the
-// yrx_compiler_xxxx functions. A call any of these functions can modify
-// the last error, rendering the pointer to a previous error message
-// invalid. Also, the pointer will be null if the compiler hasn't returned
-// any error.
-const char *yrx_compiler_last_error(const struct YRX_COMPILER *compiler);
 
 // Creates a new namespace.
 //
@@ -293,15 +293,5 @@ enum YRX_RESULT yrx_scanner_set_module_output(struct YRX_SCANNER *scanner,
                                               const char *name,
                                               const uint8_t *data,
                                               size_t len);
-
-// Returns the error message for the most recent error returned by the
-// scanner.
-//
-// The returned pointer is only valid until the next call to any of the
-// yrx_scanner_xxxx functions. A call any of these functions can modify
-// the last error, rendering the pointer to a previous error message
-// invalid. Also, the pointer will be null if the scanner hasn't returned
-// any error.
-const char *yrx_scanner_last_error(const struct YRX_SCANNER *scanner);
 
 #endif /* YARA_X */

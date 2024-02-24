@@ -22,16 +22,23 @@ func NewCompiler() *Compiler {
 func (c *Compiler) AddSource(src string) error {
 	cSrc := C.CString(src)
 	defer C.free(unsafe.Pointer(cSrc))
-	var err error
+	// The call to runtime.LockOSThread() is necessary to make sure that
+	// yrx_compiler_add_source and yrx_last_error are called from the same OS
+	// thread. Otherwise, yrx_last_error could return an error message that
+	// doesn't correspond to this invocation of yrx_compiler_add_source. This
+	// can happen because the Go runtime can switch this goroutine to a
+	// different thread in-between the two calls to the C API.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if C.yrx_compiler_add_source(c.cCompiler, cSrc) == C.SYNTAX_ERROR {
-		err = errors.New(C.GoString(C.yrx_compiler_last_error(c.cCompiler)))
+		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 	// After the call to yrx_compiler_add_source, c is not live anymore and
 	// the garbage collector could try to free it and call the finalizer while
 	// yrx_compiler_add_source is being executed. This ensure that c is alive
 	// until yrx_compiler_add_source finishes.
 	runtime.KeepAlive(c)
-	return err
+	return nil
 }
 
 func (c *Compiler) NewNamespace(namespace string) {
@@ -47,23 +54,25 @@ func (c *Compiler) NewNamespace(namespace string) {
 func (c *Compiler) DefineGlobalInt(ident string, value int64) error {
 	cIdent := C.CString(ident)
 	defer C.free(unsafe.Pointer(cIdent))
-	var err error
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if C.yrx_compiler_define_global_int(c.cCompiler, cIdent, C.int64_t(value)) == C.VARIABLE_ERROR {
-		err = errors.New(C.GoString(C.yrx_compiler_last_error(c.cCompiler)))
+		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 	runtime.KeepAlive(c)
-	return err
+	return nil
 }
 
 func (c *Compiler) DefineGlobalBool(ident string, value bool) error {
 	cIdent := C.CString(ident)
 	defer C.free(unsafe.Pointer(cIdent))
-	var err error
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if C.yrx_compiler_define_global_bool(c.cCompiler, cIdent, C.bool(value)) == C.VARIABLE_ERROR {
-		err = errors.New(C.GoString(C.yrx_compiler_last_error(c.cCompiler)))
+		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 	runtime.KeepAlive(c)
-	return err
+	return nil
 }
 
 func (c *Compiler) DefineGlobalStr(ident string, value string) error {
@@ -71,12 +80,13 @@ func (c *Compiler) DefineGlobalStr(ident string, value string) error {
 	defer C.free(unsafe.Pointer(cIdent))
 	cValue := C.CString(value)
 	defer C.free(unsafe.Pointer(cValue))
-	var err error
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	if C.yrx_compiler_define_global_str(c.cCompiler, cIdent, cValue) == C.VARIABLE_ERROR {
-		err = errors.New(C.GoString(C.yrx_compiler_last_error(c.cCompiler)))
+		return errors.New(C.GoString(C.yrx_last_error()))
 	}
 	runtime.KeepAlive(c)
-	return err
+	return nil
 }
 
 func (c *Compiler) Build() *Rules {

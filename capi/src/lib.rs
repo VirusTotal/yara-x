@@ -15,6 +15,7 @@ This crate is not intended to be used by other Rust programs.
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
+use std::cell::RefCell;
 use std::ffi::{c_char, CStr, CString};
 use std::mem::ManuallyDrop;
 use std::ptr::slice_from_raw_parts_mut;
@@ -28,6 +29,10 @@ mod tests;
 
 pub use scanner::*;
 
+thread_local! {
+    static LAST_ERROR: RefCell<Option<CString>> = RefCell::new(None);
+}
+
 #[repr(C)]
 pub enum YRX_RESULT {
     SUCCESS,
@@ -38,6 +43,7 @@ pub enum YRX_RESULT {
     SCAN_TIMEOUT,
     INVALID_IDENTIFIER,
     INVALID_ARGUMENT,
+    SERIALIZATION_ERROR,
 }
 
 /// A set of compiled YARA rules.
@@ -130,16 +136,17 @@ pub unsafe extern "C" fn yrx_compile(
     rules: &mut *mut YRX_RULES,
 ) -> YRX_RESULT {
     let c_str = CStr::from_ptr(src);
-
     match yara_x::compile(c_str.to_bytes()) {
-        Ok(r) => *rules = Box::into_raw(Box::new(YRX_RULES(r))),
-        Err(_) => {
-            // TODO: handle error
-            return YRX_RESULT::SYNTAX_ERROR;
+        Ok(r) => {
+            *rules = Box::into_raw(Box::new(YRX_RULES(r)));
+            LAST_ERROR.set(None);
+            YRX_RESULT::SUCCESS
         }
-    };
-
-    YRX_RESULT::SUCCESS
+        Err(err) => {
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            YRX_RESULT::SYNTAX_ERROR
+        }
+    }
 }
 
 /// Serializes the rules as a sequence of bytes.
@@ -163,13 +170,15 @@ pub unsafe extern "C" fn yrx_rules_serialize(
                 *buf = Box::into_raw(Box::new(YRX_BUFFER {
                     data: serialized.as_mut_ptr(),
                     length: serialized.len(),
-                }))
+                }));
+                LAST_ERROR.set(None);
+                YRX_RESULT::SUCCESS
             }
-            Err(_) => {
-                // TODO: handle error
+            Err(err) => {
+                LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+                YRX_RESULT::SERIALIZATION_ERROR
             }
         }
-        YRX_RESULT::SUCCESS
     } else {
         YRX_RESULT::INVALID_ARGUMENT
     }
@@ -187,11 +196,12 @@ pub unsafe extern "C" fn yrx_rules_deserialize(
     match yara_x::Rules::deserialize(slice::from_raw_parts(data, len)) {
         Ok(r) => {
             *rules = Box::into_raw(Box::new(YRX_RULES(r)));
+            LAST_ERROR.set(None);
             YRX_RESULT::SUCCESS
         }
-        Err(_) => {
-            // TODO: handle error
-            todo!()
+        Err(err) => {
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            YRX_RESULT::SERIALIZATION_ERROR
         }
     }
 }
@@ -219,6 +229,7 @@ pub unsafe extern "C" fn yrx_rule_identifier(
     if let Some(rule) = rule.as_ref() {
         *ident = rule.0.identifier().as_ptr();
         *len = rule.0.identifier().len();
+        LAST_ERROR.set(None);
         YRX_RESULT::SUCCESS
     } else {
         YRX_RESULT::INVALID_ARGUMENT
@@ -242,6 +253,7 @@ pub unsafe extern "C" fn yrx_rule_namespace(
     if let Some(rule) = rule.as_ref() {
         *ns = rule.0.namespace().as_ptr();
         *len = rule.0.namespace().len();
+        LAST_ERROR.set(None);
         YRX_RESULT::SUCCESS
     } else {
         YRX_RESULT::INVALID_ARGUMENT
@@ -302,4 +314,20 @@ pub unsafe extern "C" fn yrx_patterns_destroy(patterns: *mut YRX_PATTERNS) {
 #[no_mangle]
 pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
     drop(Box::from_raw(buf));
+}
+
+/// Returns the error message for the most recent function in this API
+/// invoked by the current thread.
+///
+/// The returned pointer is only valid until this thread calls some other
+/// function, as it can modify the last error and render the pointer to
+/// a previous error message invalid. Also, the pointer will be null if
+/// the most recent function was successfully.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
+    if let Some(last_error) = LAST_ERROR.with(|_| None::<CString>) {
+        last_error.as_ptr()
+    } else {
+        std::ptr::null()
+    }
 }
