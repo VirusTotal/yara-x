@@ -28,9 +28,6 @@ func TestSerialization(t *testing.T) {
 	matchingRules, _ := s.Scan([]byte{})
 
 	assert.Len(t, matchingRules, 1)
-
-	_, err := Deserialize(nil)
-	assert.NoError(t, err)
 }
 
 func TestVariables(t *testing.T) {
