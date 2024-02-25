@@ -4,6 +4,7 @@ package yara_x
 import "C"
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"unsafe"
 )
@@ -51,41 +52,35 @@ func (c *Compiler) NewNamespace(namespace string) {
 	runtime.KeepAlive(c)
 }
 
-func (c *Compiler) DefineGlobalInt(ident string, value int64) error {
+func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	cIdent := C.CString(ident)
 	defer C.free(unsafe.Pointer(cIdent))
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	if C.yrx_compiler_define_global_int(c.cCompiler, cIdent, C.int64_t(value)) == C.VARIABLE_ERROR {
-		return errors.New(C.GoString(C.yrx_last_error()))
-	}
-	runtime.KeepAlive(c)
-	return nil
-}
+	var ret C.int
 
-func (c *Compiler) DefineGlobalBool(ident string, value bool) error {
-	cIdent := C.CString(ident)
-	defer C.free(unsafe.Pointer(cIdent))
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-	if C.yrx_compiler_define_global_bool(c.cCompiler, cIdent, C.bool(value)) == C.VARIABLE_ERROR {
-		return errors.New(C.GoString(C.yrx_last_error()))
-	}
-	runtime.KeepAlive(c)
-	return nil
-}
 
-func (c *Compiler) DefineGlobalStr(ident string, value string) error {
-	cIdent := C.CString(ident)
-	defer C.free(unsafe.Pointer(cIdent))
-	cValue := C.CString(value)
-	defer C.free(unsafe.Pointer(cValue))
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	if C.yrx_compiler_define_global_str(c.cCompiler, cIdent, cValue) == C.VARIABLE_ERROR {
+	switch v := value.(type) {
+	case int:
+		ret = C.int(C.yrx_compiler_define_global_int(c.cCompiler, cIdent, C.int64_t(v)))
+	case bool:
+		ret = C.int(C.yrx_compiler_define_global_bool(c.cCompiler, cIdent, C.bool(v)))
+	case string:
+		cValue := C.CString(v)
+		defer C.free(unsafe.Pointer(cValue))
+		ret = C.int(C.yrx_compiler_define_global_str(c.cCompiler, cIdent, cValue))
+	case float64:
+		ret = C.int(C.yrx_compiler_define_global_float(c.cCompiler, cIdent, C.double(v)))
+	default:
+		return fmt.Errorf("variable `%s` has unsupported type: %T", ident, v)
+	}
+
+	runtime.KeepAlive(c)
+
+	if ret == C.VARIABLE_ERROR {
 		return errors.New(C.GoString(C.yrx_last_error()))
 	}
-	runtime.KeepAlive(c)
+
 	return nil
 }
 

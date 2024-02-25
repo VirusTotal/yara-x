@@ -16,10 +16,32 @@ import (
 	"unsafe"
 )
 
+// Option represent an option passed to Compile.
+type Option func(c *Compiler) error
+
+// GlobalVars is a Compile option that allows defining global variables.
+func GlobalVars(vars map[string]interface{}) Option {
+	return func(c *Compiler) error {
+		for ident, value := range vars {
+			if err := c.DefineGlobal(ident, value); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
 // Compile receives YARA source code and returns compiled Rules that can be
 // used for scanning data.
-func Compile(source string) (*Rules, error) {
+func Compile(source string, opts ...Option) (*Rules, error) {
 	c := NewCompiler()
+
+	for _, opt := range opts {
+		if err := opt(c); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := c.AddSource(source); err != nil {
 		return nil, err
 	}
