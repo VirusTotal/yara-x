@@ -231,7 +231,7 @@ fn test_macho_module() {
         import "macho"
         rule test {
             condition:
-                macho.dylib_present("totally not present dylib")
+                macho.has_dylib("totally not present dylib")
         }
         "#
     );
@@ -241,7 +241,7 @@ fn test_macho_module() {
         import "macho"
         rule macho_test {
             condition:
-                macho.dylib_present("/usr/lib/libSystem.B.dylib")
+                macho.has_dylib("/usr/lib/libSystem.B.dylib")
         }
         "#,
         &tiny_universal_macho_data
@@ -252,7 +252,7 @@ fn test_macho_module() {
         import "macho"
         rule test {
             condition:
-                macho.rpath_present("totally not present rpath")
+                macho.has_rpath("totally not present rpath")
         }
         "#
     );
@@ -262,7 +262,7 @@ fn test_macho_module() {
         import "macho"
         rule macho_test {
             condition:
-                macho.rpath_present("@loader_path/../Frameworks")
+                macho.has_rpath("@loader_path/../Frameworks")
         }
         "#,
         &tiny_universal_macho_data
@@ -273,7 +273,7 @@ fn test_macho_module() {
         import "macho"
         rule macho_test {
             condition:
-                macho.rpath_present("@loader_path/../Frameworks")
+                macho.has_rpath("@loader_path/../Frameworks")
         }
         "#,
         &x86_macho_data
@@ -284,7 +284,7 @@ fn test_macho_module() {
         import "macho"
         rule macho_test {
             condition:
-                macho.entitlement_present("com.apple.security.network.client")
+                macho.has_entitlement("com.apple.security.network.client")
         }
         "#,
         &chess_macho_data
@@ -295,7 +295,7 @@ fn test_macho_module() {
         import "macho"
         rule macho_test {
             condition:
-                macho.entitlement_present("COM.ApplE.security.NetWoRK.client")
+                macho.has_entitlement("COM.ApplE.security.NetWoRK.client")
         }
         "#,
         &chess_macho_data
@@ -306,7 +306,7 @@ fn test_macho_module() {
         import "macho"
         rule macho_test {
             condition:
-                macho.entitlement_present("made-up-entitlement")
+                macho.has_entitlement("made-up-entitlement")
         }
         "#,
         &chess_macho_data

@@ -124,7 +124,7 @@ impl<'a> MachO<'a> {
                 FAT_MAGIC | FAT_CIGAM | FAT_MAGIC_64 | FAT_CIGAM_64
             )
         })
-        .parse(data)?;
+            .parse(data)?;
 
         // The magic number indicates the endianness.
         let endianness = match magic {
@@ -203,7 +203,7 @@ impl<'a> MachO<'a> {
         let (remainder, magic) = verify(be_u32, |magic| {
             matches!(*magic, MH_MAGIC | MH_CIGAM | MH_MAGIC_64 | MH_CIGAM_64)
         })
-        .parse(data)?;
+            .parse(data)?;
 
         let endianness = match magic {
             MH_MAGIC | MH_MAGIC_64 => Endianness::Big,
@@ -228,14 +228,14 @@ impl<'a> MachO<'a> {
                 cond(!is_32_bits, u32(endianness)), // reserved, only in 64-bits
             )),
             |(
-                cputype,
-                cpusubtype,
-                filetype,
-                ncmds,
-                sizeofcmds,
-                flags,
-                reserved,
-            )| {
+                 cputype,
+                 cpusubtype,
+                 filetype,
+                 ncmds,
+                 sizeofcmds,
+                 flags,
+                 reserved,
+             )| {
                 MachOHeader {
                     magic,
                     cputype,
@@ -395,19 +395,19 @@ impl<'a> MachOFile<'a> {
                 cond(!self.is_32_bits, u32(self.endianness)), // reserved3
             )),
             |(
-                sectname,
-                segname,
-                addr,
-                size,
-                offset,
-                align,
-                reloff,
-                nreloc,
-                flags,
-                reserved1,
-                reserved2,
-                reserved3,
-            )| {
+                 sectname,
+                 segname,
+                 addr,
+                 size,
+                 offset,
+                 align,
+                 reloff,
+                 nreloc,
+                 flags,
+                 reserved1,
+                 reserved2,
+                 reserved3,
+             )| {
                 Section {
                     sectname,
                     segname,
@@ -686,23 +686,23 @@ impl<'a> MachOFile<'a> {
                 u32(self.endianness), //  nlocrel
             )),
             |(
-                ilocalsym,
-                nlocalsym,
-                iextdefsym,
-                nextdefsym,
-                tocoff,
-                ntoc,
-                modtaboff,
-                nmodtab,
-                extrefsymoff,
-                nextrefsyms,
-                indirectsymoff,
-                nindirectsyms,
-                extreloff,
-                nextrel,
-                locreloff,
-                nlocrel,
-            )| {
+                 ilocalsym,
+                 nlocalsym,
+                 iextdefsym,
+                 nextdefsym,
+                 tocoff,
+                 ntoc,
+                 modtaboff,
+                 nmodtab,
+                 extrefsymoff,
+                 nextrefsyms,
+                 indirectsymoff,
+                 nindirectsyms,
+                 extreloff,
+                 nextrel,
+                 locreloff,
+                 nlocrel,
+             )| {
                 Dysymtab {
                     ilocalsym,
                     nlocalsym,
@@ -884,17 +884,17 @@ impl<'a> MachOFile<'a> {
                 u32(self.endianness), //  export_size
             )),
             |(
-                rebase_off,
-                rebase_size,
-                bind_off,
-                bind_size,
-                weak_bind_off,
-                weak_bind_size,
-                lazy_bind_off,
-                lazy_bind_size,
-                export_off,
-                export_size,
-            )| {
+                 rebase_off,
+                 rebase_size,
+                 bind_off,
+                 bind_size,
+                 weak_bind_off,
+                 weak_bind_size,
+                 lazy_bind_off,
+                 lazy_bind_size,
+                 export_off,
+                 export_size,
+             )| {
                 DyldInfo {
                     rebase_off,
                     rebase_size,
@@ -958,7 +958,7 @@ impl<'a> MachOFile<'a> {
     ) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], BuildVersionCommand> + '_
     {
         move |input: &'a [u8]| {
-            let (mut remainder, (platform, minos, sdk, ntools)) =
+            let (remainder, (platform, minos, sdk, ntools)) =
                 tuple((
                     u32(self.endianness), // platform,
                     u32(self.endianness), // minos,
@@ -966,18 +966,16 @@ impl<'a> MachOFile<'a> {
                     u32(self.endianness), // ntools,
                 ))(input)?;
 
-            let mut tools = Vec::<BuildToolObject>::new();
-
-            for _ in 0..ntools {
-                let (data, (tool, version)) = tuple((
-                    u32(self.endianness), // tool,
-                    u32(self.endianness), // version,
-                ))(remainder)?;
-
-                remainder = data;
-
-                tools.push(BuildToolObject { tool, version })
-            }
+            let (_, tools) = count(
+                map(
+                    tuple((
+                        u32(self.endianness), // tool,
+                        u32(self.endianness), // version,
+                    )),
+                    |(tool, version)| BuildToolObject { tool, version },
+                ),
+                ntools as usize,
+            )(remainder)?;
 
             Ok((
                 &[],
@@ -1680,7 +1678,8 @@ impl From<&MinVersion> for protos::macho::MinVersion {
         result.set_device(
             protobuf::EnumOrUnknown::<protos::macho::DEVICE_TYPE>::from_i32(
                 mv.device as i32,
-            ).unwrap(),
+            )
+                .unwrap(),
         );
         result.set_version(convert_to_version_string(mv.version));
         result.set_sdk(convert_to_version_string(mv.sdk));
