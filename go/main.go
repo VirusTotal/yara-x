@@ -54,6 +54,7 @@ func (r *Rules) Serialize() ([]byte, error) {
 	if C.yrx_rules_serialize(r.cRules, &buf) != C.SUCCESS {
 		return nil, errors.New(C.GoString(C.yrx_last_error()))
 	}
+	defer C.yrx_buffer_destroy(buf)
 	runtime.KeepAlive(r)
 	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length)), nil
 }
