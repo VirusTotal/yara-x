@@ -6,6 +6,37 @@ ncmds: 4
 sizeofcmds: 652
 flags: 0x2000
 number_of_segments: 1
+symtab:
+    symoff: 3540
+    nsyms: 25
+    stroff: 3840
+    strsize: 496
+    entries:
+      - "_png_set_bgr"
+      - "_png_set_swap"
+      - "_png_set_packing"
+      - "_png_set_packswap"
+      - "_png_set_shift"
+      - "_png_set_interlace_handling"
+      - "_png_set_filler"
+      - "_png_app_error"
+      - "_png_set_add_alpha"
+      - "_png_set_swap_alpha"
+      - "_png_set_invert_alpha"
+      - "_png_set_invert_mono"
+      - "_png_do_invert"
+      - "_png_do_swap"
+      - "_png_do_packswap"
+      - "_png_do_strip_channel"
+      - "_png_do_bgr"
+      - "_png_do_check_palette_indexes"
+      - "_png_set_user_transform_info"
+      - "_png_get_user_transform_ptr"
+      - "_png_get_current_row_number"
+      - "_png_get_current_pass_number"
+      - "_fourbppswaptable"
+      - "_onebppswaptable"
+      - "_twobppswaptable"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 3

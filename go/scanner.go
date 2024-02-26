@@ -136,11 +136,13 @@ func (s *Scanner) SetModuleOutput(data proto.Message) error {
 	name := C.CString(string(proto.MessageReflect(data).Descriptor().FullName()))
 	defer C.free(unsafe.Pointer(name))
 
+	runtime.LockOSThread()
 	if r := C.yrx_scanner_set_module_output(s.cScanner, name, ptr, C.size_t(len(buf))); r != C.SUCCESS {
-		err = errors.New(C.GoString(C.yrx_scanner_last_error(s.cScanner)))
+		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
-
+	runtime.UnlockOSThread()
 	runtime.KeepAlive(s)
+
 	return err
 }
 
@@ -156,6 +158,7 @@ func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 
 	s.matchingRules = nil
 
+	runtime.LockOSThread()
 	var err error
 	switch r := C.yrx_scanner_scan(s.cScanner, ptr, C.size_t(len(buf))); r {
 	case C.SUCCESS:
@@ -163,8 +166,9 @@ func (s *Scanner) Scan(buf []byte) ([]*Rule, error) {
 	case C.SCAN_TIMEOUT:
 		err = ErrTimeout
 	default:
-		err = errors.New(C.GoString(C.yrx_scanner_last_error(s.cScanner)))
+		err = errors.New(C.GoString(C.yrx_last_error()))
 	}
+	runtime.UnlockOSThread()
 
 	return s.matchingRules, err
 }

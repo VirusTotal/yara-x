@@ -7,6 +7,16 @@ sizeofcmds: 536
 flags: 0x2001
 number_of_segments: 4
 entry_point: 3476
+symtab:
+    symoff: 16384
+    nsyms: 4
+    stroff: 16432
+    strsize: 40
+    entries:
+      - "__start"
+      - "_comment"
+      - "_shellcode"
+      - "_.str"
 segments:
   - segname: "__PAGEZERO"
     vmaddr: 0x0

@@ -11,22 +11,75 @@ package yara_x
 // #import <yara-x.h>
 import "C"
 import (
+	"errors"
 	"runtime"
 	"unsafe"
 )
 
+// Option represent an option passed to Compile.
+type Option func(c *Compiler) error
+
+// GlobalVars is a Compile option that allows defining global variables.
+func GlobalVars(vars map[string]interface{}) Option {
+	return func(c *Compiler) error {
+		for ident, value := range vars {
+			if err := c.DefineGlobal(ident, value); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
 // Compile receives YARA source code and returns compiled Rules that can be
 // used for scanning data.
-func Compile(source string) (*Rules, error) {
+func Compile(source string, opts ...Option) (*Rules, error) {
 	c := NewCompiler()
+
+	for _, opt := range opts {
+		if err := opt(c); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := c.AddSource(source); err != nil {
 		return nil, err
 	}
 	return c.Build(), nil
 }
 
+func Deserialize(data []byte) (*Rules, error) {
+	var ptr *C.uint8_t
+	if len(data) > 0 {
+		ptr = (*C.uint8_t)(unsafe.Pointer(&(data[0])))
+	}
+
+	r := &Rules{cRules: nil}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	if C.yrx_rules_deserialize(ptr, C.size_t(len(data)), &r.cRules) != C.SUCCESS {
+		return nil, errors.New(C.GoString(C.yrx_last_error()))
+	}
+
+	return r, nil
+}
+
 // Rules represents a set of compiled YARA rules.
 type Rules struct{ cRules *C.YRX_RULES }
+
+func (r *Rules) Serialize() ([]byte, error) {
+	var buf *C.YRX_BUFFER
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if C.yrx_rules_serialize(r.cRules, &buf) != C.SUCCESS {
+		return nil, errors.New(C.GoString(C.yrx_last_error()))
+	}
+	defer C.yrx_buffer_destroy(buf)
+	runtime.KeepAlive(r)
+	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length)), nil
+}
 
 // Destroy destroys the compiled YARA rules represented by Rules.
 //

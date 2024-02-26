@@ -9,15 +9,17 @@ that can be found in the `target` directory.
 This crate is not intended to be used by other Rust programs.
 
 [1]: https://github.com/mozilla/cbindgen
-*/
+ */
 
 #![allow(non_camel_case_types)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
+use std::cell::RefCell;
 use std::ffi::{c_char, CStr, CString};
 use std::mem::ManuallyDrop;
 use std::ptr::slice_from_raw_parts_mut;
+use std::slice;
 
 mod compiler;
 mod scanner;
@@ -26,6 +28,10 @@ mod scanner;
 mod tests;
 
 pub use scanner::*;
+
+thread_local! {
+    static LAST_ERROR: RefCell<Option<CString>> = RefCell::new(None);
+}
 
 #[repr(C)]
 pub enum YRX_RESULT {
@@ -37,6 +43,7 @@ pub enum YRX_RESULT {
     SCAN_TIMEOUT,
     INVALID_IDENTIFIER,
     INVALID_ARGUMENT,
+    SERIALIZATION_ERROR,
 }
 
 /// A set of compiled YARA rules.
@@ -99,6 +106,26 @@ pub struct YRX_MATCH {
     pub length: usize,
 }
 
+/// Represents a buffer with arbitrary data.
+#[repr(C)]
+pub struct YRX_BUFFER {
+    /// Pointer to the data contained in the buffer.
+    pub data: *mut u8,
+    /// Length of data in bytes.
+    pub length: usize,
+}
+
+impl Drop for YRX_BUFFER {
+    fn drop(&mut self) {
+        unsafe {
+            drop(Box::from_raw(slice_from_raw_parts_mut(
+                self.data,
+                self.length,
+            )));
+        }
+    }
+}
+
 /// Compiles YARA source code and creates a [`YRX_RULES`] object that contains
 /// the compiled rules.
 ///
@@ -109,16 +136,74 @@ pub unsafe extern "C" fn yrx_compile(
     rules: &mut *mut YRX_RULES,
 ) -> YRX_RESULT {
     let c_str = CStr::from_ptr(src);
-
     match yara_x::compile(c_str.to_bytes()) {
-        Ok(r) => *rules = Box::into_raw(Box::new(YRX_RULES(r))),
-        Err(_) => {
-            // TODO: handle error
-            return YRX_RESULT::SYNTAX_ERROR;
+        Ok(r) => {
+            *rules = Box::into_raw(Box::new(YRX_RULES(r)));
+            LAST_ERROR.set(None);
+            YRX_RESULT::SUCCESS
         }
-    };
+        Err(err) => {
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            YRX_RESULT::SYNTAX_ERROR
+        }
+    }
+}
 
-    YRX_RESULT::SUCCESS
+/// Serializes the rules as a sequence of bytes.
+///
+/// In the address indicated by the `buf` pointer, the function will copy a
+/// `YRX_BUFFER*` pointer. The `YRX_BUFFER` structure represents a buffer
+/// that contains the serialized rules. This structure has a pointer to the
+/// data itself, and its length.
+///
+/// This [`YRX_BUFFER`] must be destroyed with [`yrx_buffer_destroy`].
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_serialize(
+    rules: *mut YRX_RULES,
+    buf: &mut *mut YRX_BUFFER,
+) -> YRX_RESULT {
+    if let Some(rules) = rules.as_ref() {
+        match rules.0.serialize() {
+            Ok(serialized) => {
+                let serialized = serialized.into_boxed_slice();
+                let mut serialized = ManuallyDrop::new(serialized);
+                *buf = Box::into_raw(Box::new(YRX_BUFFER {
+                    data: serialized.as_mut_ptr(),
+                    length: serialized.len(),
+                }));
+                LAST_ERROR.set(None);
+                YRX_RESULT::SUCCESS
+            }
+            Err(err) => {
+                LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+                YRX_RESULT::SERIALIZATION_ERROR
+            }
+        }
+    } else {
+        YRX_RESULT::INVALID_ARGUMENT
+    }
+}
+
+/// Deserializes the rules from a sequence of bytes produced by
+/// [`yrx_rules_serialize`].
+///
+#[no_mangle]
+pub unsafe extern "C" fn yrx_rules_deserialize(
+    data: *const u8,
+    len: usize,
+    rules: &mut *mut YRX_RULES,
+) -> YRX_RESULT {
+    match yara_x::Rules::deserialize(slice::from_raw_parts(data, len)) {
+        Ok(r) => {
+            *rules = Box::into_raw(Box::new(YRX_RULES(r)));
+            LAST_ERROR.set(None);
+            YRX_RESULT::SUCCESS
+        }
+        Err(err) => {
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            YRX_RESULT::SERIALIZATION_ERROR
+        }
+    }
 }
 
 /// Destroys a [`YRX_RULES`] object.
@@ -144,6 +229,7 @@ pub unsafe extern "C" fn yrx_rule_identifier(
     if let Some(rule) = rule.as_ref() {
         *ident = rule.0.identifier().as_ptr();
         *len = rule.0.identifier().len();
+        LAST_ERROR.set(None);
         YRX_RESULT::SUCCESS
     } else {
         YRX_RESULT::INVALID_ARGUMENT
@@ -167,6 +253,7 @@ pub unsafe extern "C" fn yrx_rule_namespace(
     if let Some(rule) = rule.as_ref() {
         *ns = rule.0.namespace().as_ptr();
         *len = rule.0.namespace().len();
+        LAST_ERROR.set(None);
         YRX_RESULT::SUCCESS
     } else {
         YRX_RESULT::INVALID_ARGUMENT
@@ -221,4 +308,26 @@ pub unsafe extern "C" fn yrx_rule_patterns(
 #[no_mangle]
 pub unsafe extern "C" fn yrx_patterns_destroy(patterns: *mut YRX_PATTERNS) {
     drop(Box::from_raw(patterns));
+}
+
+/// Destroys a [`YRX_BUFFER`] object.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
+    drop(Box::from_raw(buf));
+}
+
+/// Returns the error message for the most recent function in this API
+/// invoked by the current thread.
+///
+/// The returned pointer is only valid until this thread calls some other
+/// function, as it can modify the last error and render the pointer to
+/// a previous error message invalid. Also, the pointer will be null if
+/// the most recent function was successfully.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
+    if let Some(last_error) = LAST_ERROR.with(|_| None::<CString>) {
+        last_error.as_ptr()
+    } else {
+        std::ptr::null()
+    }
 }

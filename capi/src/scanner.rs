@@ -3,13 +3,12 @@ use std::slice;
 use std::time::Duration;
 use yara_x::ScanError;
 
-use crate::{YRX_RESULT, YRX_RULE, YRX_RULES};
+use crate::{LAST_ERROR, YRX_RESULT, YRX_RULE, YRX_RULES};
 
 /// A scanner that scans data with a set of compiled YARA rules.
 pub struct YRX_SCANNER<'s> {
     inner: yara_x::Scanner<'s>,
     on_matching_rule: Option<(YRX_ON_MATCHING_RULE, *mut std::ffi::c_void)>,
-    last_error: Option<CString>,
 }
 
 /// Creates a [`YRX_SCANNER`] object that can be used for scanning data with
@@ -34,7 +33,6 @@ pub unsafe extern "C" fn yrx_scanner_create(
     *scanner = Box::into_raw(Box::new(YRX_SCANNER {
         inner: yara_x::Scanner::new(&rules.0),
         on_matching_rule: None,
-        last_error: None,
     }));
 
     YRX_RESULT::SUCCESS
@@ -92,7 +90,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
     let scan_results = scanner.inner.scan(data);
 
     if let Err(err) = scan_results {
-        scanner.last_error = Some(CString::new(err.to_string()).unwrap());
+        LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
         return match err {
             ScanError::Timeout => YRX_RESULT::SCAN_TIMEOUT,
             _ => YRX_RESULT::SCAN_ERROR,
@@ -108,6 +106,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
         }
     }
 
+    LAST_ERROR.set(None);
     YRX_RESULT::SUCCESS
 }
 
@@ -205,36 +204,14 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
     let scanner = scanner.as_mut().unwrap();
 
     match scanner.inner.set_module_output_raw(module_name, data) {
-        Ok(_) => YRX_RESULT::SUCCESS,
+        Ok(_) => {
+            LAST_ERROR.set(None);
+            YRX_RESULT::SUCCESS
+        }
         Err(err) => {
-            scanner.last_error = Some(CString::new(err.to_string()).unwrap());
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
             YRX_RESULT::SCAN_ERROR
         }
-    }
-}
-
-/// Returns the error message for the most recent error returned by the
-/// scanner.
-///
-/// The returned pointer is only valid until the next call to any of the
-/// yrx_scanner_xxxx functions. A call any of these functions can modify
-/// the last error, rendering the pointer to a previous error message
-/// invalid. Also, the pointer will be null if the scanner hasn't returned
-/// any error.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_scanner_last_error(
-    scanner: *const YRX_SCANNER,
-) -> *const c_char {
-    let scanner = if let Some(scanner) = scanner.as_ref() {
-        scanner
-    } else {
-        return std::ptr::null();
-    };
-
-    if let Some(last_error) = scanner.last_error.as_ref() {
-        last_error.as_ptr()
-    } else {
-        std::ptr::null()
     }
 }
 

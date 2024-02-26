@@ -1,11 +1,10 @@
-use crate::{YRX_RESULT, YRX_RULES};
+use crate::{LAST_ERROR, YRX_RESULT, YRX_RULES};
 use std::ffi::{c_char, CStr, CString};
 use std::mem;
 
 /// A compiler that takes YARA source code and produces compiled rules.
 pub struct YRX_COMPILER<'a> {
     inner: yara_x::Compiler<'a>,
-    last_error: Option<CString>,
 }
 
 /// Creates a [`YRX_COMPILER`] object.
@@ -15,7 +14,6 @@ pub unsafe extern "C" fn yrx_compiler_create(
 ) -> YRX_RESULT {
     *compiler = Box::into_raw(Box::new(YRX_COMPILER {
         inner: yara_x::Compiler::new(),
-        last_error: None,
     }));
     YRX_RESULT::SUCCESS
 }
@@ -44,38 +42,13 @@ pub unsafe extern "C" fn yrx_compiler_add_source(
 
     match compiler.inner.add_source(src.to_bytes()) {
         Ok(_) => {
-            compiler.last_error = None;
+            LAST_ERROR.set(None);
             YRX_RESULT::SUCCESS
         }
         Err(err) => {
-            compiler.last_error = Some(CString::new(err.to_string()).unwrap());
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
             YRX_RESULT::SYNTAX_ERROR
         }
-    }
-}
-
-/// Returns the error message for the most recent error returned by the
-/// compiler.
-///
-/// The returned pointer is only valid until the next call to any of the
-/// yrx_compiler_xxxx functions. A call any of these functions can modify
-/// the last error, rendering the pointer to a previous error message
-/// invalid. Also, the pointer will be null if the compiler hasn't returned
-/// any error.
-#[no_mangle]
-pub unsafe extern "C" fn yrx_compiler_last_error(
-    compiler: *const YRX_COMPILER,
-) -> *const c_char {
-    let compiler = if let Some(compiler) = compiler.as_ref() {
-        compiler
-    } else {
-        return std::ptr::null();
-    };
-
-    if let Some(last_error) = compiler.last_error.as_ref() {
-        last_error.as_ptr()
-    } else {
-        std::ptr::null()
     }
 }
 
@@ -136,11 +109,11 @@ unsafe fn yrx_compiler_define_global<
 
     match compiler.inner.define_global(ident, value) {
         Ok(_) => {
-            compiler.last_error = None;
+            LAST_ERROR.set(None);
             YRX_RESULT::SUCCESS
         }
         Err(err) => {
-            compiler.last_error = Some(CString::new(err.to_string()).unwrap());
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
             YRX_RESULT::VARIABLE_ERROR
         }
     }

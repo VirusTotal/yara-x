@@ -182,22 +182,39 @@ fn ep_for_arch_subtype(
     None
 }
 
-/// The function for checking if any dylib name present in the main Mach-O or
-/// embedded Mach-O files contain a dylib with the desired name
+/// Returns true if the Mach-O parsed entitlements contain `entitlement`
 ///
-/// # Arguments
-///
-/// * `ctx`: A mutable reference to the scanning context.
-/// * `dylib_name`: The name of the dylib to check if present
-///
-/// # Returns
-///
-/// An `Option<bool>` containing if the name is found
-#[module_export(name = "dylib_present")]
-fn dylibs_present(
+/// `entitlement` is case-insensitive.
+#[module_export]
+fn has_entitlement(
     ctx: &ScanContext,
-    dylib_name: RuntimeString,
+    entitlement: RuntimeString,
 ) -> Option<bool> {
+    let macho = ctx.module_output::<Macho>()?;
+    let expected = entitlement.as_bstr(ctx);
+
+    for entitlement in macho.entitlements.iter() {
+        if expected.eq_ignore_ascii_case(entitlement.as_bytes()) {
+            return Some(true);
+        }
+    }
+
+    for file in macho.file.iter() {
+        for entitlement in file.entitlements.iter() {
+            if expected.eq_ignore_ascii_case(entitlement.as_bytes()) {
+                return Some(true);
+            }
+        }
+    }
+
+    Some(false)
+}
+
+/// Returns true if the Mach-O parsed dylibs contain `dylib_name`
+///
+/// `dylib_name` is case-insensitive.
+#[module_export]
+fn has_dylib(ctx: &ScanContext, dylib_name: RuntimeString) -> Option<bool> {
     let macho = ctx.module_output::<Macho>()?;
     let expected_name = dylib_name.as_bstr(ctx);
 
@@ -222,19 +239,11 @@ fn dylibs_present(
     Some(false)
 }
 
-/// The function for checking if any rpath present in the main Mach-O or
-/// embedded Mach-O files contain a rpath with the desired path
+/// Returns true if the Mach-O parsed rpaths contain `rpath`
 ///
-/// # Arguments
-///
-/// * `ctx`: A mutable reference to the scanning context.
-/// * `rpath`: The name of the dylib to check if present
-///
-/// # Returns
-///
-/// An `Option<bool>` containing if the path is found
-#[module_export(name = "rpath_present")]
-fn rpaths_present(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
+/// `rpath` is case-insensitive.
+#[module_export]
+fn has_rpath(ctx: &ScanContext, rpath: RuntimeString) -> Option<bool> {
     let macho = ctx.module_output::<Macho>()?;
     let expected_rpath = rpath.as_bstr(ctx);
 

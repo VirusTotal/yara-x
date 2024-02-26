@@ -8,6 +8,66 @@ flags: 0x1000085
 number_of_segments: 4
 dynamic_linker: "/usr/lib/dyld"
 entry_point: 2752
+symtab:
+    symoff: 12316
+    nsyms: 54
+    stroff: 13344
+    strsize: 760
+    entries:
+      - "_NXArgc"
+      - "_NXArgv"
+      - "___progname"
+      - "__mh_execute_header"
+      - "_environ"
+      - "start"
+      - "_CFBundleCopyExecutableURL"
+      - "_CFBundleGetIdentifier"
+      - "_CFBundleGetInfoDictionary"
+      - "_CFBundleGetMainBundle"
+      - "_CFDictionarySetValue"
+      - "_CFRelease"
+      - "_CFRetain"
+      - "_CFURLGetFileSystemRepresentation"
+      - "_GetCurrentProcess"
+      - "_NSAddImage"
+      - "_NSAddressOfSymbol"
+      - "_NSIsSymbolNameDefined"
+      - "_NSLinkEditError"
+      - "_NSLookupAndBindSymbol"
+      - "_NSLookupSymbolInImage"
+      - "___CFConstantStringClassReference"
+      - "___stderrp"
+      - "_close$UNIX2003"
+      - "_exit"
+      - "_fclose"
+      - "_fcntl$UNIX2003"
+      - "_fgets"
+      - "_fopen"
+      - "_fprintf"
+      - "_free"
+      - "_fstat"
+      - "_getenv"
+      - "_getrusage"
+      - "_gettimeofday"
+      - "_memset"
+      - "_mmap$UNIX2003"
+      - "_munmap$UNIX2003"
+      - "_open$UNIX2003"
+      - "_putenv$UNIX2003"
+      - "_realpath$DARWIN_EXTSN"
+      - "_snprintf"
+      - "_sprintf"
+      - "_strcasecmp"
+      - "_strchr"
+      - "_strcmp"
+      - "_strdup"
+      - "_strlen"
+      - "_strpbrk"
+      - "_strrchr"
+      - "_strtol"
+      - "_sysctl"
+      - "_vfprintf"
+      - "radr://5614542"
 dysymtab:
     ilocalsym: 0
     nlocalsym: 1
@@ -255,3 +315,8 @@ dylibs:
     timestamp: 2 # 1970-01-01 00:00:02 UTC
     compatibility_version: "1.0.0"
     current_version: "38.0.0"
+uuid: "EF07AAD0-F2AB-34DF-940C-2965C1872F0C"
+min_version:
+    device: MACOSX
+    version: "10.5.0"
+    sdk: "0.0.0"
