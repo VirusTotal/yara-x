@@ -1,10 +1,9 @@
-use std::collections::HashSet;
 use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
 
 use bstr::BString;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use protobuf::reflect::{
     EnumDescriptor, FieldDescriptor, MessageDescriptor, ReflectMapRef,
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
@@ -300,7 +299,7 @@ impl Struct {
         fields.sort_by(|a, b| a.1.number.cmp(&b.1.number));
 
         if generate_fields_for_enums {
-            let mut enums = HashSet::new();
+            let mut enums = IndexSet::new();
 
             // Enums declared inside a message are treated as a nested
             // structure where each field is an enum item, and each
