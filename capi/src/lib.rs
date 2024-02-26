@@ -325,9 +325,11 @@ pub unsafe extern "C" fn yrx_buffer_destroy(buf: *mut YRX_BUFFER) {
 /// the most recent function was successfully.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_last_error() -> *const c_char {
-    if let Some(last_error) = LAST_ERROR.with(|_| None::<CString>) {
-        last_error.as_ptr()
-    } else {
-        std::ptr::null()
-    }
+    LAST_ERROR.with_borrow(|last_error| {
+        if let Some(last_error) = last_error {
+            last_error.as_ptr()
+        } else {
+            std::ptr::null()
+        }
+    })
 }
