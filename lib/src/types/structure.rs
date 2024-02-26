@@ -225,8 +225,6 @@ impl Struct {
         let syntax = msg_descriptor.file_descriptor().syntax();
         let mut fields = Vec::new();
 
-        println!("message: {:?}", msg_descriptor.full_name());
-
         for fd in msg_descriptor.fields() {
             // The field should be ignored if it was annotated with:
             // [(yara.field_options).ignore = true]
