@@ -93,7 +93,6 @@ lnk-module = [
 # The `macho` module parses Mach-O files.
 macho-module = [
     "dep:nom",
-    "dep:cryptographic-message-syntax",
     "dep:roxmltree",
 ]
 
@@ -157,7 +156,6 @@ bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
 crc32fast = { workspace = true, optional = true }
-cryptographic-message-syntax = { workspace = true, optional = true }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 intaglio = { workspace = true }
@@ -178,8 +176,8 @@ rustc-hash = { workspace = true }
 regex-syntax = { workspace = true }
 regex-automata = { workspace = true }
 roxmltree = { workspace = true, optional = true }
-smallvec = { workspace = true, features=["serde"] }
-serde = { workspace = true, features=["rc"] }
+smallvec = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tlsh-fixed = { workspace = true, optional = true }
