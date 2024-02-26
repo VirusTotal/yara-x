@@ -796,35 +796,32 @@ impl<'a> MachOFile<'a> {
                     let offset = blob_index.offset as usize;
                     let length = blob.length as usize;
                     let size_of_blob = std::mem::size_of::<CSBlob>();
-                    match blob.magic {
-                        CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
-                            let xml_data = &super_data
-                                [offset + size_of_blob..offset + length];
-                            let xml_string = std::str::from_utf8(xml_data)
-                                .unwrap_or_default();
+                    if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
+                        let xml_data = &super_data
+                            [offset + size_of_blob..offset + length];
+                        let xml_string = std::str::from_utf8(xml_data)
+                            .unwrap_or_default();
 
-                            let opt = roxmltree::ParsingOptions {
-                                allow_dtd: true,
-                                ..roxmltree::ParsingOptions::default()
-                            };
+                        let opt = roxmltree::ParsingOptions {
+                            allow_dtd: true,
+                            ..roxmltree::ParsingOptions::default()
+                        };
 
-                            if let Ok(parsed_xml) =
-                                roxmltree::Document::parse_with_options(
-                                    xml_string, opt,
-                                )
+                        if let Ok(parsed_xml) =
+                            roxmltree::Document::parse_with_options(
+                                xml_string, opt,
+                            )
+                        {
+                            for node in parsed_xml
+                                .descendants()
+                                .filter(|n| n.has_tag_name("key"))
                             {
-                                for node in parsed_xml
-                                    .descendants()
-                                    .filter(|n| n.has_tag_name("key"))
-                                {
-                                    if let Some(entitlement) = node.text() {
-                                        self.entitlements
-                                            .push(entitlement.to_string());
-                                    }
+                                if let Some(entitlement) = node.text() {
+                                    self.entitlements
+                                        .push(entitlement.to_string());
                                 }
                             }
                         }
-                        _ => {}
                     }
                 }
             }
