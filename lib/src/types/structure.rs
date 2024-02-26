@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::iter;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -34,7 +35,7 @@ pub(crate) struct StructField {
 /// A dynamic structure with one or more fields.
 ///
 /// These structures are used during the compilation of YARA rules and the
-/// evaluation of conditions. Fields can be of any of the primitive types like
+/// evaluation of conditions. Fields can be any of the primitive types like
 /// integers, floats or strings, or more complex types like maps, arrays and
 /// other structures.
 ///
@@ -185,14 +186,14 @@ impl Struct {
     ///
     /// The `generate_fields_for_enums` controls whether the enums defined
     /// by the proto will be included as fields in the structure. Enums are
-    /// required only at compile time, so that the compiler can lookup the
+    /// required only at compile time, so that the compiler can look up the
     /// enums by name and resolve their values, but at scan time enums are
     /// not necessary because their values are already embedded in the code.
     /// The scanner never asks for an enum by field index.
     ///
     /// Also notice that a .proto file can define enums at the top level,
-    /// outside of any message. Those enums will be handled as if they were
-    /// defined inside of the module's root message, in other words, if you
+    /// outside any message. Those enums will be handled as if they were
+    /// defined inside the module's root message, in other words, if you
     /// have this proto that defines a YARA module...
     ///
     /// ```text
@@ -223,6 +224,8 @@ impl Struct {
     ) -> Self {
         let syntax = msg_descriptor.file_descriptor().syntax();
         let mut fields = Vec::new();
+
+        println!("message: {:?}", msg_descriptor.full_name());
 
         for fd in msg_descriptor.fields() {
             // The field should be ignored if it was annotated with:
@@ -299,22 +302,27 @@ impl Struct {
         fields.sort_by(|a, b| a.1.number.cmp(&b.1.number));
 
         if generate_fields_for_enums {
+            let mut enums = HashSet::new();
+
             // Enums declared inside a message are treated as a nested
             // structure where each field is an enum item, and each
             // field has a constant value.
-            let enums = msg_descriptor.nested_enums();
+            for enum_ in msg_descriptor.nested_enums() {
+                enums.insert(enum_);
+            }
 
             // If the message is the module's root message, the enums that are
-            // declared in the file outside of any structures are also added as
-            // fields of this structure.
-            let enums: Box<dyn Iterator<Item = EnumDescriptor>> =
-                if Self::is_root_msg(msg_descriptor) {
-                    Box::new(
-                        enums.chain(msg_descriptor.file_descriptor().enums()),
-                    )
-                } else {
-                    Box::new(enums)
-                };
+            // declared in the file outside any structures, and those that are
+            // used by the root message (either directly or indirectly) are
+            // added as fields of this structure too.
+            if Self::is_root_msg(msg_descriptor) {
+                for enum_ in msg_descriptor.file_descriptor().enums() {
+                    enums.insert(enum_);
+                }
+                Self::enums_used(msg_descriptor, &mut |enum_| {
+                    enums.insert(enum_);
+                });
+            }
 
             for enum_ in enums {
                 if Self::enum_is_inline(&enum_) {
@@ -403,8 +411,39 @@ impl Struct {
         }
     }
 
+    /// Calls `f` for every enum type used by a protobuf message, both directly
+    /// (fields of type enum declared in the message), or indirectly (fields of
+    /// message type that use some enum type).
+    fn enums_used<F>(msg_descriptor: &MessageDescriptor, f: &mut F)
+    where
+        F: FnMut(EnumDescriptor),
+    {
+        for fd in msg_descriptor.fields() {
+            if Self::ignore_field(&fd) {
+                continue;
+            }
+            match fd.runtime_field_type() {
+                RuntimeFieldType::Singular(RuntimeType::Enum(e)) => f(e),
+                RuntimeFieldType::Repeated(RuntimeType::Enum(e)) => f(e),
+                RuntimeFieldType::Singular(RuntimeType::Message(m)) => {
+                    if m.full_name() == msg_descriptor.full_name() {
+                        panic!("recursive protobuf type: {}", m.full_name())
+                    }
+                    Self::enums_used(&m, f);
+                }
+                RuntimeFieldType::Repeated(RuntimeType::Message(m)) => {
+                    if m.full_name() == msg_descriptor.full_name() {
+                        panic!("recursive protobuf type: {}", m.full_name())
+                    }
+                    Self::enums_used(&m, f);
+                }
+                _ => {}
+            }
+        }
+    }
+
     /// Given a [`EnumDescriptor`] returns the name that this enum will
-    /// have in YARA..
+    /// have in YARA.
     ///
     /// By default, the name of the enum will be the same one that it has in
     /// the protobuf definition. However, the name can be set to something
