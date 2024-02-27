@@ -249,8 +249,14 @@ impl Rules {
 
         let hir = translator.translate(re.naked(), &ast).unwrap();
 
+        // Set a size limit for the NFA automata. The default limit (10MB) is
+        // too small for certain regexps seen in YARA rules in the wild, see:
+        // https://github.com/VirusTotal/yara-x/issues/85
+        let config = regex_automata::meta::Config::new()
+            .nfa_size_limit(Some(50 * 1024 * 1024));
+
         regex_automata::meta::Builder::new()
-            .configure(Default::default())
+            .configure(config)
             .build_from_hir(&hir)
             .unwrap_or_else(|err| {
                 panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
