@@ -206,7 +206,7 @@ impl Rules {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
-    /// Returns an slice with the individual rules that were compiled.
+    /// Returns a slice with the individual rules that were compiled.
     #[inline]
     pub(crate) fn rules(&self) -> &[RuleInfo] {
         self.rules.as_slice()
@@ -249,7 +249,11 @@ impl Rules {
 
         let hir = translator.translate(re.naked(), &ast).unwrap();
 
-        regex_automata::meta::Builder::new().build_from_hir(&hir).unwrap()
+        regex_automata::meta::Builder::new()
+            .build_from_hir(&hir)
+            .unwrap_or_else(|err| {
+                panic!("error compiling regex `{}`: {}", re.as_str(), err)
+            })
     }
 
     /// Returns a sub-pattern by [`SubPatternId`].
