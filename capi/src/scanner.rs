@@ -215,6 +215,82 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
     }
 }
 
+unsafe extern "C" fn yrx_scanner_set_global<
+    T: TryInto<yara_x::Variable, Error = yara_x::VariableError>,
+>(
+    scanner: *mut YRX_SCANNER,
+    ident: *const c_char,
+    value: T,
+) -> YRX_RESULT {
+    if scanner.is_null() {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    }
+
+    let ident = match CStr::from_ptr(ident).to_str() {
+        Ok(ident) => ident,
+        Err(_) => return YRX_RESULT::INVALID_ARGUMENT,
+    };
+
+    let scanner = scanner.as_mut().unwrap();
+
+    match scanner.inner.set_global(ident, value) {
+        Ok(_) => {
+            LAST_ERROR.set(None);
+            YRX_RESULT::SUCCESS
+        }
+        Err(err) => {
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            YRX_RESULT::SCAN_ERROR
+        }
+    }
+}
+
+/// Sets the value of a global variable of type string.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_set_global_str(
+    scanner: *mut YRX_SCANNER,
+    ident: *const c_char,
+    value: *const c_char,
+) -> YRX_RESULT {
+    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
+        value
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    yrx_scanner_set_global(scanner, ident, value)
+}
+
+/// Sets the value of a global variable of type bool.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_set_global_bool(
+    scanner: *mut YRX_SCANNER,
+    ident: *const c_char,
+    value: bool,
+) -> YRX_RESULT {
+    yrx_scanner_set_global(scanner, ident, value)
+}
+
+/// Sets the value of a global variable of type int.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_set_global_int(
+    scanner: *mut YRX_SCANNER,
+    ident: *const c_char,
+    value: i64,
+) -> YRX_RESULT {
+    yrx_scanner_set_global(scanner, ident, value)
+}
+
+/// Sets the value of a global variable of type float.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_scanner_set_global_float(
+    scanner: *mut YRX_SCANNER,
+    ident: *const c_char,
+    value: f64,
+) -> YRX_RESULT {
+    yrx_scanner_set_global(scanner, ident, value)
+}
+
 unsafe fn slice_from_ptr_and_len<'a>(
     data: *const u8,
     len: usize,

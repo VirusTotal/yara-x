@@ -7,7 +7,7 @@ use crate::compiler::{
 use crate::{
     yrx_buffer_destroy, yrx_rules_deserialize, yrx_rules_serialize,
     yrx_scanner_create, yrx_scanner_destroy, yrx_scanner_on_matching_rule,
-    yrx_scanner_scan, YRX_BUFFER, YRX_RULE,
+    yrx_scanner_scan, yrx_scanner_set_global_bool, YRX_BUFFER, YRX_RULE,
 };
 use std::ffi::{c_void, CString};
 
@@ -75,8 +75,16 @@ fn capi() {
         );
 
         yrx_scanner_scan(scanner, std::ptr::null(), 0);
-        yrx_scanner_destroy(scanner);
-
         assert_eq!(matches, 1);
+
+        matches = 0;
+
+        // After changing the value of `some_bool` to false, the rule doesn't
+        // match anymore.
+        yrx_scanner_set_global_bool(scanner, some_bool.as_ptr(), false);
+        yrx_scanner_scan(scanner, std::ptr::null(), 0);
+        assert_eq!(matches, 0);
+
+        yrx_scanner_destroy(scanner);
     }
 }

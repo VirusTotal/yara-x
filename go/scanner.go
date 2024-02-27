@@ -3,6 +3,7 @@ package yara_x
 import "C"
 import (
 	"errors"
+	"fmt"
 	"math"
 	"runtime"
 	"runtime/cgo"
@@ -88,6 +89,46 @@ func (s *Scanner) Timeout(timeout time.Duration) {
 }
 
 var ErrTimeout = errors.New("timeout")
+
+// SetGlobal sets the value of a global variable.
+//
+// The variable must has been previously defined by calling Compiler.DefineGlobal
+// and the type it has during the definition must match the type of the new
+// value.
+//
+// The variable will retain the new value in subsequent scans, unless this
+// function is called again for setting a new value.
+func (s *Scanner) SetGlobal(ident string, value interface{}) error {
+	cIdent := C.CString(ident)
+	defer C.free(unsafe.Pointer(cIdent))
+	var ret C.int
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	switch v := value.(type) {
+	case int:
+		ret = C.int(C.yrx_scanner_set_global_int(s.cScanner, cIdent, C.int64_t(v)))
+	case bool:
+		ret = C.int(C.yrx_scanner_set_global_bool(s.cScanner, cIdent, C.bool(v)))
+	case string:
+		cValue := C.CString(v)
+		defer C.free(unsafe.Pointer(cValue))
+		ret = C.int(C.yrx_scanner_set_global_str(s.cScanner, cIdent, cValue))
+	case float64:
+		ret = C.int(C.yrx_scanner_set_global_float(s.cScanner, cIdent, C.double(v)))
+	default:
+		return fmt.Errorf("variable `%s` has unsupported type: %T", ident, v)
+	}
+
+	runtime.KeepAlive(s)
+
+	if ret == C.VARIABLE_ERROR {
+		return errors.New(C.GoString(C.yrx_last_error()))
+	}
+
+	return nil
+}
 
 // SetModuleOutput sets the output data for a YARA module.
 //

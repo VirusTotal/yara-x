@@ -294,4 +294,24 @@ enum YRX_RESULT yrx_scanner_set_module_output(struct YRX_SCANNER *scanner,
                                               const uint8_t *data,
                                               size_t len);
 
+// Sets the value of a global variable of type string.
+enum YRX_RESULT yrx_scanner_set_global_str(struct YRX_SCANNER *scanner,
+                                           const char *ident,
+                                           const char *value);
+
+// Sets the value of a global variable of type bool.
+enum YRX_RESULT yrx_scanner_set_global_bool(struct YRX_SCANNER *scanner,
+                                            const char *ident,
+                                            bool value);
+
+// Sets the value of a global variable of type int.
+enum YRX_RESULT yrx_scanner_set_global_int(struct YRX_SCANNER *scanner,
+                                           const char *ident,
+                                           int64_t value);
+
+// Sets the value of a global variable of type float.
+enum YRX_RESULT yrx_scanner_set_global_float(struct YRX_SCANNER *scanner,
+                                             const char *ident,
+                                             double value);
+
 #endif /* YARA_X */
