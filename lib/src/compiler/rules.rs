@@ -233,8 +233,8 @@ impl Rules {
         let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
 
         let mut parser = regex_syntax::ast::parse::ParserBuilder::new()
-            // This the custom configuration option that turns-on support for
-            // the `{,n}`. This option doesn't exist in the official
+            // This is the custom configuration option that turns-on support
+            // for the `{,n}` syntax. This option doesn't exist in the official
             // `regex_syntax` crate.
             .empty_min_range(true)
             .build();
@@ -250,9 +250,10 @@ impl Rules {
         let hir = translator.translate(re.naked(), &ast).unwrap();
 
         regex_automata::meta::Builder::new()
+            .configure(Default::default())
             .build_from_hir(&hir)
             .unwrap_or_else(|err| {
-                panic!("error compiling regex `{}`: {}", re.as_str(), err)
+                panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
             })
     }
 
