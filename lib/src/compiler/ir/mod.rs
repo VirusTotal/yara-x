@@ -786,15 +786,13 @@ impl Expr {
     pub fn fold(self) -> Self {
         match self {
             Expr::And { mut operands } => {
-                // Retain the operands whose value is unknown or false, and
-                // remove those that are known to be true. True values in
-                // the list of operands don't alter the result of the AND
-                // operation.
+                // Retain the operands whose value is not constant, or is
+                // constant but false, remove those that are known to be
+                // true. True values in the list of operands don't alter
+                // the result of the AND operation.
                 operands.retain(|op| {
-                    !op.type_value()
-                        .cast_to_bool()
-                        .try_as_bool()
-                        .unwrap_or(false)
+                    let type_value = op.type_value().cast_to_bool();
+                    !type_value.is_const() || !type_value.as_bool()
                 });
 
                 // No operands left, all were true and therefore the AND is
@@ -817,15 +815,13 @@ impl Expr {
                 Expr::And { operands }
             }
             Expr::Or { mut operands } => {
-                // Retain the operands whose value is unknown or true, and
-                // remove those that are known to be false. False values in
-                // the list of operands don't alter the result of the OR
-                // operation.
+                // Retain the operands whose value is not constant, or is
+                // constant but true, remove those that are known to be false.
+                // False values in the list of operands don't alter the result
+                // of the OR operation.
                 operands.retain(|op| {
-                    op.type_value()
-                        .cast_to_bool()
-                        .try_as_bool()
-                        .unwrap_or(true)
+                    let type_value = op.type_value().cast_to_bool();
+                    !type_value.is_const() || type_value.as_bool()
                 });
 
                 // No operands left, all were false and therefore the OR is
