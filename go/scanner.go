@@ -109,6 +109,10 @@ func (s *Scanner) SetGlobal(ident string, value interface{}) error {
 	switch v := value.(type) {
 	case int:
 		ret = C.int(C.yrx_scanner_set_global_int(s.cScanner, cIdent, C.int64_t(v)))
+	case int32:
+		ret = C.int(C.yrx_scanner_set_global_int(s.cScanner, cIdent, C.int64_t(v)))
+	case int64:
+		ret = C.int(C.yrx_scanner_set_global_int(s.cScanner, cIdent, C.int64_t(v)))
 	case bool:
 		ret = C.int(C.yrx_scanner_set_global_bool(s.cScanner, cIdent, C.bool(v)))
 	case string:

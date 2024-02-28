@@ -51,6 +51,28 @@ func TestScanner3(t *testing.T) {
 	assert.Len(t, matchingRules, 0)
 }
 
+func TestScanner4(t *testing.T) {
+	r, _ := Compile(
+		`rule t { condition: var_int == 1}`,
+		GlobalVars(map[string]interface{}{"var_int": 0}))
+
+	s := NewScanner(r)
+	matchingRules, _ := s.Scan([]byte{})
+	assert.Len(t, matchingRules, 0)
+
+	assert.NoError(t, s.SetGlobal("var_int", 1))
+	matchingRules, _ = s.Scan([]byte{})
+	assert.Len(t, matchingRules, 1)
+
+	assert.NoError(t, s.SetGlobal("var_int", int32(1)))
+	matchingRules, _ = s.Scan([]byte{})
+	assert.Len(t, matchingRules, 1)
+
+	assert.NoError(t, s.SetGlobal("var_int", int64(1)))
+	matchingRules, _ = s.Scan([]byte{})
+	assert.Len(t, matchingRules, 1)
+}
+
 func TestScannerTimeout(t *testing.T) {
 	r, _ := Compile("rule t { strings: $a = /a(.*)*a/ condition: $a }")
 	s := NewScanner(r)
