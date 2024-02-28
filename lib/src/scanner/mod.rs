@@ -685,7 +685,7 @@ impl<'r> Scanner<'r> {
 
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
-        // are rules without patterns, or that match if the pattern is not 
+        // are rules without patterns, or that match if the pattern is not
         // found.
         if !ctx.pattern_matches.is_empty()
             || !ctx.non_private_matching_rules.is_empty()
