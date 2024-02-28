@@ -71,11 +71,18 @@ func TestVariables(t *testing.T) {
 	assert.Len(t, matchingRules, 1)
 
 	err := c.DefineGlobal("var", struct{}{})
-	assert.Errorf(t, err, "variable `var` has unsupported type: struct{}")
+	assert.EqualError(t, err, "variable `var` has unsupported type: struct {}")
 }
 
 func TestError(t *testing.T) {
 	c := NewCompiler()
 	err := c.AddSource("rule test { condition: foo }")
-	assert.Error(t, err)
+	assert.EqualError(t, err, `error: unknown identifier `+"`foo`"+`
+   ╭─[line:1:24]
+   │
+ 1 │ rule test { condition: foo }
+   │                        ─┬─  
+   │                         ╰─── this identifier has not been declared
+───╯
+`)
 }

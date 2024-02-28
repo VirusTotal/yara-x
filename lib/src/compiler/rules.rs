@@ -206,7 +206,7 @@ impl Rules {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
-    /// Returns an slice with the individual rules that were compiled.
+    /// Returns a slice with the individual rules that were compiled.
     #[inline]
     pub(crate) fn rules(&self) -> &[RuleInfo] {
         self.rules.as_slice()
@@ -233,8 +233,8 @@ impl Rules {
         let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
 
         let mut parser = regex_syntax::ast::parse::ParserBuilder::new()
-            // This the custom configuration option that turns-on support for
-            // the `{,n}`. This option doesn't exist in the official
+            // This is the custom configuration option that turns-on support
+            // for the `{,n}` syntax. This option doesn't exist in the official
             // `regex_syntax` crate.
             .empty_min_range(true)
             .build();
@@ -249,7 +249,18 @@ impl Rules {
 
         let hir = translator.translate(re.naked(), &ast).unwrap();
 
-        regex_automata::meta::Builder::new().build_from_hir(&hir).unwrap()
+        // Set a size limit for the NFA automata. The default limit (10MB) is
+        // too small for certain regexps seen in YARA rules in the wild, see:
+        // https://github.com/VirusTotal/yara-x/issues/85
+        let config = regex_automata::meta::Config::new()
+            .nfa_size_limit(Some(50 * 1024 * 1024));
+
+        regex_automata::meta::Builder::new()
+            .configure(config)
+            .build_from_hir(&hir)
+            .unwrap_or_else(|err| {
+                panic!("error compiling regex `{}`: {:#?}", re.as_str(), err)
+            })
     }
 
     /// Returns a sub-pattern by [`SubPatternId`].

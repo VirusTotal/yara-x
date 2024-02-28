@@ -37,6 +37,20 @@ func TestScanner2(t *testing.T) {
 	runtime.GC()
 }
 
+func TestScanner3(t *testing.T) {
+	r, _ := Compile(
+		`rule t { condition: var_bool }`,
+		GlobalVars(map[string]interface{}{"var_bool": true}))
+
+	s := NewScanner(r)
+	matchingRules, _ := s.Scan([]byte{})
+	assert.Len(t, matchingRules, 1)
+
+	s.SetGlobal("var_bool", false)
+	matchingRules, _ = s.Scan([]byte{})
+	assert.Len(t, matchingRules, 0)
+}
+
 func TestScannerTimeout(t *testing.T) {
 	r, _ := Compile("rule t { strings: $a = /a(.*)*a/ condition: $a }")
 	s := NewScanner(r)
