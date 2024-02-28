@@ -179,7 +179,7 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
 ///
 /// The `name` argument is either a YARA module name (i.e: "pe", "elf", "dotnet",
 /// etc.) or the fully-qualified name of the protobuf message associated to
-/// the module.
+/// the module. It must be a valid UTF-8 string.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_set_module_output(
     scanner: *mut YRX_SCANNER,
@@ -246,7 +246,7 @@ unsafe extern "C" fn yrx_scanner_set_global<
         }
         Err(err) => {
             LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
-            YRX_RESULT::SCAN_ERROR
+            YRX_RESULT::VARIABLE_ERROR
         }
     }
 }
