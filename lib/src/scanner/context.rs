@@ -119,7 +119,7 @@ pub(crate) struct ScanContext<'r> {
 #[cfg(feature = "rules-profiling")]
 impl<'r> ScanContext<'r> {
     pub fn most_expensive_rules(&self) -> Vec<(&'r str, &'r str, Duration)> {
-        let mut result = Vec::with_capacity(self.compiled_rules.rules().len());
+        let mut result = Vec::with_capacity(self.compiled_rules.num_rules());
 
         for r in self.compiled_rules.rules() {
             let mut rule_time = Duration::default();
@@ -268,7 +268,7 @@ impl ScanContext<'_> {
             let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
 
             let base = MATCHING_RULES_BITMAP_BASE as usize;
-            let num_rules = self.compiled_rules.rules().len();
+            let num_rules = self.compiled_rules.num_rules();
 
             let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
                 &mut main_mem[base..base + num_rules.div_ceil(8)],
@@ -309,7 +309,7 @@ impl ScanContext<'_> {
 
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let mem = self.main_memory.unwrap().data_mut(wasm_store);
-        let num_rules = self.compiled_rules.rules().len();
+        let num_rules = self.compiled_rules.num_rules();
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
         let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
@@ -330,9 +330,9 @@ impl ScanContext<'_> {
     ) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };
         let mem = self.main_memory.unwrap().data_mut(wasm_store);
-        let num_rules = self.compiled_rules.rules().len();
+        let num_rules = self.compiled_rules.num_rules();
         let num_patterns = self.compiled_rules.num_patterns();
-        
+
         let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
         let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
             &mut mem[base..base + num_patterns.div_ceil(8)],

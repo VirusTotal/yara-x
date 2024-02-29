@@ -106,7 +106,7 @@ impl<'r> Scanner<'r> {
 
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
-        let num_rules = rules.rules().len() as u32;
+        let num_rules = rules.num_rules() as u32;
         let num_patterns = rules.num_patterns() as u32;
 
         // The ScanContext structure belongs to the WASM store, but at the same
@@ -675,7 +675,7 @@ impl<'r> Scanner<'r> {
     /// scan. This clears all the information generated the previous scan.
     fn reset(&mut self) {
         let ctx = self.wasm_store.data_mut();
-        let num_rules = ctx.compiled_rules.rules().len();
+        let num_rules = ctx.compiled_rules.num_rules();
         let num_patterns = ctx.compiled_rules.num_patterns();
 
         // Clear the array that tracks the patterns that reached the maximum
@@ -824,7 +824,7 @@ pub struct NonMatchingRules<'a, 'r> {
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
-        let num_rules = ctx.compiled_rules.rules().len();
+        let num_rules = ctx.compiled_rules.num_rules();
         let main_memory =
             ctx.main_memory.unwrap().data(unsafe { ctx.wasm_store.as_ref() });
 
@@ -849,7 +849,7 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
             // The number of non-matching rules is the total number of rules
             // minus the number of matching rules, both private and
             // non-private.
-            len: ctx.compiled_rules.rules().len()
+            len: ctx.compiled_rules.num_rules()
                 - ctx.private_matching_rules.len()
                 - ctx.non_private_matching_rules.len(),
         }

@@ -310,6 +310,11 @@ impl Rules {
     }
 
     #[inline]
+    pub(crate) fn num_rules(&self) -> usize {
+        self.rules.len()
+    }
+
+    #[inline]
     pub(crate) fn num_patterns(&self) -> usize {
         self.num_patterns
     }
@@ -376,8 +381,8 @@ impl Rules {
                 Instant::elapsed(&start)
             );
 
-            info!("Number of rules: {}", self.rules.len());
-            info!("Number of patterns: {}", self.num_patterns);
+            info!("Number of rules: {}", self.num_rules());
+            info!("Number of patterns: {}", self.num_patterns());
             info!(
                 "Number of anchored sub-patterns: {}",
                 self.anchored_sub_patterns.len()
