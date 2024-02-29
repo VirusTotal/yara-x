@@ -1215,7 +1215,7 @@ fn emit_check_for_rule_match(
     // at MATCHING_RULES_BITMAP_BASE.
     //
     // The first thing is loading the byte where the bit
-    // resides..
+    // resides.
     instr.i32_const(rule_id.0 / 8);
     instr.load(
         ctx.wasm_symbols.main_memory,
@@ -1296,8 +1296,8 @@ fn emit_check_for_pattern_match(
 /// Emits the code that gets an array item by index.
 ///
 /// This function must be called right after emitting the code that leaves the
-/// the index in the stack. The code emitted by this function assumes that the
-/// top of the stack is an i64 with the index.
+/// index in the stack. The code emitted by this function assumes that the top 
+/// of the stack is an i64 with the index.
 fn emit_array_indexing(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,

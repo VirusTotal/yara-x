@@ -249,7 +249,7 @@ impl ScanContext<'_> {
 
     /// Called during the scan process when a global rule didn't match.
     ///
-    /// When this happen any other global rule in the same namespace that
+    /// When this happens any other global rule in the same namespace that
     /// matched previously is reset to a non-matching state.
     pub(crate) fn track_global_rule_no_match(&mut self, rule_id: RuleId) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };

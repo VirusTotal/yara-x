@@ -722,8 +722,8 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
 }
 
 /// Invoked from WASM before starting the evaluation of the rule identified
-/// by the given [`RuleId`]. This only happens when the the "logging" feature
-/// is enabled.
+/// by the given [`RuleId`]. This only happens when the "logging" feature is
+/// enabled.
 #[wasm_export]
 #[cfg(feature = "logging")]
 pub(crate) fn log_rule_eval_start(
