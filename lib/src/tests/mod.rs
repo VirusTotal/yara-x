@@ -470,6 +470,12 @@ fn for_in() {
     condition_true!(r#"for 2 s in ("foo", "bar", "baz") : (s contains "ba")"#);
     condition_true!(r#"for all x in (1.0, 2.0, 3.0) : (x >= 1.0)"#);
     condition_true!(r#"for none x in (1.0, 2.0, 3.0) : (x > 4.0)"#);
+
+    // https://github.com/VirusTotal/yara-x/issues/87
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"not for any i in (0..test_proto2.int64_undef) : (true)"#
+    );
 }
 
 #[test]
