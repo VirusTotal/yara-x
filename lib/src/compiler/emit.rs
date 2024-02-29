@@ -1617,17 +1617,29 @@ fn emit_for_in_range(
         |ctx, instr, n, loop_end| {
             // Set n = upper_bound - lower_bound + 1;
             set_var(ctx, instr, n, |ctx, instr| {
-                emit_expr(ctx, instr, &mut range.upper_bound);
-                emit_expr(ctx, instr, &mut range.lower_bound);
+                // Catch undefined values in upper_bound and lower_bound
+                // expressions. In such cases n = 0.
+                catch_undef(
+                    ctx,
+                    I64,
+                    instr,
+                    |ctx, instr| {
+                        emit_expr(ctx, instr, &mut range.upper_bound);
+                        emit_expr(ctx, instr, &mut range.lower_bound);
 
-                // Store lower_bound in temp variable, without removing
-                // it from the stack.
-                instr.local_tee(ctx.wasm_symbols.i64_tmp);
+                        // Store lower_bound in temp variable, without removing
+                        // it from the stack.
+                        instr.local_tee(ctx.wasm_symbols.i64_tmp);
 
-                // Compute upper_bound - lower_bound + 1.
-                instr.binop(BinaryOp::I64Sub);
-                instr.i64_const(1);
-                instr.binop(BinaryOp::I64Add);
+                        // Compute upper_bound - lower_bound + 1.
+                        instr.binop(BinaryOp::I64Sub);
+                        instr.i64_const(1);
+                        instr.binop(BinaryOp::I64Add);
+                    },
+                    |instr| {
+                        instr.i64_const(0);
+                    },
+                )
             });
 
             // If n <= 0, exit from the loop.
