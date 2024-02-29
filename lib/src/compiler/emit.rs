@@ -13,7 +13,9 @@ use bstr::ByteSlice;
 use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use walrus::ir::ExtendedLoad::ZeroExtend;
-use walrus::ir::{BinaryOp, InstrSeqId, LoadKind, MemArg, StoreKind, UnaryOp};
+use walrus::ir::{
+    BinaryOp, InstrSeqId, InstrSeqType, LoadKind, MemArg, StoreKind, UnaryOp,
+};
 use walrus::ValType::{I32, I64};
 use walrus::{FunctionId, InstrSeqBuilder, ValType};
 use yara_x_parser::ast::{RuleFlag, RuleFlags};
@@ -164,6 +166,8 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
+type ExceptionHandler = Box<dyn Fn(&mut InstrSeqBuilder)>;
+
 /// Structure that contains information used while emitting the code that
 /// corresponds to the condition of a YARA rule.
 pub(in crate::compiler) struct EmitContext<'a> {
@@ -191,7 +195,9 @@ pub(in crate::compiler) struct EmitContext<'a> {
     pub lit_pool: &'a mut BStringPool<LiteralId>,
 
     /// Stack of installed exception handlers for catching undefined values.
-    pub exception_handler_stack: Vec<(ValType, InstrSeqId)>,
+    /// When an exception occurs the execution flow will jump out of the block
+    /// identified by `InstrSeqId`.
+    pub exception_handler_stack: Vec<(InstrSeqId, ExceptionHandler)>,
 
     /// Stack of variables. These are local variables used during the
     /// evaluation of rule conditions, for example for storing loop variables.
@@ -269,9 +275,17 @@ pub(super) fn emit_rule_condition(
     }
 
     // Emit WASM code for the rule's condition.
-    catch_undef(ctx, &mut instr, |ctx, instr| {
-        emit_bool_expr(ctx, instr, condition);
-    });
+    catch_undef(
+        ctx,
+        Some(I32),
+        &mut instr,
+        |ctx, instr| {
+            emit_bool_expr(ctx, instr, condition);
+        },
+        |instr| {
+            instr.i32_const(0);
+        },
+    );
 
     // Check if the result from the condition is zero (false).
     instr.unop(UnaryOp::I32Eqz);
@@ -699,17 +713,25 @@ fn emit_defined(
     //     false
     //   }
     //
-    catch_undef(ctx, instr, |ctx, instr| {
-        emit_bool_expr(ctx, instr, operand);
-        // Drop the operand's value as we are not interested in the
-        // value, we are interested only in whether it's defined or
-        // not.
-        instr.drop();
-        // Push a 1 in the stack indicating that the operand is
-        // defined. This point is not reached if the operand calls
-        // `throw_undef`.
-        instr.i32_const(1);
-    });
+    catch_undef(
+        ctx,
+        Some(I32),
+        instr,
+        |ctx, instr| {
+            emit_bool_expr(ctx, instr, operand);
+            // Drop the operand's value as we are not interested in the
+            // value, we are interested only in whether it's defined or
+            // not.
+            instr.drop();
+            // Push a 1 in the stack indicating that the operand is
+            // defined. This point is not reached if the operand calls
+            // `throw_undef`.
+            instr.i32_const(1);
+        },
+        |instr| {
+            instr.i32_const(0);
+        },
+    );
 }
 
 /// Emits the code for `not` operations.
@@ -773,9 +795,17 @@ fn emit_and(
         |block| {
             let block_id = block.id();
             for operand in operands {
-                catch_undef(ctx, block, |ctx, instr| {
-                    emit_bool_expr(ctx, instr, operand);
-                });
+                catch_undef(
+                    ctx,
+                    Some(I32),
+                    block,
+                    |ctx, instr| {
+                        emit_bool_expr(ctx, instr, operand);
+                    },
+                    |instr| {
+                        instr.i32_const(0);
+                    },
+                );
                 // If the operand is `false`, exit from the block
                 // with a `false` result.
                 block.if_else(
@@ -829,9 +859,17 @@ fn emit_or(
         |block| {
             let block_id = block.id();
             for operand in operands {
-                catch_undef(ctx, block, |ctx, instr| {
-                    emit_bool_expr(ctx, instr, operand);
-                });
+                catch_undef(
+                    ctx,
+                    Some(I32),
+                    block,
+                    |ctx, instr| {
+                        emit_bool_expr(ctx, instr, operand);
+                    },
+                    |instr| {
+                        instr.i32_const(0);
+                    },
+                );
                 // If the operand is `true`, exit from the block
                 // with a `true` result.
                 block.if_else(
@@ -1575,6 +1613,7 @@ fn emit_for_in_range(
         instr,
         &mut for_in.stack_frame,
         &mut for_in.quantifier,
+        // Loop initialization
         |ctx, instr, n, loop_end| {
             // Set n = upper_bound - lower_bound + 1;
             set_var(ctx, instr, n, |ctx, instr| {
@@ -1714,7 +1753,7 @@ fn emit_for_in_map(
     instr: &mut InstrSeqBuilder,
     for_in: &mut ForIn,
 ) {
-    // A `for` loop in an map has exactly two variables, one for the key
+    // A `for` loop in a map has exactly two variables, one for the key
     // and the other for the value.
     assert_eq!(for_in.variables.len(), 2);
 
@@ -1963,9 +2002,17 @@ fn emit_for<I, B, C, A>(
             // capturing any undefined exception produced by the condition
             // because we don't want to abort the loop in such cases. When the
             // condition is undefined it's handled as a false.
-            catch_undef(ctx, block, |ctx, block| {
-                condition(ctx, block);
-            });
+            catch_undef(
+                ctx,
+                Some(I32),
+                block,
+                |ctx, block| {
+                    condition(ctx, block);
+                },
+                |instr| {
+                    instr.i32_const(0);
+                },
+            );
 
             // At the top of the stack we have the i32 with the result from
             // the loop condition. Decide what to do depending on the
@@ -1984,7 +2031,7 @@ fn emit_for<I, B, C, A>(
                             incr_i_and_repeat(ctx, else_, n, i, loop_start);
 
                             // If this point is reached is because all the
-                            // the range was iterated without the condition
+                            // range was iterated without the condition
                             // returning true, this means that the whole "for"
                             // statement is true.
                             else_.i32_const(1);
@@ -1999,7 +2046,7 @@ fn emit_for<I, B, C, A>(
                             incr_i_and_repeat(ctx, then_, n, i, loop_start);
 
                             // If this point is reached is because all the
-                            // the range was iterated without the condition
+                            // range was iterated without the condition
                             // returning false, this means that the whole "for"
                             // statement is true.
                             then_.i32_const(1);
@@ -2026,7 +2073,7 @@ fn emit_for<I, B, C, A>(
                             incr_i_and_repeat(ctx, else_, n, i, loop_start);
 
                             // If this point is reached is because all the
-                            // the range was iterated without the condition
+                            // range was iterated without the condition
                             // returning true, this means that the whole "for"
                             // statement is false.
                             else_.i32_const(0);
@@ -2083,7 +2130,7 @@ fn emit_for<I, B, C, A>(
                     // range 0..n. If `max_count` is zero this means that all
                     // iterations returned false and therefore the loop must
                     // return true. If `max_count` is non-zero it means that
-                    // `counter` didn't reached `max_count` and the loop must
+                    // `counter` didn't reach `max_count` and the loop must
                     // return false.
                     load_var(ctx, block, max_count);
                     block.unop(UnaryOp::I64Eqz);
@@ -2405,7 +2452,7 @@ fn emit_bool_expr(
 
 /// Emit function call.
 fn emit_func_call(
-    ctx: &EmitContext,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     func: &Func,
 ) {
@@ -2436,7 +2483,7 @@ fn emit_func_call(
 /// is undefined, and throws an exception if that's the case (see:
 /// [`throw_undef`])
 fn emit_call_and_handle_undef(
-    ctx: &EmitContext,
+    ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
     fn_id: walrus::FunctionId,
 ) {
@@ -2577,29 +2624,32 @@ fn emit_lookup_object(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 /// Emits code for catching exceptions caused by undefined values.
 ///
 /// This function emits WebAssembly code that behaves similarly to an exception
-/// handler. The code inside the catch block must return an `i32`, which is left
-/// at the top of the stack. However, at any point inside this block you can use
-/// [`throw_undef`] for throwing an exception when an undefined value is detected
-/// In that case the execution flow will be interrupted at the point where
-/// [`throw_undef`] was found, and the control transferred to the instruction
-/// that follows after the `catch_undef` block, leaving a zero value of type
-/// `i32` at the top of the stack.
-///
-/// In other words, [`catch_undef`] protects a block that returns an `i32` from
-/// exceptions caused by undefined values, replacing the block's result with a
-/// zero in case such exception occurs.
+/// handler. The code in `expr` must return a value of type `ty` which is left
+/// at the top of the stack. However, at any point inside this block you can
+/// use [`throw_undef`] for throwing an exception when an undefined value is
+/// detected. In that case the execution flow will be interrupted at the point
+/// where [`throw_undef`] was found, the code in `catch` is executed, leaving
+/// its result in the stack, and the control transferred to the instruction
+/// that follows after the `catch_undef` block. Notice that `expr` and `catch`
+/// must return values of the same type. In a normal execution the result from
+/// the `catch_undef` block is the result from `expr`, but when an exception
+/// occurs the value is provided by the `catch` block.
 ///
 /// [`catch_undef`] blocks can be nested, and in such cases the control will
-/// transferred to the end of the innermost block.
+/// be transferred to the end of the innermost block.
 ///
 /// # Example
 ///
 /// ```text
 /// catch_undef(ctx, instr,
-///    |block| {
+///    |ctx, block| {
 ///       throw_undef(ctx, block);   // The exception is raised here ...
 ///       block.i32_const(1);        // ... and this is not executed.
 ///    },
+///    |catch| {
+///       catch.i32_const(0);        // If an exception is raised, the result
+///                                  // from `catch_undef` will be 0.
+///    }
 /// );
 /// // ... at this point we have a zero value of type i32 at the top of the
 /// // stack.
@@ -2607,15 +2657,17 @@ fn emit_lookup_object(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
 ///
 fn catch_undef(
     ctx: &mut EmitContext,
+    ty: impl Into<InstrSeqType>,
     instr: &mut InstrSeqBuilder,
     expr: impl FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
+    catch: impl Fn(&mut InstrSeqBuilder) + 'static,
 ) {
     // Create a new block containing `expr`. When an exception is raised from
     // within `expr`, the control flow will jump out of this block via a `br`
     // instruction.
-    instr.block(I32, |block| {
+    instr.block(ty, |block| {
         // Push the type and ID of the current block in the handlers stack.
-        ctx.exception_handler_stack.push((I32, block.id()));
+        ctx.exception_handler_stack.push((block.id(), Box::new(catch)));
         expr(ctx, block);
     });
 
@@ -2627,7 +2679,7 @@ fn catch_undef(
 ///
 /// For more information see [`catch_undef`].
 fn throw_undef(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
-    let innermost_handler = *ctx
+    let innermost_handler = ctx
         .exception_handler_stack
         .last()
         .expect("calling `raise` from outside `try` block");
@@ -2667,14 +2719,10 @@ fn throw_undef(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
     // `br $outer`, because that is going to be the result for the $outer
     // block.
     //
-    match innermost_handler.0 {
-        I32 => instr.i32_const(0),
-        I64 => instr.i64_const(0),
-        _ => unreachable!(),
-    };
+    innermost_handler.1(instr);
 
     // Jump to the exception handler.
-    instr.br(innermost_handler.1);
+    instr.br(innermost_handler.0);
 }
 
 /// Similar to [`throw_undef`], but throws the exception if the top of the
