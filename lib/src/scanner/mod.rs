@@ -544,7 +544,11 @@ impl<'r> Scanner<'r> {
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
-            let module = modules::BUILTIN_MODULES.get(module_name).unwrap();
+            let module =
+                modules::BUILTIN_MODULES.get(module_name).unwrap_or_else(
+                    || panic!("module `{}` not found", module_name),
+                );
+
             let root_struct_name = module.root_struct_descriptor.full_name();
 
             // If the user already provided some output for the module by
