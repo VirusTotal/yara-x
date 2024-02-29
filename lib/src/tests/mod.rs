@@ -3009,6 +3009,60 @@ fn rule_reuse_2() {
 }
 
 #[test]
+fn eight_rules() {
+    let rules = crate::compile(
+        r#"
+        rule rule_1 {
+          strings:
+            $a = "foo"
+          condition:
+            $a
+        }
+        rule rule_2 {
+          condition:
+            false
+        }
+        rule rule_3 {
+          condition:
+            true
+        }
+        rule rule_4 {
+          condition:
+            false
+        }
+        rule rule_5 {
+          condition:
+            true
+        }
+        rule rule_6 {
+          condition:
+            false
+        }
+        rule rule_7 {
+          condition:
+            true
+        }
+        rule rule_8 {
+          condition:
+            false
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foo")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        4
+    );
+}
+
+#[test]
 fn test_defined_1() {
     condition_true!(r#"defined 1"#);
     condition_true!(r#"defined 1.0"#);

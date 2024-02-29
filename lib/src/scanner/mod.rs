@@ -722,8 +722,8 @@ impl<'r> Scanner<'r> {
             let base = MATCHING_RULES_BITMAP_BASE as usize;
             let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
                 &mut mem[base..base
-                    + (num_rules / 8 + 1)
-                    + (num_patterns / 8 + 1)],
+                    + num_rules.div_ceil(8)
+                    + num_patterns.div_ceil(8)],
             );
 
             // Set to zero all bits in the bitmap.
