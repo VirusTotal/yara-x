@@ -1296,7 +1296,7 @@ fn emit_check_for_pattern_match(
 /// Emits the code that gets an array item by index.
 ///
 /// This function must be called right after emitting the code that leaves the
-/// index in the stack. The code emitted by this function assumes that the top 
+/// index in the stack. The code emitted by this function assumes that the top
 /// of the stack is an i64 with the index.
 fn emit_array_indexing(
     ctx: &mut EmitContext,
