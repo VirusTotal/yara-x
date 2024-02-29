@@ -206,12 +206,6 @@ impl Rules {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
-    /// Returns a slice with the individual rules that were compiled.
-    #[inline]
-    pub(crate) fn rules(&self) -> &[RuleInfo] {
-        self.rules.as_slice()
-    }
-
     /// Returns a regular expression by [`RegexpId`].
     ///
     /// # Panics
