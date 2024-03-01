@@ -1480,6 +1480,40 @@ fn regexp_wide() {
         b"f\x00o\x00o\x00b\x00a\x00r\x00b\x00a\x00z\x00",
         b"f\x00o\x00o\x00b\x00a\x00r\x00b\x00a\x00z\x00"
     );
+
+    pattern_false!(
+        r#"/foobar.[A-Z]{1}/ wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00\x00\x15W\x00"
+    );
+
+    pattern_false!(
+        r#"/.[A-Z]{1}foobar/ wide"#,
+        b"\x00\x15W\x00f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_false!(
+        r#"/\bfoobar/ wide"#,
+        b"x\x00f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_true!(
+        r#"/\Bfoobar/ wide"#,
+        b"x\x00f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_false!(
+        r#"/foobar\b/ wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00x\x00"
+    );
+
+    pattern_true!(
+        r#"/foobar\B/ wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00x\x00"
+    );
+
+    pattern_true!(r#"/foobar\b/ wide"#, b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+    pattern_false!(r#"/foobar\B/ wide"#, b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+    pattern_true!(r#"/foobar$/ wide"#, b"f\x00o\x00o\x00b\x00a\x00r\x00x");
 }
 
 #[test]
