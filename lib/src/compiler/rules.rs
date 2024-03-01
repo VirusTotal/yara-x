@@ -288,6 +288,12 @@ impl Rules {
         None
     }
 
+    #[cfg(feature = "rules-profiling")]
+    #[inline]
+    pub(crate) fn rules(&self) -> &[RuleInfo] {
+        self.rules.as_slice()
+    }
+
     #[inline]
     pub(crate) fn atoms(&self) -> &[SubPatternAtom] {
         self.atoms.as_slice()
