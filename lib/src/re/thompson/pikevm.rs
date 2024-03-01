@@ -92,17 +92,15 @@ impl<'r> PikeVM<'r> {
             }
             // Going forward, wide.
             (false, true) => {
-                let invalid_wide = Cell::new(false);
+                let error_fwd = Cell::new(None);
+                let error_bck = Cell::new(None);
                 self.try_match_impl(
                     start,
-                    WideIter::non_zero_first(right.iter(), &invalid_wide),
-                    WideIter::zero_first(left.iter().rev(), &invalid_wide),
-                    |match_len| {
-                        if invalid_wide.get() {
-                            Action::Stop
-                        } else {
-                            f(match_len * 2)
-                        }
+                    WideIter::non_zero_first(right.iter(), &error_fwd),
+                    WideIter::zero_first(left.iter().rev(), &error_bck),
+                    |match_len| match error_fwd.get() {
+                        Some(pos) if pos < match_len => Action::Stop,
+                        _ => f(match_len * 2),
                     },
                 )
             }
@@ -112,17 +110,15 @@ impl<'r> PikeVM<'r> {
             }
             // Going backward, wide.
             (true, true) => {
-                let invalid_wide = Cell::new(false);
+                let error_fwd = Cell::new(None);
+                let error_bck = Cell::new(None);
                 self.try_match_impl(
                     start,
-                    WideIter::zero_first(left.iter().rev(), &invalid_wide),
-                    WideIter::non_zero_first(right.iter(), &invalid_wide),
-                    |match_len| {
-                        if invalid_wide.get() {
-                            Action::Stop
-                        } else {
-                            f(match_len * 2)
-                        }
+                    WideIter::zero_first(left.iter().rev(), &error_fwd),
+                    WideIter::non_zero_first(right.iter(), &error_bck),
+                    |match_len| match error_fwd.get() {
+                        Some(pos) if pos < match_len => Action::Stop,
+                        _ => f(match_len * 2),
                     },
                 )
             }
@@ -409,47 +405,54 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
 /// bytes at a time, returning one of the bytes and making sure that other
 /// is zero. Which of the two bytes is returned and which is zero depends
 /// on the kind of iterator you create. With [`WideIter::non_zero_first`]
-/// you create an iterator that expects the first byte of each pair to be
-/// non-zero, and the second one to be zero.
+/// the iterator expects the first byte of each pair to be non-zero, and
+/// the second one to be zero.
 ///
-/// In the other hand, [`WideIter::zero_first`] expect the first byte of
-/// each pair to be zero, and the second one to be the non-zero byte
-/// returned by the iterator.   
+/// In the other hand, with [`WideIter::zero_first`] the iterator expects
+/// the first byte of each pair to be zero, and the second one to be the
+/// non-zero byte.
+///
+/// When the iterator finds a byte that is expected to be zero, but it's
+/// not, it saves the number of valid pairs that were consumed before
+/// finding this invalid pair.
 ///
 /// ```ignore
-/// let error = Cell::new(false);
+/// let error_pos = Cell::new(None);
 /// let v = vec![1,0,2,0,3,0];
 /// // The non-zero values are expected to be the first of each pair.
-/// let i = WideIter::non_zero_first(v.iter(), &error);
+/// let i = WideIter::non_zero_first(v.iter(), &error_pos);
 /// assert_eq!(i.collect(), vec![1,2,3]);
 /// // No error.
-/// assert!(!error_flag.get());
+/// assert_eq!(error_pos.get(), None);
 /// ```
 ///
 /// ```ignore
-/// let error = Cell::new(false);
+/// let error_pos = Cell::new(None);
 /// let v = vec![1,100,2,0,3,0];
-/// let i = WideIter::non_zero_first(v.iter(), &error);
+/// let i = WideIter::non_zero_first(v.iter(), &error_pos);
 /// assert_eq!(i.collect(), vec![1,2,3]);
-/// // Error! between 1 and 2 there's a non-zero value 100
-/// assert!(error_flag.get());
+/// // Error! the 1 is followed by 100 instead of 0. The
+/// // error position is 0 because no valid pairs were found
+/// // before this error.
+/// assert!(error_pos.get(), Some(0));
 /// ```
 ///
 /// ```ignore
-/// let error = Cell::new(false);
+/// let error_pos = Cell::new(None);
 /// let v = vec![0,1,0,2,0,3];
 /// // The zero values are expected to be the first of each pair.
-/// let i = WideIter::zero_first(v.iter(), &error);
+/// let i = WideIter::zero_first(v.iter(), &error_pos);
 /// assert_eq!(i.collect(), vec![1,2,3]);
 /// // No error
-/// assert!(!error_flag.get());
+/// assert!(error_pos.get(), None);
 /// ```
 struct WideIter<'a, I>
 where
     I: Iterator<Item = &'a u8>,
 {
     iter: I,
-    error_flag: &'a Cell<bool>,
+    error_pos: &'a Cell<Option<usize>>,
+    valid_pairs: usize,
     zero_first: bool,
 }
 
@@ -457,18 +460,18 @@ impl<'a, I> WideIter<'a, I>
 where
     I: Iterator<Item = &'a u8>,
 {
-    pub fn non_zero_first(iter: I, error_flag: &'a Cell<bool>) -> Self
+    pub fn non_zero_first(iter: I, error_pos: &'a Cell<Option<usize>>) -> Self
     where
         I: Iterator<Item = &'a u8>,
     {
-        WideIter { iter, error_flag, zero_first: false }
+        WideIter { iter, error_pos, valid_pairs: 0, zero_first: false }
     }
 
-    pub fn zero_first(iter: I, error_flag: &'a Cell<bool>) -> Self
+    pub fn zero_first(iter: I, error_pos: &'a Cell<Option<usize>>) -> Self
     where
         I: Iterator<Item = &'a u8>,
     {
-        WideIter { iter, error_flag, zero_first: true }
+        WideIter { iter, error_pos, valid_pairs: 0, zero_first: true }
     }
 }
 
@@ -483,14 +486,16 @@ where
         let second_byte = self.iter.next()?;
 
         if self.zero_first {
-            if *first_byte != 0_u8 {
-                self.error_flag.replace(true);
+            if *first_byte != 0_u8 && self.error_pos.get().is_none() {
+                self.error_pos.set(Some(self.valid_pairs));
             }
+            self.valid_pairs += 1;
             Some(second_byte)
         } else {
-            if *second_byte != 0_u8 {
-                self.error_flag.replace(true);
+            if *second_byte != 0_u8 && self.error_pos.get().is_none() {
+                self.error_pos.set(Some(self.valid_pairs));
             }
+            self.valid_pairs += 1;
             Some(first_byte)
         }
     }
