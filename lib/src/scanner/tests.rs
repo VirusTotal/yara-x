@@ -283,13 +283,16 @@ fn variables_2() {
     let mut compiler = crate::Compiler::new();
 
     compiler
-        .define_global("some_int", 0)
+        .define_global("some_bool", true)
+        .unwrap()
+        .define_global("some_str", "")
         .unwrap()
         .add_source(
             r#"
         rule test {
             condition:
-                some_int == 1
+                some_bool and
+                some_str == "foo"
         } 
         "#,
         )
@@ -307,17 +310,7 @@ fn variables_2() {
         0
     );
 
-    scanner.set_global("some_int", 1).unwrap();
-    assert_eq!(
-        scanner
-            .scan(&[])
-            .expect("scan should not fail")
-            .matching_rules()
-            .len(),
-        1
-    );
-
-    scanner.set_global("some_int", 2).unwrap();
+    scanner.set_global("some_bool", false).unwrap();
     assert_eq!(
         scanner
             .scan(&[])
@@ -325,6 +318,26 @@ fn variables_2() {
             .matching_rules()
             .len(),
         0
+    );
+
+    scanner.set_global("some_str", "foo").unwrap();
+    assert_eq!(
+        scanner
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        0
+    );
+
+    scanner.set_global("some_bool", true).unwrap();
+    assert_eq!(
+        scanner
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
     );
 }
 

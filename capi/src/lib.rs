@@ -35,14 +35,25 @@ thread_local! {
 
 #[repr(C)]
 pub enum YRX_RESULT {
+    /// Everything was OK.
     SUCCESS,
-    PANIC,
+    /// A syntax error occurred while compiling YARA rules.
     SYNTAX_ERROR,
+    /// An error occurred while defining or setting a global variable. This may
+    /// happen when a variable is defined twice and when you try to set a value
+    /// that doesn't correspond to the variable's type.
     VARIABLE_ERROR,
+    /// An error occurred during a scan operation.
     SCAN_ERROR,
+    /// A scan operation was aborted due to a timeout.
     SCAN_TIMEOUT,
-    INVALID_IDENTIFIER,
+    /// An error indicating that some of the arguments passed to a function is
+    /// invalid. Usually indicates a nil pointer to a scanner or compiler.
     INVALID_ARGUMENT,
+    /// An error indicating that some of the strings passed to a function is
+    /// not valid UTF-8.
+    INVALID_UTF8,
+    /// An error occurred while serializing/deserializing YARA rules.
     SERIALIZATION_ERROR,
 }
 

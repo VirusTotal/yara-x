@@ -722,8 +722,8 @@ pub(crate) fn new_linker<'r>() -> Linker<ScanContext<'r>> {
 }
 
 /// Invoked from WASM before starting the evaluation of the rule identified
-/// by the given [`RuleId`]. This only happens when the the "logging" feature
-/// is enabled.
+/// by the given [`RuleId`]. This only happens when the "logging" feature is
+/// enabled.
 #[wasm_export]
 #[cfg(feature = "logging")]
 pub(crate) fn log_rule_eval_start(
@@ -920,7 +920,7 @@ pub(crate) fn map_len(_: &mut Caller<'_, ScanContext>, map: Rc<Map>) -> i64 {
 /// reach the inner `integer_field`.
 ///
 /// The initial structure is the one passed in the `structure` argument, or the
-/// the root structure if this argument is `None`.
+/// root structure if this argument is `None`.
 ///
 /// The sequence of indexes is stored in WASM main memory, starting at
 /// `LOOKUP_INDEXES_START`, and the number of indexes is indicated by the

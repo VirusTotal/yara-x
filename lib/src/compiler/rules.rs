@@ -206,12 +206,6 @@ impl Rules {
         self.rules.get(rule_id.0 as usize).unwrap()
     }
 
-    /// Returns a slice with the individual rules that were compiled.
-    #[inline]
-    pub(crate) fn rules(&self) -> &[RuleInfo] {
-        self.rules.as_slice()
-    }
-
     /// Returns a regular expression by [`RegexpId`].
     ///
     /// # Panics
@@ -284,7 +278,7 @@ impl Rules {
         sub_pattern_id: SubPatternId,
     ) -> Option<(RuleId, IdentId)> {
         let (target_pattern_id, _) = self.get_sub_pattern(sub_pattern_id);
-        for (rule_id, rule) in self.rules().iter().enumerate() {
+        for (rule_id, rule) in self.rules.iter().enumerate() {
             for (ident_id, pattern_id) in &rule.patterns {
                 if pattern_id == target_pattern_id {
                     return Some((rule_id.into(), *ident_id));
@@ -292,6 +286,12 @@ impl Rules {
             }
         }
         None
+    }
+
+    #[cfg(feature = "rules-profiling")]
+    #[inline]
+    pub(crate) fn rules(&self) -> &[RuleInfo] {
+        self.rules.as_slice()
     }
 
     #[inline]
@@ -307,6 +307,11 @@ impl Rules {
     #[inline]
     pub(crate) fn re_code(&self) -> &[u8] {
         self.re_code.as_slice()
+    }
+
+    #[inline]
+    pub(crate) fn num_rules(&self) -> usize {
+        self.rules.len()
     }
 
     #[inline]
@@ -376,8 +381,8 @@ impl Rules {
                 Instant::elapsed(&start)
             );
 
-            info!("Number of rules: {}", self.rules.len());
-            info!("Number of patterns: {}", self.num_patterns);
+            info!("Number of rules: {}", self.num_rules());
+            info!("Number of patterns: {}", self.num_patterns());
             info!(
                 "Number of anchored sub-patterns: {}",
                 self.anchored_sub_patterns.len()

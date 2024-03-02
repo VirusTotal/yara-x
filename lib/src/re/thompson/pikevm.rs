@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::mem;
 
 use bitvec::array::BitArray;
@@ -90,23 +91,37 @@ impl<'r> PikeVM<'r> {
                 self.try_match_impl(start, right.iter(), left.iter().rev(), f)
             }
             // Going forward, wide.
-            (false, true) => self.try_match_impl(
-                start,
-                right.iter().step_by(2),
-                left.iter().rev().skip(1).step_by(2),
-                |match_len| f(match_len * 2),
-            ),
+            (false, true) => {
+                let error_fwd = Cell::new(None);
+                let error_bck = Cell::new(None);
+                self.try_match_impl(
+                    start,
+                    WideIter::non_zero_first(right.iter(), &error_fwd),
+                    WideIter::zero_first(left.iter().rev(), &error_bck),
+                    |match_len| match error_fwd.get() {
+                        Some(pos) if pos < match_len => Action::Stop,
+                        _ => f(match_len * 2),
+                    },
+                )
+            }
             // Going backward, not wide.
             (true, false) => {
                 self.try_match_impl(start, left.iter().rev(), right.iter(), f)
             }
             // Going backward, wide.
-            (true, true) => self.try_match_impl(
-                start,
-                left.iter().rev().skip(1).step_by(2),
-                right.iter().step_by(2),
-                |match_len| f(match_len * 2),
-            ),
+            (true, true) => {
+                let error_fwd = Cell::new(None);
+                let error_bck = Cell::new(None);
+                self.try_match_impl(
+                    start,
+                    WideIter::zero_first(left.iter().rev(), &error_fwd),
+                    WideIter::non_zero_first(right.iter(), &error_bck),
+                    |match_len| match error_fwd.get() {
+                        Some(pos) if pos < match_len => Action::Stop,
+                        _ => f(match_len * 2),
+                    },
+                )
+            }
         }
     }
 
@@ -382,6 +397,106 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     state.threads.push(next)
                 }
             }
+        }
+    }
+}
+
+/// WideIter is an iterator that takes a byte iterator and consumes it two
+/// bytes at a time, returning one of the bytes and making sure that other
+/// is zero. Which of the two bytes is returned and which is zero depends
+/// on the kind of iterator you create. With [`WideIter::non_zero_first`]
+/// the iterator expects the first byte of each pair to be non-zero, and
+/// the second one to be zero.
+///
+/// In the other hand, with [`WideIter::zero_first`] the iterator expects
+/// the first byte of each pair to be zero, and the second one to be the
+/// non-zero byte.
+///
+/// When the iterator finds a byte that is expected to be zero, but it's
+/// not, it saves the number of valid pairs that were consumed before
+/// finding this invalid pair.
+///
+/// ```ignore
+/// let error_pos = Cell::new(None);
+/// let v = vec![1,0,2,0,3,0];
+/// // The non-zero values are expected to be the first of each pair.
+/// let i = WideIter::non_zero_first(v.iter(), &error_pos);
+/// assert_eq!(i.collect(), vec![1,2,3]);
+/// // No error.
+/// assert_eq!(error_pos.get(), None);
+/// ```
+///
+/// ```ignore
+/// let error_pos = Cell::new(None);
+/// let v = vec![1,100,2,0,3,0];
+/// let i = WideIter::non_zero_first(v.iter(), &error_pos);
+/// assert_eq!(i.collect(), vec![1,2,3]);
+/// // Error! the 1 is followed by 100 instead of 0. The
+/// // error position is 0 because no valid pairs were found
+/// // before this error.
+/// assert!(error_pos.get(), Some(0));
+/// ```
+///
+/// ```ignore
+/// let error_pos = Cell::new(None);
+/// let v = vec![0,1,0,2,0,3];
+/// // The zero values are expected to be the first of each pair.
+/// let i = WideIter::zero_first(v.iter(), &error_pos);
+/// assert_eq!(i.collect(), vec![1,2,3]);
+/// // No error
+/// assert!(error_pos.get(), None);
+/// ```
+struct WideIter<'a, I>
+where
+    I: Iterator<Item = &'a u8>,
+{
+    iter: I,
+    error_pos: &'a Cell<Option<usize>>,
+    valid_pairs: usize,
+    zero_first: bool,
+}
+
+impl<'a, I> WideIter<'a, I>
+where
+    I: Iterator<Item = &'a u8>,
+{
+    pub fn non_zero_first(iter: I, error_pos: &'a Cell<Option<usize>>) -> Self
+    where
+        I: Iterator<Item = &'a u8>,
+    {
+        WideIter { iter, error_pos, valid_pairs: 0, zero_first: false }
+    }
+
+    pub fn zero_first(iter: I, error_pos: &'a Cell<Option<usize>>) -> Self
+    where
+        I: Iterator<Item = &'a u8>,
+    {
+        WideIter { iter, error_pos, valid_pairs: 0, zero_first: true }
+    }
+}
+
+impl<'a, I> Iterator for WideIter<'a, I>
+where
+    I: Iterator<Item = &'a u8>,
+{
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let first_byte = self.iter.next()?;
+        let second_byte = self.iter.next()?;
+
+        if self.zero_first {
+            if *first_byte != 0_u8 && self.error_pos.get().is_none() {
+                self.error_pos.set(Some(self.valid_pairs));
+            }
+            self.valid_pairs += 1;
+            Some(second_byte)
+        } else {
+            if *second_byte != 0_u8 && self.error_pos.get().is_none() {
+                self.error_pos.set(Some(self.valid_pairs));
+            }
+            self.valid_pairs += 1;
+            Some(first_byte)
         }
     }
 }

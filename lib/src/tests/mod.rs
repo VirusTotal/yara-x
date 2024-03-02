@@ -470,6 +470,12 @@ fn for_in() {
     condition_true!(r#"for 2 s in ("foo", "bar", "baz") : (s contains "ba")"#);
     condition_true!(r#"for all x in (1.0, 2.0, 3.0) : (x >= 1.0)"#);
     condition_true!(r#"for none x in (1.0, 2.0, 3.0) : (x > 4.0)"#);
+
+    // https://github.com/VirusTotal/yara-x/issues/87
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"not for any i in (0..test_proto2.int64_undef) : (true)"#
+    );
 }
 
 #[test]
@@ -1474,6 +1480,30 @@ fn regexp_wide() {
         b"f\x00o\x00o\x00b\x00a\x00r\x00b\x00a\x00z\x00",
         b"f\x00o\x00o\x00b\x00a\x00r\x00b\x00a\x00z\x00"
     );
+
+    pattern_match!(
+        r"/https?:\/\/.{5,128}\.png/ wide",
+        b"\xcc\xcch\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00f\x00o\x00o\x00b\x00a\x00r\x00/\x00b\x00a\x00z\x00.\x00p\x00n\x00g\x00\xcc\xcc",
+        b"h\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00f\x00o\x00o\x00b\x00a\x00r\x00/\x00b\x00a\x00z\x00.\x00p\x00n\x00g\x00"
+    );
+
+    pattern_false!(
+        r#"/foobar.[A-Z]{1}/ wide"#,
+        b"f\x00o\x00o\x00b\x00a\x00r\x00\x00\x15W\x00"
+    );
+
+    pattern_false!(
+        r#"/.[A-Z]{1}foobar/ wide"#,
+        b"\x00\x15W\x00f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_false!(r"/\bfoobar/ wide", b"x\x00f\x00o\x00o\x00b\x00a\x00r\x00");
+    pattern_true!(r"/\Bfoobar/ wide", b"x\x00f\x00o\x00o\x00b\x00a\x00r\x00");
+    pattern_false!(r"/foobar\b/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x\x00");
+    pattern_true!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x\x00");
+    pattern_true!(r"/foobar\b/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+    pattern_false!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+    pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
 }
 
 #[test]
@@ -2999,6 +3029,60 @@ fn rule_reuse_2() {
             .matching_rules()
             .len(),
         2
+    );
+}
+
+#[test]
+fn eight_rules() {
+    let rules = crate::compile(
+        r#"
+        rule rule_1 {
+          strings:
+            $a = "foo"
+          condition:
+            $a
+        }
+        rule rule_2 {
+          condition:
+            false
+        }
+        rule rule_3 {
+          condition:
+            true
+        }
+        rule rule_4 {
+          condition:
+            false
+        }
+        rule rule_5 {
+          condition:
+            true
+        }
+        rule rule_6 {
+          condition:
+            false
+        }
+        rule rule_7 {
+          condition:
+            true
+        }
+        rule rule_8 {
+          condition:
+            false
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    assert_eq!(
+        scanner
+            .scan(b"foo")
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        4
     );
 }
 

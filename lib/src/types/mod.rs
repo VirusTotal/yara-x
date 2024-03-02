@@ -17,7 +17,7 @@ pub(crate) use func::*;
 pub(crate) use map::*;
 pub(crate) use structure::*;
 
-/// The type of a YARA expression or identifier.
+/// The type of YARA expression or identifier.
 #[derive(Clone, Copy, PartialEq)]
 pub(crate) enum Type {
     Unknown,
@@ -295,20 +295,6 @@ impl TypeValue {
         }
     }
 
-    pub fn as_string(&self) -> Rc<BString> {
-        if let TypeValue::String(value) = self {
-            value
-                .extract()
-                .cloned()
-                .expect("TypeValue doesn't have an associated value")
-        } else {
-            panic!(
-                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {:?}",
-                self
-            )
-        }
-    }
-
     pub fn as_array(&self) -> Rc<Array> {
         if let TypeValue::Array(array) = self {
             array.clone()
@@ -353,53 +339,37 @@ impl TypeValue {
         }
     }
 
-    pub fn as_integer(&self) -> i64 {
-        if let TypeValue::Integer(value) = self {
-            value
-                .extract()
-                .cloned()
-                .expect("TypeValue doesn't have an associated value")
-        } else {
-            panic!(
-                "called `as_integer` on a TypeValue that is not TypeValue::Integer, it is: {:?}",
-                self
-            )
-        }
-    }
-
-    pub fn as_float(&self) -> f64 {
-        if let TypeValue::Float(value) = self {
-            value
-                .extract()
-                .cloned()
-                .expect("TypeValue doesn't have an associated value")
-        } else {
-            panic!(
-                "called `as_float` on a TypeValue that is not TypeValue::Float, it is: {:?}",
-                self
-            )
-        }
-    }
-
+    #[inline]
     pub fn as_bool(&self) -> bool {
-        if let TypeValue::Bool(value) = self {
-            value
-                .extract()
-                .cloned()
-                .expect("TypeValue doesn't have an associated value")
-        } else {
-            panic!(
-                "called `as_bool` on a TypeValue that is not TypeValue::Bool, it is: {:?}",
-                self
-            )
-        }
+        self.try_as_bool().expect("TypeValue doesn't have an associated value")
+    }
+
+    #[inline]
+    pub fn as_integer(&self) -> i64 {
+        self.try_as_integer()
+            .expect("TypeValue doesn't have an associated value")
+    }
+
+    #[inline]
+    pub fn as_float(&self) -> f64 {
+        self.try_as_float()
+            .expect("TypeValue doesn't have an associated value")
+    }
+
+    #[inline]
+    pub fn as_string(&self) -> Rc<BString> {
+        self.try_as_string()
+            .expect("TypeValue doesn't have an associated value")
     }
 
     pub fn try_as_bool(&self) -> Option<bool> {
         if let TypeValue::Bool(value) = self {
             value.extract().cloned()
         } else {
-            None
+            panic!(
+                "called `try_as_bool` on a TypeValue that is not TypeValue::Bool, it is: {:?}",
+                self
+            )
         }
     }
 
@@ -407,7 +377,32 @@ impl TypeValue {
         if let TypeValue::Integer(value) = self {
             value.extract().cloned()
         } else {
-            None
+            panic!(
+                "called `try_as_integer` on a TypeValue that is not TypeValue::Integer, it is: {:?}",
+                self
+            )
+        }
+    }
+
+    pub fn try_as_float(&self) -> Option<f64> {
+        if let TypeValue::Float(value) = self {
+            value.extract().cloned()
+        } else {
+            panic!(
+                "called `try_as_float` on a TypeValue that is not TypeValue::Float, it is: {:?}",
+                self
+            )
+        }
+    }
+
+    pub fn try_as_string(&self) -> Option<Rc<BString>> {
+        if let TypeValue::String(value) = self {
+            value.extract().cloned()
+        } else {
+            panic!(
+                "called `as_string` on a TypeValue that is not TypeValue::String, it is: {:?}",
+                self
+            )
         }
     }
 

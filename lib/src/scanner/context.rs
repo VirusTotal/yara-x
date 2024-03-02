@@ -119,7 +119,7 @@ pub(crate) struct ScanContext<'r> {
 #[cfg(feature = "rules-profiling")]
 impl<'r> ScanContext<'r> {
     pub fn most_expensive_rules(&self) -> Vec<(&'r str, &'r str, Duration)> {
-        let mut result = Vec::with_capacity(self.compiled_rules.rules().len());
+        let mut result = Vec::with_capacity(self.compiled_rules.num_rules());
 
         for r in self.compiled_rules.rules() {
             let mut rule_time = Duration::default();
@@ -249,32 +249,34 @@ impl ScanContext<'_> {
 
     /// Called during the scan process when a global rule didn't match.
     ///
-    /// When this happen any other global rule in the same namespace that
+    /// When this happens any other global rule in the same namespace that
     /// matched previously is reset to a non-matching state.
     pub(crate) fn track_global_rule_no_match(&mut self, rule_id: RuleId) {
-        let wasm_store = unsafe { self.wasm_store.as_mut() };
-        let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
-
-        let base = MATCHING_RULES_BITMAP_BASE as usize;
-        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
-
         let rule = self.compiled_rules.get(rule_id);
 
         // This function must be called only for global rules.
         debug_assert!(rule.is_global);
 
         // All the global rules that matched previously, and are in the same
-        // namespace than the non-matching rule, must be removed from the
+        // namespace as the non-matching rule, must be removed from the
         // `global_matching_rules` map. Also, their corresponding bits in
         // the matching rules bitmap must be cleared.
         if let Some(rules) =
             self.global_matching_rules.get_mut(&rule.namespace_id)
         {
-            for rule_id in rules.iter() {
-                bits.set((*rule_id).into(), false);
-            }
+            let wasm_store = unsafe { self.wasm_store.as_mut() };
+            let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
 
-            rules.clear()
+            let base = MATCHING_RULES_BITMAP_BASE as usize;
+            let num_rules = self.compiled_rules.num_rules();
+
+            let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+                &mut main_mem[base..base + num_rules.div_ceil(8)],
+            );
+
+            for rule_id in rules.drain(0..) {
+                bits.set(rule_id.into(), false);
+            }
         }
     }
 
@@ -282,6 +284,17 @@ impl ScanContext<'_> {
     /// the matching rules.
     pub(crate) fn track_rule_match(&mut self, rule_id: RuleId) {
         let rule = self.compiled_rules.get(rule_id);
+
+        #[cfg(feature = "logging")]
+        info!(
+            "Rule match: {}:{}  {:?}",
+            self.compiled_rules
+                .ident_pool()
+                .get(rule.namespace_ident_id)
+                .unwrap(),
+            self.compiled_rules.ident_pool().get(rule.ident_id).unwrap(),
+            rule_id,
+        );
 
         if rule.is_global {
             self.global_matching_rules
@@ -295,10 +308,13 @@ impl ScanContext<'_> {
         }
 
         let wasm_store = unsafe { self.wasm_store.as_mut() };
-        let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
+        let mem = self.main_memory.unwrap().data_mut(wasm_store);
+        let num_rules = self.compiled_rules.num_rules();
 
         let base = MATCHING_RULES_BITMAP_BASE as usize;
-        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
+        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+            &mut mem[base..base + num_rules.div_ceil(8)],
+        );
 
         // The RuleId-th bit in the `rule_matches` bit vector is set to 1.
         bits.set(rule_id.into(), true);
@@ -313,11 +329,14 @@ impl ScanContext<'_> {
         replace: bool,
     ) {
         let wasm_store = unsafe { self.wasm_store.as_mut() };
-        let main_mem = self.main_memory.unwrap().data_mut(wasm_store);
-        let num_rules = self.compiled_rules.rules().len();
+        let mem = self.main_memory.unwrap().data_mut(wasm_store);
+        let num_rules = self.compiled_rules.num_rules();
+        let num_patterns = self.compiled_rules.num_patterns();
 
-        let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules / 8 + 1;
-        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(&mut main_mem[base..]);
+        let base = MATCHING_RULES_BITMAP_BASE as usize + num_rules.div_ceil(8);
+        let bits = BitSlice::<u8, Lsb0>::from_slice_mut(
+            &mut mem[base..base + num_patterns.div_ceil(8)],
+        );
 
         bits.set(pattern_id.into(), true);
 

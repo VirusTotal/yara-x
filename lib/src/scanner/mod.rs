@@ -106,7 +106,7 @@ impl<'r> Scanner<'r> {
 
     /// Creates a new scanner.
     pub fn new(rules: &'r Rules) -> Self {
-        let num_rules = rules.rules().len() as u32;
+        let num_rules = rules.num_rules() as u32;
         let num_patterns = rules.num_patterns() as u32;
 
         // The ScanContext structure belongs to the WASM store, but at the same
@@ -544,7 +544,11 @@ impl<'r> Scanner<'r> {
 
         for module_name in ctx.compiled_rules.imports() {
             // Lookup the module in the list of built-in modules.
-            let module = modules::BUILTIN_MODULES.get(module_name).unwrap();
+            let module =
+                modules::BUILTIN_MODULES.get(module_name).unwrap_or_else(
+                    || panic!("module `{}` not found", module_name),
+                );
+
             let root_struct_name = module.root_struct_descriptor.full_name();
 
             // If the user already provided some output for the module by
@@ -671,7 +675,7 @@ impl<'r> Scanner<'r> {
     /// scan. This clears all the information generated the previous scan.
     fn reset(&mut self) {
         let ctx = self.wasm_store.data_mut();
-        let num_rules = ctx.compiled_rules.rules().len();
+        let num_rules = ctx.compiled_rules.num_rules();
         let num_patterns = ctx.compiled_rules.num_patterns();
 
         // Clear the array that tracks the patterns that reached the maximum
@@ -685,8 +689,8 @@ impl<'r> Scanner<'r> {
 
         // If some pattern or rule matched, clear the matches. Notice that a
         // rule may match without any pattern being matched, because there
-        // there are rules without patterns, or that match if the pattern is
-        // not found.
+        // are rules without patterns, or that match if the pattern is not
+        // found.
         if !ctx.pattern_matches.is_empty()
             || !ctx.non_private_matching_rules.is_empty()
             || !ctx.private_matching_rules.is_empty()
@@ -718,8 +722,8 @@ impl<'r> Scanner<'r> {
             let base = MATCHING_RULES_BITMAP_BASE as usize;
             let bitmap = BitSlice::<_, Lsb0>::from_slice_mut(
                 &mut mem[base..base
-                    + (num_rules / 8 + 1)
-                    + (num_patterns / 8 + 1)],
+                    + num_rules.div_ceil(8)
+                    + num_patterns.div_ceil(8)],
             );
 
             // Set to zero all bits in the bitmap.
@@ -820,7 +824,7 @@ pub struct NonMatchingRules<'a, 'r> {
 
 impl<'a, 'r> NonMatchingRules<'a, 'r> {
     fn new(ctx: &'a ScanContext<'r>, data: &'a ScannedData<'a>) -> Self {
-        let num_rules = ctx.compiled_rules.rules().len();
+        let num_rules = ctx.compiled_rules.num_rules();
         let main_memory =
             ctx.main_memory.unwrap().data(unsafe { ctx.wasm_store.as_ref() });
 
@@ -845,7 +849,7 @@ impl<'a, 'r> NonMatchingRules<'a, 'r> {
             // The number of non-matching rules is the total number of rules
             // minus the number of matching rules, both private and
             // non-private.
-            len: ctx.compiled_rules.rules().len()
+            len: ctx.compiled_rules.num_rules()
                 - ctx.private_matching_rules.len()
                 - ctx.non_private_matching_rules.len(),
         }

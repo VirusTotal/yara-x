@@ -63,6 +63,10 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	switch v := value.(type) {
 	case int:
 		ret = C.int(C.yrx_compiler_define_global_int(c.cCompiler, cIdent, C.int64_t(v)))
+	case int32:
+		ret = C.int(C.yrx_compiler_define_global_int(c.cCompiler, cIdent, C.int64_t(v)))
+	case int64:
+		ret = C.int(C.yrx_compiler_define_global_int(c.cCompiler, cIdent, C.int64_t(v)))
 	case bool:
 		ret = C.int(C.yrx_compiler_define_global_bool(c.cCompiler, cIdent, C.bool(v)))
 	case string:

@@ -179,7 +179,7 @@ pub unsafe extern "C" fn yrx_scanner_on_matching_rule(
 ///
 /// The `name` argument is either a YARA module name (i.e: "pe", "elf", "dotnet",
 /// etc.) or the fully-qualified name of the protobuf message associated to
-/// the module.
+/// the module. It must be a valid UTF-8 string.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_scanner_set_module_output(
     scanner: *mut YRX_SCANNER,
@@ -193,7 +193,10 @@ pub unsafe extern "C" fn yrx_scanner_set_module_output(
 
     let module_name = match CStr::from_ptr(name).to_str() {
         Ok(name) => name,
-        Err(_) => return YRX_RESULT::INVALID_ARGUMENT,
+        Err(err) => {
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            return YRX_RESULT::INVALID_UTF8;
+        }
     };
 
     let data = match slice_from_ptr_and_len(data, len) {
@@ -228,7 +231,10 @@ unsafe extern "C" fn yrx_scanner_set_global<
 
     let ident = match CStr::from_ptr(ident).to_str() {
         Ok(ident) => ident,
-        Err(_) => return YRX_RESULT::INVALID_ARGUMENT,
+        Err(err) => {
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            return YRX_RESULT::INVALID_UTF8;
+        }
     };
 
     let scanner = scanner.as_mut().unwrap();
@@ -240,7 +246,7 @@ unsafe extern "C" fn yrx_scanner_set_global<
         }
         Err(err) => {
             LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
-            YRX_RESULT::SCAN_ERROR
+            YRX_RESULT::VARIABLE_ERROR
         }
     }
 }
@@ -252,13 +258,13 @@ pub unsafe extern "C" fn yrx_scanner_set_global_str(
     ident: *const c_char,
     value: *const c_char,
 ) -> YRX_RESULT {
-    let value = if let Ok(value) = CStr::from_ptr(value).to_str() {
-        value
-    } else {
-        return YRX_RESULT::INVALID_ARGUMENT;
-    };
-
-    yrx_scanner_set_global(scanner, ident, value)
+    match CStr::from_ptr(value).to_str() {
+        Ok(value) => yrx_scanner_set_global(scanner, ident, value),
+        Err(err) => {
+            LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));
+            YRX_RESULT::INVALID_UTF8
+        }
+    }
 }
 
 /// Sets the value of a global variable of type bool.
