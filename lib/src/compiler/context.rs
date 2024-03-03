@@ -149,7 +149,7 @@ impl VarStack {
         let start = self.used;
         self.used += capacity;
 
-        if self.used * size_of::<i64>() as i32
+        if self.used * Var::mem_size()
             > wasm::VARS_STACK_END - wasm::VARS_STACK_START
         {
             panic!("variables stack overflow");
@@ -204,4 +204,16 @@ pub(crate) struct Var {
     /// locating the variable's value in WASM memory. The variable resides at
     /// [`wasm::VARS_STACK_START`] + index * sizeof(i64).
     pub index: i32,
+}
+
+impl Var {
+    /// Returns the address in WASM memory where the variable resides.
+    pub(crate) fn mem_addr(&self) -> i32 {
+        wasm::VARS_STACK_START + self.index * Self::mem_size()
+    }
+
+    /// Returns the number of bytes that the variable occupies in memory.
+    pub(crate) const fn mem_size() -> i32 {
+        size_of::<i64>() as i32
+    }
 }

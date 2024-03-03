@@ -1859,11 +1859,13 @@ fn emit_for_in_expr_tuple(
             set_var(ctx, instr, next_item, |ctx, instr| {
                 load_var(ctx, instr, i);
                 emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
-                    if let Some(expr) = expressions.next() {
-                        emit_expr(ctx, instr, expr);
-                        return true;
+                    match expressions.next() {
+                        Some(expr) => {
+                            emit_expr(ctx, instr, expr);
+                            true
+                        }
+                        None => false,
                     }
-                    false
                 });
             });
         },
@@ -2294,7 +2296,7 @@ fn set_var<B>(
 {
     // First push the offset where the variable resided in memory. This will
     // be used by the `store` instruction.
-    instr.i32_const(var.index * size_of::<i64>() as i32);
+    instr.i32_const(var.mem_addr());
     // Block that produces the value that will be stored in the variable.
     block(ctx, instr);
 
@@ -2347,7 +2349,7 @@ fn set_vars<B>(
                 // The offset is always multiple of 64-bits, as each variable
                 // occupies a 64-bits slot. This is true even for bool values
                 // that are represented as a 32-bits integer.
-                instr.i32_const(var.index * size_of::<i64>() as i32);
+                instr.i32_const(var.mem_addr());
                 // Push the value.
                 instr.local_get(ctx.wasm_symbols.i32_tmp);
                 // Store the value in memory.
@@ -2363,7 +2365,7 @@ fn set_vars<B>(
             | Type::Array
             | Type::Map => {
                 instr.local_set(ctx.wasm_symbols.i64_tmp);
-                instr.i32_const(var.index * size_of::<i64>() as i32);
+                instr.i32_const(var.mem_addr());
                 instr.local_get(ctx.wasm_symbols.i64_tmp);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
@@ -2373,7 +2375,7 @@ fn set_vars<B>(
             }
             Type::Float => {
                 instr.local_set(ctx.wasm_symbols.f64_tmp);
-                instr.i32_const(var.index * size_of::<i64>() as i32);
+                instr.i32_const(var.mem_addr());
                 instr.local_get(ctx.wasm_symbols.f64_tmp);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
@@ -2389,9 +2391,9 @@ fn set_vars<B>(
 /// Loads the value of variable into the stack.
 fn load_var(ctx: &EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
     // The slots where variables are stored start at offset VARS_STACK_START
-    // within main memory, and are 64-bits long. Lets compute the variable's
+    // within main memory, and are 64-bits long. Let's compute the variable's
     // offset with respect to VARS_STACK_START.
-    instr.i32_const(var.index * size_of::<i64>() as i32);
+    instr.i32_const(var.mem_addr());
 
     let (load_kind, alignment) = match var.ty {
         Type::Bool => (LoadKind::I32 { atomic: false }, size_of::<i32>()),

@@ -1374,8 +1374,8 @@ impl<'a> Compiler<'a> {
         span: Span,
     ) -> Result<(Vec<re::RegexpAtom>, bool), Box<CompileError>> {
         // When the `fast-regexp` feature is enabled, try to compile the regexp
-        // for `FastVM` first, if the it fails with `Error::FastIncompatible`,
-        // the regexp is not compatible for `FastVM` and `PikeVM` must be used
+        // for `FastVM` first, if it fails with `Error::FastIncompatible`, the
+        // regexp is not compatible for `FastVM` and `PikeVM` must be used
         // instead.
         #[cfg(feature = "fast-regexp")]
         let (result, is_fast_regexp) = match re::fast::Compiler::new()
