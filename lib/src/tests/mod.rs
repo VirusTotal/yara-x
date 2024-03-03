@@ -1345,7 +1345,7 @@ fn regexp_nocase() {
     pattern_match!(r#"/abc[^d]/ nocase"#, b"ABCE", b"ABCE");
     pattern_false!(r#"/abc[^d]/ nocase"#, b"abcd");
     pattern_false!(r#"/abc[^d]/ nocase"#, b"ABCD");
-    pattern_match!(r#"/[*-_]/* nocase"#, b"ABCDabcd1234", b"ABCDabcd1234");
+    pattern_match!(r#"/[*-_]*/ nocase"#, b"ABCDabcd1234", b"ABCDabcd1234");
 }
 
 #[test]
