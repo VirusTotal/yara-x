@@ -1149,6 +1149,8 @@ fn regexp_patterns_3() {
     pattern_match!(r#"/a[b-]/"#, b"ab", b"ab");
     pattern_match!(r#"/[a-c-e]/"#, b"b", b"b");
     pattern_match!(r#"/[a-c-e]/"#, b"-", b"-");
+    pattern_match!(r#"/[a-c-e]+/"#, b"abc", b"abc");
+    pattern_match!(r#"/[*-_]+/"#, b"ABC", b"ABC");
     pattern_false!(r#"/[a-c-e]/"#, b"d");
     pattern_match!(r"/a[\-b]/", b"a-", b"a-");
     pattern_match!(r"/a[\-b]/", b"ab", b"ab");
@@ -1343,6 +1345,7 @@ fn regexp_nocase() {
     pattern_match!(r#"/abc[^d]/ nocase"#, b"ABCE", b"ABCE");
     pattern_false!(r#"/abc[^d]/ nocase"#, b"abcd");
     pattern_false!(r#"/abc[^d]/ nocase"#, b"ABCD");
+    pattern_match!(r#"/[*-_]/* nocase"#, b"ABCDabcd1234", b"ABCDabcd1234");
 }
 
 #[test]
