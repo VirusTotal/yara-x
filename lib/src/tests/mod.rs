@@ -476,6 +476,11 @@ fn for_in() {
     condition_true!(
         r#"not for any i in (0..test_proto2.int64_undef) : (true)"#
     );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"for any i in (test_proto2.int64_undef, 0, 1) : (i == 1)"#
+    );
 }
 
 #[test]

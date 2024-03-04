@@ -166,7 +166,7 @@ macro_rules! emit_bitwise_op {
     }};
 }
 
-type ExceptionHandler = Box<dyn Fn(&mut InstrSeqBuilder)>;
+type ExceptionHandler = Box<dyn Fn(&mut EmitContext, &mut InstrSeqBuilder)>;
 
 /// Structure that contains information used while emitting the code that
 /// corresponds to the condition of a YARA rule.
@@ -277,12 +277,12 @@ pub(super) fn emit_rule_condition(
     // Emit WASM code for the rule's condition.
     catch_undef(
         ctx,
-        Some(I32),
+        I32,
         &mut instr,
         |ctx, instr| {
             emit_bool_expr(ctx, instr, condition);
         },
-        |instr| {
+        |_, instr| {
             instr.i32_const(0);
         },
     );
@@ -715,7 +715,7 @@ fn emit_defined(
     //
     catch_undef(
         ctx,
-        Some(I32),
+        I32,
         instr,
         |ctx, instr| {
             emit_bool_expr(ctx, instr, operand);
@@ -728,7 +728,7 @@ fn emit_defined(
             // `throw_undef`.
             instr.i32_const(1);
         },
-        |instr| {
+        |_, instr| {
             instr.i32_const(0);
         },
     );
@@ -797,12 +797,12 @@ fn emit_and(
             for operand in operands {
                 catch_undef(
                     ctx,
-                    Some(I32),
+                    I32,
                     block,
                     |ctx, instr| {
                         emit_bool_expr(ctx, instr, operand);
                     },
-                    |instr| {
+                    |_, instr| {
                         instr.i32_const(0);
                     },
                 );
@@ -861,12 +861,12 @@ fn emit_or(
             for operand in operands {
                 catch_undef(
                     ctx,
-                    Some(I32),
+                    I32,
                     block,
                     |ctx, instr| {
                         emit_bool_expr(ctx, instr, operand);
                     },
-                    |instr| {
+                    |_, instr| {
                         instr.i32_const(0);
                     },
                 );
@@ -1076,7 +1076,7 @@ fn emit_pattern_count(
             match symbol.kind() {
                 SymbolKind::Var(var) => {
                     load_var(ctx, instr, *var);
-                    // load_var returns a I64, convert it to I32.
+                    // load_var returns an I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);
                 }
                 _ => unreachable!(),
@@ -1120,7 +1120,7 @@ fn emit_pattern_offset(
             match symbol.kind() {
                 SymbolKind::Var(var) => {
                     load_var(ctx, instr, *var);
-                    // load_var returns a I64, convert it to I32.
+                    // load_var returns an I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);
                 }
                 _ => unreachable!(),
@@ -1168,7 +1168,7 @@ fn emit_pattern_length(
             match symbol.kind() {
                 SymbolKind::Var(var) => {
                     load_var(ctx, instr, *var);
-                    // load_var returns a I64, convert it to I32.
+                    // load_var returns an I64, convert it to I32.
                     instr.unop(UnaryOp::I32WrapI64);
                 }
                 _ => unreachable!(),
@@ -1480,7 +1480,7 @@ fn emit_of_pattern_set(
         |ctx, instr| {
             // Push the pattern ID into the stack.
             load_var(ctx, instr, next_pattern_id);
-            // load_var returns a I64, convert it to I32.
+            // load_var returns an I64, convert it to I32.
             instr.unop(UnaryOp::I32WrapI64);
 
             match &mut of.anchor {
@@ -1636,7 +1636,7 @@ fn emit_for_in_range(
                         instr.i64_const(1);
                         instr.binop(BinaryOp::I64Add);
                     },
-                    |instr| {
+                    |_, instr| {
                         instr.i64_const(0);
                     },
                 )
@@ -1856,18 +1856,33 @@ fn emit_for_in_expr_tuple(
         // Before each iteration.
         |ctx, instr, i| {
             // Execute the i-th expression and save its result in `next_item`.
-            set_var(ctx, instr, next_item, |ctx, instr| {
-                load_var(ctx, instr, i);
-                emit_switch(ctx, next_item.ty.into(), instr, |ctx, instr| {
-                    match expressions.next() {
-                        Some(expr) => {
-                            emit_expr(ctx, instr, expr);
-                            true
-                        }
-                        None => false,
-                    }
-                });
-            });
+            // If the expression calls `throw_undef`, we capture the exception
+            // and flag the `next_item` variable as undefined.
+            catch_undef(
+                ctx,
+                None,
+                instr,
+                |ctx, instr| {
+                    set_var(ctx, instr, next_item, |ctx, instr| {
+                        load_var(ctx, instr, i);
+                        emit_switch(
+                            ctx,
+                            next_item.ty.into(),
+                            instr,
+                            |ctx, instr| match expressions.next() {
+                                Some(expr) => {
+                                    emit_expr(ctx, instr, expr);
+                                    true
+                                }
+                                None => false,
+                            },
+                        );
+                    });
+                },
+                move |ctx, instr| {
+                    set_var_undef(ctx, instr, next_item, true);
+                },
+            );
         },
         // Condition.
         |ctx, instr| {
@@ -2018,12 +2033,12 @@ fn emit_for<I, B, C, A>(
             // condition is undefined it's handled as a false.
             catch_undef(
                 ctx,
-                Some(I32),
+                I32,
                 block,
                 |ctx, block| {
                     condition(ctx, block);
                 },
-                |instr| {
+                |_, instr| {
                     instr.i32_const(0);
                 },
             );
@@ -2294,12 +2309,6 @@ fn set_var<B>(
 ) where
     B: FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
 {
-    // First push the offset where the variable resided in memory. This will
-    // be used by the `store` instruction.
-    instr.i32_const(var.mem_addr());
-    // Block that produces the value that will be stored in the variable.
-    block(ctx, instr);
-
     let (store_kind, alignment) = match var.ty {
         Type::Bool => (StoreKind::I32 { atomic: false }, size_of::<i32>()),
         Type::Float => (StoreKind::F64, size_of::<f64>()),
@@ -2311,13 +2320,23 @@ fn set_var<B>(
         _ => unreachable!(),
     };
 
+    // First push the offset where the variable resides in memory. This will
+    // be used by the `store` instruction.
+    instr.i32_const(var.index * Var::mem_size());
+
+    // Block that produces the value that will be stored in the variable.
+    block(ctx, instr);
+
     // The store instruction will remove two items from the stack, the value and
     // the offset where it will be stored.
     instr.store(
         ctx.wasm_symbols.main_memory,
         store_kind,
-        MemArg { align: alignment as u32, offset: 0 },
+        MemArg { align: alignment as u32, offset: VARS_STACK_START as u32 },
     );
+
+    // Flag the variable as not undefined.
+    set_var_undef(ctx, instr, var, false);
 }
 
 /// Sets into variables the values produced by a code block.
@@ -2349,14 +2368,17 @@ fn set_vars<B>(
                 // The offset is always multiple of 64-bits, as each variable
                 // occupies a 64-bits slot. This is true even for bool values
                 // that are represented as a 32-bits integer.
-                instr.i32_const(var.mem_addr());
+                instr.i32_const(var.index * Var::mem_size());
                 // Push the value.
                 instr.local_get(ctx.wasm_symbols.i32_tmp);
                 // Store the value in memory.
                 instr.store(
                     ctx.wasm_symbols.main_memory,
                     StoreKind::I32 { atomic: false },
-                    MemArg { align: size_of::<i32>() as u32, offset: 0 },
+                    MemArg {
+                        align: size_of::<i32>() as u32,
+                        offset: VARS_STACK_START as u32,
+                    },
                 );
             }
             Type::Integer
@@ -2365,35 +2387,55 @@ fn set_vars<B>(
             | Type::Array
             | Type::Map => {
                 instr.local_set(ctx.wasm_symbols.i64_tmp);
-                instr.i32_const(var.mem_addr());
+                instr.i32_const(var.index * Var::mem_size());
                 instr.local_get(ctx.wasm_symbols.i64_tmp);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
                     StoreKind::I64 { atomic: false },
-                    MemArg { align: size_of::<i64>() as u32, offset: 0 },
+                    MemArg {
+                        align: size_of::<i64>() as u32,
+                        offset: VARS_STACK_START as u32,
+                    },
                 );
             }
             Type::Float => {
                 instr.local_set(ctx.wasm_symbols.f64_tmp);
-                instr.i32_const(var.mem_addr());
+                instr.i32_const(var.index * Var::mem_size());
                 instr.local_get(ctx.wasm_symbols.f64_tmp);
                 instr.store(
                     ctx.wasm_symbols.main_memory,
                     StoreKind::F64,
-                    MemArg { align: size_of::<f64>() as u32, offset: 0 },
+                    MemArg {
+                        align: size_of::<f64>() as u32,
+                        offset: VARS_STACK_START as u32,
+                    },
                 );
             }
             _ => unreachable!(),
         }
+        set_var_undef(ctx, instr, *var, false);
     }
 }
 
 /// Loads the value of variable into the stack.
-fn load_var(ctx: &EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
+fn load_var(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
+    // First check if the undefined flag is set for the requested variable
+    // and throw the undefined exception in that case.
+    instr.i32_const(var.index.saturating_div(64));
+    instr.load(
+        ctx.wasm_symbols.main_memory,
+        LoadKind::I64 { atomic: false },
+        MemArg { align: 8, offset: 0 },
+    );
+    instr.i64_const(1 << var.index.wrapping_rem(64));
+    instr.binop(BinaryOp::I64And);
+    instr.unop(UnaryOp::I64Eqz);
+    instr.if_else(None, |_then| {}, |_else| throw_undef(ctx, _else));
+
     // The slots where variables are stored start at offset VARS_STACK_START
     // within main memory, and are 64-bits long. Let's compute the variable's
     // offset with respect to VARS_STACK_START.
-    instr.i32_const(var.mem_addr());
+    instr.i32_const(var.index * Var::mem_size());
 
     let (load_kind, alignment) = match var.ty {
         Type::Bool => (LoadKind::I32 { atomic: false }, size_of::<i32>()),
@@ -2410,6 +2452,40 @@ fn load_var(ctx: &EmitContext, instr: &mut InstrSeqBuilder, var: Var) {
         ctx.wasm_symbols.main_memory,
         load_kind,
         MemArg { align: alignment as u32, offset: VARS_STACK_START as u32 },
+    );
+}
+
+fn set_var_undef(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    var: Var,
+    is_undef: bool,
+) {
+    // Push the address of the i64 where the flag is located. Push it
+    // twice, one is for the load instruction and the other one is for
+    // the store instruction.
+    instr.i32_const(var.index.saturating_div(64));
+    instr.i32_const(var.index.saturating_div(64));
+    instr.load(
+        ctx.wasm_symbols.main_memory,
+        LoadKind::I64 { atomic: false },
+        MemArg { align: 8, offset: 0 },
+    );
+
+    let bit = (1 << var.index.wrapping_rem(64)) as i64;
+
+    if is_undef {
+        instr.i64_const(bit);
+        instr.binop(BinaryOp::I64Or);
+    } else {
+        instr.i64_const(!bit);
+        instr.binop(BinaryOp::I64And);
+    }
+
+    instr.store(
+        ctx.wasm_symbols.main_memory,
+        StoreKind::I64 { atomic: false },
+        MemArg { align: 8, offset: 0 },
     );
 }
 
@@ -2518,7 +2594,7 @@ fn emit_call_and_handle_undef(
         },
         |_| {
             // Intentionally empty. An `if` method would be handy, but it
-            // does not exists. This however emits WebAssembly code without
+            // does not exist. This however emits WebAssembly code without
             // the `else` branch.
         },
     );
@@ -2674,7 +2750,7 @@ fn catch_undef(
     ty: impl Into<InstrSeqType>,
     instr: &mut InstrSeqBuilder,
     expr: impl FnOnce(&mut EmitContext, &mut InstrSeqBuilder),
-    catch: impl Fn(&mut InstrSeqBuilder) + 'static,
+    catch: impl Fn(&mut EmitContext, &mut InstrSeqBuilder) + 'static,
 ) {
     // Create a new block containing `expr`. When an exception is raised from
     // within `expr`, the control flow will jump out of this block via a `br`
@@ -2692,10 +2768,10 @@ fn catch_undef(
 /// Throws an exception when an undefined value is found.
 ///
 /// For more information see [`catch_undef`].
-fn throw_undef(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
+fn throw_undef(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     let innermost_handler = ctx
         .exception_handler_stack
-        .last()
+        .pop()
         .expect("calling `raise` from outside `try` block");
 
     // Put in the stack the result for the code block that we are about
@@ -2733,19 +2809,22 @@ fn throw_undef(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
     // `br $outer`, because that is going to be the result for the $outer
     // block.
     //
-    innermost_handler.1(instr);
+    innermost_handler.1(ctx, instr);
 
     // Jump to the exception handler.
     instr.br(innermost_handler.0);
+
+    ctx.exception_handler_stack.push(innermost_handler);
 }
 
 /// Similar to [`throw_undef`], but throws the exception if the top of the
 /// stack is zero. If the top of the stack is non-zero, calling this function
 /// is a no-op.
-fn throw_undef_if_zero(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
+fn throw_undef_if_zero(ctx: &mut EmitContext, instr: &mut InstrSeqBuilder) {
     // Save the top of the stack into temp variable, but leave a copy in the
     // stack.
-    instr.local_tee(ctx.wasm_symbols.i64_tmp);
+    let tmp = ctx.wasm_symbols.i64_tmp;
+    instr.local_tee(tmp);
     // Is top of the stack zero? The comparison removes the value from the
     // stack.
     instr.unop(UnaryOp::I64Eqz);
@@ -2757,7 +2836,7 @@ fn throw_undef_if_zero(ctx: &EmitContext, instr: &mut InstrSeqBuilder) {
         },
         |else_| {
             // Non-zero, put back the value into the stack.
-            else_.local_get(ctx.wasm_symbols.i64_tmp);
+            else_.local_get(tmp);
         },
     );
 }

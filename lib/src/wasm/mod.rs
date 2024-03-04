@@ -26,26 +26,36 @@ The memory of these WASM modules is organized as follows.
 
 ```text
   ┌──────────────────────────┐ 0
-  │ Variable #0              │ 8
-  │ Variable #1              │ 16
+  │ Variable undefined flags │
+  ├──────────────────────────┤ 16
+  │ Variable #0              │ 24
+  │ Variable #1              │ 32
   : ...                      :
-  │ Variable #n              │ n * 8
+  │ Variable #n              │
   : ...                      :
   │                          │
-  ├──────────────────────────┤ 1024
+  ├──────────────────────────┤ 1032
   │ Field lookup indexes     │
-  ├──────────────────────────┤ 2048
+  ├──────────────────────────┤ 2056
   │ Matching rules bitmap    │
   │                          │
   :                          :
   │                          │
-  ├──────────────────────────┤ (number of rules / 8) + 1
+  ├──────────────────────────┤
   │ Matching patterns bitmap │
   │                          │
   :                          :
   │                          │
   └──────────────────────────┘
 ```
+
+# Variable undefined flags
+
+The first few bytes in WASM memory contains a bitmap where each bit indicates
+whether one of the variables is undefined or not. The bitmap is 128-bits long,
+which is also the number of variable that follow the bitmap in memory. When
+some variable is flagged as undefined (the corresponding bit in the bitmap is
+set) the value of the variable is ignored.
 
 # Field lookup
 
@@ -95,7 +105,7 @@ pub(crate) mod builder;
 pub(crate) mod string;
 
 /// Offset in module's main memory where the space for loop variables start.
-pub(crate) const VARS_STACK_START: i32 = 0;
+pub(crate) const VARS_STACK_START: i32 = 16;
 /// Offset in module's main memory where the space for loop variables end.
 pub(crate) const VARS_STACK_END: i32 = VARS_STACK_START + 1024;
 
@@ -672,7 +682,7 @@ pub(crate) struct WasmSymbols {
     /// Global variable that is set to true after the pattern search phase
     /// has been executed. In this phase the data is scanned looking for
     /// all the patterns at the same time using the Aho-Corasick algorithm.
-    /// However this phase is executed lazily, when rule conditions are
+    /// However, this phase is executed lazily, when rule conditions are
     /// evaluated and some of them needs to know if a pattern matched or not.
     pub pattern_search_done: walrus::GlobalId,
 

@@ -207,11 +207,6 @@ pub(crate) struct Var {
 }
 
 impl Var {
-    /// Returns the address in WASM memory where the variable resides.
-    pub(crate) fn mem_addr(&self) -> i32 {
-        wasm::VARS_STACK_START + self.index * Self::mem_size()
-    }
-
     /// Returns the number of bytes that the variable occupies in memory.
     pub(crate) const fn mem_size() -> i32 {
         size_of::<i64>() as i32
