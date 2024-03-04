@@ -311,9 +311,10 @@ impl<'a> PE<'a> {
 
     /// Returns the RVA, size and data associated to a given directory entry.
     ///
-    /// This function translates the RVA into a file offset and returns the
-    /// chunk of file that starts at that offset and has the size indicated by
-    /// the directory entry.
+    /// The returned tuple is `(rva, size, data)`. This function converts the
+    /// RVA into a file offset, the `data` slice contains the file content from
+    /// that offset to the end of the file. Notice that the size indicated by
+    /// the directory entry is ignored, because sometimes it is wrong.
     ///
     /// Returns `None` if the PE is corrupted in some way that prevents the
     /// data from being found.
@@ -325,9 +326,9 @@ impl<'a> PE<'a> {
         // than MAX_DIR_ENTRIES.
         debug_assert!(index < Self::MAX_DIR_ENTRIES);
 
-        // In theory, `index` should be be lower than
-        // `number_of_rva_and_sizes`, but we don't enforce it because some PE
-        // files have a `number_of_rva_and_sizes` values lower than the actual
+        // In theory, `index` should be lower than `number_of_rva_and_sizes`,
+        // however, we don't enforce it because some PE files have a
+        // `number_of_rva_and_sizes` values lower than the actual
         // number of directory entries. For example, the .NET file
         // 7ff1bf680c80fd73c0b35084904848b3705480ddeb6d0eff62180bd14cd18570
         // has `number_of_rva_and_sizes` set to 11, but it has a valid
@@ -343,12 +344,7 @@ impl<'a> PE<'a> {
             .map(|(_reminder, entry)| entry)?;
 
         let start = self.rva_to_offset(dir_entry.addr)? as usize;
-        let end = min(
-            self.data.len(),
-            start.saturating_add(dir_entry.size as usize),
-        );
-
-        let data = self.data.get(start..end)?;
+        let data = self.data.get(start..)?;
 
         Some((dir_entry.addr, dir_entry.size, data))
     }
@@ -1487,8 +1483,13 @@ impl<'a> PE<'a> {
 
     /// Parses PE imports.
     fn parse_imports(&self) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (_, _, import_data) =
+        let (rva, _, import_data) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT)?;
+
+        if rva == 0 {
+            return None;
+        }
+
         self.parse_import_impl(import_data, Self::parse_import_descriptor)
     }
 
@@ -1496,8 +1497,13 @@ impl<'a> PE<'a> {
     fn parse_delayed_imports(
         &self,
     ) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (_, _, import_data) =
+        let (rva, _, import_data) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT)?;
+
+        if rva == 0 {
+            return None;
+        }
+
         self.parse_import_impl(import_data, Self::parse_delay_load_descriptor)
     }
 
@@ -1746,6 +1752,10 @@ impl<'a> PE<'a> {
     fn parse_exports(&self) -> Option<ExportInfo<'a>> {
         let (exports_rva, exports_size, exports_data) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_EXPORT)?;
+
+        if exports_rva == 0 {
+            return None;
+        }
 
         // Parse the IMAGE_EXPORT_DIRECTORY structure.
         let (_, exports) = Self::parse_exports_dir_entry(exports_data).ok()?;
