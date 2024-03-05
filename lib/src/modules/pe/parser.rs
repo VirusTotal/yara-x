@@ -811,11 +811,11 @@ impl<'a> PE<'a> {
             tuple((
                 // characteristics must be 0
                 verify(le_u32, |characteristics| *characteristics == 0),
-                le_u32, // timestamp
-                le_u16, // major_version
-                le_u16, // minor_version
-                le_u16, // number_of_named_entries
-                le_u16, // number_of_id_entries
+                le_u32,                          // timestamp
+                le_u16,                          // major_version
+                le_u16,                          // minor_version
+                verify(le_u16, |n| *n <= 32768), // number_of_named_entries
+                verify(le_u16, |n| *n <= 32768), // number_of_id_entries
             )),
             |(
                 _characteristics,
@@ -1665,7 +1665,9 @@ impl<'a> PE<'a> {
                 }
             }
 
-            imported_funcs.push((dll_name, funcs));
+            if !funcs.is_empty() {
+                imported_funcs.push((dll_name, funcs));
+            }
         }
 
         Some(imported_funcs)
@@ -1750,8 +1752,10 @@ impl<'a> PE<'a> {
     fn parse_import_by_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
         map(
             tuple((
-                le_u16,                       // hint
-                take_till(|c: u8| c == 0_u8), // name
+                le_u16, // hint
+                verify(take_till(|c: u8| c == 0_u8), |name: &[u8]| {
+                    !name.is_empty()
+                }), // name
             )),
             |(_, name)| name,
         )(input)
