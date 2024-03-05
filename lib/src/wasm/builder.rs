@@ -502,7 +502,8 @@ mod tests {
     i32.const 6
   )
   (export "main" (func 164))
-)"#
+)
+"#
         );
     }
 }
