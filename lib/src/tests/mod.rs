@@ -1503,6 +1503,12 @@ fn regexp_wide() {
     );
 
     pattern_match!(
+        r"/foobar/ wide nocase",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00x\x01",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
         r"/https?:\/\/.{5,128}\.png/ wide",
         b"\xcc\xcch\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00f\x00o\x00o\x00b\x00a\x00r\x00/\x00b\x00a\x00z\x00.\x00p\x00n\x00g\x00\xcc\xcc",
         b"h\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00f\x00o\x00o\x00b\x00a\x00r\x00/\x00b\x00a\x00z\x00.\x00p\x00n\x00g\x00"
@@ -1525,6 +1531,15 @@ fn regexp_wide() {
     pattern_true!(r"/foobar\b/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
     pattern_false!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
+}
+
+#[test]
+fn issue() {
+    pattern_match!(
+        r"/foobar/ wide nocase",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00x\x01",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
 }
 
 #[test]
