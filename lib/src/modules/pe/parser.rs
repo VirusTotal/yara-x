@@ -127,7 +127,7 @@ impl<'a> PE<'a> {
 
         // Parse the PE optional header (IMAGE_OPTIONAL_HEADER).
         let (directory, optional_hdr) =
-            Self::parse_opt_header()(optional_hdr)?;
+            Self::parse_opt_header()(optional_hdr).unwrap_or_default();
 
         // The string table is located right after the COFF symbol table.
         let string_table_offset = pe_hdr.symbol_table_offset.saturating_add(
@@ -137,7 +137,7 @@ impl<'a> PE<'a> {
         let string_table = data.get(string_table_offset as usize..);
 
         // Parse the section table. The section table is located right after
-        // NT headers, which starts at pe_hdr and is composed of a the PE
+        // NT headers, which starts at pe_hdr and is composed of the PE
         // signature, the file header, and a variable-length optional header.
         let sections = if let Some(section_table) = pe.get(
             Self::SIZE_OF_PE_SIGNATURE
