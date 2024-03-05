@@ -1497,7 +1497,7 @@ fn regexp_wide() {
     );
 
     pattern_match!(
-        r#"/(http|https):\/\// wide nocase"#,
+        r"/(http|https):\/\// wide nocase",
         b"\x00h\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00",
         b"h\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00"
     );
