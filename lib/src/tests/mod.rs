@@ -1253,6 +1253,10 @@ fn regexp_patterns_3() {
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"effg");
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"bcdd");
     pattern_match!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"reffgz", b"effgz");
+}
+
+#[test]
+fn regexp_patterns_4() {
     pattern_match!(r"/\babc/", b"abc", b"abc");
     pattern_match!(r"/abc\b/", b"abc", b"abc");
     pattern_false!(r"/\babc/", b"1abc");
@@ -1281,7 +1285,6 @@ fn regexp_patterns_3() {
     pattern_false!(r#"/a.*b/"#, b"acc\nccb");
     pattern_match!(r#"/foo/"#, b"foo", b"foo");
     pattern_match!(r#"/bar/i"#, b"bar", b"bar");
-
     pattern_match!(r#"/foo|bar|baz/"#, b"foo", b"foo");
     pattern_match!(r#"/foo|bar|baz/"#, b"bar", b"bar");
     pattern_match!(r#"/foo|bar|baz/"#, b"baz", b"baz");
@@ -1315,7 +1318,7 @@ fn regexp_patterns_3() {
 }
 
 #[test]
-fn regexp_patterns_4() {
+fn regexp_patterns_5() {
     rule_true!(
         r#"rule test {
             strings:
