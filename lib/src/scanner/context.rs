@@ -422,7 +422,7 @@ impl ScanContext<'_> {
             // maximum number of allowed matches. In that case continue without
             // verifying the match. `get_unchecked` is used for performance
             // reasons, the number of bits in the bit vector is guaranteed to
-            // to be the number of patterns.
+            // be the number of patterns.
             if self.limit_reached.contains(pattern_id) {
                 continue;
             }

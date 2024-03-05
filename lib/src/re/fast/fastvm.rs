@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::ops::RangeInclusive;
 use std::{cmp, mem};
 
@@ -7,7 +8,7 @@ use memx::memeq;
 
 use crate::re::bitmapset::BitmapSet;
 use crate::re::fast::instr::{Instr, InstrParser};
-use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT};
+use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
 
 /// A faster but less general alternative to [PikeVM].
 ///
@@ -441,15 +442,25 @@ impl FastVM<'_> {
             if input.len() < literal.len() * 2 {
                 return false;
             }
+
+            let wide_error = Cell::new(None);
+
             // Iterate the input in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            for (input, byte, mask) in
-                izip!(input.chunks_exact(2), literal, mask)
-            {
-                if input[1] != 0 || (input[0] & *mask != *byte & *mask) {
+            let input = WideIter::non_zero_first(input.iter(), &wide_error);
+
+            // Iterate the input in chunks of two bytes, where the first one
+            // must match a byte in the literal, and the second one is the
+            // interleaved zero.
+            for (input, byte, mask) in izip!(input, literal, mask) {
+                if input & *mask != *byte & *mask {
                     return false;
                 }
+            }
+
+            if wide_error.get().is_some() {
+                return false;
             }
         } else {
             if input.len() < literal.len() {
@@ -481,17 +492,24 @@ impl FastVM<'_> {
             if input.len() < literal.len() * 2 {
                 return false;
             }
+
+            let wide_error = Cell::new(None);
+
             // Iterate the input in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            for (input, byte, mask) in izip!(
-                input.chunks_exact(2).rev(),
-                literal.iter().rev(),
-                mask.iter().rev()
-            ) {
-                if input[1] != 0 || (input[0] & *mask != *byte & *mask) {
+            let input = WideIter::zero_first(input.iter().rev(), &wide_error);
+
+            for (input, byte, mask) in
+                izip!(input, literal.iter().rev(), mask.iter().rev())
+            {
+                if input & *mask != *byte & *mask {
                     return false;
                 }
+            }
+
+            if wide_error.get().is_some() {
+                return false;
             }
         } else {
             if input.len() < literal.len() {
