@@ -205,8 +205,8 @@ globwalk = { workspace = true }
 goldenfile = { workspace = true }
 ihex = "3.0.0"
 pretty_assertions = { workspace = true }
-wasmprinter = "0.2.73"
-yara = { version = "0.24.0", features = ["vendored"] }
+wasmprinter = "0.201.0"
+yara = { version = "0.26.0", features = ["vendored"] }
 yara-x-proto-yaml = { workspace = true }
 zip = "0.6.6"
 
