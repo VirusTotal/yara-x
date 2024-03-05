@@ -1256,7 +1256,9 @@ fn regexp_patterns_3() {
     pattern_match!(r"/\babc/", b"abc", b"abc");
     pattern_match!(r"/abc\b/", b"abc", b"abc");
     pattern_false!(r"/\babc/", b"1abc");
+    pattern_false!(r"/\babc/", b"_abc");
     pattern_false!(r"/abc\b/", b"abc1");
+    pattern_false!(r"/abc\b/", b"abc_");
     pattern_match!(r"/abc\s\b/", b"abc x", b"abc ");
     pattern_false!(r"/abc\s\b/", b"abc  ");
     pattern_match!(r"/\babc\b/", b" abc ", b"abc");
@@ -1267,7 +1269,9 @@ fn regexp_patterns_3() {
     pattern_false!(r"/\Babc/", b"abc");
     pattern_false!(r"/abc\B/", b"abc");
     pattern_match!(r"/\Babc/", b"1abc", b"abc");
+    pattern_match!(r"/\Babc/", b"_abc", b"abc");
     pattern_match!(r"/abc\B/", b"abc1", b"abc");
+    pattern_match!(r"/abc\B/", b"abc_", b"abc");
     pattern_false!(r"/abc\s\B/", b"abc x");
     pattern_match!(r"/abc\s\B/", b"abc  ", b"abc ");
     pattern_match!(r"/\w\w\w\B/", b"abcd", b"abc");

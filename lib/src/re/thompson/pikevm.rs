@@ -6,7 +6,7 @@ use bitvec::array::BitArray;
 use super::instr::{Instr, InstrParser};
 use crate::re::bitmapset::BitmapSet;
 use crate::re::thompson::instr::SplitId;
-use crate::re::{Action, CodeLoc, DEFAULT_SCAN_LIMIT, WideIter};
+use crate::re::{Action, CodeLoc, WideIter, DEFAULT_SCAN_LIMIT};
 
 /// Represents a [Pike's VM](https://swtch.com/~rsc/regexp/regexp2.html) that
 /// executes VM code produced by the [compiler][`crate::re::compiler::Compiler`].
@@ -379,13 +379,12 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                 }
             }
             Instr::WordBoundary | Instr::WordBoundaryNeg => {
+                let is_word_char =
+                    |c: u8| c == b'_' || c.is_ascii_alphanumeric();
+
                 let mut is_match = match (prev_byte, curr_byte) {
-                    (Some(p), Some(c)) => {
-                        p.is_ascii_alphanumeric() != c.is_ascii_alphanumeric()
-                    }
-                    (None, Some(b)) | (Some(b), None) => {
-                        b.is_ascii_alphanumeric()
-                    }
+                    (Some(p), Some(c)) => is_word_char(*p) != is_word_char(*c),
+                    (None, Some(b)) | (Some(b), None) => is_word_char(*b),
                     _ => false,
                 };
 
