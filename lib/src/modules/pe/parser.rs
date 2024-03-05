@@ -311,16 +311,15 @@ impl<'a> PE<'a> {
 
     /// Returns the RVA, size and data associated to a given directory entry.
     ///
-    /// The returned tuple is `(rva, size, data)`. This function converts the
-    /// RVA into a file offset, the `data` slice contains the file content from
-    /// that offset to the end of the file. Notice that the size indicated by
-    /// the directory entry is ignored, because sometimes it is wrong.
-    ///
-    /// Returns `None` if the PE is corrupted in some way that prevents the
-    /// data from being found.
+    /// The returned tuple is `(rva, size, data)`, where `rva` and `size` are
+    /// the ones indicated in the directory entry, and `data` is a slice that
+    /// contains the file's content from that RVA to the end of the file if
+    /// `strict_size` is false. Otherwise, the slice will be limited to the
+    /// size indicated in the directory entry.
     pub fn get_dir_entry_data(
         &self,
         index: usize,
+        strict_size: bool,
     ) -> Option<(u32, u32, &'a [u8])> {
         // Nobody should call this function with an index greater
         // than MAX_DIR_ENTRIES.
@@ -344,7 +343,14 @@ impl<'a> PE<'a> {
             .map(|(_reminder, entry)| entry)?;
 
         let start = self.rva_to_offset(dir_entry.addr)? as usize;
-        let data = self.data.get(start..)?;
+
+        let end = if strict_size {
+            min(self.data.len(), start.saturating_add(dir_entry.size as usize))
+        } else {
+            self.data.len()
+        };
+
+        let data = self.data.get(start..end)?;
 
         Some((dir_entry.addr, dir_entry.size, data))
     }
@@ -1223,8 +1229,8 @@ impl<'a> PE<'a> {
     /// individual resources of that type, and the children of each individual
     /// resource represent the resource in a specific language.
     fn parse_resources(&self) -> Option<(ResourceDir, Vec<Resource<'a>>)> {
-        let (_, _, rsrc_section) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE)?;
+        let (_, _, rsrc_section) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE, false)?;
 
         let mut queue = VecDeque::new();
         let mut resources = vec![];
@@ -1346,7 +1352,7 @@ impl<'a> PE<'a> {
     /// Parses the PE debug information and extracts the PDB path.
     fn parse_dbg(&self) -> Option<&'a str> {
         let (_, _, dbg_section) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG)?;
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG, true)?;
 
         let entries = many0(Self::parse_dbg_dir_entry)(dbg_section)
             .map(|(_, entries)| entries)
@@ -1484,7 +1490,7 @@ impl<'a> PE<'a> {
     /// Parses PE imports.
     fn parse_imports(&self) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
         let (rva, _, import_data) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT)?;
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT, true)?;
 
         if rva == 0 {
             return None;
@@ -1497,8 +1503,10 @@ impl<'a> PE<'a> {
     fn parse_delayed_imports(
         &self,
     ) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (rva, _, import_data) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT)?;
+        let (rva, _, import_data) = self.get_dir_entry_data(
+            Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT,
+            true,
+        )?;
 
         if rva == 0 {
             return None;
@@ -1751,7 +1759,7 @@ impl<'a> PE<'a> {
 
     fn parse_exports(&self) -> Option<ExportInfo<'a>> {
         let (exports_rva, exports_size, exports_data) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_EXPORT)?;
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_EXPORT, true)?;
 
         if exports_rva == 0 {
             return None;

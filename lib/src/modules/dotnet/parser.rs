@@ -128,7 +128,7 @@ impl<'a> Dotnet<'a> {
         let pe = PE::parse(data)?;
 
         let (_, _, cli_header) = pe
-            .get_dir_entry_data(PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR)
+            .get_dir_entry_data(PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR, true)
             .ok_or(Error::InvalidDotNet)?;
 
         let (_, cli_header) = Self::parse_cli_header(cli_header)?;
