@@ -84,7 +84,7 @@ serde_json = "1.0"
 thiserror = "1.0.50"
 uuid = "1.4.1"
 walrus = "0.20.2"
-wasmtime = "18.0.2"
+wasmtime = "17.0.0"
 yaml-rust = "0.4.5"
 yansi = "0.5.1"
 yara-x = { path = "lib" }
