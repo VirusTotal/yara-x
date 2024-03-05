@@ -74,6 +74,7 @@ protobuf = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8
 protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-json-mapping = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-parse = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
+protobuf-support = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 regex-syntax = { git = "https://github.com/plusvic/regex.git", rev = "423493d" }
 regex-automata = { git = "https://github.com/plusvic/regex.git", rev = "423493d" }
 roxmltree = "0.19.0"
