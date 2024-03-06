@@ -897,12 +897,14 @@ impl<'a> PE<'a> {
         )(input)
     }
 
-    /// Parses the VERSIONINFO structure stored in the version-information
-    /// resource.
+    /// Parses VERSIONINFO structures stored in resources.
     ///
-    /// This is tree-like structure where each node has a key, an optional
-    /// value, and possible a certain number of children. Here is an example of
-    /// how this structure typically looks like:
+    /// Each PE file can contain one or more resources containing a VERSIONINFO
+    /// structure. This functions parses all of them.
+    ///
+    /// VERSIONINFO is tree-like structure where each node has a key, an
+    /// optional value, and possible a certain number of children. Here is an
+    /// example of how this structure typically looks like:
     ///
     /// ```text
     ///   key: "VS_VERSION_INFO"  value: VS_FIXEDFILEINFO struct
@@ -942,49 +944,66 @@ impl<'a> PE<'a> {
     /// ]
     /// ```
     fn parse_version_info(&self) -> Option<Vec<(String, String)>> {
-        // Find the resource with ID = RESOURCE_TYPE_VERSION
-        let version_info_rsrc = self.get_resources().iter().find(|r| {
-            r.type_id
-                == ResourceId::Id(
-                    protos::pe::ResourceType::RESOURCE_TYPE_VERSION as u32,
-                )
-        })?;
+        let result = self
+            .get_resources()
+            .iter()
+            // Use only the resources that contain version information, and
+            // get the resource data.
+            .filter_map(|resource| {
+                if resource.type_id
+                    == ResourceId::Id(
+                        protos::pe::ResourceType::RESOURCE_TYPE_VERSION as u32,
+                    )
+                {
+                    self.data.get(resource.offset? as usize..)
+                } else {
+                    None
+                }
+            })
+            // Parse each resource that contain version info, appending the
+            // (key, value) pairs to `result`.
+            .fold(Vec::new(), |mut result, version_info_raw| {
+                let version_info = Self::parse_info_with_key(
+                    "VS_VERSION_INFO",
+                    version_info_raw,
+                    tuple((
+                        le_u32, // signature
+                        le_u32, // struct_version
+                        le_u32, // file_version_high
+                        le_u32, // file_version_low
+                        le_u32, // dwProductVersionMS;
+                        le_u32, // dwProductVersionLS;
+                        le_u32, // DWORD dwFileFlagsMask;
+                        le_u32, // DWORD dwFileFlags;
+                        le_u32, // DWORD dwFileOS;
+                        le_u32, // DWORD dwFileType;
+                        le_u32, // DWORD dwFileSubtype;
+                        le_u32, // DWORD dwFileDateMS;
+                        le_u32, // DWORD dwFileDateLS;
+                    )),
+                    // Possible children are StringFileInfo and VarFileInfo
+                    // structures. Both are optional, and they can appear in any
+                    // order. Usually StringFileInfo appears first, but
+                    // 09e7d832320e51bcc80b9aecde2a4135267a9b0156642a9596a62e85c9998cc9
+                    // is an example where VarFileInfo appears first.
+                    permutation((
+                        opt(Self::parse_var_file_info),
+                        opt(Self::parse_string_file_info),
+                    )),
+                );
 
-        let version_info_raw =
-            self.data.get(version_info_rsrc.offset? as usize..)?;
+                if let Ok((_, (_, _, (_, Some(strings))))) = version_info {
+                    result.extend(strings);
+                }
 
-        let (_, (_key, _fixed_file_info, (_, strings))) =
-            Self::parse_info_with_key(
-                "VS_VERSION_INFO",
-                version_info_raw,
-                tuple((
-                    le_u32, // signature
-                    le_u32, // struct_version
-                    le_u32, // file_version_high
-                    le_u32, // file_version_low
-                    le_u32, // dwProductVersionMS;
-                    le_u32, // dwProductVersionLS;
-                    le_u32, // DWORD dwFileFlagsMask;
-                    le_u32, // DWORD dwFileFlags;
-                    le_u32, // DWORD dwFileOS;
-                    le_u32, // DWORD dwFileType;
-                    le_u32, // DWORD dwFileSubtype;
-                    le_u32, // DWORD dwFileDateMS;
-                    le_u32, // DWORD dwFileDateLS;
-                )),
-                // Possible children are StringFileInfo and VarFileInfo
-                // structures. Both are optional and they can appear in any
-                // order. Usually StringFileInfo appears first, but
-                // 09e7d832320e51bcc80b9aecde2a4135267a9b0156642a9596a62e85c9998cc9
-                // is an example where VarFileInfo appears first.
-                permutation((
-                    opt(Self::parse_var_file_info),
-                    opt(Self::parse_string_file_info),
-                )),
-            )
-            .ok()?;
+                result
+            });
 
-        strings
+        if result.is_empty() {
+            return None;
+        }
+
+        Some(result)
     }
 
     /// https://learn.microsoft.com/en-us/windows/win32/menurc/stringfileinfo

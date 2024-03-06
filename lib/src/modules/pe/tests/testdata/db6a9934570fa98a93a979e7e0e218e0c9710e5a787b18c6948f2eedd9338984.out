@@ -43,7 +43,7 @@ number_of_sections: 9
 number_of_imported_functions: 783
 number_of_delayed_imported_functions: 0
 number_of_resources: 113
-number_of_version_infos: 6
+number_of_version_infos: 12
 number_of_imports: 18
 number_of_delayed_imports: 0
 number_of_exports: 0
@@ -56,6 +56,18 @@ version_info:
     "ProductName": "Esami Finali 2001"
     "ProductVersion": "4.04.0006"
 version_info_list:
+  - key: "CompanyName"
+    value: "CSI PIEMONTE"
+  - key: "ProductName"
+    value: "Esami Finali 2001"
+  - key: "FileVersion"
+    value: "4.04.0006"
+  - key: "ProductVersion"
+    value: "4.04.0006"
+  - key: "InternalName"
+    value: "EsaFin"
+  - key: "OriginalFilename"
+    value: "EsaFin.exe"
   - key: "CompanyName"
     value: "CSI PIEMONTE"
   - key: "ProductName"
