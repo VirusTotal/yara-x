@@ -329,16 +329,25 @@ impl Visitor for PatternSplitter {
                         {
                             self.bytes.push(masked_byte.value);
                             self.mask.push(masked_byte.mask);
+                            return Ok(());
                         }
+
+                        // If already in an alternation there's nothing more we
+                        // can do.
+                        if self.in_alternation {
+                            return Err(Error::FastIncompatible);
+                        }
+
                         // Check if the class is representing an alternation of
                         // masked bytes, like `(1? | 2? | 3?)`. When the HIR for
-                        // hex patterns is constructed, alternations like this
-                        // one are represented by a `hir::Alternation` nodes
-                        // where each alternative is a class that represents a
-                        // single masked byte. However, the `regex_syntax` crate
-                        // can optimize the HIR by merging all the alternatives
-                        // in single class that represents multiple masked bytes.
-                        else if let Some(masked_bytes) =
+                        // hex patterns is constructed, this kind of alternation
+                        // is expressed as a `hir::Alternation` node where each
+                        // alternative is a class representing a single masked
+                        // byte. However, the `regex_syntax` crate can optimize
+                        // the HIR by merging all the alternatives into a single
+                        // class. For instance, Alt(Class(A-a), Class(B-b)) can
+                        // become Class(A-a, B-b).
+                        if let Some(masked_bytes) =
                             re::hir::class_to_masked_bytes_alternation(class)
                         {
                             if let Some(pattern) = self.finish_literal() {
@@ -356,10 +365,7 @@ impl Visitor for PatternSplitter {
                                     })
                                     .collect(),
                             ));
-                        }
-                        // In all the remaining cases the class can't be
-                        // represented as masked bytes.
-                        else {
+                        } else {
                             return Err(Error::FastIncompatible);
                         }
                     }
@@ -367,9 +373,7 @@ impl Visitor for PatternSplitter {
                     // support, the HIR can contain unicode classes due to a
                     // design issue in regex-syntax.
                     // https://github.com/rust-lang/regex/issues/1088
-                    Class::Unicode(_) => {
-                        return Err(Error::FastIncompatible);
-                    }
+                    Class::Unicode(_) => return Err(Error::FastIncompatible),
                 }
             }
 
@@ -441,6 +445,7 @@ impl Visitor for PatternSplitter {
             HirKind::Look(_) => return Err(Error::FastIncompatible),
             _ => {}
         }
+
         Ok(())
     }
 

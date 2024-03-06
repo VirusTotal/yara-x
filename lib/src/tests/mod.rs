@@ -1302,6 +1302,9 @@ fn regexp_patterns_4() {
     pattern_match!(r#"/foo|bar|baz/i"#, b"BAR", b"BAR");
     pattern_match!(r#"/foo|bar|baz/i"#, b"BAZ", b"BAZ");
 
+    pattern_match!(r#"/acid(p[pv]r|s[cs]a)/i"#, b"acidpvr", b"acidpvr");
+    pattern_match!(r#"/acid(p[pv]r|s[cs]a)/i"#, b"ACidSSa", b"ACidSSa");
+
     pattern_match!(r"/foo\x01bar/", b"foo\x01bar", b"foo\x01bar");
 
     /*
