@@ -1,5 +1,6 @@
 use crate::modules::protos;
 use bstr::{BStr, ByteSlice};
+use cryptographic_message_syntax::SignedData;
 #[cfg(feature = "logging")]
 use log::error;
 use nom::bytes::complete::take;
@@ -32,7 +33,7 @@ const _CS_MAGIC_REQUIREMENTS: u32 = 0xfade0c01;
 const _CS_MAGIC_CODEDIRECTORY: u32 = 0xfade0c02;
 const _CS_MAGIC_EMBEDDED_SIGNATURE: u32 = 0xfade0cc0;
 const _CS_MAGIC_DETACHED_SIGNATURE: u32 = 0xfade0cc1;
-const _CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
+const CS_MAGIC_BLOBWRAPPER: u32 = 0xfade0b01;
 const CS_MAGIC_EMBEDDED_ENTITLEMENTS: u32 = 0xfade7171;
 
 /// Mach-O dynamic linker constant
@@ -796,32 +797,67 @@ impl<'a> MachOFile<'a> {
                     let offset = blob_index.offset as usize;
                     let length = blob.length as usize;
                     let size_of_blob = std::mem::size_of::<CSBlob>();
-                    if blob.magic == CS_MAGIC_EMBEDDED_ENTITLEMENTS {
-                        let xml_data = &super_data
-                            [offset + size_of_blob..offset + length];
-                        let xml_string = std::str::from_utf8(xml_data)
-                            .unwrap_or_default();
+                    match blob.magic {
+                        CS_MAGIC_EMBEDDED_ENTITLEMENTS => {
+                            let xml_data = &super_data
+                                [offset + size_of_blob..offset + length];
+                            let xml_string = std::str::from_utf8(xml_data)
+                                .unwrap_or_default();
 
-                        let opt = roxmltree::ParsingOptions {
-                            allow_dtd: true,
-                            ..roxmltree::ParsingOptions::default()
-                        };
+                            let opt = roxmltree::ParsingOptions {
+                                allow_dtd: true,
+                                ..roxmltree::ParsingOptions::default()
+                            };
 
-                        if let Ok(parsed_xml) =
-                            roxmltree::Document::parse_with_options(
-                                xml_string, opt,
-                            )
-                        {
-                            for node in parsed_xml
-                                .descendants()
-                                .filter(|n| n.has_tag_name("key"))
+                            if let Ok(parsed_xml) =
+                                roxmltree::Document::parse_with_options(
+                                    xml_string, opt,
+                                )
                             {
-                                if let Some(entitlement) = node.text() {
-                                    self.entitlements
-                                        .push(entitlement.to_string());
+                                for node in parsed_xml
+                                    .descendants()
+                                    .filter(|n| n.has_tag_name("key"))
+                                {
+                                    if let Some(entitlement) = node.text() {
+                                        self.entitlements
+                                            .push(entitlement.to_string());
+                                    }
                                 }
                             }
                         }
+                        CS_MAGIC_BLOBWRAPPER => {
+                            if let Ok(signage) = SignedData::parse_ber(
+                                &super_data
+                                    [offset + size_of_blob..offset + length],
+                            ) {
+                                let signers = signage.signers();
+                                let certs = signage.certificates();
+                                let mut cert_info = Certificates {
+                                    common_names: Vec::new(),
+                                    signer_names: Vec::new(),
+                                };
+
+                                certs.for_each(|cert| {
+                                    let name =
+                                        cert.subject_common_name().unwrap();
+                                    cert_info.common_names.push(name);
+                                });
+
+                                signers.for_each(|signer| {
+                                    let (name, _) = signer
+                                        .certificate_issuer_and_serial()
+                                        .unwrap();
+                                    cert_info.signer_names.push(
+                                        name.user_friendly_str()
+                                            .unwrap()
+                                            .to_string(),
+                                    );
+                                });
+
+                                self.certificates = Some(cert_info);
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }

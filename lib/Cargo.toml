@@ -92,6 +92,7 @@ lnk-module = [
 
 # The `macho` module parses Mach-O files.
 macho-module = [
+    "dep:cryptographic-message-syntax",
     "dep:nom",
     "dep:roxmltree",
 ]
@@ -155,6 +156,7 @@ bincode = { workspace = true }
 bitmask = { workspace = true }
 bitvec = { workspace = true }
 bstr = { workspace = true, features = ["serde"] }
+cryptographic-message-syntax = { workspace=true, optional = true, default-features = false }
 crc32fast = { workspace = true, optional = true }
 fmmap = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
