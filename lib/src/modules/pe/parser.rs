@@ -144,15 +144,17 @@ impl<'a> PE<'a> {
                 + Self::SIZE_OF_FILE_HEADER
                 + pe_hdr.size_of_optional_header as usize..,
         ) {
-            count(
-                // The section parser needs the string table for resolving
-                // some section names.
-                Self::parse_section(string_table),
+            many_m_n(
+                // Parse at least one section.
+                1,
                 // The number of sections is capped to MAX_PE_SECTIONS.
                 usize::min(
                     pe_hdr.number_of_sections as usize,
                     Self::MAX_PE_SECTIONS,
                 ),
+                // The section parser needs the string table for resolving
+                // some section names.
+                Self::parse_section(string_table),
             )(section_table)
             .map(|(_, sections)| sections)
             .ok()
