@@ -590,8 +590,12 @@ impl FastVM<'_> {
                 // time. Any offset found before the newline is a position
                 // that needs to be verified, but once the newline is found
                 // no more positions will match and we can return.
+                //
+                // There's an edge case when the literal byte is also a
+                // newline, in such cases any newline found most also be
+                // verified.
                 for offset in memchr::memchr2_iter(*lit, 0x0A, jmp_range) {
-                    if jmp_range[offset] == 0x0A {
+                    if *lit != 0x0A && jmp_range[offset] == 0x0A {
                         return;
                     }
                     on_match_found(offset)
@@ -621,8 +625,8 @@ impl FastVM<'_> {
         let n = *range.start() as usize * step;
         let m = *range.end() as usize * step;
 
-        //  Let's explain the what this function does using the following
-        //  pattern as an example:
+        //  Let's explain what this function does using the following pattern
+        //  as an example:
         //
         //    { 01 02 03 [n-m] 04 05 06 07 }
         //
@@ -663,7 +667,7 @@ impl FastVM<'_> {
             if flags.contains(JumpFlags::Wide) {
                 // In wide mode we are only interested in bytes found
                 // at even offsets. At odd offsets the input should
-                // have only zeroes and they are not potential matches.
+                // have only zeroes, and they are not potential matches.
                 if offset % 2 == 0 {
                     next_positions.insert(
                         position + n + jmp_range.len() - offset - step,
@@ -684,7 +688,7 @@ impl FastVM<'_> {
                 }
             } else {
                 for offset in memchr::memrchr2_iter(*lit, 0x0A, jmp_range) {
-                    if jmp_range[offset] == 0x0A {
+                    if *lit != 0x0A && jmp_range[offset] == 0x0A {
                         return;
                     }
                     on_match_found(offset)

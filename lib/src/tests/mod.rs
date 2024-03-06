@@ -1200,6 +1200,8 @@ fn regexp_patterns_3() {
         b"\n\r\t\x0c\x07",
         b"\n\r\t\x0c\x07"
     );
+    pattern_match!(r"/foobar\n/", b"foobar\x0a", b"foobar\x0a");
+    pattern_match!(r"/foo.{1,3}\n/", b"foobar\x0a", b"foobar\x0a");
     pattern_match!(r"/\x01\x02\x03/", b"\x01\x02\x03", b"\x01\x02\x03");
     pattern_match!(r"/[\x01-\x03]+/", b"\x01\x02\x03", b"\x01\x02\x03");
     pattern_false!(r"/[\x00-\x02]+/", b"\x03\x04\x05");
@@ -1318,6 +1320,11 @@ fn regexp_patterns_4() {
         b"\xF0\x9F\x99\x88\xF0\x9F\x99\x89\xF0\x9F\x99\x8A"
     );
     */
+}
+
+#[test]
+fn issue() {
+    pattern_match!(r"/foo.{1,3}\n/", b"foobar\x0a", b"foobar\x0a");
 }
 
 #[test]
@@ -1534,15 +1541,6 @@ fn regexp_wide() {
     pattern_true!(r"/foobar\b/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
     pattern_false!(r"/foobar\B/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
     pattern_true!(r"/foobar$/ wide", b"f\x00o\x00o\x00b\x00a\x00r\x00x");
-}
-
-#[test]
-fn issue() {
-    pattern_match!(
-        r"/foobar/ wide nocase",
-        b"f\x00o\x00o\x00b\x00a\x00r\x00x\x01",
-        b"f\x00o\x00o\x00b\x00a\x00r\x00"
-    );
 }
 
 #[test]
