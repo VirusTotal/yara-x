@@ -114,6 +114,10 @@ fn calculate_checksum(ctx: &mut ScanContext) -> Option<i64> {
     let data = ctx.scanned_data();
     let mut sum: u32 = 0;
 
+    if !pe.is_pe() {
+        return None;
+    }
+
     // The parser first try to read an u32, if not enough data is available,
     // it tries to read an u16, and if still there's no data available it
     // tries to read a byte. In all cases the result is promoted to u32. This
@@ -202,6 +206,11 @@ fn section_index_offset(ctx: &ScanContext, offset: i64) -> Option<i64> {
 #[module_export]
 fn imphash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let pe = ctx.module_output::<PE>()?;
+
+    if !pe.is_pe() {
+        return None;
+    }
+
     let mut md5_hash = md5::Context::new();
     let mut first = true;
 
