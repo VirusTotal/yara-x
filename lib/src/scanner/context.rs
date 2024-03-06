@@ -1228,14 +1228,28 @@ fn verify_base64_match(
         let mut ascii = Vec::with_capacity(decode_range.len() / 2);
         for (i, b) in scanned_data[decode_range].iter().enumerate() {
             if i % 2 == 0 {
-                ascii.push(*b)
+                // Padding (=) is not added to ASCII string.
+                if *b != b'=' {
+                    ascii.push(*b)
+                }
             } else if *b != 0 {
                 return None;
             }
         }
-        base64_engine.decode(ascii.as_slice())
+        base64_engine.decode(ascii)
     } else {
-        base64_engine.decode(&scanned_data[decode_range])
+        let s = &scanned_data[decode_range];
+
+        // Strip padding if present.
+        let s = if s.ends_with_str(b"==") {
+            &s[0..s.len().saturating_sub(2)]
+        } else if s.ends_with_str(b"=") {
+            &s[0..s.len().saturating_sub(1)]
+        } else {
+            s
+        };
+
+        base64_engine.decode(s)
     };
 
     if let Ok(decoded) = decoded {

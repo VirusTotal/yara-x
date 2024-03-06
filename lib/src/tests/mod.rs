@@ -2482,6 +2482,11 @@ fn base64() {
 
     pattern_true!(
         r#""fooba" base64"#,
+        b"Zm9vYmE=" // base64("fooba")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
         b"eGZvb2Jh" // base64("xfooba")
     );
 
@@ -2493,6 +2498,11 @@ fn base64() {
     pattern_true!(
         r#""foob" base64"#,
         b"Zm9vYg" // base64("foob")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"Zm9vYg==" // base64("foob")
     );
 
     pattern_true!(
@@ -2582,7 +2592,25 @@ fn base64() {
         b"Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x00"
     );
 
-    // The the last byte should be 0, but it's 1, so the pattern doesn't match.
+    pattern_true!(
+        r#""foob" base64wide "#,
+        // base64("foob") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00g\x00"
+    );
+
+    pattern_true!(
+        r#""fooba" base64wide"#,
+        // base64("fooba") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00m\x00E\x00=\x00"
+    );
+
+    pattern_true!(
+        r#""foob" base64wide"#,
+        // base64("foob") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00g\x00=\x00=\x00"
+    );
+
+    // The last byte should be 0, but it's 1, so the pattern doesn't match.
     pattern_false!(
         r#""foobar" base64wide"#,
         // base64("foobar") in wide form
