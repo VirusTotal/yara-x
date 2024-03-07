@@ -71,7 +71,7 @@ message PE {
   map<string, string> version_info = 46;
   repeated KeyValue version_info_list = 47;
   optional RichSignature rich_signature = 48;
-  optional string pdb_path = 49;
+  optional bytes pdb_path = 49;
   repeated Section sections = 50;
   repeated DirEntry data_directories = 51;
 

@@ -84,7 +84,7 @@ pub struct PE<'a> {
     dir_entries: OnceCell<Option<Vec<DirEntry>>>,
 
     /// Path to PDB file containing debug information for the PE.
-    pdb_path: OnceCell<Option<&'a str>>,
+    pdb_path: OnceCell<Option<&'a [u8]>>,
 
     /// Vector with the DLLs imported by this PE file. Each item in the vector
     /// is a tuple composed of a DLL name and a vector of [`ImportedFunc`] that
@@ -176,7 +176,7 @@ impl<'a> PE<'a> {
 
     /// Convert a relative virtual address (RVA) to a file offset.
     ///
-    /// A RVA is an offset relative to the base address of the executable
+    /// An RVA is an offset relative to the base address of the executable
     /// program. The PE format uses RVAs in multiple places and sometimes
     /// is necessary to covert the RVA to a file offset.
     pub fn rva_to_offset(&self, rva: u32) -> Option<u32> {
@@ -188,7 +188,7 @@ impl<'a> PE<'a> {
         )
     }
 
-    /// Given a RVA, returns a byte slice with the content of the PE that
+    /// Given an RVA, returns a byte slice with the content of the PE that
     /// goes from that RVA to the end of the file.
     #[inline]
     pub fn data_at_rva(&self, rva: u32) -> Option<&'a [u8]> {
@@ -196,7 +196,7 @@ impl<'a> PE<'a> {
         self.data.get(offset as usize..)
     }
 
-    /// Given a RVA, returns a byte slice with the content of the PE that
+    /// Given an RVA, returns a byte slice with the content of the PE that
     /// goes from that RVA to the end of the file, or to the given size,
     /// whatever comes first.
     #[inline]
@@ -270,7 +270,7 @@ impl<'a> PE<'a> {
     /// For certain EFI binaries the result is not actually a path, but
     /// a CLSID. Is not clear what the CLSID means. Example:
     /// 6c2abf4b80a87e63eee2996e5cea8f004d49ec0c1806080fa72e960529cba14c
-    pub fn get_pdb_path(&self) -> Option<&'a str> {
+    pub fn get_pdb_path(&self) -> Option<&'a [u8]> {
         *self.pdb_path.get_or_init(|| self.parse_dbg())
     }
 
@@ -1371,7 +1371,7 @@ impl<'a> PE<'a> {
     }
 
     /// Parses the PE debug information and extracts the PDB path.
-    fn parse_dbg(&self) -> Option<&'a str> {
+    fn parse_dbg(&self) -> Option<&'a [u8]> {
         let (_, _, dbg_section) =
             self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG, true)?;
 
@@ -1461,7 +1461,7 @@ impl<'a> PE<'a> {
             ))(cv_info)
             {
                 Ok((_, (_signature, _padding, pdb_path))) => {
-                    return from_utf8(pdb_path).ok()
+                    return Some(pdb_path)
                 }
                 Err(_) => continue,
             };
@@ -2012,7 +2012,7 @@ impl From<PE<'_>> for protos::pe::PE {
         result.set_size_of_stack_commit(pe.optional_hdr.size_of_stack_commit);
         result.set_size_of_heap_reserve(pe.optional_hdr.size_of_heap_reserve);
         result.set_size_of_heap_commit(pe.optional_hdr.size_of_heap_commit);
-        result.pdb_path = pe.get_pdb_path().map(String::from);
+        result.pdb_path = pe.get_pdb_path().map(|path| path.to_vec());
         result.set_number_of_rva_and_sizes(pe.optional_hdr.number_of_rva_and_sizes);
         result.set_image_base(pe.optional_hdr.image_base);
         result.set_size_of_image(pe.optional_hdr.size_of_image);

@@ -1,0 +1,371 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 6
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 8462
+dll_characteristics: 0
+timestamp: 1157380595
+image_base: 268435456
+checksum: 0
+base_of_code: 4096
+base_of_data: 36864
+entry_point: 14285
+entry_point_raw: 14285
+dll_name: "sens32.dll"
+export_timestamp: 1157380595
+section_alignment: 4096
+file_alignment: 4096
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 32768
+size_of_initialized_data: 32768
+size_of_uninitialized_data: 0
+size_of_image: 69632
+size_of_headers: 4096
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 4
+number_of_imported_functions: 88
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 4
+number_of_delayed_imports: 0
+number_of_exports: 3
+number_of_signatures: 0
+rich_signature:
+    offset: 128
+    length: 80
+    key: 1940349680
+    raw_data: "\264\003\311 \360b\247s\360b\247s\360b\247s\306D\254s\361b\247ss~\251s\345b\247s\306D\255s\273b\247s\360b\247s\367b\247s\222}\264s\367b\247s\360b\246s\221b\247s\030}\254s\361b\247s\030}\243s\361b\247s"
+    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\0006&\013\000\001\000\000\000\203\034\016\000\025\000\000\0006&\n\000K\000\000\000\000\000\000\000\007\000\000\000b\037\023\000\007\000\000\000\000\000\001\000a\000\000\000\350\037\013\000\001\000\000\000\350\037\004\000\001\000\000\000"
+    tools:
+      - toolid: 11
+        version: 9782
+        times: 1
+      - toolid: 14
+        version: 7299
+        times: 21
+      - toolid: 10
+        version: 9782
+        times: 75
+      - toolid: 0
+        version: 0
+        times: 7
+      - toolid: 19
+        version: 8034
+        times: 7
+      - toolid: 1
+        version: 0
+        times: 97
+      - toolid: 11
+        version: 8168
+        times: 1
+      - toolid: 4
+        version: 8168
+        times: 1
+pdb_path: "E:\\Coding\\DownLoader\\0823\327\324\266\257\311\375\274\266\260\346\\sens32\\Release\\sens32.pdb"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 32768
+    raw_data_offset: 4096
+    virtual_address: 4096
+    virtual_size: 29842
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 4096
+    raw_data_offset: 36864
+    virtual_address: 36864
+    virtual_size: 4040
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 16384
+    raw_data_offset: 40960
+    virtual_address: 40960
+    virtual_size: 22764
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 4096
+    raw_data_offset: 57344
+    virtual_address: 65536
+    virtual_size: 4032
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 40784
+    size: 120
+  - virtual_address: 38716
+    size: 100
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 65536
+    size: 2184
+  - virtual_address: 37232
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 36864
+    size: 368
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+import_details:
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 67
+    functions:
+      - name: "ReadFile"
+        rva: 36924
+      - name: "CreateFileMappingA"
+        rva: 36928
+      - name: "MapViewOfFile"
+        rva: 36932
+      - name: "UnmapViewOfFile"
+        rva: 36936
+      - name: "WriteFile"
+        rva: 36940
+      - name: "FlushFileBuffers"
+        rva: 36944
+      - name: "CreateProcessA"
+        rva: 36948
+      - name: "DeleteFileA"
+        rva: 36952
+      - name: "CloseHandle"
+        rva: 36956
+      - name: "GetSystemDirectoryA"
+        rva: 36960
+      - name: "lstrlenA"
+        rva: 36964
+      - name: "CreateFileA"
+        rva: 36968
+      - name: "GetTempPathA"
+        rva: 36972
+      - name: "CreateThread"
+        rva: 36976
+      - name: "WaitForSingleObject"
+        rva: 36980
+      - name: "SetFilePointer"
+        rva: 36984
+      - name: "Sleep"
+        rva: 36988
+      - name: "GetCommandLineA"
+        rva: 36992
+      - name: "GetVersion"
+        rva: 36996
+      - name: "EnterCriticalSection"
+        rva: 37000
+      - name: "LeaveCriticalSection"
+        rva: 37004
+      - name: "ExitProcess"
+        rva: 37008
+      - name: "TerminateProcess"
+        rva: 37012
+      - name: "GetCurrentProcess"
+        rva: 37016
+      - name: "GetCurrentThreadId"
+        rva: 37020
+      - name: "TlsSetValue"
+        rva: 37024
+      - name: "TlsAlloc"
+        rva: 37028
+      - name: "TlsFree"
+        rva: 37032
+      - name: "SetLastError"
+        rva: 37036
+      - name: "TlsGetValue"
+        rva: 37040
+      - name: "GetLastError"
+        rva: 37044
+      - name: "SetHandleCount"
+        rva: 37048
+      - name: "GetStdHandle"
+        rva: 37052
+      - name: "GetFileType"
+        rva: 37056
+      - name: "GetStartupInfoA"
+        rva: 37060
+      - name: "DeleteCriticalSection"
+        rva: 37064
+      - name: "GetModuleFileNameA"
+        rva: 37068
+      - name: "FreeEnvironmentStringsA"
+        rva: 37072
+      - name: "FreeEnvironmentStringsW"
+        rva: 37076
+      - name: "WideCharToMultiByte"
+        rva: 37080
+      - name: "GetEnvironmentStrings"
+        rva: 37084
+      - name: "GetEnvironmentStringsW"
+        rva: 37088
+      - name: "GetModuleHandleA"
+        rva: 37092
+      - name: "GetEnvironmentVariableA"
+        rva: 37096
+      - name: "GetVersionExA"
+        rva: 37100
+      - name: "HeapDestroy"
+        rva: 37104
+      - name: "HeapCreate"
+        rva: 37108
+      - name: "VirtualFree"
+        rva: 37112
+      - name: "HeapFree"
+        rva: 37116
+      - name: "MultiByteToWideChar"
+        rva: 37120
+      - name: "GetStringTypeA"
+        rva: 37124
+      - name: "GetStringTypeW"
+        rva: 37128
+      - name: "HeapAlloc"
+        rva: 37132
+      - name: "InitializeCriticalSection"
+        rva: 37136
+      - name: "InterlockedDecrement"
+        rva: 37140
+      - name: "InterlockedIncrement"
+        rva: 37144
+      - name: "GetCPInfo"
+        rva: 37148
+      - name: "GetACP"
+        rva: 37152
+      - name: "GetOEMCP"
+        rva: 37156
+      - name: "VirtualAlloc"
+        rva: 37160
+      - name: "HeapReAlloc"
+        rva: 37164
+      - name: "GetProcAddress"
+        rva: 37168
+      - name: "LoadLibraryA"
+        rva: 37172
+      - name: "RtlUnwind"
+        rva: 37176
+      - name: "LCMapStringA"
+        rva: 37180
+      - name: "LCMapStringW"
+        rva: 37184
+      - name: "SetStdHandle"
+        rva: 37188
+  - library_name: "ADVAPI32.dll"
+    number_of_functions: 14
+    functions:
+      - name: "DeleteService"
+        rva: 36864
+      - name: "RegOpenKeyExA"
+        rva: 36868
+      - name: "ChangeServiceConfigA"
+        rva: 36872
+      - name: "RegCreateKeyA"
+        rva: 36876
+      - name: "OpenSCManagerA"
+        rva: 36880
+      - name: "OpenServiceA"
+        rva: 36884
+      - name: "CloseServiceHandle"
+        rva: 36888
+      - name: "RegCreateKeyExA"
+        rva: 36892
+      - name: "RegCloseKey"
+        rva: 36896
+      - name: "RegSetValueExA"
+        rva: 36900
+      - name: "RegQueryValueExA"
+        rva: 36904
+      - name: "RegisterServiceCtrlHandlerA"
+        rva: 36908
+      - name: "SetServiceStatus"
+        rva: 36912
+      - name: "CreateServiceA"
+        rva: 36916
+  - library_name: "WS2_32.dll"
+    number_of_functions: 2
+    functions:
+      - name: "WSACleanup"
+        ordinal: 116
+        rva: 37220
+      - name: "WSAStartup"
+        ordinal: 115
+        rva: 37224
+  - library_name: "WININET.dll"
+    number_of_functions: 5
+    functions:
+      - name: "InternetOpenA"
+        rva: 37196
+      - name: "InternetOpenUrlA"
+        rva: 37200
+      - name: "InternetReadFile"
+        rva: 37204
+      - name: "InternetCloseHandle"
+        rva: 37208
+      - name: "InternetGetConnectedState"
+        rva: 37212
+export_details:
+  - name: "_DllMain@12"
+    ordinal: 1
+    rva: 4750
+    offset: 4750
+  - name: "ServiceMain"
+    ordinal: 2
+    rva: 4465
+    offset: 4465
+  - name: "_SvcCtrlFnct@4"
+    ordinal: 3
+    rva: 4096
+    offset: 4096
+is_signed: false
+overlay:
+    offset: 61440
+    size: 1134
