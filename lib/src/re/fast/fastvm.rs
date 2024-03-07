@@ -497,12 +497,12 @@ impl FastVM<'_> {
                 return false;
             }
 
-            let wide_error = Cell::new(None);
+            let error_pos = Cell::new(None);
 
             // Iterate the input in chunks of two bytes, where the first one
             // must match a byte in the literal, and the second one is the
             // interleaved zero.
-            let input = WideIter::zero_first(input.iter().rev(), &wide_error);
+            let input = WideIter::zero_first(input.iter().rev(), &error_pos);
 
             for (input, byte, mask) in
                 izip!(input, literal.iter().rev(), mask.iter().rev())
@@ -512,8 +512,10 @@ impl FastVM<'_> {
                 }
             }
 
-            if wide_error.get().is_some() {
-                return false;
+            if let Some(pos) = error_pos.get() {
+                if pos < literal.len() {
+                    return false;
+                }
             }
         } else {
             if input.len() < literal.len() {

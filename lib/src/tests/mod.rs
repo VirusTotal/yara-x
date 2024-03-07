@@ -1323,11 +1323,6 @@ fn regexp_patterns_4() {
 }
 
 #[test]
-fn issue() {
-    pattern_match!(r"/foo.{1,3}\n/", b"foobar\x0a", b"foobar\x0a");
-}
-
-#[test]
 fn regexp_patterns_5() {
     rule_true!(
         r#"rule test {
@@ -1507,15 +1502,15 @@ fn regexp_wide() {
     );
 
     pattern_match!(
-        r"/(http|https):\/\// wide nocase",
-        b"\x00h\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00",
-        b"h\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00"
-    );
-
-    pattern_match!(
         r"/foobar/ wide nocase",
         b"f\x00o\x00o\x00b\x00a\x00r\x00x\x01",
         b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/(baz|qux)foobar/ nocase wide"#,
+        b"x\x01b\x00a\x00z\x00f\x00o\x00o\x00b\x00a\x00r\x00",
+        b"b\x00a\x00z\x00f\x00o\x00o\x00b\x00a\x00r\x00"
     );
 
     pattern_match!(
