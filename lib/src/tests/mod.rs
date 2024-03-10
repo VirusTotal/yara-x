@@ -1676,6 +1676,26 @@ fn hex_large_jumps() {
             }"#,
         JUMPS_DATA.as_bytes()
     );
+
+    rule_true!(
+        r#"rule test {
+                strings:
+                    $a = /dddd.{0,28}?DDDD.{0,28}?dddd/si
+                condition:
+                    $a
+            }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    // Newline characters not allowed in jump.
+    rule_false!(
+        r#"rule test {
+                strings:
+                    $a = /dddd.{0,28}?DDDD.{0,28}?dddd/i
+                condition:
+                    $a
+            }"#
+    );
 }
 
 #[test]

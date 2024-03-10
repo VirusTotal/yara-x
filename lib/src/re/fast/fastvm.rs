@@ -272,7 +272,7 @@ impl<'r> FastVM<'r> {
                                 }
                                 Self::jump_bck(
                                     &input[..input.len() - position],
-                                    literal,
+                                    literal.last().copied(),
                                     flags,
                                     &range,
                                     *position,
@@ -287,7 +287,7 @@ impl<'r> FastVM<'r> {
                                 }
                                 Self::jump_fwd(
                                     &input[*position..],
-                                    literal,
+                                    literal.first().copied(),
                                     flags,
                                     &range,
                                     *position,
@@ -304,7 +304,7 @@ impl<'r> FastVM<'r> {
                                 }
                                 Self::jump_bck(
                                     &input[..input.len() - position],
-                                    literal,
+                                    literal.last().copied(),
                                     flags,
                                     &range,
                                     *position,
@@ -321,7 +321,7 @@ impl<'r> FastVM<'r> {
                                 }
                                 Self::jump_fwd(
                                     &input[*position..],
-                                    literal,
+                                    literal.first().copied(),
                                     flags,
                                     &range,
                                     *position,
@@ -337,7 +337,7 @@ impl<'r> FastVM<'r> {
                                 if backwards {
                                     Self::jump_bck(
                                         &input[..input.len() - position],
-                                        &[],
+                                        None,
                                         flags,
                                         &range,
                                         *position,
@@ -346,7 +346,7 @@ impl<'r> FastVM<'r> {
                                 } else {
                                     Self::jump_fwd(
                                         &input[*position..],
-                                        &[],
+                                        None,
                                         flags,
                                         &range,
                                         *position,
@@ -538,7 +538,7 @@ impl FastVM<'_> {
     #[inline]
     fn jump_fwd(
         input: &[u8],
-        literal: &[u8],
+        expected_after_jump: Option<u8>,
         flags: JumpFlagSet,
         range: &RangeInclusive<u16>,
         position: usize,
@@ -580,14 +580,10 @@ impl FastVM<'_> {
             }
         };
 
-        // If the literal is non-empty, the next positions are those where
-        // the byte in the data matches the first byte in the literal.
-        if let Some(lit) = literal.first() {
-            if flags.contains(JumpFlags::AcceptNewlines) {
-                for offset in memchr::memchr_iter(*lit, jmp_range) {
-                    on_match_found(offset)
-                }
-            } else {
+        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
+
+        match expected_after_jump {
+            Some(b) if !accept_newlines => {
                 // Search for the literal byte and the newline at the same
                 // time. Any offset found before the newline is a position
                 // that needs to be verified, but once the newline is found
@@ -596,19 +592,28 @@ impl FastVM<'_> {
                 // There's an edge case when the literal byte is also a
                 // newline, in such cases any newline found most also be
                 // verified.
-                for offset in memchr::memchr2_iter(*lit, 0x0A, jmp_range) {
-                    if *lit != 0x0A && jmp_range[offset] == 0x0A {
+                for offset in memchr::memchr2_iter(b, 0x0A, jmp_range) {
+                    if b != 0x0A && jmp_range[offset] == 0x0A {
                         return;
                     }
                     on_match_found(offset)
                 }
             }
-        }
-        // If the literal is empty, every position within the jump range is a
-        // a match.
-        else {
-            for offset in 0..jmp_range.len() {
-                on_match_found(offset)
+            Some(b) if accept_newlines => {
+                // If newlines are accepted, we can search for the literal
+                // byte alone. There are potential matches only at the
+                // positions where the byte is found.
+                for offset in memchr::memchr_iter(b, jmp_range) {
+                    on_match_found(offset)
+                }
+            }
+            _ => {
+                for (offset, byte) in jmp_range.iter().enumerate() {
+                    if !accept_newlines && *byte == 0x0A {
+                        return;
+                    }
+                    on_match_found(offset)
+                }
             }
         }
     }
@@ -616,7 +621,7 @@ impl FastVM<'_> {
     #[inline]
     fn jump_bck(
         input: &[u8],
-        literal: &[u8],
+        expected_after_jump: Option<u8>,
         flags: JumpFlagSet,
         range: &RangeInclusive<u16>,
         position: usize,
@@ -681,27 +686,40 @@ impl FastVM<'_> {
             }
         };
 
-        // If the literal is non-empty, the next positions are those where
-        // the byte in the data matches the first byte in the literal.
-        if let Some(lit) = literal.last() {
-            if flags.contains(JumpFlags::AcceptNewlines) {
-                for offset in memchr::memrchr_iter(*lit, jmp_range) {
-                    on_match_found(offset)
-                }
-            } else {
-                for offset in memchr::memrchr2_iter(*lit, 0x0A, jmp_range) {
-                    if *lit != 0x0A && jmp_range[offset] == 0x0A {
+        let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
+
+        match expected_after_jump {
+            Some(b) if !accept_newlines => {
+                // Search for the literal byte and the newline at the same
+                // time. Any offset found before the newline is a position
+                // that needs to be verified, but once the newline is found
+                // no more positions will match and we can return.
+                //
+                // There's an edge case when the literal byte is also a
+                // newline, in such cases any newline found most also be
+                // verified.
+                for offset in memchr::memrchr2_iter(b, 0x0A, jmp_range) {
+                    if b != 0x0A && jmp_range[offset] == 0x0A {
                         return;
                     }
                     on_match_found(offset)
                 }
             }
-        }
-        // If the literal is empty, every position within the jump range is a
-        // a match.
-        else {
-            for offset in (0..jmp_range.len()).rev() {
-                on_match_found(offset)
+            Some(b) if accept_newlines => {
+                // If newlines are accepted, we can search for the literal
+                // byte alone. There are potential matches only at the
+                // positions where the byte is found.
+                for offset in memchr::memrchr_iter(b, jmp_range) {
+                    on_match_found(offset)
+                }
+            }
+            _ => {
+                for (offset, byte) in jmp_range.iter().enumerate().rev() {
+                    if !accept_newlines && *byte == 0x0A {
+                        return;
+                    }
+                    on_match_found(offset)
+                }
             }
         }
     }
