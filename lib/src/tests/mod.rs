@@ -1644,6 +1644,11 @@ fn hex_large_jumps() {
         JUMPS_DATA.as_bytes()
     );
 
+    pattern_true!(
+        "{ 61 61 61 61 [0-0x19c] 63 [0-0x13f] 64 64 64 64 }",
+        JUMPS_DATA.as_bytes()
+    );
+
     rule_true!(
         r#"rule test {
             strings:

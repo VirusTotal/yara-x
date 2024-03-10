@@ -695,7 +695,6 @@ impl ScanContext<'_> {
             }
             | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
                 if self.within_valid_distance(
-                    sub_pattern_id,
                     *chained_to,
                     match_.range.start,
                     gap,
@@ -729,31 +728,15 @@ impl ScanContext<'_> {
 
     fn within_valid_distance(
         &mut self,
-        sub_pattern_id: SubPatternId,
         chained_to: SubPatternId,
         match_start: usize,
         gap: &RangeInclusive<u32>,
     ) -> bool {
-        // The lowest possible offset where the current sub-pattern can match
-        // is the offset of the first unconfirmed match, or the offset of the
-        // current match if no previous unconfirmed match exists.
-        let lowest_offset = self
-            .unconfirmed_matches
-            .get(&sub_pattern_id)
-            .and_then(|unconfirmed_matches| unconfirmed_matches.front())
-            .map_or(match_start, |first_match| first_match.range.start);
-
         if let Some(unconfirmed_matches) =
             self.unconfirmed_matches.get_mut(&chained_to)
         {
             let min_gap = *gap.start() as usize;
             let max_gap = *gap.end() as usize;
-
-            // Retain the unconfirmed matches that can possibly match, but
-            // discard those that are so far away from the current match that
-            // there's no possibility for them to match.
-            unconfirmed_matches
-                .retain(|m| m.range.end + max_gap >= lowest_offset);
 
             for m in unconfirmed_matches {
                 let valid_range =
@@ -797,9 +780,9 @@ impl ScanContext<'_> {
             match &self.compiled_rules.get_sub_pattern(id).1 {
                 SubPattern::LiteralChainHead { flags, .. }
                 | SubPattern::RegexpChainHead { flags, .. } => {
-                    // The chain head is reached and we know the range where
+                    // The chain head is reached, and we know the range where
                     // the tail matches. This indicates that the whole chain is
-                    // valid and we have a full match.
+                    // valid, and we have a full match.
                     if let Some(tail_match_range) = &tail_match_range {
                         self.track_pattern_match(
                             pattern_id,
