@@ -538,7 +538,7 @@ impl FastVM<'_> {
     #[inline]
     fn jump_fwd(
         input: &[u8],
-        expected_after_jump: Option<u8>,
+        byte_after_jmp: Option<u8>,
         flags: JumpFlagSet,
         range: &RangeInclusive<u16>,
         position: usize,
@@ -582,7 +582,7 @@ impl FastVM<'_> {
 
         let accept_newlines = flags.contains(JumpFlags::AcceptNewlines);
 
-        match expected_after_jump {
+        match byte_after_jmp {
             Some(b) if !accept_newlines => {
                 // Search for the literal byte and the newline at the same
                 // time. Any offset found before the newline is a position
