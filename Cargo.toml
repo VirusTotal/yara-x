@@ -62,6 +62,7 @@ sha2 = "0.10.7"
 # Using tlsh-fixed instead of tlsh because tlsh-fixed includes a fix for this
 # issue: https://github.com/1crcbl/tlsh-rs/issues/2.
 tlsh-fixed = "0.1.1"
+magic = "0.16.2"
 memchr = "2.6.4"
 memx = "0.1.28"
 nom = "7.1.3"

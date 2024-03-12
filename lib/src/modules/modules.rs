@@ -15,6 +15,8 @@ mod dotnet;
 mod lnk;
 #[cfg(feature = "hash-module")]
 mod hash;
+#[cfg(feature = "magic-module")]
+mod magic;
 #[cfg(feature = "math-module")]
 mod math;
 #[cfg(feature = "test_proto2-module")]
