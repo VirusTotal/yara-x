@@ -16,9 +16,7 @@ use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
-use nom::combinator::{
-    cond, consumed, fail, iterator, map, opt, success, verify,
-};
+use nom::combinator::{cond, consumed, iterator, map, opt, success, verify};
 use nom::error::ErrorKind;
 use nom::multi::{count, fold_many1, length_data, many0, many1, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
@@ -968,7 +966,7 @@ impl<'a> PE<'a> {
                 let version_info = Self::parse_info_with_key(
                     "VS_VERSION_INFO",
                     version_info_raw,
-                    tuple((
+                    Some(tuple((
                         le_u32, // signature
                         le_u32, // struct_version
                         le_u32, // file_version_high
@@ -982,7 +980,7 @@ impl<'a> PE<'a> {
                         le_u32, // DWORD dwFileSubtype;
                         le_u32, // DWORD dwFileDateMS;
                         le_u32, // DWORD dwFileDateLS;
-                    )),
+                    ))),
                     // Possible children are StringFileInfo and VarFileInfo
                     // structures. Both are optional, and they can appear in any
                     // order. Usually StringFileInfo appears first, but
@@ -1017,9 +1015,8 @@ impl<'a> PE<'a> {
                 Self::parse_info_with_key(
                     "StringFileInfo",
                     input,
-                    // StringFileInfo doesn't have any value, so the value's parser
-                    // is simply `fail`, so that it fails if called.
-                    fail::<&[u8], (), Error>,
+                    // StringFileInfo doesn't have any value.
+                    None::<Box<dyn Parser<&[u8], (), Error>>>,
                     // The children are one or more StringTable structures.
                     fold_many1(
                         Self::parse_file_version_string_table,
@@ -1042,9 +1039,8 @@ impl<'a> PE<'a> {
                 Self::parse_info_with_key(
                     "VarFileInfo",
                     input,
-                    // VarFileInfo doesn't have any value, so the value's parser
-                    // is simply `fail`, so that it fails if called.
-                    fail::<&[u8], (), Error>,
+                    // VarFileInfo doesn't have any value.
+                    None::<Box<dyn Parser<&[u8], (), Error>>>,
                     // We are not really interested in parsing the children of
                     // VarFileInfo, just ignore them and succeed.
                     success(()),
@@ -1060,9 +1056,8 @@ impl<'a> PE<'a> {
     ) -> IResult<&[u8], Vec<(String, String)>> {
         map(
             Self::parse_info(
-                // StringTable doesn't have any value, so the value's parser
-                // is simply `fail`, so that it fails if called.
-                fail::<&[u8], (), Error>,
+                // StringTable doesn't have any value.
+                None::<Box<dyn Parser<&[u8], (), Error>>>,
                 // The children are one or more String structures.
                 many1(Self::parse_file_version_string),
             ),
@@ -1086,7 +1081,7 @@ impl<'a> PE<'a> {
         map(
             Self::parse_info(
                 // The value is a null-terminated UTF-16LE string.
-                utf16_le_string(),
+                Some(utf16_le_string()),
                 // String doesn't have any children, so the value's parser
                 // is simply `fail`, so that it fails if called.
                 success(()),
@@ -1100,7 +1095,7 @@ impl<'a> PE<'a> {
     fn parse_info_with_key<'b, F, G, V, C>(
         expected_key: &'static str,
         input: &'b [u8],
-        value_parser: F,
+        value_parser: Option<F>,
         children_parser: G,
     ) -> IResult<&'b [u8], (String, Option<V>, C)>
     where
@@ -1139,9 +1134,12 @@ impl<'a> PE<'a> {
     /// ```
     ///
     /// This function returns a parser for one of these structures, where the
-    /// parser for the value and the children are passed as arguments.
+    /// parser for the value and the children are passed as arguments. The
+    /// value parser is optional, if not provided, the value will be handled
+    /// as a zero-length value regardless of what the `value_len` field
+    /// says.
     fn parse_info<'b, F, G, V, C>(
-        mut value_parser: F,
+        mut value_parser: Option<F>,
         mut children_parser: G,
     ) -> impl FnMut(&'b [u8]) -> IResult<&'b [u8], (String, Option<V>, C)>
     where
@@ -1175,40 +1173,48 @@ impl<'a> PE<'a> {
             // Then take `alignment` bytes from the start of the structure.
             let (data, _) = take(alignment)(structure)?;
 
-            // Parse the value, if value_len is greater than zero.
-            let (raw_children, value) = if value_len > 0 {
-                // The PE specification seems to suggest that when `type` is 1,
-                // the value is a text and `value_length` indicates its size
-                // in UTF-16 characters (half the size in bytes). That's true
-                // for many files, like:
-                // 0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f
-                //
-                // However, there are many PE files for which `value_length` is
-                // in bytes, even if `type` is 1, that's the case of:
-                // db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984
-                //
-                // For this reason when `type` is 1, we first assume that
-                // `value_length` is in bytes, and if the value parser fails,
-                // then try again assuming that `value_length` is the number of
-                // UTF-16 characters.
-                let (data, value) = if type_ == 1 {
-                    take(value_len)
-                        .and_then(|v| value_parser.parse(v))
-                        .parse(data)
-                        .or_else(|_| {
-                            take(value_len * 2)
-                                .and_then(|v| value_parser.parse(v))
-                                .parse(data)
-                        })?
-                } else {
-                    take(value_len)
-                        .and_then(|v| value_parser.parse(v))
-                        .parse(data)?
-                };
+            // The value will be parsed only if `value_parser` it not `None` and
+            // `value_len` is larger than zero. If `value_parser` is `None` the
+            // value will be considered as a zero-length value, regardless of
+            // what `value_len` says. This useful for parsing some PE files that
+            // have a `value_len` larger than zero in structures that doesn't
+            // actually have any value. For instance, the StringFileInfo structure
+            // in 7aa3e6d7b3f2fcab5c9432cb6d8db094cc1df1b4ed11ff7a386662c4914a1eb3
+            // has a non-zero `value_len`.
+            let (raw_children, value) = match &mut value_parser {
+                Some(value_parser) if value_len > 0 => {
+                    // The PE specification seems to suggest that when `type` is 1,
+                    // the value is a text and `value_length` indicates its size
+                    // in UTF-16 characters (half the size in bytes). That's true
+                    // for many files, like:
+                    // 0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f
+                    //
+                    // However, there are many PE files for which `value_length` is
+                    // in bytes, even if `type` is 1, that's the case of:
+                    // db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984
+                    //
+                    // For this reason when `type` is 1, we first assume that
+                    // `value_length` is in bytes, and if the value parser fails,
+                    // then try again assuming that `value_length` is the number of
+                    // UTF-16 characters.
+                    let (data, value) = if type_ == 1 {
+                        take(value_len)
+                            .and_then(|v| value_parser.parse(v))
+                            .parse(data)
+                            .or_else(|_| {
+                                take(value_len * 2)
+                                    .and_then(|v| value_parser.parse(v))
+                                    .parse(data)
+                            })?
+                    } else {
+                        take(value_len)
+                            .and_then(|v| value_parser.parse(v))
+                            .parse(data)?
+                    };
 
-                (data, Some(value))
-            } else {
-                (data, None)
+                    (data, Some(value))
+                }
+                _ => (data, None),
             };
 
             let (_, children) = children_parser.parse(raw_children)?;
