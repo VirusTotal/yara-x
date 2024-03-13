@@ -43,7 +43,7 @@ jobs:
         - build: win-msvc
           os: windows-latest
           rust: stable
-          args: "--features=magic-module"
+          args: ""
         
         # Tests for the `stable-x86_64-pc-windows-gnu` toolchain disabled
         # due to https://github.com/VirusTotal/yara-x/issues/29
