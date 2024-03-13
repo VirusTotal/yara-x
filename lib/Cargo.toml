@@ -138,6 +138,7 @@ default = [
     "console-module",
     "dotnet-module",
     "elf-module",
+    "magic-module",
     "macho-module",
     "math-module",
     "hash-module",
@@ -217,11 +218,12 @@ yara = { version = "0.26.0", features = ["vendored"] }
 yara-x-proto-yaml = { workspace = true }
 zip = "0.6.6"
 
-[package.metadata.vcpkg]
-git = "https://github.com/microsoft/vcpkg"
-rev = "fba75d0"
-dependencies = ["libmagic"]
-
 [[bench]]
 name = "benches"
 harness = false
+
+
+[package.metadata.vcpkg]
+git = "https://github.com/microsoft/vcpkg"
+rev = "fba75d0"
+dependencies = ["bzip2", "zlib"]
