@@ -79,13 +79,13 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Build dependencies with vcpkg
-      uses: johnwason/vcpkg-action@v5
+      uses: johnwason/vcpkg-action@v6
       id: vcpkg
       with:
         pkgs: openssl libmagic bzip2 zlib
         triplet: ${{ matrix.vcpkg_triplet }}
         cache-key: ${{ runner.os }}
-        revision: master
+        revision: 729859f
         token: ${{ github.token }}
 
     - name: Set OPENSSL_DIR environment variable
