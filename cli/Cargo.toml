@@ -59,7 +59,3 @@ pprof = { version = "0.13.0", features = ["flamegraph"], optional = true }
 strum_macros = "0.25"
 superconsole = "0.2.0"
 wild = "2.1.0"
-
-
-[build-dependencies]
-vcpkg = { workspace = true }
