@@ -13,7 +13,7 @@ doc = false
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.19.2", features = ["abi3", "abi3-py38", "extension-module"]}
+pyo3 = { version = "0.19.2", features = ["abi3", "abi3-py38", "extension-module"] }
 pyo3-file = "0.7.0"
 
 protobuf-json-mapping = { workspace = true }

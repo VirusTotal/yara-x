@@ -1955,6 +1955,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "magic"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a200ae03df8c3dce7a963f6eeaac8feb41bf9001cb7e5ab22e3205aec2f0373d"
+dependencies = [
+ "bitflags 2.4.2",
+ "libc",
+ "magic-sys",
+ "thiserror",
+]
+
+[[package]]
+name = "magic-sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eff86ae08895140d628119d407d568f3b657145ee8c265878064f717534bb3bc"
+dependencies = [
+ "libc",
+ "vcpkg",
+]
+
+[[package]]
 name = "maplit"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3501,6 +3523,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
 name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3649,17 +3677,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasmparser"
-version = "0.201.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84e5df6dba6c0d7fafc63a450f1738451ed7a0b52295d83e868218fa286bf708"
-dependencies = [
- "bitflags 2.4.2",
- "indexmap 2.2.2",
- "semver 1.0.21",
-]
-
-[[package]]
 name = "wasmprinter"
 version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3667,16 +3684,6 @@ checksum = "05e32c13c59fdc64d3f6998a1d52eb1d362b6904a88b754190ccb85661ad577a"
 dependencies = [
  "anyhow",
  "wasmparser 0.121.0",
-]
-
-[[package]]
-name = "wasmprinter"
-version = "0.201.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a67e66da702706ba08729a78e3c0079085f6bfcb1a62e4799e97bbf728c2c265"
-dependencies = [
- "anyhow",
- "wasmparser 0.201.0",
 ]
 
 [[package]]
@@ -3835,7 +3842,7 @@ dependencies = [
  "thiserror",
  "wasm-encoder 0.41.0",
  "wasmparser 0.121.0",
- "wasmprinter 0.2.78",
+ "wasmprinter",
  "wasmtime-component-util",
  "wasmtime-types",
 ]
@@ -4422,6 +4429,7 @@ dependencies = [
  "lingua",
  "linkme",
  "log",
+ "magic",
  "md5",
  "memchr",
  "memx",
@@ -4445,7 +4453,6 @@ dependencies = [
  "tlsh-fixed",
  "uuid",
  "walrus",
- "wasmprinter 0.201.0",
  "wasmtime",
  "yansi 0.5.1",
  "yara",

@@ -96,6 +96,12 @@ macho-module = [
     "dep:roxmltree",
 ]
 
+# The `magic` allows recognizing file types based on the output of the
+# Unix `file` command. This feature is disabled by default.
+magic-module = [
+    "dep:magic"
+]
+
 # The `math` module.
 math-module = []
 
@@ -166,6 +172,7 @@ log = { workspace = true, optional = true }
 md5 = { workspace = true, optional = true }
 sha1 = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
+magic = { workspace = true, optional = true }
 memchr = { workspace = true }
 memx = { workspace = true }
 nom = { workspace = true, optional = true }
@@ -205,7 +212,6 @@ globwalk = { workspace = true }
 goldenfile = { workspace = true }
 ihex = "3.0.0"
 pretty_assertions = { workspace = true }
-wasmprinter = "0.201.0"
 yara = { version = "0.26.0", features = ["vendored"] }
 yara-x-proto-yaml = { workspace = true }
 zip = "0.6.6"
