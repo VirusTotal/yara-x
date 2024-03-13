@@ -23,26 +23,31 @@ jobs:
         - build: msrv
           os: ubuntu-latest
           rust: 1.73.0
+          vcpkg_triplet: x64-linux-release
           args: "--features=test_proto2-module,test_proto3-module,magic-module"
 
         - build: stable
           os: ubuntu-latest
           rust: stable
+          vcpkg_triplet: x64-linux-release
           args: "--features=test_proto2-module,test_proto3-module,magic-module"
 
         - build: nightly
           os: ubuntu-latest
           rust: nightly
+          vcpkg_triplet: x64-linux-release
           args: "--features=test_proto2-module,test_proto3-module,magic-module"
 
         - build: macos
           os: macos-latest
           rust: stable
+          vcpkg_triplet: x64-osx-release
           args: "--features=test_proto2-module,test_proto3-module,magic-module"
 
         - build: win-msvc
           os: windows-latest
           rust: stable
+          vcpkg_triplet: x64-windows-release
           args: "--features=test_proto2-module,test_proto3-module,magic-module"
         
         # Tests for the `stable-x86_64-pc-windows-gnu` toolchain disabled
@@ -51,11 +56,13 @@ jobs:
         # - build: win-gnu
         #   os: windows-latest
         #   rust: stable-x86_64-gnu
+        #   vcpkg_triplet: x64-linux-release
         #   args: ""
 
         - build: no-default-features
           os: ubuntu-latest
           rust: stable
+          vcpkg_triplet: x64-linux-release
           args: "--package yara-x --no-default-features --features=test_proto2-module,test_proto3-module,string-module,time-module,hash-module,macho-module,magic-module,math-module,lnk-module,elf-module,pe-module,dotnet-module,console-module"
 
     steps:
@@ -71,13 +78,14 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Install OpenSSL
-      id: vcpkg
-      if: runner.os == 'Windows'
+    - name: Build dependencies with vcpkg
       uses: johnwason/vcpkg-action@v5
+      id: vcpkg
       with:
-        pkgs: openssl
-        triplet: x64-windows-release
+        pkgs: openssl libmagic bzip2 zlib
+        triplet: ${{ matrix.config.vcpkg_triplet }}
+        cache-key: ${{ matrix.config.os }}
+        revision: master
         token: ${{ github.token }}
 
     - name: Set OPENSSL_DIR environment variable
