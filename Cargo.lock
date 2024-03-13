@@ -3677,17 +3677,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasmparser"
-version = "0.201.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84e5df6dba6c0d7fafc63a450f1738451ed7a0b52295d83e868218fa286bf708"
-dependencies = [
- "bitflags 2.4.2",
- "indexmap 2.2.2",
- "semver 1.0.21",
-]
-
-[[package]]
 name = "wasmprinter"
 version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3695,16 +3684,6 @@ checksum = "05e32c13c59fdc64d3f6998a1d52eb1d362b6904a88b754190ccb85661ad577a"
 dependencies = [
  "anyhow",
  "wasmparser 0.121.0",
-]
-
-[[package]]
-name = "wasmprinter"
-version = "0.201.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a67e66da702706ba08729a78e3c0079085f6bfcb1a62e4799e97bbf728c2c265"
-dependencies = [
- "anyhow",
- "wasmparser 0.201.0",
 ]
 
 [[package]]
@@ -3863,7 +3842,7 @@ dependencies = [
  "thiserror",
  "wasm-encoder 0.41.0",
  "wasmparser 0.121.0",
- "wasmprinter 0.2.78",
+ "wasmprinter",
  "wasmtime-component-util",
  "wasmtime-types",
 ]
@@ -4474,7 +4453,6 @@ dependencies = [
  "tlsh-fixed",
  "uuid",
  "walrus",
- "wasmprinter 0.201.0",
  "wasmtime",
  "yansi 0.5.1",
  "yara",
