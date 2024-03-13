@@ -138,7 +138,6 @@ default = [
     "console-module",
     "dotnet-module",
     "elf-module",
-    "magic-module",
     "macho-module",
     "math-module",
     "hash-module",
