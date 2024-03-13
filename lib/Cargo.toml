@@ -217,6 +217,10 @@ yara = { version = "0.26.0", features = ["vendored"] }
 yara-x-proto-yaml = { workspace = true }
 zip = "0.6.6"
 
+[package.metadata.vcpkg]
+git = "https://github.com/microsoft/vcpkg"
+rev = "fba75d0"
+
 [[bench]]
 name = "benches"
 harness = false

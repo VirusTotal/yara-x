@@ -90,6 +90,12 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
 
+    - name: Install cargo-vcpkg
+      run: cargo install cargo-vcpkg
+
+    - name: Run cargo vcpkg build
+      run: cargo vcpkg build --manifest-path lib/Cargo.toml
+
     - name: Run cargo test
       run: cargo test --all-targets ${{ matrix.args }}
       env:
