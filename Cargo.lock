@@ -4599,7 +4599,6 @@ dependencies = [
  "pyo3",
  "pyo3-build-config",
  "pyo3-file",
- "vcpkg",
  "yara-x",
 ]
 

@@ -18,7 +18,6 @@ pyo3-file = "0.7.0"
 
 protobuf-json-mapping = { workspace = true }
 yara-x = { workspace = true }
-vcpkg = "0.2.15"
 
 [build-dependencies]
 pyo3-build-config = "0.19.2"
