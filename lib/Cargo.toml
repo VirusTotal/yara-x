@@ -220,6 +220,7 @@ zip = "0.6.6"
 [package.metadata.vcpkg]
 git = "https://github.com/microsoft/vcpkg"
 rev = "fba75d0"
+dependencies = ["libmagic"]
 
 [[bench]]
 name = "benches"
