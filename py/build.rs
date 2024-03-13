@@ -1,7 +1,3 @@
 fn main() {
-    vcpkg::find_package("libmagic").unwrap();
-    vcpkg::find_package("bzip2").unwrap();
-    vcpkg::find_package("zlib").unwrap();
-
     pyo3_build_config::add_extension_module_link_args();
 }

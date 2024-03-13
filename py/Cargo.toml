@@ -22,4 +22,3 @@ vcpkg = "0.2.15"
 
 [build-dependencies]
 pyo3-build-config = "0.19.2"
-vcpkg = { workspace = true }

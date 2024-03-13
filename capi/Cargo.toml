@@ -19,4 +19,3 @@ yara-x = { workspace = true }
 
 [build-dependencies]
 cbindgen = { workspace = true }
-vcpkg = { workspace = true }

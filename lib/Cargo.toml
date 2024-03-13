@@ -221,9 +221,3 @@ zip = "0.6.6"
 [[bench]]
 name = "benches"
 harness = false
-
-
-[package.metadata.vcpkg]
-git = "https://github.com/microsoft/vcpkg"
-rev = "fba75d0"
-dependencies = ["bzip2", "zlib"]
