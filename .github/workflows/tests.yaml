@@ -85,7 +85,6 @@ jobs:
         pkgs: openssl libmagic bzip2 zlib
         triplet: ${{ matrix.vcpkg_triplet }}
         cache-key: ${{ runner.os }}
-        revision: 729859f
         token: ${{ github.token }}
 
     - name: Set OPENSSL_DIR environment variable
