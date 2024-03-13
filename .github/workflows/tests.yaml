@@ -83,8 +83,8 @@ jobs:
       id: vcpkg
       with:
         pkgs: openssl libmagic bzip2 zlib
-        triplet: ${{ matrix.config.vcpkg_triplet }}
-        cache-key: ${{ matrix.config.os }}
+        triplet: ${{ matrix.vcpkg_triplet }}
+        cache-key: ${{ runner.os }}
         revision: master
         token: ${{ github.token }}
 
