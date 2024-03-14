@@ -21,8 +21,11 @@ fn e2e_test() {
     let rules = crate::compile(
         r#"
     import "magic"
-    rule t {condition: magic.type() == "RISC OS music file"}
-    "#,
+    rule t { 
+      condition: 
+        magic.type() == "RISC OS music file" and 
+        magic.mime_type() == "text/plain"
+    }"#,
     )
     .unwrap();
 

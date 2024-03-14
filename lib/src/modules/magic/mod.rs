@@ -7,6 +7,7 @@ This allows creating YARA rules that use the file type provided by [libmagic][1]
 
 use crate::modules::prelude::*;
 use crate::modules::protos::magic::*;
+use std::cell::RefCell;
 
 #[cfg(test)]
 mod tests;
@@ -18,28 +19,54 @@ thread_local! {
             .load(&Default::default())
             .expect("loaded libmagic database")
     };
+
+    static TYPE_CACHE: RefCell<Option<String>> = {
+        RefCell::new(None)
+    };
+
+    static MIME_TYPE_CACHE: RefCell<Option<String>> = {
+        RefCell::new(None)
+    };
+
 }
 
 #[module_main]
 fn main(_data: &[u8]) -> Magic {
-    // Nothing to do, but we have to return our protobuf
+    // With every scanned file the cache must be cleared.
+    TYPE_CACHE.set(None);
+    MIME_TYPE_CACHE.set(None);
+
     Magic::new()
 }
 
 #[module_export(name = "type")]
 fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    Some(RuntimeString::from_slice(
-        ctx,
-        get_type(ctx.scanned_data()).as_bytes(),
-    ))
+    let cached: Option<String> = TYPE_CACHE.with(|_| None);
+
+    if let Some(cached) = cached {
+        return Some(RuntimeString::new(cached));
+    }
+
+    let type_ = get_type(ctx.scanned_data());
+
+    TYPE_CACHE.set(Some(type_.clone()));
+
+    Some(RuntimeString::new(type_))
 }
 
 #[module_export(name = "mime_type")]
 fn mime_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    Some(RuntimeString::from_slice(
-        ctx,
-        get_mime_type(ctx.scanned_data()).as_bytes(),
-    ))
+    let cached: Option<String> = MIME_TYPE_CACHE.with(|_| None);
+
+    if let Some(cached) = cached {
+        return Some(RuntimeString::new(cached));
+    }
+
+    let type_ = get_mime_type(ctx.scanned_data());
+
+    MIME_TYPE_CACHE.set(Some(type_.clone()));
+
+    Some(RuntimeString::new(type_))
 }
 
 fn get_type(data: &[u8]) -> String {
