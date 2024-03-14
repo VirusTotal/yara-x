@@ -41,7 +41,7 @@ fn main(_data: &[u8]) -> Magic {
 
 #[module_export(name = "type")]
 fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached: Option<String> = TYPE_CACHE.with(|_| None);
+    let cached = TYPE_CACHE.with(|cache| cache.borrow().clone());
 
     if let Some(cached) = cached {
         return Some(RuntimeString::new(cached));
@@ -49,14 +49,14 @@ fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let type_ = get_type(ctx.scanned_data());
 
-    TYPE_CACHE.set(Some(type_.clone()));
+    TYPE_CACHE.with(|cache| cache.borrow_mut().replace(type_.clone()));
 
     Some(RuntimeString::new(type_))
 }
 
 #[module_export(name = "mime_type")]
 fn mime_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
-    let cached: Option<String> = MIME_TYPE_CACHE.with(|_| None);
+    let cached = MIME_TYPE_CACHE.with(|cache| cache.borrow().clone());
 
     if let Some(cached) = cached {
         return Some(RuntimeString::new(cached));
@@ -64,7 +64,7 @@ fn mime_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
 
     let type_ = get_mime_type(ctx.scanned_data());
 
-    MIME_TYPE_CACHE.set(Some(type_.clone()));
+    MIME_TYPE_CACHE.with(|cache| cache.borrow_mut().replace(type_.clone()));
 
     Some(RuntimeString::new(type_))
 }
