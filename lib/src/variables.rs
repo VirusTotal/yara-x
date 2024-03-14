@@ -280,7 +280,7 @@ impl TryFrom<&serde_json::Value> for Variable {
                                     let mut s = types::Struct::new();
                                     for (key, value) in v {
                                         s.add_field(
-                                            key.as_str(),
+                                            key,
                                             TypeValue::from(
                                                 Variable::try_from(value)?,
                                             ),
@@ -301,7 +301,7 @@ impl TryFrom<&serde_json::Value> for Variable {
                 let mut s = types::Struct::new();
                 for (key, value) in obj {
                     s.add_field(
-                        key.as_str(),
+                        key,
                         TypeValue::from(Variable::try_from(value)?),
                     );
                 }

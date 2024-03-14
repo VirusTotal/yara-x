@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use bstr::BString;
 use indexmap::{IndexMap, IndexSet};
+use itertools::Itertools;
 use protobuf::reflect::{
     EnumDescriptor, FieldDescriptor, MessageDescriptor, ReflectMapRef,
     ReflectRepeatedRef, ReflectValueRef, RuntimeFieldType, RuntimeType,
@@ -13,10 +14,10 @@ use protobuf::MessageDyn;
 use serde::{Deserialize, Serialize};
 
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup};
-use yara_x_proto::exts::enum_options;
 use yara_x_proto::exts::enum_value;
 use yara_x_proto::exts::field_options;
 use yara_x_proto::exts::module_options;
+use yara_x_proto::exts::{enum_options, message_options};
 
 use crate::types::{Array, Map, TypeValue, Value};
 use crate::wasm::WasmExport;
@@ -86,34 +87,38 @@ impl Struct {
     /// Adds a new field to the structure.
     ///
     /// The field name may be a dot-separated sequence of field names, like
-    /// "foo.bar.baz". In such cases the structure must contain a field named
-    /// "foo", which must be another struct with a field named "bar", which
-    /// must be a structure where the field "baz" will be finally inserted.
+    /// "foo.bar.baz". In such cases the field named "foo" must be another
+    /// structure with a field named "bar", which is also a structure where
+    /// the field "baz" will be finally inserted. If some of the intermediate
+    /// structure fields don't exist, they will be created.
     ///
-    /// If the field was not present in the structure, it is added and the
-    /// function returns `None`. If it was already present, it is replaced
+    /// If the final field was not present in the structure, it is added and
+    /// the function returns `None`. If it was already present, it is replaced
     /// with the new field and the function returns `Some(StructField)` with
     /// the previous field.
     ///
     /// # Panics
     ///
     /// If the name is a dot-separated sequence of field names but some of
-    /// the fields don't exist or is not a structure. For example if field
-    /// name is "foo.bar.baz" but the field "foo" doesn't exist or is not
-    /// a structure.
+    /// the intermediate fields is not a structure. For example if field
+    /// name is "foo.bar.baz" but either "foo" or "bar" is not a structure.
     ///
     /// If there is some [`Rc`] or [`Weak`] pointer pointing to any of the
     /// intermediate structures (e.g: the structures in the "foo" and "bar"
     /// fields).
-    pub fn add_field(
+    pub fn add_field<N: Into<String>>(
         &mut self,
-        name: &str,
+        name: N,
         value: TypeValue,
     ) -> Option<StructField> {
+        let name = name.into();
         if let Some(dot) = name.find('.') {
-            let field =
-                self.field_by_name_mut(&name[0..dot]).unwrap_or_else(|| {
-                    panic!("field `{}` was not found", &name[0..dot])
+            // Get existing field or create a new one of type struct.
+            let field = self
+                .field_entry_by_name(name[0..dot].to_owned())
+                .or_insert_with(|| StructField {
+                    type_value: TypeValue::Struct(Rc::new(Struct::new())),
+                    number: 0,
                 });
 
             if let TypeValue::Struct(ref mut s) = field.type_value {
@@ -129,10 +134,40 @@ impl Struct {
                 panic!("field `{}` is not a struct", &name[0..dot])
             }
         } else {
-            self.fields.insert(
-                name.to_owned(),
-                StructField { type_value: value, number: 0 },
-            )
+            self.fields
+                .insert(name, StructField { type_value: value, number: 0 })
+        }
+    }
+
+    /// Adds a new fields to the structure corresponding to the values
+    /// in the given enum.
+    fn add_enum_fields(&mut self, enum_descriptor: &EnumDescriptor) {
+        let mut enclosing_msg = enum_descriptor.enclosing_message();
+        let mut path = Vec::new();
+
+        if !Self::enum_is_inline(enum_descriptor) {
+            path.push(Self::enum_name(enum_descriptor));
+        }
+
+        while let Some(msg) = enclosing_msg {
+            if !Self::is_module_root(&msg) {
+                path.push(Self::message_name(&msg));
+            }
+            enclosing_msg = msg.enclosing_message()
+        }
+
+        let path = path.iter().rev().join(".");
+
+        for item in enum_descriptor.values() {
+            let field_name = if path.is_empty() {
+                item.name().to_owned()
+            } else {
+                format!("{}.{}", path, item.name())
+            };
+            self.add_field(
+                field_name,
+                TypeValue::const_integer_from(Self::enum_value(&item)),
+            );
         }
     }
 
@@ -170,6 +205,16 @@ impl Struct {
         name: &str,
     ) -> Option<&mut StructField> {
         self.fields.get_mut(name)
+    }
+
+    /// Get the entry corresponding to the field with the give name, for
+    /// insertion and/or in-place manipulation.
+    #[inline]
+    pub fn field_entry_by_name(
+        &mut self,
+        name: String,
+    ) -> indexmap::map::Entry<String, StructField> {
+        self.fields.entry(name)
     }
 
     /// Creates a [`Struct`] from a protobuf message descriptor.
@@ -298,89 +343,6 @@ impl Struct {
         // Sort fields by field numbers specified in the proto.
         fields.sort_by(|a, b| a.1.number.cmp(&b.1.number));
 
-        if generate_fields_for_enums {
-            let mut enums = IndexSet::new();
-
-            // Enums declared inside a message are treated as a nested
-            // structure where each field is an enum item, and each
-            // field has a constant value.
-            for enum_ in msg_descriptor.nested_enums() {
-                enums.insert(enum_);
-            }
-
-            // If the message is the module's root message, the enums that are
-            // declared in the file outside any structures, and those that are
-            // used by the root message (either directly or indirectly) are
-            // added as fields of this structure too.
-            if Self::is_root_msg(msg_descriptor) {
-                for enum_ in msg_descriptor.file_descriptor().enums() {
-                    enums.insert(enum_);
-                }
-                Self::enums_used(msg_descriptor, &mut |enum_| {
-                    enums.insert(enum_);
-                });
-            }
-
-            for enum_ in enums {
-                if Self::enum_is_inline(&enum_) {
-                    for item in enum_.values() {
-                        fields.push((
-                            item.name().to_owned(),
-                            StructField {
-                                type_value: TypeValue::const_integer_from(
-                                    Self::enum_value(&item),
-                                ),
-                                number: 0,
-                            },
-                        ));
-                    }
-                } else {
-                    // Create the structure where each field will be one of the
-                    // enum's items.
-                    let mut enum_struct = Struct::new();
-
-                    for item in enum_.values() {
-                        if enum_struct
-                            .add_field(
-                                item.name(),
-                                TypeValue::const_integer_from(
-                                    Self::enum_value(&item),
-                                ),
-                            )
-                            .is_some()
-                        {
-                            panic!("field '{}' already exists", item.name());
-                        }
-                    }
-
-                    fields.push((
-                        Self::enum_name(&enum_),
-                        StructField {
-                            type_value: TypeValue::Struct(Rc::new(
-                                enum_struct,
-                            )),
-                            number: 0,
-                        },
-                    ));
-                }
-            }
-        }
-
-        // Get the methods implemented for this struct type.
-        let methods = WasmExport::get_methods(msg_descriptor.full_name());
-
-        // For each method implemented by this struct field, add a field
-        // to the struct of function type.
-        for (name, method) in methods {
-            fields.push((
-                name.to_owned(),
-                StructField {
-                    number: 0,
-                    type_value: TypeValue::Func(Rc::new(method)),
-                },
-            ))
-        }
-
         // Insert the fields in a map, checking for duplicate fields.
         let mut field_index = IndexMap::new();
 
@@ -393,11 +355,51 @@ impl Struct {
             }
         }
 
-        Self { fields: field_index, is_root: false }
+        let mut new_struct = Self { fields: field_index, is_root: false };
+
+        // Get the methods implemented for this struct type.
+        let methods = WasmExport::get_methods(msg_descriptor.full_name());
+
+        // For each method implemented by this struct field, add a field
+        // to the struct of function type. Methods can not have the same name
+        // as an existing field.
+        for (name, method) in methods {
+            if new_struct
+                .add_field(name, TypeValue::Func(Rc::new(method)))
+                .is_some()
+            {
+                panic!(
+                    "method `{}` has the same name than a field in `{}`",
+                    name,
+                    msg_descriptor.name()
+                )
+            };
+        }
+
+        if generate_fields_for_enums && Self::is_module_root(msg_descriptor) {
+            let mut enums = IndexSet::new();
+
+            // Any enum declared or used by the module's root message is added.
+            Self::nested_enums(msg_descriptor, &mut |enum_| {
+                enums.insert(enum_);
+            });
+
+            // Also add the enums that are declared in the file outside any
+            // structures.
+            for enum_ in msg_descriptor.file_descriptor().enums() {
+                enums.insert(enum_);
+            }
+
+            for enum_ in &enums {
+                new_struct.add_enum_fields(enum_);
+            }
+        }
+
+        new_struct
     }
 
     /// Returns true if the given message is the YARA module's root message.
-    fn is_root_msg(msg_descriptor: &MessageDescriptor) -> bool {
+    fn is_module_root(msg_descriptor: &MessageDescriptor) -> bool {
         let file_descriptor = msg_descriptor.file_descriptor();
         if let Some(options) =
             module_options.get(&file_descriptor.proto().options)
@@ -408,13 +410,17 @@ impl Struct {
         }
     }
 
-    /// Calls `f` for every enum type used by a protobuf message, both directly
-    /// (fields of type enum declared in the message), or indirectly (fields of
-    /// message type that use some enum type).
-    fn enums_used<F>(msg_descriptor: &MessageDescriptor, f: &mut F)
+    /// Calls `f` for every enum type used or declared by a protobuf message,
+    /// both directly (enums declared inside the message, or fields of type
+    /// enum declared in the message), or indirectly (fields of message type
+    /// that use or declare some enum type).
+    fn nested_enums<F>(msg_descriptor: &MessageDescriptor, f: &mut F)
     where
         F: FnMut(EnumDescriptor),
     {
+        for e in msg_descriptor.nested_enums() {
+            f(e);
+        }
         for fd in msg_descriptor.fields() {
             if Self::ignore_field(&fd) {
                 continue;
@@ -426,16 +432,42 @@ impl Struct {
                     if m.full_name() == msg_descriptor.full_name() {
                         panic!("recursive protobuf type: {}", m.full_name())
                     }
-                    Self::enums_used(&m, f);
+                    Self::nested_enums(&m, f);
                 }
                 RuntimeFieldType::Repeated(RuntimeType::Message(m)) => {
                     if m.full_name() == msg_descriptor.full_name() {
                         panic!("recursive protobuf type: {}", m.full_name())
                     }
-                    Self::enums_used(&m, f);
+                    Self::nested_enums(&m, f);
                 }
                 _ => {}
             }
+        }
+    }
+
+    /// Given a [`MessageDescriptor`] returns the name that the corresponding
+    /// structure will have in YARA.
+    ///
+    /// By default, the name of the structure will be the same one that it has
+    /// in the protobuf definition. However, the name can be set to something
+    /// different by using an annotation in the .proto file, like this:
+    ///
+    /// ```text
+    /// message Foo {
+    ///  option (yara.message_options).name = "Bar";
+    /// }
+    ///
+    /// ```
+    ///
+    /// Here the `Foo` structure will be named `Bar` when the protobuf is
+    /// converted into a [`Struct`].
+    fn message_name(msg_descriptor: &MessageDescriptor) -> String {
+        if let Some(options) =
+            message_options.get(&msg_descriptor.proto().options)
+        {
+            options.name.unwrap_or_else(|| msg_descriptor.name().to_owned())
+        } else {
+            msg_descriptor.name().to_owned()
         }
     }
 

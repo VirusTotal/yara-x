@@ -45,7 +45,7 @@ option (yara.module_options) = {
   // in the data structure defined by this proto file, and don't need to have
   // any associated code.
   rust_module: "test_proto2"
-  
+
   // The name of the feature that controls whether this module is compiled or
   // not. A feature with this name must be added to the Cargo.toml file.
   cargo_feature: "test_proto2-module"
@@ -119,19 +119,19 @@ message TestProto2 {
   optional int32              int32_undef = 41;
   optional int64              int64_undef = 42;
 
-  optional sint32             sint32_undef  = 43;
-  optional sint64             sint64_undef  = 44;
+  optional sint32             sint32_undef = 43;
+  optional sint64             sint64_undef = 44;
 
-  optional uint32             uint32_undef  = 45;
-  optional uint64             uint64_undef  = 46;
+  optional uint32             uint32_undef = 45;
+  optional uint64             uint64_undef = 46;
 
-  optional fixed32            fixed32_undef  = 47;
-  optional fixed64            fixed64_undef  = 48;
+  optional fixed32            fixed32_undef = 47;
+  optional fixed64            fixed64_undef = 48;
 
-  optional sfixed32           sfixed32_undef  = 49;
-  optional sfixed64           sfixed64_undef  = 50;
+  optional sfixed32           sfixed32_undef = 49;
+  optional sfixed64           sfixed64_undef = 50;
 
-  optional float              float_undef  = 51;
+  optional float              float_undef = 51;
   optional double             double_undef = 52;
 
   // String values.
@@ -206,4 +206,9 @@ message NestedProto2 {
   optional int64              nested_int64_one = 4;
   optional bool               nested_bool = 5;
   repeated int64              nested_array_int64 = 6;
+
+  enum NestedEnumeration {
+    ITEM_0 = 0;
+    ITEM_1 = 1;
+  }
 }

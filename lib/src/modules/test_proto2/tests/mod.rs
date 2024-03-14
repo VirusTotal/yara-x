@@ -272,4 +272,10 @@ fn test_proto2_module() {
         test_proto2.array_struct[1].nested_method()
         "#
     );
+
+    condition_true!(
+        r#"
+        test_proto2.NestedProto2.NestedEnumeration.ITEM_1 == 1
+        "#
+    );
 }
