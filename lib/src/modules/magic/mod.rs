@@ -9,6 +9,9 @@ use crate::modules::prelude::*;
 use crate::modules::protos::magic::*;
 use std::cell::RefCell;
 
+#[cfg(feature = "logging")]
+use log::*;
+
 #[cfg(test)]
 mod tests;
 
@@ -47,11 +50,17 @@ fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return Some(RuntimeString::new(cached));
     }
 
-    let type_ = get_type(ctx.scanned_data());
-
-    TYPE_CACHE.with(|cache| cache.borrow_mut().replace(type_.clone()));
-
-    Some(RuntimeString::new(type_))
+    match get_type(ctx.scanned_data()) {
+        Ok(type_) => {
+            TYPE_CACHE.replace(Some(type_.clone()));
+            Some(RuntimeString::new(type_))
+        }
+        Err(err) => {
+            #[cfg(feature = "logging")]
+            error!("libmagic error: {}", err);
+            None
+        }
+    }
 }
 
 #[module_export(name = "mime_type")]
@@ -62,25 +71,31 @@ fn mime_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
         return Some(RuntimeString::new(cached));
     }
 
-    let type_ = get_mime_type(ctx.scanned_data());
-
-    MIME_TYPE_CACHE.with(|cache| cache.borrow_mut().replace(type_.clone()));
-
-    Some(RuntimeString::new(type_))
+    match get_mime_type(ctx.scanned_data()) {
+        Ok(type_) => {
+            MIME_TYPE_CACHE.replace(Some(type_.clone()));
+            Some(RuntimeString::new(type_))
+        }
+        Err(err) => {
+            #[cfg(feature = "logging")]
+            error!("libmagic error: {}", err);
+            None
+        }
+    }
 }
 
-fn get_type(data: &[u8]) -> String {
+fn get_type(data: &[u8]) -> Result<String, magic::cookie::Error> {
     MAGIC
         .with(|magic| magic.set_flags(Default::default()))
         .expect("set libmagic options");
 
-    MAGIC.with(|magic| magic.buffer(data)).expect("libmagic didn't break")
+    MAGIC.with(|magic| magic.buffer(data))
 }
 
-fn get_mime_type(data: &[u8]) -> String {
+fn get_mime_type(data: &[u8]) -> Result<String, magic::cookie::Error> {
     MAGIC
         .with(|magic| magic.set_flags(magic::cookie::Flags::MIME_TYPE))
         .expect("set libmagic options");
 
-    MAGIC.with(|magic| magic.buffer(data)).expect("libmagic didn't break")
+    MAGIC.with(|magic| magic.buffer(data))
 }
