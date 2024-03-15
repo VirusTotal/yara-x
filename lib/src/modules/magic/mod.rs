@@ -55,6 +55,7 @@ fn file_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
             TYPE_CACHE.replace(Some(type_.clone()));
             Some(RuntimeString::new(type_))
         }
+        #[allow(unused_variables)]
         Err(err) => {
             #[cfg(feature = "logging")]
             error!("libmagic error: {}", err);
@@ -76,6 +77,7 @@ fn mime_type(ctx: &mut ScanContext) -> Option<RuntimeString> {
             MIME_TYPE_CACHE.replace(Some(type_.clone()));
             Some(RuntimeString::new(type_))
         }
+        #[allow(unused_variables)]
         Err(err) => {
             #[cfg(feature = "logging")]
             error!("libmagic error: {}", err);

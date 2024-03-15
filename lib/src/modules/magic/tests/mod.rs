@@ -2,17 +2,17 @@ use pretty_assertions::assert_eq;
 
 #[test]
 fn get_filetype() {
-    let data = b"Maestro\r";
-    let expected = "RISC OS music file";
-    assert_eq!(expected, crate::modules::magic::get_type(data))
+    assert_eq!(
+        "RISC OS music file",
+        crate::modules::magic::get_type(b"Maestro\r").unwrap()
+    )
 }
 
 #[test]
 fn get_mimetype() {
-    let expected = "text/plain";
     assert_eq!(
-        expected,
-        crate::modules::magic::get_mime_type(expected.as_bytes())
+        "text/plain",
+        crate::modules::magic::get_mime_type(b"foobar").unwrap()
     )
 }
 
