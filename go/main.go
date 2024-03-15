@@ -19,7 +19,7 @@ import (
 // Option represent an option passed to Compile.
 type Option func(c *Compiler) error
 
-// GlobalVars is a Compile option that allows defining global variables.
+// GlobalVars is an option for Compile that allows defining global variables.
 func GlobalVars(vars map[string]interface{}) Option {
 	return func(c *Compiler) error {
 		for ident, value := range vars {
@@ -27,6 +27,15 @@ func GlobalVars(vars map[string]interface{}) Option {
 				return err
 			}
 		}
+		return nil
+	}
+}
+
+// UnsupportedModule is an option for Compile that allows specifying an
+// unsupported module. See Compiler.AddUnsupportedModule for details.
+func UnsupportedModule(module string) Option {
+	return func(c *Compiler) error {
+		c.AddUnsupportedModule(module)
 		return nil
 	}
 }
