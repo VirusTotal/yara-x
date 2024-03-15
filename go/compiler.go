@@ -42,6 +42,16 @@ func (c *Compiler) AddSource(src string) error {
 	return nil
 }
 
+func (c *Compiler) AddUnsupportedModule(module string) {
+	cModule := C.CString(module)
+	defer C.free(unsafe.Pointer(cModule))
+	result := C.yrx_compiler_add_unsupported_module(c.cCompiler, cModule)
+	if result != C.SUCCESS {
+		panic("yrx_compiler_add_unsupported_module failed")
+	}
+	runtime.KeepAlive(c)
+}
+
 func (c *Compiler) NewNamespace(namespace string) {
 	cNamespace := C.CString(namespace)
 	defer C.free(unsafe.Pointer(cNamespace))

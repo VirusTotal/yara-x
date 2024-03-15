@@ -79,9 +79,9 @@ def test_namespaces():
   compiler.add_source('rule bar {strings: $bar = "bar" condition: $bar}')
   rules = compiler.build()
   matching_rules = rules.scan(b'foobar').matching_rules
-  
+
   assert len(matching_rules) == 2
-  
+
   assert matching_rules[0].identifier == 'foo'
   assert matching_rules[0].namespace == 'foo'
   assert len(matching_rules[0].patterns) == 1
@@ -99,6 +99,7 @@ def test_namespaces():
   assert matching_rules[1].patterns[0].matches[0].offset == 3
   assert matching_rules[1].patterns[0].matches[0].length == 3
   assert matching_rules[1].patterns[0].matches[0].xor_key is None
+
 
 def test_compile_and_scan():
   rules = yara_x.compile('rule foo {strings: $a = "foo" condition: $a}')
@@ -134,7 +135,8 @@ def test_xor_key():
 
 def test_scanner_timeout():
   compiler = yara_x.Compiler()
-  compiler.add_source('rule foo {condition: for all i in (0..10000000000) : ( true )}')
+  compiler.add_source(
+      'rule foo {condition: for all i in (0..10000000000) : ( true )}')
   scanner = yara_x.Scanner(compiler.build())
   scanner.timeout(1)
   with pytest.raises(Exception, match='timeout'):
@@ -147,6 +149,15 @@ def test_module_outputs():
   assert module_outputs['test_proto2']['int32One'] == 1
 
 
+def test_unsupported_modules():
+  compiler = yara_x.Compiler()
+  compiler.add_unsupported_module("unsupported_module")
+  compiler.add_source(
+      'import "unsupported_module" rule foo {condition: true}')
+  rules = compiler.build()
+  assert len(rules.scan(b'').matching_rules) == 1
+
+
 def test_serialization():
   rules = yara_x.compile('rule foo {condition: true}')
   f = io.BytesIO()
@@ -154,16 +165,19 @@ def test_serialization():
   f.seek(0)
   rules = yara_x.Rules.deserialize_from(f)
   assert len(rules.scan(b'').matching_rules) == 1
-  
+
 
 def test_console_log():
-  ok = False 
+  ok = False
+
   def callback(msg):
     nonlocal ok
     if msg == 'foo':
       ok = True
+
   compiler = yara_x.Compiler()
-  compiler.add_source('import "console" rule foo {condition: console.log("foo")}')
+  compiler.add_source(
+      'import "console" rule foo {condition: console.log("foo")}')
   scanner = yara_x.Scanner(compiler.build())
   scanner.console_log(callback)
   scanner.scan(b'')

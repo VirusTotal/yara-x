@@ -18,6 +18,20 @@ func TestNamespaces(t *testing.T) {
 	assert.Len(t, matchingRules, 2)
 }
 
+func TestUnsupportedModules(t *testing.T) {
+	c := NewCompiler()
+	c.AddUnsupportedModule("unsupported_module")
+	c.NewNamespace("foo")
+	c.AddSource(`
+		import "unsupported_module"
+		rule test { condition: true }`)
+
+	s := NewScanner(c.Build())
+	matchingRules, _ := s.Scan([]byte{})
+
+	assert.Len(t, matchingRules, 1)
+}
+
 func TestSerialization(t *testing.T) {
 	c := NewCompiler()
 	c.AddSource("rule test { condition: true }")
