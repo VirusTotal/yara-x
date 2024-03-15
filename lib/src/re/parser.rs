@@ -52,7 +52,7 @@ impl Parser {
     /// If true, allows regular expressions that mixes greedy and non-greedy
     /// quantifiers (e.g: `/ab.*cd.*?ef/`). When mixed greediness is not allowed
     /// [`Parser::parse`] returns an error if the regular expression contains
-    /// both greedy and non-greedy quantifiers. By default mixed greediness is
+    /// both greedy and non-greedy quantifiers. By default, mixed greediness is
     /// allowed.
     pub fn allow_mixed_greediness(mut self, yes: bool) -> Self {
         self.allow_mixed_greediness = yes;
@@ -89,13 +89,12 @@ impl Parser {
             regexp.case_insensitive
         };
 
-        let mut translator =
-            regex_syntax::hir::translate::TranslatorBuilder::new()
-                .case_insensitive(case_insensitive)
-                .dot_matches_new_line(regexp.dot_matches_new_line)
-                .unicode(false)
-                .utf8(false)
-                .build();
+        let mut translator = re::hir::translate::TranslatorBuilder::new()
+            .case_insensitive(case_insensitive)
+            .dot_matches_new_line(regexp.dot_matches_new_line)
+            .unicode(false)
+            .utf8(false)
+            .build();
 
         let hir = translator.translate(regexp.src, &ast).map_err(|err| {
             Error::SyntaxError {
