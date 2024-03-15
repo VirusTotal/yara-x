@@ -272,6 +272,8 @@ fn string_operations() {
     condition_false!(r#""foo\nbar" matches /foo.*bar/"#);
     condition_true!(r#""foobar" matches /fo{,2}bar/"#);
     condition_true!(r#""タイトル" matches /タイトル/"#);
+    condition_true!(r#""\xF7\xFF" matches /\xF7\xFF/"#);
+    condition_true!(r#""\xe2\x28\xa1" matches /\xe2\x28\xa1/"#);
     condition_true!(r#""🙈🙉🙊" matches /.../"#);
 }
 

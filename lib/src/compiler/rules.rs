@@ -239,6 +239,8 @@ impl Rules {
             regex_syntax::hir::translate::TranslatorBuilder::new()
                 .dot_matches_new_line(re.dot_matches_new_line())
                 .case_insensitive(re.case_insensitive())
+                .unicode(false)
+                .utf8(false)
                 .build();
 
         let hir = translator.translate(re.naked(), &ast).unwrap();
