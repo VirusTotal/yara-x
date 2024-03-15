@@ -490,6 +490,34 @@ fn globals_json() {
     );
 }
 
+#[test]
+fn unsupported_modules() {
+    let mut compiler = Compiler::new();
+
+    compiler
+        .add_unsupported_module("foo_module")
+        .add_source(
+            r#"
+            import "foo_module"
+            rule ignored { condition: foo_module.some_field == 1 }
+            // This rule should match even if the previous one was ignored.
+            rule always_true { condition: true }
+            "#,
+        )
+        .unwrap();
+
+    let rules = compiler.build();
+
+    assert_eq!(
+        Scanner::new(&rules)
+            .scan(&[])
+            .expect("scan should not fail")
+            .matching_rules()
+            .len(),
+        1
+    );
+}
+
 #[cfg(feature = "test_proto2-module")]
 #[test]
 fn import_modules() {

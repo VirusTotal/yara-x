@@ -78,5 +78,15 @@ pub enum Warning {
     SlowPattern {
         detailed_report: String,
         span: Span,
-    }
+    },
+
+    #[warning("module `{module_name}` is not supported")]
+    #[label("module `{module_name}` used here", span)]
+    #[note(note)]
+    UnsupportedModule {
+        detailed_report: String,
+        module_name: String,
+        span: Span,
+        note: Option<String>,
+    },
 }

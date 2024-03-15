@@ -343,14 +343,16 @@ pub(in crate::compiler) fn expr_from_ast(
             };
 
             if symbol.is_none() {
-                return Err(Box::new(CompileError::unknown_identifier(
+                // If the current symbol table is `None` it means that the
+                // identifier is not a field or method of some structure.
+                return if current_symbol_table.is_none() {
+                    Err(Box::new(CompileError::unknown_identifier(
                         ctx.report_builder,
                         ident.name.to_string(),
                         ident.span(),
                         // Add a note about the missing import statement if
                         // the unknown identifier is a module name.
-                        if current_symbol_table.is_none()
-                            && BUILTIN_MODULES.contains_key(ident.name)
+                        if BUILTIN_MODULES.contains_key(ident.name)
                         {
                             Some(format!(
                                 "there is a module named `{}`, but the `import \"{}\"` statement is missing",
@@ -360,8 +362,14 @@ pub(in crate::compiler) fn expr_from_ast(
                         } else {
                             None
                         },
-                    ),
-                ));
+                    )))
+                } else {
+                    Err(Box::new(CompileError::unknown_field(
+                        ctx.report_builder,
+                        ident.name.to_string(),
+                        ident.span(),
+                    )))
+                }
             }
 
             let symbol = symbol.unwrap();

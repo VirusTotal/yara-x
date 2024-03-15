@@ -393,11 +393,35 @@ rule test {
 ───╯
 "#,
         ),
+        ////////////////////////////////////////////////////////////
+        (
+            line!(),
+            r#"
+import "unsupported_module"
+rule test {
+  strings:
+    $a = {00 [1-10] 01}
+  condition: 
+    $a
+}
+"#,
+            r#"warning: module `unsupported_module` is not supported
+   ╭─[line:2:1]
+   │
+ 2 │ import "unsupported_module"
+   │ ─────────────┬─────────────  
+   │              ╰─────────────── module `unsupported_module` used here
+───╯
+"#,
+        ),
     ];
 
     for t in tests {
         let mut compiler = Compiler::new();
-        compiler.add_source(t.1).unwrap();
+        compiler
+            .add_unsupported_module("unsupported_module")
+            .add_source(t.1)
+            .unwrap();
         assert!(
             !compiler.warnings.is_empty(),
             "test at line {} didn't produce warnings",
