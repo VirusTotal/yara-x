@@ -14,7 +14,7 @@ message Dotnet {
   optional bool is_dotnet = 1;
   optional string module_name = 2;
   optional bytes version = 3;  // TODO: should be string?
-  
+
   optional uint64 number_of_streams = 4;
   optional uint64 number_of_guids = 5;
   optional uint64 number_of_resources = 6;
@@ -32,11 +32,12 @@ message Dotnet {
   repeated string guids = 18;
   repeated bytes constants = 19;
   optional Assembly assembly = 20;
-  repeated AssemblyRef assembly_refs = 21; 
+  repeated AssemblyRef assembly_refs = 21;
   repeated Resource resources = 22;
   repeated Class classes = 23;
   repeated uint32 field_offsets = 24;
   repeated bytes user_strings = 25;
+  repeated string modulerefs = 26;
 }
 
 message Assembly {
@@ -90,7 +91,7 @@ message Method {
   optional string name = 1;
   optional string visibility = 2;
   required bool abstract = 3;
-  required bool static= 4;
+  required bool static = 4;
   required bool virtual = 5;
   required bool final = 6;
   optional string return_type = 7;

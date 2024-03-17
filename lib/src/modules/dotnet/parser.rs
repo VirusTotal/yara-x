@@ -2689,6 +2689,13 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
             dotnet.assembly_refs.iter().map(protos::dotnet::AssemblyRef::from),
         );
 
+        result.modulerefs.extend(
+            dotnet
+                .module_refs
+                .iter()
+                .filter_map(|module_ref| module_ref.map(|s| s.to_string())),
+        );
+
         result.streams.extend(
             dotnet.stream_headers.iter().map(protos::dotnet::Stream::from),
         );
@@ -2726,6 +2733,10 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
 
         result.set_number_of_constants(
             result.constants.len().try_into().unwrap(),
+        );
+
+        result.set_number_of_modulerefs(
+            result.modulerefs.len().try_into().unwrap(),
         );
 
         result
