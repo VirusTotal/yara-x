@@ -188,6 +188,18 @@ pub enum Instr<'a> {
     /// The negation of WordBoundary. Used for \B look-around assertions. This
     /// is a zero-length match.
     WordBoundaryNeg,
+
+    /// Match the start of a word boundary. That is, this matches a position at
+    /// either the beginning of the haystack or where the previous character is
+    /// not a word character and the following character is a word character.
+    /// This is a zero-length match.
+    WordStart,
+
+    /// Match the end of a word boundary. That is, this matches a position at
+    /// either the end of the haystack or where the previous character is a word
+    /// character and the following character is not a word character. This is a
+    /// zero-length match.
+    WordEnd,
 }
 
 impl<'a> Instr<'a> {
@@ -205,6 +217,8 @@ impl<'a> Instr<'a> {
     pub const END: u8 = 0x0B;
     pub const WORD_BOUNDARY: u8 = 0x0C;
     pub const WORD_BOUNDARY_NEG: u8 = 0x0D;
+    pub const WORD_START: u8 = 0x0E;
+    pub const WORD_END: u8 = 0x0F;
 }
 
 /// Parses a slice of bytes that contains Pike VM instructions, returning
@@ -294,6 +308,8 @@ impl<'a> InstrParser<'a> {
             [OPCODE_PREFIX, Instr::WORD_BOUNDARY_NEG, ..] => {
                 (Instr::WordBoundaryNeg, 2)
             }
+            [OPCODE_PREFIX, Instr::WORD_START, ..] => (Instr::WordStart, 2),
+            [OPCODE_PREFIX, Instr::WORD_END, ..] => (Instr::WordEnd, 2),
             [OPCODE_PREFIX, Instr::MATCH, ..] => (Instr::Match, 2),
             [OPCODE_PREFIX, OPCODE_PREFIX, ..] => {
                 (Instr::Byte(OPCODE_PREFIX), 2)

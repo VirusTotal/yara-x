@@ -316,6 +316,8 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
     state.threads.push(start.location());
     state.dirty = true;
 
+    let is_word_char = |c: u8| c == b'_' || c.is_ascii_alphanumeric();
+
     while let Some(ip) = state.threads.pop() {
         let (instr, size) =
             InstrParser::decode_instr(unsafe { code.get_unchecked(ip..) });
@@ -378,10 +380,37 @@ pub(crate) fn epsilon_closure<C: CodeLoc>(
                     state.threads.push(next);
                 }
             }
+            Instr::WordStart => {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
+                        !is_word_char(*p) && is_word_char(*c)
+                    }
+                    (false, None, Some(c)) | (true, Some(c), None) => {
+                        is_word_char(*c)
+                    }
+                    _ => false,
+                };
+                if is_match {
+                    state.threads.push(next)
+                }
+            }
+            Instr::WordEnd => {
+                let is_match = match (start.backwards(), prev_byte, curr_byte)
+                {
+                    (false, Some(p), Some(c)) | (true, Some(c), Some(p)) => {
+                        is_word_char(*p) && !is_word_char(*c)
+                    }
+                    (false, Some(p), None) | (true, Some(p), None) => {
+                        is_word_char(*p)
+                    }
+                    _ => false,
+                };
+                if is_match {
+                    state.threads.push(next)
+                }
+            }
             Instr::WordBoundary | Instr::WordBoundaryNeg => {
-                let is_word_char =
-                    |c: u8| c == b'_' || c.is_ascii_alphanumeric();
-
                 let mut is_match = match (prev_byte, curr_byte) {
                     (Some(p), Some(c)) => is_word_char(*p) != is_word_char(*c),
                     (None, Some(b)) | (Some(b), None) => is_word_char(*b),

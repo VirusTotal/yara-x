@@ -1287,6 +1287,15 @@ fn regexp_patterns_4() {
     pattern_match!(r"/\w\w\w\B/", b"abcd", b"abc");
     pattern_match!(r"/\B\w\w\w/", b"abcd", b"bcd");
     pattern_false!(r"/\B\w\w\w\B/", b"abcd");
+    pattern_match!(r"/\<abc/", b"abc", b"abc");
+    pattern_match!(r"/abc\>/", b"abc", b"abc");
+    pattern_match!(r"/\b{start}abc/", b"abc", b"abc");
+    pattern_match!(r"/abc\b{end}/", b"abc", b"abc");
+    pattern_match!(r"/\<abc/", b" abc", b"abc");
+    pattern_match!(r"/abc\>/", b"abc ", b"abc");
+    pattern_false!(r"/\<abc/", b"1abc");
+    pattern_false!(r"/abc\>/", b"abc1");
+
     pattern_false!(r#"/a.b/"#, b"a\nb");
     pattern_false!(r#"/a.*b/"#, b"acc\nccb");
     pattern_match!(r#"/foo/"#, b"foo", b"foo");

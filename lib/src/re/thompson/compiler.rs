@@ -363,7 +363,9 @@ impl Compiler {
             Look::WordAsciiNegate => {
                 self.emit_instr(Instr::WORD_BOUNDARY_NEG)?
             }
-            _ => unreachable!(),
+            Look::WordStartAscii => self.emit_instr(Instr::WORD_START)?,
+            Look::WordEndAscii => self.emit_instr(Instr::WORD_END)?,
+            _ => unreachable!("{:?}", look),
         })
     }
 
@@ -1515,6 +1517,12 @@ impl Display for InstrSeq {
                 }
                 Instr::WordBoundaryNeg => {
                     writeln!(f, "{:05x}: WORD_BOUNDARY_NEG", addr)?;
+                }
+                Instr::WordStart => {
+                    writeln!(f, "{:05x}: WORD_START", addr)?;
+                }
+                Instr::WordEnd => {
+                    writeln!(f, "{:05x}: WORD_END", addr)?;
                 }
                 Instr::Match => {
                     writeln!(f, "{:05x}: MATCH", addr)?;
