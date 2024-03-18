@@ -1365,7 +1365,7 @@ impl<'a> PE<'a> {
 
     fn parse_dir_entries(&self) -> Option<Vec<DirEntry>> {
         // The number of directory entries is limited to MAX_DIR_ENTRIES.
-        let num_dir_entries = usize::max(
+        let num_dir_entries = usize::min(
             self.optional_hdr.number_of_rva_and_sizes as usize,
             Self::MAX_DIR_ENTRIES,
         );

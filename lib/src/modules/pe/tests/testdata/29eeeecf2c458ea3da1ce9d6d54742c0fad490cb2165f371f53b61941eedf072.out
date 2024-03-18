@@ -202,38 +202,6 @@ data_directories:
     size: 0
   - virtual_address: 0
     size: 0
-  - virtual_address: 2019914798
-    size: 116
-  - virtual_address: 340336
-    size: 4096
-  - virtual_address: 340480
-    size: 1024
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 1610612768
-  - virtual_address: 1952539694
-    size: 97
-  - virtual_address: 42620
-    size: 348160
-  - virtual_address: 40960
-    size: 341504
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 3221225536
-  - virtual_address: 1936487470
-    size: 0
-  - virtual_address: 9
-    size: 393216
-  - virtual_address: 512
-    size: 382464
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 3221225536
-  - virtual_address: 1920168494
-    size: 99
 resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
 resource_version:
     major: 0
