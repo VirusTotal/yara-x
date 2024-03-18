@@ -2055,8 +2055,13 @@ impl<'a> Dotnet<'a> {
                     Table::Null,
                 ]),
             )),
-            |(offset, _, name, _)| {
-                if self.raw_resources.is_none() {
+            |(offset, _, name, implementation)| {
+                // data and offset is only set if the resources are located
+                // in this file.
+                if self.raw_resources.is_none()
+                    || implementation.table != Table::File
+                    || implementation.index != 0
+                {
                     return Resource { name, data: None, offset: None };
                 }
 
