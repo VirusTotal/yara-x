@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use std::iter::zip;
 
 use crate::compiler::Compiler;
 
@@ -15,7 +16,8 @@ rule test {
   condition: 
     $a 
 }"#,
-            r#"warning: consecutive jumps in hex pattern `$a`
+            vec![
+                r#"warning: consecutive jumps in hex pattern `$a`
    ╭─[line:4:18]
    │
  4 │     $a = { 01 02 [1-2][3-4][1-3] 03 04 }
@@ -23,6 +25,7 @@ rule test {
    │                         ╰───────── these consecutive jumps will be treated as [5-9]
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -34,7 +37,8 @@ rule test {
   condition: 
     $a 
 }"#,
-            r#"warning: consecutive jumps in hex pattern `$a`
+            vec![
+                r#"warning: consecutive jumps in hex pattern `$a`
    ╭─[line:4:18]
    │
  4 │     $a = { 0F 84 [4] [0-7] 8D }
@@ -42,6 +46,7 @@ rule test {
    │                      ╰────── these consecutive jumps will be treated as [4-11]
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -54,7 +59,8 @@ rule test {
   condition:
     all of them at 0
 }"#,
-            r#"warning: potentially wrong expression
+            vec![
+                r#"warning: potentially wrong expression
    ╭─[line:7:5]
    │
  7 │     all of them at 0
@@ -64,6 +70,7 @@ rule test {
    │                   ╰─── but they must match at the same offset
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -76,7 +83,8 @@ rule test {
   condition:
     all of ($*) at 0
 }"#,
-            r#"warning: potentially wrong expression
+            vec![
+                r#"warning: potentially wrong expression
    ╭─[line:7:5]
    │
  7 │     all of ($*) at 0
@@ -86,6 +94,7 @@ rule test {
    │                   ╰─── but they must match at the same offset
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -98,7 +107,8 @@ rule test {
   condition:
     2 of ($*) at 0
 }"#,
-            r#"warning: potentially wrong expression
+            vec![
+                r#"warning: potentially wrong expression
    ╭─[line:7:5]
    │
  7 │     2 of ($*) at 0
@@ -108,6 +118,7 @@ rule test {
    │                 ╰─── but they must match at the same offset
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -121,7 +132,8 @@ rule test {
   condition:
     70% of ($*) at 0
 }"#,
-            r#"warning: potentially wrong expression
+            vec![
+                r#"warning: potentially wrong expression
    ╭─[line:8:5]
    │
  8 │     70% of ($*) at 0
@@ -131,6 +143,7 @@ rule test {
    │                   ╰─── but they must match at the same offset
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -143,7 +156,8 @@ rule test {
     $a
 }
 "#,
-            r#"warning: redundant case-insensitive modifier
+            vec![
+                r#"warning: redundant case-insensitive modifier
    ╭─[line:4:15]
    │
  4 │     $a = /foo/i nocase
@@ -153,6 +167,7 @@ rule test {
    │                    ╰──── the `nocase` modifier does the same
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -165,7 +180,8 @@ rule test {
   condition:
     3 of them
 }"#,
-            r#"warning: invariant boolean expression
+            vec![
+                r#"warning: invariant boolean expression
    ╭─[line:7:5]
    │
  7 │     3 of them
@@ -175,6 +191,7 @@ rule test {
    │ Note: the expression requires 3 matching patterns out of 2
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         #[cfg(feature = "test_proto2-module")]
@@ -184,7 +201,8 @@ rule test {
 import "test_proto2"
 import "test_proto2"
 "#,
-            r#"warning: duplicate import statement
+            vec![
+                r#"warning: duplicate import statement
    ╭─[line:3:1]
    │
  2 │ import "test_proto2"
@@ -195,6 +213,7 @@ import "test_proto2"
    │           ╰─────────── duplicate import
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -204,7 +223,8 @@ rule test {
   condition: 0
 }
     "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:3:14]
    │
  3 │   condition: 0
@@ -214,6 +234,7 @@ rule test {
    │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -223,7 +244,8 @@ rule test {
   condition: for any i in (0..1): ( 1 )
 }
     "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:3:37]
    │
  3 │   condition: for any i in (0..1): ( 1 )
@@ -233,6 +255,7 @@ rule test {
    │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -245,7 +268,8 @@ rule test {
     for any of them: ( 1 )
 }
     "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:6:24]
    │
  6 │     for any of them: ( 1 )
@@ -255,6 +279,7 @@ rule test {
    │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -264,7 +289,8 @@ rule test {
   condition: 2 and 3
 }
     "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:3:14]
    │
  3 │   condition: 2 and 3
@@ -274,25 +300,37 @@ rule test {
    │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
+            "warning: non-boolean expression used as boolean
+   ╭─[line:3:20]
+   │
+ 3 │   condition: 2 and 3
+   │                    ┬  
+   │                    ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
+───╯
+"],
         ),
         ////////////////////////////////////////////////////////////
         (
             line!(),
             r#"
 rule test {
-  condition: "foo" or "bar"
+  condition: "foo" or true
 }
     "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:3:14]
    │
- 3 │   condition: "foo" or "bar"
+ 3 │   condition: "foo" or true
    │              ──┬──  
    │                ╰──── this expression is `string` but is being used as `bool`
    │ 
    │ Note: non-empty strings are considered `true`, while the empty string ("") is `false`
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -302,7 +340,8 @@ rule test {
   condition: true or "false"
 }
         "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:3:22]
    │
  3 │   condition: true or "false"
@@ -312,6 +351,7 @@ rule test {
    │ Note: non-empty strings are considered `true`, while the empty string ("") is `false`
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -321,7 +361,8 @@ rule test {
   condition: not 2
 }
     "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:3:18]
    │
  3 │   condition: not 2
@@ -331,6 +372,7 @@ rule test {
    │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -340,7 +382,8 @@ rule test {
   condition: not 2+2
 }
         "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:3:18]
    │
  3 │   condition: not 2+2
@@ -350,6 +393,7 @@ rule test {
    │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -362,7 +406,8 @@ rule test {
     !a[1]
 }
 "#,
-            r#"warning: non-boolean expression used as boolean
+            vec![
+                r#"warning: non-boolean expression used as boolean
    ╭─[line:6:5]
    │
  6 │     !a[1]
@@ -372,6 +417,7 @@ rule test {
    │ Note: non-zero integers are considered `true`, while zero is `false`
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
@@ -384,7 +430,8 @@ rule test {
     $a
 }
 "#,
-            r#"warning: slow pattern
+            vec![
+                r#"warning: slow pattern
    ╭─[line:4:10]
    │
  4 │     $a = {00 [1-10] 01}
@@ -392,20 +439,26 @@ rule test {
    │                 ╰──────── this pattern may slow down the scan
 ───╯
 "#,
+            ],
         ),
         ////////////////////////////////////////////////////////////
         (
             line!(),
             r#"
 import "unsupported_module"
-rule test {
-  strings:
-    $a = {00 [1-10] 01}
+rule test_1 {
   condition: 
-    $a
+    unsupported_module.foo()
 }
+
+rule test_2 {
+  condition: 
+    test_1
+}
+
 "#,
-            r#"warning: module `unsupported_module` is not supported
+            vec![
+                r#"warning: module `unsupported_module` is not supported
    ╭─[line:2:1]
    │
  2 │ import "unsupported_module"
@@ -413,6 +466,24 @@ rule test {
    │              ╰─────────────── module `unsupported_module` used here
 ───╯
 "#,
+                "warning: module `unsupported_module` is not supported
+   ╭─[line:5:5]
+   │
+ 5 │     unsupported_module.foo()
+   │     ─────────┬────────  
+   │              ╰────────── module `unsupported_module` used here
+   │ 
+   │ Note: the whole rule `test_1` will be ignored
+───╯
+",
+            "warning: rule `test_2` will be ignored due to an indirect dependency on module `unsupported_module`
+    ╭─[line:10:5]
+    │
+ 10 │     test_1
+    │     ───┬──  
+    │        ╰──── this other rule depends on module `unsupported_module`, which is unsupported
+────╯
+",],
         ),
     ];
 
@@ -427,10 +498,15 @@ rule test {
             "test at line {} didn't produce warnings",
             t.0
         );
+        for (warning, expected) in zip(&compiler.warnings, &t.2) {
+            assert_eq!(warning.to_string(), *expected, "test at line {}", t.0)
+        }
         assert_eq!(
-            compiler.warnings[0].to_string(),
-            t.2,
-            "test at line {}",
+            compiler.warnings.len(),
+            t.2.len(),
+            "expecting {} warnings, got {} in test at line {}",
+            t.2.len(),
+            compiler.warnings.len(),
             t.0
         )
     }

@@ -89,4 +89,14 @@ pub enum Warning {
         span: Span,
         note: Option<String>,
     },
+
+    #[warning("rule `{ignored_rule}` will be ignored due to an indirect dependency on module `{module_name}`")]
+    #[label("this other rule depends on module `{module_name}`, which is unsupported", span)]
+    IgnoredRule {
+        detailed_report: String,
+        ignored_rule: String,
+        dependency: String,
+        module_name: String,
+        span: Span,
+    },
 }

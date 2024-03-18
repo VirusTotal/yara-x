@@ -232,7 +232,12 @@ pub struct Compiler<'a> {
     /// without causing an error, but a warning is raised to let the user know
     /// that the module is not supported. Any rule that depends on an unsupported
     /// module is ignored.
-    unsuported_modules: Vec<String>,
+    unsupported_modules: Vec<String>,
+
+    /// Keys in this map are the name of rules that will be ignored because they
+    /// depend on unsupported modules, either directly or indirectly. Values are
+    /// the names of the unsupported modules they depend on.
+    ignored_rules: FxHashMap<String, String>,
 
     /// Structure where each field corresponds to a global identifier or a module
     /// imported by the rules. For fields corresponding to modules, the value is
@@ -309,7 +314,8 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
-            unsuported_modules: Vec::new(),
+            unsupported_modules: Vec::new(),
+            ignored_rules: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
@@ -450,6 +456,7 @@ impl<'a> Compiler<'a> {
             ident_id: self.ident_pool.get_or_intern(namespace),
             symbols: self.symbol_table.push_new(),
         };
+        self.ignored_rules.clear();
         self.wasm_mod.new_namespace();
         self
     }
@@ -525,7 +532,7 @@ impl<'a> Compiler<'a> {
         &mut self,
         module: M,
     ) -> &mut Self {
-        self.unsuported_modules.push(module.into());
+        self.unsupported_modules.push(module.into());
         self
     }
 
@@ -718,17 +725,34 @@ impl<'a> Compiler<'a> {
             Ok(condition) => condition,
             Err(CompileError::UnknownIdentifier {
                 identifier, span, ..
-            }) if self.unsuported_modules.contains(&identifier) => {
+            }) if self.unsupported_modules.contains(&identifier)
+                || self.ignored_rules.contains_key(&identifier) =>
+            {
                 self.restore_snapshot(snapshot);
-                self.warnings.push(Warning::unsupported_module(
-                    &self.report_builder,
-                    identifier,
-                    span,
-                    Some(format!(
-                        "the whole rule `{}` will be ignored",
-                        rule.identifier.name
-                    )),
-                ));
+
+                if let Some(module_name) = self.ignored_rules.get(&identifier)
+                {
+                    self.warnings.push(Warning::ignored_rule(
+                        &self.report_builder,
+                        rule.identifier.name.to_string(),
+                        identifier,
+                        module_name.clone(),
+                        span,
+                    ));
+                } else {
+                    self.warnings.push(Warning::unsupported_module(
+                        &self.report_builder,
+                        identifier.clone(),
+                        span,
+                        Some(format!(
+                            "the whole rule `{}` will be ignored",
+                            rule.identifier.name
+                        )),
+                    ));
+                    self.ignored_rules
+                        .insert(rule.identifier.name.to_string(), identifier);
+                }
+
                 return Ok(());
             }
             Err(err) => {
@@ -860,7 +884,7 @@ impl<'a> Compiler<'a> {
             // The module does not exist, but it is included in the list
             // of unsupported modules. In such cases we don't raise an error,
             // only a warning.
-            return if self.unsuported_modules.iter().any(|m| m == module_name)
+            return if self.unsupported_modules.iter().any(|m| m == module_name)
             {
                 self.warnings.push(Warning::unsupported_module(
                     &self.report_builder,
