@@ -150,9 +150,9 @@ def test_module_outputs():
   assert module_outputs['test_proto2']['int32One'] == 1
 
 
-def test_unsupported_modules():
+def test_ignored_modules():
   compiler = yara_x.Compiler()
-  compiler.add_unsupported_module("unsupported_module")
+  compiler.ignore_module("unsupported_module")
   compiler.add_source(
       'import "unsupported_module" rule foo {condition: true}')
   rules = compiler.build()
