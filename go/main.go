@@ -1,8 +1,4 @@
 // Package yara_x provides Go bindings to the YARA-X library.
-//
-// Use the static_link build tag for linking the YARA-X Rust library statically.
-// Notice however that this only works if the Rust library itself links all
-// its dependencies statically.
 package yara_x
 
 // #cgo CFLAGS: -I${SRCDIR}/../capi/include
@@ -16,11 +12,17 @@ import (
 	"unsafe"
 )
 
-// Option represent an option passed to Compile.
-type Option func(c *Compiler) error
+// A CompileOption represent an option passed to [Compile].
+type CompileOption func(c *Compiler) error
 
-// GlobalVars is an option for Compile that allows defining global variables.
-func GlobalVars(vars map[string]interface{}) Option {
+// Globals is an option for [Compile] that allows defining global variables.
+//
+// Keys in the map are variable names, and values are the initial value for
+// each variable. The value associated to each variable can be modified at
+// scan time with [Scanner.SetGlobal].
+//
+// Valid value types are: int, int32, int64, bool, string, float32 and float64.
+func Globals(vars map[string]interface{}) CompileOption {
 	return func(c *Compiler) error {
 		for ident, value := range vars {
 			if err := c.DefineGlobal(ident, value); err != nil {
@@ -31,18 +33,20 @@ func GlobalVars(vars map[string]interface{}) Option {
 	}
 }
 
-// UnsupportedModule is an option for Compile that allows specifying an
-// unsupported module. See Compiler.AddUnsupportedModule for details.
-func UnsupportedModule(module string) Option {
+// IgnoreModule is an option for [Compile] that allows ignoring a given module.
+//
+// This option can be passed multiple times with different module names.
+// See [Compiler.IgnoreModule] for details.
+func IgnoreModule(module string) CompileOption {
 	return func(c *Compiler) error {
-		c.AddUnsupportedModule(module)
+		c.IgnoreModule(module)
 		return nil
 	}
 }
 
-// Compile receives YARA source code and returns compiled Rules that can be
+// Compile receives YARA source code and returns compiled [Rules] that can be
 // used for scanning data.
-func Compile(source string, opts ...Option) (*Rules, error) {
+func Compile(src string, opts ...CompileOption) (*Rules, error) {
 	c := NewCompiler()
 
 	for _, opt := range opts {
@@ -51,12 +55,15 @@ func Compile(source string, opts ...Option) (*Rules, error) {
 		}
 	}
 
-	if err := c.AddSource(source); err != nil {
+	if err := c.AddSource(src); err != nil {
 		return nil, err
 	}
 	return c.Build(), nil
 }
 
+// Deserialize deserializes rules from a byte slice.
+//
+// The counterpart is [Rules.Serialize]
 func Deserialize(data []byte) (*Rules, error) {
 	var ptr *C.uint8_t
 	if len(data) > 0 {
@@ -78,6 +85,15 @@ func Deserialize(data []byte) (*Rules, error) {
 // Rules represents a set of compiled YARA rules.
 type Rules struct{ cRules *C.YRX_RULES }
 
+// Scan some data with the compiled rules.
+//
+// Returns a slice with the rules that matched.
+func (r* Rules) Scan(data []byte) ([]*Rule, error) {
+	scanner := NewScanner(r)
+	return scanner.Scan(data)
+}
+
+// Serialize converts the compiled rules into a byte slice.
 func (r *Rules) Serialize() ([]byte, error) {
 	var buf *C.YRX_BUFFER
 	runtime.LockOSThread()
@@ -90,7 +106,7 @@ func (r *Rules) Serialize() ([]byte, error) {
 	return C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length)), nil
 }
 
-// Destroy destroys the compiled YARA rules represented by Rules.
+// Destroy destroys the compiled YARA rules represented by [Rules].
 //
 // Calling this method directly is not necessary, it will be invoked by the
 // garbage collector when the rules are not used anymore.
@@ -191,7 +207,7 @@ type Pattern struct {
 	matches    []Match
 }
 
-// Identifier returns the pattern's identifier (i.e: `$a`, `$foo`).
+// Identifier returns the pattern's identifier (i.e: $a, $foo).
 func (p *Pattern) Identifier() string {
 	return p.identifier
 }

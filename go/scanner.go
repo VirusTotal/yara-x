@@ -76,14 +76,14 @@ func NewScanner(r *Rules) *Scanner {
 	return s
 }
 
-// Timeout sets a timeout for scan operations.
+// SetTimeout sets a timeout for scan operations.
 //
-// The Scan method will return a timeout error once the provided timeout
+// The [Scanner.Scan] method will return a timeout error once the provided timeout
 // duration has elapsed. The scanner will make every effort to stop promptly
 // after the designated timeout duration. However, in some cases, particularly
 // with rules containing only a few patterns, the scanner could potentially
 // continue running for a longer period than the specified timeout.
-func (s *Scanner) Timeout(timeout time.Duration) {
+func (s *Scanner) SetTimeout(timeout time.Duration) {
 	C.yrx_scanner_timeout(s.cScanner, C.uint64_t(math.Ceil(timeout.Seconds())))
 	runtime.KeepAlive(s)
 }
@@ -92,7 +92,7 @@ var ErrTimeout = errors.New("timeout")
 
 // SetGlobal sets the value of a global variable.
 //
-// The variable must has been previously defined by calling Compiler.DefineGlobal
+// The variable must has been previously defined by calling [Compiler.DefineGlobal]
 // and the type it has during the definition must match the type of the new
 // value.
 //
@@ -152,10 +152,9 @@ func (s *Scanner) SetGlobal(ident string, value interface{}) error {
 // Case 1) applies to certain modules lacking a main function, thus incapable of
 // producing any output on their own. For such modules, you must set the output
 // before scanning the associated data. Since the module's output typically varies
-// with each scanned file, you need to call [yrx_scanner_set_module_output] prior
-// to each invocation of [yrx_scanner_scan]. Once [yrx_scanner_scan] is executed,
-// the module's output is consumed and will be empty unless set again before the
-// subsequent call.
+// with each scanned file, you need to call this function prior to each invocation
+// of [Scanner.Scan]. Once [Scanner.Scan] is executed, the module's output is
+// consumed and will be empty unless set again before the subsequent call.
 //
 // Case 2) applies when you have previously stored the module's output for certain
 // scanned data. In such cases, when rescanning the data, you can utilize this
