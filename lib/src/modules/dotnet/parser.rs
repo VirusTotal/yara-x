@@ -128,7 +128,10 @@ impl<'a> Dotnet<'a> {
         let pe = PE::parse(data)?;
 
         let (_, _, cli_header) = pe
-            .get_dir_entry_data(PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR, true)
+            .get_dir_entry_data(
+                PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR,
+                false,
+            )
             .ok_or(Error::InvalidDotNet)?;
 
         let (_, cli_header) = Self::parse_cli_header(cli_header)?;
@@ -451,7 +454,7 @@ impl<'a> Dotnet<'a> {
 
         // `num_rows_per_present_table` contains an entry per each table
         // that is present. But we need an array with an entry per table,
-        // no matter if its present or not. Of course, tables that are not
+        // no matter if it's present or not. Of course, tables that are not
         // present will have zero rows.
         self.num_rows = Vec::with_capacity(64);
 

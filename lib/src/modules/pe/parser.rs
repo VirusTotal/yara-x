@@ -1519,8 +1519,8 @@ impl<'a> PE<'a> {
 
     /// Parses PE imports.
     fn parse_imports(&self) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (rva, _, import_data) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT, true)?;
+        let (rva, _, import_data) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT, false)?;
 
         if rva == 0 {
             return None;

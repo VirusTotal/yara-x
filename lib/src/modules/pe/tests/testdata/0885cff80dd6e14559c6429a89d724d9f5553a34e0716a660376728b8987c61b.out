@@ -1,0 +1,192 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 48
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 34
+dll_characteristics: 34144
+timestamp: 2609937470
+image_base: 4194304
+checksum: 0
+base_of_code: 8192
+base_of_data: 417792
+entry_point: 403759
+entry_point_raw: 411439
+section_alignment: 8192
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 403253
+size_of_initialized_data: 9034
+size_of_uninitialized_data: 0
+size_of_image: 442368
+size_of_headers: 512
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 19
+number_of_sections: 3
+number_of_imported_functions: 1
+number_of_delayed_imported_functions: 0
+number_of_resources: 4
+number_of_version_infos: 11
+number_of_imports: 1
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "Assembly Version": "1.2.0.1"
+    "Comments": "TurboPing for gamers"
+    "CompanyName": "TurboPing"
+    "FileDescription": "TurboPing"
+    "FileVersion": "1.2.0.0"
+    "InternalName": "TurboPing.exe"
+    "LegalCopyright": "Copyright TurboPing\302\251 2024"
+    "LegalTrademarks": ""
+    "OriginalFilename": "TurboPing.exe"
+    "ProductName": "TurboPing"
+    "ProductVersion": "1.2.0.0"
+version_info_list:
+  - key: "Comments"
+    value: "TurboPing for gamers"
+  - key: "CompanyName"
+    value: "TurboPing"
+  - key: "FileDescription"
+    value: "TurboPing"
+  - key: "FileVersion"
+    value: "1.2.0.0"
+  - key: "InternalName"
+    value: "TurboPing.exe"
+  - key: "LegalCopyright"
+    value: "Copyright TurboPing\302\251 2024"
+  - key: "LegalTrademarks"
+    value: ""
+  - key: "OriginalFilename"
+    value: "TurboPing.exe"
+  - key: "ProductName"
+    value: "TurboPing"
+  - key: "ProductVersion"
+    value: "1.2.0.0"
+  - key: "Assembly Version"
+    value: "1.2.0.1"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 403456
+    raw_data_offset: 512
+    virtual_address: 8192
+    virtual_size: 403253
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 9216
+    raw_data_offset: 403968
+    virtual_address: 417792
+    virtual_size: 9022
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1073741888
+    raw_data_size: 512
+    raw_data_offset: 413184
+    virtual_address: 434176
+    virtual_size: 12
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 411196
+    size: 0
+  - virtual_address: 417792
+    size: 9022
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 434176
+    size: 12
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8192
+    size: 8
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8200
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 4264
+    rva: 418096
+    offset: 404272
+    type: RESOURCE_TYPE_ICON
+    id: 1
+    language: 0
+  - length: 20
+    rva: 422360
+    offset: 408536
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 32512
+    language: 0
+  - length: 868
+    rva: 422380
+    offset: 408556
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 0
+  - length: 3566
+    rva: 423248
+    offset: 409424
+    type: RESOURCE_TYPE_MANIFEST
+    id: 1
+    language: 0
+import_details:
+  - library_name: "mscoree.dll"
+    number_of_functions: 1
+    functions:
+      - name: "_CorExeMain"
+        rva: 8192
+is_signed: false
+overlay:
+    offset: 0
+    size: 0
