@@ -56,7 +56,7 @@ pub unsafe extern "C" fn yrx_compiler_add_source(
 ///
 /// Import statements for ignored modules will be ignored without errors but a
 /// warning will be issued. Any rule that make use of an ignored module will be
-/// ignored, while the rest of rules that don't rely on that module will be 
+/// ignored, while the rest of rules that don't rely on that module will be
 /// correctly compiled.
 #[no_mangle]
 pub unsafe extern "C" fn yrx_compiler_ignore_module(
