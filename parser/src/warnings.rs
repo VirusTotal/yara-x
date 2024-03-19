@@ -83,7 +83,7 @@ pub enum Warning {
     #[warning("module `{module_name}` is not supported")]
     #[label("module `{module_name}` used here", span)]
     #[note(note)]
-    UnsupportedModule {
+    IgnoredModule {
         detailed_report: String,
         module_name: String,
         span: Span,

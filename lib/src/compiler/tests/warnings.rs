@@ -489,10 +489,7 @@ rule test_2 {
 
     for t in tests {
         let mut compiler = Compiler::new();
-        compiler
-            .add_unsupported_module("unsupported_module")
-            .add_source(t.1)
-            .unwrap();
+        compiler.ignore_module("unsupported_module").add_source(t.1).unwrap();
         assert!(
             !compiler.warnings.is_empty(),
             "test at line {} didn't produce warnings",

@@ -495,7 +495,7 @@ fn unsupported_modules() {
     let mut compiler = Compiler::new();
 
     compiler
-        .add_unsupported_module("foo_module")
+        .ignore_module("foo_module")
         .add_source(
             r#"
             import "foo_module"

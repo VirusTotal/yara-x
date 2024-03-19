@@ -232,7 +232,7 @@ pub struct Compiler<'a> {
     /// without causing an error, but a warning is raised to let the user know
     /// that the module is not supported. Any rule that depends on an unsupported
     /// module is ignored.
-    unsupported_modules: Vec<String>,
+    ignored_modules: Vec<String>,
 
     /// Keys in this map are the name of rules that will be ignored because they
     /// depend on unsupported modules, either directly or indirectly. Values are
@@ -314,7 +314,7 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
-            unsupported_modules: Vec::new(),
+            ignored_modules: Vec::new(),
             ignored_rules: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
@@ -524,15 +524,12 @@ impl<'a> Compiler<'a> {
 
     /// Tell the compiler that a YARA module is not supported.
     ///
-    /// Import statements for unsupported modules will be ignored without
-    /// errors, but a warning will be used. Any rule that make use of an
-    /// unsupported module will be ignored, while the rest of rules that
+    /// Import statements for ignored modules will be ignored without
+    /// errors, but a warning will be issued. Any rule that make use of an
+    /// ignored module will be ignored, while the rest of rules that
     /// don't rely on that module will be correctly compiled.
-    pub fn add_unsupported_module<M: Into<String>>(
-        &mut self,
-        module: M,
-    ) -> &mut Self {
-        self.unsupported_modules.push(module.into());
+    pub fn ignore_module<M: Into<String>>(&mut self, module: M) -> &mut Self {
+        self.ignored_modules.push(module.into());
         self
     }
 
@@ -725,7 +722,7 @@ impl<'a> Compiler<'a> {
             Ok(condition) => condition,
             Err(CompileError::UnknownIdentifier {
                 identifier, span, ..
-            }) if self.unsupported_modules.contains(&identifier)
+            }) if self.ignored_modules.contains(&identifier)
                 || self.ignored_rules.contains_key(&identifier) =>
             {
                 self.restore_snapshot(snapshot);
@@ -740,7 +737,7 @@ impl<'a> Compiler<'a> {
                         span,
                     ));
                 } else {
-                    self.warnings.push(Warning::unsupported_module(
+                    self.warnings.push(Warning::ignored_module(
                         &self.report_builder,
                         identifier.clone(),
                         span,
@@ -884,9 +881,8 @@ impl<'a> Compiler<'a> {
             // The module does not exist, but it is included in the list
             // of unsupported modules. In such cases we don't raise an error,
             // only a warning.
-            return if self.unsupported_modules.iter().any(|m| m == module_name)
-            {
-                self.warnings.push(Warning::unsupported_module(
+            return if self.ignored_modules.iter().any(|m| m == module_name) {
+                self.warnings.push(Warning::ignored_module(
                     &self.report_builder,
                     module_name.to_string(),
                     import.span(),

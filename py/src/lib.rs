@@ -106,11 +106,11 @@ impl Compiler {
     /// Tell the compiler that a YARA module is not supported.
     ///
     /// Import statements for unsupported modules will be ignored without
-    /// errors, but a warning will be used. Any rule that make use of an
-    /// unsupported module will be ignored, while the rest of rules that
+    /// errors, but a warning will be issued. Any rule that make use of an
+    /// ignored module will be ignored, while the rest of rules that
     /// don't rely on that module will be correctly compiled.
-    fn add_unsupported_module(&mut self, module: &str) {
-        self.inner.add_unsupported_module(module);
+    fn ignore_module(&mut self, module: &str) {
+        self.inner.ignore_module(module);
     }
 
     /// Builds the source code previously added to the compiler.

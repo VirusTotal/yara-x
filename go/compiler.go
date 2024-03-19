@@ -62,7 +62,7 @@ func (c *Compiler) AddSource(src string) error {
 func (c *Compiler) IgnoreModule(module string) {
 	cModule := C.CString(module)
 	defer C.free(unsafe.Pointer(cModule))
-	result := C.yrx_compiler_add_unsupported_module(c.cCompiler, cModule)
+	result := C.yrx_compiler_ignore_module(c.cCompiler, cModule)
 	if result != C.SUCCESS {
 		panic("yrx_compiler_add_unsupported_module failed")
 	}

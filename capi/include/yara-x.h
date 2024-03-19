@@ -188,12 +188,12 @@ enum YRX_RESULT yrx_compiler_add_source(struct YRX_COMPILER *compiler,
 
 // Tell the compiler that a YARA module is not supported.
 //
-// Import statements for unsupported modules will be ignored without
-// errors, but a warning will be used. Any rule that make use of an
-// unsupported module will be ignored, while the rest of rules that
-// don't rely on that module will be correctly compiled.
-enum YRX_RESULT yrx_compiler_add_unsupported_module(struct YRX_COMPILER *compiler,
-                                                    const char *module);
+// Import statements for ignored modules will be ignored without errors but a
+// warning will be issued. Any rule that make use of an ignored module will be
+// ignored, while the rest of rules that don't rely on that module will be
+// correctly compiled.
+enum YRX_RESULT yrx_compiler_ignore_module(struct YRX_COMPILER *compiler,
+                                           const char *module);
 
 // Creates a new namespace.
 //
