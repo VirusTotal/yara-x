@@ -84,7 +84,7 @@ func NewScanner(r *Rules) *Scanner {
 // with rules containing only a few patterns, the scanner could potentially
 // continue running for a longer period than the specified timeout.
 func (s *Scanner) SetTimeout(timeout time.Duration) {
-	C.yrx_scanner_timeout(s.cScanner, C.uint64_t(math.Ceil(timeout.Seconds())))
+	C.yrx_scanner_set_timeout(s.cScanner, C.uint64_t(math.Ceil(timeout.Seconds())))
 	runtime.KeepAlive(s)
 }
 

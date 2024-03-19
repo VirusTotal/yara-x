@@ -194,7 +194,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             let elapsed_time = Instant::elapsed(&start_time);
 
             if let Some(timeout) = timeout.checked_sub(elapsed_time) {
-                scanner.timeout(timeout);
+                scanner.set_timeout(timeout);
             } else {
                 return Err(Error::from(ScanError::Timeout));
             }

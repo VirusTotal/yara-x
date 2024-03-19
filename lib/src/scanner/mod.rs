@@ -262,7 +262,7 @@ impl<'r> Scanner<'r> {
     /// in some cases, particularly with rules containing only a few patterns,
     /// the scanner could potentially continue running for a longer period than
     /// the specified timeout.
-    pub fn timeout(&mut self, timeout: Duration) -> &mut Self {
+    pub fn set_timeout(&mut self, timeout: Duration) -> &mut Self {
         self.timeout = Some(timeout);
         self
     }

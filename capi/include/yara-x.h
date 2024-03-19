@@ -253,8 +253,8 @@ void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
 // after the designated timeout duration. However, in some cases, particularly
 // with rules containing only a few patterns, the scanner could potentially
 // continue running for a longer period than the specified timeout.
-enum YRX_RESULT yrx_scanner_timeout(struct YRX_SCANNER *scanner,
-                                    uint64_t timeout);
+enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner,
+                                        uint64_t timeout);
 
 // Scans a data buffer.
 //

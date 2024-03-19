@@ -2,6 +2,7 @@ import io
 import pytest
 import yara_x
 
+
 def test_syntax_error():
   compiler = yara_x.Compiler()
   with pytest.raises(SyntaxError):
@@ -138,7 +139,7 @@ def test_scanner_timeout():
   compiler.add_source(
       'rule foo {condition: for all i in (0..10000000000) : ( true )}')
   scanner = yara_x.Scanner(compiler.build())
-  scanner.timeout(1)
+  scanner.set_timeout(1)
   with pytest.raises(Exception, match='timeout'):
     scanner.scan(b'foobar')
 
