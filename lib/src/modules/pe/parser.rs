@@ -1185,24 +1185,27 @@ impl<'a> PE<'a> {
                 Some(value_parser) if value_len > 0 => {
                     // The PE specification seems to suggest that when `type` is 1,
                     // the value is a text and `value_length` indicates its size
-                    // in UTF-16 characters (half the size in bytes). That's true
-                    // for many files, like:
+                    // in UTF-16 characters, but it's not clear whether the size
+                    // includes the null-terminator or not. In some files like
                     // 0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f
+                    // the `value_length` is the number of UTF-16 characters,
+                    // including the null terminator. But in some other cases, like
+                    // abeef1c9452835ba856c3bef32657076b7757c21e9f5c78f6336cfedc87d0b46
+                    // it doesn't include the null terminator.
                     //
-                    // However, there are many PE files for which `value_length` is
+                    // Also, there are many PE files for which `value_length` is
                     // in bytes, even if `type` is 1, that's the case of:
                     // db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984
                     //
                     // For this reason when `type` is 1, we first assume that
-                    // `value_length` is in bytes, and if the value parser fails,
-                    // then try again assuming that `value_length` is the number of
-                    // UTF-16 characters.
+                    // `value_length` is in characters, and if the value parser fails,
+                    // then try again assuming that `value_length` is in bytes.
                     let (data, value) = if type_ == 1 {
-                        take(value_len)
+                        take(value_len * 2)
                             .and_then(|v| value_parser.parse(v))
                             .parse(data)
                             .or_else(|_| {
-                                take(value_len * 2)
+                                take(value_len)
                                     .and_then(|v| value_parser.parse(v))
                                     .parse(data)
                             })?
@@ -2674,17 +2677,23 @@ fn uint(_32bits: bool) -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
     }
 }
 
-/// Parser that reads a null-terminated UTF-16LE string.
+/// Parser that reads a UTF-16LE string.
 ///
-/// The result is a UTF-8 string,
+/// If the string is null-terminated, the parser will consume the input, including
+/// the null terminator, and return the rest as the remainder. If the string is
+/// not null terminated, all the input is expected to contain a UTF-16LE string.
+/// The resulting string is a UTF-8 string.
 fn utf16_le_string() -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
     move |input: &[u8]| {
-        // Read UTF-16 chars until a null terminator is found.
-        let (remainder, string) =
+        // Read UTF-16 chars until a null terminator is found, or the end
+        // of the input is reached.
+        let (mut remainder, string) =
             many0(verify(le_u16, |c| *c != 0_u16))(input)?;
 
-        // Consume the null-terminator.
-        let (remainder, _) = take(2_usize)(remainder)?;
+        // Consume the null-terminator, if any.
+        if !remainder.is_empty() {
+            (remainder, _) = take(2_usize)(remainder)?;
+        }
 
         let s = String::from_utf16_lossy(string.as_slice());
 
