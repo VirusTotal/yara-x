@@ -16,7 +16,7 @@ linker_version:
 opthdr_magic: 0
 characteristics: 3139
 dll_characteristics: 0
-timestamp: 440487448
+timestamp: 440487448 # 1983-12-17 05:37:28 UTC
 image_base: 0
 checksum: 0
 base_of_code: 0

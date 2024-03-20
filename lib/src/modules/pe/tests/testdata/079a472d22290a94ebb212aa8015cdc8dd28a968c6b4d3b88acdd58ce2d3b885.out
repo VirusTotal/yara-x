@@ -16,7 +16,7 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 8450
 dll_characteristics: 320
-timestamp: 1528213185
+timestamp: 1528213185 # 2018-06-05 15:39:45 UTC
 image_base: 268435456
 checksum: 82308
 base_of_code: 4096
@@ -24,7 +24,7 @@ base_of_data: 12288
 entry_point: 2605
 entry_point_raw: 5677
 dll_name: "CUSTPROF.dll"
-export_timestamp: 1528213185
+export_timestamp: 1528213185 # 2018-06-05 15:39:45 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0

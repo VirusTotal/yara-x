@@ -16,14 +16,14 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 8226
 dll_characteristics: 16736
-timestamp: 1827812126
+timestamp: 1827812126 # 2027-12-03 05:35:26 UTC
 image_base: 6442450944
 checksum: 57102
 base_of_code: 4096
 entry_point: 1920
 entry_point_raw: 4992
 dll_name: "mtxex.dll"
-export_timestamp: 1827812126
+export_timestamp: 1827812126 # 2027-12-03 05:35:26 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0

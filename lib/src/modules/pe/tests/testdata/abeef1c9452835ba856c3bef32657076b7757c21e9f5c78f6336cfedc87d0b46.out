@@ -16,7 +16,7 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 33166
 dll_characteristics: 0
-timestamp: 708992537
+timestamp: 708992537 # 1992-06-19 22:22:17 UTC
 image_base: 4194304
 checksum: 0
 base_of_code: 4096
