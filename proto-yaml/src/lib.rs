@@ -294,12 +294,7 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::F64(v) => write!(self.output, "{:.1}", v)?,
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::String(v) => {
-                let quoted_string = self.quote_bytes(v.as_bytes());
-                write!(
-                    self.output,
-                    "{}",
-                    self.colors.string.paint(&quoted_string)
-                )?;
+                write!(self.output, "\"{}\"", self.colors.string.paint(v))?;
             }
             ReflectValueRef::Bytes(v) => {
                 let quoted_string = self.quote_bytes(v);

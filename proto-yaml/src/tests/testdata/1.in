@@ -8,7 +8,7 @@ repeated_msg {
 }
 repeated_msg {
   int32_dec: 789
-  str: "baz"
+  str: "©baz"
   map_string_string {
     key: "foo\nbar"
     value: "bar"

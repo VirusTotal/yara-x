@@ -1,5 +1,5 @@
 is_dotnet: true
-module_name: "\001c"
+module_name: "c"
 version: "v4.0.30319"
 number_of_streams: 5
 number_of_guids: 16
@@ -81,8 +81,8 @@ assembly_refs:
 resources:
   - name: ""
 classes:
-  - fullname: "?\022c"
-    name: "?\022c"
+  - fullname: "?c"
+    name: "?c"
     visibility: "internal"
     type: "class"
     abstract: false
@@ -91,7 +91,7 @@ classes:
     number_of_generic_parameters: 8
     number_of_methods: 0
     base_types:
-      - "?\022c"
+      - "?c"
     generic_parameters:
       - "ingleton"
       - "ReflectConfiguration"
@@ -334,7 +334,7 @@ classes:
     number_of_generic_parameters: 0
     number_of_methods: 0
     base_types:
-      - "?\022c"
+      - "?c"
   - fullname: "ool.ine.Pools"
     name: "Pools"
     namespace: "ool.ine"
@@ -809,7 +809,7 @@ classes:
     number_of_generic_parameters: 0
     number_of_methods: 0
     base_types:
-      - "?\022c"
+      - "?c"
   - fullname: "ners.ne.Listeners"
     name: "Listeners"
     namespace: "ners.ne"
@@ -1648,7 +1648,7 @@ classes:
     number_of_generic_parameters: 0
     number_of_methods: 0
     base_types:
-      - "?\022c"
+      - "?c"
       - "ool.tory"
   - fullname: "ool.erPrototype"
     name: "erPrototype"
@@ -2811,7 +2811,7 @@ classes:
     number_of_generic_parameters: 0
     number_of_methods: 0
     base_types:
-      - "?\022c"
+      - "?c"
       - "erpreterCandidate.ectionResolver"
       - "CommandLine.Listeners"
   - fullname: "ceOption.tegy"
@@ -2949,7 +2949,7 @@ classes:
         static: false
         virtual: false
         final: false
-        return_type: "?\022c"
+        return_type: "?c"
         number_of_generic_parameters: 0
         number_of_parameters: 2
         parameters:
@@ -3647,9 +3647,9 @@ classes:
     number_of_methods: 0
     base_types:
       - "erSerializer.ContainerSerializer"
-  - fullname: "?\022c.Model"
+  - fullname: "?c.Model"
     name: "Model"
-    namespace: "?\022c"
+    namespace: "?c"
     visibility: "private"
     type: "class"
     abstract: false
@@ -7154,7 +7154,7 @@ classes:
     number_of_generic_parameters: 0
     number_of_methods: 0
     base_types:
-      - "?\022c"
+      - "?c"
   - fullname: "andLine.Producers.ntainerSerializer"
     name: "ntainerSerializer"
     namespace: "andLine.Producers"

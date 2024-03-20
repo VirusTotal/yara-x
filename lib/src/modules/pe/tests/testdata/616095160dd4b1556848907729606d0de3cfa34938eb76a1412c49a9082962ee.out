@@ -52,7 +52,7 @@ version_info:
     "CompanyName": "Quality First Software GmbH"
     "FileDescription": "Start helper tool for Webswing and QF-Test 7.1.1"
     "FileVersion": "7.1.1.0"
-    "LegalCopyright": "Copyright \302\251 2024 Quality First Software GmbH"
+    "LegalCopyright": "Copyright © 2024 Quality First Software GmbH"
     "OriginalFilename": "qfsut.exe"
     "ProductName": "QF-Test 7.1.1"
     "ProductVersion": "7.1.1.0"
@@ -60,11 +60,11 @@ version_info_list:
   - key: "CompanyName"
     value: "Quality First Software GmbH"
   - key: "FileDescription"
-    value: "Start-Hilfsprogramm f\303\274r Webswing und QF-Test 7.1.1"
+    value: "Start-Hilfsprogramm für Webswing und QF-Test 7.1.1"
   - key: "FileVersion"
     value: "7.1.1.0"
   - key: "LegalCopyright"
-    value: "Copyright \302\251 2024 Quality First Software GmbH"
+    value: "Copyright © 2024 Quality First Software GmbH"
   - key: "OriginalFilename"
     value: "qfsut.exe"
   - key: "ProductName"
@@ -78,7 +78,7 @@ version_info_list:
   - key: "FileVersion"
     value: "7.1.1.0"
   - key: "LegalCopyright"
-    value: "Copyright \302\251 2024 Quality First Software GmbH"
+    value: "Copyright © 2024 Quality First Software GmbH"
   - key: "OriginalFilename"
     value: "qfsut.exe"
   - key: "ProductName"
@@ -414,7 +414,7 @@ import_details:
         rva: 70312
 is_signed: true
 signatures:
-  - subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\\xC3\\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
+  - subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\xC3\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
     issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
     thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
     version: 3
@@ -434,7 +434,7 @@ signatures:
         digest_alg: "sha384"
         chain:
           - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
-            subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\\xC3\\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
+            subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\xC3\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
             thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
             version: 3
             algorithm: "ecdsa-with-SHA384"
@@ -462,7 +462,7 @@ signatures:
         not_before: 1551987465 # 2019-03-07 19:37:45 UTC
         not_after: 2025027465 # 2034-03-03 19:37:45 UTC
       - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
-        subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\\xC3\\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
+        subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\xC3\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
         thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
         version: 3
         algorithm: "ecdsa-with-SHA384"

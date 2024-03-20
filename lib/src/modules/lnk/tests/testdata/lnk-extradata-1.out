@@ -4,14 +4,14 @@ access_time: 1160690204
 write_time: 1160690204
 file_size: 0
 file_attributes: 32
-icon_location: "%SystemRoot%\\system32\\WindowsPowerShell\\v1.0\\powershell.exe"
+icon_location: "%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe"
 icon_index: 0
 show_command: NORMAL
 drive_type: FIXED
 drive_serial_number: 1283678447
 volume_label: ""
-local_base_path: "C:\\WINDOWS\\syswow64\\windowspowershell\\v1.0\\powershell.exe"
-relative_path: "..\\..\\..\\..\\..\\WINDOWS\\syswow64\\windowspowershell\\v1.0\\powershell.exe"
+local_base_path: "C:\WINDOWS\syswow64\windowspowershell\v1.0\powershell.exe"
+relative_path: "..\..\..\..\..\WINDOWS\syswow64\windowspowershell\v1.0\powershell.exe"
 working_dir: "%HOMEDRIVE%%HOMEPATH%"
 overlay_size: 0
 tracker_data:
