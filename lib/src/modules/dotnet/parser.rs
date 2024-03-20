@@ -310,14 +310,15 @@ impl<'a> Dotnet<'a> {
     fn parse_cli_header(input: &[u8]) -> IResult<&[u8], CLIHeader> {
         map(
             tuple((
-                le_u32,              // size
-                le_u16,              // major_runtime_version
-                le_u16,              // minor_runtime_version
-                PE::parse_dir_entry, // metadata
-                le_u32,              // flags
-                le_u32,              // entry_point_token
-                PE::parse_dir_entry, // resources,
-                PE::parse_dir_entry, // strong_name_signature
+                // CLI header is always 72 bytes long.
+                verify(le_u32, |size| *size == 72), // size
+                le_u16,                             // major_runtime_version
+                le_u16,                             // minor_runtime_version
+                PE::parse_dir_entry,                // metadata
+                le_u32,                             // flags
+                le_u32,                             // entry_point_token
+                PE::parse_dir_entry,                // resources,
+                PE::parse_dir_entry,                // strong_name_signature
             )),
             |(
                 _,
@@ -338,10 +339,10 @@ impl<'a> Dotnet<'a> {
     fn parse_metadata_root(input: &[u8]) -> IResult<&[u8], CLIMetadata> {
         map(
             tuple((
-                le_u32, // magic == 0x424A5342
-                le_u16, // major_version
-                le_u16, // minor_version
-                le_u32, // reserved
+                verify(le_u32, |magic| *magic == 0x424A5342), // magic == 0x424A5342
+                le_u16,                                       // major_version
+                le_u16,                                       // minor_version
+                le_u32,                                       // reserved
                 // length + version string. According to the specification
                 // length must be <= 255. The length includes any padding
                 // added to align the next field to a 4 byte boundary. The
