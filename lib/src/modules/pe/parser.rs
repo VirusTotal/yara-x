@@ -1844,20 +1844,26 @@ impl<'a> PE<'a> {
         // directory it is a forwarder RVA and points to a NULL terminated
         // ASCII string.
 
-        let func_rvas = self.parse_at_rva(
-            exports.address_of_functions,
-            count(le_u32, num_exports),
-        )?;
+        let func_rvas = self
+            .parse_at_rva(
+                exports.address_of_functions,
+                count(le_u32, num_exports),
+            )
+            .unwrap_or_default();
 
-        let names = self.parse_at_rva(
-            exports.address_of_names,
-            count(le_u32, exports.number_of_names as usize),
-        )?;
+        let names = self
+            .parse_at_rva(
+                exports.address_of_names,
+                count(le_u32, exports.number_of_names as usize),
+            )
+            .unwrap_or_default();
 
-        let name_ordinals = self.parse_at_rva(
-            exports.address_of_name_ordinals,
-            count(le_u16, exports.number_of_names as usize),
-        )?;
+        let name_ordinals = self
+            .parse_at_rva(
+                exports.address_of_name_ordinals,
+                count(le_u16, exports.number_of_names as usize),
+            )
+            .unwrap_or_default();
 
         // Create a vector with one item per exported function. Items in the
         // array initially have function RVA and ordinal only.
