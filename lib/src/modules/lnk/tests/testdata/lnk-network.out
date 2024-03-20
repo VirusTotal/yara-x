@@ -7,8 +7,8 @@ file_attributes: 32
 icon_index: 0
 show_command: NORMAL
 common_path_suffix: "calc.exe"
-relative_path: ".\calc.exe"
-working_dir: "Z:\"
+relative_path: ".\\calc.exe"
+working_dir: "Z:\\"
 overlay_size: 0
 tracker_data:
     version: 0

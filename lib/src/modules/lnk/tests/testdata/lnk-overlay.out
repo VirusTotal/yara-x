@@ -9,9 +9,9 @@ show_command: NORMAL
 drive_type: FIXED
 drive_serial_number: 813337217
 volume_label: ""
-local_base_path: "C:\test\a.txt"
-relative_path: ".\a.txt"
-working_dir: "C:\test"
+local_base_path: "C:\\test\\a.txt"
+relative_path: ".\\a.txt"
+working_dir: "C:\\test"
 overlay_size: 12
 overlay_offset: 459
 tracker_data:

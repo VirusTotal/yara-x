@@ -29,9 +29,9 @@ streams:
 guids:
   - "d56eef0e-b964-4c2b-8e58-30441730866d"
 constants:
-  - "C\000o\000l\000u\000m\000n\000"
-  - "C\000o\000l\000u\000m\000n\000"
-  - ",\000"
+  - "C\x00o\x00l\x00u\x00m\x00n\x00"
+  - "C\x00o\x00l\x00u\x00m\x00n\x00"
+  - ",\x00"
 assembly:
     name: "OctopusRPA.Csv"
     version:
@@ -41,36 +41,35 @@ assembly:
         revision_number: 0
 assembly_refs:
   - name: "mscorlib"
-    public_key_or_token: "\267z\\V\0314\340\211"
+    public_key_or_token: "\xb7z\\V\x194\xe0\x89"
     version:
         major: 4
         minor: 0
         build_number: 0
         revision_number: 0
   - name: "System.Data"
-    public_key_or_token: "\267z\\V\0314\340\211"
+    public_key_or_token: "\xb7z\\V\x194\xe0\x89"
     version:
         major: 4
         minor: 0
         build_number: 0
         revision_number: 0
   - name: "CsvHelper"
-    public_key_or_token: "\214IY\010+\345\310#"
+    public_key_or_token: "\x8cIY\x08+\xe5\xc8#"
     version:
         major: 28
         minor: 0
         build_number: 0
         revision_number: 0
   - name: "System.Core"
-    public_key_or_token: "\267z\\V\0314\340\211"
+    public_key_or_token: "\xb7z\\V\x194\xe0\x89"
     version:
         major: 4
         minor: 0
         build_number: 0
         revision_number: 0
 resources:
-  - name: "
-"
+  - name: "\r\n"
 classes:
   - fullname: "OctopusRPA.Csv.CsvHelper"
     name: "CsvHelper"
@@ -403,16 +402,16 @@ classes:
           - name: "P_5"
             type: "int"
 user_strings:
-  - "d\000e\000l\000i\000m\000i\000t\000e\000r\000"
-  - "f\000i\000l\000e\000P\000a\000t\000h\000"
-  - "d\000a\000t\000a\000T\000a\000b\000l\000e\000"
-  - "d\000e\000f\000a\000u\000l\000t\000C\000o\000l\000u\000m\000n\000N\000a\000m\000e\000"
-  - "{\0000\000}\000{\0001\000}\000"
-  - "{\0000\000}\000(\000{\0001\000}\000)\000"
-  - "*\000=\000L\000o\000a\000d\000 \000D\000N\000G\000u\000a\000r\000d\000 \000R\000u\000n\000t\000i\000m\000e\000 \000l\000i\000b\000r\000a\000r\000y\000 \000f\000a\000i\000l\000e\000d\000,\000 \000r\000u\000n\000t\000i\000m\000e\000 \000l\000i\000b\000r\000a\000r\000y\000 \000n\000o\000t\000 \000f\000o\000u\000n\000d\000 \000o\000r\000 \000A\000c\000c\000e\000s\000s\000 \000D\000e\000n\000i\000e\000d\000.\000=\000*\000[\000O\000c\000t\000o\000p\000u\000s\000R\000P\000A\000.\000C\000s\000v\000.\000d\000l\000l\000]\000"
-  - "E\000r\000r\000o\000r\000,\000 \000D\000N\000G\000u\000a\000r\000d\000 \000R\000u\000n\000t\000i\000m\000e\000 \000l\000i\000b\000r\000a\000r\000y\000 \000n\000o\000t\000 \000l\000o\000a\000d\000e\000d\000!\000"
-  - "A\000 \000n\000e\000w\000e\000r\000 \000v\000e\000r\000s\000i\000o\000n\000 \000o\000f\000 \000D\000N\000G\000u\000a\000r\000d\000 \000R\000u\000n\000t\000i\000m\000e\000 \000l\000i\000b\000r\000a\000r\000y\000 \000i\000s\000 \000n\000e\000e\000d\000e\000d\000 \000t\000o\000 \000r\000u\000n\000 \000t\000h\000i\000s\000 \000a\000p\000p\000l\000i\000c\000a\000t\000i\000o\000n\000.\000"
-  - "[\000*\000=\000*\000]\000T\000h\000i\000s\000 \000a\000p\000p\000l\000i\000c\000a\000t\000i\000o\000n\000 \000i\000s\000 \000e\000x\000p\000i\000r\000e\000d\000 \000!\000[\000*\000=\000*\000]\000"
+  - "d\x00e\x00l\x00i\x00m\x00i\x00t\x00e\x00r\x00"
+  - "f\x00i\x00l\x00e\x00P\x00a\x00t\x00h\x00"
+  - "d\x00a\x00t\x00a\x00T\x00a\x00b\x00l\x00e\x00"
+  - "d\x00e\x00f\x00a\x00u\x00l\x00t\x00C\x00o\x00l\x00u\x00m\x00n\x00N\x00a\x00m\x00e\x00"
+  - "{\x000\x00}\x00{\x001\x00}\x00"
+  - "{\x000\x00}\x00(\x00{\x001\x00}\x00)\x00"
+  - "*\x00=\x00L\x00o\x00a\x00d\x00 \x00D\x00N\x00G\x00u\x00a\x00r\x00d\x00 \x00R\x00u\x00n\x00t\x00i\x00m\x00e\x00 \x00l\x00i\x00b\x00r\x00a\x00r\x00y\x00 \x00f\x00a\x00i\x00l\x00e\x00d\x00,\x00 \x00r\x00u\x00n\x00t\x00i\x00m\x00e\x00 \x00l\x00i\x00b\x00r\x00a\x00r\x00y\x00 \x00n\x00o\x00t\x00 \x00f\x00o\x00u\x00n\x00d\x00 \x00o\x00r\x00 \x00A\x00c\x00c\x00e\x00s\x00s\x00 \x00D\x00e\x00n\x00i\x00e\x00d\x00.\x00=\x00*\x00[\x00O\x00c\x00t\x00o\x00p\x00u\x00s\x00R\x00P\x00A\x00.\x00C\x00s\x00v\x00.\x00d\x00l\x00l\x00]\x00"
+  - "E\x00r\x00r\x00o\x00r\x00,\x00 \x00D\x00N\x00G\x00u\x00a\x00r\x00d\x00 \x00R\x00u\x00n\x00t\x00i\x00m\x00e\x00 \x00l\x00i\x00b\x00r\x00a\x00r\x00y\x00 \x00n\x00o\x00t\x00 \x00l\x00o\x00a\x00d\x00e\x00d\x00!\x00"
+  - "A\x00 \x00n\x00e\x00w\x00e\x00r\x00 \x00v\x00e\x00r\x00s\x00i\x00o\x00n\x00 \x00o\x00f\x00 \x00D\x00N\x00G\x00u\x00a\x00r\x00d\x00 \x00R\x00u\x00n\x00t\x00i\x00m\x00e\x00 \x00l\x00i\x00b\x00r\x00a\x00r\x00y\x00 \x00i\x00s\x00 \x00n\x00e\x00e\x00d\x00e\x00d\x00 \x00t\x00o\x00 \x00r\x00u\x00n\x00 \x00t\x00h\x00i\x00s\x00 \x00a\x00p\x00p\x00l\x00i\x00c\x00a\x00t\x00i\x00o\x00n\x00.\x00"
+  - "[\x00*\x00=\x00*\x00]\x00T\x00h\x00i\x00s\x00 \x00a\x00p\x00p\x00l\x00i\x00c\x00a\x00t\x00i\x00o\x00n\x00 \x00i\x00s\x00 \x00e\x00x\x00p\x00i\x00r\x00e\x00d\x00 \x00!\x00[\x00*\x00=\x00*\x00]\x00"
 modulerefs:
   - "OctopusRPA.Common.dll"
   - "OctopusRPA.Common64.dll"

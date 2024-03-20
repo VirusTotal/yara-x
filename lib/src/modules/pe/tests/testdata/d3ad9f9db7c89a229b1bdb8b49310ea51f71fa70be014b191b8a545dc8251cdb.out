@@ -55,8 +55,8 @@ rich_signature:
     offset: 128
     length: 80
     key: 1940349680
-    raw_data: "\264\003\311 \360b\247s\360b\247s\360b\247s\306D\254s\361b\247ss~\251s\345b\247s\306D\255s\273b\247s\360b\247s\367b\247s\222}\264s\367b\247s\360b\246s\221b\247s\030}\254s\361b\247s\030}\243s\361b\247s"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\0006&\013\000\001\000\000\000\203\034\016\000\025\000\000\0006&\n\000K\000\000\000\000\000\000\000\007\000\000\000b\037\023\000\007\000\000\000\000\000\001\000a\000\000\000\350\037\013\000\001\000\000\000\350\037\004\000\001\000\000\000"
+    raw_data: "\xb4\x03\xc9 \xf0b\xa7s\xf0b\xa7s\xf0b\xa7s\xc6D\xacs\xf1b\xa7ss~\xa9s\xe5b\xa7s\xc6D\xads\xbbb\xa7s\xf0b\xa7s\xf7b\xa7s\x92}\xb4s\xf7b\xa7s\xf0b\xa6s\x91b\xa7s\x18}\xacs\xf1b\xa7s\x18}\xa3s\xf1b\xa7s"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x006&\x0b\x00\x01\x00\x00\x00\x83\x1c\x0e\x00\x15\x00\x00\x006&\n\x00K\x00\x00\x00\x00\x00\x00\x00\x07\x00\x00\x00b\x1f\x13\x00\x07\x00\x00\x00\x00\x00\x01\x00a\x00\x00\x00\xe8\x1f\x0b\x00\x01\x00\x00\x00\xe8\x1f\x04\x00\x01\x00\x00\x00"
     tools:
       - toolid: 11
         version: 9782
@@ -82,7 +82,7 @@ rich_signature:
       - toolid: 4
         version: 8168
         times: 1
-pdb_path: "E:\\Coding\\DownLoader\\0823\327\324\266\257\311\375\274\266\260\346\\sens32\\Release\\sens32.pdb"
+pdb_path: "E:\\Coding\\DownLoader\\0823\xd7\xd4\xb6\xaf\xc9\xfd\xbc\xb6\xb0\xe6\\sens32\\Release\\sens32.pdb"
 sections:
   - name: ".text"
     full_name: ".text"

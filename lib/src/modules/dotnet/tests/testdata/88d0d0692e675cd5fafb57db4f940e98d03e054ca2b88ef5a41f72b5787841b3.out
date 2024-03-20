@@ -58,21 +58,21 @@ assembly_refs:
         build_number: 56188
         revision_number: 59260
   - name: ""
-    public_key_or_token: "p\013\247\025\273\334:\241\257m\367\367\ts\337Fp\013\247\025\273\334:\241\257m\367\367\ts\337Fp\013\247\025\273\334:\241\000\010\267z\\V\0314\340\211\002\006\002\003\000\000\001\003\006\023\000\003\006\023\001\002\006\034\007 "
+    public_key_or_token: "p\x0b\xa7\x15\xbb\xdc:\xa1\xafm\xf7\xf7\ts\xdfFp\x0b\xa7\x15\xbb\xdc:\xa1\xafm\xf7\xf7\ts\xdfFp\x0b\xa7\x15\xbb\xdc:\xa1\x00\x08\xb7z\\V\x194\xe0\x89\x02\x06\x02\x03\x00\x00\x01\x03\x06\x13\x00\x03\x06\x13\x01\x02\x06\x1c\x07 "
     version:
         major: 7552
         minor: 0
         build_number: 2
         revision_number: 0
   - name: "SetupExporter"
-    public_key_or_token: "\001\001\023\000\032\020\002\003\001\025\022\200\214\001\025\0225\002\036\000\036\001\025\0229\002\036\000\036\001\034\006"
+    public_key_or_token: "\x01\x01\x13\x00\x1a\x10\x02\x03\x01\x15\x12\x80\x8c\x01\x15\x125\x02\x1e\x00\x1e\x01\x15\x129\x02\x1e\x00\x1e\x01\x1c\x06"
     version:
         major: 0
         minor: 2
         build_number: 0
         revision_number: 0
   - name: "lculatePool"
-    public_key_or_token: "\001\001\023\000\032\020\002\003\001\025\022\200\214\001\025\0225\002\036\000\036\001\025\0229\002\036\000\036\001\034\006"
+    public_key_or_token: "\x01\x01\x13\x00\x1a\x10\x02\x03\x01\x15\x12\x80\x8c\x01\x15\x125\x02\x1e\x00\x1e\x01\x15\x129\x02\x1e\x00\x1e\x01\x1c\x06"
     version:
         major: 0
         minor: 2

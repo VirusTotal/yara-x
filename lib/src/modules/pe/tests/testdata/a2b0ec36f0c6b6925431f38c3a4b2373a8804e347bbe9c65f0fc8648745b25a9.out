@@ -92,8 +92,8 @@ rich_signature:
     offset: 128
     length: 96
     key: 977732471
-    raw_data: "3b)iw\003G:w\003G:w\003G:\014\037K:{\003G:\030\034L:}\003G:\364\037I:k\003G:\030\034M:\377\003G:w\003G:g\003G:w\003F:\232\003G:\025\034T:z\003G:q L:p\002G:\260\005A:v\003G:\210#C:v\003G:"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000{\034\014\000\014\000\000\000o\037\013\000\n\000\000\000\203\034\016\000\034\000\000\000o\037\n\000\210\000\000\000\000\000\000\000\020\000\000\000\000\000\001\000\355\000\000\000b\037\023\000\r\000\000\000\006#\013\000\007\001\000\000\307\006\006\000\001\000\000\000\377 \004\000\001\000\000\000"
+    raw_data: "3b)iw\x03G:w\x03G:w\x03G:\x0c\x1fK:{\x03G:\x18\x1cL:}\x03G:\xf4\x1fI:k\x03G:\x18\x1cM:\xff\x03G:w\x03G:g\x03G:w\x03F:\x9a\x03G:\x15\x1cT:z\x03G:q L:p\x02G:\xb0\x05A:v\x03G:\x88#C:v\x03G:"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00{\x1c\x0c\x00\x0c\x00\x00\x00o\x1f\x0b\x00\n\x00\x00\x00\x83\x1c\x0e\x00\x1c\x00\x00\x00o\x1f\n\x00\x88\x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x00\x00\x01\x00\xed\x00\x00\x00b\x1f\x13\x00\r\x00\x00\x00\x06#\x0b\x00\x07\x01\x00\x00\xc7\x06\x06\x00\x01\x00\x00\x00\xff \x04\x00\x01\x00\x00\x00"
     tools:
       - toolid: 12
         version: 7291
@@ -267,7 +267,7 @@ resources:
     offset: 596288
     type: RESOURCE_TYPE_MENU
     language: 1033
-    name_string: "I\000D\000R\000_\000M\000A\000I\000N\000M\000E\000N\000U\000"
+    name_string: "I\x00D\x00R\x00_\x00M\x00A\x00I\x00N\x00M\x00E\x00N\x00U\x00"
   - length: 264
     rva: 1611192
     offset: 596408
@@ -309,7 +309,7 @@ resources:
     offset: 608672
     type: RESOURCE_TYPE_ACCELERATOR
     language: 1033
-    name_string: "I\000D\000R\000_\000A\000C\000C\000E\000L\000E\000R\000A\000T\000O\000R\0001\000"
+    name_string: "I\x00D\x00R\x00_\x00A\x00C\x00C\x00E\x00L\x00E\x00R\x00A\x00T\x00O\x00R\x001\x00"
   - length: 432640
     rva: 1624448
     offset: 609664
@@ -333,7 +333,7 @@ resources:
     offset: 1120812
     type: RESOURCE_TYPE_GROUP_ICON
     language: 1033
-    name_string: "A\000P\000P\000I\000C\000O\000N\000"
+    name_string: "A\x00P\x00P\x00I\x00C\x00O\x00N\x00"
   - length: 932
     rva: 2136132
     offset: 1120836

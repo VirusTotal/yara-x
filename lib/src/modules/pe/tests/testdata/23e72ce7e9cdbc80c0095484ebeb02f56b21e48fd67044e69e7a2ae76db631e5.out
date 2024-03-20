@@ -80,8 +80,8 @@ rich_signature:
     offset: 128
     length: 80
     key: 3360243275
-    raw_data: "\017_\'\233K>I\310K>I\310K>I\310.XJ\311I>I\310.XM\311A>I\310K>H\310W>I\310.XH\311N>I\310.XI\311J>I\310.XA\311I>I\310.X\266\310J>I\310.XK\311J>I\310"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000ef\003\001\002\000\000\000ef\004\001\n\000\000\000\000\000\001\000\034\000\000\000ef\001\001\005\000\000\000ef\000\001\001\000\000\000ef\010\001\002\000\000\000ef\377\000\001\000\000\000ef\002\001\001\000\000\000"
+    raw_data: "\x0f_\'\x9bK>I\xc8K>I\xc8K>I\xc8.XJ\xc9I>I\xc8.XM\xc9A>I\xc8K>H\xc8W>I\xc8.XH\xc9N>I\xc8.XI\xc9J>I\xc8.XA\xc9I>I\xc8.X\xb6\xc8J>I\xc8.XK\xc9J>I\xc8"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ef\x03\x01\x02\x00\x00\x00ef\x04\x01\n\x00\x00\x00\x00\x00\x01\x00\x1c\x00\x00\x00ef\x01\x01\x05\x00\x00\x00ef\x00\x01\x01\x00\x00\x00ef\x08\x01\x02\x00\x00\x00ef\xff\x00\x01\x00\x00\x00ef\x02\x01\x01\x00\x00\x00"
     tools:
       - toolid: 259
         version: 26213

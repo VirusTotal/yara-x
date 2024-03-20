@@ -82,8 +82,8 @@ rich_signature:
     offset: 128
     length: 88
     key: 1852233515
-    raw_data: "o\266\010=+\327fn+\327fn+\327fn\014\021\033n!\327fn\014\021\035n/\327fn\014\021\013nb\327fnr\364un:\327fn+\327gn\202\326fn\014\021\010n\025\327fn\014\021\030n*\327fn\014\021\032n*\327fn\014\021\036n*\327fn"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\'\306}\000\n\000\000\000\'\306{\000\004\000\000\000\'\306m\000I\000\000\000Y#\023\000\021\000\000\000\000\000\001\000\251\001\000\000\'\306n\000>\000\000\000\'\306~\000\001\000\000\000\'\306|\000\001\000\000\000\'\306x\000\001\000\000\000"
+    raw_data: "o\xb6\x08=+\xd7fn+\xd7fn+\xd7fn\x0c\x11\x1bn!\xd7fn\x0c\x11\x1dn/\xd7fn\x0c\x11\x0bnb\xd7fnr\xf4un:\xd7fn+\xd7gn\x82\xd6fn\x0c\x11\x08n\x15\xd7fn\x0c\x11\x18n*\xd7fn\x0c\x11\x1an*\xd7fn\x0c\x11\x1en*\xd7fn"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\'\xc6}\x00\n\x00\x00\x00\'\xc6{\x00\x04\x00\x00\x00\'\xc6m\x00I\x00\x00\x00Y#\x13\x00\x11\x00\x00\x00\x00\x00\x01\x00\xa9\x01\x00\x00\'\xc6n\x00>\x00\x00\x00\'\xc6~\x00\x01\x00\x00\x00\'\xc6|\x00\x01\x00\x00\x00\'\xc6x\x00\x01\x00\x00\x00"
     tools:
       - toolid: 125
         version: 50727
@@ -212,31 +212,31 @@ resources:
     offset: 436112
     id: 106
     language: 1033
-    type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+    type_string: "A\x00F\x00X\x00_\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00A\x00Y\x00O\x00U\x00T\x00"
   - length: 2
     rva: 450440
     offset: 436104
     id: 107
     language: 1033
-    type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+    type_string: "A\x00F\x00X\x00_\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00A\x00Y\x00O\x00U\x00T\x00"
   - length: 2
     rva: 450464
     offset: 436128
     id: 111
     language: 1033
-    type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+    type_string: "A\x00F\x00X\x00_\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00A\x00Y\x00O\x00U\x00T\x00"
   - length: 2
     rva: 450456
     offset: 436120
     id: 112
     language: 1033
-    type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+    type_string: "A\x00F\x00X\x00_\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00A\x00Y\x00O\x00U\x00T\x00"
   - length: 2
     rva: 450432
     offset: 436096
     id: 114
     language: 1033
-    type_string: "A\000F\000X\000_\000D\000I\000A\000L\000O\000G\000_\000L\000A\000Y\000O\000U\000T\000"
+    type_string: "A\x00F\x00X\x00_\x00D\x00I\x00A\x00L\x00O\x00G\x00_\x00L\x00A\x00Y\x00O\x00U\x00T\x00"
   - length: 1640
     rva: 402864
     offset: 388528

@@ -53,8 +53,8 @@ rich_signature:
     offset: 128
     length: 32
     key: 2327776733
-    raw_data: "\231l\321\331\335\r\277\212\335\r\277\212\335\r\277\212\262{%\212\334\r\277\212\262{\"\212\334\r\277\212"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000ov\232\000\001\000\000\000ov\235\000\001\000\000\000"
+    raw_data: "\x99l\xd1\xd9\xdd\r\xbf\x8a\xdd\r\xbf\x8a\xdd\r\xbf\x8a\xb2{%\x8a\xdc\r\xbf\x8a\xb2{\"\x8a\xdc\r\xbf\x8a"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ov\x9a\x00\x01\x00\x00\x00ov\x9d\x00\x01\x00\x00\x00"
     tools:
       - toolid: 154
         version: 30319
@@ -129,31 +129,31 @@ resources:
     offset: 1436
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "D\000E\000S\000C\000R\000I\000P\000T\000I\000O\000N\000"
+    name_string: "D\x00E\x00S\x00C\x00R\x00I\x00P\x00T\x00I\x00O\x00N\x00"
   - length: 200
     rva: 8668
     offset: 1500
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "P\000A\000C\000K\000A\000G\000E\000I\000N\000F\000O\000"
+    name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00I\x00N\x00F\x00O\x00"
   - length: 256
     rva: 8868
     offset: 1700
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "P\000A\000C\000K\000A\000G\000E\000O\000P\000T\000I\000O\000N\000S\000"
+    name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00O\x00P\x00T\x00I\x00O\x00N\x00S\x00"
   - length: 2
     rva: 9124
     offset: 1956
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "P\000L\000A\000T\000F\000O\000R\000M\000T\000A\000R\000G\000E\000T\000S\000"
+    name_string: "P\x00L\x00A\x00T\x00F\x00O\x00R\x00M\x00T\x00A\x00R\x00G\x00E\x00T\x00S\x00"
   - length: 1163
     rva: 9128
     offset: 1960
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "T\000L\000F\000_\000P\000D\000_\000J\000O\000"
+    name_string: "T\x00L\x00F\x00_\x00P\x00D\x00_\x00J\x00O\x00"
 is_signed: false
 overlay:
     offset: 0

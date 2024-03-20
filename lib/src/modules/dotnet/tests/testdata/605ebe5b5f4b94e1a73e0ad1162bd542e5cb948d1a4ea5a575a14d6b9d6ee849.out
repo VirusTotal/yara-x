@@ -37,7 +37,7 @@ assembly:
         revision_number: 0
 assembly_refs:
   - name: "mscorlib"
-    public_key_or_token: "\267z\\V\0314\340\211"
+    public_key_or_token: "\xb7z\\V\x194\xe0\x89"
     version:
         major: 4
         minor: 0
@@ -5329,4 +5329,4 @@ classes:
         number_of_generic_parameters: 0
         number_of_parameters: 0
 user_strings:
-  - " \000"
+  - " \x00"

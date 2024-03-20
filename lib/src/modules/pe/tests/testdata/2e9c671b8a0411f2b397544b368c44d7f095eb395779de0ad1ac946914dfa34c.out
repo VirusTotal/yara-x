@@ -193,19 +193,19 @@ resources:
     offset: 80464
     type: RESOURCE_TYPE_DIALOG
     language: 2055
-    name_string: "U\000N\000I\000N\000S\000T\000D\000L\000G\000"
+    name_string: "U\x00N\x00I\x00N\x00S\x00T\x00D\x00L\x00G\x00"
   - length: 642
     rva: 112696
     offset: 81464
     type: RESOURCE_TYPE_DIALOG
     language: 2055
-    name_string: "U\000N\000I\000N\000S\000T\000R\000E\000P\000A\000I\000R\000"
+    name_string: "U\x00N\x00I\x00N\x00S\x00T\x00R\x00E\x00P\x00A\x00I\x00R\x00"
   - length: 62
     rva: 113340
     offset: 82108
     type: RESOURCE_TYPE_GROUP_ICON
     language: 0
-    name_string: "M\000A\000I\000N\000I\000C\000O\000N\000"
+    name_string: "M\x00A\x00I\x00N\x00I\x00C\x00O\x00N\x00"
   - length: 1555
     rva: 113404
     offset: 82172

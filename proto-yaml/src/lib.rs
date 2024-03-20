@@ -52,7 +52,6 @@ timestamp: 999999999 # 2001-09-09 01:46:39 UTC
 use chrono::prelude::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use protobuf::MessageDyn;
-use protobuf_support::text_format::escape_bytes_to;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
 use yansi::Paint;
@@ -170,7 +169,38 @@ impl<W: Write> Serializer<W> {
     fn quote_bytes(&mut self, bytes: &[u8]) -> String {
         let mut result = String::new();
         result.push('"');
-        escape_bytes_to(bytes, &mut result);
+        for b in bytes.iter() {
+            match b {
+                b'\n' => result.push_str(r"\n"),
+                b'\r' => result.push_str(r"\r"),
+                b'\t' => result.push_str(r"\t"),
+                b'\'' => result.push_str("\\\'"),
+                b'"' => result.push_str("\\\""),
+                b'\\' => result.push_str(r"\\"),
+                b'\x20'..=b'\x7e' => result.push(*b as char),
+                _ => {
+                    result.push_str(&format!("\\x{:02x}", *b));
+                }
+            }
+        }
+        result.push('"');
+        result
+    }
+
+    fn quote_str(&mut self, s: &str) -> String {
+        let mut result = String::new();
+        result.push('"');
+        for c in s.chars() {
+            match c {
+                '\n' => result.push_str(r"\n"),
+                '\r' => result.push_str(r"\r"),
+                '\t' => result.push_str(r"\t"),
+                '\'' => result.push_str("\\\'"),
+                '"' => result.push_str("\\\""),
+                '\\' => result.push_str(r"\\"),
+                _ => result.push(c),
+            }
+        }
         result.push('"');
         result
     }
@@ -294,15 +324,12 @@ impl<W: Write> Serializer<W> {
             ReflectValueRef::F64(v) => write!(self.output, "{:.1}", v)?,
             ReflectValueRef::Bool(v) => write!(self.output, "{}", v)?,
             ReflectValueRef::String(v) => {
-                write!(self.output, "\"{}\"", self.colors.string.paint(v))?;
+                let quoted = self.quote_str(v);
+                write!(self.output, "{}", self.colors.string.paint(quoted))?;
             }
             ReflectValueRef::Bytes(v) => {
-                let quoted_string = self.quote_bytes(v);
-                write!(
-                    self.output,
-                    "{}",
-                    self.colors.string.paint(&quoted_string)
-                )?;
+                let quoted = self.quote_bytes(v);
+                write!(self.output, "{}", self.colors.string.paint(quoted))?;
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {
                 Some(e) => write!(self.output, "{}", e.name())?,

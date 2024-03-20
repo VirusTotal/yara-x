@@ -89,8 +89,8 @@ rich_signature:
     offset: 128
     length: 72
     key: 3573433955
-    raw_data: "\'\'\220\207cF\376\324cF\376\324cF\376\324\360\010f\324gF\376\324x\333U\324GF\376\324x\333`\324iF\376\324j>m\324fF\376\324cF\377\324\004F\376\324x\333T\324\357F\376\324x\333c\324bF\376\324"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\223N\230\000\004\000\000\000\033\235\253\000$\000\000\000\033\235\236\000\n\000\000\000\tx\223\000\005\000\000\000\000\000\001\000g\000\000\000\033\235\252\000\214\000\000\000\033\235\235\000\001\000\000\000"
+    raw_data: "\'\'\x90\x87cF\xfe\xd4cF\xfe\xd4cF\xfe\xd4\xf0\x08f\xd4gF\xfe\xd4x\xdbU\xd4GF\xfe\xd4x\xdb`\xd4iF\xfe\xd4j>m\xd4fF\xfe\xd4cF\xff\xd4\x04F\xfe\xd4x\xdbT\xd4\xefF\xfe\xd4x\xdbc\xd4bF\xfe\xd4"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x93N\x98\x00\x04\x00\x00\x00\x1b\x9d\xab\x00$\x00\x00\x00\x1b\x9d\x9e\x00\n\x00\x00\x00\tx\x93\x00\x05\x00\x00\x00\x00\x00\x01\x00g\x00\x00\x00\x1b\x9d\xaa\x00\x8c\x00\x00\x00\x1b\x9d\x9d\x00\x01\x00\x00\x00"
     tools:
       - toolid: 152
         version: 20115
@@ -414,7 +414,7 @@ import_details:
         rva: 70312
 is_signed: true
 signatures:
-  - subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\xC3\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
+  - subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\\xC3\\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
     issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
     thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
     version: 3
@@ -434,7 +434,7 @@ signatures:
         digest_alg: "sha384"
         chain:
           - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
-            subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\xC3\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
+            subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\\xC3\\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
             thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
             version: 3
             algorithm: "ecdsa-with-SHA384"
@@ -462,7 +462,7 @@ signatures:
         not_before: 1551987465 # 2019-03-07 19:37:45 UTC
         not_after: 2025027465 # 2034-03-03 19:37:45 UTC
       - issuer: "/C=US/ST=Texas/L=Houston/O=SSL Corp/CN=SSL.com EV Code Signing Intermediate CA ECC R2"
-        subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\xC3\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
+        subject: "/C=DE/ST=Bayern/L=Geretsried/O=Quality First Software GmbH/serialNumber=HRB 140833/CN=Quality First Software GmbH/businessCategory=Private Organization/jurisdictionL=M\\xC3\\xBCnchen/jurisdictionST=Bayern/jurisdictionC=DE"
         thumbprint: "6a63f4e957aa5867f33916e8f57019c2b9987478"
         version: 3
         algorithm: "ecdsa-with-SHA384"

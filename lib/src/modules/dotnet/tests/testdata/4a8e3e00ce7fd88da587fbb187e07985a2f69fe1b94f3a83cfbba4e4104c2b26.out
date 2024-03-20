@@ -36,21 +36,21 @@ assembly:
         revision_number: 0
 assembly_refs:
   - name: "mscorlib"
-    public_key_or_token: "\267z\\V\0314\340\211"
+    public_key_or_token: "\xb7z\\V\x194\xe0\x89"
     version:
         major: 4
         minor: 0
         build_number: 0
         revision_number: 0
   - name: "System"
-    public_key_or_token: "\267z\\V\0314\340\211"
+    public_key_or_token: "\xb7z\\V\x194\xe0\x89"
     version:
         major: 4
         minor: 0
         build_number: 0
         revision_number: 0
   - name: "Microsoft.VisualBasic"
-    public_key_or_token: "\260?_\177\021\325\n:"
+    public_key_or_token: "\xb0?_\x7f\x11\xd5\n:"
     version:
         major: 10
         minor: 0
@@ -443,11 +443,11 @@ classes:
         number_of_generic_parameters: 0
         number_of_parameters: 0
 user_strings:
-  - "g\000s\000l\000T\000i\000m\000e\000r\000.\000R\000e\000s\000o\000u\000r\000c\000e\000s\000"
-  - "b\000a\000s\000e\000"
-  - "g\000e\000t\000s\000_\000i\000n\000_\000t\000h\000e\000_\000w\000a\000y\000"
-  - "j\000u\000s\000t\000_\000l\000i\000k\000e\000_\000t\000h\000a\000t\000"
-  - "k\000n\000o\000b\000"
-  - "p\000u\000t\000_\000d\000o\000w\000n\000"
-  - "q\000u\000i\000e\000t\000_\000k\000n\000o\000c\000k\000"
-  - "y\000o\000u\000r\000_\000t\000u\000r\000n\000"
+  - "g\x00s\x00l\x00T\x00i\x00m\x00e\x00r\x00.\x00R\x00e\x00s\x00o\x00u\x00r\x00c\x00e\x00s\x00"
+  - "b\x00a\x00s\x00e\x00"
+  - "g\x00e\x00t\x00s\x00_\x00i\x00n\x00_\x00t\x00h\x00e\x00_\x00w\x00a\x00y\x00"
+  - "j\x00u\x00s\x00t\x00_\x00l\x00i\x00k\x00e\x00_\x00t\x00h\x00a\x00t\x00"
+  - "k\x00n\x00o\x00b\x00"
+  - "p\x00u\x00t\x00_\x00d\x00o\x00w\x00n\x00"
+  - "q\x00u\x00i\x00e\x00t\x00_\x00k\x00n\x00o\x00c\x00k\x00"
+  - "y\x00o\x00u\x00r\x00_\x00t\x00u\x00r\x00n\x00"

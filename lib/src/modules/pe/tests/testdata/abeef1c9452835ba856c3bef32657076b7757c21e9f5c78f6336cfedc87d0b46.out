@@ -273,217 +273,217 @@ resources:
     offset: 1566828
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000A\000C\000K\000U\000P\000"
+    name_string: "B\x00A\x00C\x00K\x00U\x00P\x00"
   - length: 216
     rva: 1585988
     offset: 1567044
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000A\000C\000K\000U\000P\000G\000"
+    name_string: "B\x00A\x00C\x00K\x00U\x00P\x00G\x00"
   - length: 464
     rva: 1586204
     offset: 1567260
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000A\000B\000O\000R\000T\000"
+    name_string: "B\x00B\x00A\x00B\x00O\x00R\x00T\x00"
   - length: 484
     rva: 1586668
     offset: 1567724
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000A\000L\000L\000"
+    name_string: "B\x00B\x00A\x00L\x00L\x00"
   - length: 464
     rva: 1587152
     offset: 1568208
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000C\000A\000N\000C\000E\000L\000"
+    name_string: "B\x00B\x00C\x00A\x00N\x00C\x00E\x00L\x00"
   - length: 464
     rva: 1587616
     offset: 1568672
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000C\000L\000O\000S\000E\000"
+    name_string: "B\x00B\x00C\x00L\x00O\x00S\x00E\x00"
   - length: 464
     rva: 1588080
     offset: 1569136
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000H\000E\000L\000P\000"
+    name_string: "B\x00B\x00H\x00E\x00L\x00P\x00"
   - length: 464
     rva: 1588544
     offset: 1569600
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000I\000G\000N\000O\000R\000E\000"
+    name_string: "B\x00B\x00I\x00G\x00N\x00O\x00R\x00E\x00"
   - length: 464
     rva: 1589008
     offset: 1570064
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000N\000O\000"
+    name_string: "B\x00B\x00N\x00O\x00"
   - length: 464
     rva: 1589472
     offset: 1570528
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000O\000K\000"
+    name_string: "B\x00B\x00O\x00K\x00"
   - length: 464
     rva: 1589936
     offset: 1570992
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000R\000E\000T\000R\000Y\000"
+    name_string: "B\x00B\x00R\x00E\x00T\x00R\x00Y\x00"
   - length: 464
     rva: 1590400
     offset: 1571456
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "B\000B\000Y\000E\000S\000"
+    name_string: "B\x00B\x00Y\x00E\x00S\x00"
   - length: 224
     rva: 1590864
     offset: 1571920
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "C\000A\000P\000T\000I\000O\000N\000"
+    name_string: "C\x00A\x00P\x00T\x00I\x00O\x00N\x00"
   - length: 232
     rva: 1591088
     offset: 1572144
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "C\000O\000L\000S\000"
+    name_string: "C\x00O\x00L\x00S\x00"
   - length: 312
     rva: 1591320
     offset: 1572376
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000C\000A\000N\000C\000E\000L\000"
+    name_string: "D\x00B\x00N\x00_\x00C\x00A\x00N\x00C\x00E\x00L\x00"
   - length: 312
     rva: 1591632
     offset: 1572688
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000D\000E\000L\000E\000T\000E\000"
+    name_string: "D\x00B\x00N\x00_\x00D\x00E\x00L\x00E\x00T\x00E\x00"
   - length: 312
     rva: 1591944
     offset: 1573000
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000E\000D\000I\000T\000"
+    name_string: "D\x00B\x00N\x00_\x00E\x00D\x00I\x00T\x00"
   - length: 312
     rva: 1592256
     offset: 1573312
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000F\000I\000R\000S\000T\000"
+    name_string: "D\x00B\x00N\x00_\x00F\x00I\x00R\x00S\x00T\x00"
   - length: 312
     rva: 1592568
     offset: 1573624
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000I\000N\000S\000E\000R\000T\000"
+    name_string: "D\x00B\x00N\x00_\x00I\x00N\x00S\x00E\x00R\x00T\x00"
   - length: 312
     rva: 1592880
     offset: 1573936
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000L\000A\000S\000T\000"
+    name_string: "D\x00B\x00N\x00_\x00L\x00A\x00S\x00T\x00"
   - length: 260
     rva: 1593192
     offset: 1574248
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000N\000E\000X\000T\000"
+    name_string: "D\x00B\x00N\x00_\x00N\x00E\x00X\x00T\x00"
   - length: 312
     rva: 1593452
     offset: 1574508
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000P\000O\000S\000T\000"
+    name_string: "D\x00B\x00N\x00_\x00P\x00O\x00S\x00T\x00"
   - length: 260
     rva: 1593764
     offset: 1574820
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000P\000R\000I\000O\000R\000"
+    name_string: "D\x00B\x00N\x00_\x00P\x00R\x00I\x00O\x00R\x00"
   - length: 312
     rva: 1594024
     offset: 1575080
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000B\000N\000_\000R\000E\000F\000R\000E\000S\000H\000"
+    name_string: "D\x00B\x00N\x00_\x00R\x00E\x00F\x00R\x00E\x00S\x00H\x00"
   - length: 224
     rva: 1594336
     offset: 1575392
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000C\000L\000O\000S\000E\000"
+    name_string: "D\x00C\x00L\x00O\x00S\x00E\x00"
   - length: 224
     rva: 1594560
     offset: 1575616
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "D\000O\000P\000E\000N\000"
+    name_string: "D\x00O\x00P\x00E\x00N\x00"
   - length: 216
     rva: 1594784
     offset: 1575840
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "F\000O\000R\000W\000A\000R\000D\000"
+    name_string: "F\x00O\x00R\x00W\x00A\x00R\x00D\x00"
   - length: 216
     rva: 1595000
     offset: 1576056
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "F\000O\000R\000W\000A\000R\000D\000G\000"
+    name_string: "F\x00O\x00R\x00W\x00A\x00R\x00D\x00G\x00"
   - length: 132
     rva: 1595216
     offset: 1576272
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "H\000O\000M\000E\000"
+    name_string: "H\x00O\x00M\x00E\x00"
   - length: 132
     rva: 1595348
     offset: 1576404
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "H\000O\000M\000E\000G\000"
+    name_string: "H\x00O\x00M\x00E\x00G\x00"
   - length: 224
     rva: 1595480
     offset: 1576536
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "L\000E\000F\000T\000A\000R\000R\000O\000W\000"
+    name_string: "L\x00E\x00F\x00T\x00A\x00R\x00R\x00O\x00W\x00"
   - length: 224
     rva: 1595704
     offset: 1576760
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "P\000I\000V\000O\000T\000"
+    name_string: "P\x00I\x00V\x00O\x00T\x00"
   - length: 232
     rva: 1595928
     offset: 1576984
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "P\000R\000E\000V\000I\000E\000W\000G\000L\000Y\000P\000H\000"
+    name_string: "P\x00R\x00E\x00V\x00I\x00E\x00W\x00G\x00L\x00Y\x00P\x00H\x00"
   - length: 224
     rva: 1596160
     offset: 1577216
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "R\000I\000G\000H\000T\000A\000R\000R\000O\000W\000"
+    name_string: "R\x00I\x00G\x00H\x00T\x00A\x00R\x00R\x00O\x00W\x00"
   - length: 232
     rva: 1596384
     offset: 1577440
     type: RESOURCE_TYPE_BITMAP
     language: 0
-    name_string: "R\000O\000W\000S\000"
+    name_string: "R\x00O\x00W\x00S\x00"
   - length: 82
     rva: 1596616
     offset: 1577672
     type: RESOURCE_TYPE_DIALOG
     language: 0
-    name_string: "D\000L\000G\000T\000E\000M\000P\000L\000A\000T\000E\000"
+    name_string: "D\x00L\x00G\x00T\x00E\x00M\x00P\x00L\x00A\x00T\x00E\x00"
   - length: 896
     rva: 1596700
     offset: 1577756
@@ -687,61 +687,61 @@ resources:
     offset: 1606928
     type: RESOURCE_TYPE_RCDATA
     language: 1046
-    name_string: "D\000E\000M\000O\000D\000L\000L\000"
+    name_string: "D\x00E\x00M\x00O\x00D\x00L\x00L\x00"
   - length: 16
     rva: 2274576
     offset: 2255632
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "D\000V\000C\000L\000A\000L\000"
+    name_string: "D\x00V\x00C\x00L\x00A\x00L\x00"
   - length: 1572
     rva: 2274592
     offset: 2255648
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "P\000A\000C\000K\000A\000G\000E\000I\000N\000F\000O\000"
+    name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00I\x00N\x00F\x00O\x00"
   - length: 908
     rva: 2276164
     offset: 2257220
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "T\000C\0004\0003\0004\0005\0002\0005\000"
+    name_string: "T\x00C\x004\x003\x004\x005\x002\x005\x00"
   - length: 1172
     rva: 2277072
     offset: 2258128
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "T\000L\000O\000G\000I\000N\000D\000I\000A\000L\000O\000G\000"
+    name_string: "T\x00L\x00O\x00G\x00I\x00N\x00D\x00I\x00A\x00L\x00O\x00G\x00"
   - length: 964
     rva: 2278244
     offset: 2259300
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "T\000P\000A\000S\000S\000W\000O\000R\000D\000D\000I\000A\000L\000O\000G\000"
+    name_string: "T\x00P\x00A\x00S\x00S\x00W\x00O\x00R\x00D\x00D\x00I\x00A\x00L\x00O\x00G\x00"
   - length: 572
     rva: 2279208
     offset: 2260264
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "T\000P\000R\000O\000G\000R\000E\000S\000S\000D\000I\000A\000L\000O\000G\000"
+    name_string: "T\x00P\x00R\x00O\x00G\x00R\x00E\x00S\x00S\x00D\x00I\x00A\x00L\x00O\x00G\x00"
   - length: 20
     rva: 2279780
     offset: 2260836
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 0
-    name_string: "D\000I\000M\000I\000N\000S\000"
+    name_string: "D\x00I\x00M\x00I\x00N\x00S\x00"
   - length: 20
     rva: 2279800
     offset: 2260856
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 0
-    name_string: "D\000I\000M\000M\000O\000V\000E\000"
+    name_string: "D\x00I\x00M\x00M\x00O\x00V\x00E\x00"
   - length: 20
     rva: 2279820
     offset: 2260876
     type: RESOURCE_TYPE_GROUP_CURSOR
     language: 0
-    name_string: "T\000E\000E\000_\000C\000U\000R\000S\000O\000R\000_\000H\000A\000N\000D\000"
+    name_string: "T\x00E\x00E\x00_\x00C\x00U\x00R\x00S\x00O\x00R\x00_\x00H\x00A\x00N\x00D\x00"
   - length: 20
     rva: 2279840
     offset: 2260896
