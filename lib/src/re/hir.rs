@@ -410,25 +410,26 @@ pub fn class_to_masked_byte(c: &ClassBytes) -> Option<HexByte> {
     // `3F`, by xoring the two we get `0x0F`.
     let neg_mask = largest_byte ^ smallest_byte;
 
-    // Make sure that a bitwise AND between the largest and the smallest
-    // bytes is equal to the smallest one.
-    if largest_byte & smallest_byte != smallest_byte {
-        return None;
-    }
-
-    // Compute the number of bytes in the class.
+    // This will hold the number of bytes in the class.
     let mut num_bytes: u32 = 0;
 
     for range in c.ranges().iter() {
-        num_bytes += (range.end() - range.start()) as u32 + 1;
+        // Make sure that a bitwise AND between all bytes in the class and
+        // the smallest byte is equal to the smallest one.
+        for b in range.start()..=range.end() {
+            if b & smallest_byte != smallest_byte {
+                return None;
+            }
+        }
+        num_bytes += range.len() as u32;
     }
 
     // The class must have 2^N bytes, where N is the number of 1s in the
     // negated mask, if not, this is not a masked byte. For instance, if the
     // negated mask is `0000 1111`, it means that the bits that are set to 1
     // can have an arbitrary value in the byte, so possible bytes are
-    // `0000 0001`, `0000 0010`, `0000 0011`, up to `0000 1111`. Therefore the
-    // number of possible bytes is 2^4 (16).
+    // `0000 0001`, `0000 0010`, `0000 0011`, up to `0000 1111`. Therefore,
+    // the number of possible bytes is 2^4 (16).
     if 1 << neg_mask.count_ones() != num_bytes {
         return None;
     }
