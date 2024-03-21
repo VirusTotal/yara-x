@@ -59,8 +59,8 @@ pub enum ScanError {
     #[error("can not deserialize protobuf message for YARA module `{module}`: {err}")]
     ProtoError { module: String, err: protobuf::Error },
     /// The module is unknown.
-    #[error("unknown module")]
-    UnknownModule,
+    #[error("unknown module `{module}`")]
+    UnknownModule { module: String },
 }
 
 /// Global counter that gets incremented every 1 second by a dedicated thread.
@@ -423,7 +423,9 @@ impl<'r> Scanner<'r> {
             .iter()
             .any(|m| m.1.root_struct_descriptor.full_name() == full_name)
         {
-            return Err(ScanError::UnknownModule);
+            return Err(ScanError::UnknownModule {
+                module: full_name.to_string(),
+            });
         }
 
         self.wasm_store
@@ -461,7 +463,7 @@ impl<'r> Scanner<'r> {
         };
 
         if descriptor.is_none() {
-            return Err(ScanError::UnknownModule);
+            return Err(ScanError::UnknownModule { module: name.to_string() });
         }
 
         self.set_module_output(

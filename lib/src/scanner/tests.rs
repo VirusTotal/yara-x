@@ -533,7 +533,7 @@ fn set_module_output() {
             .unwrap()
             .to_string()
             .as_str(),
-        "unknown module"
+        "unknown module `foobar`"
     );
 
     // This should fail while trying to parse the empty slice as the protobuf
