@@ -227,9 +227,21 @@ pub struct Compiler<'a> {
     /// the [`IdentId`] corresponding to the module's identifier.
     imported_modules: Vec<IdentId>,
 
+    /// Names of modules that are known, but not supported. When an `import`
+    /// statement with one of these modules is found, the statement is accepted
+    /// without causing an error, but a warning is raised to let the user know
+    /// that the module is not supported. Any rule that depends on an unsupported
+    /// module is ignored.
+    ignored_modules: Vec<String>,
+
+    /// Keys in this map are the name of rules that will be ignored because they
+    /// depend on unsupported modules, either directly or indirectly. Values are
+    /// the names of the unsupported modules they depend on.
+    ignored_rules: FxHashMap<String, String>,
+
     /// Structure where each field corresponds to a global identifier or a module
     /// imported by the rules. For fields corresponding to modules, the value is
-    /// is the structure that describes the module.
+    /// the structure that describes the module.
     root_struct: Struct,
 
     /// Warnings generated while compiling the rules.
@@ -302,6 +314,8 @@ impl<'a> Compiler<'a> {
             atoms: Vec::new(),
             re_code: Vec::new(),
             imported_modules: Vec::new(),
+            ignored_modules: Vec::new(),
+            ignored_rules: FxHashMap::default(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
             lit_pool: BStringPool::new(),
@@ -330,7 +344,11 @@ impl<'a> Compiler<'a> {
         // actually exist, and raise warnings in case of duplicated
         // imports within the same source file. For each module add a
         // symbol to the current namespace.
-        self.c_imports(&ast.imports)?;
+        for import in &ast.imports {
+            // Import the module. This updates `self.root_struct` if
+            // necessary.
+            self.c_import(import)?;
+        }
 
         // Iterate over the list of declared rules and verify that their
         // conditions are semantically valid. For each rule add a symbol
@@ -438,6 +456,7 @@ impl<'a> Compiler<'a> {
             ident_id: self.ident_pool.get_or_intern(namespace),
             symbols: self.symbol_table.push_new(),
         };
+        self.ignored_rules.clear();
         self.wasm_mod.new_namespace();
         self
     }
@@ -501,6 +520,17 @@ impl<'a> Compiler<'a> {
         rules.build_ac_automaton();
 
         rules
+    }
+
+    /// Tell the compiler that a YARA module is not supported.
+    ///
+    /// Import statements for ignored modules will be ignored without
+    /// errors, but a warning will be issued. Any rule that make use of an
+    /// ignored module will be ignored, while the rest of rules that
+    /// don't rely on that module will be correctly compiled.
+    pub fn ignore_module<M: Into<String>>(&mut self, module: M) -> &mut Self {
+        self.ignored_modules.push(module.into());
+        self
     }
 
     /// Specifies whether the compiler should produce colorful error messages.
@@ -626,81 +656,6 @@ impl<'a> Compiler<'a> {
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
     }
-
-    /// Imports the module described in the `import` statement.
-    ///
-    /// This functions checks if the module actually exists, and if so, it
-    /// creates a new field with the same name than the module in the
-    /// top-level structure `self.root_struct` that contains all the
-    /// imported modules. This field is created only if it don't exist yet.
-    fn import_module(
-        &mut self,
-        import: &Import,
-    ) -> Result<(), Box<CompileError>> {
-        let module_name = import.module_name.as_str();
-        let module = BUILTIN_MODULES.get(module_name);
-
-        // Does a module with the given name actually exist? ...
-        if module.is_none() {
-            // The module does not exist, that's an error.
-            return Err(Box::new(CompileError::unknown_module(
-                &self.report_builder,
-                module_name.to_string(),
-                import.span(),
-            )));
-        }
-
-        // Yes, module exists.
-        let module = module.unwrap();
-
-        // The module was already added to `self.globals_struct` and
-        // `self.imported_modules`, nothing more to do.
-        if self.root_struct.has_field(module_name) {
-            return Ok(());
-        }
-
-        // Add the module to the list of imported modules.
-        self.imported_modules.push(self.ident_pool.get_or_intern(module_name));
-
-        // Create the structure that describes the module.
-        let mut module_struct = Struct::from_proto_descriptor_and_msg(
-            &module.root_struct_descriptor,
-            None,
-            true,
-        );
-
-        // Does the YARA module has an associated Rust module? If
-        // yes, search for functions exported by the module.
-        if let Some(rust_module_name) = module.rust_module_name {
-            // Find all WASM public functions that belong to the current module.
-            let mut functions = WasmExport::get_functions(|e| {
-                e.public && e.rust_module_path.contains(rust_module_name)
-            });
-
-            // Insert the functions in the module's struct.
-            for (name, export) in functions.drain() {
-                if module_struct
-                    .add_field(name, TypeValue::Func(Rc::new(export)))
-                    .is_some()
-                {
-                    panic!("duplicate function `{}`", name)
-                }
-            }
-        }
-
-        // Insert the module in the struct that contains all imported
-        // modules. This struct contains all modules imported, from
-        // all namespaces. Panic if the module was already in the struct.
-        if self
-            .root_struct
-            .add_field(module_name, TypeValue::Struct(Rc::new(module_struct)))
-            .is_some()
-        {
-            panic!("duplicate module `{}`", module_name)
-        }
-
-        Ok(())
-    }
 }
 
 impl<'a> Compiler<'a> {
@@ -760,12 +715,46 @@ impl<'a> Compiler<'a> {
         );
 
         // In case of error, restore the compiler to the state it was before
-        // entering this function.
-        let mut condition = match condition {
+        // entering this function. Also, if the error is due to an unknown
+        // identifier, but the identifier is one of the unsupported modules,
+        // the error is tolerated and a warning is issued instead.
+        let mut condition = match condition.map_err(|err| *err) {
             Ok(condition) => condition,
-            Err(e) => {
+            Err(CompileError::UnknownIdentifier {
+                identifier, span, ..
+            }) if self.ignored_modules.contains(&identifier)
+                || self.ignored_rules.contains_key(&identifier) =>
+            {
                 self.restore_snapshot(snapshot);
-                return Err(e);
+
+                if let Some(module_name) = self.ignored_rules.get(&identifier)
+                {
+                    self.warnings.push(Warning::ignored_rule(
+                        &self.report_builder,
+                        rule.identifier.name.to_string(),
+                        identifier,
+                        module_name.clone(),
+                        span,
+                    ));
+                } else {
+                    self.warnings.push(Warning::ignored_module(
+                        &self.report_builder,
+                        identifier.clone(),
+                        span,
+                        Some(format!(
+                            "the whole rule `{}` will be ignored",
+                            rule.identifier.name
+                        )),
+                    ));
+                    self.ignored_rules
+                        .insert(rule.identifier.name.to_string(), identifier);
+                }
+
+                return Ok(());
+            }
+            Err(err) => {
+                self.restore_snapshot(snapshot);
+                return Err(Box::new(err));
             }
         };
 
@@ -879,6 +868,100 @@ impl<'a> Compiler<'a> {
         // After emitting the whole condition, the stack of variables should
         // be empty.
         assert_eq!(ctx.vars.used, 0);
+
+        Ok(())
+    }
+
+    fn c_import(&mut self, import: &Import) -> Result<(), Box<CompileError>> {
+        let module_name = import.module_name.as_str();
+        let module = BUILTIN_MODULES.get(module_name);
+
+        // Does a module with the given name actually exist? ...
+        if module.is_none() {
+            // The module does not exist, but it is included in the list
+            // of unsupported modules. In such cases we don't raise an error,
+            // only a warning.
+            return if self.ignored_modules.iter().any(|m| m == module_name) {
+                self.warnings.push(Warning::ignored_module(
+                    &self.report_builder,
+                    module_name.to_string(),
+                    import.span(),
+                    None,
+                ));
+                Ok(())
+            } else {
+                // The module does not exist, and is not explicitly added to
+                // the list of unsupported modules, that's an error.
+                Err(Box::new(CompileError::unknown_module(
+                    &self.report_builder,
+                    module_name.to_string(),
+                    import.span(),
+                )))
+            };
+        }
+
+        // Yes, module exists.
+        let module = module.unwrap();
+
+        // If the module has not been added to `self.root_struct` and
+        // `self.imported_modules`, do it.
+        if !self.root_struct.has_field(module_name) {
+            // Add the module to the list of imported modules.
+            self.imported_modules
+                .push(self.ident_pool.get_or_intern(module_name));
+
+            // Create the structure that describes the module.
+            let mut module_struct = Struct::from_proto_descriptor_and_msg(
+                &module.root_struct_descriptor,
+                None,
+                true,
+            );
+
+            // Does the YARA module has an associated Rust module? If
+            // yes, search for functions exported by the module.
+            if let Some(rust_module_name) = module.rust_module_name {
+                // Find all WASM public functions that belong to the current module.
+                let mut functions = WasmExport::get_functions(|e| {
+                    e.public && e.rust_module_path.contains(rust_module_name)
+                });
+
+                // Insert the functions in the module's struct.
+                for (name, export) in functions.drain() {
+                    if module_struct
+                        .add_field(name, TypeValue::Func(Rc::new(export)))
+                        .is_some()
+                    {
+                        panic!("duplicate function `{}`", name)
+                    }
+                }
+            }
+
+            // Insert the module in the struct that contains all imported
+            // modules. This struct contains all modules imported, from
+            // all namespaces. Panic if the module was already in the struct.
+            if self
+                .root_struct
+                .add_field(
+                    module_name,
+                    TypeValue::Struct(Rc::new(module_struct)),
+                )
+                .is_some()
+            {
+                panic!("duplicate module `{}`", module_name)
+            }
+        }
+
+        let mut symbol_table =
+            self.current_namespace.symbols.as_ref().borrow_mut();
+
+        // Create a symbol for the module and insert it in the symbol
+        // table for this namespace, if it doesn't exist.
+        if !symbol_table.contains(module_name) {
+            symbol_table.insert(
+                module_name,
+                self.root_struct.lookup(module_name).unwrap(),
+            );
+        }
 
         Ok(())
     }
@@ -1374,8 +1457,8 @@ impl<'a> Compiler<'a> {
         span: Span,
     ) -> Result<(Vec<re::RegexpAtom>, bool), Box<CompileError>> {
         // When the `fast-regexp` feature is enabled, try to compile the regexp
-        // for `FastVM` first, if the it fails with `Error::FastIncompatible`,
-        // the regexp is not compatible for `FastVM` and `PikeVM` must be used
+        // for `FastVM` first, if it fails with `Error::FastIncompatible`, the
+        // regexp is not compatible for `FastVM` and `PikeVM` must be used
         // instead.
         #[cfg(feature = "fast-regexp")]
         let (result, is_fast_regexp) = match re::fast::Compiler::new()
@@ -1470,32 +1553,6 @@ impl<'a> Compiler<'a> {
             ),
             SubPatternAtom::from_atom,
         )
-    }
-
-    fn c_imports(
-        &mut self,
-        imports: &[Import],
-    ) -> Result<(), Box<CompileError>> {
-        for import in imports {
-            // Import the module. This updates `self.root_struct` if
-            // necessary.
-            self.import_module(import)?;
-
-            let module_name = import.module_name.as_str();
-            let mut symbol_table =
-                self.current_namespace.symbols.as_ref().borrow_mut();
-
-            // Create a symbol for the module and insert it in the symbol
-            // table for this namespace, if it doesn't exist.
-            if !symbol_table.contains(module_name) {
-                symbol_table.insert(
-                    module_name,
-                    self.root_struct.lookup(module_name).unwrap(),
-                );
-            }
-        }
-
-        Ok(())
     }
 }
 

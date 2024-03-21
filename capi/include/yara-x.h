@@ -186,6 +186,15 @@ void yrx_compiler_destroy(struct YRX_COMPILER *compiler);
 enum YRX_RESULT yrx_compiler_add_source(struct YRX_COMPILER *compiler,
                                         const char *src);
 
+// Tell the compiler that a YARA module is not supported.
+//
+// Import statements for ignored modules will be ignored without errors but a
+// warning will be issued. Any rule that make use of an ignored module will be
+// ignored, while the rest of rules that don't rely on that module will be
+// correctly compiled.
+enum YRX_RESULT yrx_compiler_ignore_module(struct YRX_COMPILER *compiler,
+                                           const char *module);
+
 // Creates a new namespace.
 //
 // Further calls to `yrx_compiler_add_source` will put the rules under the
@@ -244,8 +253,8 @@ void yrx_scanner_destroy(struct YRX_SCANNER *scanner);
 // after the designated timeout duration. However, in some cases, particularly
 // with rules containing only a few patterns, the scanner could potentially
 // continue running for a longer period than the specified timeout.
-enum YRX_RESULT yrx_scanner_timeout(struct YRX_SCANNER *scanner,
-                                    uint64_t timeout);
+enum YRX_RESULT yrx_scanner_set_timeout(struct YRX_SCANNER *scanner,
+                                        uint64_t timeout);
 
 // Scans a data buffer.
 //

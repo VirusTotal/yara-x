@@ -42,7 +42,7 @@ pub(crate) fn rva_to_offset(
     // Find the section that contains the target RVA. If there are multiple
     // sections that may contain the RVA, the last one is used.
     for s in sections.iter() {
-        // In theory we should use the section's virtual size while
+        // In theory, we should use the section's virtual size while
         // checking if some RVA is within the section. In most cases
         // the virtual size is greater than the raw data size, but that's
         // not always the case. So we use the larger of the two values.

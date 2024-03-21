@@ -16,7 +16,7 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 271
 dll_characteristics: 32768
-timestamp: 998081829
+timestamp: 998081829 # 2001-08-17 20:57:09 UTC
 image_base: 16777216
 checksum: 0
 base_of_code: 28672
@@ -54,9 +54,9 @@ version_info:
     "FileDescription": "Trivial File Transfer Protocol App"
     "FileVersion": "5.1.2600.0 (xpclient.010817-1148)"
     "InternalName": "tftp.exe"
-    "LegalCopyright": "\302\251 Microsoft Corporation. All rights reserved."
+    "LegalCopyright": "© Microsoft Corporation. All rights reserved."
     "OriginalFilename": "tftp.exe"
-    "ProductName": "Microsoft\302\256 Windows\302\256 Operating System"
+    "ProductName": "Microsoft® Windows® Operating System"
     "ProductVersion": "5.1.2600.0"
 version_info_list:
   - key: "CompanyName"
@@ -68,19 +68,19 @@ version_info_list:
   - key: "InternalName"
     value: "tftp.exe"
   - key: "LegalCopyright"
-    value: "\302\251 Microsoft Corporation. All rights reserved."
+    value: "© Microsoft Corporation. All rights reserved."
   - key: "OriginalFilename"
     value: "tftp.exe"
   - key: "ProductName"
-    value: "Microsoft\302\256 Windows\302\256 Operating System"
+    value: "Microsoft® Windows® Operating System"
   - key: "ProductVersion"
     value: "5.1.2600.0"
 rich_signature:
     offset: 128
     length: 64
     key: 2970887405
-    raw_data: "\251Ez\342\355$\024\261\355$\024\261\355$\024\261\027\007T\261\357$\024\261\355$\025\261\240$\024\261\027\007\r\261\346$\024\261z\007Q\261\354$\024\2617\007\010\261\371$\024\261\027\007)\261\354$\024\261"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\372#@\000\002\000\000\000\000\000\001\000M\000\000\000\372#\031\000\013\000\000\000\227#E\000\001\000\000\000\332#\034\000\024\000\000\000\372#=\000\001\000\000\000"
+    raw_data: "\xa9Ez\xe2\xed$\x14\xb1\xed$\x14\xb1\xed$\x14\xb1\x17\x07T\xb1\xef$\x14\xb1\xed$\x15\xb1\xa0$\x14\xb1\x17\x07\r\xb1\xe6$\x14\xb1z\x07Q\xb1\xec$\x14\xb17\x07\x08\xb1\xf9$\x14\xb1\x17\x07)\xb1\xec$\x14\xb1"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfa#@\x00\x02\x00\x00\x00\x00\x00\x01\x00M\x00\x00\x00\xfa#\x19\x00\x0b\x00\x00\x00\x97#E\x00\x01\x00\x00\x00\xda#\x1c\x00\x14\x00\x00\x00\xfa#=\x00\x01\x00\x00\x00"
     tools:
       - toolid: 64
         version: 9210

@@ -1155,12 +1155,12 @@ rule test {
     test_proto2.ignored
 }
 "#,
-            r#"error: unknown identifier `ignored`
+            r#"error: unknown field or method `ignored`
    ╭─[line:5:17]
    │
  5 │     test_proto2.ignored
    │                 ───┬───  
-   │                    ╰───── this identifier has not been declared
+   │                    ╰───── this field or method doesn't exist
 ───╯
 "#,
         ),

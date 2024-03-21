@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use bstr::BString;
 use serde::{Deserialize, Serialize};
+use walrus::ir::InstrSeqType;
 use walrus::ValType;
 
 mod array;
@@ -67,10 +68,16 @@ impl From<Type> for ValType {
     }
 }
 
+impl From<Type> for InstrSeqType {
+    fn from(ty: Type) -> InstrSeqType {
+        InstrSeqType::from(ValType::from(ty))
+    }
+}
+
 /// Contains information about a value.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub(crate) enum Value<T> {
-    /// Constant value. The value is known at compile time and it cannot
+    /// Constant value. The value is known at compile time, and it cannot
     /// change at runtime.
     Const(T),
     /// Variable value. The value is known at compile time, but it can change

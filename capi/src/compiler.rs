@@ -52,6 +52,34 @@ pub unsafe extern "C" fn yrx_compiler_add_source(
     }
 }
 
+/// Tell the compiler that a YARA module is not supported.
+///
+/// Import statements for ignored modules will be ignored without errors but a
+/// warning will be issued. Any rule that make use of an ignored module will be
+/// ignored, while the rest of rules that don't rely on that module will be
+/// correctly compiled.
+#[no_mangle]
+pub unsafe extern "C" fn yrx_compiler_ignore_module(
+    compiler: *mut YRX_COMPILER,
+    module: *const c_char,
+) -> YRX_RESULT {
+    let compiler = if let Some(compiler) = compiler.as_mut() {
+        compiler
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    let module = if let Ok(module) = CStr::from_ptr(module).to_str() {
+        module
+    } else {
+        return YRX_RESULT::INVALID_ARGUMENT;
+    };
+
+    compiler.inner.ignore_module(module);
+
+    YRX_RESULT::SUCCESS
+}
+
 /// Creates a new namespace.
 ///
 /// Further calls to `yrx_compiler_add_source` will put the rules under the

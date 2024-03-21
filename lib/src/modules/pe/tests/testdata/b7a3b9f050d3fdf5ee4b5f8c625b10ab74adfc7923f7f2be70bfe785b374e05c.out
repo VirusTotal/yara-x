@@ -1,0 +1,198 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_CUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 5
+    minor: 2
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 2
+    minor: 41
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 8230
+dll_characteristics: 352
+timestamp: 1706933973 # 2024-02-03 04:19:33 UTC
+image_base: 12822773760
+checksum: 1317510
+base_of_code: 4096
+entry_point: 2194
+entry_point_raw: 4754
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 1139712
+size_of_initialized_data: 1267712
+size_of_uninitialized_data: 512
+size_of_image: 1335296
+size_of_headers: 1536
+size_of_stack_reserve: 2097152
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 1276416
+win32_version_value: 0
+number_of_symbols: 1220
+number_of_rva_and_sizes: 16
+number_of_sections: 10
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612832
+    raw_data_size: 1139712
+    raw_data_offset: 1536
+    virtual_address: 4096
+    virtual_size: 1139208
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 118272
+    raw_data_offset: 1141248
+    virtual_address: 1146880
+    virtual_size: 118064
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 2560
+    raw_data_offset: 1259520
+    virtual_address: 1265664
+    virtual_size: 2400
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "/4"
+    full_name: "/4"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 1262080
+    virtual_address: 1269760
+    virtual_size: 4
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".pdata"
+    full_name: ".pdata"
+    characteristics: 1073741888
+    raw_data_size: 1024
+    raw_data_offset: 1262592
+    virtual_address: 1273856
+    virtual_size: 672
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".xdata"
+    full_name: ".xdata"
+    characteristics: 1073741888
+    raw_data_size: 1024
+    raw_data_offset: 1263616
+    virtual_address: 1277952
+    virtual_size: 740
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".bss"
+    full_name: ".bss"
+    characteristics: 3221225600
+    raw_data_size: 0
+    raw_data_offset: 0
+    virtual_address: 1282048
+    virtual_size: 408
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".edata"
+    full_name: ".edata"
+    characteristics: 1073741888
+    raw_data_size: 512
+    raw_data_offset: 1264640
+    virtual_address: 1286144
+    virtual_size: 63
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".idata"
+    full_name: ".idata"
+    characteristics: 3221225536
+    raw_data_size: 2560
+    raw_data_offset: 1265152
+    virtual_address: 1290240
+    virtual_size: 2224
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".CRT"
+    full_name: ".CRT"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 1267712
+    virtual_address: 1294336
+    virtual_size: 88
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 1286144
+    size: 63
+  - virtual_address: 1290240
+    size: 2224
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 1273856
+    size: 672
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 1302528
+    size: 120
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 1265760
+    size: 40
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 1290840
+    size: 416
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+is_signed: false
+overlay:
+    offset: 0
+    size: 0

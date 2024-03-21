@@ -16,7 +16,7 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 518
 dll_characteristics: 0
-timestamp: 0
+timestamp: 0 # 1970-01-01 00:00:00 UTC
 image_base: 16777216
 checksum: 3991994
 base_of_code: 512
@@ -106,26 +106,6 @@ data_directories:
     size: 2832
   - virtual_address: 0
     size: 0
-  - virtual_address: 1952805678
-    size: 28789
-  - virtual_address: 14272
-    size: 512
-  - virtual_address: 14272
-    size: 512
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 1615855648
-  - virtual_address: 1818587694
-    size: 25455
-  - virtual_address: 32
-    size: 14784
-  - virtual_address: 32
-    size: 14784
-  - virtual_address: 0
-    size: 0
-  - virtual_address: 0
-    size: 1108344896
 is_signed: true
 signatures:
   - subject: "/C=AT/O=Security Coding Factory GmbH/OU=Security Coding Factory Certificate Authority/CN=Security Coding Factory Software CA"

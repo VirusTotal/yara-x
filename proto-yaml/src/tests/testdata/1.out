@@ -6,7 +6,7 @@ repeated_msg:
   - int32_dec: 456
     str: "bar\nbar"
   - int32_dec: 789
-    str: "baz"
+    str: "foo\\bar"
     map_string_string:
         "foo\nbar": "bar"
 nested_msg:

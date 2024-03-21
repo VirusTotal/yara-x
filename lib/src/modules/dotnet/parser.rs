@@ -128,7 +128,10 @@ impl<'a> Dotnet<'a> {
         let pe = PE::parse(data)?;
 
         let (_, _, cli_header) = pe
-            .get_dir_entry_data(PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR)
+            .get_dir_entry_data(
+                PE::IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR,
+                false,
+            )
             .ok_or(Error::InvalidDotNet)?;
 
         let (_, cli_header) = Self::parse_cli_header(cli_header)?;
@@ -307,14 +310,15 @@ impl<'a> Dotnet<'a> {
     fn parse_cli_header(input: &[u8]) -> IResult<&[u8], CLIHeader> {
         map(
             tuple((
-                le_u32,              // size
-                le_u16,              // major_runtime_version
-                le_u16,              // minor_runtime_version
-                PE::parse_dir_entry, // metadata
-                le_u32,              // flags
-                le_u32,              // entry_point_token
-                PE::parse_dir_entry, // resources,
-                PE::parse_dir_entry, // strong_name_signature
+                // CLI header is always 72 bytes long.
+                verify(le_u32, |size| *size == 72), // size
+                le_u16,                             // major_runtime_version
+                le_u16,                             // minor_runtime_version
+                PE::parse_dir_entry,                // metadata
+                le_u32,                             // flags
+                le_u32,                             // entry_point_token
+                PE::parse_dir_entry,                // resources,
+                PE::parse_dir_entry,                // strong_name_signature
             )),
             |(
                 _,
@@ -335,10 +339,10 @@ impl<'a> Dotnet<'a> {
     fn parse_metadata_root(input: &[u8]) -> IResult<&[u8], CLIMetadata> {
         map(
             tuple((
-                le_u32, // magic == 0x424A5342
-                le_u16, // major_version
-                le_u16, // minor_version
-                le_u32, // reserved
+                verify(le_u32, |magic| *magic == 0x424A5342), // magic == 0x424A5342
+                le_u16,                                       // major_version
+                le_u16,                                       // minor_version
+                le_u32,                                       // reserved
                 // length + version string. According to the specification
                 // length must be <= 255. The length includes any padding
                 // added to align the next field to a 4 byte boundary. The
@@ -451,7 +455,7 @@ impl<'a> Dotnet<'a> {
 
         // `num_rows_per_present_table` contains an entry per each table
         // that is present. But we need an array with an entry per table,
-        // no matter if its present or not. Of course, tables that are not
+        // no matter if it's present or not. Of course, tables that are not
         // present will have zero rows.
         self.num_rows = Vec::with_capacity(64);
 
@@ -2055,8 +2059,13 @@ impl<'a> Dotnet<'a> {
                     Table::Null,
                 ]),
             )),
-            |(offset, _, name, _)| {
-                if self.raw_resources.is_none() {
+            |(offset, _, name, implementation)| {
+                // data and offset is only set if the resources are located
+                // in this file.
+                if self.raw_resources.is_none()
+                    || implementation.table != Table::File
+                    || implementation.index != 0
+                {
                     return Resource { name, data: None, offset: None };
                 }
 
@@ -2689,6 +2698,13 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
             dotnet.assembly_refs.iter().map(protos::dotnet::AssemblyRef::from),
         );
 
+        result.modulerefs.extend(
+            dotnet
+                .module_refs
+                .iter()
+                .filter_map(|module_ref| module_ref.map(|s| s.to_string())),
+        );
+
         result.streams.extend(
             dotnet.stream_headers.iter().map(protos::dotnet::Stream::from),
         );
@@ -2726,6 +2742,10 @@ impl From<Dotnet<'_>> for protos::dotnet::Dotnet {
 
         result.set_number_of_constants(
             result.constants.len().try_into().unwrap(),
+        );
+
+        result.set_number_of_modulerefs(
+            result.modulerefs.len().try_into().unwrap(),
         );
 
         result

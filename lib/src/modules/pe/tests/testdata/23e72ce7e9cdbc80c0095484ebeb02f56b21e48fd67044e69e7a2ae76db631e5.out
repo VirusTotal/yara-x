@@ -16,14 +16,14 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
 characteristics: 8226
 dll_characteristics: 16736
-timestamp: 1827812126
+timestamp: 1827812126 # 2027-12-03 05:35:26 UTC
 image_base: 6442450944
 checksum: 57102
 base_of_code: 4096
 entry_point: 1920
 entry_point_raw: 4992
 dll_name: "mtxex.dll"
-export_timestamp: 1827812126
+export_timestamp: 1827812126 # 2027-12-03 05:35:26 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -55,9 +55,9 @@ version_info:
     "FileDescription": "COM+"
     "FileVersion": "2001.12.10941.16384 (WinBuild.160101.0800)"
     "InternalName": "MTXEX.DLL"
-    "LegalCopyright": "\302\251 Microsoft Corporation. All rights reserved."
+    "LegalCopyright": "© Microsoft Corporation. All rights reserved."
     "OriginalFilename": "MTXEX.DLL"
-    "ProductName": "Microsoft\302\256 Windows\302\256 Operating System"
+    "ProductName": "Microsoft® Windows® Operating System"
     "ProductVersion": "10.0.17763.1"
 version_info_list:
   - key: "CompanyName"
@@ -69,19 +69,19 @@ version_info_list:
   - key: "InternalName"
     value: "MTXEX.DLL"
   - key: "LegalCopyright"
-    value: "\302\251 Microsoft Corporation. All rights reserved."
+    value: "© Microsoft Corporation. All rights reserved."
   - key: "OriginalFilename"
     value: "MTXEX.DLL"
   - key: "ProductName"
-    value: "Microsoft\302\256 Windows\302\256 Operating System"
+    value: "Microsoft® Windows® Operating System"
   - key: "ProductVersion"
     value: "10.0.17763.1"
 rich_signature:
     offset: 128
     length: 80
     key: 3360243275
-    raw_data: "\017_\'\233K>I\310K>I\310K>I\310.XJ\311I>I\310.XM\311A>I\310K>H\310W>I\310.XH\311N>I\310.XI\311J>I\310.XA\311I>I\310.X\266\310J>I\310.XK\311J>I\310"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000ef\003\001\002\000\000\000ef\004\001\n\000\000\000\000\000\001\000\034\000\000\000ef\001\001\005\000\000\000ef\000\001\001\000\000\000ef\010\001\002\000\000\000ef\377\000\001\000\000\000ef\002\001\001\000\000\000"
+    raw_data: "\x0f_\'\x9bK>I\xc8K>I\xc8K>I\xc8.XJ\xc9I>I\xc8.XM\xc9A>I\xc8K>H\xc8W>I\xc8.XH\xc9N>I\xc8.XI\xc9J>I\xc8.XA\xc9I>I\xc8.X\xb6\xc8J>I\xc8.XK\xc9J>I\xc8"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ef\x03\x01\x02\x00\x00\x00ef\x04\x01\n\x00\x00\x00\x00\x00\x01\x00\x1c\x00\x00\x00ef\x01\x01\x05\x00\x00\x00ef\x00\x01\x01\x00\x00\x00ef\x08\x01\x02\x00\x00\x00ef\xff\x00\x01\x00\x00\x00ef\x02\x01\x01\x00\x00\x00"
     tools:
       - toolid: 259
         version: 26213

@@ -71,7 +71,7 @@ fn hex_byte_hir_from_ast(byte: &ast::HexByte) -> hir::Hir {
 
 fn hex_byte_to_class(b: &ast::HexByte) -> hir::ClassBytes {
     // A zero bit in the mask indicates that the corresponding bit in the value
-    // must will be ignored, but those ignored bits should be set to 0.
+    // will be ignored, but those ignored bits should be set to 0.
     assert_eq!(b.value & !b.mask, 0);
 
     let mut class = hir::ClassBytes::empty();
@@ -291,6 +291,15 @@ mod tests {
                 ClassBytesRange::new(0, 0),
                 ClassBytesRange::new(2, 2),
                 ClassBytesRange::new(4, 4),
+            ])),
+            None,
+        );
+
+        assert_eq!(
+            class_to_masked_byte(&ClassBytes::new(vec![
+                ClassBytesRange::new(b':', b';'),
+                ClassBytesRange::new(b'|', b'|'),
+                ClassBytesRange::new(b',', b','),
             ])),
             None,
         );

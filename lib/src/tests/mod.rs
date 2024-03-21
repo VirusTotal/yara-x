@@ -271,6 +271,11 @@ fn string_operations() {
     condition_true!(r#""foo\nbar" matches /foo.*bar/s"#);
     condition_false!(r#""foo\nbar" matches /foo.*bar/"#);
     condition_true!(r#""foobar" matches /fo{,2}bar/"#);
+    condition_true!(r#""" matches /a|b|/"#);
+    condition_true!(r#""タイトル" matches /タイトル/"#);
+    condition_true!(r#""\xF7\xFF" matches /\xF7\xFF/"#);
+    condition_true!(r#""\xe2\x28\xa1" matches /\xe2\x28\xa1/"#);
+    condition_true!(r#""🙈🙉🙊" matches /.../"#);
 }
 
 #[test]
@@ -475,6 +480,11 @@ fn for_in() {
     #[cfg(feature = "test_proto2-module")]
     condition_true!(
         r#"not for any i in (0..test_proto2.int64_undef) : (true)"#
+    );
+
+    #[cfg(feature = "test_proto2-module")]
+    condition_true!(
+        r#"for any i in (test_proto2.int64_undef, 0, 1) : (i == 1)"#
     );
 }
 
@@ -1149,6 +1159,8 @@ fn regexp_patterns_3() {
     pattern_match!(r#"/a[b-]/"#, b"ab", b"ab");
     pattern_match!(r#"/[a-c-e]/"#, b"b", b"b");
     pattern_match!(r#"/[a-c-e]/"#, b"-", b"-");
+    pattern_match!(r#"/[a-c-e]+/"#, b"abc", b"abc");
+    pattern_match!(r#"/[*-_]+/"#, b"ABC", b"ABC");
     pattern_false!(r#"/[a-c-e]/"#, b"d");
     pattern_match!(r"/a[\-b]/", b"a-", b"a-");
     pattern_match!(r"/a[\-b]/", b"ab", b"ab");
@@ -1193,6 +1205,8 @@ fn regexp_patterns_3() {
         b"\n\r\t\x0c\x07",
         b"\n\r\t\x0c\x07"
     );
+    pattern_match!(r"/foobar\n/", b"foobar\x0a", b"foobar\x0a");
+    pattern_match!(r"/foo.{1,3}\n/", b"foobar\x0a", b"foobar\x0a");
     pattern_match!(r"/\x01\x02\x03/", b"\x01\x02\x03", b"\x01\x02\x03");
     pattern_match!(r"/[\x01-\x03]+/", b"\x01\x02\x03", b"\x01\x02\x03");
     pattern_false!(r"/[\x00-\x02]+/", b"\x03\x04\x05");
@@ -1246,10 +1260,16 @@ fn regexp_patterns_3() {
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"effg");
     pattern_false!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"bcdd");
     pattern_match!(r#"/(bc+d$|ef*g.|h?i(j|k))/"#, b"reffgz", b"effgz");
+}
+
+#[test]
+fn regexp_patterns_4() {
     pattern_match!(r"/\babc/", b"abc", b"abc");
     pattern_match!(r"/abc\b/", b"abc", b"abc");
     pattern_false!(r"/\babc/", b"1abc");
+    pattern_false!(r"/\babc/", b"_abc");
     pattern_false!(r"/abc\b/", b"abc1");
+    pattern_false!(r"/abc\b/", b"abc_");
     pattern_match!(r"/abc\s\b/", b"abc x", b"abc ");
     pattern_false!(r"/abc\s\b/", b"abc  ");
     pattern_match!(r"/\babc\b/", b" abc ", b"abc");
@@ -1260,17 +1280,27 @@ fn regexp_patterns_3() {
     pattern_false!(r"/\Babc/", b"abc");
     pattern_false!(r"/abc\B/", b"abc");
     pattern_match!(r"/\Babc/", b"1abc", b"abc");
+    pattern_match!(r"/\Babc/", b"_abc", b"abc");
     pattern_match!(r"/abc\B/", b"abc1", b"abc");
+    pattern_match!(r"/abc\B/", b"abc_", b"abc");
     pattern_false!(r"/abc\s\B/", b"abc x");
     pattern_match!(r"/abc\s\B/", b"abc  ", b"abc ");
     pattern_match!(r"/\w\w\w\B/", b"abcd", b"abc");
     pattern_match!(r"/\B\w\w\w/", b"abcd", b"bcd");
     pattern_false!(r"/\B\w\w\w\B/", b"abcd");
+    pattern_match!(r"/\<abc/", b"abc", b"abc");
+    pattern_match!(r"/abc\>/", b"abc", b"abc");
+    pattern_match!(r"/\b{start}abc/", b"abc", b"abc");
+    pattern_match!(r"/abc\b{end}/", b"abc", b"abc");
+    pattern_match!(r"/\<abc/", b" abc", b"abc");
+    pattern_match!(r"/abc\>/", b"abc ", b"abc");
+    pattern_false!(r"/\<abc/", b"1abc");
+    pattern_false!(r"/abc\>/", b"abc1");
+
     pattern_false!(r#"/a.b/"#, b"a\nb");
     pattern_false!(r#"/a.*b/"#, b"acc\nccb");
     pattern_match!(r#"/foo/"#, b"foo", b"foo");
     pattern_match!(r#"/bar/i"#, b"bar", b"bar");
-
     pattern_match!(r#"/foo|bar|baz/"#, b"foo", b"foo");
     pattern_match!(r#"/foo|bar|baz/"#, b"bar", b"bar");
     pattern_match!(r#"/foo|bar|baz/"#, b"baz", b"baz");
@@ -1288,23 +1318,19 @@ fn regexp_patterns_3() {
     pattern_match!(r#"/foo|bar|baz/i"#, b"BAR", b"BAR");
     pattern_match!(r#"/foo|bar|baz/i"#, b"BAZ", b"BAZ");
 
+    pattern_match!(r#"/acid(p[pv]r|s[cs]a)/i"#, b"acidpvr", b"acidpvr");
+    pattern_match!(r#"/acid(p[pv]r|s[cs]a)/i"#, b"ACidSSa", b"ACidSSa");
+
     pattern_match!(r"/foo\x01bar/", b"foo\x01bar", b"foo\x01bar");
 
-    /*
-    TODO: YARA accepts unicode characters in regexps but regexp_syntax either
-    accepts unicode characters or escape sequences like \x01, but not both
-    at the same time. Presumably this is because with escape sequence you can't
-    create non-valid unicode codepoints, so when you enable unicode it disables
-    escape sequences.
     pattern_true!(
         r#"/🙈🙉🙊/i"#,
         b"\xF0\x9F\x99\x88\xF0\x9F\x99\x89\xF0\x9F\x99\x8A"
     );
-    */
 }
 
 #[test]
-fn regexp_patterns_4() {
+fn regexp_patterns_5() {
     rule_true!(
         r#"rule test {
             strings:
@@ -1343,6 +1369,7 @@ fn regexp_nocase() {
     pattern_match!(r#"/abc[^d]/ nocase"#, b"ABCE", b"ABCE");
     pattern_false!(r#"/abc[^d]/ nocase"#, b"abcd");
     pattern_false!(r#"/abc[^d]/ nocase"#, b"ABCD");
+    pattern_match!(r#"/[*-_]+/ nocase"#, b"ABCDabcd1234", b"ABCDabcd1234");
 }
 
 #[test]
@@ -1482,6 +1509,18 @@ fn regexp_wide() {
     );
 
     pattern_match!(
+        r"/foobar/ wide nocase",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00x\x01",
+        b"f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
+        r#"/(baz|qux)foobar/ nocase wide"#,
+        b"x\x01b\x00a\x00z\x00f\x00o\x00o\x00b\x00a\x00r\x00",
+        b"b\x00a\x00z\x00f\x00o\x00o\x00b\x00a\x00r\x00"
+    );
+
+    pattern_match!(
         r"/https?:\/\/.{5,128}\.png/ wide",
         b"\xcc\xcch\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00f\x00o\x00o\x00b\x00a\x00r\x00/\x00b\x00a\x00z\x00.\x00p\x00n\x00g\x00\xcc\xcc",
         b"h\x00t\x00t\x00p\x00s\x00:\x00/\x00/\x00f\x00o\x00o\x00b\x00a\x00r\x00/\x00b\x00a\x00z\x00.\x00p\x00n\x00g\x00"
@@ -1612,6 +1651,11 @@ fn hex_large_jumps() {
         JUMPS_DATA.as_bytes()
     );
 
+    pattern_true!(
+        "{ 61 61 61 61 [0-0x19c] 63 [0-0x13f] 64 64 64 64 }",
+        JUMPS_DATA.as_bytes()
+    );
+
     rule_true!(
         r#"rule test {
             strings:
@@ -1638,6 +1682,26 @@ fn hex_large_jumps() {
                     @a[4] == 0x324 and !a[4] == 0x2e4
             }"#,
         JUMPS_DATA.as_bytes()
+    );
+
+    rule_true!(
+        r#"rule test {
+                strings:
+                    $a = /dddd.{0,28}?DDDD.{0,28}?dddd/si
+                condition:
+                    $a
+            }"#,
+        JUMPS_DATA.as_bytes()
+    );
+
+    // Newline characters not allowed in jump.
+    rule_false!(
+        r#"rule test {
+                strings:
+                    $a = /dddd.{0,28}?DDDD.{0,28}?dddd/i
+                condition:
+                    $a
+            }"#
     );
 }
 
@@ -2446,6 +2510,11 @@ fn base64() {
 
     pattern_true!(
         r#""fooba" base64"#,
+        b"Zm9vYmE=" // base64("fooba")
+    );
+
+    pattern_true!(
+        r#""fooba" base64"#,
         b"eGZvb2Jh" // base64("xfooba")
     );
 
@@ -2457,6 +2526,11 @@ fn base64() {
     pattern_true!(
         r#""foob" base64"#,
         b"Zm9vYg" // base64("foob")
+    );
+
+    pattern_true!(
+        r#""foob" base64"#,
+        b"Zm9vYg==" // base64("foob")
     );
 
     pattern_true!(
@@ -2546,7 +2620,25 @@ fn base64() {
         b"Z\x00m\x009\x00v\x00Y\x00m\x00F\x00y\x00"
     );
 
-    // The the last byte should be 0, but it's 1, so the pattern doesn't match.
+    pattern_true!(
+        r#""foob" base64wide "#,
+        // base64("foob") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00g\x00"
+    );
+
+    pattern_true!(
+        r#""fooba" base64wide"#,
+        // base64("fooba") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00m\x00E\x00=\x00"
+    );
+
+    pattern_true!(
+        r#""foob" base64wide"#,
+        // base64("foob") in wide form
+        b"Z\x00m\x009\x00v\x00Y\x00g\x00=\x00=\x00"
+    );
+
+    // The last byte should be 0, but it's 1, so the pattern doesn't match.
     pattern_false!(
         r#""foobar" base64wide"#,
         // base64("foobar") in wide form

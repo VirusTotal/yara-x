@@ -1,0 +1,53 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_UNKNOWN
+os_version:
+    major: 0
+    minor: 0
+subsystem_version:
+    major: 0
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 0
+    minor: 0
+opthdr_magic: 0
+characteristics: 3139
+dll_characteristics: 0
+timestamp: 440487448 # 1983-12-17 05:37:28 UTC
+image_base: 0
+checksum: 0
+base_of_code: 0
+entry_point_raw: 0
+section_alignment: 0
+file_alignment: 0
+loader_flags: 0
+size_of_optional_header: 10500
+size_of_code: 0
+size_of_initialized_data: 0
+size_of_uninitialized_data: 0
+size_of_image: 0
+size_of_headers: 0
+size_of_stack_reserve: 0
+size_of_stack_commit: 0
+size_of_heap_reserve: 0
+size_of_heap_commit: 0
+pointer_to_symbol_table: 2332557312
+win32_version_value: 0
+number_of_symbols: 1082860548
+number_of_rva_and_sizes: 0
+number_of_sections: 0
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+is_signed: false
+overlay:
+    offset: 0
+    size: 0

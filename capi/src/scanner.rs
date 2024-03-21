@@ -52,7 +52,7 @@ pub unsafe extern "C" fn yrx_scanner_destroy(scanner: *mut YRX_SCANNER) {
 /// with rules containing only a few patterns, the scanner could potentially
 /// continue running for a longer period than the specified timeout.
 #[no_mangle]
-pub unsafe extern "C" fn yrx_scanner_timeout(
+pub unsafe extern "C" fn yrx_scanner_set_timeout(
     scanner: *mut YRX_SCANNER,
     timeout: u64,
 ) -> YRX_RESULT {
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn yrx_scanner_timeout(
     }
 
     let scanner = scanner.as_mut().unwrap();
-    scanner.inner.timeout(Duration::from_secs(timeout));
+    scanner.inner.set_timeout(Duration::from_secs(timeout));
 
     YRX_RESULT::SUCCESS
 }

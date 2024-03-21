@@ -19,7 +19,7 @@ use bitvec::order::Lsb0;
 use regex_syntax::hir;
 use regex_syntax::hir::literal::Seq;
 use regex_syntax::hir::{
-    visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition,
+    visit, Class, ClassBytes, Hir, HirKind, Literal, Look, Repetition, Visitor,
 };
 
 use yara_x_parser::ast::HexByte;
@@ -37,7 +37,7 @@ use crate::re::thompson::instr::{InstrParser, SplitId};
 use crate::re::{BckCodeLoc, Error, FwdCodeLoc, MAX_ALTERNATIVES};
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug, Default)]
-pub(super) struct CodeLoc {
+pub(crate) struct CodeLoc {
     pub fwd: usize,
     pub bck_seq_id: u64,
     pub bck: usize,
@@ -62,7 +62,7 @@ struct CodeLocOffset {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub(super) struct RegexpAtom {
+pub(crate) struct RegexpAtom {
     pub atom: Atom,
     pub code_loc: CodeLoc,
 }
@@ -74,7 +74,7 @@ pub(super) struct RegexpAtom {
 /// passed to the Aho-Corasick algorithm.
 ///
 /// Atoms are short literals (the length is controlled by [`DESIRED_ATOM_SIZE`])
-/// that are are extracted from the regexp and must present in any matching
+/// that are extracted from the regexp and must present in any matching
 /// string. Idealistically, the compiler will extract a single, long-enough
 /// atom from the regexp, but in those cases where extracting a single atom is
 /// not possible (or would be too short), the compiler can extract multiple
@@ -123,7 +123,7 @@ pub(crate) struct Compiler {
     /// value of  `zero_rep_depth` when visiting `cd` is 2.
     ///
     /// This used for determining whether to extract atoms from certain nodes
-    /// in the HIR or not. Extracting atoms from a sub-tree under a zero-length
+    /// in the HIR or not. Extracting atoms from a subtree under a zero-length
     /// repetition doesn't make sense, atoms must be extracted from portions of
     /// the pattern that are required to be present in any matching string.
     zero_rep_depth: u32,
@@ -208,17 +208,16 @@ impl Compiler {
 
 impl Compiler {
     pub(super) fn compile_internal(
-        mut self,
+        self,
         hir: &re::hir::Hir,
     ) -> Result<(InstrSeq, InstrSeq, Vec<RegexpAtom>), Error> {
         let start_loc = self.location();
 
-        visit(&hir.inner, &mut self)?;
+        let (mut backward_code, mut forward_code, mut atoms) =
+            visit(&hir.inner, self)?;
 
-        self.forward_code_mut().emit_instr(Instr::MATCH)?;
-        self.backward_code_mut().emit_instr(Instr::MATCH)?;
-
-        let mut atoms = self.best_atoms_stack.pop().unwrap().atoms;
+        forward_code.emit_instr(Instr::MATCH)?;
+        backward_code.emit_instr(Instr::MATCH)?;
 
         if atoms.is_empty() {
             atoms.push(RegexpAtom {
@@ -229,7 +228,7 @@ impl Compiler {
 
         assert!(atoms.len() <= MAX_ATOMS_PER_REGEXP);
 
-        Ok((self.forward_code, self.backward_code, atoms))
+        Ok((forward_code, backward_code, atoms))
     }
 
     #[inline]
@@ -334,22 +333,53 @@ impl Compiler {
         self.backward_code_mut().patch_split_n(location.bck, bck.into_iter());
     }
 
-    fn visit_post_class(&mut self, class: &Class) -> CodeLoc {
+    fn visit_post_class(&mut self, class: &Class) -> Result<CodeLoc, Error> {
         match class {
             Class::Bytes(class) => {
                 if let Some(byte) = re::hir::class_to_masked_byte(class) {
-                    self.emit_masked_byte(byte)
+                    Ok(self.emit_masked_byte(byte))
                 } else {
-                    self.emit_class(class)
+                    Ok(self.emit_class(class))
                 }
             }
             Class::Unicode(class) => {
+                // Unicode classes can appear even on regexps that were compiled
+                // without unicode support. This a well-known issue with the
+                // `regex-syntax` crate, and we should be able to handle it.
+                // See: https://github.com/rust-lang/regex/issues/1088
+                //
+                // The first thing we do is trying to covert the unicode class
+                // into a byte class. If that's not possible, the alternative
+                // is converting the unicode class to an alternation of literals,
+                // where each literal is the UTF-8 encoding of one character in
+                // the class.
                 if let Some(class) = class.to_byte_class() {
-                    self.emit_class(&class)
+                    Ok(self.emit_class(&class))
                 } else {
-                    // This should not be reached, except on a few edge cases
-                    // See: https://github.com/rust-lang/regex/issues/1088
-                    panic!("unicode classes not supported")
+                    let mut lits = Vec::new();
+                    for range in class.ranges() {
+                        for unicode_char in range.start()..=range.end() {
+                            let mut buf: [u8; 4] = [0; 4];
+                            lits.push(Hir::literal(
+                                unicode_char.encode_utf8(&mut buf).as_bytes(),
+                            ));
+                        }
+                    }
+                    // Using `Hir::alternation` for creating a HIR for the
+                    // alternation of literals is not possible, because during
+                    // the construction the HIR will be converted into a
+                    // unicode class. Therefore, we don't try to create a HIR
+                    // node for the alternation, and instead visit the literal
+                    // nodes as if they were part of an alternation.
+                    self.visit_pre_alternation(&lits)?;
+                    for (i, lit) in lits.iter().enumerate() {
+                        self.visit_pre(lit)?;
+                        self.visit_post(lit)?;
+                        if i < lits.len() - 1 {
+                            self.visit_alternation_in()?;
+                        }
+                    }
+                    self.visit_post_alternation(&lits)
                 }
             }
         }
@@ -363,7 +393,9 @@ impl Compiler {
             Look::WordAsciiNegate => {
                 self.emit_instr(Instr::WORD_BOUNDARY_NEG)?
             }
-            _ => unreachable!(),
+            Look::WordStartAscii => self.emit_instr(Instr::WORD_START)?,
+            Look::WordEndAscii => self.emit_instr(Instr::WORD_END)?,
+            _ => unreachable!("{:?}", look),
         })
     }
 
@@ -512,7 +544,7 @@ impl Compiler {
 
         self.patch_split_n(&split_loc, offsets.into_iter());
 
-        // Remove the last N items from best atoms and put them in
+        // Remove the last N items from the best atoms and put them in
         // `last_n`. These last N items correspond to each of the N
         // alternatives.
         let last_n =
@@ -774,12 +806,16 @@ impl Compiler {
     }
 }
 
-impl hir::Visitor for &mut Compiler {
-    type Output = ();
+impl hir::Visitor for Compiler {
+    type Output = (InstrSeq, InstrSeq, Vec<RegexpAtom>);
     type Err = Error;
 
-    fn finish(self) -> Result<Self::Output, Self::Err> {
-        Ok(())
+    fn finish(mut self) -> Result<Self::Output, Self::Err> {
+        Ok((
+            self.backward_code,
+            self.forward_code,
+            self.best_atoms_stack.pop().unwrap().atoms,
+        ))
     }
 
     fn visit_pre(&mut self, hir: &Hir) -> Result<(), Self::Err> {
@@ -843,7 +879,7 @@ impl hir::Visitor for &mut Compiler {
 
                 let literal = literal.0.as_ref();
 
-                // Try to extract atoms from the HIR node. When the node is a
+                // Try to extract atoms from the HIR node. When the node is
                 // a literal we don't use the literal extractor provided by
                 // `regex_syntax` as it always returns the first bytes in the
                 // literal. Sometimes the best atom is not at the very start of
@@ -854,7 +890,7 @@ impl hir::Visitor for &mut Compiler {
 
                 // If the atom extracted from the literal is not at the
                 // start of the literal it's `backtrack` value will be
-                // non zero and the locations where forward and backward
+                // non-zero and the locations where forward and backward
                 // code start must be adjusted accordingly.
                 let adjustment = literal_code_length(
                     &literal[0..best_atom.backtrack() as usize],
@@ -898,7 +934,7 @@ impl hir::Visitor for &mut Compiler {
                 let mut code_loc = if re::hir::any_byte(hir_kind) {
                     self.emit_instr(Instr::ANY_BYTE)?
                 } else {
-                    self.visit_post_class(class)
+                    self.visit_post_class(class)?
                 };
 
                 code_loc.bck_seq_id = self.backward_code().seq_id();
@@ -994,7 +1030,7 @@ impl hir::Visitor for &mut Compiler {
         // that finding the atom during a scan is enough to guarantee that
         // the pattern matches. Atoms extracted from children of the current
         // HIR node may be flagged as "exact" because they cover a whole HIR
-        // sub-tree. They are "exact" with respect to some sub-pattern, but
+        // subtree. They are "exact" with respect to some sub-pattern, but
         // not necessarily with respect to the whole pattern. So, atoms that
         // are flagged as "exact" are converted to "inexact" unless they
         // were extracted from the top-level HIR node.
@@ -1008,7 +1044,7 @@ impl hir::Visitor for &mut Compiler {
         // "Literal extraction treats all look-around assertions as-if they
         // match every empty string. So for example, the regex \bquux\b will
         // yield a sequence containing a single exact literal quux. However,
-        // not all occurrences of quux correspond to a match a of the regex.
+        // not all occurrences of quux correspond to a match of the regex.
         // For example, \bquux\b does not match ZquuxZ anywhere because quux
         // does not fall on a word boundary.
         //
@@ -1051,7 +1087,7 @@ impl hir::Visitor for &mut Compiler {
         // Save the location of the current alternative. This is used for
         // patching the `split_n` instruction later.
         self.bookmarks.push(self.location());
-        // The best atoms for this alternative are independent from the
+        // The best atoms for this alternative are independent of the
         // other alternatives.
         self.best_atoms_stack.push(RegexpAtoms::empty());
 
@@ -1079,7 +1115,7 @@ impl hir::Visitor for &mut Compiler {
 ///
 /// Each `InstrSeq` has an ID, that distinguish them from other sequences.
 #[derive(Default)]
-pub(super) struct InstrSeq {
+pub(crate) struct InstrSeq {
     /// The unique ID that identifies this sequence of instructions.
     seq_id: u64,
     /// A vector that contains the PikeVM code.
@@ -1516,6 +1552,12 @@ impl Display for InstrSeq {
                 Instr::WordBoundaryNeg => {
                     writeln!(f, "{:05x}: WORD_BOUNDARY_NEG", addr)?;
                 }
+                Instr::WordStart => {
+                    writeln!(f, "{:05x}: WORD_START", addr)?;
+                }
+                Instr::WordEnd => {
+                    writeln!(f, "{:05x}: WORD_END", addr)?;
+                }
                 Instr::Match => {
                     writeln!(f, "{:05x}: MATCH", addr)?;
                     break;
@@ -1625,7 +1667,7 @@ fn seq_to_atoms(seq: Seq) -> Option<Vec<Atom>> {
 }
 
 /// A list of [`RegexpAtom`] that contains additional information, like the
-/// quality of the the atoms.
+/// quality of the atoms.
 struct RegexpAtoms {
     atoms: Vec<RegexpAtom>,
     /// Quality of the atoms.
@@ -1633,7 +1675,7 @@ struct RegexpAtoms {
 }
 
 impl RegexpAtoms {
-    /// Create a new empty empty list of atoms.
+    /// Create a new empty list of atoms.
     fn empty() -> Self {
         Self { atoms: Vec::new(), quality: AtomsQuality::min() }
     }

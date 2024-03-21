@@ -16,9 +16,7 @@ use itertools::Itertools;
 use memchr::memmem;
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{take, take_till};
-use nom::combinator::{
-    cond, consumed, fail, iterator, map, opt, success, verify,
-};
+use nom::combinator::{cond, consumed, iterator, map, opt, success, verify};
 use nom::error::ErrorKind;
 use nom::multi::{count, fold_many1, length_data, many0, many1, many_m_n};
 use nom::number::complete::{le_u16, le_u32, le_u64, u8};
@@ -84,7 +82,7 @@ pub struct PE<'a> {
     dir_entries: OnceCell<Option<Vec<DirEntry>>>,
 
     /// Path to PDB file containing debug information for the PE.
-    pdb_path: OnceCell<Option<&'a str>>,
+    pdb_path: OnceCell<Option<&'a [u8]>>,
 
     /// Vector with the DLLs imported by this PE file. Each item in the vector
     /// is a tuple composed of a DLL name and a vector of [`ImportedFunc`] that
@@ -127,7 +125,7 @@ impl<'a> PE<'a> {
 
         // Parse the PE optional header (IMAGE_OPTIONAL_HEADER).
         let (directory, optional_hdr) =
-            Self::parse_opt_header()(optional_hdr)?;
+            Self::parse_opt_header()(optional_hdr).unwrap_or_default();
 
         // The string table is located right after the COFF symbol table.
         let string_table_offset = pe_hdr.symbol_table_offset.saturating_add(
@@ -137,22 +135,24 @@ impl<'a> PE<'a> {
         let string_table = data.get(string_table_offset as usize..);
 
         // Parse the section table. The section table is located right after
-        // NT headers, which starts at pe_hdr and is composed of a the PE
+        // NT headers, which starts at pe_hdr and is composed of the PE
         // signature, the file header, and a variable-length optional header.
         let sections = if let Some(section_table) = pe.get(
             Self::SIZE_OF_PE_SIGNATURE
                 + Self::SIZE_OF_FILE_HEADER
                 + pe_hdr.size_of_optional_header as usize..,
         ) {
-            count(
-                // The section parser needs the string table for resolving
-                // some section names.
-                Self::parse_section(string_table),
+            many_m_n(
+                // Parse at least one section.
+                1,
                 // The number of sections is capped to MAX_PE_SECTIONS.
                 usize::min(
                     pe_hdr.number_of_sections as usize,
                     Self::MAX_PE_SECTIONS,
                 ),
+                // The section parser needs the string table for resolving
+                // some section names.
+                Self::parse_section(string_table),
             )(section_table)
             .map(|(_, sections)| sections)
             .ok()
@@ -174,7 +174,7 @@ impl<'a> PE<'a> {
 
     /// Convert a relative virtual address (RVA) to a file offset.
     ///
-    /// A RVA is an offset relative to the base address of the executable
+    /// An RVA is an offset relative to the base address of the executable
     /// program. The PE format uses RVAs in multiple places and sometimes
     /// is necessary to covert the RVA to a file offset.
     pub fn rva_to_offset(&self, rva: u32) -> Option<u32> {
@@ -186,7 +186,7 @@ impl<'a> PE<'a> {
         )
     }
 
-    /// Given a RVA, returns a byte slice with the content of the PE that
+    /// Given an RVA, returns a byte slice with the content of the PE that
     /// goes from that RVA to the end of the file.
     #[inline]
     pub fn data_at_rva(&self, rva: u32) -> Option<&'a [u8]> {
@@ -194,7 +194,7 @@ impl<'a> PE<'a> {
         self.data.get(offset as usize..)
     }
 
-    /// Given a RVA, returns a byte slice with the content of the PE that
+    /// Given an RVA, returns a byte slice with the content of the PE that
     /// goes from that RVA to the end of the file, or to the given size,
     /// whatever comes first.
     #[inline]
@@ -268,7 +268,7 @@ impl<'a> PE<'a> {
     /// For certain EFI binaries the result is not actually a path, but
     /// a CLSID. Is not clear what the CLSID means. Example:
     /// 6c2abf4b80a87e63eee2996e5cea8f004d49ec0c1806080fa72e960529cba14c
-    pub fn get_pdb_path(&self) -> Option<&'a str> {
+    pub fn get_pdb_path(&self) -> Option<&'a [u8]> {
         *self.pdb_path.get_or_init(|| self.parse_dbg())
     }
 
@@ -311,23 +311,23 @@ impl<'a> PE<'a> {
 
     /// Returns the RVA, size and data associated to a given directory entry.
     ///
-    /// This function translates the RVA into a file offset and returns the
-    /// chunk of file that starts at that offset and has the size indicated by
-    /// the directory entry.
-    ///
-    /// Returns `None` if the PE is corrupted in some way that prevents the
-    /// data from being found.
+    /// The returned tuple is `(rva, size, data)`, where `rva` and `size` are
+    /// the ones indicated in the directory entry, and `data` is a slice that
+    /// contains the file's content from that RVA to the end of the file if
+    /// `strict_size` is false. Otherwise, the slice will be limited to the
+    /// size indicated in the directory entry.
     pub fn get_dir_entry_data(
         &self,
         index: usize,
+        strict_size: bool,
     ) -> Option<(u32, u32, &'a [u8])> {
         // Nobody should call this function with an index greater
         // than MAX_DIR_ENTRIES.
         debug_assert!(index < Self::MAX_DIR_ENTRIES);
 
-        // In theory, `index` should be be lower than
-        // `number_of_rva_and_sizes`, but we don't enforce it because some PE
-        // files have a `number_of_rva_and_sizes` values lower than the actual
+        // In theory, `index` should be lower than `number_of_rva_and_sizes`,
+        // however, we don't enforce it because some PE files have a
+        // `number_of_rva_and_sizes` values lower than the actual
         // number of directory entries. For example, the .NET file
         // 7ff1bf680c80fd73c0b35084904848b3705480ddeb6d0eff62180bd14cd18570
         // has `number_of_rva_and_sizes` set to 11, but it has a valid
@@ -343,10 +343,12 @@ impl<'a> PE<'a> {
             .map(|(_reminder, entry)| entry)?;
 
         let start = self.rva_to_offset(dir_entry.addr)? as usize;
-        let end = min(
-            self.data.len(),
-            start.saturating_add(dir_entry.size as usize),
-        );
+
+        let end = if strict_size {
+            min(self.data.len(), start.saturating_add(dir_entry.size as usize))
+        } else {
+            self.data.len()
+        };
 
         let data = self.data.get(start..end)?;
 
@@ -809,11 +811,11 @@ impl<'a> PE<'a> {
             tuple((
                 // characteristics must be 0
                 verify(le_u32, |characteristics| *characteristics == 0),
-                le_u32, // timestamp
-                le_u16, // major_version
-                le_u16, // minor_version
-                le_u16, // number_of_named_entries
-                le_u16, // number_of_id_entries
+                le_u32,                          // timestamp
+                le_u16,                          // major_version
+                le_u16,                          // minor_version
+                verify(le_u16, |n| *n <= 32768), // number_of_named_entries
+                verify(le_u16, |n| *n <= 32768), // number_of_id_entries
             )),
             |(
                 _characteristics,
@@ -895,12 +897,14 @@ impl<'a> PE<'a> {
         )(input)
     }
 
-    /// Parses the VERSIONINFO structure stored in the version-information
-    /// resource.
+    /// Parses VERSIONINFO structures stored in resources.
     ///
-    /// This is tree-like structure where each node has a key, an optional
-    /// value, and possible a certain number of children. Here is an example of
-    /// how this structure typically looks like:
+    /// Each PE file can contain one or more resources containing a VERSIONINFO
+    /// structure. This functions parses all of them.
+    ///
+    /// VERSIONINFO is tree-like structure where each node has a key, an
+    /// optional value, and possible a certain number of children. Here is an
+    /// example of how this structure typically looks like:
     ///
     /// ```text
     ///   key: "VS_VERSION_INFO"  value: VS_FIXEDFILEINFO struct
@@ -940,49 +944,66 @@ impl<'a> PE<'a> {
     /// ]
     /// ```
     fn parse_version_info(&self) -> Option<Vec<(String, String)>> {
-        // Find the resource with ID = RESOURCE_TYPE_VERSION
-        let version_info_rsrc = self.get_resources().iter().find(|r| {
-            r.type_id
-                == ResourceId::Id(
-                    protos::pe::ResourceType::RESOURCE_TYPE_VERSION as u32,
-                )
-        })?;
+        let result = self
+            .get_resources()
+            .iter()
+            // Use only the resources that contain version information, and
+            // get the resource data.
+            .filter_map(|resource| {
+                if resource.type_id
+                    == ResourceId::Id(
+                        protos::pe::ResourceType::RESOURCE_TYPE_VERSION as u32,
+                    )
+                {
+                    self.data.get(resource.offset? as usize..)
+                } else {
+                    None
+                }
+            })
+            // Parse each resource that contain version info, appending the
+            // (key, value) pairs to `result`.
+            .fold(Vec::new(), |mut result, version_info_raw| {
+                let version_info = Self::parse_info_with_key(
+                    "VS_VERSION_INFO",
+                    version_info_raw,
+                    Some(tuple((
+                        le_u32, // signature
+                        le_u32, // struct_version
+                        le_u32, // file_version_high
+                        le_u32, // file_version_low
+                        le_u32, // dwProductVersionMS;
+                        le_u32, // dwProductVersionLS;
+                        le_u32, // DWORD dwFileFlagsMask;
+                        le_u32, // DWORD dwFileFlags;
+                        le_u32, // DWORD dwFileOS;
+                        le_u32, // DWORD dwFileType;
+                        le_u32, // DWORD dwFileSubtype;
+                        le_u32, // DWORD dwFileDateMS;
+                        le_u32, // DWORD dwFileDateLS;
+                    ))),
+                    // Possible children are StringFileInfo and VarFileInfo
+                    // structures. Both are optional, and they can appear in any
+                    // order. Usually StringFileInfo appears first, but
+                    // 09e7d832320e51bcc80b9aecde2a4135267a9b0156642a9596a62e85c9998cc9
+                    // is an example where VarFileInfo appears first.
+                    permutation((
+                        opt(Self::parse_var_file_info),
+                        opt(Self::parse_string_file_info),
+                    )),
+                );
 
-        let version_info_raw =
-            self.data.get(version_info_rsrc.offset? as usize..)?;
+                if let Ok((_, (_, _, (_, Some(strings))))) = version_info {
+                    result.extend(strings);
+                }
 
-        let (_, (_key, _fixed_file_info, (_, strings))) =
-            Self::parse_info_with_key(
-                "VS_VERSION_INFO",
-                version_info_raw,
-                tuple((
-                    le_u32, // signature
-                    le_u32, // struct_version
-                    le_u32, // file_version_high
-                    le_u32, // file_version_low
-                    le_u32, // dwProductVersionMS;
-                    le_u32, // dwProductVersionLS;
-                    le_u32, // DWORD dwFileFlagsMask;
-                    le_u32, // DWORD dwFileFlags;
-                    le_u32, // DWORD dwFileOS;
-                    le_u32, // DWORD dwFileType;
-                    le_u32, // DWORD dwFileSubtype;
-                    le_u32, // DWORD dwFileDateMS;
-                    le_u32, // DWORD dwFileDateLS;
-                )),
-                // Possible children are StringFileInfo and VarFileInfo
-                // structures. Both are optional and they can appear in any
-                // order. Usually StringFileInfo appears first, but
-                // 09e7d832320e51bcc80b9aecde2a4135267a9b0156642a9596a62e85c9998cc9
-                // is an example where VarFileInfo appears first.
-                permutation((
-                    opt(Self::parse_var_file_info),
-                    opt(Self::parse_string_file_info),
-                )),
-            )
-            .ok()?;
+                result
+            });
 
-        strings
+        if result.is_empty() {
+            return None;
+        }
+
+        Some(result)
     }
 
     /// https://learn.microsoft.com/en-us/windows/win32/menurc/stringfileinfo
@@ -994,9 +1015,8 @@ impl<'a> PE<'a> {
                 Self::parse_info_with_key(
                     "StringFileInfo",
                     input,
-                    // StringFileInfo doesn't have any value, so the value's parser
-                    // is simply `fail`, so that it fails if called.
-                    fail::<&[u8], (), Error>,
+                    // StringFileInfo doesn't have any value.
+                    None::<Box<dyn Parser<&[u8], (), Error>>>,
                     // The children are one or more StringTable structures.
                     fold_many1(
                         Self::parse_file_version_string_table,
@@ -1019,9 +1039,8 @@ impl<'a> PE<'a> {
                 Self::parse_info_with_key(
                     "VarFileInfo",
                     input,
-                    // VarFileInfo doesn't have any value, so the value's parser
-                    // is simply `fail`, so that it fails if called.
-                    fail::<&[u8], (), Error>,
+                    // VarFileInfo doesn't have any value.
+                    None::<Box<dyn Parser<&[u8], (), Error>>>,
                     // We are not really interested in parsing the children of
                     // VarFileInfo, just ignore them and succeed.
                     success(()),
@@ -1037,9 +1056,8 @@ impl<'a> PE<'a> {
     ) -> IResult<&[u8], Vec<(String, String)>> {
         map(
             Self::parse_info(
-                // StringTable doesn't have any value, so the value's parser
-                // is simply `fail`, so that it fails if called.
-                fail::<&[u8], (), Error>,
+                // StringTable doesn't have any value.
+                None::<Box<dyn Parser<&[u8], (), Error>>>,
                 // The children are one or more String structures.
                 many1(Self::parse_file_version_string),
             ),
@@ -1063,7 +1081,7 @@ impl<'a> PE<'a> {
         map(
             Self::parse_info(
                 // The value is a null-terminated UTF-16LE string.
-                utf16_le_string(),
+                Some(utf16_le_string()),
                 // String doesn't have any children, so the value's parser
                 // is simply `fail`, so that it fails if called.
                 success(()),
@@ -1077,7 +1095,7 @@ impl<'a> PE<'a> {
     fn parse_info_with_key<'b, F, G, V, C>(
         expected_key: &'static str,
         input: &'b [u8],
-        value_parser: F,
+        value_parser: Option<F>,
         children_parser: G,
     ) -> IResult<&'b [u8], (String, Option<V>, C)>
     where
@@ -1116,9 +1134,12 @@ impl<'a> PE<'a> {
     /// ```
     ///
     /// This function returns a parser for one of these structures, where the
-    /// parser for the value and the children are passed as arguments.
+    /// parser for the value and the children are passed as arguments. The
+    /// value parser is optional, if not provided, the value will be handled
+    /// as a zero-length value regardless of what the `value_len` field
+    /// says.
     fn parse_info<'b, F, G, V, C>(
-        mut value_parser: F,
+        mut value_parser: Option<F>,
         mut children_parser: G,
     ) -> impl FnMut(&'b [u8]) -> IResult<&'b [u8], (String, Option<V>, C)>
     where
@@ -1152,40 +1173,51 @@ impl<'a> PE<'a> {
             // Then take `alignment` bytes from the start of the structure.
             let (data, _) = take(alignment)(structure)?;
 
-            // Parse the value, if value_len is greater than zero.
-            let (raw_children, value) = if value_len > 0 {
-                // The PE specification seems to suggest that when `type` is 1,
-                // the value is a text and `value_length` indicates its size
-                // in UTF-16 characters (half the size in bytes). That's true
-                // for many files, like:
-                // 0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f
-                //
-                // However, there are many PE files for which `value_length` is
-                // in bytes, even if `type` is 1, that's the case of:
-                // db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984
-                //
-                // For this reason when `type` is 1, we first assume that
-                // `value_length` is in bytes, and if the value parser fails,
-                // then try again assuming that `value_length` is the number of
-                // UTF-16 characters.
-                let (data, value) = if type_ == 1 {
-                    take(value_len)
-                        .and_then(|v| value_parser.parse(v))
-                        .parse(data)
-                        .or_else(|_| {
-                            take(value_len * 2)
-                                .and_then(|v| value_parser.parse(v))
-                                .parse(data)
-                        })?
-                } else {
-                    take(value_len)
-                        .and_then(|v| value_parser.parse(v))
-                        .parse(data)?
-                };
+            // The value will be parsed only if `value_parser` it not `None` and
+            // `value_len` is larger than zero. If `value_parser` is `None` the
+            // value will be considered as a zero-length value, regardless of
+            // what `value_len` says. This useful for parsing some PE files that
+            // have a `value_len` larger than zero in structures that doesn't
+            // actually have any value. For instance, the StringFileInfo structure
+            // in 7aa3e6d7b3f2fcab5c9432cb6d8db094cc1df1b4ed11ff7a386662c4914a1eb3
+            // has a non-zero `value_len`.
+            let (raw_children, value) = match &mut value_parser {
+                Some(value_parser) if value_len > 0 => {
+                    // The PE specification seems to suggest that when `type` is 1,
+                    // the value is a text and `value_length` indicates its size
+                    // in UTF-16 characters, but it's not clear whether the size
+                    // includes the null-terminator or not. In some files like
+                    // 0ba6042247d90a187919dd88dc2d55cd882c80e5afc511c4f7b2e0e193968f7f
+                    // the `value_length` is the number of UTF-16 characters,
+                    // including the null terminator. But in some other cases, like
+                    // abeef1c9452835ba856c3bef32657076b7757c21e9f5c78f6336cfedc87d0b46
+                    // it doesn't include the null terminator.
+                    //
+                    // Also, there are many PE files for which `value_length` is
+                    // in bytes, even if `type` is 1, that's the case of:
+                    // db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984
+                    //
+                    // For this reason when `type` is 1, we first assume that
+                    // `value_length` is in characters, and if the value parser fails,
+                    // then try again assuming that `value_length` is in bytes.
+                    let (data, value) = if type_ == 1 {
+                        take(value_len * 2)
+                            .and_then(|v| value_parser.parse(v))
+                            .parse(data)
+                            .or_else(|_| {
+                                take(value_len)
+                                    .and_then(|v| value_parser.parse(v))
+                                    .parse(data)
+                            })?
+                    } else {
+                        take(value_len)
+                            .and_then(|v| value_parser.parse(v))
+                            .parse(data)?
+                    };
 
-                (data, Some(value))
-            } else {
-                (data, None)
+                    (data, Some(value))
+                }
+                _ => (data, None),
             };
 
             let (_, children) = children_parser.parse(raw_children)?;
@@ -1227,8 +1259,8 @@ impl<'a> PE<'a> {
     /// individual resources of that type, and the children of each individual
     /// resource represent the resource in a specific language.
     fn parse_resources(&self) -> Option<(ResourceDir, Vec<Resource<'a>>)> {
-        let (_, _, rsrc_section) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE)?;
+        let (_, _, rsrc_section) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_RESOURCE, false)?;
 
         let mut queue = VecDeque::new();
         let mut resources = vec![];
@@ -1336,7 +1368,7 @@ impl<'a> PE<'a> {
 
     fn parse_dir_entries(&self) -> Option<Vec<DirEntry>> {
         // The number of directory entries is limited to MAX_DIR_ENTRIES.
-        let num_dir_entries = usize::max(
+        let num_dir_entries = usize::min(
             self.optional_hdr.number_of_rva_and_sizes as usize,
             Self::MAX_DIR_ENTRIES,
         );
@@ -1348,9 +1380,9 @@ impl<'a> PE<'a> {
     }
 
     /// Parses the PE debug information and extracts the PDB path.
-    fn parse_dbg(&self) -> Option<&'a str> {
+    fn parse_dbg(&self) -> Option<&'a [u8]> {
         let (_, _, dbg_section) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG)?;
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DEBUG, true)?;
 
         let entries = many0(Self::parse_dbg_dir_entry)(dbg_section)
             .map(|(_, entries)| entries)
@@ -1438,7 +1470,7 @@ impl<'a> PE<'a> {
             ))(cv_info)
             {
                 Ok((_, (_signature, _padding, pdb_path))) => {
-                    return from_utf8(pdb_path).ok()
+                    return Some(pdb_path)
                 }
                 Err(_) => continue,
             };
@@ -1487,8 +1519,13 @@ impl<'a> PE<'a> {
 
     /// Parses PE imports.
     fn parse_imports(&self) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (_, _, import_data) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT)?;
+        let (rva, _, import_data) = self
+            .get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_IMPORT, false)?;
+
+        if rva == 0 {
+            return None;
+        }
+
         self.parse_import_impl(import_data, Self::parse_import_descriptor)
     }
 
@@ -1496,8 +1533,15 @@ impl<'a> PE<'a> {
     fn parse_delayed_imports(
         &self,
     ) -> Option<Vec<(&'a str, Vec<ImportedFunc>)>> {
-        let (_, _, import_data) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT)?;
+        let (rva, _, import_data) = self.get_dir_entry_data(
+            Self::IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT,
+            true,
+        )?;
+
+        if rva == 0 {
+            return None;
+        }
+
         self.parse_import_impl(import_data, Self::parse_delay_load_descriptor)
     }
 
@@ -1651,7 +1695,9 @@ impl<'a> PE<'a> {
                 }
             }
 
-            imported_funcs.push((dll_name, funcs));
+            if !funcs.is_empty() {
+                imported_funcs.push((dll_name, funcs));
+            }
         }
 
         Some(imported_funcs)
@@ -1736,8 +1782,10 @@ impl<'a> PE<'a> {
     fn parse_import_by_name(input: &[u8]) -> IResult<&[u8], &[u8]> {
         map(
             tuple((
-                le_u16,                       // hint
-                take_till(|c: u8| c == 0_u8), // name
+                le_u16, // hint
+                verify(take_till(|c: u8| c == 0_u8), |name: &[u8]| {
+                    !name.is_empty()
+                }), // name
             )),
             |(_, name)| name,
         )(input)
@@ -1745,7 +1793,11 @@ impl<'a> PE<'a> {
 
     fn parse_exports(&self) -> Option<ExportInfo<'a>> {
         let (exports_rva, exports_size, exports_data) =
-            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_EXPORT)?;
+            self.get_dir_entry_data(Self::IMAGE_DIRECTORY_ENTRY_EXPORT, true)?;
+
+        if exports_rva == 0 {
+            return None;
+        }
 
         // Parse the IMAGE_EXPORT_DIRECTORY structure.
         let (_, exports) = Self::parse_exports_dir_entry(exports_data).ok()?;
@@ -1792,20 +1844,26 @@ impl<'a> PE<'a> {
         // directory it is a forwarder RVA and points to a NULL terminated
         // ASCII string.
 
-        let func_rvas = self.parse_at_rva(
-            exports.address_of_functions,
-            count(le_u32, num_exports),
-        )?;
+        let func_rvas = self
+            .parse_at_rva(
+                exports.address_of_functions,
+                count(le_u32, num_exports),
+            )
+            .unwrap_or_default();
 
-        let names = self.parse_at_rva(
-            exports.address_of_names,
-            count(le_u32, exports.number_of_names as usize),
-        )?;
+        let names = self
+            .parse_at_rva(
+                exports.address_of_names,
+                count(le_u32, exports.number_of_names as usize),
+            )
+            .unwrap_or_default();
 
-        let name_ordinals = self.parse_at_rva(
-            exports.address_of_name_ordinals,
-            count(le_u16, exports.number_of_names as usize),
-        )?;
+        let name_ordinals = self
+            .parse_at_rva(
+                exports.address_of_name_ordinals,
+                count(le_u16, exports.number_of_names as usize),
+            )
+            .unwrap_or_default();
 
         // Create a vector with one item per exported function. Items in the
         // array initially have function RVA and ordinal only.
@@ -1969,7 +2027,7 @@ impl From<PE<'_>> for protos::pe::PE {
         result.set_size_of_stack_commit(pe.optional_hdr.size_of_stack_commit);
         result.set_size_of_heap_reserve(pe.optional_hdr.size_of_heap_reserve);
         result.set_size_of_heap_commit(pe.optional_hdr.size_of_heap_commit);
-        result.pdb_path = pe.get_pdb_path().map(String::from);
+        result.pdb_path = pe.get_pdb_path().map(|path| path.to_vec());
         result.set_number_of_rva_and_sizes(pe.optional_hdr.number_of_rva_and_sizes);
         result.set_image_base(pe.optional_hdr.image_base);
         result.set_size_of_image(pe.optional_hdr.size_of_image);
@@ -2625,17 +2683,23 @@ fn uint(_32bits: bool) -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
     }
 }
 
-/// Parser that reads a null-terminated UTF-16LE string.
+/// Parser that reads a UTF-16LE string.
 ///
-/// The result is a UTF-8 string,
+/// If the string is null-terminated, the parser will consume the input, including
+/// the null terminator, and return the rest as the remainder. If the string is
+/// not null terminated, all the input is expected to contain a UTF-16LE string.
+/// The resulting string is a UTF-8 string.
 fn utf16_le_string() -> impl FnMut(&[u8]) -> IResult<&[u8], String> {
     move |input: &[u8]| {
-        // Read UTF-16 chars until a null terminator is found.
-        let (remainder, string) =
+        // Read UTF-16 chars until a null terminator is found, or the end
+        // of the input is reached.
+        let (mut remainder, string) =
             many0(verify(le_u16, |c| *c != 0_u16))(input)?;
 
-        // Consume the null-terminator.
-        let (remainder, _) = take(2_usize)(remainder)?;
+        // Consume the null-terminator, if any.
+        if !remainder.is_empty() {
+            (remainder, _) = take(2_usize)(remainder)?;
+        }
 
         let s = String::from_utf16_lossy(string.as_slice());
 

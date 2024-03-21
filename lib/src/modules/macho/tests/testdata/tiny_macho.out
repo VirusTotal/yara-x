@@ -8,7 +8,7 @@ flags: 0x1200000
 number_of_segments: 1
 entry_point: 116
 segments:
-  - segname: "SP1\300\211\347j\010Wj\001P\260\004\353\260"
+  - segname: "SP1\xc0\x89\xe7j\x08Wj\x01P\xb0\x04\xeb\xb0"
     vmaddr: 0x1000
     vmsize: 0x1000
     fileoff: 0

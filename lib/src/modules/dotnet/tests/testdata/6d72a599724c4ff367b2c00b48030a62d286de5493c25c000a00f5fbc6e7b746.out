@@ -5,6 +5,7 @@ number_of_guids: 1
 number_of_resources: 0
 number_of_classes: 0
 number_of_assembly_refs: 0
+number_of_modulerefs: 0
 number_of_user_strings: 10
 number_of_constants: 0
 streams:
@@ -500,13 +501,13 @@ streams:
 guids:
   - "c6fcb421-e1b3-43a7-b9dd-0d013b9c3d93"
 user_strings:
-  - "T\000r\000i\000n\000i\000t\000y\000"
-  - "f\000i\000l\000e\000:\000/\000/\000/\000"
-  - "/\000"
-  - "\\\000"
-  - "@\000E\000C\000H\000O\000 \000O\000F\000F\000\n\000"
-  - "s\000h\000u\000t\000d\000o\000w\000n\000.\000e\000x\000e\000 \000/\000r\000 \000/\000t\000 \0000\0000\000\n\000"
-  - "e\000c\000h\000o\000 \000j\000 \000|\000 \000d\000e\000l\000 \000/\000F\000 \000"
-  - "\n\000"
-  - "e\000c\000h\000o\000 \000j\000 \000|\000 \000d\000e\000l\000 \000B\000o\000o\000b\000i\000e\000s\000 \000P\000r\000i\000v\000a\000t\000e\000.\000b\000a\000t\000"
-  - "B\000o\000o\000b\000i\000e\000s\000 \000P\000r\000i\000v\000a\000t\000e\000.\000b\000a\000t\000"
+  - "T\x00r\x00i\x00n\x00i\x00t\x00y\x00"
+  - "f\x00i\x00l\x00e\x00:\x00/\x00/\x00/\x00"
+  - "/\x00"
+  - "\\\x00"
+  - "@\x00E\x00C\x00H\x00O\x00 \x00O\x00F\x00F\x00\n\x00"
+  - "s\x00h\x00u\x00t\x00d\x00o\x00w\x00n\x00.\x00e\x00x\x00e\x00 \x00/\x00r\x00 \x00/\x00t\x00 \x000\x000\x00\n\x00"
+  - "e\x00c\x00h\x00o\x00 \x00j\x00 \x00|\x00 \x00d\x00e\x00l\x00 \x00/\x00F\x00 \x00"
+  - "\n\x00"
+  - "e\x00c\x00h\x00o\x00 \x00j\x00 \x00|\x00 \x00d\x00e\x00l\x00 \x00B\x00o\x00o\x00b\x00i\x00e\x00s\x00 \x00P\x00r\x00i\x00v\x00a\x00t\x00e\x00.\x00b\x00a\x00t\x00"
+  - "B\x00o\x00o\x00b\x00i\x00e\x00s\x00 \x00P\x00r\x00i\x00v\x00a\x00t\x00e\x00.\x00b\x00a\x00t\x00"

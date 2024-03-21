@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+import "yara.proto";
+
+package magic;
+
+option (yara.module_options) = {
+  name : "magic"
+  root_message: "magic.Magic"
+  rust_module: "magic"
+  cargo_feature: "magic-module"
+};
+
+message Magic {
+  // This module contains only exported functions, and doesn't return any data
+}

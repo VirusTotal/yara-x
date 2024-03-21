@@ -1,0 +1,161 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 6
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 271
+dll_characteristics: 0
+timestamp: 1210394606 # 2008-05-10 04:43:26 UTC
+image_base: 4194304
+checksum: 0
+base_of_code: 4096
+base_of_data: 20480
+entry_point: 4101
+entry_point_raw: 4101
+section_alignment: 4096
+file_alignment: 4096
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 16384
+size_of_initialized_data: 110592
+size_of_uninitialized_data: 0
+size_of_image: 131072
+size_of_headers: 4096
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 4
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+rich_signature:
+    offset: 128
+    length: 72
+    key: 665814258
+    raw_data: "\xb6\xe5\xc1t\xf2\x84\xaf\'\xf2\x84\xaf\'\xf2\x84\xaf\'\x9d\x9b\xa4\'\xf3\x84\xaf\'\x9d\x9b\xa5\'\xe8\x84\xaf\'q\x98\xa1\'\xfe\x84\xaf\'\xf2\x84\xae\'\xd5\x84\xaf\'\x08\xa7\xb6\'\xf1\x84\xaf\'\xf4\xa7\xa4\'\xf0\x84\xaf\'5\x82\xa9\'\xf3\x84\xaf\'"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00o\x1f\x0b\x00\x01\x00\x00\x00o\x1f\n\x00\x1a\x00\x00\x00\x83\x1c\x0e\x00\x0c\x00\x00\x00\x00\x00\x01\x00\'\x00\x00\x00\xfa#\x19\x00\x03\x00\x00\x00\x06#\x0b\x00\x02\x00\x00\x00\xc7\x06\x06\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 11
+        version: 8047
+        times: 1
+      - toolid: 10
+        version: 8047
+        times: 26
+      - toolid: 14
+        version: 7299
+        times: 12
+      - toolid: 1
+        version: 0
+        times: 39
+      - toolid: 25
+        version: 9210
+        times: 3
+      - toolid: 11
+        version: 8966
+        times: 2
+      - toolid: 6
+        version: 1735
+        times: 1
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 16384
+    raw_data_offset: 4096
+    virtual_address: 4096
+    virtual_size: 13742
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 4096
+    raw_data_offset: 20480
+    virtual_address: 20480
+    virtual_size: 1952
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 12288
+    raw_data_offset: 24576
+    virtual_address: 24576
+    virtual_size: 10716
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 94208
+    raw_data_offset: 36864
+    virtual_address: 36864
+    virtual_size: 92456
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 21556
+    size: 40
+  - virtual_address: 36864
+    size: 92456
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 20480
+    size: 156
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+is_signed: false
+overlay:
+    offset: 131072
+    size: 899819

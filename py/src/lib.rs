@@ -103,6 +103,16 @@ impl Compiler {
         self.inner.new_namespace(namespace);
     }
 
+    /// Tell the compiler that a YARA module is not supported.
+    ///
+    /// Import statements for unsupported modules will be ignored without
+    /// errors, but a warning will be issued. Any rule that make use of an
+    /// ignored module will be ignored, while the rest of rules that
+    /// don't rely on that module will be correctly compiled.
+    fn ignore_module(&mut self, module: &str) {
+        self.inner.ignore_module(module);
+    }
+
     /// Builds the source code previously added to the compiler.
     ///
     /// This function returns an instance of [`Rules`] containing all the rules
@@ -184,8 +194,8 @@ impl Scanner {
     /// Sets a timeout for each scan.
     ///
     /// After setting a timeout scans will abort after the specified `seconds`.
-    fn timeout(&mut self, seconds: u64) {
-        self.inner.timeout(Duration::from_secs(seconds));
+    fn set_timeout(&mut self, seconds: u64) {
+        self.inner.set_timeout(Duration::from_secs(seconds));
     }
 
     /// Sets a callback that is invoked every time a YARA rule calls the

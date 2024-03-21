@@ -422,7 +422,7 @@ impl ScanContext<'_> {
             // maximum number of allowed matches. In that case continue without
             // verifying the match. `get_unchecked` is used for performance
             // reasons, the number of bits in the bit vector is guaranteed to
-            // to be the number of patterns.
+            // be the number of patterns.
             if self.limit_reached.contains(pattern_id) {
                 continue;
             }
@@ -695,7 +695,6 @@ impl ScanContext<'_> {
             }
             | SubPattern::RegexpChainTail { chained_to, gap, flags, .. } => {
                 if self.within_valid_distance(
-                    sub_pattern_id,
                     *chained_to,
                     match_.range.start,
                     gap,
@@ -729,31 +728,15 @@ impl ScanContext<'_> {
 
     fn within_valid_distance(
         &mut self,
-        sub_pattern_id: SubPatternId,
         chained_to: SubPatternId,
         match_start: usize,
         gap: &RangeInclusive<u32>,
     ) -> bool {
-        // The lowest possible offset where the current sub-pattern can match
-        // is the offset of the first unconfirmed match, or the offset of the
-        // current match if no previous unconfirmed match exists.
-        let lowest_offset = self
-            .unconfirmed_matches
-            .get(&sub_pattern_id)
-            .and_then(|unconfirmed_matches| unconfirmed_matches.front())
-            .map_or(match_start, |first_match| first_match.range.start);
-
         if let Some(unconfirmed_matches) =
             self.unconfirmed_matches.get_mut(&chained_to)
         {
             let min_gap = *gap.start() as usize;
             let max_gap = *gap.end() as usize;
-
-            // Retain the unconfirmed matches that can possibly match, but
-            // discard those that are so far away from the current match that
-            // there's no possibility for them to match.
-            unconfirmed_matches
-                .retain(|m| m.range.end + max_gap >= lowest_offset);
 
             for m in unconfirmed_matches {
                 let valid_range =
@@ -797,9 +780,9 @@ impl ScanContext<'_> {
             match &self.compiled_rules.get_sub_pattern(id).1 {
                 SubPattern::LiteralChainHead { flags, .. }
                 | SubPattern::RegexpChainHead { flags, .. } => {
-                    // The chain head is reached and we know the range where
+                    // The chain head is reached, and we know the range where
                     // the tail matches. This indicates that the whole chain is
-                    // valid and we have a full match.
+                    // valid, and we have a full match.
                     if let Some(tail_match_range) = &tail_match_range {
                         self.track_pattern_match(
                             pattern_id,
@@ -1228,14 +1211,28 @@ fn verify_base64_match(
         let mut ascii = Vec::with_capacity(decode_range.len() / 2);
         for (i, b) in scanned_data[decode_range].iter().enumerate() {
             if i % 2 == 0 {
-                ascii.push(*b)
+                // Padding (=) is not added to ASCII string.
+                if *b != b'=' {
+                    ascii.push(*b)
+                }
             } else if *b != 0 {
                 return None;
             }
         }
-        base64_engine.decode(ascii.as_slice())
+        base64_engine.decode(ascii)
     } else {
-        base64_engine.decode(&scanned_data[decode_range])
+        let s = &scanned_data[decode_range];
+
+        // Strip padding if present.
+        let s = if s.ends_with_str(b"==") {
+            &s[0..s.len().saturating_sub(2)]
+        } else if s.ends_with_str(b"=") {
+            &s[0..s.len().saturating_sub(1)]
+        } else {
+            s
+        };
+
+        base64_engine.decode(s)
     };
 
     if let Ok(decoded) = decoded {

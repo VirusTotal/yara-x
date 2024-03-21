@@ -4,6 +4,8 @@ use regex_syntax as re;
 use thiserror::Error;
 
 use crate::re::hir::Hir;
+use crate::types;
+
 use yara_x_parser::ast;
 
 #[derive(Error, Debug)]
@@ -26,6 +28,54 @@ impl Display for Error {
             Error::SyntaxError { msg, .. } => write!(f, "{}", msg),
             Error::MixedGreediness { .. } => write!(f, "mixed greediness"),
         }
+    }
+}
+
+/// The [`Regexp`] trait represents a regular expression.
+pub(crate) trait Regexp {
+    /// Must return the regular expression source code, without any delimiters
+    /// like `/`. For instance, if the regexp is `/foo/i`, this must return
+    /// "foo".
+    fn source(&self) -> &str;
+    /// Must return true if the regexp is case-sensitive. For instance, this
+    /// is true for `/foo/i`.
+    fn case_insensitive(&self) -> bool;
+    /// Must return true if the dot (.) should match newline characters. For
+    /// instance, this is true for `/foo/s`.
+    fn dot_matches_new_line(&self) -> bool;
+}
+
+impl Regexp for ast::Regexp<'_> {
+    #[inline]
+    fn source(&self) -> &str {
+        self.src
+    }
+
+    #[inline]
+    fn case_insensitive(&self) -> bool {
+        self.case_insensitive
+    }
+
+    #[inline]
+    fn dot_matches_new_line(&self) -> bool {
+        self.dot_matches_new_line
+    }
+}
+
+impl Regexp for types::Regexp {
+    #[inline]
+    fn source(&self) -> &str {
+        self.naked()
+    }
+
+    #[inline]
+    fn case_insensitive(&self) -> bool {
+        self.case_insensitive()
+    }
+
+    #[inline]
+    fn dot_matches_new_line(&self) -> bool {
+        self.dot_matches_new_line()
     }
 }
 
@@ -52,7 +102,7 @@ impl Parser {
     /// If true, allows regular expressions that mixes greedy and non-greedy
     /// quantifiers (e.g: `/ab.*cd.*?ef/`). When mixed greediness is not allowed
     /// [`Parser::parse`] returns an error if the regular expression contains
-    /// both greedy and non-greedy quantifiers. By default mixed greediness is
+    /// both greedy and non-greedy quantifiers. By default, mixed greediness is
     /// allowed.
     pub fn allow_mixed_greediness(mut self, yes: bool) -> Self {
         self.allow_mixed_greediness = yes;
@@ -60,15 +110,16 @@ impl Parser {
     }
 
     /// Parses the regexp and returns its HIR.
-    pub fn parse(&self, regexp: &ast::Regexp) -> Result<Hir, Error> {
+    pub fn parse(&self, regexp: &impl Regexp) -> Result<Hir, Error> {
         let mut parser =
             re::ast::parse::ParserBuilder::new().empty_min_range(true).build();
 
-        let ast =
-            parser.parse(regexp.src).map_err(|err| Error::SyntaxError {
+        let ast = parser.parse(regexp.source()).map_err(|err| {
+            Error::SyntaxError {
                 msg: err.kind().to_string(),
                 span: *err.span(),
-            })?;
+            }
+        })?;
 
         let greedy = Validator::new().validate(&ast);
 
@@ -86,23 +137,23 @@ impl Parser {
         let case_insensitive = if self.force_case_insensitive {
             true
         } else {
-            regexp.case_insensitive
+            regexp.case_insensitive()
         };
 
-        let mut translator =
-            regex_syntax::hir::translate::TranslatorBuilder::new()
-                .case_insensitive(case_insensitive)
-                .dot_matches_new_line(regexp.dot_matches_new_line)
-                .unicode(false)
-                .utf8(false)
-                .build();
+        let mut translator = re::hir::translate::TranslatorBuilder::new()
+            .case_insensitive(case_insensitive)
+            .dot_matches_new_line(regexp.dot_matches_new_line())
+            .unicode(false)
+            .utf8(false)
+            .build();
 
-        let hir = translator.translate(regexp.src, &ast).map_err(|err| {
-            Error::SyntaxError {
-                msg: err.kind().to_string(),
-                span: *err.span(),
-            }
-        })?;
+        let hir =
+            translator.translate(regexp.source(), &ast).map_err(|err| {
+                Error::SyntaxError {
+                    msg: err.kind().to_string(),
+                    span: *err.span(),
+                }
+            })?;
 
         Ok(Hir { inner: hir, greedy })
     }

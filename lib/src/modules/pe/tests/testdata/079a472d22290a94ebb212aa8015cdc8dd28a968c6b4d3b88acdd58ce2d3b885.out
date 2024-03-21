@@ -16,7 +16,7 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 8450
 dll_characteristics: 320
-timestamp: 1528213185
+timestamp: 1528213185 # 2018-06-05 15:39:45 UTC
 image_base: 268435456
 checksum: 82308
 base_of_code: 4096
@@ -24,7 +24,7 @@ base_of_data: 12288
 entry_point: 2605
 entry_point_raw: 5677
 dll_name: "CUSTPROF.dll"
-export_timestamp: 1528213185
+export_timestamp: 1528213185 # 2018-06-05 15:39:45 UTC
 section_alignment: 4096
 file_alignment: 512
 loader_flags: 0
@@ -58,7 +58,7 @@ version_info:
     "FileDescription": "Customer Profile Interface DLL"
     "FileVersion": "27.1.9.33"
     "InternalName": "CUSTPROF.DLL"
-    "LegalCopyright": "Copyright \302\251 2018 by Quicken Inc."
+    "LegalCopyright": "Copyright © 2018 by Quicken Inc."
     "OriginalFilename": "CUSTPROF.DLL"
     "ProductName": "Quicken for Windows"
     "ProductVersion": "27.1.9.33"
@@ -73,7 +73,7 @@ version_info_list:
   - key: "CompanyName"
     value: "Quicken Inc."
   - key: "LegalCopyright"
-    value: "Copyright \302\251 2018 by Quicken Inc."
+    value: "Copyright © 2018 by Quicken Inc."
   - key: "Build Date"
     value: "Tue Jun 5 21:07:13 IST 2018"
   - key: "Build Version"
@@ -90,8 +90,8 @@ rich_signature:
     offset: 128
     length: 96
     key: 157631266
-    raw_data: "f\"\013Z\"Ce\t\"Ce\t\"Ce\t9\336\371\t!Ce\t9\336\373\t#Ce\t9\336\317\t)Ce\tM5\316\t!Ce\t+;\366\t Ce\t\"Cd\t\016Ce\t9\336\316\t&Ce\t9\336\376\t#Ce\t9\336\377\t#Ce\t9\336\370\t#Ce\t"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\033\235\234\000\003\000\000\000\033\235\236\000\001\000\000\000\033\235\252\000\013\000\000\000ov\253\000\003\000\000\000\tx\223\000\002\000\000\000\000\000\001\000,\000\000\000\033\235\253\000\004\000\000\000\033\235\233\000\001\000\000\000\033\235\232\000\001\000\000\000\033\235\235\000\001\000\000\000"
+    raw_data: "f\"\x0bZ\"Ce\t\"Ce\t\"Ce\t9\xde\xf9\t!Ce\t9\xde\xfb\t#Ce\t9\xde\xcf\t)Ce\tM5\xce\t!Ce\t+;\xf6\t Ce\t\"Cd\t\x0eCe\t9\xde\xce\t&Ce\t9\xde\xfe\t#Ce\t9\xde\xff\t#Ce\t9\xde\xf8\t#Ce\t"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1b\x9d\x9c\x00\x03\x00\x00\x00\x1b\x9d\x9e\x00\x01\x00\x00\x00\x1b\x9d\xaa\x00\x0b\x00\x00\x00ov\xab\x00\x03\x00\x00\x00\tx\x93\x00\x02\x00\x00\x00\x00\x00\x01\x00,\x00\x00\x00\x1b\x9d\xab\x00\x04\x00\x00\x00\x1b\x9d\x9b\x00\x01\x00\x00\x00\x1b\x9d\x9a\x00\x01\x00\x00\x00\x1b\x9d\x9d\x00\x01\x00\x00\x00"
     tools:
       - toolid: 156
         version: 40219

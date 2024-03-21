@@ -1,0 +1,175 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 1
+    minor: 0
+linker_version:
+    major: 6
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 462
+dll_characteristics: 0
+timestamp: 1556274489 # 2019-04-26 10:28:09 UTC
+image_base: 4194304
+checksum: 235297
+base_of_code: 4096
+base_of_data: 180224
+entry_point: 5040
+entry_point_raw: 5040
+section_alignment: 4096
+file_alignment: 4096
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 176128
+size_of_initialized_data: 8192
+size_of_uninitialized_data: 0
+size_of_image: 188416
+size_of_headers: 4096
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 3
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 2
+number_of_version_infos: 6
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "CompanyName": "aaaa"
+    "FileVersion": "1.00"
+    "InternalName": "Kawaii-Unicorn"
+    "OriginalFilename": "Kawaii-Unicorn.exe"
+    "ProductName": "Kawaii-Unicorn"
+    "ProductVersion": "1.00"
+version_info_list:
+  - key: "CompanyName"
+    value: "aaaa"
+  - key: "ProductName"
+    value: "Kawaii-Unicorn"
+  - key: "FileVersion"
+    value: "1.00"
+  - key: "ProductVersion"
+    value: "1.00"
+  - key: "InternalName"
+    value: "Kawaii-Unicorn"
+  - key: "OriginalFilename"
+    value: "Kawaii-Unicorn.exe"
+rich_signature:
+    offset: 128
+    length: 40
+    key: 2291662385
+    raw_data: "u\x9f\xf9\xdb1\xfe\x97\x881\xfe\x97\x881\xfe\x97\x88\xb2\xe2\x99\x880\xfe\x97\x88~\xdc\x9e\x880\xfe\x97\x88\x07\xd8\x9a\x880\xfe\x97\x88"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x83\x1c\x0e\x00\x01\x00\x00\x00O\"\t\x00\x01\x00\x00\x006&\r\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 14
+        version: 7299
+        times: 1
+      - toolid: 9
+        version: 8783
+        times: 1
+      - toolid: 13
+        version: 9782
+        times: 1
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612949
+    raw_data_size: 176128
+    raw_data_offset: 4096
+    virtual_address: 4096
+    virtual_size: 172840
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 4096
+    raw_data_offset: 192000
+    virtual_address: 180224
+    virtual_size: 2592
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 4096
+    raw_data_offset: 184320
+    virtual_address: 184320
+    virtual_size: 2292
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 175700
+    size: 40
+  - virtual_address: 184320
+    size: 2292
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 552
+    size: 32
+  - virtual_address: 4096
+    size: 260
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 1547296057 # 2019-01-12 12:27:37 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 48
+    rva: 185220
+    offset: 185220
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 1
+    language: 0
+  - length: 564
+    rva: 184656
+    offset: 184656
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 2052
+is_signed: false
+overlay:
+    offset: 0
+    size: 0

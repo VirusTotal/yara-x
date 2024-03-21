@@ -1,0 +1,387 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 6
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 271
+dll_characteristics: 0
+timestamp: 1132705302 # 2005-11-23 00:21:42 UTC
+image_base: 4194304
+checksum: 0
+base_of_code: 1015808
+base_of_data: 2134016
+entry_point: 1118256
+entry_point_raw: 2133040
+export_timestamp: 1307160866 # 2011-06-04 04:14:26 UTC
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 1118208
+size_of_initialized_data: 4096
+size_of_uninitialized_data: 1011712
+size_of_image: 2211840
+size_of_headers: 4096
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 4
+number_of_imported_functions: 9
+number_of_delayed_imported_functions: 0
+number_of_resources: 22
+number_of_version_infos: 12
+number_of_imports: 7
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "Comments": ""
+    "CompanyName": "McAfee Inc."
+    "FileDescription": "Standalone anti-virus scanner for certain viruses."
+    "FileVersion": "2.5.9"
+    "InternalName": ""
+    "LegalCopyright": "© 2005 Networks Associates Technology, Inc."
+    "LegalTrademarks": ""
+    "OriginalFilename": "stinger.exe"
+    "PrivateBuild": ""
+    "ProductName": "McAfee Inc. Stinger"
+    "ProductVersion": "2.5.9"
+    "SpecialBuild": ""
+version_info_list:
+  - key: "Comments"
+    value: ""
+  - key: "CompanyName"
+    value: "McAfee Inc."
+  - key: "FileDescription"
+    value: "Standalone anti-virus scanner for certain viruses."
+  - key: "FileVersion"
+    value: "2.5.9"
+  - key: "InternalName"
+    value: ""
+  - key: "LegalCopyright"
+    value: "© 2005 Networks Associates Technology, Inc."
+  - key: "LegalTrademarks"
+    value: ""
+  - key: "OriginalFilename"
+    value: "stinger.exe"
+  - key: "PrivateBuild"
+    value: ""
+  - key: "ProductName"
+    value: "McAfee Inc. Stinger"
+  - key: "ProductVersion"
+    value: "2.5.9"
+  - key: "SpecialBuild"
+    value: ""
+rich_signature:
+    offset: 128
+    length: 96
+    key: 977732471
+    raw_data: "3b)iw\x03G:w\x03G:w\x03G:\x0c\x1fK:{\x03G:\x18\x1cL:}\x03G:\xf4\x1fI:k\x03G:\x18\x1cM:\xff\x03G:w\x03G:g\x03G:w\x03F:\x9a\x03G:\x15\x1cT:z\x03G:q L:p\x02G:\xb0\x05A:v\x03G:\x88#C:v\x03G:"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00{\x1c\x0c\x00\x0c\x00\x00\x00o\x1f\x0b\x00\n\x00\x00\x00\x83\x1c\x0e\x00\x1c\x00\x00\x00o\x1f\n\x00\x88\x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x00\x00\x01\x00\xed\x00\x00\x00b\x1f\x13\x00\r\x00\x00\x00\x06#\x0b\x00\x07\x01\x00\x00\xc7\x06\x06\x00\x01\x00\x00\x00\xff \x04\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 12
+        version: 7291
+        times: 12
+      - toolid: 11
+        version: 8047
+        times: 10
+      - toolid: 14
+        version: 7299
+        times: 28
+      - toolid: 10
+        version: 8047
+        times: 136
+      - toolid: 0
+        version: 0
+        times: 16
+      - toolid: 1
+        version: 0
+        times: 237
+      - toolid: 19
+        version: 8034
+        times: 13
+      - toolid: 11
+        version: 8966
+        times: 263
+      - toolid: 6
+        version: 1735
+        times: 1
+      - toolid: 4
+        version: 8447
+        times: 1
+sections:
+  - name: "UPX0"
+    full_name: "UPX0"
+    characteristics: 3758096512
+    raw_data_size: 0
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 1011712
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: "UPX1"
+    full_name: "UPX1"
+    characteristics: 3758096448
+    raw_data_size: 1117696
+    raw_data_offset: 1024
+    virtual_address: 1015808
+    virtual_size: 1118208
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 3221225536
+    raw_data_size: 3584
+    raw_data_offset: 1118720
+    virtual_address: 2134016
+    virtual_size: 4096
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".9UPX1"
+    full_name: ".9UPX1"
+    characteristics: 3758096416
+    raw_data_size: 73728
+    raw_data_offset: 1122304
+    virtual_address: 2138112
+    virtual_size: 73728
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 20
+data_directories:
+  - virtual_address: 1463360
+    size: 204
+  - virtual_address: 2137064
+    size: 420
+  - virtual_address: 2134016
+    size: 3048
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 1628
+    rva: 1614336
+    offset: 599552
+    type: RESOURCE_TYPE_BITMAP
+    id: 111
+    language: 1033
+  - length: 1710
+    rva: 1615968
+    offset: 601184
+    type: RESOURCE_TYPE_BITMAP
+    id: 112
+    language: 1033
+  - length: 1636
+    rva: 1617680
+    offset: 602896
+    type: RESOURCE_TYPE_BITMAP
+    id: 113
+    language: 1033
+  - length: 1764
+    rva: 1619320
+    offset: 604536
+    type: RESOURCE_TYPE_BITMAP
+    id: 120
+    language: 1033
+  - length: 416
+    rva: 1621088
+    offset: 606304
+    type: RESOURCE_TYPE_BITMAP
+    id: 121
+    language: 1033
+  - length: 350
+    rva: 1621504
+    offset: 606720
+    type: RESOURCE_TYPE_BITMAP
+    id: 122
+    language: 1033
+  - length: 412
+    rva: 1621856
+    offset: 607072
+    type: RESOURCE_TYPE_BITMAP
+    id: 123
+    language: 1033
+  - length: 416
+    rva: 1622272
+    offset: 607488
+    type: RESOURCE_TYPE_BITMAP
+    id: 124
+    language: 1033
+  - length: 744
+    rva: 2135360
+    offset: 1120064
+    type: RESOURCE_TYPE_ICON
+    id: 1
+    language: 1033
+  - length: 116
+    rva: 1611072
+    offset: 596288
+    type: RESOURCE_TYPE_MENU
+    language: 1033
+    name_string: "I\x00D\x00R\x00_\x00M\x00A\x00I\x00N\x00M\x00E\x00N\x00U\x00"
+  - length: 264
+    rva: 1611192
+    offset: 596408
+    type: RESOURCE_TYPE_DIALOG
+    id: 102
+    language: 1033
+  - length: 308
+    rva: 1611456
+    offset: 596672
+    type: RESOURCE_TYPE_DIALOG
+    id: 104
+    language: 1033
+  - length: 298
+    rva: 1611768
+    offset: 596984
+    type: RESOURCE_TYPE_DIALOG
+    id: 106
+    language: 1033
+  - length: 284
+    rva: 1612072
+    offset: 597288
+    type: RESOURCE_TYPE_DIALOG
+    id: 117
+    language: 1033
+  - length: 1544
+    rva: 1612360
+    offset: 597576
+    type: RESOURCE_TYPE_DIALOG
+    id: 118
+    language: 1033
+  - length: 428
+    rva: 1613904
+    offset: 599120
+    type: RESOURCE_TYPE_DIALOG
+    id: 122
+    language: 1033
+  - length: 56
+    rva: 1623456
+    offset: 608672
+    type: RESOURCE_TYPE_ACCELERATOR
+    language: 1033
+    name_string: "I\x00D\x00R\x00_\x00A\x00C\x00C\x00E\x00L\x00E\x00R\x00A\x00T\x00O\x00R\x001\x00"
+  - length: 432640
+    rva: 1624448
+    offset: 609664
+    type: RESOURCE_TYPE_RCDATA
+    id: 773
+    language: 1033
+  - length: 17731
+    rva: 2057088
+    offset: 1042304
+    type: RESOURCE_TYPE_RCDATA
+    id: 774
+    language: 1033
+  - length: 44888
+    rva: 2074824
+    offset: 1060040
+    type: RESOURCE_TYPE_RCDATA
+    id: 775
+    language: 1033
+  - length: 20
+    rva: 2136108
+    offset: 1120812
+    type: RESOURCE_TYPE_GROUP_ICON
+    language: 1033
+    name_string: "A\x00P\x00P\x00I\x00C\x00O\x00N\x00"
+  - length: 932
+    rva: 2136132
+    offset: 1120836
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+import_details:
+  - library_name: "KERNEL32.DLL"
+    number_of_functions: 3
+    functions:
+      - name: "LoadLibraryA"
+        rva: 2137224
+      - name: "GetProcAddress"
+        rva: 2137228
+      - name: "ExitProcess"
+        rva: 2137232
+  - library_name: "ADVAPI32.dll"
+    number_of_functions: 1
+    functions:
+      - name: "IsValidSid"
+        rva: 2137240
+  - library_name: "COMCTL32.dll"
+    number_of_functions: 1
+    functions:
+      - name: "ord17"
+        ordinal: 17
+        rva: 2137248
+  - library_name: "GDI32.dll"
+    number_of_functions: 1
+    functions:
+      - name: "PatBlt"
+        rva: 2137256
+  - library_name: "SHELL32.dll"
+    number_of_functions: 1
+    functions:
+      - name: "SHBrowseForFolderA"
+        rva: 2137264
+  - library_name: "USER32.dll"
+    number_of_functions: 1
+    functions:
+      - name: "GetDC"
+        rva: 2137272
+  - library_name: "VERSION.dll"
+    number_of_functions: 1
+    functions:
+      - name: "VerQueryValueA"
+        rva: 2137280
+is_signed: false
+overlay:
+    offset: 1196032
+    size: 49152

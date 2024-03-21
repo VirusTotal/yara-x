@@ -16,7 +16,7 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 259
 dll_characteristics: 1024
-timestamp: 1162198621
+timestamp: 1162198621 # 2006-10-30 08:57:01 UTC
 image_base: 4194304
 checksum: 0
 base_of_code: 464
@@ -53,8 +53,8 @@ rich_signature:
     offset: 128
     length: 32
     key: 2317110461
-    raw_data: "\371-r\331\275L\034\212\275L\034\212\275L\034\212\232\212q\212\274L\034\212\232\212d\212\274L\034\212"
-    clear_data: "DanS\000\000\000\000\000\000\000\000\000\000\000\000\'\306m\000\001\000\000\000\'\306x\000\001\000\000\000"
+    raw_data: "\xf9-r\xd9\xbdL\x1c\x8a\xbdL\x1c\x8a\xbdL\x1c\x8a\x9a\x8aq\x8a\xbcL\x1c\x8a\x9a\x8ad\x8a\xbcL\x1c\x8a"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\'\xc6m\x00\x01\x00\x00\x00\'\xc6x\x00\x01\x00\x00\x00"
     tools:
       - toolid: 109
         version: 50727

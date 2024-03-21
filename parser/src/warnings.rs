@@ -78,5 +78,25 @@ pub enum Warning {
     SlowPattern {
         detailed_report: String,
         span: Span,
-    }
+    },
+
+    #[warning("module `{module_name}` is not supported")]
+    #[label("module `{module_name}` used here", span)]
+    #[note(note)]
+    IgnoredModule {
+        detailed_report: String,
+        module_name: String,
+        span: Span,
+        note: Option<String>,
+    },
+
+    #[warning("rule `{ignored_rule}` will be ignored due to an indirect dependency on module `{module_name}`")]
+    #[label("this other rule depends on module `{module_name}`, which is unsupported", span)]
+    IgnoredRule {
+        detailed_report: String,
+        ignored_rule: String,
+        dependency: String,
+        module_name: String,
+        span: Span,
+    },
 }

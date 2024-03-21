@@ -23,7 +23,7 @@ message PE {
   optional OptHdrMagic opthdr_magic = 8;
   optional uint32 characteristics = 9;
   optional uint32 dll_characteristics = 10;
-  optional uint32 timestamp = 11;
+  optional uint32 timestamp = 11 [(yaml.field).fmt = "t"];
   optional uint64 image_base = 12;
   optional uint32 checksum = 13;
   optional uint32 base_of_code = 14;
@@ -36,7 +36,7 @@ message PE {
   optional uint32 entry_point_raw = 17;
 
   optional string dll_name = 18;
-  optional uint32 export_timestamp = 19;
+  optional uint32 export_timestamp = 19 [(yaml.field).fmt = "t"];
 
   optional uint32 section_alignment = 20;
   optional uint32 file_alignment = 21;
@@ -71,7 +71,7 @@ message PE {
   map<string, string> version_info = 46;
   repeated KeyValue version_info_list = 47;
   optional RichSignature rich_signature = 48;
-  optional string pdb_path = 49;
+  optional bytes pdb_path = 49;
   repeated Section sections = 50;
   repeated DirEntry data_directories = 51;
 

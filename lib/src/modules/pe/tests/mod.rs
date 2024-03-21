@@ -290,6 +290,21 @@ fn imphash() {
         "#,
         &pe
     );
+
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/lnk/tests/testdata/lnk-overlay.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            not defined pe.imphash()
+        }
+        "#,
+        &pe
+    );
 }
 
 #[test]
@@ -304,6 +319,21 @@ fn checksum() {
         rule test {
           condition:
             pe.calculate_checksum() == 0x3CE9BA
+        }
+        "#,
+        &pe
+    );
+
+    let pe = create_binary_from_zipped_ihex(
+        "src/modules/lnk/tests/testdata/lnk-overlay.in.zip",
+    );
+
+    rule_true!(
+        r#"
+        import "pe"
+        rule test {
+          condition:
+            not defined pe.calculate_checksum()
         }
         "#,
         &pe

@@ -67,7 +67,7 @@ pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
 /// specially if such files are executable files containing malware.
 ///
 /// Each `*.in.zip` ZIP archive must contain a single file with the same
-/// name than the ZIP archive, but without the `.zip` extension. For
+/// name as the ZIP archive, but without the `.zip` extension. For
 /// instance, an archive named `foo.in.zip` must contain a file named
 /// `foo.in`. The `.in` files (encoded in IHEX format) are decoded and then
 /// passed to the corresponding module, which is determined by looking at
@@ -75,7 +75,7 @@ pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
 /// a directory named `yara-x/src/modules/foo`, its content is passed as
 /// input to the `foo` module. Then, the output produced by the module is
 /// compared with the content of a `*.out` file that is expected to have
-/// the same name than the `*.in.zip` file.
+/// the same name as the `*.in.zip` file.
 ///
 /// There are many tools for converting binary files to Intel HEX format, one
 /// of such tools is `objcopy` (`llvm-objcopy` on Mac OS X).

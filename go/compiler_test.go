@@ -18,6 +18,20 @@ func TestNamespaces(t *testing.T) {
 	assert.Len(t, matchingRules, 2)
 }
 
+func TestUnsupportedModules(t *testing.T) {
+	c := NewCompiler()
+	c.IgnoreModule("unsupported_module")
+	c.NewNamespace("foo")
+	c.AddSource(`
+		import "unsupported_module"
+		rule test { condition: true }`)
+
+	s := NewScanner(c.Build())
+	matchingRules, _ := s.Scan([]byte{})
+
+	assert.Len(t, matchingRules, 1)
+}
+
 func TestSerialization(t *testing.T) {
 	c := NewCompiler()
 	c.AddSource("rule test { condition: true }")
@@ -33,7 +47,7 @@ func TestSerialization(t *testing.T) {
 func TestVariables(t *testing.T) {
 	r, _ := Compile(
 		"rule test { condition: var == 1234 }",
-		GlobalVars(map[string]interface{}{"var": 1234}))
+		Globals(map[string]interface{}{"var": 1234}))
 
 	matchingRules, _ := NewScanner(r).Scan([]byte{})
 	assert.Len(t, matchingRules, 1)

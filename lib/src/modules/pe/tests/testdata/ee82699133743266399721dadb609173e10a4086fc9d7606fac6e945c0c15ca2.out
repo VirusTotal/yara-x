@@ -16,7 +16,7 @@ linker_version:
 opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
 characteristics: 41358
 dll_characteristics: 1
-timestamp: 708992537
+timestamp: 708992537 # 1992-06-19 22:22:17 UTC
 image_base: 8388608
 checksum: 0
 base_of_code: 4096
@@ -170,19 +170,19 @@ resources:
     offset: 8440
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "D\000E\000S\000C\000R\000I\000P\000T\000I\000O\000N\000"
+    name_string: "D\x00E\x00S\x00C\x00R\x00I\x00P\x00T\x00I\x00O\x00N\x00"
   - length: 16
     rva: 33056
     offset: 8480
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "D\000V\000C\000L\000A\000L\000"
+    name_string: "D\x00V\x00C\x00L\x00A\x00L\x00"
   - length: 60
     rva: 33072
     offset: 8496
     type: RESOURCE_TYPE_RCDATA
     language: 0
-    name_string: "P\000A\000C\000K\000A\000G\000E\000I\000N\000F\000O\000"
+    name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00I\x00N\x00F\x00O\x00"
 import_details:
   - library_name: "kernel32.dll"
     number_of_functions: 15

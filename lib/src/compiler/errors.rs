@@ -102,6 +102,10 @@ pub enum CompileError {
         span: Span,
     },
 
+    #[error("unknown field or method `{identifier}`")]
+    #[label("this field or method doesn't exist", span)]
+    UnknownField { detailed_report: String, identifier: String, span: Span },
+
     #[error("unknown identifier `{identifier}`")]
     #[label("this identifier has not been declared", span)]
     #[note(note)]
