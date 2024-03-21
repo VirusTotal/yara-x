@@ -237,7 +237,7 @@ pub(in crate::compiler) fn expr_from_ast(
         }),
 
         ast::Expr::Regexp(regexp) => {
-            re::parser::Parser::new().parse(regexp).map_err(|err| {
+            re::parser::Parser::new().parse(regexp.as_ref()).map_err(|err| {
                 re_error_to_compile_error(ctx.report_builder, regexp, err)
             })?;
 

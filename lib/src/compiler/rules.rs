@@ -20,7 +20,7 @@ use crate::compiler::{
 };
 use crate::re::{BckCodeLoc, FwdCodeLoc, RegexpAtom};
 use crate::string_pool::{BStringPool, StringPool};
-use crate::{types, SerializationError};
+use crate::{re, types, SerializationError};
 
 /// A set of YARA rules in compiled form.
 ///
@@ -213,37 +213,9 @@ impl Rules {
     /// If no regular expression with such [`RegexpId`] exists.
     #[inline]
     pub(crate) fn get_regexp(&self, regexp_id: RegexpId) -> Regex {
-        // Instead of using the `regex` crate directly for compiling the
-        // regular expression, we must follow a longer path that involves
-        // parsing the regular expression and building its AST, converting
-        // the AST into a HIR, and then compiling the HIR. This is because
-        // the `regex` crate doesn't support regular expressions with the
-        // `{,n}` syntax, and we are forced to use a custom version of
-        // `regex_syntax` that provides support for it.
-        //
-        // But using our own version of the regexp parser implies that we
-        // must decompose the regexp compilation in multiple steps instead
-        // of calling a higher-level API that does it for us.
         let re = types::Regexp::new(self.regexp_pool.get(regexp_id).unwrap());
-
-        let mut parser = regex_syntax::ast::parse::ParserBuilder::new()
-            // This is the custom configuration option that turns-on support
-            // for the `{,n}` syntax. This option doesn't exist in the official
-            // `regex_syntax` crate.
-            .empty_min_range(true)
-            .build();
-
-        let ast = parser.parse(re.naked()).unwrap();
-
-        let mut translator =
-            regex_syntax::hir::translate::TranslatorBuilder::new()
-                .dot_matches_new_line(re.dot_matches_new_line())
-                .case_insensitive(re.case_insensitive())
-                .unicode(false)
-                .utf8(false)
-                .build();
-
-        let hir = translator.translate(re.naked(), &ast).unwrap();
+        let parser = re::parser::Parser::new();
+        let hir = parser.parse(&re).unwrap().into_inner();
 
         // Set a size limit for the NFA automata. The default limit (10MB) is
         // too small for certain regexps seen in YARA rules in the wild, see:
