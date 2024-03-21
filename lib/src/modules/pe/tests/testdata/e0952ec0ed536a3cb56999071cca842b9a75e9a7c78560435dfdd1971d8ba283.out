@@ -1,0 +1,1072 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 4
+    minor: 0
+subsystem_version:
+    major: 4
+    minor: 0
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 6
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 271
+dll_characteristics: 0
+timestamp: 1540152744 # 2018-10-21 20:12:24 UTC
+image_base: 4194304
+checksum: 0
+base_of_code: 4096
+base_of_data: 36864
+entry_point: 34015
+entry_point_raw: 34015
+section_alignment: 4096
+file_alignment: 4096
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 32768
+size_of_initialized_data: 65536
+size_of_uninitialized_data: 0
+size_of_image: 102400
+size_of_headers: 4096
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 4
+number_of_imported_functions: 190
+number_of_delayed_imported_functions: 0
+number_of_resources: 72
+number_of_version_infos: 9
+number_of_imports: 11
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+version_info:
+    "Comments": "OnKeyTool"
+    "CompanyName": "Tendyron Co, Ltd."
+    "FileDescription": "OnKeyTool"
+    "FileVersion": "1, 1, 1, 2"
+    "InternalName": "OnKeyTool.exe"
+    "LegalCopyright": "Copyright (C) 2017 Tendyron Co, Ltd.  All rights reserved."
+    "OriginalFilename": "OnKeyTool.exe"
+    "ProductName": "OnKeyTool"
+    "ProductVersion": "1, 1, 1, 2"
+version_info_list:
+  - key: "Comments"
+    value: "OnKeyTool"
+  - key: "CompanyName"
+    value: "Tendyron Co, Ltd."
+  - key: "FileDescription"
+    value: "OnKeyTool"
+  - key: "FileVersion"
+    value: "1, 1, 1, 2"
+  - key: "InternalName"
+    value: "OnKeyTool.exe"
+  - key: "LegalCopyright"
+    value: "Copyright (C) 2017 Tendyron Co, Ltd.  All rights reserved."
+  - key: "OriginalFilename"
+    value: "OnKeyTool.exe"
+  - key: "ProductName"
+    value: "OnKeyTool"
+  - key: "ProductVersion"
+    value: "1, 1, 1, 2"
+rich_signature:
+    offset: 128
+    length: 96
+    key: 2242890736
+    raw_data: "\xb4\xaa\xc1\xd6\xf0\xcb\xaf\x85\xf0\xcb\xaf\x85\xf0\xcb\xaf\x85*\xe8\xb3\x85\xf1\xcb\xaf\x85\x8b\xd7\xa3\x85\xf4\xcb\xaf\x85\x9f\xd4\xa4\x85\xf1\xcb\xaf\x85s\xd7\xa1\x85\xf4\xcb\xaf\x85\x9f\xd4\xa5\x85\xfb\xcb\xaf\x85\x9f\xd4\xab\x85\xf2\xcb\xaf\x85\xf0\xcb\xaf\x85\xf1\xcb\xaf\x85\xf0\xcb\xae\x852\xcb\xaf\x853\xc4\xf2\x85\xe5\xcb\xaf\x85\x18\xd4\xa4\x85\xfc\xcb\xaf\x85"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xda#\x1c\x00\x01\x00\x00\x00{\x1c\x0c\x00\x04\x00\x00\x00o\x1f\x0b\x00\x01\x00\x00\x00\x83\x1c\x0e\x00\x04\x00\x00\x00o\x1f\n\x00\x0b\x00\x00\x00o\x1f\x04\x00\x02\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x01\x00\xc2\x00\x00\x00\xc3\x0f]\x00\x15\x00\x00\x00\xe8\x1f\x0b\x00\x0c\x00\x00\x00"
+    tools:
+      - toolid: 28
+        version: 9178
+        times: 1
+      - toolid: 12
+        version: 7291
+        times: 4
+      - toolid: 11
+        version: 8047
+        times: 1
+      - toolid: 14
+        version: 7299
+        times: 4
+      - toolid: 10
+        version: 8047
+        times: 11
+      - toolid: 4
+        version: 8047
+        times: 2
+      - toolid: 0
+        version: 0
+        times: 1
+      - toolid: 1
+        version: 0
+        times: 194
+      - toolid: 93
+        version: 4035
+        times: 21
+      - toolid: 11
+        version: 8168
+        times: 12
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 32768
+    raw_data_offset: 4096
+    virtual_address: 4096
+    virtual_size: 30686
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 8192
+    raw_data_offset: 36864
+    virtual_address: 36864
+    virtual_size: 6192
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 8192
+    raw_data_offset: 45056
+    virtual_address: 45056
+    virtual_size: 9660
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 45056
+    raw_data_offset: 53248
+    virtual_address: 57344
+    virtual_size: 45056
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 39160
+    size: 240
+  - virtual_address: 57344
+    size: 44196
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 36864
+    size: 804
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 1599230614 # 2020-09-04 14:43:34 UTC
+resource_version:
+    major: 28482
+    minor: 25965
+resources:
+  - length: 304
+    rva: 61056
+    offset: 56960
+    type: RESOURCE_TYPE_CURSOR
+    id: 9
+    language: 2052
+  - length: 304
+    rva: 61360
+    offset: 57264
+    type: RESOURCE_TYPE_CURSOR
+    id: 10
+    language: 2052
+  - length: 304
+    rva: 61664
+    offset: 57568
+    type: RESOURCE_TYPE_CURSOR
+    id: 11
+    language: 2052
+  - length: 304
+    rva: 61968
+    offset: 57872
+    type: RESOURCE_TYPE_CURSOR
+    id: 12
+    language: 2052
+  - length: 304
+    rva: 62272
+    offset: 58176
+    type: RESOURCE_TYPE_CURSOR
+    id: 13
+    language: 2052
+  - length: 304
+    rva: 62576
+    offset: 58480
+    type: RESOURCE_TYPE_CURSOR
+    id: 14
+    language: 2052
+  - length: 304
+    rva: 62880
+    offset: 58784
+    type: RESOURCE_TYPE_CURSOR
+    id: 15
+    language: 2052
+  - length: 304
+    rva: 63184
+    offset: 59088
+    type: RESOURCE_TYPE_CURSOR
+    id: 16
+    language: 2052
+  - length: 184
+    rva: 63488
+    offset: 59392
+    type: RESOURCE_TYPE_BITMAP
+    id: 30994
+    language: 2052
+  - length: 324
+    rva: 63672
+    offset: 59576
+    type: RESOURCE_TYPE_BITMAP
+    id: 30996
+    language: 2052
+  - length: 296
+    rva: 63996
+    offset: 59900
+    type: RESOURCE_TYPE_ICON
+    id: 6
+    language: 1033
+  - length: 744
+    rva: 64292
+    offset: 60196
+    type: RESOURCE_TYPE_ICON
+    id: 7
+    language: 1033
+  - length: 296
+    rva: 65036
+    offset: 60940
+    type: RESOURCE_TYPE_ICON
+    id: 8
+    language: 1033
+  - length: 744
+    rva: 65332
+    offset: 61236
+    type: RESOURCE_TYPE_ICON
+    id: 9
+    language: 1033
+  - length: 2216
+    rva: 66076
+    offset: 61980
+    type: RESOURCE_TYPE_ICON
+    id: 10
+    language: 1033
+  - length: 744
+    rva: 68292
+    offset: 64196
+    type: RESOURCE_TYPE_ICON
+    id: 11
+    language: 1033
+  - length: 2216
+    rva: 69036
+    offset: 64940
+    type: RESOURCE_TYPE_ICON
+    id: 12
+    language: 1033
+  - length: 2216
+    rva: 71252
+    offset: 67156
+    type: RESOURCE_TYPE_ICON
+    id: 13
+    language: 1033
+  - length: 2216
+    rva: 73468
+    offset: 69372
+    type: RESOURCE_TYPE_ICON
+    id: 14
+    language: 1033
+  - length: 2216
+    rva: 75684
+    offset: 71588
+    type: RESOURCE_TYPE_ICON
+    id: 15
+    language: 1033
+  - length: 2216
+    rva: 77900
+    offset: 73804
+    type: RESOURCE_TYPE_ICON
+    id: 16
+    language: 1033
+  - length: 296
+    rva: 80116
+    offset: 76020
+    type: RESOURCE_TYPE_ICON
+    id: 17
+    language: 1033
+  - length: 744
+    rva: 80412
+    offset: 76316
+    type: RESOURCE_TYPE_ICON
+    id: 18
+    language: 1033
+  - length: 744
+    rva: 81156
+    offset: 77060
+    type: RESOURCE_TYPE_ICON
+    id: 19
+    language: 1033
+  - length: 296
+    rva: 81900
+    offset: 77804
+    type: RESOURCE_TYPE_ICON
+    id: 20
+    language: 1033
+  - length: 1640
+    rva: 82196
+    offset: 78100
+    type: RESOURCE_TYPE_ICON
+    id: 21
+    language: 1033
+  - length: 2216
+    rva: 83836
+    offset: 79740
+    type: RESOURCE_TYPE_ICON
+    id: 22
+    language: 1033
+  - length: 3752
+    rva: 86052
+    offset: 81956
+    type: RESOURCE_TYPE_ICON
+    id: 23
+    language: 1033
+  - length: 1384
+    rva: 89804
+    offset: 85708
+    type: RESOURCE_TYPE_ICON
+    id: 24
+    language: 1033
+  - length: 54
+    rva: 91188
+    offset: 87092
+    type: RESOURCE_TYPE_MENU
+    id: 133
+    language: 1033
+  - length: 280
+    rva: 91244
+    offset: 87148
+    type: RESOURCE_TYPE_DIALOG
+    id: 137
+    language: 1033
+  - length: 360
+    rva: 91524
+    offset: 87428
+    type: RESOURCE_TYPE_DIALOG
+    id: 144
+    language: 1033
+  - length: 336
+    rva: 91884
+    offset: 87788
+    type: RESOURCE_TYPE_DIALOG
+    id: 146
+    language: 1033
+  - length: 326
+    rva: 92220
+    offset: 88124
+    type: RESOURCE_TYPE_DIALOG
+    id: 148
+    language: 1033
+  - length: 348
+    rva: 92548
+    offset: 88452
+    type: RESOURCE_TYPE_DIALOG
+    id: 150
+    language: 1033
+  - length: 356
+    rva: 92896
+    offset: 88800
+    type: RESOURCE_TYPE_DIALOG
+    id: 152
+    language: 2052
+  - length: 232
+    rva: 93252
+    offset: 89156
+    type: RESOURCE_TYPE_DIALOG
+    id: 30721
+    language: 2052
+  - length: 76
+    rva: 93484
+    offset: 89388
+    type: RESOURCE_TYPE_STRING
+    id: 7
+    language: 1033
+  - length: 130
+    rva: 93560
+    offset: 89464
+    type: RESOURCE_TYPE_STRING
+    id: 3841
+    language: 2052
+  - length: 42
+    rva: 93692
+    offset: 89596
+    type: RESOURCE_TYPE_STRING
+    id: 3842
+    language: 2052
+  - length: 402
+    rva: 93736
+    offset: 89640
+    type: RESOURCE_TYPE_STRING
+    id: 3843
+    language: 2052
+  - length: 1250
+    rva: 94140
+    offset: 90044
+    type: RESOURCE_TYPE_STRING
+    id: 3857
+    language: 2052
+  - length: 794
+    rva: 95392
+    offset: 91296
+    type: RESOURCE_TYPE_STRING
+    id: 3858
+    language: 2052
+  - length: 732
+    rva: 96188
+    offset: 92092
+    type: RESOURCE_TYPE_STRING
+    id: 3859
+    language: 2052
+  - length: 138
+    rva: 96920
+    offset: 92824
+    type: RESOURCE_TYPE_STRING
+    id: 3860
+    language: 2052
+  - length: 172
+    rva: 97060
+    offset: 92964
+    type: RESOURCE_TYPE_STRING
+    id: 3865
+    language: 2052
+  - length: 222
+    rva: 97232
+    offset: 93136
+    type: RESOURCE_TYPE_STRING
+    id: 3866
+    language: 2052
+  - length: 1220
+    rva: 97456
+    offset: 93360
+    type: RESOURCE_TYPE_STRING
+    id: 3867
+    language: 2052
+  - length: 612
+    rva: 98676
+    offset: 94580
+    type: RESOURCE_TYPE_STRING
+    id: 3868
+    language: 2052
+  - length: 44
+    rva: 99288
+    offset: 95192
+    type: RESOURCE_TYPE_STRING
+    id: 3869
+    language: 2052
+  - length: 66
+    rva: 99332
+    offset: 95236
+    type: RESOURCE_TYPE_STRING
+    id: 3887
+    language: 2052
+  - length: 20
+    rva: 99400
+    offset: 95304
+    type: RESOURCE_TYPE_GROUP_CURSOR
+    id: 31004
+    language: 2052
+  - length: 20
+    rva: 99420
+    offset: 95324
+    type: RESOURCE_TYPE_GROUP_CURSOR
+    id: 31005
+    language: 2052
+  - length: 20
+    rva: 99440
+    offset: 95344
+    type: RESOURCE_TYPE_GROUP_CURSOR
+    id: 31006
+    language: 2052
+  - length: 20
+    rva: 99460
+    offset: 95364
+    type: RESOURCE_TYPE_GROUP_CURSOR
+    id: 31007
+    language: 2052
+  - length: 20
+    rva: 99480
+    offset: 95384
+    type: RESOURCE_TYPE_GROUP_CURSOR
+    id: 31008
+    language: 2052
+  - length: 20
+    rva: 99500
+    offset: 95404
+    type: RESOURCE_TYPE_GROUP_CURSOR
+    id: 31009
+    language: 2052
+  - length: 20
+    rva: 99520
+    offset: 95424
+    type: RESOURCE_TYPE_GROUP_CURSOR
+    id: 31010
+    language: 2052
+  - length: 20
+    rva: 99540
+    offset: 95444
+    type: RESOURCE_TYPE_GROUP_CURSOR
+    id: 31011
+    language: 2052
+  - length: 34
+    rva: 99560
+    offset: 95464
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 135
+    language: 1033
+  - length: 34
+    rva: 99596
+    offset: 95500
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 136
+    language: 1033
+  - length: 20
+    rva: 99632
+    offset: 95536
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 137
+    language: 1033
+  - length: 20
+    rva: 99652
+    offset: 95556
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 138
+    language: 1033
+  - length: 20
+    rva: 99672
+    offset: 95576
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 139
+    language: 1033
+  - length: 20
+    rva: 99692
+    offset: 95596
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 140
+    language: 1033
+  - length: 20
+    rva: 99712
+    offset: 95616
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 141
+    language: 1033
+  - length: 20
+    rva: 99732
+    offset: 95636
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 142
+    language: 1033
+  - length: 20
+    rva: 99752
+    offset: 95656
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 143
+    language: 1033
+  - length: 34
+    rva: 99772
+    offset: 95676
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 144
+    language: 1033
+  - length: 90
+    rva: 99808
+    offset: 95712
+    type: RESOURCE_TYPE_GROUP_ICON
+    id: 145
+    language: 1033
+  - length: 844
+    rva: 99900
+    offset: 95804
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+  - length: 794
+    rva: 100744
+    offset: 96648
+    type: RESOURCE_TYPE_MANIFEST
+    id: 1
+    language: 1033
+import_details:
+  - library_name: "WS2_32.dll"
+    number_of_functions: 22
+    functions:
+      - name: "sendto"
+        ordinal: 20
+        rva: 37568
+      - name: "WSACleanup"
+        ordinal: 116
+        rva: 37572
+      - name: "WSAStartup"
+        ordinal: 115
+        rva: 37576
+      - name: "listen"
+        ordinal: 13
+        rva: 37580
+      - name: "accept"
+        ordinal: 1
+        rva: 37584
+      - name: "getpeername"
+        ordinal: 5
+        rva: 37588
+      - name: "recvfrom"
+        ordinal: 17
+        rva: 37592
+      - name: "select"
+        ordinal: 18
+        rva: 37596
+      - name: "htons"
+        ordinal: 9
+        rva: 37600
+      - name: "socket"
+        ordinal: 23
+        rva: 37604
+      - name: "setsockopt"
+        ordinal: 21
+        rva: 37608
+      - name: "connect"
+        ordinal: 4
+        rva: 37612
+      - name: "closesocket"
+        ordinal: 3
+        rva: 37616
+      - name: "bind"
+        ordinal: 2
+        rva: 37620
+      - name: "__WSAFDIsSet"
+        ordinal: 151
+        rva: 37624
+      - name: "recv"
+        ordinal: 16
+        rva: 37628
+      - name: "gethostbyname"
+        ordinal: 52
+        rva: 37632
+      - name: "getsockname"
+        ordinal: 6
+        rva: 37636
+      - name: "ntohs"
+        ordinal: 15
+        rva: 37640
+      - name: "inet_addr"
+        ordinal: 11
+        rva: 37644
+      - name: "inet_ntoa"
+        ordinal: 12
+        rva: 37648
+      - name: "send"
+        ordinal: 19
+        rva: 37652
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 65
+    functions:
+      - name: "GetStartupInfoA"
+        rva: 36944
+      - name: "GetModuleHandleA"
+        rva: 36948
+      - name: "VirtualFree"
+        rva: 36952
+      - name: "VirtualAlloc"
+        rva: 36956
+      - name: "GlobalUnlock"
+        rva: 36960
+      - name: "GlobalLock"
+        rva: 36964
+      - name: "FindNextFileA"
+        rva: 36968
+      - name: "FindFirstFileA"
+        rva: 36972
+      - name: "GetCurrentProcess"
+        rva: 36976
+      - name: "GetVersion"
+        rva: 36980
+      - name: "Sleep"
+        rva: 36984
+      - name: "CloseHandle"
+        rva: 36988
+      - name: "WriteFile"
+        rva: 36992
+      - name: "DeviceIoControl"
+        rva: 36996
+      - name: "CreateFileA"
+        rva: 37000
+      - name: "SetLastError"
+        rva: 37004
+      - name: "LocalFree"
+        rva: 37008
+      - name: "GetLastError"
+        rva: 37012
+      - name: "GlobalAlloc"
+        rva: 37016
+      - name: "InterlockedExchange"
+        rva: 37020
+      - name: "lstrlenA"
+        rva: 37024
+      - name: "lstrcpyA"
+        rva: 37028
+      - name: "FreeLibrary"
+        rva: 37032
+      - name: "GetProcAddress"
+        rva: 37036
+      - name: "LoadLibraryA"
+        rva: 37040
+      - name: "GetTickCount"
+        rva: 37044
+      - name: "CreateThread"
+        rva: 37048
+      - name: "WaitForSingleObject"
+        rva: 37052
+      - name: "LeaveCriticalSection"
+        rva: 37056
+      - name: "EnterCriticalSection"
+        rva: 37060
+      - name: "DeleteCriticalSection"
+        rva: 37064
+      - name: "InitializeCriticalSection"
+        rva: 37068
+      - name: "OutputDebugStringA"
+        rva: 37072
+      - name: "Beep"
+        rva: 37076
+      - name: "LocalSize"
+        rva: 37080
+      - name: "LocalAlloc"
+        rva: 37084
+      - name: "lstrcatA"
+        rva: 37088
+      - name: "GetVersionExA"
+        rva: 37092
+      - name: "ExitProcess"
+        rva: 37096
+      - name: "GetModuleFileNameA"
+        rva: 37100
+      - name: "Process32Next"
+        rva: 37104
+      - name: "TerminateProcess"
+        rva: 37108
+      - name: "OpenProcess"
+        rva: 37112
+      - name: "Process32First"
+        rva: 37116
+      - name: "CreateToolhelp32Snapshot"
+        rva: 37120
+      - name: "GetLocalTime"
+        rva: 37124
+      - name: "FindClose"
+        rva: 37128
+      - name: "ReadFile"
+        rva: 37132
+      - name: "GetFileSize"
+        rva: 37136
+      - name: "CreateProcessA"
+        rva: 37140
+      - name: "GlobalMemoryStatusEx"
+        rva: 37144
+      - name: "WinExec"
+        rva: 37148
+      - name: "VirtualProtect"
+        rva: 37152
+      - name: "GetSystemInfo"
+        rva: 37156
+      - name: "CopyFileA"
+        rva: 37160
+      - name: "MoveFileA"
+        rva: 37164
+      - name: "DeleteFileA"
+        rva: 37168
+      - name: "GetFileAttributesA"
+        rva: 37172
+      - name: "GetWindowsDirectoryA"
+        rva: 37176
+      - name: "SetEvent"
+        rva: 37180
+      - name: "HeapAlloc"
+        rva: 37184
+      - name: "GetProcessHeap"
+        rva: 37188
+      - name: "HeapFree"
+        rva: 37192
+      - name: "CreateEventA"
+        rva: 37196
+      - name: "lstrcmpiA"
+        rva: 37200
+  - library_name: "USER32.dll"
+    number_of_functions: 22
+    functions:
+      - name: "GetWindow"
+        rva: 37460
+      - name: "GetClassNameA"
+        rva: 37464
+      - name: "wsprintfA"
+        rva: 37468
+      - name: "FindWindowA"
+        rva: 37472
+      - name: "GetWindowTextA"
+        rva: 37476
+      - name: "MoveWindow"
+        rva: 37480
+      - name: "GetWindowRect"
+        rva: 37484
+      - name: "SendMessageA"
+        rva: 37488
+      - name: "ShowWindow"
+        rva: 37492
+      - name: "SwapMouseButton"
+        rva: 37496
+      - name: "EmptyClipboard"
+        rva: 37500
+      - name: "SetClipboardData"
+        rva: 37504
+      - name: "ExitWindowsEx"
+        rva: 37508
+      - name: "OpenClipboard"
+        rva: 37512
+      - name: "CloseClipboard"
+        rva: 37516
+      - name: "GetLastInputInfo"
+        rva: 37520
+      - name: "SendInput"
+        rva: 37524
+      - name: "PostMessageA"
+        rva: 37528
+      - name: "GetDlgCtrlID"
+        rva: 37532
+      - name: "FindWindowExA"
+        rva: 37536
+      - name: "GetForegroundWindow"
+        rva: 37540
+      - name: "GetClipboardData"
+        rva: 37544
+  - library_name: "ADVAPI32.dll"
+    number_of_functions: 19
+    functions:
+      - name: "StartServiceCtrlDispatcherA"
+        rva: 36864
+      - name: "RegOpenKeyExA"
+        rva: 36868
+      - name: "RegQueryValueA"
+        rva: 36872
+      - name: "LookupPrivilegeValueA"
+        rva: 36876
+      - name: "OpenProcessToken"
+        rva: 36880
+      - name: "OpenSCManagerA"
+        rva: 36884
+      - name: "CreateServiceA"
+        rva: 36888
+      - name: "StartServiceA"
+        rva: 36892
+      - name: "OpenServiceA"
+        rva: 36896
+      - name: "RegOpenKeyA"
+        rva: 36900
+      - name: "RegSetValueExA"
+        rva: 36904
+      - name: "RegCloseKey"
+        rva: 36908
+      - name: "CloseServiceHandle"
+        rva: 36912
+      - name: "RegisterServiceCtrlHandlerA"
+        rva: 36916
+      - name: "SetServiceStatus"
+        rva: 36920
+      - name: "OpenEventLogA"
+        rva: 36924
+      - name: "ClearEventLogA"
+        rva: 36928
+      - name: "CloseEventLog"
+        rva: 36932
+      - name: "AdjustTokenPrivileges"
+        rva: 36936
+  - library_name: "SHELL32.dll"
+    number_of_functions: 3
+    functions:
+      - name: "ShellExecuteA"
+        rva: 37436
+      - name: "ShellExecuteExA"
+        rva: 37440
+      - name: "SHGetSpecialFolderPathA"
+        rva: 37444
+  - library_name: "SHLWAPI.dll"
+    number_of_functions: 1
+    functions:
+      - name: "PathRemoveFileSpecA"
+        rva: 37452
+  - library_name: "MSVCRT.dll"
+    number_of_functions: 49
+    functions:
+      - name: "_acmdln"
+        rva: 37208
+      - name: "_beginthreadex"
+        rva: 37212
+      - name: "_XcptFilter"
+        rva: 37216
+      - name: "realloc"
+        rva: 37220
+      - name: "memmove"
+        rva: 37224
+      - name: "sprintf"
+        rva: 37228
+      - name: "rand"
+        rva: 37232
+      - name: "strcspn"
+        rva: 37236
+      - name: "strrchr"
+        rva: 37240
+      - name: "strstr"
+        rva: 37244
+      - name: "printf"
+        rva: 37248
+      - name: "_errno"
+        rva: 37252
+      - name: "strchr"
+        rva: 37256
+      - name: "malloc"
+        rva: 37260
+      - name: "free"
+        rva: 37264
+      - name: "strcmp"
+        rva: 37268
+      - name: "strncpy"
+        rva: 37272
+      - name: "strncmp"
+        rva: 37276
+      - name: "atoi"
+        rva: 37280
+      - name: "_except_handler3"
+        rva: 37284
+      - name: "memcmp"
+        rva: 37288
+      - name: "??2@YAPAXI@Z"
+        rva: 37292
+      - name: "memset"
+        rva: 37296
+      - name: "__getmainargs"
+        rva: 37300
+      - name: "_initterm"
+        rva: 37304
+      - name: "__setusermatherr"
+        rva: 37308
+      - name: "_adjust_fdiv"
+        rva: 37312
+      - name: "__p__commode"
+        rva: 37316
+      - name: "__p__fmode"
+        rva: 37320
+      - name: "__set_app_type"
+        rva: 37324
+      - name: "_controlfp"
+        rva: 37328
+      - name: "??1type_info@@UAE@XZ"
+        rva: 37332
+      - name: "__dllonexit"
+        rva: 37336
+      - name: "_onexit"
+        rva: 37340
+      - name: "_exit"
+        rva: 37344
+      - name: "_strcmpi"
+        rva: 37348
+      - name: "_strnicmp"
+        rva: 37352
+      - name: "_strupr"
+        rva: 37356
+      - name: "_stricmp"
+        rva: 37360
+      - name: "_CxxThrowException"
+        rva: 37364
+      - name: "exit"
+        rva: 37368
+      - name: "strcpy"
+        rva: 37372
+      - name: "strcat"
+        rva: 37376
+      - name: "strlen"
+        rva: 37380
+      - name: "__CxxFrameHandler"
+        rva: 37384
+      - name: "??3@YAXPAX@Z"
+        rva: 37388
+      - name: "memcpy"
+        rva: 37392
+      - name: "ceil"
+        rva: 37396
+      - name: "_ftol"
+        rva: 37400
+  - library_name: "SETUPAPI.dll"
+    number_of_functions: 6
+    functions:
+      - name: "SetupDiCallClassInstaller"
+        rva: 37408
+      - name: "SetupDiSetClassInstallParamsA"
+        rva: 37412
+      - name: "SetupDiGetDeviceRegistryPropertyA"
+        rva: 37416
+      - name: "SetupDiEnumDeviceInfo"
+        rva: 37420
+      - name: "SetupDiGetClassDevsA"
+        rva: 37424
+      - name: "SetupDiDestroyDeviceInfoList"
+        rva: 37428
+  - library_name: "WINMM.dll"
+    number_of_functions: 1
+    functions:
+      - name: "mciSendStringA"
+        rva: 37560
+  - library_name: "urlmon.dll"
+    number_of_functions: 1
+    functions:
+      - name: "URLDownloadToFileA"
+        rva: 37660
+  - library_name: "WININET.dll"
+    number_of_functions: 1
+    functions:
+      - name: "InternetGetConnectedState"
+        rva: 37552
+is_signed: false
+overlay:
+    offset: 0
+    size: 0

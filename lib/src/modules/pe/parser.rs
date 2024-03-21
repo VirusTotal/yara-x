@@ -1629,14 +1629,15 @@ impl<'a> PE<'a> {
                 };
 
             // Use the INT (a.k.a: OriginalFirstThunk) if it is non-zero, but
-            // fallback to using the IAT (a.k.a: FirstThunk) if the RVA to the
-            // INT is zero. That's an uncommon case, but it may happen.
-            // TODO: find a sample file where this happens.
-            let thunks = match if descriptor.import_name_table > 0 {
+            // fallback to using the IAT (a.k.a: FirstThunk).
+            let thunks = if descriptor.import_name_table > 0 {
                 self.data_at_rva(descriptor.import_name_table)
             } else {
-                self.data_at_rva(descriptor.import_address_table)
-            } {
+                None
+            }
+            .or_else(|| self.data_at_rva(descriptor.import_address_table));
+
+            let thunks = match thunks {
                 Some(thunk) => thunk,
                 None => continue,
             };
