@@ -311,4 +311,26 @@ fn test_macho_module() {
         "#,
         &chess_macho_data
     );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.dylib_hash() == "6813ec6aceb392c8a9abe9db8e25d847"
+        }
+        "#,
+        &chess_macho_data
+    );
+
+    rule_true!(
+        r#"
+        import "macho"
+        rule macho_test {
+            condition:
+                macho.dylib_hash() == "c92070ad210458d5b3e8f048b1578e6d"
+        }
+        "#,
+        &tiny_universal_macho_data
+    );
 }
