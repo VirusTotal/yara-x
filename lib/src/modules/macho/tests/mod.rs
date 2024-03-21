@@ -333,4 +333,15 @@ fn test_macho_module() {
         "#,
         &tiny_universal_macho_data
     );
+
+    rule_true!(
+        r#"
+    import "macho"
+    rule macho_test {
+        condition:
+        not defined macho.dylib_hash()
+    }
+    "#,
+        &[]
+    );
 }

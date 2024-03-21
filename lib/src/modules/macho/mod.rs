@@ -272,8 +272,10 @@ fn dylib_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
     let mut dylibs_to_hash = &macho.dylibs;
 
     // if there are not any dylibs in the main Macho, the dylibs of the nested file should be hashed
-    if dylibs_to_hash.len() == 0 {
-        if macho.file.len() > 0 {
+    if dylibs_to_hash.is_empty() {
+        if macho.file.is_empty() {
+            return None;
+        } else {
             dylibs_to_hash = &macho.file[0].dylibs;
         }
     }
