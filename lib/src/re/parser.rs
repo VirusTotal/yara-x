@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 use std::fmt::{Debug, Display, Formatter};
-use std::mem;
 use std::mem::replace;
 
 use regex_syntax as re;
