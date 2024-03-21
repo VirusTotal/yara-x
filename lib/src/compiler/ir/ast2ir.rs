@@ -178,7 +178,7 @@ pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
     // we can know the overall greediness of the regexp, and decide whether we
     // should aim for the longest, or the shortest possible match when multiple
     // matches that start at the same offset are found while scanning backwards
-    // (right-to-left). However, if the regexp contains a mix of greedy an
+    // (right-to-left). However, if the regexp contains a mix of greedy and
     // non-greedy repetitions the decision becomes impossible.
     let hir = re::parser::Parser::new()
         .force_case_insensitive(flags.contains(PatternFlags::Nocase))
