@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    1 of (true, 2, false)
+}

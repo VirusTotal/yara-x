@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    test_proto2.foo
+}

@@ -1,0 +1,11 @@
+error: invalid modifier combination: `base64wide` `nocase`
+   ╭─[line:3:29]
+   │
+ 3 │     $a = "foo" nocase ascii base64wide
+   │                ───┬──       ─────┬────  
+   │                   ╰───────────────────── `nocase` modifier used here
+   │                                  │      
+   │                                  ╰────── `base64wide` modifier used here
+   │ 
+   │ Note: these two modifiers can't be used together
+───╯

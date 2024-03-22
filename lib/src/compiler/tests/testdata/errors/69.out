@@ -1,0 +1,7 @@
+error: syntax error
+   ╭─[line:1:63]
+   │
+ 1 │ import "test_proto2"import "test_proto3"rule test { meta: a = condition: true }
+   │                                                               │ 
+   │                                                               ╰─ expected `false`, `true`, number, or string literal
+───╯

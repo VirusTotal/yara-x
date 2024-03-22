@@ -1,0 +1,9 @@
+warning: non-boolean expression used as boolean
+   ╭─[line:5:24]
+   │
+ 5 │     for any of them: ( 1 )
+   │                        ┬  
+   │                        ╰── this expression is `integer` but is being used as `bool`
+   │ 
+   │ Note: non-zero integers are considered `true`, while zero is `false`
+───╯

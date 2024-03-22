@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $a = /a.*b.*?c/
+  condition:
+    $a
+}

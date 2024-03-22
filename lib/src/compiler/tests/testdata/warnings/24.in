@@ -1,0 +1,10 @@
+import "unsupported_module"
+rule test_1 {
+  condition: 
+    unsupported_module.foo()
+}
+
+rule test_2 {
+  condition: 
+    test_1
+}

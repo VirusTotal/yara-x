@@ -1,0 +1,7 @@
+error: invalid regular expression
+   ╭─[line:5:15]
+   │
+ 5 │     $b = /abc{}/
+   │               │ 
+   │               ╰─ repetition quantifier expects a valid decimal
+───╯

@@ -1,0 +1,7 @@
+error: syntax error
+   ╭─[line:3:10]
+   │
+ 3 │   $a = { [-] 01 02 }
+   │          │ 
+   │          ╰─ expected bytes
+───╯

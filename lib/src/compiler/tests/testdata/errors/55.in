@@ -1,0 +1,5 @@
+import "test_proto2"
+rule test {
+  condition:
+    test_proto2.map_string_int64[0]
+}

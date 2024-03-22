@@ -1,0 +1,6 @@
+rule test {
+  strings:
+    $a = /a[]b/
+  condition:
+    $a
+}

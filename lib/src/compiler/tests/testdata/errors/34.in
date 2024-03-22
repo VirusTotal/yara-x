@@ -1,0 +1,4 @@
+rule test {
+  condition:
+    for all x,y in (1, 2, 3) : ( true )
+}

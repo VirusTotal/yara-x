@@ -1,0 +1,7 @@
+error: syntax error
+   ╭─[line:1:41]
+   │
+ 1 │ import "test_proto2"import "test_proto3"foo rule test { condition: true }
+   │                                         │ 
+   │                                         ╰─ expected `import`, end of file, or rule declaration
+───╯

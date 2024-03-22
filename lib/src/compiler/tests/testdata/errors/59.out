@@ -1,0 +1,11 @@
+error: wrong arguments
+   ╭─[line:4:21]
+   │
+ 4 │     test_proto2.head() == "foo"
+   │                     ─┬  
+   │                      ╰── wrong arguments in this call
+   │ 
+   │ Note: accepted argument combinations:
+   │
+   │       (integer)
+───╯

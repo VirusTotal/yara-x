@@ -1,0 +1,9 @@
+error: `entrypoint` is unsupported`
+   ╭─[line:3:5]
+   │
+ 3 │     entrypoint == 0x1000
+   │     ─────┬────  
+   │          ╰────── the `entrypoint` keyword is not supported anymore
+   │ 
+   │ Note: use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`
+───╯

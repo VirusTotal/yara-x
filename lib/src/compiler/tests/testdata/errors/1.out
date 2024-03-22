@@ -1,0 +1,11 @@
+error: duplicate rule `test`
+   ╭─[line:1:46]
+   │
+ 1 │ import "test_proto2"import "test_proto3"rule test {
+   │                                              ──┬─  
+   │                                                ╰─── `test` declared here for the first time
+   │ 
+ 5 │ rule test {
+   │      ──┬─  
+   │        ╰─── duplicate declaration of `test`
+───╯

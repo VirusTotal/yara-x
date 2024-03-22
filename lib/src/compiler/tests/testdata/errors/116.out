@@ -1,0 +1,7 @@
+error: unexpected escape sequence
+   ╭─[line:1:48]
+   │
+ 1 │ import "test_proto2"import "test_proto3"import "foo\x00"
+   │                                                ────┬────  
+   │                                                    ╰────── escape sequences are not allowed in this string
+───╯

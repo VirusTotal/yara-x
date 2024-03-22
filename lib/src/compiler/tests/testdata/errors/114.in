@@ -1,0 +1,6 @@
+rule test {
+  strings: 
+    $a = "foo" nocase ascii base64wide
+  condition:
+    $a
+}

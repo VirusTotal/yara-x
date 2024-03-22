@@ -1,0 +1,15 @@
+error: global rule `test_2` depends on non-global rule `test_1`
+   ╭─[line:8:5]
+   │
+ 1 │ import "test_proto2"import "test_proto3"rule test_1 {
+   │                                              ───┬──  
+   │                                                 ╰──── non-global rule `test_1` declared here
+   │ 
+ 6 │ global rule test_2 {
+   │             ───┬──  
+   │                ╰──── global rule `test_2` declared here
+   │ 
+ 8 │     test_1
+   │     ───┬──  
+   │        ╰──── `test_1` is used in the condition of `test_2`
+───╯

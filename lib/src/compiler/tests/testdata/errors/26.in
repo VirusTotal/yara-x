@@ -1,0 +1,4 @@
+rule test {
+   condition:
+     for 3.14 x in (0..10) : (false)
+}
