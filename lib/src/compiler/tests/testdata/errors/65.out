@@ -1,7 +1,6 @@
 error: syntax error
-   ╭─[line:1:51]
-   │
- 1 │ import "test_proto2"import "test_proto3"rule test condition: true }
-   │                                                   │ 
-   │                                                   ╰─ expected colon `:` or opening brace `{`
-───╯
+ --> line:1:11
+  |
+1 | rule test condition: true }
+  |           ^ expected colon `:` or opening brace `{`
+  |

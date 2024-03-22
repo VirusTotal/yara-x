@@ -1,7 +1,6 @@
 error: unknown module `foo`
-   ╭─[line:1:41]
-   │
- 1 │ import "test_proto2"import "test_proto3"import "foo"
-   │                                         ──────┬─────  
-   │                                               ╰─────── module `foo` not found
-───╯
+ --> line:1:1
+  |
+1 | import "foo"
+  | ^^^^^^^^^^^^ module `foo` not found
+  |

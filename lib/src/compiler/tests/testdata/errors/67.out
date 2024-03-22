@@ -1,7 +1,6 @@
 error: syntax error
-   ╭─[line:1:52]
-   │
- 1 │ import "test_proto2"import "test_proto3"rule test {}
-   │                                                    │ 
-   │                                                    ╰─ expected `condition`, `meta`, or `strings`
-───╯
+ --> line:1:12
+  |
+1 | rule test {}
+  |            ^ expected `condition`, `meta`, or `strings`
+  |

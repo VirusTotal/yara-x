@@ -1,7 +1,6 @@
 error: invalid pattern `$a`
-   ╭─[line:3:13]
-   │
- 3 │   $a = { 01 ~0 11 }
-   │             ─┬  
-   │              ╰── uneven number of nibbles
-───╯
+ --> line:3:13
+  |
+3 |   $a = { 01 ~0 11 }
+  |             ^^ uneven number of nibbles
+  |

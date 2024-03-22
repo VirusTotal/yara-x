@@ -1,9 +1,7 @@
 error: mismatching types
-   ╭─[line:4:7]
-   │
- 4 │       n == "3"
-   │       ┬    ─┬─  
-   │       ╰───────── this expression is `integer`
-   │             │   
-   │             ╰─── this expression is `string`
-───╯
+ --> line:4:7
+  |
+4 |       n == "3"
+  |       ^ this expression is `integer`
+  |            ^^^ this expression is `string`
+  |

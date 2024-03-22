@@ -1,7 +1,6 @@
 error: syntax error
-   ╭─[line:1:49]
-   │
- 1 │ import "test_proto2"import "test_proto3"private foo rule test { condition: true }
-   │                                                 │ 
-   │                                                 ╰─ expected `global` or `rule`
-───╯
+ --> line:1:9
+  |
+1 | private foo rule test { condition: true }
+  |         ^ expected `global` or `rule`
+  |

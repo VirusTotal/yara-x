@@ -29,8 +29,8 @@ resolver = "2"
 
 [workspace.dependencies]
 aho-corasick = "1.1.2"
+annotate-snippets = "0.11.1"
 anyhow = "1.0.75"
-ariadne = "0.3.0"
 array-bytes = "6.2.0"
 ascii_tree = "0.1.1"
 authenticode-parser = "0.5.0"

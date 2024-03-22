@@ -593,7 +593,7 @@ fn continue_after_error() {
 
 #[test]
 fn errors_2() {
-    std::assert_eq!(
+    assert_eq!(
         Compiler::new()
             .define_global("foo", 1)
             .unwrap()
@@ -601,16 +601,14 @@ fn errors_2() {
             .unwrap_err()
             .to_string(),
         "error: rule `foo` conflicts with an existing identifier
-   ╭─[line:1:6]
-   │
- 1 │ rule foo  {condition: true}
-   │      ─┬─  
-   │       ╰─── identifier already in use by a module or global variable
-───╯
-"
+ --> line:1:6
+  |
+1 | rule foo  {condition: true}
+  |      ^^^ identifier already in use by a module or global variable
+  |"
     );
 
-    std::assert_eq!(
+    assert_eq!(
         Compiler::new()
             .add_source("rule foo : first {condition: true}")
             .unwrap()
@@ -618,19 +616,12 @@ fn errors_2() {
             .unwrap_err()
             .to_string(),
         "error: duplicate rule `foo`
-   ╭─[line:1:6]
-   │
- 1 │ rule foo : first {condition: true}
-   │      ─┬─  
-   │       ╰─── `foo` declared here for the first time
-   │
-   ├─[line:1:6]
-   │
- 1 │ rule foo : second {condition: true}
-   │      ─┬─  
-   │       ╰─── duplicate declaration of `foo`
-───╯
-"
+ --> line:1:6
+  |
+1 | rule foo : first {condition: true}
+  |      ^^^ `foo` declared here for the first time
+  |      ^^^ duplicate declaration of `foo`
+  |"
     );
 }
 
@@ -648,13 +639,11 @@ fn utf8_errors() {
             .expect_err("expected error")
             .to_string(),
         "error: invalid UTF-8
-   ╭─[line:1:5]
-   │
- 1 │ rule� test {condition: true}
-   │     ┬  
-   │     ╰── invalid UTF-8 character
-───╯
-"
+ --> line:1:5
+  |
+1 | rule� test {condition: true}
+  |     ^ invalid UTF-8 character
+  |"
     );
 }
 
@@ -673,14 +662,6 @@ fn test_errors() {
         let out_path = in_path.with_extension("out");
 
         let mut src = String::new();
-
-        if cfg!(feature = "test_proto2-module") {
-            src.push_str(r#"import "test_proto2""#);
-        }
-
-        if cfg!(feature = "test_proto3-module") {
-            src.push_str(r#"import "test_proto3""#);
-        }
 
         let rules = fs::read_to_string(&in_path).expect("unable to read");
 
@@ -714,15 +695,6 @@ fn test_warnings() {
         let out_path = in_path.with_extension("out");
 
         let mut src = String::new();
-
-        if cfg!(feature = "test_proto2-module") {
-            src.push_str(r#"import "test_proto2""#);
-        }
-
-        if cfg!(feature = "test_proto3-module") {
-            src.push_str(r#"import "test_proto3""#);
-        }
-
         let rules = fs::read_to_string(&in_path).expect("unable to read");
 
         src.push_str(rules.as_str());

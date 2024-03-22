@@ -1,7 +1,6 @@
 error: duplicate tag `tag1`
-   ╭─[line:1:58]
-   │
- 1 │ import "test_proto2"import "test_proto3"rule test : tag1 tag1 { condition: true }
-   │                                                          ──┬─  
-   │                                                            ╰─── duplicate tag
-───╯
+ --> line:1:18
+  |
+1 | rule test : tag1 tag1 { condition: true }
+  |                  ^^^^ duplicate tag
+  |

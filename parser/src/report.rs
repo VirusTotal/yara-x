@@ -1,24 +1,18 @@
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
-use std::ops::Range;
+use std::fmt::Debug;
 
-use ariadne::{Color, Label, ReportKind, Source};
+use annotate_snippets;
 use pest::error::ErrorVariant::{CustomError, ParsingError};
 use pest::error::InputLocation;
-use yansi::Style;
 
 use crate::ast::Span;
 use crate::parser::GrammarRule;
 use crate::parser::SourceCode;
 use crate::parser::{Error, ErrorInfo};
 
-/// Types of reports created by [`ReportBuilder`].
-pub enum ReportType {
-    Error,
-    Warning,
-}
+pub type Level = annotate_snippets::Level;
 
 /// Identifier associated to each source file registered in a [`ReportBuilder`].
 ///
@@ -36,7 +30,7 @@ pub struct SourceId(u32);
 
 /// Builds error and warning reports.
 ///
-/// `ReportBuilder` helps creating error and warning reports. It stores a copy
+/// `ReportBuilder` helps to create error and warning reports. It stores a copy
 /// of every source file registered with [register_source], and then allows
 /// creating error reports with annotated code snippets obtained from those
 /// source files.
@@ -58,57 +52,8 @@ struct Cache {
 
 /// Each of the entries stored in [`Cache`].
 struct CacheEntry {
-    /// The source code, as stored by [`ariadne`].
-    source: Source,
-    /// A copy of the source code. The field is used only by
-    /// [`ReportBuilder::ast_span_to_ariadne`] for converting AST byte-wise
-    /// spans to character-wise spans expected by [`ariadne`]. Unfortunately
-    /// the `source` field above is not an exact copy of the source code
-    /// (trailing spaces are removed) and therefore can't be used for this
-    /// purpose. Having two copies of each source file, and making these span
-    /// conversions is quite inefficient, but the alternative is adapting
-    /// [`ariadne`] to our needs or switching to a similar crate that works
-    /// with byte-wise spans.
-    /// TODO: consider adapting ariadne to our needs by allowing byte-wise
-    /// spans.
     code: String,
     origin: Option<String>,
-}
-
-/// &Cache implements the [`ariadne::Cache`] trait.
-impl ariadne::Cache<SourceId> for &Cache {
-    /// Called when `ariadne` needs to retrieve a source code by [`SourceId`].
-    fn fetch(
-        &mut self,
-        id: &SourceId,
-    ) -> Result<&Source, Box<dyn Debug + '_>> {
-        self.data
-            .get(id)
-            .map(|entry| &entry.source)
-            .ok_or(Box::new(format!("failed to fetch source `{:?}`", id)) as _)
-    }
-
-    /// Called when `ariadne` needs to display a string identifying a source
-    /// code in the error report. For example, in the report below the string
-    /// `test.yar` in `[test.yar:1:6]` is returned by this function.
-    ///
-    /// ```text
-    /// error: some error message here
-    ///    ╭─[test.yar:1:6]
-    ///    .
-    ///    .
-    /// ───╯
-    /// ```
-    ///
-    /// This function returns the origin associated with the source file, if
-    /// any, or the placeholder `line`.
-    fn display<'a>(&self, id: &'a SourceId) -> Option<Box<dyn Display + 'a>> {
-        if let Some(origin) = self.data.get(id).unwrap().origin.as_ref() {
-            Some(Box::new(origin.clone()))
-        } else {
-            Some(Box::new("line"))
-        }
-    }
 }
 
 impl Default for ReportBuilder {
@@ -154,19 +99,13 @@ impl ReportBuilder {
         self.current_source_id.set(Some(source_id));
 
         let map = &mut self.cache.borrow_mut().data;
-        // ariadne::Source::from(...) is an expensive operation, so it's
-        // done only if the SourceCode is not already in the cache.
         map.entry(source_id).or_insert_with(|| {
             let s = if let Some(s) = src.valid {
                 Cow::Borrowed(s)
             } else {
                 String::from_utf8_lossy(src.raw.as_ref())
             };
-            CacheEntry {
-                source: ariadne::Source::from(s.as_ref()),
-                code: s.to_string(),
-                origin: src.origin.clone(),
-            }
+            CacheEntry { code: s.to_string(), origin: src.origin.clone() }
         });
         self
     }
@@ -174,63 +113,44 @@ impl ReportBuilder {
     /// Creates a new error or warning report.
     pub fn create_report(
         &self,
-        report_type: ReportType,
+        level: Level,
         span: Span,
         title: String,
-        labels: Vec<(Span, String, Style)>,
+        labels: Vec<(Span, String, Level)>,
         note: Option<String>,
     ) -> String {
-        let kind = match report_type {
-            ReportType::Error => {
-                ReportKind::Custom("error", self.color(Color::Red))
-            }
-            ReportType::Warning => {
-                ReportKind::Custom("warning", self.color(Color::Yellow))
-            }
-        };
-
-        let title = if self.with_colors {
-            Color::Default.style().bold().paint(title)
-        } else {
-            Color::Unset.paint(title)
-        };
-
         let source_id = span.source_id();
-        // The span specified in the AST are byte-wise, but the spans expected
-        // by Ariadne are character-wise. Some conversion is required.
-        let span = self.ast_span_to_ariadne(span);
+        let cache = self.cache.borrow();
+        let cache_entry = cache.data.get(&source_id).unwrap();
+        let src = cache_entry.code.as_str();
 
-        let mut report_builder =
-            ariadne::Report::build(kind, source_id, span.start)
-                .with_config(
-                    ariadne::Config::default().with_color(self.with_colors),
-                )
-                .with_message(title);
+        let mut message = level.title(title.as_str());
 
-        for (span, label, style) in labels {
-            let label = if self.with_colors {
-                style.paint(label)
-            } else {
-                Color::Unset.paint(label)
-            };
+        let mut snippet = annotate_snippets::Snippet::source(src)
+            .origin(cache_entry.origin.as_deref().unwrap_or("line"))
+            .fold(true);
 
-            let source_id = span.source_id();
-            let span = self.ast_span_to_ariadne(span);
-
-            report_builder = report_builder
-                .with_label(Label::new((source_id, span)).with_message(label));
+        for (span, label, level) in &labels {
+            snippet = snippet.annotation(
+                level.span(span.start()..span.end()).label(label.as_str()),
+            );
         }
 
-        if let Some(note) = note {
-            report_builder = report_builder.with_note(note);
+        message = message.snippet(snippet);
+
+        if let Some(note) = &note {
+            message = message.footer(Level::Note.title(note.as_str()));
         }
 
-        let report = report_builder.finish();
-        let mut buffer = Vec::<u8>::new();
+        let renderer = if self.with_colors {
+            annotate_snippets::Renderer::styled()
+        } else {
+            annotate_snippets::Renderer::plain()
+        };
 
-        report.write(&*self.cache.borrow(), &mut buffer).unwrap();
+        let message = renderer.render(message);
 
-        String::from_utf8(buffer).unwrap()
+        message.to_string()
     }
 
     pub(crate) fn convert_pest_error(
@@ -283,10 +203,10 @@ impl ReportBuilder {
         };
 
         let detailed_report = self.create_report(
-            ReportType::Error,
+            Level::Error,
             error_span,
             title.to_string(),
-            vec![(error_span, error_msg.clone(), Color::Red.style().bold())],
+            vec![(error_span, error_msg.clone(), Level::Error)],
             note,
         );
 
@@ -295,42 +215,5 @@ impl ReportBuilder {
             error_msg,
             error_span,
         })
-    }
-
-    /// Converts an AST [`Span`] to an ariadne span.
-    ///
-    /// AST spans are bytewise ranges within the source code (i.e: the
-    /// `start` and `end` fields in [`Span`] are byte offsets. The
-    /// [`ariadne`] crate however works with character-wise spans (they
-    /// indicate the starting and ending characters within the source
-    /// code).
-    ///
-    /// For pure ASCII source codes, where each character is represented
-    /// by a single byte, this is not an issue, but UTF-8 characters are
-    /// not always 1-byte long. This means that AST span must converted
-    /// to character-wise spans before being passed to [`ariadne`]
-    fn ast_span_to_ariadne(&self, span: Span) -> Range<usize> {
-        let cache = self.cache.borrow();
-        let cache_entry = cache.data.get(&span.source_id()).unwrap();
-        let code = cache_entry.code.as_str();
-
-        // `char_start` is the number of UTF-8 characters (not bytes) that are
-        // from the start of the code to the start of the span.
-        let char_start = code[0..span.start()].chars().count();
-
-        // `char_end` is the number of UTF-8 characters from the start of the
-        // code to the end of the span.
-        let char_end =
-            char_start + code[span.start()..span.end()].chars().count();
-
-        char_start..char_end
-    }
-
-    fn color(&self, c: Color) -> Color {
-        if self.with_colors {
-            c
-        } else {
-            Color::Unset
-        }
     }
 }

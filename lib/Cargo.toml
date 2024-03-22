@@ -152,7 +152,6 @@ default = [
 [dependencies]
 aho-corasick = { workspace = true, features = ["logging"] }
 anyhow = { workspace = true }
-ariadne = { workspace = true }
 array-bytes = { workspace = true }
 ascii_tree = { workspace = true }
 authenticode-parser = { workspace = true, optional = true }

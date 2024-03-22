@@ -1,7 +1,6 @@
 error: syntax error
-   ╭─[line:1:68]
-   │
- 1 │ import "test_proto2"import "test_proto3"rule test { condition: true
-   │                                                                    │ 
-   │                                                                    ╰─ expected closing brace `}` or operator
-───╯
+ --> line:1:28
+  |
+1 | rule test { condition: true
+  |                            ^ expected closing brace `}` or operator
+  |

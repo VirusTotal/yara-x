@@ -1,7 +1,6 @@
 error: syntax error
-   ╭─[line:1:62]
-   │
- 1 │ import "test_proto2"import "test_proto3"rule test { strings: condition: true }
-   │                                                              │ 
-   │                                                              ╰─ expected pattern identifier
-───╯
+ --> line:1:22
+  |
+1 | rule test { strings: condition: true }
+  |                      ^ expected pattern identifier
+  |

@@ -1153,7 +1153,7 @@ fn func_call_from_ast(
             ctx.report_builder,
             func_call.args_span,
             Some(format!(
-                "accepted argument combinations:\n   │\n   │       {}",
+                "accepted argument combinations:\n\n{}",
                 expected_args
                     .iter()
                     .map(|v| {
@@ -1166,7 +1166,7 @@ fn func_call_from_ast(
                         )
                     })
                     .collect::<Vec<String>>()
-                    .join("\n   │       ")
+                    .join("\n")
             )),
         )));
     }

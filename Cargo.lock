@@ -89,6 +89,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
+name = "annotate-snippets"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "238760b2324c811147d933e41f1743e4a8e309c8f3a15f417232e5980e5ce765"
+dependencies = [
+ "anstyle",
+ "unicode-width",
+]
+
+[[package]]
 name = "anstream"
 version = "0.6.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -147,16 +157,6 @@ name = "arbitrary"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d5a26814d8dcb93b0e5a0ff3c6d80a8843bafb21b39e8e18a6f05471870e110"
-
-[[package]]
-name = "ariadne"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72fe02fc62033df9ba41cba57ee19acf5e742511a140c7dbc3a873e19a19a1bd"
-dependencies = [
- "unicode-width",
- "yansi 0.5.1",
-]
 
 [[package]]
 name = "array-bytes"
@@ -4407,7 +4407,6 @@ version = "0.1.0"
 dependencies = [
  "aho-corasick",
  "anyhow",
- "ariadne",
  "array-bytes",
  "ascii_tree",
  "authenticode-parser",
@@ -4526,7 +4525,7 @@ dependencies = [
 name = "yara-x-parser"
 version = "0.1.0"
 dependencies = [
- "ariadne",
+ "annotate-snippets",
  "ascii_tree",
  "base64 0.22.0",
  "bitmask",
