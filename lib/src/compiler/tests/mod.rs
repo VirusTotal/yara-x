@@ -619,7 +619,11 @@ fn errors_2() {
  --> line:1:6
   |
 1 | rule foo : first {condition: true}
-  |      ^^^ `foo` declared here for the first time
+  |      --- note: `foo` declared here for the first time
+  |
+ ::: line:1:6
+  |
+1 | rule foo : second {condition: true}
   |      ^^^ duplicate declaration of `foo`
   |"
     );

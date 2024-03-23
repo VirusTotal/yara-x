@@ -119,10 +119,10 @@ impl ReportBuilder {
         labels: Vec<(Span, String, Level)>,
         note: Option<String>,
     ) -> String {
-        let source_id = span.source_id();
         let cache = self.cache.borrow();
-        let cache_entry = cache.data.get(&source_id).unwrap();
-        let src = cache_entry.code.as_str();
+        let mut source_id = span.source_id();
+        let mut cache_entry = cache.data.get(&source_id).unwrap();
+        let mut src = cache_entry.code.as_str();
 
         let mut message = level.title(title.as_str());
 
@@ -131,9 +131,24 @@ impl ReportBuilder {
             .fold(true);
 
         for (span, label, level) in &labels {
-            snippet = snippet.annotation(
-                level.span(span.start()..span.end()).label(label.as_str()),
-            );
+            if span.source_id() == source_id {
+                snippet = snippet.annotation(
+                    level.span(span.start()..span.end()).label(label.as_str()),
+                );
+            } else {
+                source_id = span.source_id();
+                message = message.snippet(snippet);
+                cache_entry = cache.data.get(&source_id).unwrap();
+                src = cache_entry.code.as_str();
+                snippet = annotate_snippets::Snippet::source(src)
+                    .origin(cache_entry.origin.as_deref().unwrap_or("line"))
+                    .fold(true)
+                    .annotation(
+                        level
+                            .span(span.start()..span.end())
+                            .label(label.as_str()),
+                    )
+            }
         }
 
         message = message.snippet(snippet);
