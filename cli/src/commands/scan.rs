@@ -321,6 +321,16 @@ fn print_matching_rules(
                         }
                     }
 
+                    if match_data.len() > *limit {
+                        msg.push_str(
+                            format!(
+                                " ... {} more bytes",
+                                match_data.len().saturating_sub(*limit)
+                            )
+                            .as_str(),
+                        );
+                    }
+
                     output.send(Message::Info(msg)).unwrap();
                 }
             }
