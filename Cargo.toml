@@ -88,7 +88,7 @@ uuid = "1.4.1"
 walrus = "0.20.2"
 wasmtime = "18.0.2"
 yaml-rust = "0.4.5"
-yansi = "0.5.1"
+yansi = "1.0.1"
 yara-x = { path = "lib" }
 yara-x-fmt = { path = "fmt" }
 yara-x-macros = { path = "macros" }

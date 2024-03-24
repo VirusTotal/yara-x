@@ -7,6 +7,7 @@ use clap::{arg, value_parser, ArgAction, ArgMatches, Command};
 use crossterm::tty::IsTty;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Green, Red, Yellow};
+use yansi::Paint;
 use yara_x_parser::{Parser, SourceCode};
 
 use crate::walk::Message;
@@ -92,7 +93,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                         state.files_passed.fetch_add(1, Ordering::Relaxed);
                         lines.push(format!(
                             "[ {} ] {}",
-                            Green.paint("PASS").bold(),
+                            "PASS".paint(Green).bold(),
                             file_path.display()
                         ));
                     } else {
@@ -101,7 +102,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                             .fetch_add(ast.warnings.len(), Ordering::Relaxed);
                         lines.push(format!(
                             "[ {} ] {}",
-                            Yellow.paint("WARN").bold(),
+                            "WARN".paint(Yellow).bold(),
                             file_path.display()
                         ));
                         for warning in ast.warnings {
@@ -113,7 +114,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
                     state.errors.fetch_add(1, Ordering::Relaxed);
                     lines.push(format!(
                         "[ {} ] {}\n{}",
-                        Red.paint("FAIL").bold(),
+                        "FAIL".paint(Red).bold(),
                         file_path.display(),
                         err,
                     ));
@@ -127,7 +128,7 @@ pub fn exec_check(args: &ArgMatches) -> anyhow::Result<()> {
         |err, output| {
             let _ = output.send(Message::Error(format!(
                 "{} {}",
-                Red.paint("error:").bold(),
+                "error:".paint(Red).bold(),
                 err
             )));
 
@@ -163,28 +164,25 @@ impl Component for CheckState {
     ) -> anyhow::Result<superconsole::Lines> {
         let res = match mode {
             superconsole::DrawMode::Normal | superconsole::DrawMode::Final => {
-                let ok = Green
-                    .paint(format!(
-                        "{} file(s) ok. ",
-                        self.files_passed.load(Ordering::Relaxed)
-                    ))
-                    .bold();
-                let warnings = Yellow
-                    .paint(format!(
-                        "warnings: {}. ",
-                        self.warnings.load(Ordering::Relaxed)
-                    ))
-                    .bold();
-                let errors = Red
-                    .paint(format!(
-                        "errors: {}.",
-                        self.errors.load(Ordering::Relaxed)
-                    ))
-                    .bold();
+                let ok = format!(
+                    "{} file(s) ok. ",
+                    self.files_passed.load(Ordering::Relaxed)
+                );
+
+                let warnings = format!(
+                    "warnings: {}. ",
+                    self.warnings.load(Ordering::Relaxed)
+                );
+
+                let errors = format!(
+                    "errors: {}.",
+                    self.errors.load(Ordering::Relaxed)
+                );
+
                 Line::from_iter([
-                    Span::new_unstyled(ok)?,
-                    Span::new_unstyled(warnings)?,
-                    Span::new_unstyled(errors)?,
+                    Span::new_unstyled(ok.paint(Red).bold())?,
+                    Span::new_unstyled(warnings.paint(Yellow).bold())?,
+                    Span::new_unstyled(errors.paint(Red).bold())?,
                 ])
             }
         };

@@ -174,7 +174,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 let output = output.clone();
                 scanner.console_log(move |msg| {
                     output
-                        .send(Message::Error(format!("{}", Yellow.paint(msg))))
+                        .send(Message::Error(format!("{}", msg.paint(Yellow))))
                         .unwrap();
                 });
             }
@@ -251,7 +251,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         |err, output| {
             let _ = output.send(Message::Error(format!(
                 "{} {}: {}",
-                Red.paint("error:").bold(),
+                "error: ".paint(Red).bold(),
                 err,
                 err.root_cause(),
             )));
@@ -289,14 +289,14 @@ fn print_matching_rules(
         let line = if print_namespace {
             format!(
                 "{}:{} {}",
-                Cyan.paint(matching_rule.namespace()).bold(),
-                Cyan.paint(matching_rule.identifier()).bold(),
+                matching_rule.namespace().paint(Cyan).bold(),
+                matching_rule.identifier().paint(Cyan).bold(),
                 file_path.display(),
             )
         } else {
             format!(
                 "{} {}",
-                Cyan.paint(matching_rule.identifier()).bold(),
+                matching_rule.identifier().paint(Cyan).bold(),
                 file_path.display()
             )
         };
