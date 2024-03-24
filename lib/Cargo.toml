@@ -206,15 +206,9 @@ protobuf-parse = { workspace = true }
 yara-x-proto = { workspace = true }
 
 [dev-dependencies]
-criterion = { workspace = true }
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
 ihex = "3.0.0"
 pretty_assertions = { workspace = true }
-yara = { version = "0.26.0", features = ["vendored"] }
 yara-x-proto-yaml = { workspace = true }
 zip = "0.6.6"
-
-[[bench]]
-name = "benches"
-harness = false
