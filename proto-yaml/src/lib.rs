@@ -49,7 +49,7 @@ timestamp: 999999999 # 2001-09-09 01:46:39 UTC
 ```
  */
 
-use chrono::prelude::{DateTime, NaiveDateTime, Utc};
+use chrono::prelude::DateTime;
 use itertools::Itertools;
 use protobuf::MessageDyn;
 use std::cmp::Ordering;
@@ -150,11 +150,8 @@ impl<W: Write> Serializer<W> {
         if value_options.is_hex {
             write!(self.output, "0x{:x}", value.into())?;
         } else if value_options.is_timestamp {
-            let timestamp = DateTime::<Utc>::from_naive_utc_and_offset(
-                NaiveDateTime::from_timestamp_opt(value.into(), 0).unwrap(),
-                Utc,
-            )
-            .to_string();
+            let timestamp =
+                DateTime::from_timestamp(value.into(), 0).unwrap().to_string();
 
             write!(self.output, "{} ", value.to_string())?;
             self.write_comment(&timestamp)?;
