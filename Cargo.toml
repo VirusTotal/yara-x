@@ -68,8 +68,8 @@ memx = "0.1.28"
 nom = "7.1.3"
 num-traits = "0.2"
 num-derive = "0.4.1"
-pest = "2.7.5"
-pest_derive = "2.7.5"
+pest = "2.7.8"
+pest_derive = "2.7.8"
 pretty_assertions = "1.4.0"
 protobuf = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
