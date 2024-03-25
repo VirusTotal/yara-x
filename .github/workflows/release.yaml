@@ -42,7 +42,7 @@ jobs:
 
     - name: Install dependencies
       id: vcpkg
-      uses: johnwason/vcpkg-action@v5
+      uses: johnwason/vcpkg-action@v6
       with:
         pkgs: openssl
         triplet: ${{ matrix.vcpkg_openssl_triplet }}
