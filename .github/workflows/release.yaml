@@ -18,45 +18,46 @@ jobs:
         - build: linux
           os: ubuntu-latest
           rust: stable
+          vcpkg_openssl_triplet: x64-linux-release
           args: "--features=openssl-static --target=x86_64-unknown-linux-gnu"
 
         - build: macos
           os: macos-latest
           rust: stable
+          vcpkg_openssl_triplet: x64-osx-release
           args: "--features=openssl-static"
 
         - build: windows
           os: windows-latest
           rust: stable
+          vcpkg_openssl_triplet: x64-windows-static
           args: ""
     
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libssl-dev libmagic-dev
+    #- name: Install dependencies
+    #  if: runner.os == 'Linux'
+    #  run: |
+    #    sudo apt-get update
+    #    sudo apt-get install -y libssl-dev libmagic-dev
 
     - name: Install dependencies
       id: vcpkg
-      #if: runner.os == 'Windows'
       uses: johnwason/vcpkg-action@v5
       with:
         pkgs: openssl
-        triplet: x64-windows-static
+        triplet: ${{ matrix.vcpkg_openssl_triplet }}
         token: ${{ github.token }}
 
     - name: Set OPENSSL environment variables
       shell: bash
       run: |
         if [ "${{ matrix.build }}" = "windows" ]; then
-            echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-release" >> $GITHUB_ENV
+            echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\${{ matrix.vcpkg_openssl_triplet }}" >> $GITHUB_ENV
         else
-            echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV 
-            echo "OPENSSL_INCLUDE_DIR=/usr/include/openssl" >> $GITHUB_ENV 
+            echo "OPENSSL_DIR=${{ github.workspace }}/vcpkg/installed/${{ matrix.vcpkg_openssl_triplet }}" >> $GITHUB_ENV
         fi 
 
     - name: Install Rust toolchain
