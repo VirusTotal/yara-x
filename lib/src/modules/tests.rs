@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
+use rayon::prelude::*;
+
 /// Utility function that receives the content of an [`Intel HEX`][1] (ihex)
 /// file and returns the binary data contained in it.
 ///
@@ -94,11 +96,14 @@ pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
 #[test]
 fn test_modules() {
     // Create goldenfile mint.
-    let mut mint = goldenfile::Mint::new(".");
+    let files: Vec<_> = globwalk::glob("src/modules/**/*.in.zip")
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.into_path())
+        .collect();
 
-    for entry in globwalk::glob("src/modules/**/*.in.zip").unwrap().flatten() {
-        // Path to the .in.zip file.
-        let path = entry.into_path();
+    files.into_par_iter().for_each(|path| {
+        let mut mint = goldenfile::Mint::new(".");
 
         // Read the data encoded in the .in.zip file.
         let data = create_binary_from_zipped_ihex(&path);
@@ -140,5 +145,5 @@ fn test_modules() {
         let mut yaml = yara_x_proto_yaml::Serializer::new(output_file);
 
         yaml.serialize(output).unwrap();
-    }
+    });
 }

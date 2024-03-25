@@ -208,7 +208,8 @@ yara-x-proto = { workspace = true }
 [dev-dependencies]
 globwalk = { workspace = true }
 goldenfile = { workspace = true }
-ihex = "3.0.0"
+ihex = { workspace = true }
 pretty_assertions = { workspace = true }
+rayon = { workspace = true }
 yara-x-proto-yaml = { workspace = true }
-zip = "0.6.6"
+zip = { workspace = true }

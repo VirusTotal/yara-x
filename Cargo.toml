@@ -48,6 +48,7 @@ env_logger = "0.11.3"
 fmmap = "0.3.3"
 globwalk = "0.9.1"
 goldenfile = "1.6.0"
+ihex = "3.0.0"
 indenter = "0.3.3"
 indexmap = "2.2.6"
 intaglio = "1.9.1"
@@ -76,6 +77,7 @@ protobuf-codegen = { git = "https://github.com/plusvic/rust-protobuf.git", rev =
 protobuf-json-mapping = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-parse = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
 protobuf-support = { git = "https://github.com/plusvic/rust-protobuf.git", rev = "b484d8a7" }
+rayon = "1.5.3"
 regex-syntax = { git = "https://github.com/plusvic/regex.git", rev = "50a708b" }
 regex-automata = { git = "https://github.com/plusvic/regex.git", rev = "50a708b" }
 roxmltree = "0.19.0"
@@ -95,6 +97,7 @@ yara-x-macros = { path = "macros" }
 yara-x-parser = { path = "parser" }
 yara-x-proto = { path = "proto" }
 yara-x-proto-yaml = { path = "proto-yaml" }
+zip = "0.6.2"
 
 # Special profile that builds a release binary with link-time optimization. 
 # Compiling with this profile takes a while, but the resulting binary is

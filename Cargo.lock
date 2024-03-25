@@ -4264,6 +4264,7 @@ dependencies = [
  "protobuf",
  "protobuf-codegen",
  "protobuf-parse",
+ "rayon",
  "regex-automata 0.4.6 (git+https://github.com/plusvic/regex.git?rev=50a708b)",
  "regex-syntax 0.8.2 (git+https://github.com/plusvic/regex.git?rev=50a708b)",
  "roxmltree",
