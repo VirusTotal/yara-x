@@ -42,7 +42,7 @@ jobs:
 
     - name: Install dependencies
       id: vcpkg
-      if: runner.os == 'Windows'
+      #if: runner.os == 'Windows'
       uses: johnwason/vcpkg-action@v5
       with:
         pkgs: openssl
