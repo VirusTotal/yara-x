@@ -1,0 +1,100 @@
+name: Release
+on:
+  create:
+    tags:
+    - 'v*'
+jobs:
+  build:
+    env:
+      CARGO_TERM_COLOR: always
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build:
+        - linux
+        - macos
+        - windows
+        include:
+        - build: linux
+          os: ubuntu-latest
+          rust: stable
+          args: ""
+
+        - build: macos
+          os: macos-latest
+          rust: stable
+          args: ""
+
+        - build: windows
+          os: windows-latest
+          rust: stable
+          args: ""
+    
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev libmagic-dev
+
+    - name: Install dependencies
+      id: vcpkg
+      if: runner.os == 'Windows'
+      uses: johnwason/vcpkg-action@v5
+      with:
+        pkgs: openssl
+        triplet: x64-windows-release
+        token: ${{ github.token }}
+
+    - name: Set OPENSSL_DIR environment variable
+      if: runner.os == 'Windows'
+      shell: bash
+      run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-release" >> $GITHUB_ENV
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+
+    - name: Build
+      run: cargo build --profile release-lto  ${{ matrix.args }}
+
+    - name: Build archive
+      shell: bash
+      run: |
+        set -ex
+        pkgname=yara-x-${{ matrix.build }}-${{ github.ref_name }}
+        if [ "${{ matrix.build }}" = "windows" ]; then
+            7z a $pkgname.zip ./target/release-lto/yr.exe
+        else
+            tar czf $pkgname.gzip -C target/release-lto yr      
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: yr-${{ matrix.build }}
+        path: yara-x-*
+  
+  publish:
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: yr-*
+
+    - name: ls
+      shell: bash
+      run: ls
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        files: yr-*/yara-x-*
