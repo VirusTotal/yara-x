@@ -11,11 +11,8 @@ license.workspace = true
 homepage.workspace = true
 rust-version.workspace = true
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
-bitmask =  { workspace = true }
+bitmask = { workspace = true }
 lazy_static = { workspace = true }
 thiserror = { workspace = true }
 yara-x-parser = { workspace = true }
