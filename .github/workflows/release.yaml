@@ -65,7 +65,7 @@ jobs:
         toolchain: ${{ matrix.rust }}
 
     - name: Build
-      run: cargo build --profile release-lto ${{ matrix.args }}
+      run: cargo build --bin yr --profile release-lto ${{ matrix.args }}
       env:
         RUSTFLAGS: "-C target-feature=+crt-static"
 
