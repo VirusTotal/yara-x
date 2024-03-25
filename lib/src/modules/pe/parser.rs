@@ -1156,7 +1156,7 @@ impl<'a> PE<'a> {
             let (remainder, structure) = take(length)(input)?;
 
             // Parse the structure's first fields.
-            let (_, (consumed, (_, value_len, type_, key))) =
+            let (_, (consumed, (_, value_len, _type, key))) =
                 consumed(tuple((
                     le_u16,            // length
                     le_u16,            // value_length
@@ -1170,8 +1170,9 @@ impl<'a> PE<'a> {
             // it up to a 32-bits boundary.
             let alignment = Self::round_up(consumed.len());
 
-            // Then take `alignment` bytes from the start of the structure.
-            let (data, _) = take(alignment)(structure)?;
+            // Then take `alignment` bytes from the start of the structure. The
+            // remaining bytes contain the value and children.
+            let (value_and_children, _) = take(alignment)(structure)?;
 
             // The value will be parsed only if `value_parser` it not `None` and
             // `value_len` is larger than zero. If `value_parser` is `None` the
@@ -1197,27 +1198,22 @@ impl<'a> PE<'a> {
                     // in bytes, even if `type` is 1, that's the case of:
                     // db6a9934570fa98a93a979e7e0e218e0c9710e5a787b18c6948f2eedd9338984
                     //
-                    // For this reason when `type` is 1, we first assume that
-                    // `value_length` is in characters, and if the value parser fails,
-                    // then try again assuming that `value_length` is in bytes.
-                    let (data, value) = if type_ == 1 {
-                        take(value_len * 2)
-                            .and_then(|v| value_parser.parse(v))
-                            .parse(data)
-                            .or_else(|_| {
-                                take(value_len)
-                                    .and_then(|v| value_parser.parse(v))
-                                    .parse(data)
-                            })?
-                    } else {
-                        take(value_len)
-                            .and_then(|v| value_parser.parse(v))
-                            .parse(data)?
-                    };
-
-                    (data, Some(value))
+                    // To make things even worse, there are files where `value_length`
+                    // is incorrect, like in:
+                    // 8daffcac250ed6927e3d600e6bf14ea1d38dd6237f95222e6582495108b63971
+                    //
+                    // For all these reasons `value_length` is not taken into account
+                    // and the whole slice contains the value and the children that
+                    // follow (if any) is passed to the value parser, letting the
+                    // parser determine which is the actual length of the value.
+                    match value_parser.parse(value_and_children) {
+                        Ok((raw_children, value)) => {
+                            (raw_children, Some(value))
+                        }
+                        Err(_) => (value_and_children, None),
+                    }
                 }
-                _ => (data, None),
+                _ => (value_and_children, None),
             };
 
             let (_, children) = children_parser.parse(raw_children)?;
