@@ -56,7 +56,7 @@ jobs:
             echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-release" >> $GITHUB_ENV
         else
             echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV 
-            echo "OPENSSL_INCLUDE_DIR="/usr/include/openssl" >> $GITHUB_ENV 
+            echo "OPENSSL_INCLUDE_DIR=/usr/include/openssl" >> $GITHUB_ENV 
         fi 
 
     - name: Install Rust toolchain
