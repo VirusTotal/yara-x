@@ -18,12 +18,12 @@ jobs:
         - build: linux
           os: ubuntu-latest
           rust: stable
-          args: ""
+          args: "--features=openssl-static"
 
         - build: macos
           os: macos-latest
           rust: stable
-          args: ""
+          args: "--features=openssl-static"
 
         - build: windows
           os: windows-latest
@@ -49,10 +49,15 @@ jobs:
         triplet: x64-windows-static
         token: ${{ github.token }}
 
-    - name: Set OPENSSL_DIR environment variable
-      if: runner.os == 'Windows'
+    - name: Set OPENSSL environment variables
       shell: bash
-      run: echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-static" >> $GITHUB_ENV
+      run: |
+        if [ "${{ matrix.build }}" = "windows" ]; then
+            echo "OPENSSL_DIR=${{ github.workspace }}\\vcpkg\\installed\\x64-windows-release" >> $GITHUB_ENV
+        else
+            echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV 
+            echo "OPENSSL_INCLUDE_DIR="/usr/include/openssl" >> $GITHUB_ENV 
+        fi 
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@master
@@ -60,7 +65,9 @@ jobs:
         toolchain: ${{ matrix.rust }}
 
     - name: Build
-      run: cargo build --profile release-lto  ${{ matrix.args }}
+      run: cargo build --profile release-lto ${{ matrix.args }}
+      env:
+        RUSTFLAGS: "-C target-feature=+crt-static"
 
     - name: Build archive
       shell: bash
