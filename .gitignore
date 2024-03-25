@@ -6,3 +6,6 @@
 *.profraw
 target
 macros/target
+site/node_modules
+site/public
+site/resources
