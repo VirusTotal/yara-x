@@ -70,6 +70,13 @@ jobs:
       env:
         RUSTFLAGS: "-C target-feature=+crt-static"
 
+    - name: ls
+      shell: bash
+      run: |
+        ls
+        ls target
+        ls target/release-lto
+
     - name: Build archive
       shell: bash
       run: |
