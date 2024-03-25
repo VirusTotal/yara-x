@@ -18,7 +18,7 @@ jobs:
         - build: linux
           os: ubuntu-latest
           rust: stable
-          args: "--features=openssl-static"
+          args: "--features=openssl-static --target=x86_64-unknown-linux-gnu"
 
         - build: macos
           os: macos-latest
