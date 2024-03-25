@@ -10,7 +10,7 @@ license = "MIT"
 #   .github/workflows/tests.yaml
 #   .github/workflows/code_health.yaml
 #
-rust-version = "1.73.0"
+rust-version = "1.74.0"
 
 [workspace]
 members = [
@@ -41,7 +41,7 @@ bitvec = "1.0.1"
 bstr = "1.9.1"
 cbindgen = "0.26.0"
 chrono = "0.4.35"
-clap = "4.4.18"
+clap = "4.5.3"
 crc32fast = "1.4.0"
 enable-ansi-support = "0.2.1"
 env_logger = "0.11.3"
