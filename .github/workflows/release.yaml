@@ -18,18 +18,21 @@ jobs:
         - build: linux
           os: ubuntu-latest
           rust: stable
+          target: x86_64-unknown-linux-gnu
           vcpkg_openssl_triplet: x64-linux-release
-          args: "--features=openssl-static --target=x86_64-unknown-linux-gnu"
+          args: "--features=openssl-static"
 
         - build: macos
           os: macos-latest
           rust: stable
+          target: x86_64-apple-darwin
           vcpkg_openssl_triplet: x64-osx-release
           args: "--features=openssl-static"
 
         - build: windows
           os: windows-latest
           rust: stable
+          target: x86_64-pc-windows-msvc
           vcpkg_openssl_triplet: x64-windows-static
           args: ""
     
@@ -66,7 +69,7 @@ jobs:
         toolchain: ${{ matrix.rust }}
 
     - name: Build
-      run: cargo build --bin yr --profile release-lto ${{ matrix.args }}
+      run: cargo build --bin yr --profile release-lto --target ${{ matrix.target }} ${{ matrix.args }}
       env:
         RUSTFLAGS: "-C target-feature=+crt-static"
 
@@ -83,9 +86,9 @@ jobs:
         set -ex
         pkgname=yara-x-${{ matrix.build }}-${{ github.ref_name }}
         if [ "${{ matrix.build }}" = "windows" ]; then
-            7z a $pkgname.zip ./target/release-lto/yr.exe 
+            7z a $pkgname.zip ./target/release-lto/${{ matrix.target }}/yr.exe 
         else
-            tar czf $pkgname.gzip -C target/release-lto yr      
+            tar czf $pkgname.gzip -C target/release-lto/${{ matrix.target }} yr      
         fi
 
     - name: Upload artifacts
