@@ -86,9 +86,9 @@ jobs:
         set -ex
         pkgname=yara-x-${{ matrix.build }}-${{ github.ref_name }}
         if [ "${{ matrix.build }}" = "windows" ]; then
-            7z a $pkgname.zip ./target/release-lto/${{ matrix.target }}/yr.exe 
+            7z a $pkgname.zip ./target/${{ matrix.target }}/release-lto/yr.exe 
         else
-            tar czf $pkgname.gzip -C target/release-lto/${{ matrix.target }} yr      
+            tar czf $pkgname.gzip -C target/${{ matrix.target }}/release-lto yr      
         fi
 
     - name: Upload artifacts
